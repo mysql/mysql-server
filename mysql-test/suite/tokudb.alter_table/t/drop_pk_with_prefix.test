@@ -1,0 +1,32 @@
+# drop primary key should work.  5.5 alter table has a bug where drop pk returns invalid key prefix
+
+source include/have_tokudb.inc;
+set default_storage_engine=tokudb;
+
+disable_warnings;
+DROP TABLE IF EXISTS testtable;
+enable_warnings;
+
+CREATE TABLE `testtable` (
+  `id` INT(11) NOT NULL,
+  `keyword` VARCHAR(299) DEFAULT NULL,
+  PRIMARY KEY (`id`),  
+  KEY `keyword` (`keyword`(100))
+) ENGINE=TokuDB DEFAULT CHARSET=utf8 ROW_FORMAT=TOKUDB_QUICKLZ;
+
+set tokudb_disable_hot_alter=ON;
+ALTER TABLE testtable DROP PRIMARY KEY;
+
+drop table testtable;
+
+CREATE TABLE `testtable` (
+  `id` INT(11) NOT NULL,
+  `keyword` VARCHAR(299) DEFAULT NULL,
+  PRIMARY KEY (`id`),  
+  KEY `keyword` (`keyword`(100))
+) ENGINE=TokuDB DEFAULT CHARSET=utf8 ROW_FORMAT=TOKUDB_QUICKLZ;
+
+set tokudb_disable_hot_alter=OFF;
+ALTER TABLE testtable DROP PRIMARY KEY;
+
+drop table testtable;
