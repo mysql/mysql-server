@@ -194,10 +194,10 @@ primary key using hash (a),
 key (b),
 constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
 show warnings;
 Level	Code	Message
-Warning	1215	Parent table t1 foreign key columns match no index in NDB
+Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
 Error	1215	Cannot add foreign key constraint
 create table t2 (
 a int not null,
@@ -207,10 +207,10 @@ key (b)
 ) engine ndb;
 alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
 show warnings;
 Level	Code	Message
-Warning	1215	Parent table t1 foreign key columns match no index in NDB
+Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
 Error	1215	Cannot add foreign key constraint
 drop table t2, t1;
 # test: parent key no unique index
@@ -315,10 +315,10 @@ primary key using hash (a),
 key (b),
 constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
 show warnings;
 Level	Code	Message
-Warning	1215	Parent table t1 foreign key columns match no index in NDB
+Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
 Error	1215	Cannot add foreign key constraint
 create table t2 (
 a int not null,
@@ -328,10 +328,10 @@ key (b)
 ) engine ndb;
 alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
 show warnings;
 Level	Code	Message
-Warning	1215	Parent table t1 foreign key columns match no index in NDB
+Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
 Error	1215	Cannot add foreign key constraint
 drop table t2, t1;
 # bug#16246874

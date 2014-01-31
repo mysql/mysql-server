@@ -54,6 +54,7 @@ t2.run = function() {
     path.join(api_doc_dir, "TableMapping"));
   var tester = new doc_parser.ClassTester(tableMapping, "TableMapping");
   tester.test(tableMappingDocumentedFunctions, t2);
+  return true; // test is complete
 };
 
 module.exports.tests = [t1,t2];

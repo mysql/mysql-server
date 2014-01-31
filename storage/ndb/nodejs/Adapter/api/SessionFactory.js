@@ -38,13 +38,17 @@ var SessionFactory = function(key, dbConnectionPool, properties, mappings, delet
   this.tableMetadatas = {};
 };
 
+SessionFactory.prototype.inspect = function() {
+  return "[[API SessionFactory with key:" + this.key + ", " + 
+  this.mappings.length + " mappings, " + this.sessions.length + " sessions.]]\n";
+};
 
 //openSession(Function(Object error, Session session, ...) callback, ...);
 // Open new session or get one from a pool
 SessionFactory.prototype.openSession = function() {
   var context = new userContext.UserContext(arguments, 2, 2, null, this);
   // delegate to context for execution
-  context.openSession();
+  return context.openSession();
 };
 
 
@@ -80,7 +84,7 @@ SessionFactory.prototype.allocateSessionSlot = function() {
 SessionFactory.prototype.getTableMetadata = function() {
   var context = new userContext.UserContext(arguments, 2, 2, null, this);
   // delegate to context for execution
-  context.getTableMetadata();
+  return context.getTableMetadata();
 };
 
 
