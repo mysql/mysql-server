@@ -63,6 +63,7 @@ var proto = {
   fieldNumberToFieldMap  : {},
   errorMessages          : '\n',  // error messages during construction
   isValid                : true,
+  autoIncFieldName       : null,
   autoIncColumnNumber    : null   
 };
 
@@ -216,6 +217,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     f = this.columnNumberToFieldMap[i];
     if(c.isAutoincrement) { 
       this.autoIncColumnNumber = i;
+      this.autoIncFieldName = f.fieldName;
     }      
     this.resolvedMapping.fields[i] = {};
     if(f) {
@@ -331,14 +333,12 @@ DBTableHandler.prototype.applyFieldConverters = function(obj, adapter) {
 
 /* setAutoincrement(object, autoincrementValue) 
  * IMMEDIATE
- * Store autoincrement values into object
+ * Store autoincrement value into object
  */
 DBTableHandler.prototype.setAutoincrement = function(object, autoincrementValue) {
-  var autoIncField;
   if(typeof this.autoIncColumnNumber === 'number') {
-    autoIncField = this.columnNumberToFieldMap[this.autoIncColumnNumber];
-    object[autoIncField.fieldName] = autoincrementValue;
-    udebug.log("setAutoincrement", autoIncField.fieldName, ":=", autoincrementValue);
+    object[this.autoIncFieldName] = autoincrementValue;
+    udebug.log("setAutoincrement", this.autoIncFieldName, ":=", autoincrementValue);
   }
 };
 
