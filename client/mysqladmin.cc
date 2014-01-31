@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
-               tty_password= 0, opt_nobeep;
+               tty_password= 0, opt_nobeep, opt_secure_auth= TRUE;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations;
 static uint opt_count_iterations= 0, my_end_arg;
@@ -181,6 +181,9 @@ static struct my_option my_long_options[] =
    "Currently only works with extended-status.",
    &opt_relative, &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
   0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
@@ -349,6 +352,8 @@ int main(int argc,char *argv[])
 
   if (opt_bind_addr)
     mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
+  if (!opt_secure_auth)
+    mysql_options(&mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_connect_timeout)
