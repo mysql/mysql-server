@@ -2026,7 +2026,10 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
        "Maximum number of prepared statements in the server",
        GLOBAL_VAR(max_prepared_stmt_count), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 1024*1024), DEFAULT(16382), BLOCK_SIZE(1),
-       &PLock_prepared_stmt_count);
+       &PLock_prepared_stmt_count, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL), NULL,
+       /* max_prepared_stmt_count is used as a sizing hint by the performance schema. */
+       sys_var::PARSE_EARLY);
 
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
