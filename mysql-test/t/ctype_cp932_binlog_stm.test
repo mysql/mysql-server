@@ -3,6 +3,8 @@
 
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source extra/binlog_tests/ctype_cp932_binlog.test
+-- source include/no_valgrind_without_big.inc
+
 
 call mtr.add_suppression('Error in Log_event::read_log_event()');
 --disable_query_log

@@ -1,4 +1,6 @@
 -- source include/have_sjis.inc
+-- source include/no_valgrind_without_big.inc
+
 
 #
 # Tests with the sjis character set
