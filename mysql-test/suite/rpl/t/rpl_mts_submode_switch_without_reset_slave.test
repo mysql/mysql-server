@@ -100,7 +100,7 @@ SET GLOBAL slave_parallel_type='DATABASE';
 --connection master
 DROP DATABASE db1;
 DROP DATABASE db2;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --connection slave
 

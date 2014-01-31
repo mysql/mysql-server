@@ -238,8 +238,7 @@ table_prepared_stmt_instances::m_share=
   table_prepared_stmt_instances::create,
   NULL, /* write_row */
   table_prepared_stmt_instances::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_prepared_stmt_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -257,6 +256,12 @@ table_prepared_stmt_instances::delete_all_rows(void)
 {
   reset_prepared_stmt_instances();
   return 0;
+}
+
+ha_rows
+table_prepared_stmt_instances::get_row_count(void)
+{
+  return prepared_stmt_max;
 }
 
 table_prepared_stmt_instances::table_prepared_stmt_instances()

@@ -1,7 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+--source include/have_myisam.inc
+# Some bugs have MyISAM specific tests
 
 -- source include/have_ucs2.inc
 
@@ -577,7 +575,7 @@ set character_set_client= concat('ucs', substr('2', 1));
 #
 # BUG#31159 - fulltext search on ucs2 column crashes server
 #
-CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci);
+CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) engine=MyISAM;
 INSERT INTO t1 VALUES('abcd');
 SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
 DROP TABLE t1;

@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -872,77 +872,6 @@
    fun:lf_hash_search
 }
 
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 8
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:handle_options
-   fun:_Z20handle_early_optionsv
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 8-mem
-   Memcheck:Leak
-   fun:my_malloc
-   ...
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:handle_options
-   fun:_Z20handle_early_optionsv
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 9
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z25init_pfs_instrument_arrayv
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 9-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z25init_pfs_instrument_arrayv
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 9a
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:_Z20handle_early_optionsv
-   fun:_Z11mysqld_mainiPPc
-}
-
-{
-   missing shutdown_performance_schema 11-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:(below main)
-}
-
 {
    Bug 59874 Valgrind warning in InnoDB compression code
    Memcheck:Cond
@@ -1144,24 +1073,6 @@
    fun:SSL_COMP_get_compression_methods
    fun:SSL_library_init
 }
-{
-   BUG#14801497 CONDITIONAL JUMP OR MOVE DEPENDS ON UNINITIALISED VALUE(S) IN CREATE_TMP_TABLE
-   Memcheck:Cond
-   fun:_Z16create_tmp_tableP3THDP15TMP_TABLE_PARAMR4ListI4ItemEP8st_orderbbyyPKc
-   fun:_Z19create_schema_tableP3THDP10TABLE_LIST
-   fun:_Z18mysql_schema_tableP3THDP3LEXP10TABLE_LIST
-   ...
-   fun:_Z11open_tablesP3THDPP10TABLE_LISTPjjP19Prelocking_strategy
-   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbjP19Prelocking_strategy
-   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbj
-   fun:_Z21mysql_execute_commandP3THD
-   fun:_Z11mysql_parseP3THDPcjP12Parser_state
-   fun:_Z16dispatch_command19enum_server_commandP3THDPcj
-   fun:_Z24do_handle_one_connectionP3THD
-   fun:handle_one_connection
-   fun:pfs_spawn_thread
-}
-
 
 {
    Bug#16039908 "BYTES STILL REACHABLE" IN VALGRIND TEST ON 5.6/TRUNK
@@ -1174,7 +1085,17 @@
    fun:_ZL10plugin_delP13st_plugin_int
    fun:_ZL12reap_pluginsv
    fun:_Z15plugin_shutdownv
-   fun:_ZL8clean_upb
+   fun:_ZL8clean_upb*
+}
+
+{
+   main.udf gives similar warning as Bug#16039908
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z8udf_freev
+   fun:_ZL8clean_upb*
 }
 
 #Suppress warnings from glibc implementation of 'malloc_info' 

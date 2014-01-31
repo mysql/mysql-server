@@ -10,11 +10,13 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SELECT COUNT(a) FROM t;
 COUNT(a)
 200
+include/sync_slave_sql_with_master.inc
 # Slave results
 SELECT COUNT(a) FROM t;
 COUNT(a)
 200
 # Clean up
 DROP TABLE t;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 # End of tests

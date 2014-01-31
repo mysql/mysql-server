@@ -19,4 +19,5 @@ select * from t2;
 a
 1
 drop table t1,t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

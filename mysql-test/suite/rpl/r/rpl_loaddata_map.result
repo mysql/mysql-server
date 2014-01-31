@@ -24,10 +24,12 @@ master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE 'MYSQLTE
 master-bin.000001	#	Query	#	#	COMMIT
 ==== Verify results on slave ====
 [on slave]
+include/sync_slave_sql_with_master.inc
 select count(*) from t2 /* 5 000 */;
 count(*)
 5000
 ==== Clean up ====
 [on master]
 drop table t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

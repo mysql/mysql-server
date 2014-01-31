@@ -11,6 +11,7 @@ SET @@session.binlog_format= statement;
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb /* group one */;
 UPDATE t1 SET id= 1 WHERE id = 0          /* group two */;
 CREATE TABLE t_ignore(id INTEGER) ENGINE= Innodb /* group three */;
+include/sync_slave_sql_with_master.inc
 must be *three* groups logged, where the two last empty:
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -37,5 +38,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Previous_gtids	#	#	Gtid_set
 DROP TABLE t1;
 DROP TABLE t_ignore;
+include/sync_slave_sql_with_master.inc
 SET @@global.binlog_format= @save.binlog_format;
 include/rpl_end.inc

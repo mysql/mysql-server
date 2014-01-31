@@ -5568,34 +5568,23 @@ void TABLE::use_index(int key_to_save)
 {
   DBUG_ASSERT(!created && s->keys && key_to_save < (int)s->keys);
 
-  /* Correct fields' info about taking part in keys */
-  for (int i= 0; i < (int)s->keys; i++)
+  Field **reg_field;
+  /*
+    Reset the flags and maps associated with the fields. They are set
+    only for the key chosen by the optimizer later.
+   */
+  for (reg_field=field ; *reg_field; reg_field++)
   {
-    uint j;
-    KEY_PART_INFO *kp;
-    for (kp= key_info[i].key_part, j= 0;
-         j < key_info[i].user_defined_key_parts;
-         j++, kp++)
-    {
-      if (i == key_to_save)
-      {
-        if (kp->field->key_start.is_set(i))
-          kp->field->key_start.set_prefix(1);
-        kp->field->part_of_key.set_prefix(1);
-        kp->field->part_of_sortkey.set_prefix(1);
-      }
-      else
-      {
-        kp->field->key_start.clear_all();
-        kp->field->part_of_key.clear_all();
-        kp->field->part_of_sortkey.clear_all();
-      }
-    }
+    if(!(*reg_field)->part_of_key.is_set(key_to_save))
+      (*reg_field)->key_start.clear_all();
+    (*reg_field)->part_of_key.clear_all();
+    (*reg_field)->part_of_sortkey.clear_all();
+    (*reg_field)->flags&= ~PART_KEY_FLAG;
   }
 
+  /* Drop all keys if none of them were chosen */
   if (key_to_save < 0)
   {
-    /* Drop all keys; */
     key_info= s->key_info= 0;
     s->key_parts= 0;
     s->keys= 0;
@@ -5605,6 +5594,20 @@ void TABLE::use_index(int key_to_save)
   }
   else
   {
+    /* Set the flags and maps for the key chosen by the optimizer */
+    uint i;
+    KEY_PART_INFO *kp;
+    for (kp= key_info[key_to_save].key_part, i= 0;
+         i < key_info[key_to_save].user_defined_key_parts;
+         i++, kp++)
+    {
+      if (kp->field->key_start.is_set(key_to_save))
+        kp->field->key_start.set_prefix(1);
+      kp->field->part_of_key.set_prefix(1);
+      kp->field->part_of_sortkey.set_prefix(1);
+      kp->field->flags|= PART_KEY_FLAG;
+    }
+
     /* Save the given key. No need to copy key#0. */
     if (key_to_save > 0)
       key_info[0]= key_info[key_to_save];

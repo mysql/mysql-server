@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # Setup semisync master
 # Usage:
@@ -29,4 +29,8 @@ if ($value == No such row)
   eval SET GLOBAL rpl_semi_sync_master_enabled = $semisync_master_enabled;
 }
 
+SET @save_sql_log_bin= @@sql_log_bin;
+SET @@sql_log_bin = 0;
+CALL mtr.add_suppression(".*Got an error reading communication packets.*");
+SET @@sql_log_bin = @save_sql_log_bin;
 --source include/end_include_file.inc
