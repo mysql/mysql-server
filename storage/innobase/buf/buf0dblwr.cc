@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -513,9 +513,6 @@ buf_dblwr_process()
 			       read_buf, NULL);
 
 			/* Check if the page is corrupt */
-			ib_logf(IB_LOG_LEVEL_INFO,
-					"Checking space:%lu page:%lu",
-					 (ulong) space_id, (ulong) page_no);
 
 			if (buf_page_is_corrupted(true, read_buf, zip_size)) {
 

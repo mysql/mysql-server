@@ -26,7 +26,7 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 let $connect_retry= 20;
 
 --echo *** Preparing ***
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --disable_query_log
 call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.");
@@ -147,7 +147,7 @@ RESET MASTER;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry;
 --source include/start_slave.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SHOW VARIABLES LIKE 'slave_net_timeout';
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
@@ -169,7 +169,7 @@ SET @@global.slave_net_timeout=100;
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=20;
 --source include/start_slave.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 --source include/stop_slave.inc
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
@@ -199,7 +199,7 @@ SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SHOW STATUS LIKE 'slave_received_heartbeats';
 --source include/start_slave.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --sleep 2
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 SHOW STATUS LIKE 'slave_received_heartbeats';
@@ -297,7 +297,7 @@ SELECT unix_timestamp() into @time_0;
 --source include/start_slave.inc
 
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $status_var= slave_received_heartbeats;
 let $status_var_comparsion= >;
@@ -375,7 +375,7 @@ let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbea
 --echo *** Stopped SQL thread by error ***
 --connection master
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10), c LONGTEXT);
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (1, 'on slave', NULL);
 --connection master
 INSERT INTO t1 VALUES (1, 'on master', NULL);
@@ -393,13 +393,13 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 DELETE FROM t1;
 --source include/start_slave.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --connection master
 DROP TABLE t1;
 --echo
 
 # Check received heartbeat events while logs flushed on slave
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo *** Flush logs on slave ***
 --let $rpl_no_start_slave= 1
 --source include/rpl_reset.inc
@@ -463,7 +463,7 @@ let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_he
 --connection master
 RESET MASTER;
 --enable_query_log
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --sleep 2
 let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
@@ -534,7 +534,8 @@ CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
 --sync_with_master
 INSERT INTO t1 VALUES(2, 'on slave');
---sync_slave_with_master master
+--let $sync_slave_connection= master
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
 let $master_rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 --connection slave
@@ -564,7 +565,7 @@ let $slave_rcvd_heartbeats= query_get_value(SHOW STATUS LIKE 'slave_received_hea
 --connection master
 #--source include/stop_slave.inc
 DROP TABLE t1;
---sync_slave_with_master
+--connection slave
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 
 #--let $rpl_only_running_threads= 1

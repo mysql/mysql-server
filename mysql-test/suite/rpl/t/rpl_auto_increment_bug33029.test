@@ -17,6 +17,7 @@
 # rpl_auto_increment_bug33029.test with clean up statements at the end
 # of the test case removed on a buggy 5.0 server
 
+--source include/not_gtid_enabled.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 

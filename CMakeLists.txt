@@ -302,6 +302,35 @@ IF (WITH_ASAN)
 ENDIF()
 
 
+OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
+IF(WITH_MSAN)
+  MY_CHECK_C_COMPILER_FLAG("-fsanitize=memory" HAVE_C_FMSANITIZE)
+  MY_CHECK_CXX_COMPILER_FLAG("-fsanitize=memory" HAVE_CXX_FMSANITIZE)
+
+  IF(HAVE_C_FMSANITIZE AND HAVE_CXX_FMSANITIZE)
+    # We switch on basic optimization also for debug builds.
+    # With optimization we may get some warnings, so we switch off -Werror
+    SET(MSAN_FLAGS
+        "-fsanitize=memory -fsanitize-memory-track-origins -O1 -fPIC")
+    SET(CMAKE_C_FLAGS_DEBUG
+      "${CMAKE_C_FLAGS_DEBUG} ${MSAN_FLAGS} -Wno-error")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${MSAN_FLAGS}")
+    SET(CMAKE_CXX_FLAGS_DEBUG
+      "${CMAKE_CXX_FLAGS_DEBUG} ${MSAN_FLAGS} -Wno-error")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${MSAN_FLAGS}")
+  ELSE()
+    MESSAGE(FATAL_ERROR "Do not know how to enable memory sanitizer")
+  ENDIF()
+ENDIF()
+
+IF(WITH_ASAN AND WITH_MSAN)
+  MESSAGE(FATAL_ERROR
+          "Cannot use AddressSanitizer and MemorySanitizer together")
+ENDIF()
+
+
 OPTION(ENABLE_DEBUG_SYNC "Enable debug sync (debug builds only)" ON) 
 IF(ENABLE_DEBUG_SYNC) 
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 

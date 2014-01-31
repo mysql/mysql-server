@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -85,8 +85,7 @@ table_table_handles::m_share=
   table_table_handles::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_table_handles::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -97,6 +96,12 @@ PFS_engine_table*
 table_table_handles::create(void)
 {
   return new table_table_handles();
+}
+
+ha_rows
+table_table_handles::get_row_count(void)
+{
+  return table_max;
 }
 
 table_table_handles::table_table_handles()

@@ -42,7 +42,7 @@ show warnings;
 set @@binlog_format=mixed;
 insert into tm set b=null, a=2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 if (`select count(*) <> 3 from tm`)
 {
@@ -58,6 +58,6 @@ if (`select count(*) <> 3 from tm`)
 drop table tm, ti;
 drop function multi_part_pk_with_autoinc;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

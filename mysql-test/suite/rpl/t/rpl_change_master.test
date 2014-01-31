@@ -9,6 +9,7 @@
 #
 # rpl_change_master_crash_safe.test
 
+--source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 --source extra/rpl_tests/rpl_change_master.test
 

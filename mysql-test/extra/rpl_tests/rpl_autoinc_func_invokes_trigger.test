@@ -38,7 +38,7 @@ source include/show_binlog_events.inc;
 commit;
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo #Test if the results are consistent on master and slave
 --echo #for 'CALLS A FUNCTION which INVOKES A TRIGGER with $insert_action action'
 let $diff_tables= master:t2, slave:t2;
@@ -51,5 +51,5 @@ drop table t1;
 drop table t2;
 drop table t3;
 drop function f1_two_inserts_trigger;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 

@@ -26,7 +26,7 @@ let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 source include/show_binlog_events.inc;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
@@ -42,7 +42,7 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 INT);
 EXECUTE stmt;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 
@@ -58,7 +58,7 @@ EXECUTE stmt USING @value;
 source include/show_binlog_events.inc;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:t1,slave:t1
 --source include/diff_tables.inc
 

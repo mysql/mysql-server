@@ -39,7 +39,7 @@ INSERT INTO T1 VALUES (1);
 --replace_result Tables_in_b37656 Tables_in_B37656
 SHOW TABLES;
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 use bug37656;
 

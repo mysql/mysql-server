@@ -11,6 +11,7 @@ insert into t1 values(9);
 select * from mysqltest1.t1;
 a
 9
+include/sync_slave_sql_with_master.inc
 show databases like 'mysqltest1';
 Database (mysqltest1)
 mysqltest1
@@ -19,6 +20,7 @@ a
 9
 drop table t1;
 drop database mysqltest1;
+include/sync_slave_sql_with_master.inc
 drop database if exists rewrite;
 create database rewrite;
 use test;
@@ -32,6 +34,7 @@ Warning	1264	Out of range value for column 'a' at row 2
 Warning	1264	Out of range value for column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
 load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+include/sync_slave_sql_with_master.inc
 select * from rewrite.t1;
 a	b	c	d
 0000-00-00	NULL	0000-00-00	0000-00-00
@@ -45,6 +48,7 @@ Warning	1265	Data truncated for column 'c' at row 1
 Warning	1265	Data truncated for column 'd' at row 1
 Warning	1264	Out of range value for column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 2
+include/sync_slave_sql_with_master.inc
 select * from rewrite.t1;
 a	b	c	d
 NULL	NULL	0000-00-00	0000-00-00
@@ -55,6 +59,7 @@ create table t1 (a text, b text);
 load data infile '../../std_data/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
 Warnings:
 Warning	1261	Row 3 doesn't contain data for all columns
+include/sync_slave_sql_with_master.inc
 select concat('|',a,'|'), concat('|',b,'|') from rewrite.t1;
 concat('|',a,'|')	concat('|',b,'|')
 |Field A|	|Field B|
@@ -70,6 +75,7 @@ Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
 Warning	1262	Row 3 was truncated; it contained more data than there were input columns
 Warning	1366	Incorrect integer value: 'wrong end  ' for column 'a' at row 5
 Warning	1262	Row 5 was truncated; it contained more data than there were input columns
+include/sync_slave_sql_with_master.inc
 select * from rewrite.t1;
 a	b
 1	row 1
@@ -83,6 +89,7 @@ Warnings:
 Warning	1366	Incorrect integer value: '
 ' for column 'a' at row 4
 Warning	1261	Row 4 doesn't contain data for all columns
+include/sync_slave_sql_with_master.inc
 select * from rewrite.t1;
 a	b
 1	row 1
@@ -170,6 +177,7 @@ INSERT INTO t_03_03_temp VALUES(1);
 **** sure that the number of open temporary tables at slave becomes
 **** zero. If not,the test will time out.
 
+include/sync_slave_sql_with_master.inc
 show status like 'Slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	10
@@ -194,4 +202,5 @@ DROP DATABASE database_slave_temp_01;
 DROP DATABASE database_slave_temp_02;
 DROP DATABASE database_slave_temp_03;
 SET sql_log_bin= 1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

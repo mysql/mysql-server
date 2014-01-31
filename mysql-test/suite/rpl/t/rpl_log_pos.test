@@ -10,10 +10,11 @@
 
 # Passes with rbr no problem, removed statement include [jbm]
 
+source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 call mtr.add_suppression ("Slave I/O: Got fatal error 1236 from master when reading data from binary");
 source include/show_master_status.inc;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 
 --replace_result 75 MASTER_LOG_POS
@@ -43,7 +44,7 @@ sync_with_master;
 select * from t1 ORDER BY n;
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo End of 5.0 tests
 --source include/rpl_end.inc

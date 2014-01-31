@@ -29,7 +29,7 @@ create user 'foo'@'fakehost', 'bar'@'fakehost';
 create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
   IDENTIFIED BY PASSWORD'*1111111111111111111111111111111111111111',
   'foo3'@'fakehost';
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select Host,User from mysql.user where Host='fakehost';
 --let $diff_tables= master:mysql.user, slave:mysql.user
 source include/diff_tables.inc;
@@ -44,7 +44,7 @@ rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost
 --error ER_CANNOT_USER
 rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'not_exist_user2'@'fakehost' to 'barfoo'@'fakehost';
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select Host,User from mysql.user where Host='fakehost';
 
 #
@@ -58,7 +58,7 @@ drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';
 --error ER_CANNOT_USER
 drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select Host,User from mysql.user where Host='fakehost';
 
 
@@ -69,7 +69,7 @@ select Host,User from mysql.user where Host='fakehost';
 connection master;
 CREATE USER must_change2@localhost IDENTIFIED BY 'aha';
 ALTER USER must_change2@localhost PASSWORD EXPIRE;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select Host,User,password_expired from mysql.user where user='must_change2';
 
 connect(must_change_con_slave,localhost,must_change2,aha,test,$SLAVE_MYPORT,);
@@ -87,7 +87,7 @@ SET PASSWORD = PASSWORD('aha2');
 connection master;
 disconnect must_change_con_master;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection master;
 
 connect(must_change_con_slave,localhost,must_change2,aha2,test,$SLAVE_MYPORT,);
@@ -99,7 +99,7 @@ disconnect must_change_con_slave;
 
 DROP USER must_change2@localhost;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection master;
 
 #

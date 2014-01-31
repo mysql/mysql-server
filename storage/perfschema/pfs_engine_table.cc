@@ -311,11 +311,7 @@ void PFS_engine_table_share::delete_all_locks(void)
 
 ha_rows PFS_engine_table_share::get_row_count(void) const
 {
-  /* If available, count the exact number or records */
-  if (m_get_row_count)
-    return m_get_row_count();
-  /* Otherwise, return an estimate */
-  return m_records;
+  return m_get_row_count();
 }
 
 int PFS_engine_table_share::write_row(TABLE *table, unsigned char *buf,

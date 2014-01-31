@@ -52,7 +52,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` enum('“S','“s') CHARACTER SET sjis DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (0x9353);
 insert into t1 values (0x9373);
 select hex(c) from t1;
@@ -63,7 +63,7 @@ drop table t1;
 SET NAMES sjis;
 CREATE TABLE t1 (
 c char(16) default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=sjis;
+) DEFAULT CHARSET=sjis;
 insert into t1 values(0xb1),(0xb2),(0xb3);
 select hex(c) from t1;
 hex(c)
@@ -252,7 +252,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `code` varchar(8) DEFAULT NULL,
   `a` varchar(1) CHARACTER SET sjis NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 UPDATE t1 SET a=unhex(code) ORDER BY code;
 Warnings:
 Warning	1366	Incorrect string value: '\x80 ' for column 'a' at row 1

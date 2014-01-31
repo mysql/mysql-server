@@ -2,5 +2,7 @@
 -- source include/have_binlog_format_statement.inc
 -- source include/have_myisam.inc
 
+-- source include/not_gtid_enabled.inc
+
 let $engine_type=MyISAM;
 -- source extra/rpl_tests/rpl_loaddata.test

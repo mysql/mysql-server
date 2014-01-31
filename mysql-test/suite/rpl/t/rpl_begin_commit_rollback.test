@@ -27,7 +27,7 @@ use db1;
 CREATE TABLE db1.t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE db1.t2 (s CHAR(255)) ENGINE=MyISAM;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 connection master;
 echo [on master];
@@ -164,7 +164,7 @@ INSERT INTO db1.t1 VALUES(50);
 USE db2;
 COMMIT;
 source include/show_binlog_events.inc;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo [on slave]
 --echo #
@@ -194,7 +194,7 @@ INSERT INTO t1 VALUES(1, "master");
 
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo # [ on slave ]
 USE db1;

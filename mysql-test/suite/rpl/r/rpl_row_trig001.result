@@ -17,7 +17,9 @@ CREATE PROCEDURE test.p2()
 BEGIN
 INSERT INTO test.t2 (f,d) VALUES (RAND(),NOW());
 END//
+include/sync_slave_sql_with_master.inc
 INSERT INTO test.t1 VALUES (1+1, NOW());
+include/sync_slave_sql_with_master.inc
 
 <End test section 2 (Tiggers & SP)>
 -----------------------------------
@@ -28,4 +30,5 @@ DROP TRIGGER test.t3_bi_t2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP TABLE test.t3;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

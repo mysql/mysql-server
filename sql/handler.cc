@@ -1569,8 +1569,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     flag. This allow other parts of the system to check if commit_low
     was called.
   */
-  trn_ctx->flags.commit_low= false;
-  if (run_after_commit && thd->get_transaction()->flags.run_hooks)
+  trn_ctx->m_flags.commit_low= false;
+  if (run_after_commit && thd->get_transaction()->m_flags.run_hooks)
   {
     /*
        If commit succeeded, we call the after_commit hook.
@@ -1581,7 +1581,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     */
     if (!error)
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
-    trn_ctx->flags.run_hooks= false;
+    trn_ctx->m_flags.run_hooks= false;
   }
   DBUG_RETURN(error);
 }
@@ -4521,7 +4521,7 @@ int ha_enable_transaction(THD *thd, bool on)
   DBUG_ENTER("ha_enable_transaction");
   DBUG_PRINT("enter", ("on: %d", (int) on));
 
-  if ((thd->get_transaction()->flags.enabled= on))
+  if ((thd->get_transaction()->m_flags.enabled= on))
   {
     /*
       Now all storage engines should have transaction handling enabled.
