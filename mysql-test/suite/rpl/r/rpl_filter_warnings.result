@@ -13,7 +13,7 @@ include/sync_slave_sql_with_master.inc
 Matching lines are:
 DATE_TIME [Note] Slave SQL: Could not execute Query event. Detailed error: Slave SQL thread ignored the query because of replicate-*-table rules; Error log throttle is enabled. This error will not be displayed for next 60 secs. It will be suppressed, Error_code: 1237
 
-DATE_TIME [Warning] Error log throttle: 3 time(s) Error_code: 1237 "Slave SQL thread ignored the query because of replicate-*-table rules" got suppressed.
+DATE_TIME [Note] Error log throttle: 3 time(s) Error_code: 1237 "Slave SQL thread ignored the query because of replicate-*-table rules" got suppressed.
 
 DATE_TIME [Note] Slave SQL: Could not execute Query event. Detailed error: Slave SQL thread ignored the query because of replicate-*-table rules; Error log throttle is enabled. This error will not be displayed for next 60 secs. It will be suppressed, Error_code: 1237
 

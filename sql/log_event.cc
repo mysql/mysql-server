@@ -49,7 +49,7 @@
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
 slave_ignored_err_throttle(window_size,
-                           sql_print_warning,
+                           sql_print_information,
                            "Error log throttle: %lu time(s) Error_code: 1237"
                            " \"Slave SQL thread ignored the query because of"
                            " replicate-*-table rules\" got suppressed.");
