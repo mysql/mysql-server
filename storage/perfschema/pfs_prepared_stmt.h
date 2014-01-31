@@ -24,9 +24,9 @@
 #include "pfs_stat.h"
 #include "include/mysql/psi/psi.h"
 #include "include/mysql/psi/mysql_ps.h"
+#include "pfs_program.h"
 
-#define OBJECT_NAME_LENGTH NAME_LEN                                             
-#define SCHEMA_NAME_LENGTH NAME_LEN
+#define PS_NAME_LENGTH NAME_LEN
 
 extern ulong prepared_stmt_max;
 extern ulong prepared_stmt_lost;
@@ -40,7 +40,7 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
   ulonglong m_stmt_id;
 
   /** STATEMENT_NAME */
-  char m_stmt_name[COL_INFO_SIZE];
+  char m_stmt_name[PS_NAME_LENGTH];
   uint m_stmt_name_length;
 
   /** SQL_TEXT */
@@ -57,20 +57,20 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
   enum_object_type m_owner_object_type;                                               
 
   /** Column OBJECT_OWNER_SCHEMA. */
-  char m_owner_object_schema[SCHEMA_NAME_LENGTH];
+  char m_owner_object_schema[COL_OBJECT_SCHEMA_SIZE];
   uint m_owner_object_schema_length;
 
   /** Column OBJECT_OWNER_NAME. */
-  char m_owner_object_name[OBJECT_NAME_LENGTH];
+  char m_owner_object_name[COL_OBJECT_NAME_SIZE];
   uint m_owner_object_name_length;
 
   //`TIMER_PREPARE` bigint(20) unsigned NOT NULL,
 
-  /** Prepared stmt stat. */
-  PFS_statement_stat m_prepared_stmt_execute_stat;
+  /** Prepared stmt execution stat. */
+  PFS_statement_stat m_execute_stat;
 
-  /** Prepared stmt stat. */
-  PFS_statement_stat m_prepared_stmt_stat;
+  /** Prepared stmt prepare stat. */
+  PFS_single_stat m_prepare_stat;
 
   /** Reset data for this record. */                                            
   void reset_data(); 
@@ -85,9 +85,9 @@ void reset_prepared_stmt_instances();
 
 PFS_prepared_stmt*
 create_prepared_stmt(void *identity,
-                     PFS_thread *thread,
+                     PFS_thread *thread, PFS_program *pfs_program,
                      PFS_events_statements *pfs_stmt, uint stmt_id,
                      const char* stmt_name, uint stmt_name_length,
                      const char* sqltext, uint sqltext_length);
-void delete_prepared_stmt(PFS_thread *thread, PFS_prepared_stmt *pfs_ps);
+void delete_prepared_stmt(PFS_prepared_stmt *pfs_ps);
 #endif

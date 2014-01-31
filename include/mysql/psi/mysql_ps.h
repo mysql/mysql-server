@@ -36,7 +36,7 @@
     inline_mysql_destroy_prepared_stmt(PREPARED_STMT)
 #else
   #define MYSQL_CREATE_PS(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
-    do {} while (0)
+    NULL
   #define MYSQL_EXECUTE_PS(LOCKER, PREPARED_STMT) \
     do {} while (0)
   #define MYSQL_DESTROY_PS(PREPARED_STMT) \
@@ -62,7 +62,7 @@ static inline void
 inline_mysql_execute_prepared_stmt(PSI_statement_locker *locker,
                                    PSI_prepared_stmt* prepared_stmt)
 {
-  if (prepared_stmt != NULL)
+  if (prepared_stmt != NULL && locker != NULL)
     PSI_PS_CALL(execute_prepared_stmt)(locker, prepared_stmt);
 }
 

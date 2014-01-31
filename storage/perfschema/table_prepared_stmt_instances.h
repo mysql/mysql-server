@@ -59,18 +59,18 @@ struct row_prepared_stmt_instances
   enum_object_type m_owner_object_type;
 
   /** Column OWNER_OBJECT_SCHEMA */
-  char m_owner_object_schema[SCHEMA_NAME_LENGTH];
+  char m_owner_object_schema[COL_OBJECT_SCHEMA_SIZE];
   int m_owner_object_schema_length;
 
   /** Column OWNER_OBJECT_NAME */
-  char m_owner_object_name[OBJECT_NAME_LENGTH];
+  char m_owner_object_name[COL_OBJECT_NAME_SIZE];
   int m_owner_object_name_length;
 
   /** Columns TIMER_PREPARE. */
-  PFS_statement_stat_row m_prepared_stmt_stat;
+  PFS_stat_row m_prepare_stat;
 
   /** Columns COUNT_STAR...SUM_NO_GOOD_INDEX_USED. */
-  PFS_statement_stat_row m_prepared_stmt_execute_stat;
+  PFS_statement_stat_row m_execute_stat;
 };
 
 /** Table PERFORMANCE_SCHEMA.PREPARED_STATEMENT_INSTANCES. */

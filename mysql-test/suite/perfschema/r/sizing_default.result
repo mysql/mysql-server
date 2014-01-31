@@ -219,9 +219,9 @@ performance_schema	events_statements_summary_by_program.memory	3520000
 performance_schema	session_connect_attrs.size	402
 performance_schema	session_connect_attrs.count	512
 performance_schema	session_connect_attrs.memory	205824
-performance_schema	prepared_statement_instances.size	2880
-performance_schema	prepared_statement_instances.count	5000
-performance_schema	prepared_statement_instances.memory	14400000
+performance_schema	prepared_statements_instances.size	2880
+performance_schema	prepared_statements_instances.count	5000
+performance_schema	prepared_statements_instances.memory	14400000
 performance_schema	(account_hash).count	2
 performance_schema	(account_hash).size	100
 performance_schema	(digest_hash).count	0

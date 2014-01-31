@@ -5276,10 +5276,10 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   if (pfs_prepared_stmt != NULL)
   {
-    PFS_statement_stat *prepared_stmt_stat= NULL;
     if(state->m_in_prepare)
     {
-      prepared_stmt_stat= &pfs_prepared_stmt->m_prepared_stmt_stat;
+      PFS_single_stat *prepared_stmt_stat= NULL;
+      prepared_stmt_stat= &pfs_prepared_stmt->m_prepare_stat;
       if(prepared_stmt_stat != NULL)
       {
         if (flags & STATE_FLAG_TIMED)
@@ -5294,7 +5294,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     }
     else
     {
-      prepared_stmt_stat= &pfs_prepared_stmt->m_prepared_stmt_execute_stat;
+      PFS_statement_stat *prepared_stmt_stat= NULL;
+      prepared_stmt_stat= &pfs_prepared_stmt->m_execute_stat;
       if(prepared_stmt_stat != NULL)
       {
         if (flags & STATE_FLAG_TIMED)
@@ -5332,7 +5333,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   PFS_statement_stat *prepared_stmt_stat= NULL;
   if (pfs_prepared_stmt != NULL && !state->m_in_prepare)
-    prepared_stmt_stat= &pfs_prepared_stmt->m_prepared_stmt_execute_stat;
+    prepared_stmt_stat= &pfs_prepared_stmt->m_execute_stat;
 
   switch (da->status())
   {
@@ -5972,13 +5973,9 @@ pfs_create_prepared_stmt_v1(void *identity, uint stmt_id,
                            const char *stmt_name, size_t stmt_name_length,
                            const char *sql_text, size_t sql_text_length)
 {
-  PFS_events_statements *pfs_stmt= NULL;
-
   PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
-  pfs_stmt= reinterpret_cast<PFS_events_statements*> (state->m_statement);
-
-  if (pfs_stmt == NULL)
-    return NULL;
+  PFS_events_statements *pfs_stmt= reinterpret_cast<PFS_events_statements*> (state->m_statement);
+  PFS_program *pfs_program= reinterpret_cast<PFS_program *>(state->m_parent_sp_share);
 
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
@@ -5988,7 +5985,7 @@ pfs_create_prepared_stmt_v1(void *identity, uint stmt_id,
     sql_text_length= COL_INFO_SIZE;
 
   PFS_prepared_stmt *pfs= create_prepared_stmt(identity,
-                                               pfs_thread,
+                                               pfs_thread, pfs_program,
                                                pfs_stmt, stmt_id,
                                                stmt_name, stmt_name_length,
                                                sql_text, sql_text_length);
@@ -6015,11 +6012,7 @@ void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
   if(pfs_ps == NULL)
     return;
 
-  PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
-  if (unlikely(pfs_thread == NULL))
-    return;
-
-  delete_prepared_stmt(pfs_thread, pfs_ps);
+  delete_prepared_stmt(pfs_ps);
   return;
 }
 
