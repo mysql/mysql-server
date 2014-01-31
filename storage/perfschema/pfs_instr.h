@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -377,8 +377,6 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   LF_PINS *m_digest_hash_pins;
   /** Pins for routine_hash. */
   LF_PINS *m_program_hash_pins;
-  /** Pins for prepared_stmt_hash. */
-  LF_PINS *m_prepared_stmt_hash_pins;
   /** Internal thread identifier, unique. */
   ulonglong m_thread_internal_id;
   /** Parent internal thread identifier. */

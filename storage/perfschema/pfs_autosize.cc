@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -211,6 +211,14 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   ulong share = p->m_hints.m_table_definition_cache;
   ulong file = p->m_hints.m_open_files_limit;
 
+  if (p->m_prepared_stmt_sizing < 0)
+  {
+    count= p->m_hints.m_max_prepared_stmt_count;
+
+    p->m_prepared_stmt_sizing= apply_load_factor(count,
+                                                 h->m_load_factor_volatile);
+  }
+ 
   if (p->m_table_sizing < 0)
   {
     count= handle;
@@ -432,6 +440,7 @@ void pfs_automated_sizing(PFS_global_param *param)
 
   DBUG_ASSERT(param->m_account_sizing >= 0);
   DBUG_ASSERT(param->m_digest_sizing >= 0);
+  DBUG_ASSERT(param->m_prepared_stmt_sizing >= 0);
   DBUG_ASSERT(param->m_host_sizing >= 0);
   DBUG_ASSERT(param->m_user_sizing >= 0);
 

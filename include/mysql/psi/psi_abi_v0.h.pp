@@ -27,8 +27,6 @@ struct PSI_file;
 typedef struct PSI_file PSI_file;
 struct PSI_socket;
 typedef struct PSI_socket PSI_socket;
-struct PSI_prepared_stmt_locker;
-typedef struct PSI_prepared_stmt_locker PSI_prepared_stmt_locker;
 struct PSI_prepared_stmt;
 typedef struct PSI_prepared_stmt PSI_prepared_stmt;
 struct PSI_table_locker;

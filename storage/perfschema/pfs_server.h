@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -69,6 +69,8 @@ struct PFS_sizing_hints
   long m_max_connections;
   /** Value of @c Sys_open_files_limit */
   long m_open_files_limit;
+  /** Value of @c Sys_max_prepared_stmt_count */
+  long m_max_prepared_stmt_count;
 };
 
 /** Performance schema global sizing parameters. */
