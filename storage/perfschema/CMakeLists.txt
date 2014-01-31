@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -272,6 +272,7 @@ OPTION(DISABLE_PSI_SOCKET "Exclude the performance schema socket instrumentation
 OPTION(DISABLE_PSI_STAGE "Exclude the performance schema stage instrumentation" OFF)
 OPTION(DISABLE_PSI_STATEMENT "Exclude the performance schema statement instrumentation" OFF)
 OPTION(DISABLE_PSI_SP "Exclude the performance schema stored procedure instrumentation" OFF)
+OPTION(DISABLE_PSI_PS "Exclude the performance schema prepared statements instances instrumentation" OFF)
 OPTION(DISABLE_PSI_IDLE "Exclude the performance schema idle instrumentation" OFF)
 OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement digest instrumentation" OFF)
 OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" OFF)
@@ -287,6 +288,7 @@ MARK_AS_ADVANCED(DISABLE_PSI_SOCKET)
 MARK_AS_ADVANCED(DISABLE_PSI_STAGE)
 MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT)
 MARK_AS_ADVANCED(DISABLE_PSI_SP)
+MARK_AS_ADVANCED(DISABLE_PSI_PS)
 MARK_AS_ADVANCED(DISABLE_PSI_IDLE)
 MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT_DIGEST)
 MARK_AS_ADVANCED(DISABLE_PSI_METADATA)

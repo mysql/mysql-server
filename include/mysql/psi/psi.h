@@ -139,9 +139,6 @@ typedef struct PSI_socket PSI_socket;
   Interface for an instrumented prepared statement.
   This is an opaque structure.
 */
-struct PSI_prepared_stmt_locker;
-typedef struct PSI_prepared_stmt_locker PSI_prepared_stmt_locker; 
-
 struct PSI_prepared_stmt;
 typedef struct PSI_prepared_stmt PSI_prepared_stmt;
 

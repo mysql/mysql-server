@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -135,8 +135,8 @@ static void set_program_key(PFS_program_key *key,
                             const char *object_name, uint object_name_length,
                             const char *schema_name, uint schema_name_length)
 {
-  DBUG_ASSERT(object_name_length <= OBJECT_NAME_LENGTH);
-  DBUG_ASSERT(schema_name_length <= SCHEMA_NAME_LENGTH);
+  DBUG_ASSERT(object_name_length <= COL_OBJECT_NAME_SIZE);
+  DBUG_ASSERT(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
 
   char *ptr= &key->m_hash_key[0];
 

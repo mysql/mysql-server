@@ -84,8 +84,8 @@ void cleanup_prepared_stmt(void)
 
 void PFS_prepared_stmt::reset_data()
 {
-  m_prepared_stmt_stat.reset();
-  m_prepared_stmt_execute_stat.reset();
+  m_prepare_stat.reset();
+  m_execute_stat.reset();
 }
 
 void reset_prepared_stmt_instances()
@@ -105,7 +105,7 @@ void reset_prepared_stmt_instances()
 
 PFS_prepared_stmt*
 create_prepared_stmt(void *identity,
-                     PFS_thread *thread,
+                     PFS_thread *thread, PFS_program *pfs_program,
                      PFS_events_statements *pfs_stmt, uint stmt_id,
                      const char* stmt_name, uint stmt_name_length,
                      const char* sqltext, uint sqltext_length)
@@ -141,8 +141,10 @@ create_prepared_stmt(void *identity,
         pfs->m_sqltext_length= sqltext_length;
         if (stmt_name != NULL)
         {
-          strncpy(pfs->m_stmt_name, stmt_name, stmt_name_length);
           pfs->m_stmt_name_length= stmt_name_length;
+          if (pfs->m_stmt_name_length > PS_NAME_LENGTH)
+            pfs->m_stmt_name_length= PS_NAME_LENGTH;
+          strncpy(pfs->m_stmt_name, stmt_name, pfs->m_stmt_name_length);
         }
         else
           pfs->m_stmt_name_length= 0;
@@ -150,19 +152,23 @@ create_prepared_stmt(void *identity,
         pfs->m_stmt_id= stmt_id;
         pfs->m_owner_thread_id= thread->m_thread_internal_id;
 
-        DBUG_ASSERT(pfs_stmt != NULL);
         /* If this statement prepare is called from a SP. */
-        if (pfs_stmt->m_schema_name_length > 0)
+        if (pfs_program)
         {
-          pfs->m_owner_event_id= pfs_stmt->m_nesting_event_id;
-          pfs->m_owner_object_type= pfs_stmt->m_sp_type;
-          strncpy(pfs->m_owner_object_schema, pfs_stmt->m_schema_name, pfs_stmt->m_schema_name_length);
-          pfs->m_owner_object_schema_length= pfs_stmt->m_schema_name_length;
-          strncpy(pfs->m_owner_object_name, pfs_stmt->m_object_name, pfs_stmt->m_object_name_length); 
-          pfs->m_owner_object_name_length= pfs_stmt->m_object_name_length;
+          pfs->m_owner_object_type= pfs_program->m_type;
+          strncpy(pfs->m_owner_object_schema, pfs_program->m_schema_name, pfs_program->m_schema_name_length);
+          pfs->m_owner_object_schema_length= pfs_program->m_schema_name_length;
+          strncpy(pfs->m_owner_object_name, pfs_program->m_object_name, pfs_program->m_object_name_length); 
+          pfs->m_owner_object_name_length= pfs_program->m_object_name_length;
         }
-        else
-          pfs->m_owner_event_id= pfs_stmt->m_event_id;
+
+        if (pfs_stmt)
+        {
+          if (pfs_program)
+            pfs->m_owner_event_id= pfs_stmt->m_nesting_event_id;
+          else
+            pfs->m_owner_event_id= pfs_stmt->m_event_id;
+        }
  
         /* Insert this record. */
         pfs->m_lock.dirty_to_allocated(& dirty_state);
@@ -175,7 +181,7 @@ create_prepared_stmt(void *identity,
   return NULL;
 }
 
-void delete_prepared_stmt(PFS_thread *thread, PFS_prepared_stmt *pfs_ps)
+void delete_prepared_stmt(PFS_prepared_stmt *pfs_ps)
 {
   pfs_ps->m_lock.allocated_to_free();
   prepared_stmt_full= false;

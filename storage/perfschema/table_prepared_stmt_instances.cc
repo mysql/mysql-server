@@ -351,10 +351,10 @@ void table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
            m_row.m_owner_object_schema_length);
 
   time_normalizer *normalizer= time_normalizer::get(statement_timer);
-  /* Get prepared statement stats. */
-  m_row.m_prepared_stmt_stat.set(normalizer, & prepared_stmt->m_prepared_stmt_stat);
+  /* Get prepared statement prepare stats. */
+  m_row.m_prepare_stat.set(normalizer, & prepared_stmt->m_prepare_stat);
   /* Get prepared statement execute stats. */
-  m_row.m_prepared_stmt_execute_stat.set(normalizer, & prepared_stmt->m_prepared_stmt_execute_stat);
+  m_row.m_execute_stat.set(normalizer, & prepared_stmt->m_execute_stat);
 
   if (! prepared_stmt->m_lock.end_optimistic_lock(&lock))
     return;
@@ -437,10 +437,10 @@ int table_prepared_stmt_instances
       case 11:  /* MIN_TIMER_PREPARE */
       case 12:  /* AVG_TIMER_PREPARE */
       case 13:  /* MAX_PREPARE */
-        m_row.m_prepared_stmt_stat.set_field(f->field_index - 9, f);
+        m_row.m_prepare_stat.set_field(f->field_index - 9, f);
         break;
       default: /* 14, ... COUNT/SUM/MIN/AVG/MAX */
-        m_row.m_prepared_stmt_execute_stat.set_field(f->field_index - 14, f);
+        m_row.m_execute_stat.set_field(f->field_index - 14, f);
         break;
       }
     }

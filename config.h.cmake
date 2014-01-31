@@ -460,6 +460,7 @@
 #cmakedefine DISABLE_PSI_STAGE 1
 #cmakedefine DISABLE_PSI_STATEMENT 1
 #cmakedefine DISABLE_PSI_SP 1
+#cmakedefine DISABLE_PSI_PS 1
 #cmakedefine DISABLE_PSI_IDLE 1
 #cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
 #cmakedefine DISABLE_PSI_METADATA 1

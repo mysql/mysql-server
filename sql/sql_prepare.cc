@@ -2237,18 +2237,17 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
 
   thd->protocol= &thd->protocol_binary;
 
-#ifdef HAVE_PSI_PS_INTERFACE
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
                                          stmt->name.str, stmt->name.length,
                                          packet, packet_length);
-#endif
 
   if (stmt->prepare(packet, packet_length))
   {
+    /* Delete this stmt stats from PS table. */
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
-    /* Mayank TODO: Do we need to delete this stmt stats from PS table. */
   }
 
   thd->protocol= save_protocol;
@@ -2412,18 +2411,17 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
-#ifdef HAVE_PSI_PS_INTERFACE
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
                                          stmt->name.str, stmt->name.length,
                                          query, query_len);
-#endif
 
   if (stmt->prepare(query, query_len))
   {
+    /* Delete this stmt stats from PS table. */
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     /* Statement map deletes the statement on erase */
     thd->stmt_map.erase(stmt);
-    /* Mayank TODO: Do we need to delete this stmt stats from PS table. */
   }
   else
   {
@@ -2646,9 +2644,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
 
   thd->protocol= &thd->protocol_binary;
 
-#ifdef HAVE_PSI_PS_INTERFACE
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
-#endif
 
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
 
@@ -2706,9 +2702,7 @@ void mysql_sql_stmt_execute(THD *thd)
 
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
-#ifdef HAVE_PSI_PS_INTERFACE
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
-#endif
 
   (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
 
@@ -2871,9 +2865,7 @@ void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length)
     in use is from within Dynamic SQL.
   */
   DBUG_ASSERT(! stmt->is_in_use());
-#ifdef HAVE_PSI_PS_INTERFACE
   MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
-#endif
   stmt->deallocate();
   query_logger.general_log_print(thd, thd->get_command(), NullS);
 
@@ -2907,9 +2899,7 @@ void mysql_sql_stmt_close(THD *thd)
     my_error(ER_PS_NO_RECURSION, MYF(0));
   else
   {
-#ifdef HAVE_PSI_PS_INTERFACE
     MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
-#endif
     stmt->deallocate();
     my_ok(thd);
   }
