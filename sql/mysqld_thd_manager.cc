@@ -183,9 +183,9 @@ void Global_THD_manager::remove_thd(THD *thd)
     --global_thd_count;
   // Removing a THD that was never added is an error.
   DBUG_ASSERT(1 == num_erased);
+  mysql_mutex_unlock(&LOCK_thd_remove);
   mysql_cond_broadcast(&COND_thd_count);
   mysql_mutex_unlock(&LOCK_thd_count);
-  mysql_mutex_unlock(&LOCK_thd_remove);
 }
 
 
