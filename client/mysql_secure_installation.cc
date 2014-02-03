@@ -15,8 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
-
 #include "client_priv.h"
 #include "my_default.h"
 #include "mysqld_error.h"
@@ -29,17 +27,20 @@ static char *opt_host= 0;
 static char *opt_user= 0;
 static uint opt_port= 0;
 static uint opt_protocol= 0;
-static char *opt_mysql_unix_port= 0;
+static char *opt_socket= 0;
 static MYSQL mysql;
 static char *password= 0;
-static bool password_provided= FALSE;
+static my_bool password_provided= FALSE;
+static my_bool g_expire_password_on_exit= FALSE;
+static my_bool opt_use_default= FALSE;
+
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name= 0;
 #endif
 
 #include "sslopt-vars.h"
 
-static const char *load_default_groups[]= { "client", "mysql_secure_installation", 0 };
+static const char *load_default_groups[]= { "mysql_secure_installation", "mysql", "client", 0 };
 
 static struct my_option my_connection_options[]=
 {
@@ -71,13 +72,19 @@ static struct my_option my_connection_options[]=
    &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"socket", 'S', "Socket file to be used for connection.",
-   &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   &opt_socket, &opt_socket, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
   {"user", 'u', "User for login if not current user.", &opt_user,
    &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong) "root", 0, 0, 0, 0, 0},
+  {"use-default", 'D', "Execute with no user interactivity",
+   &opt_use_default, &opt_use_default, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  /* End token */
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+my_bool find_temporary_password(char **p);
 
 static void print_version(void)
 {
@@ -99,8 +106,8 @@ static void free_resources()
 {
   if (opt_host)
     my_free(opt_host);
-  if (opt_mysql_unix_port)
-    my_free(opt_mysql_unix_port);
+  if (opt_socket)
+    my_free(opt_socket);
   if (opt_user)
     my_free(opt_user);
   if (password)
@@ -172,18 +179,27 @@ init_connection_options(MYSQL *mysql)
 
 /**
   Reads the response from stdin and returns the first character.
-
+  If global variable opt_use_default is TRUE then the default_answer is
+  returned instead.
   @param    Optional message do be displayed.
-
+  @param    default_answer Answer to be given if no interactivity is allowed.
   @return   First character of input string
 */
-int get_response(const char *opt_message)
+
+int get_response(const char *opt_message, int default_answer= -1)
 {
   int a= 0;
   int b= 0;
   int i= 0;
   if (opt_message)
+  {
     fprintf(stdout, "%s", opt_message);
+    if (opt_use_default == TRUE && default_answer != -1)
+    {
+      fprintf(stdout, " %c \n", (char)default_answer);
+      return default_answer;
+    }
+  }
   do
   {
     if (i == 1)
@@ -210,7 +226,7 @@ void execute_query_with_message(const char *query, const char *opt_message)
     fprintf(stdout, "%s", opt_message);
 
   if (!mysql_query(&mysql, query))
-    fprintf(stdout, " ... Success!\n");
+    fprintf(stdout, "Success.\n\n");
   else if ((mysql_errno(&mysql) == ER_PROCACCESS_DENIED_ERROR) ||
            (mysql_errno(&mysql) == ER_TABLEACCESS_DENIED_ERROR) ||
            (mysql_errno(&mysql) == ER_COLUMNACCESS_DENIED_ERROR))
@@ -289,20 +305,20 @@ bool validate_password_exists()
   @return   Returns 1 on successfully setting the plugin and 0 in case of
             of any error.
 */
-int set_plugin()
+int install_password_validation_plugin()
 {
   int reply;
   int plugin_set= 0;
   char *strength;
   bool option_read= FALSE;
-  reply= get_response((const char *) "\n\nVALIDATE PASSWORD PLUGIN can be used "
+  reply= get_response((const char *) "\nVALIDATE PASSWORD PLUGIN can be used "
                                      "to test passwords\nand improve security. "
 				     "It checks the strength of password\nand "
 				     "allows the users to set only those "
 				     "passwords which are\nsecure enough. "
 				     "Would you like to setup VALIDATE "
 				     "PASSWORD plugin?\n\nPress y|Y for Yes, "
-				     "any other key for No: ");
+				     "any other key for No: ", 'y');
   if (reply == (int) 'y' || reply == (int) 'Y')
   {
 #ifdef _WIN32
@@ -320,10 +336,10 @@ int set_plugin()
       plugin_set= 1;
       while(!option_read)
       {
-	reply= get_response((const char *) "\n\nThere are three levels of "
-	                                   "password validation policy.\n\n"
+	reply= get_response((const char *) "\nThere are three levels of "
+	                                   "password validation policy.\n"
 					   "Please enter 0 for LOW, 1 for "
-					   "MEDIUM and 2 for STRONG: ");
+					   "MEDIUM and 2 for STRONG: ",'2');
 	switch (reply){
 	case (int ) '0':
 	  strength= (char *) "LOW";
@@ -360,7 +376,7 @@ int set_plugin()
       my_free(query);
     }
     else
-      fprintf(stdout, "\nVALIDATE PASSWORD PLUGIN is not available.\n"
+      fprintf(stdout, "The password validation plugin is not available. "
 	              "Proceeding with the further steps without the plugin.\n");
   }
   return(plugin_set);
@@ -393,10 +409,74 @@ void estimate_password_strength(char *password_string)
   {
     MYSQL_RES *result= mysql_store_result(&mysql);
     MYSQL_ROW row= mysql_fetch_row(result);
-    printf("\nStrength of the password: %s \n\n", row[0]);
+    printf("\nEstimated strength of the password: %s \n", row[0]);
     mysql_free_result(result);
   }
   my_free(query);
+}
+
+
+/**
+  During rpm deployments the password expires immediately and needs to be
+  renewed before the DBA can set the final password. This helper subroutine
+  will use an active connection to set a password.
+
+  @param mysql The MYSQL handle
+  @param password A password character string
+
+  Function might fail with an error message which can be retrieved using
+  mysql_error(mysql)
+
+  @return Success or failure
+    @retval TRUE success
+    @retval FALSE failure
+*/
+
+my_bool mysql_set_password(MYSQL *mysql, char *password)
+{
+  int password_len= strlen(password);
+  char *query, *end;
+  query= (char *)my_malloc(PSI_NOT_INSTRUMENTED, password_len+50, MYF(MY_WME));
+  end= my_stpmov(query, "SET PASSWORD= PASSWORD('");
+  end += mysql_real_escape_string(mysql, end, password, password_len);
+  *end++ = '\'';
+  *end++ = ')';
+  if (mysql_real_query(mysql, query, (unsigned int) (end - query)))
+  {
+    my_free(query);
+    return FALSE;
+  }
+
+  my_free(query);
+  return TRUE;
+}
+
+
+/**
+  Expires the password for all users if executed with sufficient
+  privileges. This is primarily used as a helper function during rpm
+  deployments.
+
+  @param mysql The MYSQL handle
+  @param user The user name of the expired account
+  @param host The host name of the expired account
+
+  Function might fail with an error message which can be retrieved using
+  mysql_error(mysql)
+
+  @return Success or failure
+    @retval TRUE success
+    @retval FALSE failure
+*/
+
+my_bool mysql_expire_password(MYSQL *mysql)
+{
+  char sql[]= "UPDATE mysql.user SET password_expired= 'Y'";
+  int sql_len= strlen(sql);
+  if (mysql_real_query(mysql, sql, sql_len))
+    return FALSE;
+
+  return TRUE;
 }
 
 
@@ -494,22 +574,51 @@ static void set_root_password(int plugin_set)
 */
 int get_root_password()
 {
+  my_bool using_temporary_password= FALSE;
   int res;
-  fprintf(stdout, "\n\n\n"
-		  "NOTE: RUNNING ALL THE STEPS FOLLOWING THIS IS RECOMMENDED\n"
-		  "FOR ALL MySQL SERVERS IN PRODUCTION USE!  PLEASE READ EACH\n"
-		  "STEP CAREFULLY!\n\n\n\n\n");
+
   if (!password_provided)
   {
-    fprintf(stdout, "In order to log into MySQL to secure it, we'll need the\n"
-		    "current password for the root user. If you've just installed"
-		    "\nMySQL, and you haven't set the root password yet, the \n"
-		    "password will be blank, so you should just press enter here."
-		    "\n\n");
-    password= get_tty_password(NullS);
-  }
+    /*
+      No password is provided on the command line. Attempt to connect using
+      a blank password.
+    */
+    MYSQL *con= mysql_real_connect(&mysql, opt_host, opt_user, "", "",
+                            opt_port, opt_socket, 0);
+    if (con != NULL || mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN)
+    {
+      fprintf(stdout,"Connecting to MySQL using a blank password.\n");
+      my_free(password);
+      password= 0;
+      mysql_close(con);
+    }
+    else
+    {
+      /*
+        No password is provided and we cannot connect with a blank password.
+        Assume there is an ongoing deployment running and attempt to locate
+        the temporary password file.
+      */
+      char *temp_pass;
+      if (find_temporary_password(&temp_pass) == TRUE)
+      {
+        my_free(password);
+        password= temp_pass;
+        using_temporary_password= TRUE;
+      }
+      else
+      {
+        // Request password from user
+        password= get_tty_password("Enter password for root user: ");
+      }
+    }
+  } // if !password_provided
+
+  /*
+    A password candidate is identified. Use it to establish a connection.
+  */
   if (!mysql_real_connect(&mysql, opt_host, opt_user,
-			  password, "", opt_port, opt_mysql_unix_port, 0))
+			  password, "", opt_port, opt_socket, 0))
   {
     if (mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN)
     {
@@ -517,15 +626,40 @@ int get_root_password()
       init_connection_options(&mysql);
       mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &can);
       if (!mysql_real_connect(&mysql, opt_host, opt_user,
-                              password, "", opt_port, opt_mysql_unix_port, 0))
+                              password, "", opt_port, opt_socket, 0))
       {
 	fprintf(stdout, "Error: %s\n", mysql_error(&mysql));
 	free_resources();
 	exit(1);
       }
-      fprintf(stdout, "\nThe existing password for the user account has "
-	              "expired. Please set a new password.\n");
-      set_root_password(0);
+
+      /*
+        Password worked but has expired. If this happens during a silent
+        deployment using the rpm package system we cannot stop and ask
+        for a password. Instead we just renew the previous password and set
+        it to expire.
+      */
+      if (using_temporary_password)
+      {
+        if (!mysql_set_password(&mysql, password))
+        {
+          fprintf(stdout, "... Failed! Error: %s\n",
+                  mysql_error(&mysql));
+          free_resources();
+          exit(1);
+        }
+        g_expire_password_on_exit= TRUE;
+      }
+      else
+      {
+        /*
+          This path is only executed if no temporary password can be found and
+          should only happen when manual interaction is possible.
+        */
+        fprintf(stdout, "\nThe existing password for the user account has "
+	                "expired. Please set a new password.\n");
+        set_root_password(0);
+      }
     }
     else
     {
@@ -534,7 +668,6 @@ int get_root_password()
       exit(1);
     }
   }
-  fprintf(stdout, "\n\nOK, successfully used password, moving on...\n\n");
   res= (password[0] != '\0') ? 1 : 0;
   return(res);
 }
@@ -593,7 +726,7 @@ void remove_anonymous_users()
 				     "installation go a bit smoother.\nYou should "
 				     "remove them before moving into a production\n"
 				     "environment.\n\nRemove anonymous users? "
-				     "(Press y|Y for Yes, any other key for No) : ");
+				     "(Press y|Y for Yes, any other key for No) : ", 'y');
 
   if (reply == (int) 'y' || reply == (int) 'Y')
   {
@@ -605,7 +738,7 @@ void remove_anonymous_users()
     if (result)
       drop_users(result);
     mysql_free_result(result);
-    fprintf(stdout, "\n\nSuccess.. Moving on..\n\n");
+    fprintf(stdout, "Success.\n\n");
   }
   else
     fprintf(stdout, "\n ... skipping.\n\n");
@@ -618,12 +751,12 @@ void remove_anonymous_users()
 void remove_remote_root()
 {
   int reply;
-  reply= get_response((const char *) "\n\nNormally, root should only be "
+  reply= get_response((const char *) "\nNormally, root should only be "
                                      "allowed to connect from\n'localhost'. "
 				     "This ensures that someone cannot guess at"
 				     "\nthe root password from the network.\n\n"
 				     "Disallow root login remotely? (Press y|Y "
-				     "for Yes, any other key for No) : ");
+				     "for Yes, any other key for No) : ", 'y');
   if (reply == (int) 'y' || reply == (int) 'Y')
   {
     const char *query;
@@ -635,7 +768,7 @@ void remove_remote_root()
     if (result)
       drop_users(result);
     mysql_free_result(result);
-    fprintf(stdout, "Done.. Moving on..\n\n");
+    fprintf(stdout, "Success.\n\n");
   }
   else
     fprintf(stdout, "\n ... skipping.\n");
@@ -654,7 +787,7 @@ void remove_test_database()
 				     "and should be removed before moving into "
 				     "a production\nenvironment.\n\n\nRemove "
 				     "test database and access to it? (Press "
-				     "y|Y for Yes, any other key for No) : ");
+				     "y|Y for Yes, any other key for No) : ", 'y');
   if (reply == (int) 'y' || reply == (int) 'Y')
   {
     execute_query_with_message((const char *) "DROP DATABASE test",
@@ -680,7 +813,7 @@ void reload_privilege_tables()
                                      "ensure that all changes\nmade so far "
 				     "will take effect immediately.\n\nReload "
 				     "privilege tables now? (Press y|Y for "
-				     "Yes, any other key for No) : ");
+				     "Yes, any other key for No) : ", 'y');
   if (reply == (int) 'y' || reply == (int) 'Y')
   {
     execute_query_with_message((const char *) "FLUSH PRIVILEGES", NULL);
@@ -688,6 +821,71 @@ void reload_privilege_tables()
   else
     fprintf(stdout, "\n ... skipping.\n");
 }
+
+
+/**
+  Attempt to retrieve a password from the temporary password file
+  '.mysql_secret'.
+ @param p[out] A pointer to a password in a newly allocated buffer or null
+ @returns true if the password was successfully retrieved.
+*/
+
+my_bool find_temporary_password(char **p)
+{
+  const char *password_file_name= "/.mysql_secret";
+  *p= NULL;
+  char *home= getenv("HOME");
+  if (home == NULL)
+    return FALSE;
+    
+  int home_len= strlen(home);
+  int path_len= home_len + strlen(password_file_name)+1;
+  char *path= (char *)malloc(path_len);
+  memset(path, 0, path_len);
+  
+  strcat(path, home);
+  strcat(path, password_file_name);
+  FILE *fp= fopen(path, "r");
+  if (fp == NULL)
+  {
+    free(path);
+    return FALSE;
+  }
+
+  /*
+    The format of the password file is
+    ['#'][bytes]['\n']['password bytes']['\n']|[EOF])
+  */
+  char header[256];
+  char password[64];
+  int password_len=0;
+  /* Read header and skip it */
+  if (fgets(&header[0], sizeof(header), fp) == NULL || header[0] != '#')
+    goto error;
+
+  /* Read password */
+  if (fgets(&password[0], sizeof(password), fp) == NULL)
+    goto error;
+
+  /* Remove terminating newline character if it exists */
+  password_len= strlen(&password[0]);
+  if (password[password_len - 1] == '\n')
+    password[password_len - 1] = '\0';
+
+  *p= my_strdup(PSI_NOT_INSTRUMENTED,
+		&password[0], MYF(MY_FAE));
+  fprintf(stdout, "Connecting to MySQL server using password in '%s'\n",path);
+  
+  free(path);
+  return TRUE;
+
+  error:
+    if (path)
+      free(path);
+    fprintf(stdout, "The password file '%s' is corrupt! Skipping.\n", path);
+    return FALSE;
+}
+
 
 int main(int argc,char *argv[])
 {
@@ -717,53 +915,51 @@ int main(int argc,char *argv[])
   if ((rc= handle_options(&argc, &argv, my_connection_options,
                           my_arguments_get_one_option)))
   {
-    free_resources();
-    exit(rc);
+    fprintf(stdout, "Skipping unrecognized options");
   }
 
   if (mysql_init(&mysql) == NULL)
   {
-    printf("\nFailed to initate MySQL connection");
+    printf("... Failed to initialize the MySQL client framework.\n");
     free_resources();
     exit(1);
   }
   init_connection_options(&mysql);
 
+  fprintf(stdout, "\nSecuring the MySQL server deployment.\n\n");
+
   hadpass= get_root_password();
 
   if (!validate_password_exists())
-    plugin_set= set_plugin();
+    plugin_set= install_password_validation_plugin();
   else
   {
-    fprintf(stdout, "validate_password plugin is installed on the server.\n"
+    fprintf(stdout, "The 'validate_password' plugin is installed on the server.\n"
 	            "The subsequent steps will run with the existing "
 		    "configuration\nof the plugin.\n");
     plugin_set= 1;
   }
-  //Set the root password
-  fprintf(stdout, "\n\nSetting the root password ensures that nobody can log "
-                  "into\nthe MySQL root user without the proper "
-		  "authorisation.\n");
+
 
   if (!hadpass)
   {
     fprintf(stdout, "Please set the root password here.\n");
     set_root_password(plugin_set);
   }
-  else
+  else if (opt_use_default == FALSE)
   {
-    fprintf(stdout, "You already have a root password set.\n\n");
+    fprintf(stdout, "Using existing root password.\n");
 
     if (plugin_set == 1)
       estimate_password_strength(password);
 
     reply= get_response((const char *) "Change the root password? (Press y|Y "
-	                               "for Yes, any other key for No) : ");
+	                               "for Yes, any other key for No) : ", 'n');
 
     if (reply == (int) 'y' || reply == (int) 'Y')
       set_root_password(plugin_set);
     else
-      fprintf(stdout, "\n ... skipping.\n\n");
+      fprintf(stdout, "\n ... skipping.\n");
   }
 
   //Remove anonymous users
@@ -775,11 +971,32 @@ int main(int argc,char *argv[])
   //Remove test database
   remove_test_database();
 
+  /*
+    During an unattended rpm deployment a temporary password is created and
+    stored in a file by mysql_install_db. This program use this password to
+    perform security configurations after the bootstrap phase but it needs to
+    be marked for expiration upon exit so the DBA will remember to set a new
+    one.
+  */
+  if (g_expire_password_on_exit == TRUE)
+  {
+    if (mysql_expire_password(&mysql) == FALSE)
+    {
+      fprintf(stdout, "... Failed to expire password!\n"
+                      "** Please consult the MySQL server documentation. **\n"
+                      "Error: %s\n",
+              mysql_error(&mysql));
+      // Reload privilege tables before exiting
+      reload_privilege_tables();
+      free_resources();
+      exit(1);
+    }
+  }
+
   //Reload privilege tables
   reload_privilege_tables();
 
-  fprintf(stdout, "All done! If you've completed all of the above steps, your\n"
-                  "MySQL installation should now be secure.\n");
+  fprintf(stdout, "All done! \n");
   free_resources();
 return 0;
 }
