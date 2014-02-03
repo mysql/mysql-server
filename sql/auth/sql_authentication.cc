@@ -2730,7 +2730,15 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   generate_user_salt(scramble, SCRAMBLE_LENGTH + 1);
 
-  if (vio->write_packet(vio, (unsigned char *) scramble, SCRAMBLE_LENGTH))
+  /*
+    Note: The nonce is split into 8 + 12 bytes according to
+http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeV10
+    Native authentication sent 20 bytes + '\0' character = 21 bytes.
+    This plugin must do the same to stay consistent with historical behavior
+    if it is set to operate as a default plugin.
+  */
+  scramble[SCRAMBLE_LENGTH] = '\0';
+  if (vio->write_packet(vio, (unsigned char *) scramble, SCRAMBLE_LENGTH + 1))
     DBUG_RETURN(CR_ERROR);
 
   /*
