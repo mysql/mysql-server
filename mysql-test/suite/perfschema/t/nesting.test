@@ -53,6 +53,7 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
                  'statement/com/error');
 
 # Start from a known clean state, to avoid noise from previous tests
+truncate table performance_schema.events_statements_summary_by_digest;
 flush tables;
 flush status;
 

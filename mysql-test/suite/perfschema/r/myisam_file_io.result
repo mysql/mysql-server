@@ -4,6 +4,7 @@ update performance_schema.setup_instruments set enabled='YES'
 update performance_schema.setup_consumers
 set enabled='YES';
 truncate table performance_schema.events_waits_history_long;
+truncate table performance_schema.events_statements_summary_by_digest;
 flush status;
 drop table if exists test.no_index_tab;
 create table test.no_index_tab ( a varchar(255), b int ) engine=myisam;
