@@ -653,7 +653,8 @@ dtuple_convert_big_rec(
 							     *n_ext),
 				      dict_table_is_comp(index->table),
 				      dict_index_get_n_fields(index),
-				      dict_table_zip_size(index->table))) {
+				      dict_table_page_size(index->table))) {
+
 		ulint			i;
 		ulint			longest		= 0;
 		ulint			longest_i	= ULINT_MAX;

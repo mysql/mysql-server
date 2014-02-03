@@ -31,30 +31,34 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0sys.h"
 #include <vector>
 
-/******************************************************************//**
-Gets a rollback segment header.
+/** Gets a rollback segment header.
+@param[in]	space		space where placed
+@param[in]	page_no		page number of the header
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get(
-/*==========*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number of the header */
-	mtr_t*	mtr);		/*!< in: mtr */
-/******************************************************************//**
-Gets a newly created rollback segment header.
+	ulint			space,
+	ulint			page_no,
+	const page_size_t&	page_size,
+	mtr_t*			mtr);
+
+/** Gets a newly created rollback segment header.
+@param[in]	space		space where placed
+@param[in]	page_no		page number of the header
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get_new(
-/*==============*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number of the header */
-	mtr_t*	mtr);		/*!< in: mtr */
+	ulint			space,
+	ulint			page_no,
+	const page_size_t&	page_size,
+	mtr_t*			mtr);
+
 /***************************************************************//**
 Gets the file page number of the nth undo log slot.
 @return page number of the undo log segment */
@@ -93,20 +97,24 @@ trx_rseg_get_on_id(
 /*===============*/
 	ulint	id,		/*!< in: rollback segment id */
 	bool	is_redo_rseg);	/*!< in: true if redo rseg else false. */
-/****************************************************************//**
-Creates a rollback segment header. This function is called only when
-a new rollback segment is created in the database.
-@return page number of the created segment, FIL_NULL if fail */
 
+/** Creates a rollback segment header.
+This function is called only when a new rollback segment is created in
+the database.
+@param[in]	space		space id
+@param[in]	page_size	page size
+@param[in]	max_size	max size in pages
+@param[in]	rseg_slot_no	rseg id == slot number in trx sys
+@param[in,out]	mtr		mini-transaction
+@return page number of the created segment, FIL_NULL if fail */
 ulint
 trx_rseg_header_create(
-/*===================*/
-	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	max_size,	/*!< in: max size in pages */
-	ulint	rseg_slot_no,	/*!< in: rseg id == slot number in trx sys */
-	mtr_t*	mtr);		/*!< in: mtr */
+	ulint			space,
+	const page_size_t&	page_size,
+	ulint			max_size,
+	ulint			rseg_slot_no,
+	mtr_t*			mtr);
+
 /*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
 rseg array in trx_sys at a database startup. */
@@ -154,45 +162,62 @@ trx_rseg_get_n_undo_tablespaces(
 /* Maximum number of transactions supported by a single rollback segment */
 #define TRX_RSEG_MAX_N_TRXS	(TRX_RSEG_N_SLOTS / 2)
 
-/* The rollback segment memory object */
-struct trx_rseg_t{
+/** The rollback segment memory object */
+struct trx_rseg_t {
 	/*--------------------------------------------------------*/
-	ulint		id;		/*!< rollback segment id == the index of
-					its slot in the trx system file copy */
-	RsegMutex	mutex;		/*!< mutex protecting the fields in this
-					struct except id, which is constant */
-	ulint		space;		/*!< space where the rollback segment is
-					header is placed */
-	ulint		zip_size;	/* compressed page size of space
-					in bytes, or 0 for uncompressed spaces */
-	ulint		page_no;	/* page number of the rollback segment
-					header */
-	ulint		max_size;	/* maximum allowed size in pages */
-	ulint		curr_size;	/* current size in pages */
+	/** rollback segment id == the index of its slot in the trx
+	system file copy */
+	ulint				id;
+
+	/** mutex protecting the fields in this struct except id,
+	which is constant */
+	RsegMutex			mutex;
+
+	/** space where the rollback segment header is placed */
+	ulint				space;
+
+	/** page number of the rollback segment header */
+	ulint				page_no;
+
+	/** page size of the relevant tablespace */
+	page_size_t			page_size;
+
+	/** maximum allowed size in pages */
+	ulint				max_size;
+
+	/** current size in pages */
+	ulint				curr_size;
+
 	/*--------------------------------------------------------*/
 	/* Fields for update undo logs */
-	UT_LIST_BASE_NODE_T(trx_undo_t) update_undo_list;
-					/* List of update undo logs */
-	UT_LIST_BASE_NODE_T(trx_undo_t) update_undo_cached;
-					/* List of update undo log segments
-					cached for fast reuse */
+	/** List of update undo logs */
+	UT_LIST_BASE_NODE_T(trx_undo_t)	update_undo_list;
+
+	/** List of update undo log segments cached for fast reuse */
+	UT_LIST_BASE_NODE_T(trx_undo_t)	update_undo_cached;
+
 	/*--------------------------------------------------------*/
 	/* Fields for insert undo logs */
+	/** List of insert undo logs */
 	UT_LIST_BASE_NODE_T(trx_undo_t) insert_undo_list;
-					/* List of insert undo logs */
+
+	/** List of insert undo log segments cached for fast reuse */
 	UT_LIST_BASE_NODE_T(trx_undo_t) insert_undo_cached;
-					/* List of insert undo log segments
-					cached for fast reuse */
+
 	/*--------------------------------------------------------*/
-	ulint		last_page_no;	/*!< Page number of the last not yet
-					purged log header in the history list;
-					FIL_NULL if all list purged */
-	ulint		last_offset;	/*!< Byte offset of the last not yet
-					purged log header */
-	trx_id_t	last_trx_no;	/*!< Transaction number of the last not
-					yet purged log */
-	ibool		last_del_marks;	/*!< TRUE if the last not yet purged log
-					needs purging */
+
+	/** Page number of the last not yet purged log header in the history
+	list; FIL_NULL if all list purged */
+	ulint				last_page_no;
+
+	/** Byte offset of the last not yet purged log header */
+	ulint				last_offset;
+
+	/** Transaction number of the last not yet purged log */
+	trx_id_t			last_trx_no;
+
+	/** TRUE if the last not yet purged log needs purging */
+	ibool				last_del_marks;
 };
 
 /* Undo log segment slot in a rollback segment header */

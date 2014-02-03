@@ -3373,7 +3373,7 @@ fts_fetch_doc_from_rec(
 			doc->text.f_str =
 				btr_rec_copy_externally_stored_field(
 					clust_rec, offsets,
-					dict_table_zip_size(table),
+					dict_table_page_size(table),
 					clust_pos, &doc->text.f_len,
 					static_cast<mem_heap_t*>(
 						doc->self_heap->arg));
@@ -7172,12 +7172,11 @@ fts_init_recover_doc(
 
 		if (dfield_is_ext(dfield)) {
 			dict_table_t*	table = cache->sync->table;
-			ulint		zip_size = dict_table_zip_size(table);
 
 			doc.text.f_str = btr_copy_externally_stored_field(
 				&doc.text.f_len,
 				static_cast<byte*>(dfield_get_data(dfield)),
-				zip_size, len,
+				dict_table_page_size(table), len,
 				static_cast<mem_heap_t*>(doc.self_heap->arg));
 		} else {
 			doc.text.f_str = static_cast<byte*>(

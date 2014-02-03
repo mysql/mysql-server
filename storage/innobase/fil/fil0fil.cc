@@ -217,7 +217,7 @@ struct fil_space_t {
 				ignored if space == 0 */
 	ulint		flags;	/*!< tablespace flags; see
 				fsp_flags_is_valid(),
-				fsp_flags_get_zip_size() */
+				page_size_t(ulint) (constructor) */
 	ulint		n_reserved_extents;
 				/*!< number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -412,64 +412,59 @@ fil_space_free(
 	ulint		id,		/* in: space id */
 	bool		x_latched);	/* in: true if caller has space->latch
 					in X mode */
-/********************************************************************//**
-Reads data from a space to a buffer. Remember that the possible incomplete
+
+/** Reads data from a space to a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+must be divisible by the OS block size
+@param[in]	len		how many bytes to read; this must not cross a
+file boundary; in aio this must be a block size multiple
+@param[in,out]	buf		buffer where to store data read; in aio this
+must be appropriately aligned
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
 dberr_t
 fil_read(
-/*=====*/
-	bool	sync,		/*!< in: true if synchronous aio is desired */
-	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in aio
-				this must be divisible by the OS block size */
-	ulint	len,		/*!< in: how many bytes to read; this must not
-				cross a file boundary; in aio this must be a
-				block size multiple */
-	void*	buf,		/*!< in/out: buffer where to store data read;
-				in aio this must be appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
-				aio used, else ignored */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf)
 {
-	return(fil_io(OS_FILE_READ, sync, space_id, zip_size, block_offset,
-					  byte_offset, len, buf, message));
+	return(fil_io(OS_FILE_READ, true, page_id, page_size,
+		      byte_offset, len, buf, NULL));
 }
 
-/********************************************************************//**
-Writes data to a space from a buffer. Remember that the possible incomplete
+/** Writes data to a space from a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+must be divisible by the OS block size
+@param[in]	len		how many bytes to write; this must not cross
+a file boundary; in aio this must be a block size multiple
+@param[in]	buf		buffer from which to write; in aio this must
+be appropriately aligned
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
 dberr_t
 fil_write(
-/*======*/
-	bool	sync,		/*!< in: true if synchronous aio is desired */
-	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in aio
-				this must be divisible by the OS block size */
-	ulint	len,		/*!< in: how many bytes to write; this must
-				not cross a file boundary; in aio this must
-				be a block size multiple */
-	void*	buf,		/*!< in: buffer from which to write; in aio
-				this must be appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
-				aio used, else ignored */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf)
 {
 	ut_ad(!srv_read_only_mode);
 
-	return(fil_io(OS_FILE_WRITE, sync, space_id, zip_size, block_offset,
-					   byte_offset, len, buf, message));
+	return(fil_io(OS_FILE_WRITE, true, page_id, page_size,
+		      byte_offset, len, buf, NULL));
 }
 
 /*******************************************************************//**
@@ -544,15 +539,14 @@ fil_space_get_version(
 	return(version);
 }
 
-/*******************************************************************//**
-Returns the latch of a file space.
+/** Returns the latch of a file space.
+@param[in]	id	space id
+@param[out]	flags	tablespace flags
 @return latch protecting storage allocation */
-
 rw_lock_t*
 fil_space_get_latch(
-/*================*/
-	ulint	id,	/*!< in: space id */
-	ulint*	flags)	/*!< out: tablespace flags */
+	ulint	id,
+	ulint*	flags)
 {
 	fil_space_t*	space;
 
@@ -688,7 +682,6 @@ fil_node_open_file(
 	byte*		page;
 	ulint		space_id;
 	ulint		flags;
-	ulint		page_size;
 	ulint		min_size;
 
 	ut_ad(mutex_own(&(system->mutex)));
@@ -741,7 +734,6 @@ fil_node_open_file(
 		success = os_file_read(node->handle, page, 0, UNIV_PAGE_SIZE);
 		space_id = fsp_header_get_space_id(page);
 		flags = fsp_header_get_flags(page);
-		page_size = fsp_flags_get_page_size(flags);
 
 		::ut_free(buf2);
 
@@ -749,9 +741,9 @@ fil_node_open_file(
 
 		os_file_close(node->handle);
 
-		min_size = FIL_IBD_FILE_INITIAL_SIZE
-			   * (fsp_flags_is_compressed(flags)
-			      ? fsp_flags_get_zip_size(flags) : UNIV_PAGE_SIZE);
+		const page_size_t	page_size(flags);
+
+		min_size = FIL_IBD_FILE_INITIAL_SIZE * page_size.physical();
 
 		if (size_bytes < min_size) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -776,14 +768,23 @@ fil_node_open_file(
 				(ulong) space_id, node->name);
 		}
 
-		if (UNIV_UNLIKELY(fsp_flags_get_page_size(space->flags)
-				  != page_size)) {
+		const page_size_t	space_page_size(space->flags);
+
+		if (!page_size.equals_to(space_page_size)) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Tablespace file %s has page size"
-				" 0x%lx but the data dictionary expects"
-				" page size 0x%lx!",
-				node->name, flags,
-				fsp_flags_get_page_size(space->flags));
+				"Tablespace file %s has page size "
+				"(physical=" ULINTPF ", logical=" ULINTPF ") "
+				"(flags=0x%lx) but the data "
+				"dictionary expects page size "
+				"(physical=" ULINTPF ", logical=" ULINTPF ") "
+				"(flags=0x%lx)!",
+				node->name,
+				page_size.physical(),
+				page_size.logical(),
+				flags,
+				space_page_size.physical(),
+				space_page_size.logical(),
+				space->flags);
 		}
 
 		if (UNIV_UNLIKELY(space->flags != flags)) {
@@ -799,13 +800,7 @@ fil_node_open_file(
 			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
 		}
 
-		if (!fsp_flags_is_compressed(flags)) {
-			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
-		} else {
-			node->size = (ulint)
-				(size_bytes
-				 / fsp_flags_get_zip_size(flags));
-		}
+		node->size = (ulint) (size_bytes / page_size.physical());
 
 #ifdef UNIV_HOTBACKUP
 add_size:
@@ -1140,19 +1135,20 @@ fil_node_free(
 	::ut_free(node);
 }
 
-/*******************************************************************//**
-Creates a space memory object and puts it to the 'fil system' hash table.
+/** Creates a space memory object and puts it to the 'fil system' hash table.
 If there is an error, prints an error message to the .err log.
+@param[in]	space	name
+@param[in]	id	space id
+@param[in]	flags	space flags
+@param[in]	purpose	FIL_TABLESPACE, or FIL_LOG if log
 @retval pointer to the tablespace
 @retval NULL on failure */
-
 fil_space_t*
 fil_space_create(
-/*=============*/
-	const char*	name,	/*!< in: space name */
-	ulint		id,	/*!< in: space id */
-	ulint		flags,	/*!< in: tablespace flags */
-	ulint		purpose)/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
+	const char*	name,
+	ulint		id,
+	ulint		flags,
+	ulint		purpose)
 {
 	fil_space_t*	space;
 
@@ -1535,24 +1531,32 @@ fil_space_get_flags(
 	return(flags);
 }
 
-/*******************************************************************//**
-Returns the compressed page size of the space, or 0 if the space
-is not compressed. The tablespace must be cached in the memory cache.
-@return compressed page size, ULINT_UNDEFINED if space not found */
-
-ulint
-fil_space_get_zip_size(
-/*===================*/
-	ulint	id)	/*!< in: space id */
+/** Returns the page size of the space and whether it is compressed or not.
+The tablespace must be cached in the memory cache.
+@param[in]	id	space id
+@param[out]	found	true if tablespace was found
+@return page size */
+const page_size_t
+fil_space_get_page_size(
+	ulint	id,
+	bool*	found)
 {
-	ulint	flags = fil_space_get_flags(id);
+	const ulint	flags = fil_space_get_flags(id);
 
-	if (flags && flags != ULINT_UNDEFINED) {
-
-		return(fsp_flags_get_zip_size(flags));
+	if (flags == ULINT_UNDEFINED) {
+		*found = false;
+		return(page_size_t(0, 0, false));
 	}
 
-	return(flags);
+	*found = true;
+
+	if (id == 0) {
+		/* fil_space_get_flags() always returns flags=0 for space=0 */
+		ut_ad(flags == 0);
+		return(univ_page_size);
+	}
+
+	return(page_size_t(flags));
 }
 
 /*******************************************************************//**
@@ -1790,13 +1794,16 @@ fil_write_lsn_and_arch_no_to_file(
 	buf1 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 	buf = static_cast<byte*>(ut_align(buf1, UNIV_PAGE_SIZE));
 
-	err = fil_read(true, space, 0, sum_of_sizes, 0,
-		       UNIV_PAGE_SIZE, buf, NULL);
+	const page_id_t	page_id(space, sum_of_sizes);
+
+	err = fil_read(page_id, univ_page_size, 0, univ_page_size.physical(),
+		       buf);
+
 	if (err == DB_SUCCESS) {
 		mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
-		err = fil_write(true, space, 0, sum_of_sizes, 0,
-				UNIV_PAGE_SIZE, buf, NULL);
+		err = fil_write(page_id, univ_page_size, 0,
+				univ_page_size.physical(), buf);
 	}
 
 	::ut_free(buf1);
@@ -2042,13 +2049,12 @@ fil_recreate_table(
 	truncate_t&	truncate)	/*!< in: The information of
 					TRUNCATE log record */
 {
-	ulint		zip_size;
-	dberr_t		err = DB_SUCCESS;
+	dberr_t			err = DB_SUCCESS;
+	bool			found;
+	const page_size_t	page_size(fil_space_get_page_size(space_id,
+								  &found));
 
-	zip_size = fil_space_get_zip_size(space_id);
-
-	if (zip_size == ULINT_UNDEFINED) {
-
+	if (!found) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Missing .ibd file for table '%s' with tablespace %lu",
 			name, space_id);
@@ -2065,7 +2071,7 @@ fil_recreate_table(
 
 	/* Step-2: Scan for active indexes and re-create them. */
 	err = truncate.create_indexes(
-		name, space_id, zip_size, flags, format_flags);
+		name, space_id, page_size, flags, format_flags);
 	if (err != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Failed to create indexes for the table '%s' with"
@@ -2122,9 +2128,11 @@ fil_recreate_tablespace(
 		return(DB_ERROR);
 	}
 
-	ulint zip_size = fil_space_get_zip_size(space_id);
-	if (zip_size == ULINT_UNDEFINED) {
+	bool			found;
+	const page_size_t&	page_size =
+		fil_space_get_page_size(space_id, &found);
 
+	if (!found) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Missing .ibd file for table '%s' with tablespace %lu",
 			name, space_id);
@@ -2132,7 +2140,7 @@ fil_recreate_tablespace(
 	}
 
 	/* Step-3: Initialize Header. */
-	if (fsp_flags_is_compressed(flags)) {
+	if (page_size.is_compressed()) {
 		byte*	buf;
 		page_t*	page;
 
@@ -2149,7 +2157,7 @@ fil_recreate_tablespace(
 			page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
 		page_zip_des_t  page_zip;
-		page_zip_set_size(&page_zip, zip_size);
+		page_zip_set_size(&page_zip, page_size.physical());
 		page_zip.data = page + UNIV_PAGE_SIZE;
 
 #ifdef UNIV_DEBUG
@@ -2158,9 +2166,8 @@ fil_recreate_tablespace(
 		page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
 		buf_flush_init_for_writing(page, &page_zip, 0);
 
-		err = fil_write(
-			true, space_id, zip_size, 0, 0, zip_size,
-			page_zip.data, NULL);
+		err = fil_write(page_id_t(space_id, 0), page_size, 0,
+				page_size.physical(), page_zip.data);
 
 		::ut_free(buf);
 
@@ -2187,7 +2194,7 @@ fil_recreate_tablespace(
 	This operation will restore tablespace back to what it was
 	when it was created during CREATE TABLE. */
 	err = truncate.create_indexes(
-		name, space_id, zip_size, flags, format_flags);
+		name, space_id, page_size, flags, format_flags);
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
@@ -2209,19 +2216,23 @@ fil_recreate_tablespace(
 
 	for (ulint page_no = 0; page_no < node->size; ++page_no) {
 
-		buf_block_t*	block = buf_page_get(
-			space_id, zip_size, page_no, RW_X_LATCH, &mtr);
+		const page_id_t	cur_page_id(space_id, page_no);
+
+		buf_block_t*	block = buf_page_get(cur_page_id, page_size,
+						     RW_X_LATCH, &mtr);
 
 		byte*	page = buf_block_get_frame(block);
 
 		if (!fsp_flags_is_compressed(flags)) {
 
+			ut_ad(!page_size.is_compressed());
+
 			buf_flush_init_for_writing(page, NULL, recv_lsn);
 
-			err = fil_write(
-				true, space_id, 0, page_no, 0,
-				UNIV_PAGE_SIZE, page, NULL);
+			err = fil_write(cur_page_id, page_size, 0,
+					page_size.physical(), page);
 		} else {
+			ut_ad(page_size.is_compressed());
 
 			/* We don't want to rewrite empty pages. */
 
@@ -2232,15 +2243,18 @@ fil_recreate_tablespace(
 				buf_flush_init_for_writing(
 					page, page_zip, recv_lsn);
 
-				err = fil_write(
-					true, space_id, zip_size, page_no, 0,
-					zip_size, page_zip->data, NULL);
+				err = fil_write(cur_page_id, page_size, 0,
+						page_size.physical(),
+						page_zip->data);
 			} else {
 #ifdef UNIV_DEBUG
 				const byte*	data = block->page.zip.data;
 
 				/* Make sure that the page is really empty */
-				for (ulint i = 0; i < zip_size; ++i) {
+				for (ulint i = 0;
+				     i < page_size.physical();
+				     ++i) {
+
 					ut_a(data[i] == 0);
 				}
 #endif /* UNIV_DEBUG */
@@ -2808,18 +2822,17 @@ fil_delete_tablespace(
 	return(err);
 }
 
-/*******************************************************************//**
-Check if an index tree is freed by checking a descriptor bit of index root page.
+/** Check if an index tree is freed by checking a descriptor bit of
+index root page.
+@param[in]	space_id	space id
+@param[in]	root_page_no	root page no of an index tree
+@param[in]	page_size	page size
 @return true if the index tree is freed */
-
 bool
 fil_index_tree_is_freed(
-/*====================*/
-	ulint		space_id,	/*!< in: space id */
-	ulint		root_page_no,	/*!< in: root page no of an
-					index tree */
-	ulint		zip_size)	/*!< in: compressed page size
-					in bytes */
+	ulint			space_id,
+	ulint			root_page_no,
+	const page_size_t&	page_size)
 {
 	rw_lock_t*	latch;
 	mtr_t		mtr;
@@ -2830,7 +2843,7 @@ fil_index_tree_is_freed(
 	mtr_start(&mtr);
 	mtr_x_lock(latch, &mtr);
 
-	descr = xdes_get_descriptor(space_id, zip_size, root_page_no, &mtr);
+	descr = xdes_get_descriptor(space_id, root_page_no, page_size, &mtr);
 
 	if (descr == NULL
 	    || (descr != NULL
@@ -3371,8 +3384,8 @@ fil_create_new_single_table_tablespace(
 		in the path, if they are not there already. */
 		success = os_file_create_subdirs_if_needed(path);
 		if (!success) {
-			err = DB_ERROR;
-			goto error_exit_3;
+			ut_free(path);
+			return(DB_ERROR);
 		}
 	} else {
 		path = fil_make_filepath(NULL, tablename, IBD, false);
@@ -3410,24 +3423,26 @@ fil_create_new_single_table_tablespace(
 				" the file '%s' under the 'datadir' of MySQL.",
 				path, path);
 
-			err = DB_TABLESPACE_EXISTS;
-			goto error_exit_3;
+			ut_free(path);
+			return(DB_TABLESPACE_EXISTS);
 		}
 
 		if (error == OS_FILE_DISK_FULL) {
-			err = DB_OUT_OF_FILE_SPACE;
-			goto error_exit_3;
+			ut_free(path);
+			return(DB_OUT_OF_FILE_SPACE);
 		}
 
-		err = DB_ERROR;
-		goto error_exit_3;
+		ut_free(path);
+		return(DB_ERROR);
 	}
 
 	success = os_file_set_size(path, file, size * UNIV_PAGE_SIZE);
 
 	if (!success) {
-		err = DB_OUT_OF_FILE_SPACE;
-		goto error_exit_2;
+		os_file_close(file);
+		os_file_delete(innodb_data_file_key, path);
+		ut_free(path);
+		return(DB_OUT_OF_FILE_SPACE);
 	}
 
 	/* printf("Creating tablespace %s id %lu\n", path, space_id); */
@@ -3453,16 +3468,16 @@ fil_create_new_single_table_tablespace(
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
-	if (!fsp_flags_is_compressed(flags)) {
+	const page_size_t	page_size(flags);
+
+	if (!page_size.is_compressed()) {
 		buf_flush_init_for_writing(page, NULL, 0);
-		success = os_file_write(path, file, page, 0, UNIV_PAGE_SIZE);
+		success = os_file_write(path, file, page, 0,
+					page_size.physical());
 	} else {
 		page_zip_des_t	page_zip;
-		ulint		zip_size;
 
-		zip_size = fsp_flags_get_zip_size(flags);
-
-		page_zip_set_size(&page_zip, zip_size);
+		page_zip_set_size(&page_zip, page_size.physical());
 		page_zip.data = page + UNIV_PAGE_SIZE;
 #ifdef UNIV_DEBUG
 		page_zip.m_start =
@@ -3470,7 +3485,8 @@ fil_create_new_single_table_tablespace(
 			page_zip.m_end = page_zip.m_nonempty =
 			page_zip.n_blobs = 0;
 		buf_flush_init_for_writing(page, &page_zip, 0);
-		success = os_file_write(path, file, page_zip.data, 0, zip_size);
+		success = os_file_write(path, file, page_zip.data, 0,
+					page_size.physical());
 	}
 
 	::ut_free(buf2);
@@ -3479,9 +3495,10 @@ fil_create_new_single_table_tablespace(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not write the first page to tablespace '%s'",
 			path);
-
-		err = DB_ERROR;
-		goto error_exit_2;
+		os_file_close(file);
+		os_file_delete(innodb_data_file_key, path);
+		ut_free(path);
+		return(DB_ERROR);
 	}
 
 	success = os_file_flush(file);
@@ -3489,15 +3506,20 @@ fil_create_new_single_table_tablespace(
 	if (!success) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"File flush of tablespace '%s' failed", path);
-		err = DB_ERROR;
-		goto error_exit_2;
+		os_file_close(file);
+		os_file_delete(innodb_data_file_key, path);
+		ut_free(path);
+		return(DB_ERROR);
 	}
 
 	if (has_data_dir) {
 		/* Now that the IBD file is created, make the ISL file. */
 		err = RemoteDatafile::create_link_file(tablename, path);
 		if (err != DB_SUCCESS) {
-			goto error_exit_2;
+			os_file_close(file);
+			os_file_delete(innodb_data_file_key, path);
+			ut_free(path);
+			return(err);
 		}
 	}
 
@@ -3538,13 +3560,11 @@ error_exit_1:
 		RemoteDatafile::delete_link_file(tablename);
 	}
 
-error_exit_2:
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
 		os_file_delete(innodb_data_file_key, path);
 	}
 
-error_exit_3:
 	::ut_free(path);
 
 	return(err);
@@ -3870,13 +3890,13 @@ fil_make_ibbackup_old_name(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/********************************************************************//**
-Looks for a pre-existing fil_space_t with the given tablespace ID
+/** Looks for a pre-existing fil_space_t with the given tablespace ID
 and, if found, returns the name and filepath in newly allocated buffers
 that the caller must free.
-@param[in] space_id The tablespace ID to search for.
-@param[out] name Name of the tablespace found.
-@param[out] filepath The filepath of the first datafile for the tablespace.
+@param[in]	space_id	The tablespace ID to search for.
+@param[out]	name		Name of the tablespace found.
+@param[out]	filepath	The filepath of the first datafile for the
+tablespace.
 @return true if tablespace is found, false if not. */
 
 bool
@@ -3885,13 +3905,13 @@ fil_space_read_name_and_filepath(
 	char**	name,
 	char**	filepath)
 {
-	bool success = false;
+	bool	success = false;
 	*name = NULL;
 	*filepath = NULL;
 
 	mutex_enter(&fil_system->mutex);
 
-	fil_space_t* space = fil_space_get_by_id(space_id);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
 
 	if (space != NULL) {
 		*name = mem_strdup(space->name);
@@ -4605,7 +4625,6 @@ fil_extend_space_to_desired_size(
 	ulint		buf_size;
 	ulint		start_page_no;
 	ulint		file_start_page_no;
-	ulint		page_size;
 	ulint		pages_added;
 	bool		success;
 
@@ -4630,10 +4649,7 @@ retry:
 		return(true);
 	}
 
-	page_size = fsp_flags_get_zip_size(space->flags);
-	if (!page_size) {
-		page_size = UNIV_PAGE_SIZE;
-	}
+	const ulint	page_size = page_size_t(space->flags).physical();
 
 	node = UT_LIST_GET_LAST(space->chain);
 
@@ -4782,9 +4798,11 @@ fil_extend_tablespaces_to_stored_len(void)
 		mutex_exit(&fil_system->mutex); /* no need to protect with a
 					      mutex, because this is a
 					      single-threaded operation */
-		error = fil_read(true, space->id,
-				 fsp_flags_get_zip_size(space->flags),
-				 0, 0, UNIV_PAGE_SIZE, buf, NULL);
+		error = fil_read(
+			page_id_t(space->id, 0),
+			page_size_t(space->flags),
+			0, univ_page_size.physical(), buf);
+
 		ut_a(error == DB_SUCCESS);
 
 		size_in_header = fsp_get_size_low(buf);
@@ -5023,39 +5041,35 @@ fil_report_invalid_page_access(
 		(ulong) byte_offset, (ulong) len, (ulong) type);
 }
 
-/********************************************************************//**
-Reads or writes data. This operation is asynchronous (aio).
+/** Reads or writes data. This operation could be asynchronous (aio).
+@param[in]	type		OS_FILE_READ or OS_FILE_WRITE, ORed to
+OS_FILE_LOG, if a log i/o and ORed to OS_AIO_SIMULATED_WAKE_LATER if
+simulated aio and we want to post a batch of IOs; NOTE that a simulated
+batch may introduce hidden chances of deadlocks, because IOs are not
+actually handled until all have been posted: use with great caution!
+@param[in]	sync		true if synchronous aio is desired
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+must be divisible by the OS block size
+@param[in]	len		how many bytes to read or write; this must
+not cross a file boundary; in aio this must be a block size multiple
+@param[in,out]	buf		buffer where to store read data or from where
+to write; in aio this must be appropriately aligned
+@param[in]	message		message for aio handler if non-sync aio used,
+else ignored
 @return DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
 if we are trying to do i/o on a tablespace which does not exist */
-
 dberr_t
 fil_io(
-/*===*/
-	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
-				ORed to OS_FILE_LOG, if a log i/o
-				and ORed to OS_AIO_SIMULATED_WAKE_LATER
-				if simulated aio and we want to post a
-				batch of i/os; NOTE that a simulated batch
-				may introduce hidden chances of deadlocks,
-				because i/os are not actually handled until
-				all have been posted: use with great
-				caution! */
-	bool	sync,		/*!< in: true if synchronous aio is desired */
-	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-				aio this must be divisible by the OS block
-				size */
-	ulint	len,		/*!< in: how many bytes to read or write; this
-				must not cross a file boundary; in aio this
-				must be a block size multiple */
-	void*	buf,		/*!< in/out: buffer where to store read data
-				or from where to write; in aio this must be
-				appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
-				aio used, else ignored */
+	ulint			type,
+	bool			sync,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf,
+	void*			message)
 {
 	ulint		mode;
 	fil_space_t*	space;
@@ -5076,8 +5090,7 @@ fil_io(
 	type &= ~BUF_READ_IGNORE_NONEXISTENT_PAGES;
 
 	ut_ad(byte_offset < UNIV_PAGE_SIZE);
-	ut_ad(!zip_size || !byte_offset);
-	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(!page_size.is_compressed() || byte_offset == 0);
 	ut_ad(buf);
 	ut_ad(len > 0);
 	ut_ad(UNIV_PAGE_SIZE == (ulong)(1 << UNIV_PAGE_SIZE_SHIFT));
@@ -5092,7 +5105,7 @@ fil_io(
 	/* ibuf bitmap pages must be read in the sync aio mode: */
 	ut_ad(recv_no_ibuf_operations
 	      || type == OS_FILE_WRITE
-	      || !ibuf_bitmap_page(zip_size, block_offset)
+	      || !ibuf_bitmap_page(page_id, page_size)
 	      || sync
 	      || is_log);
 	if (sync) {
@@ -5101,7 +5114,7 @@ fil_io(
 		mode = OS_AIO_LOG;
 	} else if (type == OS_FILE_READ
 		   && !recv_no_ibuf_operations
-		   && ibuf_page(space_id, zip_size, block_offset, NULL)) {
+		   && ibuf_page(page_id, page_size, NULL)) {
 		mode = OS_AIO_IBUF;
 	} else {
 		mode = OS_AIO_NORMAL;
@@ -5121,9 +5134,9 @@ fil_io(
 	/* Reserve the fil_system mutex and make sure that we can open at
 	least one file while holding it, if the file is not already open */
 
-	fil_mutex_enter_and_prepare_for_io(space_id);
+	fil_mutex_enter_and_prepare_for_io(page_id.space());
 
-	space = fil_space_get_by_id(space_id);
+	space = fil_space_get_by_id(page_id.space());
 
 	/* If we are deleting a tablespace we don't allow any read
 	operations on that. However, we do allow write operations. */
@@ -5133,10 +5146,10 @@ fil_io(
 		mutex_exit(&fil_system->mutex);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to do i/o to a tablespace which does"
-			" not exist. i/o type %lu, space id %lu,"
-			" page no. %lu, i/o length %lu bytes",
-			(ulong) type, (ulong) space_id, (ulong) block_offset,
+			"Trying to do i/o to a tablespace which does "
+			"not exist. i/o type %lu, space id " UINT32PF ", "
+			"page no. " UINT32PF ", i/o length %lu bytes",
+			(ulong) type, page_id.space(), page_id.page_no(),
 			(ulong) len);
 
 		return(DB_TABLESPACE_DELETED);
@@ -5146,6 +5159,8 @@ fil_io(
 
 	node = UT_LIST_GET_FIRST(space->chain);
 
+	ulint	cur_page_no = page_id.page_no();
+
 	for (;;) {
 		if (node == NULL) {
 			if (ignore_nonexistent_pages != 0) {
@@ -5154,8 +5169,8 @@ fil_io(
 			}
 
 			fil_report_invalid_page_access(
-				block_offset, space_id, space->name,
-				byte_offset, len, type);
+				cur_page_no, page_id.space(),
+				space->name, byte_offset, len, type);
 
 			ut_error;
 
@@ -5165,7 +5180,7 @@ fil_io(
 			/* We do not know the size of a single-table tablespace
 			before we open the file */
 			break;
-		} else if (node->size > block_offset) {
+		} else if (node->size > cur_page_no) {
 			/* Found! */
 			break;
 		} else {
@@ -5181,7 +5196,8 @@ fil_io(
 				return(DB_TABLESPACE_TRUNCATED);
 			}
 
-			block_offset -= node->size;
+			cur_page_no -= node->size;
+
 			node = UT_LIST_GET_NEXT(chain, node);
 		}
 	}
@@ -5193,12 +5209,15 @@ fil_io(
 			mutex_exit(&fil_system->mutex);
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Trying to do i/o to a tablespace which"
-				" exists without .ibd data file."
-				" i/o type %lu, space id %lu, page no %lu,"
-				" i/o length %lu bytes",
-				(ulong) type, (ulong) space_id,
-				(ulong) block_offset, (ulong) len);
+				"Trying to do i/o to a tablespace which "
+				"exists without .ibd data file. "
+				"i/o type %lu, space id " UINT32PF
+				", page no " ULINTPF ", "
+				"i/o length %lu bytes",
+				(ulint) type,
+				page_id.space(),
+				cur_page_no,
+				(ulint) len);
 
 			return(DB_TABLESPACE_DELETED);
 		}
@@ -5212,12 +5231,12 @@ fil_io(
 
 	/* Check that at least the start offset is within the bounds of a
 	single-table tablespace, including rollback tablespaces. */
-	if (UNIV_UNLIKELY(node->size <= block_offset)
+	if (node->size <= cur_page_no
 	    && space->id != 0 && space->purpose == FIL_TABLESPACE) {
 
 		fil_report_invalid_page_access(
-			block_offset, space_id, space->name, byte_offset,
-			len, type);
+			cur_page_no, page_id.space(),
+			space->name, byte_offset, len, type);
 
 		ut_error;
 	}
@@ -5227,27 +5246,31 @@ fil_io(
 
 	/* Calculate the low 32 bits and the high 32 bits of the file offset */
 
-	if (!zip_size) {
-		offset = ((os_offset_t) block_offset << UNIV_PAGE_SIZE_SHIFT)
-			+ byte_offset;
+	if (!page_size.is_compressed()) {
+		offset = ((os_offset_t) cur_page_no
+			  << UNIV_PAGE_SIZE_SHIFT) + byte_offset;
 
-		ut_a(node->size - block_offset
+		ut_a(node->size - cur_page_no
 		     >= ((byte_offset + len + (UNIV_PAGE_SIZE - 1))
 			 / UNIV_PAGE_SIZE));
 	} else {
-		ulint	zip_size_shift;
-		switch (zip_size) {
-		case 1024: zip_size_shift = 10; break;
-		case 2048: zip_size_shift = 11; break;
-		case 4096: zip_size_shift = 12; break;
-		case 8192: zip_size_shift = 13; break;
-		case 16384: zip_size_shift = 14; break;
+		ulint	size_shift;
+
+		switch (page_size.physical()) {
+		case 1024: size_shift = 10; break;
+		case 2048: size_shift = 11; break;
+		case 4096: size_shift = 12; break;
+		case 8192: size_shift = 13; break;
+		case 16384: size_shift = 14; break;
 		default: ut_error;
 		}
-		offset = ((os_offset_t) block_offset << zip_size_shift)
+
+		offset = ((os_offset_t) cur_page_no << size_shift)
 			+ byte_offset;
-		ut_a(node->size - block_offset
-		     >= (len + (zip_size - 1)) / zip_size);
+
+		ut_a(node->size - cur_page_no
+		     >= (len + (page_size.physical() - 1))
+		     / page_size.physical());
 	}
 
 	/* Do aio */
@@ -5777,12 +5800,19 @@ fil_iterate(
 
 		block->frame = io_buffer;
 
-		if (callback.get_zip_size() > 0) {
+		if (callback.get_page_size().is_compressed()) {
 			page_zip_des_init(&block->page.zip);
 			page_zip_set_size(&block->page.zip, iter.page_size);
+
+			block->page.size.copy_from(
+				page_size_t(iter.page_size,
+					    univ_page_size.logical(),
+					    true));
+
 			block->page.zip.data = block->frame + UNIV_PAGE_SIZE;
 			ut_d(block->page.zip.m_external = true);
-			ut_ad(iter.page_size == callback.get_zip_size());
+			ut_ad(iter.page_size
+			      == callback.get_page_size().physical());
 
 			/* Zip IO is done in the compressed page buffer. */
 			io_buffer = block->page.zip.data;
@@ -5814,7 +5844,8 @@ fil_iterate(
 
 		for (ulint i = 0; i < n_pages_read; ++i) {
 
-			buf_block_set_file_page(block, space_id, page_no++);
+			buf_block_set_file_page(
+				block, page_id_t(space_id, page_no++));
 
 			dberr_t	err;
 
@@ -5935,7 +5966,7 @@ fil_tablespace_iterate(
 	mutex_create("buf_block_mutex", &block->mutex);
 
 	/* Allocate a page to read in the tablespace header, so that we
-	can determine the page size and zip_size (if it is compressed).
+	can determine the page size and zip size (if it is compressed).
 	We allocate an extra page in case it is a compressed table. One
 	page is to ensure alignement. */
 
@@ -5959,14 +5990,15 @@ fil_tablespace_iterate(
 		iter.filepath = filepath;
 		iter.file_size = file_size;
 		iter.n_io_buffers = n_io_buffers;
-		iter.page_size = callback.get_page_size();
+		iter.page_size = callback.get_page_size().physical();
 
 		/* Compressed pages can't be optimised for block IO for now.
 		We do the IMPORT page by page. */
 
-		if (callback.get_zip_size() > 0) {
+		if (callback.get_page_size().is_compressed()) {
 			iter.n_io_buffers = 1;
-			ut_a(iter.page_size == callback.get_zip_size());
+			ut_a(iter.page_size
+			     == callback.get_page_size().physical());
 		}
 
 		/** Add an extra page for compressed page scratch area. */
@@ -6006,19 +6038,13 @@ fil_tablespace_iterate(
 	return(err);
 }
 
-/**
-Set the tablespace compressed table size.
-@return DB_SUCCESS if it is valie or DB_CORRUPTION if not */
-dberr_t
-PageCallback::set_zip_size(const buf_frame_t* page) UNIV_NOTHROW
+/** Set the tablespace table size.
+@param[in]	page	a page belonging to the tablespace */
+void
+PageCallback::set_page_size(
+	const buf_frame_t*	page) UNIV_NOTHROW
 {
-	m_zip_size = fsp_header_get_zip_size(page);
-
-	if (!ut_is_2pow(m_zip_size) || m_zip_size > UNIV_ZIP_SIZE_MAX) {
-		return(DB_CORRUPTION);
-	}
-
-	return(DB_SUCCESS);
+	m_page_size.copy_from(fsp_header_get_page_size(page));
 }
 
 /********************************************************************//**

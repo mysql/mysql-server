@@ -33,6 +33,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "dict0types.h"
 #include "buf0types.h"
 #include "mem0mem.h"
+#include "page0size.h"
 #ifndef UNIV_HOTBACKUP
 #include "ibuf0types.h"
 #include "log0log.h"
@@ -48,6 +49,7 @@ struct trx_t;
 class truncate_t;
 struct fil_space_t;
 struct btr_create_t;
+class page_id_t;
 
 typedef std::list<const char*> space_name_list_t;
 
@@ -204,16 +206,16 @@ ib_int64_t
 fil_space_get_version(
 /*==================*/
 	ulint	id);	/*!< in: space id */
-/*******************************************************************//**
-Returns the latch of a file space.
-@return latch protecting storage allocation */
 
+/** Returns the latch of a file space.
+@param[in]	id	space id
+@param[out]	flags	tablespace flags
+@return latch protecting storage allocation */
 rw_lock_t*
 fil_space_get_latch(
-/*================*/
-	ulint	id,	/*!< in: space id */
-	ulint*	zip_size);/*!< out: compressed page size, or
-			0 for uncompressed tablespaces */
+	ulint	id,
+	ulint*	flags);
+
 /*******************************************************************//**
 Returns the type of a file space.
 @return FIL_TABLESPACE or FIL_LOG */
@@ -236,20 +238,23 @@ fil_node_create(
 	fil_space_t*	space,	/*!< in,out: space where to append */
 	bool		is_raw)	/*!< in: true if a raw device or
 				a raw disk partition */
-	__attribute__((nonnull(1), warn_unused_result));
-/*******************************************************************//**
-Creates a space memory object and puts it to the 'fil system' hash table.
+	__attribute__((warn_unused_result));
+
+/** Creates a space memory object and puts it to the 'fil system' hash table.
 If there is an error, prints an error message to the .err log.
+@param[in]	space	name
+@param[in]	id	space id
+@param[in]	flags	space flags
+@param[in]	purpose	FIL_TABLESPACE, or FIL_LOG if log
 @retval pointer to the tablespace
 @retval NULL on failure */
-
 fil_space_t*
 fil_space_create(
-/*=============*/
-	const char*	name,	/*!< in: space name */
-	ulint		id,	/*!< in: space id */
-	ulint		flags,	/*!< in: tablespace flags */
-	ulint		purpose);/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
+	const char*	name,
+	ulint		id,
+	ulint		flags,
+	ulint		purpose);
+
 /*******************************************************************//**
 Assigns a new space id for a new single-table tablespace. This works simply by
 incrementing the global counter. If 4 billion id's is not enough, we may need
@@ -288,15 +293,17 @@ ulint
 fil_space_get_flags(
 /*================*/
 	ulint	id);	/*!< in: space id */
-/*******************************************************************//**
-Returns the compressed page size of the space, or 0 if the space
-is not compressed. The tablespace must be cached in the memory cache.
-@return compressed page size, ULINT_UNDEFINED if space not found */
 
-ulint
-fil_space_get_zip_size(
-/*===================*/
-	ulint	id);	/*!< in: space id */
+/** Returns the page size of the space and whether it is compressed or not.
+The tablespace must be cached in the memory cache.
+@param[in]	id	space id
+@param[out]	found	true if tablespace was found
+@return page size */
+const page_size_t
+fil_space_get_page_size(
+	ulint	id,
+	bool*	found);
+
 /*******************************************************************//**
 Checks if the pair space, page_no refers to an existing page in a tablespace
 file space. The tablespace must be cached in the memory cache.
@@ -463,16 +470,18 @@ fil_delete_tablespace(
 	buf_remove_t	buf_remove);	/*!< in: specify the action to take
 					on the tables pages in the buffer
 					pool */
-/*******************************************************************//**
-Check if an index tree is freed by a descriptor bit of a page.
+/** Check if an index tree is freed by checking a descriptor bit of
+index root page.
+@param[in]	space_id	space id
+@param[in]	root_page_no	root page no of an index tree
+@param[in]	page_size	page size
 @return true if the index tree is freed */
-
 bool
 fil_index_tree_is_freed(
-/*====================*/
-	ulint	space_id,	/*!< in: space id */
-	ulint	root_page_no,	/*!< in: root page no of an index tree */
-	ulint	zip_size);	/*!< in: compressed page size in bytes */
+	ulint			space_id,
+	ulint			root_page_no,
+	const page_size_t&	page_size);
+
 /*******************************************************************//**
 Prepare for truncating a single-table tablespace. The tablespace
 must be cached in the memory cache.
@@ -747,40 +756,37 @@ ulint
 fil_space_get_n_reserved_extents(
 /*=============================*/
 	ulint	id);		/*!< in: space id */
-/********************************************************************//**
-Reads or writes data. This operation is asynchronous (aio).
-@return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
-i/o on a tablespace which does not exist */
 
+/** Reads or writes data. This operation could be asynchronous (aio).
+@param[in]	type		OS_FILE_READ or OS_FILE_WRITE, ORed to
+OS_FILE_LOG, if a log i/o and ORed to OS_AIO_SIMULATED_WAKE_LATER if
+simulated aio and we want to post a batch of IOs; NOTE that a simulated
+batch may introduce hidden chances of deadlocks, because IOs are not
+actually handled until all have been posted: use with great caution!
+@param[in]	sync		true if synchronous aio is desired
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+must be divisible by the OS block size
+@param[in]	len		how many bytes to read or write; this must
+not cross a file boundary; in aio this must be a block size multiple
+@param[in,out]	buf		buffer where to store read data or from where
+to write; in aio this must be appropriately aligned
+@param[in]	message		message for aio handler if non-sync aio used,
+else ignored
+@return DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
+if we are trying to do i/o on a tablespace which does not exist */
 dberr_t
 fil_io(
-/*===*/
-	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
-				ORed to OS_FILE_LOG, if a log i/o
-				and ORed to OS_AIO_SIMULATED_WAKE_LATER
-				if simulated aio and we want to post a
-				batch of i/os; NOTE that a simulated batch
-				may introduce hidden chances of deadlocks,
-				because i/os are not actually handled until
-				all have been posted: use with great
-				caution! */
-	bool	sync,		/*!< in: true if synchronous aio is desired */
-	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-				aio this must be divisible by the OS block
-				size */
-	ulint	len,		/*!< in: how many bytes to read or write; this
-				must not cross a file boundary; in aio this
-				must be a block size multiple */
-	void*	buf,		/*!< in/out: buffer where to store read data
-				or from where to write; in aio this must be
-				appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
-				aio used, else ignored */
-	__attribute__((nonnull(8)));
+	ulint			type,
+	bool			sync,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf,
+	void*			message);
+
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
@@ -882,8 +888,7 @@ struct PageCallback {
 	/** Default constructor */
 	PageCallback()
 		:
-		m_zip_size(),
-		m_page_size(),
+		m_page_size(0, 0, false),
 		m_filepath() UNIV_NOTHROW {}
 
 	virtual ~PageCallback() UNIV_NOTHROW {}
@@ -921,29 +926,19 @@ struct PageCallback {
 	@return the space id of the tablespace */
 	virtual ulint get_space_id() const UNIV_NOTHROW = 0;
 
-	/** The compressed page size
-	@return the compressed page size */
-	ulint get_zip_size() const
-	{
-		return(m_zip_size);
-	}
-
-	/** Set the tablespace compressed table size.
-	@return DB_SUCCESS if it is valie or DB_CORRUPTION if not */
-	dberr_t set_zip_size(const buf_frame_t* page) UNIV_NOTHROW;
+	/** Set the tablespace table size.
+	@param[in] page a page belonging to the tablespace */
+	void set_page_size(const buf_frame_t* page) UNIV_NOTHROW;
 
 	/** The compressed page size
 	@return the compressed page size */
-	ulint get_page_size() const
+	const page_size_t& get_page_size() const
 	{
 		return(m_page_size);
 	}
 
-	/** Compressed table page size */
-	ulint			m_zip_size;
-
 	/** The tablespace page size. */
-	ulint			m_page_size;
+	page_size_t		m_page_size;
 
 	/** File handle to the tablespace */
 	os_file_t		m_file;

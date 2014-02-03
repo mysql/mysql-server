@@ -923,15 +923,15 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 	} else {
-		ulint	zip_size;
-
 		/* Check if the .ibd file is missing. */
-		zip_size = fil_space_get_zip_size(m_table->space);
+		bool	found;
+
+		fil_space_get_page_size(m_table->space, &found);
 
 		DBUG_EXECUTE_IF("ib_err_trunc_drop_index",
-				zip_size = ULINT_UNDEFINED;);
+				found = false;);
 
-		if (zip_size == ULINT_UNDEFINED) {
+		if (!found) {
 			return(DB_ERROR);
 		}
 	}
@@ -1014,14 +1014,13 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 
 	} else {
-		ulint	zip_size;
-
-		zip_size = fil_space_get_zip_size(m_table->space);
+		bool	found;
+		fil_space_get_page_size(m_table->space, &found);
 
 		DBUG_EXECUTE_IF("ib_err_trunc_create_index",
-				zip_size = ULINT_UNDEFINED;);
+				found = false;);
 
-		if (zip_size == ULINT_UNDEFINED) {
+		if (!found) {
 			return(DB_ERROR);
 		}
 	}
@@ -2488,30 +2487,30 @@ truncate_t::index_t::set(
 	return(DB_SUCCESS);
 }
 
-/**
-Create an index for a table.
-
-@param table_name		table name, for which to create the index
-@param space_id			space id where we have to create the index
-@param zip_size			page size of the .ibd file
-@param index_type		type of index to truncate
-@param index_id			id of index to truncate
-@param btr_redo_create_info	control info for ::btr_create()
-@param mtr			mini-transaction covering the create index
+/** Create an index for a table.
+@param[in]	table_name		table name, for which to create
+the index
+@param[in]	space_id		space id where we have to
+create the index
+@param[in]	page_size		page size of the .ibd file
+@param[in]	index_type		type of index to truncate
+@param[in]	index_id		id of index to truncate
+@param[in]	btr_redo_create_info	control info for ::btr_create()
+@param[in,out]	mtr			mini-transaction covering the
+create index
 @return root page no or FIL_NULL on failure */
-
 ulint
 truncate_t::create_index(
-	const char*	table_name,
-	ulint		space_id,
-	ulint		zip_size,
-	ulint		index_type,
-	index_id_t	index_id,
-	btr_create_t&	btr_redo_create_info,
-	mtr_t*		mtr) const
+	const char*		table_name,
+	ulint			space_id,
+	const page_size_t&	page_size,
+	ulint			index_type,
+	index_id_t		index_id,
+	const btr_create_t&	btr_redo_create_info,
+	mtr_t*			mtr) const
 {
 	ulint	root_page_no = btr_create(
-		index_type, space_id, zip_size, index_id,
+		index_type, space_id, page_size, index_id,
 		NULL, &btr_redo_create_info, mtr);
 
 	if (root_page_no == FIL_NULL) {
@@ -2540,14 +2539,19 @@ truncate_t::is_index_modified_since_logged(
 	ulint		space_id,
 	ulint		root_page_no) const
 {
-	mtr_t	mtr;
-	ulint   zip_size = fil_space_get_zip_size(space_id);
+	mtr_t			mtr;
+	bool			found;
+	const page_size_t&	page_size = fil_space_get_page_size(space_id,
+								    &found);
+
+	ut_ad(found);
 
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	page_t* root = btr_page_get(
-		space_id, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
+		page_id_t(space_id, root_page_no), page_size,
+		RW_X_LATCH, NULL, &mtr);
 
 	lsn_t page_lsn = mach_read_from_8(root + FIL_PAGE_LSN);
 
@@ -2577,7 +2581,12 @@ truncate_t::drop_indexes(
 	     ++it) {
 
 		root_page_no = it->m_root_page_no;
-		ulint   zip_size = fil_space_get_zip_size(space_id);
+
+		bool			found;
+		const page_size_t&	page_size
+			= fil_space_get_page_size(space_id, &found);
+
+		ut_ad(found);
 
 		if (is_index_modified_since_logged(
 			space_id, root_page_no)) {
@@ -2586,7 +2595,8 @@ truncate_t::drop_indexes(
 			continue;
 		}
 
-		if (fil_index_tree_is_freed(space_id, root_page_no, zip_size)) {
+		if (fil_index_tree_is_freed(space_id, root_page_no,
+					    page_size)) {
 			continue;
 		}
 
@@ -2597,16 +2607,17 @@ truncate_t::drop_indexes(
 		recovery restarting from last checkpoint. */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-		if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
+		if (root_page_no != FIL_NULL) {
+
+			const page_id_t	root_page_id(space_id, root_page_no);
 
 			/* We free all the pages but the root page first;
 			this operation may span several mini-transactions */
-			btr_free_but_not_root(
-				space_id, zip_size, root_page_no,
-				MTR_LOG_NO_REDO);
+			btr_free_but_not_root(root_page_id, page_size,
+					      MTR_LOG_NO_REDO);
 
 			/* Then we free the root page. */
-			btr_free_root(space_id, zip_size, root_page_no, &mtr);
+			btr_free_root(root_page_id, page_size, &mtr);
 		}
 
 		/* If tree is already freed then we might return immediately
@@ -2618,19 +2629,17 @@ truncate_t::drop_indexes(
 
 
 /** Create the indexes for a table
-
-@param table_name	table name, for which to create the indexes
-@param space_id		space id where we have to create the indexes
-@param zip_size		page size of the .ibd file
-@param flags		tablespace flags
-@param format_flags	page format flags
+@param[in]	table_name	table name, for which to create the indexes
+@param[in]	space_id	space id where we have to create the indexes
+@param[in]	page_size	page size of the .ibd file
+@param[in]	flags		tablespace flags
+@param[in]	format_flags	page format flags
 @return DB_SUCCESS or error code. */
-
 dberr_t
 truncate_t::create_indexes(
 	const char*		table_name,
 	ulint			space_id,
-	ulint			zip_size,
+	const page_size_t&	page_size,
 	ulint			flags,
 	ulint			format_flags)
 {
@@ -2665,7 +2674,7 @@ truncate_t::create_indexes(
 		}
 
 		root_page_no = create_index(
-			table_name, space_id, zip_size, it->m_type, it->m_id,
+			table_name, space_id, page_size, it->m_type, it->m_id,
 			btr_redo_create_info, &mtr);
 
 		if (root_page_no == FIL_NULL) {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -974,11 +974,14 @@ log_group_file_header_flush(
 
 		srv_stats.os_log_pending_writes.inc();
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, group->space_id, 0,
-		       (ulint) (dest_offset / UNIV_PAGE_SIZE),
-		       (ulint) (dest_offset % UNIV_PAGE_SIZE),
-		       OS_FILE_LOG_BLOCK_SIZE,
-		       buf, group);
+		const ulint	page_no
+			= (ulint) (dest_offset / univ_page_size.physical());
+
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
+		       page_id_t(group->space_id, page_no),
+		       univ_page_size,
+		       (ulint) (dest_offset % univ_page_size.physical()),
+		       OS_FILE_LOG_BLOCK_SIZE, buf, group);
 
 		srv_stats.os_log_pending_writes.dec();
 	}
@@ -1100,8 +1103,12 @@ loop:
 
 		ut_a(next_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, group->space_id, 0,
-		       (ulint) (next_offset / UNIV_PAGE_SIZE),
+		const ulint	page_no
+			= (ulint) (next_offset / univ_page_size.physical());
+
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
+		       page_id_t(group->space_id, page_no),
+		       univ_page_size,
 		       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
 		       group);
 
@@ -1618,9 +1625,11 @@ log_group_checkpoint(
 		added with 1, as we want to distinguish between a normal log
 		file write and a checkpoint field write */
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, false, group->space_id, 0,
-		       write_offset / UNIV_PAGE_SIZE,
-		       write_offset % UNIV_PAGE_SIZE,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, false,
+		       page_id_t(group->space_id,
+				 write_offset / univ_page_size.physical()),
+		       univ_page_size,
+		       write_offset % univ_page_size.physical(),
 		       OS_FILE_LOG_BLOCK_SIZE,
 		       buf, ((byte*) group + 1));
 
@@ -1700,8 +1709,9 @@ log_group_read_checkpoint_info(
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, true, group->space_id, 0,
-	       field / UNIV_PAGE_SIZE, field % UNIV_PAGE_SIZE,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, true,
+	       page_id_t(group->space_id, field / univ_page_size.physical()),
+	       univ_page_size, field % univ_page_size.physical(),
 	       OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
 }
 
@@ -1981,9 +1991,13 @@ loop:
 
 	ut_a(source_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, sync, group->space_id, 0,
-	       (ulint) (source_offset / UNIV_PAGE_SIZE),
-	       (ulint) (source_offset % UNIV_PAGE_SIZE),
+	const ulint	page_no
+		= (ulint) (source_offset / univ_page_size.physical());
+
+	fil_io(OS_FILE_READ | OS_FILE_LOG, sync,
+	       page_id_t(group->space_id, page_no),
+	       univ_page_size,
+	       (ulint) (source_offset % univ_page_size.physical()),
 	       len, buf, NULL);
 
 	start_lsn += len;

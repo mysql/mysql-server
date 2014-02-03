@@ -148,51 +148,36 @@ ibuf_inside(
 	return(mtr->is_inside_ibuf());
 }
 
-/***********************************************************************//**
-Checks if a page address is an ibuf bitmap page address.
+/** Checks if a page address is an ibuf bitmap page (level 3 page) address.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if a bitmap page */
 UNIV_INLINE
 ibool
 ibuf_bitmap_page(
-/*=============*/
-	ulint	zip_size,/*!< in: compressed page size in bytes;
-			0 for uncompressed pages */
-	ulint	page_no)/*!< in: page number */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size)
 {
-	ut_ad(ut_is_2pow(zip_size));
-
-	if (!zip_size) {
-		return((page_no & (UNIV_PAGE_SIZE - 1))
-			== FSP_IBUF_BITMAP_OFFSET);
-	}
-
-	return((page_no & (zip_size - 1)) == FSP_IBUF_BITMAP_OFFSET);
+	return((page_id.page_no() & (page_size.physical() - 1))
+	       == FSP_IBUF_BITMAP_OFFSET);
 }
 
-/*********************************************************************//**
-Translates the free space on a page to a value in the ibuf bitmap.
+/** Translates the free space on a page to a value in the ibuf bitmap.
+@param[in]	page_size	page size in bytes
+@param[in]	max_ins_size	maximum insert size after reorganize for
+the page
 @return value for ibuf bitmap bits */
 UNIV_INLINE
 ulint
 ibuf_index_page_calc_free_bits(
-/*===========================*/
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	max_ins_size)	/*!< in: maximum insert size after reorganize
-				for the page */
+	ulint	page_size,
+	ulint	max_ins_size)
 {
 	ulint	n;
-	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
+	ut_ad(ut_is_2pow(page_size));
+	ut_ad(page_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
 
-	if (zip_size) {
-		n = max_ins_size
-			/ (zip_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	} else {
-		n = max_ins_size
-			/ (UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	}
+	n = max_ins_size / (page_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
 
 	if (n == 3) {
 		n = 2;
@@ -205,35 +190,27 @@ ibuf_index_page_calc_free_bits(
 	return(n);
 }
 
-/*********************************************************************//**
-Translates the ibuf free bits to the free space on a page in bytes.
+/** Translates the ibuf free bits to the free space on a page in bytes.
+@param[in]	page_size	page_size
+@param[in]	bits		value for ibuf bitmap bits
 @return maximum insert size after reorganize for the page */
 UNIV_INLINE
 ulint
 ibuf_index_page_calc_free_from_bits(
-/*================================*/
-	ulint	zip_size,/*!< in: compressed page size in bytes;
-			0 for uncompressed pages */
-	ulint	bits)	/*!< in: value for ibuf bitmap bits */
+	const page_size_t&	page_size,
+	ulint			bits)
 {
 	ut_ad(bits < 4);
-	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
-
-	if (zip_size) {
-		if (bits == 3) {
-			return(4 * zip_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
-		}
-
-		return(bits * zip_size / IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	}
+	ut_ad(!page_size.is_compressed()
+	      || page_size.physical() > IBUF_PAGE_SIZE_PER_FREE_SPACE);
 
 	if (bits == 3) {
-		return(4 * UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE);
+		return(4 * page_size.physical()
+		       / IBUF_PAGE_SIZE_PER_FREE_SPACE);
 	}
 
-	return(bits * (UNIV_PAGE_SIZE / IBUF_PAGE_SIZE_PER_FREE_SPACE));
+	return(bits * (page_size.physical()
+		       / IBUF_PAGE_SIZE_PER_FREE_SPACE));
 }
 
 /*********************************************************************//**
@@ -243,16 +220,13 @@ UNIV_INLINE
 ulint
 ibuf_index_page_calc_free_zip(
 /*==========================*/
-	ulint			zip_size,
-					/*!< in: compressed page size in bytes */
 	const buf_block_t*	block)	/*!< in: buffer block */
 {
 	ulint			max_ins_size;
 	const page_zip_des_t*	page_zip;
 	lint			zip_max_ins;
 
-	ut_ad(zip_size == buf_block_get_zip_size(block));
-	ut_ad(zip_size);
+	ut_ad(block->page.size.is_compressed());
 
 	/* Consider the maximum insert size on the uncompressed page
 	without reorganizing the page. We must not assume anything
@@ -275,7 +249,8 @@ ibuf_index_page_calc_free_zip(
 		max_ins_size = (ulint) zip_max_ins;
 	}
 
-	return(ibuf_index_page_calc_free_bits(zip_size, max_ins_size));
+	return(ibuf_index_page_calc_free_bits(block->page.size.physical(),
+					      max_ins_size));
 }
 
 /*********************************************************************//**
@@ -285,21 +260,18 @@ UNIV_INLINE
 ulint
 ibuf_index_page_calc_free(
 /*======================*/
-	ulint			zip_size,/*!< in: compressed page size in bytes;
-					0 for uncompressed pages */
 	const buf_block_t*	block)	/*!< in: buffer block */
 {
-	ut_ad(zip_size == buf_block_get_zip_size(block));
-
-	if (!zip_size) {
+	if (!block->page.size.is_compressed()) {
 		ulint	max_ins_size;
 
 		max_ins_size = page_get_max_insert_size_after_reorganize(
 			buf_block_get_frame(block), 1);
 
-		return(ibuf_index_page_calc_free_bits(0, max_ins_size));
+		return(ibuf_index_page_calc_free_bits(
+				block->page.size.physical(), max_ins_size));
 	} else {
-		return(ibuf_index_page_calc_free_zip(zip_size, block));
+		return(ibuf_index_page_calc_free_zip(block));
 	}
 }
 
@@ -337,19 +309,20 @@ ibuf_update_free_bits_if_full(
 
 	ut_ad(!buf_block_get_page_zip(block));
 
-	before = ibuf_index_page_calc_free_bits(0, max_ins_size);
+	before = ibuf_index_page_calc_free_bits(
+		block->page.size.physical(), max_ins_size);
 
 	if (max_ins_size >= increase) {
 #if ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX
 # error "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE_MAX"
 #endif
-		after = ibuf_index_page_calc_free_bits(0, max_ins_size
-						       - increase);
+		after = ibuf_index_page_calc_free_bits(
+			block->page.size.physical(), max_ins_size - increase);
 #ifdef UNIV_IBUF_DEBUG
-		ut_a(after <= ibuf_index_page_calc_free(0, block));
+		ut_a(after <= ibuf_index_page_calc_free(block));
 #endif
 	} else {
-		after = ibuf_index_page_calc_free(0, block);
+		after = ibuf_index_page_calc_free(block);
 	}
 
 	if (after == 0) {

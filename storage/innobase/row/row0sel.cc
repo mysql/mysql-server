@@ -106,7 +106,6 @@ row_sel_sec_rec_is_for_blob(
 {
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
-	ulint	zip_size = dict_tf_get_zip_size(table->flags);
 
 	/* This function should never be invoked on an Antelope format
 	table, because they should always contain enough prefix in the
@@ -117,9 +116,8 @@ row_sel_sec_rec_is_for_blob(
 	ut_ad(prefix_len > 0);
 	ut_a(prefix_len <= sizeof buf);
 
-	if (UNIV_UNLIKELY
-	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
-		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+	if (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
+		    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE)) {
 		/* The externally stored field was not written yet.
 		This record should only be seen by
 		recv_recovery_rollback_active() or any
@@ -127,11 +125,11 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(buf, prefix_len,
-						      zip_size,
-						      clust_field, clust_len);
+	len = btr_copy_externally_stored_field_prefix(
+		buf, prefix_len, dict_tf_get_page_size(table->flags),
+		clust_field, clust_len);
 
-	if (UNIV_UNLIKELY(len == 0)) {
+	if (len == 0) {
 		/* The BLOB was being deleted as the server crashed.
 		There should not be any secondary index records
 		referring to this clustered index record, because
@@ -447,7 +445,7 @@ row_sel_fetch_columns(
 
 				data = btr_rec_copy_externally_stored_field(
 					rec, offsets,
-					dict_table_zip_size(index->table),
+					dict_table_page_size(index->table),
 					field_no, &len, heap);
 
 				/* data == NULL means that the
@@ -2838,7 +2836,7 @@ row_sel_store_mysql_field_func(
 
 		data = btr_rec_copy_externally_stored_field(
 			rec, offsets,
-			dict_table_zip_size(prebuilt->table),
+			dict_table_page_size(prebuilt->table),
 			field_no, &len, heap);
 
 		if (UNIV_UNLIKELY(!data)) {
@@ -4269,7 +4267,7 @@ rec_loop:
 
 wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
-			buf_page_print(page_align(rec), 0,
+			buf_page_print(page_align(rec), univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Rec address %p,"
