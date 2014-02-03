@@ -428,17 +428,19 @@ my $copy_cfg_file;
 # This will be the default config file
 # ----------------------------------------------------------------------
 
-$config_file= "$basedir/my.cnf";
+my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
 
-my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
-				  "share","share/mysql","support-files");
--e $cfg_template or cannot_find_file("my-default.cnf");
+$config_file= "$basedir/my.$cnfext";
+
+my $cfg_template= find_in_basedir($opt,"file","my-default.$cnfext",
+				  ".", "share","share/mysql","support-files");
+-e $cfg_template or cannot_find_file("my-default.$cnfext");
 
 $copy_cfg_file= $config_file;
 my $failed_write_cfg= 0;
 if (-e $copy_cfg_file)
 {
-  $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
+  $copy_cfg_file =~ s/my.$cnfext/my-new.$cnfext/;
   # Too early to print warning here, the user may not notice
 }
 open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
@@ -871,7 +873,7 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
 	      "The new default config file was created as $copy_cfg_file,",
 	      "please compare it with your file and take the changes you need.");
     }
-    foreach my $cfg ( "/etc/my.cnf", "/etc/mysql/my.cnf" )
+    foreach my $cfg ( "/etc/my.$cnfext", "/etc/mysql/my.$cnfext" )
     {
       check_sys_cfg_file ($opt, $cfg);
     }
