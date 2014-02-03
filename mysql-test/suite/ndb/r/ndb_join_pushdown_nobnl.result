@@ -5074,8 +5074,6 @@ join t1 as x2 on x1.c=x2.a and x2.d=2
 join t3 as x3 on x1.d=x3.a;
 count(*)
 300
-Local_range_scans
-4
 set global debug=@save_debug;
 drop table t1;
 drop table t2;
