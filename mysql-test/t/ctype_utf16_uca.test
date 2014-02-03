@@ -1,7 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+--source include/have_myisam.inc
+# Some bugs have MyISAM specific tests
 
 -- source include/have_utf16.inc
 
@@ -69,7 +67,8 @@ drop table t1;
 #
 SET NAMES utf8;
 
-CREATE TABLE t1 (c varchar(200) CHARACTER SET utf16 COLLATE utf16_general_ci NOT NULL, INDEX (c));
+#Minimized the varchar length for InnoDB so that it does not throw max keylength exceeded error
+CREATE TABLE t1 (c varchar(150) CHARACTER SET utf16 COLLATE utf16_general_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (0x039C03C903B403B11F770308);
 #Check one row
 SELECT * FROM t1 WHERE c LIKE _utf16 0x039C0025 COLLATE utf16_general_ci;
@@ -79,7 +78,8 @@ SELECT * FROM t1 WHERE c LIKE _utf16 0x039C0025
 COLLATE utf16_general_ci ORDER BY c;
 DROP TABLE t1;
 
-CREATE TABLE t1 (c varchar(200) CHARACTER SET utf16 COLLATE utf16_unicode_ci NOT NULL, INDEX (c));
+#Minimized the varchar length for InnoDB so that it does not throw max keylength exceeded error
+CREATE TABLE t1 (c varchar(150) CHARACTER SET utf16 COLLATE utf16_unicode_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (0x039C03C903B403B11F770308);
 #Check one row
 SELECT * FROM t1 WHERE c LIKE _utf16 0x039C0025 COLLATE utf16_unicode_ci;
@@ -89,7 +89,8 @@ SELECT * FROM t1 WHERE c LIKE _utf16 0x039C0025
 COLLATE utf16_unicode_ci ORDER BY c;
 DROP TABLE t1;
 
-CREATE TABLE t1 (c varchar(200) CHARACTER SET utf16 COLLATE utf16_unicode_ci NOT NULL, INDEX (c));
+#Minimized the varchar length for InnoDB so that it does not throw max keylength exceeded error
+CREATE TABLE t1 (c varchar(150) CHARACTER SET utf16 COLLATE utf16_unicode_ci NOT NULL, INDEX (c));
 INSERT INTO t1 VALUES (0x039C03C903B403B11F770308);
 #Check one row row
 SELECT * FROM t1 WHERE c LIKE _utf16 0x039C0025 COLLATE utf16_unicode_ci;
@@ -104,7 +105,6 @@ SET NAMES utf8;
 SET @test_character_set='utf16';
 SET @test_collation='utf16_swedish_ci';
 -- source include/ctype_common.inc
-
 
 SET collation_connection='utf16_unicode_ci';
 -- source include/ctype_filesort.inc

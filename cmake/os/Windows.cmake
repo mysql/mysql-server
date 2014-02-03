@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,12 +45,6 @@ ELSE()
   SET(SYSTEM_TYPE "Win32")
 ENDIF()
 
-# Intel compiler is almost Visual C++
-# (same compile flags etc). Set MSVC flag
-IF(CMAKE_C_COMPILER MATCHES "icl")
- SET(MSVC TRUE)
-ENDIF()
-
 ADD_DEFINITIONS("-D_CRT_SECURE_NO_DEPRECATE")
 
 # Target Windows Vista or later, i.e _WIN32_WINNT_VISTA
@@ -69,12 +63,6 @@ int main() {
 } " HAVE_GETCURRENTPROCESSORNUMBER)
 IF(HAVE_GETCURRENTPROCESSORNUMBER)
  ADD_DEFINITIONS(-DHAVE_GETCURRENTPROCESSORNUMBER=1)
-ENDIF()
-
-# Adjust compiler and linker flags
-IF(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
-   # mininal architecture flags, i486 enables GCC atomics
-  ADD_DEFINITIONS(-march=i486)
 ENDIF()
 
 IF(MSVC)
@@ -161,17 +149,6 @@ ENDIF()
 # cmakedefine popen @popen@ which will expand to 
 # define popen _popen after CONFIGURE_FILE
 
-MACRO(CHECK_FUNCTION_REPLACEMENT function replacement)
-  STRING(TOUPPER ${function} function_upper)
-  CHECK_FUNCTION_EXISTS(${function} HAVE_${function_upper})
-  IF(NOT HAVE_${function_upper})
-    CHECK_FUNCTION_EXISTS(${replacement}  HAVE_${replacement})
-    IF(HAVE_${replacement})
-      SET(HAVE_${function_upper} 1 )
-      SET(${function} ${replacement})
-    ENDIF()
-  ENDIF()
-ENDMACRO()
 MACRO(CHECK_SYMBOL_REPLACEMENT symbol replacement header)
   STRING(TOUPPER ${symbol} symbol_upper)
   CHECK_SYMBOL_EXISTS(${symbol} ${header} HAVE_${symbol_upper})
@@ -192,17 +169,47 @@ CHECK_SYMBOL_EXISTS(isnan math.h HAVE_ISNAN)
 IF(NOT HAVE_ISNAN)
   CHECK_SYMBOL_REPLACEMENT(isnan _isnan float.h)
 ENDIF()
-CHECK_SYMBOL_REPLACEMENT(finite _finite float.h)
-CHECK_FUNCTION_REPLACEMENT(popen _popen)
-CHECK_FUNCTION_REPLACEMENT(pclose _pclose)
-CHECK_FUNCTION_REPLACEMENT(access _access)
-CHECK_FUNCTION_REPLACEMENT(strcasecmp _stricmp)
-CHECK_FUNCTION_REPLACEMENT(strncasecmp _strnicmp)
-CHECK_FUNCTION_REPLACEMENT(snprintf _snprintf)
-CHECK_FUNCTION_REPLACEMENT(strtok_r strtok_s)
-CHECK_FUNCTION_REPLACEMENT(strtoll _strtoi64)
-CHECK_FUNCTION_REPLACEMENT(strtoull _strtoui64)
-CHECK_FUNCTION_REPLACEMENT(vsnprintf _vsnprintf)
+
+# See http://msdn.microsoft.com/en-us/library/ms235384.aspx
+# about POSIX functions and their Windows replacements
+
+# Windows replacement functions.
+SET(alloca _alloca)
+SET(finite _finite)
+SET(popen _popen)
+SET(pclose _pclose)
+SET(strcasecmp _stricmp)
+SET(strncasecmp _strnicmp)
+SET(strtoll _strtoi64)
+SET(strtoull _strtoui64)
+SET(snprintf _snprintf)
+SET(vsnprintf _vsnprintf)
+
+# Windows replacement functions where the POSIX name is deprecated.
+SET(access _access)
+SET(chdir _chdir)
+SET(chmod _chmod)
+SET(close _close)
+SET(dup _dup)
+SET(fdopen _fdopen)
+SET(fileno _fileno)
+SET(getcwd _getcwd)
+SET(getpid _getpid)
+SET(isatty _isatty)
+SET(mkdir _mkdir)
+SET(open _open)
+SET(putenv _putenv)
+SET(read _read)
+SET(rmdir _rmdir)
+SET(strdup _strdup)
+SET(stricmp _stricmp)
+SET(tzset _tzset)
+SET(umask _umask)
+SET(unlink _unlink)
+
+# Windows security enchanced replacement functions.
+SET(strtok_r strtok_s)
+
 CHECK_TYPE_SIZE(ssize_t SIZE_OF_SSIZE_T)
 IF(NOT HAVE_SIZE_OF_SSIZE_T)
  SET(ssize_t SSIZE_T)

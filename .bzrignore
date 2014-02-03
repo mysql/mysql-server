@@ -1846,6 +1846,7 @@ scripts/mysql_fix_privilege_tables_sql.c
 scripts/mysql_fix_privilege_tables_sql.c.rule
 scripts/mysql_install_db
 scripts/mysql_secure_installation
+scripts/mysql_server_config
 scripts/mysql_setpermission
 scripts/mysql_tableinfo
 scripts/mysql_upgrade

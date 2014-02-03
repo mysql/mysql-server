@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -192,16 +192,10 @@ void mysql_client_binlog_statement(THD* thd)
     int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr,
                                      MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS);
 
-#ifndef HAVE_purify
-      /*
-        This debug printout should not be used for valgrind builds
-        since it will read from unassigned memory.
-      */
     DBUG_PRINT("info",
                ("bytes_decoded: %d  strptr: 0x%lx  endptr: 0x%lx ('%c':%d)",
                 bytes_decoded, (long) strptr, (long) endptr, *endptr,
                 *endptr));
-#endif
 
     if (bytes_decoded < 0)
     {

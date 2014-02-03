@@ -113,6 +113,10 @@ support cross-platform development and expose comonly used SQL names. */
 #  include <sched.h>
 # endif
 
+# ifdef HAVE_STDINT_H
+#  include <stdint.h>
+# endif
+
 /* We only try to do explicit inlining of functions with gcc and
 Sun Studio */
 
