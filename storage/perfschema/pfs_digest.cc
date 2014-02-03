@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -235,6 +235,7 @@ search:
   {
     /* digest_stat array is full. Add stat at index 0 and return. */
     pfs= &statements_digest_stat_array[0];
+    digest_lost++;
 
     if (pfs->m_first_seen == 0)
       pfs->m_first_seen= now;
