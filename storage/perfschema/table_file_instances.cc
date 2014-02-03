@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -56,11 +56,10 @@ table_file_instances::m_share=
 {
   { C_STRING_WITH_LEN("file_instances") },
   &pfs_readonly_acl,
-  &table_file_instances::create,
+  table_file_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_file_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -70,6 +69,12 @@ table_file_instances::m_share=
 PFS_engine_table* table_file_instances::create(void)
 {
   return new table_file_instances();
+}
+
+ha_rows
+table_file_instances::get_row_count(void)
+{
+  return file_max;
 }
 
 table_file_instances::table_file_instances()

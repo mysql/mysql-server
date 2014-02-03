@@ -163,10 +163,6 @@ void my_end(int infoflag)
   {
 #ifdef HAVE_GETRUSAGE
     struct rusage rus;
-#ifdef HAVE_purify
-    /* Purify assumes that rus is uninitialized after getrusage call */
-    memset(&rus, 0, sizeof(rus));
-#endif
     if (!getrusage(RUSAGE_SELF, &rus))
       fprintf(info_file,"\n\
 User time %.2f, System time %.2f\n\
