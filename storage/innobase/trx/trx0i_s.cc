@@ -711,8 +711,8 @@ fill_lock_data(
 
 	mtr_start(&mtr);
 
-	block = buf_page_try_get(lock_rec_get_space_id(lock),
-				 lock_rec_get_page_no(lock),
+	block = buf_page_try_get(page_id_t(lock_rec_get_space_id(lock),
+					   lock_rec_get_page_no(lock)),
 				 &mtr);
 
 	if (block == NULL) {

@@ -531,7 +531,7 @@ buf_buddy_relocate(
 					buf_pool->zip_free[] */
 {
 	buf_page_t*	bpage;
-	const ulint	size	= BUF_BUDDY_LOW << i;
+	const ulint	size = BUF_BUDDY_LOW << i;
 	ulint		space;
 	ulint		offset;
 
@@ -554,18 +554,19 @@ buf_buddy_relocate(
 
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
 
+	const page_id_t	page_id(space, offset);
+
 	/* If space,offset is bogus, then we know that the
 	buf_page_hash_get_low() call below will return NULL. */
-	if (buf_pool != buf_pool_get(space, offset)) {
+	if (buf_pool != buf_pool_get(page_id)) {
 		return(false);
 	}
 
-	ulint		fold = buf_page_address_fold(space, offset);
-	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 
 	rw_lock_x_lock(hash_lock);
 
-	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
+	bpage = buf_page_hash_get_low(buf_pool, page_id);
 
 	if (!bpage || bpage->zip.data != src) {
 		/* The block has probably been freshly

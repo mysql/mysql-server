@@ -161,8 +161,7 @@ buf_LRU_block_free_hashed_page(
 				be in a state where it can be freed */
 
 /******************************************************************//**
-Increases LRU size in bytes with zip_size for compressed page,
-UNIV_PAGE_SIZE for uncompressed page in inline function */
+Increases LRU size in bytes with page size inline function */
 static inline
 void
 incr_LRU_size_in_bytes(
@@ -172,9 +171,8 @@ incr_LRU_size_in_bytes(
 {
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	ulint zip_size = page_zip_get_size(&bpage->zip);
+	buf_pool->stat.LRU_bytes += bpage->size.physical();
 
-	buf_pool->stat.LRU_bytes += zip_size ? zip_size : UNIV_PAGE_SIZE;
 	ut_ad(buf_pool->stat.LRU_bytes <= buf_pool->curr_pool_size);
 }
 
@@ -224,23 +222,25 @@ buf_LRU_evict_from_unzip_LRU(
 	return(unzip_avg <= io_avg * BUF_LRU_IO_TO_UNZIP_FACTOR);
 }
 
-/******************************************************************//**
-Attempts to drop page hash index on a batch of pages belonging to a
-particular space id. */
+/** Attempts to drop page hash index on a batch of pages belonging to a
+particular space id.
+@param[in]	space_id	space id
+@param[in]	page_size	page size
+@param[in]	arr		array of page_no
+@param[in]	count		number of entries in array */
 static
 void
 buf_LRU_drop_page_hash_batch(
-/*=========================*/
-	ulint		space_id,	/*!< in: space id */
-	ulint		zip_size,	/*!< in: compressed page size in bytes
-					or 0 for uncompressed pages */
-	const ulint*	arr,		/*!< in: array of page_no */
-	ulint		count)		/*!< in: number of entries in array */
+	ulint			space_id,
+	const page_size_t&	page_size,
+	const ulint*		arr,
+	ulint			count)
 {
 	ut_ad(count <= BUF_LRU_DROP_SEARCH_SIZE);
 
 	for (ulint i = 0; i < count; ++i, ++arr) {
-		btr_search_drop_page_hash_when_freed(space_id, zip_size, *arr);
+		btr_search_drop_page_hash_when_freed(
+			page_id_t(space_id, *arr), page_size);
 	}
 }
 
@@ -256,9 +256,10 @@ buf_LRU_drop_page_hash_for_tablespace(
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	ulint		id)		/*!< in: space id */
 {
-	ulint		zip_size = fil_space_get_zip_size(id);
+	bool			found;
+	const page_size_t	page_size(fil_space_get_page_size(id, &found));
 
-	if (zip_size == ULINT_UNDEFINED) {
+	if (!found) {
 		/* Somehow, the tablespace does not exist.  Nothing to drop. */
 		ut_ad(0);
 		return;
@@ -281,7 +282,7 @@ scan_again:
 		ut_a(buf_page_in_file(bpage));
 
 		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE
-		    || bpage->space != id
+		    || bpage->id.space() != id
 		    || bpage->io_fix != BUF_IO_NONE) {
 			/* Compressed pages are never hashed.
 			Skip blocks of other tablespaces.
@@ -306,7 +307,7 @@ next_page:
 
 		/* Store the page number so that we can drop the hash
 		index in a batch later. */
-		page_arr[num_entries] = bpage->offset;
+		page_arr[num_entries] = bpage->id.page_no();
 		ut_a(num_entries < BUF_LRU_DROP_SEARCH_SIZE);
 		++num_entries;
 
@@ -319,7 +320,7 @@ next_page:
 		buf_pool_mutex_exit(buf_pool);
 
 		buf_LRU_drop_page_hash_batch(
-			id, zip_size, page_arr, num_entries);
+			id, page_size, page_arr, num_entries);
 
 		num_entries = 0;
 
@@ -351,7 +352,7 @@ next_page:
 	buf_pool_mutex_exit(buf_pool);
 
 	/* Drop any remaining batch of search hashed pages. */
-	buf_LRU_drop_page_hash_batch(id, zip_size, page_arr, num_entries);
+	buf_LRU_drop_page_hash_batch(id, page_size, page_arr, num_entries);
 	ut_free(page_arr);
 }
 
@@ -566,7 +567,7 @@ rescan:
 
 		prev = UT_LIST_GET_PREV(list, bpage);
 
-		if (buf_page_get_space(bpage) != id) {
+		if (bpage->id.space() != id) {
 
 			/* Skip this block, as it does not belong to
 			the target space. */
@@ -707,11 +708,11 @@ scan_again:
 
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
-		/* bpage->space and bpage->io_fix are protected by
+		/* bpage->id.space() and bpage->io_fix are protected by
 		buf_pool->mutex and the block_mutex. It is safe to check
 		them while holding buf_pool->mutex only. */
 
-		if (buf_page_get_space(bpage) != id) {
+		if (bpage->id.space() != id) {
 			/* Skip this block, as it does not belong to
 			the space that is being invalidated. */
 			goto next_page;
@@ -723,10 +724,7 @@ scan_again:
 			all_freed = FALSE;
 			goto next_page;
 		} else {
-			ulint	fold = buf_page_address_fold(
-				bpage->space, bpage->offset);
-
-			hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+			hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 
 			rw_lock_x_lock(hash_lock);
 
@@ -753,21 +751,17 @@ scan_again:
 
 		ut_ad(mutex_own(block_mutex));
 
-		DBUG_PRINT("ib_buf", ("evict page %u:%u state %u",
-				      bpage->space, bpage->offset,
+		DBUG_PRINT("ib_buf", ("evict page " UINT32PF ":" UINT32PF
+				      " state %u",
+				      bpage->id.space(),
+				      bpage->id.page_no(),
 				      bpage->state));
 
 		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
 			/* Do nothing, because the adaptive hash index
 			covers uncompressed pages only. */
 		} else if (((buf_block_t*) bpage)->index) {
-			ulint	page_no;
-			ulint	zip_size;
-
 			buf_pool_mutex_exit(buf_pool);
-
-			zip_size = buf_page_get_zip_size(bpage);
-			page_no = buf_page_get_page_no(bpage);
 
 			rw_lock_x_unlock(hash_lock);
 
@@ -777,7 +771,7 @@ scan_again:
 			and release block->lock X-latch. */
 
 			btr_search_drop_page_hash_when_freed(
-				id, zip_size, page_no);
+				bpage->id, bpage->size);
 
 			goto scan_again;
 		}
@@ -1543,9 +1537,7 @@ buf_LRU_remove_block(
 	UT_LIST_REMOVE(buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = FALSE);
 
-	ulint	zip_size = page_zip_get_size(&bpage->zip);
-
-	buf_pool->stat.LRU_bytes -= zip_size ? zip_size : UNIV_PAGE_SIZE;
+	buf_pool->stat.LRU_bytes -= bpage->size.physical();
 
 	buf_unzip_LRU_remove_block_if_needed(bpage);
 
@@ -1607,10 +1599,9 @@ buf_unzip_LRU_add_block(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list end. Please make sure that the zip_size is
-already set into the page zip when invoking the function, so that we
-can get correct zip_size from the buffer page when adding a block
-into LRU */
+Adds a block to the LRU list end. Please make sure that the page_size is
+already set when invoking the function, so that we can get correct
+page_size from the buffer page when adding a block into LRU */
 static
 void
 buf_LRU_add_block_to_end_low(
@@ -1657,10 +1648,9 @@ buf_LRU_add_block_to_end_low(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list. Please make sure that the zip_size is
-already set into the page zip when invoking the function, so that we
-can get correct zip_size from the buffer page when adding a block
-into LRU */
+Adds a block to the LRU list. Please make sure that the page_size is
+already set when invoking the function, so that we can get correct
+page_size from the buffer page when adding a block into LRU */
 UNIV_INLINE
 void
 buf_LRU_add_block_low(
@@ -1730,10 +1720,9 @@ buf_LRU_add_block_low(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list. Please make sure that the zip_size is
-already set into the page zip when invoking the function, so that we
-can get correct zip_size from the buffer page when adding a block
-into LRU */
+Adds a block to the LRU list. Please make sure that the page_size is
+already set when invoking the function, so that we can get correct
+page_size from the buffer page when adding a block into LRU */
 
 void
 buf_LRU_add_block(
@@ -1799,13 +1788,10 @@ buf_LRU_free_page(
 	bool		zip)	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
 {
-	ulint		fold;
 	buf_page_t*	b = NULL;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
-	fold = buf_page_address_fold(bpage->space, bpage->offset);
-
-	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 
 	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
@@ -1830,7 +1816,7 @@ buf_LRU_free_page(
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
-	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
+	ut_a(ibuf_count_get(bpage->id) == 0);
 #endif /* UNIV_IBUF_COUNT_DEBUG */
 
 	if (zip || !bpage->zip.data) {
@@ -1867,8 +1853,8 @@ func_exit:
 	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
 #endif
 
-	DBUG_PRINT("ib_buf", ("free page %u:%u",
-			      bpage->space, bpage->offset));
+	DBUG_PRINT("ib_buf", ("free page " UINT32PF ":" UINT32PF,
+			      bpage->id.space(), bpage->id.page_no()));
 
 #ifdef UNIV_SYNC_DEBUG
         ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
@@ -1899,14 +1885,15 @@ func_exit:
 
 		mutex_enter(block_mutex);
 
-		ut_a(!buf_page_hash_get_low(
-				buf_pool, b->space, b->offset, fold));
+		ut_a(!buf_page_hash_get_low(buf_pool, b->id));
 
 		b->state = b->oldest_modification
 			? BUF_BLOCK_ZIP_DIRTY
 			: BUF_BLOCK_ZIP_PAGE;
 
-		UNIV_MEM_DESC(b->zip.data, page_zip_get_size(&b->zip));
+		ut_ad(b->size.is_compressed());
+
+		UNIV_MEM_DESC(b->zip.data, b->size.physical());
 
 		/* The fields in_page_hash and in_LRU_list of
 		the to-be-freed block descriptor should have
@@ -1926,7 +1913,8 @@ func_exit:
 		ut_ad(b->in_page_hash);
 		ut_ad(b->in_LRU_list);
 
-		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold, b);
+		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
+			    b->id.fold(), b);
 
 		/* Insert b where bpage was in the LRU list. */
 		if (prev_b != NULL) {
@@ -1988,7 +1976,12 @@ func_exit:
 		}
 
 		bpage->zip.data = NULL;
+
 		page_zip_set_size(&bpage->zip, 0);
+
+		bpage->size.copy_from(page_size_t(bpage->size.logical(),
+						  bpage->size.logical(),
+						  false));
 
 		mutex_exit(block_mutex);
 
@@ -2048,12 +2041,13 @@ func_exit:
 		buf_pool->page_hash, thus inaccessible by any
 		other thread. */
 
-		checksum = static_cast<ib_uint32_t>(
-			page_zip_calc_checksum(
-				b->zip.data,
-				page_zip_get_size(&b->zip),
-				static_cast<srv_checksum_algorithm_t>(
-					srv_checksum_algorithm)));
+		ut_ad(b->size.is_compressed());
+
+		checksum = page_zip_calc_checksum(
+			b->zip.data,
+			b->size.physical(),
+			static_cast<srv_checksum_algorithm_t>(
+				srv_checksum_algorithm));
 
 		mach_write_to_4(b->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
 				checksum);
@@ -2119,12 +2113,19 @@ buf_LRU_block_free_non_file_page(
 		buf_page_mutex_exit(block);
 		buf_pool_mutex_exit_forbid(buf_pool);
 
-		buf_buddy_free(
-			buf_pool, data, page_zip_get_size(&block->page.zip));
+		ut_ad(block->page.size.is_compressed());
+
+		buf_buddy_free(buf_pool, data, block->page.size.physical());
 
 		buf_pool_mutex_exit_allow(buf_pool);
 		buf_page_mutex_enter(block);
+
 		page_zip_set_size(&block->page.zip, 0);
+
+		block->page.size.copy_from(
+			page_size_t(block->page.size.logical(),
+				    block->page.size.logical(),
+				    false));
 	}
 
 	UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
@@ -2157,7 +2158,6 @@ buf_LRU_block_remove_hashed(
 	bool		zip)	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
 {
-	ulint			fold;
 	const buf_page_t*	hashed_bpage;
 	buf_pool_t*		buf_pool = buf_pool_from_bpage(bpage);
 	rw_lock_t*		hash_lock;
@@ -2165,8 +2165,7 @@ buf_LRU_block_remove_hashed(
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
-	fold = buf_page_address_fold(bpage->space, bpage->offset);
-	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+	hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 #ifdef UNIV_SYNC_DEBUG
         ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
@@ -2193,10 +2192,9 @@ buf_LRU_block_remove_hashed(
 		buf_block_modify_clock_inc((buf_block_t*) bpage);
 		if (bpage->zip.data) {
 			const page_t*	page = ((buf_block_t*) bpage)->frame;
-			const ulint	zip_size
-				= page_zip_get_size(&bpage->zip);
 
 			ut_a(!zip || bpage->oldest_modification == 0);
+			ut_ad(bpage->size.is_compressed());
 
 			switch (UNIV_EXPECT(fil_page_get_type(page),
 					    FIL_PAGE_INDEX)) {
@@ -2212,7 +2210,7 @@ buf_LRU_block_remove_hashed(
 					to the compressed page, which will
 					be preserved. */
 					memcpy(bpage->zip.data, page,
-					       zip_size);
+					       bpage->size.physical());
 				}
 				break;
 			case FIL_PAGE_TYPE_ZBLOB:
@@ -2229,11 +2227,12 @@ buf_LRU_block_remove_hashed(
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"The compressed page to be evicted"
 					" seems corrupt:");
-				ut_print_buf(stderr, page, zip_size);
-				fputs("\nInnoDB: Possibly older version"
-				      " of the page:", stderr);
+				ut_print_buf(stderr, page,
+					     bpage->size.logical());
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Possibly older version of the page:");
 				ut_print_buf(stderr, bpage->zip.data,
-					     zip_size);
+					     bpage->size.physical());
 				putc('\n', stderr);
 				ut_error;
 			}
@@ -2243,8 +2242,10 @@ buf_LRU_block_remove_hashed(
 		/* fall through */
 	case BUF_BLOCK_ZIP_PAGE:
 		ut_a(bpage->oldest_modification == 0);
-		UNIV_MEM_ASSERT_W(bpage->zip.data,
-				  page_zip_get_size(&bpage->zip));
+		if (bpage->size.is_compressed()) {
+			UNIV_MEM_ASSERT_W(bpage->zip.data,
+					  bpage->size.physical());
+		}
 		break;
 	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_DIRTY:
@@ -2256,22 +2257,23 @@ buf_LRU_block_remove_hashed(
 		break;
 	}
 
-	hashed_bpage = buf_page_hash_get_low(
-		buf_pool, bpage->space, bpage->offset, fold);
+	hashed_bpage = buf_page_hash_get_low(buf_pool, bpage->id);
 
 	if (bpage != hashed_bpage) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page %lu %lu not found in the hash table",
-			(ulong) bpage->space,
-			(ulong) bpage->offset);
+			"Page " UINT32PF " " UINT32PF
+			" not found in the hash table",
+			bpage->id.space(),
+			bpage->id.page_no());
 
 		if (hashed_bpage) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"In hash table we find block"
-				" %p of %lu %lu which is not %p",
+				" %p of " UINT32PF " " UINT32PF
+				" which is not %p",
 				(const void*) hashed_bpage,
-				(ulong) hashed_bpage->space,
-				(ulong) hashed_bpage->offset,
+				hashed_bpage->id.space(),
+				hashed_bpage->id.page_no(),
 				(const void*) bpage);
 		}
 
@@ -2291,7 +2293,8 @@ buf_LRU_block_remove_hashed(
 	ut_ad(bpage->in_page_hash);
 	ut_d(bpage->in_page_hash = FALSE);
 
-	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
+	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, bpage->id.fold(),
+		    bpage);
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
@@ -2299,7 +2302,7 @@ buf_LRU_block_remove_hashed(
 		ut_ad(!bpage->in_flush_list);
 		ut_ad(!bpage->in_LRU_list);
 		ut_a(bpage->zip.data);
-		ut_a(buf_page_get_zip_size(bpage));
+		ut_a(bpage->size.is_compressed());
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		UT_LIST_REMOVE(buf_pool->zip_clean, bpage);
@@ -2309,9 +2312,8 @@ buf_LRU_block_remove_hashed(
 		rw_lock_x_unlock(hash_lock);
 		buf_pool_mutex_exit_forbid(buf_pool);
 
-		buf_buddy_free(
-			buf_pool, bpage->zip.data,
-			page_zip_get_size(&bpage->zip));
+		buf_buddy_free(buf_pool, bpage->zip.data,
+			       bpage->size.physical());
 
 		buf_pool_mutex_exit_allow(buf_pool);
 		buf_page_free_descriptor(bpage);
@@ -2327,8 +2329,7 @@ buf_LRU_block_remove_hashed(
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
 
 		if (buf_pool->flush_rbt == NULL) {
-			bpage->space = ULINT32_UNDEFINED;
-			bpage->offset = ULINT32_UNDEFINED;
+			bpage->id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
 		}
 
 		/* Question: If we release bpage and hash mutex here
@@ -2363,12 +2364,16 @@ buf_LRU_block_remove_hashed(
 			ut_ad(!bpage->in_LRU_list);
 			buf_pool_mutex_exit_forbid(buf_pool);
 
-			buf_buddy_free(
-				buf_pool, data,
-				page_zip_get_size(&bpage->zip));
+			buf_buddy_free(buf_pool, data, bpage->size.physical());
 
 			buf_pool_mutex_exit_allow(buf_pool);
+
 			page_zip_set_size(&bpage->zip, 0);
+
+			bpage->size.copy_from(
+				page_size_t(bpage->size.logical(),
+					    bpage->size.logical(),
+					    false));
 		}
 
 		return(true);
@@ -2417,12 +2422,9 @@ buf_LRU_free_one_page(
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 {
-	ulint		fold;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
-	fold = buf_page_address_fold(bpage->space, bpage->offset);
-
-	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
@@ -2697,9 +2699,8 @@ buf_LRU_print_instance(
 
 		mutex_enter(buf_page_get_mutex(bpage));
 
-		fprintf(stderr, "BLOCK space %lu page %lu ",
-			(ulong) buf_page_get_space(bpage),
-			(ulong) buf_page_get_page_no(bpage));
+		fprintf(stderr, "BLOCK space " UINT32PF " page " UINT32PF " ",
+			bpage->id.space(), bpage->id.page_no());
 
 		if (buf_page_is_old(bpage)) {
 			fputs("old ", stderr);
@@ -2733,7 +2734,7 @@ buf_LRU_print_instance(
 			fprintf(stderr, "\ntype %lu size %lu"
 				" index id %llu\n",
 				(ulong) fil_page_get_type(frame),
-				(ulong) buf_page_get_zip_size(bpage),
+				(ulong) bpage->size.physical(),
 				(ullint) btr_page_get_index_id(frame));
 			break;
 
