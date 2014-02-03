@@ -850,38 +850,38 @@ dict_tf_to_sys_tables_type(
 	return(type);
 }
 
-/********************************************************************//**
-Extract the compressed page size from dict_table_t::flags.
-These flags are in memory, so assert that they are valid.
+/** Extract the page size from table flags.
+@param[in]	flags	flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-ulint
-dict_tf_get_zip_size(
-/*=================*/
-	ulint	flags)	/*!< in: flags */
+const page_size_t
+dict_tf_get_page_size(
+	ulint	flags)
 {
-	ulint zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
-	ulint zip_size = (zip_ssize
-			  ? (UNIV_ZIP_SIZE_MIN >> 1) << zip_ssize
-			  : 0);
+	const ulint	zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
 
-	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
+	if (zip_ssize == 0) {
+		return(univ_page_size);
+	}
 
-	return(zip_size);
+	const ulint	size = (UNIV_ZIP_SIZE_MIN >> 1) << zip_ssize;
+
+	ut_ad(size <= UNIV_ZIP_SIZE_MAX);
+
+	return(page_size_t(size, univ_page_size.logical(), true));
 }
 
-/********************************************************************//**
-Check whether the table uses the compressed compact page format.
+/** Get the table page size.
+@param[in]	table	table
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-ulint
-dict_table_zip_size(
-/*================*/
-	const dict_table_t*	table)	/*!< in: table */
+const page_size_t
+dict_table_page_size(
+	const dict_table_t*	table)
 {
-	ut_ad(table);
+	ut_ad(table != NULL);
 
-	return(dict_tf_get_zip_size(table->flags));
+	return(dict_tf_get_page_size(table->flags));
 }
 
 #ifndef UNIV_HOTBACKUP

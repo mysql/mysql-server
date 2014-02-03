@@ -52,17 +52,16 @@ void
 trx_sys_flush_max_trx_id(void);
 /*==========================*/
 
-/***************************************************************//**
-Checks if a page address is the trx sys header page.
-@return TRUE if trx sys header page */
+/** Checks if a page address is the trx sys header page.
+@param[in]	page_id	page id
+@return true if trx sys header page */
 UNIV_INLINE
 bool
 trx_sys_hdr_page(
-/*=============*/
-	ulint	space,	/*!< in: space */
-	ulint	page_no)/*!< in: page number */
+	const page_id_t&	page_id)
 {
-	return(space == TRX_SYS_SPACE && page_no == TRX_SYS_PAGE_NO);
+	return(page_id.space() == TRX_SYS_SPACE
+	       && page_id.page_no() == TRX_SYS_PAGE_NO);
 }
 
 /***************************************************************//**
@@ -104,8 +103,8 @@ trx_sysf_get(
 
 	ut_ad(mtr);
 
-	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
-			     RW_X_LATCH, mtr);
+	block = buf_page_get(page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO),
+			     univ_page_size, RW_X_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 
 	header = TRX_SYS + buf_block_get_frame(block);

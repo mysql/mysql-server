@@ -911,30 +911,30 @@ row_upd_build_difference_binary(
 	return(update);
 }
 
-/***********************************************************//**
-Fetch a prefix of an externally stored column.  This is similar
-to row_ext_lookup(), but the row_ext_t holds the old values
+/** Fetch a prefix of an externally stored column.
+This is similar to row_ext_lookup(), but the row_ext_t holds the old values
 of the column and must not be poisoned with the new values.
+@param[in]	data		'internally' stored part of the field
+containing also the reference to the external part
+@param[in]	local_len	length of data, in bytes
+@param[in]	page_size	BLOB page size
+@param[in,out]	len		input - length of prefix to
+fetch; output: fetched length of the prefix
+@param[in,out]	heap		heap where to allocate
 @return BLOB prefix */
 static
 byte*
 row_upd_ext_fetch(
-/*==============*/
-	const byte*	data,		/*!< in: 'internally' stored part of the
-					field containing also the reference to
-					the external part */
-	ulint		local_len,	/*!< in: length of data, in bytes */
-	ulint		zip_size,	/*!< in: nonzero=compressed BLOB
-					page size, zero for uncompressed
-					BLOBs */
-	ulint*		len,		/*!< in: length of prefix to fetch;
-					out: fetched length of the prefix */
-	mem_heap_t*	heap)		/*!< in: heap where to allocate */
+	const byte*		data,
+	ulint			local_len,
+	const page_size_t&	page_size,
+	ulint*			len,
+	mem_heap_t*		heap)
 {
 	byte*	buf = static_cast<byte*>(mem_heap_alloc(heap, *len));
 
 	*len = btr_copy_externally_stored_field_prefix(
-		buf, *len, zip_size, data, local_len);
+		buf, *len, page_size, data, local_len);
 
 	/* We should never update records containing a half-deleted BLOB. */
 	ut_a(*len);
@@ -942,22 +942,24 @@ row_upd_ext_fetch(
 	return(buf);
 }
 
-/***********************************************************//**
-Replaces the new column value stored in the update vector in
-the given index entry field. */
+/** Replaces the new column value stored in the update vector in
+the given index entry field.
+@param[in,out]	dfield		data field of the index entry
+@param[in]	field		index field
+@param[in]	col		field->col
+@param[in]	uf		update field
+@param[in,out]	heap		memory heap for allocating and copying
+the new value
+@param[in]	page_size	page size */
 static
 void
 row_upd_index_replace_new_col_val(
-/*==============================*/
-	dfield_t*		dfield,	/*!< in/out: data field
-					of the index entry */
-	const dict_field_t*	field,	/*!< in: index field */
-	const dict_col_t*	col,	/*!< in: field->col */
-	const upd_field_t*	uf,	/*!< in: update field */
-	mem_heap_t*		heap,	/*!< in: memory heap for allocating
-					and copying the new value */
-	ulint			zip_size)/*!< in: compressed page
-					 size of the table, or 0 */
+	dfield_t*		dfield,
+	const dict_field_t*	field,
+	const dict_col_t*	col,
+	const upd_field_t*	uf,
+	mem_heap_t*		heap,
+	const page_size_t&	page_size)
 {
 	ulint		len;
 	const byte*	data;
@@ -981,7 +983,7 @@ row_upd_index_replace_new_col_val(
 
 			len = field->prefix_len;
 
-			data = row_upd_ext_fetch(data, l, zip_size,
+			data = row_upd_ext_fetch(data, l, page_size,
 						 &len, heap);
 		}
 
@@ -1062,7 +1064,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 {
 	ulint		i;
 	ulint		n_fields;
-	const ulint	zip_size	= dict_table_zip_size(index->table);
+	const page_size_t&	page_size = dict_table_page_size(index->table);
 
 	ut_ad(index);
 
@@ -1086,7 +1088,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 		if (uf) {
 			row_upd_index_replace_new_col_val(
 				dtuple_get_nth_field(entry, i),
-				field, col, uf, heap, zip_size);
+				field, col, uf, heap, page_size);
 		}
 	}
 }
@@ -1113,8 +1115,7 @@ row_upd_index_replace_new_col_vals(
 	ulint			i;
 	const dict_index_t*	clust_index
 		= dict_table_get_first_index(index->table);
-	const ulint		zip_size
-		= dict_table_zip_size(index->table);
+	const page_size_t&	page_size = dict_table_page_size(index->table);
 
 	dtuple_set_info_bits(entry, update->info_bits);
 
@@ -1131,7 +1132,7 @@ row_upd_index_replace_new_col_vals(
 		if (uf) {
 			row_upd_index_replace_new_col_val(
 				dtuple_get_nth_field(entry, i),
-				field, col, uf, heap, zip_size);
+				field, col, uf, heap, page_size);
 		}
 	}
 }

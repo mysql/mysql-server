@@ -1195,6 +1195,9 @@ innobase_start_or_create_for_mysql(void)
 			(ulong) sizeof(void*));
 	}
 
+	univ_page_size.copy_from(
+		page_size_t(srv_page_size, srv_page_size, false));
+
 #ifdef UNIV_DEBUG
 	ib_logf(IB_LOG_LEVEL_INFO, "!!!!!!!! UNIV_DEBUG switched on !!!!!!!!!");
 #endif

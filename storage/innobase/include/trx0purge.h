@@ -249,9 +249,11 @@ struct TrxUndoRsegsIterator {
 	TrxUndoRsegsIterator(trx_purge_t* purge_sys);
 
 	/** Sets the next rseg to purge in m_purge_sys.
-	@return zip_size if log is for a compressed table, ULINT_UNDEFINED if
-	no rollback segments to purge, 0 for non compressed tables. */
-	ulint set_next();
+	@return page size of the table for which the log is.
+	NOTE: if rseg is NULL when this function returns this means that
+	there are no rollback segments to purge and then the returned page
+	size object should not be used. */
+	const page_size_t set_next();
 
 private:
 	// Disable copying
