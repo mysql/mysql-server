@@ -82,7 +82,7 @@ I_List<i_string_pair> binlog_rewrite_db;
   "from_db->to_db" during the transformation of the database name
   of the event read from the binlog.
 */
-const char* rewrite_to_db;
+const char* rewrite_to_db= 0;
 
 #endif
 
@@ -264,6 +264,7 @@ int rewrite_buffer(char **buf, int event_len,
   memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
 
   *buf= temp_rewrite_buf;
+  my_free((void*)rewrite_to_db);
   return (event_len + replace_segment);
 }
 
