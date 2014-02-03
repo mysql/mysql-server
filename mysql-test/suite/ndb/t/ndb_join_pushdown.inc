@@ -3607,9 +3607,16 @@ select straight_join count(*) from t1 as x1
    join t1 as x2 on x1.c=x2.a and x2.d=2
    join t3 as x3 on x1.d=x3.a;
 
---disable_query_log
---eval select sum(val) - $scan_rows as Local_range_scans from ndbinfo.counters where block_name='DBSPJ' and counter_name='LOCAL_RANGE_SCANS_SENT';
---enable_query_log
+#####
+# Bug #18175080 
+# INCORRECT 'LOCAL_RANGE_SCAN' REPORTED FROM NDB_JOIN_PUSHDOWN_*.TEST
+#
+# Reported local_range_scan was not deterministic, so had
+# to disable this subtest.
+#
+#--disable_query_log
+#--eval select sum(val) - $scan_rows as Local_range_scans from ndbinfo.counters where block_name='DBSPJ' and counter_name='LOCAL_RANGE_SCANS_SENT';
+#--enable_query_log
 
 --error 0,1193
 set global debug=@save_debug;
