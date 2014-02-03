@@ -3140,19 +3140,11 @@ static uint32_t pack_key_from_desc(
     return (uint32_t)(packed_key_pos - buf); // 
 }
 
-static bool fields_have_same_name(
-    Field* a,
-    Field* b
-    )
-{
+static bool fields_have_same_name(Field* a, Field* b) {
     return strcmp(a->field_name, b->field_name) == 0;
 }
 
-static bool fields_are_same_type(
-    Field* a, 
-    Field* b
-    )
-{
+static bool fields_are_same_type(Field* a, Field* b) {
     bool retval = true;
     enum_field_types a_mysql_type = a->real_type();
     enum_field_types b_mysql_type = b->real_type();
@@ -3209,8 +3201,22 @@ static bool fields_are_same_type(
             goto cleanup;
         }
         break;
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_ENUM: {
+        Field_enum *a_enum = static_cast<Field_enum *>(a);
+        if (!a_enum->eq_def(b)) {
+            retval = false;
+            goto cleanup;
+        }
+        break;
+    }   
+    case MYSQL_TYPE_SET: {
+        Field_set *a_set = static_cast<Field_set *>(a);
+        if (!a_set->eq_def(b)) {
+            retval = false;
+            goto cleanup;
+        }
+        break;
+    }
     case MYSQL_TYPE_BIT:
         // length
         if (a->pack_length() != b->pack_length()) {
@@ -3315,12 +3321,7 @@ cleanup:
     return retval;
 }
 
-
-static bool are_two_fields_same(
-    Field* a,
-    Field* b
-    )
-{
+static bool are_two_fields_same(Field* a, Field* b) {
     return fields_have_same_name(a, b) && fields_are_same_type(a, b);
 }
 
