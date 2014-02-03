@@ -129,7 +129,6 @@ if [ -z $engine ] ; then
 
             # run tokudb tests
             ./mysql-test-run.pl --suite=$teststorun_tokudb --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
-                --mysqld=--default-storage-engine=tokudb \
                 --mysqld=--loose-tokudb_debug=3072 \
                 --parallel=$parallel >>$testresultsdir/$tracefile 2>&1  
             # setup for engines tests
