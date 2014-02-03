@@ -78,9 +78,9 @@ Usage: $0 [OPTIONS]
 EOF1
   if ( $^O !~ m/^(MSWin32|cygwin)$/ ) {
     print <<EOF2;
-  --random-passwords   Create and set a random password for all root accounts
-                       and set the "password expired" flag,
-                       also remove the anonymous accounts.
+  --skip-random-passwords   1. Don't create random passwords for root accounts.
+                            2. Keep anonymous users.
+                            3. Keep test database and related grants.
 EOF2
   }
   print <<EOF3;
@@ -151,7 +151,7 @@ sub parse_arguments
              "verbose",
              "rpm",
              "help",
-             "random-passwords",
+             "skip-random-passwords",
 
              # These options will also be pased to mysqld.
              "defaults-file=s",
@@ -293,6 +293,7 @@ sub basic_single_escape {
 ##############################################################################
 
 my $secret_file;   # full path name of the confidential file
+my $password;
 my $escaped_password;      # the password, with special characters escaped
 
 sub ensure_secret_file {
@@ -343,8 +344,8 @@ sub tell_root_password {
   # to automatically extract the password (automated testing!), and the final
   # empty line is for better redability.
   append_file($secret_file,
-             "# The random password set for the root user at $now (local time): " .
-                 $escaped_password,
+             "# The random password set for the root user at $now (local time):\n" .
+             $password . "\n",
              "");
   print "A random root password has been set. You will find it in '$secret_file'.\n";
 }
@@ -356,13 +357,19 @@ sub tell_root_password {
 ##############################################################################
 
 sub generate_random_password {
-  # On (at least) Linux and Solaris, a "random" device is available, use it:
-  # cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1
-  # Without LC_ALL, "tr" may not know the "alnum" character class -
-  # and there are user profiles which do not have this set.
-  #
-  my $password = `cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
-  chomp ($password);
+  # On Linux, Solaris, Max OS X and FreeBSD we have a random device available.
+  my $randfile = "/dev/urandom";
+  open(FD, $randfile) || die "Can't open $randfile for reading: $!";
+  my $password = "";
+  my $pass_len = 16;
+  my $c;
+  while (length($password) < $pass_len) {
+    $c = getc(FD);
+    if ($c =~ /\w/) {
+      $password .= $c;
+    }
+  }
+  close(FD); 
   return $password;
 }
 
@@ -492,24 +499,24 @@ parse_arguments($opt, 'PICK-ARGS-FROM-ARGV', @ARGV);
 # Create a random password for root, if requested and implemented
 # ----------------------------------------------------------------------
 
-if ( $opt->{'random-passwords'} ) {
+if ( !$opt->{'skip-random-passwords'} ) {
   # Add other non-working OS like this: $^O =~ m/^(solaris|linux|freebsd|darwin)$/
   # and maintain "usage()".
   # Issue 1: random password creation
   # Issue 2: confidential file
   if ( $^O =~ m/^(MSWin32|cygwin)$/ ) {
     print "Random password not yet implemented for $^O - option will be ignored\n";
-    delete $opt->{'random-passwords'};
+    $opt->{'skip-random-passwords'}= 1;
   } else {
     ensure_secret_file();
-    my $password = generate_random_password();
+    $password = generate_random_password();
     if ( $password ) {
       # "true" means "string is non-empty"
       $escaped_password = basic_single_escape($password);
     } else {
       # Whatever the reason (missing "/dev/urandom"), an empty password is bad
       print "Could not generate a random password - not setting one\n";
-      delete $opt->{'random-passwords'};
+      $opt->{'skip-random-passwords'}= 1;
     }
   }
 }
@@ -732,7 +739,7 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
     print PIPE $_;
   }
 
-  if ( $opt->{'random-passwords'} )
+  if ( !$opt->{'skip-random-passwords'} )
   {
     open(SQL3, $security_commands)
       or error($opt,"can't open $security_commands for reading: $!");
@@ -788,7 +795,7 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
     # set a password after installing the data files on the real host system.
     # At this point, there is no end user, so it does not make sense to print
     # this reminder.
-    if ( $opt->{'random-passwords'} ) {
+    if ( !$opt->{'skip-random-passwords'} ) {
       report($opt,
              "A RANDOM PASSWORD HAS BEEN SET FOR THE MySQL root USER !",
              "You will find that password in '$secret_file'.",
