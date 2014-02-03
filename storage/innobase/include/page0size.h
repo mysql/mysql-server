@@ -106,7 +106,7 @@ public:
 		}
 	}
 
-	/** Retrieve the physical page size.
+	/** Retrieve the physical page size (on-disk).
 	@return physical page size in bytes */
 	inline ulint physical() const
 	{
@@ -119,7 +119,7 @@ public:
 		return(m_physical);
 	}
 
-	/** Retrieve the logical page size.
+	/** Retrieve the logical page size (in-memory).
 	@return logical page size in bytes */
 	inline ulint logical() const
 	{
@@ -127,11 +127,10 @@ public:
 		return(m_logical);
 	}
 
-	/** Check whether the page is compressed.
+	/** Check whether the page is compressed on disk.
 	@return true if compressed */
 	inline bool is_compressed() const
 	{
-		//buf_block_get_page_zip() == NULL;
 		return(m_is_compressed);
 	}
 
@@ -176,7 +175,8 @@ private:
 	/** Logical page size. */
 	unsigned	m_logical:PAGE_SIZE_T_SIZE_BITS;
 
-	/** Flag designating whether the page/tablespace is compressed. */
+	/** Flag designating whether the physical page is compressed, which is
+	true IFF the whole tablespace where the page belongs is compressed. */
 	unsigned	m_is_compressed:1;
 #else
 	/** Physical page size. */
