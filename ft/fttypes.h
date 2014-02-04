@@ -234,7 +234,7 @@ typedef struct cachetable *CACHETABLE;
 typedef struct cachefile *CACHEFILE;
 typedef struct ctpair *PAIR;
 typedef class checkpointer *CHECKPOINTER;
-typedef class bn_data *BN_DATA;
+class bn_data;
 
 /* tree command types */
 enum ft_msg_type {

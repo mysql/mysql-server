@@ -2917,7 +2917,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     // #3588 TODO just make a clean ule and append it to the omt
     // #3588 TODO can do the rebalancing here and avoid a lot of work later
     FTNODE leafnode = lbuf->node;
-    uint32_t idx = BLB_DATA(leafnode, 0)->omt_size();
+    uint32_t idx = BLB_DATA(leafnode, 0)->num_klpairs();
     DBT thekey = { .data = key, .size = (uint32_t) keylen }; 
     DBT theval = { .data = val, .size = (uint32_t) vallen };
     FT_MSG_S cmd = { .type = FT_INSERT,
