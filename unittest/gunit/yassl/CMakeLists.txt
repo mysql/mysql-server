@@ -25,8 +25,7 @@ INCLUDE_DIRECTORIES(
 ADD_DEFINITIONS(${SSL_DEFINES})
 
 ## Do not treat warnings as error for yassl code
-STRING(REPLACE "-Werror" "" nowerr_flags "${CMAKE_CXX_FLAGS}")
-SET(CMAKE_CXX_FLAGS ${nowerr_flags})
+STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 ADD_EXECUTABLE(yassl-t yassl-t.cc)
 TARGET_LINK_LIBRARIES(yassl-t gunit_small sqlgunitlib strings dbug regex)
