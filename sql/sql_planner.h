@@ -52,7 +52,8 @@ public:
     cur_embedding_map(0), emb_sjm_nest(sjm_nest),
     excluded_tables((sjm_nest ?
                      (join->all_table_map & ~sjm_nest->sj_inner_tables) : 0) |
-                    (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT))
+                    (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
+    test_all_ref_keys(false)
   {}
   ~Optimize_table_order()
   {}
@@ -89,6 +90,12 @@ private:
     @c excluded_tables tracks these tables.
   */
   const table_map excluded_tables;
+
+  /**
+     If true, find_best_ref() must go through all keys, no shortcutting
+     allowed.
+  */
+  bool test_all_ref_keys;
 
   inline Key_use* find_best_ref(const JOIN_TAB  *tab,
                                 const table_map remaining_tables,
