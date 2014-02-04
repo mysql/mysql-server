@@ -363,8 +363,6 @@ status_init(void)
     STATUS_INIT(FT_PRO_NUM_STOP_LOCK_CHILD,                PROMOTION_STOPPED_CHILD_LOCKED_OR_NOT_IN_MEMORY, PARCOUNT, "promotion: stopped because the child was locked or not at all in memory", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(FT_PRO_NUM_STOP_CHILD_INMEM,               PROMOTION_STOPPED_CHILD_NOT_FULLY_IN_MEMORY, PARCOUNT, "promotion: stopped because the child was not fully in memory", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(FT_PRO_NUM_DIDNT_WANT_PROMOTE,             PROMOTION_STOPPED_AFTER_LOCKING_CHILD, PARCOUNT, "promotion: stopped anyway, after locking the child", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(FT_BASEMENT_DESERIALIZE_FIXED_KEYSIZE,     BASEMENT_DESERIALIZATION_FIXED_KEY, PARCOUNT, "basement nodes deserialized with fixed-keysize", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(FT_BASEMENT_DESERIALIZE_VARIABLE_KEYSIZE,  BASEMENT_DESERIALIZATION_VARIABLE_KEY, PARCOUNT, "basement nodes deserialized with variable-keysize", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
 
     ft_status.initialized = true;
 }
@@ -391,14 +389,6 @@ toku_ft_get_status(FT_STATUS s) {
         }                                                                           \
     } while (0)
 
-void toku_note_deserialized_basement_node(bool fixed_key_size) {
-    if (fixed_key_size) {
-        STATUS_INC(FT_BASEMENT_DESERIALIZE_FIXED_KEYSIZE, 1);
-    } else {
-        STATUS_INC(FT_BASEMENT_DESERIALIZE_VARIABLE_KEYSIZE, 1);
-    }
-}
-
 bool is_entire_node_in_memory(FTNODE node) {
     for (int i = 0; i < node->n_children; i++) {
         if(BP_STATE(node,i) != PT_AVAIL) {
@@ -419,7 +409,7 @@ get_leaf_num_entries(FTNODE node) {
     int i;
     toku_assert_entire_node_in_memory(node);
     for ( i = 0; i < node->n_children; i++) {
-        result += BLB_DATA(node, i)->num_klpairs();
+        result += BLB_DATA(node, i)->omt_size();
     }
     return result;
 }
@@ -605,7 +595,6 @@ ftnode_memory_size (FTNODE node)
     int n_children = node->n_children;
     retval += sizeof(*node);
     retval += (n_children)*(sizeof(node->bp[0]));
-    retval += (n_children > 0 ? n_children-1 : 0)*(sizeof(node->childkeys[0]));
     retval += node->totalchildkeylens;
 
     // now calculate the sizes of the partitions
@@ -1719,8 +1708,8 @@ toku_ft_bn_apply_cmd_once (
     if (le) {
         oldsize = leafentry_memsize(le) + key_storage_size;
     }
-
-    // toku_le_apply_msg() may call bn_data::mempool_malloc_and_update_dmt() to allocate more space.
+    
+    // toku_le_apply_msg() may call mempool_malloc_from_omt() to allocate more space.
     // That means le is guaranteed to not cause a sigsegv but it may point to a mempool that is
     // no longer in use.  We'll have to release the old mempool later.
     toku_le_apply_msg(
@@ -1733,8 +1722,6 @@ toku_ft_bn_apply_cmd_once (
         &new_le, 
         &numbytes_delta
         );
-    // at this point, we cannot trust cmd->u.id.key to be valid.
-    // The dmt may have realloced its mempool and freed the one containing key.
 
     newsize = new_le ? (leafentry_memsize(new_le) +  + key_storage_size) : 0;
     if (le && new_le) {
@@ -1910,7 +1897,7 @@ toku_ft_bn_apply_cmd (
     void* key = NULL;
     uint32_t keylen = 0;
 
-    uint32_t num_klpairs;
+    uint32_t omt_size;
     int r;
     struct cmd_leafval_heaviside_extra be = {compare_fun, desc, cmd->u.id.key};
 
@@ -1922,9 +1909,9 @@ toku_ft_bn_apply_cmd (
     case FT_INSERT: {
         uint32_t idx;
         if (doing_seqinsert) {
-            idx = bn->data_buffer.num_klpairs();
+            idx = bn->data_buffer.omt_size();
             DBT kdbt;
-            r = bn->data_buffer.fetch_key_and_len(idx-1, &kdbt.size, &kdbt.data);
+            r = bn->data_buffer.fetch_le_key_and_len(idx-1, &kdbt.size, &kdbt.data);
             if (r != 0) goto fz;
             int cmp = toku_cmd_leafval_heaviside(kdbt, be);
             if (cmp >= 0) goto fz;
@@ -1950,7 +1937,7 @@ toku_ft_bn_apply_cmd (
         // the leaf then it is sequential
         // window = min(32, number of leaf entries/16)
         {
-            uint32_t s = bn->data_buffer.num_klpairs();
+            uint32_t s = bn->data_buffer.omt_size();
             uint32_t w = s / 16;
             if (w == 0) w = 1;
             if (w > 32) w = 32;
@@ -1985,8 +1972,8 @@ toku_ft_bn_apply_cmd (
     case FT_COMMIT_BROADCAST_ALL:
     case FT_OPTIMIZE:
         // Apply to all leafentries
-        num_klpairs = bn->data_buffer.num_klpairs();
-        for (uint32_t idx = 0; idx < num_klpairs; ) {
+        omt_size = bn->data_buffer.omt_size();
+        for (uint32_t idx = 0; idx < omt_size; ) {
             DBT curr_keydbt;
             void* curr_keyp = NULL;
             uint32_t curr_keylen = 0;
@@ -1999,27 +1986,26 @@ toku_ft_bn_apply_cmd (
             int deleted = 0;
             if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
                 toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
-                // at this point, we cannot trust cmd->u.id.key to be valid.
-                uint32_t new_dmt_size = bn->data_buffer.num_klpairs();
-                if (new_dmt_size != num_klpairs) {
-                    paranoid_invariant(new_dmt_size+1 == num_klpairs);
+                uint32_t new_omt_size = bn->data_buffer.omt_size();
+                if (new_omt_size != omt_size) {
+                    paranoid_invariant(new_omt_size+1 == omt_size);
                     //Item was deleted.
                     deleted = 1;
                 }
             }
             if (deleted)
-                num_klpairs--;
+                omt_size--;
             else
                 idx++;
         }
-        paranoid_invariant(bn->data_buffer.num_klpairs() == num_klpairs);
+        paranoid_invariant(bn->data_buffer.omt_size() == omt_size);
 
         break;
     case FT_COMMIT_BROADCAST_TXN:
     case FT_ABORT_BROADCAST_TXN:
         // Apply to all leafentries if txn is represented
-        num_klpairs = bn->data_buffer.num_klpairs();
-        for (uint32_t idx = 0; idx < num_klpairs; ) {
+        omt_size = bn->data_buffer.omt_size();
+        for (uint32_t idx = 0; idx < omt_size; ) {
             DBT curr_keydbt;
             void* curr_keyp = NULL;
             uint32_t curr_keylen = 0;
@@ -2032,19 +2018,19 @@ toku_ft_bn_apply_cmd (
             int deleted = 0;
             if (le_has_xids(storeddata, cmd->xids)) {
                 toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
-                uint32_t new_dmt_size = bn->data_buffer.num_klpairs();
-                if (new_dmt_size != num_klpairs) {
-                    paranoid_invariant(new_dmt_size+1 == num_klpairs);
+                uint32_t new_omt_size = bn->data_buffer.omt_size();
+                if (new_omt_size != omt_size) {
+                    paranoid_invariant(new_omt_size+1 == omt_size);
                     //Item was deleted.
                     deleted = 1;
                 }
             }
             if (deleted)
-                num_klpairs--;
+                omt_size--;
             else
                 idx++;
         }
-        paranoid_invariant(bn->data_buffer.num_klpairs() == num_klpairs);
+        paranoid_invariant(bn->data_buffer.omt_size() == omt_size);
 
         break;
     case FT_UPDATE: {
@@ -2073,7 +2059,7 @@ toku_ft_bn_apply_cmd (
         // apply to all leafentries.
         uint32_t idx = 0;
         uint32_t num_leafentries_before;
-        while (idx < (num_leafentries_before = bn->data_buffer.num_klpairs())) {
+        while (idx < (num_leafentries_before = bn->data_buffer.omt_size())) {
             void* curr_key = nullptr;
             uint32_t curr_keylen = 0;
             r = bn->data_buffer.fetch_klpair(idx, &storeddata, &curr_keylen, &curr_key);
@@ -2091,7 +2077,7 @@ toku_ft_bn_apply_cmd (
             r = do_update(update_fun, desc, bn, cmd, idx, storeddata, curr_key, curr_keylen, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
             assert_zero(r);
 
-            if (num_leafentries_before == bn->data_buffer.num_klpairs()) {
+            if (num_leafentries_before == bn->data_buffer.omt_size()) {
                 // we didn't delete something, so increment the index.
                 idx++;
             }
@@ -2404,7 +2390,7 @@ basement_node_gc_all_les(BASEMENTNODE bn,
     int r = 0;
     uint32_t index = 0;
     uint32_t num_leafentries_before;
-    while (index < (num_leafentries_before = bn->data_buffer.num_klpairs())) {
+    while (index < (num_leafentries_before = bn->data_buffer.omt_size())) {
         void* keyp = NULL;
         uint32_t keylen = 0;
         LEAFENTRY leaf_entry;
@@ -2423,7 +2409,7 @@ basement_node_gc_all_les(BASEMENTNODE bn,
             delta
             );
         // Check if the leaf entry was deleted or not.
-        if (num_leafentries_before == bn->data_buffer.num_klpairs()) {
+        if (num_leafentries_before == bn->data_buffer.omt_size()) {
             ++index;
         }
     }
@@ -4929,7 +4915,7 @@ ok: ;
             switch (search->direction) {
             case FT_SEARCH_LEFT:
                 idx++;
-                if (idx >= bn->data_buffer.num_klpairs()) {
+                if (idx >= bn->data_buffer.omt_size()) {
                     if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra)) {
                         return TOKUDB_INTERRUPTED;
                     }
@@ -5604,7 +5590,7 @@ ft_cursor_shortcut (
     int r = 0;
     // if we are searching towards the end, limit is last element
     // if we are searching towards the beginning, limit is the first element
-    uint32_t limit = (direction > 0) ? (bd->num_klpairs() - 1) : 0;
+    uint32_t limit = (direction > 0) ? (bd->omt_size() - 1) : 0;
 
     //Starting with the prev, find the first real (non-provdel) leafentry.
     while (index != limit) {
@@ -5895,7 +5881,7 @@ keysrange_in_leaf_partition (FT_HANDLE brt, FTNODE node,
         *less = idx_left;
         *equal_left = (r==0) ? 1 : 0;
 
-        uint32_t size = bn->data_buffer.num_klpairs();
+        uint32_t size = bn->data_buffer.omt_size();
         uint32_t idx_right = size;
         r = -1;
         if (single_basement && key_right) {
@@ -6155,7 +6141,7 @@ static int get_key_after_bytes_in_basementnode(FT ft, BASEMENTNODE bn, const DBT
         assert(r == 0 || r == DB_NOTFOUND);
     }
     struct get_key_after_bytes_iterate_extra iter_extra = {skip_len, skipped, callback, cb_extra};
-    r = bn->data_buffer.iterate_on_range<get_key_after_bytes_iterate_extra, get_key_after_bytes_iterate>(idx_left, bn->data_buffer.num_klpairs(), &iter_extra);
+    r = bn->data_buffer.omt_iterate_on_range<get_key_after_bytes_iterate_extra, get_key_after_bytes_iterate>(idx_left, bn->data_buffer.omt_size(), &iter_extra);
 
     // Invert the sense of r == 0 (meaning the iterate finished, which means we didn't find what we wanted)
     if (r == 1) {
@@ -6351,7 +6337,7 @@ toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const
                              });
             }
             else {
-                int size = BLB_DATA(node, i)->num_klpairs();
+                int size = BLB_DATA(node, i)->omt_size();
                 if (0)
                     for (int j=0; j<size; j++) {
                         LEAFENTRY le;
@@ -6531,9 +6517,9 @@ static bool is_empty_fast_iter (FT_HANDLE brt, FTNODE node) {
         }
         return 1;
     } else {
-        // leaf:  If the dmt is empty, we are happy.
+        // leaf:  If the omt is empty, we are happy.
         for (int i = 0; i < node->n_children; i++) {
-            if (BLB_DATA(node, i)->num_klpairs()) {
+            if (BLB_DATA(node, i)->omt_size()) {
                 return false;
             }
         }

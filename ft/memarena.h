@@ -129,6 +129,5 @@ size_t memarena_total_memory_size (MEMARENA);
 
 size_t memarena_total_size_in_use (MEMARENA);
 
-size_t memarena_total_footprint (MEMARENA);
 
 #endif
