@@ -114,7 +114,7 @@ int main(int argc, const char** argv){
     Ndb MyNdb(&con, "TEST_DB" );
     
     if(MyNdb.init() != 0){
-      ERR(MyNdb.getNdbError());
+      NDB_ERR(MyNdb.getNdbError());
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     
@@ -125,7 +125,7 @@ int main(int argc, const char** argv){
     
     if (_trans) {
       if (MyDic->beginSchemaTrans() == -1) {
-        ERR(MyDic->getNdbError());
+        NDB_ERR(MyDic->getNdbError());
         return NDBT_ProgramExit(NDBT_FAILED);
       }
     }
@@ -144,7 +144,7 @@ int main(int argc, const char** argv){
     
     if (_trans) {
       if (MyDic->endSchemaTrans() == -1) {
-        ERR(MyDic->getNdbError());
+        NDB_ERR(MyDic->getNdbError());
         return NDBT_ProgramExit(NDBT_FAILED);
       }
     }

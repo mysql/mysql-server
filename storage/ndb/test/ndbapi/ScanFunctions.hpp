@@ -94,19 +94,19 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
     if (pTrans == NULL) {
       const NdbError err = pNdb->getNdbError();
       if (err.status == NdbError::TemporaryError){
-	ERR(err);
+	NDB_ERR(err);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
       }
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
     
     // Execute the scan without defining a scan operation
     pOp = pTrans->getNdbScanOperation(tab.getName());	
     if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -114,7 +114,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
     if( pOp->readTuples(exclusive ? 
 			NdbScanOperation::LM_Exclusive : 
 			NdbScanOperation::LM_Read) ) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -123,7 +123,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
     if (action == OnlyOpenScanOnce){
       // Call openScan one more time when it's already defined
       if( pOp->readTuples(NdbScanOperation::LM_Read) ) {
-	ERR(pTrans->getNdbError());
+	NDB_ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
       }
@@ -132,7 +132,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
     if (action==EqualAfterOpenScan){
       check = pOp->equal(tab.getColumn(0)->getName(), 10);
       if( check == -1 ) {
-	ERR(pTrans->getNdbError());
+	NDB_ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
       }	
@@ -140,7 +140,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
     
     for(int a = 0; a<tab.getNoOfColumns(); a++){
       if(pOp->getValue(tab.getColumn(a)->getName()) == NULL) {
-	ERR(pTrans->getNdbError());
+	NDB_ERR(pTrans->getNdbError());
 	pNdb->closeTransaction(pTrans);
 	return NDBT_FAILED;
       }
@@ -148,7 +148,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
     
     check = pTrans->execute(NoCommit);
     if( check == -1 ) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -169,7 +169,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
 	  // Test that we can closeTrans without stopScan
 	  pOp->close();
 	  if( check == -1 ) {
-	    ERR(pTrans->getNdbError());
+	    NDB_ERR(pTrans->getNdbError());
 	    pNdb->closeTransaction(pTrans);
 	    return NDBT_FAILED;
 	  }
@@ -196,7 +196,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
       const NdbError err = pTrans->getNdbError();
 
       if (err.status == NdbError::TemporaryError){
-	ERR(err);
+	NDB_ERR(err);
 	
 	// Be cruel, call nextScanResult after error
 	for(int i=0; i<10; i++){
@@ -222,7 +222,7 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
 
 	continue;
       }
-      ERR(err);
+      NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
