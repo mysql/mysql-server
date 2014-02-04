@@ -86,20 +86,20 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbConnection* pTrans = pNdb->startTransaction();
   if (pTrans == NULL){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     return NDBT_FAILED;
   }
   
   NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
   
   int check = pOp->interpretedUpdateTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -109,7 +109,7 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
   Uint32 pkVal = 1;
   check = pOp->equal("KOL1", pkVal );
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -119,7 +119,7 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
   // Perform initial read of column start value
   NdbRecAttr* initialVal = pOp->getValue("KOL2");
   if( initialVal == NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -128,7 +128,7 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
   Uint32 valToIncWith = 1;
   check = pOp->incValue("KOL2", valToIncWith);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -136,14 +136,14 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
   // Perform final read of column after value
   NdbRecAttr* afterVal = pOp->getValue("KOL2");
   if( afterVal == NULL ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
   
   check = pTrans->execute(Commit);
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -179,19 +179,19 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbConnection* pTrans = pNdb->startTransaction();
   if (pTrans == NULL){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     return NDBT_FAILED;
   }
   
   NdbOperation* pOp = pTrans->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
   
   if (pOp->interpretedUpdateTuple() == -1) {
-    ERR(pOp->getNdbError());
+    NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -200,7 +200,7 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
   // Primary keys
   const Uint32 pkVal = 1;
   if (pOp->equal("KOL1", pkVal) == -1) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -224,13 +224,13 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
 
   if (pOp->load_const_u64(1, reg_val) == -1 ||
       pOp->write_attr("KOL2", 1) == -1) {
-    ERR(pOp->getNdbError());
+    NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   if (pTrans->execute(Commit) == -1) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -239,13 +239,13 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
 
   pTrans = pNdb->startTransaction();
   if (pTrans == NULL){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     return NDBT_FAILED;
   }
   
   pOp = pTrans->getNdbOperation(pTab->getName());
   if (pOp == NULL) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -254,13 +254,13 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
   if (pOp->readTuple() == -1 ||
       pOp->equal("KOL1", pkVal) == -1 ||
       pOp->getValue("KOL2", (char*)&kol2) == 0) {
-    ERR(pOp->getNdbError());
+    NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
 
   if (pTrans->execute(Commit) == -1) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
@@ -298,19 +298,19 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
 
     NdbConnection* pTrans = pNdb->startTransaction();
     if (pTrans == NULL){
-      ERR(pNdb->getNdbError());
+      NDB_ERR(pNdb->getNdbError());
       return NDBT_FAILED;
     }
     
     NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
     if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
     
     if (pOp->readTuples() == -1) {
-      ERR(pOp->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -333,7 +333,7 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
       // inserts 1 word ATTRINFO
 
       if (code.interpret_exit_ok() == -1) {
-        ERR(code.getNdbError());
+        NDB_ERR(code.getNdbError());
         pNdb->closeTransaction(pTrans);
         return NDBT_FAILED;
       }
@@ -341,20 +341,20 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
 
     if (code.finalise() != 0)
     {
-      ERR(code.getNdbError());
+      NDB_ERR(code.getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
 
     if (pOp->setInterpretedCode(&code) != 0)
     {
-      ERR(pOp->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
       
     if (pTrans->execute(NoCommit) == -1) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -365,7 +365,7 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
     g_info << "ret=" << ret << " err=" << pOp->getNdbError().code << endl;
 
     if (i == 0 && ret != 1) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -377,7 +377,7 @@ int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
     }
     if (i == 1 && pOp->getNdbError().code != 874) {
       g_err << "unexpected big filter error code, wanted 874" << endl;
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
     }
@@ -432,7 +432,7 @@ createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
     if (!idx)
     {
       ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
-      ERR(pNdb->getDictionary()->getNdbError());
+      NDB_ERR(pNdb->getDictionary()->getNdbError());
       return NDBT_FAILED;
     }
     else
@@ -445,7 +445,7 @@ createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
     if (pNdb->getDictionary()->createIndex(pIdx) != 0){
       ndbout << "FAILED!" << endl;
       const NdbError err = pNdb->getDictionary()->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
   }
@@ -469,7 +469,7 @@ createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step)
     if (pNdb->getDictionary()->dropIndex(pkIdxName,
                                          pTab->getName()) != 0){
       ndbout << "FAILED!" << endl;
-      ERR(pNdb->getDictionary()->getNdbError());
+      NDB_ERR(pNdb->getDictionary()->getNdbError());
       return NDBT_FAILED;
     } else {
       ndbout << "OK!" << endl;

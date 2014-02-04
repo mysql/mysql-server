@@ -82,7 +82,7 @@ private:
 //  ERR prints an NdbError object together with a description of where the
 //  error occured
 //
-#define ERR_OUT(where, error) \
+#define NDB_ERR_OUT(where, error) \
   {  where << "ERROR: " << error.code << " " \
            << error.message << endl \
            << "           " << "Status: " << error.status \
@@ -92,11 +92,11 @@ private:
 	   ; \
   }
 
-#define ERR(error) \
+#define NDB_ERR(error) \
 { \
   const NdbError &_error= (error); \
-  ERR_OUT(g_err, _error); \
+  NDB_ERR_OUT(g_err, _error); \
 }
-#define ERR_INFO(error) ERR_OUT(g_info, error)
+#define NDB_ERR_INFO(error) NDB_ERR_OUT(g_info, error)
 
 #endif

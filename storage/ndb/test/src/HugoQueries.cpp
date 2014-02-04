@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -174,12 +174,12 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       const NdbError err = pNdb->getNdbError();
 
       if (err.status == NdbError::TemporaryError){
-        ERR(err);
+        NDB_ERR(err);
         NdbSleep_MilliSleep(50);
         retryAttempt++;
         continue;
       }
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
 
@@ -193,7 +193,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       if (query == 0)
       {
         const NdbError err = pTrans->getNdbError();
-        ERR(err);
+        NDB_ERR(err);
         return NDBT_FAILED;
       }
 
@@ -209,7 +209,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     if (check == -1)
     {
       const NdbError err = pTrans->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       if (err.status == NdbError::TemporaryError){
         pTrans->close();
         NdbSleep_MilliSleep(50);
@@ -230,7 +230,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       const NdbError err = pTrans->getNdbError();
       if (err.code)
       {
-        ERR(err);
+        NDB_ERR(err);
         ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
         pTrans->close();
         return NDBT_FAILED;
@@ -252,7 +252,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       const NdbError& err = query->getNdbError();
       if (err.code)
       {
-        ERR(err);
+        NDB_ERR(err);
         if (err.status == NdbError::TemporaryError){
           pTrans->close();
           retry = true;
@@ -282,7 +282,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       else if (stat == NdbQuery::NextResult_error)
       {
         const NdbError& err = query->getNdbError();
-        ERR(err);
+        NDB_ERR(err);
         if (err.status == NdbError::TemporaryError){
           pTrans->close();
           retry = true;
@@ -329,7 +329,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     if (pTrans == NULL)
     {
       const NdbError err = pNdb->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       if (err.status == NdbError::TemporaryError){
         NdbSleep_MilliSleep(50);
         retryAttempt++;
@@ -347,7 +347,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     if (query == 0)
     {
       const NdbError err = pTrans->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
 
@@ -361,7 +361,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     if (check == -1)
     {
       const NdbError err = pTrans->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       if (err.status == NdbError::TemporaryError){
         pTrans->close();
         NdbSleep_MilliSleep(50);
@@ -382,7 +382,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       const NdbError err = pTrans->getNdbError();
       if (err.code)
       {
-        ERR(err);
+        NDB_ERR(err);
         ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
         pTrans->close();
         return NDBT_FAILED;
@@ -398,7 +398,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       NdbError err = query->getNdbError();
       if (err.code)
       {
-        ERR(err);
+        NDB_ERR(err);
         if (err.status == NdbError::TemporaryError){
           pTrans->close();
           NdbSleep_MilliSleep(50);
@@ -452,7 +452,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     pTrans->close();
     if (res == NdbQuery::NextResult_error)
     {
-      ERR(err);
+      NDB_ERR(err);
       if (err.status == NdbError::TemporaryError)
       {
         NdbSleep_MilliSleep(50);
