@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2005-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -220,7 +220,7 @@ main(int argc, const char** argv){
   Ndb MyNdb( &con, db ? db : "TEST_DB" );
 
   if(MyNdb.init() != 0){
-    ERR(MyNdb.getNdbError());
+    NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -241,7 +241,7 @@ main(int argc, const char** argv){
     ndb2 = new Ndb( con2, db ? db : "TEST_DB" );
 
     if(ndb2->init() != 0){
-      ERR(ndb2->getNdbError());
+      NDB_ERR(ndb2->getNdbError());
       return NDBT_ProgramExit(NDBT_FAILED);
     }
 
