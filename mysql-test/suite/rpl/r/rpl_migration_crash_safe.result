@@ -14,4 +14,6 @@ SET @@GLOBAL.relay_log_info_repository= "FILE";
 include/start_slave.inc
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+SET @@GLOBAL.master_info_repository= "TABLE";
+ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
 DROP TABLE test;
