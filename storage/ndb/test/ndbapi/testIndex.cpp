@@ -305,7 +305,7 @@ int create_index(NDBT_Context* ctx, int indxNum,
       attr->indexCreated = false;
       ndbout << "FAILED!" << endl;
       const NdbError err = pNdb->getDictionary()->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       if (err.classification == NdbError::ApplicationError)
         return SKIP_INDEX;
       
@@ -335,7 +335,7 @@ int drop_index(int indxNum, Ndb* pNdb,
   ndbout << "Dropping index "<<idxName<<"(" << pTab->getName() << ") ";
   if (pNdb->getDictionary()->dropIndex(idxName, pTab->getName()) != 0){
     ndbout << "FAILED!" << endl;
-    ERR(pNdb->getDictionary()->getNdbError());
+    NDB_ERR(pNdb->getDictionary()->getNdbError());
     result = NDBT_FAILED;
   } else {
     ndbout << "OK!" << endl;
@@ -426,7 +426,7 @@ int createRandomIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
   if (pNdb->getDictionary()->dropIndex(idxName, 
 				       ctx->getTab()->getName()) != 0){
     ndbout << "FAILED!" << endl;
-    ERR(pNdb->getDictionary()->getNdbError());
+    NDB_ERR(pNdb->getDictionary()->getNdbError());
     return NDBT_FAILED;
   } else {
     ndbout << "OK!" << endl;
@@ -477,7 +477,7 @@ int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
     if (!idx)
     {
       ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
-      ERR(pNdb->getDictionary()->getNdbError());
+      NDB_ERR(pNdb->getDictionary()->getNdbError());
       return NDBT_FAILED;
     }
     else
@@ -490,7 +490,7 @@ int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
     if (pNdb->getDictionary()->createIndex(pIdx) != 0){
       ndbout << "FAILED!" << endl;
       const NdbError err = pNdb->getDictionary()->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
   }
@@ -512,7 +512,7 @@ int createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
     if (pNdb->getDictionary()->dropIndex(pkIdxName, 
                                          pTab->getName()) != 0){
       ndbout << "FAILED!" << endl;
-      ERR(pNdb->getDictionary()->getNdbError());
+      NDB_ERR(pNdb->getDictionary()->getNdbError());
       return NDBT_FAILED;
     } else {
       ndbout << "OK!" << endl;
@@ -895,7 +895,7 @@ int tryAddUniqueIndex(Ndb* pNdb,
   {
     ndbout << "FAILED!" << endl;
     const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
+    NDB_ERR(err);
     return -1;
   }
 
@@ -929,7 +929,7 @@ int tryInsertUniqueRecord(NDBT_Step* step,
       }
       else
       {
-        ERR(err);
+        NDB_ERR(err);
         return NDBT_FAILED;
       }
     }
@@ -1048,7 +1048,7 @@ int runConstraintDetails(NDBT_Context* ctx, NDBT_Step* step)
       
       NdbError err = trans->getNdbError();
       
-      ERR(err);
+      NDB_ERR(err);
       
       CHECKRET(err.code == 893);
       
@@ -2055,7 +2055,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
     if (!idx)
     {
       ndbout << "Failed - Index does not exist and DDL not allowed" << endl;
-      ERR(pNdb->getDictionary()->getNdbError());
+      NDB_ERR(pNdb->getDictionary()->getNdbError());
       return NDBT_FAILED;
     }
     else
@@ -2068,7 +2068,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
     if (pNdb->getDictionary()->createIndex(pIdx) != 0){
       ndbout << "FAILED!" << endl;
       const NdbError err = pNdb->getDictionary()->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       return NDBT_FAILED;
     }
   }
