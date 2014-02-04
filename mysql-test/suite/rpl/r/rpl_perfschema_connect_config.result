@@ -32,19 +32,18 @@ include/assert.inc [Value returned by SSS and PS table for Connection_Retry_Coun
 
 grant replication slave on *.* to replssl@localhost require ssl;
 include/sync_slave_sql_with_master.inc
-stop slave;
+include/stop_slave.inc
 change master to
-master_user='replssl',
-master_password='',
+master_user= 'replssl',
+master_password= '',
 master_retry_count= 1,
-master_ssl=1,
-master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem',
-master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem',
-master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem';
+master_ssl= 1,
+master_ssl_ca= 'MYSQL_TEST_DIR/std_data/cacert.pem',
+master_ssl_cert= 'MYSQL_TEST_DIR/std_data/client-cert.pem',
+master_ssl_key= 'MYSQL_TEST_DIR/std_data/client-key.pem';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-start slave;
 
 # Checking SSL parameters, they were empty in tests done in the
 # previous section.
@@ -56,6 +55,10 @@ include/assert.inc [Value returned by SSS and PS table for SSL_Certificate shoul
 include/assert.inc [Value returned by SSS and PS table for SSL_Cipher should be same.]
 include/assert.inc [Value returned by SSS and PS table for SSL_Key should be same.]
 include/assert.inc [Value returned by SSS and PS table for SSL_Verify_Server_Certificate should be same.]
+change master to master_ssl=0;
+change master to master_ssl_crl= 'MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', master_ssl_crlpath= 'MYSQL_TEST_DIR/std_data/crldir';
+include/assert.inc [Value returned by SSS and PS table for SSL_Crl_File should be same.]
+include/assert.inc [Value returned by SSS and PS table for SSL_Crl_Path should be same.]
 
 # Test with servers in gtid-mode=on.
 
