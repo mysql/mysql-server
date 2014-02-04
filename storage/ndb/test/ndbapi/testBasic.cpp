@@ -253,7 +253,7 @@ readOneNoCommit(Ndb* pNdb, NdbConnection* pTrans,
   int a;
   NdbOperation * pOp = pTrans->getNdbOperation(tab->getName());
   if (pOp == NULL){
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
   
@@ -261,7 +261,7 @@ readOneNoCommit(Ndb* pNdb, NdbConnection* pTrans,
 
   int check = pOp->readTuple();
   if( check == -1 ) {
-    ERR(pTrans->getNdbError());
+    NDB_ERR(pTrans->getNdbError());
     return NDBT_FAILED;
   }
   
@@ -269,7 +269,7 @@ readOneNoCommit(Ndb* pNdb, NdbConnection* pTrans,
   for(a = 0; a<tab->getNoOfColumns(); a++){
     if (tab->getColumn(a)->getPrimaryKey() == true){
       if(tmp.equalForAttr(pOp, a, 0) != 0){
-	ERR(pTrans->getNdbError());
+	NDB_ERR(pTrans->getNdbError());
 	return NDBT_FAILED;
       }
     }
@@ -279,7 +279,7 @@ readOneNoCommit(Ndb* pNdb, NdbConnection* pTrans,
   for(a = 0; a<tab->getNoOfColumns(); a++){
     if((row->attributeStore(a) = 
 	pOp->getValue(tab->getColumn(a)->getName())) == 0) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       return NDBT_FAILED;
     }
   }
@@ -287,7 +287,7 @@ readOneNoCommit(Ndb* pNdb, NdbConnection* pTrans,
   check = pTrans->execute(NoCommit);     
   if( check == -1 ) {
     const NdbError err = pTrans->getNdbError(); 
-    ERR(err);
+    NDB_ERR(err);
     return err.code;
   }
   return NDBT_OK;
@@ -1409,7 +1409,7 @@ runDeleteRead(NDBT_Context* ctx, NDBT_Step* step){
     for(a = 0; a<tab->getNoOfColumns(); a++)
     {
       if((row.attributeStore(a) = pOp->getValue(tab->getColumn(a)->getName())) == 0) {
-	ERR(pTrans->getNdbError());
+	NDB_ERR(pTrans->getNdbError());
 	return NDBT_FAILED;
       }
     }
@@ -1429,13 +1429,13 @@ runDeleteRead(NDBT_Context* ctx, NDBT_Step* step){
     {
       if((row.attributeStore(a) = pOp->getValue(tab->getColumn(a)->getName())) == 0) 
       {
-	ERR(pTrans->getNdbError());
+	NDB_ERR(pTrans->getNdbError());
 	return NDBT_FAILED;
       }
     }
     if (pTrans->execute(Commit) != 0)
     {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       return NDBT_FAILED;
     }
 
@@ -2038,7 +2038,7 @@ int runUnlocker(NDBT_Context* ctx, NDBT_Step* step){
         NdbError err = hugoOps.getNdbError();
         if ((err.status == NdbError::TemporaryError) &&
             retryAttempt < maxRetries){
-          ERR(err);
+          NDB_ERR(err);
           NdbSleep_MilliSleep(50);
           retryAttempt++;
           lockHandles.clear();
@@ -2047,7 +2047,7 @@ int runUnlocker(NDBT_Context* ctx, NDBT_Step* step){
           check(hugoOps.startTransaction(ndb) == 0, (*ndb));
           continue;
         }
-        ERR(err);
+        NDB_ERR(err);
         return NDBT_FAILED;
       }
 
