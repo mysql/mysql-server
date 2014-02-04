@@ -163,4 +163,13 @@ char *set_relay_log_index_name(char* name);
 */
 char *set_relay_log_info_name(char* name);
 
+/**
+  Returns the server hostname, port and uuid.
+
+  @param[out] hostname
+  @param[out] port
+  @param[out] uuid
+*/
+void get_server_host_port_uuid(char **hostname, uint *port, char** uuid);
+
 #endif /* GCS_REPLICATION_INCLUDED */

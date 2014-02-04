@@ -15,32 +15,34 @@
 #ifndef GCS_STATS_H
 #define GCS_STATS_H
 
-#include "my_global.h"
 #include "gcs_protocol.h"
 
 namespace GCS
 {
+
+// Astha,Nuno-todo: wl7331 review - aggregated changes to Stats
+// due to wl#7332 and 7331 logics.
 
 /**
    GCS statitics collector.
    getters are wrapped into C-style functions to be invoked by the server
    (see gcs_plugin.cc), setters are worked in binding effectively simulating
    the stats layer of GCS.
+   The stats collector references View instance to define few access methods
+   on attributes of the View.
 */
 class Stats
 {
 public:
-  Stats() : view_id(0), node_id(0),
-            number_of_nodes(0),
-            total_messages_sent(0), total_bytes_sent(0),
-            total_messages_received(0), total_bytes_received(0),
-            min_message_length(0), max_message_length(0),
-            last_message_timestamp(0)
+  Stats() :
+    number_of_nodes(0),
+    total_messages_sent(0), total_bytes_sent(0),
+    total_messages_received(0), total_bytes_received(0),
+    min_message_length(0), max_message_length(0),
+    last_message_timestamp(0), cluster_view(NULL)
     {};
   void reset()
   {
-    view_id= 0;
-    node_id= 0;
     number_of_nodes= 0;
     total_messages_sent= 0;
     total_bytes_sent= 0;
@@ -67,25 +69,33 @@ public:
     total_bytes_sent += len;
   };
 
-  void update_per_view_change(View& view)
+  void update_per_view_change()
   {
-    if (view.get_quorate())
-      view_id++;
-    if (node_id == 0)
-      node_id= view.get_local_node_id();
-    number_of_nodes= view.get_members().size();
+    number_of_nodes= cluster_view->get_members().size();
   }
 
-  void      set_last_message_timestamp(time_t arg= 0)
+  void   set_last_message_timestamp(time_t arg= 0)
   {
     last_message_timestamp= (arg == 0 ? time(0): arg);
   };
-  time_t    get_last_message_timestamp() { return last_message_timestamp; };
-  ulong get_view_id() { return view_id; };
-  // Todo: to index the requested node
-  uint get_node_id() { return node_id; };
-  // Todo: to define formally node address
-  // <type> get_node_address(uint index) { return node_id; };
+  time_t get_last_message_timestamp() { return last_message_timestamp; };
+
+  ulong get_view_id() { return cluster_view->get_view_id(); };
+  const char* get_node_id(ulong index)
+  {
+    return get_number_of_nodes() == 0 ? NULL :
+      cluster_view->get_member(index).get_uuid().c_str();
+  };
+
+  // TODO/fixme: wl7331 provide the exact def of the node address. Does it include port?
+  // I guess it should 'cos
+  // PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_NODES does not specify port.
+
+  const char* get_node_address(ulong index)
+  {
+    return get_number_of_nodes() == 0 ? NULL :
+      cluster_view->get_member(index).get_hostname().c_str();
+  };
   uint get_number_of_nodes() { return number_of_nodes; };
   ulonglong get_total_messages_sent() { return total_messages_sent; };
   ulonglong get_total_bytes_sent() { return total_bytes_sent; };
@@ -93,6 +103,7 @@ public:
   ulonglong get_total_bytes_received() { return total_bytes_received; };
   ulong get_min_message_length() { return min_message_length; };
   ulong get_max_message_length() { return max_message_length; };
+  void  set_view(View* view_arg) { cluster_view= view_arg; };
 
 private:
 
@@ -101,10 +112,7 @@ private:
      Convert into that.
   */
 
-  ulong view_id;
-  // todo: <type> node_address; // to mean the local node
-  uint node_id;      // to mean the local node
-  uint number_of_nodes;
+  uint number_of_nodes;  // todo: can be optimized out, moreover replaced with a string containing all node id:s
   ulonglong total_messages_sent;
   ulonglong total_bytes_sent;
   ulonglong total_messages_received;
@@ -112,6 +120,7 @@ private:
   ulong min_message_length;
   ulong max_message_length;
   time_t    last_message_timestamp;
+  View*  cluster_view;
 };
 
 } // end of namespace

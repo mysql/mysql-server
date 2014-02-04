@@ -18,8 +18,11 @@
 
 #include <set>
 #include <string>
-#include <my_global.h>
+#include <vector>
+#include <algorithm>
 #include <string.h>
+#include "gcs_member_info.h"
+#include "gcs_stdlib_and_types.h"
 
 namespace GCS
 {
@@ -28,123 +31,252 @@ using std::string;
 using std::set;
 using std::pair;
 
-/*
-  Member (of a group) is defined as a process running on some node,
-  so it has two attributes the node id and a private id of a process
-  on that node.
+/**
+   The Protocol_member_id class holds protocol specific identifier that
+   the Member class instance may like have association with.
+   Each interested protocol should define a derived class.
 */
-typedef pair<ulong,ulong> Member;
-typedef set<Member> Member_set;
+class Protocol_member_id
+{
+private:
+  Protocol_member_id(const Protocol_member_id&);
+protected:
+  Protocol_member_id() {};
+public:
+  virtual uchar* describe(uchar*, size_t)= 0;
+};
+
+class Member
+{
+public:
+
+  Member(Client_info c_arg, Protocol_member_id *m_arg= NULL) :
+    info(c_arg), m_id(m_arg) {}
+  /* Member's info getters: */
+  string& get_hostname()  { return info.get_hostname(); }
+  uint get_port()         { return info.get_port(); }
+  /*
+    info.uuid is effectively (and by the def of uuid as well) the
+    member identifier.
+  */
+  string& get_uuid()      { return info.get_uuid(); }
+  uchar* describe_member_id(uchar *buf, size_t len)
+  {
+    return m_id->describe(buf, len);
+  }
+  Member_recovery_status get_recovery_status()
+  {
+    return info.get_recovery_status();
+  }
+
+private:
+  /*
+    Indentification of the member is up to the Protocol client
+  */
+  Client_info info;
+  /*
+    This slot is introduced to provide association with
+    Protocol specific identifier.
+  */
+  Protocol_member_id *m_id;
+};
+
+inline bool operator < (const Member& lhs, const Member& rhs)
+{
+  const string a= static_cast<Member>(lhs).get_uuid();
+  const string b= static_cast<Member>(rhs).get_uuid();
+  return a.compare(b) < 0;
+}
+
+struct Member_cmp
+{
+  bool operator() (const Member& lhs, const Member& rhs) const
+  {
+    return lhs < rhs;
+  }
+};
+
+typedef set<Member, Member_cmp> Member_set;
+
+/**
+   Member_set intersection function: c = a \cap b
+   Here a,b and c are Member_set references.
+
+   @return ret as a result of intersection of the 2nd and the 3rd parameters
+*/
+inline Member_set& mset_intersection(Member_set& c, Member_set& a, Member_set& b)
+{
+  std::set_intersection(a.begin(), a.end(), b.begin(), b.end(),
+                        std::inserter(c, c.begin()));
+  return c;
+}
+
+/**
+   Member_set relative complement function.
+   c = a \ b, i.e c is relative complement of b in a.
+   All a,b and c are Member_set.
+
+   @return ret as a result of Set subtraction the 3rd from the 2nd parameter.
+*/
+inline Member_set& mset_diff(Member_set& c, Member_set& a, Member_set& b)
+{
+  std::set_difference(a.begin(), a.end(), b.begin(), b.end(),
+                      std::inserter(c, c.begin()));
+  return c;
+}
 
 class Group_members
 {
 public:
+  //TODO: this class does not have a good reason to exist,
+  //consider to dismantle it in WL#7331.
+  //Methods invoked in WL#7331 shoul migrate either into View or Protocol.
 
   Group_members() {};
   ~Group_members() {};
   const string& get_group_name() { return group_name; }
   Member_set& get_members() { return members; }
-  const string& set_group_name(string& arg)
-    {
+  // Astha,Nuno-todo: wl7331 review
+  Member get_member(ulong index)
+  {
+    Member_set::iterator it;
+    for (ulong i=0; i < index; i++, it++)
+    {};
+    return *it;
+  }
+
+  /*
+  class dummy_member_id : public Protocol_member_id
+  {
+  public:
+  dummy_member_id() {}
+  uchar* describe(uchar *buf, size_t len) { return buf; }
+  };
+
+  Member_set::iterator find_member(string& key_str)
+  {
+  Client_info key(key_str);
+  dummy_member_id m_id;
+  Member mbr(key, (Protocol_member_id*) &m_id);
+  return members.find(mbr);
+  };
+  */
+  const string& set_group_name(const string& arg)
+  {
       return const_cast<string&>(group_name)= arg;
-    }
+  }
   bool is_empty() { return members.size() == 0; }
   bool has_group_name() { return group_name.length() != 0; }
 
 protected:
 
-  const string group_name;      // unique or human-readable name of the group
+  const string group_name;
+  /*
+    fully indentified Members of the Group are interally (in set) sorted
+    with uuid as the key.
+  */
   Member_set members;
-  void reset_members(Member_set& arg)
-    {
-      members.clear();
-      for (Member_set::iterator it= arg.begin(); it != arg.end(); ++it)
-        members.insert(*it);
-    };
 };
 
 /**
-   This class supersedes a bare Group_members with attributes that are meaningful
-   only when concreate Protocol provides support for them.
-   Instance of the class is associated with @c Protocol session instance as many to
-   one. Any view instance represents a certain  group of processes/Members.
+   This class supersedes a bare Group_members with attributes that are
+   meaningful only when concreate Protocol provides support for them.
+   Instance of the class may be associated with @c Protocol session
+   instance as many to one. Any view instance represents a certain
+   group of processes/Members. One to one is that is currently implemented.
    The view instance is supposed to be updated at View-change event handling.
 */
 class View : public Group_members
 {
 public:
-  View() : is_quorate(false), local_node_id(0) {};
-  ~View() {};
-  bool get_quorate() { return is_quorate; }
-  void update(Member_set &ms, bool verdict)
-    {
-      reset_members(ms);
-      is_quorate= verdict;
-    }
-  void set_local_node_id(ulonglong arg) { local_node_id= arg; };
-  ulonglong get_local_node_id() { return local_node_id; };
-private:
+  View() : m_installed(false), m_quorate(false), view_id(0) {};
+  bool is_quorate() { return m_quorate; }
+  bool is_installed() { return m_installed; }
 
-  bool is_quorate;         // flag to designate the quorate view
-  ulonglong local_node_id; // Note, a member of the group is a pair!
+  /*
+    The method installs a new view. Whether that's the Primary Component
+    depends on @c max_view_id_arg argument.
+    The effective Primary Component installation increments the supplied
+    max view-id to set up a new view id value.
+    The ineffective means this members lost membership in the cluster.
+    The whole group where such member belongs in now will have an "undefined"
+    view_id value of zero.
+    The left and joined set are updated.
+
+    @param total            a copy of the new Member set
+    @param max_view_id_arg  max heard view-id out of State messages
+    @param quorate_arg      quorate value to be installed
+
+    @return                 the value of quorate_arg
+  */
+  bool install(Member_set &total_arg, ulonglong max_view_id_arg,
+               bool quorate_arg)
+  {
+    Member_set intr;
+
+    /* Compute @c joined and left for reporting */
+    mset_intersection(intr, members, total_arg);
+    mset_diff(left, members, intr);
+    mset_diff(joined, total_arg, intr);
+    members.clear();
+    members= total_arg;
+    m_quorate= quorate_arg;
+
+    assert(members.size() >= joined.size());
+    assert(!m_quorate || view_id <= max_view_id_arg);
+
+    view_id= m_quorate ? max_view_id_arg + m_quorate : 0;
+    m_installed= true;
+
+    return m_quorate;
+  }
+  ulonglong get_view_id() { return view_id; }
+
+  /*
+    Two sets to be reported to the Client at view-change event delivery.
+    Notice that unlike the members (total) slot which is globally consistent
+    the two represents *local* to a group member set differences.
+    The left set is defined as entities from the last View::members
+    that are not present in a being installed view.
+    The join set is defined as entities that were not present in the last
+    View::members.
+  */
+  Member_set left, joined;
+  /**
+    The method resets auxiliary objects relevant to the view
+    installation time.
+  */
+  void reset()
+  {
+    left.clear();
+    joined.clear();
+    m_installed= false;
+    m_quorate= false;
+  }
+  bool is_prim_component() { return m_installed && m_quorate; }
+
+private:
+  /*
+    The flag designates State exchange is in progress.
+  */
+  bool m_installed;
+  /*
+    The flag designates a quorate view or the Primary Component view.
+    It gets updated to a new computed value
+    along with the members, left and joined at @c install().
+  */
+  bool m_quorate;
+  /*
+    Subsequent quorate view increments this counter.
+  */
+  ulonglong view_id;
 };
 
 typedef enum enum_protocol_type { PROTO_COROSYNC } Protocol_type;
-typedef enum enum_message_type { MSG_REGULAR } Msg_type;
-typedef enum enum_msg_qos { MSGQOS_BEST_EFFORT,
-                            MSGQOS_RELIABLE, MSGQOS_UNIFORM } Msg_qos;
-typedef enum enum_msg_ordering { MSGORD_UNORDERED, MSGORD_TOTAL_ORDER } Msg_ordering;
 typedef enum enum_member_role { MEMBER_ACTOR, MEMBER_OBSERVER } Member_role;
 
-// Todo: version handshake at Group joining
-class Message {
-
-public:
-
-  /* No-data copy constructor e.g to broadcast */
-  Message(Msg_type type_arg, Msg_qos qos_arg, Msg_ordering ord_arg,
-          const void* data_arg, size_t len_arg) :
-    len(len_arg), data((void*) data_arg)
-    {
-      type= type_arg; qos= qos_arg; ord= ord_arg;
-      msg_id.view_no= 0;
-      msg_id.seq_no= 0;
-    }
-
-  /*
-     The delivered (dispatched) Message constructor.
-     TODO: consider memory root of similar mechanism to hold private
-     string data.
-     Memory must be provided by the consumer.
-  */
-  Message(const void* data_arg, size_t len_arg) : len(len_arg)
-    {
-      str_data= string((const char*) data_arg, len);
-      data= (void*) str_data.data();
-    };
-
-  size_t get_length() { return len; }
-  void* get_data() { return data; }
-
-private:
-
-  size_t len;
-  void *data;
-  Msg_type type;
-  Member sender_id;
-  struct st_msg_global_id
-  {
-    ulonglong view_no; // the deliery view id
-    ulonglong seq_no;  // sequence number in the view
-  } msg_id;
-  Msg_qos qos;
-  Msg_ordering ord;
-
-  string str_data;
-};
-
 class Protocol;
-
+class Message;
 /**
    The GCS event handler vector is associated with a Protocol instance (Session).
    The handlers are meaningful after the session of Protocol is created and
@@ -194,6 +326,8 @@ class Protocol
 private:
 
   Protocol(const Protocol&);
+  /* Client info also contains the local Member uuid */
+  Client_info local_client_info;
 
 protected:
 
@@ -262,7 +396,7 @@ public:
    * @param Message the message to be broadcast.
    * @return false if the sending succeeded, true otherwise.
    */
-  virtual bool broadcast(const Message& msg)= 0;
+  virtual bool broadcast(Message& msg)= 0;
 
   /**
    * This member function SHALL join this member to the specified group.
@@ -306,8 +440,7 @@ public:
    * Todo: this is a proposal. Accept|refine|remove.
    *
    * The returned instance of View is accossiated with
-   * the Protocol session and a joined group. The view instance gets gone
-   * when the group is left or the Protocol object is deleted.
+   * the Protocol session and a joined group.
    * The instance should be created not later than the first View change
    * event is handled. The instance's members attribute as well as others
    * must be updated at least by one of registered sessions' (*view_change) handler.
@@ -318,17 +451,25 @@ public:
   virtual View& get_view(const string& group_name)= 0;
 
   /**
-     The method is to help unit-testing.
-  */
-  virtual void test_me()= 0;
+   * This member function stores the protocol client description
+   * which identifies the local group member.
+   */
+  void set_client_info(Client_info&);
 
+  /**
+   * The method returns a reference to the Client instance.
+   */
+  Client_info& get_client_info() { return local_client_info; }
+
+  /**
+   * The method returns a reference to the Client instance's uuid.
+   */
+  string& get_client_uuid();
 };
 
-/**
-   Some of Protocols may require limiting parameters for objects
-   that their bindings temporarily construct.
-*/
-const uint max_members_in_corosync_group= 64;
+/* Protocol non-specific View-changes logger */
+void log_view_change(ulonglong view_id, Member_set& total, Member_set& left,
+                     Member_set& joined);
 
 } // namespace
 

@@ -16,7 +16,6 @@
 #include <gcs_protocol.h>
 #include <gcs_corosync.h>
 #include <gcs_protocol_factory.h>
-#include "my_global.h"
 
 namespace GCS
 {
@@ -33,25 +32,23 @@ Protocol*
 Protocol_factory::create_protocol(Protocol_type type,
                                   Stats& stats_collector)
 {
-  DBUG_ENTER("GCS::Protocol_factory::create_protocol");
-
   switch (type) {
   case PROTO_COROSYNC:
 
-    DBUG_ASSERT(!single_instance); // an creator can't do it 2nd time.
+    assert(!single_instance); // an creator can't do it 2nd time.
 
-    DBUG_RETURN(single_instance= new Protocol_corosync(stats_collector));
+    return single_instance= new Protocol_corosync(stats_collector);
 
   default:
-    DBUG_ASSERT(0);
+    assert(0);
   }
 
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 Protocol* Protocol_factory::get_instance()
 {
-  DBUG_ASSERT(single_instance);
+  assert(single_instance);
   return single_instance;
 }
 

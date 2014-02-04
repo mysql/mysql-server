@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include <pthread.h>
 #include "gcs_plugin.h"
 #include "observer_server_state.h"
 #include "observer_trans.h"
@@ -21,7 +22,6 @@
 #include <gcs_replication.h>
 #include <gcs_protocol.h>
 #include <gcs_protocol_factory.h>
-#include <pthread.h>
 #include "gcs_event_handlers.h"
 #include "gcs_stats.h"
 
@@ -48,12 +48,13 @@ static pthread_mutex_t gcs_running_mutex;
 static bool gcs_running;
 
 //The plugin applier
-Applier_module *applier= NULL;
+Applier_module *applier= NULL;  // andrei: todo - rename it to e.g gcs_applier
 
 char *gcs_group_pointer=NULL;
 
 // Specific/configured GCS protocol
 static GCS::Protocol *gcs_instance= NULL;
+static GCS::Client_info rinfo((GCS::Client_logger_func) log_message);
 
 GCS::Event_handlers gcs_plugin_event_handlers=
 {
@@ -76,6 +77,15 @@ static bool server_engine_initialized();
 bool is_gcs_rpl_running()
 {
   return gcs_running;
+}
+
+void fill_client_info(GCS::Client_info* info)
+{
+  char *hostname, *uuid;
+  uint port;
+
+  get_server_host_port_uuid(&hostname, &port, &uuid);
+  info->store(string(hostname), port, string(uuid), GCS::MEMBER_OFFLINE);
 }
 
 int log_message(enum plugin_log_level level, const char *format, ...)
@@ -130,7 +140,9 @@ bool get_gcs_nodes_info(RPL_GCS_NODES_INFO *info)
 {
   info->group_name= gcs_group_pointer;
   info->node_state= is_gcs_rpl_running();
-  info->node_id= cluster_stats.get_node_id();
+  // The signature of get_node_id is corrected by WL#7332 patch.
+  // TODO: to refine invokation in WL#7331.
+  //info->node_id= cluster_stats.get_node_id();
 
   return false;
 }
@@ -147,6 +159,7 @@ int gcs_rpl_start()
     DBUG_RETURN(GCS_CONFIGURATION_ERROR);
   if (init_cluster_sidno())
     DBUG_RETURN(GCS_CONFIGURATION_ERROR);
+
   if (server_engine_initialized())
   {
     //we can only start the applier if the log has been initialized
@@ -357,6 +370,9 @@ int configure_and_start_applier()
 
 int configure_and_start_gcs()
 {
+  fill_client_info(&rinfo);
+  gcs_instance->set_client_info(rinfo);
+
   if (gcs_instance->open_session(&gcs_plugin_event_handlers))
     return GCS_COMMUNICATION_LAYER_SESSION_ERROR;
 

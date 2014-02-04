@@ -257,3 +257,11 @@ char *set_relay_log_info_name(char* name){
   relay_log_info_file=  name;
   return original_relay_info_file;
 }
+
+void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
+{
+  *hostname= glob_hostname;
+  *port= mysqld_port;
+  *uuid= server_uuid;
+  return;
+}

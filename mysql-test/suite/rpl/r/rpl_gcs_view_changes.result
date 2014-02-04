@@ -1,0 +1,47 @@
+include/have_gcs_replication_plugin.inc
+include/install_gcs_replication.inc
+call mtr.add_suppression("could not form the cluster");
+call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429573";;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/install_gcs_replication.inc
+call mtr.add_suppression("could not form the cluster");
+call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429573";;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/install_gcs_replication.inc
+call mtr.add_suppression("could not form the cluster");
+call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429573";;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/install_gcs_replication.inc
+call mtr.add_suppression("could not form the cluster");
+call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
+SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429573";;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+STOP GCS_REPLICATION;
+STOP GCS_REPLICATION;
+INSERT INTO t1 SET c1=1;
+BEGIN;
+INSERT INTO t1 SET c1=2;
+STOP GCS_REPLICATION;
+rollback;
+START GCS_REPLICATION;
+START GCS_REPLICATION;
+START GCS_REPLICATION;
+STOP GCS_REPLICATION;
+DROP TABLE t1;
+include/uninstall_gcs_replication.inc
+UNINSTALL PLUGIN gcs_replication_plugin;
+STOP GCS_REPLICATION;
+DROP TABLE t1;
+include/uninstall_gcs_replication.inc
+UNINSTALL PLUGIN gcs_replication_plugin;
+STOP GCS_REPLICATION;
+DROP TABLE t1;
+include/uninstall_gcs_replication.inc
+UNINSTALL PLUGIN gcs_replication_plugin;
+STOP GCS_REPLICATION;
+DROP TABLE t1;
+include/uninstall_gcs_replication.inc
+UNINSTALL PLUGIN gcs_replication_plugin;

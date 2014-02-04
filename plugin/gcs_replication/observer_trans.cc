@@ -22,6 +22,9 @@
 #include <my_stacktrace.h>
 #include "sql_class.h"
 #include "gcs_replication.h"
+#include "gcs_message.h"
+
+using GCS::MessageBuffer;
 
 /*
   Internal auxiliary functions signatures.
@@ -30,7 +33,7 @@ static bool reinit_cache(IO_CACHE *cache,
                          enum cache_type type,
                          my_off_t position);
 
-static bool copy_cache(MessageBuffer *dest, IO_CACHE *src);
+static bool copy_cache(GCS::Message *msg, IO_CACHE *src);
 
 int add_write_set(Transaction_context_log_event *tcle,
                    std::list<unsigned long> *set)
@@ -83,11 +86,12 @@ int gcs_trans_before_commit(Trans_param *param)
   Transaction_context_log_event *tcle= NULL;
   rpl_gno snapshot_timestamp;
   IO_CACHE cache;
-  MessageBuffer *buffer= new MessageBuffer();
+  // Todo optimize for memory (IO-cache's buf to start with, if not enough then trans mem-root)
+  // to avoid New message create/delete and/or its implicit MessageBuffer.
+  GCS::Message *message= new GCS::Message(GCS::PAYLOAD_TRANSACTION_EVENT);
 
   // GCS API.
   GCS::Protocol *protocol= GCS::Protocol_factory::get_instance();
-  GCS::Message *message= NULL;
 
   // Binlog cache.
   bool is_dml= true;
@@ -181,7 +185,7 @@ int gcs_trans_before_commit(Trans_param *param)
   }
 
   // Copy GCS cache to buffer.
-  if (copy_cache(buffer, &cache))
+  if (copy_cache(message, &cache))
   {
     log_message(MY_ERROR_LEVEL, "Failed while writing GCS cache to buffer");
     error= 1;
@@ -189,7 +193,7 @@ int gcs_trans_before_commit(Trans_param *param)
   }
 
   // Copy binlog cache content to buffer.
-  if (copy_cache(buffer, cache_log))
+  if (copy_cache(message, cache_log))
   {
     log_message(MY_ERROR_LEVEL, "Failed while writing binlog cache to buffer");
     error= 1;
@@ -212,10 +216,6 @@ int gcs_trans_before_commit(Trans_param *param)
     goto err;
   }
 
-  // Broadcast GCS message.
-  message= new GCS::Message(GCS::MSG_REGULAR, GCS::MSGQOS_UNIFORM,
-                                GCS::MSGORD_TOTAL_ORDER,
-                                buffer->data(), buffer->length());
   if (protocol->broadcast(*message))
   {
     log_message(MY_ERROR_LEVEL, "Failed to broadcast GCS message");
@@ -231,7 +231,6 @@ int gcs_trans_before_commit(Trans_param *param)
 
 err:
   delete tcle;
-  delete buffer;
   delete message;
   if (!mutex_init)
     destroy_cond_mutex(&COND_certify_wait, &LOCK_certify_wait);
@@ -297,10 +296,10 @@ static bool reinit_cache(IO_CACHE *cache,
 /*
   Copy one cache content to a buffer.
 
-  @param[in] dest  buffer to where data will be written
+  @param[in,out]   message pointer where the cache data are copied in
   @param[in] src   cache from which data will be read
 */
-static bool copy_cache(MessageBuffer *dest, IO_CACHE *src)
+static bool copy_cache(GCS::Message *msg, IO_CACHE *src)
 {
   DBUG_ENTER("copy_cache");
   size_t length;
@@ -312,7 +311,7 @@ static bool copy_cache(MessageBuffer *dest, IO_CACHE *src)
     if (src->error)
       DBUG_RETURN(true);
 
-    dest->append(src->read_pos, length);
+    msg->append(src->read_pos, length);
   }
 
   DBUG_RETURN(false);

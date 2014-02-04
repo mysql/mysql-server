@@ -1,0 +1,5 @@
+$GCS_RPL_PLUGIN_OPT
+--binlog-checksum=NONE
+--log-slave-updates
+--gtid-mode=on
+--enforce-gtid-consistency

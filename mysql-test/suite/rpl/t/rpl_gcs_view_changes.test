@@ -1,0 +1,294 @@
+# This test verifies correctness and stability of WL#7332 implementation
+# of State Exchange subprotocol.
+#
+# The structure is as the following.
+#
+# Z.   Initialization.
+#
+# I.   The general stability part when servers leave and join randomly.
+#      The purpose is to prove no hangup or crashes.
+# II.  Two node cluster that demonstrates some (feasible) of Primary component
+#      properties.
+# III. Proof of view-id monotonicity and cluster-wide consistency.
+#
+--source include/have_gcs_replication_plugin.inc
+
+#
+# a counter to be used with source include/rpl_gcs_error_out.inc
+#
+--let $gcs_error_connection_number= 4
+
+#
+# First prepare four nodes and manually create a table on each.
+# (There's a bug Gtid_state::acquire_ownership assert preventing normal execution)
+#
+
+--let $group_name= "8a94f357-aab4-11df-86ab-c80aa9429573"
+
+--connection server1
+--source include/install_gcs_replication.inc
+call mtr.add_suppression("could not form the cluster");
+call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
+--eval SET GLOBAL gcs_replication_plugin_group_name= $group_name;
+
+if (`select view_id <> 0 from performance_schema.replication_connection_status`)
+{
+    --echo incorrect non-zero view_id when the Node is never started.
+    --source include/rpl_gcs_error_out.inc
+    --die
+}
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually until certification WL#7334 is fixed
+
+--connection server2
+--source include/install_gcs_replication.inc
+call mtr.add_suppression("could not form the cluster");
+call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
+--eval SET GLOBAL gcs_replication_plugin_group_name= $group_name;
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
+
+--connection server3
+--source include/install_gcs_replication.inc
+call mtr.add_suppression("could not form the cluster");
+call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
+--eval SET GLOBAL gcs_replication_plugin_group_name= $group_name;
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
+
+--connection server4
+--source include/install_gcs_replication.inc
+call mtr.add_suppression("could not form the cluster");
+call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
+--eval SET GLOBAL gcs_replication_plugin_group_name= $group_name;
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
+
+#
+# Part I.
+#
+# Restart four nodes few times to prove general stability. It should
+# be done carefully to not destroy the cluster by occasional
+# withdrawal more than cluster.number_of_nodes / 2 - 1 nodes at a
+# time, that is not more than 1 in the condition of this test.
+# The test implements the following transition: 4 -> 3 -> 2 -> 3 -> 4.
+#
+
+--disable_query_log
+--disable_result_log
+
+--let $s_cnt=4
+while($s_cnt)
+{
+    --connection server$s_cnt
+    START GCS_REPLICATION;
+
+    --dec $s_cnt
+}
+let $wait_condition= select number_of_nodes = 4 from performance_schema.replication_connection_status;
+--source include/wait_condition.inc
+
+--let $restart_cnt= 10
+while($restart_cnt)
+{
+    --let $s_id1=`select 1 + floor(rand()*100 % 4)`
+    --connection server$s_id1
+    STOP GCS_REPLICATION;
+
+    --let $s_id2= $s_id1
+    while ($s_id2 == $s_id1)
+    {
+	--let $s_id2=`select 1 + floor(rand()*100 % 4)`
+    }
+    --connection server$s_id2
+    #
+    # Here is the care point: don't go stopping the 2nd node until
+    # it's proved the previous one is out of the view.
+    #
+    let $wait_condition= select number_of_nodes = 3 from performance_schema.replication_connection_status;
+    --source include/wait_condition.inc
+
+    STOP GCS_REPLICATION;
+
+    --connection server$s_id1
+    START GCS_REPLICATION;
+
+    --connection server$s_id2
+    START GCS_REPLICATION;
+
+    let $wait_condition= select number_of_nodes = 4 from performance_schema.replication_connection_status;
+    --source include/wait_condition.inc
+
+    dec $restart_cnt;
+}
+--enable_result_log
+--enable_query_log
+
+#
+# Part II.
+#
+# Form the 2 node cluster and verify view-id on each node, must be equal.
+# At forming make sure two extra members exits one by one so the quorum
+# is not get lost.
+#
+
+--connection server3
+STOP GCS_REPLICATION;
+
+--connection server4
+let $wait_condition= select number_of_nodes = 3 from performance_schema.replication_connection_status;
+--source include/wait_condition.inc
+
+STOP GCS_REPLICATION;
+
+--connection server1
+let $wait_condition= select number_of_nodes = 2 from performance_schema.replication_connection_status;
+--source include/wait_condition.inc
+
+#
+# end of forming.
+
+--connection server1
+INSERT INTO t1 SET c1=1;
+
+--connection server2
+
+#
+# Success in getting expected value indicates the Primary Component
+# is installed. Let's verify the # of nodes is as PS says
+#
+let $count= 1;
+let $table= t1;
+--source include/wait_until_rows_count.inc
+
+if (`SELECT number_of_nodes <> 2 from performance_schema.replication_connection_status`)
+{
+    --echo Unexpected cluster membership.
+    --source include/rpl_gcs_error_out.inc
+    --die
+}
+
+# By above the Primary Component of two group members installation is proved.
+# Let's check out view-id values.
+--connection server1
+--let $view_id_server1=`select view_id from performance_schema.replication_connection_status`
+
+--connection server2
+--let $view_id_server2=`select view_id from performance_schema.replication_connection_status`
+
+if ($view_id_server1 == 0)
+{
+    --echo view_id must be non-zero at this point.
+    --source include/rpl_gcs_error_out.inc
+    --die
+}
+if ($view_id_server1 != $view_id_server2)
+{
+    --echo inconsistent view_id:s: $view_id_server1 != $view_id_server2
+    --source include/rpl_gcs_error_out.inc
+    --die
+}
+
+#
+# Verify the Primary Component property of aborting transactions
+# whose originator nodes left the Primary Component.
+# The policy is tentative, it might (should) be a subject of
+# softer treatment, e.g wait with aborting till a timeout elapses.
+# Yet it's tested 'cos it's there.
+#
+--connection server1
+BEGIN;
+INSERT INTO t1 SET c1=2;
+# Split the cluster and see that the left alone server1 won't make
+# Primary Component out of itself.
+
+--connection server2
+STOP GCS_REPLICATION;
+
+# TODO: implement COMMIT instead of the coded rollback
+--connection server1
+rollback;
+
+# We can't run COMMIT 'cos such the plugin error code is not propageted
+# to the server session and the error apparently is not sent to the server client:
+
+# #9  0xb742d137 in __assert_fail () from /lib/i386-linux-gnu/libc.so.6
+# #10 0x083f585f in Protocol::end_statement (this=0xab000b88) at /home/andrei/MySQL/BZR/2a-23May/WL/wl7332-state_exchange/sql/protocol.cc:573
+# #11 0x0849689b in dispatch_command (command=COM_QUERY, thd=0xab000780, packet=0xab003621 "COMMIT", packet_length=6) at /home/andrei/MySQL/BZR/2a-23May/WL/wl7332-state_exchange/sql/sql_parse.cc:1570
+# #12 0x084945f0 in do_command (thd=0xab000780) at /home/andrei/MySQL/BZR/2a-23Ma
+
+
+--connection server1
+# server1 is up but being alone it's not the Prim Comp
+# as witnessed by the zero view-id:
+let $wait_condition= select view_id = 0 from performance_schema.replication_connection_status;
+--source include/wait_condition.inc
+
+#
+# Part III.
+#
+# Form the four node cluster, check up monotonic and cluster consistent view-id.
+#
+--connection server2
+START GCS_REPLICATION;
+#
+# TODO: fix the acquire_ownership bug. Can't executed anything - hitting the above assert.
+# INSERT INTO t1 SET c1=2;
+--connection server3
+START GCS_REPLICATION;
+
+--connection server4
+START GCS_REPLICATION;
+
+--let $s_cnt=4
+while ($s_cnt)
+{
+    --connection server$s_cnt
+    let $wait_condition= select number_of_nodes = 4 from performance_schema.replication_connection_status;
+    --source include/wait_condition.inc
+
+    --dec $s_cnt
+}
+#
+#  a proof of view-id is monotonic
+#
+--let $view_id_now=`select view_id from performance_schema.replication_connection_status`
+if ($view_id_now <= $view_id_server1)
+{
+    --echo Unexpected non-increased view-id value.
+    --source include/rpl_gcs_error_out.inc
+    --die
+}
+
+#
+#  view-id cross cluster consistency
+#
+--let $s_cnt=3
+while ($s_cnt)
+{
+    --connection server$s_cnt
+    --let $view_id_now_s=`select view_id from performance_schema.replication_connection_status`
+    if ($view_id_now != $view_id_now_s)
+    {
+	   --echo The 4th node view inconsistent with that of $s_cnt.
+	   --source include/rpl_gcs_error_out.inc
+	   --die
+    }
+    dec $s_cnt;
+}
+
+
+#
+#  Cleanup
+#
+--let $s_cnt=4
+while ($s_cnt)
+{
+    --connection server$s_cnt
+    STOP GCS_REPLICATION;
+    DROP TABLE t1;  # manual removal until certification is fixed
+    --source include/uninstall_gcs_replication.inc
+
+    dec $s_cnt;
+}
+

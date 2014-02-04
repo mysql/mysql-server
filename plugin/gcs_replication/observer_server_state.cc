@@ -15,6 +15,7 @@
 
 #include "gcs_plugin.h"
 #include "observer_server_state.h"
+#include "gcs_protocol_factory.h"
 
 /*
   DBMS lifecycle events observers.
@@ -38,8 +39,8 @@ int gcs_after_engine_recovery(Server_state_param *param)
   if (wait_on_engine_initialization)
   {
     int error= 0;
-    wait_on_engine_initialization= false;
 
+    wait_on_engine_initialization= false;
     if ((error= configure_and_start_applier()))
       return error;
 
