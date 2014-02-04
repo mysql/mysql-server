@@ -180,6 +180,9 @@ file_exists $MYSQLD_DATADIR/relay-log.info;
 --error ER_SLAVE_MUST_STOP
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 
+--error ER_SLAVE_MUST_STOP
+SET @@GLOBAL.master_info_repository= "TABLE";
+
 ########################################################################################
 # 8. Check consistency
 ########################################################################################
