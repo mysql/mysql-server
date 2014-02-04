@@ -3572,6 +3572,33 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+int runTestCreateLogEvent(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+  int loops = ctx->getNumLoops();
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int filter[] = {
+    15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+    0
+  };
+
+  for(int l=0; l<loops; l++)
+  {
+    g_info << "Creating log event handle " << l << endl;
+    NdbLogEventHandle le_handle =
+        ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
+    if (!le_handle)
+      return NDBT_FAILED;
+
+    ndb_mgm_destroy_logevent_handle(&le_handle);
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -3725,6 +3752,9 @@ TESTCASE("TestNdbApiConfig", "")
 TESTCASE("TestSetPorts",
          "Test 'set ports'"){
   INITIALIZER(runTestSetPorts);
+}
+TESTCASE("TestCreateLogEvent", "Test ndb_mgm_create_log_event_handle"){
+  STEPS(runTestCreateLogEvent, 5);
 }
 NDBT_TESTSUITE_END(testMgm);
 
