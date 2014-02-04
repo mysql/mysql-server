@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 
 # The motive of this test case is to test the
@@ -16,7 +16,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 -- let $saved_submode= `SELECT @@slave_parallel_type`
 
 # must error out since the slave is running
--- error ER_SLAVE_MUST_STOP
+-- error ER_SLAVE_SQL_THREAD_MUST_STOP
 SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
 
 -- source include/stop_slave.inc
