@@ -55,7 +55,7 @@ create_index_on_pk(Ndb* pNdb, const char* tabName)
   if (pNdb->getDictionary()->createIndex(pIdx) != 0){
     ndbout << "FAILED!" << endl;
     const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
+    NDB_ERR(err);
     result = NDBT_FAILED;
   } else {
     ndbout << "OK!" << endl;
@@ -73,7 +73,7 @@ drop_index_on_pk(Ndb* pNdb, const char* tabName)
   if (pNdb->getDictionary()->dropIndex(idxName, tabName) != 0){
     ndbout << "FAILED!" << endl;
     const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
+    NDB_ERR(err);
     result = NDBT_FAILED;
   } else {
     ndbout << "OK!" << endl;
