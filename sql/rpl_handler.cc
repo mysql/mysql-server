@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -243,7 +243,8 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.cache_log_max_size= cache_log_max_size;
   param.write_set= pke_write_set;
 
-  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  bool is_real_trans=
+    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
   if (is_real_trans)
     param.flags|= TRANS_IS_REAL_TRANS;
 
@@ -260,7 +261,8 @@ int Trans_delegate::before_rollback(THD *thd, bool all)
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
 
-  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  bool is_real_trans=
+    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
   if (is_real_trans)
     param.flags|= TRANS_IS_REAL_TRANS;
 
@@ -276,7 +278,8 @@ int Trans_delegate::after_commit(THD *thd, bool all)
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
 
-  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  bool is_real_trans=
+    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
   if (is_real_trans)
     param.flags|= TRANS_IS_REAL_TRANS;
 
@@ -298,7 +301,8 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id;
 
-  bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
+  bool is_real_trans=
+    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
   if (is_real_trans)
     param.flags|= TRANS_IS_REAL_TRANS;
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
@@ -449,7 +453,8 @@ int Binlog_storage_delegate::after_sync(THD *thd,
 #ifdef HAVE_REPLICATION
 int Binlog_transmit_delegate::transmit_start(THD *thd, ushort flags,
                                              const char *log_file,
-                                             my_off_t log_pos)
+                                             my_off_t log_pos,
+                                             bool *observe_transmission)
 {
   Binlog_transmit_param param;
   param.flags= flags;
@@ -457,6 +462,7 @@ int Binlog_transmit_delegate::transmit_start(THD *thd, ushort flags,
 
   int ret= 0;
   FOREACH_OBSERVER(ret, transmit_start, thd, (&param, log_file, log_pos));
+  *observe_transmission= param.should_observe();
   return ret;
 }
 
@@ -465,6 +471,8 @@ int Binlog_transmit_delegate::transmit_stop(THD *thd, ushort flags)
   Binlog_transmit_param param;
   param.flags= flags;
   param.server_id= thd->server_id;
+
+  DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
   int ret= 0;
   FOREACH_OBSERVER(ret, transmit_stop, thd, (&param));
@@ -485,6 +493,8 @@ int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
   Binlog_transmit_param param;
   param.flags= flags;
   param.server_id= thd->server_id;
+
+  DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
   int ret= 0;
   read_lock();
@@ -532,6 +542,8 @@ int Binlog_transmit_delegate::before_send_event(THD *thd, ushort flags,
   param.flags= flags;
   param.server_id= thd->server_id;
 
+  DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
+
   int ret= 0;
   FOREACH_OBSERVER(ret, before_send_event, thd,
                    (&param, (uchar *)packet->c_ptr(),
@@ -548,6 +560,8 @@ int Binlog_transmit_delegate::after_send_event(THD *thd, ushort flags,
   Binlog_transmit_param param;
   param.flags= flags;
   param.server_id= thd->server_id;
+
+  DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_send_event, thd,

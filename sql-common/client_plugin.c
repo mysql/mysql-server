@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -465,8 +465,7 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
 #if defined(__APPLE__)
     /* Apple supports plugins with .so also, so try this as well */
     strxnmov(dlpath, sizeof(dlpath) - 1,
-             mysql->options.extension && mysql->options.extension->plugin_dir ?
-             mysql->options.extension->plugin_dir : PLUGINDIR, "/",
+             plugindir, "/",
              name, ".so", NullS);
     if ((dlhandle= dlopen(dlpath, RTLD_NOW)))
       goto have_plugin;

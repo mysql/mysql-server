@@ -1409,10 +1409,7 @@ dict_stats_analyze_index_below_cur(
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	dict_index_t*	index;
-	ulint		space;
-	ulint		zip_size;
 	buf_block_t*	block;
-	ulint		page_no;
 	const page_t*	page;
 	mem_heap_t*	heap;
 	const rec_t*	rec;
@@ -1445,20 +1442,20 @@ dict_stats_analyze_index_below_cur(
 	rec_offs_set_n_alloc(offsets1, size);
 	rec_offs_set_n_alloc(offsets2, size);
 
-	space = dict_index_get_space(index);
-	zip_size = dict_table_zip_size(index->table);
-
 	rec = btr_cur_get_rec(cur);
 
 	offsets_rec = rec_get_offsets(rec, index, offsets1,
 				      ULINT_UNDEFINED, &heap);
 
-	page_no = btr_node_ptr_get_child_page_no(rec, offsets_rec);
+	page_id_t		page_id(dict_index_get_space(index),
+					btr_node_ptr_get_child_page_no(
+						rec, offsets_rec));
+	const page_size_t	page_size(dict_table_page_size(index->table));
 
 	/* descend to the leaf level on the B-tree */
 	for (;;) {
 
-		block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH,
+		block = buf_page_get_gen(page_id, page_size, RW_S_LATCH,
 					 NULL /* no guessed block */,
 					 BUF_GET, __FILE__, __LINE__, mtr);
 
@@ -1498,7 +1495,8 @@ dict_stats_analyze_index_below_cur(
 
 		/* we have a non-boring record in rec, descend below it */
 
-		page_no = btr_node_ptr_get_child_page_no(rec, offsets_rec);
+		page_id.set_page_no(
+			btr_node_ptr_get_child_page_no(rec, offsets_rec));
 	}
 
 	/* make sure we got a leaf page as a result from the above loop */
@@ -1664,9 +1662,11 @@ dict_stats_analyze_index_for_n_prefix(
 		/* we do not pass (left, right) because we do not want to ask
 		ut_rnd_interval() to work with too big numbers since
 		ib_uint64_t could be bigger than ulint */
-		rnd = (ib_uint64_t) ut_rnd_interval(0, (ulint) (right - left));
+		rnd = static_cast<ib_uint64_t>(
+			ut_rnd_interval(0, static_cast<ulint>(right - left)));
 
-		dive_below_idx = boundaries->at((unsigned int) (left + rnd));
+		dive_below_idx = boundaries->at(
+			static_cast<unsigned int>(left + rnd));
 
 #if 0
 		DEBUG_PRINTF("    %s(): dive below record with index="
@@ -2296,8 +2296,19 @@ dict_stats_save(
 	}
 
 	dict_index_t*	index;
-
 	index_map_t	indexes;
+
+	/* Below we do all the modifications in innodb_index_stats in a single
+	transaction for performance reasons. Modifying more than one row in a
+	single transaction may deadlock with other transactions if they
+	lock the rows in different order. Other transaction could be for
+	example when we DROP a table and do
+	DELETE FROM innodb_index_stats WHERE database_name = '...'
+	AND table_name = '...'; which will affect more than one row. To
+	prevent deadlocks we always lock the rows in the same order - the
+	order of the PK, which is (database_name, table_name, index_name,
+	stat_name). This is why below we sort the indexes by name and then
+	for each index, do the mods ordered by stat_name. */
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
@@ -2922,9 +2933,9 @@ dict_stats_update(
 	if (table->ibd_file_missing) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Cannot calculate statistics for table %s"
-			" because the .ibd file is missing. For help, please"
-			" refer to " REFMAN "innodb-troubleshooting.html",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
+			" because the .ibd file is missing. %s",
+			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
+			TROUBLESHOOTING_MSG);
 		dict_stats_empty_table(table);
 		return(DB_TABLESPACE_DELETED);
 	} else if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -3855,9 +3866,9 @@ test_dict_stats_save()
 	table.stat_n_rows = TEST_N_ROWS;
 	table.stat_clustered_index_size = TEST_CLUSTERED_INDEX_SIZE;
 	table.stat_sum_of_other_index_sizes = TEST_SUM_OF_OTHER_INDEX_SIZES;
-	UT_LIST_INIT(table.indexes);
-	UT_LIST_ADD_LAST(indexes, table.indexes, &index1);
-	UT_LIST_ADD_LAST(indexes, table.indexes, &index2);
+	UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
+	UT_LIST_ADD_LAST(table.indexes, &index1);
+	UT_LIST_ADD_LAST(table.indexes, &index2);
 	ut_d(table.magic_n = DICT_TABLE_MAGIC_N);
 	ut_d(index1.magic_n = DICT_INDEX_MAGIC_N);
 
@@ -4004,9 +4015,9 @@ test_dict_stats_fetch_from_ps()
 
 	/* craft a dummy dict_table_t */
 	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
-	UT_LIST_INIT(table.indexes);
-	UT_LIST_ADD_LAST(indexes, table.indexes, &index1);
-	UT_LIST_ADD_LAST(indexes, table.indexes, &index2);
+	UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
+	UT_LIST_ADD_LAST(table.indexes, &index1);
+	UT_LIST_ADD_LAST(table.indexes, &index2);
 	ut_d(table.magic_n = DICT_TABLE_MAGIC_N);
 
 	index1.name = TEST_IDX1_NAME;

@@ -911,30 +911,30 @@ row_upd_build_difference_binary(
 	return(update);
 }
 
-/***********************************************************//**
-Fetch a prefix of an externally stored column.  This is similar
-to row_ext_lookup(), but the row_ext_t holds the old values
+/** Fetch a prefix of an externally stored column.
+This is similar to row_ext_lookup(), but the row_ext_t holds the old values
 of the column and must not be poisoned with the new values.
+@param[in]	data		'internally' stored part of the field
+containing also the reference to the external part
+@param[in]	local_len	length of data, in bytes
+@param[in]	page_size	BLOB page size
+@param[in,out]	len		input - length of prefix to
+fetch; output: fetched length of the prefix
+@param[in,out]	heap		heap where to allocate
 @return BLOB prefix */
 static
 byte*
 row_upd_ext_fetch(
-/*==============*/
-	const byte*	data,		/*!< in: 'internally' stored part of the
-					field containing also the reference to
-					the external part */
-	ulint		local_len,	/*!< in: length of data, in bytes */
-	ulint		zip_size,	/*!< in: nonzero=compressed BLOB
-					page size, zero for uncompressed
-					BLOBs */
-	ulint*		len,		/*!< in: length of prefix to fetch;
-					out: fetched length of the prefix */
-	mem_heap_t*	heap)		/*!< in: heap where to allocate */
+	const byte*		data,
+	ulint			local_len,
+	const page_size_t&	page_size,
+	ulint*			len,
+	mem_heap_t*		heap)
 {
 	byte*	buf = static_cast<byte*>(mem_heap_alloc(heap, *len));
 
 	*len = btr_copy_externally_stored_field_prefix(
-		buf, *len, zip_size, data, local_len);
+		buf, *len, page_size, data, local_len);
 
 	/* We should never update records containing a half-deleted BLOB. */
 	ut_a(*len);
@@ -942,22 +942,24 @@ row_upd_ext_fetch(
 	return(buf);
 }
 
-/***********************************************************//**
-Replaces the new column value stored in the update vector in
-the given index entry field. */
+/** Replaces the new column value stored in the update vector in
+the given index entry field.
+@param[in,out]	dfield		data field of the index entry
+@param[in]	field		index field
+@param[in]	col		field->col
+@param[in]	uf		update field
+@param[in,out]	heap		memory heap for allocating and copying
+the new value
+@param[in]	page_size	page size */
 static
 void
 row_upd_index_replace_new_col_val(
-/*==============================*/
-	dfield_t*		dfield,	/*!< in/out: data field
-					of the index entry */
-	const dict_field_t*	field,	/*!< in: index field */
-	const dict_col_t*	col,	/*!< in: field->col */
-	const upd_field_t*	uf,	/*!< in: update field */
-	mem_heap_t*		heap,	/*!< in: memory heap for allocating
-					and copying the new value */
-	ulint			zip_size)/*!< in: compressed page
-					 size of the table, or 0 */
+	dfield_t*		dfield,
+	const dict_field_t*	field,
+	const dict_col_t*	col,
+	const upd_field_t*	uf,
+	mem_heap_t*		heap,
+	const page_size_t&	page_size)
 {
 	ulint		len;
 	const byte*	data;
@@ -981,7 +983,7 @@ row_upd_index_replace_new_col_val(
 
 			len = field->prefix_len;
 
-			data = row_upd_ext_fetch(data, l, zip_size,
+			data = row_upd_ext_fetch(data, l, page_size,
 						 &len, heap);
 		}
 
@@ -1062,7 +1064,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 {
 	ulint		i;
 	ulint		n_fields;
-	const ulint	zip_size	= dict_table_zip_size(index->table);
+	const page_size_t&	page_size = dict_table_page_size(index->table);
 
 	ut_ad(index);
 
@@ -1086,7 +1088,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 		if (uf) {
 			row_upd_index_replace_new_col_val(
 				dtuple_get_nth_field(entry, i),
-				field, col, uf, heap, zip_size);
+				field, col, uf, heap, page_size);
 		}
 	}
 }
@@ -1113,8 +1115,7 @@ row_upd_index_replace_new_col_vals(
 	ulint			i;
 	const dict_index_t*	clust_index
 		= dict_table_get_first_index(index->table);
-	const ulint		zip_size
-		= dict_table_zip_size(index->table);
+	const page_size_t&	page_size = dict_table_page_size(index->table);
 
 	dtuple_set_info_bits(entry, update->info_bits);
 
@@ -1131,7 +1132,7 @@ row_upd_index_replace_new_col_vals(
 		if (uf) {
 			row_upd_index_replace_new_col_val(
 				dtuple_get_nth_field(entry, i),
-				field, col, uf, heap, zip_size);
+				field, col, uf, heap, page_size);
 		}
 	}
 }
@@ -1613,7 +1614,7 @@ row_upd_sec_index_entry(
 	ulint			flags = 0;
 	enum row_search_result	search_result;
 
-	ut_ad(trx->id);
+	ut_ad(trx->id != 0);
 
 	index = node->index;
 
@@ -2001,7 +2002,13 @@ err_exit:
 				rec, offsets, entry, node->update);
 
 			if (change_ownership) {
-				btr_pcur_store_position(pcur, mtr);
+				/* The blobs are disowned here, expecting the
+				insert down below to inherit them.  But if the
+				insert fails, then this disown will be undone
+				when the operation is rolled back. */
+				btr_cur_disown_inherited_fields(
+					btr_cur_get_page_zip(btr_cur),
+					rec, index, offsets, node->update, mtr);
 			}
 		}
 
@@ -2026,45 +2033,6 @@ err_exit:
 	node->state = change_ownership
 		? UPD_NODE_INSERT_BLOB
 		: UPD_NODE_INSERT_CLUSTERED;
-
-	if (err == DB_SUCCESS && change_ownership) {
-		/* Mark the non-updated fields disowned by the old record. */
-
-		/* NOTE: this transaction has an x-lock on the record
-		and therefore other transactions cannot modify the
-		record when we have no latch on the page. In addition,
-		we assume that other query threads of the same
-		transaction do not modify the record in the meantime.
-		Therefore we can assert that the restoration of the
-		cursor succeeds. */
-
-		mtr_start(mtr);
-		dict_disable_redo_if_temporary(table, mtr);
-		if (dict_table_is_temporary(table)) {
-			flags |= BTR_NO_LOCKING_FLAG;
-		}
-
-		if (!btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr)) {
-			ut_error;
-		}
-
-		rec = btr_cur_get_rec(btr_cur);
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		ut_ad(page_rec_is_user_rec(rec));
-		ut_ad(rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
-
-		btr_cur_disown_inherited_fields(
-			btr_cur_get_page_zip(btr_cur),
-			rec, index, offsets, node->update, mtr);
-
-		/* It is not necessary to call row_log_table for
-		this, because during online table rebuild, purge will
-		not free any BLOBs in the table, whether or not they
-		are owned by the clustered index record. */
-
-		mtr_commit(mtr);
-	}
 
 	mem_heap_free(heap);
 

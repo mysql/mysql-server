@@ -8,6 +8,9 @@
 
 --source include/force_restart.inc
 --source include/have_binlog_format_row.inc
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+--source include/have_gtid.inc
 
 SELECT @@gcs_replication_plugin_group_name;
 SELECT @@gcs_replication_plugin_start_on_boot;

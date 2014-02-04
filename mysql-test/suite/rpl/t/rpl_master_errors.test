@@ -7,6 +7,9 @@
 
 call mtr.add_suppression(".* You need to use --log-bin to make .* work.");
 --sync_slave_with_master
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+--source include/start_slave.inc
 --source include/rpl_connection_master.inc
 
 --echo #

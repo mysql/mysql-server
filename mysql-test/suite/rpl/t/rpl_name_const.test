@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # ==== Purpose ====
 #
 # Test that aliases of variables in binary log aren't ignored with NAME_CONST.
@@ -41,7 +36,7 @@ call test_procedure(1234);
 
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1 order by id;
 
 --echo ==== Clean up ====

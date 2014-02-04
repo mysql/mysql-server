@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@ public:
     m_check_previous_gtid_event(exclude_gtids != NULL),
     m_diag_area(false),
     m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
-    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE)
+    m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
+    m_observe_transmission(false)
   {}
 
   ~Binlog_sender() {}
@@ -151,6 +152,13 @@ private:
    */
   const static float PACKET_SHRINK_FACTOR;
 
+  const static uint32 HOOK_NO_FLAG;
+  /*
+    It is true if any plugin requires to observe the transmission for each event.
+    And HOOKs(reserve_header, before_send and after_send) are called when
+    transmitting each event. Otherwise, it is false and HOOKs are not called.
+  */
+  bool m_observe_transmission;
   /*
     It initializes the context, checks if the dump request is valid and
     if binlog status is correct.

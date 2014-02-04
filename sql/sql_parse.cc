@@ -1322,7 +1322,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     thd->lex->unit->cleanup(true);
     /* No need to rollback statement transaction, it's not started. */
-    DBUG_ASSERT(thd->transaction.stmt.is_empty());
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
     close_thread_tables(thd);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
@@ -1985,7 +1985,8 @@ mysql_execute_command(THD *thd)
   thd->work_part_info= 0;
 #endif
 
-  DBUG_ASSERT(thd->transaction.stmt.is_empty() || thd->in_sub_stmt);
+  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) ||
+              thd->in_sub_stmt);
   /*
     Each statement or replication event which might produce deadlock
     should handle transaction rollback on its own. So by the start of
@@ -2168,7 +2169,8 @@ mysql_execute_command(THD *thd)
   Opt_trace_object trace_command(&thd->opt_trace);
   Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
 
-  DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback() == FALSE);
+  DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
+      Transaction_ctx::STMT) == false);
 
   switch (gtid_pre_statement_checks(thd))
   {
@@ -2195,7 +2197,7 @@ mysql_execute_command(THD *thd)
     */
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* Statement transaction still should not be started. */
-    DBUG_ASSERT(thd->transaction.stmt.is_empty());
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
 
     /*
       Implicit commit is not allowed with an active XA transaction.
@@ -4104,7 +4106,7 @@ end_with_restore_list:
               creation of routine and implicit GRANT parts of one fully atomic
               statement.
       */
-      DBUG_ASSERT(thd->transaction.stmt.is_empty());
+      DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
       close_thread_tables(thd);
       /*
         Check if the definer exists on slave, 
@@ -4363,7 +4365,7 @@ end_with_restore_list:
               dropping of routine and implicit REVOKE parts of one fully atomic
               statement.
       */
-      DBUG_ASSERT(thd->transaction.stmt.is_empty());
+      DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
       close_thread_tables(thd);
 
       if (sp_result != SP_KEY_NOT_FOUND &&
@@ -4935,7 +4937,8 @@ void THD::reset_for_next_command()
   */
   if (!thd->in_multi_stmt_transaction_mode())
   {
-    thd->transaction.all.reset_unsafe_rollback_flags();
+    thd->get_transaction()->reset_unsafe_rollback_flags(
+        Transaction_ctx::SESSION);
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->thread_specific_used= FALSE;

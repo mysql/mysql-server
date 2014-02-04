@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,13 +49,6 @@ struct dict_table_t;
 /** Log 'spaces' have id's >= this */
 #define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL
 
-/*********************************************************************//**
-Normalizes a directory path for Windows: converts slashes to backslashes. */
-
-void
-srv_normalize_path_for_win(
-/*=======================*/
-	char*	str);	/*!< in/out: null-terminated character string */
 /*********************************************************************//**
 Parse temporary tablespace configuration.
 @return true if ok, false on parse error */

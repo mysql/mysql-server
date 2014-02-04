@@ -2219,6 +2219,8 @@ public:
                                 const CHARSET_INFO *txt_cs,
                                 const char *end_ptr);
 
+  uint get_lineno(const char *raw_ptr);
+
   /** Current thread. */
   THD *m_thd;
 

@@ -8,22 +8,27 @@ reset master;
 DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('a');
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/start_slave.inc
 INSERT INTO t1 VALUES ('b');
+include/sync_slave_sql_with_master.inc
 DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
 INSERT INTO `t1` set `a`=128,`b`='128';
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 Warning	1265	Data truncated for column 'b' at row 1
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/start_slave.inc
 INSERT INTO `t1` set `a`=128,`b`='128';
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 Warning	1265	Data truncated for column 'b' at row 1
+include/sync_slave_sql_with_master.inc
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 SET @save_select_limit=@@session.sql_select_limit;
 SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
 ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
@@ -98,8 +103,10 @@ f
 7
 drop table t1,t2;
 create temporary table t3 (f int);
+include/sync_slave_sql_with_master.inc
 create temporary table t4 (f int);
 create table t5 (f int);
+include/sync_slave_sql_with_master.inc
 stop slave;
 insert into t5 select * from t4;
 start slave;
@@ -120,14 +127,17 @@ create temporary table t302 (id int);
 create temporary table `#sql_not_user_table303` (id int);
 create table t1(f int);
 insert into t1 values (1);
+include/sync_slave_sql_with_master.inc
 select * from t1 /* must be 1 */;
 f
 1
 drop table t1;
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a
 1
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 include/rpl_reset.inc
 -- Bug#43748

@@ -75,7 +75,7 @@ static int setenv(const char *name, const char *value, int overwrite);
 #endif
 
 C_MODE_START
-static sig_handler signal_handler(int sig);
+static void signal_handler(int sig);
 static my_bool get_one_option(int optid, const struct my_option *,
                               char *argument);
 C_MODE_END
@@ -8538,7 +8538,7 @@ static void dump_backtrace(void)
 
 #endif
 
-static sig_handler signal_handler(int sig)
+static void signal_handler(int sig)
 {
   fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
   dump_backtrace();

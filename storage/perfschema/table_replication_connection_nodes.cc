@@ -74,7 +74,6 @@ table_replication_connection_nodes::m_share=
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_connection_nodes::get_row_count,
-  1, /* records- used by optimizer */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -134,7 +133,7 @@ int table_replication_connection_nodes::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index < m_share.m_records);
+  DBUG_ASSERT(m_pos.m_index < 1);
 
   make_row();
 

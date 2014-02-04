@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -318,10 +318,6 @@ loop:
 		goto loop;
 	}
 
-#ifdef UNIV_LOG_DEBUG
-	log->old_buf_free = log->buf_free;
-	log->old_lsn = log->lsn;
-#endif
 	return(log->lsn);
 }
 
@@ -478,11 +474,6 @@ log_close(void)
 		log->check_flush_or_checkpoint = TRUE;
 	}
 function_exit:
-
-#ifdef UNIV_LOG_DEBUG
-	log_check_log_recs(log->buf + log->old_buf_free,
-			   log->buf_free - log->old_buf_free, log->old_lsn);
-#endif
 
 	return(lsn);
 }
@@ -730,9 +721,8 @@ failure:
 			" to start up, set innodb_thread_concurrency in"
 			" my.cnf to a lower value, for example, to 8. After"
 			" an ERROR-FREE shutdown of mysqld you can adjust"
-			" the size of ib_logfiles, as explained in " REFMAN
-			" adding-and-removing.html.",
-			(ulong) srv_thread_concurrency);
+			" the size of ib_logfiles. %s",
+			(ulong) srv_thread_concurrency, INNODB_PARAMETERS_MSG);
 	}
 
 	return(success);
@@ -822,17 +812,6 @@ log_init(void)
 		    log_sys->lsn - log_sys->last_checkpoint_lsn);
 
 	log_mutex_exit();
-
-#ifdef UNIV_LOG_DEBUG
-	recv_sys_create();
-	recv_sys_init(buf_pool_get_curr_size());
-
-	recv_sys->parse_start_lsn = log_sys->lsn;
-	recv_sys->scanned_lsn = log_sys->lsn;
-	recv_sys->scanned_checkpoint_no = 0;
-	recv_sys->recovered_lsn = log_sys->lsn;
-	recv_sys->limit_lsn = LSN_MAX;
-#endif
 }
 
 /******************************************************************//**
@@ -995,11 +974,14 @@ log_group_file_header_flush(
 
 		srv_stats.os_log_pending_writes.inc();
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, group->space_id, 0,
-		       (ulint) (dest_offset / UNIV_PAGE_SIZE),
-		       (ulint) (dest_offset % UNIV_PAGE_SIZE),
-		       OS_FILE_LOG_BLOCK_SIZE,
-		       buf, group);
+		const ulint	page_no
+			= (ulint) (dest_offset / univ_page_size.physical());
+
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
+		       page_id_t(group->space_id, page_no),
+		       univ_page_size,
+		       (ulint) (dest_offset % univ_page_size.physical()),
+		       OS_FILE_LOG_BLOCK_SIZE, buf, group);
 
 		srv_stats.os_log_pending_writes.dec();
 	}
@@ -1121,8 +1103,12 @@ loop:
 
 		ut_a(next_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, group->space_id, 0,
-		       (ulint) (next_offset / UNIV_PAGE_SIZE),
+		const ulint	page_no
+			= (ulint) (next_offset / univ_page_size.physical());
+
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
+		       page_id_t(group->space_id, page_no),
+		       univ_page_size,
 		       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
 		       group);
 
@@ -1639,9 +1625,11 @@ log_group_checkpoint(
 		added with 1, as we want to distinguish between a normal log
 		file write and a checkpoint field write */
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, false, group->space_id, 0,
-		       write_offset / UNIV_PAGE_SIZE,
-		       write_offset % UNIV_PAGE_SIZE,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, false,
+		       page_id_t(group->space_id,
+				 write_offset / univ_page_size.physical()),
+		       univ_page_size,
+		       write_offset % univ_page_size.physical(),
 		       OS_FILE_LOG_BLOCK_SIZE,
 		       buf, ((byte*) group + 1));
 
@@ -1721,8 +1709,9 @@ log_group_read_checkpoint_info(
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, true, group->space_id, 0,
-	       field / UNIV_PAGE_SIZE, field % UNIV_PAGE_SIZE,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, true,
+	       page_id_t(group->space_id, field / univ_page_size.physical()),
+	       univ_page_size, field % univ_page_size.physical(),
 	       OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
 }
 
@@ -2002,9 +1991,13 @@ loop:
 
 	ut_a(source_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, sync, group->space_id, 0,
-	       (ulint) (source_offset / UNIV_PAGE_SIZE),
-	       (ulint) (source_offset % UNIV_PAGE_SIZE),
+	const ulint	page_no
+		= (ulint) (source_offset / univ_page_size.physical());
+
+	fil_io(OS_FILE_READ | OS_FILE_LOG, sync,
+	       page_id_t(group->space_id, page_no),
+	       univ_page_size,
+	       (ulint) (source_offset % univ_page_size.physical()),
 	       len, buf, NULL);
 
 	start_lsn += len;
@@ -2335,64 +2328,6 @@ loop:
 	ut_a(lsn == log_sys->lsn);
 }
 
-#ifdef UNIV_LOG_DEBUG
-/******************************************************//**
-Checks by parsing that the catenated log segment for a single mtr is
-consistent. */
-
-ibool
-log_check_log_recs(
-/*===============*/
-	const byte*	buf,		/*!< in: pointer to the start of
-					the log segment in the
-					log_sys->buf log buffer */
-	ulint		len,		/*!< in: segment length in bytes */
-	ib_uint64_t	buf_start_lsn)	/*!< in: buffer start lsn */
-{
-	ib_uint64_t	contiguous_lsn;
-	ib_uint64_t	scanned_lsn;
-	byte*		start;
-	byte*		end;
-	byte*		buf1;
-	byte*		scan_buf;
-
-	ut_ad(mutex_own(&(log_sys->mutex)));
-
-	if (len == 0) {
-
-		return(TRUE);
-	}
-
-	start = reinterpret_cast<byte*>(
-		ut_align_down(buf, OS_FILE_LOG_BLOCK_SIZE));
-
-	end = reinterpret_cast<byte*>(
-		ut_align(buf + len, OS_FILE_LOG_BLOCK_SIZE));
-
-	buf1 = reinterpret_cast<byte*>(
-		ut_malloc((end - start) + OS_FILE_LOG_BLOCK_SIZE));
-
-	scan_buf = reinterpret_cast<byte*>(
-		ut_align(buf1, OS_FILE_LOG_BLOCK_SIZE));
-
-	ut_memcpy(scan_buf, start, end - start);
-
-	recv_scan_log_recs((buf_pool_get_n_pages()
-			   - (recv_n_pool_free_frames * srv_buf_pool_instances))
-			   * UNIV_PAGE_SIZE, FALSE, scan_buf, end - start,
-			   ut_uint64_align_down(buf_start_lsn,
-						OS_FILE_LOG_BLOCK_SIZE),
-			   &contiguous_lsn, &scanned_lsn);
-
-	ut_a(scanned_lsn == buf_start_lsn + len);
-	ut_a(recv_sys->recovered_lsn == scanned_lsn);
-
-	ut_free(buf1);
-
-	return(TRUE);
-}
-#endif /* UNIV_LOG_DEBUG */
-
 /******************************************************//**
 Peeks the current lsn.
 @return TRUE if success, FALSE if could not get the log system mutex */
@@ -2535,10 +2470,6 @@ log_shutdown(void)
 
 	mutex_free(&log_sys->mutex);
 	mutex_free(&log_sys->log_flush_order_mutex);
-
-#ifdef UNIV_LOG_DEBUG
-	recv_sys_debug_free();
-#endif /* UNIV_LOG_DEBUG */
 
 	recv_sys_close();
 }

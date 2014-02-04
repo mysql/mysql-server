@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -443,10 +443,8 @@ os_file_get_last_error_low(
 				" or an application request."
 				" Retry attempt is made.");
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Some operating system error numbers"
-				" are described at" REFMAN
-				" operating-system-error-codes.html");
+			ib_logf(IB_LOG_LEVEL_INFO, "%s",
+				OPERATING_SYSTEM_ERROR_MSG);
 		}
 	}
 
@@ -505,10 +503,8 @@ os_file_get_last_error_low(
 					err, strerror(err));
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Some operating system error numbers are"
-				" described at " REFMAN ""
-				" operating-system-error-codes.html");
+			ib_logf(IB_LOG_LEVEL_INFO, "%s",
+				OPERATING_SYSTEM_ERROR_MSG);
 		}
 	}
 
@@ -2995,11 +2991,9 @@ retry:
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"File pointer positioning to"
 			" file %s failed at offset %llu."
-			" Operating system error number %lu."
-			" Some operating system error numbers"
-			" are described at"
-			REFMAN "operating-system-error-codes.html",
-			name, offset, (ulong) GetLastError());
+			" Operating system error number %lu. %s",
+			name, offset, (ulong) GetLastError(),
+			OPERATING_SYSTEM_ERROR_MSG);
 
 		return(false);
 	}
@@ -3060,10 +3054,8 @@ retry:
 				(ulong) err, strerror((int) err));
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Some operating system error numbers"
-			" are described at"
-			REFMAN "operating-system-error-codes.html");
+		ib_logf(IB_LOG_LEVEL_INFO, "%s",
+			OPERATING_SYSTEM_ERROR_MSG);
 
 		os_has_said_disk_full = true;
 	}
@@ -3098,10 +3090,8 @@ retry:
 				errno, strerror(errno));
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Some operating system error numbers"
-			" are described at" REFMAN ""
-			" operating-system-error-codes.html");
+		ib_logf(IB_LOG_LEVEL_INFO, "%s",
+			OPERATING_SYSTEM_ERROR_MSG);
 
 		os_has_said_disk_full = true;
 	}
@@ -3367,56 +3357,6 @@ os_file_make_new_pathname(
 		    "%c%s.ibd",
 		    OS_PATH_SEPARATOR,
 		    base_name);
-
-	return(new_path);
-}
-
-/****************************************************************//**
-This function returns a remote path name by combining a data directory
-path provided in a DATA DIRECTORY clause with the tablename which is
-in the form 'database/tablename'.  It strips the file basename (which
-is the tablename) found after the last directory in the path provided.
-The full filepath created will include the database name as a directory
-under the path provided.  The filename is the tablename with the '.ibd'
-extension. All input and output strings are null-terminated.
-
-This function allocates memory to be returned.  It is the callers
-responsibility to free the return value after it is no longer needed.
-
-@return own: A full pathname; data_dir_path/databasename/tablename.ibd */
-
-char*
-os_file_make_remote_pathname(
-/*=========================*/
-	const char*	data_dir_path,	/*!< in: pathname */
-	const char*	tablename,	/*!< in: tablename */
-	const char*	extension)	/*!< in: file extension; ibd,cfg */
-{
-	ulint		data_dir_len;
-	char*		last_slash;
-	char*		new_path;
-	ulint		new_path_len;
-
-	ut_ad(extension && strlen(extension) == 3);
-
-	/* Find the offset of the last slash. We will strip off the
-	old basename or tablename which starts after that slash. */
-	last_slash = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
-	data_dir_len = last_slash ? last_slash - data_dir_path : strlen(data_dir_path);
-
-	/* allocate a new path and move the old directory path to it. */
-	new_path_len = data_dir_len + strlen(tablename)
-		       + sizeof "/." + strlen(extension);
-	new_path = static_cast<char*>(ut_malloc(new_path_len));
-	memcpy(new_path, data_dir_path, data_dir_len);
-	ut_snprintf(new_path + data_dir_len,
-		    new_path_len - data_dir_len,
-		    "%c%s.%s",
-		    OS_PATH_SEPARATOR,
-		    tablename,
-		    extension);
-
-	srv_normalize_path_for_win(new_path);
 
 	return(new_path);
 }
@@ -3704,7 +3644,7 @@ os_aio_native_aio_supported(void)
 		}
 	} else {
 
-		srv_normalize_path_for_win(srv_log_group_home_dir);
+		os_normalize_path_for_win(srv_log_group_home_dir);
 
 		ulint	dirnamelen = strlen(srv_log_group_home_dir);
 		ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");
@@ -5922,5 +5862,22 @@ os_aio_all_slots_free(void)
 	return(false);
 }
 #endif /* UNIV_DEBUG */
+
+#ifdef _WIN32
+/*********************************************************************//**
+Normalizes a directory path for Windows: converts slashes to backslashes.
+@param[in,out] str A null-terminated Windows directory and file path */
+
+void
+os_normalize_path_for_win(
+	char*	str __attribute__((unused)))
+{
+	for (; *str; str++) {
+		if (*str == '/') {
+			*str = '\\';
+		}
+	}
+}
+#endif
 
 #endif /* !UNIV_HOTBACKUP */

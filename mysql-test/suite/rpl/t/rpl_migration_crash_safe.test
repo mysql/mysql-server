@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ########################################################################################
 # This test verifies if the server migrates correctly from a file repository to a
 # table repository and vice-versa. In particular, it checks if the information in the
@@ -185,7 +180,7 @@ SET @@GLOBAL.relay_log_info_repository= "TABLE";
 ########################################################################################
 --connection master
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-migration-master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-migration-slave.sql
 --diff_files $MYSQLD_DATADIR/test-migration-master.sql $MYSQLD_DATADIR/test-migration-slave.sql
@@ -193,4 +188,4 @@ sync_slave_with_master;
 --connection master
 
 DROP TABLE test;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc

@@ -116,7 +116,7 @@ fts_get_table_name_prefix(
 
 	if (slash) {
 		/* Print up to and including the separator. */
-		dbname_len = (int) (slash - fts_table->parent) + 1;
+		dbname_len = static_cast<int>(slash - fts_table->parent) + 1;
 	}
 
 	len = fts_get_table_id(fts_table, table_id);

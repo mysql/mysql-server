@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -73,11 +73,13 @@ ulint n_nodes = 0;
 /** Error condition reported by fts_utf8_decode() */
 const ulint UTF8_ERROR = 0xFFFFFFFF;
 
+#ifdef FTS_CACHE_SIZE_DEBUG
 /** The cache size permissible lower limit (1K) */
 static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 
 /** The cache size permissible upper limit (1G) */
 static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
+#endif
 
 /** Time to sleep after DEADLOCK error before retrying operation. */
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
@@ -348,28 +350,6 @@ fts_get_charset(ulint prtype)
 	ib_logf(IB_LOG_LEVEL_FATAL, "Unable to find charset-collation %u",
 		cs_num);
 	return(NULL);
-}
-
-/********************************************************************
-Check if we should stop. */
-UNIV_INLINE
-ibool
-fts_is_stop_signalled(
-/*==================*/
-	fts_t*		fts)			/*!< in: fts instance */
-{
-	ibool		stop_signalled = FALSE;
-
-	mutex_enter(&fts->bg_threads_mutex);
-
-	if (fts->fts_status & BG_THREAD_STOP) {
-
-		stop_signalled = TRUE;
-	}
-
-	mutex_exit(&fts->bg_threads_mutex);
-
-	return(stop_signalled);
 }
 
 /****************************************************************//**
@@ -3393,7 +3373,7 @@ fts_fetch_doc_from_rec(
 			doc->text.f_str =
 				btr_rec_copy_externally_stored_field(
 					clust_rec, offsets,
-					dict_table_zip_size(table),
+					dict_table_page_size(table),
 					clust_pos, &doc->text.f_len,
 					static_cast<mem_heap_t*>(
 						doc->self_heap->arg));
@@ -6641,15 +6621,15 @@ fts_check_and_drop_orphaned_tables(
 			dberr_t err = fts_drop_table(trx, aux_table->name);
 
 			if (err == DB_FAIL) {
-				char*   path;
+				char*	path = fil_make_filepath(
+					NULL, aux_table->name, IBD, false);
 
-				path = fil_make_ibd_name(
-					aux_table->name, false);
+				if (path != NULL) {
+					os_file_delete_if_exists(
+						innodb_data_file_key, path, NULL);
 
-				os_file_delete_if_exists(innodb_data_file_key,
-							 path, NULL);
-
-				ut_free(path);
+					::ut_free(path);
+				}
 			}
 		}
 #ifdef _WIN32
@@ -7192,12 +7172,11 @@ fts_init_recover_doc(
 
 		if (dfield_is_ext(dfield)) {
 			dict_table_t*	table = cache->sync->table;
-			ulint		zip_size = dict_table_zip_size(table);
 
 			doc.text.f_str = btr_copy_externally_stored_field(
 				&doc.text.f_len,
 				static_cast<byte*>(dfield_get_data(dfield)),
-				zip_size, len,
+				dict_table_page_size(table), len,
 				static_cast<mem_heap_t*>(doc.self_heap->arg));
 		} else {
 			doc.text.f_str = static_cast<byte*>(

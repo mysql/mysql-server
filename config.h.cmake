@@ -254,14 +254,6 @@
 
 #cmakedefine MAX_INDEXES @MAX_INDEXES@
 
-#cmakedefine QSORT_TYPE_IS_VOID 1
-#cmakedefine RETQSORTTYPE @RETQSORTTYPE@
-
-#cmakedefine SIGNAL_RETURN_TYPE_IS_VOID 1
-#cmakedefine RETSIGTYPE @RETSIGTYPE@
-#cmakedefine VOID_SIGHANDLER 1
-#define STRUCT_RLIMIT struct rlimit
-
 #cmakedefine WORDS_BIGENDIAN 1 
 
 /*
@@ -288,13 +280,6 @@
 
 #cmakedefine HAVE_WEAK_SYMBOL 1
 #cmakedefine HAVE_ABI_CXA_DEMANGLE 1
-
-
-#cmakedefine HAVE_POSIX_SIGNALS 1
-#cmakedefine HAVE_BSD_SIGNALS 1
-#cmakedefine HAVE_SVR3_SIGNALS 1
-#cmakedefine HAVE_V7_SIGNALS 1
-
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 
@@ -330,17 +315,43 @@
 #cmakedefine SIGQUIT @SIGQUIT@
 #cmakedefine SIGPIPE @SIGPIPE@
 #cmakedefine isnan @isnan@
+
+#cmakedefine alloca @alloca@
 #cmakedefine finite @finite@
 #cmakedefine popen @popen@
 #cmakedefine pclose @pclose@
-#cmakedefine ssize_t @ssize_t@
 #cmakedefine strcasecmp @strcasecmp@
 #cmakedefine strncasecmp @strncasecmp@
-#cmakedefine snprintf @snprintf@
-#cmakedefine strtok_r @strtok_r@
 #cmakedefine strtoll @strtoll@
 #cmakedefine strtoull @strtoull@
+#cmakedefine snprintf @snprintf@
 #cmakedefine vsnprintf @vsnprintf@
+
+#cmakedefine access @access@
+#cmakedefine chdir @chdir@
+#cmakedefine chmod @chmod@
+#cmakedefine close @close@
+#cmakedefine dup @dup@
+#cmakedefine fdopen @fdopen@
+#cmakedefine fileno @fileno@
+#cmakedefine getcwd @getcwd@
+#cmakedefine getpid @getpid@
+#cmakedefine isatty @isatty@
+#cmakedefine mkdir @mkdir@
+#cmakedefine open @open@
+#cmakedefine putenv @putenv@
+#cmakedefine read @read@
+#cmakedefine rmdir @rmdir@
+#cmakedefine strdup @strdup@
+#cmakedefine stricmp @stricmp@
+#cmakedefine tzset @tzset@
+#cmakedefine umask @umask@
+#cmakedefine unlink @unlink@
+
+#cmakedefine strtok_r @strtok_r@
+
+#cmakedefine ssize_t @ssize_t@
+
 #if (_MSC_VER > 1310)
 # define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)
@@ -459,7 +470,6 @@
 /* time_t related defines */
 
 #cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
-#cmakedefine TIME_T_UNSIGNED @TIME_T_UNSIGNED@
 
 /* CPU information */
 

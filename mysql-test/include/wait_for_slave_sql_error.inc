@@ -6,7 +6,7 @@
 #
 # ==== Usage ====
 #
-# --let $slave_sql_errno= NUMBER
+# --let $slave_sql_errno= NUMBER [, NUMBER...] [ # comment ]
 # [--let $show_slave_sql_error= 1]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
@@ -42,6 +42,7 @@ source include/wait_for_slave_param.inc;
 
 let $_wfsse_errno= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
 
+# Check sanity
 if ($slave_sql_errno == '') {
   --echo !!!ERROR IN TEST: you must set \$slave_sql_errno before you source
   --echo !!!wait_for_slave_sql_error.inc. The error we got this time was '$_wfsse_errno',
@@ -50,7 +51,10 @@ if ($slave_sql_errno == '') {
   --die !!!ERROR IN TEST: you must set \$slave_sql_errno before sourcing wait_for_slave_sql_error.inc
 }
 
-if (`SELECT $_wfsse_errno NOT IN ($slave_sql_errno)`) {
+# Strip away comment
+--let $_wfsse_slave_sql_errno= `SELECT IF(LOCATE('#', '$slave_sql_errno') != 0, SUBSTR('$slave_sql_errno', 1, LOCATE('#', '$slave_sql_errno') - 1), '$slave_sql_errno')`
+
+if (`SELECT $_wfsse_errno NOT IN ($_wfsse_slave_sql_errno)`) {
   --echo **** Slave stopped with wrong error code: $_wfsse_errno (expected $slave_sql_errno) ****
   source include/show_rpl_debug_info.inc;
   --echo **** Slave stopped with wrong error code: $_wfsse_errno (expected $slave_sql_errno) ****

@@ -83,19 +83,21 @@ page_zip_set_size(
 	ulint		size);		/*!< in: size in bytes */
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Determine if a record is so big that it needs to be stored externally.
+/** Determine if a record is so big that it needs to be stored externally.
+@param[in]	rec_size	length of the record in bytes
+@param[in]	comp		nonzero=compact format
+@param[in]	n_fields	number of fields in the record; ignored if
+tablespace is not compressed
+@param[in]	page_size	page size
 @return FALSE if the entire record can be stored locally on the page */
 UNIV_INLINE
 ibool
 page_zip_rec_needs_ext(
-/*===================*/
-	ulint	rec_size,	/*!< in: length of the record in bytes */
-	ulint	comp,		/*!< in: nonzero=compact format */
-	ulint	n_fields,	/*!< in: number of fields in the record;
-				ignored if zip_size == 0 */
-	ulint	zip_size)	/*!< in: compressed page size in bytes, or 0 */
-	__attribute__((const));
+	ulint			rec_size,
+	ulint			comp,
+	ulint			n_fields,
+	const page_size_t&	page_size)
+__attribute__((const));
 
 /**********************************************************************//**
 Determine the guaranteed free space on an empty page.

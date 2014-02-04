@@ -2566,9 +2566,9 @@ static Sys_var_charptr Sys_tmpdir(
 static bool fix_trans_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    reset_root_defaults(&thd->transaction.mem_root,
-                        thd->variables.trans_alloc_block_size,
-                        thd->variables.trans_prealloc_size);
+    thd->get_transaction()->init_mem_root_defaults(
+        thd->variables.trans_alloc_block_size,
+        thd->variables.trans_prealloc_size);
   return false;
 }
 static Sys_var_ulong Sys_trans_alloc_block_size(
@@ -3368,7 +3368,8 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
     */
     thd->variables.option_bits&=
                  ~(OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
-    thd->transaction.all.reset_unsafe_rollback_flags();
+    thd->get_transaction()->reset_unsafe_rollback_flags(
+        Transaction_ctx::SESSION);
     thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
     return false;
   }
@@ -3377,7 +3378,8 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       !(thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT))
   { // disabling autocommit
 
-    thd->transaction.all.reset_unsafe_rollback_flags();
+    thd->get_transaction()->reset_unsafe_rollback_flags(
+        Transaction_ctx::SESSION);
     thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
     return false;
