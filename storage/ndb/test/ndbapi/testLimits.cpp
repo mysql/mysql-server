@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-20012 Oracle and/or its affiliates.  All rights reserved
+/* Copyright (c) 2008-2014 Oracle and/or its affiliates.  All rights reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,14 +19,14 @@
 
 #define CHECKNOTNULL(p) if ((p) == NULL) {          \
     ndbout << "Error at line " << __LINE__ << endl; \
-    ERR(trans->getNdbError());                      \
+    NDB_ERR(trans->getNdbError());                      \
     trans->close();                                 \
     return NDBT_FAILED; }
 
 #define CHECKEQUAL(v, e) if ((e) != (v)) {            \
     ndbout << "Error at line " << __LINE__ <<         \
       " expected " << v << endl;                      \
-    ERR(trans->getNdbError());                        \
+    NDB_ERR(trans->getNdbError());                        \
     trans->close();                                   \
     return NDBT_FAILED; }
 
