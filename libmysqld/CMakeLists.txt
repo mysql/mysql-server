@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -142,4 +142,38 @@ ENDIF()
 IF(MSVC AND NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysqld SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS}
   COMPONENT Embedded)
+ENDIF()
+
+OPTION(WITH_EMBEDDED_SHARED_LIBRARY
+  "Generate shared version of embedded library (in addition to the static one)"
+  OFF)
+IF(WITH_EMBEDDED_SHARED_LIBRARY)
+  MERGE_LIBRARIES(libmysqld SHARED
+    mysqlserver
+    EXPORTS ${CLIENT_API_FUNCTIONS}
+    OUTPUT_NAME "mysqld"
+    COMPONENT Embedded)
+  SET_TARGET_PROPERTIES(libmysqld PROPERTIES
+    VERSION "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.0"
+    SOVERSION "${SHARED_LIB_MAJOR_VERSION}"
+    )
+
+  GET_TARGET_PROPERTY(libmysqld_link_flags libmysqld LINK_FLAGS)
+  IF(NOT libmysqld_link_flag)
+    SET(libmysqld_link_flags)
+  ENDIF()
+  SET(libmysqld_link_flags
+    "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${libmysqld_link_flags}")
+  SET_TARGET_PROPERTIES(libmysqld
+    PROPERTIES LINK_FLAGS "${libmysqld_link_flags}")
+
+  IF(LINK_FLAG_NO_UNDEFINED)
+    SET(libmysqld_link_flags
+      "${libmysqld_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+    SET_TARGET_PROPERTIES(libmysqld
+      PROPERTIES LINK_FLAGS "${libmysqld_link_flags}")
+  ENDIF()
+
+  SET_TARGET_PROPERTIES(libmysqld PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+  SET_TARGET_PROPERTIES(mysqlserver PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 ENDIF()
