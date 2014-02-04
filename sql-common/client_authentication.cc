@@ -153,9 +153,14 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     Get the scramble from the server because we need it when sending encrypted
     password.
   */
-  if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH)
+  if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH + 1)
   {
     DBUG_PRINT("info",("Scramble is not of correct length."));
+    DBUG_RETURN(CR_ERROR);
+  }
+  if (pkt[SCRAMBLE_LENGTH] != '\0')
+  {
+    DBUG_PRINT("info",("Missing protocol token in scramble data."));
     DBUG_RETURN(CR_ERROR);
   }
   /*
