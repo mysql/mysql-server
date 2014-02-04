@@ -342,7 +342,7 @@ doit (bool after_split) {
         assert(node->height == 0);
         assert(!node->dirty);
         assert(node->n_children == 1);
-        assert(BLB_DATA(node, 0)->omt_size() == 1);
+        assert(BLB_DATA(node, 0)->num_klpairs() == 1);
         toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
 
         toku_pin_ftnode_off_client_thread(
@@ -358,7 +358,7 @@ doit (bool after_split) {
         assert(node->height == 0);
         assert(!node->dirty);
         assert(node->n_children == 1);
-        assert(BLB_DATA(node, 0)->omt_size() == 1);
+        assert(BLB_DATA(node, 0)->num_klpairs() == 1);
         toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
     }
     else {
@@ -375,7 +375,7 @@ doit (bool after_split) {
         assert(node->height == 0);
         assert(!node->dirty);
         assert(node->n_children == 1);
-        assert(BLB_DATA(node, 0)->omt_size() == 2);
+        assert(BLB_DATA(node, 0)->num_klpairs() == 2);
         toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
     }
 

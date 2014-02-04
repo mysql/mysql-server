@@ -98,6 +98,7 @@ struct memarena {
     char *buf;
     size_t buf_used, buf_size;
     size_t size_of_other_bufs; // the buf_size of all the other bufs.
+    size_t footprint_of_other_bufs; // the footprint of all the other bufs.
     char **other_bufs;
     int n_other_bufs;
 };
@@ -108,6 +109,7 @@ MEMARENA memarena_create_presized (size_t initial_size) {
     result->buf_used = 0;
     result->other_bufs = NULL;
     result->size_of_other_bufs = 0;
+    result->footprint_of_other_bufs = 0;
     result->n_other_bufs = 0;
     XMALLOC_N(result->buf_size, result->buf);
     return result;
@@ -128,6 +130,7 @@ void memarena_clear (MEMARENA ma) {
     // But reuse the main buffer
     ma->buf_used = 0;
     ma->size_of_other_bufs = 0;
+    ma->footprint_of_other_bufs = 0;
 }
 
 static size_t
@@ -151,6 +154,7 @@ void* malloc_in_memarena (MEMARENA ma, size_t size) {
             ma->other_bufs[old_n]=ma->buf;
             ma->n_other_bufs = old_n+1;
             ma->size_of_other_bufs += ma->buf_size;
+            ma->footprint_of_other_bufs += toku_memory_footprint(ma->buf, ma->buf_used);
         }
         // Make a new one
         {
@@ -217,7 +221,9 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
 #endif
 
     dest  ->size_of_other_bufs += source->size_of_other_bufs + source->buf_size;
+    dest  ->footprint_of_other_bufs += source->footprint_of_other_bufs + toku_memory_footprint(source->buf, source->buf_used);
     source->size_of_other_bufs = 0;
+    source->footprint_of_other_bufs = 0;
 
     assert(other_bufs);
     dest->other_bufs = other_bufs;
@@ -246,4 +252,12 @@ size_t
 memarena_total_size_in_use (MEMARENA m)
 {
     return m->size_of_other_bufs + m->buf_used;
-}    
+}
+
+size_t
+memarena_total_footprint (MEMARENA m)
+{
+    return m->footprint_of_other_bufs + toku_memory_footprint(m->buf, m->buf_used) +
+            sizeof(*m) +
+            m->n_other_bufs * sizeof(*m->other_bufs);
+}

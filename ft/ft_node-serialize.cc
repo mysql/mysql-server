@@ -284,32 +284,7 @@ serialize_node_header(FTNODE node, FTNODE_DISK_DATA ndd, struct wbuf *wbuf) {
     invariant(wbuf->ndone == wbuf->size);
 }
 
-static int
-wbufwriteleafentry(const void* key, const uint32_t keylen, const LEAFENTRY &le, const uint32_t UU(idx), struct wbuf * const wb) {
-    // need to pack the leafentry as it was in versions
-    // where the key was integrated into it
-    uint32_t begin_spot UU() = wb->ndone;
-    uint32_t le_disk_size = leafentry_disksize(le);
-    wbuf_nocrc_uint8_t(wb, le->type);
-    wbuf_nocrc_uint32_t(wb, keylen);
-    if (le->type == LE_CLEAN) {
-        wbuf_nocrc_uint32_t(wb, le->u.clean.vallen);
-        wbuf_nocrc_literal_bytes(wb, key, keylen);
-        wbuf_nocrc_literal_bytes(wb, le->u.clean.val, le->u.clean.vallen);
-    }
-    else {
-        paranoid_invariant(le->type == LE_MVCC);
-        wbuf_nocrc_uint32_t(wb, le->u.mvcc.num_cxrs);
-        wbuf_nocrc_uint8_t(wb, le->u.mvcc.num_pxrs);
-        wbuf_nocrc_literal_bytes(wb, key, keylen);
-        wbuf_nocrc_literal_bytes(wb, le->u.mvcc.xrs, le_disk_size - (1 + 4 + 1));
-    }
-    uint32_t end_spot UU() = wb->ndone;
-    paranoid_invariant((end_spot - begin_spot) == keylen + sizeof(keylen) + le_disk_size);
-    return 0;
-}
-
-static uint32_t 
+static uint32_t
 serialize_ftnode_partition_size (FTNODE node, int i)
 {
     uint32_t result = 0;
@@ -320,14 +295,14 @@ serialize_ftnode_partition_size (FTNODE node, int i)
         result += toku_bnc_nbytesinbuf(BNC(node, i));
     }
     else {
-        result += 4; // n_entries in buffer table
+        result += 4 + bn_data::HEADER_LENGTH; // n_entries in buffer table + basement header
         result += BLB_NBYTESINDATA(node, i);
     }
     result += 4; // checksum
     return result;
 }
 
-#define FTNODE_PARTITION_OMT_LEAVES 0xaa
+#define FTNODE_PARTITION_DMT_LEAVES 0xaa
 #define FTNODE_PARTITION_FIFO_MSG 0xbb
 
 static void
@@ -374,16 +349,13 @@ serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
         serialize_nonleaf_childinfo(BNC(node, i), &wb);
     }
     else {
-        unsigned char ch = FTNODE_PARTITION_OMT_LEAVES;
-        BN_DATA bd = BLB_DATA(node, i);
+        unsigned char ch = FTNODE_PARTITION_DMT_LEAVES;
+        bn_data* bd = BLB_DATA(node, i);
 
         wbuf_nocrc_char(&wb, ch);
-        wbuf_nocrc_uint(&wb, bd->omt_size());
+        wbuf_nocrc_uint(&wb, bd->num_klpairs());
 
-        //
-        // iterate over leafentries and place them into the buffer
-        //
-        bd->omt_iterate<struct wbuf, wbufwriteleafentry>(&wb);
+        bd->serialize_to_wbuf(&wb);
     }
     uint32_t end_to_end_checksum = x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
     wbuf_nocrc_int(&wb, end_to_end_checksum);
@@ -546,7 +518,7 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     // Count number of leaf entries in this leaf (num_le).
     uint32_t num_le = 0;
     for (uint32_t i = 0; i < num_orig_basements; i++) {
-        num_le += BLB_DATA(node, i)->omt_size();
+        num_le += BLB_DATA(node, i)->num_klpairs();
     }
 
     uint32_t num_alloc = num_le ? num_le : 1;  // simplify logic below by always having at least one entry per array
@@ -571,10 +543,10 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
 
     uint32_t curr_le = 0;
     for (uint32_t i = 0; i < num_orig_basements; i++) {
-        BN_DATA bd = BLB_DATA(node, i);
+        bn_data* bd = BLB_DATA(node, i);
         struct array_info ai {.offset = curr_le, .le_array = leafpointers, .key_sizes_array = key_sizes, .key_ptr_array = key_pointers };
-        bd->omt_iterate<array_info, array_item>(&ai);
-        curr_le += bd->omt_size();
+        bd->iterate<array_info, array_item>(&ai);
+        curr_le += bd->num_klpairs();
     }
 
     // Create an array that will store indexes of new pivots.
@@ -592,9 +564,14 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     // Create an array that will store the size of each basement.
     // This is the sum of the leaf sizes of all the leaves in that basement.
     // We don't know how many basements there will be, so we use num_le as the upper bound.
-    toku::scoped_malloc bn_sizes_buf(sizeof(size_t) * num_alloc);
-    size_t *bn_sizes = reinterpret_cast<size_t *>(bn_sizes_buf.get());
-    bn_sizes[0] = 0;
+
+    // Sum of all le sizes in a single basement
+    toku::scoped_calloc bn_le_sizes_buf(sizeof(size_t) * num_alloc);
+    size_t *bn_le_sizes = reinterpret_cast<size_t *>(bn_le_sizes_buf.get());
+
+    // Sum of all key sizes in a single basement
+    toku::scoped_calloc bn_key_sizes_buf(sizeof(size_t) * num_alloc);
+    size_t *bn_key_sizes = reinterpret_cast<size_t *>(bn_key_sizes_buf.get());
 
     // TODO 4050: All these arrays should be combined into a single array of some bn_info struct (pivot, msize, num_les).
     // Each entry is the number of leafentries in this basement.  (Again, num_le is overkill upper baound.)
@@ -611,7 +588,7 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     for (uint32_t i = 0; i < num_le; i++) {
         uint32_t curr_le_size = leafentry_disksize((LEAFENTRY) leafpointers[i]); 
         le_sizes[i] = curr_le_size;
-        if ((bn_size_so_far + curr_le_size > basementnodesize) && (num_le_in_curr_bn != 0)) {
+        if ((bn_size_so_far + curr_le_size + sizeof(uint32_t) + key_sizes[i] > basementnodesize) && (num_le_in_curr_bn != 0)) {
             // cap off the current basement node to end with the element before i
             new_pivots[curr_pivot] = i-1;
             curr_pivot++;
@@ -620,8 +597,9 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
         }
         num_le_in_curr_bn++;
         num_les_this_bn[curr_pivot] = num_le_in_curr_bn;
+        bn_le_sizes[curr_pivot] += curr_le_size;
+        bn_key_sizes[curr_pivot] += sizeof(uint32_t) + key_sizes[i];  // uint32_t le_offset
         bn_size_so_far += curr_le_size + sizeof(uint32_t) + key_sizes[i];
-        bn_sizes[curr_pivot] = bn_size_so_far;
     }
     // curr_pivot is now the total number of pivot keys in the leaf node
     int num_pivots   = curr_pivot;
@@ -688,17 +666,15 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
         uint32_t num_les_to_copy = num_les_this_bn[i];
         invariant(num_les_to_copy == num_in_bn); 
 
-        // construct mempool for this basement
-        size_t size_this_bn = bn_sizes[i];
-
-        BN_DATA bd = BLB_DATA(node, i);
-        bd->replace_contents_with_clone_of_sorted_array(
+        bn_data* bd = BLB_DATA(node, i);
+        bd->set_contents_as_clone_of_sorted_array(
             num_les_to_copy,
             &key_pointers[baseindex_this_bn],
             &key_sizes[baseindex_this_bn],
             &leafpointers[baseindex_this_bn],
             &le_sizes[baseindex_this_bn],
-            size_this_bn
+            bn_key_sizes[i],  // Total key sizes
+            bn_le_sizes[i]  // total le sizes
             );
 
         BP_STATE(node,i) = PT_AVAIL;
@@ -1541,15 +1517,14 @@ deserialize_ftnode_partition(
         BP_WORKDONE(node, childnum) = 0;
     }
     else {
-        assert(ch == FTNODE_PARTITION_OMT_LEAVES);
+        assert(ch == FTNODE_PARTITION_DMT_LEAVES);
         BLB_SEQINSERT(node, childnum) = 0;
         uint32_t num_entries = rbuf_int(&rb);
         // we are now at the first byte of first leafentry
         data_size -= rb.ndone; // remaining bytes of leafentry data
-        
+
         BASEMENTNODE bn = BLB(node, childnum);
-        bn->data_buffer.initialize_from_data(num_entries, &rb.buf[rb.ndone], data_size);
-        rb.ndone += data_size;
+        bn->data_buffer.deserialize_from_rbuf(num_entries, &rb, data_size, node->layout_version_read_from_disk);
     }
     assert(rb.ndone == rb.size);
 exit:
@@ -2086,13 +2061,18 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
             assert_zero(r);
             // Copy the pointer value straight into the OMT
             LEAFENTRY new_le_in_bn = nullptr;
+            void *maybe_free;
             bn->data_buffer.get_space_for_insert(
                 i,
                 key,
                 keylen,
                 new_le_size,
-                &new_le_in_bn
+                &new_le_in_bn,
+                &maybe_free
                 );
+            if (maybe_free) {
+                toku_free(maybe_free);
+            }
             memcpy(new_le_in_bn, new_le, new_le_size);
             toku_free(new_le);
         }
@@ -2101,8 +2081,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
         if (has_end_to_end_checksum) {
             data_size -= sizeof(uint32_t);
         }
-        bn->data_buffer.initialize_from_data(n_in_buf, &rb->buf[rb->ndone], data_size);
-        rb->ndone += data_size;
+        bn->data_buffer.deserialize_from_rbuf(n_in_buf, rb, data_size, node->layout_version_read_from_disk);
     }
 
     // Whatever this is must be less than the MSNs of every message above
