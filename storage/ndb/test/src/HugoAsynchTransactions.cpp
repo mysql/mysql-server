@@ -203,7 +203,7 @@ HugoAsynchTransactions::defineUpdateOpsForTask(TransactionInfo* tInfo)
   {
     NdbOperation* pOp= trans->getNdbOperation(tab.getName());
     if (pOp == NULL) { 
-      ERR(trans->getNdbError());
+      NDB_ERR(trans->getNdbError());
       trans->close();
       return -1;
     }
@@ -214,7 +214,7 @@ HugoAsynchTransactions::defineUpdateOpsForTask(TransactionInfo* tInfo)
     check= pOp->updateTuple();
     if (equalForRow(pOp, recordId) != 0)
     {
-      ERR(trans->getNdbError());
+      NDB_ERR(trans->getNdbError());
       trans->close();
       return -1;
     }
@@ -222,7 +222,7 @@ HugoAsynchTransactions::defineUpdateOpsForTask(TransactionInfo* tInfo)
     for (a = 0; a < tab.getNoOfColumns(); a++) {
       if (tab.getColumn(a)->getPrimaryKey() == false) {
         if (setValueForAttr(pOp, a, recordId, updateVal) != 0) {
-          ERR(trans->getNdbError());
+          NDB_ERR(trans->getNdbError());
           trans->close();
           return -1;
         }
@@ -242,7 +242,7 @@ HugoAsynchTransactions::defineTransactionForTask(TransactionInfo* tInfo,
   NdbTransaction* trans= theNdb->startTransaction();
   
   if (trans == NULL) {
-    ERR(theNdb->getNdbError());
+    NDB_ERR(theNdb->getNdbError());
     return -1;
   }	
 
@@ -252,7 +252,7 @@ HugoAsynchTransactions::defineTransactionForTask(TransactionInfo* tInfo,
   {
     NdbOperation* pOp= trans->getNdbOperation(tab.getName());
     if (pOp == NULL) { 
-      ERR(trans->getNdbError());
+      NDB_ERR(trans->getNdbError());
       theNdb->closeTransaction(trans);
       return -1;
     }
@@ -262,7 +262,7 @@ HugoAsynchTransactions::defineTransactionForTask(TransactionInfo* tInfo,
       // Insert
       check = pOp->insertTuple();
       if (check == -1) { 
-        ERR(trans->getNdbError());
+        NDB_ERR(trans->getNdbError());
         theNdb->closeTransaction(trans);
         return -1;
       }
@@ -270,7 +270,7 @@ HugoAsynchTransactions::defineTransactionForTask(TransactionInfo* tInfo,
       // Set a calculated value for each attribute in this table	 
       for (a = 0; a < tab.getNoOfColumns(); a++) {
         if (setValueForAttr(pOp, a, recordId, 0 ) != 0) {	  
-          ERR(trans->getNdbError());
+          NDB_ERR(trans->getNdbError());
           theNdb->closeTransaction(trans);	  
           return -1;
         }
@@ -286,7 +286,7 @@ HugoAsynchTransactions::defineTransactionForTask(TransactionInfo* tInfo,
       check = pOp->readTuple();
       if (equalForRow(pOp, recordId) != 0)
       {
-        ERR(trans->getNdbError());
+        NDB_ERR(trans->getNdbError());
         theNdb->closeTransaction(trans);
         return -1;
       }	    
@@ -294,7 +294,7 @@ HugoAsynchTransactions::defineTransactionForTask(TransactionInfo* tInfo,
       for (a = 0; a < tab.getNoOfColumns(); a++) {
         if ((rows[recordId]->attributeStore(a) = 
              pOp->getValue(tab.getColumn(a)->getName())) == 0) {
-          ERR(trans->getNdbError());
+          NDB_ERR(trans->getNdbError());
           theNdb->closeTransaction(trans);
           return -1;
         }
@@ -304,7 +304,7 @@ HugoAsynchTransactions::defineTransactionForTask(TransactionInfo* tInfo,
       // Delete
       check = pOp->deleteTuple();
       if (check == -1) { 
-        ERR(trans->getNdbError());
+        NDB_ERR(trans->getNdbError());
         theNdb->closeTransaction(trans);
         return -1;
       }
@@ -312,7 +312,7 @@ HugoAsynchTransactions::defineTransactionForTask(TransactionInfo* tInfo,
       // Define primary keys
       if (equalForRow(pOp, recordId) != 0)
       {
-        ERR(trans->getNdbError());
+        NDB_ERR(trans->getNdbError());
         theNdb->closeTransaction(trans);
         return -1;
       }    
@@ -528,7 +528,7 @@ HugoAsynchTransactions::callback(int result,
 
     default:
       /* Non temporary error */
-      ERR(transErr);
+      NDB_ERR(transErr);
       g_err << "Status= " << transErr.status << " Failing test" << endl;
       testResult= NDBT_FAILED;
       finished= true;
