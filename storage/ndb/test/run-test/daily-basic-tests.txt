@@ -1999,3 +1999,7 @@ max-time : 300
 cmd: testDict
 args: -n FK_TRANS2 T1
 
+max-time : 300
+cmd: testDict
+args: -n FK_Bug18069680 T1
+
