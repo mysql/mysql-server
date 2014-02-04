@@ -1077,8 +1077,8 @@ garbage_helper(BLOCKNUM blocknum, int64_t UU(size), int64_t UU(address), void *e
         goto exit;
     }
     for (int i = 0; i < node->n_children; ++i) {
-        bn_data* bd = BLB_DATA(node, i);
-        r = bd->iterate<struct garbage_helper_extra, garbage_leafentry_helper>(info);
+        BN_DATA bd = BLB_DATA(node, i);
+        r = bd->omt_iterate<struct garbage_helper_extra, garbage_leafentry_helper>(info);
         if (r != 0) {
             goto exit;
         }
