@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 
 # ==== Purpose ====
@@ -32,7 +32,8 @@
 #  ==== Related Worklog ====
 #
 #  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
-#
+#  Bug#18174719: P_S.REPLICATION_CONNECTION_CONFIGURATION'S COL
+#                SSL_CRL_PATH THROWS WARNING 1366
 
 source include/master-slave.inc;
 source include/have_ssl_communication.inc;
@@ -162,18 +163,17 @@ grant replication slave on *.* to replssl@localhost require ssl;
 --source include/sync_slave_sql_with_master.inc
 
 # Setup slave to use SSL for connection to master
-stop slave;
+--source include/stop_slave.inc
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
 eval change master to
-  master_user='replssl',
-  master_password='',
+  master_user= 'replssl',
+  master_password= '',
   master_retry_count= 1,
-  master_ssl=1,
-  master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem',
-  master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem',
-  master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
-start slave;
+  master_ssl= 1,
+  master_ssl_ca= '$MYSQL_TEST_DIR/std_data/cacert.pem',
+  master_ssl_cert= '$MYSQL_TEST_DIR/std_data/client-cert.pem',
+  master_ssl_key= '$MYSQL_TEST_DIR/std_data/client-key.pem';
 
 --echo
 --echo # Checking SSL parameters, they were empty in tests done in the
@@ -219,6 +219,25 @@ source include/assert.inc;
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Master_SSL_Verify_Server_Cert, 1);
 let $ps_value= query_get_value(select SSL_Verify_Server_Certificate from performance_schema.replication_connection_configuration, SSL_Verify_Server_Certificate, 1);
 let $assert_text= Value returned by SSS and PS table for SSL_Verify_Server_Certificate should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/assert.inc;
+
+# We cannot set master_ssl=1 when both ssl_crl and ssl_crlpath are used in
+# CHANGE MASTER. (See bug#18165937)
+change master to master_ssl=0;
+replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
+replace_column 2 ####;
+eval change master to master_ssl_crl= '$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', master_ssl_crlpath= '$MYSQL_TEST_DIR/std_data/crldir';
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Master_SSL_Crl, 1);
+let $ps_value= query_get_value(select SSL_Crl_File from performance_schema.replication_connection_configuration, SSL_Crl_File, 1);
+let $assert_text= Value returned by SSS and PS table for SSL_Crl_File should be same.;
+let $assert_cond= "$sss_value" = "$ps_value";
+source include/assert.inc;
+
+let $sss_value= query_get_value(SHOW SLAVE STATUS, Master_SSL_Crlpath, 1);
+let $ps_value= query_get_value(select SSL_Crl_Path from performance_schema.replication_connection_configuration, SSL_Crl_Path, 1);
+let $assert_text= Value returned by SSS and PS table for SSL_Crl_Path should be same.;
 let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
