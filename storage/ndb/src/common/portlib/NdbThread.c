@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -328,7 +328,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   if (result != 0)
   {
-    NdbMem_Free((char *)tmpThread);
+    NdbMem_Free(tmpThread);
     NdbMutex_Unlock(g_ndb_thread_mutex);
     DBUG_RETURN(0);
   }
@@ -369,7 +369,7 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
 #ifdef HAVE_LINUX_SCHEDULING
     if ((*p_thread)->orig_cpu_set)
     {
-      free((void*)(*p_thread)->orig_cpu_set);
+      free((*p_thread)->orig_cpu_set);
       (*p_thread)->orig_cpu_set = NULL;
     }
 #endif
@@ -575,7 +575,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     {
       error_no = errno;
     }
-    free((void*)pThread->orig_cpu_set);
+    free(pThread->orig_cpu_set);
     pThread->orig_cpu_set = NULL;
   }
 #elif defined HAVE_SOLARIS_AFFINITY
@@ -717,9 +717,9 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   return 0;
 
 late_error:
-  pset_destroy(cpu_set_ptr);
+  pset_destroy(*cpu_set_ptr);
 error:
-  free((void*)cpu_set_ptr);
+  free(cpu_set_ptr);
 end_error:
   *cpu_set = NULL;
   return error_no;
@@ -738,7 +738,7 @@ NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set)
 #if defined HAVE_LINUX_SCHEDULING
   /* Empty */
 #elif defined HAVE_SOLARIS_AFFINITY
-    pset_destroy((psetid_t*)cpu_set);
+    pset_destroy(*((psetid_t*)cpu_set));
 #endif
     free(cpu_set);
   }
@@ -916,7 +916,7 @@ NdbThread_End()
 
   if (g_main_thread)
   {
-    NdbMem_Free((char *)g_main_thread);
+    NdbMem_Free(g_main_thread);
     g_main_thread = 0;
   }
 }
