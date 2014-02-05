@@ -284,7 +284,7 @@ static bool only_flags(ulong bits, ulong mask) {
 enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_HANDLER_DBUG_ENTER("");
 
-    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE) {
         print_alter_info(altered_table, ha_alter_info);
     }
 
@@ -305,7 +305,8 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
     // add or drop index
     if (only_flags(ctx->handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX + 
                    Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
-        if ((ha_alter_info->index_add_count > 0 || ha_alter_info->index_drop_count > 0) &&
+        if (table->s->null_bytes == altered_table->s->null_bytes && 
+            (ha_alter_info->index_add_count > 0 || ha_alter_info->index_drop_count > 0) &&
             !tables_have_same_keys(table, altered_table, THDVAR(thd, alter_print_error) != 0, false) &&
             is_disjoint_add_drop(ha_alter_info)) {
 
@@ -330,7 +331,8 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
     } else
     // column default
     if (only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
-        result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+        if (table->s->null_bytes == altered_table->s->null_bytes)
+            result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
     } else
     // column rename
     if (ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_NAME &&
@@ -344,9 +346,11 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         // now need to verify that one and only one column
         // has changed only its name. If we find anything to
         // the contrary, we don't allow it, also check indexes
-        bool cr_supported = column_rename_supported(table, altered_table, (ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_ORDER) != 0);
-        if (cr_supported)
-            result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+        if (table->s->null_bytes == altered_table->s->null_bytes) {
+            bool cr_supported = column_rename_supported(table, altered_table, (ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_ORDER) != 0);
+            if (cr_supported)
+                result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+        }
     } else    
     // add column
     if (ctx->handler_flags & Alter_inplace_info::ADD_COLUMN &&
@@ -357,7 +361,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         uint32_t num_added_columns = 0;
         int r = find_changed_columns(added_columns, &num_added_columns, table, altered_table);
         if (r == 0) {
-            if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+            if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE) {
                 for (uint32_t i = 0; i < num_added_columns; i++) {
                     uint32_t curr_added_index = added_columns[i];
                     Field* curr_added_field = altered_table->field[curr_added_index];
@@ -376,7 +380,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         uint32_t num_dropped_columns = 0;
         int r = find_changed_columns(dropped_columns, &num_dropped_columns, altered_table, table);
         if (r == 0) {
-            if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+            if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE) {
                 for (uint32_t i = 0; i < num_dropped_columns; i++) {
                     uint32_t curr_dropped_index = dropped_columns[i];
                     Field* curr_dropped_field = table->field[curr_dropped_index];
@@ -426,12 +430,18 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         }
     }
 
+    if (result != HA_ALTER_INPLACE_NOT_SUPPORTED && table->s->null_bytes != altered_table->s->null_bytes &&
+        (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE)) {
+        TOKUDB_HANDLER_TRACE("q %s", thd->query());
+        TOKUDB_HANDLER_TRACE("null bytes %u -> %u", table->s->null_bytes, altered_table->s->null_bytes);
+    }
+
     // turn a not supported result into an error if the slow alter table (copy) is disabled
     if (result == HA_ALTER_INPLACE_NOT_SUPPORTED && get_disable_slow_alter(thd)) {
         print_error(HA_ERR_UNSUPPORTED, MYF(0));
         result = HA_ALTER_ERROR;
     }
-    
+
     DBUG_RETURN(result);
 }
 
