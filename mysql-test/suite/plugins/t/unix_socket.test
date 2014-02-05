@@ -3,8 +3,21 @@
 # get .result differences from CURRENT_USER().
 --source include/not_as_root.inc
 
+# The previous check verifies that the user does not have root permissions. 
+# However in some cases tests are run under a user named 'root',
+# even although this user does not have real root permissions. 
+# This test should be skipped in this case, since it does not expect
+# that there are records in mysql.user where user=<username>
+if ($USER=="root") {
+  skip Cannot be run by user named 'root' even if it does not have all privileges;
+}
+
 if (!$AUTH_SOCKET_SO) {
   skip No auth_socket plugin;
+}
+
+if (!$USER) {
+  skip USER variable is undefined;
 }
 
 let $plugindir=`SELECT @@global.plugin_dir`;
