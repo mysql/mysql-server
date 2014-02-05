@@ -3374,7 +3374,7 @@ runBugXXX_trans(NDBT_Context* ctx, NDBT_Step* step)
     runLoadTable(ctx, step);
     ctx->getPropertyWait("CREATE_INDEX", 1);
     ctx->setProperty("CREATE_INDEX", Uint32(0));
-    res.insertErrorInAllNodes(8098); // randomly abort trigger ops with 218
+    res.insertErrorInAllNodes(8105); // randomly abort trigger ops with 218
     runClearTable2(ctx, step);
     res.insertErrorInAllNodes(0);
   }
