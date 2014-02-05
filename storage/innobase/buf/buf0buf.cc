@@ -2445,10 +2445,16 @@ buf_block_align_instance(
 				FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID with
 				0xff and set the state to
 				BUF_BLOCK_REMOVE_HASH. */
+# ifndef UNIV_DEBUG_VALGRIND
+				/* In buf_LRU_block_remove_hashed() we
+				explicitly set those values to 0xff and
+				declare them uninitialized with
+				UNIV_MEM_INVALID() after that. */
 				ut_ad(page_get_space_id(page_align(ptr))
 				      == 0xffffffff);
 				ut_ad(page_get_page_no(page_align(ptr))
 				      == 0xffffffff);
+# endif /* UNIV_DEBUG_VALGRIND */
 				break;
 			case BUF_BLOCK_FILE_PAGE:
 				ut_ad(block->page.id.space()
