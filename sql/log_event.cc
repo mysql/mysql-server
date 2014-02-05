@@ -263,6 +263,7 @@ int rewrite_buffer(char **buf, int event_len,
   uint8 temp_length= event_len - (temp_length_l + old_db_len +2);
   memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
 
+  my_free(*buf);
   *buf= temp_rewrite_buf;
   my_free((void*)rewrite_to_db);
   return (event_len + replace_segment);
