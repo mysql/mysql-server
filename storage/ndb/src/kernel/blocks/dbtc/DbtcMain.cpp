@@ -6834,7 +6834,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 
         trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
 
-        if (ERROR_INSERTED(8098))
+        if (ERROR_INSERTED(8105))
         {
           abortTransFromTrigger(signal, apiConnectptr, ZGET_DATAREC_ERROR);
         }
@@ -7710,7 +7710,7 @@ ABORT020:
     tcConnectptr.i = tcConnectptr.p->nextTcConnect;
     if (TloopCount < 1024 &&
         !ERROR_INSERTED(8089) &&
-        !ERROR_INSERTED(8098))
+        !ERROR_INSERTED(8105))
     {
       goto ABORT020;
     }
@@ -17104,7 +17104,7 @@ Dbtc::fk_constructAttrInfoSetNull(const TcFKData * fkPtrP)
   }
 
   Uint32 tmp = RNIL;
-  if (ERROR_INSERTED(8099))
+  if (ERROR_INSERTED(8106))
   {
     return tmp;
   }
