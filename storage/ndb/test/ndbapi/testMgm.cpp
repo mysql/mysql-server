@@ -3573,6 +3573,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+static
 int runTestCreateLogEvent(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbMgmd mgmd;
