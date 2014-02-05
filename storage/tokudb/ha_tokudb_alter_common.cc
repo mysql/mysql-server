@@ -561,7 +561,7 @@ uint32_t ha_tokudb::fill_row_mutator(
     bool is_add
     ) 
 {
-    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE) {
         printf("*****some info:*************\n");
         printf(
             "old things: num_null_bytes %d, num_offset_bytes %d, fixed_field_size %d, fixed_field_size %d\n",
