@@ -8,22 +8,22 @@ let MASTER_MYSOCK=`select @@socket`;
 # Setup path for log file
 let NDB_EXAMPLES_OUTPUT=$MYSQLTEST_VARDIR/log/ndbapi_examples.log;
 
---exec echo Running ndbapi_simple
+--echo Running ndbapi_simple
 --exec $NDB_EXAMPLES_DIR/ndbapi_simple $MASTER_MYSOCK "$NDB_CONNECTSTRING" > $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_simple_index
+--echo Running ndbapi_simple_index
 --exec $NDB_EXAMPLES_DIR/ndbapi_simple_index $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_scan
+--echo Running ndbapi_scan
 --exec $NDB_EXAMPLES_DIR/ndbapi_scan $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_retries
+--echo Running ndbapi_retries
 --exec $NDB_EXAMPLES_DIR/ndbapi_retries $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_async
+--echo Running ndbapi_async
 --exec $NDB_EXAMPLES_DIR/ndbapi_async $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_async1
+--echo Running ndbapi_async1
 --exec $NDB_EXAMPLES_DIR/ndbapi_async1 $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
 
 # Drop database created by test programs
@@ -31,7 +31,7 @@ drop database ndb_examples;
 
 create table t0(c0 int, c1 int, c2 char(4), c3 char(4), c4 text,
                 primary key(c0, c2)) engine ndb charset latin1;
-#--exec echo Running ndbapi_event
+#--echo Running ndbapi_event
 #--exec $NDB_EXAMPLES_DIR/ndbapi_event "$NDB_CONNECTSTRING" 1 >> $NDB_EXAMPLES_OUTPUT
 insert into t0 values (1, 2, 'a', 'b', null);
 insert into t0 values (3, 4, 'c', 'd', null);
@@ -44,5 +44,5 @@ update t0 set c0 = 5, c2 = 'H' where c0 = 3; # update full PK
 delete from t0;
 drop table t0;
 
---exec echo Running mgmapi_logevent
+--echo Running mgmapi_logevent
 --exec $NDB_EXAMPLES_DIR/mgmapi_logevent "$NDB_CONNECTSTRING" 1 >> $NDB_EXAMPLES_OUTPUT
