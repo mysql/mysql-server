@@ -1,5 +1,5 @@
 # simplified test case reduced from an RQG trial that crashes tokudb 
-# alter drop default breaks the row encoding because mysql changed
+# adding a key breaks the row encoding because mysql changed
 # null_bytes on the new table without tokudb's knowledge
 
 source include/have_tokudb.inc;
@@ -51,6 +51,11 @@ ALTER TABLE t ADD PRIMARY KEY(c19,c27)USING HASH;
 UPDATE t SET c27=0;
 ALTER TABLE t ROW_FORMAT=FIXED KEY_BLOCK_SIZE=1;
 UPDATE t SET c27=0;
+set tokudb_disable_hot_alter=0;
+set tokudb_disable_slow_alter=1;
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t ADD KEY (c25);
+set tokudb_disable_slow_alter=0;
 ALTER TABLE t ADD KEY (c25);
 UPDATE t SET c27=0;
 

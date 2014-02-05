@@ -1,14 +1,5 @@
-# simplified test case reduced from an RQG trial that crashes tokudb 
-# alter drop default breaks the row encoding because mysql changed
-# null_bytes on the new table without tokudb's knowledge
-
-source include/have_tokudb.inc;
 set default_storage_engine=tokudb;
-
-disable_warnings;
 drop table if exists t;
-enable_warnings;
-
 CREATE TABLE t (
 c25 char(1),
 c277 int,
@@ -48,15 +39,18 @@ key(c31)) ENGINE=tokudb;
 INSERT INTO t (c25) VALUES (NULL);
 UPDATE t SET c27=0;
 ALTER TABLE t ADD PRIMARY KEY(c19,c27)USING HASH;
+Warnings:
+Warning	1265	Data truncated for column 'c19' at row 1
+UPDATE t SET c27=0;
+ALTER TABLE t ADD KEY (c25);
 UPDATE t SET c27=0;
 ALTER TABLE t ROW_FORMAT=FIXED KEY_BLOCK_SIZE=1;
 UPDATE t SET c27=0;
 set tokudb_disable_hot_alter=0;
 set tokudb_disable_slow_alter=1;
---error ER_UNSUPPORTED_EXTENSION
-ALTER TABLE t ALTER c120 DROP DEFAULT;
+ALTER TABLE t DROP KEY c25;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 set tokudb_disable_slow_alter=0;
-ALTER TABLE t ALTER c120 DROP DEFAULT;
+ALTER TABLE t DROP KEY c25;
 UPDATE t SET c27=0;
-
 drop table t;
