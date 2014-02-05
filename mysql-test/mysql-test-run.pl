@@ -2401,7 +2401,6 @@ sub environment_setup {
 
     my $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
-    $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;    
   }
 
   # ----------------------------------------------------

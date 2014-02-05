@@ -5,8 +5,11 @@
 # is connected to
 let MASTER_MYSOCK=`select @@socket`;
 
+# Setup path for log file
+let NDB_EXAMPLES_OUTPUT=$MYSQLTEST_VARDIR/log/ndbapi_examples.log;
+
 --exec echo Running ndbapi_simple
---exec $NDB_EXAMPLES_DIR/ndbapi_simple $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+--exec $NDB_EXAMPLES_DIR/ndbapi_simple $MASTER_MYSOCK "$NDB_CONNECTSTRING" > $NDB_EXAMPLES_OUTPUT
 
 --exec echo Running ndbapi_simple_index
 --exec $NDB_EXAMPLES_DIR/ndbapi_simple_index $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
