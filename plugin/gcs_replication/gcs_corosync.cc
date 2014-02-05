@@ -453,13 +453,29 @@ bool Protocol_corosync::open_session(Event_handlers* handlers_arg)
   /*
     Reset possible leftovers from a previous session.
     It's safe until the receiver thread is up.
+
+    The cleanup is designed to be done not at close_session but at the
+    beginning of the new for two reasons:
+    1. close_session() may not
+       be called by the Client when the plugin bails out with an
+       error;
+    2. we might like to preserve the last session info for
+       displaying with PS (a policy is inherited from Show-Slave-Status).
   */
   is_leaving= false;
   pending_awaited_vector= false;
   awaited_vector.clear();
+  /*
+    Currently when there's no restart after crash the Member can return
+    only as a new.
+  */
   last_prim_comp_members.clear();
   last_view_id= 0;
   get_view().get_members().clear();
+  /*
+    Resetting is forced by unimplemented crash-restart commented above.
+  */
+  get_view().set_view_id(0);
 
   // needed by dispatcher exit notification
   pthread_cond_init(&dispatcher_cond, NULL);
@@ -828,6 +844,29 @@ void Protocol_corosync::do_complete_local_member_init()
   local_process_id= Process_id(local_nodeid, getpid());
 }
 
+/*
+  The function is called when State message protocol is violated.
+  It details on the current and previously received state messages.
+*/
+void debug_unwelcome_state_message(char *buf, Member_state* ptr_m_state, const char* hdr)
+{
+  set<string>::iterator it;
+  set<string>& uuids= ptr_m_state->member_uuids;
+  int it_done= 0, limit=1024;
+  char *ptr_buf= buf;
+
+  it_done= snprintf(ptr_buf, limit,
+                    "%s view id %llu, conf id %lu,%llu, "
+                    "client uuid %s, %d uuid:s of former configuration: ",
+                    hdr, ptr_m_state->view_id,
+                    (ulong) ptr_m_state->conf_id.nodeid, ptr_m_state->conf_id.seq,
+                    ptr_m_state->client_info.get_uuid().c_str(), uuids.size());
+  limit -= it_done;
+  ptr_buf += it_done;
+  for (it= uuids.begin(); it != uuids.end(); ++it, ptr_buf += it_done, limit -= it_done)
+    it_done= snprintf(ptr_buf, limit, "%s ", (*it).c_str());
+}
+
 void Protocol_corosync::do_process_state_message(Message *ptr_msg,
                                                  Process_id p_id)
 {
@@ -837,7 +876,29 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
   View& view= get_view();
 
   assert(get_payload_code(ptr_msg) == PAYLOAD_STATE_EXCHANGE);
-  assert(!view.is_installed());
+  if (view.is_installed())
+  {
+    char buf[1024]= {'0'};
+
+    get_client_info().
+      logger_func(GCS_ERROR_LEVEL,
+                  "Unexpected State message from (%lu,%lu)", p_id.first, p_id.second);
+    if (ms_total.find(p_id) == ms_total.end())
+      get_client_info().
+        logger_func(GCS_ERROR_LEVEL, "The sender is not in the total set");
+    if (member_states.find(p_id) == member_states.end())
+      get_client_info().
+        logger_func(GCS_ERROR_LEVEL, "The sender's state message was not delivered");
+    else
+    {
+      debug_unwelcome_state_message(buf, member_states[p_id], "The former message details: ");
+      get_client_info().logger_func(GCS_INFORMATION_LEVEL, buf);
+    }
+    debug_unwelcome_state_message(buf, ms_info, "The current message details: ");
+    get_client_info().logger_func(GCS_INFORMATION_LEVEL, buf);
+
+    assert(0);
+  }
 
   if (!(ms_info->conf_id == last_seen_conf_id))
   {
@@ -888,7 +949,7 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
     zero the index is discared from the vector.
 
     Installation goes into terminal phase when all expected state
-    messagages has arrived which is indicated by the emtpy vector.
+    messages have arrived which is indicated by the emtpy vector.
   */
   if (--awaited_vector[p_id] == 0)
   {

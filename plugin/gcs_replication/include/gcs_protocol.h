@@ -231,6 +231,7 @@ public:
     return m_quorate;
   }
   ulonglong get_view_id() { return view_id; }
+  void set_view_id(ulonglong val) { view_id= val; }
 
   /*
     Two sets to be reported to the Client at view-change event delivery.
