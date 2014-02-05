@@ -26,7 +26,6 @@
   read/write methods.
  */
 
-#include <ndb_global.h>
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <NdbApi.hpp>
@@ -34,7 +33,8 @@
 #include <iostream>
 #include <stdio.h>
 #include <ctype.h>
-
+#include <stdlib.h>
+#include <string.h>
 
 /**
  * Helper debugging macros
