@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,10 +27,7 @@ Created 11/26/1995 Heikki Tuuri
 #define mtr0types_h
 
 #ifndef UNIV_INNOCHECKSUM
-#include "dyn0buf.h"
 #include "sync0rw.h"
-
-typedef dyn_buf_t<DYN_ARRAY_DATA_SIZE> mtr_buf_t;
 #endif /* UNIV_INNOCHECKSUM */
 
 struct mtr_t;
