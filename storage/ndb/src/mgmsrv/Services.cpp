@@ -1727,6 +1727,17 @@ done:
     m_output->println("msg: %s", msg.c_str());
   m_output->println("%s", "");
 
+  /*
+    Flush output from command before adding the new event listener.
+    This makes sure that the client receives the reply before the
+    loglevel thread starts to check the connection by sending <PING>'s.
+    The client is expecting <PING>'s but not until after the reply has been
+    received.
+  */
+  NdbMutex_Unlock(m_mutex);   
+  m_output->flush();
+  NdbMutex_Lock(m_mutex);   
+
   if(result==0)
   {
     m_mgmsrv.m_event_listner.add_listener(le);
