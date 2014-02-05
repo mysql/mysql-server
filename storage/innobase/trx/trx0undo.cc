@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -721,18 +721,21 @@ trx_undo_insert_header_reuse_log(
 # define trx_undo_insert_header_reuse_log(undo_page,trx_id,mtr) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
-/***********************************************************//**
-Parses the redo log entry of an undo log page header create or reuse.
+/** Parse the redo log entry of an undo log page header create or reuse.
+@param[in]	type	MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE
+@param[in]	ptr	redo log record
+@param[in]	end_ptr	end of log buffer
+@param[in,out]	page	page frame or NULL
+@param[in,out]	mtr	mini-transaction or NULL
 @return end of log record or NULL */
 
 byte*
 trx_undo_parse_page_header(
-/*=======================*/
-	ulint	type,	/*!< in: MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE */
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr)	/*!< in: mtr or NULL */
+	mlog_id_t	type,
+	byte*		ptr,
+	byte*		end_ptr,
+	page_t*		page,
+	mtr_t*		mtr)
 {
 	trx_id_t	trx_id;
 	/* Silence a GCC warning about possibly uninitialized variable
@@ -744,20 +747,23 @@ trx_undo_parse_page_header(
 
 	ptr = mach_ull_parse_compressed(ptr, end_ptr, &trx_id);
 
-	if (ptr == NULL) {
+	if (ptr == NULL || page == NULL) {
 
-		return(NULL);
+		return(ptr);
 	}
 
-	if (page) {
-		if (type == MLOG_UNDO_HDR_CREATE) {
-			trx_undo_header_create(page, trx_id, mtr);
-		} else {
-			ut_ad(type == MLOG_UNDO_HDR_REUSE);
-			trx_undo_insert_header_reuse(page, trx_id, mtr);
-		}
+	switch (type) {
+	case MLOG_UNDO_HDR_CREATE:
+		trx_undo_header_create(page, trx_id, mtr);
+		return(ptr);
+	case MLOG_UNDO_HDR_REUSE:
+		trx_undo_insert_header_reuse(page, trx_id, mtr);
+		return(ptr);
+	default:
+		break;
 	}
 
+	ut_ad(0);
 	return(ptr);
 }
 
