@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@ Created 11/28/1995 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "ut0mem.h"
+#include "mtr0types.h"
 
 /*******************************************************//**
 The following function is used to store data in one byte. */
@@ -863,28 +863,28 @@ mach_write_ulonglong(
 	}
 }
 
-/********************************************************//**
-Reads 1 - 4 bytes from a file page buffered in the buffer pool.
+/** Read 1 to 4 bytes from a file page buffered in the buffer pool.
+@param[in]	ptr	pointer where to read
+@param[in]	type	MLOG_1BYTE, MLOG_2BYTES, or MLOG_4BYTES
 @return value read */
 UNIV_INLINE
 ulint
 mach_read_ulint(
-/*============*/
-	const byte*	ptr,	/*!< in: pointer from where to read */
-	ulint		type)	/*!< in: 1,2 or 4 bytes */
+	const byte*	ptr,
+	mlog_id_t	type)
 {
 	switch (type) {
-	case 1:
+	case MLOG_1BYTE:
 		return(mach_read_from_1(ptr));
-	case 2:
+	case MLOG_2BYTES:
 		return(mach_read_from_2(ptr));
-	case 4:
+	case MLOG_4BYTES:
 		return(mach_read_from_4(ptr));
 	default:
-		ut_error;
+		break;
 	}
 
-	/* Prevent warning "not all control paths return a value". */
+	ut_error;
 	return(0);
 }
 

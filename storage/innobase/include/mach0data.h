@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,7 @@ Created 11/28/1995 Heikki Tuuri
 #ifndef UNIV_INNOCHECKSUM
 
 #include "univ.i"
-#include "ut0byte.h"
+#include "mtr0types.h"
 
 /* The data and all fields are always stored in a database file
 in the same format: ascii, big-endian, ... .
@@ -398,15 +398,16 @@ mach_write_ulonglong(
 	ulint		len,		/*!< in: length of dest */
 	bool		usign);		/*!< in: signed or unsigned flag */
 
-/********************************************************//**
-Reads 1 - 4 bytes from a file page buffered in the buffer pool.
+/** Read 1 to 4 bytes from a file page buffered in the buffer pool.
+@param[in]	ptr	pointer where to read
+@param[in]	type	MLOG_1BYTE, MLOG_2BYTES, or MLOG_4BYTES
 @return value read */
 UNIV_INLINE
 ulint
 mach_read_ulint(
-/*============*/
-	const byte*	ptr,	/*!< in: pointer from where to read */
-	ulint		type);	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	const byte*	ptr,
+	mlog_id_t	type)
+	__attribute__((warn_unused_result, pure));
 
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !UNIV_INNOCHECKSUM */
