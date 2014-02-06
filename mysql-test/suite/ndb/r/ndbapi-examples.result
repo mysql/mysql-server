@@ -1,9 +1,9 @@
-Running ndbapi_simple
-Running ndbapi_simple_index
-Running ndbapi_scan
-Running ndbapi_retries
-Running ndbapi_async
-Running ndbapi_async1
+Running ndb_ndbapi_simple
+Running ndb_ndbapi_simple_index
+Running ndb_ndbapi_scan
+Running ndb_ndbapi_retries
+Running ndb_ndbapi_async
+Running ndb_ndbapi_async1
 drop database ndb_examples;
 create table t0(c0 int, c1 int, c2 char(4), c3 char(4), c4 text,
 primary key(c0, c2)) engine ndb charset latin1;

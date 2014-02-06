@@ -2397,7 +2397,7 @@ sub environment_setup {
     $ENV{'NDB_EXAMPLES_BINARY'}=
       my_find_bin($bindir,
 		  ["storage/ndb/ndbapi-examples", "bin"],
-		  "ndbapi_simple", NOT_REQUIRED);
+		  "ndb_ndbapi_simple", NOT_REQUIRED);
 
     my $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;

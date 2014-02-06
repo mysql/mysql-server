@@ -14,39 +14,39 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 # NdbApi examples
-ADD_EXECUTABLE(ndbapi_async ndbapi_async/ndbapi_async.cpp)
-ADD_EXECUTABLE(ndbapi_async1 ndbapi_async1/ndbapi_async1.cpp)
-ADD_EXECUTABLE(ndbapi_blob ndbapi_blob/ndbapi_blob.cpp)
-ADD_EXECUTABLE(ndbapi_blob_ndbrecord ndbapi_blob_ndbrecord/main.cpp)
-ADD_EXECUTABLE(ndbapi_event ndbapi_event/ndbapi_event.cpp)
-ADD_EXECUTABLE(ndbapi_recattr_vs_record ndbapi_recattr_vs_record/main.cpp)
-ADD_EXECUTABLE(ndbapi_retries ndbapi_retries/ndbapi_retries.cpp)
-ADD_EXECUTABLE(ndbapi_scan ndbapi_scan/ndbapi_scan.cpp)
-ADD_EXECUTABLE(ndbapi_simple ndbapi_simple/ndbapi_simple.cpp)
-ADD_EXECUTABLE(ndbapi_simple_dual ndbapi_simple_dual/main.cpp)
-ADD_EXECUTABLE(ndbapi_simple_index ndbapi_simple_index/main.cpp)
-ADD_EXECUTABLE(ndbapi_s_i_ndbrecord ndbapi_s_i_ndbrecord/main.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_async ndbapi_async/ndbapi_async.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_async1 ndbapi_async1/ndbapi_async1.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_blob ndbapi_blob/ndbapi_blob.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_blob_ndbrecord ndbapi_blob_ndbrecord/main.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_event ndbapi_event/ndbapi_event.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_recattr_vs_record ndbapi_recattr_vs_record/main.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_retries ndbapi_retries/ndbapi_retries.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_scan ndbapi_scan/ndbapi_scan.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_simple ndbapi_simple/ndbapi_simple.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_simple_dual ndbapi_simple_dual/main.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_simple_index ndbapi_simple_index/main.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_s_i_ndbrecord ndbapi_s_i_ndbrecord/main.cpp)
 
 # MgmApi examples
-ADD_EXECUTABLE(mgmapi_logevent mgmapi_logevent/main.cpp)
-ADD_EXECUTABLE(mgmapi_logevent2 mgmapi_logevent2/main.cpp)
+ADD_EXECUTABLE(ndb_mgmapi_logevent mgmapi_logevent/main.cpp)
+ADD_EXECUTABLE(ndb_mgmapi_logevent2 mgmapi_logevent2/main.cpp)
 
 # Link each example program with both ndbclient and mysql libraries
 SET(EXAMPLES
-  ndbapi_async
-  ndbapi_async1
-  ndbapi_blob
-  ndbapi_blob_ndbrecord
-  ndbapi_event
-  ndbapi_recattr_vs_record
-  ndbapi_retries
-  ndbapi_scan
-  ndbapi_simple
-  ndbapi_simple_dual
-  ndbapi_simple_index
-  ndbapi_s_i_ndbrecord
-  mgmapi_logevent
-  mgmapi_logevent2
+  ndb_ndbapi_async
+  ndb_ndbapi_async1
+  ndb_ndbapi_blob
+  ndb_ndbapi_blob_ndbrecord
+  ndb_ndbapi_event
+  ndb_ndbapi_recattr_vs_record
+  ndb_ndbapi_retries
+  ndb_ndbapi_scan
+  ndb_ndbapi_simple
+  ndb_ndbapi_simple_dual
+  ndb_ndbapi_simple_index
+  ndb_ndbapi_s_i_ndbrecord
+  ndb_mgmapi_logevent
+  ndb_mgmapi_logevent2
 )
 FOREACH(EXAMPLE ${EXAMPLES})
   TARGET_LINK_LIBRARIES(${EXAMPLE} ndbclient_so)
