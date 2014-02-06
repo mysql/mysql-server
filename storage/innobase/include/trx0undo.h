@@ -378,10 +378,10 @@ Parses the redo log entry of an undo log page initialization.
 byte*
 trx_undo_parse_page_init(
 /*=====================*/
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr);	/*!< in: mtr or NULL */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
+	page_t*		page,	/*!< in: page or NULL */
+	mtr_t*		mtr);	/*!< in: mtr or NULL */
 /** Parse the redo log entry of an undo log page header create or reuse.
 @param[in]	type	MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE
 @param[in]	ptr	redo log record
@@ -393,8 +393,8 @@ trx_undo_parse_page_init(
 byte*
 trx_undo_parse_page_header(
 	mlog_id_t	type,
-	byte*		ptr,
-	byte*		end_ptr,
+	const byte*	ptr,
+	const byte*	end_ptr,
 	page_t*		page,
 	mtr_t*		mtr);
 /***********************************************************//**

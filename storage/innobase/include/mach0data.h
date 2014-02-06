@@ -143,6 +143,7 @@ mach_write_compressed(
 /*==================*/
 	byte*	b,	/*!< in: pointer to memory where to store */
 	ulint	n);	/*!< in: ulint integer to be stored */
+#ifdef UNIV_LOG_LSN_DEBUG
 /*********************************************************//**
 Returns the size of an ulint when written in the compressed form.
 @return compressed size in bytes */
@@ -152,15 +153,15 @@ mach_get_compressed_size(
 /*=====================*/
 	ulint	n)	/*!< in: ulint integer to be stored */
 	__attribute__((const));
-/*********************************************************//**
-Reads a ulint in a compressed form.
-@return read integer */
+#endif /* UNIV_LOG_LSN_DEBUG */
+/** Read a 32-bit integer in a compressed form.
+@param[in,out]	b	pointer to memory where to read;
+advanced by the number of bytes consumed
+@return unsigned value */
 UNIV_INLINE
-ulint
-mach_read_compressed(
-/*=================*/
-	const byte*	b)	/*!< in: pointer to memory from where to read */
-	__attribute__((nonnull, pure));
+ib_uint32_t
+mach_read_next_compressed(
+	const byte**	b);
 /*******************************************************//**
 The following function is used to store data in 6 consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -223,75 +224,56 @@ Writes a 64-bit integer in a compressed form (5..9 bytes).
 @return size in bytes */
 UNIV_INLINE
 ulint
-mach_ull_write_compressed(
+mach_u64_write_compressed(
 /*======================*/
 	byte*		b,	/*!< in: pointer to memory where to store */
 	ib_uint64_t	n);	/*!< in: 64-bit integer to be stored */
-/*********************************************************//**
-Returns the size of a 64-bit integer when written in the compressed form.
-@return compressed size in bytes */
-UNIV_INLINE
-ulint
-mach_ull_get_compressed_size(
-/*=========================*/
-	ib_uint64_t	n);	/*!< in: 64-bit integer to be stored */
-/*********************************************************//**
-Reads a 64-bit integer in a compressed form.
-@return the value read */
+/** Read a 64-bit integer in a compressed form.
+@param[in,out]	b	pointer to memory where to read;
+advanced by the number of bytes consumed
+@return unsigned value */
 UNIV_INLINE
 ib_uint64_t
-mach_ull_read_compressed(
-/*=====================*/
-	const byte*	b)	/*!< in: pointer to memory from where to read */
-	__attribute__((nonnull, pure));
+mach_u64_read_next_compressed(
+	const byte**	b);
 /*********************************************************//**
 Writes a 64-bit integer in a compressed form (1..11 bytes).
 @return size in bytes */
 UNIV_INLINE
 ulint
-mach_ull_write_much_compressed(
+mach_u64_write_much_compressed(
 /*===========================*/
 	byte*		b,	/*!< in: pointer to memory where to store */
 	ib_uint64_t	n);	/*!< in: 64-bit integer to be stored */
-/*********************************************************//**
-Returns the size of a 64-bit integer when written in the compressed form.
-@return compressed size in bytes */
-UNIV_INLINE
-ulint
-mach_ull_get_much_compressed_size(
-/*==============================*/
-	ib_uint64_t	n)	/*!< in: 64-bit integer to be stored */
-	__attribute__((const));
 /*********************************************************//**
 Reads a 64-bit integer in a compressed form.
 @return the value read */
 UNIV_INLINE
 ib_uint64_t
-mach_ull_read_much_compressed(
+mach_u64_read_much_compressed(
 /*==========================*/
 	const byte*	b)	/*!< in: pointer to memory from where to read */
-	__attribute__((nonnull, pure));
-/*********************************************************//**
-Reads a ulint in a compressed form if the log record fully contains it.
-@return pointer to end of the stored field, NULL if not complete */
+	__attribute__((pure));
+/** Read a 32-bit integer in a compressed form.
+@param[in,out]	ptr	pointer to memory where to read;
+advanced by the number of bytes consumed, or set NULL if out of space
+@param[in]	end_ptr	end of the buffer
+@return unsigned value */
 
-byte*
+ib_uint32_t
 mach_parse_compressed(
-/*==================*/
-	byte*	ptr,	/*!< in: pointer to buffer from where to read */
-	byte*	end_ptr,/*!< in: pointer to end of the buffer */
-	ulint*	val);	/*!< out: read value */
-/*********************************************************//**
-Reads a 64-bit integer in a compressed form
-if the log record fully contains it.
-@return pointer to end of the stored field, NULL if not complete */
+	const byte**	ptr,
+	const byte*	end_ptr);
+/** Read a 64-bit integer in a compressed form.
+@param[in,out]	ptr	pointer to memory where to read;
+advanced by the number of bytes consumed, or set NULL if out of space
+@param[in]	end_ptr	end of the buffer
+@return unsigned value */
 UNIV_INLINE
-byte*
-mach_ull_parse_compressed(
-/*======================*/
-	byte*		ptr,	/*!< in: pointer to buffer from where to read */
-	byte*		end_ptr,/*!< in: pointer to end of the buffer */
-	ib_uint64_t*	val);	/*!< out: read value */
+ib_uint64_t
+mach_u64_parse_compressed(
+	const byte**	ptr,
+	const byte*	end_ptr);
 #ifndef UNIV_HOTBACKUP
 /*********************************************************//**
 Reads a double. It is stored in a little-endian format.
