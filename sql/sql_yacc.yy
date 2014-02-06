@@ -7847,6 +7847,24 @@ alter_commands:
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
+        | DISCARD PARTITION_SYM have_partitioning all_or_alt_part_name_list
+          TABLESPACE
+          {
+            Lex->m_sql_cmd= new (YYTHD->mem_root)
+              Sql_cmd_discard_import_tablespace(
+                Sql_cmd_discard_import_tablespace::DISCARD_TABLESPACE);
+            if (Lex->m_sql_cmd == NULL)
+              MYSQL_YYABORT;
+          }
+        | IMPORT PARTITION_SYM have_partitioning all_or_alt_part_name_list
+          TABLESPACE
+          {
+            Lex->m_sql_cmd= new (YYTHD->mem_root)
+              Sql_cmd_discard_import_tablespace(
+                Sql_cmd_discard_import_tablespace::IMPORT_TABLESPACE);
+            if (Lex->m_sql_cmd == NULL)
+              MYSQL_YYABORT;
+          }
         ;
 
 remove_partitioning:
@@ -7933,7 +7951,12 @@ alt_part_name_list:
 alt_part_name_item:
           ident
           {
-            if (Lex->alter_info.partition_names.push_back($1.str))
+            String *s= new (YYTHD->mem_root) String((const char *) $1.str,
+                                                    $1.length,
+                                                    system_charset_info);
+            if (s == NULL)
+              MYSQL_YYABORT;
+            if (Lex->alter_info.partition_names.push_back(s))
             {
               mem_alloc_error(1);
               MYSQL_YYABORT;
