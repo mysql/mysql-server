@@ -8290,6 +8290,25 @@ void ha_partition::notify_table_changed()
   DBUG_VOID_RETURN;
 }
 
+int ha_partition::discard_or_import_tablespace(my_bool discard)
+{
+  int error= 0;
+  uint i;
+
+  DBUG_ENTER("ha_partition::discard_or_import_tablespace");
+  DBUG_ASSERT(bitmap_bits_set(&m_part_info->read_partitions) == m_tot_parts);
+
+  for (i= bitmap_get_first_set(&m_part_info->read_partitions);
+       i < m_tot_parts;
+       i= bitmap_get_next_set(&m_part_info->read_partitions, i))
+  {
+    error= m_file[i]->ha_discard_or_import_tablespace(discard);
+    if (error)
+      break;
+  }
+
+  DBUG_RETURN(error);
+}
 
 /*
   If frm_error() is called then we will use this to to find out what file
