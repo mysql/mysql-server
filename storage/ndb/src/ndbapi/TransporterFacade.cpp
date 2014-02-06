@@ -2024,7 +2024,7 @@ TransporterFacade::get_an_alive_node()
 #ifdef VM_TRACE
   const char* p = NdbEnv_GetEnv("NDB_ALIVE_NODE_ID", (char*)0, 0);
   if (p != 0 && *p != 0)
-    return atoi(p);
+    DBUG_RETURN(atoi(p));
 #endif
   NodeId i;
   for (i = theStartNodeId; i < MAX_NDB_NODES; i++) {
