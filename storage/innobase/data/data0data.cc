@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -418,9 +418,7 @@ dfield_print_also_hex(
 			break;
 
 		default:
-			id = mach_ull_read_compressed(data);
-
-			fprintf(stderr, "mix_id " TRX_ID_FMT, id);
+			goto print_hex;
 		}
 		break;
 

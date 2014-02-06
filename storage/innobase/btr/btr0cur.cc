@@ -2829,7 +2829,7 @@ btr_cur_update_in_place_log(
 		trx_write_roll_ptr(log_ptr, 0);
 		log_ptr += DATA_ROLL_PTR_LEN;
 		/* TRX_ID */
-		log_ptr += mach_ull_write_compressed(log_ptr, 0);
+		log_ptr += mach_u64_write_compressed(log_ptr, 0);
 	}
 
 	mach_write_to_2(log_ptr, page_offset(rec));

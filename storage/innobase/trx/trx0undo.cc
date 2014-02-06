@@ -387,14 +387,14 @@ Parses the redo log entry of an undo log page initialization.
 byte*
 trx_undo_parse_page_init(
 /*=====================*/
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr)	/*!< in: mtr or NULL */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
+	page_t*		page,	/*!< in: page or NULL */
+	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
 	ulint	type;
 
-	ptr = mach_parse_compressed(ptr, end_ptr, &type);
+	type = mach_parse_compressed(&ptr, end_ptr);
 
 	if (ptr == NULL) {
 
@@ -405,7 +405,7 @@ trx_undo_parse_page_init(
 		trx_undo_page_init(page, type, mtr);
 	}
 
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 /********************************************************************//**
@@ -732,39 +732,28 @@ trx_undo_insert_header_reuse_log(
 byte*
 trx_undo_parse_page_header(
 	mlog_id_t	type,
-	byte*		ptr,
-	byte*		end_ptr,
+	const byte*	ptr,
+	const byte*	end_ptr,
 	page_t*		page,
 	mtr_t*		mtr)
 {
-	trx_id_t	trx_id;
-	/* Silence a GCC warning about possibly uninitialized variable
-	when mach_ull_parse_compressed() is not inlined. */
-	ut_d(trx_id = 0);
-	/* Declare the variable uninitialized in Valgrind, so that the
-	above initialization will not mask any bugs. */
-	UNIV_MEM_INVALID(&trx_id, sizeof trx_id);
+	trx_id_t	trx_id = mach_u64_parse_compressed(&ptr, end_ptr);
 
-	ptr = mach_ull_parse_compressed(ptr, end_ptr, &trx_id);
-
-	if (ptr == NULL || page == NULL) {
-
-		return(ptr);
+	if (ptr != NULL && page != NULL) {
+		switch (type) {
+		case MLOG_UNDO_HDR_CREATE:
+			trx_undo_header_create(page, trx_id, mtr);
+			return(const_cast<byte*>(ptr));
+		case MLOG_UNDO_HDR_REUSE:
+			trx_undo_insert_header_reuse(page, trx_id, mtr);
+			return(const_cast<byte*>(ptr));
+		default:
+			break;
+		}
+		ut_ad(0);
 	}
 
-	switch (type) {
-	case MLOG_UNDO_HDR_CREATE:
-		trx_undo_header_create(page, trx_id, mtr);
-		return(ptr);
-	case MLOG_UNDO_HDR_REUSE:
-		trx_undo_insert_header_reuse(page, trx_id, mtr);
-		return(ptr);
-	default:
-		break;
-	}
-
-	ut_ad(0);
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 /***************************************************************//**
