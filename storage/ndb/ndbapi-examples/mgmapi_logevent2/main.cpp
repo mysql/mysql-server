@@ -70,7 +70,7 @@ int main(int argc, char** argv)
     exit(-1);
   }
   if (ndb_mgm_set_connectstring(h1, connectstring1) == -1 ||
-      ndb_mgm_set_connectstring(h2, connectstring1))
+      ndb_mgm_set_connectstring(h2, connectstring2))
   {
     printf("Unable to set connectstring\n");
     exit(-1);
