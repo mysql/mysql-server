@@ -857,10 +857,10 @@ void debug_unwelcome_state_message(char *buf, Member_state* ptr_m_state, const c
 
   it_done= snprintf(ptr_buf, limit,
                     "%s view id %llu, conf id %lu,%llu, "
-                    "client uuid %s, %d uuid:s of former configuration: ",
+                    "client uuid %s, %i uuid:s of former configuration: ",
                     hdr, ptr_m_state->view_id,
-                    (ulong) ptr_m_state->conf_id.nodeid, ptr_m_state->conf_id.seq,
-                    ptr_m_state->client_info.get_uuid().c_str(), uuids.size());
+                    (ulong) ptr_m_state->conf_id.nodeid, (ulonglong) ptr_m_state->conf_id.seq,
+                    ptr_m_state->client_info.get_uuid().c_str(), (int) uuids.size());
   limit -= it_done;
   ptr_buf += it_done;
   for (it= uuids.begin(); it != uuids.end(); ++it, ptr_buf += it_done, limit -= it_done)
