@@ -459,28 +459,6 @@ int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *
 int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *p);
 
 /**
-   Connect to master
-
-   This function can only used in the slave I/O thread context, and
-   will use the same master information to do the connection.
-
-   @code
-   MYSQL *mysql = mysql_init(NULL);
-   if (rpl_connect_master(mysql))
-   {
-     // do stuff with the connection
-   }
-   mysql_close(mysql); // close the connection
-   @endcode
-   
-   @param mysql address of MYSQL structure to use, pass NULL will
-   create a new one
-
-   @return address of MYSQL structure on success, NULL on failure
-*/
-MYSQL *rpl_connect_master(MYSQL *mysql);
-
-/**
    Set thread entering a condition
 
    This function should be called before putting a thread to wait for
