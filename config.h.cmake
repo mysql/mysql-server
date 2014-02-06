@@ -356,10 +356,6 @@
 # define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)
 #endif
-/* We don't want the min/max macros */
-#ifdef _WIN32
-#define NOMINMAX
-#endif
 
 /*
    Memcached config options

@@ -20,7 +20,6 @@
 #include "sql_const.h"
 /* memcpy */
 #include "string.h"
-using std::min;
 
 /**
   @file storage/perfschema/pfs_stat.h

@@ -53,6 +53,9 @@ SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -D_WIN32_WINNT=0x0600")
 
 # Speed up build process excluding unused header files
 ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
+
+# We want to use std::min/std::max, not the windows.h macros
+ADD_DEFINITIONS("-DNOMINMAX")
   
 # Should be available on Windows Server 2003 and above.
 CHECK_CXX_SOURCE_COMPILES(
