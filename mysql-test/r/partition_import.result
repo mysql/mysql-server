@@ -861,8 +861,120 @@ col18	col24
 DROP VIEW VW1;
 DROP TABLE t1;
 DROP TABLE trigger_table;
+# DISCARD/IMPORT selected partitions only
+CREATE TABLE t1 (c1 INT) ENGINE = Innodb
+PARTITION BY HASH (c1) PARTITIONS 3;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
+SELECT c1 FROM t1;
+c1
+3
+6
+1
+4
+2
+5
+FLUSH TABLES t1 FOR EXPORT;
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+backup: t1#P#p0
+backup: t1#P#p1
+backup: t1#P#p2
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT) ENGINE = Innodb
+PARTITION BY HASH (c1) PARTITIONS 3;
+INSERT INTO t1 VALUES (31), (32), (33);
+ALTER TABLE t1 DISCARD PARTITION p0,p2 TABLESPACE;
+restore: t1#P#p0 .ibd and .cfg files
+restore: t1#P#p2 .ibd and .cfg files
+ALTER TABLE t1 IMPORT PARTITION p0, p2 TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1
+2
+3
+5
+6
+31
+ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+restore: t1#P#p1 .ibd and .cfg files
+ALTER TABLE t1 IMPORT PARTITION p1 TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+INSERT INTO t1 VALUES (31), (32), (33);
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+31
+32
+33
+ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
+restore: t1#P#p0 .ibd and .cfg files
+restore: t1#P#p1 .ibd and .cfg files
+restore: t1#P#p2 .ibd and .cfg files
+ALTER TABLE t1 IMPORT PARTITION p1 TABLESPACE;
+SELECT * FROM t1 PARTITION (p1) ORDER BY c1;
+c1
+1
+4
+INSERT INTO t1 PARTITION (p1) VALUES (61), (64);
+FLUSH TABLES;
+SELECT * FROM t1 PARTITION (p1) ORDER BY c1;
+c1
+1
+4
+61
+64
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
+SELECT * FROM t1 ORDER BY c1;
+ERROR HY000: Tablespace has been discarded for table 't1'
+ALTER TABLE t1 DISCARD PARTITION TABLESPACE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ALTER TABLE t1 IMPORT PARTITION TABLESPACE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ALTER TABLE t1 DISCARD PARTITION pNonExisting TABLESPACE;
+ERROR HY000: Unknown partition 'pNonExisting' in table 't1'
+ALTER TABLE t1 IMPORT PARTITION pNonExisting TABLESPACE;
+ERROR HY000: Unknown partition 'pNonExisting' in table 't1'
+ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+restore: t1#P#p1 .ibd and .cfg files
+ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB;
+ALTER TABLE t1 DISCARD PARTITION pNonExisting TABLESPACE;
+ERROR HY000: Partition management on a not partitioned table is not possible
+ALTER TABLE t1 IMPORT PARTITION pNonExisting TABLESPACE;
+ERROR HY000: Partition management on a not partitioned table is not possible
+DROP TABLE t1;
 call mtr.add_suppression("Got error -1 when reading table '.*'");
 call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
+call mtr.add_suppression("InnoDB: Cannot calculate statistics for table .* because the .ibd file is missing");
 SET GLOBAL INNODB_FILE_FORMAT=Antelope;
 SET GLOBAL INNODB_FILE_PER_TABLE=1;
