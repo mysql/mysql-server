@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,8 @@ const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
-static int copy_data_between_tables(TABLE *from,TABLE *to,
+static int copy_data_between_tables(PSI_stage_progress *psi,
+                                    TABLE *from,TABLE *to,
                                     List<Create_field> &create,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted,
@@ -8587,7 +8588,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
         goto err_new_table_cleanup;
       });
-    if (copy_data_between_tables(table, new_table,
+    if (copy_data_between_tables(thd->m_stage_progress_psi,
+                                 table, new_table,
                                  alter_info->create_list,
                                  order_num, order, &copied, &deleted,
                                  alter_info->keys_onoff,
@@ -8913,7 +8915,8 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
 
 
 static int
-copy_data_between_tables(TABLE *from,TABLE *to,
+copy_data_between_tables(PSI_stage_progress *psi,
+                         TABLE *from,TABLE *to,
 			 List<Create_field> &create,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
@@ -9087,7 +9090,11 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       }
     }
     else
+    {
+      DEBUG_SYNC(thd, "copy_data_between_tables_before");
       found_count++;
+      mysql_stage_set_work_completed(psi, found_count);
+    }
     thd->get_stmt_da()->inc_current_row_for_condition();
   }
   end_read_record(&info);

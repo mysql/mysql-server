@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1136,6 +1136,13 @@ struct PSI_digest_locker_state
 };
 typedef struct PSI_digest_locker_state PSI_digest_locker_state;
 
+struct PSI_stage_progress
+{
+  ulonglong m_work_completed;
+  ulonglong m_work_estimated;
+};
+typedef struct PSI_stage_progress PSI_stage_progress;
+
 /* Duplicate of NAME_LEN, to avoid dependency on mysql_com.h */
 #define PSI_SCHEMA_NAME_LEN (64 * 3)
 
@@ -1890,9 +1897,12 @@ typedef void (*end_file_close_wait_v1_t)
   @param key the key of the new stage
   @param src_file the source file name
   @param src_line the source line number
+  @return the new stage progress
 */
-typedef void (*start_stage_v1_t)
+typedef PSI_stage_progress* (*start_stage_v1_t)
   (PSI_stage_key key, const char *src_file, int src_line);
+
+typedef PSI_stage_progress* (*get_current_stage_progress_v1_t)(void);
 
 /** End the current stage. */
 typedef void (*end_stage_v1_t) (void);
@@ -2452,6 +2462,8 @@ struct PSI_v1
   end_file_close_wait_v1_t end_file_close_wait;
   /** @sa start_stage_v1_t. */
   start_stage_v1_t start_stage;
+  /** @sa get_current_stage_progress_v1_t. */
+  get_current_stage_progress_v1_t get_current_stage_progress;
   /** @sa end_stage_v1_t. */
   end_stage_v1_t end_stage;
   /** @sa get_thread_statement_locker_v1_t. */

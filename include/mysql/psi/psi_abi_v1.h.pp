@@ -314,6 +314,12 @@ struct PSI_digest_locker_state
   PSI_digest_storage m_digest_storage;
 };
 typedef struct PSI_digest_locker_state PSI_digest_locker_state;
+struct PSI_stage_progress
+{
+  ulonglong m_work_completed;
+  ulonglong m_work_estimated;
+};
+typedef struct PSI_stage_progress PSI_stage_progress;
 struct PSI_statement_locker_state_v1
 {
   my_bool m_discarded;
@@ -529,8 +535,9 @@ typedef void (*start_file_close_wait_v1_t)
   (struct PSI_file_locker *locker, const char *src_file, uint src_line);
 typedef void (*end_file_close_wait_v1_t)
   (struct PSI_file_locker *locker, int rc);
-typedef void (*start_stage_v1_t)
+typedef PSI_stage_progress* (*start_stage_v1_t)
   (PSI_stage_key key, const char *src_file, int src_line);
+typedef PSI_stage_progress* (*get_current_stage_progress_v1_t)(void);
 typedef void (*end_stage_v1_t) (void);
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
@@ -728,6 +735,7 @@ struct PSI_v1
   start_file_close_wait_v1_t start_file_close_wait;
   end_file_close_wait_v1_t end_file_close_wait;
   start_stage_v1_t start_stage;
+  get_current_stage_progress_v1_t get_current_stage_progress;
   end_stage_v1_t end_stage;
   get_thread_statement_locker_v1_t get_thread_statement_locker;
   refine_statement_v1_t refine_statement;

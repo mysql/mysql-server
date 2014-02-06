@@ -618,8 +618,13 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     m_current_stage_key= new_stage->m_key;
     proc_info= msg;
 
-    MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
+    m_stage_progress_psi= MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
   }
+  else
+  {
+    m_stage_progress_psi= NULL;
+  }
+
   return;
 }
 
@@ -885,6 +890,7 @@ THD::THD(bool enable_plugins)
    m_trans_end_pos(0),
    table_map_for_update(0),
    m_examined_row_count(0),
+   m_stage_progress_psi(NULL),
    m_statement_psi(NULL),
    m_transaction_psi(NULL),
    m_idle_psi(NULL),

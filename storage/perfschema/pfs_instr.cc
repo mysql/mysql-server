@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1019,6 +1019,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
       pfs->m_command= 0;
       pfs->m_start_time= 0;
       pfs->m_stage= 0;
+      pfs->m_stage_progress= NULL;
       pfs->m_processlist_info[0]= '\0';
       pfs->m_processlist_info_length= 0;
 
