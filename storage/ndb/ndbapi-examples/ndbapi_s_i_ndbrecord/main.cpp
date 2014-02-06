@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -357,11 +357,13 @@ int main(int argc, char** argv)
 
       if (myTransaction->execute( NdbTransaction::Commit,
                                   NdbOperation::AbortOnError ) == -1)
+      {
         if (i == 3) {
           std::cout << "Detected that deleted tuple doesn't exist!\n";
         } else {
           APIERROR(myTransaction->getNdbError());
         }
+      }
       
       if (i != 3) 
         printf(" %2d    %2d\n", row.attr1, row.attr2);
