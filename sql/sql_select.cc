@@ -3535,6 +3535,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   if (conds && const_count)
   { 
     conds= remove_eq_conds(join->thd, conds, &join->cond_value);
+    join->select_lex->where= conds;
     if (join->cond_value == Item::COND_FALSE)
     {
       join->impossible_where= true;
