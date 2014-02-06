@@ -6222,14 +6222,15 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
   IO_CACHE *cache= &cache_data->cache_log;
   bool incident= cache_data->has_incident();
 
-  DBUG_EXECUTE_IF("simulate_binlog_flush_error",
-                  {
-                    if (rand() % 3 == 0)
+  if (gtid_mode == GTID_MODE_OFF)
+    DBUG_EXECUTE_IF("simulate_binlog_flush_error",
                     {
-                      write_error=1;
-                      goto err;
-                    }
-                  };);
+                      if (rand() % 3 == 0)
+                      {
+                        write_error=1;
+                        goto err;
+                      }
+                    };);
 
   mysql_mutex_assert_owner(&LOCK_log);
 
