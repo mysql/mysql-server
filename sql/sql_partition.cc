@@ -224,16 +224,16 @@ Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs)
     @retval false  String not found
 */
 
-static bool is_name_in_list(char *name, List<char> list_names)
+static bool is_name_in_list(char *name, List<String> list_names)
 {
-  List_iterator<char> names_it(list_names);
+  List_iterator<String> names_it(list_names);
   uint num_names= list_names.elements;
   uint i= 0;
 
   do
   {
-    char *list_name= names_it++;
-    if (!(my_strcasecmp(system_charset_info, name, list_name)))
+    String *list_name= names_it++;
+    if (!(my_strcasecmp(system_charset_info, name, list_name->c_ptr())))
       return TRUE;
   } while (++i < num_names);
   return FALSE;
