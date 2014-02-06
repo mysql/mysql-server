@@ -244,8 +244,8 @@ trx_undo_page_report_insert(
 
 	/* Store first some general parameters to the undo log */
 	*ptr++ = TRX_UNDO_INSERT_REC;
-	ptr += mach_ull_write_much_compressed(ptr, trx->undo_no);
-	ptr += mach_ull_write_much_compressed(ptr, index->table->id);
+	ptr += mach_u64_write_much_compressed(ptr, trx->undo_no);
+	ptr += mach_u64_write_much_compressed(ptr, index->table->id);
 	/*----------------------------------------*/
 	/* Store then the fields required to uniquely determine the record
 	to be inserted in the clustered index */
@@ -293,7 +293,7 @@ trx_undo_rec_get_pars(
 	undo_no_t*	undo_no,	/*!< out: undo log record number */
 	table_id_t*	table_id)	/*!< out: table id */
 {
-	byte*		ptr;
+	const byte*	ptr;
 	ulint		type_cmpl;
 
 	ptr = undo_rec + 2;
@@ -307,31 +307,29 @@ trx_undo_rec_get_pars(
 	*type = type_cmpl & (TRX_UNDO_CMPL_INFO_MULT - 1);
 	*cmpl_info = type_cmpl / TRX_UNDO_CMPL_INFO_MULT;
 
-	*undo_no = mach_ull_read_much_compressed(ptr);
-	ptr += mach_ull_get_much_compressed_size(*undo_no);
+	*undo_no = mach_read_next_much_compressed(&ptr);
+	*table_id = mach_read_next_much_compressed(&ptr);
 
-	*table_id = mach_ull_read_much_compressed(ptr);
-	ptr += mach_ull_get_much_compressed_size(*table_id);
-
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
-/**********************************************************************//**
-Reads from an undo log record a stored column value.
+/** Read from an undo log record a stored column value.
+@param[in,out]	ptr		pointer to remaining part of the undo record
+@param[out]	field		stored field
+@param[out]	len		length of the field, or UNIV_SQL_NULL
+@param[out]	orig_len	original length of the locally stored part
+of an externally stored column, or 0
 @return remaining part of undo log record after reading these values */
 static
 byte*
 trx_undo_rec_get_col_val(
 /*=====================*/
-	byte*	ptr,	/*!< in: pointer to remaining part of undo log record */
-	byte**	field,	/*!< out: pointer to stored field */
-	ulint*	len,	/*!< out: length of the field, or UNIV_SQL_NULL */
-	ulint*	orig_len)/*!< out: original length of the locally
-			stored part of an externally stored column, or 0 */
+	const byte*	ptr,
+	const byte**	field,
+	ulint*		len,
+	ulint*		orig_len)
 {
-	*len = mach_read_compressed(ptr);
-	ptr += mach_get_compressed_size(*len);
-
+	*len = mach_read_next_compressed(&ptr);
 	*orig_len = 0;
 
 	switch (*len) {
@@ -339,10 +337,8 @@ trx_undo_rec_get_col_val(
 		*field = NULL;
 		break;
 	case UNIV_EXTERN_STORAGE_FIELD:
-		*orig_len = mach_read_compressed(ptr);
-		ptr += mach_get_compressed_size(*orig_len);
-		*len = mach_read_compressed(ptr);
-		ptr += mach_get_compressed_size(*len);
+		*orig_len = mach_read_next_compressed(&ptr);
+		*len = mach_read_next_compressed(&ptr);
 		*field = ptr;
 		ptr += *len;
 
@@ -368,7 +364,7 @@ trx_undo_rec_get_col_val(
 		}
 	}
 
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 /*******************************************************************//**
@@ -403,7 +399,7 @@ trx_undo_rec_get_row_ref(
 
 	for (i = 0; i < ref_len; i++) {
 		dfield_t*	dfield;
-		byte*		field;
+		const byte*	field;
 		ulint		len;
 		ulint		orig_len;
 
@@ -437,9 +433,9 @@ trx_undo_rec_skip_row_ref(
 	ref_len = dict_index_get_n_unique(index);
 
 	for (i = 0; i < ref_len; i++) {
-		byte*	field;
-		ulint	len;
-		ulint	orig_len;
+		const byte*	field;
+		ulint		len;
+		ulint		orig_len;
 
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
 	}
@@ -609,9 +605,9 @@ trx_undo_page_report_modify(
 	type_cmpl_ptr = ptr;
 
 	*ptr++ = (byte) type_cmpl;
-	ptr += mach_ull_write_much_compressed(ptr, trx->undo_no);
+	ptr += mach_u64_write_much_compressed(ptr, trx->undo_no);
 
-	ptr += mach_ull_write_much_compressed(ptr, table->id);
+	ptr += mach_u64_write_much_compressed(ptr, table->id);
 
 	/*----------------------------------------*/
 	/* Store the state of the info bits */
@@ -633,14 +629,14 @@ trx_undo_page_report_modify(
 	if (ignore_prefix) {
 		ignore_prefix = (trx_id != trx->id);
 	}
-	ptr += mach_ull_write_compressed(ptr, trx_id);
+	ptr += mach_u64_write_compressed(ptr, trx_id);
 
 	field = rec_get_nth_field(rec, offsets,
 				  dict_index_get_sys_col_pos(
 					  index, DATA_ROLL_PTR), &flen);
 	ut_ad(flen == DATA_ROLL_PTR_LEN);
 
-	ptr += mach_ull_write_compressed(ptr, trx_read_roll_ptr(field));
+	ptr += mach_u64_write_compressed(ptr, trx_read_roll_ptr(field));
 
 	/*----------------------------------------*/
 	/* Store then the fields required to uniquely determine the
@@ -863,7 +859,7 @@ version.
 byte*
 trx_undo_update_rec_get_sys_cols(
 /*=============================*/
-	byte*		ptr,		/*!< in: remaining part of undo
+	const byte*	ptr,		/*!< in: remaining part of undo
 					log record after reading
 					general parameters */
 	trx_id_t*	trx_id,		/*!< out: trx id */
@@ -876,45 +872,10 @@ trx_undo_update_rec_get_sys_cols(
 
 	/* Read the values of the system columns */
 
-	*trx_id = mach_ull_read_compressed(ptr);
-	ptr += mach_ull_get_compressed_size(*trx_id);
+	*trx_id = mach_u64_read_next_compressed(&ptr);
+	*roll_ptr = mach_u64_read_next_compressed(&ptr);
 
-	*roll_ptr = mach_ull_read_compressed(ptr);
-	ptr += mach_ull_get_compressed_size(*roll_ptr);
-
-	return(ptr);
-}
-
-/**********************************************************************//**
-Reads from an update undo log record the number of updated fields.
-@return remaining part of undo log record after reading this value */
-UNIV_INLINE
-byte*
-trx_undo_update_rec_get_n_upd_fields(
-/*=================================*/
-	byte*	ptr,	/*!< in: pointer to remaining part of undo log record */
-	ulint*	n)	/*!< out: number of fields */
-{
-	*n = mach_read_compressed(ptr);
-	ptr += mach_get_compressed_size(*n);
-
-	return(ptr);
-}
-
-/**********************************************************************//**
-Reads from an update undo log record a stored field number.
-@return remaining part of undo log record after reading this value */
-UNIV_INLINE
-byte*
-trx_undo_update_rec_get_field_no(
-/*=============================*/
-	byte*	ptr,	/*!< in: pointer to remaining part of undo log record */
-	ulint*	field_no)/*!< out: field number */
-{
-	*field_no = mach_read_compressed(ptr);
-	ptr += mach_get_compressed_size(*field_no);
-
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 /*******************************************************************//**
@@ -925,7 +886,7 @@ means that the record is corrupted */
 byte*
 trx_undo_update_rec_get_update(
 /*===========================*/
-	byte*		ptr,	/*!< in: remaining part in update undo log
+	const byte*	ptr,	/*!< in: remaining part in update undo log
 				record, after reading the row reference
 				NOTE that this copy of the undo log record must
 				be preserved as long as the update vector is
@@ -954,7 +915,7 @@ trx_undo_update_rec_get_update(
 	ut_a(dict_index_is_clust(index));
 
 	if (type != TRX_UNDO_DEL_MARK_REC) {
-		ptr = trx_undo_update_rec_get_n_upd_fields(ptr, &n_fields);
+		n_fields = mach_read_next_compressed(&ptr);
 	} else {
 		n_fields = 0;
 	}
@@ -991,12 +952,12 @@ trx_undo_update_rec_get_update(
 
 	for (i = 0; i < n_fields; i++) {
 
-		byte*	field;
-		ulint	len;
-		ulint	field_no;
-		ulint	orig_len;
+		const byte*	field;
+		ulint		len;
+		ulint		field_no;
+		ulint		orig_len;
 
-		ptr = trx_undo_update_rec_get_field_no(ptr, &field_no);
+		field_no = mach_read_next_compressed(&ptr);
 
 		if (field_no >= dict_index_get_n_fields(index)) {
 			std::string	str = ut_get_name(
@@ -1043,7 +1004,7 @@ trx_undo_update_rec_get_update(
 
 	*upd = update;
 
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 /*******************************************************************//**
@@ -1055,7 +1016,7 @@ Any missing columns are indicated by col->mtype == DATA_MISSING.
 byte*
 trx_undo_rec_get_partial_row(
 /*=========================*/
-	byte*		ptr,	/*!< in: remaining part in update undo log
+	const byte*	ptr,	/*!< in: remaining part in update undo log
 				record of a suitable type, at the start of
 				the stored index columns;
 				NOTE that this copy of the undo log record must
@@ -1095,14 +1056,14 @@ trx_undo_rec_get_partial_row(
 
 	while (ptr != end_ptr) {
 		dfield_t*		dfield;
-		byte*			field;
+		const byte*		field;
 		ulint			field_no;
 		const dict_col_t*	col;
 		ulint			col_no;
 		ulint			len;
 		ulint			orig_len;
 
-		ptr = trx_undo_update_rec_get_field_no(ptr, &field_no);
+		field_no = mach_read_next_compressed(&ptr);
 
 		col = dict_index_get_nth_col(index, field_no);
 		col_no = dict_col_get_no(col);
@@ -1135,7 +1096,7 @@ trx_undo_rec_get_partial_row(
 		}
 	}
 
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 #endif /* !UNIV_HOTBACKUP */
 
