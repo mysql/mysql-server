@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -508,6 +508,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   pfs_lock m_stmt_lock;
   /** Processlist state (derived from stage). */
   PFS_stage_key m_stage;
+  /** Current stage progress. */
+  PSI_stage_progress* m_stage_progress;
   /**
     Processlist info.
     Protected by @c m_stmt_lock.

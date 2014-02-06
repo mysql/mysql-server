@@ -2311,6 +2311,9 @@ public:
   PROFILING  profiling;
 #endif
 
+  /** Current stage progress instrumentation. */
+  PSI_stage_progress *m_stage_progress_psi;
+
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
