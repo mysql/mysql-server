@@ -415,17 +415,20 @@ int Gtid_table_persistor::compress_first_consecutive_gtids(TABLE* table)
       }
     }
     else if (find_first_consecutive_row)
-    {
-      /* Set the last GNO in the last consecutive gtid. */
-      last_gno_end= prev_gno_end;
       break;
-    }
 
     prev_sid= cur_sid;
     prev_gno_start= cur_gno_start;
     prev_gno_end= cur_gno_end;
     err= table->file->ha_index_next(table->record[0]);
   }
+
+  /*
+    Set the last GNO to the last consecutive gtid in the first consecutive
+    gtids range in both 'err == HA_ERR_END_OF_FILE' and 'err == 0' cases.
+  */
+  if (find_first_consecutive_row)
+    last_gno_end= prev_gno_end;
 
   table->file->ha_index_end();
   if (err != HA_ERR_END_OF_FILE && err != 0)
