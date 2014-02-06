@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -448,10 +448,17 @@ static void end_file_close_wait_noop(PSI_file_locker *locker NNN,
   return;
 }
 
-static void start_stage_noop(PSI_stage_key key NNN,
-                             const char *src_file NNN, int src_line NNN)
+static PSI_stage_progress*
+start_stage_noop(PSI_stage_key key NNN,
+                 const char *src_file NNN, int src_line NNN)
 {
-  return;
+  return NULL;
+}
+
+static PSI_stage_progress*
+get_current_stage_progress_noop()
+{
+  return NULL;
 }
 
 static void end_stage_noop(void)
@@ -880,6 +887,7 @@ static PSI PSI_noop=
   start_file_close_wait_noop,
   end_file_close_wait_noop,
   start_stage_noop,
+  get_current_stage_progress_noop,
   end_stage_noop,
   get_thread_statement_locker_noop,
   refine_statement_noop,

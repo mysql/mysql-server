@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -1064,6 +1064,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_current("
   "TIMER_START BIGINT unsigned,"
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
+  "WORK_COMPLETED BIGINT unsigned,"
+  "WORK_ESTIMATED BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -1086,6 +1088,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history("
   "TIMER_START BIGINT unsigned,"
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
+  "WORK_COMPLETED BIGINT unsigned,"
+  "WORK_ESTIMATED BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -1108,6 +1112,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history_long("
   "TIMER_START BIGINT unsigned,"
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
+  "WORK_COMPLETED BIGINT unsigned,"
+  "WORK_ESTIMATED BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";

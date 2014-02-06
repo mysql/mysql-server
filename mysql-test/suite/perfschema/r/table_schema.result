@@ -15,8 +15,10 @@ def	performance_schema	events_stages_current	SOURCE	5	NULL	YES	varchar	64	192	NU
 def	performance_schema	events_stages_current	TIMER_START	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_current	TIMER_END	7	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_current	TIMER_WAIT	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_stages_current	NESTING_EVENT_ID	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_stages_current	NESTING_EVENT_TYPE	10	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references	
+def	performance_schema	events_stages_current	WORK_COMPLETED	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_stages_current	WORK_ESTIMATED	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_stages_current	NESTING_EVENT_ID	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_stages_current	NESTING_EVENT_TYPE	12	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references	
 def	performance_schema	events_stages_history	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_history	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_history	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
@@ -25,8 +27,10 @@ def	performance_schema	events_stages_history	SOURCE	5	NULL	YES	varchar	64	192	NU
 def	performance_schema	events_stages_history	TIMER_START	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_history	TIMER_END	7	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_history	TIMER_WAIT	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_stages_history	NESTING_EVENT_ID	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_stages_history	NESTING_EVENT_TYPE	10	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references	
+def	performance_schema	events_stages_history	WORK_COMPLETED	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_stages_history	WORK_ESTIMATED	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_stages_history	NESTING_EVENT_ID	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_stages_history	NESTING_EVENT_TYPE	12	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references	
 def	performance_schema	events_stages_history_long	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_history_long	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_history_long	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
@@ -35,8 +39,10 @@ def	performance_schema	events_stages_history_long	SOURCE	5	NULL	YES	varchar	64	1
 def	performance_schema	events_stages_history_long	TIMER_START	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_history_long	TIMER_END	7	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_stages_history_long	TIMER_WAIT	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_stages_history_long	NESTING_EVENT_ID	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_stages_history_long	NESTING_EVENT_TYPE	10	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references	
+def	performance_schema	events_stages_history_long	WORK_COMPLETED	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_stages_history_long	WORK_ESTIMATED	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_stages_history_long	NESTING_EVENT_ID	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_stages_history_long	NESTING_EVENT_TYPE	12	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references	
 def	performance_schema	events_stages_summary_by_account_by_event_name	USER	1	NULL	YES	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references	
 def	performance_schema	events_stages_summary_by_account_by_event_name	HOST	2	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
 def	performance_schema	events_stages_summary_by_account_by_event_name	EVENT_NAME	3	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
