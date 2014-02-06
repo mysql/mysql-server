@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -322,11 +322,13 @@ static void do_read(Ndb &myNdb, const char* table)
     if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
     
     if(myTransaction->execute( NdbTransaction::Commit ) == -1)
+    {
       if (i == 3) {
 	std::cout << "Detected that deleted tuple doesn't exist!" << std::endl;
       } else {
 	APIERROR(myTransaction->getNdbError());
       }
+    }
     
     if (i != 3) {
       printf(" %2d    %2d\n", i, myRecAttr->u_32_value());

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -671,10 +671,12 @@ static void do_read(Ndb &myNdb, ApiType accessType)
       APIERROR(myTransaction->getNdbError());
     
     if (myTransaction->getNdbError().classification == NdbError::NoDataFound)
+    {
       if (i == 3)
         std::cout << "Detected that deleted tuple doesn't exist!" << std::endl;
       else
 	APIERROR(myTransaction->getNdbError());
+    }
     
     switch (accessType)
     {
@@ -773,11 +775,12 @@ static void do_mixed_read(Ndb &myNdb)
       APIERROR(myTransaction->getNdbError());
     
     if (myTransaction->getNdbError().classification == NdbError::NoDataFound)
+    {
       if (i == 3)
         std::cout << "Detected that deleted tuple doesn't exist!" << std::endl;
       else
 	APIERROR(myTransaction->getNdbError());
-
+    }
 
     if (i !=3) {
       printf(" %2d    %2d    %2d    %d\n", 
