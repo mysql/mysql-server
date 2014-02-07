@@ -3319,10 +3319,10 @@ int ha_tokudb::end_bulk_insert(bool abort) {
     if (loader) {
         if (!abort_loader && !thd->killed) {
             DBUG_EXECUTE_IF("tokudb_end_bulk_insert_sleep", {
-                const char *old_proc_info= thd->proc_info;
-                thd->proc_info= "DBUG sleep";
+                const char *old_proc_info = tokudb_thd_get_proc_info(thd);
+                thd_proc_info(thd, "DBUG sleep");
                 my_sleep(20000000);
-                thd->proc_info= old_proc_info;
+                thd_proc_info(thd, old_proc_info);
             });
             error = loader->close(loader);
             loader = NULL;
@@ -3399,6 +3399,7 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
     uint64_t cnt = 0;
     char status_msg[MAX_ALIAS_NAME + 200]; //buffer of 200 should be a good upper bound.
     THD* thd = ha_thd();
+    const char *old_proc_info = tokudb_thd_get_proc_info(thd);
     memset(&key1, 0, sizeof(key1));
     memset(&key2, 0, sizeof(key2));
     memset(&val, 0, sizeof(val));
@@ -3535,6 +3536,7 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
     error = 0;
 
 cleanup:
+    thd_proc_info(thd, old_proc_info);
     if (tmp_cursor1) {
         tmp_cursor1->c_close(tmp_cursor1);
         tmp_cursor1 = NULL;
@@ -7601,6 +7603,7 @@ int ha_tokudb::tokudb_add_index(
     //
     // status message to be shown in "show process list"
     //
+    const char *old_proc_info = tokudb_thd_get_proc_info(thd);
     char status_msg[MAX_ALIAS_NAME + 200]; //buffer of 200 should be a good upper bound.
     ulonglong num_processed = 0; //variable that stores number of elements inserted thus far
     thd_proc_info(thd, "Adding indexes");
@@ -7921,6 +7924,7 @@ cleanup:
 another transaction has accessed the table. \
 To add indexes, make sure no transactions touch the table.", share->table_name);
     }
+    thd_proc_info(thd, old_proc_info);
     TOKUDB_HANDLER_DBUG_RETURN(error ? error : loader_error);
 }
 
