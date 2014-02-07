@@ -1,10 +1,11 @@
-=== modified file 'libmysql/libmysql.c'
---- libmysql/libmysql.c	revid:balasubramanian.kandasamy@oracle.com-20131028081059-dwfzrnsaooolu5sn
-+++ libmysql/libmysql.c	2013-10-28 08:42:38 +0000
-@@ -4950,3 +4950,604 @@
+diff -rup old/libmysql/libmysql.c new/libmysql/libmysql.c
+--- old/libmysql/libmysql.c	2013-11-04 16:36:39.000000000 +0100
++++ new/libmysql/libmysql.c	2014-01-14 13:56:00.751905476 +0100
+@@ -4950,3 +4950,614 @@ mysql_reset_connection(MYSQL *mysql)
      DBUG_RETURN(0);
    }
  }
++
 +#ifndef EMBEDDED_LIBRARY
 +
 +// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
@@ -32,8 +33,7 @@
 +SYM_16(mysql_autocommit);
 +
 +
-+my_bool	STDCALL symver16_mysql_change_user(MYSQL *mysql, const char *user,
-+				  const char *passwd, const char *db)
++my_bool STDCALL symver16_mysql_change_user(MYSQL *mysql, const char *user, const char *passwd, const char *db)
 +{
 +  return mysql_change_user(mysql, user, passwd, db);
 +}
@@ -108,6 +108,7 @@
 +  return mysql_fetch_field_direct(res, fieldnr);
 +}
 +SYM_16(mysql_fetch_field_direct);
++
 +
 +MYSQL_FIELD * STDCALL symver16_mysql_fetch_fields(MYSQL_RES *res)
 +{
@@ -253,6 +254,7 @@
 +  return mysql_next_result(mysql);
 +}
 +SYM_16(mysql_next_result);
++
 +
 +int STDCALL symver16_mysql_ping(MYSQL *mysql)
 +{
@@ -604,13 +606,20 @@
 +}
 +SYM_16(mysql_real_connect);
 +
++/*****/
++
++my_bool symver16_my_init(void)
++{
++  return my_init();
++}
++SYM_16(my_init);
++
 +#endif
 +
-
-=== modified file 'libmysql/libmysql.ver.in'
---- libmysql/libmysql.ver.in	revid:balasubramanian.kandasamy@oracle.com-20131028081059-dwfzrnsaooolu5sn
-+++ libmysql/libmysql.ver.in	2013-10-28 08:41:06 +0000
-@@ -1,1 +1,136 @@
+diff -rup old/libmysql/libmysql.ver.in new/libmysql/libmysql.ver.in
+--- old/libmysql/libmysql.ver.in	2013-11-04 16:36:39.000000000 +0100
++++ new/libmysql/libmysql.ver.in	2014-01-14 13:53:17.166196747 +0100
+@@ -1 +1,136 @@
 -libmysqlclient_@SHARED_LIB_MAJOR_VERSION@ { global: *; };
 +libmysqlclient_16
 +{
@@ -748,11 +757,10 @@
 +    #mysql_client_errors;
 +    *;
 +} libmysqlclient_16;
-
-=== modified file 'mysys/charset.c'
---- mysys/charset.c	revid:balasubramanian.kandasamy@oracle.com-20131028081059-dwfzrnsaooolu5sn
-+++ mysys/charset.c	2013-10-28 08:41:06 +0000
-@@ -1034,3 +1034,20 @@
+diff -rup old/mysys/charset.c new/mysys/charset.c
+--- old/mysys/charset.c	2013-11-04 16:36:38.000000000 +0100
++++ new/mysys/charset.c	2014-01-14 13:53:17.208199239 +0100
+@@ -1034,3 +1034,20 @@ size_t escape_quotes_for_mysql(CHARSET_I
    *to= 0;
    return overflow ? (ulong)~0 : (ulong) (to - to_start);
  }
@@ -773,13 +781,12 @@
 +}
 +
 +#endif
-
-=== modified file 'mysys/my_init.c'
---- mysys/my_init.c	revid:balasubramanian.kandasamy@oracle.com-20131028081059-dwfzrnsaooolu5sn
-+++ mysys/my_init.c	2013-10-28 08:41:06 +0000
-@@ -585,3 +585,16 @@
+diff -rup old/sql/auth/password.c new/sql/auth/password.c
+--- old/sql/auth/password.c	2013-11-04 16:36:39.000000000 +0100
++++ new/sql/auth/password.c	2014-01-14 13:53:17.234200782 +0100
+@@ -584,3 +584,16 @@ void make_password_from_salt(char *to, c
+   octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
  }
- #endif /* HAVE_PSI_INTERFACE */
  
 +#ifndef EMBEDDED_LIBRARY
 +
@@ -787,81 +794,39 @@
 +
 +#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
 +
-+my_bool symver16_my_init(void)
++void symver16_my_make_scrambled_password(char *to, const char *password, size_t pass_len)
 +{
-+  return my_init();
++  my_make_scrambled_password(to, password, pass_len);
 +}
-+SYM_16(my_init);
++SYM_16(my_make_scrambled_password);
 +
 +#endif
-
-=== modified file 'mysys_ssl/my_default.cc'
---- mysys_ssl/my_default.cc	revid:balasubramanian.kandasamy@oracle.com-20131028081059-dwfzrnsaooolu5sn
-+++ mysys_ssl/my_default.cc	2013-10-28 08:41:06 +0000
-@@ -1503,3 +1503,24 @@
-   return 2;                                     /* Success */
+diff -rup old/sql/net_serv.cc new/sql/net_serv.cc
+--- old/sql/net_serv.cc	2013-11-04 16:36:39.000000000 +0100
++++ new/sql/net_serv.cc	2014-01-14 13:53:17.228200426 +0100
+@@ -1044,3 +1044,15 @@ void my_net_set_write_timeout(NET *net, 
+   DBUG_VOID_RETURN;
  }
  
 +#ifndef EMBEDDED_LIBRARY
 +C_MODE_START
 +
-+// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
++// Hack to provide Fedora symbols
 +
-+#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
-+
-+void symver16_free_defaults(char **argv)
++my_bool mysql_net_realloc(NET *net, size_t length)
 +{
-+  return free_defaults(argv);
++  return net_realloc(net, length);
 +}
-+SYM_16(free_defaults);
-+
-+int symver16_load_defaults(const char *conf_file, const char **groups, int *argc, char ***argv)
-+{
-+  return load_defaults(conf_file, groups, argc, argv);
-+}
-+SYM_16(load_defaults);
 +
 +C_MODE_END
 +#endif
-
-=== modified file 'mysys_ssl/my_getopt.cc'
---- mysys_ssl/my_getopt.cc	revid:balasubramanian.kandasamy@oracle.com-20131028081059-dwfzrnsaooolu5sn
-+++ mysys_ssl/my_getopt.cc	2013-10-28 08:41:06 +0000
-@@ -1569,3 +1569,25 @@
-     }
-   }
- }
-+
-+#ifndef EMBEDDED_LIBRARY
-+C_MODE_START
-+
-+// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
-+
-+#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
-+
-+int symver16_handle_options(int *argc, char ***argv, const struct my_option *longopts, my_get_one_option get_one_option)
-+{
-+  return handle_options(argc, argv, longopts, get_one_option);
-+}
-+SYM_16(handle_options);
-+
-+void symver16_my_print_help(const struct my_option *options)
-+{
-+  return my_print_help(options);
-+}
-+SYM_16(my_print_help);
-+
-+C_MODE_END
-+#endif
-
-=== modified file 'sql-common/client.c'
---- sql-common/client.c	revid:balasubramanian.kandasamy@oracle.com-20131028081059-dwfzrnsaooolu5sn
-+++ sql-common/client.c	2013-10-28 08:41:06 +0000
-@@ -5147,3 +5147,136 @@
+diff -rup old/sql-common/client.c new/sql-common/client.c
+--- old/sql-common/client.c	2013-11-04 16:36:39.000000000 +0100
++++ new/sql-common/client.c	2014-01-14 13:58:18.052053332 +0100
+@@ -5381,4 +5381,136 @@ static int clear_password_auth_client(MY
+   return res ? CR_ERROR : CR_OK;
  }
  
- 
-+
 +#ifndef EMBEDDED_LIBRARY
 +
 +// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
@@ -994,45 +959,4 @@
 +SYM_16(mysql_store_result);
 +
 +#endif
-
-=== modified file 'sql/auth/password.c'
---- sql/auth/password.c	revid:balasubramanian.kandasamy@oracle.com-20131028081059-dwfzrnsaooolu5sn
-+++ sql/auth/password.c	2013-10-28 08:41:06 +0000
-@@ -584,3 +584,16 @@
-   octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
- }
  
-+#ifndef EMBEDDED_LIBRARY
-+
-+// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
-+
-+#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
-+
-+void symver16_my_make_scrambled_password(char *to, const char *password, size_t pass_len)
-+{
-+  my_make_scrambled_password(to, password, pass_len);
-+}
-+SYM_16(my_make_scrambled_password);
-+
-+#endif
-
-=== modified file 'sql/net_serv.cc'
---- sql/net_serv.cc	revid:balasubramanian.kandasamy@oracle.com-20131028081059-dwfzrnsaooolu5sn
-+++ sql/net_serv.cc	2013-10-28 08:41:06 +0000
-@@ -1044,3 +1044,15 @@
-   DBUG_VOID_RETURN;
- }
- 
-+#ifndef EMBEDDED_LIBRARY
-+C_MODE_START
-+
-+// Hack to provide Fedora symbols
-+
-+my_bool mysql_net_realloc(NET *net, size_t length)
-+{
-+  return net_realloc(net, length);
-+}
-+
-+C_MODE_END
-+#endif
-
