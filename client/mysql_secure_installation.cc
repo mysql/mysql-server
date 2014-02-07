@@ -668,7 +668,7 @@ int get_root_password()
       exit(1);
     }
   }
-  res= (password[0] != '\0') ? 1 : 0;
+  res= (password && password[0] != '\0') ? 1 : 0;
   return(res);
 }
 
