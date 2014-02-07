@@ -880,9 +880,9 @@ my_bool find_temporary_password(char **p)
   return TRUE;
 
   error:
+    fprintf(stdout, "The password file '%s' is corrupt! Skipping.\n", path);
     if (path)
       free(path);
-    fprintf(stdout, "The password file '%s' is corrupt! Skipping.\n", path);
     return FALSE;
 }
 
