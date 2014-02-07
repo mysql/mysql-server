@@ -79,7 +79,7 @@ void Gtid_table_access_context::drop_thd(THD *thd)
 }
 
 
-int Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
+bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
 {
   DBUG_ENTER("Gtid_table_access_context::init");
 
@@ -93,23 +93,22 @@ int Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
     (*thd)->variables.option_bits&= ~OPTION_BIN_LOG;
   }
   m_saved_mode= (*thd)->variables.sql_mode;
-  if (this->open_table(*thd, m_is_write ? TL_WRITE : TL_READ, table))
-    DBUG_RETURN(1);
+  bool ret= this->open_table(*thd, m_is_write ? TL_WRITE : TL_READ, table);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(ret);
 }
 
 
-void Gtid_table_access_context::deinit(THD* thd, TABLE* table,
+void Gtid_table_access_context::deinit(THD *thd, TABLE *table,
                                        bool error, bool need_commit)
 {
   DBUG_ENTER("Gtid_table_access_context::deinit");
 
   this->close_table(thd, table, 0 != error, need_commit);
+  thd->variables.sql_mode= m_saved_mode;
   /* Reenable binlog */
   if (m_is_write)
     thd->variables.option_bits= m_tmp_disable_binlog__save_options;
-  thd->variables.sql_mode= m_saved_mode;
   if (m_drop_thd_object)
     this->drop_thd(m_drop_thd_object);
 
@@ -117,7 +116,7 @@ void Gtid_table_access_context::deinit(THD* thd, TABLE* table,
 }
 
 
-void Gtid_table_access_context::close_table(THD* thd, TABLE* table,
+void Gtid_table_access_context::close_table(THD *thd, TABLE *table,
                                             bool error, bool need_commit)
 {
   Query_tables_list query_tables_list_backup;
@@ -269,7 +268,7 @@ err:
 }
 
 
-int Gtid_table_persistor::write_row(TABLE* table, const char *sid,
+int Gtid_table_persistor::write_row(TABLE *table, const char *sid,
                                     rpl_gno gno_start, rpl_gno gno_end)
 {
   DBUG_ENTER("Gtid_table_persistor::write_row");
@@ -299,7 +298,7 @@ err:
 }
 
 
-int Gtid_table_persistor::update_row(TABLE* table, const char *sid,
+int Gtid_table_persistor::update_row(TABLE *table, const char *sid,
                                      rpl_gno gno_start, rpl_gno gno_end,
                                      rpl_gno new_gno_end)
 {
@@ -410,7 +409,7 @@ end:
 }
 
 
-int Gtid_table_persistor::compress_first_consecutive_gtids(TABLE* table)
+int Gtid_table_persistor::compress_first_consecutive_gtids(TABLE *table)
 {
   DBUG_ENTER("Gtid_table_persistor::compress_first_consecutive_gtids");
   int ret= 0;
@@ -514,7 +513,7 @@ end:
 }
 
 
-int Gtid_table_persistor::save(TABLE* table, Gtid_set *gtid_set)
+int Gtid_table_persistor::save(TABLE *table, Gtid_set *gtid_set)
 {
   DBUG_ENTER("Gtid_table_persistor::save(TABLE* table, "
              "Gtid_set *gtid_set)");
@@ -552,7 +551,7 @@ int Gtid_table_persistor::save(TABLE* table, Gtid_set *gtid_set)
     @retval -1   Error.
 */
 #ifndef DBUG_OFF
-static int dbug_test_on_compress(THD* thd)
+static int dbug_test_on_compress(THD *thd)
 {
   DBUG_ENTER("dbug_test_on_compress");
   /*
@@ -879,5 +878,4 @@ void terminate_compress_gtid_table_thread()
 
   DBUG_VOID_RETURN;
 }
-
 
