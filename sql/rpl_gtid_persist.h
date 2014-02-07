@@ -33,8 +33,36 @@ public:
 
   Gtid_table_access_context() : m_drop_thd_object(NULL) { };
   virtual ~Gtid_table_access_context() { };
-  int init(THD **thd, TABLE **table, bool is_write);
-  void deinit(THD* thd, TABLE* table, bool error, bool need_commit);
+
+  /**
+    Initialize the gtid table access context as following:
+      - Create a new THD if current_thd is NULL
+      - Disable binlog temporarily if we are going to modify the table
+      - Save the sql mode
+      - Open and lock a table.
+
+    @param[in/out] thd        Thread requesting to open the table
+    @param         lock_type  How to lock the table
+    @param[out]    table      We will store the open table here
+
+    @return
+      @retval TRUE  failed
+      @retval FALSE success
+  */
+  bool init(THD **thd, TABLE **table, bool is_write);
+  /**
+    De-initialize the gtid table access context as following:
+      - Close the table
+      - Restore the sql mode
+      - Reenable binlog if needed
+      - Destroy the created THD if needed.
+
+    @param thd         Thread requesting to close the table
+    @param table       Table to be closed
+    @param error       If there was an error while updating the table
+    @param need_commit Need to commit current transaction if it is true
+  */
+  void deinit(THD *thd, TABLE *table, bool error, bool need_commit);
 private:
   /* Pointer to new created THD. */
   THD *m_drop_thd_object;
@@ -60,7 +88,7 @@ private:
 
     @param thd Thread requesting to be destroyed
   */
-  void drop_thd(THD* thd);
+  void drop_thd(THD *thd);
   /**
     Opens and locks a table.
 
@@ -83,7 +111,7 @@ private:
                                           stack
       @retval FALSE success
   */
-  bool open_table(THD* thd, enum thr_lock_type lock_type, TABLE **table);
+  bool open_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
   /**
     Commits the changes, unlocks the table and closes it. This method
     needs to be called even if the open_table fails, in order to ensure
@@ -104,9 +132,9 @@ private:
     changes.
 
   */
-  void close_table(THD* thd, TABLE* table, bool error, bool need_commit);
+  void close_table(THD *thd, TABLE *table, bool error, bool need_commit);
   /* Prevent user from invoking default assignment function. */
-  Gtid_table_access_context& operator=(const Gtid_table_access_context &info);
+  Gtid_table_access_context &operator=(const Gtid_table_access_context &info);
   /* Prevent user from invoking default constructor function. */
   Gtid_table_access_context(const Gtid_table_access_context &info);
 };
@@ -223,7 +251,7 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int write_row(TABLE* table, const char *sid,
+  int write_row(TABLE *table, const char *sid,
                 rpl_gno gno_start, rpl_gno gno_end);
   /**
     Update a gtid interval in the gtid table.
@@ -238,7 +266,7 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int update_row(TABLE* table, const char *sid,
+  int update_row(TABLE *table, const char *sid,
                  rpl_gno gno_start, rpl_gno gno_end,
                  rpl_gno new_gno_end);
   /**
@@ -250,7 +278,7 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int delete_all(TABLE* table);
+  int delete_all(TABLE *table);
   /**
     Read each row by the PK(sid, gno_start) in increasing order,
     compress the first consecutive gtids range (delete consecutive
@@ -263,14 +291,14 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int compress_first_consecutive_gtids(TABLE* table);
+  int compress_first_consecutive_gtids(TABLE *table);
   /**
     Encode the current row fetched from the table into gtid text.
 
     @param  table Reference to a table object.
     @retval Return the encoded gtid text.
   */
-  string encode_gtid_text(TABLE* table);
+  string encode_gtid_text(TABLE *table);
   /**
     Get gtid interval from the the current row of the table.
 
@@ -279,8 +307,8 @@ private:
     @param  gno_star[out] The first GNO of the gtid interval.
     @param  gno_end[out]  The last GNO of the gtid interval.
   */
-  void get_gtid_interval(TABLE* table, string& sid,
-                         rpl_gno& gno_start, rpl_gno& gno_end);
+  void get_gtid_interval(TABLE *table, string &sid,
+                         rpl_gno &gno_start, rpl_gno &gno_end);
   /**
     Insert the gtid set into table.
 
@@ -295,9 +323,9 @@ private:
     @retval
       -1   Error
   */
-  int save(TABLE* table, Gtid_set *gtid_set);
+  int save(TABLE *table, Gtid_set *gtid_set);
   /* Prevent user from invoking default assignment function. */
-  Gtid_table_persistor& operator=(const Gtid_table_persistor &info);
+  Gtid_table_persistor &operator=(const Gtid_table_persistor &info);
   /* Prevent user from invoking default constructor function. */
   Gtid_table_persistor(const Gtid_table_persistor &info);
 };
