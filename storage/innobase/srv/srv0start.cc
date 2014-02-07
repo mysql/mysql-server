@@ -963,6 +963,8 @@ srv_open_tmp_tablespace(
 		return(DB_SUCCESS);
 	}
 
+	ulint	sum_of_new_sizes;
+
 	/* Will try to remove if there is existing file left-over by last
 	unclean shutdown */
 	tmp_space->set_sanity_check_status(true);
@@ -996,7 +998,8 @@ srv_open_tmp_tablespace(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not create the shared %s.", tmp_space->name());
 
-	} else if ((err = tmp_space->open_or_create()) != DB_SUCCESS) {
+	} else if ((err = tmp_space->open_or_create(
+			&sum_of_new_sizes, NULL, NULL)) != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to create the shared %s", tmp_space->name());
