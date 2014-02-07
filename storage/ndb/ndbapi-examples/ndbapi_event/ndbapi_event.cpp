@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,8 +131,16 @@ int main(int argc, char** argv)
   bool merge_events = argc > 3 && strchr(argv[3], 'm') != 0;
 #ifdef VM_TRACE
   bool dbug = argc > 3 && strchr(argv[3], 'd') != 0;
-  if (dbug) DBUG_PUSH("d:t:");
-  if (dbug) putenv("API_SIGNAL_LOG=-");
+  if (dbug)
+  {
+    // Turn on dbug tracing
+    DBUG_PUSH("d:t:");
+
+    // Print signals to stdout
+    static char env[100];
+    strcpy(env, "API_SIGNAL_LOG=-");
+    putenv(env);
+  }
 #endif
 
   Ndb_cluster_connection *cluster_connection=
