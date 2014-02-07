@@ -275,4 +275,11 @@ UPDATE `test`.`t1` SET `d`='b' WHERE `a`='1' AND `b`='a' AND `c`='1' AND  `d`='a
 INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,'a');
 drop table t1;
 
+--echo #
+--echo # MDEV-5611: self-referencing virtual column
+--echo #
+
+--error ER_VCOL_BASED_ON_VCOL
+create table t1 (a int, b int as (b is null) virtual);
+
 --echo # end of 5.3 tests

@@ -316,4 +316,9 @@ ERROR HY000: The value specified for computed column 'd' in table 't1' ignored
 INSERT INTO `test`.`t1`(`a`,`b`,`c`,`d`) VALUES ( '1','a',NULL,'a');
 ERROR HY000: The value specified for computed column 'd' in table 't1' ignored
 drop table t1;
+#
+# MDEV-5611: self-referencing virtual column
+#
+create table t1 (a int, b int as (b is null) virtual);
+ERROR HY000: A computed column cannot be based on a computed column
 # end of 5.3 tests
