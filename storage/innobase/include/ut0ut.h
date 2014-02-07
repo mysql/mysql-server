@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -90,7 +90,7 @@ if cond becomes true.
 do {								\
 	ullint	start_us;					\
 	start_us = ut_time_us(NULL);				\
-	while (!(cond) 						\
+	while (!(cond)						\
 	       && ut_time_us(NULL) - start_us < (max_wait_us)) {\
 								\
 		os_thread_sleep(2000 /* 2 ms */);		\
