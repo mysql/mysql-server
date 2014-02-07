@@ -140,6 +140,7 @@ my $cmake_version_id;
     # Hardcoded options controlling how to build NDB
     push(@args, "-DWITH_PLUGIN_NDBCLUSTER=1");
     push(@args, "-DWITH_NDB_TEST=1");
+    push(@args, "-DWITH_NDBAPI_EXAMPLES=1");
   }
 
   if ($opt_autotest)
