@@ -263,7 +263,7 @@ static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
 int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
 
-    const char *old_proc_info = thd->proc_info;
+    const char *old_proc_info = tokudb_thd_get_proc_info(thd);
     thd_proc_info(thd, "tokudb::check");
 
     int result = HA_ADMIN_OK;

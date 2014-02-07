@@ -489,4 +489,8 @@ static inline void tokudb_pthread_cond_broadcast(pthread_cond_t *cond) {
 // mysql 5.6.15 removed the test macro, so we define our own
 #define tokudb_test(e) ((e) ? 1 : 0)
 
+static const char *tokudb_thd_get_proc_info(THD *thd) {
+    return thd->proc_info;
+}
+
 #endif // _TOKUDB_PORTABILITY_H

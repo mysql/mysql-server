@@ -1025,8 +1025,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
 static void tokudb_checkpoint_lock(THD * thd) {
     int error;
+    const char *old_proc_info;
     tokudb_trx_data* trx = NULL;
-    char status_msg[200]; //buffer of 200 should be a good upper bound.
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
         error = create_tokudb_trx_data_instance(&trx);
@@ -1044,10 +1044,11 @@ static void tokudb_checkpoint_lock(THD * thd) {
     // This can only fail if environment is not created, which is not possible
     // in handlerton
     //
-    sprintf(status_msg, "Trying to grab checkpointing lock.");
-    thd_proc_info(thd, status_msg);
+    old_proc_info = tokudb_thd_get_proc_info(thd);
+    thd_proc_info(thd, "Trying to grab checkpointing lock.");
     error = db_env->checkpointing_postpone(db_env);
     assert(!error);
+    thd_proc_info(thd, old_proc_info);
 
     trx->checkpoint_lock_taken = true;
 cleanup:
@@ -1056,7 +1057,7 @@ cleanup:
 
 static void tokudb_checkpoint_unlock(THD * thd) {
     int error;
-    char status_msg[200]; //buffer of 200 should be a good upper bound.
+    const char *old_proc_info;
     tokudb_trx_data* trx = NULL;
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     if (!trx) {
@@ -1070,10 +1071,11 @@ static void tokudb_checkpoint_unlock(THD * thd) {
     //
     // at this point, we know the checkpoint lock has been taken
     //
-    sprintf(status_msg, "Trying to release checkpointing lock.");
-    thd_proc_info(thd, status_msg);
+    old_proc_info = tokudb_thd_get_proc_info(thd);
+    thd_proc_info(thd, "Trying to release checkpointing lock.");
     error = db_env->checkpointing_resume(db_env);
     assert(!error);
+    thd_proc_info(thd, old_proc_info);
 
     trx->checkpoint_lock_taken = false;
     
