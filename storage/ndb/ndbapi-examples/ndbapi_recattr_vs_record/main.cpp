@@ -29,6 +29,9 @@
  *
  */
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <mysql.h>
 #include <NdbApi.hpp>
 
