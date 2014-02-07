@@ -1206,17 +1206,14 @@ cleanup:
 	ut_free(folds);
 }
 
-/********************************************************************//**
-Drops a possible page hash index when a page is evicted from the buffer pool
-or freed in a file segment. */
-
+/** Drops a possible page hash index when a page is evicted from the
+buffer pool or freed in a file segment.
+@param[in]	page_id		page id
+@param[in]	page_size	page size */
 void
 btr_search_drop_page_hash_when_freed(
-/*=================================*/
-	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no)	/*!< in: page number */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size)
 {
 	buf_block_t*	block;
 	mtr_t		mtr;
@@ -1231,7 +1228,7 @@ btr_search_drop_page_hash_when_freed(
 	are possibly holding, we cannot s-latch the page, but must
 	(recursively) x-latch it, even though we are only reading. */
 
-	block = buf_page_get_gen(space, zip_size, page_no, RW_X_LATCH, NULL,
+	block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
 				 BUF_PEEK_IF_IN_POOL, __FILE__, __LINE__,
 				 &mtr);
 
@@ -1846,8 +1843,7 @@ btr_search_validate(void)
 				assertion and the comment below) */
 				hash_block = buf_block_hash_get(
 					buf_pool,
-					buf_block_get_space(block),
-					buf_block_get_page_no(block));
+					block->page.id);
 			} else {
 				hash_block = NULL;
 			}
@@ -1913,7 +1909,7 @@ btr_search_validate(void)
 
 				if (n_page_dumps < 20) {
 					buf_page_print(
-						page, 0,
+						page, univ_page_size,
 						BUF_PAGE_PRINT_NO_CRASH);
 					n_page_dumps++;
 				}

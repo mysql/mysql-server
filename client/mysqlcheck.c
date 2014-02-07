@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
                tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
                opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_write_binlog= 1;
+               opt_write_binlog= 1, opt_secure_auth=TRUE;
 static uint verbose = 0, opt_mysql_port=0;
 static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
@@ -144,6 +144,9 @@ static struct my_option my_long_options[] =
    "when commands should not be sent to replication slaves.",
    &opt_write_binlog, &opt_write_binlog, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"password", 'p',
@@ -508,8 +511,6 @@ static uint fixed_name_length(const char *name)
   {
     if (*p == '`')
       extra_length++;
-    else if (*p == '.')
-      extra_length+= 2;
   }
   return (uint) ((p - name) + extra_length);
 }
@@ -521,11 +522,6 @@ static char *fix_table_name(char *dest, char *src)
   for (; *src; src++)
   {
     switch (*src) {
-    case '.':            /* add backticks around '.' */
-      *dest++= '`';
-      *dest++= '.';
-      *dest++= '`';
-      break;
     case '`':            /* escape backtick character */
       *dest++= '`';
       /* fall through */
@@ -781,9 +777,13 @@ static void print_result()
   char prev[NAME_LEN*2+2];
   char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
+  char *db_name;
+  uint length_of_db;
   my_bool found_error=0, table_rebuild=0;
 
   res = mysql_use_result(sock);
+  db_name= sock->db;
+  length_of_db= strlen(db_name);
 
   prev[0] = '\0';
   prev_alter[0]= 0;
@@ -807,10 +807,17 @@ static void print_result()
           if (prev_alter[0])
             insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
           else
-            insert_dynamic(&tables4rebuild, (uchar*) prev);
-        }
-        else
-          insert_dynamic(&tables4repair, prev);
+	  {
+	    char *table_name= prev + (length_of_db+1);
+            insert_dynamic(&tables4rebuild, (uchar*) table_name);
+	  }
+	}
+         else
+         {
+	   char *table_name= prev + (length_of_db+1);
+           insert_dynamic(&tables4repair, (uchar*) table_name);
+         }
+
       }
       found_error=0;
       table_rebuild=0;
@@ -862,10 +869,16 @@ static void print_result()
       if (prev_alter[0])
         insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
       else
-        insert_dynamic(&tables4rebuild, (uchar*) prev);
+      {
+        char *table_name= prev + (length_of_db+1);
+        insert_dynamic(&tables4rebuild, (uchar*) table_name);
+      }
     }
     else
-      insert_dynamic(&tables4repair, prev);
+    {
+      char *table_name= prev + (length_of_db+1);
+      insert_dynamic(&tables4repair, (uchar*) table_name);
+    }
   }
   mysql_free_result(res);
 }
@@ -886,6 +899,8 @@ static int dbConnect(char *host, char *user, char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection, MYSQL_OPT_BIND, opt_bind_addr);
+  if (!opt_secure_auth)
+    mysql_options(&mysql_connection, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);

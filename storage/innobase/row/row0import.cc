@@ -111,7 +111,7 @@ struct row_import {
 		m_hostname(),
 		m_table_name(),
 		m_autoinc(),
-		m_page_size(),
+		m_page_size(0, 0, false),
 		m_flags(),
 		m_n_cols(),
 		m_cols(),
@@ -199,7 +199,7 @@ struct row_import {
 
 	ib_uint64_t	m_autoinc;		/*!< Next autoinc value */
 
-	ulint		m_page_size;		/*!< Tablespace page size */
+	page_size_t	m_page_size;		/*!< Tablespace page size */
 
 	ulint		m_flags;		/*!< Table flags */
 
@@ -383,7 +383,7 @@ public:
 	/** @return true if compressed table. */
 	bool is_compressed_table() const UNIV_NOTHROW
 	{
-		return(get_zip_size() > 0);
+		return(get_page_size().is_compressed());
 	}
 
 protected:
@@ -421,7 +421,7 @@ protected:
 	{
 		ulint	offset;
 
-		offset = xdes_calc_descriptor_index(get_zip_size(), page_no);
+		offset = xdes_calc_descriptor_index(get_page_size(), page_no);
 
 		return(page + XDES_ARR_OFFSET + XDES_SIZE * offset);
 	}
@@ -451,7 +451,8 @@ protected:
 
 		if (state != XDES_FREE) {
 
-			m_xdes = new(std::nothrow) xdes_t[m_page_size];
+			m_xdes = new(std::nothrow)
+				xdes_t[m_page_size.physical()];
 
 			/* Trigger OOM */
 			DBUG_EXECUTE_IF("ib_import_OOM_13",
@@ -461,7 +462,7 @@ protected:
 				return(DB_OUT_OF_MEMORY);
 			}
 
-			memcpy(m_xdes, page, m_page_size);
+			memcpy(m_xdes, page, m_page_size.physical());
 		}
 
 		return(DB_SUCCESS);
@@ -482,7 +483,7 @@ protected:
 	@return true if the page is marked as free */
 	bool is_free(ulint page_no) const UNIV_NOTHROW
 	{
-		ut_a(xdes_calc_descriptor_page(get_zip_size(), page_no)
+		ut_a(xdes_calc_descriptor_page(get_page_size(), page_no)
 		     == m_xdes_page_no);
 
 		if (m_xdes != 0) {
@@ -544,35 +545,25 @@ AbstractCallback::init(
 	/* Since we don't know whether it is a compressed table
 	or not, the data is always read into the block->frame. */
 
-	dberr_t	err = set_zip_size(block->frame);
-
-	if (err != DB_SUCCESS) {
-		return(DB_CORRUPTION);
-	}
+	set_page_size(block->frame);
 
 	/* Set the page size used to traverse the tablespace. */
 
-	m_page_size = (is_compressed_table())
-		? get_zip_size() : fsp_flags_get_page_size(m_space_flags);
-
-	if (m_page_size == 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "Page size is 0");
-		return(DB_CORRUPTION);
-	} else if (!is_compressed_table() && m_page_size != UNIV_PAGE_SIZE) {
+	if (!is_compressed_table() && !m_page_size.equals_to(univ_page_size)) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page size %lu of ibd file is not the same"
-			" as the server page size %lu",
-			m_page_size, UNIV_PAGE_SIZE);
+			"Page size " ULINTPF " of ibd file is not the same"
+			" as the server page size " ULINTPF,
+			m_page_size.physical(), univ_page_size.physical());
 
 		return(DB_CORRUPTION);
 
-	} else if ((file_size % m_page_size)) {
+	} else if (file_size % m_page_size.physical() != 0) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"File size " UINT64PF " is not a multiple"
-			" of the page size %lu",
-			(ib_uint64_t) file_size, (ulong) m_page_size);
+			" of the page size " ULINTPF,
+			(ib_uint64_t) file_size, m_page_size.physical());
 
 		return(DB_CORRUPTION);
 	}
@@ -583,11 +574,9 @@ AbstractCallback::init(
 	m_free_limit = mach_read_from_4(page + FSP_FREE_LIMIT);
 	m_space = mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_ID);
 
-	if ((err = set_current_xdes(0, page)) != DB_SUCCESS) {
-		return(err);
-	}
+	dberr_t	err = set_current_xdes(0, page);
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /**
@@ -707,24 +696,24 @@ FetchIndexRootPages::operator() (
 
 	ulint	page_type = fil_page_get_type(page);
 
-	if (block->page.offset * m_page_size != offset) {
+	if (block->page.id.page_no() * m_page_size.physical() != offset) {
+
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Page offset doesn't match file offset:"
-			" page offset: %lu, file offset: %lu",
-			(ulint) block->page.offset,
-			(ulint) (offset / m_page_size));
+			" page offset: " UINT32PF ", file offset: " ULINTPF,
+			block->page.id.page_no(),
+			(ulint) (offset / m_page_size.physical()));
 
 		err = DB_CORRUPTION;
 	} else if (page_type == FIL_PAGE_TYPE_XDES) {
-		err = set_current_xdes(block->page.offset, page);
+		err = set_current_xdes(block->page.id.page_no(), page);
 	} else if (page_type == FIL_PAGE_INDEX
-		   && !is_free(block->page.offset)
+		   && !is_free(block->page.id.page_no())
 		   && is_root_page(page)) {
 
 		index_id_t	id = btr_page_get_index_id(page);
-		ulint		page_no = buf_block_get_page_no(block);
 
-		m_indexes.push_back(Index(id, page_no));
+		m_indexes.push_back(Index(id, block->page.id.page_no()));
 
 		if (m_indexes.size() == 1) {
 
@@ -748,7 +737,7 @@ FetchIndexRootPages::build_row_import(row_import* cfg) const UNIV_NOTHROW
 	Indexes::const_iterator end = m_indexes.end();
 
 	ut_a(cfg->m_table == m_table);
-	cfg->m_page_size = m_page_size;
+	cfg->m_page_size.copy_from(m_page_size);
 	cfg->m_n_indexes = m_indexes.size();
 
 	if (cfg->m_n_indexes == 0) {
@@ -1864,7 +1853,7 @@ PageConverter::update_index_page(
 	index_id_t	id;
 	buf_frame_t*	page = block->frame;
 
-	if (is_free(buf_block_get_page_no(block))) {
+	if (is_free(block->page.id.page_no())) {
 		return(DB_SUCCESS);
 	} else if ((id = btr_page_get_index_id(page)) != m_index->m_id) {
 
@@ -1968,7 +1957,7 @@ PageConverter::update_page(
 	switch (page_type = fil_page_get_type(get_frame(block))) {
 	case FIL_PAGE_TYPE_FSP_HDR:
 		/* Work directly on the uncompressed page headers. */
-		ut_a(buf_block_get_page_no(block) == 0);
+		ut_a(block->page.id.page_no() == 0);
 		return(update_header(block));
 
 	case FIL_PAGE_INDEX:
@@ -1993,7 +1982,7 @@ PageConverter::update_page(
 
 	case FIL_PAGE_TYPE_XDES:
 		err = set_current_xdes(
-			buf_block_get_page_no(block), get_frame(block));
+			block->page.id.page_no(), get_frame(block));
 	case FIL_PAGE_INODE:
 	case FIL_PAGE_TYPE_TRX_SYS:
 	case FIL_PAGE_IBUF_FREE_LIST:
@@ -2032,15 +2021,15 @@ PageConverter::validate(
 	the file. Flag as corrupt if it doesn't. Disable the check
 	for LSN in buf_page_is_corrupted() */
 
-	if (buf_page_is_corrupted(false, page, get_zip_size())
-	    || (page_get_page_no(page) != offset / m_page_size
+	if (buf_page_is_corrupted(false, page, get_page_size())
+	    || (page_get_page_no(page) != offset / m_page_size.physical()
 		&& page_get_page_no(page) != 0)) {
 
 		return(IMPORT_PAGE_STATUS_CORRUPTED);
 
 	} else if (offset > 0 && page_get_page_no(page) == 0) {
 		const byte*	b = page;
-		const byte*	e = b + m_page_size;
+		const byte*	e = b + m_page_size.physical();
 
 		/* If the page number is zero and offset > 0 then
 		the entire page MUST consist of zeroes. If not then
@@ -2111,7 +2100,7 @@ PageConverter::operator() (
 			pages for compressed tables explicitly here. */
 
 			buf_flush_update_zip_checksum(
-				get_frame(block), get_zip_size(),
+				get_frame(block), get_page_size().physical(),
 				m_current_lsn);
 		}
 
@@ -2125,7 +2114,8 @@ PageConverter::operator() (
 
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"%s: Page %lu at offset " UINT64PF " looks corrupted.",
-			m_filepath, (ulong) (offset / m_page_size), offset);
+			m_filepath, (ulong) (offset / m_page_size.physical()),
+			offset);
 
 		return(DB_CORRUPTION);
 	}
@@ -3044,22 +3034,28 @@ row_import_read_v1(
 
 	byte*		ptr = row;
 
-	cfg->m_page_size = mach_read_from_4(ptr);
+	const ulint	logical_page_size = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
 
-	if (cfg->m_page_size != UNIV_PAGE_SIZE) {
+	if (logical_page_size != univ_page_size.logical()) {
 
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			"Tablespace to be imported has a different"
 			" page size than this server. Server page size"
-			" is %lu, whereas tablespace page size is %lu",
-			UNIV_PAGE_SIZE, (ulong) cfg->m_page_size);
+			" is " ULINTPF ", whereas tablespace page size"
+			" is " ULINTPF,
+			univ_page_size.logical(),
+			logical_page_size);
 
 		return(DB_ERROR);
 	}
 
 	cfg->m_flags = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
+
+	cfg->m_page_size.copy_from(dict_tf_get_page_size(cfg->m_flags));
+
+	ut_a(logical_page_size == cfg->m_page_size.logical());
 
 	cfg->m_n_cols = mach_read_from_4(ptr);
 
@@ -3515,12 +3511,12 @@ row_import_for_mysql(
 
 		ut_a(err == DB_FAIL);
 
-		cfg.m_page_size = UNIV_PAGE_SIZE;
+		cfg.m_page_size.copy_from(univ_page_size);
 
 		FetchIndexRootPages	fetchIndexRootPages(table, trx);
 
 		err = fil_tablespace_iterate(
-			table, IO_BUFFER_SIZE(cfg.m_page_size),
+			table, IO_BUFFER_SIZE(cfg.m_page_size.physical()),
 			fetchIndexRootPages);
 
 		if (err == DB_SUCCESS) {
@@ -3556,7 +3552,7 @@ row_import_for_mysql(
 	/* Set the IO buffer size in pages. */
 
 	err = fil_tablespace_iterate(
-		table, IO_BUFFER_SIZE(cfg.m_page_size), converter);
+		table, IO_BUFFER_SIZE(cfg.m_page_size.physical()), converter);
 
 	DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);

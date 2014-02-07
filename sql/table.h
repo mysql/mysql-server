@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1385,7 +1385,7 @@ enum enum_derived_type {
 #define MAX_TDC_BLOB_SIZE 65536
 
 class select_union;
-class TMP_TABLE_PARAM;
+class Temp_table_param;
 
 struct Field_translator
 {
@@ -1655,7 +1655,7 @@ public:
     schema table fields for backwards compatibility with SHOW command.
   */
   bool schema_table_reformed;
-  TMP_TABLE_PARAM *schema_table_param;
+  Temp_table_param *schema_table_param;
   /* link to select_lex where this table was used */
   st_select_lex	*select_lex;
   LEX *view;                    /* link on VIEW lex for merging */
