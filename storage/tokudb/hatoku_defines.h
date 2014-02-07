@@ -88,40 +88,15 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-#ifndef _HATOKU_DEF
-#define _HATOKU_DEF
 
-#include "mysql_version.h"
-#if MYSQL_VERSION_ID < 50506
-#include "mysql_priv.h"
-#else
-#include "sql_table.h"
-#include "handler.h"
-#include "table.h"
-#include "log.h"
-#include "sql_class.h"
-#include "sql_show.h"
-#include "discover.h"
-#endif
-
-#include "db.h"
-#include "toku_os.h"
+#ifndef _TOKUDB_CONFIG_H
+#define _TOKUDB_CONFIG_H
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface               /* gcc class implementation */
 #endif
 
-// In MariaDB 5.3, thread progress reporting was introduced.
-// Only include that functionality if we're using maria 5.3 +
-#ifdef MARIADB_BASE_VERSION
-#if MYSQL_VERSION_ID >= 50300
-#define HA_TOKUDB_HAS_THD_PROGRESS
-#endif
-#endif
-
-#if defined(TOKUDB_PATCHES) && TOKUDB_PATCHES == 0
-
-#elif 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
+#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
 // mariadb 10
 #define TOKU_USE_DB_TYPE_TOKUDB 1
 #define TOKU_INCLUDE_ALTER_56 1
@@ -171,6 +146,14 @@ PATENT RIGHTS GRANT:
 
 #endif
 
+// In MariaDB 5.3, thread progress reporting was introduced.
+// Only include that functionality if we're using maria 5.3 +
+#ifdef MARIADB_BASE_VERSION
+#if MYSQL_VERSION_ID >= 50300
+#define HA_TOKUDB_HAS_THD_PROGRESS
+#endif
+#endif
+
 #if !defined(HA_CLUSTERING)
 #define HA_CLUSTERING 0
 #endif
@@ -195,8 +178,6 @@ PATENT RIGHTS GRANT:
 #define HA_TOKUDB_NEEDS_KEY_FILE_LOCK
 #endif
 
-extern ulong tokudb_debug;
-
 //
 // returns maximum length of dictionary name, such as key-NAME
 // NAME_CHAR_LEN is max length of the key name, and have upper bound of 10 for key-
@@ -210,6 +191,13 @@ extern ulong tokudb_debug;
 
 /* Bits for share->status */
 #define STATUS_PRIMARY_KEY_INIT 0x1
+
+#endif // _TOKUDB_CONFIG_H
+
+#ifndef _TOKUDB_DEBUG_H
+#define _TOKUDB_DEBUG_H
+
+extern ulong tokudb_debug;
 
 // tokudb debug tracing
 #define TOKUDB_DEBUG_INIT 1
@@ -281,6 +269,20 @@ static inline unsigned int my_tid() {
     fprintf(stderr, "\n");                                              \
 }
 
+/* The purpose of this file is to define assert() for use by the handlerton.
+ * The intention is for a failed handlerton assert to invoke a failed assert
+ * in the fractal tree layer, which dumps engine status to the error log.
+ */
+
+void toku_hton_assert_fail(const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default"))) __attribute__((__noreturn__));
+
+#undef assert  
+#define assert(expr)      ((expr)      ? (void)0 : toku_hton_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, errno))
+
+#endif // _TOKUDB_DEBUG_H
+
+#ifndef _TOKUDB_TXN_H
+#define _TOKUDB_TXN_H
 
 typedef enum {
     hatoku_iso_not_set = 0,
@@ -383,15 +385,10 @@ static inline void abort_txn(DB_TXN* txn) {
     assert(r == 0);
 }
 
-/* The purpose of this file is to define assert() for use by the handlerton.
- * The intention is for a failed handlerton assert to invoke a failed assert
- * in the fractal tree layer, which dumps engine status to the error log.
- */
+#endif // _TOKUDB_TXN_H
 
-void toku_hton_assert_fail(const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default"))) __attribute__((__noreturn__));
-
-#undef assert  
-#define assert(expr)      ((expr)      ? (void)0 : toku_hton_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, errno))
+#ifndef _TOKUDB_PORTABILITY_H
+#define _TOKUDB_PORTABILITY_H
 
 static inline void *tokudb_my_malloc(size_t s, myf flags) {
 #if 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
@@ -492,4 +489,4 @@ static inline void tokudb_pthread_cond_broadcast(pthread_cond_t *cond) {
 // mysql 5.6.15 removed the test macro, so we define our own
 #define tokudb_test(e) ((e) ? 1 : 0)
 
-#endif
+#endif // _TOKUDB_PORTABILITY_H
