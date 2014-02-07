@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@
   read/write methods.
  */
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <ndb_global.h>
 #include <mysql.h>
 #include <mysqld_error.h>
