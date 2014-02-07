@@ -337,9 +337,12 @@ int install_password_validation_plugin()
       while(!option_read)
       {
 	reply= get_response((const char *) "\nThere are three levels of "
-	                                   "password validation policy.\n"
-					   "Please enter 0 for LOW, 1 for "
-					   "MEDIUM and 2 for STRONG: ",'2');
+   "password validation policy:\n\n"
+   "LOW    Length >= 8\n"
+   "MEDIUM Length >= 8, numeric, mixed case, and special characters\n"
+   "STRONG Length >= 8, numeric, mixed case, special characters and dictionary"
+   "                  file\n\n"
+   "Please enter 0 = LOW, 1 = MEDIUM and 2 = STRONG: ",'2');
 	switch (reply){
 	case (int ) '0':
 	  strength= (char *) "LOW";
