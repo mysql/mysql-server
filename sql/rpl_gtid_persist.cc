@@ -27,8 +27,8 @@
 
 pthread_t compress_thread_id= 0;
 static bool terminate_compress_thread= false;
-const LEX_STRING Gtid_table_persistor::TABLE_NAME= {C_STRING_WITH_LEN("gtid_executed")};
-const LEX_STRING Gtid_table_persistor::DB_NAME= {C_STRING_WITH_LEN("mysql")};
+const LEX_STRING Gtid_table_access_context::TABLE_NAME= {C_STRING_WITH_LEN("gtid_executed")};
+const LEX_STRING Gtid_table_access_context::DB_NAME= {C_STRING_WITH_LEN("mysql")};
 
 void init_thd(THD **p_thd)
 {
@@ -55,13 +55,74 @@ void deinit_thd(THD *thd)
 }
 
 
-void Gtid_table_persistor::close_table(THD* thd, TABLE* table,
-                                       Open_tables_backup* backup,
+THD *Gtid_table_access_context::create_thd()
+{
+  THD *thd= NULL;
+  thd= new THD;
+  init_thd(&thd);
+  /*
+    This is equivalent to a new "statement". For that reason, we call
+    both lex_start() and mysql_reset_thd_for_next_command.
+  */
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
+
+  return(thd);
+}
+
+
+void Gtid_table_access_context::drop_thd(THD *thd)
+{
+  DBUG_ENTER("Gtid_table_access_context::drop_thd");
+  deinit_thd(thd);
+  DBUG_VOID_RETURN;
+}
+
+
+int Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
+{
+  DBUG_ENTER("Gtid_table_access_context::init");
+
+  if (!(*thd))
+    *thd= m_drop_thd_object= this->create_thd();
+  m_is_write=  is_write;
+  if (m_is_write)
+  {
+    /* Disable binlog temporarily */
+    m_tmp_disable_binlog__save_options= (*thd)->variables.option_bits;
+    (*thd)->variables.option_bits&= ~OPTION_BIN_LOG;
+  }
+  m_saved_mode= (*thd)->variables.sql_mode;
+  if (this->open_table(*thd, m_is_write ? TL_WRITE : TL_READ, table))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+}
+
+
+void Gtid_table_access_context::deinit(THD* thd, TABLE* table,
                                        bool error, bool need_commit)
+{
+  DBUG_ENTER("Gtid_table_access_context::deinit");
+
+  this->close_table(thd, table, 0 != error, need_commit);
+  /* Reenable binlog */
+  if (m_is_write)
+    thd->variables.option_bits= m_tmp_disable_binlog__save_options;
+  thd->variables.sql_mode= m_saved_mode;
+  if (m_drop_thd_object)
+    this->drop_thd(m_drop_thd_object);
+
+  DBUG_VOID_RETURN;
+}
+
+
+void Gtid_table_access_context::close_table(THD* thd, TABLE* table,
+                                            bool error, bool need_commit)
 {
   Query_tables_list query_tables_list_backup;
 
-  DBUG_ENTER("Gtid_table_persistor::close_table");
+  DBUG_ENTER("Gtid_table_access_context::close_table");
 
   if (table)
   {
@@ -94,7 +155,7 @@ void Gtid_table_persistor::close_table(THD* thd, TABLE* table,
     thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
     close_thread_tables(thd);
     thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    thd->restore_backup_open_tables_state(backup);
+    thd->restore_backup_open_tables_state(&m_backup);
   }
   thd->is_operating_gtid_table= false;
 
@@ -102,11 +163,11 @@ void Gtid_table_persistor::close_table(THD* thd, TABLE* table,
 }
 
 
-bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
-                                      TABLE **table,
-                                      Open_tables_backup *backup)
+bool Gtid_table_access_context::open_table(THD *thd,
+                                           enum thr_lock_type lock_type,
+                                           TABLE **table)
 {
-  DBUG_ENTER("Gtid_table_persistor::open_table");
+  DBUG_ENTER("Gtid_table_access_context::open_table");
 
   TABLE_LIST tables;
   Query_tables_list query_tables_list_backup;
@@ -127,7 +188,7 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
     tables.
   */
   thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-  thd->reset_n_backup_open_tables_state(backup);
+  thd->reset_n_backup_open_tables_state(&m_backup);
 
   thd->is_operating_gtid_table= true;
   tables.init_one_table(
@@ -139,7 +200,7 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
   if (!open_n_lock_single_table(thd, &tables, tables.lock_type, flags))
   {
     close_thread_tables(thd);
-    thd->restore_backup_open_tables_state(backup);
+    thd->restore_backup_open_tables_state(&m_backup);
     thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     sql_print_warning("Gtid table is not ready to be used. Table "
                       "'%s.%s' cannot be opened.", DB_NAME.str,
@@ -157,7 +218,7 @@ bool Gtid_table_persistor::open_table(THD *thd, enum thr_lock_type lock_type,
     */
     ha_rollback_trans(thd, false);
     close_thread_tables(thd);
-    thd->restore_backup_open_tables_state(backup);
+    thd->restore_backup_open_tables_state(&m_backup);
     thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
              tables.table->s->db.str, tables.table->s->table_name.str,
@@ -309,10 +370,8 @@ int Gtid_table_persistor::save(THD *thd, Gtid *gtid)
   DBUG_ENTER("Gtid_table_persistor::save(THD *thd, Gtid *gtid)");
   int error= 0;
   TABLE *table= NULL;
+  Gtid_table_access_context table_access_ctx;
   char buf[rpl_sid::TEXT_LENGTH + 1];
-  ulong saved_mode;
-  Open_tables_backup backup;
-  THD *drop_thd_object= NULL;
 
   /* Get source id */
   global_sid_lock->rdlock();
@@ -320,12 +379,7 @@ int Gtid_table_persistor::save(THD *thd, Gtid *gtid)
   global_sid_lock->unlock();
   sid.to_string(buf);
 
-  if (!thd)
-    thd= drop_thd_object= this->create_thd();
-  tmp_disable_binlog(thd);
-  saved_mode= thd->variables.sql_mode;
-
-  if (this->open_table(thd, TL_WRITE, &table, &backup))
+  if (table_access_ctx.init(&thd, &table, true))
   {
     error= 1;
     goto end;
@@ -335,11 +389,7 @@ int Gtid_table_persistor::save(THD *thd, Gtid *gtid)
   error= write_row(table, buf, gtid->gno, gtid->gno);
 
 end:
-  this->close_table(thd, table, &backup, 0 != error);
-  reenable_binlog(thd);
-  thd->variables.sql_mode= saved_mode;
-  if (drop_thd_object)
-    this->drop_thd(drop_thd_object);
+  table_access_ctx.deinit(thd, table, 0 != error, false);
   /* Do not protect m_count for improving transactions' concurrency */
   if (0 == error)
   {
@@ -446,16 +496,10 @@ int Gtid_table_persistor::save(Gtid_set *gtid_set)
   DBUG_ENTER("Gtid_table_persistor::save(Gtid_set *gtid_set)");
   int error= 0;
   TABLE *table= NULL;
-  ulong saved_mode;
-  Open_tables_backup backup;
-  THD *thd= current_thd, *drop_thd_object= NULL;
+  Gtid_table_access_context table_access_ctx;
+  THD *thd= current_thd;
 
-  if (!thd)
-    thd= drop_thd_object= this->create_thd();
-  tmp_disable_binlog(thd);
-  saved_mode= thd->variables.sql_mode;
-
-  if (this->open_table(thd, TL_WRITE, &table, &backup))
+  if (table_access_ctx.init(&thd, &table, true))
   {
     error= 1;
     goto end;
@@ -464,11 +508,8 @@ int Gtid_table_persistor::save(Gtid_set *gtid_set)
   error= save(table, gtid_set);
 
 end:
-  this->close_table(thd, table, &backup, 0 != error);
-  reenable_binlog(thd);
-  thd->variables.sql_mode= saved_mode;
-  if (drop_thd_object)
-    this->drop_thd(drop_thd_object);
+  table_access_ctx.deinit(thd, table, 0 != error, false);
+
   DBUG_RETURN(error);
 }
 
@@ -557,20 +598,11 @@ int Gtid_table_persistor::compress(THD *thd)
 {
   DBUG_ENTER("Gtid_table_persistor::compress");
   int error= 0;
-  Sid_map sid_map(NULL);
-  Gtid_set gtid_deleted(&sid_map);
   TABLE *table= NULL;
-  ulong saved_mode;
-  Open_tables_backup backup;
-  THD *drop_thd_object= NULL;
-
-  if (!thd)
-    thd= drop_thd_object= this->create_thd();
-  tmp_disable_binlog(thd);
-  saved_mode= thd->variables.sql_mode;
+  Gtid_table_access_context table_access_ctx;
 
   mysql_mutex_lock(&LOCK_compress_gtid_table);
-  if (this->open_table(thd, TL_WRITE, &table, &backup))
+  if (table_access_ctx.init(&thd, &table, true))
   {
     error= 1;
     goto end;
@@ -594,7 +626,7 @@ int Gtid_table_persistor::compress(THD *thd)
 #endif
 
 end:
-  this->close_table(thd, table, &backup, 0 != error, true);
+  table_access_ctx.deinit(thd, table, 0 != error, true);
   mysql_mutex_unlock(&LOCK_compress_gtid_table);
   DBUG_EXECUTE_IF("compress_gtid_table",
                   {
@@ -603,10 +635,7 @@ end:
                     DBUG_ASSERT(!debug_sync_set_action(thd,
                                                        STRING_WITH_LEN(act)));
                   };);
-  reenable_binlog(thd);
-  thd->variables.sql_mode= saved_mode;
-  if (drop_thd_object)
-    this->drop_thd(drop_thd_object);
+
   DBUG_RETURN(error);
 }
 
@@ -616,17 +645,10 @@ int Gtid_table_persistor::reset(THD *thd)
   DBUG_ENTER("Gtid_table_persistor::reset");
   int error= 0;
   TABLE *table= NULL;
-  ulong saved_mode;
-  Open_tables_backup backup;
-  THD *drop_thd_object= NULL;
-
-  if (!thd)
-    thd= drop_thd_object= this->create_thd();
-  tmp_disable_binlog(thd);
-  saved_mode= thd->variables.sql_mode;
+  Gtid_table_access_context table_access_ctx;
 
   mysql_mutex_lock(&LOCK_compress_gtid_table);
-  if (this->open_table(thd, TL_WRITE, &table, &backup))
+  if (table_access_ctx.init(&thd, &table, true))
   {
     error= 1;
     goto end;
@@ -635,41 +657,14 @@ int Gtid_table_persistor::reset(THD *thd)
   error= delete_all(table);
 
 end:
-  this->close_table(thd, table, &backup, 0 != error, true);
+  table_access_ctx.deinit(thd, table, 0 != error, true);
   mysql_mutex_unlock(&LOCK_compress_gtid_table);
-  reenable_binlog(thd);
-  thd->variables.sql_mode= saved_mode;
-  if (drop_thd_object)
-    this->drop_thd(drop_thd_object);
+
   DBUG_RETURN(error);
 }
 
 
-THD *Gtid_table_persistor::create_thd()
-{
-  THD *thd= NULL;
-  thd= new THD;
-  init_thd(&thd);
-  /*
-    This is equivalent to a new "statement". For that reason, we call
-    both lex_start() and mysql_reset_thd_for_next_command.
-  */
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
-
-  return(thd);
-}
-
-
-void Gtid_table_persistor::drop_thd(THD *thd)
-{
-  DBUG_ENTER("Gtid_table_persistor::drop_thd");
-  deinit_thd(thd);
-  DBUG_VOID_RETURN;
-}
-
-
-string Gtid_table_persistor::encode_gtid_text(TABLE* table)
+string Gtid_table_persistor::encode_gtid_text(TABLE *table)
 {
   DBUG_ENTER("Gtid_table_persistor::encode_gtid_text");
   char buff[MAX_FIELD_WIDTH];
@@ -689,9 +684,9 @@ string Gtid_table_persistor::encode_gtid_text(TABLE* table)
 }
 
 
-void Gtid_table_persistor::get_gtid_interval(TABLE* table, string& sid,
-                                            rpl_gno& gno_start,
-                                            rpl_gno& gno_end)
+void Gtid_table_persistor::get_gtid_interval(TABLE *table, string &sid,
+                                             rpl_gno &gno_start,
+                                             rpl_gno &gno_end)
 {
   DBUG_ENTER("Gtid_table_persistor::get_gtid_interval");
   char buff[MAX_FIELD_WIDTH];
@@ -712,17 +707,10 @@ int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_set)
   int ret= 0;
   int err= 0;
   TABLE *table= NULL;
-  //ulong saved_mode;
-  Open_tables_backup backup;
-  THD *thd= current_thd, *drop_thd_object= NULL;
+  Gtid_table_access_context table_access_ctx;
+  THD *thd= current_thd;
 
-  if (!thd)
-    thd= drop_thd_object= this->create_thd();
-
-  //tmp_disable_binlog(thd);
-  //saved_mode= thd->variables.sql_mode;
-
-  if (this->open_table(thd, TL_READ, &table, &backup))
+  if (table_access_ctx.init(&thd, &table, false))
   {
     ret= 1;
     goto end;
@@ -752,16 +740,13 @@ int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_set)
     ret= -1;
 
 end:
-  this->close_table(thd, table, &backup, 0 != ret, true);
-  //reenable_binlog(thd);
-  //thd->variables.sql_mode= saved_mode;
-  if (drop_thd_object)
-    this->drop_thd(drop_thd_object);
+  table_access_ctx.deinit(thd, table, 0 != ret, true);
+
   DBUG_RETURN(ret);
 }
 
 
-int Gtid_table_persistor::delete_all(TABLE* table)
+int Gtid_table_persistor::delete_all(TABLE *table)
 {
   DBUG_ENTER("Gtid_table_persistor::delete_all");
   int ret= 0;
