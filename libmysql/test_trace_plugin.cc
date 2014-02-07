@@ -15,6 +15,8 @@
 
 #if defined(DBUG_OFF)
 // This code can be used only in debug builds.
+#error You cannot use test trace plugin when DBUG_OFF is defined. \
+       Test trace plugin will work in debug builds only.
 #else
 
 /**
@@ -444,7 +446,10 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
       and send new command to the server.
     */
     if (data)
+    {
       data->next_stage= PROTOCOL_STAGE_READY_FOR_COMMAND;
+      data->errnum= 0;
+    }
     break;
 
   case TRACE_EVENT_ERROR:
@@ -458,6 +463,13 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
     break;
 
   default:
+    /*
+      Skip protocol stage checks if error was reported during last command
+      and we are waiting for new one.
+    */
+    if (data && data->last_cmd && data->errnum)
+      break;
+
     if (data && data->next_stage != stage)
     {
       LOG(("wrong stage, expected: %s", protocol_stage_name(data->next_stage)));
@@ -583,13 +595,15 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
     current stage and also update data->next_stage. The result of the check is
     stored in check variable, which is set to true if event is invalid.
 
-    These checks are skipped if trace data is NULL.
+    These checks are skipped if trace data is NULL. Also if error was reported
+    during last command execution - in this case test trace plugin will wait for
+    next client command before resuming checking further events.
 
     See plugin_trace.h for description how the trick with PROTOCOL_STAGE_LIST()
     macro works.
   */
 
-  if (!data)
+  if (!data || (data->last_cmd && data->errnum))
     return 0;
 
 #define protocol_stage_check(S) \

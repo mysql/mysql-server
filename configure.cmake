@@ -327,12 +327,13 @@ ENDIF()
 # Tests for header files
 #
 INCLUDE (CheckIncludeFiles)
+INCLUDE (CheckIncludeFileCXX)
 
 CHECK_INCLUDE_FILES (sys/types.h HAVE_SYS_TYPES_H)
 CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
 CHECK_INCLUDE_FILES (arpa/inet.h HAVE_ARPA_INET_H)
 CHECK_INCLUDE_FILES (crypt.h HAVE_CRYPT_H)
-CHECK_INCLUDE_FILES (cxxabi.h HAVE_CXXABI_H)
+CHECK_INCLUDE_FILE_CXX (cxxabi.h HAVE_CXXABI_H)
 CHECK_INCLUDE_FILES (dirent.h HAVE_DIRENT_H)
 CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
@@ -720,17 +721,30 @@ ENDIF()
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
   STRING(TOLOWER ${CMAKE_SYSTEM_PROCESSOR}  processor)
   IF(processor MATCHES "86" OR processor MATCHES "amd64" OR processor MATCHES "x64")
-  #Check for x86 PAUSE instruction
-  # We have to actually try running the test program, because of a bug
-  # in Solaris on x86_64, where it wrongly reports that PAUSE is not
-  # supported when trying to run an application.  See
-  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6478684
-  CHECK_C_SOURCE_RUNS("
-  int main()
-  { 
-    __asm__ __volatile__ (\"pause\"); 
-    return 0;
-  }"  HAVE_PAUSE_INSTRUCTION)
+    IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+      # The loader in some Solaris versions has a bug due to which it refuses to
+      # start a binary that has been compiled by GCC and uses __asm__("pause")
+      # with the error:
+      # $ ./mysqld
+      # ld.so.1: mysqld: fatal: hardware capability unsupported: 0x2000 [ PAUSE ]
+      # Killed
+      # $
+      # Even though the CPU does have support for the instruction.
+      # Binaries that have been compiled by GCC and use __asm__("pause")
+      # on a non-buggy Solaris get flagged with a "uses pause" flag and
+      # thus they are unusable if copied on buggy Solaris version. To
+      # circumvent this we explicitly disable __asm__("pause") when
+      # compiling on Solaris. Subsequently the tests here will enable
+      # HAVE_FAKE_PAUSE_INSTRUCTION which will use __asm__("rep; nop")
+      # which currently generates the same code as __asm__("pause") - 0xf3 0x90
+      # but without flagging the binary as "uses pause".
+      CHECK_C_SOURCE_RUNS("
+      int main()
+      {
+        __asm__ __volatile__ (\"pause\");
+        return 0;
+      }"  HAVE_PAUSE_INSTRUCTION)
+    ENDIF()
   ENDIF()
   IF (NOT HAVE_PAUSE_INSTRUCTION)
     CHECK_C_SOURCE_COMPILES("

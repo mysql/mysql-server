@@ -79,11 +79,12 @@ TrxUndoRsegsIterator::TrxUndoRsegsIterator(trx_purge_t* purge_sys)
 {
 }
 
-/**
-Sets the next rseg to purge in m_purge_sys.
-@return zip_size if log is for a compressed table, ULINT_UNDEFINED if
-no rollback segments to purge, 0 for non compressed tables. */
-ulint
+/** Sets the next rseg to purge in m_purge_sys.
+@return page size of the table for which the log is.
+NOTE: if rseg is NULL when this function returns this means that
+there are no rollback segments to purge and then the returned page
+size object should not be used. */
+const page_size_t
 TrxUndoRsegsIterator::set_next()
 {
 	mutex_enter(&m_purge_sys->pq_mutex);
@@ -139,7 +140,8 @@ TrxUndoRsegsIterator::set_next()
 
 		m_purge_sys->rseg = NULL;
 
-		return(ULINT_UNDEFINED);
+		/* return a dummy object, not going to be used by the caller */
+		return(page_size_t(0, 0, false));
 	}
 
 	m_purge_sys->rseg = *m_iter++;
@@ -160,7 +162,7 @@ TrxUndoRsegsIterator::set_next()
 		|| is_system_tablespace(
 			m_purge_sys->rseg->space));
 
-	ulint	zip_size = m_purge_sys->rseg->zip_size;
+	const page_size_t	page_size(m_purge_sys->rseg->page_size);
 
 	ut_a(purge_sys->iter.trx_no <= purge_sys->rseg->last_trx_no);
 
@@ -170,7 +172,7 @@ TrxUndoRsegsIterator::set_next()
 
 	mutex_exit(&m_purge_sys->rseg->mutex);
 
-	return(zip_size);
+	return(page_size);
 }
 
 /****************************************************************//**
@@ -331,7 +333,7 @@ trx_purge_add_update_undo_to_history(
 	rseg = undo->rseg;
 
 	rseg_header = trx_rsegf_get(
-		undo->rseg->space, undo->rseg->zip_size, undo->rseg->page_no,
+		undo->rseg->space, undo->rseg->page_no, undo->rseg->page_size,
 		mtr);
 
 	undo_header = undo_page + undo->hdr_offset;
@@ -429,10 +431,11 @@ trx_purge_free_segment(
 		mutex_enter(&rseg->mutex);
 
 		rseg_hdr = trx_rsegf_get(
-			rseg->space, rseg->zip_size, rseg->page_no, &mtr);
+			rseg->space, rseg->page_no, rseg->page_size, &mtr);
 
 		undo_page = trx_undo_page_get(
-			rseg->space, rseg->zip_size, hdr_addr.page, &mtr);
+			page_id_t(rseg->space, hdr_addr.page), rseg->page_size,
+			&mtr);
 
 		seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
 		log_hdr = undo_page + hdr_addr.boffset;
@@ -531,8 +534,8 @@ trx_purge_truncate_rseg_history(
 	mtr_start(&mtr);
 	mutex_enter(&(rseg->mutex));
 
-	rseg_hdr = trx_rsegf_get(rseg->space, rseg->zip_size,
-				 rseg->page_no, &mtr);
+	rseg_hdr = trx_rsegf_get(rseg->space, rseg->page_no,
+				 rseg->page_size, &mtr);
 
 	hdr_addr = trx_purge_get_log_from_hist(
 		flst_get_last(rseg_hdr + TRX_RSEG_HISTORY, &mtr));
@@ -546,8 +549,8 @@ loop:
 		return;
 	}
 
-	undo_page = trx_undo_page_get(rseg->space, rseg->zip_size,
-				      hdr_addr.page, &mtr);
+	undo_page = trx_undo_page_get(page_id_t(rseg->space, hdr_addr.page),
+				      rseg->page_size, &mtr);
 
 	log_hdr = undo_page + hdr_addr.boffset;
 
@@ -606,8 +609,8 @@ loop:
 	mtr_start(&mtr);
 	mutex_enter(&(rseg->mutex));
 
-	rseg_hdr = trx_rsegf_get(rseg->space, rseg->zip_size,
-				 rseg->page_no, &mtr);
+	rseg_hdr = trx_rsegf_get(rseg->space, rseg->page_no,
+				 rseg->page_size, &mtr);
 
 	hdr_addr = prev_hdr_addr;
 
@@ -686,7 +689,8 @@ trx_purge_rseg_get_next_history_log(
 	mtr_start(&mtr);
 
 	undo_page = trx_undo_page_get_s_latched(
-		rseg->space, rseg->zip_size, rseg->last_page_no, &mtr);
+		page_id_t(rseg->space, rseg->last_page_no),
+		rseg->page_size, &mtr);
 
 	log_hdr = undo_page + rseg->last_offset;
 
@@ -737,8 +741,9 @@ trx_purge_rseg_get_next_history_log(
 	/* Read the trx number and del marks from the previous log header */
 	mtr_start(&mtr);
 
-	log_hdr = trx_undo_page_get_s_latched(rseg->space, rseg->zip_size,
-					      prev_log_addr.page, &mtr)
+	log_hdr = trx_undo_page_get_s_latched(page_id_t(rseg->space,
+							prev_log_addr.page),
+					      rseg->page_size, &mtr)
 		+ prev_log_addr.boffset;
 
 	trx_no = mach_read_from_8(log_hdr + TRX_UNDO_TRX_NO);
@@ -771,14 +776,14 @@ trx_purge_rseg_get_next_history_log(
 	mutex_exit(&rseg->mutex);
 }
 
-/***********************************************************************//**
-Position the purge sys "iterator" on the undo record to use for purging. */
+/** Position the purge sys "iterator" on the undo record to use for purging.
+@param[in,out]	purge_sys	purge instance
+@param[in]	page_size	page size */
 static
 void
 trx_purge_read_undo_rec(
-/*====================*/
-	trx_purge_t*	purge_sys,		/*!< in/out: purge instance */
-	ulint		zip_size)		/*!< in: block size or 0 */
+	trx_purge_t*		purge_sys,
+	const page_size_t&	page_size)
 {
 	ulint		offset;
 	ulint		page_no;
@@ -796,7 +801,7 @@ trx_purge_read_undo_rec(
 
 		undo_rec = trx_undo_get_first_rec(
 			purge_sys->rseg->space,
-			zip_size,
+			page_size,
 			purge_sys->hdr_page_no,
 			purge_sys->hdr_offset, RW_S_LATCH, &mtr);
 
@@ -838,10 +843,10 @@ trx_purge_choose_next_log(void)
 {
 	ut_ad(purge_sys->next_stored == FALSE);
 
-	ulint	zip_size = purge_sys->rseg_iter->set_next();
+	const page_size_t&	page_size = purge_sys->rseg_iter->set_next();
 
 	if (purge_sys->rseg != NULL) {
-		trx_purge_read_undo_rec(purge_sys, zip_size);
+		trx_purge_read_undo_rec(purge_sys, page_size);
 	} else {
 		/* There is nothing to do yet. */
 		os_thread_yield();
@@ -867,16 +872,16 @@ trx_purge_get_next_rec(
 	ulint		offset;
 	ulint		page_no;
 	ulint		space;
-	ulint		zip_size;
 	mtr_t		mtr;
 
 	ut_ad(purge_sys->next_stored);
 	ut_ad(purge_sys->iter.trx_no < purge_sys->view.low_limit_no());
 
 	space = purge_sys->rseg->space;
-	zip_size = purge_sys->rseg->zip_size;
 	page_no = purge_sys->page_no;
 	offset = purge_sys->offset;
+
+	const page_size_t	page_size(purge_sys->rseg->page_size);
 
 	if (offset == 0) {
 		/* It is the dummy undo log record, which means that there is
@@ -894,7 +899,8 @@ trx_purge_get_next_rec(
 
 	mtr_start(&mtr);
 
-	undo_page = trx_undo_page_get_s_latched(space, zip_size, page_no, &mtr);
+	undo_page = trx_undo_page_get_s_latched(page_id_t(space, page_no),
+						page_size, &mtr);
 
 	rec = undo_page + offset;
 
@@ -952,7 +958,7 @@ trx_purge_get_next_rec(
 		mtr_start(&mtr);
 
 		undo_page = trx_undo_page_get_s_latched(
-			space, zip_size, page_no, &mtr);
+			page_id_t(space, page_no), page_size, &mtr);
 
 		rec = undo_page + offset;
 	} else {

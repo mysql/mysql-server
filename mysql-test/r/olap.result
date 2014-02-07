@@ -627,10 +627,11 @@ A
 B
 C
 NULL
-analyze table v1;
+analyze table v1,t1;
 Table	Op	Msg_type	Msg_text
 test.v1	analyze	Error	'test.v1' is not BASE TABLE
 test.v1	analyze	error	Corrupt
+test.t1	analyze	status	OK
 EXPLAIN SELECT type FROM v1 GROUP BY type WITH ROLLUP;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort

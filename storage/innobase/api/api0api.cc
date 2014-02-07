@@ -382,12 +382,11 @@ ib_read_tuple(
 		/* Fetch and copy any externally stored column. */
 		if (rec_offs_nth_extern(offsets, i)) {
 
-			ulint	zip_size;
-
-			zip_size = dict_table_zip_size(index->table);
+			const page_size_t	page_size(
+				dict_table_page_size(index->table));
 
 			data = btr_rec_copy_externally_stored_field(
-				copy, offsets, zip_size, i, &len,
+				copy, offsets, page_size, i, &len,
 				tuple->heap);
 
 			ut_a(len != UNIV_SQL_NULL);

@@ -275,7 +275,7 @@ struct recv_dblwr_t {
 
 	byte* find_page(ulint space_id, ulint page_no);
 
-	std::list<byte *> pages; /* Pages from double write buffer */
+	std::list<byte*> pages; /* Pages from double write buffer */
 };
 
 /** Recovery system data structure */

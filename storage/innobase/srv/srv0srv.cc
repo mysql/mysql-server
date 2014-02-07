@@ -150,12 +150,14 @@ ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 ib_uint64_t	srv_log_file_size_requested;
 /* size in database pages */
-ulint	srv_log_buffer_size	= ULINT_MAX;
-ulong	srv_flush_log_at_trx_commit = 1;
-uint	srv_flush_log_at_timeout = 1;
-ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
-ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
-ulong	srv_log_write_ahead_size = 0;
+ulint		srv_log_buffer_size = ULINT_MAX;
+ulong		srv_flush_log_at_trx_commit = 1;
+uint		srv_flush_log_at_timeout = 1;
+ulong		srv_page_size = UNIV_PAGE_SIZE_DEF;
+ulong		srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_DEF;
+ulong		srv_log_write_ahead_size = 0;
+
+page_size_t	univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */

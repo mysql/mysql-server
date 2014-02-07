@@ -423,33 +423,30 @@ Datafile::validate_first_page()
 		}
 	}
 
-	if (error_txt != NULL) { /* skip the next few tests */
+	const page_size_t	page_size(m_flags);
 
-	/* Tablespace flags must be valid. */
+	if (error_txt != NULL) {
+		/* skip the next few tests */
 	} else if (!fsp_flags_is_valid(m_flags)) {
+		/* Tablespace flags must be valid. */
 		error_txt = "Tablespace flags are invalid";
-
-	/* Page size must be UNIV_PAGE_SIZE. */
-	} else if (UNIV_PAGE_SIZE != fsp_flags_get_page_size(m_flags)) {
+	} else if (univ_page_size.logical() != page_size.logical()) {
+		/* Page size must be univ_page_size. */
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Data file '%s' uses page size %lu, but the"
 			" innodb_page_size start-up parameter is %lu",
 			m_name,
-			fsp_flags_get_page_size(flags()), UNIV_PAGE_SIZE);
+			page_size.logical(), univ_page_size.logical());
 		free_first_page();
 		return(DB_ERROR);
-
-	/* First page must be number 0 */
 	} else if (page_get_page_no(m_first_page) != 0) {
+		/* First page must be number 0 */
 		error_txt = "Header page contains inconsistent data";
-
-	/* The space_id can be most anything, except -1. */
 	} else if (m_space_id == ULINT_UNDEFINED) {
+		/* The space_id can be most anything, except -1. */
 		error_txt = "A bad Space ID was found";
-
-	/* Look for Checksum and other corruptions. */
-	} else if (buf_page_is_corrupted(false, m_first_page,
-				  fsp_flags_get_zip_size(m_flags))) {
+	} else if (buf_page_is_corrupted(false, m_first_page, page_size)) {
+		/* Look for checksum and other corruptions. */
 		error_txt = "Checksum mismatch";
 	}
 
@@ -461,10 +458,9 @@ Datafile::validate_first_page()
 			ulong(m_space_id), ulong(m_flags),
 			TROUBLESHOOT_DATADICT_MSG);
 		m_is_valid = false;
-
-	/* Make sure the space_id has not already been opened. */
 	} else if (fil_space_read_name_and_filepath(
 		    m_space_id, &prev_name, &prev_filepath)) {
+		/* Make sure the space_id has not already been opened. */
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Attempted to open a previously opened tablespace. "
 			" Previous tablespace %s at filepath: %s uses"
@@ -541,21 +537,25 @@ Datafile::find_space_id()
 				continue;
 			}
 
-			bool uncompressed_ok = false;
+			bool	noncompressed_ok = false;
 
-			/* For uncompressed pages, the page size must be equal
-			to UNIV_PAGE_SIZE. */
-			if (page_size == UNIV_PAGE_SIZE) {
-				uncompressed_ok = !buf_page_is_corrupted(
-					false, page, 0);
+			/* For noncompressed pages, the page size must be
+			equal to univ_page_size.physical(). */
+			if (page_size == univ_page_size.physical()) {
+				noncompressed_ok = !buf_page_is_corrupted(
+					false, page, univ_page_size);
 			}
 
-			bool compressed_ok = !buf_page_is_corrupted(
-				false, page, page_size);
+			const page_size_t	compr_page_size(
+				page_size, univ_page_size.logical(), true);
+			bool			compressed_ok;
 
-			if (uncompressed_ok || compressed_ok) {
+			compressed_ok = !buf_page_is_corrupted(false, page,
+							       compr_page_size);
 
-				ulint space_id = mach_read_from_4(page
+			if (noncompressed_ok || compressed_ok) {
+
+				ulint	space_id = mach_read_from_4(page
 					+ FIL_PAGE_SPACE_ID);
 
 				if (space_id > 0) {
@@ -575,11 +575,12 @@ Datafile::find_space_id()
 			"Page size: %lu, Possible space_id count:%lu",
 			page_size, (ulint) verify.size());
 
-		const ulint pages_corrupted = 3;
+		const ulint	pages_corrupted = 3;
 		for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
 
-			for (std::map<ulint, ulint>::iterator
-			     m = verify.begin(); m != verify.end(); ++m ) {
+			for (std::map<ulint, ulint>::iterator m = verify.begin();
+			     m != verify.end();
+			     ++m) {
 
 				ib_logf(IB_LOG_LEVEL_INFO, "space_id:%lu, "
 					"Number of pages matched: %lu/%lu "
@@ -613,13 +614,6 @@ dberr_t
 Datafile::restore_from_doublewrite(
 	ulint	restore_page_no)
 {
-	ulint	flags;
-	ulint	zip_size;
-	ulint	page_no;
-	ulint	page_size;
-	ulint	buflen;
-	byte*	page;
-
 	if (m_space_id == 0) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot restore corrupted page %lu of from data file"
@@ -628,13 +622,13 @@ Datafile::restore_from_doublewrite(
 		return(DB_ERROR);
 	}
 
-	// Find if double write buffer contains page_no of given space id
-	page = recv_sys->dblwr.find_page(m_space_id, restore_page_no);
+	/* Find if double write buffer contains page_no of given space id. */
+	byte*	page = recv_sys->dblwr.find_page(m_space_id, restore_page_no);
 
-	if (!page) {
+	if (page == NULL) {
 		/* If the first page of the given user tablespace is not there
 		in the doublewrite buffer, then the recovery is going to fail
-		now.  Hence this is treated as an error. */
+		now. Hence this is treated as an error. */
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Corrupted page %lu of datafile '%s' in tablespace"
 			" %lu could not be found in the doublewrite buffer.",
@@ -643,22 +637,22 @@ Datafile::restore_from_doublewrite(
 		return(DB_CORRUPTION);
 	}
 
-	flags = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
-	zip_size = fsp_flags_get_zip_size(flags);
-	page_no = page_get_page_no(page);
-	page_size = fsp_flags_get_page_size(flags);
+	const ulint		flags = mach_read_from_4(FSP_HEADER_OFFSET
+							 + FSP_SPACE_FLAGS
+							 + page);
+	const page_size_t	page_size(flags);
 
-	ut_a(page_no == restore_page_no);
-
-	buflen = zip_size ? zip_size: page_size;
+	ut_a(page_get_page_no(page) == restore_page_no);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Restoring page %lu of datafile '%s' in tablespace %lu from"
-		" the doublewrite buffer. Writing %lu bytes into file '%s'",
+		" the doublewrite buffer. Writing " ULINTPF
+		" bytes into file '%s'",
 		ulong(restore_page_no), m_name, ulong(m_space_id),
-		ulong(buflen), m_filepath);
+		page_size.physical(), m_filepath);
 
-	if (!os_file_write(m_filepath, m_handle, page, 0, buflen)) {
+	if (!os_file_write(m_filepath, m_handle, page, 0,
+			   page_size.physical())) {
 		return(DB_CORRUPTION);
 	}
 

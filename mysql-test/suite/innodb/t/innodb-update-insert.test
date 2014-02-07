@@ -1,0 +1,38 @@
+#
+# Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+#
+
+# This file contains test cases for checking the functionality "update by
+# delete + insert".
+
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug#14668683 ASSERT REC_GET_DELETED_FLAG(REC, PAGE_IS_COMP(PAGE))
+--echo #
+
+create table t1(f1 char(1) primary key, f2 int not null, f3 blob)
+engine=innodb;
+show create table t1;
+
+insert into t1 values ('a', 0, repeat('b',8102));
+select f1 from t1;
+update t1 set f1='A';
+select f1 from t1;
+drop table t1;
+
+--echo #
+--echo # Another test case
+--echo #
+create table t1 (f1 char(1), f2 longblob, f3 blob, primary key(f1))
+charset=utf8 engine=innodb;
+
+replace into t1 set f1=0xa3;
+select f1 from t1;
+update t1 set f1=0x6a;
+update t1 set f3=repeat(0xb1,8103);
+update t1 set f1=0x4a;
+update t1 set f1=0x82;
+select f1 from t1;
+
+drop table t1;

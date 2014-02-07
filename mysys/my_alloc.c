@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,14 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
-#undef EXTRA_DEBUG
-#define EXTRA_DEBUG
+
+/*
+  For instrumented code: don't preallocate memory in alloc_root().
+  This gives a lot more memory chunks, each with a red-zone around them.
+ */
+#if !defined(HAVE_VALGRIND) && !defined(HAVE_ASAN)
+#define PREALLOCATE_MEMORY_CHUNKS
+#endif
 
 
 /*
@@ -58,7 +64,7 @@ void init_alloc_root(PSI_memory_key key,
   mem_root->first_block_usage= 0;
   mem_root->m_psi_key= key;
 
-#if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
+#if defined(PREALLOCATE_MEMORY_CHUNKS)
   if (pre_alloc_size)
   {
     if ((mem_root->free= mem_root->pre_alloc=
@@ -102,7 +108,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
   mem_root->block_size= block_size - ALLOC_ROOT_MIN_BLOCK_SIZE;
-#if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
+#if defined(PREALLOCATE_MEMORY_CHUNKS)
   if (pre_alloc_size)
   {
     size_t size= pre_alloc_size + ALIGN_SIZE(sizeof(USED_MEM));
@@ -158,7 +164,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
 
 void *alloc_root(MEM_ROOT *mem_root, size_t length)
 {
-#if defined(HAVE_purify) && defined(EXTRA_DEBUG)
+#if !defined(PREALLOCATE_MEMORY_CHUNKS)
   USED_MEM *next;
   DBUG_ENTER("alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
@@ -183,6 +189,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
   }
   next->next= mem_root->used;
   next->size= length;
+  next->left= length - ALIGN_SIZE(sizeof(USED_MEM));
   mem_root->used= next;
   DBUG_PRINT("exit",("ptr: 0x%lx", (long) (((char*) next)+
                                            ALIGN_SIZE(sizeof(USED_MEM)))));
