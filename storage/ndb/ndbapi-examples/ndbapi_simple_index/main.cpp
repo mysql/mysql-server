@@ -43,6 +43,9 @@
 //    8    18
 //    9     9
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <NdbApi.hpp>
