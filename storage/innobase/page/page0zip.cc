@@ -24,6 +24,7 @@ Compressed page interface
 Created June 2005 by Marko Makela
 *******************************************************/
 
+#include "page0size.h"
 #include "page0zip.h"
 #ifdef UNIV_NONINL
 # include "page0zip.ic"

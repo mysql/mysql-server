@@ -200,23 +200,47 @@ struct fts_proximity_t {
 
 /** The match positions and tokesn to match */
 struct fts_phrase_t {
-	ibool		found;		/*!< Match result */
+	fts_phrase_t(const dict_table_t* table)
+		:
+		found(false),
+		match(NULL),
+		tokens(NULL),
+		distance(0),
+		charset(NULL),
+		heap(NULL),
+		page_size(dict_table_page_size(table)),
+		proximity_pos(NULL),
+		parser(NULL)
+	{
+	}
 
-	const fts_match_t*
-			match;		/*!< Positions within text */
+	/** Match result */
+	ibool			found;
 
-	const ib_vector_t*
-			tokens;		/*!< Tokens to match */
+	/** Positions within text */
+	const fts_match_t*	match;
 
-	ulint		distance;	/*!< For matching on proximity
-					distance. Can be 0 for exact match */
-	CHARSET_INFO*	charset;	/*!< Phrase match charset */
-	mem_heap_t*     heap;		/*!< Heap for word processing */
-	ulint		zip_size;	/*!< row zip size */
-	fts_proximity_t*proximity_pos;	/*!< position info for proximity
-					search verification. Records the min
-					and max position of words matched */
-	st_mysql_ftparser* parser;	/*!< fts plugin parser */
+	/** Tokens to match */
+	const ib_vector_t*	tokens;
+
+	/** For matching on proximity distance. Can be 0 for exact match */
+	ulint			distance;
+
+	/** Phrase match charset */
+	CHARSET_INFO*		charset;
+
+	/** Heap for word processing */
+	mem_heap_t*		heap;
+
+	/** Row page size */
+	const page_size_t	page_size;
+
+	/** Position info for proximity search verification. Records the
+	min and max position of words matched */
+	fts_proximity_t*	proximity_pos;
+
+	/** FTS plugin parser */
+	st_mysql_ftparser*	parser;
 };
 
 /** Paramter passed to fts phrase match by parser */
@@ -2034,7 +2058,7 @@ fts_query_fetch_document(
 
 		if (dfield_is_ext(dfield)) {
 			data = btr_copy_externally_stored_field(
-				&cur_len, data, phrase->zip_size,
+				&cur_len, data, phrase->page_size,
 				dfield_get_len(dfield), phrase->heap);
 		} else {
 			cur_len = dfield_get_len(dfield);
@@ -2456,16 +2480,12 @@ fts_query_match_document(
 	ibool*		found)		/*!< out: TRUE if phrase found */
 {
 	dberr_t		error;
-	fts_phrase_t	phrase;
-
-	memset(&phrase, 0x0, sizeof(phrase));
+	fts_phrase_t	phrase(get_doc->index_cache->index->table);
 
 	phrase.match = match;		/* Positions to match */
 	phrase.tokens = tokens;		/* Tokens to match */
 	phrase.distance = distance;
 	phrase.charset = get_doc->index_cache->charset;
-	phrase.zip_size = dict_table_zip_size(
-		get_doc->index_cache->index->table);
 	phrase.heap = mem_heap_create(512);
 	phrase.parser = parser;
 
@@ -2500,23 +2520,21 @@ fts_query_is_in_proximity_range(
 	fts_proximity_t*	qualified_pos)	/*!< in: position info for
 						qualified ranges */
 {
-	fts_get_doc_t		get_doc;
-	fts_cache_t*		cache = query->index->table->fts->cache;
-	dberr_t			err;
-	fts_phrase_t		phrase;
+	fts_get_doc_t	get_doc;
+	fts_cache_t*	cache = query->index->table->fts->cache;
+	dberr_t		err;
 
 	memset(&get_doc, 0x0, sizeof(get_doc));
-	memset(&phrase, 0x0, sizeof(phrase));
 
 	rw_lock_x_lock(&cache->lock);
 	get_doc.index_cache = fts_find_index_cache(cache, query->index);
 	rw_lock_x_unlock(&cache->lock);
 	ut_a(get_doc.index_cache != NULL);
 
+	fts_phrase_t	phrase(get_doc.index_cache->index->table);
+
 	phrase.distance = query->distance;
 	phrase.charset = get_doc.index_cache->charset;
-	phrase.zip_size = dict_table_zip_size(
-		get_doc.index_cache->index->table);
 	phrase.heap = mem_heap_create(512);
 	phrase.proximity_pos = qualified_pos;
 	phrase.found = FALSE;

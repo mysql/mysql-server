@@ -849,7 +849,7 @@ SysTablespace::open_or_create(
 		}
 	}
 
-	if (create_new_db) {
+	if (create_new_db && min_lsn != NULL && max_lsn != NULL) {
 		/* Validate the header page in the first datafile
 		and read LSNs fom the others. */
 		err = read_lsn_and_check_flags();

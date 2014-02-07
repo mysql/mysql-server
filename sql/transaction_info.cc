@@ -40,8 +40,8 @@ void Transaction_ctx::push_unsafe_rollback_warnings(THD *thd)
 bool Transaction_ctx::add_changed_table(const char *key, long key_length)
 {
   DBUG_ENTER("Transaction_ctx::add_changed_table");
-  CHANGED_TABLE_LIST **prev_changed = &changed_tables;
-  CHANGED_TABLE_LIST *curr = changed_tables;
+  CHANGED_TABLE_LIST **prev_changed = &m_changed_tables;
+  CHANGED_TABLE_LIST *curr = m_changed_tables;
 
   for (; curr; prev_changed = &(curr->next), curr = curr->next)
   {

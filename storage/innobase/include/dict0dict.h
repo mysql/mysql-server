@@ -921,24 +921,25 @@ dict_tf_to_fsp_flags(
 /*=================*/
 	ulint	flags)	/*!< in: dict_table_t::flags */
 	__attribute__((const));
-/********************************************************************//**
-Extract the compressed page size from table flags.
+
+/** Extract the page size from table flags.
+@param[in]	flags	flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-ulint
-dict_tf_get_zip_size(
-/*=================*/
-	ulint	flags)			/*!< in: flags */
-	__attribute__((const));
-/********************************************************************//**
-Check whether the table uses the compressed compact page format.
+const page_size_t
+dict_tf_get_page_size(
+	ulint	flags)
+__attribute__((const));
+
+/** Get the table page size.
+@param[in]	table	table
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-ulint
-dict_table_zip_size(
-/*================*/
-	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, warn_unused_result));
+const page_size_t
+dict_table_page_size(
+	const dict_table_t*	table)
+	__attribute__((warn_unused_result));
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent

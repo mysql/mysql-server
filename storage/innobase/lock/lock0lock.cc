@@ -1420,8 +1420,8 @@ lock_rec_get_first_on_page(
 {
 	ulint	hash;
 	lock_t*	lock;
-	ulint	space	= buf_block_get_space(block);
-	ulint	page_no	= buf_block_get_page_no(block);
+	ulint	space = block->page.id.space();
+	ulint	page_no	= block->page.id.page_no();
 
 	ut_ad(lock_mutex_own());
 
@@ -1835,7 +1835,7 @@ lock_sec_rec_some_has_impl(
 
 	} else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
 
-		buf_page_print(page, 0, 0);
+		buf_page_print(page, univ_page_size, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning 0 */
 		trx = 0;
@@ -1997,8 +1997,8 @@ lock_rec_create(
 	}
 #endif /* UNIV_DEBUG */
 
-	space = buf_block_get_space(block);
-	page_no	= buf_block_get_page_no(block);
+	space = block->page.id.space();
+	page_no	= block->page.id.page_no();
 	page = block->frame;
 
 	btr_assert_not_corrupted(block, index);
@@ -2750,8 +2750,8 @@ lock_rec_free_all_from_discard_page(
 
 	ut_ad(lock_mutex_own());
 
-	space = buf_block_get_space(block);
-	page_no = buf_block_get_page_no(block);
+	space = block->page.id.space();
+	page_no = block->page.id.page_no();
 
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
 
@@ -4723,7 +4723,7 @@ lock_rec_print(
 
 	const buf_block_t*	block;
 
-	block = buf_page_try_get(space, page_no, &mtr);
+	block = buf_page_try_get(page_id_t(space, page_no), &mtr);
 
 	for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
 
@@ -5064,12 +5064,14 @@ lock_rec_fetch_page(
 {
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	ulint	space	= lock->un_member.rec_lock.space;
-	ulint	zip_size = fil_space_get_zip_size(space);
-	ulint	page_no = lock->un_member.rec_lock.page_no;
+	ulint			space = lock->un_member.rec_lock.space;
+	bool			found;
+	const page_size_t&	page_size = fil_space_get_page_size(space,
+								    &found);
+	ulint			page_no = lock->un_member.rec_lock.page_no;
 
 	/* Check if the .ibd file exists. */
-	if (zip_size != ULINT_UNDEFINED) {
+	if (found) {
 		mtr_t	mtr;
 
 		lock_mutex_exit();
@@ -5078,7 +5080,8 @@ lock_rec_fetch_page(
 
 		mtr_start(&mtr);
 
-		buf_page_get_with_no_latch(space, zip_size, page_no, &mtr);
+		buf_page_get_with_no_latch(
+			page_id_t(space, page_no), page_size, &mtr);
 
 		mtr_commit(&mtr);
 
@@ -5465,8 +5468,8 @@ lock_rec_validate_page(
 	lock_mutex_enter();
 	mutex_enter(&trx_sys->mutex);
 loop:
-	lock = lock_rec_get_first_on_page_addr(buf_block_get_space(block),
-					       buf_block_get_page_no(block));
+	lock = lock_rec_get_first_on_page_addr(block->page.id.space(),
+					       block->page.id.page_no());
 
 	if (!lock) {
 		goto function_exit;
@@ -5630,9 +5633,16 @@ lock_rec_block_validate(
 	trying to access the page. */
 	if (!fil_inc_pending_ops(space)) {
 		mtr_start(&mtr);
+
+		bool			found;
+		const page_size_t&	page_size
+			= fil_space_get_page_size(space, &found);
+
+		ut_ad(found);
+
 		block = buf_page_get_gen(
-			space, fil_space_get_zip_size(space),
-			page_no, RW_X_LATCH, NULL,
+			page_id_t(space, page_no), page_size,
+			RW_X_LATCH, NULL,
 			BUF_GET_POSSIBLY_FREED,
 			__FILE__, __LINE__, &mtr);
 

@@ -26,8 +26,6 @@
 #include "binlog.h"
 #include "log_event.h"
 #include <algorithm>
-using std::max;
-using std::min;
 
 /**
   The major logic of dump thread is implemented in this class. It sends

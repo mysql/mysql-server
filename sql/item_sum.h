@@ -1,8 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved. reserved.
-   reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -570,7 +569,7 @@ class Aggregator_distinct : public Aggregator
     Used in conjunction with 'table' to support the access to Field classes 
     for COUNT(DISTINCT). Needed by copy_fields()/copy_funcs().
   */
-  TMP_TABLE_PARAM *tmp_table_param;
+  Temp_table_param *tmp_table_param;
   
   /*
     If there are no blobs in the COUNT(DISTINCT) arguments, we can use a tree,
@@ -1420,7 +1419,7 @@ C_MODE_END
 
 class Item_func_group_concat : public Item_sum
 {
-  TMP_TABLE_PARAM *tmp_table_param;
+  Temp_table_param *tmp_table_param;
   String result;
   String *separator;
   TREE tree_base;

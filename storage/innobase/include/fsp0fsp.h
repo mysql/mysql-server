@@ -38,101 +38,6 @@ Created 12/18/1995 Heikki Tuuri
 #endif /* !UNIV_INNOCHECKSUM */
 #include "fsp0types.h"
 
-/* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */
-
-/** Width of the POST_ANTELOPE flag */
-#define FSP_FLAGS_WIDTH_POST_ANTELOPE	1
-/** Number of flag bits used to indicate the tablespace zip page size */
-#define FSP_FLAGS_WIDTH_ZIP_SSIZE	4
-/** Width of the ATOMIC_BLOBS flag.  The ability to break up a long
-column into an in-record prefix and an externally stored part is available
-to the two Barracuda row formats COMPRESSED and DYNAMIC. */
-#define FSP_FLAGS_WIDTH_ATOMIC_BLOBS	1
-/** Number of flag bits used to indicate the tablespace page size */
-#define FSP_FLAGS_WIDTH_PAGE_SSIZE	4
-/** Width of the DATA_DIR flag.  This flag indicates that the tablespace
-is found in a remote location, not the default data directory. */
-#define FSP_FLAGS_WIDTH_DATA_DIR	1
-/** Width of all the currently known tablespace flags */
-#define FSP_FLAGS_WIDTH		(FSP_FLAGS_WIDTH_POST_ANTELOPE	\
-				+ FSP_FLAGS_WIDTH_ZIP_SSIZE	\
-				+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS	\
-				+ FSP_FLAGS_WIDTH_PAGE_SSIZE	\
-				+ FSP_FLAGS_WIDTH_DATA_DIR)
-
-/** A mask of all the known/used bits in tablespace flags */
-#define FSP_FLAGS_MASK		(~(~0 << FSP_FLAGS_WIDTH))
-
-/** Zero relative shift position of the POST_ANTELOPE field */
-#define FSP_FLAGS_POS_POST_ANTELOPE	0
-/** Zero relative shift position of the ZIP_SSIZE field */
-#define FSP_FLAGS_POS_ZIP_SSIZE		(FSP_FLAGS_POS_POST_ANTELOPE	\
-					+ FSP_FLAGS_WIDTH_POST_ANTELOPE)
-/** Zero relative shift position of the ATOMIC_BLOBS field */
-#define FSP_FLAGS_POS_ATOMIC_BLOBS	(FSP_FLAGS_POS_ZIP_SSIZE	\
-					+ FSP_FLAGS_WIDTH_ZIP_SSIZE)
-/** Zero relative shift position of the PAGE_SSIZE field */
-#define FSP_FLAGS_POS_PAGE_SSIZE	(FSP_FLAGS_POS_ATOMIC_BLOBS	\
-					+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS)
-/** Zero relative shift position of the start of the UNUSED bits */
-#define FSP_FLAGS_POS_DATA_DIR		(FSP_FLAGS_POS_PAGE_SSIZE	\
-					+ FSP_FLAGS_WIDTH_PAGE_SSIZE)
-/** Zero relative shift position of the start of the UNUSED bits */
-#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_DATA_DIR	\
-					+ FSP_FLAGS_WIDTH_DATA_DIR)
-
-/** Bit mask of the POST_ANTELOPE field */
-#define FSP_FLAGS_MASK_POST_ANTELOPE				\
-		((~(~0 << FSP_FLAGS_WIDTH_POST_ANTELOPE))	\
-		<< FSP_FLAGS_POS_POST_ANTELOPE)
-/** Bit mask of the ZIP_SSIZE field */
-#define FSP_FLAGS_MASK_ZIP_SSIZE				\
-		((~(~0 << FSP_FLAGS_WIDTH_ZIP_SSIZE))		\
-		<< FSP_FLAGS_POS_ZIP_SSIZE)
-/** Bit mask of the ATOMIC_BLOBS field */
-#define FSP_FLAGS_MASK_ATOMIC_BLOBS				\
-		((~(~0 << FSP_FLAGS_WIDTH_ATOMIC_BLOBS))	\
-		<< FSP_FLAGS_POS_ATOMIC_BLOBS)
-/** Bit mask of the PAGE_SSIZE field */
-#define FSP_FLAGS_MASK_PAGE_SSIZE				\
-		((~(~0 << FSP_FLAGS_WIDTH_PAGE_SSIZE))		\
-		<< FSP_FLAGS_POS_PAGE_SSIZE)
-/** Bit mask of the DATA_DIR field */
-#define FSP_FLAGS_MASK_DATA_DIR					\
-		((~(~0 << FSP_FLAGS_WIDTH_DATA_DIR))		\
-		<< FSP_FLAGS_POS_DATA_DIR)
-
-/** Return the value of the POST_ANTELOPE field */
-#define FSP_FLAGS_GET_POST_ANTELOPE(flags)			\
-		((flags & FSP_FLAGS_MASK_POST_ANTELOPE)		\
-		>> FSP_FLAGS_POS_POST_ANTELOPE)
-/** Return the value of the ZIP_SSIZE field */
-#define FSP_FLAGS_GET_ZIP_SSIZE(flags)				\
-		((flags & FSP_FLAGS_MASK_ZIP_SSIZE)		\
-		>> FSP_FLAGS_POS_ZIP_SSIZE)
-/** Return the value of the ATOMIC_BLOBS field */
-#define FSP_FLAGS_HAS_ATOMIC_BLOBS(flags)			\
-		((flags & FSP_FLAGS_MASK_ATOMIC_BLOBS)		\
-		>> FSP_FLAGS_POS_ATOMIC_BLOBS)
-/** Return the value of the PAGE_SSIZE field */
-#define FSP_FLAGS_GET_PAGE_SSIZE(flags)				\
-		((flags & FSP_FLAGS_MASK_PAGE_SSIZE)		\
-		>> FSP_FLAGS_POS_PAGE_SSIZE)
-/** Return the value of the DATA_DIR field */
-#define FSP_FLAGS_HAS_DATA_DIR(flags)				\
-		((flags & FSP_FLAGS_MASK_DATA_DIR)		\
-		>> FSP_FLAGS_POS_DATA_DIR)
-/** Return the contents of the UNUSED bits */
-#define FSP_FLAGS_GET_UNUSED(flags)				\
-		(flags >> FSP_FLAGS_POS_UNUSED)
-
-/** Set a PAGE_SSIZE into the correct bits in a given
-tablespace flags. */
-#define FSP_FLAGS_SET_PAGE_SSIZE(flags, ssize)			\
-		(flags | (ssize << FSP_FLAGS_POS_PAGE_SSIZE))
-
-/* @} */
-
 /* @defgroup Tablespace Header Constants (moved from fsp0fsp.c) @{ */
 
 /** Offset of the space header within a file page */
@@ -247,9 +152,8 @@ typedef	byte	fseg_inode_t;
 	(16 + 3 * FLST_BASE_NODE_SIZE			\
 	 + FSEG_FRAG_ARR_N_SLOTS * FSEG_FRAG_SLOT_SIZE)
 
-#define FSP_SEG_INODES_PER_PAGE(zip_size)		\
-	(((zip_size ? zip_size : UNIV_PAGE_SIZE)	\
-	  - FSEG_ARR_OFFSET - 10) / FSEG_INODE_SIZE)
+#define FSP_SEG_INODES_PER_PAGE(page_size)		\
+	((page_size.physical() - FSEG_ARR_OFFSET - 10) / FSEG_INODE_SIZE)
 				/* Number of segment inodes which fit on a
 				single page */
 
@@ -376,14 +280,14 @@ ulint
 fsp_header_get_flags(
 /*=================*/
 	const page_t*	page);	/*!< in: first page of a tablespace */
-/**********************************************************************//**
-Reads the compressed page size from the first page of a tablespace.
-@return compressed page size in bytes, or 0 if uncompressed */
 
-ulint
-fsp_header_get_zip_size(
-/*====================*/
-	const page_t*	page);	/*!< in: first page of a tablespace */
+/** Reads the page size from the first page of a tablespace.
+@param[in]	page	first page of a tablespace
+@return page size */
+page_size_t
+fsp_header_get_page_size(
+	const page_t*	page);
+
 /**********************************************************************//**
 Writes the space id and flags to a tablespace header.  The flags contain
 row type, physical/compressed page size, and logical/uncompressed page
@@ -615,16 +519,17 @@ fseg_free_step_not_header(
 				the adaptive hash index */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull, warn_unused_result));
-/***********************************************************************//**
-Checks if a page address is an extent descriptor page address.
+
+/** Checks if a page address is an extent descriptor page address.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if a descriptor page */
 UNIV_INLINE
 ibool
 fsp_descr_page(
-/*===========*/
-	ulint	zip_size,/*!< in: compressed page size in bytes;
-			0 for uncompressed pages */
-	ulint	page_no);/*!< in: page number */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
+
 /***********************************************************//**
 Parses a redo log record of a file page init.
 @return end of log record or NULL */
@@ -679,38 +584,37 @@ fsp_flags_is_compressed(
 /*====================*/
 	ulint	flags);	/*!< in: tablespace flags */
 
-/********************************************************************//**
-Calculates the descriptor index within a descriptor page.
+/** Calculates the descriptor index within a descriptor page.
+@param[in]	page_size	page size
+@param[in]	offset		page offset
 @return descriptor index */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_index(
-/*=======================*/
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	offset);	/*!< in: page offset */
+	const page_size_t&	page_size,
+	ulint			offset);
 
-/********************************************************************//**
-Gets pointer to a the extent descriptor of a page. The page where the
-extent descriptor resides is x-locked. If the page offset is equal to
-the free limit of the space, adds new extents from above the free limit
-to the space free list, if not free limit == space size. This adding
+/** Gets pointer to a the extent descriptor of a page.
+The page where the extent descriptor resides is x-locked. If the page offset
+is equal to the free limit of the space, adds new extents from above the free
+limit to the space free list, if not free limit == space size. This adding
 is necessary to make the descriptor defined, as they are uninitialized
 above the free limit.
+@param[in]	space		space id
+@param[in]	offset		page offset; if equal to the free limit, we
+try to add new extents to the space free list
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds the free limit */
-
 xdes_t*
 xdes_get_descriptor(
-/*================*/
-	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	offset,		/*!< in: page offset; if equal to the
-				free limit, we try to add new extents
-				to the space free list */
-	mtr_t*	mtr)		/*!< in/out: mini-transaction */
-	__attribute__((warn_unused_result));
+	ulint			space,
+	ulint			offset,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
+__attribute__((warn_unused_result));
+
 /**********************************************************************//**
 Gets a descriptor bit of a page.
 @return TRUE if free */
@@ -723,37 +627,17 @@ xdes_get_bit(
 	ulint		offset);/*!< in: page offset within extent:
 				0 ... FSP_EXTENT_SIZE - 1 */
 
-/********************************************************************//**
-Calculates the page where the descriptor of a page resides.
+/** Calculates the page where the descriptor of a page resides.
+@param[in]	page_size	page size
+@param[in]	offset		page offset
 @return descriptor page offset */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_page(
-/*======================*/
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	offset);	/*!< in: page offset */
+	const page_size_t&	page_size,
+	ulint			offset);
 
 #endif /* !UNIV_INNOCHECKSUM */
-
-/********************************************************************//**
-Extract the zip size from tablespace flags.  A tablespace has only one
-physical page size whether that page is compressed or not.
-@return compressed page size of the file-per-table tablespace in bytes,
-or zero if the table is not compressed.  */
-UNIV_INLINE
-ulint
-fsp_flags_get_zip_size(
-/*====================*/
-	ulint	flags);		/*!< in: tablespace flags */
-/********************************************************************//**
-Extract the page size from tablespace flags.
-@return page size of the tablespace in bytes */
-UNIV_INLINE
-ulint
-fsp_flags_get_page_size(
-/*====================*/
-	ulint	flags);		/*!< in: tablespace flags */
 
 #ifndef UNIV_NONINL
 #include "fsp0fsp.ic"
