@@ -2391,17 +2391,16 @@ sub environment_setup {
 		  "ndb_show_tables");
 
     $ENV{'NDB_EXAMPLES_DIR'}=
-      my_find_dir($basedir,
+      my_find_dir($bindir,
 		  ["storage/ndb/ndbapi-examples", "bin"]);
 
     $ENV{'NDB_EXAMPLES_BINARY'}=
       my_find_bin($bindir,
-		  ["storage/ndb/ndbapi-examples/ndbapi_simple", "bin"],
-		  "ndbapi_simple", NOT_REQUIRED);
+		  ["storage/ndb/ndbapi-examples", "bin"],
+		  "ndb_ndbapi_simple", NOT_REQUIRED);
 
     my $path_ndb_testrun_log= "$opt_vardir/tmp/ndb_testrun.log";
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
-    $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;    
   }
 
   # ----------------------------------------------------
