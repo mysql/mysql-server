@@ -294,7 +294,7 @@ ib_uint32_t
 mach_read_next_compressed(
 	const byte**	b)
 {
-	ib_uint32_t	val = mach_read_from_1(*b);
+	ulint	val = mach_read_from_1(*b);
 
 	if (val < 0x80) {
 		++*b;
@@ -313,7 +313,7 @@ mach_read_next_compressed(
 		*b += 5;
 	}
 
-	return(val);
+	return(static_cast<ib_uint32_t>(val));
 }
 
 /*******************************************************//**
