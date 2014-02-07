@@ -292,14 +292,14 @@ public:
 
 private:
 
-	/** Tablespace id. Protected by buf_pool->lock(). */
+	/** Tablespace id. */
 	ib_uint32_t	m_space;
 
-	/** Page number. Protected by buf_pool->lock(). */
+	/** Page number. */
 	ib_uint32_t	m_page_no;
 
 	/** A fold value derived from m_space and m_page_no,
-	used in hashing. Protected by buf_pool->lock(). */
+	used in hashing. */
 	mutable ulint	m_fold;
 
 	/* Disable implicit copying. */
