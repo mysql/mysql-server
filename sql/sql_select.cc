@@ -10550,7 +10550,7 @@ void JOIN::cleanup(bool full)
   }
   if (full)
   {
-    cleanup_empty_jtbm_semi_joins(this);
+    cleanup_empty_jtbm_semi_joins(this, join_list);
     /* 
       Ensure that the following delete_elements() would not be called
       twice for the same list.
