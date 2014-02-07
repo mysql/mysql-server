@@ -25,7 +25,7 @@ function make_mysql() {
 PATH=$HOME/bin:$HOME/usr/local/bin:/usr/local/bin:$PATH
 source /etc/profile
 
-github_token=54164b2e492aa8c6368fa04fff7f1a972fa1954c
+github_token=
 gearmandhost=localhost
 gearmandir=/usr/local/gearmand-1.1.6
 system=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -46,13 +46,13 @@ done
 nightlytrace=/tmp/$(whoami).nightly.trace
 mysqltrace=/tmp/$(whoami).mysql.build.trace.$now_ts
 
-make_and_test_mysql --cc=$cc --cxx=$cxx --github_token=$github_token --mysqlbuild=mysql-5.6.15-tokudb-${now_ts}-debug-e-${system}-${arch}
-make_and_test_mysql --cc=$cc --cxx=$cxx --github_token=$github_token --mysqlbuild=mysql-5.6.15-tokudb-${now_ts}-e-${system}-${arch} --tests=run.mysql.tests.bash:run.sql.bench.bash
+make_and_test_mysql --mysqlbuild=mysql-5.6.16-tokudb-${now_ts}-debug-e-${system}-${arch} --cc=$cc --cxx=$cxx --github_token=$github_token 
+make_and_test_mysql --mysqlbuild=mysql-5.6.16-tokudb-${now_ts}-e-${system}-${arch} --cc=$cc --cxx=$cxx --github_token=$github_token --tests=run.mysql.tests.bash:run.sql.bench.bash 
 
-make_and_test_mysql --cc=$cc --cxx=$cxx --github_token=$github_token --mysqlbuild=mysql-5.5.36-tokudb-${now_ts}-debug-e-${system}-${arch}
-make_and_test_mysql --cc=$cc --cxx=$cxx --github_token=$github_token --mysqlbuild=mysql-5.5.36-tokudb-${now_ts}-e-${system}-${arch} --tests=run.mysql.tests.bash:run.sql.bench.bash
+make_and_test_mysql --mysqlbuild=mysql-5.5.36-tokudb-${now_ts}-debug-e-${system}-${arch} --cc=$cc --cxx=$cxx --github_token=$github_token 
+make_and_test_mysql --mysqlbuild=mysql-5.5.36-tokudb-${now_ts}-e-${system}-${arch} --cc=$cc --cxx=$cxx --github_token=$github_token --tests=run.mysql.tests.bash:run.sql.bench.bash
 
-make_and_test_mysql --cc=$cc --cxx=$cxx --github_token=$github_token --mysqlbuild=mariadb-5.5.35-tokudb-${now_ts}-debug-e-${system}-${arch}
-make_and_test_mysql --cc=$cc --cxx=$cxx --github_token=$github_token --mysqlbuild=mariadb-5.5.35-tokudb-${now_ts}-e-${system}-${arch}  --tests=run.mysql.tests.bash:run.sql.bench.bash
+make_and_test_mysql --mysqlbuild=mariadb-5.5.35-tokudb-${now_ts}-debug-e-${system}-${arch} --cc=$cc --cxx=$cxx --github_token=$github_token 
+make_and_test_mysql --mysqlbuild=mariadb-5.5.35-tokudb-${now_ts}-e-${system}-${arch} --cc=$cc --cxx=$cxx --github_token=$github_token  --tests=run.mysql.tests.bash:run.sql.bench.bash
 
 exit 0
