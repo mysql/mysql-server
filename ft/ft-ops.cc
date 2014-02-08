@@ -2730,6 +2730,13 @@ static void inject_message_in_locked_node(
         toku_ft_flush_node_on_background_thread(ft, node);
     }
     else {
+        // Garbage collect in-memory leaf nodes that appear to be very overfull.
+        //
+        // This mechanism prevents direct leaf injections from producing an arbitrary amount
+        // of MVCC garbage if they never get evicted.
+        if (node->height == 0 && toku_serialize_ftnode_size(node) > (ft->h->nodesize * 8)) {
+            ft_leaf_run_gc(node, ft);
+        }
         toku_unpin_ftnode(ft, node);
     }
 }
