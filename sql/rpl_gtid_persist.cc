@@ -85,14 +85,14 @@ bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
 
   if (!(*thd))
     *thd= m_drop_thd_object= this->create_thd();
-  m_is_write=  is_write;
+  m_is_write= is_write;
+  m_saved_mode= (*thd)->variables.sql_mode;
   if (m_is_write)
   {
     /* Disable binlog temporarily */
     m_tmp_disable_binlog__save_options= (*thd)->variables.option_bits;
     (*thd)->variables.option_bits&= ~OPTION_BIN_LOG;
   }
-  m_saved_mode= (*thd)->variables.sql_mode;
   bool ret= this->open_table(*thd, m_is_write ? TL_WRITE : TL_READ, table);
 
   DBUG_RETURN(ret);
@@ -105,10 +105,10 @@ void Gtid_table_access_context::deinit(THD *thd, TABLE *table,
   DBUG_ENTER("Gtid_table_access_context::deinit");
 
   this->close_table(thd, table, 0 != error, need_commit);
-  thd->variables.sql_mode= m_saved_mode;
   /* Reenable binlog */
   if (m_is_write)
     thd->variables.option_bits= m_tmp_disable_binlog__save_options;
+  thd->variables.sql_mode= m_saved_mode;
   if (m_drop_thd_object)
     this->drop_thd(m_drop_thd_object);
 
