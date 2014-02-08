@@ -2159,7 +2159,7 @@ delimiter |;
 --error ER_SP_CANT_SET_AUTOCOMMIT
 create function f1() returns int
 begin
-  set @test = 1, password = password('foo');
+ set password = password('foo');
   return 1;
 end|
 
