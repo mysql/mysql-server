@@ -283,7 +283,6 @@
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 
-#cmakedefine MY_ATOMIC_MODE_DUMMY 1
 #cmakedefine MY_ATOMIC_MODE_RWLOCKS 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
