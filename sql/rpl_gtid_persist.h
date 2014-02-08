@@ -69,7 +69,7 @@ private:
   /* Modify the table if it is true. */
   bool m_is_write;
   /* Save the sql mode. */
-  ulong m_saved_mode;
+  sql_mode_t m_saved_mode;
   /* Save the lock info. */
   Open_tables_backup m_backup;
   /* Save binlog options. */
