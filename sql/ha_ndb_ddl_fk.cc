@@ -271,6 +271,22 @@ ndb_fk_casedn(char *name)
                                    name, length, name, length);
 }
 
+static int
+ndb_fk_casecmp(const char* name1, const char* name2)
+{
+  if (!lower_case_table_names)
+  {
+    return strcmp(name1, name2);
+  }
+  char tmp1[FN_LEN + 1];
+  char tmp2[FN_LEN + 1];
+  strcpy(tmp1, name1);
+  strcpy(tmp2, name2);
+  ndb_fk_casedn(tmp1);
+  ndb_fk_casedn(tmp2);
+  return strcmp(tmp1, tmp2);
+}
+
 extern bool ndb_show_foreign_key_mock_tables(THD* thd);
 
 class Fk_util
@@ -2270,6 +2286,35 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
   setDbName(ndb, src_db);
   NDBDICT::List obj_list;
   dict->listDependentObjects(obj_list, *srctab.get_table());
+
+  // check if fk to drop exists
+  {
+    Alter_drop * drop_item= 0;
+    List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
+    while ((drop_item=drop_iterator++))
+    {
+      if (drop_item->type != Alter_drop::FOREIGN_KEY)
+        continue;
+      bool found= false;
+      for (unsigned i = 0; i < obj_list.count; i++)
+      {
+        char db_and_name[FN_LEN + 1];
+        const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
+        if (ndb_fk_casecmp(drop_item->name, name) == 0)
+        {
+          found= true;
+          break;
+        }
+      }
+      if (!found)
+      {
+        // FK not found
+        my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_item->name);
+        DBUG_RETURN(ER_CANT_DROP_FIELD_OR_KEY);
+      }
+    }
+  }
+
   for (unsigned i = 0; i < obj_list.count; i++)
   {
     if (obj_list.elements[i].type == NdbDictionary::Object::ForeignKey)
@@ -2288,7 +2333,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         {
           if (drop_item->type != Alter_drop::FOREIGN_KEY)
             continue;
-          if (strcmp(drop_item->name, name) == 0)
+          if (ndb_fk_casecmp(drop_item->name, name) == 0)
           {
             found= true;
             break;
@@ -2507,7 +2552,7 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
         DBUG_RETURN(1);
       }
 
-      if (strcmp(drop_item->name, name) == 0)
+      if (ndb_fk_casecmp(drop_item->name, name) == 0)
       {
         found= true;
         Fk_util fk_util(thd);
@@ -2517,6 +2562,12 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
         }
         break;
       }
+    }
+    if (!found)
+    {
+      // FK not found
+      my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_item->name);
+      DBUG_RETURN(ER_CANT_DROP_FIELD_OR_KEY);
     }
   }
   DBUG_RETURN(0);

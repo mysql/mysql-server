@@ -12512,6 +12512,23 @@ void ha_ndbcluster::print_error(int error, myf errflag)
       my_error(ER_DUP_KEY, errflag, table_share->table_name.str, error);
       DBUG_VOID_RETURN;
     }
+    if (error == ER_CANT_DROP_FIELD_OR_KEY)
+    {
+      /*
+        Called on drop unknown FK by server when algorithm=copy or
+        by handler when algorithm=inplace.  In both cases the error
+        was already printed in ha_ndb_ddl_fk.cc.
+      */
+      THD* thd= NULL;
+      if (table != NULL &&
+          (thd= table->in_use) != NULL &&
+          thd->lex != NULL &&
+          thd->lex->sql_command == SQLCOM_ALTER_TABLE)
+      {
+        DBUG_VOID_RETURN;
+      }
+      DBUG_ASSERT(false);
+    }
 
     handler::print_error(error, errflag);
   }
