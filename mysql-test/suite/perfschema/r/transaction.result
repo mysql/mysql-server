@@ -265,8 +265,8 @@ SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_history
 ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
             1	       19	         0	transaction	COMMITTED  	               	            	                                      	READ WRITE 	                	NO        	         0	                    0	                0
 ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
-            2	       19	      5858	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
-            2	       19	      8165	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            2	       19	      6130	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            2	       19	      8934	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 CALL clear_transaction_tables();
 DROP TABLE test.t2;
 
@@ -368,7 +368,7 @@ SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_current
 ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
             0	       19	         0	transaction	           	               	            	                                      	           	                	          	         0	                    0	                0
 ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
-            1	       19	      9358	transaction	ACTIVE     	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            1	       19	     10117	transaction	ACTIVE     	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 COMMIT;
 
 ## Expect 0 transactions in events_transactions_history
@@ -384,7 +384,7 @@ SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_history
 ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
             0	       19	         0	transaction	           	               	            	                                      	           	                	          	         0	                    0	                0
 ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
-            1	       19	      9358	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            1	       19	     10117	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 
 #
 # STEP 8.2 - UPDATE TRANSACTIONAL AND NON-TRANSACTIONAL TABLES
@@ -407,7 +407,7 @@ SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_current
 ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
             0	       19	         0	transaction	           	               	            	                                      	           	                	          	         0	                    0	                0
 ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
-            1	       19	      9613	transaction	ACTIVE     	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            1	       19	     10367	transaction	ACTIVE     	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 
 ## Now transactional. Transaction should be started.
 INSERT INTO t1 VALUES (802, 'TRANSACTIONAL');
@@ -435,8 +435,8 @@ SELECT COUNT(*) INTO @actual FROM performance_schema.events_transactions_history
 ROWS_EXPECTED	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
             1	       19	         0	transaction	COMMITTED  	               	            	                                      	READ WRITE 	                	NO        	         0	                    0	                0
 ROWS_ACTUAL  	thread_id	..event_id	event_name 	state      	xid            	xa_state    	gtid                                  	access_mode	isolation_level 	autocommit	savepoints	rollback_to_savepoint	release_savepoint
-            2	       19	      9358	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
-            2	       19	      9613	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            2	       19	     10117	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
+            2	       19	     10367	transaction	COMMITTED  	NULL           	NULL        	AUTOMATIC                             	READ WRITE 	REPEATABLE READ 	NO        	         0	                    0	                0
 CALL clear_transaction_tables();
 
 ========================================================================
