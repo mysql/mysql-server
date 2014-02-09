@@ -663,3 +663,97 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (U
 delete from t1 where a=1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
 drop table t2, t1;
+# bug#17232212 - NDB DROP NON-EXISTENT FK SUCCEEDS
+create table t1 (
+a int primary key
+) engine=ndb;
+# algorithm=inplace
+create table t2 (
+a int primary key,
+b int,
+c int,
+key xb (b),
+key xc (c),
+foreign key fkb (b) references t1 (a),
+foreign key fkc (c) references t1 (a)
+) engine=ndb;
+alter table t2
+drop foreign key nosuchfk,
+algorithm=inplace;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `xb` (`b`),
+  KEY `xc` (`c`),
+ CONSTRAINT `fkb` FOREIGN KEY(`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fkc` FOREIGN KEY(`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter table t2
+drop foreign key fkb,
+drop foreign key nosuchfk,
+drop foreign key fkc,
+algorithm=inplace;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `xb` (`b`),
+  KEY `xc` (`c`),
+ CONSTRAINT `fkb` FOREIGN KEY(`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fkc` FOREIGN KEY(`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table t2;
+# algorithm=copy
+create table t2 (
+a int primary key,
+b int,
+c int,
+key xb (b),
+key xc (c),
+foreign key fkb (b) references t1 (a),
+foreign key fkc (c) references t1 (a)
+) engine=ndb;
+alter table t2
+drop foreign key nosuchfk,
+algorithm=copy;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `xb` (`b`),
+  KEY `xc` (`c`),
+ CONSTRAINT `fkb` FOREIGN KEY(`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fkc` FOREIGN KEY(`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter table t2
+drop foreign key fkb,
+drop foreign key nosuchfk,
+drop foreign key fkc,
+algorithm=copy;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `xb` (`b`),
+  KEY `xc` (`c`),
+ CONSTRAINT `fkb` FOREIGN KEY(`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fkc` FOREIGN KEY(`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table t2, t1;
