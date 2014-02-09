@@ -721,3 +721,68 @@ insert into t2 values (4,40,400);
 delete from t1 where a=1;
 
 drop table t2, t1;
+
+--echo # bug#17232212 - NDB DROP NON-EXISTENT FK SUCCEEDS
+# succeeds silently before fixes
+
+create table t1 (
+  a int primary key
+) engine=ndb;
+
+--echo # algorithm=inplace
+# innodb gives error 1091
+
+create table t2 (
+  a int primary key,
+  b int,
+  c int,
+  key xb (b),
+  key xc (c),
+  foreign key fkb (b) references t1 (a),
+  foreign key fkc (c) references t1 (a)
+) engine=ndb;
+
+alter table t2
+  drop foreign key nosuchfk,
+  algorithm=inplace;
+
+show create table t2;
+
+alter table t2
+  drop foreign key fkb,
+  drop foreign key nosuchfk,
+  drop foreign key fkc,
+  algorithm=inplace;
+
+show create table t2;
+
+drop table t2;
+
+--echo # algorithm=copy
+# innodb gives non-sense errors 1025 / 152
+
+create table t2 (
+  a int primary key,
+  b int,
+  c int,
+  key xb (b),
+  key xc (c),
+  foreign key fkb (b) references t1 (a),
+  foreign key fkc (c) references t1 (a)
+) engine=ndb;
+
+alter table t2
+  drop foreign key nosuchfk,
+  algorithm=copy;
+
+show create table t2;
+
+alter table t2
+  drop foreign key fkb,
+  drop foreign key nosuchfk,
+  drop foreign key fkc,
+  algorithm=copy;
+
+show create table t2;
+
+drop table t2, t1;
