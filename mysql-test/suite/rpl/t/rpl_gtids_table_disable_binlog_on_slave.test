@@ -1,7 +1,4 @@
 #
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
-
 # ==== Purpose ====
 #
 # WL#6559 Optimize GTIDs for passive slave - store GTIDs in table
