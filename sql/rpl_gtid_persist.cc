@@ -207,7 +207,7 @@ bool Gtid_table_access_context::open_table(THD *thd,
     DBUG_RETURN(true);
   }
 
-  DBUG_ASSERT(tables.table->s->table_category == TABLE_CATEGORY_RPL_INFO);
+  DBUG_ASSERT(tables.table->s->table_category == TABLE_CATEGORY_GTID);
 
   if (tables.table->s->fields < Gtid_table_persistor::number_fields)
   {

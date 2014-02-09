@@ -305,7 +305,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
         (my_strcasecmp(system_charset_info,
                        GTID_EXECUTED_NAME.str,
                        name->str) == 0))
-      return TABLE_CATEGORY_RPL_INFO;
+      return TABLE_CATEGORY_GTID;
 
   }
 
@@ -2372,7 +2372,8 @@ partititon_err:
   }
 
   if ((share->table_category == TABLE_CATEGORY_LOG) ||
-      (share->table_category == TABLE_CATEGORY_RPL_INFO))
+      (share->table_category == TABLE_CATEGORY_RPL_INFO) ||
+      (share->table_category == TABLE_CATEGORY_GTID))
   {
     outparam->no_replicate= TRUE;
   }
