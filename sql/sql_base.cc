@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4103,6 +4103,7 @@ thr_lock_type read_lock_type_for_table(THD *thd,
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_RPL_INFO) ||
+      (table_list->table->s->table_category == TABLE_CATEGORY_GTID) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
       !(is_update_query(prelocking_ctx->sql_command) ||
         (routine_modifies_data && table_list->prelocking_placeholder) ||
