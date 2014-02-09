@@ -680,6 +680,7 @@ foreign key fkc (c) references t1 (a)
 alter table t2
 drop foreign key nosuchfk,
 algorithm=inplace;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -697,6 +698,7 @@ drop foreign key fkb,
 drop foreign key nosuchfk,
 drop foreign key fkc,
 algorithm=inplace;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -705,7 +707,9 @@ t2	CREATE TABLE `t2` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
-  KEY `xc` (`c`)
+  KEY `xc` (`c`),
+ CONSTRAINT `fkb` FOREIGN KEY(`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fkc` FOREIGN KEY(`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table t2;
 # algorithm=copy
@@ -721,6 +725,7 @@ foreign key fkc (c) references t1 (a)
 alter table t2
 drop foreign key nosuchfk,
 algorithm=copy;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -738,6 +743,7 @@ drop foreign key fkb,
 drop foreign key nosuchfk,
 drop foreign key fkc,
 algorithm=copy;
+ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -746,6 +752,8 @@ t2	CREATE TABLE `t2` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
-  KEY `xc` (`c`)
+  KEY `xc` (`c`),
+ CONSTRAINT `fkb` FOREIGN KEY(`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fkc` FOREIGN KEY(`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table t2, t1;

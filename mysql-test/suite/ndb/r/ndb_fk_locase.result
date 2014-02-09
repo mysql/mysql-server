@@ -50,9 +50,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
-  KEY `XB` (`b`),
- CONSTRAINT `myfk1` FOREIGN KEY(`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `myfk2` FOREIGN KEY(`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  KEY `XB` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 # test upper case parent database and table
 drop table T2;
