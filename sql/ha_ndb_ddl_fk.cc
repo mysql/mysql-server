@@ -274,12 +274,12 @@ ndb_fk_casedn(char *name)
 static int
 ndb_fk_casecmp(const char* name1, const char* name2)
 {
-  char tmp1[FN_LEN + 1];
-  char tmp2[FN_LEN + 1];
   if (!lower_case_table_names)
   {
     return strcmp(name1, name2);
   }
+  char tmp1[FN_LEN + 1];
+  char tmp2[FN_LEN + 1];
   strcpy(tmp1, name1);
   strcpy(tmp2, name2);
   ndb_fk_casedn(tmp1);
@@ -2308,7 +2308,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
       }
       if (!found)
       {
-        // there is no HA_ERR, just imitate innodb
+        // FK not found
         my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_item->name);
         DBUG_RETURN(ER_CANT_DROP_FIELD_OR_KEY);
       }
@@ -2565,7 +2565,7 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
     }
     if (!found)
     {
-      // there is no HA_ERR, just imitate innodb
+      // FK not found
       my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_item->name);
       DBUG_RETURN(ER_CANT_DROP_FIELD_OR_KEY);
     }
