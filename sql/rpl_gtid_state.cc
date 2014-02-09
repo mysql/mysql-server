@@ -159,6 +159,31 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
   // Caller must take lock on the SIDNO.
   global_sid_lock->assert_some_lock();
 
+  if (thd->owned_gtid.sidno == -1)
+  {
+#ifdef HAVE_GTID_NEXT_LIST
+    rpl_sidno prev_sidno= 0;
+    Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
+    Gtid g= git.get();
+    while (g.sidno != 0)
+    {
+      if (g.sidno != prev_sidno)
+        sid_locks.lock(g.sidno);
+      if (ret == RETURN_STATUS_OK)
+        ret= executed_gtids._add_gtid(g);
+      git.next();
+      g= git.get();
+    }
+#else
+    DBUG_ASSERT(0);
+#endif
+  }
+  else if (thd->owned_gtid.sidno > 0)
+  {
+    lock_sidno(thd->owned_gtid.sidno);
+    ret= executed_gtids._add_gtid(thd->owned_gtid);
+  }
+
   /*
     There may be commands that cause implicit commits, e.g.
     SET AUTOCOMMIT=1 may cause the previous statements to commit
@@ -167,17 +192,6 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
     Gtid_state::update_on_commit(), we also set it here to do it
     as soon as possible.
   */
-
-  if (thd->owned_gtid.sidno == -1)
-  {
-#ifdef HAVE_GTID_NEXT_LIST
-    lock_sidnos(&thd->owned_gtid_set);
-#else
-    DBUG_ASSERT(0);
-#endif
-  }
-  else if (thd->owned_gtid.sidno > 0)
-    lock_sidno(thd->owned_gtid.sidno);
   thd->variables.gtid_next.set_undefined();
   broadcast_owned_sidnos(thd);
   unlock_owned_sidnos(thd);
@@ -192,6 +206,25 @@ void Gtid_state::update_on_commit(THD *thd)
   if (!thd->owned_gtid.is_null())
   {
     global_sid_lock->rdlock();
+    if (!opt_bin_log)
+    {
+      Gtid *gtid= &thd->owned_gtid;
+      if (!executed_gtids.contains_gtid(*gtid))
+      {
+        int err= 0;
+        /*
+          Add every transaction's gtid into global executed_gtids and
+          lost_gtids if binlog is disabled and gtid_mode is enabled.
+        */
+        if (!(err= executed_gtids.ensure_sidno(gtid->sidno)))
+          err |= executed_gtids._add_gtid(*gtid);
+        if (!err && !(err= lost_gtids.ensure_sidno(gtid->sidno)))
+          err |= lost_gtids._add_gtid(*gtid);
+        DBUG_ASSERT(err == 0);
+      }
+      else
+        DBUG_ASSERT(0);
+    }
     update_owned_gtids_impl(thd, true);
     global_sid_lock->unlock();
   }
@@ -212,26 +245,6 @@ void Gtid_state::update_on_rollback(THD *thd)
     }
 
     global_sid_lock->rdlock();
-    /*
-      Remove the gtid from executed_gtids variable if
-      the transation was rollbacked.
-    */
-    Gtid_set *executed_gtids=
-      const_cast<Gtid_set *>(get_executed_gtids());
-    if (executed_gtids->contains_gtid(thd->owned_gtid))
-      executed_gtids->_remove_gtid(thd->owned_gtid.sidno, thd->owned_gtid.gno);
-    if (!opt_bin_log)
-    {
-      /*
-        Remove the gtid from lost_gtids variable if the transation
-        was rollbacked when binlog is disabled.
-      */
-      Gtid_set *lost_gtids=
-        const_cast<Gtid_set *>(get_lost_gtids());
-      if (lost_gtids->contains_gtid(thd->owned_gtid))
-        lost_gtids->_remove_gtid(thd->owned_gtid.sidno, thd->owned_gtid.gno);
-    }
-
     update_owned_gtids_impl(thd, false);
     global_sid_lock->unlock();
   }
@@ -485,51 +498,22 @@ int Gtid_state::save(THD *thd)
 {
   DBUG_ENTER("Gtid_state::save_gtid_into_table");
   DBUG_ASSERT(gtid_table_persistor != NULL);
+  DBUG_ASSERT(!thd->owned_gtid.is_null());
   int error= 0;
 
-  Gtid *gtid= &thd->owned_gtid;
-  Gtid_set *executed_gtids= const_cast<Gtid_set *>(get_executed_gtids());
-  global_sid_lock->wrlock();
-  if (!executed_gtids->contains_gtid(*gtid))
+  int ret= gtid_table_persistor->save(thd, &thd->owned_gtid);
+  if (1 == ret)
   {
-    int err= 0;
-    if (!(err= executed_gtids->ensure_sidno(gtid->sidno)))
-      err |= executed_gtids->_add_gtid(*gtid);
     /*
-      Add every transaction's gtid into global lost_gtids if
-      binlog is disabled and gtid_mode is enabled.
+      Gtid table is not ready to be used, so failed to
+      open it. Ignore the error.
     */
-    if (!opt_bin_log)
-    {
-      Gtid_set *lost_gtids= const_cast<Gtid_set *>(get_lost_gtids());
-      if (!err && !(err= lost_gtids->ensure_sidno(gtid->sidno)))
-        err |= lost_gtids->_add_gtid(*gtid);
-    }
-    global_sid_lock->unlock();
-    if (!err)
-    {
-      int ret= gtid_table_persistor->save(thd, gtid);
-      if (1 == ret)
-      {
-        /*
-          Gtid table is not ready to be used, so failed to
-          open it. Ignore the error.
-        */
-        thd->clear_error();
-        if (!thd->get_stmt_da()->is_set())
-            thd->get_stmt_da()->set_ok_status(0, 0, NULL);
-      }
-      else if (-1 == ret)
-        error= 1;
-    }
-    else
-      error= 1;
+    thd->clear_error();
+    if (!thd->get_stmt_da()->is_set())
+        thd->get_stmt_da()->set_ok_status(0, 0, NULL);
   }
-  else
-  {
-    global_sid_lock->unlock();
-    DBUG_ASSERT(0);
-  }
+  else if (-1 == ret)
+    error= 1;
 
   DBUG_RETURN(error);
 }
