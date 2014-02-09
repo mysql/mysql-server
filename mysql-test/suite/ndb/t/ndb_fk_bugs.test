@@ -742,12 +742,14 @@ create table t2 (
   foreign key fkc (c) references t1 (a)
 ) engine=ndb;
 
+--error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2
   drop foreign key nosuchfk,
   algorithm=inplace;
 
 show create table t2;
 
+--error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2
   drop foreign key fkb,
   drop foreign key nosuchfk,
@@ -771,12 +773,14 @@ create table t2 (
   foreign key fkc (c) references t1 (a)
 ) engine=ndb;
 
+--error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2
   drop foreign key nosuchfk,
   algorithm=copy;
 
 show create table t2;
 
+--error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2
   drop foreign key fkb,
   drop foreign key nosuchfk,
