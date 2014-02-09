@@ -12515,17 +12515,15 @@ void ha_ndbcluster::print_error(int error, myf errflag)
     if (error == ER_CANT_DROP_FIELD_OR_KEY)
     {
       /*
-        Server calls us for error on drop unknown FK when algorithm=copy.
-        This was already handled in ha_ndb_ddl_fk.cc.  Server knows little
-        about FKs so innodb and ndb by-pass it.
+        Called on drop unknown FK by server when algorithm=copy or
+        by handler when algorithm=inplace.  In both cases the error
+        was already printed in ha_ndb_ddl_fk.cc.
       */
       THD* thd= NULL;
       if (table != NULL &&
           (thd= table->in_use) != NULL &&
           thd->lex != NULL &&
-          thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
-          thd->lex->alter_info.requested_algorithm ==
-          Alter_info::ALTER_TABLE_ALGORITHM_COPY)
+          thd->lex->sql_command == SQLCOM_ALTER_TABLE)
       {
         DBUG_VOID_RETURN;
       }
@@ -16999,9 +16997,7 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
     const NDBTAB* tab= alter_data->old_table;
     if ((error= drop_fk_for_online_alter(thd, thd_ndb->ndb, dict, tab)) != 0)
     {
-      // was handled already
-      if (error != ER_CANT_DROP_FIELD_OR_KEY)
-        print_error(error, MYF(0));
+      print_error(error, MYF(0));
       goto abort;
     }
   }
