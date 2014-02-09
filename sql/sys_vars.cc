@@ -4760,7 +4760,7 @@ static Sys_var_enum Sys_gtid_mode(
 static Sys_var_uint Sys_executed_gtids_compression_period(
        "executed_gtids_compression_period", "A background thread "
        "wakes up to compress the gtid_executed table every "
-       "executed_gtids_compression_period transactions. as a "
+       "executed_gtids_compression_period transactions. As a "
        "special case, if variable is 0, the thread never wakes up "
        "to compress the gtid_executed table.",
        GLOBAL_VAR(executed_gtids_compression_period),

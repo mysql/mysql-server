@@ -451,7 +451,24 @@ enum enum_table_category
     User queries do not write directly to these tables.
     Replication tables are cached in the table cache.
   */
-  TABLE_CATEGORY_RPL_INFO=7
+  TABLE_CATEGORY_RPL_INFO=7,
+
+  /**
+    Gtid Table.
+    The table is used to store gtids.
+    The table does *not* honor:
+    - LOCK TABLE t FOR READ/WRITE
+    - FLUSH TABLES WITH READ LOCK
+    - SET GLOBAL READ_ONLY = ON
+    as there is no point in locking explicitly
+    a Gtid table.
+    An example of gtid table is:
+    - mysql.gtid_executed,
+    which is updated even when there is either
+    a GLOBAL READ LOCK or a GLOBAL READ_ONLY in effect.
+    Gtid table is cached in the table cache.
+  */
+  TABLE_CATEGORY_GTID=8
 };
 typedef enum enum_table_category TABLE_CATEGORY;
 
