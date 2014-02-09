@@ -179,9 +179,8 @@ public:
   int save(Gtid_set *gtid_set);
   /**
     Compress the gtid table, read each row by the PK(sid, gno_start)
-    in increasing order, compress the first consecutive gtids range
-    (delete consecutive gtids from the second consecutive gtid, then
-    update the first gtid) within a single transaction.
+    in increasing order, compress the first consecutive range of
+    gtids within a single transaction.
 
     @param  thd Thread requesting to compress the table
 
@@ -281,9 +280,19 @@ private:
   int delete_all(TABLE *table);
   /**
     Read each row by the PK(sid, gno_start) in increasing order,
-    compress the first consecutive gtids range (delete consecutive
-    gtids from the second consecutive gtid, then update the
-    first gtid) in one transaction.
+    compress the first consecutive range of gtids.
+    For example,
+      1 1
+      2 2
+      3 3
+      6 6
+      7 7
+      8 8
+    After the compression, the gtids in the table is compressed as following:
+      1 3
+      6 6
+      7 7
+      8 8
 
     @param  table Reference to a table object.
 
@@ -291,7 +300,7 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int compress_first_consecutive_gtids(TABLE *table);
+  int compress_first_consecutive_range(TABLE *table);
   /**
     Encode the current row fetched from the table into gtid text.
 

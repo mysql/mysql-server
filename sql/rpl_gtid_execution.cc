@@ -182,8 +182,8 @@ int gtid_acquire_ownership_multiple(THD *thd)
     */
     if (opt_bin_log)
       mysql_mutex_unlock(&LOCK_reset_binlog);
-    // wait. this call releases the read lock on global_sid_lock,
-    // the mutex lock on SIDNO and LOCK_reset_binlog.
+    // wait. this call releases the read lock on global_sid_lock and
+    // the mutex lock on SIDNO
     gtid_state->wait_for_gtid(thd, g);
 
     // global_sid_lock and mutex are now released
@@ -517,7 +517,7 @@ int gtid_rollback(THD *thd)
     DBUG_RETURN(0);
   }
 
- gtid_state->update_on_rollback(thd);
+  gtid_state->update_on_rollback(thd);
 
   DBUG_RETURN(0);
 }

@@ -4066,6 +4066,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   */
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
+
   global_sid_lock->wrlock();
 
   /* Save variables so that we can reopen the log */
@@ -6656,6 +6657,7 @@ void MYSQL_BIN_LOG::close()
 int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::prepare");
+
   int error= 0;
   if (trans_has_updated_trans_table(thd) && ending_trans(thd, all) &&
       gtid_mode > GTID_MODE_UPGRADE_STEP_1 && !thd->is_operating_gtid_table)

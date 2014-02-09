@@ -5118,9 +5118,10 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           {
             if (opt_bin_log)
             {
-              // This is executed at the end of a DDL statement or after
-              // COMMIT.  It ensures that an empty group is logged if
-              // needed.
+              /*
+                This is executed at the end of a DDL statement or after
+                COMMIT. It ensures that an empty group is logged if needed.
+              */
               error= gtid_empty_group_log_and_cleanup(thd);
             }
             else
