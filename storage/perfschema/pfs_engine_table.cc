@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -307,11 +307,7 @@ void PFS_engine_table_share::delete_all_locks(void)
 
 ha_rows PFS_engine_table_share::get_row_count(void) const
 {
-  /* If available, count the exact number or records */
-  if (m_get_row_count)
-    return m_get_row_count();
-  /* Otherwise, return an estimate */
-  return m_records;
+  return m_get_row_count();
 }
 
 int PFS_engine_table_share::write_row(TABLE *table, unsigned char *buf,

@@ -497,17 +497,18 @@ JOIN::optimize()
   update_depend_map();
 
   THD_STAGE_INFO(thd, stage_preparing);
-  if (result->initialize_tables(this))
-  {
-    DBUG_PRINT("error",("Error: initialize_tables() failed"));
-    DBUG_RETURN(1);				// error == -1
-  }
 
   if (make_join_select(this, conds))
   {
     zero_result_cause=
       "Impossible WHERE noticed after reading const tables";
     goto setup_subq_exit;
+  }
+
+  if (result->initialize_tables(this))
+  {
+    DBUG_PRINT("error",("Error: initialize_tables() failed"));
+    DBUG_RETURN(1);				// error == -1
   }
 
   error= -1;					/* if goto err */

@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ SET(FEATURE_SET_large   5)
 SET(FEATURE_SET_xlarge  6)
 SET(FEATURE_SET_community 7)
 
-IF(FEATURE_SET)
+IF(FEATURE_SET AND NOT WITHOUT_SERVER)
   STRING(TOLOWER ${FEATURE_SET} feature_set)
   SET(num ${FEATURE_SET_${feature_set}})
   IF(NOT num)

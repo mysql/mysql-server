@@ -16,6 +16,7 @@ SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
 --let $enable_diff_table= 0
 --echo # Test tables with MyISAM engine when disabling diff_table and
 --echo # simulating flush error
+--source include/have_myisam.inc
 --let $engine = MyISAM
 --source extra/rpl_tests/rpl_stress_test.inc
 

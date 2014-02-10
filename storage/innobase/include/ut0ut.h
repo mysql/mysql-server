@@ -129,11 +129,6 @@ ut_ulint_cmp(
 	ulint	a,	/*!< in: ulint */
 	ulint	b);	/*!< in: ulint */
 /*************************************************************//**
-Determines if a number is zero or a power of two.
-@param n in: number
-@return nonzero if n is zero or a power of two; zero otherwise */
-#define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
-/*************************************************************//**
 Calculates fast the remainder of n/m when m is a power of two.
 @param n in: numerator
 @param m in: denominator, must be a power of two
@@ -255,6 +250,11 @@ ut_difftime(
 	ib_time_t	time1);	/*!< in: time */
 
 #endif /* !UNIV_INNOCHECKSUM */
+
+/** Determines if a number is zero or a power of two.
+@param[in]	n	number
+@return nonzero if n is zero or a power of two; zero otherwise */
+#define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
 
 /**********************************************************//**
 Prints a timestamp to a file. */

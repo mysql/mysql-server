@@ -43,6 +43,7 @@
 The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 
 #include "univ.i"			/* include all of this */
+#include "page0size.h"			/* page_size_t */
 #include "page0zip.h"			/* page_zip_calc_checksum() */
 #include "page0page.h"			/* PAGE_* */
 #include "trx0undo.h"			/* TRX_UNDO_* */
@@ -70,6 +71,7 @@ static bool			use_end_page;
 static bool			do_one_page;
 /* replaces declaration in srv0srv.c */
 ulong				srv_page_size;
+page_size_t			univ_page_size(0, 0, false);
 extern ulong			srv_checksum_algorithm;
 /* Current page number (0 based). */
 ullint				cur_page_num;
@@ -149,42 +151,29 @@ static TYPELIB innochecksum_algorithms_typelib = {
 	innochecksum_algorithms, NULL
 };
 
-/****************************************************************************//*
-Get the page size of the filespace from the filespace header.
- @param		[in] buf			buffer used to read the page.
- @param		[out] logical_page_size		Logical/Uncompressed page size.
- @param		[out] physical_page_size	Physical/Commpressed page size.
- @param		[out] compressed		Enable if tablespace is
-						compressed.
-*/
+/** Get the page size of the filespace from the filespace header.
+@param[in]	buf	buffer used to read the page.
+@return page size */
 static
-void
+const page_size_t
 get_page_size(
-	byte*		buf,
-	ulong*		logical_page_size,
-	ulong*		physical_page_size,
-	bool*		compressed)
+	byte*	buf)
 {
-	ulong flags;
+	const ulint	flags = mach_read_from_4(buf + FIL_PAGE_DATA
+						 + FSP_SPACE_FLAGS);
 
-	flags = mach_read_from_4(buf + FIL_PAGE_DATA + FSP_SPACE_FLAGS);
+	const ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
 
-	/* srv_page_size is used by InnoDB code as UNIV_PAGE_SIZE */
-	srv_page_size = *logical_page_size =
-		ulong(fsp_flags_get_page_size(ulint(flags)));
-
-	/* fsp_flags_get_zip_size() will return zero if not compressed. */
-	*physical_page_size = ulong(fsp_flags_get_zip_size(ulint(flags)));
-
-	if (*physical_page_size == 0) {
-		/* uncompressed page. */
-		*physical_page_size= *logical_page_size;
-		DBUG_ASSERT(*physical_page_size >= UNIV_PAGE_SIZE_MIN);
-		*compressed = false;
+	if (ssize == 0) {
+		srv_page_size = UNIV_PAGE_SIZE_ORIG;
 	} else {
-		*compressed = true;
+		srv_page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 	}
 
+	univ_page_size.copy_from(
+		page_size_t(srv_page_size, srv_page_size, false));
+
+	return(page_size_t(flags));
 }
 
 #ifdef _WIN32
@@ -314,36 +303,29 @@ ulong read_file(
 	return bytes;
 }
 
-/*****************************************************************//*
- Check if page is corrupted or not.
-
- @param [in/out]	buf			page buffer read
- @param [in]		compressed		enable when tablespace is compressed.
- @param	[in]		logical_page_size	Logical/Uncompressed page size.
- @param	[in]		physical_page_size	Physical/Commpressed page size.
-
- @retval true if page is corrupted otherwise false.
-*/
+/** Check if page is corrupted or not.
+@param[in]	buf		page frame
+@param[in]	page_size	page size
+@retval true if page is corrupted otherwise false. */
 static
 bool
 is_page_corrupted(
-	const	byte* buf,
-	bool	compressed,
-	ulong	logical_page_size,
-	ulong	physical_page_size) {
+	const byte*		buf,
+	const page_size_t&	page_size)
+{
 
 	/* enable if page is corrupted. */
-	 bool is_corrupted;
+	bool is_corrupted;
 	/* use to store LSN values. */
-	 ulint logseq;
-	 ulint logseqfield;
+	ulint logseq;
+	ulint logseqfield;
 
-	if (!compressed) {
+	if (!page_size.is_compressed()) {
 		/* check the stored log sequence numbers
-		 for uncompressed tablespace. */
+		for uncompressed tablespace. */
 		logseq = mach_read_from_4(buf + FIL_PAGE_LSN + 4);
 		logseqfield = mach_read_from_4(
-				buf + logical_page_size -
+				buf + page_size.logical() -
 				FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
 
 		if (is_log_enabled) {
@@ -358,20 +340,13 @@ is_page_corrupted(
 					cur_page_num);
 			}
 		}
-
-		is_corrupted = buf_page_is_corrupted(true, buf, 0,
-						     cur_page_num,
-						     strict_verify,
-						     is_log_enabled, log_file);
-	} else {
-		is_corrupted = buf_page_is_corrupted(true, buf,
-						     physical_page_size,
-						     cur_page_num,
-						     strict_verify,
-						     is_log_enabled, log_file);
 	}
 
-	return (is_corrupted);
+	is_corrupted = buf_page_is_corrupted(
+		true, buf, page_size, cur_page_num, strict_verify,
+		is_log_enabled, log_file);
+
+	return(is_corrupted);
 }
 
 /********************************************//*
@@ -1104,10 +1079,6 @@ int main(
 #else
 	struct stat	st;
 #endif /* _WIN32 */
-	/* Page size in bytes on disk. */
-	static ulong	physical_page_size;
-	/* Page size when uncompressed. */
-	static ulong	logical_page_size;
 
 	/* size of file (has to be 64 bits) */
 	unsigned long long int	size		= 0;
@@ -1115,8 +1086,6 @@ int main(
 	ulint		pages;
 
 	off_t		offset			= 0;
-	/* enable if tablespace is compressed. */
-	bool		compressed		= false;
 	/* count the no. of page corrupted. */
 	ulint		mismatch_count		= 0;
 	/* Variable to ack the page is corrupted or not. */
@@ -1261,10 +1230,9 @@ int main(
 					FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4))
 					? true : false;
 
-		get_page_size(buf, &logical_page_size,
-			      &physical_page_size, &compressed);
+		const page_size_t&	page_size = get_page_size(buf);
 
-		pages = (ulint)(size / physical_page_size);
+		pages = (ulint) (size / page_size.physical());
 
 		if (just_count) {
 			if (read_from_stdin) {
@@ -1300,7 +1268,8 @@ int main(
 				the desired page. */
 				partial_page_read = false;
 
-				offset = (off_t)start_page * (off_t)physical_page_size;
+				offset = (off_t) start_page
+					* (off_t) page_size.physical();
 #ifdef _WIN32
 				if (_fseeki64(fil_in, offset, SEEK_SET)) {
 #else
@@ -1334,7 +1303,7 @@ int main(
 					if partial_page_read is enable. */
 					bytes = read_file(buf,
 							  partial_page_read,
-							  physical_page_size,
+							  page_size.physical(),
 							  fil_in);
 
 					partial_page_read = false;
@@ -1371,7 +1340,7 @@ int main(
 		while (!feof(fil_in)) {
 
 			bytes = read_file(buf, partial_page_read,
-					  physical_page_size, fil_in);
+					  page_size.physical(), fil_in);
 			partial_page_read = false;
 
 			if (!bytes && feof(fil_in)) {
@@ -1380,16 +1349,16 @@ int main(
 
 			if (ferror(fil_in)) {
 				fprintf(stderr, "Error reading %lu bytes",
-					physical_page_size);
+					page_size.physical());
 				perror(" ");
 
 				DBUG_RETURN(1);
 			}
 
-			if (bytes != physical_page_size) {
+			if (bytes != page_size.physical()) {
 				fprintf(stderr, "Error: bytes read (%lu) "
 					"doesn't match page size (%lu)\n",
-					bytes, physical_page_size);
+					bytes, page_size.physical());
 				DBUG_RETURN(1);
 			}
 
@@ -1404,12 +1373,9 @@ int main(
 			checksum verification.*/
 			if (!no_check) {
 				/* Checksum verification */
-				if (!skip_page)
-				{
-					is_corrupted = is_page_corrupted(buf,
-									compressed,
-									logical_page_size,
-									physical_page_size);
+				if (!skip_page) {
+					is_corrupted = is_page_corrupted(
+						buf, page_size);
 
 					if (is_corrupted) {
 						fprintf(stderr, "Fail: page "
@@ -1434,8 +1400,9 @@ int main(
 
 			/* Rewrite checksum */
 			if (do_write
-			    && !write_file(filename, fil_in, buf, compressed,
-					   &pos, physical_page_size)) {
+			    && !write_file(filename, fil_in, buf,
+					   page_size.is_compressed(),
+					   &pos, page_size.physical())) {
 
 				DBUG_RETURN(1);
 			}

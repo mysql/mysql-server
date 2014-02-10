@@ -2610,28 +2610,23 @@ public:
 
   uint max_record_length() const
   {
-    using std::min;
-    return min(HA_MAX_REC_LENGTH, max_supported_record_length());
+    return std::min(HA_MAX_REC_LENGTH, max_supported_record_length());
   }
   uint max_keys() const
   {
-    using std::min;
-    return min<uint>(MAX_KEY, max_supported_keys());
+    return std::min<uint>(MAX_KEY, max_supported_keys());
   }
   uint max_key_parts() const
   {
-    using std::min;
-    return min(MAX_REF_PARTS, max_supported_key_parts());
+    return std::min(MAX_REF_PARTS, max_supported_key_parts());
   }
   uint max_key_length() const
   {
-    using std::min;
-    return min(MAX_KEY_LENGTH, max_supported_key_length());
+    return std::min(MAX_KEY_LENGTH, max_supported_key_length());
   }
   uint max_key_part_length() const
   {
-    using std::min;
-    return min(MAX_KEY_LENGTH, max_supported_key_part_length());
+    return std::min(MAX_KEY_LENGTH, max_supported_key_part_length());
   }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }

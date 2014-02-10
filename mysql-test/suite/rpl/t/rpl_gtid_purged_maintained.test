@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 # Adding big test option for this test.
@@ -59,7 +54,7 @@
 
 --let $master_uuid= `SELECT @@SERVER_UUID`
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --let $corruption_mode_count= 2
 --let $restart_count= 2
@@ -114,7 +109,7 @@ while ($corruption_mode <= $corruption_mode_count)
       FLUSH LOGS;
 
       --echo [on slave]
-      --sync_slave_with_master
+      --source include/sync_slave_sql_with_master.inc
 
       --let $assert_text= no gtids lost yet on slave
       --let $assert_cond= @@GTID_PURGED = ""
@@ -142,7 +137,7 @@ while ($corruption_mode <= $corruption_mode_count)
   }
   FLUSH LOGS;
 
-  --sync_slave_with_master
+  --source include/sync_slave_sql_with_master.inc
   --connection master
 
   --echo ######## corruption_mode = $corruption_mode ########

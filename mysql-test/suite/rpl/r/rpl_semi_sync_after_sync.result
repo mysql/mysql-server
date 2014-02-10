@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 include/install_semisync.inc
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
 #
 # Test on AFTER_SYNC wait point
 # #######################################################################
@@ -23,6 +24,7 @@ Variable_name	Value
 Rpl_semi_sync_master_yes_tx	2
 include/assert.inc [rpl_semi_sync_master_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
+include/sync_slave_sql_with_master.inc
 include/assert.inc [Table has 1 record]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
@@ -44,6 +46,7 @@ COMMIT;
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
 include/assert.inc [rpl_semi_sync_master_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
+include/sync_slave_sql_with_master.inc
 include/assert.inc [Table has two records]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
@@ -71,6 +74,7 @@ SET DEBUG_SYNC= "RESET";
 SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
 TRUNCATE t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 SET GLOBAL binlog_order_commits = OFF;
 #
@@ -91,6 +95,7 @@ Variable_name	Value
 Rpl_semi_sync_master_yes_tx	8
 include/assert.inc [rpl_semi_sync_master_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
+include/sync_slave_sql_with_master.inc
 include/assert.inc [Table has 1 record]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
@@ -112,6 +117,7 @@ COMMIT;
 SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
 include/assert.inc [rpl_semi_sync_master_yes_tx increased 1]
 include/assert.inc [Table is empty right now.]
+include/sync_slave_sql_with_master.inc
 include/assert.inc [Table has two records]
 [connection master]
 SET DEBUG_SYNC= "now SIGNAL end";
@@ -139,6 +145,7 @@ SET DEBUG_SYNC= "RESET";
 SET DEBUG_SYNC= "RESET";
 SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
 TRUNCATE t1;
+include/sync_slave_sql_with_master.inc
 [connection master]
 SET GLOBAL binlog_order_commits= 1;
 #

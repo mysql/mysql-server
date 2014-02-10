@@ -1044,7 +1044,8 @@ loop:
 
 		bool		is_temp = false;
 		bool		discarded = false;
-		ib_uint32_t	flags2 = (ib_uint32_t) mach_read_from_4(field);
+		ib_uint32_t	flags2 = static_cast<ib_uint32_t>(
+			mach_read_from_4(field));
 
 		/* Check that the tablespace (the .ibd file) really
 		exists; print a warning to the .err log if not.

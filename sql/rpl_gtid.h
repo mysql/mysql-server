@@ -2382,10 +2382,103 @@ extern Gtid_state *gtid_state;
 enum enum_group_type
 {
   /**
+    Specifies that the GTID has not been generated yet; it will be
+    generated on commit.  It will depend on the GTID_MODE: if
+    GTID_MODE<=UPGRADE_STEP_1, then the transaction will be anonymous;
+    if GTID_MODE>=UPGRADE_STEP_2, then the transaction will be
+    assigned a new GTID.
+
+    This is the default value: thd->variables.gtid_next has this state
+    when GTID_NEXT="AUTOMATIC".
+
     It is important that AUTOMATIC_GROUP==0 so that the default value
     for thd->variables->gtid_next.type is AUTOMATIC_GROUP.
   */
-  AUTOMATIC_GROUP= 0, GTID_GROUP, ANONYMOUS_GROUP, INVALID_GROUP, UNDEFINED_GROUP
+  AUTOMATIC_GROUP= 0,
+  /**
+    Specifies that the transaction has been assigned a GTID (UUID:NUMBER).
+
+    thd->variables.gtid_next has this state when GTID_NEXT="UUID:NUMBER".
+
+    This is the state of GTID-transactions replicated to the slave.
+  */
+  GTID_GROUP,
+  /**
+    Specifies that the transaction is anonymous, i.e., it does not
+    have a GTID and will never be assigned one.
+
+    thd->variables.gtid_next has this state when GTID_NEXT="ANONYMOUS".
+
+    This is the state of any transaction generated on a pre-GTID
+    server, or on a server with GTID_MODE==OFF.
+  */
+  ANONYMOUS_GROUP,
+  /**
+    Specifies that the GTID specification could not be parsed.  In
+    generate_automatic_gno() it is also used to specify that the GTID
+    has not yet been generated.  This is only used internally.
+  */
+  INVALID_GROUP,
+  /**
+    GTID_NEXT is set to this state after a transaction with
+    GTID_NEXT=='UUID:NUMBER' is committed.
+
+    This is used to protect against a special case of unsafe
+    non-transactional updates.
+
+    Background: Non-transactional updates are allowed as long as they
+    are sane.  Non-transactional updates must be single-statement
+    transactions; they must not be mixed with transactional updates in
+    the same statement or in the same transaction.  Since
+    non-transactional updates must be logged separately from
+    transactional updates, a single mixed statement would generate two
+    different transactions.
+
+    Problematic case: If a transaction updates two transactional
+    tables on the master, but one of the tables is non-transactional
+    on the slave (uses a different engine on slave vs master), then
+    the transaction would be split into two transactions on the slave.
+    That would make it impossible to assign GTIDs correctly on the
+    slave, as GTIDs must be unique.
+
+    To detect this case on the slave and generate an appropriate error
+    message rather than causing an inconsistency in the GTID state, we
+    do as follows.  When committing a transaction that has
+    GTID_NEXT==UUID:NUMBER, we set GTID_NEXT to UNDEFINED_GROUP.  When
+    the next part of the transaction is being processed, an error is
+    generated, because it is not allowed to execute a transaction when
+    GTID_NEXT==UNDEFINED.  In the normal case, the error is not
+    generated, because there will always be a Gtid_log_event after the
+    next transaction.
+  */
+  UNDEFINED_GROUP,
+  /**
+    GTID_NEXT is set to this state by the slave applier thread when it
+    reads a Format_description_log_event that does not originate from
+    this server.
+
+    Background: when the slave applier thread reads a relay log that
+    comes from a pre-GTID master, it must preserve the transactions as
+    anonymous transactions, even if GTID_MODE>=UPGRADE_STEP2.  This
+    may happen, e.g., if the relay log was received when master and
+    slave had GTID_MODE=OFF or when master and slave were old, and the
+    relay log is applied when slave has GTID_MODE>=UPGRADE_STEP_2.
+
+    So the slave thread should set GTID_NEXT=ANONYMOUS for the next
+    transaction when it starts to process an old binary log.  However,
+    there is no way for the slave to tell if the binary log is old,
+    until it sees the first transaction.  If the first transaction
+    begins with a Gtid_log_event, we have the GTID there; if it begins
+    with query_log_event, row events, etc, then this is an old binary
+    log.  So at the time the binary log begins, we just set
+    GTID_NEXT=NOT_YET_DETERMINED_GROUP.  If it remains
+    NOT_YET_DETERMINED when the next transaction begins,
+    gtid_pre_statement_checks will automatically turn it into an
+    anonymous transaction.  If a Gtid_log_event comes across before
+    the next transaction starts, then the Gtid_log_event will just
+    set GTID_NEXT='UUID:NUMBER' accordingly.
+  */
+  NOT_YET_DETERMINED_GROUP
 };
 
 
@@ -2414,6 +2507,16 @@ struct Gtid_specification
   void set_automatic()
   {
     type= AUTOMATIC_GROUP;
+  }
+  /// Set the type to ANONYMOUS_GROUP.
+  void set_anonymous()
+  {
+    type= ANONYMOUS_GROUP;
+  }
+  /// Set the type to NOT_YET_DETERMINED_GROUP.
+  void set_not_yet_determined()
+  {
+    type= NOT_YET_DETERMINED_GROUP;
   }
   /// Set to undefined if the current type is GTID_GROUP.
   void set_undefined()
@@ -2754,28 +2857,33 @@ enum enum_gtid_statement_status
 
 #ifndef MYSQL_CLIENT
 /**
-  Before a loggable statement begins, this function:
+  Perform GTID-related checks before executing a statement:
 
-   - checks that the various @@session.gtid_* variables are consistent
-     with each other
+  - Check that the current statement does not contradict
+    enforce_gtid_consistency
 
-   - starts the super-group (if no super-group is active) and acquires
-     ownership of all groups in the super-group
+  - Check that there is no implicit commit in a transaction when
+    GTID_NEXT==UUID:NUMBER
 
-   - starts the group (if no group is active)
-*/
-enum_gtid_statement_status
-gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
+  - Change thd->variables.gtid_next.type to ANONYMOUS_GROUP if it is
+    currently NOT_YET_DETERMINED_GROUP.
 
-/**
-  Check that the current statement does not contradict
-  enforce_gtid_consistency, that there is no implicit commit in
-  a transaction when GTID_NEXT!=AUTOMATIC, and whether the statement
-  should be cancelled.
+  - Check whether the statement should be cancelled.
 
   @param thd THD object for the session.
+
+  @retval GTID_STATEMENT_EXECUTE The normal case: the checks
+  succeeded, and statement can execute.
+
+  @retval GTID_STATEMENT_CANCEL The checks failed; an
+  error has be generated and the statement must stop.
+
+  @retval GTID_STATEMENT_SKIP The checks succeeded, but the GTID has
+  already been executed (exists in GTID_EXECUTED). So the statement
+  must not execute; however, if there are implicit commits, then the
+  implicit commits must execute.
 */
-enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd);
+enum_gtid_statement_status gtid_pre_statement_checks(THD *thd);
 
 /**
   Check if the current statement terminates a transaction, and if so
