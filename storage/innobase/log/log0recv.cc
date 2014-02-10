@@ -2700,8 +2700,6 @@ recv_init_crash_recovery(void)
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Reading tablespace information from the .ibd files...");
 
-	buf_dblwr_init_or_load_pages(true);
-
 	fil_load_single_table_tablespaces();
 
 	/* If we are using the doublewrite method, we will
@@ -2748,9 +2746,6 @@ recv_recovery_from_checkpoint_start(
 	byte*		buf;
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	dberr_t		err;
-
-	recv_sys_create();
-	recv_sys_init(buf_pool_get_curr_size());
 
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
 
@@ -2894,11 +2889,6 @@ recv_recovery_from_checkpoint_start(
 					" running in read-only-mode.");
 				return(DB_READ_ONLY);
 			}
-		}
-
-		if (!recv_needed_recovery && !srv_read_only_mode) {
-			/* Init the doublewrite buffer memory structure */
-			buf_dblwr_init_or_load_pages(false);
 		}
 	}
 

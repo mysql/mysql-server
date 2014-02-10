@@ -720,6 +720,15 @@ buf_block_unfix(
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !UNIV_INNOCHECKSUM */
 
+/** Checks if a page contains only zeroes.
+@param[in]	read_buf	database page
+@param[in]	page_size	page size
+@return true if page is filled with zeroes */
+bool
+buf_page_is_zeroes(
+	const byte*		read_buf,
+	const page_size_t&	page_size);
+
 /** Checks if a page is corrupt.
 @param[in]	check_lsn	true if we need to check and complain about
 the LSN

@@ -363,7 +363,7 @@ Datafile::validate_for_recovery()
 		};
 
 		err = find_space_id();
-		if (err != DB_SUCCESS) {
+		if (err != DB_SUCCESS || m_space_id == 0) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Datafile '%s' is corrupted. Cannot determine"
 				" the space ID from the first 64 pages.",
@@ -614,14 +614,6 @@ dberr_t
 Datafile::restore_from_doublewrite(
 	ulint	restore_page_no)
 {
-	if (m_space_id == 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot restore corrupted page %lu of from data file"
-			" '%s' in tablespace %lu from the doublewrite buffer.",
-			ulong(restore_page_no), m_name, ulong(m_space_id));
-		return(DB_ERROR);
-	}
-
 	/* Find if double write buffer contains page_no of given space id. */
 	byte*	page = recv_sys->dblwr.find_page(m_space_id, restore_page_no);
 
