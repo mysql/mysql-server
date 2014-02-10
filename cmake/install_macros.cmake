@@ -397,6 +397,7 @@ FUNCTION(INSTALL_MYSQL_TEST from to)
       PATTERN "*.vcxproj.filters" EXCLUDE
       PATTERN "*.vcxproj.user" EXCLUDE
       PATTERN "CTest" EXCLUDE
+      PATTERN "*~" EXCLUDE
     )
   ENDIF()
 ENDFUNCTION()
