@@ -114,7 +114,7 @@ SELECT * FROM mysql.gtid_executed;
 --source include/assert.inc
 
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo connection slave
 --let $slave_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
@@ -166,5 +166,5 @@ COMMIT;
 
 --connection master
 DROP TABLE t1, t2;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc
