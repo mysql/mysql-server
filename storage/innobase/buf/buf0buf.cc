@@ -492,7 +492,7 @@ buf_page_is_corrupted(
 	const byte*		read_buf,
 	const page_size_t&	page_size
 #ifdef UNIV_INNOCHECKSUM
-	,ullint			page_no,
+	,uintmax_t		page_no,
 	bool			strict_check,
 	bool			is_log_enabled,
 	FILE*			log_file
@@ -586,8 +586,9 @@ buf_page_is_corrupted(
 
 		if (i >= page_size.logical()) {
 			if (is_log_enabled) {
-				fprintf(log_file, "Page::%llu is empty and"
-					" uncorrupted\n", page_no);
+				fprintf(log_file, "Page::%" PRIuMAX
+					" is empty and uncorrupted\n",
+					page_no);
 			}
 			return(FALSE);
 		}
@@ -609,7 +610,8 @@ buf_page_is_corrupted(
 		crc32 = buf_calc_page_crc32(read_buf);
 #ifdef UNIV_INNOCHECKSUM
 		if (is_log_enabled) {
-			fprintf(log_file, "page::%llu; crc32 calculated = %u;"
+			fprintf(log_file, "page::%" PRIuMAX ";"
+				" crc32 calculated = %u;"
 				" recorded checksum field1 = %lu recorded"
 				" checksum field2 =%lu\n", page_no, crc32,
 				checksum_field1, checksum_field2);
@@ -621,11 +623,13 @@ buf_page_is_corrupted(
 	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
 #ifdef UNIV_INNOCHECKSUM
 		if (is_log_enabled) {
-			fprintf(log_file, "page::%llu; old style:calculated ="
+			fprintf(log_file, "page::%" PRIuMAX ";"
+				" old style: calculated ="
 				" %lu; recorded checksum = %lu\n",
 				page_no, buf_calc_page_old_checksum(read_buf),
 				checksum_field2);
-			fprintf(log_file, "page::%llu; new style: calculated ="
+			fprintf(log_file, "page::%" PRIuMAX ";"
+				" new style: calculated ="
 				" %lu; recorded checksum  = %lu\n",
 				page_no, buf_calc_page_new_checksum(read_buf),
 				checksum_field1);
@@ -641,7 +645,7 @@ buf_page_is_corrupted(
 #ifdef UNIV_INNOCHECKSUM
 		if (is_log_enabled) {
 			fprintf(log_file,
-				"page::%llu; none checksum: calculated"
+				"page::%" PRIuMAX "; none checksum: calculated"
 				" = %lu; recorded checksum_field1 = %lu"
 				" recorded checksum_field2 = %lu\n",
 				page_no, BUF_NO_CHECKSUM_MAGIC,
@@ -695,8 +699,8 @@ buf_page_is_corrupted(
 				     == SRV_CHECKSUM_ALGORITHM_INNODB);
 #ifdef UNIV_INNOCHECKSUM
 				if (is_log_enabled) {
-					fprintf(log_file, "page::%llu; old"
-						" style : calculated = %lu;"
+					fprintf(log_file, "page::%" PRIuMAX ";"
+						" old style : calculated = %lu;"
 						" recorded = %lu\n", page_no,
 						buf_calc_page_old_checksum(
 							read_buf),
@@ -713,7 +717,8 @@ buf_page_is_corrupted(
 #ifdef UNIV_INNOCHECKSUM
 						if (is_log_enabled) {
 							fprintf(log_file, "Fail"
-								"; page %llu"
+								"; page %"
+								PRIuMAX
 								" invalid (fails"
 								" old style"
 								" checksum)\n",
@@ -758,9 +763,9 @@ buf_page_is_corrupted(
 				     == SRV_CHECKSUM_ALGORITHM_INNODB);
 #ifdef UNIV_INNOCHECKSUM
 				if (is_log_enabled) {
-					fprintf(log_file, "page::%llu; new"
-						" style: calculated = %lu; crc32"
-						" = %u; recorded = %lu\n",
+					fprintf(log_file, "page::%" PRIuMAX ";"
+						" new style: calculated = %lu;"
+						" crc32 = %u; recorded = %lu\n",
 						page_no,
 						buf_calc_page_new_checksum(
 							read_buf),
@@ -781,7 +786,7 @@ buf_page_is_corrupted(
 #ifdef UNIV_INNOCHECKSUM
 					if (is_log_enabled) {
 						fprintf(log_file,"Fail;"
-							" page %llu"
+							" page %" PRIuMAX
 							" invalid (fails"
 							" innodb and"
 							" crc32 checksum\n",
@@ -800,12 +805,12 @@ buf_page_is_corrupted(
 			&& (checksum_field1 == BUF_NO_CHECKSUM_MAGIC
 			|| checksum_field2 == BUF_NO_CHECKSUM_MAGIC)) {
 
-			fprintf(log_file, "page::%llu; old style:"
+			fprintf(log_file, "page::%" PRIuMAX "; old style:"
 				" calculated = %lu; recorded ="
 				" %lu\n", page_no,
 				buf_calc_page_old_checksum(read_buf),
 				checksum_field2);
-			fprintf(log_file, "page::%llu; new style:"
+			fprintf(log_file, "page::%" PRIuMAX "; new style:"
 				" calculated = %lu; crc32 = %u;"
 				" recorded = %lu\n", page_no,
 				buf_calc_page_new_checksum(read_buf),
@@ -823,8 +828,9 @@ buf_page_is_corrupted(
 			    && checksum_field2 == crc32))) {
 #ifdef UNIV_INNOCHECKSUM
 			if (is_log_enabled) {
-				fprintf(log_file, "Fail; page %llu invalid"
-					" (fails crc32 checksum)\n",page_no);
+				fprintf(log_file, "Fail; page %" PRIuMAX
+					" invalid (fails crc32 checksum)\n",
+					page_no);
 			}
 #endif /* UNIV_INNOCHECKSUM */
 
@@ -953,8 +959,8 @@ buf_page_print(
 		index_id = btr_page_get_index_id(read_buf);
 		fprintf(stderr,
 			"InnoDB: Page may be an index page where"
-			" index id is %llu\n",
-			(ullint) index_id);
+			" index id is " IB_ID_FMT "\n",
+			index_id);
 #ifndef UNIV_HOTBACKUP
 		index = dict_index_find_on_id_low(index_id);
 		if (index) {
@@ -4929,15 +4935,15 @@ buf_print_instance(
 
 		if (!index) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Block count for index %llu in buffer is"
-				" about %lu",
-				(ullint) index_ids[i],
+				"Block count for index " IB_ID_FMT
+				" in buffer is about %lu",
+				index_ids[i],
 				(ulong) counts[i]);
 		} else {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Block count for index %llu in buffer is"
-				" about %lu, index %s of table %s",
-				(ullint) index_ids[i],
+				"Block count for index " IB_ID_FMT
+				" in buffer is about %lu, index %s of table %s",
+				index_ids[i],
 				(ulong) counts[i],
 				ut_get_name(NULL, FALSE, index->name).c_str(),
 				ut_get_name(NULL, TRUE, index->table_name).c_str());

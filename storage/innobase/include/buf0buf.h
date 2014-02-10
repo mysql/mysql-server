@@ -745,7 +745,7 @@ buf_page_is_corrupted(
 	const byte*		read_buf,
 	const page_size_t&	page_size
 #ifdef UNIV_INNOCHECKSUM
-	,ullint			page_no,
+	,uintmax_t		page_no,
 	bool			strict_check,
 	bool			is_log_enabled,
 	FILE*			log_file

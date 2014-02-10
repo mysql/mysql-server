@@ -459,7 +459,7 @@ tablespace. Only free extents are taken into account and we also subtract
 the safety margin required by the above function fsp_reserve_free_extents.
 @return available space in kB */
 
-ullint
+uintmax_t
 fsp_get_available_space_in_free_extents(
 /*====================================*/
 	ulint	space);	/*!< in: space id */

@@ -2880,7 +2880,7 @@ tablespace. Only free extents are taken into account and we also subtract
 the safety margin required by the above function fsp_reserve_free_extents.
 @return available space in kB */
 
-ullint
+uintmax_t
 fsp_get_available_space_in_free_extents(
 /*====================================*/
 	ulint	space)	/*!< in: space id */
@@ -2920,7 +2920,7 @@ fsp_get_available_space_in_free_extents(
 
 		mutex_exit(&dict_sys->mutex);
 
-		return(ULLINT_UNDEFINED);
+		return(UINTMAX_MAX);
 	}
 
 	mtr_start(&mtr);
@@ -2944,7 +2944,7 @@ fsp_get_available_space_in_free_extents(
 
 		mtr_commit(&mtr);
 
-		return(ULLINT_UNDEFINED);
+		return(UINTMAX_MAX);
 	}
 
 	/* From here on even if the user has dropped the tablespace, the
@@ -2995,8 +2995,8 @@ fsp_get_available_space_in_free_extents(
 		return(0);
 	}
 
-	return((ullint) (n_free - reserve)
-	       * FSP_EXTENT_SIZE * (page_size.physical() / 1024));
+	return(static_cast<uintmax_t>(n_free - reserve) * FSP_EXTENT_SIZE
+	       * (page_size.physical() / 1024));
 }
 
 /********************************************************************//**
@@ -3142,11 +3142,11 @@ crash:
 		putc('\n', stderr);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"InnoDB is trying to free space " UINT32PF " page "
-			UINT32PF ", which does not belong to segment %llu "
-			"but belongs to segment %llu.\n",
+			"InnoDB is trying to free space " UINT32PF " page"
+			" " UINT32PF ", which does not belong to segment"
+			" " IB_ID_FMT " but belongs to segment " IB_ID_FMT ".",
 			page_id.space(), page_id.page_no(),
-			(ullint) descr_id, (ullint) seg_id);
+			descr_id, seg_id);
 
 		goto crash;
 	}
@@ -3715,10 +3715,11 @@ fseg_print_low(
 	n_full = flst_get_len(inode + FSEG_FULL, mtr);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"SEGMENT id %llu space %lu; page %lu; res %lu used %lu;"
+		"SEGMENT id " IB_ID_FMT
+		" space %lu; page %lu; res %lu used %lu;"
 		" full ext %lu; fragm pages %lu; free extents %lu;"
 		" not full extents %lu: pages %lu",
-		(ullint) seg_id,
+		seg_id,
 		(ulong) space, (ulong) page_no,
 		(ulong) reserved, (ulong) used, (ulong) n_full,
 		(ulong) n_frag, (ulong) n_free, (ulong) n_not_full,
