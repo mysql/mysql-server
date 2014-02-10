@@ -8570,12 +8570,11 @@ void Item_cache::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-bool Item_cache::walk (Item_processor processor, bool walk_subquery,
-                     uchar *argument)
+bool Item_cache::walk(Item_processor processor, enum_walk walk, uchar *arg)
 {
-  if (example && example->walk(processor, walk_subquery, argument))
-    return 1;
-  return (this->*processor)(argument);
+  return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+         (example && example->walk(processor, walk, arg)) ||
+         ((walk & WALK_POSTFIX) && (this->*processor)(arg));
 }
 
 bool  Item_cache_int::cache_value()
