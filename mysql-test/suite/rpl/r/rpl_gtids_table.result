@@ -125,6 +125,7 @@ MASTER_UUID	9	9
 MASTER_UUID	10	10
 MASTER_UUID	11	11
 include/assert.inc [committed gtids MASTER_UUID:1-11]
+include/sync_slave_sql_with_master.inc
 connection slave
 # Verify that the transaction is skiped if its specified gtid
 # is already in gtid table.
@@ -196,4 +197,5 @@ SELECT * FROM mysql.gtid_executed where sid="SLAVE_UUID";
 sid	gno_start	gno_end
 SLAVE_UUID	1	1
 DROP TABLE t1, t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -59,6 +59,7 @@ MASTER_UUID	1	5
 MASTER_UUID	16	16
 include/assert.inc [committed gtids MASTER_UUID:1-5:16]
 SET GLOBAL DEBUG= @debug_save;
+include/sync_slave_sql_with_master.inc
 connection slave
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 # Verify that the transaction is skiped if its specified gtid
@@ -106,4 +107,5 @@ MASTER_UUID	5	5
 MASTER_UUID	16	16
 MASTER_UUID	17	17
 DROP TABLE t1, t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
