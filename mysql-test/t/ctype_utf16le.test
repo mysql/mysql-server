@@ -1,7 +1,5 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
+--source include/have_myisam.inc
+# There are test for bug which contain MyISAM specific tests
 
 -- source include/have_ucs2.inc
 -- source include/have_utf16.inc
@@ -101,7 +99,7 @@ SELECT * FROM t1 WHERE a LIKE 'фЫва%' COLLATE utf16le_bin ORDER BY BINARY a;
 DROP TABLE t1;
 
 CREATE TABLE t1 (word VARCHAR(64) NOT NULL, PRIMARY KEY (word))
-ENGINE=MyISAM CHARACTER SET utf16le;
+CHARACTER SET utf16le;
 INSERT INTO t1 (word) VALUES ("cat");
 SELECT * FROM t1 WHERE word LIKE "c%";
 SELECT * FROM t1 WHERE word LIKE "ca_";
@@ -645,14 +643,23 @@ DROP TABLE t1;
 
 
 --echo #
---echo # Testing that maximim possible key length is 1000 bytes
+--echo # Testing that maximim possible key length is 1000 bytes for MyISAM
 --echo #
-CREATE TABLE t1 (a VARCHAR(250) CHARACTER SET utf16le PRIMARY KEY);
+CREATE TABLE t1 (a VARCHAR(250) CHARACTER SET utf16le PRIMARY KEY) engine=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+--error ER_TOO_LONG_KEY
+CREATE TABLE t1 (a VARCHAR(334) CHARACTER SET utf16le PRIMARY KEY) engine=MyISAM;
+
+--echo #
+--echo # Testing that maximim possible key length is 767 bytes for InnoDB
+--echo #
+#Minimized the varchar length for InnoDB so that it does not throw max keylength exceeded error
+CREATE TABLE t1 (a VARCHAR(150) CHARACTER SET utf16le PRIMARY KEY);
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 --error ER_TOO_LONG_KEY
 CREATE TABLE t1 (a VARCHAR(334) CHARACTER SET utf16le PRIMARY KEY);
-
 
 --echo #
 --echo # Conversion to utf8

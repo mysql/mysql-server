@@ -44,7 +44,7 @@ TEST_F(FileSortBufferTest, FileSortBuffer)
   uchar *sort_buff= fs_info.alloc_sort_buffer(10, sizeof(char));
 
   const uchar *null_sort_buff= NULL;
-  const uchar **null_sort_keys= NULL;
+  uchar **null_sort_keys= NULL;
   fs_info.init_record_pointers();
   EXPECT_NE(null_sort_buff, sort_buff);
   EXPECT_NE(null_sort_keys, fs_info.get_sort_keys());

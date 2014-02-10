@@ -76,7 +76,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_drop_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -97,7 +97,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_create_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -118,7 +118,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_temp_recreate_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 use test;
@@ -141,7 +141,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_fts_trunc";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "5. Error while updating sys-tables."
 use test;
@@ -164,7 +164,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
@@ -246,7 +246,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_drop_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 0;
@@ -267,7 +267,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_create_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 0;
@@ -288,7 +288,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_temp_recreate_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 use test;
@@ -311,7 +311,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_fts_trunc";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "5. Error while updating sys-tables."
 use test;
@@ -334,7 +334,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
@@ -416,7 +416,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_drop_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -437,7 +437,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_create_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -458,7 +458,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_temp_recreate_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 use test;
@@ -481,7 +481,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_fts_trunc";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "5. Error while updating sys-tables."
 use test;
@@ -504,7 +504,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
@@ -586,7 +586,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_drop_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -607,7 +607,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_create_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -628,7 +628,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_temp_recreate_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 use test;
@@ -651,7 +651,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_fts_trunc";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "5. Error while updating sys-tables."
 use test;
@@ -674,7 +674,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
@@ -756,7 +756,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_drop_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -777,7 +777,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_create_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
@@ -798,7 +798,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_temp_recreate_index";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 use test;
@@ -821,7 +821,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_fts_trunc";
 select * from t;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 "5. Error while updating sys-tables."
 use test;
@@ -844,7 +844,7 @@ truncate table t;
 ERROR HY000: Got error -1 from storage engine
 set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
-ERROR HY000: Index t is corrupted
+ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;

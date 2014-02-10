@@ -137,4 +137,16 @@ DROP TABLE IF EXISTS t1;
 DROP DATABASE wl6797;
 
 --echo
+--echo # Bug 17772561 RESET CONNECTION ERROR HANDLING CAN BE MORE INFORMATIVE
+--echo # FOR ERROR CASES
+--echo
+
+grant all privileges on *.* to  'user_wl6797'@'localhost';
+ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
+--error 1
+--exec echo "connect(con1, localhost, user_wl6797, , test); --resetconnection " | $MYSQL_TEST 2>&1
+connection default;
+DROP USER user_wl6797@localhost;
+
+--echo
 --echo End of tests

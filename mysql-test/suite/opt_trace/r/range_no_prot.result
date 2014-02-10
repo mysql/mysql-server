@@ -6227,3 +6227,397 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
   ] /* steps */
 }	0	0
 DROP TABLE t1;
+
+# BUG#18023222 OPTIMIZER TRACE ERROR ON RANGE ANALYSIS OF
+#              INDEX ON A BINARY COLUMN
+
+CREATE TABLE t(i INT PRIMARY KEY, b BINARY(16), INDEX i_b(b));
+INSERT INTO t VALUES (1, x'D95B94336A9946A39CF5B58CFE772D8C');
+INSERT INTO t VALUES (2, NULL);
+EXPLAIN SELECT * FROM t WHERE b IN (0xD95B94336A9946A39CF5B58CFE772D8C);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	i_b	i_b	17	const	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`b` = 0x9cf5b58cfe772d8c)
+SELECT trace FROM information_schema.optimizer_trace;
+trace
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t`.`i` AS `i`,`t`.`b` AS `b` from `t` where (`t`.`b` = 0x9cf5b58cfe772d8c)"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`t`.`b` = 0x9cf5b58cfe772d8c)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "multiple equal(0x9cf5b58cfe772d8c, `t`.`b`)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "multiple equal(0x9cf5b58cfe772d8c, `t`.`b`)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "multiple equal(0x9cf5b58cfe772d8c, `t`.`b`)"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "table": "`t`",
+                "field": "b",
+                "equals": "0x9cf5b58cfe772d8c",
+                "null_rejecting": false
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 2,
+                    "cost": 4.5103
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "i_b",
+                      "usable": true,
+                      "key_parts": [
+                        "b"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "i_b",
+                        "ranges": [
+                          "0xd95b94336a9946a39cf5b58cfe772d8c <= b <= 0xd95b94336a9946a39cf5b58cfe772d8c"
+                        ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
+                        "index_only": false,
+                        "rows": 1,
+                        "cost": 2.21,
+                        "chosen": true
+                      }
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "i_b",
+                      "rows": 1,
+                      "ranges": [
+                        "0xd95b94336a9946a39cf5b58cfe772d8c <= b <= 0xd95b94336a9946a39cf5b58cfe772d8c"
+                      ] /* ranges */
+                    } /* range_access_plan */,
+                    "rows_for_plan": 1,
+                    "cost_for_plan": 2.21,
+                    "chosen": true
+                  } /* chosen_range_access_summary */
+                } /* range_analysis */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "i_b",
+                      "rows": 1,
+                      "cost": 1.2,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "range",
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.2,
+                "rows_for_plan": 1,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`t`.`b` = 0x9cf5b58cfe772d8c)",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": "(`t`.`b` = 0x9cf5b58cfe772d8c)"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`",
+                "pushed_index_condition": "(`t`.`b` = 0x9cf5b58cfe772d8c)",
+                "table_condition_attached": null
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_explain */
+    }
+  ] /* steps */
+}
+EXPLAIN SELECT * FROM t WHERE b IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	i_b	i_b	17	const	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i`,`test`.`t`.`b` AS `b` from `test`.`t` where isnull(`test`.`t`.`b`)
+SELECT trace FROM information_schema.optimizer_trace;
+trace
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t`.`i` AS `i`,`t`.`b` AS `b` from `t` where isnull(`t`.`b`)"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "isnull(`t`.`b`)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "isnull(`t`.`b`)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "isnull(`t`.`b`)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "isnull(`t`.`b`)"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "table": "`t`",
+                "field": "b",
+                "equals": "NULL",
+                "null_rejecting": false
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 2,
+                    "cost": 4.5103
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": false,
+                      "cause": "not_applicable"
+                    },
+                    {
+                      "index": "i_b",
+                      "usable": true,
+                      "key_parts": [
+                        "b"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "i_b",
+                        "ranges": [
+                          "NULL <= b <= NULL"
+                        ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
+                        "index_only": false,
+                        "rows": 1,
+                        "cost": 2.21,
+                        "chosen": true
+                      }
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "i_b",
+                      "rows": 1,
+                      "ranges": [
+                        "NULL <= b <= NULL"
+                      ] /* ranges */
+                    } /* range_access_plan */,
+                    "rows_for_plan": 1,
+                    "cost_for_plan": 2.21,
+                    "chosen": true
+                  } /* chosen_range_access_summary */
+                } /* range_analysis */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "ref",
+                      "index": "i_b",
+                      "rows": 1,
+                      "cost": 1.2,
+                      "chosen": true
+                    },
+                    {
+                      "access_type": "range",
+                      "chosen": false,
+                      "cause": "heuristic_index_cheaper"
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.2,
+                "rows_for_plan": 1,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "isnull(`t`.`b`)",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": "isnull(`t`.`b`)"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`",
+                "pushed_index_condition": "isnull(`t`.`b`)",
+                "table_condition_attached": null
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_explain": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_explain */
+    }
+  ] /* steps */
+}
+drop table t;

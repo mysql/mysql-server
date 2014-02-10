@@ -223,13 +223,13 @@ public:
     buf_length= err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
   }
 
-  ErrConvString(const char *str, uint length)
+  ErrConvString(const char *str, size_t length)
   {
     buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length,
                          &my_charset_latin1);
   }
 
-  ErrConvString(const char *str, uint length, const CHARSET_INFO* cs)
+  ErrConvString(const char *str, size_t length, const CHARSET_INFO* cs)
   {
     buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length, cs);
   }

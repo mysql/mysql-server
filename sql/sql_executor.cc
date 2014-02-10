@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,7 +222,7 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
                            !select_lex->with_sum_func) ?
     m_select_limit : HA_POS_ERROR;
 
-  tab->tmp_table_param= new TMP_TABLE_PARAM(tmp_table_param);
+  tab->tmp_table_param= new (thd->mem_root) Temp_table_param(tmp_table_param);
   tab->tmp_table_param->skip_create_table= true;
   TABLE* table= create_tmp_table(thd, tab->tmp_table_param, *tmp_table_fields,
                                tmp_table_group, select_distinct && !group_list,
@@ -772,7 +772,7 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
   JOIN *join= tab->join;
   TABLE *table= tab->table;
   QEP_tmp_table *op= (QEP_tmp_table *)tab->op;
-  TMP_TABLE_PARAM *tmp_tbl= tab->tmp_table_param;
+  Temp_table_param *tmp_tbl= tab->tmp_table_param;
 
   DBUG_ASSERT(table && op);
 
@@ -830,7 +830,8 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
 
 Next_select_func setup_end_select_func(JOIN *join, JOIN_TAB *tab)
 {
-  TMP_TABLE_PARAM *tmp_tbl= tab ? tab->tmp_table_param : &join->tmp_table_param;
+  Temp_table_param *tmp_tbl=
+    tab ? tab->tmp_table_param : &join->tmp_table_param;
 
   /* 
      Choose method for presenting result to user. Use end_send_group
@@ -944,7 +945,7 @@ do_select(JOIN *join)
     following join_tabs in this case, so this rowcount properly represents
     the correct number of qualifying rows.
   */
-  if (join->order)
+  if (join->join_tab && join->order)
   {
     // Save # of found records prior to cleanup
     JOIN_TAB *sort_tab;
@@ -3381,8 +3382,6 @@ JOIN_TAB::remove_duplicates()
 {
   bool error;
   ulong reclength,offset;
-  uint field_count;
-  List<Item> *field_list= (this-1)->fields;
   DBUG_ENTER("remove_duplicates");
 
   DBUG_ASSERT(join->tmp_tables > 0 && table->s->tmp_table != NO_TMP_TABLE);
@@ -3390,15 +3389,7 @@ JOIN_TAB::remove_duplicates()
 
   table->reginfo.lock_type=TL_WRITE;
 
-  /* Calculate how many saved fields there is in list */
-  field_count=0;
-  List_iterator<Item> it(*field_list);
-  Item *item;
-  while ((item=it++))
-  {
-    if (item->get_tmp_table_field() && ! item->const_item())
-      field_count++;
-  }
+  uint field_count= (this-1)->fields->elements;
 
   if (!field_count && !(join->select_options & OPTION_FOUND_ROWS) && !having) 
   {                    // only const items with no OPTION_FOUND_ROWS
@@ -3827,7 +3818,7 @@ int test_if_item_cache_changed(List<Cached_item> &list)
 */
 
 bool
-setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
+setup_copy_fields(THD *thd, Temp_table_param *param,
 		  Ref_ptr_array ref_pointer_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields)
@@ -3899,20 +3890,15 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	field= item->field;
 	item->result_field=field->new_field(thd->mem_root,field->table, 1);
         /*
-          We need to allocate one extra byte for null handling and
-          another extra byte to not get warnings from purify in
-          Field_string::val_int
+          We need to allocate one extra byte for null handling.
         */
-	if (!(tmp= (uchar*) sql_alloc(field->pack_length()+2)))
+	if (!(tmp= static_cast<uchar*>(sql_alloc(field->pack_length() + 1))))
 	  goto err;
         if (copy)
         {
           DBUG_ASSERT (param->field_count > (uint) (copy - copy_start));
           copy->set(tmp, item->result_field);
-          item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-#ifdef HAVE_purify
-          copy->to_ptr[copy->from_length]= 0;
-#endif
+          item->result_field->move_field(copy->to_ptr, copy->to_null_ptr, 1);
           copy++;
         }
       }
@@ -3974,7 +3960,7 @@ err2:
 */
 
 void
-copy_fields(TMP_TABLE_PARAM *param)
+copy_fields(Temp_table_param *param)
 {
   Copy_field *ptr=param->copy_field;
   Copy_field *end=param->copy_field_end;

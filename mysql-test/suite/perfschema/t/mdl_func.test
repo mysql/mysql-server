@@ -90,7 +90,7 @@ prepare dump_waits_current from
 
 prepare dump_waits_history_long from
   "select thread_id_name(THREAD_ID) as THREAD_ID,
-    EVENT_NAME, SOURCE,
+    EVENT_NAME,
     TIMER_START is not NULL as TIMER_START_SET,
     TIMER_END is not NULL as TIMER_END_SET,
     OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME,

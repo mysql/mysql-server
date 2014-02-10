@@ -52,7 +52,7 @@ SELECT * FROM test.t2;
 
 let $message=< -- test 1 select slave after p1 -- >;
 --source include/show_msg.inc
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 SELECT * FROM test.t2;
 
@@ -65,7 +65,7 @@ SELECT * FROM test.t2;
 
 let $message=< -- test 1 select slave after p2 -- >;
 --source include/show_msg.inc
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 SELECT * FROM test.t2;
 
@@ -113,7 +113,7 @@ SELECT * FROM test.t2;
 
 let $message=< -- test 2 select Slave after p1 -- >;
 --source include/show_msg.inc
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 SELECT * FROM test.t2;
 
@@ -128,7 +128,7 @@ SELECT * FROM test.t2;
 
 let $message=< -- test 1 select Slave after p2 -- >;
 --source include/show_msg.inc
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 SELECT * FROM test.t2;
 
@@ -168,7 +168,7 @@ while ($n)
 
 ROLLBACK;
 select * from test.t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from test.t3;
 
 connection master;
@@ -187,7 +187,7 @@ while ($n)
 
 COMMIT;
 select * from test.t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from test.t3;
 
 connection master;

@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,10 +90,9 @@ public:
 
   bool intro_version(uchar *int_arg)
   {
-    using std::max;
     int *input_version= (int*)int_arg;
     /* This function was introduced in 5.5 */
-    int output_version= max(*input_version, 50500);
+    int output_version= std::max(*input_version, 50500);
     *input_version= output_version;
     return 0;
   }

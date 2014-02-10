@@ -38,7 +38,7 @@ extern char *	mysql_unix_port;
                              CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
                              CLIENT_CONNECT_ATTRS)
 
-sig_handler my_pipe_sig_handler(int sig);
+void my_pipe_sig_handler(int sig);
 void read_user_name(char *name);
 my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 

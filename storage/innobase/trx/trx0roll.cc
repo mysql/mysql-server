@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -430,10 +430,10 @@ trx_rollback_to_savepoint_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: transaction has a savepoint ", stderr);
-		ut_print_name(stderr, trx, FALSE, savep->name);
-		fputs(" though it is not started\n", stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Transaction has a savepoint %s"
+			" though it is not started",
+			ut_get_name(trx, FALSE, savep->name).c_str());
 		return(DB_ERROR);
 	case TRX_STATE_ACTIVE:
 		return(trx_rollback_to_savepoint_for_mysql_low(
@@ -567,7 +567,6 @@ trx_rollback_active(
 	dict_table_t*	table;
 	ib_int64_t	rows_to_undo;
 	const char*	unit		= "";
-	trx_id_t	trx_id;
 	ibool		dictionary_locked = FALSE;
 
 	heap = mem_heap_create(512);
@@ -603,8 +602,8 @@ trx_rollback_active(
 		unit = "M";
 	}
 
-	ut_print_timestamp(stderr);
-	trx_id = trx->id;
+	const trx_id_t	trx_id = trx_get_id_for_print(trx);
+
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Rolling back trx with id " TRX_ID_FMT ", %lu%s"
 		" rows to undo", trx_id, (ulong) rows_to_undo, unit);
@@ -641,8 +640,8 @@ trx_rollback_active(
 
 		if (table && !dict_table_is_discarded(table)) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Dropping table '%s', with id " UINT64PF " "
-				"in recovery",
+				"Dropping table '%s', with id " UINT64PF
+				" in recovery",
 				table->name, trx->table_id);
 
 			dict_table_close_and_drop(trx, table);
@@ -696,9 +695,9 @@ trx_rollback_resurrected(
 	switch (state) {
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		trx_sys_mutex_exit();
-		fprintf(stderr,
-			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
-			trx->id);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Cleaning up trx with id " TRX_ID_FMT,
+			trx_get_id_for_print(trx));
 		trx_cleanup_at_db_startup(trx);
 		trx_free_resurrected(trx);
 		return(TRUE);
@@ -742,9 +741,9 @@ trx_rollback_or_clean_recovered(
 	}
 
 	if (all) {
-		fprintf(stderr,
-			"InnoDB: Starting in background the rollback"
-			" of uncommitted transactions\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Starting in background the rollback"
+			" of uncommitted transactions");
 	}
 
 	/* Note: For XA recovered transactions, we rely on MySQL to
@@ -781,10 +780,9 @@ trx_rollback_or_clean_recovered(
 	} while (trx != NULL);
 
 	if (all) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Rollback of non-prepared"
-			" transactions completed\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Rollback of non-prepared"
+			" transactions completed");
 	}
 }
 
@@ -858,7 +856,8 @@ trx_roll_pop_top_rec(
 	ut_ad(mutex_own(&trx->undo_mutex));
 
 	page_t*	undo_page = trx_undo_page_get_s_latched(
-		undo->space, undo->zip_size, undo->top_page_no, mtr);
+		page_id_t(undo->space, undo->top_page_no),
+		undo->page_size, mtr);
 
 	ulint	offset = undo->top_offset;
 

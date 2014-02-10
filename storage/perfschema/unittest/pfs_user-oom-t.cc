@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(6);
+  plan(7);
   MY_INIT("pfs_user-oom-t");
   do_all_tests();
   return 0;

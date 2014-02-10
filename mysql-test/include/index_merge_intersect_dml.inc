@@ -87,6 +87,7 @@ ANALYZE TABLE t1;
 --eval SELECT COUNT(*), SUM(c) FROM t1 $query
 
 --let $query = WHERE d=6 AND a=6  AND c <> 6
+--replace_result "idx_d,idx_a" "idx_a,idx_d"
 --replace_column 10 #
 --eval EXPLAIN UPDATE t1 SET b=0 $query
 --eval SELECT COUNT(*), SUM(b) FROM t1 $query
@@ -94,6 +95,7 @@ ANALYZE TABLE t1;
 --eval SELECT COUNT(*), SUM(b) FROM t1 $query
 
 --let $query = WHERE d=6 AND a=6 AND c IN (1,2,3,4,5)
+--replace_result "idx_d,idx_a" "idx_a,idx_d"
 --replace_column 10 #
 --eval EXPLAIN UPDATE t1 SET a=100 $query
 --eval SELECT COUNT(*), SUM(a) FROM t1 $query

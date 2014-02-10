@@ -129,11 +129,6 @@ ut_ulint_cmp(
 	ulint	a,	/*!< in: ulint */
 	ulint	b);	/*!< in: ulint */
 /*************************************************************//**
-Determines if a number is zero or a power of two.
-@param n in: number
-@return nonzero if n is zero or a power of two; zero otherwise */
-#define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
-/*************************************************************//**
 Calculates fast the remainder of n/m when m is a power of two.
 @param n in: numerator
 @param m in: denominator, must be a power of two
@@ -256,6 +251,11 @@ ut_difftime(
 
 #endif /* !UNIV_INNOCHECKSUM */
 
+/** Determines if a number is zero or a power of two.
+@param[in]	n	number
+@return nonzero if n is zero or a power of two; zero otherwise */
+#define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
+
 /**********************************************************//**
 Prints a timestamp to a file. */
 
@@ -336,18 +336,49 @@ ut_print_buf(
 	__attribute__((nonnull));
 #endif /* !DBUG_OFF */
 
-/**********************************************************************//**
-Outputs a NUL-terminated file name, quoted with apostrophes. */
-
-void
-ut_print_filename(
-/*==============*/
-	FILE*		f,	/*!< in: output stream */
-	const char*	name);	/*!< in: name to print */
-
 #ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */
 struct trx_t;
+
+/**********************************************************************//**
+Get a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier.
+ @param		[in]	trx		transaction (NULL=no quotes).
+ @param		[in]	table_id	TRUE=get a table name,
+					FALSE=get other identifier.
+ @param		[in]	name		name to retrive.
+ @retval	String quoted as an SQL identifier.
+*/
+
+std::string
+ut_get_name(
+	const trx_t*	trx,
+	ibool		table_id,
+	const char*	name);
+
+/**********************************************************************//**
+Get a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier.
+Use ut_get_name() as wrapper function, instead of calling this function
+directly.
+ @param		[in]	trx		transaction (NULL=no quotes).
+ @param		[in]	tables_id	TRUE=get a table name,
+					FALSE=get other identifier.
+ @param		[in]	name		name to retrive.
+ @param		[in]	namelen		length of name.
+ @retval	String quoted as an SQL identifier.
+*/
+
+std::string
+ut_get_namel(
+	const trx_t*	trx,
+	ibool		table_id,
+	const char*	name,
+	ulint		namelen);
 
 /**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.

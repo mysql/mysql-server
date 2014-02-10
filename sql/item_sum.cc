@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2013  Oracle and/or its affiliates. All
-   rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -793,7 +792,7 @@ bool Aggregator_distinct::setup(THD *thd)
     List<Item> list;
     SELECT_LEX *select_lex= thd->lex->current_select();
 
-    if (!(tmp_table_param= new TMP_TABLE_PARAM))
+    if (!(tmp_table_param= new (thd->mem_root) Temp_table_param))
       return TRUE;
 
     /* Create a table with an unique key over all parameters */
@@ -1108,18 +1107,19 @@ void Aggregator_distinct::endup()
       endup_done= TRUE;
     }
   }
-  else
-  {
-    /*
-      We don't have a tree only if 'setup()' hasn't been called;
-      this is the case of sql_executor.cc:return_zero_rows.
-    */
-    if (tree)
-      table->field[0]->set_notnull();
-  }
 
+ /*
+   We don't have a tree only if 'setup()' hasn't been called;
+   this is the case of sql_executor.cc:return_zero_rows.
+ */
   if (tree && !endup_done)
   {
+   /*
+     All tree's values are not NULL.
+     Note that value of field is changed as we walk the tree, in
+     Aggregator_distinct::unique_walk_function, but it's always not NULL.
+   */
+   table->field[0]->set_notnull();
     /* go over the tree of distinct keys and calculate the aggregate value */
     use_distinct_values= TRUE;
     tree->walk(item_sum_distinct_walk, (void*) this);
@@ -1390,7 +1390,7 @@ bool Item_sum_sum::add()
   {
     my_decimal value;
     const my_decimal *val= aggr->arg_val_decimal(&value);
-    if (!aggr->arg_is_null())
+    if (!aggr->arg_is_null(true))
     {
       my_decimal_add(E_DEC_FATAL_ERROR, dec_buffs + (curr_dec_buff^1),
                      val, dec_buffs + curr_dec_buff);
@@ -1401,7 +1401,7 @@ bool Item_sum_sum::add()
   else
   {
     sum+= aggr->arg_val_real();
-    if (!aggr->arg_is_null())
+    if (!aggr->arg_is_null(true))
       null_value= 0;
   }
   DBUG_RETURN(0);
@@ -1511,9 +1511,27 @@ double Aggregator_simple::arg_val_real()
 }
 
 
-bool Aggregator_simple::arg_is_null()
+bool Aggregator_simple::arg_is_null(bool use_null_value)
 {
-  return item_sum->args[0]->null_value;
+  Item **item= item_sum->args;
+  const uint item_count= item_sum->arg_count;
+  if (use_null_value)
+  {
+    for (uint i= 0; i < item_count; i++)
+    {
+      if (item[i]->null_value)
+        return true;
+    }
+  }
+  else
+  {
+    for (uint i= 0; i < item_count; i++)
+    {
+      if (item[i]->maybe_null && item[i]->is_null())
+        return true;
+    }
+  }
+  return false;
 }
 
 
@@ -1531,10 +1549,17 @@ double Aggregator_distinct::arg_val_real()
 }
 
 
-bool Aggregator_distinct::arg_is_null()
+bool Aggregator_distinct::arg_is_null(bool use_null_value)
 {
-  return use_distinct_values ? table->field[0]->is_null() :
-    item_sum->args[0]->null_value;
+  if (use_distinct_values)
+  {
+    const bool rc= table->field[0]->is_null();
+    DBUG_ASSERT(!rc); // NULLs are never stored in 'tree'
+    return rc;
+  }
+  return use_null_value ?
+    item_sum->args[0]->null_value :
+    (item_sum->args[0]->maybe_null && item_sum->args[0]->is_null());
 }
 
 
@@ -1552,11 +1577,8 @@ void Item_sum_count::clear()
 
 bool Item_sum_count::add()
 {
-  for (uint i=0; i<arg_count; i++)
-  {
-    if (args[i]->maybe_null && args[i]->is_null())
-      return 0;
-  }
+  if (aggr->arg_is_null(false))
+    return 0;
   count++;
   return 0;
 }
@@ -1646,7 +1668,7 @@ bool Item_sum_avg::add()
 {
   if (Item_sum_sum::add())
     return TRUE;
-  if (!aggr->arg_is_null())
+  if (!aggr->arg_is_null(true))
     count++;
   return FALSE;
 }
@@ -3455,7 +3477,7 @@ bool Item_func_group_concat::setup(THD *thd)
   if (table || tree)
     DBUG_RETURN(FALSE);
 
-  if (!(tmp_table_param= new TMP_TABLE_PARAM))
+  if (!(tmp_table_param= new (thd->mem_root) Temp_table_param))
     DBUG_RETURN(TRUE);
 
   /* Push all not constant fields to the list and create a temp table */

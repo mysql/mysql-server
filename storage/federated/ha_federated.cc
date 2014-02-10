@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -402,7 +402,6 @@ static const int bulk_padding= 64;              // bytes "overhead" in packet
 
 /* Variables used when chopping off trailing characters */
 static const uint sizeof_trailing_comma= sizeof(", ") - 1;
-static const uint sizeof_trailing_closeparen= sizeof(") ") - 1;
 static const uint sizeof_trailing_and= sizeof(" AND ") - 1;
 static const uint sizeof_trailing_where= sizeof(" WHERE ") - 1;
 
@@ -2317,6 +2316,22 @@ int ha_federated::delete_row(const uchar *buf)
   DBUG_RETURN(0);
 }
 
+int ha_federated::index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                key_part_map keypart_map,
+                                enum ha_rkey_function find_flag)
+{
+  int error= index_init(index, 0);
+  if (error)
+    return error;
+  error= index_read_map(buf, key, keypart_map, find_flag);
+  if(!error && stored_result)
+  {
+    uchar *dummy_arg=NULL;
+    position(dummy_arg);
+  }
+  int error1= index_end();
+  return error ?  error : error1;
+}
 
 /*
   Positions an index cursor to the index specified in the handle. Fetches the
@@ -3171,7 +3186,8 @@ int ha_federated::real_connect()
   */
   sql_query.append(share->select_query);
   sql_query.append(STRING_WITH_LEN(" WHERE 1=0"));
-  if (mysql_real_query(mysql, sql_query.ptr(), sql_query.length()))
+  if (mysql_real_query(mysql, sql_query.ptr(),
+                       static_cast<ulong>(sql_query.length())))
   {
     sql_query.length(0);
     sql_query.append("error: ");
@@ -3211,7 +3227,7 @@ int ha_federated::real_query(const char *query, size_t length)
   if (!query || !length)
     goto end;
 
-  rc= mysql_real_query(mysql, query, (uint) length);
+  rc= mysql_real_query(mysql, query, static_cast<ulong>(length));
   
 end:
   DBUG_RETURN(rc);

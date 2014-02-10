@@ -77,10 +77,8 @@ ut_dbg_assertion_failed(
 #define UT_NOT_USED(A)	A = A
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
-
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
+#include "univ.i"
+#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H)
 
 /** structure used for recording usage statistics */
 struct speedo_t {
@@ -104,6 +102,8 @@ void
 speedo_show(
 /*========*/
 	const speedo_t*	speedo);	/*!< in: speedo */
+
+#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_RESOURCE_H */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 

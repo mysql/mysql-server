@@ -24,6 +24,8 @@ process control primitives
 Created 9/30/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "os0proc.h"
 #ifdef UNIV_NONINL
 #include "os0proc.ic"
@@ -88,15 +90,15 @@ os_mem_alloc_large(
 
 	shmid = shmget(IPC_PRIVATE, (size_t) size, SHM_HUGETLB | SHM_R | SHM_W);
 	if (shmid < 0) {
-		fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to allocate"
-			" %lu bytes. errno %d\n", size, errno);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Failed to allocate %lu bytes. errno %d", size, errno);
 		ptr = NULL;
 	} else {
 		ptr = shmat(shmid, NULL, 0);
 		if (ptr == (void*)-1) {
-			fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to"
-				" attach shared memory segment, errno %d\n",
-				errno);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Failed to attach shared memory segment,"
+				" errno %d", errno);
 			ptr = NULL;
 		}
 
@@ -115,8 +117,7 @@ os_mem_alloc_large(
 		return(ptr);
 	}
 
-	fprintf(stderr, "InnoDB HugeTLB: Warning: Using conventional"
-		" memory pool\n");
+	ib_logf(IB_LOG_LEVEL_WARN, "Using conventional memory pool");
 skip:
 #endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
 
@@ -133,8 +134,9 @@ skip:
 	ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
 			   PAGE_READWRITE);
 	if (!ptr) {
-		fprintf(stderr, "InnoDB: VirtualAlloc(%lu bytes) failed;"
-			" Windows error %lu\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"VirtualAlloc(%lu bytes) failed;"
+			" Windows error %lu",
 			(ulong) size, (ulong) GetLastError());
 	} else {
 		mutex_enter(&ut_list_mutex);
@@ -150,8 +152,9 @@ skip:
 	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | OS_MAP_ANON, -1, 0);
 	if (UNIV_UNLIKELY(ptr == (void*) -1)) {
-		fprintf(stderr, "InnoDB: mmap(%lu bytes) failed;"
-			" errno %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"mmap(%lu bytes) failed;"
+			" errno %lu",
 			(ulong) size, (ulong) errno);
 		ptr = NULL;
 	} else {
@@ -193,8 +196,9 @@ os_mem_free_large(
 	/* When RELEASE memory, the size parameter must be 0.
 	Do not use MEM_RELEASE with MEM_DECOMMIT. */
 	if (!VirtualFree(ptr, 0, MEM_RELEASE)) {
-		fprintf(stderr, "InnoDB: VirtualFree(%p, %lu) failed;"
-			" Windows error %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"VirtualFree(%p, %lu) failed;"
+			" Windows error %lu",
 			ptr, (ulong) size, (ulong) GetLastError());
 	} else {
 		mutex_enter(&ut_list_mutex);
@@ -211,8 +215,9 @@ os_mem_free_large(
 # else
 	if (munmap(ptr, size)) {
 # endif /* UNIV_SOLARIS */
-		fprintf(stderr, "InnoDB: munmap(%p, %lu) failed;"
-			" errno %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"munmap(%p, %lu) failed;"
+			" errno %lu",
 			ptr, (ulong) size, (ulong) errno);
 	} else {
 		mutex_enter(&ut_list_mutex);

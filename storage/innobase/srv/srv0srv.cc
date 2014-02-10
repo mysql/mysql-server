@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -46,6 +46,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "dict0boot.h"
 #include "dict0load.h"
 #include "dict0stats_bg.h"
+#include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0recv.h"
@@ -57,7 +58,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "row0mysql.h"
 #include "row0trunc.h"
 #include "srv0mon.h"
-#include "srv0space.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0mutex.h"
@@ -150,12 +150,14 @@ ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 ib_uint64_t	srv_log_file_size_requested;
 /* size in database pages */
-ulint	srv_log_buffer_size	= ULINT_MAX;
-ulong	srv_flush_log_at_trx_commit = 1;
-uint	srv_flush_log_at_timeout = 1;
-ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
-ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
-ulong	srv_log_write_ahead_size = 0;
+ulint		srv_log_buffer_size = ULINT_MAX;
+ulong		srv_flush_log_at_trx_commit = 1;
+uint		srv_flush_log_at_timeout = 1;
+ulong		srv_page_size = UNIV_PAGE_SIZE_DEF;
+ulong		srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_DEF;
+ulong		srv_log_write_ahead_size = 0;
+
+page_size_t	univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
@@ -225,6 +227,9 @@ ulint	srv_max_n_open_files	  = 300;
 /* Number of IO operations per second the server can do */
 ulong	srv_io_capacity         = 200;
 ulong	srv_max_io_capacity     = 400;
+
+/* The number of page cleaner threads to use.*/
+ulong	srv_n_page_cleaners = 1;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -542,8 +547,8 @@ srv_print_master_thread_info(
 /*=========================*/
 	FILE  *file)    /* in: output stream */
 {
-	fprintf(file, "srv_master_thread loops: %lu srv_active, "
-		"%lu srv_shutdown, %lu srv_idle\n",
+	fprintf(file, "srv_master_thread loops: %lu srv_active,"
+		" %lu srv_shutdown, %lu srv_idle\n",
 		srv_main_active_loops,
 		srv_main_shutdown_loops,
 		srv_main_idle_loops);
@@ -1445,7 +1450,7 @@ DECLARE_THREAD(srv_monitor_thread)(
 	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "Lock timeout thread starts, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "Lock timeout thread starts, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -1566,7 +1571,7 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 	old_lsn = srv_start_lsn;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "Error monitor thread starts, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "Error monitor thread starts, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -1582,13 +1587,10 @@ loop:
 	new_lsn = log_get_lsn();
 
 	if (new_lsn < old_lsn) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: old log sequence number " LSN_PF
-			" was greater\n"
-			"InnoDB: than the new log sequence number " LSN_PF "!\n"
-			"InnoDB: Please submit a bug report"
-			" to http://bugs.mysql.com\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Old log sequence number " LSN_PF "was greater than"
+			" the new log sequence number " LSN_PF "!."
+			" Please submit a bug report to http://bugs.mysql.com",
 			old_lsn, new_lsn);
 		ut_ad(0);
 	}
@@ -1905,20 +1907,18 @@ srv_shutdown_print_master_pending(
 		*last_print_time = ut_time();
 
 		if (n_tables_to_drop) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for "
-				"%lu table(s) to be dropped\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for %lu table(s) to be dropped",
 				(ulong) n_tables_to_drop);
 		}
 
 		/* Check change buffer merge, we only wait for change buffer
 		merge if it is a slow shutdown */
 		if (!srv_fast_shutdown && n_bytes_merged) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Waiting for change "
-				"buffer merge to complete\n"
-				"  InnoDB: number of bytes of change buffer "
-				"just merged:  %lu\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for change buffer merge to complete"
+				" number of bytes of change buffer"
+				" just merged:  %lu",
 				n_bytes_merged);
 		}
 	}
@@ -2185,7 +2185,7 @@ DECLARE_THREAD(srv_master_thread)(
 	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "Master thread starts, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "Master thread starts, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -2327,8 +2327,7 @@ DECLARE_THREAD(srv_worker_thread)(
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: worker thread starting, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "Worker thread starting, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -2374,8 +2373,7 @@ DECLARE_THREAD(srv_worker_thread)(
 	rw_lock_x_unlock(&purge_sys->latch);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Purge worker thread exiting, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "Purge worker thread exiting, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -2529,7 +2527,8 @@ srv_purge_coordinator_suspend(
 
 		rw_lock_x_lock(&purge_sys->latch);
 
-		stop = (purge_sys->state == PURGE_STATE_STOP);
+		stop = (srv_shutdown_state == SRV_SHUTDOWN_NONE
+			&& purge_sys->state == PURGE_STATE_STOP);
 
 		if (!stop) {
 			ut_a(purge_sys->n_stop == 0);
@@ -2601,8 +2600,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Purge coordinator thread created, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "Purge coordinator thread created, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -2614,8 +2612,9 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		/* If there are no records to purge or the last
 		purge didn't purge any records then wait for activity. */
 
-		if (purge_sys->state == PURGE_STATE_STOP
-		    || n_total_purged == 0) {
+		if (srv_shutdown_state == SRV_SHUTDOWN_NONE
+		    && (purge_sys->state == PURGE_STATE_STOP
+			|| n_total_purged == 0)) {
 
 			srv_purge_coordinator_suspend(slot, rseg_history_len);
 		}
@@ -2666,8 +2665,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	rw_lock_x_unlock(&purge_sys->latch);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Purge coordinator exiting, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "Purge coordinator exiting, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
@@ -2755,7 +2753,7 @@ for independent tablespace are not applicable to system-tablespace).
 bool
 srv_is_tablespace_truncated(ulint space_id)
 {
-	if (Tablespace::is_system_tablespace(space_id)) {
+	if (is_system_tablespace(space_id)) {
 		return(false);
 	}
 

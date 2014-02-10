@@ -1152,7 +1152,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
 
     store_failed= store_failed ||
       table->field[MYSQL_PROC_FIELD_DEFINER]->
-        store(definer, (uint)strlen(definer), system_charset_info);
+        store(definer, strlen(definer), system_charset_info);
 
     Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_CREATED]);
     Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_MODIFIED]);
@@ -1338,7 +1338,7 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
   if (ret == SP_OK)
   {
     thd->add_to_binlog_accessed_dbs(name->m_db.str);
-    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+    if (write_bin_log(thd, TRUE, thd->query().str, thd->query().length))
       ret= SP_INTERNAL_ERROR;
     sp_cache_invalidate();
 
@@ -1463,7 +1463,7 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
 
   if (ret == SP_OK)
   {
-    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+    if (write_bin_log(thd, TRUE, thd->query().str, thd->query().length))
       ret= SP_INTERNAL_ERROR;
     sp_cache_invalidate();
   }
@@ -2707,7 +2707,7 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
   unsigned int stmt_unsafe_rollback_flags=
-    thd->transaction.stmt.get_unsafe_rollback_flags();
+    thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   if (!*expr_item_ptr)
     goto error;
@@ -2724,7 +2724,7 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning= thd->is_strict_mode();
-  thd->transaction.stmt.reset_unsafe_rollback_flags();
+  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -2732,7 +2732,8 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->transaction.stmt.set_unsafe_rollback_flags(stmt_unsafe_rollback_flags);
+  thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
+                                                    stmt_unsafe_rollback_flags);
 
   if (!thd->is_error())
     return false;

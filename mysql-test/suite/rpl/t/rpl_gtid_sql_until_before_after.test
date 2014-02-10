@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # BUG#13810456: GTID: UNTIL_SQL_BEFORE_GTID DOES NOT WORK
 #
 # This test performs multiple invocations of
@@ -20,7 +15,7 @@
 --connection master
 --let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 CREATE TABLE t1(c1 INTEGER) ENGINE= Innodb;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo [connection slave]
 --source include/stop_slave.inc
 

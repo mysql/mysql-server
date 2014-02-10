@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Stored PROCEDURE error tests
 #
@@ -2164,7 +2159,7 @@ delimiter |;
 --error ER_SP_CANT_SET_AUTOCOMMIT
 create function f1() returns int
 begin
-  set @test = 1, password = password('foo');
+ set password = password('foo');
   return 1;
 end|
 
@@ -2322,7 +2317,7 @@ drop procedure if exists p1;
 delimiter |;
 create procedure p1()
 begin
-  create table t1 (a int) engine=MyISAM;
+  create table t1 (a int);
   drop table t1;
 end|
 delimiter ;|

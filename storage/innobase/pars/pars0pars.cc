@@ -2121,8 +2121,9 @@ pars_get_lex_chars(
 {
 	int	len;
 
-	len = (int) (pars_sym_tab_global->string_len
-	    - pars_sym_tab_global->next_char_pos);
+	len = static_cast<int>(
+		pars_sym_tab_global->string_len
+		- pars_sym_tab_global->next_char_pos);
 	if (len == 0) {
 		return(0);
 	}
@@ -2150,8 +2151,7 @@ yyerror(
 {
 	ut_ad(s);
 
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"PARSER: Syntax error in SQL string");
+	ib_logf(IB_LOG_LEVEL_FATAL, "PARSER: Syntax error in SQL string");
 }
 
 /*************************************************************//**

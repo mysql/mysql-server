@@ -19,6 +19,7 @@
 
 --source include/master-slave.inc
 --source include/have_innodb.inc
+--source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
 --source include/not_gtid_enabled.inc
 
@@ -126,7 +127,7 @@ while ($type)
 }
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 let $rpl_diff_statement= SELECT * FROM t order by i;
 source include/rpl_diff.inc;
@@ -143,7 +144,7 @@ DROP TRIGGER tr;
 DROP TABLE t;
 DROP TABLE n;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 disconnect conn1;

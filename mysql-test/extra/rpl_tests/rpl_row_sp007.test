@@ -30,7 +30,7 @@ SELECT * FROM test.t1;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 
 let $message=< ---- Master selects-- >;
@@ -41,7 +41,7 @@ SELECT * FROM test.t1;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 
 connection master;

@@ -48,14 +48,6 @@ typedef std::deque<const char*> dict_names_t;
 #ifndef UNIV_HOTBACKUP
 # include "sync0mutex.h"
 # include "sync0rw.h"
-/******************************************************************//**
-Makes all characters in a NUL-terminated UTF-8 string lower case. */
-
-void
-dict_casedn_str(
-/*============*/
-	char*	a)	/*!< in/out: string to put in lower case */
-	__attribute__((nonnull));
 /********************************************************************//**
 Get the database name length in a table name.
 @return database name length */
@@ -929,24 +921,25 @@ dict_tf_to_fsp_flags(
 /*=================*/
 	ulint	flags)	/*!< in: dict_table_t::flags */
 	__attribute__((const));
-/********************************************************************//**
-Extract the compressed page size from table flags.
+
+/** Extract the page size from table flags.
+@param[in]	flags	flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-ulint
-dict_tf_get_zip_size(
-/*=================*/
-	ulint	flags)			/*!< in: flags */
-	__attribute__((const));
-/********************************************************************//**
-Check whether the table uses the compressed compact page format.
+const page_size_t
+dict_tf_get_page_size(
+	ulint	flags)
+__attribute__((const));
+
+/** Get the table page size.
+@param[in]	table	table
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-ulint
-dict_table_zip_size(
-/*================*/
-	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, warn_unused_result));
+const page_size_t
+dict_table_page_size(
+	const dict_table_t*	table)
+	__attribute__((warn_unused_result));
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
@@ -1441,28 +1434,25 @@ Releases the dictionary system mutex for MySQL. */
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
-/**********************************************************************//**
-Lock the appropriate latch to protect a given table's statistics.
-table->id is used to pick the corresponding latch from a global array of
-latches. */
+
+/** Lock the appropriate latch to protect a given table's statistics.
+@param[in]	table		table whose stats to lock
+@param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
 
 void
 dict_table_stats_lock(
-/*==================*/
-	const dict_table_t*	table,		/*!< in: table */
-	ulint			latch_mode)	/*!< in: RW_S_LATCH or
-						RW_X_LATCH */
-	__attribute__((nonnull));
-/**********************************************************************//**
-Unlock the latch that has been locked by dict_table_stats_lock() */
+	dict_table_t*	table,
+	ulint		latch_mode);
+
+/** Unlock the latch that has been locked by dict_table_stats_lock().
+@param[in]	table		table whose stats to unlock
+@param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
 
 void
 dict_table_stats_unlock(
-/*====================*/
-	const dict_table_t*	table,		/*!< in: table */
-	ulint			latch_mode)	/*!< in: RW_S_LATCH or
-						RW_X_LATCH */
-	__attribute__((nonnull));
+	dict_table_t*	table,
+	ulint		latch_mode);
+
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return TRUE if same db name */

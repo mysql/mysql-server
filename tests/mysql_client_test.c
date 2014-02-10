@@ -725,7 +725,7 @@ static void test_wl4435()
         {
           case MYSQL_TYPE_LONG:
             rs_bind[i].buffer= (char *) &(int_data[i]);
-            rs_bind[i].buffer_length= sizeof (int_data);
+            rs_bind[i].buffer_length= (ulong)sizeof (int_data);
             break;
 
           case MYSQL_TYPE_STRING:
@@ -736,7 +736,7 @@ static void test_wl4435()
 
           case MYSQL_TYPE_DOUBLE:
             rs_bind[i].buffer= (char *) &dbl_data[i];
-            rs_bind[i].buffer_length= sizeof (dbl_data);
+            rs_bind[i].buffer_length= (ulong)sizeof (dbl_data);
             break;
 
           case MYSQL_TYPE_NEWDECIMAL:
@@ -854,7 +854,7 @@ static void test_wl4435()
 
     ps_params[0].buffer_type= MYSQL_TYPE_STRING;
     ps_params[0].buffer= (char *) str_koi8r;
-    ps_params[0].buffer_length= strlen(str_koi8r);
+    ps_params[0].buffer_length= (ulong)strlen(str_koi8r);
 
     ps_params[1].buffer_type= MYSQL_TYPE_STRING;
     ps_params[1].buffer= o1_buffer;
@@ -885,12 +885,12 @@ static void test_wl4435()
 
     rs_bind[0].buffer_type= MYSQL_TYPE_STRING;
     rs_bind[0].buffer= o1_buffer;
-    rs_bind[0].buffer_length= sizeof (o1_buffer);
+    rs_bind[0].buffer_length= (ulong)sizeof (o1_buffer);
     rs_bind[0].length= &o1_length;
 
     rs_bind[1].buffer_type= MYSQL_TYPE_BLOB;
     rs_bind[1].buffer= o2_buffer;
-    rs_bind[1].buffer_length= sizeof (o2_buffer);
+    rs_bind[1].buffer_length= (ulong)sizeof (o2_buffer);
     rs_bind[1].length= &o2_length;
 
     rc= mysql_stmt_bind_result(stmt, rs_bind);
@@ -1011,7 +1011,7 @@ static void test_wl4435_2()
   psp.buffer_type= c_api_in_type; \
   psp.is_null= &psp_null; \
   psp.buffer= (char *) &pspv; \
-  psp.buffer_length= sizeof (psp); \
+  psp.buffer_length= (ulong)sizeof (psp);       \
   \
   rc= mysql_stmt_bind_param(ps, &psp); \
   check_execute(ps, rc); \
@@ -1543,7 +1543,7 @@ static void test_double_compare()
   /* string->float */
   my_bind[1].buffer_type= MYSQL_TYPE_STRING;
   my_bind[1].buffer= (void *)&real_data;
-  my_bind[1].buffer_length= sizeof(real_data);
+  my_bind[1].buffer_length= (ulong)sizeof(real_data);
   my_bind[1].length= &length[1];
   length[1]= 10;
 
@@ -1998,7 +1998,7 @@ static void test_select()
   char       szData[25];
   int        nData= 1;
   MYSQL_BIND my_bind[2];
-  ulong length[2];
+  ulong      length[2];
   char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_select");
@@ -2070,7 +2070,7 @@ static void test_ps_conj_select()
   MYSQL_BIND my_bind[2];
   int32      int_data;
   char       str_data[32];
-  unsigned long str_length;
+  ulong      str_length;
   char query[MAX_TEST_QUERY_LENGTH];
   myheader("test_ps_conj_select");
 
@@ -2108,7 +2108,7 @@ static void test_ps_conj_select()
 
   int_data= 1;
   my_stpcpy(str_data, "hh");
-  str_length= strlen(str_data);
+  str_length= (ulong)strlen(str_data);
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -2187,7 +2187,7 @@ static void test_ps_query_cache()
   MYSQL_BIND p_bind[2],r_bind[2]; /* p: param bind; r: result bind */
   int32      p_int_data, r_int_data;
   char       p_str_data[32], r_str_data[32];
-  unsigned long p_str_length, r_str_length;
+  ulong      p_str_length, r_str_length;
   MYSQL_RES  *r_metadata;
   char       query[MAX_TEST_QUERY_LENGTH];
   uint       hits1, hits2;
@@ -2303,7 +2303,7 @@ static void test_ps_query_cache()
 
     p_int_data= 1;
     my_stpcpy(p_str_data, "hh");
-    p_str_length= strlen(p_str_data);
+    p_str_length= (ulong)strlen(p_str_data);
 
     memset(r_bind, 0, sizeof(r_bind));
     r_bind[0].buffer_type= MYSQL_TYPE_LONG;
@@ -2340,7 +2340,7 @@ static void test_ps_query_cache()
 
     /* now modify parameter values and see qcache hits */
     my_stpcpy(p_str_data, "ii");
-    p_str_length= strlen(p_str_data);
+    p_str_length= (ulong)strlen(p_str_data);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     test_ps_query_cache_result(1, "hh", 2, 1, "ii", 2, 2, "ii", 2);
@@ -2804,7 +2804,7 @@ static void test_simple_update()
   nData= 1;
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= szData;                /* string data */
-  my_bind[0].buffer_length= sizeof(szData);
+  my_bind[0].buffer_length= (ulong)sizeof(szData);
   my_bind[0].length= &length[0];
   length[0]= sprintf(szData, "updated-data");
 
@@ -2887,9 +2887,9 @@ static void test_long_data()
   data= (char *)"Michael";
 
   /* supply data in pieces */
-  rc= mysql_stmt_send_long_data(stmt, 1, data, strlen(data));
+  rc= mysql_stmt_send_long_data(stmt, 1, data, (ulong)strlen(data));
   data= (char *)" 'Monty' Widenius";
-  rc= mysql_stmt_send_long_data(stmt, 1, data, strlen(data));
+  rc= mysql_stmt_send_long_data(stmt, 1, data, (ulong)strlen(data));
   check_execute(stmt, rc);
   rc= mysql_stmt_send_long_data(stmt, 2, "Venu (venu@mysql.com)", 4);
   check_execute(stmt, rc);
@@ -3050,7 +3050,7 @@ static void test_long_data_str1()
   memset(my_bind, 0, sizeof(my_bind));
 
   my_bind[0].buffer= data;            /* string data */
-  my_bind[0].buffer_length= sizeof(data);
+  my_bind[0].buffer_length= (ulong)sizeof(data);
   my_bind[0].length= &length1;
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   length1= 0;
@@ -3158,7 +3158,7 @@ static void test_long_data_str1()
   memset((my_bind+1), 0, sizeof(*my_bind));
   my_bind[1].buffer_type= MYSQL_TYPE_BLOB;
   my_bind[1].buffer= (void *) &data; /* this buffer won't be altered */
-  my_bind[1].buffer_length= sizeof(data);
+  my_bind[1].buffer_length= (ulong)sizeof(data);
   my_bind[1].length= &blob_length;
   memset(data, 0, sizeof(data));
   mysql_stmt_fetch_column(stmt, my_bind+1, 0, 0);
@@ -3262,7 +3262,7 @@ static void test_simple_delete()
   int        nData= 1;
   MYSQL_RES  *result;
   MYSQL_BIND my_bind[2];
-  ulong length[2];
+  ulong      length[2];
   char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_simple_delete");
@@ -3300,7 +3300,7 @@ static void test_simple_delete()
   my_stpcpy(szData, "MySQL");
   my_bind[1].buffer_type= MYSQL_TYPE_STRING;
   my_bind[1].buffer= szData;               /* string data */
-  my_bind[1].buffer_length= sizeof(szData);
+  my_bind[1].buffer_length= (ulong)sizeof(szData);
   my_bind[1].length= &length[1];
   length[1]= 5;
 
@@ -3345,7 +3345,7 @@ static void test_update()
   int        nData= 1;
   MYSQL_RES  *result;
   MYSQL_BIND my_bind[2];
-  ulong length[2];
+  ulong      length[2];
   char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_update");
@@ -3373,7 +3373,7 @@ static void test_update()
   /* string data */
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= szData;
-  my_bind[0].buffer_length= sizeof(szData);
+  my_bind[0].buffer_length= (ulong)sizeof(szData);
   my_bind[0].length= &length[0];
   length[0]= sprintf(szData, "inserted-data");
 
@@ -3402,7 +3402,7 @@ static void test_update()
 
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= szData;
-  my_bind[0].buffer_length= sizeof(szData);
+  my_bind[0].buffer_length= (ulong)sizeof(szData);
   my_bind[0].length= &length[0];
   length[0]= sprintf(szData, "updated-data");
 
@@ -3525,7 +3525,7 @@ static void test_bind_result()
 
   my_bind[1].buffer_type= MYSQL_TYPE_STRING;
   my_bind[1].buffer= szData;                /* string data */
-  my_bind[1].buffer_length= sizeof(szData);
+  my_bind[1].buffer_length= (ulong)sizeof(szData);
   my_bind[1].length= &length1;
   my_bind[1].is_null= &is_null[1];
 
@@ -3585,7 +3585,7 @@ static void test_bind_result_ext()
   float      f_data;
   double     d_data;
   char       szData[20], bData[20];
-  ulong       szLength, bLength;
+  ulong      szLength, bLength;
   MYSQL_BIND my_bind[8];
   ulong      length[8];
   my_bool    is_null[8];
@@ -3638,13 +3638,13 @@ static void test_bind_result_ext()
 
   my_bind[6].buffer_type= MYSQL_TYPE_STRING;
   my_bind[6].buffer= (void *)szData;
-  my_bind[6].buffer_length= sizeof(szData);
+  my_bind[6].buffer_length= (ulong)sizeof(szData);
   my_bind[6].length= &szLength;
 
   my_bind[7].buffer_type= MYSQL_TYPE_TINY_BLOB;
   my_bind[7].buffer= (void *)&bData;
   my_bind[7].length= &bLength;
-  my_bind[7].buffer_length= sizeof(bData);
+  my_bind[7].buffer_length= (ulong)sizeof(bData);
 
   stmt= mysql_simple_prepare(mysql, "select * from test_bind_result");
   check_stmt(stmt);
@@ -3733,7 +3733,7 @@ static void test_bind_result_ext1()
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (void *) t_data;
-  my_bind[0].buffer_length= sizeof(t_data);
+  my_bind[0].buffer_length= (ulong)sizeof(t_data);
   my_bind[0].error= &my_bind[0].error_value;
 
   my_bind[1].buffer_type= MYSQL_TYPE_FLOAT;
@@ -3758,7 +3758,7 @@ static void test_bind_result_ext1()
 
   my_bind[5].buffer_type= MYSQL_TYPE_STRING;
   my_bind[5].buffer= (void *)d_data;
-  my_bind[5].buffer_length= sizeof(d_data);
+  my_bind[5].buffer_length= (ulong)sizeof(d_data);
   my_bind[5].error= &my_bind[5].error_value;
 
   my_bind[6].buffer_type= MYSQL_TYPE_LONG;
@@ -3911,7 +3911,7 @@ static void bind_fetch(int row_count)
 
   my_bind[6].buffer_type= MYSQL_TYPE_STRING;
   my_bind[6].buffer= (void *)&s_data;
-  my_bind[6].buffer_length= sizeof(s_data);
+  my_bind[6].buffer_length= (ulong)sizeof(s_data);
 
   rc= mysql_stmt_bind_result(stmt, my_bind);
   check_execute(stmt, rc);
@@ -4039,15 +4039,15 @@ static void test_fetch_date()
   my_bind[1]= my_bind[2]= my_bind[0];
 
   my_bind[0].buffer= (void *)&date;
-  my_bind[0].buffer_length= sizeof(date);
+  my_bind[0].buffer_length= (ulong)sizeof(date);
   my_bind[0].length= &d_length;
 
   my_bind[1].buffer= (void *)&my_time;
-  my_bind[1].buffer_length= sizeof(my_time);
+  my_bind[1].buffer_length= (ulong)sizeof(my_time);
   my_bind[1].length= &t_length;
 
   my_bind[2].buffer= (void *)&ts;
-  my_bind[2].buffer_length= sizeof(ts);
+  my_bind[2].buffer_length= (ulong)sizeof(ts);
   my_bind[2].length= &ts_length;
 
   my_bind[3].buffer_type= MYSQL_TYPE_LONG;
@@ -4056,17 +4056,17 @@ static void test_fetch_date()
 
   my_bind[4].buffer_type= MYSQL_TYPE_STRING;
   my_bind[4].buffer= (void *)&dt;
-  my_bind[4].buffer_length= sizeof(dt);
+  my_bind[4].buffer_length= (ulong)sizeof(dt);
   my_bind[4].length= &dt_length;
 
   my_bind[5].buffer_type= MYSQL_TYPE_STRING;
   my_bind[5].buffer= (void *)&ts_4;
-  my_bind[5].buffer_length= sizeof(ts_4);
+  my_bind[5].buffer_length= (ulong)sizeof(ts_4);
   my_bind[5].length= &ts4_length;
 
   my_bind[6].buffer_type= MYSQL_TYPE_STRING;
   my_bind[6].buffer= (void *)&ts_6;
-  my_bind[6].buffer_length= sizeof(ts_6);
+  my_bind[6].buffer_length= (ulong)sizeof(ts_6);
   my_bind[6].length= &ts6_length;
 
   rc= my_stmt_result("SELECT * FROM test_bind_result");
@@ -4557,7 +4557,7 @@ static void test_insert()
   /* string */
   my_bind[1].buffer_type= MYSQL_TYPE_STRING;
   my_bind[1].buffer= str_data;
-  my_bind[1].buffer_length= sizeof(str_data);;
+  my_bind[1].buffer_length= (ulong)sizeof(str_data);
   my_bind[1].length= &length;
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
@@ -4831,7 +4831,7 @@ static void test_set_variable()
   get_bind[0].buffer_type= MYSQL_TYPE_STRING;
   get_bind[0].buffer= (void *)var;
   get_bind[0].length= &length;
-  get_bind[0].buffer_length= (int)NAME_LEN;
+  get_bind[0].buffer_length= (ulong)NAME_LEN;
   length= NAME_LEN;
 
   get_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -5037,7 +5037,7 @@ static void test_multi_stmt()
 
   my_bind[1].buffer_type= MYSQL_TYPE_STRING;
   my_bind[1].buffer= (void *)name;
-  my_bind[1].buffer_length= sizeof(name);
+  my_bind[1].buffer_length= (ulong)sizeof(name);
   my_bind[1].length= &length[1];
   my_bind[1].is_null= &is_null[1];
 
@@ -5196,7 +5196,7 @@ static void test_manual_sample()
   /* STRING PART */
   my_bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
   my_bind[1].buffer= (void *)str_data;
-  my_bind[1].buffer_length= sizeof(str_data);
+  my_bind[1].buffer_length= (ulong)sizeof(str_data);
 
   /* SMALLINT PART */
   my_bind[2].buffer_type= MYSQL_TYPE_SHORT;
@@ -5566,7 +5566,7 @@ static void test_store_result()
   length= 0;
   my_bind[1].buffer_type= MYSQL_TYPE_STRING;
   my_bind[1].buffer= szData;                /* string data */
-  my_bind[1].buffer_length= sizeof(szData);
+  my_bind[1].buffer_length= (ulong)sizeof(szData);
   my_bind[1].length= &length1;
   my_bind[1].is_null= &is_null[1];
   length1= 0;
@@ -6246,7 +6246,7 @@ static void test_temporal_param()
   my_bind[0].buffer= (void *) &tm;
   my_bind[0].is_null= &is_null[0];
   my_bind[0].length= &length[0];
-  my_bind[0].buffer_length= sizeof(tm);
+  my_bind[0].buffer_length= (ulong)sizeof(tm);
 
   /* Clone the second and the third input parameter */
   my_bind[2]= my_bind[1]= my_bind[0];
@@ -6255,19 +6255,19 @@ static void test_temporal_param()
   my_bind2[0].buffer_type= MYSQL_TYPE_LONGLONG;
   my_bind2[0].length= &length2[0];
   my_bind2[0].is_null= &is_null2[0];
-  my_bind2[0].buffer_length= sizeof(bigint);
+  my_bind2[0].buffer_length= (ulong)sizeof(bigint);
   my_bind2[0].buffer= (void *) &bigint;
 
   my_bind2[1].buffer_type= MYSQL_TYPE_DOUBLE;
   my_bind2[1].length= &length2[1];
   my_bind2[1].is_null= &is_null2[1];
-  my_bind2[1].buffer_length= sizeof(real);
+  my_bind2[1].buffer_length= (ulong)sizeof(real);
   my_bind2[1].buffer= (void *) &real;
 
   my_bind2[2].buffer_type= MYSQL_TYPE_STRING;
   my_bind2[2].length= &length2[2];
   my_bind2[2].is_null= &is_null2[2];
-  my_bind2[2].buffer_length= sizeof(dec);
+  my_bind2[2].buffer_length= (ulong)sizeof(dec);
   my_bind2[2].buffer= (void *) &dec;
 
 
@@ -6669,7 +6669,7 @@ static void test_fetch_nobuffs()
   memset(my_bind, 0, sizeof(MYSQL_BIND));
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (void *)str[0];
-  my_bind[0].buffer_length= sizeof(str[0]);
+  my_bind[0].buffer_length= (ulong)sizeof(str[0]);
   my_bind[1]= my_bind[2]= my_bind[3]= my_bind[0];
   my_bind[1].buffer= (void *)str[1];
   my_bind[2].buffer= (void *)str[2];
@@ -6763,11 +6763,11 @@ static void test_ushort_bug()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n ushort   : %d (%ld)", short_value, s_length);
-    fprintf(stdout, "\n ulong    : %lu (%ld)", (ulong) long_value, l_length);
+    fprintf(stdout, "\n ushort   : %d (%ld)", short_value, (long)s_length);
+    fprintf(stdout, "\n ulong    : %lu (%ld)", (ulong) long_value, (long)l_length);
     fprintf(stdout, "\n longlong : %s (%ld)", llstr(longlong_value, llbuf),
-            ll_length);
-    fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
+            (long)ll_length);
+    fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, (long)t_length);
   }
 
   DIE_UNLESS(short_value == 35999);
@@ -6850,11 +6850,11 @@ static void test_sshort_bug()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
-    fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
+    fprintf(stdout, "\n sshort   : %d (%ld)", short_value, (long)s_length);
+    fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, (long)l_length);
     fprintf(stdout, "\n longlong : %s (%ld)", llstr(longlong_value, llbuf),
-            ll_length);
-    fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, t_length);
+            (long)ll_length);
+    fprintf(stdout, "\n tinyint  : %d   (%ld)", tiny_value, (long)t_length);
   }
 
   DIE_UNLESS(short_value == -5999);
@@ -6936,11 +6936,11 @@ static void test_stiny_bug()
 
   if (!opt_silent)
   {
-    fprintf(stdout, "\n sshort   : %d (%ld)", short_value, s_length);
-    fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, l_length);
+    fprintf(stdout, "\n sshort   : %d (%ld)", short_value, (long)s_length);
+    fprintf(stdout, "\n slong    : %ld (%ld)", (long) long_value, (long)l_length);
     fprintf(stdout, "\n longlong : %s  (%ld)", llstr(longlong_value, llbuf),
-            ll_length);
-    fprintf(stdout, "\n tinyint  : %d    (%ld)", tiny_value, t_length);
+            (long)ll_length);
+    fprintf(stdout, "\n tinyint  : %d    (%ld)", tiny_value, (long)t_length);
   }
 
   DIE_UNLESS(short_value == -128);
@@ -8014,7 +8014,7 @@ static void test_logs()
   if (!opt_silent)
   {
     fprintf(stdout, "id    : %d\n", id);
-    fprintf(stdout, "name  : %s(%ld)\n", data, length);
+    fprintf(stdout, "name  : %s(%ld)\n", data, (long)length);
   }
 
   DIE_UNLESS(id == 9876);
@@ -8025,7 +8025,7 @@ static void test_logs()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n name  : %s(%ld)", data, length);
+    fprintf(stdout, "\n name  : %s(%ld)", data, (long)length);
 
   DIE_UNLESS(length == 1);
   DIE_UNLESS(strcmp(data, "'") == 0);
@@ -8034,7 +8034,7 @@ static void test_logs()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n name  : %s(%ld)", data, length);
+    fprintf(stdout, "\n name  : %s(%ld)", data, (long)length);
 
   DIE_UNLESS(length == 1);
   DIE_UNLESS(strcmp(data, "\"") == 0);
@@ -8043,7 +8043,7 @@ static void test_logs()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n name  : %s(%ld)", data, length);
+    fprintf(stdout, "\n name  : %s(%ld)", data, (long)length);
 
   DIE_UNLESS(length == 7);
   DIE_UNLESS(strcmp(data, "my\'sql\'") == 0);
@@ -8052,7 +8052,7 @@ static void test_logs()
   check_execute(stmt, rc);
 
   if (!opt_silent)
-    fprintf(stdout, "\n name  : %s(%ld)", data, length);
+    fprintf(stdout, "\n name  : %s(%ld)", data, (long)length);
 
   DIE_UNLESS(length == 7);
   /*DIE_UNLESS(strcmp(data, "my\"sql\"") == 0); */
@@ -8171,11 +8171,11 @@ static void test_fetch_seek()
 
   my_bind[1].buffer_type= MYSQL_TYPE_STRING;
   my_bind[1].buffer= (void *)c2;
-  my_bind[1].buffer_length= sizeof(c2);
+  my_bind[1].buffer_length= (ulong)sizeof(c2);
 
   my_bind[2]= my_bind[1];
   my_bind[2].buffer= (void *)c3;
-  my_bind[2].buffer_length= sizeof(c3);
+  my_bind[2].buffer_length= (ulong)sizeof(c3);
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -8290,19 +8290,19 @@ static void test_fetch_offset()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s (%ld)", data, length);
+    fprintf(stdout, "\n col 1: %s (%ld)", data, (long)length);
   DIE_UNLESS(strncmp(data, "abcd", 4) == 0 && length == 10);
 
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 5);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s (%ld)", data, length);
+    fprintf(stdout, "\n col 1: %s (%ld)", data, (long)length);
   DIE_UNLESS(strncmp(data, "fg", 2) == 0 && length == 10);
 
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 9);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %s (%ld)", data, length);
+    fprintf(stdout, "\n col 0: %s (%ld)", data, (long)length);
   DIE_UNLESS(strncmp(data, "j", 1) == 0 && length == 10);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8391,14 +8391,14 @@ static void test_fetch_column()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 1, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strncmp(c2, "venu", 4) == 0 && l2 == 4);
 
   c2[0]= '\0'; l2= 0;
   rc= mysql_stmt_fetch_column(stmt, my_bind, 1, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strcmp(c2, "venu") == 0 && l2 == 4);
 
   c1= 0;
@@ -8411,7 +8411,7 @@ static void test_fetch_column()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %d(%ld)", c1, l1);
+    fprintf(stdout, "\n col 0: %d(%ld)", c1, (long)l1);
   DIE_UNLESS(c1 == 1 && l1 == 4);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8430,14 +8430,14 @@ static void test_fetch_column()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 1, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strncmp(c2, "mysq", 4) == 0 && l2 == 5);
 
   c2[0]= '\0'; l2= 0;
   rc= mysql_stmt_fetch_column(stmt, my_bind, 1, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %si(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %si(%ld)", c2, (long)l2);
   DIE_UNLESS(strcmp(c2, "mysql") == 0 && l2 == 5);
 
   c1= 0;
@@ -8450,7 +8450,7 @@ static void test_fetch_column()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %d(%ld)", c1, l1);
+    fprintf(stdout, "\n col 0: %d(%ld)", c1, (long)l1);
   DIE_UNLESS(c1 == 2 && l1 == 4);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8538,7 +8538,8 @@ static void test_mem_overun()
   char       buffer[10000], field[10];
   MYSQL_STMT *stmt;
   MYSQL_RES  *field_res;
-  int        rc, i, length;
+  int        rc, i;
+  ulong      length;
 
   myheader("test_mem_overun");
 
@@ -8555,12 +8556,12 @@ static void test_mem_overun()
     sprintf(field, "c%d int", i);
     strxmov(buffer, buffer, field, ", ", NullS);
   }
-  length= strlen(buffer);
+  length= (ulong)strlen(buffer);
   buffer[length-2]= ')';
   buffer[--length]= '\0';
 
   strcat(buffer," ENGINE = MyISAM ");
-  length= strlen(buffer);
+  length= (ulong)strlen(buffer);
   rc= mysql_real_query(mysql, buffer, length);
   myquery(rc);
 
@@ -8569,7 +8570,7 @@ static void test_mem_overun()
   {
     strxmov(buffer, buffer, "1, ", NullS);
   }
-  length= strlen(buffer);
+  length= (ulong)strlen(buffer);
   buffer[length-2]= ')';
   buffer[--length]= '\0';
 
@@ -8659,7 +8660,7 @@ static void test_free_result()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 0: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strncmp(c2, "1", 1) == 0 && l2 == 1);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8675,7 +8676,7 @@ static void test_free_result()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %d(%ld)", c1, l2);
+    fprintf(stdout, "\n col 0: %d(%ld)", c1, (long)l2);
   DIE_UNLESS(c1 == 2 && l2 == 4);
 
   rc= mysql_query(mysql, "drop table test_free_result");
@@ -8744,7 +8745,7 @@ static void test_free_store_result()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 1: %s(%ld)", c2, l2);
+    fprintf(stdout, "\n col 1: %s(%ld)", c2, (long)l2);
   DIE_UNLESS(strncmp(c2, "1", 1) == 0 && l2 == 1);
 
   rc= mysql_stmt_fetch(stmt);
@@ -8760,7 +8761,7 @@ static void test_free_store_result()
   rc= mysql_stmt_fetch_column(stmt, my_bind, 0, 0);
   check_execute(stmt, rc);
   if (!opt_silent)
-    fprintf(stdout, "\n col 0: %d(%ld)", c1, l2);
+    fprintf(stdout, "\n col 0: %d(%ld)", c1, (long)l2);
   DIE_UNLESS(c1 == 2 && l2 == 4);
 
   rc= mysql_stmt_free_result(stmt);
@@ -8958,13 +8959,13 @@ static void test_ts()
 
   my_bind[0].buffer_type= MYSQL_TYPE_TIMESTAMP;
   my_bind[0].buffer= (void *)&ts;
-  my_bind[0].buffer_length= sizeof(ts);
+  my_bind[0].buffer_length= (ulong)sizeof(ts);
 
   my_bind[2]= my_bind[1]= my_bind[0];
 
   my_bind[3].buffer_type= MYSQL_TYPE_STRING;
   my_bind[3].buffer= (void *)strts;
-  my_bind[3].buffer_length= sizeof(strts);
+  my_bind[3].buffer_length= (ulong)sizeof(strts);
   my_bind[3].length= &length;
 
   my_bind[5]= my_bind[4]= my_bind[3];
@@ -9098,7 +9099,7 @@ static void test_bug1500()
   data= "Dogs";
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (void *) data;
-  my_bind[0].buffer_length= strlen(data);
+  my_bind[0].buffer_length= (ulong)strlen(data);
   my_bind[0].is_null= 0;
   my_bind[0].length= 0;
 
@@ -9123,7 +9124,7 @@ static void test_bug1500()
   data= "Grave";
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (void *) data;
-  my_bind[0].buffer_length= strlen(data);
+  my_bind[0].buffer_length= (ulong)strlen(data);
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
@@ -9154,7 +9155,7 @@ static void test_bug1946()
 
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
-  rc= mysql_real_query(mysql, query, strlen(query));
+  rc= mysql_real_query(mysql, query, (ulong)strlen(query));
   DIE_UNLESS(rc != 0);
   if (!opt_silent)
     fprintf(stdout, "Got error (as expected):\n");
@@ -9534,7 +9535,7 @@ static void test_bug3117()
 
   memset(&buffer, 0, sizeof(buffer));
   buffer.buffer_type= MYSQL_TYPE_LONGLONG;
-  buffer.buffer_length= sizeof(lii);
+  buffer.buffer_length= (ulong)sizeof(lii);
   buffer.buffer= (void *)&lii;
   buffer.length= &length;
   buffer.is_null= &is_null;
@@ -10170,7 +10171,7 @@ static void test_bug3035()
   myheader("test_bug3035");
 
   stmt_text= "DROP TABLE IF EXISTS t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "CREATE TABLE t1 (i8 TINYINT, ui8 TINYINT UNSIGNED, "
@@ -10178,7 +10179,7 @@ static void test_bug3035()
                               "i32 INT, ui32 INT UNSIGNED, "
                               "i64 BIGINT, ui64 BIGINT UNSIGNED, "
                               "id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   memset(bind_array, 0, sizeof(bind_array));
@@ -10219,7 +10220,7 @@ static void test_bug3035()
 
   stmt_text= "INSERT INTO t1 (i8, ui8, i16, ui16, i32, ui32, i64, ui64) "
                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   mysql_stmt_bind_param(stmt, bind_array);
@@ -10252,7 +10253,7 @@ static void test_bug3035()
              "cast(ui64 as signed), ui64, cast(ui64 as signed)"
              "FROM t1 ORDER BY id ASC";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
@@ -10266,11 +10267,11 @@ static void test_bug3035()
 
   bind_array[10].buffer_type= MYSQL_TYPE_STRING;
   bind_array[10].buffer= (void *) &ulonglong_as_string;
-  bind_array[10].buffer_length= sizeof(ulonglong_as_string);
+  bind_array[10].buffer_length= (ulong)sizeof(ulonglong_as_string);
 
   bind_array[11].buffer_type= MYSQL_TYPE_STRING;
   bind_array[11].buffer= (void *) &longlong_as_string;
-  bind_array[11].buffer_length= sizeof(longlong_as_string);
+  bind_array[11].buffer_length= (ulong)sizeof(longlong_as_string);
 
   mysql_stmt_bind_result(stmt, bind_array);
 
@@ -10322,7 +10323,7 @@ static void test_bug3035()
   mysql_stmt_close(stmt);
 
   stmt_text= "DROP TABLE t1";
-  mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
 }
 
 
@@ -10385,7 +10386,7 @@ static void test_bug1664()
 
     stmt= mysql_stmt_init(mysql);
     check_stmt(stmt);
-    rc= mysql_stmt_prepare(stmt, query, strlen(query));
+    rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
     check_execute(stmt, rc);
 
     verify_param_count(stmt, 2);
@@ -10394,7 +10395,7 @@ static void test_bug1664()
 
     my_bind[0].buffer_type= MYSQL_TYPE_STRING;
     my_bind[0].buffer= (void *)str_data;
-    my_bind[0].buffer_length= strlen(str_data);
+    my_bind[0].buffer_length= (ulong)strlen(str_data);
 
     my_bind[1].buffer= (void *)&int_data;
     my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -10409,7 +10410,7 @@ static void test_bug1664()
       not break following execution.
     */
     data= "";
-    rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
+    rc= mysql_stmt_send_long_data(stmt, 0, data, (ulong)strlen(data));
     check_execute(stmt, rc);
 
     rc= mysql_stmt_execute(stmt);
@@ -10423,7 +10424,7 @@ static void test_bug1664()
 
     /* This should pass OK */
     data= (char *)"Data";
-    rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
+    rc= mysql_stmt_send_long_data(stmt, 0, data, (ulong)strlen(data));
     check_execute(stmt, rc);
 
     rc= mysql_stmt_execute(stmt);
@@ -10460,7 +10461,7 @@ static void test_bug1664()
     */
 
     data= (char *)"SomeOtherData";
-    rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
+    rc= mysql_stmt_send_long_data(stmt, 0, data, (ulong)strlen(data));
     check_execute(stmt, rc);
 
     rc= mysql_stmt_execute(stmt);
@@ -10478,13 +10479,13 @@ static void test_bug1664()
     /* Now let us test how mysql_stmt_reset works. */
     stmt= mysql_stmt_init(mysql);
     check_stmt(stmt);
-    rc= mysql_stmt_prepare(stmt, query, strlen(query));
+    rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
     check_execute(stmt, rc);
     rc= mysql_stmt_bind_param(stmt, my_bind);
     check_execute(stmt, rc);
 
     data= (char *)"SomeData";
-    rc= mysql_stmt_send_long_data(stmt, 0, data, strlen(data));
+    rc= mysql_stmt_send_long_data(stmt, 0, data, (ulong)strlen(data));
     check_execute(stmt, rc);
 
     rc= mysql_stmt_reset(stmt);
@@ -10610,7 +10611,7 @@ static void test_ps_i18n()
   myheader("test_ps_i18n");
 
   stmt_text= "DROP TABLE IF EXISTS t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   /*
@@ -10621,37 +10622,37 @@ static void test_ps_i18n()
 
   stmt_text= "CREATE TABLE t1 (c1 VARBINARY(255), c2 VARBINARY(255))";
 
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "SET CHARACTER_SET_CLIENT=koi8r, "
                  "CHARACTER_SET_CONNECTION=cp1251, "
                  "CHARACTER_SET_RESULTS=koi8r";
 
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   memset(bind_array, 0, sizeof(bind_array));
 
   bind_array[0].buffer_type= MYSQL_TYPE_STRING;
   bind_array[0].buffer= (void *) koi8;
-  bind_array[0].buffer_length= strlen(koi8);
+  bind_array[0].buffer_length= (ulong)strlen(koi8);
 
   bind_array[1].buffer_type= MYSQL_TYPE_STRING;
   bind_array[1].buffer= (void *) koi8;
-  bind_array[1].buffer_length= strlen(koi8);
+  bind_array[1].buffer_length= (ulong)strlen(koi8);
 
   stmt= mysql_stmt_init(mysql);
   check_stmt(stmt);
 
   stmt_text= "INSERT INTO t1 (c1, c2) VALUES (?, ?)";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   mysql_stmt_bind_param(stmt, bind_array);
 
-  mysql_stmt_send_long_data(stmt, 0, koi8, strlen(koi8));
+  mysql_stmt_send_long_data(stmt, 0, koi8, (ulong)strlen(koi8));
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -10659,18 +10660,18 @@ static void test_ps_i18n()
   stmt_text= "SELECT c1, c2 FROM t1";
 
   /* c1 and c2 are binary so no conversion will be done on select */
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
   bind_array[0].buffer= buf1;
-  bind_array[0].buffer_length= sizeof(buf1);
+  bind_array[0].buffer_length= (ulong)sizeof(buf1);
   bind_array[0].length= &buf1_len;
 
   bind_array[1].buffer= buf2;
-  bind_array[1].buffer_length= sizeof(buf2);
+  bind_array[1].buffer_length= (ulong)sizeof(buf2);
   bind_array[1].length= &buf2_len;
 
   mysql_stmt_bind_result(stmt, bind_array);
@@ -10687,7 +10688,7 @@ static void test_ps_i18n()
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
   stmt_text= "DROP TABLE IF EXISTS t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   /*
@@ -10700,26 +10701,26 @@ static void test_ps_i18n()
   stmt_text= "CREATE TABLE t1 (c1 VARCHAR(255) CHARACTER SET cp1251, "
                               "c2 VARCHAR(255) CHARACTER SET cp1251)";
 
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "INSERT INTO t1 (c1, c2) VALUES (?, ?)";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   /* this data must be converted */
   bind_array[0].buffer_type= MYSQL_TYPE_STRING;
   bind_array[0].buffer= (void *) koi8;
-  bind_array[0].buffer_length= strlen(koi8);
+  bind_array[0].buffer_length= (ulong)strlen(koi8);
 
   bind_array[1].buffer_type= MYSQL_TYPE_STRING;
   bind_array[1].buffer= (void *) koi8;
-  bind_array[1].buffer_length= strlen(koi8);
+  bind_array[1].buffer_length= (ulong)strlen(koi8);
 
   mysql_stmt_bind_param(stmt, bind_array);
 
-  mysql_stmt_send_long_data(stmt, 0, koi8, strlen(koi8));
+  mysql_stmt_send_long_data(stmt, 0, koi8, (ulong)strlen(koi8));
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -10727,15 +10728,15 @@ static void test_ps_i18n()
   /* this data must not be converted */
   bind_array[0].buffer_type= MYSQL_TYPE_BLOB;
   bind_array[0].buffer= (void *) cp1251;
-  bind_array[0].buffer_length= strlen(cp1251);
+  bind_array[0].buffer_length= (ulong)strlen(cp1251);
 
   bind_array[1].buffer_type= MYSQL_TYPE_BLOB;
   bind_array[1].buffer= (void *) cp1251;
-  bind_array[1].buffer_length= strlen(cp1251);
+  bind_array[1].buffer_length= (ulong)strlen(cp1251);
 
   mysql_stmt_bind_param(stmt, bind_array);
 
-  mysql_stmt_send_long_data(stmt, 0, cp1251, strlen(cp1251));
+  mysql_stmt_send_long_data(stmt, 0, cp1251, (ulong)strlen(cp1251));
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -10745,18 +10746,18 @@ static void test_ps_i18n()
   stmt_text= "SELECT c1, c2 FROM t1";
 
   /* c1 and c2 are binary so no conversion will be done on select */
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
   bind_array[0].buffer= buf1;
-  bind_array[0].buffer_length= sizeof(buf1);
+  bind_array[0].buffer_length= (ulong)sizeof(buf1);
   bind_array[0].length= &buf1_len;
 
   bind_array[1].buffer= buf2;
-  bind_array[1].buffer_length= sizeof(buf2);
+  bind_array[1].buffer_length= (ulong)sizeof(buf2);
   bind_array[1].length= &buf2_len;
 
   mysql_stmt_bind_result(stmt, bind_array);
@@ -10772,10 +10773,10 @@ static void test_ps_i18n()
   mysql_stmt_close(stmt);
 
   stmt_text= "DROP TABLE t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "SET NAMES DEFAULT";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -10796,22 +10797,22 @@ static void test_bug3796()
 
   /* Create and fill test table */
   stmt_text= "DROP TABLE IF EXISTS t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "CREATE TABLE t1 (a INT, b VARCHAR(30))";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "INSERT INTO t1 VALUES(1, 'ONE'), (2, 'TWO')";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   /* Create statement handle and prepare it with select */
   stmt= mysql_stmt_init(mysql);
   stmt_text= "SELECT concat(?, b) FROM t1";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   /* Bind input buffers */
@@ -10819,7 +10820,7 @@ static void test_bug3796()
 
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (void *) concat_arg0;
-  my_bind[0].buffer_length= strlen(concat_arg0);
+  my_bind[0].buffer_length= (ulong)strlen(concat_arg0);
 
   mysql_stmt_bind_param(stmt, my_bind);
 
@@ -10856,7 +10857,7 @@ static void test_bug3796()
   mysql_stmt_close(stmt);
 
   stmt_text= "DROP TABLE IF EXISTS t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -10878,7 +10879,7 @@ static void test_bug4026()
   stmt= mysql_stmt_init(mysql);
   stmt_text= "SELECT ?, ?";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   /* Bind input buffers */
@@ -10956,7 +10957,7 @@ static void test_bug4079()
   stmt= mysql_stmt_init(mysql);
   stmt_text= "SELECT 1 < (SELECT a FROM t1)";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   /* Execute the select statement */
@@ -10995,7 +10996,7 @@ static void test_bug4236()
   /* mysql_stmt_execute() of statement with statement id= 0 crashed server */
   stmt_text= "SELECT 1";
   /* We need to prepare statement to pass by possible check in libmysql */
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   /* Hack to check that server works OK if statement wasn't found */
   backup.stmt_id= stmt->stmt_id;
@@ -11027,7 +11028,7 @@ static void test_bug4030()
   stmt= mysql_stmt_init(mysql);
   stmt_text= "SELECT '23:59:59.123456', '2003-12-31', "
              "'2003-12-31 23:59:59.123456'";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -11138,7 +11139,7 @@ static void test_view()
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   my_stpcpy(str_data, "TEST");
@@ -11192,7 +11193,7 @@ static void test_view_where()
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   for (i= 0; i < 3; i++)
@@ -11274,7 +11275,7 @@ static void test_view_2where()
     length[i] = 1;
   }
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
@@ -11325,7 +11326,7 @@ static void test_view_star()
   }
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
@@ -11373,11 +11374,11 @@ static void test_view_insert()
   myquery(rc);
 
   insert_stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(insert_stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(insert_stmt, query, (ulong)strlen(query));
   check_execute(insert_stmt, rc);
   query= "select * from t1";
   select_stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(select_stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(select_stmt, query, (ulong)strlen(query));
   check_execute(select_stmt, rc);
 
   memset(my_bind, 0, sizeof(my_bind));
@@ -11432,7 +11433,7 @@ static void test_left_join_view()
   rc= mysql_query(mysql,"create view v1 (x) as select a from t1 where a > 1");
   myquery(rc);
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   for (i= 0; i < 3; i++)
@@ -11500,7 +11501,7 @@ static void test_view_insert_fields()
     my_bind[i].length= &l[i];
   }
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
@@ -11511,7 +11512,7 @@ static void test_view_insert_fields()
 
   query= "select * from t1";
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -11537,20 +11538,20 @@ static void test_bug5126()
   myheader("test_bug5126");
 
   stmt_text= "DROP TABLE IF EXISTS t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "CREATE TABLE t1 (a mediumint, b int)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "INSERT INTO t1 VALUES (8386608, 1)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
   stmt_text= "SELECT a, b FROM t1";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -11585,20 +11586,20 @@ static void test_bug4231()
   myheader("test_bug4231");
 
   stmt_text= "DROP TABLE IF EXISTS t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "CREATE TABLE t1 (a int)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "INSERT INTO t1 VALUES (1)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
   stmt_text= "SELECT a FROM t1 WHERE ? = ?";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   /* Bind input buffers */
@@ -11642,7 +11643,7 @@ static void test_bug4231()
 
   mysql_stmt_close(stmt);
   stmt_text= "DROP TABLE t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -11671,7 +11672,7 @@ static void test_bug5399()
   {
     sprintf(buff, "select %d", (int) (stmt - stmt_list));
     *stmt= mysql_stmt_init(mysql);
-    rc= mysql_stmt_prepare(*stmt, buff, strlen(buff));
+    rc= mysql_stmt_prepare(*stmt, buff, (ulong)strlen(buff));
     check_execute(*stmt, rc);
     mysql_stmt_bind_result(*stmt, my_bind);
   }
@@ -11701,7 +11702,7 @@ static void test_bug5194()
   MYSQL_BIND *my_bind;
   char *query;
   char *param_str;
-  int param_str_length;
+  ulong param_str_length;
   const char *stmt_text;
   int rc;
   float float_array[250] =
@@ -11748,7 +11749,7 @@ static void test_bug5194()
   myheader("test_bug5194");
 
   stmt_text= "drop table if exists t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
 
   stmt_text= "create table if not exists t1"
    "(c1 float, c2 float, c3 float, c4 float, c5 float, c6 float, "
@@ -11793,7 +11794,7 @@ static void test_bug5194()
    "c235 float, c236 float, c237 float, c238 float, c239 float, c240 float, "
    "c241 float, c242 float, c243 float, c244 float, c245 float, c246 float, "
    "c247 float, c248 float, c249 float, c250 float)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   my_bind= (MYSQL_BIND*) malloc(MAX_PARAM_COUNT * sizeof(MYSQL_BIND));
@@ -11820,7 +11821,7 @@ static void test_bug5194()
   for (i= 1; i < COLUMN_COUNT; ++i)
     strcat(param_str, "?, ");
   strcat(param_str, "?)");
-  param_str_length= strlen(param_str);
+  param_str_length= (ulong)strlen(param_str);
 
   /* setup bind array */
   memset(my_bind, 0, MAX_PARAM_COUNT * sizeof(MYSQL_BIND));
@@ -11851,7 +11852,7 @@ static void test_bug5194()
     }
     *query_ptr= '\0';
 
-    rc= mysql_stmt_prepare(stmt, query, query_ptr - query);
+    rc= mysql_stmt_prepare(stmt, query, (ulong)(query_ptr - query));
     if (rc && nrows * COLUMN_COUNT > uint16_max)
     {
       if (!opt_silent)
@@ -11880,7 +11881,7 @@ static void test_bug5194()
   free(query);
   free(param_str);
   stmt_text= "drop table t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -11895,7 +11896,7 @@ static void test_bug5315()
 
   stmt_text= "SELECT 1";
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   DIE_UNLESS(rc == 0);
   if (!opt_silent)
     printf("Excuting mysql_change_user\n");
@@ -11916,7 +11917,7 @@ static void test_bug5315()
   if (!opt_silent)
     printf("Excuting mysql_stmt_init\n");
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   DIE_UNLESS(rc == 0);
   rc= mysql_stmt_execute(stmt);
   DIE_UNLESS(rc == 0);
@@ -11947,13 +11948,13 @@ static void test_bug6049()
 
   stmt_text= "SELECT MAKETIME(-25, 12, 12)";
 
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   res= mysql_store_result(mysql);
   row= mysql_fetch_row(res);
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -11961,7 +11962,7 @@ static void test_bug6049()
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type    = MYSQL_TYPE_STRING;
   my_bind[0].buffer         = &buffer;
-  my_bind[0].buffer_length  = sizeof(buffer);
+  my_bind[0].buffer_length  = (ulong)sizeof(buffer);
   my_bind[0].length         = &length;
 
   mysql_stmt_bind_result(stmt, my_bind);
@@ -11999,13 +12000,13 @@ static void test_bug6058()
 
   stmt_text= "SELECT CAST('0000-00-00' AS DATE)";
 
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   res= mysql_store_result(mysql);
   row= mysql_fetch_row(res);
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -12013,7 +12014,7 @@ static void test_bug6058()
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type    = MYSQL_TYPE_STRING;
   my_bind[0].buffer         = &buffer;
-  my_bind[0].buffer_length  = sizeof(buffer);
+  my_bind[0].buffer_length  = (ulong)sizeof(buffer);
   my_bind[0].length         = &length;
 
   mysql_stmt_bind_result(stmt, my_bind);
@@ -12043,7 +12044,7 @@ static void test_bug6059()
   stmt_text= "SELECT 'foo' INTO OUTFILE 'x.3'";
 
   stmt= mysql_stmt_init(mysql);
-  (void) mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  (void) mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   DIE_UNLESS(mysql_stmt_field_count(stmt) == 0);
   mysql_stmt_close(stmt);
 }
@@ -12060,13 +12061,13 @@ static void test_bug6046()
   myheader("test_bug6046");
 
   stmt_text= "DROP TABLE IF EXISTS t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "CREATE TABLE t1 (a int, b int)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "INSERT INTO t1 VALUES (1,1),(2,2),(3,1),(4,2)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
@@ -12074,7 +12075,7 @@ static void test_bug6046()
   stmt_text= "SELECT t1.a FROM t1 NATURAL JOIN t1 as X1 "
              "WHERE t1.b > ? ORDER BY t1.a";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   b= 1;
@@ -12217,7 +12218,7 @@ static void test_bug6096()
   myheader("test_bug6096");
 
   stmt_text= "drop table if exists t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   mysql_query(mysql, "set sql_mode=''");
@@ -12227,24 +12228,24 @@ static void test_bug6096()
                              " c_double double, c_varchar varchar(20), "
                              " c_char char(20), c_time time, c_date date, "
                              " c_datetime datetime)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "insert into t1  values (-100, -20000, 30000000, 4, 8, 1.0, "
                                      "2.0, 'abc', 'def', now(), now(), now())";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "select * from t1";
 
   /* Run select in prepared and non-prepared mode and compare metadata */
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   query_result= mysql_store_result(mysql);
   query_field_list= mysql_fetch_fields(query_result);
   query_field_count= mysql_num_fields(query_result);
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -12301,7 +12302,7 @@ static void test_bug6096()
   mysql_free_result(query_result);
   mysql_free_result(stmt_metadata);
   stmt_text= "drop table t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -12322,12 +12323,12 @@ static void test_datetime_ranges()
   myheader("test_datetime_ranges");
 
   stmt_text= "drop table if exists t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "create table t1 (year datetime, month datetime, day datetime, "
                               "hour datetime, min datetime, sec datetime)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt= mysql_simple_prepare(mysql,
@@ -12367,7 +12368,7 @@ static void test_datetime_ranges()
   mysql_stmt_close(stmt);
 
   stmt_text= "delete from t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 (year, month, day) "
@@ -12396,11 +12397,11 @@ static void test_datetime_ranges()
   mysql_stmt_close(stmt);
 
   stmt_text= "drop table t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "create table t1 (day_ovfl time, day time, hour time, min time, sec time)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt= mysql_simple_prepare(mysql,
@@ -12438,7 +12439,7 @@ static void test_datetime_ranges()
   mysql_stmt_close(stmt);
 
   stmt_text= "drop table t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -12464,7 +12465,7 @@ static void test_bug4172()
   stmt= mysql_stmt_init(mysql);
   stmt_text= "SELECT f, d, e FROM t1";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -12472,15 +12473,15 @@ static void test_bug4172()
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= f;
-  my_bind[0].buffer_length= sizeof(f);
+  my_bind[0].buffer_length= (ulong)sizeof(f);
   my_bind[0].length= &f_len;
   my_bind[1].buffer_type= MYSQL_TYPE_STRING;
   my_bind[1].buffer= d;
-  my_bind[1].buffer_length= sizeof(d);
+  my_bind[1].buffer_length= (ulong)sizeof(d);
   my_bind[1].length= &d_len;
   my_bind[2].buffer_type= MYSQL_TYPE_STRING;
   my_bind[2].buffer= e;
-  my_bind[2].buffer_length= sizeof(e);
+  my_bind[2].buffer_length= (ulong)sizeof(e);
   my_bind[2].length= &e_len;
 
   mysql_stmt_bind_result(stmt, my_bind);
@@ -12489,7 +12490,7 @@ static void test_bug4172()
   rc= mysql_stmt_fetch(stmt);
   check_execute(stmt, rc);
 
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   res= mysql_store_result(mysql);
   row= mysql_fetch_row(res);
@@ -12520,20 +12521,20 @@ static void test_conversion()
   myheader("test_conversion");
 
   stmt_text= "DROP TABLE IF EXISTS t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "CREATE TABLE t1 (a TEXT) DEFAULT CHARSET latin1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "SET character_set_connection=utf8, character_set_client=utf8, "
              " character_set_results=latin1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
 
   stmt_text= "INSERT INTO t1 (a) VALUES (?)";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   memset(my_bind, 0, sizeof(my_bind));
@@ -12551,12 +12552,12 @@ static void test_conversion()
   check_execute(stmt, rc);
 
   stmt_text= "SELECT a FROM t1";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  my_bind[0].buffer_length= sizeof(buff);
+  my_bind[0].buffer_length= (ulong)sizeof(buff);
   mysql_stmt_bind_result(stmt, my_bind);
 
   rc= mysql_stmt_fetch(stmt);
@@ -12568,10 +12569,10 @@ static void test_conversion()
 
   mysql_stmt_close(stmt);
   stmt_text= "DROP TABLE t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "SET NAMES DEFAULT";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -12581,22 +12582,23 @@ static void test_rewind(void)
   MYSQL_BIND my_bind;
   int rc = 0;
   const char *stmt_text;
-  long unsigned int length=4, Data=0;
+  ulong length= 4;
+  long unsigned int Data= 0;
   my_bool isnull=0;
 
   myheader("test_rewind");
 
   stmt_text= "CREATE TABLE t1 (a int)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "INSERT INTO t1 VALUES(2),(3),(4)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
 
   stmt_text= "SELECT * FROM t1";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   memset(&my_bind, 0, sizeof(MYSQL_BIND));
@@ -12633,7 +12635,7 @@ static void test_rewind(void)
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
   stmt_text= "DROP TABLE t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   rc= mysql_stmt_free_result(stmt);
   rc= mysql_stmt_close(stmt);
@@ -12661,7 +12663,7 @@ static void test_truncation()
              "d double, d_1 double, ch char(30), ch_1 char(30), "
              "tx text, tx_1 text, ch_2 char(30) "
              ")";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   {
@@ -12682,7 +12684,7 @@ static void test_truncation()
              "'12345.67 	      ', "      /* tx_1 */
              "'12345.67abc'"                    /* ch_2 */
              ")";
-    rc= mysql_real_query(mysql, insert_text, strlen(insert_text));
+    rc= mysql_real_query(mysql, insert_text, (ulong)strlen(insert_text));
     myquery(rc);
   }
 
@@ -12693,7 +12695,7 @@ static void test_truncation()
              "from t1";
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -12901,7 +12903,7 @@ static void test_truncation_option()
   stmt_text= "select -1";
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -12947,7 +12949,7 @@ static void test_bug6761(void)
   myheader("test_bug6761");
 
   stmt_text= "CREATE TABLE t1 (a int, b char(255), c decimal)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   res= mysql_list_fields(mysql, "t1", "%");
@@ -12955,7 +12957,7 @@ static void test_bug6761(void)
   mysql_free_result(res);
 
   stmt_text= "DROP TABLE t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -12975,17 +12977,17 @@ static void test_bug8330()
 
   stmt_text= "drop table if exists t1";
   /* in case some previos test failed */
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "create table t1 (a int, b int)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   memset(my_bind, 0, sizeof(my_bind));
   for (i=0; i < 2; i++)
   {
     stmt[i]= mysql_stmt_init(mysql);
-    rc= mysql_stmt_prepare(stmt[i], query, strlen(query));
+    rc= mysql_stmt_prepare(stmt[i], query, (ulong)strlen(query));
     check_execute(stmt[i], rc);
 
     my_bind[i].buffer_type= MYSQL_TYPE_LONG;
@@ -13006,7 +13008,7 @@ static void test_bug8330()
   mysql_stmt_close(stmt[1]);
 
   stmt_text= "drop table t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -13243,7 +13245,7 @@ static void test_bug8378()
 
   sprintf(buf, "SELECT '%s'", out);
   
-  rc=mysql_real_query(lmysql, buf, strlen(buf));
+  rc=mysql_real_query(lmysql, buf, (ulong)strlen(buf));
   myquery(rc);
 
   mysql_close(lmysql);
@@ -13260,19 +13262,19 @@ static void test_bug8722()
   myheader("test_bug8722");
   /* Prepare test data */
   stmt_text= "drop table if exists t1, v1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "CREATE TABLE t1 (c1 varchar(10), c2 varchar(10), c3 varchar(10),"
                              " c4 varchar(10), c5 varchar(10), c6 varchar(10),"
                              " c7 varchar(10), c8 varchar(10), c9 varchar(10),"
                              "c10 varchar(10))";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "INSERT INTO t1 VALUES (1,2,3,4,5,6,7,8,9,10)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   stmt_text= "CREATE VIEW v1 AS SELECT * FROM t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   /* Note: if you uncomment following block everything works fine */
 /*
@@ -13283,11 +13285,11 @@ static void test_bug8722()
 
   stmt= mysql_stmt_init(mysql);
   stmt_text= "select * from v1";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   mysql_stmt_close(stmt);
   stmt_text= "drop table if exists t1, v1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
 
@@ -13298,7 +13300,7 @@ MYSQL_STMT *open_cursor(const char *query)
   const ulong type= (ulong)CURSOR_TYPE_READ_ONLY;
 
   MYSQL_STMT *stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type);
@@ -13349,7 +13351,7 @@ static void test_bug9159()
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
-  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void *)&type);
 
   mysql_stmt_execute(stmt);
@@ -13391,7 +13393,7 @@ static void test_bug9520()
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (char*) a;
-  my_bind[0].buffer_length= sizeof(a);
+  my_bind[0].buffer_length= (ulong)sizeof(a);
   my_bind[0].length= &a_len;
 
   mysql_stmt_bind_result(stmt, my_bind);
@@ -13441,7 +13443,7 @@ static void test_bug9478()
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (char*) a;
-  my_bind[0].buffer_length= sizeof(a);
+  my_bind[0].buffer_length= (ulong)sizeof(a);
   my_bind[0].length= &a_len;
   mysql_stmt_bind_result(stmt, my_bind);
 
@@ -13593,13 +13595,13 @@ static void test_bug9643()
                           (void*) &prefetch_rows);
   check_execute(stmt, rc);
   stmt_text= "select * from t1";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_LONG;
   my_bind[0].buffer= (void*) &a;
-  my_bind[0].buffer_length= sizeof(a);
+  my_bind[0].buffer_length= (ulong)sizeof(a);
   mysql_stmt_bind_result(stmt, my_bind);
 
   rc= mysql_stmt_execute(stmt);
@@ -13649,7 +13651,7 @@ static void test_bug11111()
 
   stmt= mysql_stmt_init(mysql);
 
-  mysql_stmt_prepare(stmt, query, strlen(query));
+  mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   mysql_stmt_execute(stmt);
 
   memset(my_bind, 0, sizeof(my_bind));
@@ -13707,13 +13709,13 @@ static void test_bug10729()
   rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type);
   check_execute(stmt, rc);
   stmt_text= "select name from t1";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (void*) a;
-  my_bind[0].buffer_length= sizeof(a);
+  my_bind[0].buffer_length= (ulong)sizeof(a);
   mysql_stmt_bind_result(stmt, my_bind);
 
   for (i= 0; i < 3; i++)
@@ -13817,13 +13819,13 @@ static void test_bug10736()
   rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &type);
   check_execute(stmt, rc);
   stmt_text= "select name from t1 where name=(select name from t1 where id=2)";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (void*) a;
-  my_bind[0].buffer_length= sizeof(a);
+  my_bind[0].buffer_length= (ulong)sizeof(a);
   mysql_stmt_bind_result(stmt, my_bind);
 
   for (i= 0; i < 3; i++)
@@ -13867,7 +13869,7 @@ static void test_bug10794()
                                       "name varchar(20) not null)");
   stmt= mysql_stmt_init(mysql);
   stmt_text= "insert into t1 (id, name) values (?, ?)";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_LONG;
@@ -13881,12 +13883,12 @@ static void test_bug10794()
   {
     id_val= (i+1)*10;
     sprintf(a, "a%d", i);
-    a_len= strlen(a); /* safety against broken sprintf */
+    a_len= (ulong)strlen(a); /* safety against broken sprintf */
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
   }
   stmt_text= "select name from t1";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   type= (ulong) CURSOR_TYPE_READ_ONLY;
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
   stmt1= mysql_stmt_init(mysql);
@@ -13894,7 +13896,7 @@ static void test_bug10794()
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (void*) a;
-  my_bind[0].buffer_length= sizeof(a);
+  my_bind[0].buffer_length= (ulong)sizeof(a);
   my_bind[0].length= &a_len;
   rc= mysql_stmt_bind_result(stmt, my_bind);
   check_execute(stmt, rc);
@@ -13908,7 +13910,7 @@ static void test_bug10794()
   mysql_stmt_free_result(stmt);
   mysql_stmt_reset(stmt);
   stmt_text= "select name from t1 where id=10";
-  rc= mysql_stmt_prepare(stmt1, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt1, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt1, rc);
   rc= mysql_stmt_bind_result(stmt1, my_bind);
   check_execute(stmt1, rc);
@@ -13958,7 +13960,7 @@ static void test_bug11172()
   myquery(rc);
   stmt= mysql_stmt_init(mysql);
   stmt_text= "SELECT id, hired FROM t1 WHERE hired=?";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   type= (ulong) CURSOR_TYPE_READ_ONLY;
@@ -13972,7 +13974,7 @@ static void test_bug11172()
   hired.day= 1;
   bind_in[0].buffer_type= MYSQL_TYPE_DATE;
   bind_in[0].buffer= (void*) &hired;
-  bind_in[0].buffer_length= sizeof(hired);
+  bind_in[0].buffer_length= (ulong)sizeof(hired);
   bind_out[0].buffer_type= MYSQL_TYPE_LONG;
   bind_out[0].buffer= (void*) &id;
   bind_out[1]= bind_in[0];
@@ -14030,7 +14032,7 @@ static void test_bug11656()
   stmt_text= "select distinct test_kind, test_id from t1 "
              "where server in (?, ?)";
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   type= (ulong) CURSOR_TYPE_READ_ONLY;
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
@@ -14042,7 +14044,7 @@ static void test_bug11656()
   {
     my_bind[i].buffer_type= MYSQL_TYPE_STRING;
     my_bind[i].buffer= (uchar* *)&buf[i];
-    my_bind[i].buffer_length= strlen(buf[i]);
+    my_bind[i].buffer_length= (ulong)strlen(buf[i]);
   }
   mysql_stmt_bind_param(stmt, my_bind);
 
@@ -14147,7 +14149,7 @@ static void test_bug11183()
   stmt= mysql_stmt_init(mysql);
   DIE_UNLESS(stmt != 0);
 
-  rc= mysql_stmt_prepare(stmt, bug_statement, strlen(bug_statement));
+  rc= mysql_stmt_prepare(stmt, bug_statement, (ulong)strlen(bug_statement));
   check_execute(stmt, rc);
 
   rc= mysql_query(mysql, "drop table t1");
@@ -14193,7 +14195,7 @@ static void test_bug11037()
 
   stmt_text= "select id FROM t1";
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
 
   /* expected error */
   rc = mysql_stmt_fetch(stmt);
@@ -14261,7 +14263,7 @@ static void test_bug10760()
     con1: insert into t1 (id) values (1)
   */
   stmt_text= "select id from t1 order by 1";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -14294,7 +14296,7 @@ static void test_bug10760()
   else
   {
     stmt_text= "select id from t1 order by 1";
-    rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+    rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
     check_execute(stmt, rc);
 
     rc= mysql_query(mysql, "alter table t1 engine=InnoDB");
@@ -14303,7 +14305,7 @@ static void test_bug10760()
     memset(my_bind, 0, sizeof(my_bind));
     my_bind[0].buffer_type= MYSQL_TYPE_STRING;
     my_bind[0].buffer= (void*) id_buf;
-    my_bind[0].buffer_length= sizeof(id_buf);
+    my_bind[0].buffer_length= (ulong)sizeof(id_buf);
     my_bind[0].length= &id_len;
     check_execute(stmt, rc);
     mysql_stmt_bind_result(stmt, my_bind);
@@ -14396,7 +14398,7 @@ static void test_bug11909()
   myheader("test_bug11909");
 
   stmt_text= "drop table if exists t1";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "create table t1 ("
@@ -14405,7 +14407,7 @@ static void test_bug11909()
     "  workdept varchar(6) not null, salary double not null,"
     "  bonus float not null, primary key (empno)"
     ") default charset=latin1 collate=latin1_bin";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "insert into t1 values "
@@ -14414,7 +14416,7 @@ static void test_bug11909()
     "(30, 'SALLY',     'A', 'KWAN',     'C01', 38250, 800),"
     "(50, 'JOHN',      'B', 'GEYER',    'E01', 40175, 800), "
     "(60, 'IRVING',    'F', 'STERN',    'D11', 32250, 500)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   /* ****** Begin of trace ****** */
@@ -14428,22 +14430,22 @@ static void test_bug11909()
 
   my_bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
   my_bind[1].buffer= (void*) firstname;
-  my_bind[1].buffer_length= sizeof(firstname);
+  my_bind[1].buffer_length= (ulong)sizeof(firstname);
   my_bind[1].length= &firstname_len;
 
   my_bind[2].buffer_type= MYSQL_TYPE_VAR_STRING;
   my_bind[2].buffer= (void*) midinit;
-  my_bind[2].buffer_length= sizeof(midinit);
+  my_bind[2].buffer_length= (ulong)sizeof(midinit);
   my_bind[2].length= &midinit_len;
 
   my_bind[3].buffer_type= MYSQL_TYPE_VAR_STRING;
   my_bind[3].buffer= (void*) lastname;
-  my_bind[3].buffer_length= sizeof(lastname);
+  my_bind[3].buffer_length= (ulong)sizeof(lastname);
   my_bind[3].length= &lastname_len;
 
   my_bind[4].buffer_type= MYSQL_TYPE_VAR_STRING;
   my_bind[4].buffer= (void*) workdept;
-  my_bind[4].buffer_length= sizeof(workdept);
+  my_bind[4].buffer_length= (ulong)sizeof(workdept);
   my_bind[4].length= &workdept_len;
 
   my_bind[5].buffer_type= MYSQL_TYPE_DOUBLE;
@@ -14512,7 +14514,7 @@ static void test_bug11901()
   myheader("test_bug11901");
 
   stmt_text= "drop table if exists t1, t2";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "create table t1 ("
@@ -14522,7 +14524,7 @@ static void test_bug11901()
     "  bonus float not null, primary key (empno), "
     " unique key (workdept, empno) "
     ") default charset=latin1 collate=latin1_bin";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "insert into t1 values "
@@ -14559,7 +14561,7 @@ static void test_bug11901()
      "(330, 'WING',      '',  'LEE',       'E21', 25370, 500), "
      "(340, 'JASON',     'R', 'GOUNOT',    'E21', 23840, 500)";
 
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "create table t2 ("
@@ -14568,7 +14570,7 @@ static void test_bug11901()
     " admrdept varchar(6) not null, refcntd int(11) not null,"
     " refcntu int(11) not null, primary key (deptno)"
     ") default charset=latin1 collate=latin1_bin";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   stmt_text= "insert into t2 values "
@@ -14581,7 +14583,7 @@ static void test_bug11901()
     "('E01', 'SUPPORT SERVICES',     50, '', 'A00', 0, 0), "
     "('E11', 'OPERATIONS',           90, '', 'E01', 0, 0), "
     "('E21', 'SOFTWARE SUPPORT',     100,'', 'E01', 0, 0)";
-  rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
+  rc= mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 
   /* ****** Begin of trace ****** */
@@ -14655,7 +14657,7 @@ static void test_bug11904()
 
   stmt_text= "SELECT id, MIN(name) FROM bug11904b GROUP BY id";
 
-  rc= mysql_stmt_prepare(stmt1, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt1, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt1, rc);
 
   memset(my_bind, 0, sizeof(my_bind));
@@ -14666,7 +14668,7 @@ static void test_bug11904()
 
   my_bind[1].buffer_type= MYSQL_TYPE_STRING;
   my_bind[1].buffer=& row_data;
-  my_bind[1].buffer_length= sizeof(row_data) - 1;
+  my_bind[1].buffer_length= (ulong)(sizeof(row_data) - 1);
   my_bind[1].length= 0;
 
   rc= mysql_stmt_bind_result(stmt1, my_bind);
@@ -14731,14 +14733,14 @@ static void test_bug12243()
 
   stmt_text= "select a from t1";
 
-  rc= mysql_stmt_prepare(stmt1, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt1, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt1, rc);
   rc= mysql_stmt_execute(stmt1);
   check_execute(stmt1, rc);
   rc= mysql_stmt_fetch(stmt1);
   check_execute(stmt1, rc);
 
-  rc= mysql_stmt_prepare(stmt2, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt2, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt2, rc);
   rc= mysql_stmt_execute(stmt2);
   check_execute(stmt2, rc);
@@ -14844,7 +14846,7 @@ static void test_bug14210()
 
   stmt_text= "select a from t1";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   while ((rc= mysql_stmt_fetch(stmt)) == 0)
@@ -14898,7 +14900,7 @@ static void test_bug13488()
   rc= mysql_stmt_attr_set(stmt1,STMT_ATTR_CURSOR_TYPE, (const void *)&type);
   check_execute(stmt1, rc);
 
-  rc= mysql_stmt_prepare(stmt1, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt1, query, (ulong)strlen(query));
   check_execute(stmt1, rc);
 
   rc= mysql_stmt_execute(stmt1);
@@ -14956,7 +14958,7 @@ static void test_bug13524()
   rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
   check_execute(stmt, rc);
 
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
@@ -15015,7 +15017,7 @@ static void test_bug14845()
   rc= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*) &type);
   check_execute(stmt, rc);
 
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
@@ -15051,7 +15053,7 @@ static void test_bug15510()
 
   stmt= mysql_stmt_init(mysql);
 
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
@@ -15241,7 +15243,7 @@ static void test_bug15613()
 
   /* II. Check SELECT metadata */
   stmt_text= ("select t, tt, mt, lt, vl, vb, vu from t1");
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   metadata= mysql_stmt_result_metadata(stmt);
   field= mysql_fetch_fields(metadata);
   if (!opt_silent)
@@ -15289,7 +15291,7 @@ static void test_bug17667()
   struct buffer_and_length {
     enum query_type qt;
     const char *buffer;
-    const uint length;
+    const ulong length;
   } statements[]= {
     { QT_NORMAL, "drop table if exists bug17667", 29 },
     { QT_NORMAL, "create table bug17667 (c varchar(20))", 37 },
@@ -15442,7 +15444,7 @@ static void test_bug14169()
   myquery(rc);
   stmt= mysql_stmt_init(mysql);
   stmt_text= "select f2,group_concat(f1) from t1 group by f2";
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
   res= mysql_stmt_result_metadata(stmt);
   field= mysql_fetch_fields(res);
@@ -15687,7 +15689,7 @@ static void test_bug20152()
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
@@ -15732,11 +15734,11 @@ static void test_bug15752()
     printf("Unable connect to MySQL server: %s\n", mysql_error(&mysql_local));
     DIE_UNLESS(0);
   }
-  rc= mysql_real_query(&mysql_local, query, strlen(query));
+  rc= mysql_real_query(&mysql_local, query, (ulong)strlen(query));
   myquery(rc);
   mysql_free_result(mysql_store_result(&mysql_local));
 
-  rc= mysql_real_query(&mysql_local, query, strlen(query));
+  rc= mysql_real_query(&mysql_local, query, (ulong)strlen(query));
   DIE_UNLESS(rc && mysql_errno(&mysql_local) == CR_COMMANDS_OUT_OF_SYNC);
 
   if (! opt_silent)
@@ -15751,7 +15753,7 @@ static void test_bug15752()
   /* The second problem is not reproducible: add the test case */
   for (i = 0; i < ITERATION_COUNT; i++)
   {
-    if (mysql_real_query(&mysql_local, query, strlen(query)))
+    if (mysql_real_query(&mysql_local, query, (ulong)strlen(query)))
     {
       printf("\ni=%d %s failed: %s\n", i, query, mysql_error(&mysql_local));
       break;
@@ -15922,7 +15924,7 @@ static void test_bug23383()
   stmt= mysql_stmt_init(mysql);
   DIE_UNLESS(stmt != 0);
 
-  rc= mysql_stmt_prepare(stmt, insert_query, strlen(insert_query));
+  rc= mysql_stmt_prepare(stmt, insert_query, (ulong)strlen(insert_query));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
@@ -15935,7 +15937,7 @@ static void test_bug23383()
   row_count= mysql_stmt_affected_rows(stmt);
   DIE_UNLESS(row_count == (my_ulonglong)-1);
 
-  rc= mysql_stmt_prepare(stmt, update_query, strlen(update_query));
+  rc= mysql_stmt_prepare(stmt, update_query, (ulong)strlen(update_query));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
@@ -16001,7 +16003,7 @@ static void test_bug21635()
     rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
     myquery(rc);
 
-    rc= mysql_real_query(mysql, query, query_end - query);
+    rc= mysql_real_query(mysql, query, (ulong)(query_end - query));
     myquery(rc);
 
     result= mysql_use_result(mysql);
@@ -17345,10 +17347,10 @@ static void test_bug28386()
 
   bind.buffer_type= MYSQL_TYPE_STRING;
   bind.buffer= (void *) hello;
-  bind.buffer_length= sizeof(hello);
+  bind.buffer_length= (ulong)sizeof(hello);
 
   mysql_stmt_bind_param(stmt, &bind);
-  mysql_stmt_send_long_data(stmt, 0, hello, sizeof(hello));
+  mysql_stmt_send_long_data(stmt, 0, hello, (ulong)sizeof(hello));
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -17694,19 +17696,19 @@ static void test_wl4166_4()
 
   bind_array[1].buffer_type= MYSQL_TYPE_STRING;
   bind_array[1].buffer= (void *) koi8;
-  bind_array[1].buffer_length= strlen(koi8);
+  bind_array[1].buffer_length= (ulong)strlen(koi8);
 
   stmt= mysql_stmt_init(mysql);
   check_stmt(stmt);
 
   stmt_text= "insert into t1 (c1, c2) values (?, ?)";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   mysql_stmt_bind_param(stmt, bind_array);
 
-  mysql_stmt_send_long_data(stmt, 0, koi8, strlen(koi8));
+  mysql_stmt_send_long_data(stmt, 0, koi8, (ulong)strlen(koi8));
 
   /* Cause a reprepare at statement execute */
   rc= mysql_query(mysql, "alter table t1 add column d int");
@@ -17718,18 +17720,18 @@ static void test_wl4166_4()
   stmt_text= "select c1, c2 from t1";
 
   /* c1 and c2 are binary so no conversion will be done on select */
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
   bind_array[0].buffer= buf1;
-  bind_array[0].buffer_length= sizeof(buf1);
+  bind_array[0].buffer_length= (ulong)sizeof(buf1);
   bind_array[0].length= &buf1_len;
 
   bind_array[1].buffer= buf2;
-  bind_array[1].buffer_length= sizeof(buf2);
+  bind_array[1].buffer_length= (ulong)sizeof(buf2);
   bind_array[1].length= &buf2_len;
 
   mysql_stmt_bind_result(stmt, bind_array);
@@ -17872,14 +17874,14 @@ static void test_bug38486(void)
   stmt= mysql_stmt_init(mysql);
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*)&type);
   stmt_text= "CREATE TABLE t1 (a INT)";
-  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   mysql_stmt_execute(stmt);
   mysql_stmt_close(stmt);
 
   stmt= mysql_stmt_init(mysql);
   mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*)&type);
   stmt_text= "INSERT INTO t1 VALUES (1)";
-  mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   mysql_stmt_execute(stmt);
   mysql_stmt_close(stmt);
 
@@ -18030,7 +18032,7 @@ static void test_bug43560(void)
   const uint   BUFSIZE= sizeof(buffer);
   const char*  values[] = {"eins", "zwei", "drei", "viele", NULL};
   const char   insert_str[] = "INSERT INTO t1 (c2) VALUES (?)";
-  unsigned long length;
+  ulong        length;
   const unsigned int drop_db= opt_drop_db;
 
   DBUG_ENTER("test_bug43560");
@@ -18058,7 +18060,7 @@ static void test_bug43560(void)
 
   stmt= mysql_stmt_init(conn);
   check_stmt(stmt);
-  rc= mysql_stmt_prepare(stmt, insert_str, strlen(insert_str));
+  rc= mysql_stmt_prepare(stmt, insert_str, (ulong)strlen(insert_str));
   check_execute(stmt, rc);
 
   memset(&bind, 0, sizeof(bind));
@@ -18072,7 +18074,7 @@ static void test_bug43560(void)
 
   /* First execute; should succeed. */
   strncpy(buffer, values[0], BUFSIZE);
-  length= strlen(buffer);
+  length= (ulong)strlen(buffer);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
@@ -18085,7 +18087,7 @@ static void test_bug43560(void)
 
   /* Second execute; should fail due to socket closed during execution. */
   strncpy(buffer, values[1], BUFSIZE);
-  length= strlen(buffer);
+  length= (ulong)strlen(buffer);
   rc= mysql_stmt_execute(stmt);
   DIE_UNLESS(rc && mysql_stmt_errno(stmt) == CR_SERVER_LOST);
 
@@ -18094,7 +18096,7 @@ static void test_bug43560(void)
     case of a Bug#43560 type regression in which case the whole test fails.
   */
   strncpy(buffer, values[2], BUFSIZE);
-  length= strlen(buffer);
+  length= (ulong)strlen(buffer);
   rc= mysql_stmt_execute(stmt);
   DIE_UNLESS(rc && mysql_stmt_errno(stmt) == CR_SERVER_LOST);
 
@@ -18203,7 +18205,7 @@ static void test_bug41078(void)
   memset(&result, 0, sizeof(result));
   result.buffer_type= MYSQL_TYPE_STRING;
   result.buffer= str;
-  result.buffer_length= sizeof(str);
+  result.buffer_length= (ulong)sizeof(str);
   result.is_null= &is_null;
   result.length= &len;
   result.error=  &error;
@@ -18240,11 +18242,11 @@ static void test_bug45010()
   myquery(rc);
 
   /* \x80 (-128) could be used as a index of ident_map. */
-  rc= mysql_real_query(mysql, query1, sizeof(query1) - 1);
+  rc= mysql_real_query(mysql, query1, (ulong)(sizeof(query1) - 1));
   DIE_UNLESS(rc);
 
   /* \xef (-17) could be used to skip 3 bytes past the buffer end. */
-  rc= mysql_real_query(mysql, query2, sizeof(query2) - 1);
+  rc= mysql_real_query(mysql, query2, (ulong)(sizeof(query2) - 1));
   DIE_UNLESS(rc);
 
   rc= mysql_query(mysql, "set names default");
@@ -18514,14 +18516,14 @@ static void test_bug47485()
   char          str_data[16];
   my_bool       is_null[2];
   my_bool       error[2];
-  unsigned long length[2];
+  ulong         length[2];
 
   DBUG_ENTER("test_bug47485");
   myheader("test_bug47485");
 
   stmt= mysql_stmt_init(mysql);
   check_stmt(stmt);
-  rc= mysql_stmt_prepare(stmt, sql_select, strlen(sql_select));
+  rc= mysql_stmt_prepare(stmt, sql_select, (ulong)strlen(sql_select));
   check_execute(stmt, rc);
 
   rc= mysql_stmt_execute(stmt);
@@ -18549,7 +18551,7 @@ static void test_bug47485()
 
   bind[1].buffer_type= MYSQL_TYPE_STRING;
   bind[1].buffer= (char *)str_data;
-  bind[1].buffer_length= sizeof(str_data);
+  bind[1].buffer_length= (ulong)sizeof(str_data);
   bind[1].is_null= &is_null[1];
   bind[1].length= &length[1];
   bind[1].error= &error[1];
@@ -18579,7 +18581,7 @@ static void test_bug47485()
 
   bind[1].buffer_type= MYSQL_TYPE_STRING;
   bind[1].buffer= (char *)str_data;
-  bind[1].buffer_length= sizeof(str_data);
+  bind[1].buffer_length= (ulong)sizeof(str_data);
   bind[1].is_null= &is_null[1];
   bind[1].length= &length[1];
   bind[1].error= &error[1];
@@ -18724,7 +18726,7 @@ static void test_bug49972()
     out_param_bind.buffer_type= MYSQL_TYPE_LONG;
     out_param_bind.is_null= &is_null;
     out_param_bind.buffer= &int_data;
-    out_param_bind.buffer_length= sizeof (int_data);
+    out_param_bind.buffer_length= (ulong)sizeof (int_data);
 
     rc= mysql_stmt_bind_result(stmt, &out_param_bind);
     check_execute(stmt, rc);
@@ -18752,7 +18754,7 @@ static void test_bug49972()
     out_param_bind.buffer_type= MYSQL_TYPE_LONG;
     out_param_bind.is_null= &is_null;
     out_param_bind.buffer= &int_data;
-    out_param_bind.buffer_length= sizeof (int_data);
+    out_param_bind.buffer_length= (ulong)sizeof (int_data);
 
     rc= mysql_stmt_bind_result(stmt, &out_param_bind);
     check_execute(stmt, rc);
@@ -18796,7 +18798,7 @@ static void test_bug56976()
   stmt= mysql_stmt_init(mysql);
   check_stmt(stmt);
 
-  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  rc= mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
 
   memset(bind, 0, sizeof(bind));
@@ -19478,7 +19480,7 @@ static void test_wl6797()
   stmt= mysql_stmt_init(mysql);
   stmt_text= "INSERT INTO t1 VALUES (1), (2)";
 
-  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  rc= mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
   check_execute(stmt, rc);
 
   /* Execute the insert statement */

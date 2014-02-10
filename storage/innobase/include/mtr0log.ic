@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -160,7 +160,7 @@ mlog_catenate_ull_compressed(
 		return;
 	}
 
-	log_ptr += mach_ull_write_compressed(log_ptr, val);
+	log_ptr += mach_u64_write_compressed(log_ptr, val);
 
 	mlog_close(mtr, log_ptr);
 }
@@ -211,11 +211,11 @@ mlog_write_initial_log_record_fast(
 			return(log_ptr);
 		} else {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Trying to redo log a record of type "
-				"%d on page %lu of space %lu in the "
-				"doublewrite buffer, continuing anyway. "
-				"Please post a bug report to "
-				"bugs.mysql.com.",
+				"Trying to redo log a record of type"
+				" %d on page %lu of space %lu in the"
+				" doublewrite buffer, continuing anyway."
+				" Please post a bug report to"
+				" bugs.mysql.com.",
 				type, offset, space);
 			ut_ad(0);
 		}

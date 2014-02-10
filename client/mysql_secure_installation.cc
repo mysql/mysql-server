@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -514,6 +514,7 @@ int get_root_password()
     if (mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN)
     {
       bool can= TRUE;
+      init_connection_options(&mysql);
       mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &can);
       if (!mysql_real_connect(&mysql, opt_host, opt_user,
                               password, "", opt_port, opt_mysql_unix_port, 0))

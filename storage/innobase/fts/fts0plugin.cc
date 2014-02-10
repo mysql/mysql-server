@@ -394,6 +394,7 @@ fts_parse_query_internal(
 
 	info.prev = ' ';
 	info.quot = 0;
+	memset(&w, 0, sizeof(w));
 	/* Note: We don't handle simple parser mode here,
 	but user supplied plugin parser should handler it. */
 	while (ft_get_word(cs, start, end, &w, &info)) {

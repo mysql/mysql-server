@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ bool handle_select(THD *thd, select_result *result,
   SELECT_LEX *const select_lex = lex->select_lex;
 
   DBUG_ENTER("handle_select");
-  MYSQL_SELECT_START(thd->query());
+  MYSQL_SELECT_START(const_cast<char*>(thd->query().str));
 
   if (lex->proc_analyse && lex->sql_command != SQLCOM_SELECT)
   {
@@ -1457,7 +1457,7 @@ bool JOIN::set_access_methods()
                            JOIN_CACHE::ALG_BNL : JOIN_CACHE::ALG_NONE;
 
     if (tab->type == JT_CONST || tab->type == JT_SYSTEM)
-      continue;                      // Handled in make_join_statistics()
+      continue;                      // Handled in JOIN::make_join_plan()
 
     Key_use *const keyuse= tab->position->key;
     if (!keyuse)
@@ -2221,6 +2221,8 @@ void revise_cache_usage(JOIN_TAB *join_tab)
   JOIN_TAB *tab;
   JOIN_TAB *first_inner;
 
+  set_join_cache_denial(join_tab);
+
   if (join_tab->first_inner)
   {
     JOIN_TAB *end_tab= join_tab;
@@ -2242,7 +2244,6 @@ void revise_cache_usage(JOIN_TAB *join_tab)
         set_join_cache_denial(tab);
     }
   }
-  else set_join_cache_denial(join_tab);
 }
 
 
@@ -2599,7 +2600,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   /* 
     Set up the table to write to, do as select_union::create_result_table does
   */
-  sjm_exec->table_param.init();
+  sjm_exec->table_param= Temp_table_param();
   count_field_types(select_lex, &sjm_exec->table_param,
                     emb_sj_nest->nested_join->sj_inner_exprs, false, true);
   sjm_exec->table_param.bit_fields_as_long= true;
@@ -4048,11 +4049,24 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     }
 
     /*
-      filesort() and join cache are usually faster than reading in 
-      index order and not using join cache, except in case that chosen
-      index is clustered primary key.
+      Does the query have a "FORCE INDEX [FOR GROUP BY] (idx)" (if
+      clause is group by) or a "FORCE INDEX [FOR ORDER BY] (idx)" (if
+      clause is order by)?
     */
-    if ((select_limit >= table_records) &&
+    const bool is_group_by= join && join->group && order == join->group_list;
+    const bool is_force_index= table->force_index ||
+      (is_group_by ? table->force_index_group : table->force_index_order);
+
+    /*
+      filesort() and join cache are usually faster than reading in
+      index order and not using join cache. Don't use index scan
+      unless:
+       - the user specified FORCE INDEX [FOR {GROUP|ORDER} BY] (have to assume
+         the user knows what's best)
+       - the chosen index is clustered primary key (table scan is not cheaper)
+    */
+    if (!is_force_index &&
+        (select_limit >= table_records) &&
         (tab->type == JT_ALL &&
          tab->join->primary_tables > tab->join->const_tables + 1) &&
          ((unsigned) best_key != table->s->primary_key ||
@@ -4348,11 +4362,11 @@ fix_ICP:
 
 
 /**
-  Update TMP_TABLE_PARAM with count of the different type of fields.
+  Update Temp_table_param with count of the different type of fields.
 
   This function counts the number of fields, functions and sum
   functions (items with type SUM_FUNC_ITEM) for use by
-  create_tmp_table() and stores it in the TMP_TABLE_PARAM object. It
+  create_tmp_table() and stores it in the Temp_table_param object. It
   also resets and calculates the quick_group property, which may have
   to be reverted if this function is called after deciding to use
   ROLLUP (see JOIN::rollup_init()).
@@ -4366,7 +4380,7 @@ fix_ICP:
 */
 
 void
-count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
+count_field_types(SELECT_LEX *select_lex, Temp_table_param *param, 
                   List<Item> &fields, bool reset_with_sum_func,
                   bool save_sum_fields)
 {
@@ -5260,7 +5274,7 @@ bool JOIN::make_tmp_tables_info()
     if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error)
       DBUG_RETURN(true);
   }
-  if (group_list || order)
+  if (join_tab && (group_list || order))
   {
     DBUG_PRINT("info",("Sorting for send_result_set_metadata"));
     THD_STAGE_INFO(thd, stage_sorting_result);
@@ -5470,9 +5484,9 @@ JOIN::add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *sort_order)
 
   @note
     This function takes into account table->quick_condition_rows statistic
-    (that is calculated by the make_join_statistics function).
+    (that is calculated by JOIN::make_join_plan()).
     However, single table procedures such as mysql_update() and mysql_delete()
-    never call make_join_statistics, so they have to update it manually
+    never call JOIN::make_join_plan(), so they have to update it manually
     (@see get_index_for_order()).
 */
 
@@ -5538,7 +5552,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
       fanout*= jt->position->fanout; // fanout is always >= 1
   }
   else
-    read_time= table->file->scan_time();
+    read_time= table->file->table_scan_cost().total_cost();
 
   /*
     Calculate the selectivity of the ref_key for REF_ACCESS. For
@@ -5656,8 +5670,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           to calculate the cost of accessing data rows for one 
           index entry.
         */
+        const Cost_estimate table_scan_time= table->file->table_scan_cost();
         index_scan_time= select_limit/rec_per_key *
-                         min(rec_per_key, table->file->scan_time());
+                         min(rec_per_key, table_scan_time.total_cost());
         if ((ref_key < 0 && is_covering) || 
             (ref_key < 0 && (group || table->force_index)) ||
             index_scan_time < read_time)
@@ -5796,7 +5811,7 @@ uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
     
     /*
       Update quick_condition_rows since single table UPDATE/DELETE procedures
-      don't call make_join_statistics() and leave this variable uninitialized.
+      don't call JOIN::make_join_plan() and leave this variable uninitialized.
     */
     table->quick_condition_rows= table->file->stats.records;
     

@@ -306,7 +306,6 @@ insert into t1 SET a=1, b=a+1;
 insert into t1 (a,b) select 1,2;
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
 prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
-execute stmt1;
 ERROR 42000: Column 'a' specified twice
 insert into t1 (a,b,b) values (1,1,1);
 ERROR 42000: Column 'b' specified twice
@@ -577,10 +576,10 @@ DROP TABLE t1;
 CREATE TABLE t1( a INT );
 INSERT DELAYED INTO t1 VALUES ( 1 );
 Warnings:
-Warning	1886	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+Warning	1887	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
 REPLACE DELAYED INTO t1 VALUES ( 1 );
 Warnings:
-Warning	1886	REPLACE DELAYED is no longer supported. The statement was converted to REPLACE.
+Warning	1887	REPLACE DELAYED is no longer supported. The statement was converted to REPLACE.
 DROP TABLE t1;
 SET GLOBAL delayed_insert_limit = DEFAULT;
 Warnings:

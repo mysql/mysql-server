@@ -99,6 +99,7 @@ DO BEGIN
 select * from t28953;
 END;|
 ALTER EVENT event1 RENAME TO event2;
+include/sync_slave_sql_with_master.inc
 DROP EVENT event2;
 CREATE TABLE test.t1(details CHAR(30));
 CREATE EVENT /*!50000 event44331_1 */
@@ -142,6 +143,7 @@ select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
 where EVENT_NAME='event44331_4';
 EVENT_SCHEMA	EVENT_NAME	DEFINER
 test	event44331_4	user44331@%
+include/sync_slave_sql_with_master.inc
 #on slave
 select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
 where EVENT_NAME='event44331_1';
@@ -166,4 +168,5 @@ DROP EVENT event44331_1;
 DROP EVENT event44331_2;
 DROP EVENT event44331_3;
 DROP EVENT event44331_4;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

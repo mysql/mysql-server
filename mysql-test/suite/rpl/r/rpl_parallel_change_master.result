@@ -15,6 +15,7 @@ CREATE TABLE d1.t1 (a int unique) ENGINE=INNODB;
 CREATE TABLE d2.t1 (a int unique) ENGINE=INNODB;
 INSERT INTO d1.t1 VALUES (1);
 FLUSH LOGS;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_DELAY=5;
 include/start_slave.inc
@@ -55,4 +56,5 @@ DELETE FROM d1.t1 WHERE a = 13;
 include/start_slave.inc
 DROP DATABASE d1;
 DROP DATABASE d2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

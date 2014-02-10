@@ -731,7 +731,6 @@ fts_parallel_tokenization(
 	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
 	doc_id_t		last_doc_id = 0;
-	ulint			zip_size;
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
 	dict_table_t*		table = psort_info->psort_common->new_table;
@@ -761,7 +760,8 @@ fts_parallel_tokenization(
 				? DATA_VARCHAR : DATA_VARMYSQL;
 
 	block = psort_info->merge_block;
-	zip_size = dict_table_zip_size(table);
+
+	const page_size_t&	page_size = dict_table_page_size(table);
 
 	row_merge_fts_get_next_doc_item(psort_info, &doc_item);
 
@@ -791,7 +791,7 @@ loop:
 				doc.text.f_str =
 					btr_copy_externally_stored_field(
 						&doc.text.f_len, data,
-						zip_size, data_len, blob_heap);
+						page_size, data_len, blob_heap);
 			} else {
 				doc.text.f_str = data;
 				doc.text.f_len = data_len;
@@ -822,14 +822,13 @@ loop:
 		num_doc_processed++;
 
 		if (fts_enable_diag_print && num_doc_processed % 10000 == 1) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"number of doc processed %d\n",
+			ib_logf(IB_LOG_LEVEL_INFO, "Number of doc processed %d",
 				(int) num_doc_processed);
 #ifdef FTS_INTERNAL_DIAG_PRINT
 			for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 				ib_logf(IB_LOG_LEVEL_INFO,
-					"ID %d, partition %d, word "
-					"%d\n",(int) psort_info->psort_id,
+					"ID %d, partition %d, word"
+					" %d",(int) psort_info->psort_id,
 					(int) i, (int) mycount[i]);
 			}
 #endif
@@ -876,10 +875,10 @@ loop:
 			ut_ad(!doc_item);
 			/* retied too many times and cannot get new record */
 			ib_logf(IB_LOG_LEVEL_ERROR,
-					"InnoDB: FTS parallel sort processed "
-					"%lu records, the sort queue has "
-					"%lu records. But sort cannot get "
-					"the next records", num_doc_processed,
+					"FTS parallel sort processed"
+					" %lu records, the sort queue has"
+					" %lu records. But sort cannot get"
+					" the next records", num_doc_processed,
 					UT_LIST_GET_LEN(
 						psort_info->fts_doc_list));
 			goto exit;
@@ -1000,7 +999,9 @@ func_exit:
 	mutex_exit(&psort_info->mutex);
 
 	if (UT_LIST_GET_LEN(psort_info->fts_doc_list) > 0) {
-		ut_ad(error != DB_SUCCESS);
+		/* child can exit either with error or told by parent. */
+		ut_ad(error != DB_SUCCESS
+		      || psort_info->state == FTS_PARENT_EXITING);
 	}
 
 	/* Free fts doc list in case of error. */
@@ -1120,9 +1121,9 @@ row_merge_write_fts_word(
 			fts_node);
 
 		if (error != DB_SUCCESS) {
-			fprintf(stderr, "InnoDB: failed to write"
-				" word %s to FTS auxiliary index"
-				" table, error (%s) \n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Failed to write word %s to FTS auxiliary index"
+				" table, error (%s)",
 				word->text.f_str, ut_strerr(error));
 			ret = error;
 		}
@@ -1315,7 +1316,7 @@ row_fts_sel_tree_propagate(
 
 	sel_tree[parent] = selected;
 
-	return((int) parent);
+	return(static_cast<int>(parent));
 }
 
 /*********************************************************************//**
@@ -1335,8 +1336,8 @@ row_fts_sel_tree_update(
 	ulint	i;
 
 	for (i = 1; i <= height; i++) {
-		propagated = (ulint) row_fts_sel_tree_propagate(
-			(int) propagated, sel_tree, mrec, offsets, index);
+		propagated = static_cast<ulint>(row_fts_sel_tree_propagate(
+			static_cast<int>(propagated), sel_tree, mrec, offsets, index));
 	}
 
 	return(sel_tree[0]);
@@ -1360,8 +1361,8 @@ row_fts_build_sel_tree_level(
 	ulint	i;
 	ulint	num_item;
 
-	start = ((ulint) 1 << level) - 1;
-	num_item = ((ulint) 1 << level);
+	start = static_cast<ulint>((1 << level) - 1);
+	num_item = static_cast<ulint>(1 << level);
 
 	for (i = 0; i < num_item;  i++) {
 		child_left = sel_tree[(start + i) * 2 + 1];
@@ -1436,9 +1437,9 @@ row_fts_build_sel_tree(
 		sel_tree[i + start] = i;
 	}
 
-	for (i = (int) treelevel - 1; i >=0; i--) {
+	for (i = static_cast<int>(treelevel) - 1; i >= 0; i--) {
 		row_fts_build_sel_tree_level(
-			sel_tree, (ulint) i, mrec, offsets, index);
+			sel_tree, static_cast<ulint>(i), mrec, offsets, index);
 	}
 
 	return(treelevel);
@@ -1536,8 +1537,8 @@ row_fts_merge_insert(
 	}
 
 	if (fts_enable_diag_print) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB_FTS: to inserted %lu records\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"InnoDB_FTS: to inserted %lu records",
 			(ulong) count_diag);
 	}
 
@@ -1623,7 +1624,7 @@ row_fts_merge_insert(
 					    mrec[i], mrec[min_rec],
 					    offsets[i], offsets[min_rec],
 					    index, NULL) < 0) {
-					min_rec = (int) i;
+					min_rec = static_cast<int>(i);
 				}
 			}
 		} else {
@@ -1683,8 +1684,8 @@ exit:
 	mem_heap_free(heap);
 
 	if (fts_enable_diag_print) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB_FTS: inserted %lu records\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"InnoDB_FTS: inserted %lu records",
 			(ulong) count);
 	}
 

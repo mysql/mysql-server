@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # WL#5569 MTS
 #
@@ -100,7 +95,7 @@ while ($n)
   dec $n1;
 }
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 if (`select variable_value - $workers*$temp_tables as must_be_zero from information_schema.global_status where variable_name like 'Slave_open_temp_tables'`)
 {
@@ -176,7 +171,7 @@ while ($n)
   dec $n1;
 }
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 connection master1;
@@ -197,9 +192,9 @@ while ($n)
   dec $n1;
 }
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
-
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 ### TODO: --source include/rpl_end.inc
