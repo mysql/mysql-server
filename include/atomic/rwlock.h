@@ -1,7 +1,7 @@
 #ifndef ATOMIC_RWLOCK_INCLUDED
 #define ATOMIC_RWLOCK_INCLUDED
 
-/* Copyright (c) 2006, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,27 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define MY_ATOMIC_MODE_RWLOCKS 1
-
-#ifdef MY_ATOMIC_MODE_DUMMY
-/*
-  the following can never be enabled by ./configure, one need to put #define in
-  a source to trigger the following warning. The resulting code will be broken,
-  it only makes sense to do it to see now test_atomic detects broken
-  implementations (another way is to run a UP build on an SMP box).
-*/
-#warning MY_ATOMIC_MODE_DUMMY and MY_ATOMIC_MODE_RWLOCKS are incompatible
-
-typedef char my_atomic_rwlock_t;
-
-#define my_atomic_rwlock_destroy(name)
-#define my_atomic_rwlock_init(name)
-#define my_atomic_rwlock_rdlock(name)
-#define my_atomic_rwlock_wrlock(name)
-#define my_atomic_rwlock_rdunlock(name)
-#define my_atomic_rwlock_wrunlock(name)
-#define MY_ATOMIC_MODE "dummy (non-atomic)"
-#else /* not MY_ATOMIC_MODE_DUMMY */
+#include "my_pthread.h"
 
 typedef struct {pthread_mutex_t rw;} my_atomic_rwlock_t;
 
@@ -52,16 +32,91 @@ typedef struct {pthread_mutex_t rw;} my_atomic_rwlock_t;
 #define my_atomic_rwlock_rdunlock(name)    pthread_mutex_unlock(& (name)->rw)
 #define my_atomic_rwlock_wrunlock(name)    pthread_mutex_unlock(& (name)->rw)
 
-#define MY_ATOMIC_MODE "mutex"
-#ifndef MY_ATOMIC_MODE_RWLOCKS
-#define MY_ATOMIC_MODE_RWLOCKS 1
-#endif
-#endif
+static inline int my_atomic_cas32(int32 volatile *a, int32 *cmp, int32 set)
+{
+  int ret= (*a == *cmp);
+  if (ret)
+    *a= set;
+  else
+    *cmp=*a;
+  return ret;
+}
 
-#define make_atomic_add_body(S)     int ## S sav; sav= *a; *a+= v; v=sav;
-#define make_atomic_fas_body(S)     int ## S sav; sav= *a; *a= v; v=sav;
-#define make_atomic_cas_body(S)     if ((ret= (*a == *cmp))) *a= set; else *cmp=*a;
-#define make_atomic_load_body(S)    ret= *a;
-#define make_atomic_store_body(S)   *a= v;
+static inline int my_atomic_cas64(int64 volatile *a, int64 *cmp, int64 set)
+{
+  int ret= (*a == *cmp);
+  if (ret)
+    *a= set;
+  else
+    *cmp=*a;
+  return ret;
+}
+
+static inline int my_atomic_casptr(void * volatile *a, void **cmp, void *set)
+{
+  int ret= (*a == *cmp);
+  if (ret)
+    *a= set;
+  else
+    *cmp=*a;
+  return ret;
+}
+
+static inline int32 my_atomic_add32(int32 volatile *a, int32 v)
+{
+  int32 sav= *a;
+  *a+= v;
+  v= sav;
+  return v;
+}
+
+static inline int64 my_atomic_add64(int64 volatile *a, int64 v)
+{
+  int64 sav= *a;
+  *a+= v;
+  v= sav;
+  return v;
+}
+
+static inline int32 my_atomic_fas32(int32 volatile *a, int32 v)
+{
+  int32 sav= *a;
+  *a= v;
+  v= sav;
+  return v;
+}
+
+static inline int64 my_atomic_fas64(int64 volatile *a, int64 v)
+{
+  int64 sav= *a;
+  *a= v;
+  v= sav;
+  return v;
+}
+
+static inline int32 my_atomic_load32(int32 volatile *a)
+{
+  return *a;
+}
+
+static inline int64 my_atomic_load64(int64 volatile *a)
+{
+  return *a;
+}
+
+static inline void my_atomic_store32(int32 volatile *a, int32 v)
+{
+  *a= v;
+}
+
+static inline void my_atomic_store64(int64 volatile *a, int64 v)
+{
+  *a= v;
+}
+
+static inline void my_atomic_storeptr(void * volatile *a, void *v)
+{
+  *a= v;
+}
 
 #endif /* ATOMIC_RWLOCK_INCLUDED */

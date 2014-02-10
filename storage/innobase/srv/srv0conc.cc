@@ -266,7 +266,7 @@ srv_conc_enter_innodb_with_atomics(
 		    && sleep_in_us > srv_adaptive_max_sleep_delay) {
 
 			sleep_in_us = srv_adaptive_max_sleep_delay;
-			srv_thread_sleep_delay = (ulong) sleep_in_us;
+			srv_thread_sleep_delay = static_cast<ulong>(sleep_in_us);
 		}
 
 		os_thread_sleep(sleep_in_us);
@@ -359,10 +359,9 @@ srv_conc_enter_innodb_without_atomics(
 retry:
 	if (trx->declared_to_be_inside_innodb) {
 		mutex_exit(&srv_conc_mutex);
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: trying to declare trx"
-		      " to enter InnoDB, but\n"
-		      "InnoDB: it already is declared.\n", stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to declare trx to enter InnoDB, but"
+			" it already is declared.");
 		trx_print(stderr, trx, 0);
 		putc('\n', stderr);
 		return;

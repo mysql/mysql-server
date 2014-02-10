@@ -1,5 +1,3 @@
-call mtr.add_suppression("Please add another temp-data file or use 'autoextend' for the last data file");
-call mtr.add_suppression("The table 't1' is full");
 set global innodb_file_per_table = off;
 # files in MYSQL_DATA_DIR
 ibtmp1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -143,220 +143,8 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
-static const
-TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
-  {
-    { C_STRING_WITH_LEN("Host") },            
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0 }
-  },
-  {
-    { C_STRING_WITH_LEN("User") },            
-    { C_STRING_WITH_LEN("char(16)") },
-    { NULL, 0 }
-  },
-  {
-    { C_STRING_WITH_LEN("Password") },            
-    { C_STRING_WITH_LEN("char(41)") },
-    { C_STRING_WITH_LEN("latin1") }
-  }, 
-  {
-    { C_STRING_WITH_LEN("Select_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Insert_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Update_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Delete_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Create_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Drop_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Reload_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Shutdown_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Process_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("File_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Grant_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("References_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Index_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Alter_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Show_db_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Super_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_tmp_table_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Lock_tables_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Execute_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Repl_slave_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Repl_client_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_view_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Show_view_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_routine_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Alter_routine_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_user_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Event_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Trigger_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_tablespace_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("ssl_type") },
-    { C_STRING_WITH_LEN("enum('','ANY','X509','SPECIFIED')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("ssl_cipher") },
-    { C_STRING_WITH_LEN("blob") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("x509_issuer") },
-    { C_STRING_WITH_LEN("blob") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("x509_subject") },
-    { C_STRING_WITH_LEN("blob") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("max_questions") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("max_updates") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("max_connections") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("plugin") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("authentication_string") },
-    { C_STRING_WITH_LEN("text") },
-    { NULL, 0 }
-  } 
-};
-
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
-
-const TABLE_FIELD_DEF
-  mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
 
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -576,9 +364,9 @@ update_user_table(THD *thd, TABLE *table,
 
   table->use_all_columns();
   DBUG_ASSERT(host != '\0');
-  table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
+  table->field[MYSQL_USER_FIELD_HOST]->store(host, strlen(host),
 					     system_charset_info);
-  table->field[MYSQL_USER_FIELD_USER]->store(user, (uint) strlen(user),
+  table->field[MYSQL_USER_FIELD_USER]->store(user, strlen(user),
 					     system_charset_info);
   key_copy((uchar *) user_key, table->record[0], table->key_info,
 	   table->key_info->key_length);
@@ -1118,7 +906,7 @@ int replace_db_table(TABLE *table, const char *db,
   table->use_all_columns();
   table->field[0]->store(combo.host.str,combo.host.length,
                          system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[1]->store(db, strlen(db), system_charset_info);
   table->field[2]->store(combo.user.str,combo.user.length,
                          system_charset_info);
   key_copy(user_key, table->record[0], table->key_info,
@@ -1137,7 +925,7 @@ int replace_db_table(TABLE *table, const char *db,
     restore_record(table, s->default_values);
     table->field[0]->store(combo.host.str,combo.host.length,
                            system_charset_info);
-    table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+    table->field[1]->store(db, strlen(db), system_charset_info);
     table->field[2]->store(combo.user.str,combo.user.length,
                            system_charset_info);
   }
@@ -1338,11 +1126,11 @@ int replace_column_table(GRANT_TABLE *g_t,
   table->use_all_columns();
   table->field[0]->store(combo.host.str,combo.host.length,
                          system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db),
+  table->field[1]->store(db, strlen(db),
                          system_charset_info);
   table->field[2]->store(combo.user.str,combo.user.length,
                          system_charset_info);
-  table->field[3]->store(table_name,(uint) strlen(table_name),
+  table->field[3]->store(table_name, strlen(table_name),
                          system_charset_info);
 
   /* Get length of 4 first key parts */
@@ -1550,10 +1338,10 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   restore_record(table, s->default_values);     // Get empty record
   table->field[0]->store(combo.host.str,combo.host.length,
                          system_charset_info);
-  table->field[1]->store(db,(uint) strlen(db), system_charset_info);
+  table->field[1]->store(db, strlen(db), system_charset_info);
   table->field[2]->store(combo.user.str,combo.user.length,
                          system_charset_info);
-  table->field[3]->store(table_name,(uint) strlen(table_name),
+  table->field[3]->store(table_name, strlen(table_name),
                          system_charset_info);
   store_record(table,record[1]);                        // store at pos 1
   key_copy(user_key, table->record[0], table->key_info,
@@ -1600,7 +1388,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     }
   }
 
-  table->field[4]->store(grantor,(uint) strlen(grantor), system_charset_info);
+  table->field[4]->store(grantor,strlen(grantor), system_charset_info);
   table->field[6]->store((longlong) store_table_rights, TRUE);
   table->field[7]->store((longlong) store_col_rights, TRUE);
   rights=fix_rights_for_table(store_table_rights);
@@ -1675,9 +1463,9 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   table->use_all_columns();
   restore_record(table, s->default_values);             // Get empty record
   table->field[0]->store(combo.host.str,combo.host.length, &my_charset_latin1);
-  table->field[1]->store(db,(uint) strlen(db), &my_charset_latin1);
+  table->field[1]->store(db, strlen(db), &my_charset_latin1);
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
-  table->field[3]->store(routine_name,(uint) strlen(routine_name),
+  table->field[3]->store(routine_name, strlen(routine_name),
                          &my_charset_latin1);
   table->field[4]->store((longlong)(is_proc ?
                                     SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION),
@@ -1722,7 +1510,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     }
   }
 
-  table->field[5]->store(grantor,(uint) strlen(grantor), &my_charset_latin1);
+  table->field[5]->store(grantor, strlen(grantor), &my_charset_latin1);
   table->field[6]->store((longlong) store_proc_rights, TRUE);
   rights=fix_rights_for_procedure(store_proc_rights);
 

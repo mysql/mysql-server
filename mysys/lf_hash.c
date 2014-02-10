@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -290,15 +290,26 @@ static inline const uchar* hash_key(const LF_HASH *hash,
 */
 static inline uint calc_hash(LF_HASH *hash, const uchar *key, uint keylen)
 {
-  ulong nr1= 1, nr2= 4;
-  hash->charset->coll->hash_sort(hash->charset, (uchar*) key, keylen,
-                                 &nr1, &nr2);
-  return nr1 & INT_MAX32;
+  return (hash->hash_function(hash, key, keylen)) & INT_MAX32;
 }
 
 #define MAX_LOAD 1.0    /* average number of elements in a bucket */
 
 static int initialize_bucket(LF_HASH *, LF_SLIST * volatile*, uint, LF_PINS *);
+
+
+/**
+  Adaptor function which allows to use hash function from character
+  set with LF_HASH.
+*/
+static uint cset_hash_sort_adapter(const LF_HASH *hash, const uchar *key,
+                                   size_t length)
+{
+  ulong nr1=1, nr2=4;
+  hash->charset->coll->hash_sort(hash->charset, key, length, &nr1, &nr2);
+  return (uint)nr1;
+}
+
 
 /*
   Initializes lf_hash, the arguments are compatible with hash_init
@@ -312,13 +323,19 @@ static int initialize_bucket(LF_HASH *, LF_SLIST * volatile*, uint, LF_PINS *);
   DYNAMIC_ARRAY. In this case they should be initialize in the
   LF_ALLOCATOR::constructor, and lf_hash_insert should not overwrite them.
   See wt_init() for example.
+  As an alternative to using the above trick with decreasing
+  LF_HASH::element_size one can provide an "initialize" hook that will finish
+  initialization of object provided by LF_ALLOCATOR and set element key from
+  object passed as parameter to lf_hash_insert instead of doing simple memcpy.
 */
-void lf_hash_init(LF_HASH *hash, uint element_size, uint flags,
-                  uint key_offset, uint key_length, my_hash_get_key get_key,
-                  CHARSET_INFO *charset)
+void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
+                   uint key_offset, uint key_length, my_hash_get_key get_key,
+                   CHARSET_INFO *charset, lf_hash_func *hash_function,
+                   lf_allocator_func *ctor, lf_allocator_func *dtor,
+                   lf_hash_init_func *init)
 {
-  lf_alloc_init(&hash->alloc, sizeof(LF_SLIST)+element_size,
-                offsetof(LF_SLIST, key));
+  lf_alloc_init2(&hash->alloc, sizeof(LF_SLIST)+element_size,
+                 offsetof(LF_SLIST, key), ctor, dtor);
   lf_dynarray_init(&hash->array, sizeof(LF_SLIST *));
   hash->size= 1;
   hash->count= 0;
@@ -328,6 +345,8 @@ void lf_hash_init(LF_HASH *hash, uint element_size, uint flags,
   hash->key_offset= key_offset;
   hash->key_length= key_length;
   hash->get_key= get_key;
+  hash->hash_function= hash_function ? hash_function : cset_hash_sort_adapter;
+  hash->initialize= init;
   DBUG_ASSERT(get_key ? !key_offset && !key_length : key_length);
 }
 
@@ -374,7 +393,10 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
   node= (LF_SLIST *)_lf_alloc_new(pins);
   if (unlikely(!node))
     return -1;
-  memcpy(node+1, data, hash->element_size);
+  if (hash->initialize)
+    (*hash->initialize)((uchar*)(node + 1), (const uchar*)data);
+  else
+    memcpy(node+1, data, hash->element_size);
   node->key= hash_key(hash, (uchar *)(node+1), &node->keylen);
   hashnr= calc_hash(hash, node->key, node->keylen);
   bucket= hashnr % hash->size;

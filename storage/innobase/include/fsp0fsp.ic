@@ -25,24 +25,18 @@ Created 12/18/1995 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
-/***********************************************************************//**
-Checks if a page address is an extent descriptor page address.
+/** Checks if a page address is an extent descriptor page address.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
 @return TRUE if a descriptor page */
 UNIV_INLINE
 ibool
 fsp_descr_page(
-/*===========*/
-	ulint	zip_size,/*!< in: compressed page size in bytes;
-			0 for uncompressed pages */
-	ulint	page_no)/*!< in: page number */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size)
 {
-	ut_ad(ut_is_2pow(zip_size));
-
-	if (!zip_size) {
-		return((page_no & (UNIV_PAGE_SIZE - 1)) == FSP_XDES_OFFSET);
-	}
-
-	return((page_no & (zip_size - 1)) == FSP_XDES_OFFSET);
+	return((page_id.page_no() & (page_size.physical() - 1))
+	       == FSP_XDES_OFFSET);
 }
 
 /********************************************************************//**
@@ -126,63 +120,10 @@ fsp_flags_is_compressed(
 	return(FSP_FLAGS_GET_ZIP_SSIZE(flags) != 0);
 }
 
-#endif /* !UNIV_INNOCHECKSUM */
-
-/********************************************************************//**
-Extract the zip size from tablespace flags.
-@return compressed page size of the file-per-table tablespace in bytes,
-or zero if the table is not compressed. */
-UNIV_INLINE
-ulint
-fsp_flags_get_zip_size(
-/*===================*/
-	ulint	flags)	/*!< in: tablespace flags */
-{
-	ulint	zip_size = 0;
-	ulint	ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
-
-	/* Convert from a 'log2 minus 9' to a page size in bytes. */
-	if (ssize) {
-		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
-
-		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
-	}
-
-	return(zip_size);
-}
-
-/********************************************************************//**
-Extract the page size from tablespace flags.
-@return page size of the tablespace in bytes */
-UNIV_INLINE
-ulint
-fsp_flags_get_page_size(
-/*====================*/
-	ulint	flags)	/*!< in: tablespace flags */
-{
-	ulint	page_size = 0;
-	ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
-
-	/* Convert from a 'log2 minus 9' to a page size in bytes. */
-	if (UNIV_UNLIKELY(ssize)) {
-		page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
-
-		ut_ad(page_size <= UNIV_PAGE_SIZE_MAX);
-	} else {
-		/* If the page size was not stored, then it is the
-		original 16k. */
-		page_size = UNIV_PAGE_SIZE_ORIG;
-	}
-
-	return(page_size);
-}
-
-#ifndef UNIV_INNOCHECKSUM
-
 /********************************************************************//**
 Convert a page size, which is a power of 2, to an ssize, which is the
 number of bit shifts from 512 to make that page size.
-@param zip_size in: compressed page size in bytes
+@param[in] page_size compressed page size in bytes
 @return an ssize created from the page size provided. */
 UNIV_INLINE
 ulint
@@ -234,25 +175,18 @@ fsp_flags_set_page_size(
 	return(flags);
 }
 
-/********************************************************************//**
-Calculates the descriptor index within a descriptor page.
+/** Calculates the descriptor index within a descriptor page.
+@param[in]	page_size	page size
+@param[in]	offset		page offset
 @return descriptor index */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_index(
-/*=======================*/
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	offset)		/*!< in: page offset */
+	const page_size_t&	page_size,
+	ulint			offset)
 {
-	ut_ad(ut_is_2pow(zip_size));
-
-	if (zip_size == 0) {
-		return(ut_2pow_remainder(offset, UNIV_PAGE_SIZE)
-		       / FSP_EXTENT_SIZE);
-	} else {
-		return(ut_2pow_remainder(offset, zip_size) / FSP_EXTENT_SIZE);
-	}
+	return(ut_2pow_remainder(offset, page_size.physical())
+	       / FSP_EXTENT_SIZE);
 }
 
 /**********************************************************************//**
@@ -281,16 +215,15 @@ xdes_get_bit(
 			bit_index));
 }
 
-/********************************************************************//**
-Calculates the page where the descriptor of a page resides.
+/** Calculates the page where the descriptor of a page resides.
+@param[in]	page_size	page size
+@param[in]	offset		page offset
 @return descriptor page offset */
 UNIV_INLINE
 ulint
 xdes_calc_descriptor_page(
-/*======================*/
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
-				0 for uncompressed pages */
-	ulint	offset)		/*!< in: page offset */
+	const page_size_t&	page_size,
+	ulint			offset)
 {
 #ifndef DOXYGEN /* Doxygen gets confused by these */
 # if UNIV_PAGE_SIZE_MAX <= XDES_ARR_OFFSET				\
@@ -312,15 +245,14 @@ xdes_calc_descriptor_page(
 	      + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE)
 	      * XDES_SIZE);
 
-	ut_ad(ut_is_2pow(zip_size));
-
-	if (zip_size == 0) {
-		return(ut_2pow_round(offset, UNIV_PAGE_SIZE));
-	} else {
-		ut_ad(zip_size > XDES_ARR_OFFSET
-		      + (zip_size / FSP_EXTENT_SIZE) * XDES_SIZE);
-		return(ut_2pow_round(offset, zip_size));
+#ifdef UNIV_DEBUG
+	if (page_size.is_compressed()) {
+		ut_a(page_size.physical() > XDES_ARR_OFFSET
+		     + (page_size.physical() / FSP_EXTENT_SIZE) * XDES_SIZE);
 	}
+#endif /* UNIV_DEBUG */
+
+	return(ut_2pow_round(offset, page_size.physical()));
 }
 
 #endif /* !UNIV_INNOCHECKSUM */

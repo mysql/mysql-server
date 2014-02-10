@@ -130,6 +130,8 @@ col1 varchar(100) character set utf8 collate utf8_test_ci
 );
 INSERT INTO t1 (col1) VALUES ('abcd'),('efgh'),('ijkl');
 ALTER TABLE t1 ADD FULLTEXT INDEX (col1);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SELECT * FROM t1 where match (col1) against ('abcd');
 col1
 abcd

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ Completed by Sunny Bains and Marko Makela
 #include "row0ftsort.h"
 #include "row0import.h"
 #include "handler0alter.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -298,8 +298,8 @@ row_merge_buf_add(
 
 					if (*doc_id == 0) {
 						ib_logf(IB_LOG_LEVEL_WARN,
-							"FTS Doc ID is zero. "
-							"Record Skipped");
+							"FTS Doc ID is zero."
+							" Record Skipped");
 						DBUG_RETURN(0);
 					}
 				}
@@ -723,7 +723,7 @@ row_merge_read(
 
 	if (UNIV_UNLIKELY(!success)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"failed to read merge block at " UINT64PF, ofs);
+			"Failed to read merge block at " UINT64PF, ofs);
 	}
 
 	DBUG_RETURN(success);
@@ -1280,8 +1280,8 @@ row_merge_read_clustered_index(
 				/* Leaf pages must never be empty, unless
 				this is the only page in the index tree. */
 				ut_ad(btr_pcur_is_on_user_rec(&pcur)
-				      || buf_block_get_page_no(
-					      btr_pcur_get_block(&pcur))
+				      || btr_pcur_get_block(
+					      &pcur)->page.id.page_no()
 				      == clust_index->page);
 
 				btr_pcur_store_position(&pcur, &mtr);
@@ -1332,9 +1332,10 @@ end_of_index:
 
 				block = page_cur_get_block(cur);
 				block = btr_block_get(
-					buf_block_get_space(block),
-					buf_block_get_zip_size(block),
-					next_page_no, BTR_SEARCH_LEAF,
+					page_id_t(block->page.id.space(),
+						  next_page_no),
+					block->page.size,
+					BTR_SEARCH_LEAF,
 					clust_index, &mtr);
 
 				btr_leaf_page_release(page_cur_get_block(cur),
@@ -2122,17 +2123,20 @@ row_merge_sort(
 	DBUG_RETURN(error);
 }
 
-/*************************************************************//**
-Copy externally stored columns to the data tuple. */
-static __attribute__((nonnull))
+/** Copy externally stored columns to the data tuple.
+@param[in]	mrec		merge record
+@param[in]	offsets		offsets of mrec
+@param[in]	page_size	page size
+@param[in,out]	tuple		data tuple
+@param[in,out]	heap		memory heap */
+static
 void
 row_merge_copy_blobs(
-/*=================*/
-	const mrec_t*	mrec,	/*!< in: merge record */
-	const ulint*	offsets,/*!< in: offsets of mrec */
-	ulint		zip_size,/*!< in: compressed page size in bytes, or 0 */
-	dtuple_t*	tuple,	/*!< in/out: data tuple */
-	mem_heap_t*	heap)	/*!< in/out: memory heap */
+	const mrec_t*		mrec,
+	const ulint*		offsets,
+	const page_size_t&	page_size,
+	dtuple_t*		tuple,
+	mem_heap_t*		heap)
 {
 	ut_ad(rec_offs_any_extern(offsets));
 
@@ -2154,7 +2158,7 @@ row_merge_copy_blobs(
 		BLOB pointers are read (row_merge_read_clustered_index())
 		and dereferenced (below). */
 		data = btr_rec_copy_externally_stored_field(
-			mrec, offsets, zip_size, i, &len, heap);
+			mrec, offsets, page_size, i, &len, heap);
 		/* Because we have locked the table, any records
 		written by incomplete transactions must have been
 		rolled back already. There must not be any incomplete
@@ -2272,7 +2276,7 @@ row_merge_insert_index_tuples(
 				row_log_table_blob_free(). */
 				row_merge_copy_blobs(
 					mrec, offsets,
-					dict_table_zip_size(old_table),
+					dict_table_page_size(old_table),
 					dtuple, tuple_heap);
 			}
 
@@ -2498,8 +2502,8 @@ row_merge_drop_index_dict(
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_index_dict "
-			"failed with error %u", unsigned(error));
+			"row_merge_drop_index_dict"
+			" failed with error %u", unsigned(error));
 	}
 
 	trx->op_info = "";
@@ -2572,8 +2576,8 @@ row_merge_drop_indexes_dict(
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_indexes_dict "
-			"failed with error %u", unsigned(error));
+			"row_merge_drop_indexes_dict"
+			" failed with error %u", unsigned(error));
 	}
 
 	trx->op_info = "";
@@ -2822,8 +2826,8 @@ row_merge_drop_temp_indexes(void)
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_drop_temp_indexes "
-			"failed with error %u", unsigned(error));
+			"row_merge_drop_temp_indexes"
+			" failed with error %u", unsigned(error));
 	}
 
 	trx_commit_for_mysql(trx);
@@ -2970,8 +2974,8 @@ row_merge_rename_index_to_add(
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_rename_index_to_add "
-			"failed with error %u", unsigned(err));
+			"row_merge_rename_index_to_add"
+			" failed with error %u", unsigned(err));
 	}
 
 	trx->op_info = "";
@@ -3026,8 +3030,8 @@ row_merge_rename_index_to_drop(
 		trx->error_state = DB_SUCCESS;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"row_merge_rename_index_to_drop "
-			"failed with error %u", unsigned(err));
+			"row_merge_rename_index_to_drop"
+			" failed with error %u", unsigned(err));
 	}
 
 	trx->op_info = "";
@@ -3050,7 +3054,7 @@ row_make_new_pathname(
 	char*	new_path;
 	char*	old_path;
 
-	ut_ad(!Tablespace::is_system_tablespace(table->space));
+	ut_ad(!is_system_tablespace(table->space));
 
 	old_path = fil_space_get_first_path(table->space);
 	ut_a(old_path);
@@ -3111,7 +3115,7 @@ row_merge_rename_tables_dict(
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old
 	table is in a non-system tablespace where space > 0. */
 	if (err == DB_SUCCESS
-	    && !Tablespace::is_system_tablespace(old_table->space)
+	    && !is_system_tablespace(old_table->space)
 	    && !old_table->ibd_file_missing) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* tmp_path = row_make_new_pathname(old_table, tmp_name);
@@ -3140,7 +3144,7 @@ row_merge_rename_tables_dict(
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
 	table is in a non-system tablespace where space > 0. */
 	if (err == DB_SUCCESS
-	    && !Tablespace::is_system_tablespace(new_table->space)) {
+	    && !is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(
 			new_table, old_table->name);

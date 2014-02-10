@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,12 +59,6 @@
 #define IF_WIN(A,B) A
 #else
 #define IF_WIN(A,B) B
-#endif
-
-#ifdef HAVE_purify
-#define IF_PURIFY(A,B) A
-#else
-#define IF_PURIFY(A,B) B
 #endif
 
 #if defined (_WIN32)
@@ -255,7 +249,7 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
 /* Does the system remember a signal handler after a signal ? */
-#if !defined(HAVE_BSD_SIGNALS) && !defined(HAVE_SIGACTION)
+#if !defined(HAVE_SIGACTION)
 #define SIGNAL_HANDLER_RESET_ON_DELIVERY
 #endif
 
@@ -340,29 +334,20 @@ typedef SOCKET my_socket;
 typedef int	my_socket;	/* File descriptor for sockets */
 #define INVALID_SOCKET -1
 #endif
-/* Type for fuctions that handles signals */
-#define sig_handler RETSIGTYPE
 C_MODE_START
 typedef void	(*sig_return)();/* Returns type from signal */
 C_MODE_END
 #if defined(__GNUC__) && !defined(_lint)
 typedef char	pchar;		/* Mixed prototypes can take char */
-typedef char	puchar;		/* Mixed prototypes can take char */
 typedef char	pbool;		/* Mixed prototypes can take char */
-typedef short	pshort;		/* Mixed prototypes can take short int */
-typedef float	pfloat;		/* Mixed prototypes can take float */
 #else
 typedef int	pchar;		/* Mixed prototypes can't take char */
-typedef uint	puchar;		/* Mixed prototypes can't take char */
 typedef int	pbool;		/* Mixed prototypes can't take char */
-typedef int	pshort;		/* Mixed prototypes can't take short int */
-typedef double	pfloat;		/* Mixed prototypes can't take float */
 #endif
 C_MODE_START
 typedef int	(*qsort_cmp)(const void *,const void *);
 typedef int	(*qsort_cmp2)(const void*, const void *,const void *);
 C_MODE_END
-#define qsort_t RETQSORTTYPE	/* Broken GCC cant handle typedef !!!! */
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif

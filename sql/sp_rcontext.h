@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "sql_class.h"                    // select_result_interceptor
 #include "sp_pcontext.h"                  // sp_condition_value
+#include "sql_array.h"
 #include "prealloced_array.h"
 
 ///////////////////////////////////////////////////////////////////////////

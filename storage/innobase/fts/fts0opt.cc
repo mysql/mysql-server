@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,9 +44,6 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
-
-/** The number of document ids to delete in one statement. */
-static const ulint FTS_MAX_DELETE_DOC_IDS = 1000;
 
 /** Time to wait for a message. */
 static const ulint FTS_QUEUE_WAIT_IN_USECS = 5000000;
@@ -533,8 +530,8 @@ fts_index_fetch_nodes(
 			info,
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
-			" SELECT word, doc_count, first_doc_id, last_doc_id, "
-				"ilist\n"
+			" SELECT word, doc_count, first_doc_id, last_doc_id,"
+			" ilist\n"
 			" FROM $table_name\n"
 			" WHERE word LIKE :word\n"
 			" ORDER BY first_doc_id;\n"
@@ -550,7 +547,7 @@ fts_index_fetch_nodes(
 			"CLOSE c;");
 	}
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, *graph);
 
 		if (error == DB_SUCCESS) {
@@ -560,17 +557,15 @@ fts_index_fetch_nodes(
 		} else {
 			fts_sql_rollback(trx);
 
-			ut_print_timestamp(stderr);
-
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, " InnoDB: Warning: lock wait "
-					"timeout reading FTS index. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"lock wait timeout reading"
+					" FTS index. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, " InnoDB: Error: (%s) "
-					"while reading FTS index.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) while reading FTS index.",
 					ut_strerr(error));
 
 				break;			/* Exit the loop. */
@@ -632,7 +627,8 @@ fts_zip_read_word(
 					zip->zp->avail_in =
 						FTS_MAX_WORD_LEN;
 				} else {
-					zip->zp->avail_in = (uInt) zip->block_sz;
+					zip->zp->avail_in =
+						static_cast<uInt>(zip->block_sz);
 				}
 
 				++zip->pos;
@@ -733,7 +729,7 @@ fts_fetch_index_words(
 			ib_vector_push(zip->blocks, &block);
 
 			zip->zp->next_out = block;
-			zip->zp->avail_out = (uInt) zip->block_sz;
+			zip->zp->avail_out = static_cast<uInt>(zip->block_sz);
 		}
 
 		switch (zip->status = deflate(zip->zp, Z_NO_FLUSH)) {
@@ -880,15 +876,13 @@ fts_index_fetch_words(
 
 		zip = optim->zip;
 
-		for(;;) {
+		for (;;) {
 			int	err;
 
 			if (!inited && ((err = deflateInit(zip->zp, 9))
 					!= Z_OK)) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: Error: ZLib deflateInit() "
-					"failed: %d\n", err);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"ZLib deflateInit() failed: %d", err);
 
 				error = DB_ERROR;
 				break;
@@ -903,13 +897,10 @@ fts_index_fetch_words(
 			} else {
 				//FIXME fts_sql_rollback(optim->trx);
 
-				ut_print_timestamp(stderr);
-
 				if (error == DB_LOCK_WAIT_TIMEOUT) {
-					fprintf(stderr, " InnoDB: "
-						"Warning: lock wait "
-						"timeout reading document. "
-						"Retrying!\n");
+					ib_logf(IB_LOG_LEVEL_WARN,
+						"Lock wait timeout reading"
+						" document. Retrying!");
 
 					/* We need to reset the ZLib state. */
 					inited = FALSE;
@@ -918,8 +909,8 @@ fts_index_fetch_words(
 
 					optim->trx->error_state = DB_SUCCESS;
 				} else {
-					fprintf(stderr, " InnoDB: Error: (%s) "
-						"while reading document.\n",
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"(%s) while reading document.",
 						ut_strerr(error));
 
 					break;	/* Exit the loop. */
@@ -1120,10 +1111,10 @@ fts_optimize_lookup(
 	doc_id_t	last_doc_id)	/*!< in: doc id to lookup */
 {
 	int		pos;
-	int		upper = (int) ib_vector_size(doc_ids);
+	int		upper = static_cast<int>(ib_vector_size(doc_ids));
 	fts_update_t*	array = (fts_update_t*) doc_ids->data;
 
-	pos = fts_bsearch(array, (int) lower, upper, first_doc_id);
+	pos = fts_bsearch(array, static_cast<int>(lower), upper, first_doc_id);
 
 	ut_a(abs(pos) <= upper + 1);
 
@@ -1405,7 +1396,7 @@ fts_optimize_word(
 
 	if (fts_enable_diag_print) {
 		word->text.f_str[word->text.f_len] = 0;
-		fprintf(stderr, "FTS_OPTIMIZE: optimize \"%s\"\n",
+		ib_logf(IB_LOG_LEVEL_INFO, "FTS_OPTIMIZE: optimize \"%s\"",
 			word->text.f_str);
 	}
 
@@ -1486,7 +1477,7 @@ fts_optimize_write_word(
 	ut_ad(fts_table->charset);
 
 	if (fts_enable_diag_print) {
-		fprintf(stderr, "FTS_OPTIMIZE: processed \"%s\"\n",
+		ib_logf(IB_LOG_LEVEL_INFO, "FTS_OPTIMIZE: processed \"%s\"",
 			word->f_str);
 	}
 
@@ -1508,9 +1499,9 @@ fts_optimize_write_word(
 	error = fts_eval_sql(trx, graph);
 
 	if (error != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: (%s) during optimize, "
-			"when deleting a word from the FTS index.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"(%s) during optimize, when deleting a word"
+			" from the FTS index.",
 			ut_strerr(error));
 	}
 
@@ -1528,10 +1519,9 @@ fts_optimize_write_word(
 				trx, &graph, fts_table, word, node);
 
 			if (error != DB_SUCCESS) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr, " InnoDB: Error: (%s) "
-					"during optimize, while adding a "
-					"word to the FTS index.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) during optimize, while adding a"
+					" word to the FTS index.",
 					ut_strerr(error));
 			}
 		}
@@ -1822,9 +1812,9 @@ fts_optimize_words(
 	fetch.read_arg = optim->words;
 	fetch.read_record = fts_optimize_index_fetch_node;
 
-	fprintf(stderr, "%.*s\n", (int) word->f_len, word->f_str);
+	ib_logf(IB_LOG_LEVEL_INFO, "%.*s", (int) word->f_len, word->f_str);
 
-	while(!optim->done) {
+	while (!optim->done) {
 		dberr_t	error;
 		trx_t*	trx = optim->trx;
 		ulint	selected;
@@ -1871,13 +1861,13 @@ fts_optimize_words(
 				}
 			}
 		} else if (error == DB_LOCK_WAIT_TIMEOUT) {
-			fprintf(stderr, "InnoDB: Warning: lock wait timeout "
-				"during optimize. Retrying!\n");
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Lock wait timeout during optimize. Retrying!");
 
 			trx->error_state = DB_SUCCESS;
 		} else if (error == DB_DEADLOCK) {
-			fprintf(stderr, "InnoDB: Warning: deadlock "
-				"during optimize. Retrying!\n");
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Deadlock during optimize. Retrying!");
 
 			trx->error_state = DB_SUCCESS;
 		} else {
@@ -1958,8 +1948,9 @@ fts_optimize_index_completed(
 
 	if (error != DB_SUCCESS) {
 
-		fprintf(stderr, "InnoDB: Error: (%s) while "
-			"updating last optimized word!\n", ut_strerr(error));
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"(%s) while updating last optimized word!",
+			ut_strerr(error));
 	}
 
 	return(error);
@@ -2511,8 +2502,7 @@ fts_optimize_table(
 	fts_t*		fts = table->fts;
 
 	if (fts_enable_diag_print) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"FTS start optimize %s\n",
+		ib_logf(IB_LOG_LEVEL_INFO, "FTS start optimize %s",
 			table->name);
 	}
 
@@ -2565,9 +2555,9 @@ fts_optimize_table(
 		    && optim->n_completed == ib_vector_size(fts->indexes)) {
 
 			if (fts_enable_diag_print) {
-				fprintf(stderr, "FTS_OPTIMIZE: Completed "
-						"Optimize, cleanup DELETED "
-						"table\n");
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"FTS_OPTIMIZE: Completed"
+					" Optimize, cleanup DELETED table");
 			}
 
 			if (ib_vector_size(optim->to_delete->doc_ids) > 0) {
@@ -2589,9 +2579,7 @@ fts_optimize_table(
 	fts_optimize_free(optim);
 
 	if (fts_enable_diag_print) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"FTS end optimize %s\n",
-			table->name);
+		ib_logf(IB_LOG_LEVEL_INFO, "FTS end optimize %s", table->name);
 	}
 
 	return(error);
@@ -2747,7 +2735,7 @@ fts_optimize_start_table(
 
 	if (slot == NULL) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"table %s not registered with the optimize thread.\n",
+			"Table %s not registered with the optimize thread.",
 			table->name);
 	} else {
 		slot->last_run = 0;
@@ -2827,7 +2815,7 @@ fts_optimize_del_table(
 
 			if (fts_enable_diag_print) {
 				ib_logf(IB_LOG_LEVEL_INFO,
-					"FTS Optimize Removing table %s\n",
+					"FTS Optimize Removing table %s",
 					table->name);
 			}
 
@@ -3013,7 +3001,7 @@ fts_optimize_thread(
 
 	tables = ib_vector_create(heap_alloc, sizeof(fts_slot_t), 4);
 
-	while(!done && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	while (!done && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* If there is no message in the queue and we have tables
 		to optimize then optimize the tables. */

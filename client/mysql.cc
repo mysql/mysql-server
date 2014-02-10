@@ -201,7 +201,7 @@ static FILE *PAGER, *OUTFILE;
 static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
-static uint delimiter_length= 1;
+static size_t delimiter_length= 1;
 unsigned short terminal_width= 80;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -1136,11 +1136,11 @@ static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 static void kill_query(const char* reason);
-extern "C" sig_handler mysql_end(int sig);
-extern "C" sig_handler handle_ctrlc_signal(int sig);
-extern "C" sig_handler handle_quit_signal(int sig);
+extern "C" void mysql_end(int sig);
+extern "C" void handle_ctrlc_signal(int sig);
+extern "C" void handle_quit_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-static sig_handler window_resize(int sig);
+static void window_resize(int sig);
 #endif
 
 const char DELIMITER_NAME[]= "delimiter";
@@ -1413,7 +1413,7 @@ int main(int argc,char *argv[])
 #endif
 }
 
-sig_handler mysql_end(int sig)
+void mysql_end(int sig)
 {
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
@@ -1481,7 +1481,7 @@ sig_handler mysql_end(int sig)
   @param [IN]               Signal number
 */
 
-sig_handler handle_ctrlc_signal(int sig)
+void handle_ctrlc_signal(int sig)
 {
   sigint_received= 1;
 
@@ -1507,7 +1507,7 @@ sig_handler handle_ctrlc_signal(int sig)
   @param [IN]               Signal number
 */
 
-sig_handler handle_quit_signal(int sig)
+void handle_quit_signal(int sig)
 {
   const char *reason= "Terminal close";
 
@@ -1564,7 +1564,8 @@ void kill_query(const char *reason)
   if (verbose)
     tee_fprintf(stdout, "%s -- sending \"%s\" to server ...\n", reason,
                 kill_buffer);
-  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
+  mysql_real_query(kill_mysql, kill_buffer,
+                   static_cast<ulong>(strlen(kill_buffer)));
   tee_fprintf(stdout, "%s -- query aborted\n", reason);
 
 err:
@@ -1574,7 +1575,7 @@ err:
 
 
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-sig_handler window_resize(int sig)
+void window_resize(int sig)
 {
   struct winsize window_size;
 
@@ -5745,7 +5746,7 @@ com_resetconnection(String *buffer __attribute__((unused)),
   {
     if (status.batch)
       return 0;
-    return put_info("Unsupported command.\n",INFO_ERROR);
+    return put_error(&mysql);
   }
   return error;
 }

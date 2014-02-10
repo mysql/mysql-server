@@ -1,13 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # This is a wrapper for binlog.test so that the same test case can be used 
 # For both statement and row based bin logs 11/07/2005 [jbm]
 
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source extra/binlog_tests/ctype_cp932_binlog.test
+-- source include/no_valgrind_without_big.inc
+
 
 call mtr.add_suppression('Error in Log_event::read_log_event()');
 --disable_query_log

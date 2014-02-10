@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -989,7 +989,8 @@ bool mysql_update(THD *thd,
   } // End of scope for Modification_plan
 
   if (!transactional_table && updated > 0)
-    thd->transaction.stmt.mark_modified_non_trans_table();
+    thd->get_transaction()->mark_modified_non_trans_table(
+      Transaction_ctx::STMT);
 
   end_read_record(&info);
   delete saved_selects[0];
@@ -1013,7 +1014,8 @@ bool mysql_update(THD *thd,
     Sometimes we want to binlog even if we updated no rows, in case user used
     it to be sure master and slave are in same state.
   */
-  if ((error < 0) || thd->transaction.stmt.cannot_safely_rollback())
+  if ((error < 0) || thd->get_transaction()->cannot_safely_rollback(
+      Transaction_ctx::STMT))
   {
     if (mysql_bin_log.is_open())
     {
@@ -1024,7 +1026,7 @@ bool mysql_update(THD *thd,
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
 
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query(), thd->query_length(),
+                            thd->query().str, thd->query().length,
                             transactional_table, FALSE, FALSE, errcode))
       {
         error=1;				// Rollback update
@@ -1032,7 +1034,8 @@ bool mysql_update(THD *thd,
     }
   }
   DBUG_ASSERT(transactional_table || !updated ||
-              thd->transaction.stmt.cannot_safely_rollback());
+              thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT));
   free_underlaid_joins(thd, select_lex);
 
   /* If LAST_INSERT_ID(X) was used, report X */
@@ -1466,6 +1469,24 @@ int mysql_multi_update_prepare(THD *thd)
       DBUG_RETURN(TRUE);
   }
 
+  /*
+    When using a multi-table UPDATE command as a prepared statement,
+    1) We must validate values (the right argument 'expr' of 'SET col1=expr')
+    during PREPARE, so that:
+    - bad columns are reported by PREPARE
+    - cached_table is set for fields before query transformations (semijoin,
+    view merging...) are done and make resolution more difficult.
+    2) This validation is done by multi_update::prepare() but it is not called
+    by PREPARE.
+    3) So we do it below.
+  */
+  if (thd->stmt_arena->is_stmt_prepare())
+  {
+    if (setup_fields(thd, Ref_ptr_array(), lex->value_list, MARK_COLUMNS_NONE,
+                     NULL, false))
+      DBUG_RETURN(TRUE);
+  }
+
   /* check single table update for view compound from several tables */
   for (tl= table_list; tl; tl= tl->next_local)
   {
@@ -1690,8 +1711,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   update_tables= update.first;
 
   tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
-  tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *
-						   table_count);
+  tmp_table_param= new (thd->mem_root) Temp_table_param[table_count];
   fields_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      table_count);
   values_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
@@ -1823,8 +1843,8 @@ static bool safe_update_on_fly(THD *thd, JOIN_TAB *join_tab,
     if (bitmap_is_overlapping(&table->tmp_set, table->write_set))
       return FALSE;
     /* If range search on index */
-    if (join_tab->quick)
-      return !join_tab->quick->is_keys_used(table->write_set);
+    if (join_tab->select && join_tab->select->quick)
+      return !join_tab->select->quick->is_keys_used(table->write_set);
     /* If scanning in clustered key */
     if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
@@ -1875,12 +1895,30 @@ multi_update::initialize_tables(JOIN *join)
     uint cnt= table_ref->shared;
     List<Item> temp_fields;
     ORDER     group;
-    TMP_TABLE_PARAM *tmp_param;
+    Temp_table_param *tmp_param;
 
     if (ignore)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)			// First table in join
     {
+      /*
+        If there are at least two tables to update, t1 and t2, t1 being
+        before t2 in the plan, we need to collect all fields of t1 which
+        influence the selection of rows from t2. If those fields are also
+        updated, it will not be possible to update t1 on-the-fly.
+        Due to how the nested loop join algorithm works, when collecting
+        we can ignore the condition of t1.
+      */
+      if (update_tables->next_local)
+      {
+        for (JOIN_TAB *tab= join->join_tab + 1;
+             tab < join->join_tab + join->tables; tab++)
+        {
+          if(tab->condition())
+            tab->condition()->walk(&Item::add_field_to_set_processor, TRUE,
+                                   reinterpret_cast<uchar *>(table));
+        }
+      }
       if (safe_update_on_fly(thd, join->join_tab, table_ref, all_tables))
       {
         table->mark_columns_needed_for_update();
@@ -2031,7 +2069,8 @@ multi_update::~multi_update()
     delete [] copy_field;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   DBUG_ASSERT(trans_safe || !updated ||
-              thd->transaction.stmt.cannot_safely_rollback());
+              thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT));
 
   if (update_operations != NULL)
     for (uint i= 0; i < table_count; i++)
@@ -2137,7 +2176,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
           else
           {
             trans_safe= FALSE;
-            thd->transaction.stmt.mark_modified_non_trans_table();
+            thd->get_transaction()->mark_modified_non_trans_table(
+              Transaction_ctx::STMT);
           }
         }
       }
@@ -2231,7 +2271,8 @@ void multi_update::abort_result_set()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      (!thd->transaction.stmt.cannot_safely_rollback() && !updated))
+      (!thd->get_transaction()->cannot_safely_rollback(
+        Transaction_ctx::STMT) && !updated))
     return;
 
   /* Something already updated so we have to invalidate cache */
@@ -2245,7 +2286,8 @@ void multi_update::abort_result_set()
 
   if (! trans_safe)
   {
-    DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback());
+    DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
+      Transaction_ctx::STMT));
     if (do_update && table_count > 1)
     {
       /* Add warning here */
@@ -2256,7 +2298,7 @@ void multi_update::abort_result_set()
       (void) do_updates();
     }
   }
-  if (thd->transaction.stmt.cannot_safely_rollback())
+  if (thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT))
   {
     /*
       The query has to binlog because there's a modified non-transactional table
@@ -2272,11 +2314,13 @@ void multi_update::abort_result_set()
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       /* the error of binary logging is ignored */
       (void)thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query(), thd->query_length(),
-                        transactional_tables, FALSE, FALSE, errcode);
+                              thd->query().str, thd->query().length,
+                              transactional_tables, false, false, errcode);
     }
   }
-  DBUG_ASSERT(trans_safe || !updated || thd->transaction.stmt.cannot_safely_rollback());
+  DBUG_ASSERT(trans_safe || !updated ||
+              thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT));
 }
 
 
@@ -2442,7 +2486,8 @@ int multi_update::do_updates()
       else
       {
         trans_safe= FALSE;				// Can't do safe rollback
-        thd->transaction.stmt.mark_modified_non_trans_table();
+        thd->get_transaction()->mark_modified_non_trans_table(
+          Transaction_ctx::STMT);
       }
     }
     (void) table->file->ha_rnd_end();
@@ -2473,7 +2518,8 @@ err:
     else
     {
       trans_safe= FALSE;
-      thd->transaction.stmt.mark_modified_non_trans_table();
+      thd->get_transaction()->mark_modified_non_trans_table(
+        Transaction_ctx::STMT);
     }
   }
   DBUG_RETURN(1);
@@ -2519,7 +2565,8 @@ bool multi_update::send_eof()
     either from the query's list or via a stored routine: bug#13270,23333
   */
 
-  if (local_error == 0 || thd->transaction.stmt.cannot_safely_rollback())
+  if (local_error == 0 ||
+      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT))
   {
     if (mysql_bin_log.is_open())
     {
@@ -2529,7 +2576,7 @@ bool multi_update::send_eof()
       else
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                            thd->query(), thd->query_length(),
+                            thd->query().str, thd->query().length,
                             transactional_tables, FALSE, FALSE, errcode))
       {
 	local_error= 1;				// Rollback update
@@ -2537,7 +2584,8 @@ bool multi_update::send_eof()
     }
   }
   DBUG_ASSERT(trans_safe || !updated || 
-              thd->transaction.stmt.cannot_safely_rollback());
+              thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT));
 
   if (local_error != 0)
     error_handled= TRUE; // to force early leave from ::send_error()

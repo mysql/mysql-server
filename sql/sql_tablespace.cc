@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,6 +69,6 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
              "TABLESPACE or LOGFILE GROUP");
     DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
   }
-  error= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  error= write_bin_log(thd, false, thd->query().str, thd->query().length);
   DBUG_RETURN(error);
 }

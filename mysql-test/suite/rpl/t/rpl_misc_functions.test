@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of replicating some difficult functions
 #
@@ -34,7 +29,7 @@ insert into t1 values(4, connection_id(), rand()*1000, rand()*1000, password('do
 --enable_warnings
 select * into outfile 'rpl_misc_functions.outfile' from t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 create temporary table t2 like t1; 
 # read the values from the master table
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
@@ -93,7 +88,7 @@ INSERT INTO t1 (col_a) VALUES (test_replication_sf());
 INSERT INTO t1 (col_a) VALUES (test_replication_sf());
 --enable_warnings
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 # Dump table on slave
 select * from t1 into outfile "../../tmp/t1_slave.txt";
@@ -127,7 +122,7 @@ DROP PROCEDURE test_replication_sp1;
 DROP PROCEDURE test_replication_sp2;
 DROP FUNCTION test_replication_sf;
 --remove_file $MYSQLD_DATADIR/test/rpl_misc_functions.outfile
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 
 --source include/rpl_end.inc

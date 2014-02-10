@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,23 +60,6 @@ IF(NOT SYSTEM_TYPE)
   ELSE()
     SET(SYSTEM_TYPE ${CMAKE_SYSTEM_NAME})
   ENDIF()
-ENDIF()
-
-# Always enable -Wall for gnu C/C++
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCC)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-ENDIF()
-
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
-ENDIF()
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS
-    "${CMAKE_C_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
 ENDIF()
 
 # The default C++ library for SunPro is really old, and not standards compliant.
@@ -191,6 +174,11 @@ ENDIF()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
+  # Also extract real path to the compiler(which is normally
+  # in <install_path>/prod/bin) and try to find the
+  # stlport libs relative to that location as well.
+  GET_FILENAME_COMPONENT(CXX_REALPATH ${CMAKE_CXX_COMPILER} REALPATH)
+
   SET(STLPORT_SUFFIX "lib/stlport4")
   IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
     SET(STLPORT_SUFFIX "lib/stlport4/v9")
@@ -202,6 +190,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   FIND_LIBRARY(STL_LIBRARY_NAME
     NAMES "stlport"
     PATHS ${CXX_PATH}/../${STLPORT_SUFFIX}
+          ${CXX_REALPATH}/../../${STLPORT_SUFFIX}
   )
   MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
   IF(STL_LIBRARY_NAME)
@@ -210,7 +199,17 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
     MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
     INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
             DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    EXTEND_C_LINK_FLAGS(${STLPORT_PATH})
     EXTEND_CXX_LINK_FLAGS(${STLPORT_PATH})
+  ELSE()
+    MESSAGE(STATUS "Failed to find the reuired stlport library, print some"
+                   "variables to help debugging and bail out")
+    MESSAGE(STATUS "CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER}")
+    MESSAGE(STATUS "CXX_PATH ${CXX_PATH}")
+    MESSAGE(STATUS "CXX_REALPATH ${CXX_REALPATH}")
+    MESSAGE(STATUS "STLPORT_SUFFIX ${STLPORT_SUFFIX}")
+    MESSAGE(FATAL_ERROR
+      "Could not find the required stlport library.")
   ENDIF()
 ENDIF()
 
@@ -328,12 +327,13 @@ ENDIF()
 # Tests for header files
 #
 INCLUDE (CheckIncludeFiles)
+INCLUDE (CheckIncludeFileCXX)
 
 CHECK_INCLUDE_FILES (sys/types.h HAVE_SYS_TYPES_H)
 CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
 CHECK_INCLUDE_FILES (arpa/inet.h HAVE_ARPA_INET_H)
 CHECK_INCLUDE_FILES (crypt.h HAVE_CRYPT_H)
-CHECK_INCLUDE_FILES (cxxabi.h HAVE_CXXABI_H)
+CHECK_INCLUDE_FILE_CXX (cxxabi.h HAVE_CXXABI_H)
 CHECK_INCLUDE_FILES (dirent.h HAVE_DIRENT_H)
 CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
@@ -650,108 +650,13 @@ ENDIF()
 # Code tests
 #
 
-# check whether time_t is unsigned
-CHECK_C_SOURCE_COMPILES("
-#include <time.h>
-int main()
-{
-  int array[(((time_t)-1) > 0) ? 1 : -1];
-  return 0;
-}"
-TIME_T_UNSIGNED)
-
-
-CHECK_C_SOURCE_COMPILES("
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#endif
-int main()
-{
-  getaddrinfo( 0, 0, 0, 0);
-  return 0;
-}"
-HAVE_GETADDRINFO)
-
-CHECK_C_SOURCE_COMPILES("
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#endif
-int main()
-{
-  select(0,0,0,0,0);
-  return 0;
-}"
-HAVE_SELECT)
-
-#
-# Check return type of qsort()
-#
-CHECK_C_SOURCE_COMPILES("
-#include <stdlib.h>
-#ifdef __cplusplus
-extern \"C\"
-#endif
-void qsort(void *base, size_t nel, size_t width,
-  int (*compar) (const void *, const void *));
-int main(int ac, char **av) {}
-" QSORT_TYPE_IS_VOID)
-IF(QSORT_TYPE_IS_VOID)
-  SET(RETQSORTTYPE "void")
-ELSE(QSORT_TYPE_IS_VOID)
-  SET(RETQSORTTYPE "int")
-ENDIF(QSORT_TYPE_IS_VOID)
+SET(HAVE_GETADDRINFO 1) # Used by libevent
+SET(HAVE_SELECT 1) # Used by NDB/libevent
 
 IF(WIN32)
-SET(SOCKET_SIZE_TYPE int)
+  SET(SOCKET_SIZE_TYPE int)
 ELSE()
-CHECK_CXX_SOURCE_COMPILES("
-#include <sys/socket.h>
-int main(int argc, char **argv)
-{
-  getsockname(0,0,(socklen_t *) 0);
-  return 0; 
-}"
-HAVE_SOCKET_SIZE_T_AS_socklen_t)
-
-IF(HAVE_SOCKET_SIZE_T_AS_socklen_t)
   SET(SOCKET_SIZE_TYPE socklen_t)
-ELSE()
-  CHECK_CXX_SOURCE_COMPILES("
-  #include <sys/socket.h>
-  int main(int argc, char **argv)
-  {
-    getsockname(0,0,(int *) 0);
-    return 0; 
-  }"
-  HAVE_SOCKET_SIZE_T_AS_int)
-  IF(HAVE_SOCKET_SIZE_T_AS_int)
-    SET(SOCKET_SIZE_TYPE int)
-  ELSE()
-    CHECK_CXX_SOURCE_COMPILES("
-    #include <sys/socket.h>
-    int main(int argc, char **argv)
-    {
-      getsockname(0,0,(size_t *) 0);
-      return 0; 
-    }"
-    HAVE_SOCKET_SIZE_T_AS_size_t)
-    IF(HAVE_SOCKET_SIZE_T_AS_size_t)
-      SET(SOCKET_SIZE_TYPE size_t)
-    ELSE()
-      SET(SOCKET_SIZE_TYPE int)
-    ENDIF()
-  ENDIF()
-ENDIF()
 ENDIF()
 
 CHECK_CXX_SOURCE_COMPILES("
@@ -783,29 +688,6 @@ IF(NOT STACK_DIRECTION)
      MESSAGE(STATUS "Checking stack direction : ${STACK_DIRECTION}")
    ENDIF()
 ENDIF()
-
-#
-# Check return type of signal handlers
-#
-CHECK_C_SOURCE_COMPILES("
-#include <signal.h>
-#ifdef signal
-# undef signal
-#endif
-#ifdef __cplusplus
-extern \"C\" void (*signal (int, void (*)(int)))(int);
-#else
-void (*signal ()) ();
-#endif
-int main(int ac, char **av) {}
-" SIGNAL_RETURN_TYPE_IS_VOID)
-IF(SIGNAL_RETURN_TYPE_IS_VOID)
-  SET(RETSIGTYPE void)
-  SET(VOID_SIGHANDLER 1)
-ELSE(SIGNAL_RETURN_TYPE_IS_VOID)
-  SET(RETSIGTYPE int)
-ENDIF(SIGNAL_RETURN_TYPE_IS_VOID)
-
 
 CHECK_INCLUDE_FILES("time.h;sys/time.h" TIME_WITH_SYS_TIME)
 CHECK_SYMBOL_EXISTS(O_NONBLOCK "unistd.h;fcntl.h" HAVE_FCNTL_NONBLOCK)
@@ -839,17 +721,30 @@ ENDIF()
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
   STRING(TOLOWER ${CMAKE_SYSTEM_PROCESSOR}  processor)
   IF(processor MATCHES "86" OR processor MATCHES "amd64" OR processor MATCHES "x64")
-  #Check for x86 PAUSE instruction
-  # We have to actually try running the test program, because of a bug
-  # in Solaris on x86_64, where it wrongly reports that PAUSE is not
-  # supported when trying to run an application.  See
-  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6478684
-  CHECK_C_SOURCE_RUNS("
-  int main()
-  { 
-    __asm__ __volatile__ (\"pause\"); 
-    return 0;
-  }"  HAVE_PAUSE_INSTRUCTION)
+    IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+      # The loader in some Solaris versions has a bug due to which it refuses to
+      # start a binary that has been compiled by GCC and uses __asm__("pause")
+      # with the error:
+      # $ ./mysqld
+      # ld.so.1: mysqld: fatal: hardware capability unsupported: 0x2000 [ PAUSE ]
+      # Killed
+      # $
+      # Even though the CPU does have support for the instruction.
+      # Binaries that have been compiled by GCC and use __asm__("pause")
+      # on a non-buggy Solaris get flagged with a "uses pause" flag and
+      # thus they are unusable if copied on buggy Solaris version. To
+      # circumvent this we explicitly disable __asm__("pause") when
+      # compiling on Solaris. Subsequently the tests here will enable
+      # HAVE_FAKE_PAUSE_INSTRUCTION which will use __asm__("rep; nop")
+      # which currently generates the same code as __asm__("pause") - 0xf3 0x90
+      # but without flagging the binary as "uses pause".
+      CHECK_C_SOURCE_RUNS("
+      int main()
+      {
+        __asm__ __volatile__ (\"pause\");
+        return 0;
+      }"  HAVE_PAUSE_INSTRUCTION)
+    ENDIF()
   ENDIF()
   IF (NOT HAVE_PAUSE_INSTRUCTION)
     CHECK_C_SOURCE_COMPILES("
@@ -862,47 +757,6 @@ IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
   ENDIF()
 ENDIF()
   
-#
-# Check type of signal routines (posix, 4.2bsd, 4.1bsd or v7)
-#
-CHECK_C_SOURCE_COMPILES("
-  #include <signal.h>
-  int main(int ac, char **av)
-  {
-    sigset_t ss;
-    struct sigaction sa;
-    sigemptyset(&ss); sigsuspend(&ss);
-    sigaction(SIGINT, &sa, (struct sigaction *) 0);
-    sigprocmask(SIG_BLOCK, &ss, (sigset_t *) 0);
-  }"
-  HAVE_POSIX_SIGNALS)
-
-IF(NOT HAVE_POSIX_SIGNALS)
- CHECK_C_SOURCE_COMPILES("
-  #include <signal.h>
-  int main(int ac, char **av)
-  {
-    int mask = sigmask(SIGINT);
-    sigsetmask(mask); sigblock(mask); sigpause(mask);
-  }"
-  HAVE_BSD_SIGNALS)
-  IF (NOT HAVE_BSD_SIGNALS)
-    CHECK_C_SOURCE_COMPILES("
-    #include <signal.h>
-    void foo() { }
-    int main(int ac, char **av)
-    {
-      int mask = sigmask(SIGINT);
-      sigset(SIGINT, foo); sigrelse(SIGINT);
-      sighold(SIGINT); sigpause(SIGINT);
-    }"
-   HAVE_SVR3_SIGNALS)  
-   IF (NOT HAVE_SVR3_SIGNALS)
-    SET(HAVE_V7_SIGNALS 1)
-   ENDIF(NOT HAVE_SVR3_SIGNALS)
- ENDIF(NOT HAVE_BSD_SIGNALS)
-ENDIF(NOT HAVE_POSIX_SIGNALS)
-
 # Assume regular sprintf
 SET(SPRINTFS_RETURNS_INT 1)
 
@@ -959,9 +813,7 @@ CHECK_CXX_SOURCE_COMPILES("
   HAVE_SOLARIS_STYLE_GETHOST)
 
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-IF(WITH_ATOMIC_OPS STREQUAL "up")
-  SET(MY_ATOMIC_MODE_DUMMY 1 CACHE BOOL "Assume single-CPU mode, no concurrency")
-ELSEIF(WITH_ATOMIC_OPS STREQUAL "rwlocks")
+IF(WITH_ATOMIC_OPS STREQUAL "rwlocks")
   SET(MY_ATOMIC_MODE_RWLOCK 1 CACHE BOOL "Use pthread rwlocks for atomic ops")
 ELSEIF(WITH_ATOMIC_OPS STREQUAL "smp")
 ELSEIF(NOT WITH_ATOMIC_OPS)
@@ -1004,7 +856,7 @@ SET(WITH_ATOMIC_LOCKS "${WITH_ATOMIC_LOCKS}" CACHE STRING
 instructions for multi-processor or uniprocessor
 configuration. By default gcc built-in sync functions are used,
 if available and 'smp' configuration otherwise.")
-MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
+MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK)
 
 IF(WITH_VALGRIND)
   SET(VALGRIND_HEADERS "valgrind/memcheck.h;valgrind/valgrind.h")

@@ -1,5 +1,8 @@
-# This is a Myisam engine specific testcase
+# This tests the functionality of the Myisam engine
+# like repair,myisam-space-stripping,BUG#2295
+# All tests are required to run with Myisam
 # Hence MTR starts mysqld with MyISAM as default
+
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 

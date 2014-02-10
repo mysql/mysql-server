@@ -4,6 +4,8 @@
 SELECT @@GLOBAL.metadata_locks_hash_instances;
 @@GLOBAL.metadata_locks_hash_instances
 8
+Warnings:
+Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed in a future release.
 ####################################################################
 # Check that value cannot be set (this variable is settable only   #
 # at start-up).                                                    #
@@ -13,6 +15,8 @@ ERROR HY000: Variable 'metadata_locks_hash_instances' is a read only variable
 SELECT @@GLOBAL.metadata_locks_hash_instances;
 @@GLOBAL.metadata_locks_hash_instances
 8
+Warnings:
+Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed in a future release.
 #################################################################
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
@@ -21,9 +25,13 @@ FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='metadata_locks_hash_instances';
 @@GLOBAL.metadata_locks_hash_instances = VARIABLE_VALUE
 1
+Warnings:
+Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed in a future release.
 SELECT @@GLOBAL.metadata_locks_hash_instances;
 @@GLOBAL.metadata_locks_hash_instances
 8
+Warnings:
+Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed in a future release.
 SELECT VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='metadata_locks_hash_instances';
@@ -36,15 +44,22 @@ VARIABLE_VALUE
 SELECT @@metadata_locks_hash_instances = @@GLOBAL.metadata_locks_hash_instances;
 @@metadata_locks_hash_instances = @@GLOBAL.metadata_locks_hash_instances
 1
+Warnings:
+Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed in a future release.
+Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed in a future release.
 ######################################################################
 #  Check if variable has only the GLOBAL scope                       #
 ######################################################################
 SELECT @@metadata_locks_hash_instances;
 @@metadata_locks_hash_instances
 8
+Warnings:
+Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed in a future release.
 SELECT @@GLOBAL.metadata_locks_hash_instances;
 @@GLOBAL.metadata_locks_hash_instances
 8
+Warnings:
+Warning	1287	'@@metadata_locks_hash_instances' is deprecated and will be removed in a future release.
 SELECT @@local.metadata_locks_hash_instances;
 ERROR HY000: Variable 'metadata_locks_hash_instances' is a GLOBAL variable
 SELECT @@SESSION.metadata_locks_hash_instances;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,6 +96,7 @@ static bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
   @param table_list   The table for insert.
   @param fields       The insert fields.
   @param value_count  Number of values supplied
+                      = 0: INSERT ... SELECT, delay field count check
   @param check_unique If duplicate values should be rejected.
   @param[out] insert_table_ref resolved reference to base table
 
@@ -113,7 +114,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
   DBUG_ASSERT(table_list->updatable);
 
-  if (fields.elements == 0 && value_count != 0)
+  if (fields.elements == 0)
   {
     // No field list supplied, use field list of table being updated.
 
@@ -121,7 +122,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     *insert_table_ref= table_list;
 
-    if (value_count != table->s->fields)
+    if (value_count > 0 && value_count != table->s->fields)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return true;
@@ -146,7 +147,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     Name_resolution_context_state ctx_state;
     int res;
 
-    if (fields.elements != value_count)
+    if (value_count > 0 && fields.elements != value_count)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return true;
@@ -789,7 +790,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       DEBUG_SYNC(thd, "wait_after_query_cache_invalidate");
     }
 
-    if (error <= 0 || thd->transaction.stmt.cannot_safely_rollback())
+    if (error <= 0 || thd->get_transaction()->cannot_safely_rollback(
+        Transaction_ctx::STMT))
     {
       if (mysql_bin_log.is_open())
       {
@@ -825,14 +827,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	*/
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
         if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			           thd->query(), thd->query_length(),
+                              thd->query().str, thd->query().length,
 			           transactional_table, FALSE, FALSE,
                                    errcode))
 	  error= 1;
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
-                thd->transaction.stmt.cannot_safely_rollback());
+                thd->get_transaction()->cannot_safely_rollback(
+                  Transaction_ctx::STMT));
   }
   THD_STAGE_INFO(thd, stage_end);
   /*
@@ -1153,14 +1156,14 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   if (mysql_prepare_insert_check_table(thd, table_list, fields, select_insert))
     DBUG_RETURN(true);
 
+  // Save the state of the current name resolution context.
+  ctx_state.save_state(context, table_list);
+
   // Prepare the lists of columns and values in the statement.
   if (values)
   {
-    /* if we have INSERT ... VALUES () we cannot have a GROUP BY clause */
+    // if we have INSERT ... VALUES () we cannot have a GROUP BY clause
     DBUG_ASSERT (!select_lex->group_list.elements);
-
-    /* Save the state of the current name resolution context. */
-    ctx_state.save_state(context, table_list);
 
     /*
       Perform name resolution only in the first table - 'table_list',
@@ -1192,17 +1195,72 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (!res && duplic == DUP_UPDATE)
     {
       select_lex->no_wrap_view_item= true;
-      // Setup the fields to be modified
+      // Resolve the columns that will be updated
       res= setup_fields(thd, Ref_ptr_array(),
                         update_fields, MARK_COLUMNS_WRITE, 0, 0);
       select_lex->no_wrap_view_item= false;
       if (!res)
         res= check_valid_table_refs(table_list, update_fields, map);
     }
-
-    /* Restore the current context. */
-    ctx_state.restore_state(context, table_list);
   }
+  else if (thd->stmt_arena->is_stmt_prepare())
+  {
+    /*
+      This section of code is more or less a duplicate of the code  in
+      select_insert::prepare, and the 'if' branch above.
+      @todo Consolidate these three sections into one.
+    */
+    /*
+      Perform name resolution only in the first table - 'table_list',
+      which is the table that is inserted into.
+     */
+    table_list->next_local= NULL;
+    thd->dup_field= NULL;
+    context->resolve_in_table_list_only(table_list);
+
+    res= check_insert_fields(thd, context->table_list, fields, 0,
+                             !insert_into_view, insert_table_ref);
+    table_map map= 0;
+    if (!res)
+      map= (*insert_table_ref)->table->map;
+
+    if (!res && duplic == DUP_UPDATE)
+    {
+      select_lex->no_wrap_view_item= true;
+
+      // Resolve the columns that will be updated
+      res= setup_fields(thd, Ref_ptr_array(),
+                        update_fields, MARK_COLUMNS_WRITE, 0, 0);
+      select_lex->no_wrap_view_item= false;
+      if (!res)
+        res= check_valid_table_refs(table_list, update_fields, map);
+
+      DBUG_ASSERT(!table_list->next_name_resolution_table);
+      if (select_lex->group_list.elements == 0 && !select_lex->with_sum_func)
+      {
+        /*
+          There are two separata name resolution contexts:
+          the INSERT table and the tables in the SELECT expression 
+          Make a single context out of them by concatenating the lists:
+        */  
+        table_list->next_name_resolution_table= 
+          ctx_state.get_first_name_resolution_table();
+      }
+      thd->lex->in_update_value_clause= true;
+      if (!res)
+        res= setup_fields(thd, Ref_ptr_array(), update_values,
+                          MARK_COLUMNS_READ, 0, 0);
+      thd->lex->in_update_value_clause= false;
+
+      /*
+        Notice that there is no need to apply the Item::update_value_transformer
+        here, as this will be done during EXECUTE in select_insert::prepare().
+      */
+    }
+  }
+
+  // Restore the current name resolution context
+  ctx_state.restore_state(context, table_list);
 
   if (res)
     DBUG_RETURN(res);
@@ -1560,7 +1618,8 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             goto err;
           info->stats.deleted++;
           if (!table->file->has_transactions())
-            thd->transaction.stmt.mark_modified_non_trans_table();
+            thd->get_transaction()->mark_modified_non_trans_table(
+              Transaction_ctx::STMT);
           if (table->triggers &&
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_AFTER, TRUE))
@@ -1613,7 +1672,8 @@ ok_or_after_trg_err:
   if (key)
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
-    thd->transaction.stmt.mark_modified_non_trans_table();
+    thd->get_transaction()->mark_modified_non_trans_table(
+      Transaction_ctx::STMT);
   DBUG_RETURN(trg_error);
 
 err:
@@ -2067,7 +2127,8 @@ bool select_insert::send_eof()
   }
 
   DBUG_ASSERT(trans_table || !changed || 
-              thd->transaction.stmt.cannot_safely_rollback());
+              thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT));
 
   /*
     Write to binlog before commiting transaction.  No statement will
@@ -2076,7 +2137,8 @@ bool select_insert::send_eof()
     ha_autocommit_or_rollback() is issued below.
   */
   if (mysql_bin_log.is_open() &&
-      (!error || thd->transaction.stmt.cannot_safely_rollback()))
+      (!error || thd->get_transaction()->cannot_safely_rollback(
+        Transaction_ctx::STMT)))
   {
     int errcode= 0;
     if (!error)
@@ -2084,8 +2146,8 @@ bool select_insert::send_eof()
     else
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
     if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                      thd->query(), thd->query_length(),
-                      trans_table, FALSE, FALSE, errcode))
+                          thd->query().str, thd->query().length,
+                          trans_table, false, false, errcode))
     {
       table->file->ha_release_auto_increment();
       DBUG_RETURN(1);
@@ -2173,21 +2235,22 @@ void select_insert::abort_result_set() {
     */
     changed= (info.stats.copied || info.stats.deleted || info.stats.updated);
     transactional_table= table->file->has_transactions();
-    if (thd->transaction.stmt.cannot_safely_rollback())
+    if (thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT))
     {
         if (mysql_bin_log.is_open())
         {
           int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
           /* error of writing binary log is ignored */
-          (void) thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query(),
-                                   thd->query_length(),
+          (void) thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query().str,
+                                   thd->query().length,
                                    transactional_table, FALSE, FALSE, errcode);
         }
 	if (changed)
 	  query_cache.invalidate(thd, table, TRUE);
     }
     DBUG_ASSERT(transactional_table || !changed ||
-		thd->transaction.stmt.cannot_safely_rollback());
+		thd->get_transaction()->cannot_safely_rollback(
+		  Transaction_ctx::STMT));
     table->file->ha_release_auto_increment();
   }
 
@@ -2684,7 +2747,7 @@ bool select_create::send_eof()
     mark the flag at this point.
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-    thd->transaction.stmt.mark_created_temp_table();
+    thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
   bool tmp=select_insert::send_eof();
   if (tmp)
@@ -2736,7 +2799,7 @@ void select_create::abort_result_set()
   */
   tmp_disable_binlog(thd);
   select_insert::abort_result_set();
-  thd->transaction.stmt.reset_unsafe_rollback_flags();
+  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
   reenable_binlog(thd);
   /* possible error of writing binary log is ignored deliberately */
   (void) thd->binlog_flush_pending_rows_event(TRUE, TRUE);

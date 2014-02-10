@@ -28,10 +28,12 @@ create table t1 (a int not null auto_increment, b int not null, primary key(a)) 
 
 --connection server_1
 insert into t1 values (NULL, 1);
---sync_slave_with_master server_2
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
 
 --connection server_1
---sync_slave_with_master server_3
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
 
 --let $diff_tables= server_1:test.t1, server_2:test.t1, server_3:test.t1
 --source include/diff_tables.inc
@@ -47,7 +49,8 @@ insert into t1 values (NULL, 1);
 --connection server_1
 insert into t1 values (NULL, 2); # won't be seen by S3 until it connects to S2
 
---sync_slave_with_master server_2
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 
 --connection server_3
@@ -56,7 +59,8 @@ insert into t1 values (NULL, 2); # won't be seen by S3 until it connects to S2
 --source include/start_slave.inc
 
 --connection server_2
---sync_slave_with_master server_3
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
 
 --let $diff_tables= server_1:test.t1, server_2:test.t1, server_3:test.t1
 --source include/diff_tables.inc

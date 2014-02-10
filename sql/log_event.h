@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -834,8 +834,12 @@ typedef struct st_print_event_info
 
 
   /* Settings on how to print the events */
+  // True if the --short-form flag was specified
   bool short_form;
+  // The X in --base64-output=X
   enum_base64_output_mode base64_output_mode;
+  // True if the --skip-gtids flag was specified.
+  bool skip_gtids;
   /*
     This is set whenever a Format_description_event is printed.
     Later, when an event is printed in base64, this flag is tested: if
@@ -1210,6 +1214,48 @@ public:
                                    *description_event,
                                    my_bool crc_check);
 
+  /*
+   This function will read the common header into the buffer and
+   rewind the IO_CACHE back to the beginning of the event.
+
+   @param[in]         log_cache The IO_CACHE to read from.
+   @param[in/out]     header The buffer where to read the common header. This
+                      buffer must be at least LOG_EVENT_MINIMAL_HEADER_LEN long.
+
+   @returns           false on success, true otherwise.
+  */
+  inline static bool peek_event_header(char *header, IO_CACHE *log_cache)
+  {
+    DBUG_ENTER("Log_event::peek_event_header");
+    my_off_t old_pos= my_b_safe_tell(log_cache);
+    if (my_b_read(log_cache, (uchar*) header, LOG_EVENT_MINIMAL_HEADER_LEN))
+      DBUG_RETURN(true);
+    my_b_seek(log_cache, old_pos); // rewind
+    DBUG_RETURN(false);
+  }
+
+  /*
+   This static function will read the event length from the common
+   header that is on the IO_CACHE. Note that the IO_CACHE read position
+   will not be updated.
+
+   @param[in]         log_cache The IO_CACHE to read from.
+   @param[out]        length A pointer to the memory position where to store
+                      the length value.
+
+   @returns           false on success, true otherwise.
+  */
+
+  inline static bool peek_event_length(uint32* length, IO_CACHE *log_cache)
+  {
+    DBUG_ENTER("Log_event::peek_event_length");
+    char header[LOG_EVENT_MINIMAL_HEADER_LEN];
+    if (peek_event_header(header, log_cache))
+      DBUG_RETURN(true);
+    *length= uint4korr(header + EVENT_LEN_OFFSET);
+    DBUG_RETURN(false);
+  }
+
   /**
     Reads an event from a binlog or relay log. Used by the dump thread
     this method reads the event into a raw buffer without parsing it.
@@ -1580,7 +1626,12 @@ public:
    */
   enum_skip_reason shall_skip(Relay_log_info *rli)
   {
-    return do_shall_skip(rli);
+    DBUG_ENTER("Log_event::shall_skip");
+    enum_skip_reason ret= do_shall_skip(rli);
+    DBUG_PRINT("info", ("skip reason=%d=%s", ret,
+                        ret==EVENT_SKIP_NOT ? "NOT" :
+                        ret==EVENT_SKIP_IGNORE ? "IGNORE" : "COUNT"));
+    DBUG_RETURN(ret);
   }
 
   /**
@@ -2172,7 +2223,7 @@ public:
 
 #ifdef MYSQL_SERVER
 
-  Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
+  Query_log_event(THD* thd_arg, const char* query_arg, size_t query_length,
                   bool using_trans, bool immediate, bool suppress_use,
                   int error, bool ignore_command= FALSE);
   const char* get_db() { return db; }
@@ -4273,12 +4324,8 @@ protected:
     DBUG_ASSERT(m_table);
 
     ASSERT_OR_RETURN_ERROR(m_curr_row <= m_rows_end, HA_ERR_CORRUPT_EVENT);
-    int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, cols,
-                                   &m_curr_row_end, &m_master_reclength);
-    if (m_curr_row_end > m_rows_end)
-      my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
-    ASSERT_OR_RETURN_ERROR(m_curr_row_end <= m_rows_end, HA_ERR_CORRUPT_EVENT);
-    return result;
+    return ::unpack_row(rli, m_table, m_width, m_curr_row, cols,
+                                   &m_curr_row_end, &m_master_reclength, m_rows_end);
   }
 
   /*
@@ -4302,6 +4349,19 @@ protected:
   */
   int row_operations_scan_and_key_teardown(int error);
 
+  /**
+    Helper function to check whether there is an auto increment
+    column on the table where the event is to be applied.
+
+    @return true if there is an autoincrement field on the extra
+            columns, false otherwise.
+   */
+  inline bool is_auto_inc_in_extra_columns()
+  {
+    DBUG_ASSERT(m_table);
+    return (m_table->next_number_field &&
+            m_table->next_number_field->field_index >= m_width);
+  }
 #endif
 
 private:

@@ -1,3 +1,4 @@
+call mtr.add_suppression("\\[Warning\\] InnoDB: cannot calculate statistics for table \"test_wl5522\"\.\"t1\" because the \.ibd file is missing");
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table

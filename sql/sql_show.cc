@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2097,11 +2097,11 @@ private:
   Thread_info_array *m_thread_infos;
   /* THD of connected client. */
   THD *m_client_thd;
-  ulong m_max_query_length;
+  size_t m_max_query_length;
 
 public:
   List_process_list(const char *user_value, Thread_info_array *thread_infos,
-                    THD *thd_value, ulong max_query_length) :
+                    THD *thd_value, size_t max_query_length) :
                     m_user(user_value), m_thread_infos(thread_infos),
                     m_client_thd(thd_value),
                     m_max_query_length(max_query_length)
@@ -2168,14 +2168,14 @@ public:
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
     /* INFO */
-    if (inspect_thd->query())
+    if (inspect_thd->query().str)
     {
-      const size_t width= min<size_t>(m_max_query_length,
-                                      inspect_thd->query_length());
-      char *q= m_client_thd->strmake(inspect_thd->query(), width);
+      const size_t width= min(m_max_query_length,
+                              inspect_thd->query().length);
+      char *q= m_client_thd->strmake(inspect_thd->query().str, width);
       /* Safety: in case strmake failed, we set length to 0. */
       thd_info->query_string=
-        CSET_STRING(q, q ? width : 0, inspect_thd->query_charset());
+        CSET_STRING(q, q ? width : 0, inspect_thd->charset());
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
 
@@ -2191,8 +2191,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Item *field;
   List<Item> field_list;
   Thread_info_array thread_infos(thd->mem_root);
-  ulong max_query_length= (verbose ? thd->variables.max_allowed_packet :
-                           PROCESS_LIST_WIDTH);
+  size_t max_query_length= (verbose ? thd->variables.max_allowed_packet :
+                            PROCESS_LIST_WIDTH);
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
@@ -2347,11 +2347,12 @@ public:
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
     /* INFO */
-    if (inspect_thd->query())
+    if (inspect_thd->query().str)
     {
       const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
-                                      inspect_thd->query_length());
-      table->field[7]->store(inspect_thd->query(), width, system_charset_info);
+                                      inspect_thd->query().length);
+      table->field[7]->store(inspect_thd->query().str, width,
+                             inspect_thd->charset());
       table->field[7]->set_notnull();
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
@@ -2805,7 +2806,7 @@ bool schema_table_store_record(THD *thd, TABLE *table)
   int error;
   if ((error= table->file->ha_write_row(table->record[0])))
   {
-    TMP_TABLE_PARAM *param= table->pos_in_table_list->schema_table_param;
+    Temp_table_param *param= table->pos_in_table_list->schema_table_param;
 
     if (create_myisam_from_heap(thd, table, param->start_recinfo, 
                                 &param->recinfo, error, FALSE, NULL))
@@ -6968,9 +6969,10 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     item->maybe_null= (fields_info->field_flags & MY_I_S_MAYBE_NULL);
     field_count++;
   }
-  TMP_TABLE_PARAM *tmp_table_param =
-    (TMP_TABLE_PARAM*) (thd->alloc(sizeof(TMP_TABLE_PARAM)));
-  tmp_table_param->init();
+  Temp_table_param *tmp_table_param = new (thd->mem_root) Temp_table_param;
+  if (!tmp_table_param)
+    DBUG_RETURN(0);
+
   tmp_table_param->table_charset= cs;
   tmp_table_param->field_count= field_count;
   tmp_table_param->schema_table= 1;

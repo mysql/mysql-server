@@ -82,29 +82,19 @@
     <Property Id="INSTALLDIR">
       <RegistrySearch Id="FindInstallLocation"
           Root="HKLM"
+          @Win64@
           Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
           Name="InstallLocation"
           Type="raw" />
     </Property>
-    <?if @Platform@ != "x64" ?>
-        <Property Id="OLDERVERSION"> 
-          <RegistrySearch Id="FindOlderVersion"
-            Root="HKLM"
-            Win64 = "no"
-            Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
-            Name="DisplayVersion"
-            Type="raw" />
-        </Property>
-    <?else ?>
-        <Property Id="OLDERVERSION"> 
-          <RegistrySearch Id="FindOlderVersion"
-            Root="HKLM"
-            Win64 = "yes"
-            Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
-            Name="DisplayVersion"
-            Type="raw" />
-        </Property>
-    <?endif ?>
+    <Property Id="OLDERVERSION"> 
+      <RegistrySearch Id="FindOlderVersion"
+        Root="HKLM"
+        @Win64@
+        Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
+        Name="DisplayVersion"
+        Type="raw" />
+    </Property>
     <Property Id="DATADIR">
       <RegistrySearch Id="FindDataDir"
           Root="HKLM"

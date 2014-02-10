@@ -538,9 +538,11 @@ rec_get_offsets_func(
 	ulint			n_fields,/*!< in: maximum number of
 					initialized fields
 					 (ULINT_UNDEFINED if all fields) */
-	mem_heap_t**		heap,	/*!< in/out: memory heap */
+#ifdef UNIV_DEBUG
 	const char*		file,	/*!< in: file name where called */
-	ulint			line)	/*!< in: line number where called */
+	ulint			line,	/*!< in: line number where called */
+#endif /* UNIV_DEBUG */
+	mem_heap_t**		heap)	/*!< in/out: memory heap */
 {
 	ulint	n;
 	ulint	size;
@@ -585,9 +587,8 @@ rec_get_offsets_func(
 	if (UNIV_UNLIKELY(!offsets)
 	    || UNIV_UNLIKELY(rec_offs_get_n_alloc(offsets) < size)) {
 		if (UNIV_UNLIKELY(!*heap)) {
-			*heap = mem_heap_create_func(size * sizeof(ulint),
-						     MEM_HEAP_DYNAMIC,
-						     file, line);
+			*heap = mem_heap_create_at(size * sizeof(ulint),
+						   file, line);
 		}
 		offsets = static_cast<ulint*>(
 			mem_heap_alloc(*heap, size * sizeof(ulint)));
@@ -1641,7 +1642,8 @@ rec_validate_old(
 	n_fields = rec_get_n_fields_old(rec);
 
 	if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
-		fprintf(stderr, "InnoDB: Error: record has %lu fields\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Record has %lu fields",
 			(ulong) n_fields);
 		return(FALSE);
 	}
@@ -1650,8 +1652,8 @@ rec_validate_old(
 		data = rec_get_nth_field_old(rec, i, &len);
 
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
-			fprintf(stderr,
-				"InnoDB: Error: record field %lu len %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Record field %lu len %lu",
 				(ulong) i,
 				(ulong) len);
 			return(FALSE);
@@ -1669,8 +1671,8 @@ rec_validate_old(
 	}
 
 	if (len_sum != rec_get_data_size_old(rec)) {
-		fprintf(stderr,
-			"InnoDB: Error: record len should be %lu, len %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Record len should be %lu, len %lu",
 			(ulong) len_sum,
 			rec_get_data_size_old(rec));
 		return(FALSE);
@@ -1702,7 +1704,8 @@ rec_validate(
 	n_fields = rec_offs_n_fields(offsets);
 
 	if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
-		fprintf(stderr, "InnoDB: Error: record has %lu fields\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Record has %lu fields",
 			(ulong) n_fields);
 		return(FALSE);
 	}
@@ -1713,8 +1716,8 @@ rec_validate(
 		data = rec_get_nth_field(rec, offsets, i, &len);
 
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
-			fprintf(stderr,
-				"InnoDB: Error: record field %lu len %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Record field %lu len %lu",
 				(ulong) i,
 				(ulong) len);
 			return(FALSE);
@@ -1732,8 +1735,8 @@ rec_validate(
 	}
 
 	if (len_sum != rec_offs_data_size(offsets)) {
-		fprintf(stderr,
-			"InnoDB: Error: record len should be %lu, len %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Record len should be %lu, len %lu",
 			(ulong) len_sum,
 			(ulong) rec_offs_data_size(offsets));
 		return(FALSE);

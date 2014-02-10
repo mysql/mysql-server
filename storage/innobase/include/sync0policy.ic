@@ -85,6 +85,8 @@ void DebugPolicy<Mutex>::enter(
 	m_line = line;
 	m_file_name = name;
 
+	ut_a(m_file_name);
+
 	/* Check latch order violation. */
 	sync_check_lock(&m_latch);
 }

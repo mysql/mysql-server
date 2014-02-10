@@ -235,7 +235,7 @@ create table articles(`FTS_DOC_ID` serial,
 
 create fulltext index `idx5` on articles(`col115`)  ;
 
-alter ignore table articles add primary key  (`col32`)  ;
+alter table articles add primary key  (`col32`)  ;
 
 drop table articles;
 

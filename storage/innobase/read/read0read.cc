@@ -352,8 +352,8 @@ MVCC::MVCC(ulint size)
 
 		if (view == NULL) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
-				"Failed to allocate MVCC view: "
-				"read0read.cc:%d", __LINE__);
+				"Failed to allocate MVCC view:"
+				" read0read.cc:%d", __LINE__);
 		}
 
 		UT_LIST_ADD_FIRST(m_free, view);

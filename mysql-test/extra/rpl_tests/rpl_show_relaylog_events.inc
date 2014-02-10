@@ -18,7 +18,7 @@ INSERT INTO t1 VALUES (3);
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --source extra/rpl_tests/rpl_show_log_events_with_varying_options.inc
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --source extra/rpl_tests/rpl_show_log_events_with_varying_options.inc
 
@@ -49,7 +49,7 @@ DROP TABLE t1;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --source extra/rpl_tests/rpl_show_log_events_with_varying_options.inc
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --source extra/rpl_tests/rpl_show_log_events_with_varying_options.inc
 

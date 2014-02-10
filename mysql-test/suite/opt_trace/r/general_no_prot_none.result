@@ -6658,18 +6658,6 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
             ] /* considered_execution_plans */
           },
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "row_length": 12,
-                "key_length": 7,
-                "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 87381
-              } /* tmp_table_info */
-            } /* creating_tmp_table */
-          },
-          {
             "attaching_conditions_to_tables": {
               "original_condition": "(`t6`.`d` > 7000)",
               "attached_conditions_computation": [
@@ -6681,6 +6669,18 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 12,
+                "key_length": 7,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 87381
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
           },
           {
             "refine_plan": [

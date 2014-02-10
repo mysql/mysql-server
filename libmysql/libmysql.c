@@ -81,7 +81,7 @@ my_bool	net_flush(NET *net);
 #define unsigned_field(A) ((A)->flags & UNSIGNED_FLAG)
 
 static void append_wild(char *to,char *end,const char *wild);
-sig_handler my_pipe_sig_handler(int sig);
+void my_pipe_sig_handler(int sig);
 
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
@@ -297,7 +297,7 @@ mysql_debug(const char *debug __attribute__((unused)))
    ARGSUSED
 **************************************************************************/
 
-sig_handler
+void
 my_pipe_sig_handler(int sig __attribute__((unused)))
 {
   DBUG_PRINT("info",("Hit by signal %d",sig));
@@ -691,7 +691,7 @@ void mysql_set_local_infile_default(MYSQL *mysql)
 int STDCALL
 mysql_query(MYSQL *mysql, const char *query)
 {
-  return mysql_real_query(mysql,query, (uint) strlen(query));
+  return mysql_real_query(mysql,query, (ulong) strlen(query));
 }
 
 
@@ -3126,7 +3126,7 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
 */
 
 static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
-                                         uint length)
+                                         size_t length)
 {
   char *buffer= (char *)param->buffer;
   char *endptr= value + length;
