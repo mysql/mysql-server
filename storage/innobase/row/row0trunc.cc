@@ -2028,9 +2028,9 @@ truncate_t::fixup_tables()
 		drop indexes and re-create indexes. */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Completing truncate for table with id (%llu)"
+			"Completing truncate for table with id (" IB_ID_FMT ")"
 			" residing in space with id (%lu)",
-			(ullint) (*it)->m_old_table_id,
+			(*it)->m_old_table_id,
 			(ulong) (*it)->m_space_id);
 
 		if (!is_system_tablespace((*it)->m_space_id)) {
@@ -2518,11 +2518,11 @@ truncate_t::create_index(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"innodb_force_recovery was set to %lu."
 			" Continuing crash recovery even though"
-			" we failed to create index %llu for"
+			" we failed to create index " IB_ID_FMT " for"
 			" compressed table '%s' with tablespace"
 			" %lu during recovery",
 			srv_force_recovery,
-			(ullint) index_id, table_name, (ulong) space_id);
+			index_id, table_name, (ulong) space_id);
 	}
 
 	return(root_page_no);

@@ -88,7 +88,7 @@ if cond becomes true.
 @param max_wait_us in: maximum delay to wait, in microseconds */
 #define UT_WAIT_FOR(cond, max_wait_us)				\
 do {								\
-	ullint	start_us;					\
+	uintmax_t	start_us;					\
 	start_us = ut_time_us(NULL);				\
 	while (!(cond)						\
 	       && ut_time_us(NULL) - start_us < (max_wait_us)) {\
@@ -214,10 +214,10 @@ time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
 @return us since epoch */
 
-ullint
+uintmax_t
 ut_time_us(
 /*=======*/
-	ullint*	tloc);	/*!< out: us since epoch, if non-NULL */
+	uintmax_t*	tloc);	/*!< out: us since epoch, if non-NULL */
 /**********************************************************//**
 Returns the number of milliseconds since some epoch.  The
 value may wrap around.  It should only be used for heuristic
