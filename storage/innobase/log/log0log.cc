@@ -258,6 +258,12 @@ log_reserve_and_open(
 #endif /* UNIV_DEBUG */
 
 	if (len >= log->buf_size / 2) {
+		if (own_mutex) {
+			own_mutex = false;
+
+			log_mutex_exit();
+		}
+
 		DBUG_EXECUTE_IF("ib_log_buffer_is_short_crash",
 				DBUG_SUICIDE(););
 
