@@ -231,6 +231,16 @@ if (!$rpl_skip_change_master)
     {
       --echo \$_rpl_server='$_rpl_server' \$_rpl_master='$_rpl_master'
     }
+    if (!$use_gtids)
+    {
+      --let $rpl_connection_name= server_$_rpl_server
+      --source include/rpl_connection.inc
+      --let $_master_auto_position= query_get_value(SHOW SLAVE STATUS, Auto_Position, 1)
+      if ($_master_auto_position == 1)
+      {
+        CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+      }
+    }
     if ($_rpl_master != '')
     {
       # Get port number

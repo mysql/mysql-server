@@ -436,9 +436,15 @@ ib_senderrf(
 	ib_uint32_t	code,		/*!< MySQL error code */
 	...);				/*!< Args */
 
-extern const char* TROUBLESHOOTING_MSG;
-extern const char* TROUBLESHOOT_DATADICT_MSG;
-extern const char* BUG_REPORT_MSG;
+extern const char* 	TROUBLESHOOTING_MSG;
+extern const char* 	TROUBLESHOOT_DATADICT_MSG;
+extern const char* 	BUG_REPORT_MSG;
+extern const char* 	FORCE_RECOVERY_MSG;
+extern const char*      ERROR_CREATING_MSG;
+extern const char*      OPERATING_SYSTEM_ERROR_MSG;
+extern const char*      FOREIGN_KEY_CONSTRAINTS_MSG;
+extern const char*      SET_TRANSACTION_MSG;
+extern const char*      INNODB_PARAMETERS_MSG;
 
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: ".

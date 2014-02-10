@@ -450,7 +450,7 @@ trx_sysf_create(
 			    mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 
-	ut_a(buf_block_get_page_no(block) == TRX_SYS_PAGE_NO);
+	ut_a(block->page.id.page_no() == TRX_SYS_PAGE_NO);
 
 	page = buf_block_get_frame(block);
 
@@ -487,8 +487,8 @@ trx_sysf_create(
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
 	slot_no = trx_sysf_rseg_find_free(mtr, false, 0);
-	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
-					 mtr);
+	page_no = trx_rseg_header_create(TRX_SYS_SPACE, univ_page_size,
+					 ULINT_MAX, slot_no, mtr);
 
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
@@ -643,7 +643,8 @@ trx_sys_file_format_max_write(
 	mtr_start(&mtr);
 
 	block = buf_page_get(
-		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
+		RW_X_LATCH, &mtr);
 
 	file_format_max.id = format_id;
 	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
@@ -680,7 +681,8 @@ trx_sys_file_format_max_read(void)
 	mtr_start(&mtr);
 
 	block = buf_page_get(
-		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
+		RW_X_LATCH, &mtr);
 
 	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
 	file_format_id = mach_read_from_8(ptr);

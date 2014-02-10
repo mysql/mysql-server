@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,12 +33,12 @@
 class SJ_TMP_TABLE;
 struct TABLE;
 class THD;
-class TMP_TABLE_PARAM;
+class Temp_table_param;
 typedef struct st_order ORDER;
 typedef struct st_columndef MI_COLUMNDEF;
 
 TABLE *
-create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
+create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
 		 ulonglong select_options, ha_rows rows_limit,
 		 const char *table_alias);

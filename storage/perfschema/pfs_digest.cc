@@ -211,6 +211,7 @@ search:
   {
     /* digest_stat array is full. Add stat at index 0 and return. */
     pfs= &statements_digest_stat_array[0];
+    digest_lost++;
 
     if (pfs->m_first_seen == 0)
       pfs->m_first_seen= now;

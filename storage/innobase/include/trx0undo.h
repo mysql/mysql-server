@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -98,30 +98,31 @@ trx_read_roll_ptr(
 /*==============*/
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 #ifndef UNIV_HOTBACKUP
-/******************************************************************//**
-Gets an undo log page and x-latches it.
+
+/** Gets an undo log page and x-latches it.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to page x-latched */
 UNIV_INLINE
 page_t*
 trx_undo_page_get(
-/*==============*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	mtr_t*	mtr);		/*!< in: mtr */
-/******************************************************************//**
-Gets an undo log page and s-latches it.
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	mtr_t*			mtr);
+
+/** Gets an undo log page and s-latches it.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to page s-latched */
 UNIV_INLINE
 page_t*
 trx_undo_page_get_s_latched(
-/*========================*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	mtr_t*	mtr);		/*!< in: mtr */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	mtr_t*			mtr);
+
 /******************************************************************//**
 Returns the previous undo record on the page in the specified log, or
 NULL if none exists.
@@ -189,20 +190,24 @@ trx_undo_get_next_rec(
 	ulint		page_no,/*!< in: undo log header page number */
 	ulint		offset,	/*!< in: undo log header offset on page */
 	mtr_t*		mtr);	/*!< in: mtr */
-/***********************************************************************//**
-Gets the first record in an undo log.
-@return undo log record, the page latched, NULL if none */
 
+/** Gets the first record in an undo log.
+@param[in]	space		undo log header space
+@param[in]	page_size	page size
+@param[in]	page_no		undo log header page number
+@param[in]	offset		undo log header offset on page
+@param[in]	mode		latching mode: RW_S_LATCH or RW_X_LATCH
+@param[in,out]	mtr		mini-transaction
+@return undo log record, the page latched, NULL if none */
 trx_undo_rec_t*
 trx_undo_get_first_rec(
-/*===================*/
-	ulint	space,	/*!< in: undo log header space */
-	ulint	zip_size,/*!< in: compressed page size in bytes
-			or 0 for uncompressed pages */
-	ulint	page_no,/*!< in: undo log header page number */
-	ulint	offset,	/*!< in: undo log header offset on page */
-	ulint	mode,	/*!< in: latching mode: RW_S_LATCH or RW_X_LATCH */
-	mtr_t*	mtr);	/*!< in: mtr */
+	ulint			space,
+	const page_size_t&	page_size,
+	ulint			page_no,
+	ulint			offset,
+	ulint			mode,
+	mtr_t*			mtr);
+
 /********************************************************************//**
 Tries to add a page to the undo log segment where the undo log is placed.
 @return X-latched block if success, else NULL */
@@ -373,22 +378,25 @@ Parses the redo log entry of an undo log page initialization.
 byte*
 trx_undo_parse_page_init(
 /*=====================*/
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr);	/*!< in: mtr or NULL */
-/***********************************************************//**
-Parses the redo log entry of an undo log page header create or reuse.
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
+	page_t*		page,	/*!< in: page or NULL */
+	mtr_t*		mtr);	/*!< in: mtr or NULL */
+/** Parse the redo log entry of an undo log page header create or reuse.
+@param[in]	type	MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE
+@param[in]	ptr	redo log record
+@param[in]	end_ptr	end of log buffer
+@param[in,out]	page	page frame or NULL
+@param[in,out]	mtr	mini-transaction or NULL
 @return end of log record or NULL */
 
 byte*
 trx_undo_parse_page_header(
-/*=======================*/
-	ulint	type,	/*!< in: MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE */
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr);	/*!< in: mtr or NULL */
+	mlog_id_t	type,
+	const byte*	ptr,
+	const byte*	end_ptr,
+	page_t*		page,
+	mtr_t*		mtr);
 /***********************************************************//**
 Parses the redo log entry of an undo log page header discard.
 @return end of log record or NULL */
@@ -430,7 +438,7 @@ trx_undo_mem_free(
 /** Transaction undo log memory object; this is protected by the undo_mutex
 in the corresponding transaction object */
 
-struct trx_undo_t{
+struct trx_undo_t {
 	/*-----------------------------*/
 	ulint		id;		/*!< undo log slot number within the
 					rollback segment */
@@ -457,8 +465,7 @@ struct trx_undo_t{
 	/*-----------------------------*/
 	ulint		space;		/*!< space id where the undo log
 					placed */
-	ulint		zip_size;	/*!< compressed page size of space
-					in bytes, or 0 for uncompressed */
+	page_size_t	page_size;
 	ulint		hdr_page_no;	/*!< page number of the header page in
 					the undo log */
 	ulint		hdr_offset;	/*!< header offset of the undo log on

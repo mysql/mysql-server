@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # WL6402: Non blocking show slave status
 #
 # Add a option to "SHOW SLAVE STATUS" command that when used,
@@ -17,7 +12,7 @@
 --source include/master-slave.inc
 
 --echo [connection slave]
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 SET @slave_debug_save= @@GLOBAL.DEBUG;
 
 

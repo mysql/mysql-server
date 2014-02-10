@@ -16,6 +16,7 @@ update performance_schema.threads SET instrumented = 'YES'
   WHERE PROCESSLIST_ID=connection_id();
 
 # reset lost counters
+truncate table performance_schema.events_statements_summary_by_digest;
 flush status;
 
 --disable_warnings

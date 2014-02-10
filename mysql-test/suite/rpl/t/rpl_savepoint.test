@@ -1,5 +1,6 @@
 --source include/master-slave.inc
 --source include/have_innodb.inc
+--source include/have_myisam.inc
 
 --echo #
 --echo # Bug#50124 Rpl failure on DROP table with concurrent txn/non-txn

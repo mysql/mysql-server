@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -196,11 +196,11 @@ else
 
 my $flags;
 $flags->{libs} =
-  [@ldflags,@lib_opts,'@ZLIB_DEPS@','@NON_THREADED_LIBS@','@openssl_libs@','@STATIC_NSS_FLAGS@'];
+  [@ldflags,@lib_opts,'@ZLIB_DEPS@','@CLIENT_LIBS@','@openssl_libs@'];
 $flags->{libs_r} =
-  [@ldflags,@lib_r_opts,'@ZLIB_DEPS@','@LIBS@','@openssl_libs@'];
+  [@ldflags,@lib_r_opts,'@ZLIB_DEPS@','@CLIENT_LIBS@','@openssl_libs@'];
 $flags->{embedded_libs} =
-  [@ldflags,@lib_e_opts,'@LIBDL@','@ZLIB_DEPS@','@LIBS@','@WRAPLIBS@','@openssl_libs@'];
+  [@ldflags,@lib_e_opts,'@ZLIB_DEPS@','@LIBS@','@WRAPLIBS@','@openssl_libs@'];
 
 $flags->{include} = ["-I$pkgincludedir"];
 $flags->{cflags}  = [@{$flags->{include}},split(" ",'@CFLAGS@')];
@@ -210,7 +210,7 @@ $flags->{cxxflags}= [@{$flags->{include}},split(" ",'@CXXFLAGS@')];
 # Remove some options that a client doesn't have to care about
 # ----------------------------------------------------------------------
 
-my $filter = join("|", @exclude_cflags);
+my $filter = "-".join("|[/-]", @exclude_cflags);
 my @tmp = @{$flags->{cflags}};          # Copy the flag list
 $flags->{cflags} = [];                  # Clear it
 foreach my $cflag ( @tmp )
@@ -261,8 +261,7 @@ Options:
         --libs_r         [$libs_r]
         --socket         [$socket]
         --port           [$port]
-        --version        [$version]
-        --libmysqld-libs [$embedded_libs]
+        --version        [$version]@LIBMYSQLD_LIBS_USAGE@
 EOF
   exit 1;
 }
@@ -285,7 +284,7 @@ GetOptions(
            "port"    => sub { print "$port\n" },
            "version" => sub { print "$version\n" },
            "embedded-libs|embedded|libmysqld-libs" =>
-             sub { print "$embedded_libs\n" },
+             sub { @DISABLE_EMBEDDED_PL@ print "$embedded_libs\n" },
            ) or usage();
 
 exit 0

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test that GRANT is not replicated to the slave
 # when --replicate-wild-ignore-table=mysql.%
 # In BUG#980, this test would _randomly_ fail.

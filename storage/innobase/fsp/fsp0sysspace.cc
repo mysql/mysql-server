@@ -532,6 +532,25 @@ SysTablespace::read_lsn_and_check_flags()
 
 			set_flags(it->m_flags);
 
+			buf_dblwr_init_or_load_pages(it->handle(), it->filepath(),
+						     true);
+
+			/* Check the contents of the first page of the
+			first datafile */
+			for (int retry = 0; retry < 2; ++retry) {
+				err = it->validate_first_page();
+				if (err != DB_SUCCESS && retry == 0) {
+					if (it->restore_from_doublewrite(0)
+					    == DB_SUCCESS) {
+						continue;
+					}
+				}
+				if (err != DB_SUCCESS) {
+					it->close();
+					return(err);
+				}
+			}
+
 			/* Make sure the tablespace space ID matches the
 			space ID on the first page of the first datafile. */
 			if (space_id() != it->m_space_id) {
@@ -545,13 +564,6 @@ SysTablespace::read_lsn_and_check_flags()
 				return(err);
 			}
 
-			/* Check the contents of the first page of the
-			first datafile */
-			err = it->validate_first_page();
-			if (err != DB_SUCCESS) {
-				it->close();
-				return(err);
-			}
 		}
 
 		it->close();
@@ -811,7 +823,8 @@ SysTablespace::open_or_create(
 	lsn_t*	min_lsn,
 	lsn_t*	max_lsn)
 {
-	dberr_t		err = DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
+	fil_space_t*	space	= NULL;
 
 	ut_ad(!m_files.empty());
 
@@ -848,7 +861,7 @@ SysTablespace::open_or_create(
 		}
 	}
 
-	if (create_new_db) {
+	if (create_new_db && min_lsn != NULL && max_lsn != NULL) {
 		/* Validate the header page in the first datafile
 		and read LSNs fom the others. */
 		err = read_lsn_and_check_flags();
@@ -874,7 +887,7 @@ SysTablespace::open_or_create(
 
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
-			fil_space_create(
+			space = fil_space_create(
 				it->m_filepath, space_id(), flags,
 				FIL_TABLESPACE);
 		}
@@ -882,11 +895,9 @@ SysTablespace::open_or_create(
 		ut_a(fil_validate());
 
 		/* Open the data file. */
-		const char*	filename = fil_node_create(
+		if (!fil_node_create(
 			it->m_filepath, it->m_size,
-			space_id(), it->m_type != SRV_NOT_RAW);
-
-		if (filename == 0) {
+			space, it->m_type != SRV_NOT_RAW)) {
 		       err = DB_ERROR;
 		       break;
 		}
