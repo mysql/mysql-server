@@ -834,8 +834,12 @@ typedef struct st_print_event_info
 
 
   /* Settings on how to print the events */
+  // True if the --short-form flag was specified
   bool short_form;
+  // The X in --base64-output=X
   enum_base64_output_mode base64_output_mode;
+  // True if the --skip-gtids flag was specified.
+  bool skip_gtids;
   /*
     This is set whenever a Format_description_event is printed.
     Later, when an event is printed in base64, this flag is tested: if
@@ -1622,7 +1626,12 @@ public:
    */
   enum_skip_reason shall_skip(Relay_log_info *rli)
   {
-    return do_shall_skip(rli);
+    DBUG_ENTER("Log_event::shall_skip");
+    enum_skip_reason ret= do_shall_skip(rli);
+    DBUG_PRINT("info", ("skip reason=%d=%s", ret,
+                        ret==EVENT_SKIP_NOT ? "NOT" :
+                        ret==EVENT_SKIP_IGNORE ? "IGNORE" : "COUNT"));
+    DBUG_RETURN(ret);
   }
 
   /**

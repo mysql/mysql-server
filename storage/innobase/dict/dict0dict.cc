@@ -196,17 +196,6 @@ FILE*	dict_foreign_err_file		= NULL;
 /* mutex protecting the foreign and unique error buffers */
 ib_mutex_t	dict_foreign_err_mutex;
 
-/******************************************************************//**
-Makes all characters in a NUL-terminated UTF-8 string lower case. */
-
-void
-dict_casedn_str(
-/*============*/
-	char*	a)	/*!< in/out: string to put in lower case */
-{
-	innobase_casedn_str(a);
-}
-
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return TRUE if same db name */
@@ -2153,7 +2142,6 @@ dict_index_too_big_for_tree(
 	const dict_table_t*	table,		/*!< in: table */
 	const dict_index_t*	new_index)	/*!< in: index */
 {
-	ulint	zip_size;
 	ulint	comp;
 	ulint	i;
 	/* maximum possible storage size of a record */
@@ -2174,20 +2162,22 @@ dict_index_too_big_for_tree(
 		return(FALSE););
 
 	comp = dict_table_is_comp(table);
-	zip_size = dict_table_zip_size(table);
 
-	if (zip_size && zip_size < UNIV_PAGE_SIZE) {
+	const page_size_t	page_size(dict_table_page_size(table));
+
+	if (page_size.is_compressed()
+	    && page_size.physical() < univ_page_size.physical()) {
 		/* On a compressed page, two records must fit in the
-		uncompressed page modification log.  On compressed
-		pages with zip_size == UNIV_PAGE_SIZE, this limit will
-		never be reached. */
+		uncompressed page modification log. On compressed pages
+		with size.physical() == univ_page_size.physical(),
+		this limit will never be reached. */
 		ut_ad(comp);
 		/* The maximum allowed record size is the size of
 		an empty page, minus a byte for recoding the heap
 		number in the page modification log.  The maximum
 		allowed node pointer size is half that. */
 		page_rec_max = page_zip_empty_size(new_index->n_fields,
-						   zip_size);
+						   page_size.physical());
 		if (page_rec_max) {
 			page_rec_max--;
 		}
@@ -3342,10 +3332,7 @@ dict_foreign_error_report(
 	if (fk->foreign_index) {
 		fputs("The index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, FALSE, fk->foreign_index->name);
-		fputs("\n"
-		      "See " REFMAN "innodb-foreign-key-constraints.html\n"
-		      "for correct foreign key definition.\n",
-		      file);
+		fprintf(file, "\n%s\n", FOREIGN_KEY_CONSTRAINTS_MSG);
 	}
 	mutex_exit(&dict_foreign_err_mutex);
 }
@@ -4377,10 +4364,9 @@ col_loop1:
 		fputs("There is no index in table ", ef);
 		ut_print_name(ef, NULL, TRUE, name);
 		fprintf(ef, " where the columns appear\n"
-			"as the first columns. Constraint:\n%s\n"
-			"See " REFMAN "innodb-foreign-key-constraints.html\n"
-			"for correct foreign key definition.\n",
-			start_of_latest_foreign);
+			"as the first columns. Constraint:\n%s\n%s",
+			start_of_latest_foreign,
+			FOREIGN_KEY_CONSTRAINTS_MSG);
 		mutex_exit(&dict_foreign_err_mutex);
 
 		return(DB_CHILD_NO_INDEX);
@@ -4661,11 +4647,9 @@ try_find_index:
 				"tables created with >= InnoDB-4.1.12,"
 				" and such columns in old tables\n"
 				"cannot be referenced by such columns"
-				" in new tables.\n"
-				"See " REFMAN
-				"innodb-foreign-key-constraints.html\n"
-				"for correct foreign key definition.\n",
-				start_of_latest_foreign);
+				" in new tables.\n%s\n",
+				start_of_latest_foreign,
+				FOREIGN_KEY_CONSTRAINTS_MSG);
 			mutex_exit(&dict_foreign_err_mutex);
 
 			return(DB_PARENT_NO_INDEX);
@@ -6045,9 +6029,8 @@ dict_fs2utf8(
 	db[db_len] = '\0';
 
 	strconvert(
-		&my_charset_filename, db,
-		system_charset_info, db_utf8, (uint) db_utf8_size,
-		&errors);
+		&my_charset_filename, db, system_charset_info,
+		db_utf8, static_cast<uint>(db_utf8_size), &errors);
 
 	/* convert each # to @0023 in table name and store the result in buf */
 	const char*	table = dict_remove_db_name(db_and_table);
@@ -6072,8 +6055,8 @@ dict_fs2utf8(
 
 	errors = 0;
 	strconvert(
-		&my_charset_filename, buf,
-		system_charset_info, table_utf8, (uint) table_utf8_size,
+		&my_charset_filename, buf, system_charset_info,
+		table_utf8, static_cast<uint>(table_utf8_size),
 		&errors);
 
 	if (errors != 0) {

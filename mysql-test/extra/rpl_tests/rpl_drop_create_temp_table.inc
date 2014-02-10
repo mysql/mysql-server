@@ -1,5 +1,6 @@
 --source include/have_innodb.inc
 --disable_abort_on_error
+--source include/have_myisam.inc
 
 if (`SELECT HEX(@commands) = HEX('configure')`)
 {

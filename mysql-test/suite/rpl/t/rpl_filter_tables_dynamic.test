@@ -41,6 +41,7 @@
 # because of non-exist tables.
 #
 
+source include/not_gtid_enabled.inc;
 source include/have_binlog_format_statement.inc;
 source include/master-slave.inc;
 

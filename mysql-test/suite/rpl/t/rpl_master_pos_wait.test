@@ -1,14 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Check what happens when there is an error with parameters provided
 # to MASTER_POS_WAIT and when it timeouts.
 #
 source include/master-slave.inc;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # MASTER_POS_WAIT: Check if time-out is correctly handled.

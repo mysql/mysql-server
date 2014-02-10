@@ -20,8 +20,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 INSERT INTO t1 VALUES (10);
 EXPLAIN INSERT INTO t1 SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 INSERT INTO t1 SELECT * FROM t2;
 REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
 EXPLAIN REPLACE INTO t1 VALUES (10);
@@ -58,8 +58,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 REPLACE INTO t1 VALUES (10);
 EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 REPLACE INTO t1 SELECT * FROM t2;
 REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
 EXPLAIN UPDATE t1 SET a = a + 1;
