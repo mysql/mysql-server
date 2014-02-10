@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #ifdef MYSQL_CLIENT
 
 #include "sql_priv.h"
+#include "mysqld_error.h"
 
 #else
 
@@ -45,7 +46,13 @@
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
 #include <mysql/psi/mysql_statement.h>
-
+#define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
+Error_log_throttle
+slave_ignored_err_throttle(window_size,
+                           sql_print_information,
+                           "Error log throttle: %lu time(s) Error_code: 1237"
+                           " \"Slave SQL thread ignored the query because of"
+                           " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
 
 #include <base64.h>
@@ -75,7 +82,7 @@ I_List<i_string_pair> binlog_rewrite_db;
   "from_db->to_db" during the transformation of the database name
   of the event read from the binlog.
 */
-const char* rewrite_to_db;
+const char* rewrite_to_db= 0;
 
 #endif
 
@@ -256,7 +263,9 @@ int rewrite_buffer(char **buf, int event_len,
   uint8 temp_length= event_len - (temp_length_l + old_db_len +2);
   memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
 
+  my_free(*buf);
   *buf= temp_rewrite_buf;
+  my_free((void*)rewrite_to_db);
   return (event_len + replace_segment);
 }
 
@@ -2204,17 +2213,9 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       my_decimal dec;
       binary2my_decimal(E_DEC_FATAL_ERROR, (uchar*) ptr, &dec,
                         precision, decimals);
-      int i;
-      char buff[512], *pos;
-      pos= buff;
-      pos+= sprintf(buff, "%s", dec.sign() ? "-" : "");
-      /*Print integral part, decimal point, fractional part*/
-      for (i= 0; i < ROUND_UP(dec.intg); i ++)
-        pos+= sprintf(pos, "%09d", dec.buf[i]);
-      if(ROUND_UP(dec.frac)>0)
-        pos+= sprintf(pos, "%s", ".");
-      for (i= ROUND_UP(dec.intg); i < ROUND_UP(dec.intg) + ROUND_UP(dec.frac); i ++)
-        pos+= sprintf(pos, "%09d", dec.buf[i]);
+      int len= DECIMAL_MAX_STR_LENGTH;
+      char buff[DECIMAL_MAX_STR_LENGTH + 1];
+      decimal2string(&dec,buff,&len, 0, 0, 0);
       my_b_printf(file, "%s", buff);
       return bin_size;
     }
@@ -2513,6 +2514,17 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
       continue;
     
     my_b_printf(file, "###   @%d=", static_cast<int>(i + 1));
+    if (!is_null)
+    {
+      size_t fsize= td->calc_field_size((uint)i, (uchar*) value);
+      if (value + fsize > m_rows_end)
+      {
+        my_b_printf(file, "***Corrupted replication event was detected."
+                    " Not printing the value***\n");
+        value+= fsize;
+        return 0;
+      }
+    }
     size_t size= log_event_print_value(file,is_null? NULL: value,
                                          td->type(i), td->field_metadata(i),
                                          typestr, sizeof(typestr));
@@ -3830,7 +3842,7 @@ Query_log_event::Query_log_event()
                       deciding which cache must be used.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
-				 ulong query_length, bool using_trans,
+				 size_t query_length, bool using_trans,
 				 bool immediate, bool suppress_use,
                                  int errcode, bool ignore_cmd_internals)
 
@@ -4806,8 +4818,11 @@ static bool is_silent_error(THD* thd)
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                       const char *query_arg, uint32 q_len_arg)
 {
+  DBUG_ENTER("Query_log_event::do_apply_event");
   int expected_error,actual_error= 0;
   HA_CREATE_INFO db_options;
+
+  DBUG_PRINT("info", ("query=%s", query));
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -4891,11 +4906,10 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
     thd->set_time(&when);
-    thd->set_query_and_id((char*)query_arg, q_len_arg,
-                          thd->charset(), next_query_id());
+    thd->set_query_and_id(query_arg, q_len_arg, next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     attach_temp_tables_worker(thd, rli);
-    DBUG_PRINT("query",("%s", thd->query()));
+    DBUG_PRINT("query",("%s", thd->query().str));
 
     if (ignored_error_code((expected_error= error_code)) ||
 	!unexpected_error_code(expected_error))
@@ -4957,7 +4971,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             result. This should be acceptable now. This is a reminder
             to fix this if any refactoring happens here sometime.
           */
-          thd->set_query((char*) query_arg, q_len_arg, thd->charset());
+          thd->set_query(query_arg, q_len_arg);
         }
       }
       if (time_zone_len)
@@ -5015,16 +5029,17 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       }
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
-      if (!parser_state.init(thd, thd->query(), thd->query_length()))
+      if (!parser_state.init(thd, thd->query().str, thd->query().length))
       {
         thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                     stmt_info_rpl.m_key,
                                                     thd->db, thd->db_length,
                                                     thd->charset(), NULL);
-        THD_STAGE_INFO(thd, stage_init);
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
+        THD_STAGE_INFO(thd, stage_starting);
+        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
+                                 thd->query().length);
 
-        mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+        mysql_parse(thd, &parser_state);
         /* Finalize server status flags after executing a statement. */
         thd->update_server_status();
         log_slow_statement(thd);
@@ -5053,12 +5068,12 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         we exit gracefully; otherwise we warn about the bad error and tell DBA
         to check/fix it.
       */
-      if (mysql_test_parse_for_slave(thd, thd->query(), thd->query_length()))
+      if (mysql_test_parse_for_slave(thd))
         clear_all_errors(thd, const_cast<Relay_log_info*>(rli)); /* Can ignore query */
       else
       {
         rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER, ER(ER_ERROR_ON_MASTER),
-                    expected_error, thd->query());
+                    expected_error, thd->query().str);
         thd->is_slave_error= 1;
       }
       goto end;
@@ -5076,8 +5091,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
          parsed statement is the same as the raw one.
        */
       if (opt_general_log_raw || thd->rewritten_query.length() == 0)
-        query_logger.general_log_write(thd, COM_QUERY, thd->query(),
-                                       thd->query_length());
+        query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
+                                       thd->query().length);
       else
         query_logger.general_log_write(thd, COM_QUERY,
                                        thd->rewritten_query.c_ptr_safe(),
@@ -5130,9 +5145,20 @@ compare_errors:
       DBUG_PRINT("info",("error ignored"));
       if (ignored_error_code(actual_error))
       {
-        rli->report(INFORMATION_LEVEL, actual_error,
-                    "Could not execute %s event. Detailed error: %s;",
-                    get_type_str(), thd->get_stmt_da()->message_text());
+        if (actual_error == ER_SLAVE_IGNORED_TABLE)
+        {
+          if (!slave_ignored_err_throttle.log(thd))
+            rli->report(INFORMATION_LEVEL, actual_error,
+                        "Could not execute %s event. Detailed error: %s;"
+                        " Error log throttle is enabled. This error will not be"
+                        " displayed for next %lu secs. It will be suppressed",
+                        get_type_str(), thd->get_stmt_da()->message_text(),
+                        (window_size / 1000000));
+        }
+        else
+          rli->report(INFORMATION_LEVEL, actual_error,
+                      "Could not execute %s event. Detailed error: %s;",
+                      get_type_str(), thd->get_stmt_da()->message_text());
       }
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
@@ -5191,7 +5217,8 @@ compare_errors:
                     if (strcmp("COMMIT", query) != 0 &&
                         strcmp("BEGIN", query) != 0)
                     {
-                      if (thd->transaction.all.cannot_safely_rollback())
+                      if (thd->get_transaction()->cannot_safely_rollback(
+                          Transaction_ctx::SESSION))
                         const_cast<Relay_log_info*>(rli)->abort_slave= 1;
                     };);
   }
@@ -5231,7 +5258,7 @@ end:
   thd->first_successful_insert_id_in_prev_stmt= 0;
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-  return thd->is_slave_error;
+  DBUG_RETURN(thd->is_slave_error);
 }
 
 int Query_log_event::do_update_pos(Relay_log_info *rli)
@@ -5284,7 +5311,8 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
       DBUG_RETURN(Log_event::EVENT_SKIP_COUNT);
     }
   }
-  DBUG_RETURN(Log_event::do_shall_skip(rli));
+  Log_event::enum_skip_reason ret= Log_event::do_shall_skip(rli);
+  DBUG_RETURN(ret);
 }
 
 #endif
@@ -5367,6 +5395,26 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       my_b_printf(head, "BINLOG '\n");
     print_base64(head, print_event_info, FALSE);
     print_event_info->printed_fd_event= TRUE;
+
+    /*
+      If --skip-gtids is given, the server when it replays the output
+      should generate a new GTID if gtid_mode=ON.  However, when the
+      server reads the base64-encoded Format_description_log_event, it
+      will cleverly detect that this is a binlog to be replayed, and
+      act a little bit like the replication thread, in the following
+      sense: if the thread does not see any 'SET GTID_NEXT' statement,
+      it will assume the binlog was created by an old server and try
+      to preserve transactions as anonymous.  This is the opposite of
+      what we want when passing the --skip-gtids flag, so therefore we
+      output the following statement.
+
+      The behavior where the client preserves transactions following a
+      Format_description_log_event as anonymous was introduced in
+      5.6.16.
+    */
+    if (print_event_info->skip_gtids)
+      my_b_printf(head, "/*!50616 SET @@SESSION.GTID_NEXT='AUTOMATIC'*/%s\n",
+                  print_event_info->delimiter);
   }
   DBUG_VOID_RETURN;
 }
@@ -5903,7 +5951,8 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
     original place when it comes to us; we'll know this by checking
     log_pos ("artificial" events have log_pos == 0).
   */
-  if (!is_artificial_event() && created && thd->transaction.all.ha_list)
+  if (!is_artificial_event() && created &&
+      thd->get_transaction()->is_active(Transaction_ctx::SESSION))
   {
     /* This is not an error (XA is safe), just an information */
     rli->report(INFORMATION_LEVEL, 0,
@@ -6615,8 +6664,8 @@ void Load_log_event::set_fields(const char* affected_db,
 int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
                                    bool use_rli_only_for_errors)
 {
-  DBUG_ASSERT(thd->query() == 0);
-  thd->reset_query_inner();                    // Should not be needed
+  DBUG_ASSERT(thd->query().str == NULL);
+  thd->reset_query();                    // Should not be needed
   set_thd_db(thd, db, db_len);
   thd->is_slave_error= 0;
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
@@ -6711,7 +6760,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 
       print_query(FALSE, NULL, load_data_query, &end, NULL, NULL);
       *end= 0;
-      thd->set_query(load_data_query, (uint) (end - load_data_query));
+      thd->set_query(load_data_query, static_cast<size_t>(end - load_data_query));
 
       if (sql_ex.opt_flags & REPLACE_FLAG)
         handle_dup= DUP_REPLACE;
@@ -7638,7 +7687,8 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
    */
   DBUG_EXECUTE_IF("simulate_commit_failure",
                   {
-                    thd->transaction.xid_state.set_state(XID_STATE::XA_IDLE);
+                    thd->get_transaction()->xid_state()->set_state(
+                        XID_STATE::XA_IDLE);
                   });
   error= do_commit(thd);
   if(error)
@@ -9662,9 +9712,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("m_table_id: %llu  m_flags: %d  m_width: %lu  data_size: %lu",
                      m_table_id.id(), m_flags, m_width, (ulong) data_size));
 
-  // Allocate one extra byte, in case we have to do uint3korr!
   m_rows_buf= (uchar*) my_malloc(key_memory_log_event,
-                                 data_size + 1, MYF(MY_WME)); // didrik
+                                 data_size, MYF(MY_WME));
   if (likely((bool)m_rows_buf))
   {
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -9750,13 +9799,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     DBUG_RETURN(0);
   }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
-#endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
   DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
@@ -9766,14 +9809,36 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
   if (static_cast<size_t>(m_rows_end - m_rows_cur) <= length)
   {
     size_t const block_size= 1024;
-    my_ptrdiff_t const cur_size= m_rows_cur - m_rows_buf;
-    my_ptrdiff_t const new_alloc= 
+    ulong cur_size= m_rows_cur - m_rows_buf;
+    DBUG_EXECUTE_IF("simulate_too_big_row_case1",
+                     cur_size= UINT_MAX32 - (block_size * 10);
+                     length= UINT_MAX32 - (block_size * 10););
+    DBUG_EXECUTE_IF("simulate_too_big_row_case2",
+                     cur_size= UINT_MAX32 - (block_size * 10);
+                     length= block_size * 10;);
+    DBUG_EXECUTE_IF("simulate_too_big_row_case3",
+                     cur_size= block_size * 10;
+                     length= UINT_MAX32 - (block_size * 10););
+    DBUG_EXECUTE_IF("simulate_too_big_row_case4",
+                     cur_size= UINT_MAX32 - (block_size * 10);
+                     length= (block_size * 10) - block_size + 1;);
+    ulong remaining_space= UINT_MAX32 - cur_size;
+    /* Check that the new data fits within remaining space and we can add
+       block_size without wrapping.
+     */
+    if (length > remaining_space ||
+        ((length + block_size) > remaining_space))
+    {
+      sql_print_error("The row data is greater than 4GB, which is too big to "
+                      "write to the binary log.");
+      DBUG_RETURN(ER_BINLOG_ROW_LOGGING_FAILED);
+    }
+    ulong const new_alloc= 
         block_size * ((cur_size + length + block_size - 1) / block_size);
 
-    // Allocate one extra byte, in case we have to do uint3korr!
     uchar* const new_buf=
       (uchar*)my_realloc(key_memory_log_event,
-                         (uchar*)m_rows_buf, (uint) new_alloc + 1,
+                         (uchar*)m_rows_buf, (uint) new_alloc,
                          MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -10344,8 +10409,10 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
 
   if (error == 0 && !m_table->file->has_transactions())
   {
-    thd->transaction.all.set_unsafe_rollback_flags(TRUE);
-    thd->transaction.stmt.set_unsafe_rollback_flags(TRUE);
+    thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::SESSION,
+                                                      TRUE);
+    thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
+                                                      TRUE);
   }
 }
 
@@ -10559,13 +10626,7 @@ Rows_log_event::open_record_scan()
       goto end;
     }
 
-    /*
-      Don't print debug messages when running valgrind since they can
-      trigger false warnings.
-     */
-#ifndef HAVE_purify
     DBUG_DUMP("key data", m_key, keyinfo->key_length);
-#endif
   }
   else
   {
@@ -10746,14 +10807,8 @@ INDEX_SCAN:
   }
 
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_PRINT("info",("found first matching record"));
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-#endif
   /*
     Below is a minor "optimization".  If the key (i.e., key number
     0) has the HA_NOSAME flag set, we know that we have found the
@@ -11196,16 +11251,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Rows_log_event::do_apply_event(Relay_log_info*)");
   int error= 0;
 
-  if (opt_bin_log)
-  {
-    enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
-    if (state == GTID_STATEMENT_CANCEL)
-      // error has already been printed; don't print anything more here
-      DBUG_RETURN(-1);
-    else if (state == GTID_STATEMENT_SKIP)
-      DBUG_RETURN(0);
-  }
-
   /*
     'thd' has been set by exec_relay_log_event(), just before calling
     do_apply_event(). We still check here to prevent future coding
@@ -11232,12 +11277,27 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
+
+    enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+    if (state == GTID_STATEMENT_CANCEL)
+    {
+      uint error= thd->get_stmt_da()->mysql_errno();
+      DBUG_ASSERT(error != 0);
+      rli->report(ERROR_LEVEL, error,
+                  "Error executing row event: '%s'",
+                  thd->get_stmt_da()->message_text());
+      thd->is_slave_error= 1;
+      DBUG_RETURN(-1);
+    }
+    else if (state == GTID_STATEMENT_SKIP)
+      DBUG_RETURN(0);
+
     /*
       The current statement is just about to begin and 
       has not yet modified anything. Note, all.modified is reset
       by mysql_reset_thd_for_next_command.
     */
-    thd->transaction.stmt.reset_unsafe_rollback_flags();
+    thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
     /*
       This is a row injection, so we flag the "statement" as
       such. Note that this code is called both when the slave does row
@@ -11252,14 +11312,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       the event.
     */
     if (get_flags(NO_FOREIGN_KEY_CHECKS_F))
-        thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
+      thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
     else
-        thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+      thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
 
     if (get_flags(RELAXED_UNIQUE_CHECKS_F))
-        thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
+      thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
-        thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+      thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
 
     thd->binlog_row_event_extra_data = m_extra_row_data;
 
@@ -11367,6 +11427,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_PRINT("debug", ("m_table: 0x%lx, m_table_id: %llu", (ulong) m_table,
                        m_table_id.id()));
 
+  /*
+    A row event comprising of a P_S table
+    - should not be replicated (i.e executed) by the slave SQL thread.
+    - should not be executed by the client in the  form BINLOG '...' stmts.
+  */
+  if (table && table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
+    table= NULL;
+
   if (table)
   {
     /*
@@ -11436,10 +11504,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     /*
       Bug#56662 Assertion failed: next_insert_id == 0, file handler.cc
       Don't allow generation of auto_increment value when processing
-      rows event by setting 'MODE_NO_AUTO_VALUE_ON_ZERO'.
+      rows event by setting 'MODE_NO_AUTO_VALUE_ON_ZERO'. The exception
+      to this rule happens when the auto_inc column exists on some
+      extra columns on the slave. In that case, do not force
+      MODE_NO_AUTO_VALUE_ON_ZERO.
     */
     ulong saved_sql_mode= thd->variables.sql_mode;
-    thd->variables.sql_mode= MODE_NO_AUTO_VALUE_ON_ZERO;
+    if (!is_auto_inc_in_extra_columns())
+      thd->variables.sql_mode= MODE_NO_AUTO_VALUE_ON_ZERO;
 
     // row processing loop
 
@@ -11533,8 +11605,9 @@ AFTER_MAIN_EXEC_ROW_LOOP:
         may be stopped in the middle thus leading to inconsistencies
         after a restart.
       */
-      thd->transaction.stmt.mark_modified_non_trans_table();
-      thd->transaction.merge_unsafe_rollback_flags();
+      thd->get_transaction()->mark_modified_non_trans_table(
+        Transaction_ctx::STMT);
+      thd->get_transaction()->merge_unsafe_rollback_flags();
     }
 
     /*
@@ -11549,7 +11622,8 @@ AFTER_MAIN_EXEC_ROW_LOOP:
          to shutdown trying to finish incomplete events group.
      */
       DBUG_EXECUTE_IF("stop_slave_middle_group",
-                      if (thd->transaction.all.cannot_safely_rollback())
+                      if (thd->get_transaction()->cannot_safely_rollback(
+                          Transaction_ctx::SESSION))
                         const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     }
 
@@ -12057,13 +12131,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   /* Set the event data size = post header + body */
   m_data_size= event_len - common_header_len;
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_DUMP("event buffer", (uchar*) buf, event_len);
-#endif
 
   /* Read the post-header */
   const char *post_start= buf + common_header_len;
@@ -12577,15 +12645,34 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
    * table->auto_increment_field_not_null and SQL_MODE(if includes
    * MODE_NO_AUTO_VALUE_ON_ZERO) in update_auto_increment function.
    * SQL_MODE of slave sql thread is always consistency with master's.
-   * In RBR, auto_increment fields never are NULL.
+   * In RBR, auto_increment fields never are NULL, except if the auto_inc
+   * column exists only on the slave side (i.e., in an extra column
+   * on the slave's table).
    */
-  m_table->auto_increment_field_not_null= TRUE;
+  if (!is_auto_inc_in_extra_columns())
+    m_table->auto_increment_field_not_null= TRUE;
+  else
+  {
+    /*
+      Here we have checked that there is an extra field
+      on this server's table that has an auto_inc column.
+
+      Mark that the auto_increment field is null and mark
+      the read and write set bits.
+
+      (There can only be one AUTO_INC column, it is always
+       indexed and it cannot have a DEFAULT value).
+    */
+    m_table->auto_increment_field_not_null= FALSE;
+    m_table->mark_auto_increment_column();
+  }
 
   /**
      Sets it to ROW_LOOKUP_NOT_NEEDED.
    */
   decide_row_lookup_algorithm_and_key();
   DBUG_ASSERT(m_rows_lookup_algorithm==ROW_LOOKUP_NOT_NEEDED);
+
   return error;
 }
 
@@ -12594,6 +12681,19 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
                                               int error)
 {
   int local_error= 0;
+
+  /**
+    Clear the write_set bit for auto_inc field that only
+    existed on the destination table as an extra column.
+   */
+  if (is_auto_inc_in_extra_columns())
+  {
+    bitmap_clear_bit(m_table->write_set, m_table->next_number_field->field_index);
+    bitmap_clear_bit( m_table->read_set, m_table->next_number_field->field_index);
+
+    if (get_flags(STMT_END_F))
+      m_table->file->ha_release_auto_increment();
+  }
   m_table->next_number_field=0;
   m_table->auto_increment_field_not_null= FALSE;
   if ((rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT) ||
@@ -12726,7 +12826,13 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
 
     m_table->file->ha_start_bulk_insert(estimated_rows);
   }
-  
+
+  /*
+    Explicitly set the auto_inc to null to make sure that
+    it gets an auto_generated value.
+  */
+  if (is_auto_inc_in_extra_columns())
+    m_table->next_number_field->set_null();
   
 #ifndef DBUG_OFF
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
@@ -13163,15 +13269,9 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
     Now we have the right row to update.  The old row (the one we're
     looking for) is in record[1] and the new row is in record[0].
   */
-#ifndef HAVE_purify
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
   DBUG_PRINT("info",("Updating row in table"));
   DBUG_DUMP("old record", m_table->record[1], m_table->s->reclength);
   DBUG_DUMP("new values", m_table->record[0], m_table->s->reclength);
-#endif
 
   // Temporary fix to find out why it fails [/Matz]
   memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
@@ -13483,7 +13583,7 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Rows_query_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
   /* Set query for writing Rows_query log event into binlog later.*/
-  thd->set_query(m_rows_query, (uint32) strlen(m_rows_query));
+  thd->set_query(m_rows_query, strlen(m_rows_query));
 
   DBUG_ASSERT(rli->rows_query_ev == NULL);
 
@@ -13660,33 +13760,53 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Gtid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
-  // Gtid_log_events should be filtered out at earlier stages if gtid_mode == 0
-  DBUG_ASSERT(gtid_mode > 0);
-
-  rpl_sidno sidno= get_sidno(true);
-  if (sidno < 0)
-    DBUG_RETURN(1); // out of memory
-  if (thd->owned_gtid.sidno)
-  {
-    gtid_rollback(thd);
-  }
-  thd->variables.gtid_next.set(sidno, spec.gtid.gno);
-
   /*
-    The variable 'currently_executing_gtid' is used to fill
-    last_seen_transaction column of the table
-    performance_schema.replication_execute_status_by_worker
-    to show the GTID of last transaction picked up by this worker thread.
+    In rare cases it is possible that we already own a GTID. This can
+    happen if a transaction is truncated in the middle in the relay
+    log and then next relay log begins with a Gtid_log_events without
+    closing the transaction context from the previous relay log.  In
+    this case the only sensible thing to do is to discard the
+    truncated transaction and move on.
   */
-  const Slave_worker* my_worker;
-  my_worker= dynamic_cast<const Slave_worker* >(rli);
-  if (is_mts_worker(thd))
-    my_worker->currently_executing_gtid= thd->variables.gtid_next.gtid;
-  DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
-                      sidno, spec.gtid.gno));
+  if (thd->owned_gtid.sidno)
+    gtid_rollback(thd);
 
-  if (gtid_acquire_ownership_single(thd))
-    DBUG_RETURN(1);
+  if (spec.type == ANONYMOUS_GROUP)
+  {
+    if (gtid_mode == GTID_MODE_ON)
+    {
+      rli->report(ERROR_LEVEL,
+                  ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON,
+                  "%s",
+                  ER(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON));
+      DBUG_RETURN(1);
+    }
+    thd->variables.gtid_next.set_anonymous();
+  }
+  else
+  {
+    if (gtid_mode == GTID_MODE_OFF)
+    {
+      rli->report(ERROR_LEVEL,
+                  ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF,
+                  "%s",
+                  ER(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF));
+      DBUG_RETURN(1);
+    }
+    rpl_sidno sidno= get_sidno(true);
+    if (sidno < 0)
+      DBUG_RETURN(1); // out of memory
+
+    thd->variables.gtid_next.set(sidno, spec.gtid.gno);
+
+    DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
+                        sidno, spec.gtid.gno));
+
+    if (gtid_acquire_ownership_single(thd))
+      DBUG_RETURN(1);
+  }
+
+  thd->set_currently_executing_gtid_for_slave_thread();
 
   DBUG_RETURN(0);
 }

@@ -282,7 +282,7 @@ cmp_whole_field(
 	case DATA_GEOMETRY:
 		if (prtype & DATA_BINARY_TYPE) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"comparing a binary BLOB"
+				"Comparing a binary BLOB"
 				" using a character set collation!");
 			ut_ad(0);
 		}
@@ -293,7 +293,7 @@ cmp_whole_field(
 					  a, a_length, b, b_length));
 	default:
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"unknown data type number %lu",
+			"Unknown data type number %lu",
 			(ulong) mtype);
 	}
 
@@ -834,6 +834,7 @@ order_resolved:
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
+#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H)
 
 void
 test_cmp_data_data(ulint len)
@@ -854,4 +855,6 @@ test_cmp_data_data(ulint len)
 
 	speedo_show(&speedo);
 }
+#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_RESOURCE_H */
+
 #endif /* UNIV_COMPILE_TEST_FUNCS */

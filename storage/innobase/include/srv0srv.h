@@ -308,6 +308,8 @@ extern ulint	srv_win_file_flush_method;
 
 extern ulint	srv_max_n_open_files;
 
+extern ulong	srv_n_page_cleaners;
+
 extern ulong	srv_max_dirty_pages_pct;
 extern ulong	srv_max_dirty_pages_pct_lwm;
 

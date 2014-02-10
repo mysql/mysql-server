@@ -406,8 +406,8 @@ mem_hash_remove(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Inconsistency in memory heap or buffer n:o %lu"
 			" created in %s line %lu and tried to free in %s"
-			" line %lu.\nHex dump of 400 bytes around memory"
-			" heap first block start:\n",
+			" line %lu. Hex dump of 400 bytes around memory"
+			" heap first block start:",
 			node->nth_heap,
 			innobase_basename(node->file_name), (ulong) node->line,
 			innobase_basename(file_name), (ulong) line);
@@ -542,12 +542,11 @@ mem_heap_validate_or_print(
 			if (check_field
 			    != mem_field_trailer_get_check(user_field)) {
 				/* error */
-
-				fprintf(stderr,
-					"InnoDB: Error: block %lx mem"
-					" field %lx len %lu\n"
-					"InnoDB: header check field is"
-					" %lx but trailer %lx\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Block %lx mem"
+					" field %lx len %lu"
+					" header check field is"
+					" %lx but trailer %lx",
 					(ulint) block,
 					(ulint) field, len, check_field,
 					mem_field_trailer_get_check(
@@ -572,10 +571,9 @@ mem_heap_validate_or_print(
 		if (field != (byte*) block + mem_block_get_free(block)) {
 			/* error */
 
-			fprintf(stderr,
-				"InnoDB: Error: block %lx end of"
-				" mem fields %lx\n"
-				"InnoDB: but block free at %lx\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Block %lx end of mem fields %lx"
+				" but block free at %lx",
 				(ulint) block, (ulint) field,
 				(ulint)((byte*) block
 					+ mem_block_get_free(block)));
@@ -620,9 +618,9 @@ mem_heap_print(
 
 	mem_heap_validate_or_print(heap, NULL, TRUE, &error,
 				   &us_size, &phys_size, &n_blocks);
-	fprintf(stderr,
-		"\nheap type: %lu; size: user size %lu;"
-		" physical size %lu; blocks %lu.\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Heap type: %lu; size: user size %lu;"
+		" physical size %lu; blocks %lu.",
 		(ulong) heap->type, (ulong) us_size,
 		(ulong) phys_size, (ulong) n_blocks);
 	ut_a(!error);
@@ -747,12 +745,9 @@ mem_validate_no_assert(void)
 						   &ph_size, &n_blocks);
 
 			if (error) {
-				fprintf(stderr,
-					"\nERROR!!!!!!!!!!!!!!!!!!!"
-					"!!!!!!!!!!!!!!!!!!!!!!!\n\n"
+				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Inconsistency in memory heap"
-					" or buffer created\n"
-					"in %s line %lu.\n",
+					" or buffer created in %s line %lu.",
 					innobase_basename(node->file_name),
 					node->line);
 

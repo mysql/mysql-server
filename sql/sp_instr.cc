@@ -224,26 +224,11 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
       qbuf.append(cur + prev_pos, query_str->length - prev_pos))
     return true;
 
-  /*
-    Allocate additional space at the end of the new query string for the
-    query_cache_send_result_to_client function.
-
-    The query buffer layout is:
-       buffer :==
-            <statement>   The input statement(s)
-            '\0'          Terminating null char
-            <length>      Length of following current database name (size_t)
-            <db_name>     Name of current database
-            <flags>       Flags struct
-  */
-  int buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
-               QUERY_CACHE_FLAGS_SIZE + 1;
   char *pbuf;
-  if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
+  if ((pbuf= static_cast<char*>(thd->alloc(qbuf.length() + 1))))
   {
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
     pbuf[qbuf.length()]= 0;
-    memcpy(pbuf+qbuf.length()+1, (char *) &thd->db_length, sizeof(size_t));
   }
   else
     return true;
@@ -278,8 +263,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   */
 
   unsigned int parent_unsafe_rollback_flags=
-    thd->transaction.stmt.get_unsafe_rollback_flags();
-  thd->transaction.stmt.reset_unsafe_rollback_flags();
+    thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
+  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   /* Check pre-conditions. */
 
@@ -435,7 +420,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     what is needed from the substatement gained
   */
 
-  thd->transaction.stmt.add_unsafe_rollback_flags(parent_unsafe_rollback_flags);
+  thd->get_transaction()->add_unsafe_rollback_flags(
+    Transaction_ctx::STMT,
+    parent_unsafe_rollback_flags);
 
   /* Restore original lex. */
 
@@ -746,7 +733,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, m_query.str, m_query.length);
 
-  const CSET_STRING query_backup= thd->query_string;
+  const LEX_CSTRING query_backup= thd->query();
 
 #if defined(ENABLED_PROFILING)
   /* This SP-instr is profilable and will be captured. */
@@ -800,11 +787,10 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     queries with SP vars can't be cached)
   */
   if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF)==0))
-    query_logger.general_log_write(thd, COM_QUERY, thd->query(),
-                                   thd->query_length());
+    query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
+                                   thd->query().length);
 
-  if (query_cache.send_result_to_client(thd, thd->query(),
-                                        thd->query_length()) <= 0)
+  if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     rc= validate_lex_and_execute_core(thd, nextp, false);
 
@@ -883,7 +869,7 @@ void sp_instr_stmt::print(String *str)
 
 bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
-  MYSQL_QUERY_EXEC_START(thd->query(),
+  MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
                          &thd->security_ctx->priv_user[0],

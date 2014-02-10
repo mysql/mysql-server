@@ -12,11 +12,11 @@
 
 -- source include/have_innodb.inc
 
-# compressed table in tests are with sizes KEY_BLOCK_SIZE 1,2,4,8,16 
-# Table creatation fails if KEY_BLOCK_SIZE > innodb-page-size,so 
-# allow test to run only when innodb-page-size=16  
+# compressed table in tests are with sizes KEY_BLOCK_SIZE 1,2,4,8,16
+# Table creatation fails if KEY_BLOCK_SIZE > innodb-page-size,so
+# allow test to run only when innodb-page-size=16
 --source include/have_innodb_16k.inc
-
+call mtr.add_suppression("\\[Warning\\] InnoDB: cannot calculate statistics for table \"test_wl5522\"\.\"t1\" because the \.ibd file is missing");
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;

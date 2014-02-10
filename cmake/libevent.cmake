@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,9 @@ MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
   SET(LIBEVENT_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/libevent)
   SET(LIBEVENT_FOUND  TRUE)
   SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent")
-  ADD_SUBDIRECTORY(libevent)
+  # Use EXCLUDE_FROM_ALL to build only if another component
+  # which dependens on libevent is built
+  ADD_SUBDIRECTORY(libevent EXCLUDE_FROM_ALL)
   GET_TARGET_PROPERTY(src libevent SOURCES)
   FOREACH(file ${src})
     SET(LIBEVENT_SOURCES ${LIBEVENT_SOURCES} ${CMAKE_SOURCE_DIR}/libevent/${file})

@@ -750,8 +750,8 @@ void free_rows(MYSQL_DATA *cur)
 
 my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		     const uchar *header, ulong header_length,
-		     const uchar *arg, ulong arg_length, my_bool skip_check,
+		     const uchar *header, size_t header_length,
+		     const uchar *arg, size_t arg_length, my_bool skip_check,
                      MYSQL_STMT *stmt)
 {
   NET *net= &mysql->net;
@@ -854,14 +854,14 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     Server replies to COM_STATISTICS with a single packet 
     containing a string with statistics information.
   */
-  /* Server replies to COM_RESET_CONNECTION with OK or
-     Error Packet.
-  */
   case COM_STATISTICS:
-  case COM_RESET_CONNECTION:
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PACKET);
     break;
 
+  /*
+    For all other commands we expect server to send regular reply which
+    is either OK, ERR or a result-set header.
+  */
   default: MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT); break;
   }
 #endif
@@ -1079,7 +1079,7 @@ static int check_license(MYSQL *mysql)
   static const char query[]= "SELECT @@license";
   static const char required_license[]= STRINGIFY_ARG(LICENSE);
 
-  if (mysql_real_query(mysql, query, sizeof(query)-1))
+  if (mysql_real_query(mysql, query, (ulong)(sizeof(query)-1)))
   {
     if (net->last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
     {
@@ -5227,7 +5227,7 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
     if (mysql_get_server_version(mysql) < 40100)
       return 0;
     sprintf(buff, "SET NAMES %s", cs_name);
-    if (!mysql_real_query(mysql, buff, (uint) strlen(buff)))
+    if (!mysql_real_query(mysql, buff, (ulong) strlen(buff)))
     {
       mysql->charset= cs;
     }

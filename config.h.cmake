@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -221,6 +221,7 @@
 #cmakedefine HAVE_SYS_EPOLL_H 1
 #cmakedefine HAVE_TAILQFOREACH 1
 
+#cmakedefine HAVE_ASAN
 #cmakedefine HAVE_VALGRIND
 
 #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
@@ -253,14 +254,6 @@
 
 #cmakedefine MAX_INDEXES @MAX_INDEXES@
 
-#cmakedefine QSORT_TYPE_IS_VOID 1
-#cmakedefine RETQSORTTYPE @RETQSORTTYPE@
-
-#cmakedefine SIGNAL_RETURN_TYPE_IS_VOID 1
-#cmakedefine RETSIGTYPE @RETSIGTYPE@
-#cmakedefine VOID_SIGHANDLER 1
-#define STRUCT_RLIMIT struct rlimit
-
 #cmakedefine WORDS_BIGENDIAN 1 
 
 /*
@@ -288,16 +281,8 @@
 #cmakedefine HAVE_WEAK_SYMBOL 1
 #cmakedefine HAVE_ABI_CXA_DEMANGLE 1
 
-
-#cmakedefine HAVE_POSIX_SIGNALS 1
-#cmakedefine HAVE_BSD_SIGNALS 1
-#cmakedefine HAVE_SVR3_SIGNALS 1
-#cmakedefine HAVE_V7_SIGNALS 1
-
-
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 
-#cmakedefine MY_ATOMIC_MODE_DUMMY 1
 #cmakedefine MY_ATOMIC_MODE_RWLOCKS 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
@@ -329,24 +314,46 @@
 #cmakedefine SIGQUIT @SIGQUIT@
 #cmakedefine SIGPIPE @SIGPIPE@
 #cmakedefine isnan @isnan@
+
+#cmakedefine alloca @alloca@
 #cmakedefine finite @finite@
 #cmakedefine popen @popen@
 #cmakedefine pclose @pclose@
-#cmakedefine ssize_t @ssize_t@
 #cmakedefine strcasecmp @strcasecmp@
 #cmakedefine strncasecmp @strncasecmp@
-#cmakedefine snprintf @snprintf@
-#cmakedefine strtok_r @strtok_r@
 #cmakedefine strtoll @strtoll@
 #cmakedefine strtoull @strtoull@
+#cmakedefine snprintf @snprintf@
 #cmakedefine vsnprintf @vsnprintf@
+
+#cmakedefine access @access@
+#cmakedefine chdir @chdir@
+#cmakedefine chmod @chmod@
+#cmakedefine close @close@
+#cmakedefine dup @dup@
+#cmakedefine fdopen @fdopen@
+#cmakedefine fileno @fileno@
+#cmakedefine getcwd @getcwd@
+#cmakedefine getpid @getpid@
+#cmakedefine isatty @isatty@
+#cmakedefine mkdir @mkdir@
+#cmakedefine open @open@
+#cmakedefine putenv @putenv@
+#cmakedefine read @read@
+#cmakedefine rmdir @rmdir@
+#cmakedefine strdup @strdup@
+#cmakedefine stricmp @stricmp@
+#cmakedefine tzset @tzset@
+#cmakedefine umask @umask@
+#cmakedefine unlink @unlink@
+
+#cmakedefine strtok_r @strtok_r@
+
+#cmakedefine ssize_t @ssize_t@
+
 #if (_MSC_VER > 1310)
 # define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)
-#endif
-/* We don't want the min/max macros */
-#ifdef _WIN32
-#define NOMINMAX
 #endif
 
 /*
@@ -367,11 +374,6 @@
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
 #cmakedefine OPTIMIZER_TRACE 1
-
-/*
-   InnoDB config options
-*/
-#cmakedefine INNODB_COMPILER_HINTS
 
 /* Character sets and collations */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
@@ -423,7 +425,6 @@
 #cmakedefine HAVE_CHARSET_utf32 1
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
-#cmakedefine COMPILE_FLAG_WERROR 1
 
 /*
   Important storage engines (those that really need define 
@@ -442,6 +443,7 @@
 #cmakedefine DEFAULT_CHARSET_HOME "@DEFAULT_CHARSET_HOME@"
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
+#cmakedefine DEFAULT_TMPDIR @DEFAULT_TMPDIR@
 
 #cmakedefine SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 
@@ -463,7 +465,6 @@
 /* time_t related defines */
 
 #cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
-#cmakedefine TIME_T_UNSIGNED @TIME_T_UNSIGNED@
 
 /* CPU information */
 

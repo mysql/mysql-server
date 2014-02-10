@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3369,7 +3369,10 @@ bool subselect_single_select_engine::no_tables() const
 */
 bool subselect_single_select_engine::may_be_null() const
 {
-  return ((no_tables() && !join->conds && !join->having) ? maybe_null : 1);
+  return ((no_tables() &&
+           !join->conds &&
+           !join->having &&
+           !select_lex->select_limit) ? maybe_null : true);
 }
 
 

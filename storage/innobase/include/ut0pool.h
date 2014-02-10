@@ -244,14 +244,14 @@ struct PoolManager {
 				if (!add_pool(n_pools)) {
 
 					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Failed to allocate memory for "
-						"a pool of size %lu bytes. "
-						"Will wait for  %lu seconds "
-						"for a thread to free a "
-						"resource", (ulong) m_size,
+						"Failed to allocate memory for"
+						" a pool of size %lu bytes."
+						" Will wait for  %lu seconds"
+						" for a thread to free a"
+						" resource", (ulong) m_size,
 						(ulong) delay);
 
-					/* There is nothing much we can do "
+					/* There is nothing much we can do
 					except crash and burn, however lets
 					be a little optimistic and wait for
 					a resource to be freed. */

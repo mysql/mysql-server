@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -875,7 +875,7 @@ public:
   nested_join_map embedding_map;
 
   /* Tmp table info */
-  TMP_TABLE_PARAM *tmp_table_param;
+  Temp_table_param *tmp_table_param;
 
   /* Sorting related info */
   Filesort *filesort;
@@ -1258,7 +1258,7 @@ typedef struct st_select_check {
 } SELECT_CHECK;
 
 /* Extern functions in sql_select.cc */
-void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
+void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param, 
                        List<Item> &fields, bool reset_with_sum_func,
                        bool save_sum_fields);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);

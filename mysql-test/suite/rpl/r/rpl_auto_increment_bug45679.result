@@ -39,6 +39,8 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT into autoincrement field which is not the first part in the composed primary key is unsafe.
 set @@binlog_format=mixed;
 insert into tm set b=null, a=2;
+include/sync_slave_sql_with_master.inc
 drop table tm, ti;
 drop function multi_part_pk_with_autoinc;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

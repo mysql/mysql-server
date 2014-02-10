@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,6 +32,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "hash0hash.h"
 #include "log0log.h"
 #include "mtr0types.h"
+#include <list>
 
 #ifdef UNIV_HOTBACKUP
 extern ibool	recv_replay_file_ops;
@@ -139,32 +140,6 @@ Initiates the rollback of active transactions. */
 void
 recv_recovery_rollback_active(void);
 /*===============================*/
-/*******************************************************//**
-Scans log from a buffer and stores new log data to the parsing buffer.
-Parses and hashes the log records if new data found.  Unless
-UNIV_HOTBACKUP is defined, this function will apply log records
-automatically when the hash table becomes full.
-@return TRUE if limit_lsn has been reached, or not able to scan any
-more in this log group */
-
-ibool
-recv_scan_log_recs(
-/*===============*/
-	ulint		available_memory,/*!< in: we let the hash table of recs
-					to grow to this size, at the maximum */
-	ibool		store_to_hash,	/*!< in: TRUE if the records should be
-					stored to the hash table; this is set
-					to FALSE if just debug checking is
-					needed */
-	const byte*	buf,		/*!< in: buffer containing a log
-					segment or garbage */
-	ulint		len,		/*!< in: buffer length */
-	lsn_t		start_lsn,	/*!< in: buffer start lsn */
-	lsn_t*		contiguous_lsn,	/*!< in/out: it is known that all log
-					groups contain contiguous log data up
-					to this lsn */
-	lsn_t*		group_scanned_lsn);/*!< out: scanning succeeded up to
-					this lsn */
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
 
@@ -243,16 +218,6 @@ Applies log records in the hash table to a backup. */
 void
 recv_apply_log_recs_for_backup(void);
 /*================================*/
-
-#elif defined(UNIV_LOG_DEBUG)
-
-/********************************************************//**
-Frees the recovery system. */
-
-void
-recv_sys_debug_free(void);
-/*=====================*/
-
 #endif /* UNIV_HOTBACKUP */
 
 /** Block of log record data */
@@ -303,6 +268,14 @@ struct recv_addr_t{
 	UT_LIST_BASE_NODE_T(recv_t)
 			rec_list;/*!< list of log records for this page */
 	hash_node_t	addr_hash;/*!< hash node in the hash bucket chain */
+};
+
+struct recv_dblwr_t {
+	void add(byte* page);
+
+	byte* find_page(ulint space_id, ulint page_no);
+
+	std::list<byte*> pages; /* Pages from double write buffer */
 };
 
 /** Recovery system data structure */
@@ -364,6 +337,8 @@ struct recv_sys_t{
 	hash_table_t*	addr_hash;/*!< hash table of file addresses of pages */
 	ulint		n_addrs;/*!< number of not processed hashed file
 				addresses in the hash table */
+
+	recv_dblwr_t	dblwr;
 };
 
 /** The recovery system */

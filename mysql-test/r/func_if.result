@@ -2,7 +2,7 @@ drop table if exists t1;
 select IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,IF(1,2.0,3.0)+0 ;
 IF(0,"ERROR","this")	IF(1,"is","ERROR")	IF(NULL,"ERROR","a")	IF(1,2,3)|0	IF(1,2.0,3.0)+0
 this	is	a	2	2.0
-CREATE TABLE t1 (st varchar(255) NOT NULL, u int(11) NOT NULL) ENGINE=MyISAM;
+CREATE TABLE t1 (st varchar(255) NOT NULL, u int(11) NOT NULL);
 INSERT INTO t1 VALUES ('a',1),('A',1),('aa',1),('AA',1),('a',1),('aaa',0),('BBB',0);
 select if(1,st,st) s from t1 order by s;
 s
@@ -39,6 +39,9 @@ a
 a
 aa
 aaa
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain extended select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; Using filesort

@@ -50,7 +50,7 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
 
   /* Check if master server has semi-sync plugin installed */
   query= "SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled'";
-  if (mysql_real_query(mysql, query, strlen(query)) ||
+  if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) ||
       !(res= mysql_store_result(mysql)))
   {
     sql_print_error("Execution failed on master: %s", query);
@@ -74,7 +74,7 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
     replication
   */
   query= "SET @rpl_semi_sync_slave= 1";
-  if (mysql_real_query(mysql, query, strlen(query)))
+  if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))))
   {
     sql_print_error("Set 'rpl_semi_sync_slave=1' on master failed");
     return 1;

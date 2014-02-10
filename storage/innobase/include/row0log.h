@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -122,10 +122,9 @@ row_log_table_delete(
 	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
 				or X-latched */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
-	bool		purge,	/*!< in: true=purging BLOBs */
-	trx_id_t	trx_id)	/*!< in: DB_TRX_ID of the record before
-				it was deleted */
-	UNIV_COLD __attribute__((nonnull));
+	const byte*	sys)	/*!< in: DB_TRX_ID,DB_ROLL_PTR that should
+				be logged, or NULL to use those in rec */
+	UNIV_COLD __attribute__((nonnull(1,2,3)));
 
 /******************************************************//**
 Logs an update operation to a table that is being rebuilt.
@@ -158,8 +157,10 @@ row_log_table_get_pk(
 				or X-latched */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index),
 				or NULL */
+	byte*		sys,	/*!< out: DB_TRX_ID,DB_ROLL_PTR for
+				row_log_table_delete(), or NULL */
 	mem_heap_t**	heap)	/*!< in/out: memory heap where allocated */
-	UNIV_COLD __attribute__((nonnull(1,2,4), warn_unused_result));
+	UNIV_COLD __attribute__((nonnull(1,2,5), warn_unused_result));
 
 /******************************************************//**
 Logs an insert to a table that is being rebuilt.

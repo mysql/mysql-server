@@ -1422,8 +1422,8 @@ Event_job_data::execute(THD *thd, bool drop)
 
   {
     Parser_state parser_state;
-    
-    if (parser_state.init(thd, thd->query(), thd->query_length()))
+
+    if (parser_state.init(thd, thd->query().str, thd->query().length))
       goto end;
 
     thd->m_statement_psi= NULL;

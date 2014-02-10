@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ typedef long my_time_t;
   check for valid times only if the range of time_t is greater than
   the range of my_time_t
 */
-#if SIZEOF_TIME_T > 4 || defined(TIME_T_UNSIGNED)
+#if SIZEOF_TIME_T > 4
 # define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
     ((x) <= TIMESTAMP_MAX_VALUE && \
      (x) >= TIMESTAMP_MIN_VALUE)

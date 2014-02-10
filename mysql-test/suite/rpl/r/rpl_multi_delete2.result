@@ -19,6 +19,7 @@ delete alias FROM a alias where alias.i=2;
 select * from a;
 i
 3
+include/sync_slave_sql_with_master.inc
 use mysqltest_to;
 select * from a;
 i

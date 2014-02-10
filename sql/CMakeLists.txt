@@ -171,6 +171,7 @@ SET(SQL_SHARED_SOURCES
   table_trigger_dispatcher.cc
   thr_malloc.cc 
   transaction.cc
+  transaction_info.cc
   trigger.cc
   trigger_creation_ctx.cc
   trigger_loader.cc
@@ -220,8 +221,7 @@ IF(WIN32)
       )
 ENDIF()
 
-INCLUDE(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
+MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)
   SET_SOURCE_FILES_PROPERTIES(

@@ -345,11 +345,11 @@ public:
   /// @return the current number of variables used in the parent contexts
   /// (from the root), including this context.
   uint current_var_count() const
-  { return m_var_offset + m_vars.size(); }
+  { return m_var_offset + static_cast<uint>(m_vars.size()); }
 
   /// @return the number of variables in this context alone.
   uint context_var_count() const
-  { return m_vars.size(); }
+  { return static_cast<uint>(m_vars.size()); }
 
   /// @return map index in this parsing context to runtime offset.
   uint var_context2runtime(uint i) const
@@ -505,10 +505,10 @@ public:
   const LEX_STRING *find_cursor(uint offset) const;
 
   uint max_cursor_index() const
-  { return m_max_cursor_index + m_cursors.size(); }
+  { return m_max_cursor_index + static_cast<uint>(m_cursors.size()); }
 
   uint current_cursor_count() const
-  { return m_cursor_offset + m_cursors.size(); }
+  { return m_cursor_offset + static_cast<uint>(m_cursors.size()); }
 
 private:
   /// Constructor for a tree node.
