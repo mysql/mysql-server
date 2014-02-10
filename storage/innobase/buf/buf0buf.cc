@@ -700,7 +700,7 @@ buf_page_is_corrupted(
 #ifdef UNIV_INNOCHECKSUM
 				if (is_log_enabled) {
 					fprintf(log_file, "page::%" PRIuMAX ";"
-						" old style : calculated = %lu;"
+						" old style: calculated = %lu;"
 						" recorded = %lu\n", page_no,
 						buf_calc_page_old_checksum(
 							read_buf),
