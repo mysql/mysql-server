@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -318,7 +318,7 @@ inline
 int
 Ndb_free_list_t<T>::fill(Ndb* ndb, Uint32 cnt)
 {
-#ifndef HAVE_purify
+#ifndef HAVE_VALGRIND
   if (m_free_list == 0)
   {
     m_free_cnt++;
@@ -356,7 +356,7 @@ inline
 T*
 Ndb_free_list_t<T>::seize(Ndb* ndb)
 {
-#ifndef HAVE_purify
+#ifndef HAVE_VALGRIND
   T* tmp = m_free_list;
   if (tmp)
   {
@@ -386,7 +386,7 @@ inline
 void
 Ndb_free_list_t<T>::release(T* obj)
 {
-#ifndef HAVE_purify
+#ifndef HAVE_VALGRIND
   obj->next(m_free_list);
   m_free_list = obj;
   m_free_cnt++;
@@ -416,7 +416,7 @@ inline
 void
 Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
 {
-#ifndef HAVE_purify
+#ifndef HAVE_VALGRIND
   if (cnt)
   {
 #ifdef VM_TRACE

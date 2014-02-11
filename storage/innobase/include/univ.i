@@ -114,10 +114,6 @@ support cross-platform development and expose comonly used SQL names. */
 # include <sched.h>
 #endif
 
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
-
 /* We only try to do explicit inlining of functions with gcc and
 Sun Studio */
 
@@ -125,10 +121,23 @@ Sun Studio */
 # define HAVE_PWRITE
 #endif
 
-#ifndef _WIN32
-# define __STDC_FORMAT_MACROS    /* Enable C99 printf format macros */
+#ifdef HAVE_STDINT_H
+# define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
+# include <stdint.h>
+#else /* HAVE_STDINT_H */
+# warning stdint.h was not found, InnoDB will use its own integer types
+typedef unsigned long long	uintmax_t;
+# define UINTMAX_MAX		(~0ULL)
+#endif
+
+#ifdef HAVE_INTTYPES_H
+# define __STDC_FORMAT_MACROS	/* Enable C99 printf format macros */
 # include <inttypes.h>
-#endif /* !_WIN32 */
+#else /* HAVE_INTTYPES_H */
+# ifndef PRIuMAX
+#  define PRIuMAX		"llu"
+# endif /* PRIuMAX */
+#endif /* HAVE_INTTYPES_H */
 
 /* Following defines are to enable performance schema
 instrumentation in each of four InnoDB modules if
@@ -456,10 +465,6 @@ typedef long int		lint;
 # define ULINTPF		"%lu"
 #endif /* _WIN64 */
 
-#ifndef UNIV_HOTBACKUP
-typedef unsigned long long int	ullint;
-#endif /* UNIV_HOTBACKUP */
-
 #ifndef _WIN32
 #if SIZEOF_LONG != SIZEOF_VOIDP
 #error "Error: InnoDB's ulint must be of the same size as void*"
@@ -488,9 +493,6 @@ typedef unsigned long long int	ullint;
 /** The generic InnoDB system object identifier data type */
 typedef ib_uint64_t		ib_id_t;
 #define IB_ID_MAX		IB_UINT64_MAX
-
-/** The 'undefined' value for a ullint */
-#define ULLINT_UNDEFINED        ((ullint)(-1))
 
 /** This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

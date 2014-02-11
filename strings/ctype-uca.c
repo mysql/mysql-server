@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -20666,6 +20666,7 @@ lex_cmp(MY_COLL_LEXEM *lexem, const char *pattern, size_t patternlen)
     errstr               sting to write error to
     errsize              errstr size
     txt                  error message
+    col_name             collation name
   USAGE
   
   RETURN VALUES
@@ -20674,14 +20675,15 @@ lex_cmp(MY_COLL_LEXEM *lexem, const char *pattern, size_t patternlen)
 
 static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem,
                                       char *errstr, size_t errsize,
-                                      const char *txt)
+                                      const char *txt, const char *col_name)
 {
   char tail[30];
   size_t len= lexem->end - lexem->prev;
   strmake (tail, lexem->prev, (size_t) MY_MIN(len, sizeof(tail)-1));
   errstr[errsize-1]= '\0';
   my_snprintf(errstr, errsize - 1,
-              "%s at '%s'", txt[0] ? txt : "Syntax error", tail);
+              "%s at '%s' for COLLATION : %s", txt[0] ? txt : "Syntax error",
+              tail, col_name);
 }
 
 
@@ -21667,6 +21669,7 @@ my_coll_parser_exec(MY_COLL_RULE_PARSER *p)
   @param rules           Collation rule list to load to.
   @param str             A string with collation customization.
   @param str_end         End of the string.
+  @param col_name        Collation name
 
   @return
   @retval                0 on success
@@ -21675,7 +21678,7 @@ my_coll_parser_exec(MY_COLL_RULE_PARSER *p)
 
 static int
 my_coll_rule_parse(MY_COLL_RULES *rules,
-                   const char *str, const char *str_end)
+                   const char *str, const char *str_end, const char *col_name)
 {
   MY_COLL_RULE_PARSER p;
 
@@ -21686,7 +21689,7 @@ my_coll_rule_parse(MY_COLL_RULES *rules,
     my_coll_lexem_print_error(my_coll_parser_curr(&p),
                               rules->loader->error,
                               sizeof(rules->loader->error) - 1,
-                              p.errstr);
+                              p.errstr, col_name);
     return 1;
   }
   return 0;
@@ -22038,7 +22041,8 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
   /* Parse ICU Collation Customization expression */
   if ((rc= my_coll_rule_parse(&rules,
                               cs->tailoring,
-                              cs->tailoring + strlen(cs->tailoring))))
+                              cs->tailoring + strlen(cs->tailoring),
+                              cs->name)))
     goto ex;
 
   if (rules.version == 520)           /* Unicode-5.2.0 requested */
