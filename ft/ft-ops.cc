@@ -338,8 +338,9 @@ status_init(void)
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_BYTES_FOR_CHECKPOINT,                 NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT_BYTES, PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,    NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT_UNCOMPRESSED_BYTES, PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (uncompressed bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_TOKUTIME_FOR_CHECKPOINT,              NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT_SECONDS, TOKUTIME, "nonleaf nodes flushed to disk (for checkpoint) (seconds)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_COMPRESSION_RATIO,                       nullptr, DOUBLE, "uncompressed leaf bytes written / compressed leaf bytes written", TOKU_ENGINE_STATUS);
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_COMPRESSION_RATIO,                    nullptr, DOUBLE, "uncompressed nonleaf bytes written / compressed nonleaf bytes written", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_COMPRESSION_RATIO,                       LEAF_NODE_COMPRESSION_RATIO, DOUBLE, "uncompressed / compressed bytes written (leaf)", TOKU_GLOBAL_STATUS|TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_COMPRESSION_RATIO,                    NONLEAF_NODE_COMPRESSION_RATIO, DOUBLE, "uncompressed / compressed bytes written (nonleaf)", TOKU_GLOBAL_STATUS|TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_OVERALL_COMPRESSION_RATIO,                    OVERALL_NODE_COMPRESSION_RATIO, DOUBLE, "uncompressed / compressed bytes written (overall)", TOKU_GLOBAL_STATUS|TOKU_ENGINE_STATUS);
 
     // CPU time statistics for [de]serialization and [de]compression.
     STATUS_INIT(FT_LEAF_COMPRESS_TOKUTIME,                                  LEAF_COMPRESSION_TO_MEMORY_SECONDS, TOKUTIME, "leaf compression to memory (seconds)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
@@ -401,6 +402,10 @@ toku_ft_get_status(FT_STATUS s) {
     }
     if (compressed_nonleaf_bytes > 0) {
         s->status[FT_DISK_FLUSH_NONLEAF_COMPRESSION_RATIO].value.dnum = uncompressed_nonleaf_bytes / compressed_nonleaf_bytes;
+    }
+    if (compressed_leaf_bytes > 0 || compressed_nonleaf_bytes > 0) {
+        s->status[FT_DISK_FLUSH_OVERALL_COMPRESSION_RATIO].value.dnum =
+            (uncompressed_leaf_bytes + uncompressed_nonleaf_bytes) / (compressed_leaf_bytes + compressed_nonleaf_bytes);
     }
 }
 
