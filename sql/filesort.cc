@@ -652,12 +652,17 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       make_sortkey(param, next_sort_key, ref_pos);
       next_sort_key+= param->rec_length;
     }
-    else
-      file->unlock_row();
 
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error())
       break;
+
+    /*
+      We need to this after checking the error as the transaction may have
+      rolled back in case of a deadlock
+    */
+    if (!write_record)
+      file->unlock_row();
   }
   if (!quick_select)
   {

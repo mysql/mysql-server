@@ -1,0 +1,48 @@
+#
+# Test of wrong call to unlock_row
+# MDEV-5629 Failing assertion: state == TRX_STATE_NOT_STARTED on
+# concurrent CREATE OR REPLACE and transactional UPDATE
+#
+
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (a INT, b INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1),(2,2);
+
+CREATE TABLE t2 (c INT, d INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,1), (2,2);
+
+CREATE TABLE t3 (e INT) ENGINE=InnoDB;
+CREATE TABLE t4 ENGINE=InnoDB AS SELECT * FROM t2;
+
+--connect (con11,localhost,root,,test)
+
+BEGIN;
+UPDATE t1 SET a = 0 WHERE a = ( SELECT e FROM t3 );
+
+--connect (con12,localhost,root,,test)
+
+SET DEBUG_SYNC='srv_suspend_mysql_thread_enter SIGNAL waiting';
+
+--send 
+UPDATE t4 SET d = 1 WHERE d in ( SELECT a FROM t1 ) ORDER BY c LIMIT 6;
+
+--connection con11
+
+# Wait for con12 to start waiting for con11
+
+SET DEBUG_SYNC='now WAIT_FOR waiting';
+SET DEBUG_SYNC='RESET';
+
+UPDATE t4 SET d = 9;
+
+--connection con12
+--error ER_LOCK_DEADLOCK
+--reap
+--connection con11
+commit;
+--connection default
+--disconnect con12
+--disconnect con11
+drop table t1,t2,t3,t4;
