@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -311,13 +311,6 @@ the magic number shows it valid. */
 void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
-/*****************************************************************//**
-Prints to stderr the MySQL master log offset info in the trx system header if
-the magic number shows it valid. */
-
-void
-trx_sys_print_mysql_master_log_pos(void);
-/*====================================*/
 /*****************************************************************//**
 Initializes the tablespace tag system. */
 
