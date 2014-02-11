@@ -45,7 +45,7 @@
 //   9     9
 
 #ifdef _WIN32
-#include <windows.h>
+#include <winsock2.h>
 #endif
 #include <mysql.h>
 #include <NdbApi.hpp>
