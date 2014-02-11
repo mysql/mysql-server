@@ -56,7 +56,6 @@
 // Used for cout
 #include <stdio.h>
 #include <iostream>
-#include <unistd.h>
 #ifdef VM_TRACE
 #include <my_global.h>
 #endif
