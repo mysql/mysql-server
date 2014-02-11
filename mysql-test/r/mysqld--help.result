@@ -1029,7 +1029,7 @@ port 3306
 port-open-timeout 0
 preload-buffer-size 32768
 profiling-history-size 15
-progress-report-time 56
+progress-report-time 5
 query-alloc-block-size 8192
 query-cache-limit 1048576
 query-cache-min-res-unit 4096

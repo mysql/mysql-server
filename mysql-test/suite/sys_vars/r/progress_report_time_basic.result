@@ -1,22 +1,22 @@
 SET @start_global_value = @@global.progress_report_time;
 select @@global.progress_report_time;
 @@global.progress_report_time
-56
+5
 select @@session.progress_report_time;
 @@session.progress_report_time
-56
+5
 show global variables like 'progress_report_time';
 Variable_name	Value
-progress_report_time	56
+progress_report_time	5
 show session variables like 'progress_report_time';
 Variable_name	Value
-progress_report_time	56
+progress_report_time	5
 select * from information_schema.global_variables where variable_name='progress_report_time';
 VARIABLE_NAME	VARIABLE_VALUE
-PROGRESS_REPORT_TIME	56
+PROGRESS_REPORT_TIME	5
 select * from information_schema.session_variables where variable_name='progress_report_time';
 VARIABLE_NAME	VARIABLE_VALUE
-PROGRESS_REPORT_TIME	56
+PROGRESS_REPORT_TIME	5
 set global progress_report_time=10;
 select @@global.progress_report_time;
 @@global.progress_report_time
