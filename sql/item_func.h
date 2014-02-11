@@ -67,6 +67,7 @@ public:
   Item_func(void):
     allowed_arg_cols(1), arg_count(0)
   {
+    args= tmp_arg;
     with_sum_func= 0;
   }
   Item_func(Item *a):
