@@ -28,7 +28,7 @@
 //  should be handled by the application programmer.
 
 #ifdef _WIN32
-#include <windows.h>
+#include <winsock2.h>
 #endif
 #include <mysql.h>
 #include <mysqld_error.h>
