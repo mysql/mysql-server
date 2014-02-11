@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -19,6 +19,5 @@
 
 path=`dirname $0`
 cmake $path/.. -DWITH_DEBUG=1 -DWITH_VALGRIND=1 \
-    -DCMAKE_C_FLAGS=-DHAVE_purify -DCMAKE_CXX_FLAGS=-DHAVE_purify \
     -DWITH_NDBCLUSTER=0
 make
