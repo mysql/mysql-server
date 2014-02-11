@@ -2396,7 +2396,7 @@ public:
     @retval
         0    OK
     @retval
-      1    Error
+        1    Error
   */
   int save(THD *thd);
   /**
