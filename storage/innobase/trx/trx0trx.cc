@@ -1409,8 +1409,6 @@ trx_write_serialisation_history(
 	trx_t*		trx,	/*!< in/out: transaction */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	bool		serialised = false;
-
 	/* Change the undo log segment states from TRX_UNDO_ACTIVE to some
 	other state: these modifications to the file data structure define
 	the transaction as committed in the file based domain, at the
@@ -1431,11 +1429,15 @@ trx_write_serialisation_history(
 		own_redo_rseg_mutex = true;
 	}
 
+	mtr_t	temp_mtr;
+
 	if (trx->rsegs.m_noredo.rseg != NULL
 	    && trx_is_noredo_rseg_updated(trx)) {
 
 		mutex_enter(&trx->rsegs.m_noredo.rseg->mutex);
 		own_noredo_rseg_mutex = true;
+		mtr_start(&temp_mtr);
+		temp_mtr.set_log_mode(MTR_LOG_NO_REDO);
 	}
 
 	/* If transaction involves insert then truncate undo logs. */
@@ -1446,8 +1448,10 @@ trx_write_serialisation_history(
 
 	if (trx->rsegs.m_noredo.insert_undo != NULL) {
 		trx_undo_set_state_at_finish(
-			trx->rsegs.m_noredo.insert_undo, mtr);
+			trx->rsegs.m_noredo.insert_undo, &temp_mtr);
 	}
+
+	bool	serialised = false;
 
 	/* If transaction involves update then add rollback segments
 	to purge queue. */
@@ -1493,18 +1497,17 @@ trx_write_serialisation_history(
 		DBUG_EXECUTE_IF("ib_trx_crash_during_commit", DBUG_SUICIDE(););
 
 		if (trx->rsegs.m_noredo.update_undo != NULL) {
-
 			page_t*		undo_hdr_page;
 
 			undo_hdr_page = trx_undo_set_state_at_finish(
-				trx->rsegs.m_noredo.update_undo, mtr);
+				trx->rsegs.m_noredo.update_undo, &temp_mtr);
 
 			ulint n_added_logs =
 				(redo_rseg_undo_ptr != NULL) ? 2 : 1;
 
 			trx_undo_update_cleanup(
 				trx, &trx->rsegs.m_noredo, undo_hdr_page,
-				true, n_added_logs, mtr);
+				true, n_added_logs, &temp_mtr);
 		}
 	}
 
@@ -1516,6 +1519,7 @@ trx_write_serialisation_history(
 	if (own_noredo_rseg_mutex) {
 		mutex_exit(&trx->rsegs.m_noredo.rseg->mutex);
 		own_noredo_rseg_mutex = false;
+		mtr_commit(&temp_mtr);
 	}
 
 	MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
@@ -1819,12 +1823,12 @@ trx_commit_in_memory(
 	trx->state = TRX_STATE_NOT_STARTED;
 
 	if (mtr != NULL) {
+		if (trx->rsegs.m_redo.insert_undo != NULL) {
+			trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
+		}
 
-		if (trx->rsegs.m_redo.insert_undo != NULL
-		    || trx->rsegs.m_noredo.insert_undo != NULL) {
-
-			trx_undo_insert_cleanup(&trx->rsegs.m_redo);
-			trx_undo_insert_cleanup(&trx->rsegs.m_noredo);
+		if (trx->rsegs.m_noredo.insert_undo != NULL) {
+			trx_undo_insert_cleanup(&trx->rsegs.m_noredo, true);
 		}
 
 		/* NOTE that we could possibly make a group commit more
@@ -1857,7 +1861,9 @@ trx_commit_in_memory(
 
 		lsn_t	lsn = mtr->commit_lsn();
 
-		if (trx->flush_log_later) {
+		if (lsn == 0) {
+			/* Nothing to be done. */
+		} else if (trx->flush_log_later) {
 			/* Do nothing yet */
 			trx->must_flush_log_later = true;
 		} else if (srv_flush_log_at_trx_commit == 0
@@ -2013,7 +2019,7 @@ trx_cleanup_at_db_startup(
 	restart and temporary rseg is re-created. */
 	if (trx->rsegs.m_redo.insert_undo != NULL) {
 
-		trx_undo_insert_cleanup(&trx->rsegs.m_redo);
+		trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
 	}
 
 	trx->rsegs.m_redo.rseg = NULL;
@@ -2585,7 +2591,7 @@ trx_prepare_low(
 		/*--------------*/
 
 		lsn = mtr.commit_lsn();
-		ut_ad(lsn > 0);
+		ut_ad(noredo_logging || lsn > 0);
 	} else {
 		lsn = 0;
 	}
@@ -2616,11 +2622,7 @@ trx_prepare(
 
 	if (trx->rsegs.m_noredo.rseg != NULL
 	    && trx_is_noredo_rseg_updated(trx)) {
-
-		lsn_t noredo_lsn = trx_prepare_low(
-			trx, &trx->rsegs.m_noredo, true);
-		ut_ad(lsn <= noredo_lsn);
-		lsn = noredo_lsn;
+		trx_prepare_low(trx, &trx->rsegs.m_noredo, true);
 	}
 
 	/*--------------------------------------*/

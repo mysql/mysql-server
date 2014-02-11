@@ -409,6 +409,7 @@ create_log_files(
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
 		FIL_LOG);
 	ut_a(fil_validate());
+	ut_a(log_space != NULL);
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
@@ -1009,10 +1010,11 @@ srv_open_tmp_tablespace(
 		mtr_t	mtr;
 		ulint	size = tmp_space->get_sum_of_sizes();
 
-		ut_a(tmp_space->space_id() == temp_space_id
-		     && temp_space_id != ULINT_UNDEFINED);
+		ut_a(temp_space_id != ULINT_UNDEFINED);
+		ut_a(tmp_space->space_id() == temp_space_id);
 
 		mtr_start(&mtr);
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 		fsp_header_init(tmp_space->space_id(), size, &mtr);
 
@@ -2143,17 +2145,13 @@ files_checked:
 		log_buffer_flush_to_disk();
 	}
 
+	/* Open temp-tablespace and keep it open until shutdown. */
+
 	err = srv_open_tmp_tablespace(&srv_tmp_space);
 
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
 	}
-
-	/* Open temp-tablespace and keep it open until shutdown. */
-	fil_open_log_and_system_tablespace_files();
-
-	/* fprintf(stderr, "Max allowed record size %lu\n",
-	page_get_free_space_of_empty() / 2); */
 
 	/* Create the doublewrite buffer to a new tablespace */
 	if (buf_dblwr == NULL && !buf_dblwr_create()) {

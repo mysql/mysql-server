@@ -394,6 +394,10 @@ trx_rseg_create(
 	x-latch before the trx_sys->mutex. */
 	mtr_x_lock(fil_space_get_latch(space, NULL), &mtr);
 
+	if (space == srv_tmp_space.space_id()) {
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
+
 	slot_no = trx_sysf_rseg_find_free(
 		&mtr, (space == srv_tmp_space.space_id()), nth_free_slot);
 
