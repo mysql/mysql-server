@@ -67,6 +67,7 @@ public:
   Item_func(void):
     allowed_arg_cols(1), arg_count(0)
   {
+    args= tmp_arg;
     with_sum_func= 0;
   }
   Item_func(Item *a):
@@ -220,7 +221,7 @@ public:
                                                                items, nitems,
                                                                item_sep);
   }
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   Item* compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t);
@@ -601,7 +602,7 @@ class Item_func_additive_op :public Item_num_op
 public:
   Item_func_additive_op(Item *a,Item *b) :Item_num_op(a,b) {}
   void result_precision();
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -636,7 +637,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   void result_precision();
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -668,7 +669,7 @@ public:
     print_op(str, query_type);
   }
 
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -682,7 +683,7 @@ public:
   const char *func_name() const { return "%"; }
   void result_precision();
   void fix_length_and_dec();
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -698,7 +699,7 @@ public:
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -711,7 +712,7 @@ public:
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "abs"; }
   void fix_length_and_dec();
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 // A class to handle logarithmic and trigonometric functions
@@ -874,7 +875,7 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -886,7 +887,7 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 /* This handles round and truncate */
@@ -1287,7 +1288,7 @@ class Item_udf_func :public Item_func
 {
 protected:
   udf_handler udf;
-  bool is_expensive_processor(uchar *arg) { return TRUE; }
+  bool is_expensive_processor(uchar *arg) { return true; }
 
 public:
   Item_udf_func(udf_func *udf_arg)
@@ -1358,7 +1359,7 @@ public:
   void cleanup();
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
-  bool is_expensive() { return 1; }
+  bool is_expensive() { return true; }
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -2100,7 +2101,7 @@ private:
   bool init_result_field(THD *thd);
   
 protected:
-  bool is_expensive_processor(uchar *arg) { return TRUE; }
+  bool is_expensive_processor(uchar *arg) { return true; }
 
 public:
 
@@ -2186,14 +2187,17 @@ public:
   }
 
   virtual bool change_context_processor(uchar *cntx)
-    { context= (Name_resolution_context *)cntx; return FALSE; }
+  {
+    context= reinterpret_cast<Name_resolution_context *>(cntx);
+    return false;
+  }
 
   bool sp_check_access(THD * thd);
   virtual enum Functype functype() const { return FUNC_SP; }
 
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec(void);
-  bool is_expensive() { return 1; }
+  bool is_expensive() { return true; }
 
   inline Field *get_sp_result_field()
   {
@@ -2224,7 +2228,7 @@ public:
   longlong val_int();
   void fix_length_and_dec()
   { max_length= 21; unsigned_flag=1; }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,

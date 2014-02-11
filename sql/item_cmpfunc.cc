@@ -653,8 +653,8 @@ int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
         which would be transformed to:
         WHERE col= 'j'
       */
-      (*a)->walk(&Item::set_no_const_sub, FALSE, (uchar*) 0);
-      (*b)->walk(&Item::set_no_const_sub, FALSE, (uchar*) 0);
+      (*a)->walk(&Item::set_no_const_sub, Item::WALK_POSTFIX, NULL);
+      (*b)->walk(&Item::set_no_const_sub, Item::WALK_POSTFIX, NULL);
     }
     break;
   }
@@ -5000,14 +5000,19 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
 }
 
 
-bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
+bool Item_cond::walk(Item_processor processor, enum_walk walk, uchar *arg)
 {
+  if ((walk & WALK_PREFIX) && (this->*processor)(arg))
+    return true;
+
   List_iterator_fast<Item> li(list);
   Item *item;
   while ((item= li++))
-    if (item->walk(processor, walk_subquery, arg))
-      return 1;
-  return Item_func::walk(processor, walk_subquery, arg);
+  {
+    if (item->walk(processor, walk, arg))
+      return true;
+  }
+  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
 }
 
 
@@ -6379,16 +6384,20 @@ void Item_equal::fix_length_and_dec()
                                       item->collation.collation);
 }
 
-bool Item_equal::walk(Item_processor processor, bool walk_subquery, uchar *arg)
+bool Item_equal::walk(Item_processor processor, enum_walk walk, uchar *arg)
 {
+  if ((walk & WALK_PREFIX) && (this->*processor)(arg))
+    return true;
+
   List_iterator_fast<Item_field> it(fields);
   Item *item;
   while ((item= it++))
   {
-    if (item->walk(processor, walk_subquery, arg))
-      return 1;
+    if (item->walk(processor, walk, arg))
+      return true;
   }
-  return Item_func::walk(processor, walk_subquery, arg);
+
+  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
 }
 
 Item *Item_equal::transform(Item_transformer transformer, uchar *arg)

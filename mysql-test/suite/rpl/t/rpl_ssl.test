@@ -98,6 +98,25 @@ drop user replssl@localhost;
 drop table t1;
 --source include/sync_slave_sql_with_master.inc
 
+# ==== BUG#18165937: HITTING CRASH WHEN SETTING SSL OPTIONS THROUGH CHANGE MASTER COMMAND ====
+#
+# The server would crash when setting SSL_CRL options using CHANGE
+# MASTER with YASSL enabled.
+
+--source include/stop_slave.inc
+--replace_column 2 ####
+CHANGE MASTER TO
+ master_user = 'root',
+ master_ssl = 0,
+ master_ssl_ca = '',
+ master_ssl_cert = '',
+ master_ssl_key = '';
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval CHANGE MASTER TO MASTER_SSL= 1, MASTER_SSL_CRL='$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', MASTER_SSL_CRLPATH='$MYSQL_TEST_DIR/std_data/crldir';
+--source include/start_slave.inc
+
+
 --source include/stop_slave.inc
 --replace_column 2 ####
 CHANGE MASTER TO

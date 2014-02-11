@@ -721,17 +721,30 @@ ENDIF()
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
   STRING(TOLOWER ${CMAKE_SYSTEM_PROCESSOR}  processor)
   IF(processor MATCHES "86" OR processor MATCHES "amd64" OR processor MATCHES "x64")
-  #Check for x86 PAUSE instruction
-  # We have to actually try running the test program, because of a bug
-  # in Solaris on x86_64, where it wrongly reports that PAUSE is not
-  # supported when trying to run an application.  See
-  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6478684
-  CHECK_C_SOURCE_RUNS("
-  int main()
-  { 
-    __asm__ __volatile__ (\"pause\"); 
-    return 0;
-  }"  HAVE_PAUSE_INSTRUCTION)
+    IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+      # The loader in some Solaris versions has a bug due to which it refuses to
+      # start a binary that has been compiled by GCC and uses __asm__("pause")
+      # with the error:
+      # $ ./mysqld
+      # ld.so.1: mysqld: fatal: hardware capability unsupported: 0x2000 [ PAUSE ]
+      # Killed
+      # $
+      # Even though the CPU does have support for the instruction.
+      # Binaries that have been compiled by GCC and use __asm__("pause")
+      # on a non-buggy Solaris get flagged with a "uses pause" flag and
+      # thus they are unusable if copied on buggy Solaris version. To
+      # circumvent this we explicitly disable __asm__("pause") when
+      # compiling on Solaris. Subsequently the tests here will enable
+      # HAVE_FAKE_PAUSE_INSTRUCTION which will use __asm__("rep; nop")
+      # which currently generates the same code as __asm__("pause") - 0xf3 0x90
+      # but without flagging the binary as "uses pause".
+      CHECK_C_SOURCE_RUNS("
+      int main()
+      {
+        __asm__ __volatile__ (\"pause\");
+        return 0;
+      }"  HAVE_PAUSE_INSTRUCTION)
+    ENDIF()
   ENDIF()
   IF (NOT HAVE_PAUSE_INSTRUCTION)
     CHECK_C_SOURCE_COMPILES("
@@ -800,9 +813,7 @@ CHECK_CXX_SOURCE_COMPILES("
   HAVE_SOLARIS_STYLE_GETHOST)
 
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-IF(WITH_ATOMIC_OPS STREQUAL "up")
-  SET(MY_ATOMIC_MODE_DUMMY 1 CACHE BOOL "Assume single-CPU mode, no concurrency")
-ELSEIF(WITH_ATOMIC_OPS STREQUAL "rwlocks")
+IF(WITH_ATOMIC_OPS STREQUAL "rwlocks")
   SET(MY_ATOMIC_MODE_RWLOCK 1 CACHE BOOL "Use pthread rwlocks for atomic ops")
 ELSEIF(WITH_ATOMIC_OPS STREQUAL "smp")
 ELSEIF(NOT WITH_ATOMIC_OPS)
@@ -845,7 +856,7 @@ SET(WITH_ATOMIC_LOCKS "${WITH_ATOMIC_LOCKS}" CACHE STRING
 instructions for multi-processor or uniprocessor
 configuration. By default gcc built-in sync functions are used,
 if available and 'smp' configuration otherwise.")
-MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
+MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK)
 
 IF(WITH_VALGRIND)
   SET(VALGRIND_HEADERS "valgrind/memcheck.h;valgrind/valgrind.h")

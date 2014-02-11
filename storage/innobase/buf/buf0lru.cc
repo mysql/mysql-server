@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2725,17 +2725,17 @@ buf_LRU_print_instance(
 		case BUF_BLOCK_FILE_PAGE:
 			frame = buf_block_get_frame((buf_block_t*) bpage);
 			fprintf(stderr, "\ntype %lu"
-				" index id %llu\n",
+				" index id " IB_ID_FMT "\n",
 				(ulong) fil_page_get_type(frame),
-				(ullint) btr_page_get_index_id(frame));
+				btr_page_get_index_id(frame));
 			break;
 		case BUF_BLOCK_ZIP_PAGE:
 			frame = bpage->zip.data;
 			fprintf(stderr, "\ntype %lu size %lu"
-				" index id %llu\n",
+				" index id " IB_ID_FMT "\n",
 				(ulong) fil_page_get_type(frame),
 				(ulong) bpage->size.physical(),
-				(ullint) btr_page_get_index_id(frame));
+				btr_page_get_index_id(frame));
 			break;
 
 		default:

@@ -694,6 +694,9 @@ unlock_file_and_quit:
 }
 #endif 
 
+static const Item::enum_walk walk_subquery=
+  Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
+
 /**
   Search after sort_keys, and write them into tempfile
   (if we run out of space in the sort buffer).
@@ -815,12 +818,12 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
 
   // Include fields used by conditions in the read_set.
   if (select && select->cond)
-    select->cond->walk(&Item::register_field_in_read_map, 1,
+    select->cond->walk(&Item::register_field_in_read_map, walk_subquery,
                        (uchar*) sort_form);
 
   // Include fields used by pushed conditions in the read_set.
   if (select && select->icp_cond)
-    select->icp_cond->walk(&Item::register_field_in_read_map, 1,
+    select->icp_cond->walk(&Item::register_field_in_read_map, walk_subquery,
                            (uchar*) sort_form);
 
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
@@ -1320,7 +1323,7 @@ static void register_used_fields(Sort_param *param)
     }
     else
     {						// Item
-      sort_field->item->walk(&Item::register_field_in_read_map, 1,
+      sort_field->item->walk(&Item::register_field_in_read_map, walk_subquery,
                              (uchar *) table);
     }
   }
