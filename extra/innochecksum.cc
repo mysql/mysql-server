@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,9 +64,9 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 /* Global variables */
 static bool			verbose;
 static bool			just_count;
-static ullint			start_page;
-static ullint			end_page;
-static ullint			do_page;
+static uintmax_t		start_page;
+static uintmax_t		end_page;
+static uintmax_t		do_page;
 static bool			use_end_page;
 static bool			do_one_page;
 /* replaces declaration in srv0srv.c */
@@ -74,7 +74,7 @@ ulong				srv_page_size;
 page_size_t			univ_page_size(0, 0, false);
 extern ulong			srv_checksum_algorithm;
 /* Current page number (0 based). */
-ullint				cur_page_num;
+uintmax_t			cur_page_num;
 /* Skip the checksum verification. */
 static bool			no_check;
 /* Enabled for strict checksum verification. */
@@ -82,7 +82,7 @@ bool				strict_verify = 0;
 /* Enabled for rewrite checksum. */
 static bool			do_write;
 /* Mismatches count allowed (0 by default). */
-static ullint			allow_mismatches;
+static uintmax_t		allow_mismatches;
 static bool			page_type_summary;
 static bool			page_type_dump;
 /* Store filename for page-type-dump option. */
@@ -330,12 +330,12 @@ is_page_corrupted(
 
 		if (is_log_enabled) {
 			fprintf(log_file,
-				"page::%llu; log sequence number:first = %lu;"
+				"page::%" PRIuMAX "; log sequence number:first = %lu;"
 				" second = %lu\n",
 				cur_page_num, logseq, logseqfield);
 			if (logseq != logseqfield) {
 				fprintf(log_file,
-					"Fail; page %llu invalid (fails log "
+					"Fail; page %" PRIuMAX " invalid (fails log "
 					"sequence number check)\n",
 					cur_page_num);
 			}
@@ -440,7 +440,7 @@ update_checksum(
 
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 		if (is_log_enabled) {
-			fprintf(log_file, "page::%llu; Updated checksum ="
+			fprintf(log_file, "page::%" PRIuMAX "; Updated checksum ="
 				" %u\n", cur_page_num, checksum);
 		}
 
@@ -471,7 +471,7 @@ update_checksum(
 
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 		if (is_log_enabled) {
-			fprintf(log_file, "page::%llu; Updated checksum field1"
+			fprintf(log_file, "page::%" PRIuMAX "; Updated checksum field1"
 				" = %u\n", cur_page_num, checksum);
 		}
 
@@ -485,7 +485,7 @@ update_checksum(
 				FIL_PAGE_END_LSN_OLD_CHKSUM,checksum);
 
 		if (is_log_enabled) {
-			fprintf(log_file, "page::%llu; Updated checksum "
+			fprintf(log_file, "page::%" PRIuMAX "; Updated checksum "
 				"field2 = %u\n", cur_page_num, checksum);
 		}
 
@@ -560,7 +560,7 @@ write_file(
 
 	if (page_size
 		!= fwrite(buf, 1, page_size, file == stdin ? stdout : file)) {
-		fprintf(stderr, "Failed to write page %llu to %s: %s\n",
+		fprintf(stderr, "Failed to write page %" PRIuMAX " to %s: %s\n",
 			cur_page_num, filename, strerror(errno));
 
 		return(false);
@@ -604,8 +604,8 @@ parse_page(
 		page_type.n_fil_page_index++;
 		id = mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID);
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tIndex page\t\t\t|"
-				"\tindex id=%llu,",cur_page_num, (ullint)id);
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tIndex page\t\t\t|"
+				"\tindex id=%llu,", cur_page_num, id);
 
 			fprintf(file,
 				" page level=%lu, No. of records=%lu,"
@@ -621,7 +621,7 @@ parse_page(
 		undo_page_type = mach_read_from_2(page +
 				     TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE);
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tUndo log page\t\t\t|",
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tUndo log page\t\t\t|",
 				cur_page_num);
 		}
 		if (undo_page_type == TRX_UNDO_INSERT) {
@@ -695,7 +695,7 @@ parse_page(
 	case FIL_PAGE_INODE:
 		page_type.n_fil_page_inode++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tInode page\t\t\t|"
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tInode page\t\t\t|"
 				"\t%s\n",cur_page_num, str);
 		}
 		break;
@@ -703,7 +703,7 @@ parse_page(
 	case FIL_PAGE_IBUF_FREE_LIST:
 		page_type.n_fil_page_ibuf_free_list++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tInsert buffer free list"
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tInsert buffer free list"
 				" page\t|\t%s\n", cur_page_num, str);
 		}
 		break;
@@ -711,7 +711,7 @@ parse_page(
 	case FIL_PAGE_TYPE_ALLOCATED:
 		page_type.n_fil_page_type_allocated++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tFreshly allocated "
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tFreshly allocated "
 				"page\t\t|\t%s\n", cur_page_num, str);
 		}
 		break;
@@ -719,7 +719,7 @@ parse_page(
 	case FIL_PAGE_IBUF_BITMAP:
 		page_type.n_fil_page_ibuf_bitmap++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tInsert Buffer "
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tInsert Buffer "
 				"Bitmap\t\t|\t%s\n", cur_page_num, str);
 		}
 		break;
@@ -727,7 +727,7 @@ parse_page(
 	case FIL_PAGE_TYPE_SYS:
 		page_type.n_fil_page_type_sys++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tSystem page\t\t\t|"
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tSystem page\t\t\t|"
 				"\t%s\n",cur_page_num, str);
 		}
 		break;
@@ -735,7 +735,7 @@ parse_page(
 	case FIL_PAGE_TYPE_TRX_SYS:
 		page_type.n_fil_page_type_trx_sys++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tTransaction system "
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tTransaction system "
 				"page\t\t|\t%s\n", cur_page_num, str);
 		}
 		break;
@@ -743,7 +743,7 @@ parse_page(
 	case FIL_PAGE_TYPE_FSP_HDR:
 		page_type.n_fil_page_type_fsp_hdr++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tFile Space "
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tFile Space "
 				"Header\t\t|\t%s\n", cur_page_num, str);
 		}
 		break;
@@ -751,7 +751,7 @@ parse_page(
 	case FIL_PAGE_TYPE_XDES:
 		page_type.n_fil_page_type_xdes++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tExtent descriptor "
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tExtent descriptor "
 				"page\t\t|\t%s\n", cur_page_num, str);
 		}
 		break;
@@ -759,7 +759,7 @@ parse_page(
 	case FIL_PAGE_TYPE_BLOB:
 		page_type.n_fil_page_type_blob++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tBLOB page\t\t\t|\t%s\n",
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tBLOB page\t\t\t|\t%s\n",
 				cur_page_num, str);
 		}
 		break;
@@ -767,7 +767,7 @@ parse_page(
 	case FIL_PAGE_TYPE_ZBLOB:
 		page_type.n_fil_page_type_zblob++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tCompressed BLOB "
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tCompressed BLOB "
 				"page\t\t|\t%s\n", cur_page_num, str);
 		}
 		break;
@@ -775,7 +775,7 @@ parse_page(
 	case FIL_PAGE_TYPE_ZBLOB2:
 		page_type.n_fil_page_type_zblob2++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tSubsequent Compressed "
+			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tSubsequent Compressed "
 				"BLOB page\t|\t%s\n", cur_page_num, str);
 		}
 			break;
@@ -1247,14 +1247,14 @@ int main(
 					"(%lu pages)\n", filename, size, pages);
 				if (do_one_page) {
 					fprintf(log_file, "Innochecksum: "
-						"checking page %llu\n",
+						"checking page %" PRIuMAX "\n",
 						do_page);
 				}
 			}
 		} else {
 			if (is_log_enabled) {
 				fprintf(log_file, "Innochecksum: checking "
-					"pages in range %llu to %llu\n",
+					"pages in range %" PRIuMAX " to %" PRIuMAX "\n",
 					start_page, use_end_page ?
 					end_page : (pages - 1));
 			}
@@ -1379,7 +1379,7 @@ int main(
 
 					if (is_corrupted) {
 						fprintf(stderr, "Fail: page "
-							"%llu invalid\n",
+							"%" PRIuMAX " invalid\n",
 							cur_page_num);
 
 						mismatch_count++;
@@ -1389,7 +1389,7 @@ int main(
 								"Exceeded the "
 								"maximum allowed "
 								"checksum mismatch "
-								"count::%llu\n",
+								"count::%" PRIuMAX "\n",
 								allow_mismatches);
 
 							DBUG_RETURN(1);
@@ -1426,7 +1426,7 @@ int main(
 					}
 					if (now - lastt >= 1
 					    && is_log_enabled) {
-						fprintf(log_file, "page %llu "
+						fprintf(log_file, "page %" PRIuMAX " "
 							"okay: %.3f%% done\n",
 							(cur_page_num - 1),
 							(float) cur_page_num / pages * 100);

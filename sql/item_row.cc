@@ -177,14 +177,17 @@ void Item_row::print(String *str, enum_query_type query_type)
 }
 
 
-bool Item_row::walk(Item_processor processor, bool walk_subquery, uchar *arg)
+bool Item_row::walk(Item_processor processor, enum_walk walk, uchar *arg)
 {
+  if ((walk & WALK_PREFIX) && (this->*processor)(arg))
+    return true;
+
   for (uint i= 0; i < arg_count; i++)
   {
-    if (items[i]->walk(processor, walk_subquery, arg))
-      return 1;
+    if (items[i]->walk(processor, walk, arg))
+      return true;
   }
-  return (this->*processor)(arg);
+  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
 }
 
 

@@ -381,16 +381,16 @@ dfield_print_also_hex(
 
 		case 6:
 			id = mach_read_from_6(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 
 		case 7:
 			id = mach_read_from_7(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 		case 8:
 			id = mach_read_from_8(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 		default:
 			goto print_hex;
