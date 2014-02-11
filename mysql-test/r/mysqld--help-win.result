@@ -198,7 +198,7 @@ The following options may be given as the first argument:
  --executed-gtids-compression-period[=#] 
  A background thread wakes up to compress the
  gtid_executed table every
- executed_gtids_compression_period transactions. as a
+ executed_gtids_compression_period transactions. As a
  special case, if variable is 0, the thread never wakes up
  to compress the gtid_executed table.
  -T, --exit-info[=#] Used for debugging. Use at your own risk.
