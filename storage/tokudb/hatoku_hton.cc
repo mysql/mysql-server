@@ -560,6 +560,11 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
         db_env = NULL;
     }
 
+    if (tokudb_primary_key_bytes_inserted) {
+        destroy_partitioned_counter(tokudb_primary_key_bytes_inserted);
+        tokudb_primary_key_bytes_inserted = NULL;
+    }
+
     // 3938: drop the initialized flag and unlock
     tokudb_hton_initialized = 0;
     rw_unlock(&tokudb_hton_initialized_lock);
