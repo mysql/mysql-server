@@ -38,11 +38,14 @@ select 1 /*M!50300 +1 */;
 select 2 /*M!99999 +1 */;
 2
 2
+select 2 /*M!100000 +1 */;
+2
+2
 select 2 /*M!0000 +1 */;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '0000 +1 */' at line 1
 select 1/*!2*/;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '2*/' at line 1
-select 1/*!000002*/;
+select 1/*!0000002*/;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '2*/' at line 1
 select 1/*!999992*/;
 1

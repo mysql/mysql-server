@@ -1509,27 +1509,23 @@ int lex_one_token(void *arg, THD *thd)
 
       lip->save_in_comment_state();
 
-      if (lip->yyPeekn(2) == 'M' && lip->yyPeekn(3) == '!')
+      if (lip->yyPeekn(2) == '!' ||
+          (lip->yyPeekn(2) == 'M' && lip->yyPeekn(3) == '!'))
       {
-        /* Skip MariaDB unique marker */
-        lip->set_echo(FALSE);
-        lip->yySkip();
-        /* The following if will be true */
-      }
-      if (lip->yyPeekn(2) == '!')
-      {
+        bool maria_comment_syntax= lip->yyPeekn(2) == 'M';
         lip->in_comment= DISCARD_COMMENT;
         /* Accept '/' '*' '!', but do not keep this marker. */
         lip->set_echo(FALSE);
-        lip->yySkipn(3);
+        lip->yySkipn(maria_comment_syntax ? 4 : 3);
 
         /*
           The special comment format is very strict:
           '/' '*' '!', followed by an optional 'M' and exactly
-          1 digit (major), 2 digits (minor), then 2 digits (dot).
-          32302 -> 3.23.02
-          50032 -> 5.0.32
-          50114 -> 5.1.14
+          1-2 digits (major), 2 digits (minor), then 2 digits (dot).
+          32302  -> 3.23.02
+          50032  -> 5.0.32
+          50114  -> 5.1.14
+          100000 -> 10.0.0
         */
         if (  my_isdigit(cs, lip->yyPeekn(0))
            && my_isdigit(cs, lip->yyPeekn(1))
@@ -1539,14 +1535,21 @@ int lex_one_token(void *arg, THD *thd)
            )
         {
           ulong version;
-          char *end_ptr= (char*) lip->get_ptr()+5;
+          uint length= 5;
+          char *end_ptr= (char*) lip->get_ptr()+length;
           int error;
+          if (my_isdigit(cs, lip->yyPeekn(5)))
+          {
+            end_ptr++;                          // 6 digit number
+            length++;
+          }
+
           version= (ulong) my_strtoll10(lip->get_ptr(), &end_ptr, &error);
 
           if (version <= MYSQL_VERSION_ID)
           {
             /* Accept 'M' 'm' 'm' 'd' 'd' */
-            lip->yySkipn(5);
+            lip->yySkipn(length);
             /* Expand the content of the special comment as real code */
             lip->set_echo(TRUE);
             state=MY_LEX_START;
