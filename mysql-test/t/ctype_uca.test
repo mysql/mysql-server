@@ -588,7 +588,7 @@ call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
 --remove_file $MYSQL_CHARSETSDIR/Index.xml
 --copy_file $MYSQLTEST_VARDIR/temp.xml $MYSQL_CHARSETSDIR/Index.xml
 --remove_file $MYSQLTEST_VARDIR/temp.xml
-
+-- source include/restart_mysqld.inc
 
 --echo #
 --echo # End of 5.6 tests
