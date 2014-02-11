@@ -1326,6 +1326,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
       query->unlock_n_destroy();
       block= block->next;
     } while (block != queries_blocks);
+    queries_blocks= NULL; // avoid second destroying by free_cache
   }
   free_cache();
 
