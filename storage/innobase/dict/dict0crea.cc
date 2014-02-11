@@ -1067,8 +1067,8 @@ dict_recreate_index_tree(
 	}
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Failed to create index with index id %llu of table '%s' ",
-		(ullint) index_id, table->name);
+		"Failed to create index with index id " IB_ID_FMT
+		" of table '%s'", index_id, table->name);
 
 	return(FIL_NULL);
 }

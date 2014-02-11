@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -381,16 +381,16 @@ dfield_print_also_hex(
 
 		case 6:
 			id = mach_read_from_6(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 
 		case 7:
 			id = mach_read_from_7(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 		case 8:
 			id = mach_read_from_8(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 		default:
 			goto print_hex;
@@ -418,9 +418,7 @@ dfield_print_also_hex(
 			break;
 
 		default:
-			id = mach_ull_read_compressed(data);
-
-			fprintf(stderr, "mix_id " TRX_ID_FMT, id);
+			goto print_hex;
 		}
 		break;
 

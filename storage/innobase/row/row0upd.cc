@@ -569,7 +569,7 @@ row_upd_write_sys_vals_to_log(
 	trx_write_roll_ptr(log_ptr, roll_ptr);
 	log_ptr += DATA_ROLL_PTR_LEN;
 
-	log_ptr += mach_ull_write_compressed(log_ptr, trx_id);
+	log_ptr += mach_u64_write_compressed(log_ptr, trx_id);
 
 	return(log_ptr);
 }
@@ -582,13 +582,13 @@ Parses the log data of system field values.
 byte*
 row_upd_parse_sys_vals(
 /*===================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	ulint*		pos,	/*!< out: TRX_ID position in record */
 	trx_id_t*	trx_id,	/*!< out: trx id */
 	roll_ptr_t*	roll_ptr)/*!< out: roll ptr */
 {
-	ptr = mach_parse_compressed(ptr, end_ptr, pos);
+	*pos = mach_parse_compressed(&ptr, end_ptr);
 
 	if (ptr == NULL) {
 
@@ -603,9 +603,9 @@ row_upd_parse_sys_vals(
 	*roll_ptr = trx_read_roll_ptr(ptr);
 	ptr += DATA_ROLL_PTR_LEN;
 
-	ptr = mach_ull_parse_compressed(ptr, end_ptr, trx_id);
+	*trx_id = mach_u64_parse_compressed(&ptr, end_ptr);
 
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -690,8 +690,8 @@ Parses the log data written by row_upd_index_write_log.
 byte*
 row_upd_index_parse(
 /*================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	mem_heap_t*	heap,	/*!< in: memory heap where update vector is
 				built */
 	upd_t**		update_out)/*!< out: update vector */
@@ -711,7 +711,7 @@ row_upd_index_parse(
 
 	info_bits = mach_read_from_1(ptr);
 	ptr++;
-	ptr = mach_parse_compressed(ptr, end_ptr, &n_fields);
+	n_fields = mach_parse_compressed(&ptr, end_ptr);
 
 	if (ptr == NULL) {
 
@@ -726,7 +726,7 @@ row_upd_index_parse(
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
 
-		ptr = mach_parse_compressed(ptr, end_ptr, &field_no);
+		field_no = mach_parse_compressed(&ptr, end_ptr);
 
 		if (ptr == NULL) {
 
@@ -735,7 +735,7 @@ row_upd_index_parse(
 
 		upd_field->field_no = field_no;
 
-		ptr = mach_parse_compressed(ptr, end_ptr, &len);
+		len = mach_parse_compressed(&ptr, end_ptr);
 
 		if (ptr == NULL) {
 
@@ -759,7 +759,7 @@ row_upd_index_parse(
 
 	*update_out = update;
 
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 #ifndef UNIV_HOTBACKUP

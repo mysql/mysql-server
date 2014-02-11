@@ -1098,23 +1098,43 @@ recv_parse_or_apply_log_rec_body(
 		ut_ad(!page || page_type != FIL_PAGE_TYPE_ALLOCATED);
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
-	case MLOG_FILE_RENAME:
-		/* Do not rerun file-based log entries if this is
-		IO completion from a page read. */
-		if (page == NULL) {
-			ptr = fil_op_log_parse_or_replay(
-				ptr, end_ptr, type, space_id, page_no, 0, false);
-		}
-		break;
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
-		/* Do not rerun file-based log entries if this is
-		IO completion from a page read. */
-		if (page == NULL) {
+	case MLOG_FILE_RENAME:
+		ut_ad(page == NULL);
+		ut_ad(space_id != 0);
+
+		{
+			/* In normal MySQL crash recovery we only
+			replay MLOG_FILE_RENAME operations. When
+			applying the InnoDB redo log to a hot backup
+			in MySQL Enterprise Backup, we will replay all
+			file operations. */
+#ifdef UNIV_HOTBACKUP
+			const bool	parse_only = !recv_replay_file_ops;
+#else /* UNIV_HOTBACKUP */
+			const bool	parse_only = type != MLOG_FILE_RENAME;
+#endif /* UNIV_HOTBACKUP */
+
 			ptr = fil_op_log_parse_or_replay(
-				ptr, end_ptr, type, ULINT_UNDEFINED, page_no, 0, true);
+				ptr, end_ptr, type,
+				space_id, page_no, parse_only);
 		}
+
+#ifdef UNIV_HOTBACKUP
+		if (ptr == NULL && recv_replay_file_ops) {
+			/* In ibbackup --apply-log, replay an .ibd file
+			operation, if possible; note that
+			fil_path_to_mysql_datadir is set in ibbackup to
+			point to the datadir we should use there */
+
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Incomplete file op log record of type "
+				ULINTPF " space " ULINTPF ".",
+				ulint(type), space);
+		}
+#endif /* UNIV_HOTBACKUP */
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
@@ -1237,6 +1257,11 @@ recv_add_to_hash_table(
 	recv_data_t*	recv_data;
 	recv_data_t**	prev_field;
 	recv_addr_t*	recv_addr;
+
+	ut_ad(type != MLOG_FILE_CREATE);
+	ut_ad(type != MLOG_FILE_CREATE2);
+	ut_ad(type != MLOG_FILE_RENAME);
+	ut_ad(type != MLOG_FILE_DELETE);
 
 	if (fil_tablespace_deleted_or_being_deleted_in_mem(space, -1)) {
 		/* The tablespace does not exist any more: do not store the
@@ -2160,44 +2185,26 @@ loop:
 			    (unsigned) type, (unsigned) len,
 			    (unsigned) space, (unsigned) page_no));
 
-		if (type == MLOG_DUMMY_RECORD) {
+		switch (type) {
+		case MLOG_DUMMY_RECORD:
 			/* Do nothing */
-
-		} else if (type == MLOG_FILE_CREATE
-			   || type == MLOG_FILE_CREATE2
-			   || type == MLOG_FILE_RENAME
-			   || type == MLOG_FILE_DELETE) {
-			ut_a(space);
-#ifdef UNIV_HOTBACKUP
-			if (recv_replay_file_ops) {
-
-				/* In ibbackup --apply-log, replay an .ibd file
-				operation, if possible; note that
-				fil_path_to_mysql_datadir is set in ibbackup to
-				point to the datadir we should use there */
-
-				if (NULL == fil_op_log_parse_or_replay(
-					    body, end_ptr, type,
-					    space, page_no, 0, false)) {
-
-					ib_logf(IB_LOG_LEVEL_FATAL,
-						"File op log record of type"
-						" %lu space %lu not complete"
-						" in the replay phase. Path %s",
-						(ulint) type, space,
-						(char*)(body + 2));
-				}
-			}
-#endif
-			/* In normal mysqld crash recovery we do not try to
-			replay file operations */
+			break;
+		case MLOG_FILE_CREATE:
+		case MLOG_FILE_CREATE2:
+		case MLOG_FILE_RENAME:
+		case MLOG_FILE_DELETE:
+			/* These were already handled by
+			recv_parse_log_rec() and
+			recv_parse_or_apply_log_rec_body(). */
+			break;
 #ifdef UNIV_LOG_LSN_DEBUG
-		} else if (type == MLOG_LSN) {
+		case MLOG_LSN:
 			/* Do not add these records to the hash table.
 			The page number and space id fields are misused
 			for something else. */
+			break;
 #endif /* UNIV_LOG_LSN_DEBUG */
-		} else {
+		default:
 			recv_add_to_hash_table(type, space, page_no, body,
 					       ptr + len, old_lsn,
 					       recv_sys->recovered_lsn);
@@ -2280,15 +2287,27 @@ loop:
 			recv_sys->recovered_offset += len;
 			recv_sys->recovered_lsn
 				= recv_calc_lsn_on_data_add(old_lsn, len);
-			if (type == MLOG_MULTI_REC_END) {
 
+			switch (type) {
+			case MLOG_MULTI_REC_END:
 				/* Found the end mark for the records */
-
-				break;
+				goto loop;
 #ifdef UNIV_LOG_LSN_DEBUG
-			} else if (type == MLOG_LSN) {
+			case MLOG_LSN:
+				/* Do not add these records to the hash table.
+				The page number and space id fields are misused
+				for something else. */
+				break;
 #endif /* UNIV_LOG_LSN_DEBUG */
-			} else {
+			case MLOG_FILE_CREATE:
+			case MLOG_FILE_CREATE2:
+			case MLOG_FILE_RENAME:
+			case MLOG_FILE_DELETE:
+				/* These were already handled by
+				recv_parse_log_rec() and
+				recv_parse_or_apply_log_rec_body(). */
+				break;
+			default:
 				recv_add_to_hash_table(type, space, page_no,
 						       body, ptr + len,
 						       old_lsn,
@@ -2681,8 +2700,6 @@ recv_init_crash_recovery(void)
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Reading tablespace information from the .ibd files...");
 
-	buf_dblwr_init_or_load_pages(true);
-
 	fil_load_single_table_tablespaces();
 
 	/* If we are using the doublewrite method, we will
@@ -2729,9 +2746,7 @@ recv_recovery_from_checkpoint_start(
 	byte*		buf;
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	dberr_t		err;
-
-	recv_sys_create();
-	recv_sys_init(buf_pool_get_curr_size());
+	ut_when_dtor<recv_dblwr_t> tmp(recv_sys->dblwr);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
 
@@ -2875,11 +2890,6 @@ recv_recovery_from_checkpoint_start(
 					" running in read-only-mode.");
 				return(DB_READ_ONLY);
 			}
-		}
-
-		if (!recv_needed_recovery && !srv_read_only_mode) {
-			/* Init the doublewrite buffer memory structure */
-			buf_dblwr_init_or_load_pages(false);
 		}
 	}
 

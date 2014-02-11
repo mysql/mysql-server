@@ -34,17 +34,16 @@ Created 10/25/1995 Heikki Tuuri
 #include "buf0types.h"
 #include "mem0mem.h"
 #include "page0size.h"
+#include "mtr0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "ibuf0types.h"
 #include "log0log.h"
-#include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #include <list>
 #include <vector>
 
 // Forward declaration
-struct mtr_t;
 struct trx_t;
 class truncate_t;
 struct fil_space_t;
@@ -450,12 +449,11 @@ fil_op_log_parse_or_replay(
 					of it, if the record does not fire
 					completely between ptr and end_ptr */
 	const byte*	end_ptr,	/*!< in: buffer end */
-	ulint		type,		/*!< in: the type of this log record */
+	mlog_id_t	type,		/*!< in: the type of this log record */
 	ulint		space_id,	/*!< in: the space id of the tablespace
 					in question */
 	ulint		log_flags,	/*!< in: redo log flags
 					(stored in the page number parameter) */
-	lsn_t		recv_lsn,	/*!< in: the end LSN of log record */
 	bool		parse_only);	/*!< in: if true, parse the
 					log record don't replay it. */
 /*******************************************************************//**

@@ -125,7 +125,7 @@ include="-I$pkgincludedir"
 
 # Remove some options that a client doesn't have to care about
 for remove in DDBUG_OFF DSAFE_MUTEX DFORCE_INIT_OF_VARS \
-              DEXTRA_DEBUG DHAVE_purify O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
+              DEXTRA_DEBUG DHAVE_VALGRIND O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
               'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
               unroll2 ip mp restrict
 do

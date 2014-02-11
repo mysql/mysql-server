@@ -270,12 +270,26 @@ struct recv_addr_t{
 	hash_node_t	addr_hash;/*!< hash node in the hash bucket chain */
 };
 
+template<typename F>
+struct ut_when_dtor {
+	ut_when_dtor(F& p) : f(p) {}
+	~ut_when_dtor() {
+		f();
+	}
+private:
+	F& f;
+};
+
 struct recv_dblwr_t {
 	void add(byte* page);
 
 	byte* find_page(ulint space_id, ulint page_no);
 
 	std::list<byte*> pages; /* Pages from double write buffer */
+
+	void operator() () {
+		pages.clear();
+	}
 };
 
 /** Recovery system data structure */
