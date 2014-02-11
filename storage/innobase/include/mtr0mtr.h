@@ -321,8 +321,13 @@ struct mtr_t {
 	}
 
 	/**
-	@return the commit LSN */
-	lsn_t commit_lsn() const;
+	@return the commit LSN
+	@retval 0 if the transaction only modified temporary tablespaces */
+	lsn_t commit_lsn() const
+	{
+		ut_ad(has_committed());
+		return(m_commit_lsn);
+	}
 
 	/**
 	Note that we are inside the change buffer code */
