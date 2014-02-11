@@ -2829,7 +2829,7 @@ btr_cur_update_in_place_log(
 		trx_write_roll_ptr(log_ptr, 0);
 		log_ptr += DATA_ROLL_PTR_LEN;
 		/* TRX_ID */
-		log_ptr += mach_ull_write_compressed(log_ptr, 0);
+		log_ptr += mach_u64_write_compressed(log_ptr, 0);
 	}
 
 	mach_write_to_2(log_ptr, page_offset(rec));
@@ -4943,12 +4943,12 @@ btr_estimate_number_of_different_key_vals(
 	ib_uint64_t*	n_diff;
 	ib_uint64_t*	n_not_null;
 	ibool		stats_null_not_equal;
-	ullint		n_sample_pages; /* number of pages to sample */
+	uintmax_t	n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
 	ulint		i;
 	ulint		j;
-	ullint		add_on;
+	uintmax_t	add_on;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint*		offsets_rec	= NULL;

@@ -34,13 +34,37 @@
 #
 ##############################################################################
 
-use Fcntl;
-use File::Basename;
-use File::Copy;
-use Getopt::Long;
-use Sys::Hostname;
-use Data::Dumper;
 use strict;
+use warnings;
+
+#############################################################################
+#
+# Check if all needed modules are available, exit if something is missing.
+#############################################################################
+#
+
+BEGIN {
+  my @req_mods = ('Fcntl', 'File::Basename', 'File::Copy', 'Getopt::Long',
+                  'Sys::Hostname', 'Data::Dumper');
+  my @missing_mods;
+  my $req;
+  foreach $req (@req_mods) {
+    eval 'require ' . $req;
+    if ($@) {
+      push(@missing_mods, $req);
+    } else {
+      $req->import();
+    }
+  }
+  # this avoids the confusing "BEGIN failed--compilation aborted" message
+  local $SIG{__DIE__} = sub {warn @_; exit 1};
+
+  if (@missing_mods) {
+    my $msg = "FATAL ERROR: please install the following Perl modules " .
+              "before executing $0:\n" . join("\n",@missing_mods)."\n";
+    die $msg;
+  }
+}
 
 Getopt::Long::Configure("pass_through");
 

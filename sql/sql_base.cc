@@ -6782,7 +6782,9 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
           else
           {
             if (thd->mark_used_columns == MARK_COLUMNS_READ)
-              it->walk(&Item::register_field_in_read_map, 1, (uchar *) 0);
+              it->walk(&Item::register_field_in_read_map,
+                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                     NULL);
           }
         }
         else

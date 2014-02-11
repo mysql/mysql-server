@@ -351,8 +351,10 @@ function performs the necessary update operations. If we are in a crash
 recovery, this function loads the pages from double write buffer into memory. */
 void
 buf_dblwr_init_or_load_pages(
-/*==========================*/
-	bool load_corrupt_pages)
+/*=========================*/
+	os_file_t	file,
+	const char*	path,
+	bool		load_corrupt_pages)
 {
 	byte*		buf;
 	byte*		read_buf;
@@ -375,10 +377,8 @@ buf_dblwr_init_or_load_pages(
 
 	/* Read the trx sys header to check if we are using the doublewrite
 	buffer */
-
-	fil_io(OS_FILE_READ, true,
-	       page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
-	       0, univ_page_size.physical(), read_buf, NULL);
+        os_file_read(file, read_buf, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE,
+		     UNIV_PAGE_SIZE);
 
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
 
@@ -413,16 +413,13 @@ buf_dblwr_init_or_load_pages(
 	}
 
 	/* Read the pages from the doublewrite buffer to memory */
+        os_file_read(file, buf, block1 * UNIV_PAGE_SIZE,
+		     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
-	fil_io(OS_FILE_READ, true,
-	       page_id_t(TRX_SYS_SPACE, block1), univ_page_size,
-	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * univ_page_size.physical(),
-	       buf, NULL);
-
-	fil_io(OS_FILE_READ, true,
-	       page_id_t(TRX_SYS_SPACE, block2), univ_page_size,
-	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * univ_page_size.physical(),
-	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE, NULL);
+        os_file_read(file,
+		     buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
+		     block2 * UNIV_PAGE_SIZE,
+		     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
 	/* Check if any of these pages is half-written in data files, in the
 	intended position */
@@ -449,10 +446,9 @@ buf_dblwr_init_or_load_pages(
 					+ i - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
 			}
 
-			fil_io(OS_FILE_WRITE, true,
-			       page_id_t(space_id, source_page_no),
-			       univ_page_size, 0, univ_page_size.physical(),
-			       page, NULL);
+			os_file_write(path, file, page,
+				      source_page_no * UNIV_PAGE_SIZE,
+				      UNIV_PAGE_SIZE);
 
 		} else if (load_corrupt_pages) {
 
@@ -462,7 +458,9 @@ buf_dblwr_init_or_load_pages(
 		page += univ_page_size.physical();
 	}
 
-	fil_flush_file_spaces(FIL_TABLESPACE);
+	if (reset_space_ids) {
+		os_file_flush(file);
+	}
 
 	ut_free(unaligned_read_buf);
 }
@@ -569,13 +567,34 @@ buf_dblwr_process()
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Recovered the page from"
 					" the doublewrite buffer.");
+
+			} else if (buf_page_is_zeroes(read_buf, page_size)) {
+
+				if (!buf_page_is_zeroes(page, page_size)
+				    && !buf_page_is_corrupted(true, page,
+							      page_size)) {
+
+					ib_logf(IB_LOG_LEVEL_WARN,
+						"Database page (space:%lu"
+						" page:%lu) contained only"
+						" zeroes in data file. Valid"
+						" copy was restored from"
+						" double write buffer.",
+						static_cast<ulong>(space_id),
+						static_cast<ulong>(page_no));
+
+					fil_io(OS_FILE_WRITE, true,
+					       page_id_t(space_id, page_no),
+					       page_size, 0,
+					       page_size.physical(), page,
+					       NULL);
+				}
 			}
 		}
 	}
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 	ut_free(unaligned_read_buf);
-	recv_dblwr.pages.clear();
 }
 
 /****************************************************************//**

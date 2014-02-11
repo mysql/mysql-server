@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -378,22 +378,25 @@ Parses the redo log entry of an undo log page initialization.
 byte*
 trx_undo_parse_page_init(
 /*=====================*/
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr);	/*!< in: mtr or NULL */
-/***********************************************************//**
-Parses the redo log entry of an undo log page header create or reuse.
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
+	page_t*		page,	/*!< in: page or NULL */
+	mtr_t*		mtr);	/*!< in: mtr or NULL */
+/** Parse the redo log entry of an undo log page header create or reuse.
+@param[in]	type	MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE
+@param[in]	ptr	redo log record
+@param[in]	end_ptr	end of log buffer
+@param[in,out]	page	page frame or NULL
+@param[in,out]	mtr	mini-transaction or NULL
 @return end of log record or NULL */
 
 byte*
 trx_undo_parse_page_header(
-/*=======================*/
-	ulint	type,	/*!< in: MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE */
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr);	/*!< in: mtr or NULL */
+	mlog_id_t	type,
+	const byte*	ptr,
+	const byte*	end_ptr,
+	page_t*		page,
+	mtr_t*		mtr);
 /***********************************************************//**
 Parses the redo log entry of an undo log page header discard.
 @return end of log record or NULL */
