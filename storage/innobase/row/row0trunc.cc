@@ -115,7 +115,7 @@ public:
 	}
 
 private:
-	// Disably copying
+	// Disable copying
 	IndexIterator(const IndexIterator&);
 	IndexIterator& operator=(const IndexIterator&);
 
@@ -2647,7 +2647,7 @@ truncate_t::create_indexes(
 
 	mtr_start(&mtr);
 
-	/* Don't log changes, we are in recoery mode. */
+	/* Don't log changes, we are in recovery mode. */
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	/* Create all new index trees with table format, index ids, index

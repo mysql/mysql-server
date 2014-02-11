@@ -595,6 +595,8 @@ fsp_init_file_page(
 {
 	fsp_init_file_page_low(block);
 
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || block->page.id.space() != srv_tmp_space.space_id());
 	mlog_write_initial_log_record(buf_block_get_frame(block),
 				      MLOG_INIT_FILE_PAGE, mtr);
 }
@@ -715,15 +717,13 @@ fsp_header_init(
 	flst_init(header + FSP_SEG_INODES_FREE, mtr);
 
 	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
+
+	fsp_fill_free_list(!is_system_tablespace(space), space, header, mtr);
+
 	if (space == srv_sys_space.space_id()) {
-		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
 			   0, univ_page_size, DICT_IBUF_ID_MIN + space,
 			   dict_ind_redundant, NULL, mtr);
-	} else if (space == srv_tmp_space.space_id()) {
-		fsp_fill_free_list(FALSE, space, header, mtr);
-	} else {
-		fsp_fill_free_list(TRUE, space, header, mtr);
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -800,6 +800,8 @@ fsp_header_inc_size(
 	ut_ad(mtr);
 
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 
 	header = fsp_get_space_header(space, page_size_t(flags), mtr);
 
@@ -855,6 +857,8 @@ fsp_try_extend_data_file_with_pages(
 	ulint	size;
 
 	ut_a(!is_system_tablespace(space));
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 
@@ -895,6 +899,9 @@ fsp_try_extend_data_file(
 	const char* OUT_OF_SPACE_MSG =
 		"ran out of space. Please add another file or use"
 		" 'autoextend' for the last file in setting";
+
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 
 	*actual_increase = 0;
 
@@ -1043,10 +1050,11 @@ fsp_fill_free_list(
 	ulint	frag_n_used;
 	ulint	actual_increase;
 	ulint	i;
-	mtr_t	ibuf_mtr;
 
 	ut_ad(header && mtr);
 	ut_ad(page_offset(header) == FSP_HEADER_OFFSET);
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 
 	/* Check if we can fill free list from above the free list limit */
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
@@ -1117,6 +1125,8 @@ fsp_fill_free_list(
 			Note: Insert-Buffering is disabled for tables that
 			reside in the temp-tablespace. */
 			if (space != srv_tmp_space.space_id()) {
+				mtr_t	ibuf_mtr;
+
 				mtr_start(&ibuf_mtr);
 
 				/* Avoid logging while truncate table
@@ -1361,6 +1371,8 @@ fsp_alloc_free_page(
 	ut_ad(mtr);
 	ut_ad(init_mtr);
 
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 	header = fsp_get_space_header(space, page_size, mtr);
 
 	/* Get the hinted descriptor */
@@ -1462,6 +1474,8 @@ fsp_free_page(
 	ulint		frag_n_used;
 
 	ut_ad(mtr);
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || page_id.space() != srv_tmp_space.space_id());
 
 	/* fprintf(stderr, "Freeing page %lu in space %lu\n", page, space); */
 
@@ -1800,6 +1814,9 @@ fsp_free_seg_inode(
 	page_t*		page;
 	fsp_header_t*	space_header;
 
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
+
 	page = page_align(inode);
 
 	space_header = fsp_get_space_header(space, page_size, mtr);
@@ -2044,6 +2061,8 @@ fseg_create_general(
 	ut_ad(mtr);
 	ut_ad(byte_offset + FSEG_HEADER_SIZE
 	      <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 
 	latch = fil_space_get_latch(space, &flags);
 
@@ -2258,6 +2277,8 @@ fseg_fill_free_list(
 
 	ut_ad(inode && mtr);
 	ut_ad(!((page_offset(inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 
 	reserved = fseg_n_reserved_pages_low(inode, &used, mtr);
 
@@ -2325,6 +2346,8 @@ fseg_alloc_free_extent(
 
 	ut_ad(!((page_offset(inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
 	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 
 	if (flst_get_len(inode + FSEG_FREE, mtr) > 0) {
 		/* Segment free list is not empty, allocate from it */
@@ -2413,6 +2436,8 @@ fseg_alloc_free_page_low(
 	seg_id = mach_read_from_8(seg_inode + FSEG_ID);
 
 	ut_ad(seg_id);
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 
 	reserved = fseg_n_reserved_pages_low(seg_inode, &used, mtr);
 
@@ -3081,6 +3106,8 @@ fseg_free_page_low(
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
 	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || page_id.space() != srv_tmp_space.space_id());
 
 	/* Drop search system page hash index if the page is found in
 	the pool and is hashed */
@@ -3288,6 +3315,8 @@ fseg_free_extent(
 	ut_a(!memcmp(descr + XDES_ID, seg_inode + FSEG_ID, 8));
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
+	ut_ad(mtr->get_log_mode() == MTR_LOG_NO_REDO
+	      || space != srv_tmp_space.space_id());
 
 	first_page_in_extent = page - (page % FSP_EXTENT_SIZE);
 
