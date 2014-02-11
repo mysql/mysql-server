@@ -38,8 +38,18 @@
 // Used for cout
 #include <iostream>  
 
+#ifdef _WIN32
+#include <windows.h>
+// Emulate sleep with Sleep
+static inline
+void sleep(unsigned int seconds)
+{
+  Sleep(seconds/1000);
+}
+#else
 // Used for sleep (use your own version of sleep)
 #include <unistd.h>
+#endif
 #define TIME_TO_SLEEP_BETWEEN_TRANSACTION_RETRIES 1
 
 #define PRINT_ERROR(code,msg) \
