@@ -1617,6 +1617,7 @@ user
 use test;
 
 -------- switch to master -------
+DROP TEMPORARY TABLE mysqltest1.t22;
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest3;
 include/rpl_end.inc

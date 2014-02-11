@@ -608,6 +608,7 @@ use test;
 --echo
 --echo -------- switch to master -------
 connection master;
+DROP TEMPORARY TABLE mysqltest1.t22;
 DROP DATABASE mysqltest1;
 # mysqltest2 was alreday DROPPED some tests before.
 DROP DATABASE mysqltest3;
