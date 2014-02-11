@@ -108,7 +108,8 @@ static Uint32 first_receiver_thread_no = 0;
 #define NO_SEND_THREAD (MAX_BLOCK_THREADS + MAX_NDBMT_SEND_THREADS + 1)
 
 /* max signal is 32 words, 7 for signal header and 25 datawords */
-#define MIN_SIGNALS_PER_PAGE (thr_job_buffer::SIZE / 32)
+#define MAX_SIGNAL_SIZE 32
+#define MIN_SIGNALS_PER_PAGE (thr_job_buffer::SIZE / MAX_SIGNAL_SIZE) //255
 
 #if defined(HAVE_LINUX_FUTEX) && defined(NDB_HAVE_XCNG)
 #define USE_FUTEX
@@ -614,7 +615,27 @@ struct thr_job_queue_head
 struct thr_job_queue
 {
   static const unsigned SIZE = 32;
+  
+  /**
+   * There is a SAFETY limit on free buffers we never allocate,
+   * but may allow these to be implicitly used as a last resort
+   * when job scheduler is really stuck. ('sleeploop 10')
+   */
   static const unsigned SAFETY = 2;
+
+  /**
+   * Some more free buffers are RESERVED to be used to avoid
+   * or resolve circular wait-locks between threads waiting
+   * for buffers to become available.
+   */
+  static const unsigned RESERVED = 4;
+
+  /**
+   * When free buffer count drops below ALMOST_FULL, we
+   * are allowed to start using RESERVED buffers to prevent
+   * circular wait-locks.
+   */
+  static const unsigned ALMOST_FULL = RESERVED + 2;
 
   struct thr_job_buffer* m_buffers[SIZE];
 };
@@ -740,7 +761,7 @@ struct thr_tq
 {
   static const unsigned SQ_SIZE = 512;
   static const unsigned LQ_SIZE = 512;
-  static const unsigned PAGES = 32 * (SQ_SIZE + LQ_SIZE) / 8192;
+  static const unsigned PAGES = (MAX_SIGNAL_SIZE * (SQ_SIZE + LQ_SIZE)) / 8192;
   
   Uint32 * m_delayed_signals[PAGES];
   Uint32 m_next_free;
@@ -910,6 +931,14 @@ struct thr_data
    * max signals to execute per JBB buffer
    */
   unsigned m_max_signals_per_jb;
+
+  /**
+   * Extra JBB signal execute quota allowed to be used to
+   * drain (almost) full in-buffers. Reserved for usage where
+   * we are about to end up in a circular wait-lock between 
+   * threads where none if them will be able to proceed.
+   */
+  unsigned m_max_extra_signals;
 
   /**
    * max signals to execute before recomputing m_max_signals_per_jb
@@ -1891,7 +1920,7 @@ scan_queue(struct thr_data* selfptr, Uint32 cnt, Uint32 end, Uint32* ptr)
     {
       Uint32 idx = val >> 16;
       Uint32 buf = idx >> 8;
-      Uint32 pos = 32 * (idx & 0xFF);
+      Uint32 pos = MAX_SIGNAL_SIZE * (idx & 0xFF);
 
       Uint32* page = * (pages + buf);
 
@@ -2111,13 +2140,13 @@ get_free_slot(struct thr_repository* rep,
   struct thr_tq * tq = &selfptr->m_tq;
   Uint32 idx = tq->m_next_free;
 retry:
-  Uint32 buf = idx >> 8;
-  Uint32 pos = idx & 0xFF;
 
   if (idx != RNIL)
   {
+    Uint32 buf = idx >> 8;
+    Uint32 pos = idx & 0xFF;
     Uint32* page = * (tq->m_delayed_signals + buf);
-    Uint32* ptr = page + (32 * pos);
+    Uint32* ptr = page + (MAX_SIGNAL_SIZE * pos);
     tq->m_next_free = * ptr;
     * idxptr = idx;
     return ptr;
@@ -2135,11 +2164,11 @@ retry:
       /**
        * Init page
        */
-      for (Uint32 j = 0; j<255; j ++)
+      for (Uint32 j = 0; j < MIN_SIGNALS_PER_PAGE; j ++)
       {
-	page[j * 32] = (i << 8) + (j + 1);
+	page[j * MAX_SIGNAL_SIZE] = (i << 8) + (j + 1);
       }
-      page[255*32] = RNIL;
+      page[MIN_SIGNALS_PER_PAGE*MAX_SIGNAL_SIZE] = RNIL;
       idx = (i << 8);
       goto retry;
     }
@@ -2391,34 +2420,6 @@ flush_jbb_write_state(thr_data *selfptr)
   }
 }
 
-static
-void
-dumpJobQueues(void)
-{
-  BaseString tmp;
-  const struct thr_repository* rep = g_thr_repository;
-  for (unsigned from = 0; from<num_threads; from++)
-  {
-    for (unsigned to = 0; to<num_threads; to++)
-    {
-      const thr_data_aligned *thr_align_ptr = rep->m_thread + to;
-      const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
-      const thr_job_queue_head *q_head = thrptr->m_in_queue_head + from;
-
-      unsigned used = q_head->used();
-      if (used > 0)
-      {
-        tmp.appfmt(" job buffer %d --> %d, used %d\n",
-                   from, to, used);
-      }
-    }
-  }
-  if (!tmp.empty())
-  {
-    ndbout_c("Dumping non-empty job queues:\n%s", tmp.c_str());
-  }
-}
-
 /**
  * Receive thread will unpack 1024 signals (MAX_RECEIVED_SIGNALS)
  * from Transporters before running another check_recv_queue
@@ -2498,6 +2499,26 @@ compute_free_buffers_in_queue(const thr_job_queue_head *q_head)
     return free - (1 + thr_job_queue::SAFETY);
 }
 
+static
+Uint32
+compute_min_free_out_buffers(Uint32 thr_no)
+{
+  Uint32 minfree = thr_job_queue::SIZE;
+  const struct thr_repository* rep = g_thr_repository;
+  const struct thr_data_aligned *thr_align_ptr = rep->m_thread;
+
+  for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
+  {
+    const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
+    const thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
+    unsigned free = compute_free_buffers_in_queue(q_head);
+
+    if (free < minfree)
+      minfree = free;
+  }
+  return minfree;
+}
+
 /**
  * Compute max signals that thr_no can execute wo/ risking
  *   job-buffer-full
@@ -2517,57 +2538,48 @@ compute_free_buffers_in_queue(const thr_job_queue_head *q_head)
  */
 static
 Uint32
-compute_max_signals_to_execute(Uint32 thr_no)
+compute_max_signals_to_execute(Uint32 min_free_buffers)
 {
-  Uint32 minfree = thr_job_queue::SIZE;
-  const struct thr_repository* rep = g_thr_repository;
-  const struct thr_data_aligned *thr_align_ptr = rep->m_thread;
-
-  for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
-  {
-    const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
-    const thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
-    unsigned free = compute_free_buffers_in_queue(q_head);
-
-    if (free < minfree)
-      minfree = free;
-  }
-
-  if (minfree > 0)
-  {
-    return (3 + (minfree) * MIN_SIGNALS_PER_PAGE) / 4;
-  }
-  else
-  {
-    return 0;
-  }
+  return ((min_free_buffers * MIN_SIGNALS_PER_PAGE) + 3) / 4;
 }
 
-//#define NDBMT_RAND_YIELD
-#ifdef NDBMT_RAND_YIELD
-static Uint32 g_rand_yield = 0;
 static
 void
-rand_yield(Uint32 limit, void* ptr0, void * ptr1)
+dumpJobQueues(void)
 {
-  return;
-  UintPtr tmp = UintPtr(ptr0) + UintPtr(ptr1);
-  Uint8* tmpptr = (Uint8*)&tmp;
-  Uint32 sum = g_rand_yield;
-  for (Uint32 i = 0; i<sizeof(tmp); i++)
-    sum = 33 * sum + tmpptr[i];
-
-  if ((sum % 100) < limit)
+  BaseString tmp;
+  const struct thr_repository* rep = g_thr_repository;
+  for (unsigned from = 0; from<num_threads; from++)
   {
-    g_rand_yield++;
-    sched_yield();
+    for (unsigned to = 0; to<num_threads; to++)
+    {
+      const thr_data_aligned *thr_align_ptr = rep->m_thread + to;
+      const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
+      const thr_job_queue_head *q_head = thrptr->m_in_queue_head + from;
+
+      const unsigned used = q_head->used();
+      if (used > 0)
+      {
+        tmp.appfmt(" job buffer %d --> %d, used %d",
+                   from, to, used);
+        unsigned free = compute_free_buffers_in_queue(q_head);
+        if (free <= 0)
+        {
+          tmp.appfmt(" FULL!");
+        }
+        else if (free <= thr_job_queue::RESERVED)
+        {
+          tmp.appfmt(" HIGH LOAD (free:%d)", free);
+        }
+        tmp.appfmt("\n");
+      }
+    }
+  }
+  if (!tmp.empty())
+  {
+    ndbout_c("Dumping non-empty job queues:\n%s", tmp.c_str());
   }
 }
-#else
-static inline void rand_yield(Uint32 limit, void* ptr0, void * ptr1) {}
-#endif
-
-
 
 void
 trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
@@ -3440,7 +3452,7 @@ insert_signal(thr_job_queue *q, thr_job_queue_head *h,
    * current buffer in the queue, so one insert is always possible without
    * adding a new buffer.
    */
-  if (likely(write_pos + 32 <= thr_job_buffer::SIZE))
+  if (likely(write_pos + MAX_SIGNAL_SIZE <= thr_job_buffer::SIZE))
   {
     w->m_write_pos = write_pos;
     return false;
@@ -3686,9 +3698,53 @@ run_job_buffers(thr_data *selfptr, Signal *sig, Uint32 *signalIdCounter)
                                       max_prioA, signalIdCounter);
     }
 
+    /**
+     * Contended queues get an extra execute quota:
+     *
+     * If we didn't get a max 'perjb' quota, our out buffers
+     * are about to fill up. This thread is thus effectively
+     * slowed down in order to let other threads consume from
+     * our out buffers. Eventually, when 'perjb==0', we will
+     * have to wait/sleep for buffers to become available.
+     * 
+     * This can bring is into a circular wait-lock, where
+     * threads are stalled due to full out buffers. The same
+     * thread may also have full in buffers, thus blocking other
+     * threads from progressing. This could bring us into a 
+     * circular wait-lock, where no threads are able to progress.
+     * The entire scheduler will then be stuck.
+     *
+     * We try to avoid this situation by reserving some
+     * 'm_max_extra_signals' which are only used to consume
+     * from 'almost full' in-buffers. We will then reduce the
+     * risk of ending up in the above wait-lock.
+     *
+     * Exclude receiver threads, as there can't be a
+     * circular wait between recv-thread and workers.
+     */
+    Uint32 extra = 0;
+
+    if (perjb < MAX_SIGNALS_PER_JB)  //Job buffer contention
+    {
+      const Uint32 free = compute_free_buffers_in_queue(head);
+      if (free <= thr_job_queue::ALMOST_FULL)
+      {
+        if (selfptr->m_max_extra_signals > MAX_SIGNALS_PER_JB - perjb)
+	{
+          extra = MAX_SIGNALS_PER_JB - perjb;
+        }
+        else
+	{
+          extra = selfptr->m_max_extra_signals;
+          selfptr->m_max_exec_signals = 0; //Force recalc
+        }
+        selfptr->m_max_extra_signals -= extra;
+      }
+    }
+
     /* Now execute prio B signals from one thread. */
     signal_count += execute_signals(selfptr, queue, head, read_state,
-                                    sig, perjb, signalIdCounter);
+                                    sig, perjb+extra, signalIdCounter);
   }
 
   return signal_count;
@@ -4192,7 +4248,7 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
 static bool
 check_congested_job_queue(thr_job_queue_head *waitfor)
 {
-  return (compute_free_buffers_in_queue(waitfor) == 0);
+  return (compute_free_buffers_in_queue(waitfor) <= thr_job_queue::RESERVED);
 }
 
 /**
@@ -4213,7 +4269,7 @@ get_congested_job_queue(const thr_data *selfptr)
     struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
     thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
 
-    if (compute_free_buffers_in_queue(q_head) == 0)
+    if (compute_free_buffers_in_queue(q_head) <= thr_job_queue::RESERVED)
     {
       if (thrptr != selfptr)  // Don't wait on myself (yet)
         return thrptr;
@@ -4222,6 +4278,37 @@ get_congested_job_queue(const thr_data *selfptr)
     }
   }
   return waitfor;             // Possibly 'thrptr == selfptr'
+}
+
+/**
+ * has_full_in_queues()
+ *
+ * Avoid circular waits between block-threads:
+ * A thread is not allowed to sleep due to full
+ * 'out' job-buffers if there are other threads
+ * already having full 'in' job buffers sent to
+ * this thread.
+ *
+ * run_job_buffers() has reserved a 'm_max_extra_signals'
+ * quota which will be used to drain these 'full_in_queues'.
+ * So we should allow it to be.
+ *
+ * Returns 'true' if any in-queues to this thread are full
+ */
+static
+bool
+has_full_in_queues(struct thr_data* selfptr)
+{
+  thr_job_queue_head *head = selfptr->m_in_queue_head;
+
+  for (Uint32 thr_no = 0; thr_no < num_threads; thr_no++, head++)
+  {
+    if (compute_free_buffers_in_queue(head) <= thr_job_queue::RESERVED)
+    {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -4240,7 +4327,7 @@ get_congested_job_queue(const thr_data *selfptr)
  *
  *   Assumption: each signal may send *at most* 4 signals
  *     - this assumption is made the same in ndbd and ndbmtd and is
- *       mostly followed by block-code, although not it all places :-(
+ *       mostly followed by block-code, although not in all places :-(
  *
  *   This function return true, if it it slept
  *     (i.e that it concluded that it could not execute *any* signals, wo/
@@ -4253,14 +4340,21 @@ update_sched_config(struct thr_data* selfptr, Uint32 pending_send)
   Uint32 sleeploop = 0;
   Uint32 thr_no = selfptr->m_thr_no;
 loop:
-  Uint32 tmp = compute_max_signals_to_execute(thr_no);
-  Uint32 perjb = tmp / g_thr_repository->m_thread_count;
+  Uint32 minfree = compute_min_free_out_buffers(thr_no);
+  Uint32 reserved = (minfree > thr_job_queue::RESERVED)
+                   ? thr_job_queue::RESERVED
+                   : minfree;
+
+  Uint32 avail = compute_max_signals_to_execute(minfree - reserved);
+  Uint32 perjb = (avail + g_thr_repository->m_thread_count - 1) /
+                  g_thr_repository->m_thread_count;
 
   if (perjb > MAX_SIGNALS_PER_JB)
     perjb = MAX_SIGNALS_PER_JB;
 
-  selfptr->m_max_exec_signals = tmp;
+  selfptr->m_max_exec_signals = avail;
   selfptr->m_max_signals_per_jb = perjb;
+  selfptr->m_max_extra_signals = compute_max_signals_to_execute(reserved);
 
   if (unlikely(perjb == 0))
   {
@@ -4270,7 +4364,9 @@ loop:
        * we've slept for 10ms...try running anyway
        */
       selfptr->m_max_signals_per_jb = 1;
-      ndbout_c("%u - sleeploop 10!!", selfptr->m_thr_no);
+      ndbout_c("thr_no:%u - sleeploop 10!! "
+               "(Worker thread blocked (>= 10ms) by slow consumer threads)",
+               selfptr->m_thr_no);
       return true;
     }
 
@@ -4279,9 +4375,10 @@ loop:
     {
       goto loop;
     }
-    else if (waitthr == selfptr)         // Avoid self-wait
+    else if (has_full_in_queues(selfptr) &&
+             selfptr->m_max_extra_signals > 0)
     {
-      selfptr->m_max_signals_per_jb = 1; // Proceed slowly
+      /* 'extra_signals' used to drain 'full_in_queues'. */
       return sleeploop > 0;
     }
 
@@ -4690,6 +4787,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_thr_no = thr_no;
   selfptr->m_max_signals_per_jb = MAX_SIGNALS_PER_JB;
   selfptr->m_max_exec_signals = 0;
+  selfptr->m_max_extra_signals = 0;
   selfptr->m_first_free = 0;
   selfptr->m_first_unused = 0;
   
