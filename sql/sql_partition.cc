@@ -1013,7 +1013,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   if (init_lex_with_single_table(thd, table, &lex))
     goto end;
 
-  func_expr->walk(&Item::change_context_processor, 0,
+  func_expr->walk(&Item::change_context_processor,
+                  Item::WALK_POSTFIX,
                   (uchar*) &lex.select_lex->context);
   thd->where= "partition function";
   /*
@@ -1069,7 +1070,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     in future so that we always throw an error.
   */
   if (func_expr->walk(&Item::check_valid_arguments_processor,
-                      0, NULL))
+                      Item::WALK_POSTFIX, NULL))
   {
     if (is_create_table_ind)
     {
@@ -1088,8 +1089,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 end:
   end_lex_with_single_table(thd, table, old_lex);
 #if !defined(DBUG_OFF)
-  func_expr->walk(&Item::change_context_processor, 0,
-                  (uchar*) 0);
+  func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX, NULL);
 #endif
   DBUG_RETURN(result);
 }

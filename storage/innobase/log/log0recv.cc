@@ -2746,6 +2746,7 @@ recv_recovery_from_checkpoint_start(
 	byte*		buf;
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	dberr_t		err;
+	ut_when_dtor<recv_dblwr_t> tmp(recv_sys->dblwr);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
 

@@ -460,7 +460,7 @@ public:
   virtual void make_unique() { force_copy_fields= TRUE; }
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *argument);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool clean_up_after_removal(uchar *arg);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
@@ -1521,7 +1521,10 @@ public:
   void no_rows_in_result() {}
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
-    { context= (Name_resolution_context *)cntx; return FALSE; }
+  {
+    context= reinterpret_cast<Name_resolution_context *>(cntx);
+    return false;
+  }
 };
 
 #endif /* ITEM_SUM_INCLUDED */

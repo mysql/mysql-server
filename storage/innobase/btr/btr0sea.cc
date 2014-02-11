@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1886,11 +1886,12 @@ btr_search_validate(void)
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Error in an adaptive hash"
 					" index pointer to page %lu,"
-					" ptr mem address %p, index id %llu,"
-					" node fold %lu, rec fold %lu",
+					" ptr mem address %p, index id"
+					" " IB_ID_FMT ", node fold %lu,"
+					" rec fold %lu",
 					(ulong) page_get_page_no(page),
 					node->data,
-					(ullint) page_index_id,
+					page_index_id,
 					(ulong) node->fold,
 					(ulong) rec_fold(node->data,
 							 offsets,

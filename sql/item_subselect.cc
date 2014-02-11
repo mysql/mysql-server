@@ -445,8 +445,8 @@ err:
 */
 bool Item_subselect::walk_join_condition(List<TABLE_LIST> *tables,
                                          Item_processor processor,
-                                         bool walk_subquery,
-                                         uchar *argument)
+                                         enum_walk walk,
+                                         uchar *arg)
 {
   TABLE_LIST *table;
   List_iterator<TABLE_LIST> li(*tables);
@@ -454,12 +454,12 @@ bool Item_subselect::walk_join_condition(List<TABLE_LIST> *tables,
   while ((table= li++))
   {
     if (table->join_cond() &&
-        table->join_cond()->walk(processor, walk_subquery, argument))
+        table->join_cond()->walk(processor, walk, arg))
       return true;
 
     if (table->nested_join != NULL &&
         walk_join_condition(&table->nested_join->join_list, processor,
-                            walk_subquery, argument))
+                            walk, arg))
       return true;
   }
   return false;
@@ -469,10 +469,13 @@ bool Item_subselect::walk_join_condition(List<TABLE_LIST> *tables,
 /**
   Workaround for bug in gcc 4.1. @See Item_in_subselect::walk()
 */
-bool Item_subselect::walk_body(Item_processor processor, bool walk_subquery,
-                               uchar *argument)
+bool Item_subselect::walk_body(Item_processor processor, enum_walk walk,
+                               uchar *arg)
 {
-  if (walk_subquery)
+  if ((walk & WALK_PREFIX) && (this->*processor)(arg))
+    return true;
+
+  if (walk & WALK_SUBQUERY)
   {
     for (SELECT_LEX *lex= unit->first_select(); lex; lex= lex->next_select())
     {
@@ -482,42 +485,41 @@ bool Item_subselect::walk_body(Item_processor processor, bool walk_subquery,
 
       while ((item=li++))
       {
-        if (item->walk(processor, walk_subquery, argument))
+        if (item->walk(processor, walk, arg))
           return true;
       }
 
       if (lex->join_list != NULL &&
-          walk_join_condition(lex->join_list, processor, walk_subquery, argument))
+          walk_join_condition(lex->join_list, processor, walk, arg))
         return true;
 
       item= lex->join ? lex->join->conds : lex->where;
-      if (item && item->walk(processor, walk_subquery, argument))
+      if (item && item->walk(processor, walk, arg))
         return true;
 
       for (order= lex->group_list.first ; order; order= order->next)
       {
-        if ((*order->item)->walk(processor, walk_subquery, argument))
+        if ((*order->item)->walk(processor, walk, arg))
           return true;
       }
 
-      if (lex->having && (lex->having)->walk(processor, walk_subquery,
-                                             argument))
+      if (lex->having && (lex->having)->walk(processor, walk, arg))
         return true;
 
       for (order= lex->order_list.first ; order; order= order->next)
       {
-        if ((*order->item)->walk(processor, walk_subquery, argument))
+        if ((*order->item)->walk(processor, walk, arg))
           return true;
       }
     }
   }
-  return (this->*processor)(argument);
+
+  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
 }
 
-bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
-                          uchar *argument)
+bool Item_subselect::walk(Item_processor processor, enum_walk walk, uchar *arg)
 {
-  return walk_body(processor, walk_subquery, argument);
+  return walk_body(processor, walk, arg);
 }
 
 
@@ -642,17 +644,17 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
   }
 }
 
-bool Item_in_subselect::walk(Item_processor processor, bool walk_subquery,
-                             uchar *argument)
+bool Item_in_subselect::walk(Item_processor processor, enum_walk walk,
+                             uchar *arg)
 {
-  if (left_expr->walk(processor, walk_subquery, argument))
+  if (left_expr->walk(processor, walk, arg))
     return true;
   /*
     Cannot call "Item_subselect::walk(...)" because with gcc 4.1
     Item_in_subselect::walk() was incorrectly called instead.
     Using Item_subselect::walk_body() instead is a workaround.
   */
-  return walk_body(processor, walk_subquery, argument);
+  return walk_body(processor, walk, arg);
 }
 
 /*
@@ -906,7 +908,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       as far as we moved content to upper level, field which depend of
       'upper' select is not really dependent => we remove this dependence
     */
-    substitution->walk(&Item::remove_dependence_processor, 0,
+    substitution->walk(&Item::remove_dependence_processor, WALK_POSTFIX,
 		       (uchar *) select_lex->outer_select());
     DBUG_RETURN(RES_REDUCE);
   }
@@ -1846,7 +1848,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
 	// it is single select without tables => possible optimization
         // remove the dependence mark since the item is moved to upper
         // select and is not outer anymore.
-        orig_item->walk(&Item::remove_dependence_processor, 0,
+        orig_item->walk(&Item::remove_dependence_processor, WALK_POSTFIX,
                         (uchar *) select_lex->outer_select());
         /*
           fix_field of substitution item will be done in time of
