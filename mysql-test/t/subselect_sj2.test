@@ -1245,6 +1245,24 @@ SELECT * FROM t1 WHERE ( 1, 1 ) IN (
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # MDEV-5582: Plugin 'MEMORY' has ref_count=1 after shutdown with materialization+semijoin
+--echo #
+CREATE TABLE t1 (a INT) engine=innodb;
+INSERT INTO t1 VALUES (8),(9);
+
+CREATE TABLE t2 (b INT) engine=innodb;
+INSERT INTO t2 VALUES (2),(3);
+
+CREATE TABLE t3 (c INT, INDEX(c)) engine=innodb;
+INSERT INTO t2 VALUES (4),(5);
+
+explain
+SELECT * FROM t1 WHERE 9 IN ( SELECT b FROM t2 WHERE 1 IN ( SELECT MIN(c) FROM t3 ) );
+SELECT * FROM t1 WHERE 9 IN ( SELECT b FROM t2 WHERE 1 IN ( SELECT MIN(c) FROM t3 ) );
+
+DROP TABLE t1,t2,t3;
+
 --source include/have_innodb.inc
 
 --disable_warnings

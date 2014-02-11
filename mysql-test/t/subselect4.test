@@ -1853,6 +1853,41 @@ SELECT * FROM t1 AS t
   WHERE a='r' AND (c,b) NOT IN (SELECT c,b FROM t2 WHERE (c,b)=(t.c,t.b));
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # MDEV-5468: assertion failure with a simplified condition in subselect
+--echo #
+
+CREATE TABLE t1 (a int, b int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1);
+
+CREATE TABLE t2 ( pk int PRIMARY KEY, c INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,4), (2,6);
+
+SELECT ( SELECT MAX(b) FROM t1, t2 WHERE pk = a AND b < from_sq.c ) AS select_sq,
+       COUNT( DISTINCT from_sq.c ) 
+FROM ( SELECT DISTINCT t2_1.* FROM t2 AS t2_1, t2 AS t2_2 ) AS from_sq
+GROUP BY select_sq ;
+
+DROP TABLE t1,t2;
+
+
+CREATE TABLE t1 (id int, a2 char(2), a3 char(3)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,'BE','BEL');
+
+CREATE TABLE t2 (id int, a2 char(2), a3 char(3)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,'BE','BEL'), (2,'MX','MEX');
+CREATE VIEW v2 AS SELECT DISTINCT * FROM t2;
+
+SELECT * FROM t1 AS outer_t1, v2  
+WHERE v2.a3 = outer_t1.a3 
+      AND EXISTS ( SELECT * FROM t1 WHERE a2 < v2.a2 AND id = outer_t1.id )
+      AND outer_t1.a3 < 'J'    
+ORDER BY v2.id;
+
+DROP VIEW v2;
+DROP TABLE t1,t2;
+
 --echo #
 --echo # MDEV-3899  Valgrind warnings (blocks are definitely lost) in filesort on IN subquery with SUM and DISTINCT
 --echo #

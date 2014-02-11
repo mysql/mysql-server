@@ -1124,6 +1124,23 @@ t3 AS t3a INNER JOIN t3 AS t3b ON ( t3a.i3 = t3b.i3 )
 );
 i1
 DROP TABLE t1,t2,t3;
+#
+# MDEV-5582: Plugin 'MEMORY' has ref_count=1 after shutdown with materialization+semijoin
+#
+CREATE TABLE t1 (a INT) engine=innodb;
+INSERT INTO t1 VALUES (8),(9);
+CREATE TABLE t2 (b INT) engine=innodb;
+INSERT INTO t2 VALUES (2),(3);
+CREATE TABLE t3 (c INT, INDEX(c)) engine=innodb;
+INSERT INTO t2 VALUES (4),(5);
+explain
+SELECT * FROM t1 WHERE 9 IN ( SELECT b FROM t2 WHERE 1 IN ( SELECT MIN(c) FROM t3 ) );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+SELECT * FROM t1 WHERE 9 IN ( SELECT b FROM t2 WHERE 1 IN ( SELECT MIN(c) FROM t3 ) );
+a
+DROP TABLE t1,t2,t3;
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 #
 # MDEV-4782: Valgrind warnings (Conditional jump or move depends on uninitialised value) with InnoDB, semijoin
