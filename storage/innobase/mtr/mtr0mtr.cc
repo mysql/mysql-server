@@ -425,8 +425,9 @@ struct mtr_write_log_t {
 
 /**
 Starts a mini-transaction.
-@param sync		true if it is a synchronouse mini-transaction
+@param sync		true if it is a synchronous mini-transaction
 @param read_only	true if read only mini-transaction */
+
 void
 mtr_t::start(bool sync, bool read_only)
 {
