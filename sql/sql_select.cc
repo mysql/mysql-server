@@ -3610,6 +3610,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   if (conds && const_count)
   { 
     conds= remove_eq_conds(join->thd, conds, &join->cond_value);
+    join->select_lex->where= conds;
     if (join->cond_value == Item::COND_FALSE)
     {
       join->impossible_where= true;
@@ -10848,7 +10849,7 @@ void JOIN::cleanup(bool full)
   }
   if (full)
   {
-    cleanup_empty_jtbm_semi_joins(this);
+    cleanup_empty_jtbm_semi_joins(this, join_list);
     /* 
       Ensure that the following delete_elements() would not be called
       twice for the same list.
