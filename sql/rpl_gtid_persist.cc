@@ -196,16 +196,20 @@ bool Gtid_table_access_context::open_table(THD *thd,
       TABLE_NAME.str, lock_type);
 
   tables.open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+  /* Save value that is changed in mysql_lock_tables() */
+  ulonglong save_utime_after_lock= thd->utime_after_lock;
   if (!open_n_lock_single_table(thd, &tables, tables.lock_type, flags))
   {
     close_thread_tables(thd);
     thd->restore_backup_open_tables_state(&m_backup);
     thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
+    thd->utime_after_lock= save_utime_after_lock;
     sql_print_warning("Gtid table is not ready to be used. Table "
                       "'%s.%s' cannot be opened.", DB_NAME.str,
                       TABLE_NAME.str);
     DBUG_RETURN(true);
   }
+  thd->utime_after_lock= save_utime_after_lock;
 
   DBUG_ASSERT(tables.table->s->table_category == TABLE_CATEGORY_GTID);
 
