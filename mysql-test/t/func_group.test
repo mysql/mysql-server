@@ -981,10 +981,13 @@ DROP TABLE D;
 #
 # Bug #39656: Behaviour different for agg functions with & without where -
 # ONLY_FULL_GROUP_BY
+# MDEV-5617 mysqld crashes when running a query with ONLY_FULL_GROUP_BY
 #
 
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (1,2), (1,3);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (3),(4);
 
 SET SQL_MODE='ONLY_FULL_GROUP_BY';
 
@@ -1000,11 +1003,18 @@ SELECT COUNT(*) FROM t1 a JOIN t1 b ON a.a= b.a;
 SELECT COUNT(*), (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a) 
   FROM t1 outr;
 
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT COUNT(*) FROM t1 outr, (SELECT b, count(*) FROM t2) as t3;
+
+SELECT COUNT(*) FROM t1 outr where (1,1) in (SELECT a, count(*) FROM t2);
+
 SELECT COUNT(*) FROM t1 a JOIN t1 outr 
   ON a.a= (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a);
 
+SELECT * FROM (SELECT a FROM t1 GROUP BY a) sq JOIN t2 ON a = b;
+
 SET SQL_MODE=default;
-DROP TABLE t1;
+DROP TABLE t1,t2;
 
 
 ###

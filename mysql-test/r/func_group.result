@@ -1458,6 +1458,8 @@ DROP TABLE derived1;
 DROP TABLE D;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (1,2), (1,3);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (3),(4);
 SET SQL_MODE='ONLY_FULL_GROUP_BY';
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -1473,12 +1475,19 @@ COUNT(*)
 SELECT COUNT(*), (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a) 
 FROM t1 outr;
 ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+SELECT COUNT(*) FROM t1 outr, (SELECT b, count(*) FROM t2) as t3;
+ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
+SELECT COUNT(*) FROM t1 outr where (1,1) in (SELECT a, count(*) FROM t2);
+COUNT(*)
+0
 SELECT COUNT(*) FROM t1 a JOIN t1 outr 
 ON a.a= (SELECT count(*) FROM t1 inr WHERE inr.a = outr.a);
 COUNT(*)
 0
+SELECT * FROM (SELECT a FROM t1 GROUP BY a) sq JOIN t2 ON a = b;
+a	b
 SET SQL_MODE=default;
-DROP TABLE t1;
+DROP TABLE t1,t2;
 End of 5.0 tests
 #
 # BUG#47280 - strange results from count(*) with order by multiple 

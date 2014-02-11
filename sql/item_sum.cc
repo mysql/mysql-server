@@ -261,7 +261,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     List_iterator<Item_field> of(outer_fields);
     while ((field= of++))
     {
-      SELECT_LEX *sel= field->cached_table->select_lex;
+      SELECT_LEX *sel= field->field->table->pos_in_table_list->select_lex;
       if (sel->nest_level < aggr_level)
       {
         if (in_sum_func)

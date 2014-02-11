@@ -5230,8 +5230,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   if (any_privileges)
   {
     char *db, *tab;
-    db= cached_table->get_db_name();
-    tab= cached_table->get_table_name();
+    db=  field->table->s->db.str;
+    tab= field->table->s->table_name.str;
     if (!(have_privileges= (get_column_grant(thd, &field->table->grant,
                                              db, tab, field_name) &
                             VIEW_ANY_ACL)))
@@ -5252,7 +5252,12 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     marker= thd->lex->current_select->cur_pos_in_select_list;
   }
 mark_non_agg_field:
-  if (fixed && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+  /*
+    table->pos_in_table_list can be 0 when fixing partition functions
+    or virtual fields.
+  */
+  if (fixed && (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
+      field->table->pos_in_table_list)
   {
     /*
       Mark selects according to presence of non aggregated fields.
@@ -5265,7 +5270,7 @@ mark_non_agg_field:
       (the current level) or a stub added by non-SELECT queries.
     */
     SELECT_LEX *select_lex= cached_table ? 
-      cached_table->select_lex : context->select_lex;
+      cached_table->select_lex : field->table->pos_in_table_list->select_lex;
     if (!thd->lex->in_sum_func)
       select_lex->set_non_agg_field_used(true);
     else
@@ -8234,7 +8239,7 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 
       if (context->error_processor == &view_error_processor)
       {
-        TABLE_LIST *view= cached_table->top_table();
+        TABLE_LIST *view= field_arg->table->pos_in_table_list->top_table();
         push_warning_printf(field_arg->table->in_use,
                             MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
