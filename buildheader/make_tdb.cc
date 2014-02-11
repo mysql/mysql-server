@@ -736,9 +736,9 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("   CHARSTR,        // interpret as char * \n");
     printf("   UNIXTIME,       // interpret as time_t \n");
     printf("   TOKUTIME,       // interpret as tokutime_t \n");
-    printf("   PARCOUNT       // interpret as PARTITIONED_COUNTER\n");
+    printf("   PARCOUNT,       // interpret as PARTITIONED_COUNTER\n");
+    printf("   DOUBLE          // interpret as double\n");
     printf("} toku_engine_status_display_type; \n");
-
 
     printf("typedef enum {\n");
     printf("   TOKU_ENGINE_STATUS             = (1ULL<<0),  // Include when asking for engine status\n");

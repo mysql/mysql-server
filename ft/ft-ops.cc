@@ -338,6 +338,8 @@ status_init(void)
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_BYTES_FOR_CHECKPOINT,                 NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT_BYTES, PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,    NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT_UNCOMPRESSED_BYTES, PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (uncompressed bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_TOKUTIME_FOR_CHECKPOINT,              NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT_SECONDS, TOKUTIME, "nonleaf nodes flushed to disk (for checkpoint) (seconds)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_COMPRESSION_RATIO,                       nullptr, DOUBLE, "uncompressed leaf bytes written / compressed leaf bytes written", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_COMPRESSION_RATIO,                    nullptr, DOUBLE, "uncompressed nonleaf bytes written / compressed nonleaf bytes written", TOKU_ENGINE_STATUS);
 
     // CPU time statistics for [de]serialization and [de]compression.
     STATUS_INIT(FT_LEAF_COMPRESS_TOKUTIME,                                  LEAF_COMPRESSION_TO_MEMORY_SECONDS, TOKUTIME, "leaf compression to memory (seconds)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
@@ -375,9 +377,31 @@ static void status_destroy(void) {
 }
 #undef STATUS_INIT
 
+#define STATUS_VAL(x)                                                               \
+    (ft_status.status[x].type == PARCOUNT ?                                         \
+        read_partitioned_counter(ft_status.status[x].value.parcount) :              \
+        ft_status.status[x].value.num)
+
 void
 toku_ft_get_status(FT_STATUS s) {
     *s = ft_status;
+
+    // Calculate compression ratios for leaf and nonleaf nodes
+    const double compressed_leaf_bytes = STATUS_VAL(FT_DISK_FLUSH_LEAF_BYTES) +
+                                         STATUS_VAL(FT_DISK_FLUSH_LEAF_BYTES_FOR_CHECKPOINT);
+    const double uncompressed_leaf_bytes = STATUS_VAL(FT_DISK_FLUSH_LEAF_UNCOMPRESSED_BYTES) +
+                                           STATUS_VAL(FT_DISK_FLUSH_LEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT);
+    const double compressed_nonleaf_bytes = STATUS_VAL(FT_DISK_FLUSH_NONLEAF_BYTES) +
+                                            STATUS_VAL(FT_DISK_FLUSH_NONLEAF_BYTES_FOR_CHECKPOINT);
+    const double uncompressed_nonleaf_bytes = STATUS_VAL(FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES) +
+                                              STATUS_VAL(FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT);
+
+    if (compressed_leaf_bytes > 0) {
+        s->status[FT_DISK_FLUSH_LEAF_COMPRESSION_RATIO].value.dnum = uncompressed_leaf_bytes / compressed_leaf_bytes;
+    }
+    if (compressed_nonleaf_bytes > 0) {
+        s->status[FT_DISK_FLUSH_NONLEAF_COMPRESSION_RATIO].value.dnum = uncompressed_nonleaf_bytes / compressed_nonleaf_bytes;
+    }
 }
 
 #define STATUS_INC(x, d)                                                            \
