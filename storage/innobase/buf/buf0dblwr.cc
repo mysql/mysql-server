@@ -593,7 +593,6 @@ buf_dblwr_process()
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 	ut_free(unaligned_read_buf);
-	recv_dblwr.pages.clear();
 }
 
 /****************************************************************//**
