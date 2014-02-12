@@ -2,5 +2,8 @@
 --source include/not_embedded.inc
 
 --source include/have_innodb.inc
+--source include/have_partition.inc
+
+let $partitioning= 1;
 
 --source suite/innodb/include/innodb_import.inc
