@@ -459,8 +459,9 @@ int32_t Value::as_int32() const
     return 0;
   }
   uint32_t to_int= 0;
-  memcpy(&to_int,&m_storage, m_size);
-  return le32toh(to_int);
+  memcpy(&to_int, m_storage, m_size);
+  to_int= le32toh(to_int);
+  return to_int;
 }
 
 int8_t Value::as_int8() const
@@ -470,7 +471,7 @@ int8_t Value::as_int8() const
     return 0;
   }
   int32_t to_int= 0;
-  memcpy(&to_int,&m_storage, m_size);
+  memcpy(&to_int, m_storage, m_size);
   return le32toh(to_int);
 }
 
@@ -481,7 +482,7 @@ int16_t Value::as_int16() const
     return 0;
   }
   int16_t to_int= 0;
-  memcpy(&to_int,&m_storage, m_size);
+  memcpy(&to_int, m_storage, m_size);
   return le16toh(to_int);
 }
 
@@ -492,7 +493,7 @@ int64_t Value::as_int64() const
     return 0;
   }
   int64_t to_int= 0;
-  memcpy(&to_int,&m_storage, m_size);
+  memcpy(&to_int, m_storage, m_size);
   return le64toh(to_int);
 }
 

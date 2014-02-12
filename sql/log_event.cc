@@ -1611,16 +1611,20 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case LOAD_EVENT:
     case NEW_LOAD_EVENT:
+#ifndef DBUG_OFF
       binary_log_debug::debug_simulate_invalid_address=
          DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
+#endif
       ev = new Load_log_event(buf, event_len, &des_ev);
       break;
     case ROTATE_EVENT:
       ev = new Rotate_log_event(buf, event_len, &des_ev);
       break;
     case CREATE_FILE_EVENT:
+#ifndef DBUG_OFF
       binary_log_debug::debug_simulate_invalid_address=
          DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
+#endif
       ev = new Create_file_log_event(buf, event_len, &des_ev);
       break;
     case APPEND_BLOCK_EVENT:

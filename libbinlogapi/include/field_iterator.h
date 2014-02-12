@@ -82,8 +82,8 @@ uint32_t Row_event_iterator<Iterator_value_type>::
   uint32_t field_offset= m_field_offset;
   int row_field_col_index= 0;
   std::vector<uint8_t> nullbits(m_row_event->get_null_bits_len());
-  std::copy(m_row_event->get_row().begin() + m_field_offset,
-            m_row_event->get_row().begin() +
+  std::copy(m_row_event->row.begin() + m_field_offset,
+            m_row_event->row.begin() +
             (m_field_offset + m_row_event->get_null_bits_len()),
             nullbits.begin());
 
@@ -93,9 +93,10 @@ uint32_t Row_event_iterator<Iterator_value_type>::
     ++row_field_col_index;
     unsigned int type= m_table_map->m_coltype[col_no] & 0xFF;
     uint32_t metadata= extract_metadata(m_table_map, col_no);
-    binary_log::Value val((enum_field_types)type,
-                     metadata,
-                     (const char *)&m_row_event->get_row()[field_offset]);
+
+    binary_log::Value val((enum_field_types)type, metadata,
+                          (const char*)(&m_row_event->row[field_offset]));
+
     if (is_null((unsigned char *)&nullbits[0], col_no ))
     {
       val.is_null(true);
@@ -133,7 +134,7 @@ Row_event_iterator< Iterator_value_type >&
   if (m_field_offset == UINT_MAX)
     throw std::logic_error("Field type is unrecognized");
 
-  if (m_field_offset < m_row_event->get_row().size())
+  if (m_field_offset < m_row_event->row.size() - 1)
   {
     /*
      * If we requested the fields in a previous operations
@@ -144,7 +145,7 @@ Row_event_iterator< Iterator_value_type >&
       m_field_offset= m_new_field_offset_calculated;
       //m_field_offset += m_row_event->n_bits_len;
       m_new_field_offset_calculated= 0;
-      if (m_field_offset >= m_row_event->get_row().size())
+      if (m_field_offset >= m_row_event->row.size() - 1)
         m_field_offset= 0;
       return *this;
     }
@@ -154,8 +155,8 @@ Row_event_iterator< Iterator_value_type >&
      */
     int row_field_col_index= 0;
     std::vector<uint8_t> nullbits(m_row_event->get_null_bits_len());
-    std::copy(m_row_event->get_row().begin() + m_field_offset,
-              m_row_event->get_row().begin() +
+    std::copy(m_row_event->row.begin() + m_field_offset,
+              m_row_event->row.begin() +
               (m_field_offset + m_row_event->get_null_bits_len()),
               nullbits.begin());
     m_field_offset += m_row_event->get_null_bits_len();
@@ -163,8 +164,8 @@ Row_event_iterator< Iterator_value_type >&
     {
       ++row_field_col_index;
       binary_log::Value val((enum_field_types)m_table_map->m_coltype[col_no],
-                       m_table_map->m_field_metadata[col_no],
-                       (const char *)&m_row_event->get_row()[m_field_offset]);
+                            m_table_map->m_field_metadata[col_no],
+                            (const char*)(&m_row_event->row[m_field_offset]));
       if (!is_null((unsigned char *)&nullbits[0], col_no))
       {
         m_field_offset += val.length();

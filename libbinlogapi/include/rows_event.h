@@ -614,11 +614,11 @@ protected:
 
   unsigned char* m_extra_row_data;
 
+
+public:
   std::vector<uint8_t> columns_before_image;
   std::vector<uint8_t> columns_after_image;
   std::vector<uint8_t> row;
-
-public:
   unsigned long long get_table_id()
   {
     return m_table_id.id();
@@ -637,21 +637,6 @@ public:
   unsigned long get_width() const
   {
     return m_width;
-  }
-
-  std::vector<uint8_t> get_columns_before_image() const
-  {
-    return columns_before_image;
-  }
-
-  std::vector<uint8_t> get_columns_after_image() const
-  {
-    return columns_after_image;
-  }
-
-  std::vector<uint8_t> get_row() const
-  {
-    return row;
   }
 
   static std::string get_flag_string(enum_flag flag)
