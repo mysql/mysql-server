@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3639,7 +3639,7 @@ class Ndb_schema_event_handler {
   uint m_own_nodeid;
   bool m_post_epoch;
 
-  bool is_post_epoch(void) const { return m_post_epoch; };
+  bool is_post_epoch(void) const { return m_post_epoch; }
 
   List<Ndb_schema_op> m_post_epoch_handle_list;
   List<Ndb_schema_op> m_post_epoch_ack_list;
