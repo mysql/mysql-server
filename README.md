@@ -2,15 +2,18 @@ TokuKV
 ======
 
 TokuKV is a high-performance, transactional key-value store, used in the
-TokuDB storage engine for MySQL and MariaDB.
+TokuDB storage engine for MySQL and MariaDB and in TokuMX, the
+high-performance MongoDB distribution.
 
 TokuKV is provided as a shared library with an interface similar to
 Berkeley DB.
 
 To build the full MySQL product, see the instructions for
-[ft-engine][ft-engine].  This document covers TokuKV only.
+[Tokutek/ft-engine][ft-engine].  To build TokuMX, see the instructions
+for [Tokutek/mongo][mongo].  This document covers TokuKV only.
 
-[ft-engine]: http://github.com/Tokutek/ft-engine
+[ft-engine]: https://github.com/Tokutek/ft-engine
+[mongo]: https://github.com/Tokutek/mongo
 
 
 Building
@@ -18,9 +21,8 @@ Building
 
 TokuKV is built using CMake >= 2.8.9.  Out-of-source builds are
 recommended.  You need a C++11 compiler, though only GCC >= 4.7 and
-Apple's Clang are tested.  You also need zlib and valgrind development
-packages (`yum install valgrind-devel zlib-devel` or `apt-get install
-valgrind zlib1g-dev`).
+Apple's Clang are tested.  You also need zlib development packages
+(`yum install zlib-devel` or `apt-get install zlib1g-dev`).
 
 You will also need the source code for jemalloc, checked out in
 `third_party/`.
@@ -35,6 +37,7 @@ CC=gcc47 CXX=g++47 cmake \
     -D CMAKE_BUILD_TYPE=Debug \
     -D USE_BDB=OFF \
     -D BUILD_TESTING=OFF \
+    -D USE_VALGRIND=OFF \
     -D CMAKE_INSTALL_PREFIX=../prefix/ \
     ..
 cmake --build . --target install
@@ -102,12 +105,19 @@ Contributing
 
 Please report bugs in TokuKV here on github.
 
-We have two publicly accessible mailing lists:
+We have two publicly accessible mailing lists for TokuDB:
 
  - tokudb-user@googlegroups.com is for general and support related
    questions about the use of TokuDB.
  - tokudb-dev@googlegroups.com is for discussion of the development of
    TokuDB.
+
+and two for TokuMX:
+
+ - tokumx-user@googlegroups.com is for general and support related
+   questions about the use of TokuMX.
+ - tokumx-dev@googlegroups.com is for discussion of the development of
+   TokuMX.
 
 We are also available on IRC on freenode.net, in the #tokutek channel.
 
