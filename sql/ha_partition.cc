@@ -8296,7 +8296,6 @@ int ha_partition::discard_or_import_tablespace(my_bool discard)
   uint i;
 
   DBUG_ENTER("ha_partition::discard_or_import_tablespace");
-  DBUG_ASSERT(bitmap_bits_set(&m_part_info->read_partitions) == m_tot_parts);
 
   for (i= bitmap_get_first_set(&m_part_info->read_partitions);
        i < m_tot_parts;
