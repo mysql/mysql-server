@@ -38,7 +38,6 @@ public:
     Initialize the gtid table access context as following:
       - Create a new THD if current_thd is NULL
       - Disable binlog temporarily if we are going to modify the table
-      - Save the sql mode
       - Open and lock a table.
 
     @param[in/out] thd        Thread requesting to open the table
@@ -53,7 +52,6 @@ public:
   /**
     De-initialize the gtid table access context as following:
       - Close the table
-      - Restore the sql mode
       - Reenable binlog if needed
       - Destroy the created THD if needed.
 
@@ -68,8 +66,6 @@ private:
   THD *m_drop_thd_object;
   /* Modify the table if it is true. */
   bool m_is_write;
-  /* Save the sql mode. */
-  sql_mode_t m_saved_mode;
   /* Save the lock info. */
   Open_tables_backup m_backup;
   /* Save binlog options. */
