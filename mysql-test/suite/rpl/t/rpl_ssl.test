@@ -110,7 +110,9 @@ CHANGE MASTER TO
  master_ssl = 0,
  master_ssl_ca = '',
  master_ssl_cert = '',
- master_ssl_key = '';
+ master_ssl_key = '',
+ master_ssl_crl='',
+ master_ssl_crlpath='';
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval CHANGE MASTER TO MASTER_SSL= 1, MASTER_SSL_CRL='$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', MASTER_SSL_CRLPATH='$MYSQL_TEST_DIR/std_data/crldir';
@@ -124,7 +126,9 @@ CHANGE MASTER TO
  master_ssl = 0,
  master_ssl_ca = '',
  master_ssl_cert = '',
- master_ssl_key = '';
+ master_ssl_key = '',
+ master_ssl_crl='',
+ master_ssl_crlpath='';
 
 --echo End of 5.0 tests
 --let $rpl_only_running_threads= 1
