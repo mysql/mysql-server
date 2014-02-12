@@ -16,7 +16,7 @@ SUBPARTITION BY HASH (col18) SUBPARTITIONS 3
   let $col1_key_part=PARTITION BY KEY (col_1) PARTITIONS 3;
   let $col18_part=PARTITION BY HASH (col18) PARTITIONS 3;
   # Set environment variable for perl snippets
-  let PARTITIONING= 1;
+  let PARTITIONS=1;
 }
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -40,7 +40,7 @@ SELECT * FROM t1 ORDER BY c1;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -58,7 +58,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -129,7 +129,7 @@ SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test",
 "t1#P#First_partition#SP#First_partitionsp0",
@@ -184,7 +184,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test",
 "t1#P#First_partition#SP#First_partitionsp0",
@@ -246,7 +246,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -273,7 +273,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -313,7 +313,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -335,7 +335,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -460,7 +460,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -480,7 +480,7 @@ SET AUTOCOMMIT = 0;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -516,7 +516,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -534,7 +534,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -564,7 +564,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -587,7 +587,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -604,7 +604,7 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 --echo # explicitly delete ibd file before creating table with correct schema
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_unlink_tablespace("test", "t1#P#p0");
 ib_unlink_tablespace("test", "t1#P#p1");
@@ -622,7 +622,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -650,7 +650,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 --echo # do not delete ibd file and try to import
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -674,7 +674,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -692,7 +692,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -757,7 +757,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -790,7 +790,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -880,7 +880,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -922,7 +922,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
@@ -1073,7 +1073,7 @@ FLUSH TABLES t1 FOR EXPORT;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 } else {
@@ -1113,7 +1113,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-if ($ENV{'PARTITIONING'})
+if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
 ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
