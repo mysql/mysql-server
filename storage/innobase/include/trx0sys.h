@@ -526,10 +526,6 @@ We must remember this limit in order to keep file compatibility. */
 #if UNIV_PAGE_SIZE_MIN < 4096
 # error "UNIV_PAGE_SIZE_MIN < 4096"
 #endif
-/** The offset of the MySQL replication info in the trx system header;
-this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
-#define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
-
 /** The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)
 #define	TRX_SYS_MYSQL_LOG_MAGIC_N_FLD	0	/*!< magic number which is
