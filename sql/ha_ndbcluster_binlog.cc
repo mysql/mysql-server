@@ -6930,9 +6930,6 @@ restart_cluster_failure:
   // to ensure that the parts of MySQL Server it uses has been created
   thd->init_for_queries();
 
-  /*
-    Main NDB Injector loop
-  */
   while (do_incident && ndb_binlog_running)
   {
     /*
@@ -7105,6 +7102,10 @@ restart_cluster_failure:
     static char db[]= "";
     thd->db= db;
   }
+
+  /*
+    Main NDB Injector loop
+  */
   do_incident = true; // If we get disconnected again...do incident report
   binlog_thread_state= BCCC_running;
   for ( ; !((ndbcluster_binlog_terminating ||
