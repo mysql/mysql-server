@@ -713,6 +713,12 @@ destroy_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
   return;
 }
 
+void
+reprepare_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
 static struct PSI_digest_locker*
 digest_start_noop(PSI_statement_locker *locker NNN)
 {
@@ -941,6 +947,7 @@ static PSI PSI_noop=
   set_socket_thread_owner_noop,
   create_prepare_stmt_noop,
   destroy_prepared_stmt_noop,
+  reprepare_prepared_stmt_noop,
   execute_prepare_stmt_noop,
   digest_start_noop,
   digest_add_token_noop,

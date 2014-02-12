@@ -632,6 +632,8 @@ typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
    const char *name, size_t length);
 typedef void (*destroy_prepared_stmt_v1_t)
   (PSI_prepared_stmt *prepared_stmt);
+typedef void (*reprepare_prepared_stmt_v1_t)
+  (PSI_prepared_stmt *prepared_stmt);
 typedef void (*execute_prepared_stmt_v1_t)
   (PSI_statement_locker *locker, PSI_prepared_stmt* prepared_stmt);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
@@ -779,6 +781,7 @@ struct PSI_v1
   set_socket_thread_owner_v1_t set_socket_thread_owner;
   create_prepared_stmt_v1_t create_prepared_stmt;
   destroy_prepared_stmt_v1_t destroy_prepared_stmt;
+  reprepare_prepared_stmt_v1_t reprepare_prepared_stmt;
   execute_prepared_stmt_v1_t execute_prepared_stmt;
   digest_start_v1_t digest_start;
   digest_add_token_v1_t digest_add_token;

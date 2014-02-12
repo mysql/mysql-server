@@ -69,6 +69,9 @@ struct row_prepared_stmt_instances
   /** Columns TIMER_PREPARE. */
   PFS_stat_row m_prepare_stat;
 
+  /** Columns COUNT_REPREPARE. */
+  PFS_stat_row m_reprepare_stat;
+
   /** Columns COUNT_STAR...SUM_NO_GOOD_INDEX_USED. */
   PFS_statement_stat_row m_execute_stat;
 };

@@ -85,6 +85,7 @@ void cleanup_prepared_stmt(void)
 void PFS_prepared_stmt::reset_data()
 {
   m_prepare_stat.reset();
+  m_reprepare_stat.reset();
   m_execute_stat.reset();
 }
 
