@@ -71,7 +71,7 @@ index 440a977..7d068fc 100644
  if ( $opt->{srcdir} )
  {
    $opt->{builddir} = $opt->{srcdir} unless $opt->{builddir};
-@@ -425,13 +462,18 @@ my $config_file;
+@@ -425,7 +462,7 @@ my $config_file;
  my $copy_cfg_file;
  
  # ----------------------------------------------------------------------
@@ -79,20 +79,21 @@ index 440a977..7d068fc 100644
 +# This will be the default config file (unless creation is unwanted)
  # ----------------------------------------------------------------------
  
- $config_file= "$basedir/my.cnf";
+ my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
+@@ -434,6 +471,11 @@ $config_file= "$basedir/my.$cnfext";
  
- my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
- 				  "share","share/mysql","support-files");
+ my $cfg_template= find_in_basedir($opt,"file","my-default.$cnfext",
+ 				  ".", "share","share/mysql","support-files");
 +# Distros might move files
 +if ((! -r $cfg_template) && (-r "@pkgdatadir@/my-default.cnf")) {
 +  $cfg_template = "@pkgdatadir@/my-default.cnf";
 +}
 +
- -e $cfg_template or cannot_find_file("my-default.cnf");
+ -e $cfg_template or cannot_find_file("my-default.$cnfext");
  
  $copy_cfg_file= $config_file;
-@@ -441,22 +483,21 @@ if (-e $copy_cfg_file)
-   $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
+@@ -443,22 +485,21 @@ if (-e $copy_cfg_file)
+   $copy_cfg_file =~ s/my.$cnfext/my-new.$cnfext/;
    # Too early to print warning here, the user may not notice
  }
 -open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
@@ -127,7 +128,7 @@ index 440a977..7d068fc 100644
  
  # ----------------------------------------------------------------------
  # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
-@@ -619,7 +660,7 @@ if ( $opt->{'skip-name-resolve'} and $resolved and $resolved =~ /\s/ )
+@@ -621,7 +662,7 @@ if ( $opt->{'skip-name-resolve'} and $resolved and $resolved =~ /\s/ )
  }
  
  # ----------------------------------------------------------------------
@@ -136,7 +137,7 @@ index 440a977..7d068fc 100644
  # ----------------------------------------------------------------------
  
  # FIXME The shell variant uses "mkdir -p":
-@@ -652,7 +693,7 @@ if ($opt_user)
+@@ -654,7 +695,7 @@ if ($opt_user)
    }
  }
  
@@ -145,7 +146,7 @@ index 440a977..7d068fc 100644
  {
    mkdir($dir, 0700) unless -d $dir;
    if ($opt_user and -w "/")
-@@ -846,7 +887,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
+@@ -848,7 +889,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
             "",
             "Support MySQL by buying support/licenses at http://shop.mysql.com");
  
