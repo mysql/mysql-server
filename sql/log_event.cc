@@ -6662,7 +6662,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   lex_start(thd);
   thd->lex->local_file= local_fname;
   mysql_reset_thd_for_next_command(thd);
- 
+
    /*
     We test replicate_*_db rules. Note that we have already prepared
     the file to load, even if we are going to ignore and delete it
@@ -9001,7 +9001,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
     lev->do_apply_event is the place where the table is loaded (it
     calls mysql_load()).
   */
-  if (lev->do_apply_event(0,rli,1)) 
+  if (lev->do_apply_event(0,rli,1))
   {
     /*
       We want to indicate the name of the file that could not be loaded
