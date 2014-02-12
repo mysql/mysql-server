@@ -20435,7 +20435,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
   if (!order_item->fixed &&
       (order_item->fix_fields(thd, order->item) ||
        (order_item= *order->item)->check_cols(1) ||
-       thd->is_fatal_error))
+       thd->is_error()))
     return TRUE; /* Wrong field. */
 
   uint el= all_fields.elements;

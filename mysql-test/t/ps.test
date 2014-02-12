@@ -3618,3 +3618,18 @@ DROP VIEW v2;
 DROP TABLE t1, t2;
 
 --echo # End of 5.3 tests
+
+--echo #
+--echo # MDEV-5505: Assertion `! is_set()' fails on PREPARE SELECT
+--echo # with out of range in GROUP BY
+--echo #
+CREATE TABLE t1 (a INT);
+
+--error ER_DATA_OUT_OF_RANGE
+PREPARE stmt FROM "SELECT 1 FROM t1 GROUP BY 0 OR 18446744073709551615+1";
+--error ER_DATA_OUT_OF_RANGE
+SELECT 1 FROM t1 GROUP BY 0 OR 18446744073709551615+1;
+
+drop table t1;
+
+--echo # End of 5.3 tests
