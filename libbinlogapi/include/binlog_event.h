@@ -836,18 +836,32 @@ public:
   }
 
   /**
-    Return a pointer to the header of the log event
+    Return a const pointer to the header of the log event
   */
-  Log_event_header *header() const
+  const Log_event_header *header() const
   {
-    return const_cast<Log_event_header*>(&m_header);
+    return &m_header;
   }
   /**
-    Return a pointer to the footer of the log event
+    Return a non-const pointer to the header of the log event
   */
-  Log_event_footer *footer() const
+  Log_event_header *header()
   {
-    return const_cast<Log_event_footer*>(&m_footer);
+    return &m_header;
+  }
+  /**
+    Return a const pointer to the footer of the log event
+  */
+  const Log_event_footer *footer() const
+  {
+    return &m_footer;
+  }
+  /**
+    Return a non-const pointer to the footer of the log event
+  */
+  Log_event_footer *footer()
+  {
+    return &m_footer;
   }
 
 private:
@@ -1968,6 +1982,7 @@ public:
   {
   }
 
+  // For the thd ctor of Ignorable_log_event
   Ignorable_event(Log_event_type type_arg= IGNORABLE_LOG_EVENT)
   : Binary_log_event(type_arg)
   {

@@ -754,6 +754,7 @@ class Execute_load_event: public Binary_log_event
 protected:
   //TODO: Remove if not required, used by Execute_load_log_event(THD* ...)
   Execute_load_event(const uint32_t file_id, const char* db_arg);
+  Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
 
 public:
   enum Execute_load_offset {
@@ -768,7 +769,6 @@ public:
                      const Format_description_event *description_event);
 
   ~Execute_load_event() {}
-  Log_event_type get_type_code() { return EXEC_LOAD_EVENT;}
 };
 
 /**
