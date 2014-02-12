@@ -34,12 +34,16 @@
     inline_mysql_execute_prepared_stmt(LOCKER, PREPARED_STMT)
   #define MYSQL_DESTROY_PS(PREPARED_STMT) \
     inline_mysql_destroy_prepared_stmt(PREPARED_STMT)
+  #define MYSQL_REPREPARE_PS(PREPARED_STMT) \
+    inline_mysql_reprepare_prepared_stmt(PREPARED_STMT)
 #else
   #define MYSQL_CREATE_PS(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
     NULL
   #define MYSQL_EXECUTE_PS(LOCKER, PREPARED_STMT) \
     do {} while (0)
   #define MYSQL_DESTROY_PS(PREPARED_STMT) \
+    do {} while (0)
+  #define MYSQL_REPREPARE_PS(PREPARED_STMT) \
     do {} while (0)
 #endif
 
@@ -71,6 +75,13 @@ inline_mysql_destroy_prepared_stmt(PSI_prepared_stmt *prepared_stmt)
 {
   if (prepared_stmt != NULL)
     PSI_PS_CALL(destroy_prepared_stmt)(prepared_stmt);
+}
+
+static inline void 
+inline_mysql_reprepare_prepared_stmt(PSI_prepared_stmt *prepared_stmt)
+{
+  if (prepared_stmt != NULL)
+    PSI_PS_CALL(reprepare_prepared_stmt)(prepared_stmt);
 }
 #endif
 

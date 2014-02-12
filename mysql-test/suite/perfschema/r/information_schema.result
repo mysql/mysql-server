@@ -290,7 +290,7 @@ metadata_locks	10000	0
 mutex_instances	5000	0
 objects_summary_global_by_type	5500	0
 performance_timers	5	0
-prepared_statements_instances	1000	0
+prepared_statements_instances	23403	0
 replication_connection_configuration	0	0
 replication_connection_status	0	0
 replication_execute_configuration	0	0
