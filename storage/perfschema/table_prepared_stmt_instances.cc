@@ -80,27 +80,12 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("COUNT_PREPARE") },
+    { C_STRING_WITH_LEN("TIMER_PREPARE") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("SUM_TIMER_PREPARE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_PREPARE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_PREPARE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_PREPARE") },
+    { C_STRING_WITH_LEN("COUNT_REPREPARE") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -228,7 +213,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_prepared_stmt_instances::m_field_def=
-{ 38, field_types };
+{ 35, field_types };
 
 PFS_engine_table_share
 table_prepared_stmt_instances::m_share=
@@ -358,6 +343,8 @@ void table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
   time_normalizer *normalizer= time_normalizer::get(statement_timer);
   /* Get prepared statement prepare stats. */
   m_row.m_prepare_stat.set(normalizer, & prepared_stmt->m_prepare_stat);
+  /* Get prepared statement reprepare stats. */
+  m_row.m_reprepare_stat.set(normalizer, & prepared_stmt->m_reprepare_stat);
   /* Get prepared statement execute stats. */
   m_row.m_execute_stat.set(normalizer, & prepared_stmt->m_execute_stat);
 
@@ -437,15 +424,14 @@ int table_prepared_stmt_instances
         else
           f->set_null();
         break;
-      case 9:   /* COUNT_PREPARE */
-      case 10:  /* SUM_TIMER_PREPARE */
-      case 11:  /* MIN_TIMER_PREPARE */
-      case 12:  /* AVG_TIMER_PREPARE */
-      case 13:  /* MAX_PREPARE */
-        m_row.m_prepare_stat.set_field(f->field_index - 9, f);
+      case 9:    /* TIMER_PREPARE */
+        m_row.m_prepare_stat.set_field(1, f);
+        break;
+      case 10:   /* COUNT_REPREPARE */
+        m_row.m_reprepare_stat.set_field(0, f);
         break;
       default: /* 14, ... COUNT/SUM/MIN/AVG/MAX */
-        m_row.m_execute_stat.set_field(f->field_index - 14, f);
+        m_row.m_execute_stat.set_field(f->field_index - 11, f);
         break;
       }
     }

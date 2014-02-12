@@ -2261,7 +2261,7 @@ typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
 /**
   Get a prepare statement.
-  @param current thread.
+  @param locker a statement locker for the running thread.
 */
 typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
   (void *identity, uint stmt_id, PSI_statement_locker *locker,
@@ -2270,14 +2270,22 @@ typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
 
 /**
   destroy a prepare statement.
-  @param current thread.
+  @param prepared_stmt prepared statement.
 */
 typedef void (*destroy_prepared_stmt_v1_t)
   (PSI_prepared_stmt *prepared_stmt);
 
 /**
+  repreare a prepare statement.
+  @param prepared_stmt prepared statement.
+*/
+typedef void (*reprepare_prepared_stmt_v1_t)
+  (PSI_prepared_stmt *prepared_stmt);
+
+/**
   Record a prepare statement instrumentation execute event.
-  @param current thread.
+  @param locker a statement locker for the running thread.
+  @param prepared_stmt prepared statement.
 */
 typedef void (*execute_prepared_stmt_v1_t)
   (PSI_statement_locker *locker, PSI_prepared_stmt* prepared_stmt);
@@ -2582,6 +2590,8 @@ struct PSI_v1
   create_prepared_stmt_v1_t create_prepared_stmt;
   /** @sa destroy_prepared_stmt_v1_t. */
   destroy_prepared_stmt_v1_t destroy_prepared_stmt;
+  /** @sa reprepare_prepared_stmt_v1_t. */
+  reprepare_prepared_stmt_v1_t reprepare_prepared_stmt;
   /** @sa execute_prepared_stmt_v1_t. */
   execute_prepared_stmt_v1_t execute_prepared_stmt;
   /** @sa digest_start_v1_t. */

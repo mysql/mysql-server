@@ -3152,7 +3152,8 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   param_count(0),
   last_errno(0),
   flags((uint) IS_IN_USE),
-  with_log(false)
+  with_log(false),
+  m_prepared_stmt(0)
 {
   init_sql_alloc(key_memory_prepared_statement_main_mem_root,
                  &main_mem_root, thd_arg->variables.query_alloc_block_size,
@@ -3725,6 +3726,9 @@ Prepared_statement::reprepare()
 
   if (! error)
   {
+    /* Update reprepare count for this prepared statement in P_S table. */
+    MYSQL_REPREPARE_PS(copy.m_prepared_stmt);
+
     swap_prepared_statement(&copy);
     swap_parameter_array(param_array, copy.param_array, param_count);
 #ifndef DBUG_OFF

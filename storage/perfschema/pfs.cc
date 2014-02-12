@@ -6008,11 +6008,18 @@ void pfs_execute_prepared_stmt_v1 (PSI_statement_locker *locker,
 
 void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
 {
-  PFS_prepared_stmt *pfs_ps= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt); 
-  if(pfs_ps == NULL)
-    return;
+  PFS_prepared_stmt *pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt); 
+  delete_prepared_stmt(pfs_prepared_stmt);
+  return;
+}
 
-  delete_prepared_stmt(pfs_ps);
+void pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
+{
+  PFS_prepared_stmt *pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt); 
+  PFS_single_stat *prepared_stmt_stat= &pfs_prepared_stmt->m_reprepare_stat;
+
+  if (prepared_stmt_stat != NULL)
+    prepared_stmt_stat->aggregate_counted();  
   return;
 }
 
@@ -6536,6 +6543,7 @@ PSI_v1 PFS_v1=
   pfs_set_socket_thread_owner_v1,
   pfs_create_prepared_stmt_v1,
   pfs_destroy_prepared_stmt_v1,
+  pfs_reprepare_prepared_stmt_v1,
   pfs_execute_prepared_stmt_v1,
   pfs_digest_start_v1,
   pfs_digest_add_token_v1,
