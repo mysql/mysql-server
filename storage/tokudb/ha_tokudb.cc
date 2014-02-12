@@ -1197,9 +1197,8 @@ static int generate_row_for_put(
         );
 }
 
-ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, table_arg) 
-    // flags defined in sql\handler.h
-{
+ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, table_arg) {
+    TOKUDB_HANDLER_DBUG_ENTER("");
     share = NULL;
     int_table_flags = HA_REC_NOT_IN_SEQ  | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
         HA_FILE_BASED | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX | HA_CAN_WRITE_DURING_OPTIMIZE;
@@ -1256,9 +1255,18 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     tokudb_active_index = MAX_KEY;
     invalidate_icp();
     trx_handler_list.data = this;
+    TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
 ha_tokudb::~ha_tokudb() {
+    TOKUDB_HANDLER_DBUG_ENTER("");
+    for (uint32_t i = 0; i < sizeof(mult_key_dbt_array)/sizeof(mult_key_dbt_array[0]); i++) {
+        toku_dbt_array_destroy(&mult_key_dbt_array[i]);
+    }
+    for (uint32_t i = 0; i < sizeof(mult_rec_dbt_array)/sizeof(mult_rec_dbt_array[0]); i++) {
+        toku_dbt_array_destroy(&mult_rec_dbt_array[i]);
+    }
+    TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
 //
@@ -3010,7 +3018,7 @@ void ha_tokudb::init_hidden_prim_key_info() {
         share->status |= STATUS_PRIMARY_KEY_INIT;
     }
     tokudb_pthread_mutex_unlock(&share->mutex);
-    DBUG_VOID_RETURN;
+    TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
 
@@ -3293,7 +3301,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
         share->try_table_lock = false;
         tokudb_pthread_mutex_unlock(&share->mutex);
     }
-    DBUG_VOID_RETURN;
+    TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
 //
@@ -4649,7 +4657,7 @@ void ha_tokudb::read_key_only(uchar * buf, uint keynr, DBT const *found_key) {
     if (!(hidden_primary_key && keynr == primary_key)) {
         unpack_key(buf, found_key, keynr);
     }
-    DBUG_VOID_RETURN;
+    TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
 //
@@ -5821,7 +5829,7 @@ void ha_tokudb::position(const uchar * record) {
         //
         memcpy(ref, &key.size, sizeof(uint32_t));
     }
-    DBUG_VOID_RETURN;
+    TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
 //
@@ -7521,7 +7529,7 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
     *first_value = nr;
     *nb_reserved_values = nb_desired_values;
     tokudb_pthread_mutex_unlock(&share->mutex);
-    DBUG_VOID_RETURN;
+    TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
 bool ha_tokudb::is_optimize_blocking() {

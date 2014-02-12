@@ -215,23 +215,22 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_CHECK (1<<14)
 #define TOKUDB_DEBUG_ANALYZE (1<<15)
 
-#define TOKUDB_TRACE(f, ...) \
-    fprintf(stderr, "%u %s:%u %s " f "\n", my_tid(), __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);
+#define TOKUDB_TRACE(f, ...) { \
+    fprintf(stderr, "%u %s:%u %s " f "\n", my_tid(), __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
+}
 
 static inline unsigned int my_tid() {
     return (unsigned int)toku_os_gettid();
 }
 
-#define TOKUDB_DBUG_ENTER(f, ...)      \
-{ \
+#define TOKUDB_DBUG_ENTER(f, ...) { \
     if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
         TOKUDB_TRACE(f, ##__VA_ARGS__);       \
     } \
 } \
     DBUG_ENTER(__FUNCTION__);
 
-#define TOKUDB_DBUG_RETURN(r) \
-{ \
+#define TOKUDB_DBUG_RETURN(r) { \
     int rr = (r); \
     if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) { \
         TOKUDB_TRACE("return %d", rr); \
@@ -242,21 +241,26 @@ static inline unsigned int my_tid() {
 #define TOKUDB_HANDLER_TRACE(f, ...) \
     fprintf(stderr, "%u %p %s:%u ha_tokudb::%s " f "\n", my_tid(), this, __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);
 
-#define TOKUDB_HANDLER_DBUG_ENTER(f, ...)      \
-{ \
+#define TOKUDB_HANDLER_DBUG_ENTER(f, ...) { \
     if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
         TOKUDB_HANDLER_TRACE(f, ##__VA_ARGS__); \
     } \
 } \
     DBUG_ENTER(__FUNCTION__);
 
-#define TOKUDB_HANDLER_DBUG_RETURN(r) \
-{ \
+#define TOKUDB_HANDLER_DBUG_RETURN(r) { \
     int rr = (r); \
     if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) { \
         TOKUDB_HANDLER_TRACE("return %d", rr); \
     } \
     DBUG_RETURN(rr); \
+}
+
+#define TOKUDB_HANDLER_DBUG_VOID_RETURN { \
+    if (tokudb_debug & TOKUDB_DEBUG_RETURN) { \
+        TOKUDB_HANDLER_TRACE("return");       \
+    } \
+    DBUG_VOID_RETURN; \
 }
 
 #define TOKUDB_DBUG_DUMP(s, p, len) \
