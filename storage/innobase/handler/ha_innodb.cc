@@ -10881,12 +10881,12 @@ ha_innobase::info_low(
 			innodb_crash_recovery is set to a high value. */
 			stats.delete_length = 0;
 		} else {
-			ullint	avail_space;
+			uintmax_t   avail_space;
 
 			avail_space = fsp_get_available_space_in_free_extents(
 				ib_table->space);
 
-			if (avail_space == ULLINT_UNDEFINED) {
+			if (avail_space == UINTMAX_MAX) {
 				THD*	thd;
 				char	errbuf[MYSYS_STRERROR_SIZE];
 
@@ -11445,7 +11445,7 @@ ha_innobase::update_table_comment(
 
 		rewind(srv_dict_tmpfile);
 
-		fprintf(srv_dict_tmpfile, "InnoDB free: %llu kB",
+		fprintf(srv_dict_tmpfile, "InnoDB free: %" PRIuMAX " kB",
 			fsp_get_available_space_in_free_extents(
 				prebuilt->table->space));
 
@@ -15815,7 +15815,7 @@ static MYSQL_SYSVAR_ULONG(ft_total_cache_size, fts_max_total_cache_size,
 static MYSQL_SYSVAR_ULONG(ft_result_cache_limit, fts_result_cache_limit,
   PLUGIN_VAR_RQCMDARG,
   "InnoDB Fulltext search query result cache limit in bytes",
-  NULL, NULL, 2000000000L, 1000000L, ~0UL, 0);
+  NULL, NULL, 2000000000L, 1000000L, 4294967295, 0);
 
 static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

@@ -41,7 +41,7 @@ mach_parse_compressed(
 	const byte**	ptr,
 	const byte*	end_ptr)
 {
-	ib_uint32_t	val;
+	ulint	val;
 
 	if (*ptr >= end_ptr) {
 		*ptr = NULL;
@@ -52,24 +52,24 @@ mach_parse_compressed(
 
 	if (val < 0x80) {
 		++*ptr;
-		return(val);
+		return(static_cast<ib_uint32_t>(val));
 	} else if (val < 0xC0) {
 		if (end_ptr >= *ptr + 2) {
 			val = mach_read_from_2(*ptr) & 0x7FFF;
 			*ptr += 2;
-			return(val);
+			return(static_cast<ib_uint32_t>(val));
 		}
 	} else if (val < 0xE0) {
 		if (end_ptr >= *ptr + 3) {
 			val = mach_read_from_3(*ptr) & 0x3FFFFF;
 			*ptr += 3;
-			return(val);
+			return(static_cast<ib_uint32_t>(val));
 		}
 	} else if (val < 0xF0) {
 		if (end_ptr >= *ptr + 4) {
 			val = mach_read_from_4(*ptr) & 0x1FFFFFFF;
 			*ptr += 4;
-			return(val);
+			return(static_cast<ib_uint32_t>(val));
 		}
 	} else {
 		ut_ad(val == 0xF0);
@@ -78,7 +78,7 @@ mach_parse_compressed(
 			val = mach_read_from_4(*ptr + 1);
 			ut_ad(val > 0x1FFFFFFF);
 			*ptr += 5;
-			return(val);
+			return(static_cast<ib_uint32_t>(val));
 		}
 	}
 

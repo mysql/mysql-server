@@ -6090,7 +6090,8 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   if (join->group_list)
   { /* Collect all query fields referenced in the GROUP clause. */
     for (cur_group= join->group_list; cur_group; cur_group= cur_group->next)
-      (*cur_group->item)->walk(&Item::collect_item_field_processor, 0,
+      (*cur_group->item)->walk(&Item::collect_item_field_processor,
+                               Item::WALK_POSTFIX,
                                (uchar*) &indexed_fields);
     cause= "group_by";
   }
@@ -6100,7 +6101,8 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
     List_iterator<Item> select_items_it(select_items);
     Item *item;
     while ((item= select_items_it++))
-      item->walk(&Item::collect_item_field_processor, 0,
+      item->walk(&Item::collect_item_field_processor,
+                 Item::WALK_POSTFIX,
                  (uchar*) &indexed_fields);
     cause= "distinct";
   }
@@ -8464,7 +8466,8 @@ static bool make_join_select(JOIN *join, Item *cond)
           correct calculation of the number of its executions.
         */
         int idx= tab - join->join_tab;
-        cond->walk(&Item::inform_item_in_cond_of_tab, false,
+        cond->walk(&Item::inform_item_in_cond_of_tab,
+                   Item::WALK_POSTFIX,
                    reinterpret_cast<uchar * const>(&idx));
       }
 

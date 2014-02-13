@@ -1035,9 +1035,7 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
 		/* Allow anything in page_type when creating a page. */
 		ut_a(!page_zip);
-		ptr = page_parse_create(ptr, end_ptr,
-					type == MLOG_COMP_PAGE_CREATE,
-					block, mtr);
+		page_parse_create(block, type == MLOG_COMP_PAGE_CREATE);
 		break;
 	case MLOG_UNDO_INSERT:
 		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
@@ -2746,6 +2744,7 @@ recv_recovery_from_checkpoint_start(
 	byte*		buf;
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	dberr_t		err;
+	ut_when_dtor<recv_dblwr_t> tmp(recv_sys->dblwr);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
 
