@@ -69,7 +69,6 @@ static bool no_threads_end(THD *thd, bool put_in_cache)
 void one_thread_scheduler(scheduler_functions *func)
 {
   func->max_threads= 1;
-  max_connections= 1;
   func->max_connections= &max_connections;
   func->connection_count= &connection_count;
 #ifndef EMBEDDED_LIBRARY

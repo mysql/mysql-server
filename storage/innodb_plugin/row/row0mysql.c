@@ -1079,7 +1079,6 @@ row_insert_for_mysql(
 	ins_node_t*	node		= prebuilt->ins_node;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (prebuilt->table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
@@ -1313,7 +1312,6 @@ row_update_for_mysql(
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	UT_NOT_USED(mysql_rec);
 
 	if (prebuilt->table->ibd_file_missing) {
@@ -1483,7 +1481,6 @@ row_unlock_for_mysql(
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (UNIV_UNLIKELY
 	    (!srv_locks_unsafe_for_binlog
@@ -2724,7 +2721,6 @@ row_truncate_table_for_mysql(
 	redo log records on the truncated tablespace, we will assign
 	a new tablespace identifier to the truncated tablespace. */
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(table);
 
 	if (srv_created_new_raw) {
