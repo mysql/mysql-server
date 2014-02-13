@@ -626,8 +626,6 @@ install -m 0644 %{SOURCE3} $RPM_BUILD_ROOT/etc/my.cnf
 # 5.1.32 forgets to install the mysql-test README file
 # obsolete: install -m 0644 mysql-test/README $RPM_BUILD_ROOT%{_datadir}/mysql-test/README  # 'README' is there already
 
-mv ${RPM_BUILD_ROOT}%{_bindir}/mysqlbug ${RPM_BUILD_ROOT}%{_libdir}/mysql/mysqlbug
-install -m 0755 scriptstub ${RPM_BUILD_ROOT}%{_bindir}/mysqlbug
 mv ${RPM_BUILD_ROOT}%{_bindir}/mysql_config ${RPM_BUILD_ROOT}%{_libdir}/mysql/mysql_config
 install -m 0755 scriptstub ${RPM_BUILD_ROOT}%{_bindir}/mysql_config
 
@@ -818,7 +816,6 @@ fi
 %{_mandir}/man1/my_print_defaults.1*
 %{_mandir}/man1/mysql_config_editor.1*
 
-%{_libdir}/mysql/mysqlbug
 %{_libdir}/mysql/mysql_config
 
 %files -n mysql-libs%{product_suffix}
@@ -882,7 +879,6 @@ fi
 %{_bindir}/mysql_tzinfo_to_sql
 %{_bindir}/mysql_upgrade
 %{_bindir}/mysql_zap
-%{_bindir}/mysqlbug
 %{_bindir}/mysqldumpslow
 %{_bindir}/mysqld_multi
 %{_bindir}/mysqld_safe
@@ -918,7 +914,6 @@ fi
 %{_mandir}/man1/mysql_secure_installation.1*
 %{_mandir}/man1/mysql_upgrade.1*
 %{_mandir}/man1/mysql_zap.1*
-%{_mandir}/man1/mysqlbug.1*
 %{_mandir}/man1/mysqldumpslow.1*
 %{_mandir}/man1/mysqlbinlog.1*
 %{_mandir}/man1/mysqlcheck.1*
@@ -986,6 +981,9 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Thu Feb 13 2014 Harin Vadodaria <harin.vadodaria@oracle.com>
+- Removed references to mysqlbug
+
 * Mon Jul  8 2013 Tor Didriksen <tor.didriksen@oracle.com>
 - Fix Bug#35019 Use pthread_attr_getguardsize for better robustness
   of stack thread sizes
