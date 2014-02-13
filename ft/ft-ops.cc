@@ -1206,6 +1206,7 @@ int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *write_ext
 
 exit:
     // call the finalize callback with a new pair attr
+    int height = node->height;
     PAIR_ATTR new_attr = make_ftnode_pair_attr(node);
     finalize(new_attr, finalize_extra);
 
@@ -1222,7 +1223,7 @@ exit:
     }
     // stats
     if (num_partial_evictions > 0) {
-        if (node->height == 0) {
+        if (height == 0) {
             long delta = old_attr.leaf_size - new_attr.leaf_size;
             STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, num_partial_evictions);
             STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF_BYTES, delta);
