@@ -8466,11 +8466,7 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     mi->retry_count = lex_mi->retry_count;
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
-  else
-    mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
-                                     (slave_net_timeout/2.0));
 
-  mi->received_heartbeats= LL(0); // counter lives until master is CHANGEd
   /*
     reset the last time server_id list if the current CHANGE MASTER
     is mentioning IGNORE_SERVER_IDS= (...)

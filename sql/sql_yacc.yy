@@ -437,6 +437,13 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
   }
 #endif
 
+  if (val && val->type() == Item::FIELD_ITEM &&
+      ((Item_field*)val)->table_name)
+  {
+    my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), tmp->var->name.str);
+    return TRUE;
+  }
+
   if (! (var= new set_var(var_type, tmp->var, &tmp->base_name, val)))
     return TRUE;
 
