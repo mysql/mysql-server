@@ -352,6 +352,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
   if (!initialized)
     DBUG_RETURN(NULL);
 
+  DEBUG_SYNC(current_thd, "find_udf_before_lock");
   /* TODO: This should be changed to reader locks someday! */
   if (mark_used)
     mysql_rwlock_wrlock(&THR_LOCK_udf);  /* Called during fix_fields */
@@ -466,7 +467,12 @@ int mysql_create_function(THD *thd,udf_func *udf)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
+  tables.init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("func"),
+                        "func", TL_WRITE);
+  table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT);
+
   mysql_rwlock_wrlock(&THR_LOCK_udf);
+  DEBUG_SYNC(current_thd, "mysql_create_function_after_lock");
   if ((my_hash_search(&udf_hash,(uchar*) udf->name.str, udf->name.length)))
   {
     my_error(ER_UDF_EXISTS, MYF(0), udf->name.str);
@@ -510,9 +516,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   /* create entry in mysql.func table */
 
-  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
   /* Allow creation of functions even if we can't open func table */
-  if (!(table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+  if (!table)
     goto err;
   table->use_all_columns();
   restore_record(table, s->default_values);	// Default values for fields
@@ -584,7 +589,12 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
+  tables.init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("func"),
+                        "func", TL_WRITE);
+  table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT);
+
   mysql_rwlock_wrlock(&THR_LOCK_udf);
+  DEBUG_SYNC(current_thd, "mysql_drop_function_after_lock");
   if (!(udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) udf_name->str,
                                        (uint) udf_name->length)))
   {
@@ -601,9 +611,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (udf->dlhandle && !find_udf_dl(udf->dl))
     dlclose(udf->dlhandle);
 
-  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
-
-  if (!(table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+  if (!table)
     goto err;
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
