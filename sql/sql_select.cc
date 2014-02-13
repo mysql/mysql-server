@@ -3154,13 +3154,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
 #endif
 
     DBUG_EXECUTE_IF("bug11747970_raise_error",
-                    {
-                      if (!error)
-                      {
-                        my_error(ER_UNKNOWN_ERROR, MYF(0));
-                        goto error;
-                      }
-                    });
+                    { join->thd->killed= KILL_QUERY_HARD; });
     if (error)
     {
       table->file->print_error(error, MYF(0));
