@@ -352,15 +352,16 @@ trx_undo_update_cleanup(
 	ulint		n_added_logs,	/*!< in: number of logs added */
 	mtr_t*		mtr);		/*!< in: mtr */
 
-/******************************************************************//**
-Frees or caches an insert undo log after a transaction commit or rollback.
+/** Frees an insert undo log after a transaction commit or rollback.
 Knowledge of inserts is not needed after a commit or rollback, therefore
-the data can be discarded. */
+the data can be discarded.
+@param[in,out]	undo_ptr	undo log to clean up
+@param[in]	noredo		whether the undo tablespace is redo logged */
 
 void
 trx_undo_insert_cleanup(
-/*====================*/
-	trx_undo_ptr_t*	undo_ptr);	/*!< in: undo log to cleanup. */
+	trx_undo_ptr_t*	undo_ptr,
+	bool		noredo);
 
 /********************************************************************//**
 At shutdown, frees the undo logs of a PREPARED transaction. */

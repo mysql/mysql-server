@@ -1914,9 +1914,10 @@ multi_update::initialize_tables(JOIN *join)
         for (JOIN_TAB *tab= join->join_tab + 1;
              tab < join->join_tab + join->tables; tab++)
         {
-          if(tab->condition())
-            tab->condition()->walk(&Item::add_field_to_set_processor, TRUE,
-                                   reinterpret_cast<uchar *>(table));
+          if (tab->condition())
+            tab->condition()->walk(&Item::add_field_to_set_processor,
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      reinterpret_cast<uchar *>(table));
         }
       }
       if (safe_update_on_fly(thd, join->join_tab, table_ref, all_tables))

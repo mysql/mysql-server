@@ -458,7 +458,9 @@ buf_dblwr_init_or_load_pages(
 		page += univ_page_size.physical();
 	}
 
-	os_file_flush(file);
+	if (reset_space_ids) {
+		os_file_flush(file);
+	}
 
 	ut_free(unaligned_read_buf);
 }
@@ -593,7 +595,6 @@ buf_dblwr_process()
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 	ut_free(unaligned_read_buf);
-	recv_dblwr.pages.clear();
 }
 
 /****************************************************************//**

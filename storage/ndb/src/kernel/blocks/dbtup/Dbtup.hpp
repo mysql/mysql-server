@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3184,7 +3184,7 @@ private:
                                                   tabPtrP->total_rec_size);
     if (unlikely(dst == 0))
       return 0;
-#ifdef HAVE_purify
+#ifdef HAVE_VALGRIND
     bzero(dst, tabPtrP->total_rec_size);
 #endif
     Uint32 count = tabPtrP->m_no_of_attributes;

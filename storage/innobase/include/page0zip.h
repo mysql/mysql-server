@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -516,7 +516,7 @@ page_zip_verify_checksum(
 	ulint		size	/*!< in: size of compressed page */
 #ifdef UNIV_INNOCHECKSUM
 	/* these variables are used only for innochecksum tool. */
-	,ullint		page_no,	/*!< in: page number of
+	,uintmax_t	page_no,	/*!< in: page number of
 					given read_buf */
 	bool		strict_check,	/*!< in: true if strict-check
 					option is enable */
