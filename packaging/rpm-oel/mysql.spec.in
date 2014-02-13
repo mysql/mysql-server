@@ -518,6 +518,7 @@ rm -rf %{buildroot}%{_sysconfdir}/init.d/mysqld
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}%{_bindir}/mysql_setpermission
 rm -rf %{buildroot}%{_mandir}/man1/mysql_setpermission.1*
+rm -rf %{buildroot}%{_mandir}/man1/mysqlbug.1*
 
 %check
 %if 0%{?runselftest}
@@ -822,9 +823,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Thu Feb 13 2014 Harin Vadodaria <harin.vadodaria@oracle.com> - 5.7.4-0.1.m14 - 5.7.4
-- Removed references to mysqlbug
-
 * Fri Feb 07 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.1.m14
 - 5.7.4
 - Enable shared libmysqld by cmake option

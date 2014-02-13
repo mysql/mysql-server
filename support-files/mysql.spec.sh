@@ -1218,9 +1218,6 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
-* Thu Feb 13 2014 Harin Vadodaria <harin.vadodaria@oracle.com>
-- Removed references to mysqlbug
-
 * Wed Oct 30 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Removed non gpl file docs/mysql.info from community packages
 
