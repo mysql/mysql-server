@@ -3207,21 +3207,21 @@ recv_reset_log_files_for_backup(
 }
 #endif /* UNIV_HOTBACKUP */
 
-void recv_dblwr_t::add(byte* page)
+/** Find a doublewrite copy of a page.
+@param[in]	space_id	tablespace identifier
+@param[in]	page_no		page number
+@return	page frame
+@retval NULL if no page was found */
+
+const byte*
+recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 {
-	pages.push_back(page);
-}
+	std::vector<const byte*> matches;
+	const byte*	result = 0;
 
-byte* recv_dblwr_t::find_page(ulint space_id, ulint page_no)
-{
-	std::vector<byte*> matches;
-	byte*	result = 0;
-
-	for (std::list<byte*>::iterator i = pages.begin();
-	     i != pages.end(); ++i) {
-
-		if ((page_get_space_id(*i) == space_id)
-		    && (page_get_page_no(*i) == page_no)) {
+	for (list::iterator i = pages.begin(); i != pages.end(); ++i) {
+		if (page_get_space_id(*i) == space_id
+		    && page_get_page_no(*i) == page_no) {
 			matches.push_back(*i);
 		}
 	}
@@ -3233,7 +3233,7 @@ byte* recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 		lsn_t max_lsn	= 0;
 		lsn_t page_lsn	= 0;
 
-		for (std::vector<byte*>::iterator i = matches.begin();
+		for (std::vector<const byte*>::iterator i = matches.begin();
 		     i != matches.end(); ++i) {
 
 			page_lsn = mach_read_from_8(*i + FIL_PAGE_LSN);
