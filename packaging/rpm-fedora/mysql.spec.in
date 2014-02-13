@@ -308,7 +308,7 @@ the embedded version of the MySQL server.
 %setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
 %patch0 -p1
-%patch1 -p1
+#patch1 -p1
 
 %build
 # Fail quickly and obviously if user tries to build as root
