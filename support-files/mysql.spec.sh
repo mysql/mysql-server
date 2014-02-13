@@ -864,7 +864,7 @@ if ! grep '^MySQL RPM upgrade' $STATUS_FILE >/dev/null 2>&1 ; then
 	# Fix bug#45415: no "mysql_install_db" on an upgrade
 	# Do this as a negative to err towards more "install" runs
 	# rather than to miss one.
-	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user} --random-passwords
+	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
 	# Attention: Now 'root' is the only database user,
 	# its password is a random value found in ~/.mysql_secret,
