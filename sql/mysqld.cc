@@ -5040,12 +5040,6 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(1);
   }
 
-  /*
-    We must have LOCK_open before LOCK_global_system_variables because
-    LOCK_open is hold while sql_plugin.c::intern_sys_var_ptr() is called.
-  */
-  mysql_mutex_record_order(&LOCK_open, &LOCK_global_system_variables);
-
   create_shutdown_thread();
   start_handle_manager();
 
