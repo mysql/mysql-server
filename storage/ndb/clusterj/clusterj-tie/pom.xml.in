@@ -65,13 +65,6 @@
                   <property>ndbclient.lib</property>
                   <message>You must define a ndbclient.lib in your ${user.home}/.m2/settings.xml file.</message>
                 </requireProperty>
-                <requireFilesExist>
-                  <files>
-                   <!-- we should test for 'libndbclient.*', not an OS-specific suffix (dylib); but use of a file pattern seems not supported here-->
-                   <file>${ndbclient.lib}/libndbclient.dylib</file>
-                  </files>
-                  <message>The directory ${ndbclient.lib} doesn't appear to contain the ndbclient jni library. Usually the library directory is lib/mysql in the the installed ndb project.</message>
-                </requireFilesExist>
               </rules>
             </configuration>
           </execution>
