@@ -329,7 +329,7 @@ ynw.ibd
 yny.ibd
 yyy.ibd
 #
-# Cleanup after restart
+# Restart the server and DROP the tablespaces.
 #
 DROP TABLE yyy;
 DROP TABLE nyy;
@@ -380,7 +380,7 @@ nolink.ibd.bak
 # Create some tables again and this time, crash instead of shutdown
 # InnoDB recovery does not have the ability at this time to query
 # the data dictionary in order to determine if the table it is
-# openeing is the correct one, or to finde the previous location
+# openeing is the correct one, or to find the previous location
 # of a tablespace from SYS_DATAFILES.  It must rely on the ISL file
 # to tell the truth. But it can compare the current linked location
 # with a tablespace found in the default location and use the most
@@ -394,7 +394,7 @@ nolink.ibd.bak
 # source of the 'wrong' tablespaces.
 #
 # Tablename   Default_Tablespace  Remote_Tablespace
-#    ny              Yes                 Yes
+#    ny              No                  Yes
 #    wy              Wrong               Yes
 #    yn              Yes                 No
 #    yw              Yes                 Wrong

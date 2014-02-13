@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -363,15 +363,16 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           if (table->covering_keys.is_set(key))
           {
             // We can use only index tree
-            cur_read_cost=
-              prefix_rowcount *
-              table->file->index_only_read_time(key, tmp_fanout);
+            const Cost_estimate index_read_cost=
+              table->file->index_scan_cost(key, 1, tmp_fanout);
+            cur_read_cost= prefix_rowcount * index_read_cost.total_cost();
           }
           else if (key == table->s->primary_key &&
                    table->file->primary_key_is_clustered())
           {
-            cur_read_cost= prefix_rowcount *
-              table->file->read_time(key, 1, (ha_rows)tmp_fanout);
+            const Cost_estimate table_read_cost=
+              table->file->read_cost(key, 1, tmp_fanout);
+            cur_read_cost= prefix_rowcount * table_read_cost.total_cost();
           }
           else
             cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
@@ -547,15 +548,17 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
                        (double) thd->variables.max_seeks_for_key);
         if (table->covering_keys.is_set(key))
         {
-          // we can use only index tree
-          cur_read_cost= prefix_rowcount *
-            table->file->index_only_read_time(key, tmp_fanout);
+          // We can use only index tree
+          const Cost_estimate index_read_cost=
+            table->file->index_scan_cost(key, 1, tmp_fanout);
+          cur_read_cost= prefix_rowcount * index_read_cost.total_cost();
         }
         else if (key == table->s->primary_key &&
                  table->file->primary_key_is_clustered())
         {
-          cur_read_cost= prefix_rowcount *
-            table->file->read_time(key, 1, (ha_rows)tmp_fanout);
+          const Cost_estimate table_read_cost=
+            table->file->read_cost(key, 1, tmp_fanout);
+          cur_read_cost= prefix_rowcount * table_read_cost.total_cost();
         }
         else
           cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
@@ -725,9 +728,12 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
     trace_access_scan->add_alnum("access_type", "scan");
 
     // Cost of scanning the table once
-    const double single_scan_read_cost= (table->force_index && !best_ref) ?
-      table->file->read_time(tab->ref.key, 1, tab->records) : // index scan
-      table->file->scan_time();                               // table scan
+    Cost_estimate scan_cost;
+    if (table->force_index && !best_ref)                        // index scan
+      scan_cost= table->file->read_cost(tab->ref.key, 1, tab->records);
+    else
+      scan_cost= table->file->table_scan_cost();                // table scan
+    const double single_scan_read_cost= scan_cost.total_cost();
 
     /* Estimate total cost of reading table. */
     if (disable_jbuf)
@@ -1309,7 +1315,8 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
       double rowcount= rows2double(tab->table->file->stats.records);
 
       // The cost is entire index scan cost
-      double cost= tab->table->file->index_only_read_time(key, rowcount);
+      const double cost=
+        tab->table->file->index_scan_cost(key, 1, rowcount).total_cost();
 
       /*
         Now find out how many different keys we will get (for now we

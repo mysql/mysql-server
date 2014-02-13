@@ -669,7 +669,8 @@ skip_secondaries:
 			btr_root_get(index, &mtr);
 
 			block = buf_page_get(
-				rseg->space, 0, page_no, RW_X_LATCH, &mtr);
+				page_id_t(rseg->space, page_no),
+				univ_page_size, RW_X_LATCH, &mtr);
 
 			buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 

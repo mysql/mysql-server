@@ -106,8 +106,8 @@ bool COPY_INFO::get_function_default_columns(TABLE *table)
       Item *lvalue_item;
       while ((lvalue_item= lvalue_it++) != NULL)
         lvalue_item->walk(&Item::remove_column_from_bitmap,
-                          true,
-                          reinterpret_cast<uchar*>(m_function_default_columns));
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      reinterpret_cast<uchar*>(m_function_default_columns));
     }
   }
 

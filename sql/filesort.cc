@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -694,6 +694,9 @@ unlock_file_and_quit:
 }
 #endif 
 
+static const Item::enum_walk walk_subquery=
+  Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
+
 /**
   Search after sort_keys, and write them into tempfile
   (if we run out of space in the sort buffer).
@@ -815,12 +818,12 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
 
   // Include fields used by conditions in the read_set.
   if (select && select->cond)
-    select->cond->walk(&Item::register_field_in_read_map, 1,
+    select->cond->walk(&Item::register_field_in_read_map, walk_subquery,
                        (uchar*) sort_form);
 
   // Include fields used by pushed conditions in the read_set.
   if (select && select->icp_cond)
-    select->icp_cond->walk(&Item::register_field_in_read_map, 1,
+    select->icp_cond->walk(&Item::register_field_in_read_map, walk_subquery,
                            (uchar*) sort_form);
 
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
@@ -1029,7 +1032,7 @@ const bool Is_big_endian= true;
 #else
 const bool Is_big_endian= false;
 #endif
-void copy_native_longlong(uchar *to, int to_length,
+void copy_native_longlong(uchar *to, size_t to_length,
                           longlong val, bool is_unsigned)
 {
   copy_integer<Is_big_endian>(to, to_length,
@@ -1320,7 +1323,7 @@ static void register_used_fields(Sort_param *param)
     }
     else
     {						// Item
-      sort_field->item->walk(&Item::register_field_in_read_map, 1,
+      sort_field->item->walk(&Item::register_field_in_read_map, walk_subquery,
                              (uchar *) table);
     }
   }
@@ -1530,8 +1533,9 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
       const double pq_cpu_cost= 
         (PQ_slowness * num_rows + param->max_keys_per_buffer) *
         log((double) param->max_keys_per_buffer) * ROWID_COMPARE_COST;
+      const Cost_estimate scan_cost= table->file->table_scan_cost();
       const double pq_io_cost=
-        param->max_rows * table->file->scan_time() / 2.0;
+        param->max_rows * scan_cost.total_cost() / 2.0;
       const double pq_cost= pq_cpu_cost + pq_io_cost;
       trace_addon.add("priority_queue_cost", pq_cost);
 

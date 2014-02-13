@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 source include/master-slave.inc;
 
 #
@@ -16,20 +11,20 @@ source include/stop_slave.inc;
 source include/start_slave.inc;
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 show variables like 'init_slave';
 show variables like 'max_connections';
 reset master;
 connection master;
 show variables like 'init_slave';
 show variables like 'max_connections';
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # Save variable value
 set @my_global_init_connect= @@global.init_connect;
 set global init_connect="set @c=1";
 show variables like 'init_connect';
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # Restore changed global variable
 set global init_connect= @my_global_init_connect;

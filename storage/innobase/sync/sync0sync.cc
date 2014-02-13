@@ -66,6 +66,7 @@ mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 mysql_pfs_key_t	mem_pool_mutex_key;
 mysql_pfs_key_t	recalc_pool_mutex_key;
+mysql_pfs_key_t	page_cleaner_mutex_key;
 mysql_pfs_key_t	purge_sys_pq_mutex_key;
 mysql_pfs_key_t	recv_sys_mutex_key;
 mysql_pfs_key_t	recv_writer_mutex_key;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -83,7 +83,7 @@ cmp_dfield_dfield(
 @param[in] rec B-tree record
 @param[in] offsets rec_get_offsets(rec)
 @param[in] n_cmp number of fields to compare
-@param[in/out] matched_fields number of completely matched fields
+@param[in,out] matched_fields number of completely matched fields
 @return the comparison result of dtuple and rec
 @retval 0 if dtuple is equal to rec
 @retval negative if dtuple is less than rec

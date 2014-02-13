@@ -255,8 +255,8 @@ buf_dump(
 
 			ut_a(buf_page_in_file(bpage));
 
-			dump[j] = BUF_DUMP_CREATE(buf_page_get_space(bpage),
-						  buf_page_get_page_no(bpage));
+			dump[j] = BUF_DUMP_CREATE(bpage->id.space(),
+						  bpage->id.page_no());
 		}
 
 		ut_a(j == n_pages);
@@ -538,13 +538,40 @@ buf_load()
 		std::sort(dump, dump + dump_n);
 	}
 
-	ulint	last_check_time = 0;
-	ulint	last_activity_cnt = 0;
+	ulint		last_check_time = 0;
+	ulint		last_activity_cnt = 0;
+
+	/* Avoid calling the expensive fil_space_get_page_size() for each
+	page within the same tablespace. dump[] is sorted by (space, page),
+	so all pages from a given tablespace are consecutive. */
+	ulint		cur_space_id = BUF_DUMP_SPACE(dump[0]);
+	bool		found;
+	page_size_t	page_size(fil_space_get_page_size(
+					cur_space_id, &found));
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
-		buf_read_page_background(BUF_DUMP_SPACE(dump[i]),
-					 BUF_DUMP_PAGE(dump[i]), true);
+		/* space_id for this iteration of the loop */
+		const ulint	this_space_id = BUF_DUMP_SPACE(dump[i]);
+
+		if (this_space_id != cur_space_id) {
+			cur_space_id = this_space_id;
+
+			const page_size_t	cur_page_size(
+				fil_space_get_page_size(cur_space_id, &found));
+
+			if (found) {
+				page_size.copy_from(cur_page_size);
+			}
+		}
+
+		if (!found) {
+			continue;
+		}
+
+		buf_read_page_background(
+			page_id_t(this_space_id, BUF_DUMP_PAGE(dump[i])),
+			page_size, true);
 
 		if (i % 64 == 63) {
 			os_aio_simulated_wake_handler_threads();

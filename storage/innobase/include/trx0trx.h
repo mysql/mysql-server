@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -505,6 +505,19 @@ const char*
 trx_get_que_state_str(
 /*==================*/
 	const trx_t*	trx);	/*!< in: transaction */
+
+/** Retreieves the transaction ID.
+In a given point in time it is guaranteed that IDs of the running
+transactions are unique. The values returned by this function for readonly
+transactions may be reused, so a subsequent RO transaction may get the same ID
+as a RO transaction that existed in the past. The values returned by this
+function should be used for printing purposes only.
+@param[in]	trx	transaction whose id to retrieve
+@return transaction id */
+UNIV_INLINE
+trx_id_t
+trx_get_id_for_print(
+	const trx_t*	trx);
 
 /****************************************************************//**
 Assign a transaction temp-tablespace bound rollback-segment. */

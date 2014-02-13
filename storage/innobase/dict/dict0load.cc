@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,17 +34,18 @@ Created 4/24/1996 Heikki Tuuri
 #include "mysql_version.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
-#include "page0page.h"
-#include "mach0data.h"
-#include "dict0dict.h"
 #include "dict0boot.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0priv.h"
 #include "dict0stats.h"
+#include "fsp0file.h"
+#include "fts0priv.h"
+#include "mach0data.h"
+#include "page0page.h"
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
-#include "dict0crea.h"
-#include "dict0priv.h"
-#include "fts0priv.h"
 #include <stack>
 #include <set>
 
@@ -878,7 +879,8 @@ dict_update_filepath(
 }
 
 /********************************************************************//**
-Insert records into SYS_TABLESPACES and SYS_DATAFILES.
+Insert records into SYS_TABLESPACES and SYS_DATAFILES using an
+independent transaction.
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 
 dberr_t
@@ -905,7 +907,7 @@ dict_insert_tablespace_and_filepath(
 
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in
-	SYS_TABLESPACES.  Insert records onto them both. */
+	SYS_TABLESPACES.  Insert records into them both. */
 	err = dict_create_add_tablespace_to_dictionary(
 		space, name, fsp_flags, filepath, trx, false);
 
@@ -1042,7 +1044,8 @@ loop:
 
 		bool		is_temp = false;
 		bool		discarded = false;
-		ib_uint32_t	flags2 = (ib_uint32_t) mach_read_from_4(field);
+		ib_uint32_t	flags2 = static_cast<ib_uint32_t>(
+			mach_read_from_4(field));
 
 		/* Check that the tablespace (the .ibd file) really
 		exists; print a warning to the .err log if not.
@@ -1069,10 +1072,42 @@ loop:
 		case DICT_CHECK_ALL_LOADED:
 			/* All tablespaces should have been found in
 			fil_load_single_table_tablespaces(). */
-
-			fil_space_for_table_exists_in_mem(
-				space_id, name, !(is_temp || discarded),
-				false, NULL, 0);
+			if (fil_space_for_table_exists_in_mem(
+				space_id, name,!(is_temp || discarded),
+				false, NULL, 0)
+			    && !(is_temp || discarded)) {
+				/* If user changes the path of .ibd files in
+				   *.isl files before doing crash recovery ,
+				   then this leads to inconsistency in
+				   SYS_DATAFILES system table because the
+				   tables are loaded from the updated path
+				   but the SYS_DATAFILES still points to the
+				   old path.Therefore after crash recovery
+				   update SYS_DATAFILES with the updated path.*/
+				ut_ad(space_id);
+				ut_ad(recv_needed_recovery);
+				char *dict_path = dict_get_first_path(
+					space_id, name);
+				char *link_path;
+				char *remote_path;
+				RemoteDatafile::read_link_file(
+					name, &link_path, &remote_path);
+				if(dict_path && remote_path) {
+					if(strcmp(dict_path,remote_path)) {
+						dict_update_filepath(
+							space_id, remote_path);
+					}
+				}
+				if(dict_path) {
+					ut_free(dict_path);
+				}
+				if(link_path) {
+					ut_free(link_path);
+				}
+				if(remote_path) {
+					ut_free(remote_path);
+				}
+			}
 			break;
 
 		case DICT_CHECK_SOME_LOADED:
@@ -2148,21 +2183,21 @@ dict_save_data_dir_path(
 	ut_a(filepath);
 
 	/* Be sure this filepath is not the default filepath. */
-	char*	default_filepath = fil_make_ibd_name(table->name, false);
-	if (strcmp(filepath, default_filepath)) {
-		ulint pathlen = strlen(filepath);
-		ut_a(pathlen < OS_FILE_MAX_PATH);
-		ut_a(0 == strcmp(filepath + pathlen - 4, ".ibd"));
+	char*	default_filepath = fil_make_filepath(
+			NULL, table->name, IBD, false);
+	if (default_filepath) {
+		if (0 != strcmp(filepath, default_filepath)) {
+			ulint pathlen = strlen(filepath);
+			ut_a(pathlen < OS_FILE_MAX_PATH);
+			ut_a(0 == strcmp(filepath + pathlen - 4, DOT_IBD));
 
-		table->data_dir_path = mem_heap_strdup(table->heap, filepath);
-		os_file_make_data_dir_path(table->data_dir_path);
-	} else {
-		/* This does not change SYS_DATAFILES or SYS_TABLES
-		or FSP_FLAGS on the header page of the tablespace,
-		but it makes dict_table_t consistent */
-		table->flags &= ~DICT_TF_MASK_DATA_DIR;
+			table->data_dir_path = mem_heap_strdup(
+				table->heap, filepath);
+			os_file_make_data_dir_path(table->data_dir_path);
+		}
+
+		ut_free(default_filepath);
 	}
-	ut_free(default_filepath);
 }
 
 /*****************************************************************//**
@@ -2183,6 +2218,7 @@ dict_get_and_save_data_dir_path(
 		if (!dict_mutex_own) {
 			dict_mutex_enter_for_mysql();
 		}
+
 		if (!path) {
 			path = dict_get_first_path(
 				table->space, table->name);
@@ -2191,6 +2227,14 @@ dict_get_and_save_data_dir_path(
 		if (path) {
 			dict_save_data_dir_path(table, path);
 			ut_free(path);
+		}
+
+		if (table->data_dir_path == NULL) {
+			/* Since we did not set the table data_dir_path,
+			unset the flag.  This does not change SYS_DATAFILES
+			or SYS_TABLES or FSP_FLAGS on the header page of the
+			tablespace, but it makes dict_table_t consistent. */
+			table->flags &= ~DICT_TF_MASK_DATA_DIR;
 		}
 
 		if (!dict_mutex_own) {
@@ -2391,9 +2435,9 @@ err_exit:
 				dict_get_and_save_data_dir_path(table, true);
 
 				if (table->data_dir_path) {
-					filepath = os_file_make_remote_pathname(
+					filepath = fil_make_filepath(
 						table->data_dir_path,
-						table->name, "ibd");
+						table->name, IBD, true);
 				}
 			}
 
@@ -2412,7 +2456,9 @@ err_exit:
 				table->ibd_file_missing = TRUE;
 			}
 
-			ut_free(filepath);
+			if (filepath != NULL) {
+				::ut_free(filepath);
+			}
 		}
 	}
 

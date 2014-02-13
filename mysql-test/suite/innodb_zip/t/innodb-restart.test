@@ -18,6 +18,10 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 17 means 'File exists
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number (17|80) in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file .*t55.isl");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The link file: .* already exists.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 --enable_query_log
 
 --echo #
@@ -236,7 +240,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 # Tablespace for t4 will be moved later from default directory to a new directory
-# and a isl file will be created not using InnoDB. 
+# and a isl file will be created not using InnoDB.
 
 --echo #
 --echo # Truncate the remote tablespaces.

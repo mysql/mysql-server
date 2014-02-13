@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -60,11 +60,10 @@ table_performance_timers::m_share=
 {
   { C_STRING_WITH_LEN("performance_timers") },
   &pfs_readonly_acl,
-  &table_performance_timers::create,
+  table_performance_timers::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  COUNT_TIMER_NAME, /* records */
+  table_performance_timers::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -74,6 +73,12 @@ table_performance_timers::m_share=
 PFS_engine_table* table_performance_timers::create(void)
 {
   return new table_performance_timers();
+}
+
+ha_rows
+table_performance_timers::get_row_count(void)
+{
+  return COUNT_TIMER_NAME;
 }
 
 table_performance_timers::table_performance_timers()

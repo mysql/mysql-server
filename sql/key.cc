@@ -140,7 +140,7 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
       length= min<uint>(key_length, key_part->length);
       Field *field= key_part->field;
       const CHARSET_INFO *cs= field->charset();
-      uint bytes= field->get_key_image(to_key, length, Field::itRAW);
+      size_t bytes= field->get_key_image(to_key, length, Field::itRAW);
       if (bytes < length)
         cs->cset->fill(cs, (char*) to_key + bytes, length - bytes, ' ');
     }

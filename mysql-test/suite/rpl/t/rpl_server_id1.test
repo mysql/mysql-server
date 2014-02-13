@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # This test checks that the slave I/O thread refuses to start if slave
 # and master have the same server id (because this is a useless setup,
 # and otherwise SHOW SLAVE STATUS shows progress but all queries are

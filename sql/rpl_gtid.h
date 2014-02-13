@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -2401,6 +2401,16 @@ struct Gtid_specification
   {
     type= AUTOMATIC_GROUP;
   }
+  /// Set the type to ANONYMOUS_GROUP.
+  void set_anonymous()
+  {
+    type= ANONYMOUS_GROUP;
+  }
+  /// Set the type to NOT_YET_DETERMINED_GROUP.
+  void set_not_yet_determined()
+  {
+    type= NOT_YET_DETERMINED_GROUP;
+  }
   /// Set to undefined if the current type is GTID_GROUP.
   void set_undefined()
   {
@@ -2740,28 +2750,33 @@ enum enum_gtid_statement_status
 
 #ifndef MYSQL_CLIENT
 /**
-  Before a loggable statement begins, this function:
+  Perform GTID-related checks before executing a statement:
 
-   - checks that the various @@session.gtid_* variables are consistent
-     with each other
+  - Check that the current statement does not contradict
+    enforce_gtid_consistency
 
-   - starts the super-group (if no super-group is active) and acquires
-     ownership of all groups in the super-group
+  - Check that there is no implicit commit in a transaction when
+    GTID_NEXT==UUID:NUMBER
 
-   - starts the group (if no group is active)
-*/
-enum_gtid_statement_status
-gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
+  - Change thd->variables.gtid_next.type to ANONYMOUS_GROUP if it is
+    currently NOT_YET_DETERMINED_GROUP.
 
-/**
-  Check that the current statement does not contradict
-  enforce_gtid_consistency, that there is no implicit commit in
-  a transaction when GTID_NEXT!=AUTOMATIC, and whether the statement
-  should be cancelled.
+  - Check whether the statement should be cancelled.
 
   @param thd THD object for the session.
+
+  @retval GTID_STATEMENT_EXECUTE The normal case: the checks
+  succeeded, and statement can execute.
+
+  @retval GTID_STATEMENT_CANCEL The checks failed; an
+  error has be generated and the statement must stop.
+
+  @retval GTID_STATEMENT_SKIP The checks succeeded, but the GTID has
+  already been executed (exists in GTID_EXECUTED). So the statement
+  must not execute; however, if there are implicit commits, then the
+  implicit commits must execute.
 */
-enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd);
+enum_gtid_statement_status gtid_pre_statement_checks(THD *thd);
 
 /**
   Check if the current statement terminates a transaction, and if so

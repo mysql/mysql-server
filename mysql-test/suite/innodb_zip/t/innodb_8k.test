@@ -56,7 +56,7 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
        WHERE name LIKE 'test%' ORDER BY space;
 --replace_column 1 {id}
---replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
        WHERE path LIKE '%test%' ORDER BY space;
 DROP TABLE t1, t2, t3, t4;
@@ -176,7 +176,7 @@ CREATE TABLE t1 (a varchar(128) character set utf8,
                  PRIMARY KEY (a), KEY (b,c,d,e))
 		 ENGINE=innodb;
 
---echo # Test 5) Make sure that KEY_BLOCK_SIZE=8, 4, 2 & 1 are all 
+--echo # Test 5) Make sure that KEY_BLOCK_SIZE=8, 4, 2 & 1 are all
 --echo #         accepted and that KEY_BLOCK_SIZE=16 is rejected in
 --echo #         strict mode and converted to 8 in non-strict mode.
 
@@ -400,7 +400,7 @@ DROP TABLE t1;
 # secondary tuple including the primary key must be able to fit in half the
 # compressed page size. This record length is enforced at index creation.
 # So the only way to get an ibuf tuple too big is to make the KEY_BLOCK_SIZE
-# the same as the page size. 
+# the same as the page size.
 CREATE TABLE t1(
    pk01 varchar(96), pk02 varchar(96), pk03 varchar(96), pk04 varchar(96),
    pk05 varchar(96), pk06 varchar(96), pk07 varchar(96), pk08 varchar(96),

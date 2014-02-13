@@ -654,6 +654,12 @@ bool LEX::new_union_query(bool distinct)
     DBUG_RETURN(true);
   }
 
+  if (current_select()->explicit_limit && !current_select()->braces)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "LIMIT");
+    DBUG_RETURN(true);
+  }
+
   SELECT_LEX *const select= new_empty_query_block();
   if (!select)
     DBUG_RETURN(true);       /* purecov: inspected */
@@ -1005,6 +1011,29 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
     }
   }
   return 0;					// unexpected end of query
+}
+
+
+uint Lex_input_stream::get_lineno(const char *raw_ptr)
+{
+  DBUG_ASSERT(m_buf <= raw_ptr && raw_ptr < m_end_of_query);
+  if (!(m_buf <= raw_ptr && raw_ptr < m_end_of_query))
+    return 1;
+
+  uint ret= 1;
+  const CHARSET_INFO *cs= m_thd->charset();
+  for (const char *c= m_buf; c < raw_ptr; c++)
+  {
+    uint mb_char_len;
+    if (use_mb(cs) && (mb_char_len= my_ismbchar(cs, c, m_end_of_query)))
+    {
+      c+= mb_char_len - 1; // skip the rest of the multibyte character
+      continue; // we don't expect '\n' there
+    }
+    if (*c == '\n')
+      ret++;
+  }
+  return ret;
 }
 
 

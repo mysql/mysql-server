@@ -3,6 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+include/sync_slave_sql_with_master.inc
 #
 # Uninstall semi-sync plugins on master and slave
 #
@@ -103,6 +104,7 @@ Rpl_semi_sync_master_no_tx	0
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	11
+include/sync_slave_sql_with_master.inc
 [ on slave ]
 [ slave status after replicated inserts ]
 show status like 'Rpl_semi_sync_slave_status';
@@ -124,6 +126,7 @@ max(a)
 [ on master ]
 SET SESSION AUTOCOMMIT= 0;
 CREATE TABLE t2(c1 INT) ENGINE=innodb;
+include/sync_slave_sql_with_master.inc
 BEGIN;
 
 # Even though it is in a transaction, this statement is binlogged into binlog
@@ -136,6 +139,7 @@ INSERT INTO t2 VALUES(22);
 COMMIT;
 DROP TABLE t2, t3;
 SET SESSION AUTOCOMMIT= 1;
+include/sync_slave_sql_with_master.inc
 #
 # Test semi-sync master will switch OFF after one transaction
 # timeout waiting for slave reply.
@@ -218,6 +222,7 @@ Rpl_semi_sync_master_clients	1
 # Test disable/enable master semi-sync on the fly.
 #
 drop table t1;
+include/sync_slave_sql_with_master.inc
 [ on slave ]
 include/stop_slave.inc
 #
@@ -269,6 +274,7 @@ include/start_slave.inc
 [ on master ]
 create table t1 (a int) engine = ENGINE_TYPE;
 drop table t1;
+include/sync_slave_sql_with_master.inc
 show status like 'Rpl_relay%';
 Variable_name	Value
 [ test reset master ]
@@ -292,6 +298,7 @@ include/start_slave.inc
 create table t1 (a int) engine = ENGINE_TYPE;
 insert into t1 values (1);
 insert into t1 values (2), (3);
+include/sync_slave_sql_with_master.inc
 [ on slave ]
 select * from t1;
 a
@@ -360,6 +367,7 @@ Rpl_semi_sync_master_yes_tx	2
 #
 # Test semi-sync slave connect to non-semi-sync master
 #
+include/sync_slave_sql_with_master.inc
 [ on slave ]
 include/stop_slave.inc
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
@@ -388,6 +396,7 @@ Rpl_semi_sync_master_clients	1
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
 Rpl_semi_sync_master_status	OFF
+include/sync_slave_sql_with_master.inc
 [ on slave ]
 show status like 'Rpl_semi_sync_slave_status';
 Variable_name	Value
@@ -404,6 +413,7 @@ rpl_semi_sync_slave_enabled	ON
 include/start_slave.inc
 [ on master ]
 insert into t1 values (10);
+include/sync_slave_sql_with_master.inc
 [ on slave ]
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 Variable_name	Value
@@ -453,6 +463,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 drop table t1;
+include/sync_slave_sql_with_master.inc
 drop user rpl@127.0.0.1;
 flush privileges;
 include/rpl_end.inc

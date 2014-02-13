@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ static int setenv(const char *name, const char *value, int overwrite);
 #endif
 
 C_MODE_START
-static sig_handler signal_handler(int sig);
+static void signal_handler(int sig);
 static my_bool get_one_option(int optid, const struct my_option *,
                               char *argument);
 C_MODE_END
@@ -6090,6 +6090,7 @@ void do_reset_connection()
     mysql_stmt_close(cur_con->stmt);
     cur_con->stmt= NULL;
   }
+  DBUG_VOID_RETURN;
 }
 
 my_bool match_delimiter(int c, const char *delim, size_t length)
@@ -6900,7 +6901,7 @@ int parse_args(int argc, char **argv)
   if (argc == 1)
     opt_db= *argv;
   if (tty_password)
-    opt_pass= get_tty_password(NullS);          /* purify tested */
+    opt_pass= get_tty_password(NullS);
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
@@ -8537,7 +8538,7 @@ static void dump_backtrace(void)
 
 #endif
 
-static sig_handler signal_handler(int sig)
+static void signal_handler(int sig)
 {
   fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
   dump_backtrace();

@@ -15,7 +15,7 @@ CREATE TABLE t1 (a int primary key) engine=innodb;
 CREATE TABLE t2 (a int primary key) engine=innodb;
 CREATE TABLE t3 (a int primary key) engine=innodb;
 CREATE TABLE t4 (a int primary key) engine=innodb;
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 -- source include/stop_slave.inc
 -- let $saved_debug_slave=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,crash_in_a_worker';
@@ -79,6 +79,6 @@ CREATE TABLE t5 (a int);
 -- connection master
 DROP TABLES t1, t2, t3, t4, t5;
 -- connection master
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 -- source include/rpl_end.inc
 

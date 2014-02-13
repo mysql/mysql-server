@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -52,7 +52,7 @@ Created 3/14/2011 Jimmy Yang
 /** Some handler functions defined in sql/sql_table.cc and sql/handler.cc etc.
 and being used here */
 extern int write_bin_log(THD *thd, bool clear_error,
-			 char const *query, ulong query_length,
+			 const char *query, size_t query_length,
 			 bool is_trans= false);
 
 /** function to close a connection and thd, defined in sql/handler.cc */

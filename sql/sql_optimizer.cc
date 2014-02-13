@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -497,17 +497,18 @@ JOIN::optimize()
   update_depend_map();
 
   THD_STAGE_INFO(thd, stage_preparing);
-  if (result->initialize_tables(this))
-  {
-    DBUG_PRINT("error",("Error: initialize_tables() failed"));
-    DBUG_RETURN(1);				// error == -1
-  }
 
   if (make_join_select(this, conds))
   {
     zero_result_cause=
       "Impossible WHERE noticed after reading const tables";
     goto setup_subq_exit;
+  }
+
+  if (result->initialize_tables(this))
+  {
+    DBUG_PRINT("error",("Error: initialize_tables() failed"));
+    DBUG_RETURN(1);				// error == -1
   }
 
   error= -1;					/* if goto err */
@@ -3844,7 +3845,8 @@ bool JOIN::estimate_rowcount()
     }
     // Approximate number of found rows and cost to read them
     tab->found_records= tab->records= tab->table->file->stats.records;
-    tab->read_time= (ha_rows) tab->table->file->scan_time();
+    const Cost_estimate table_scan_time= tab->table->file->table_scan_cost();
+    tab->read_time= static_cast<ha_rows>(table_scan_time.total_cost());
 
     /*
       Set a max range of how many seeks we can expect when using keys
@@ -5150,6 +5152,13 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
        */
       if (!eq_func)
         return;
+
+      /*
+        Check if the field and value are comparable in the index.
+        @todo: This code is almost identical to comparable_in_index()
+        in opt_range.cc. Consider replacing the checks below with a
+        function call to comparable_in_index()
+      */
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
@@ -6081,7 +6090,8 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   if (join->group_list)
   { /* Collect all query fields referenced in the GROUP clause. */
     for (cur_group= join->group_list; cur_group; cur_group= cur_group->next)
-      (*cur_group->item)->walk(&Item::collect_item_field_processor, 0,
+      (*cur_group->item)->walk(&Item::collect_item_field_processor,
+                               Item::WALK_POSTFIX,
                                (uchar*) &indexed_fields);
     cause= "group_by";
   }
@@ -6091,7 +6101,8 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
     List_iterator<Item> select_items_it(select_items);
     Item *item;
     while ((item= select_items_it++))
-      item->walk(&Item::collect_item_field_processor, 0,
+      item->walk(&Item::collect_item_field_processor,
+                 Item::WALK_POSTFIX,
                  (uchar*) &indexed_fields);
     cause= "distinct";
   }
@@ -8455,7 +8466,8 @@ static bool make_join_select(JOIN *join, Item *cond)
           correct calculation of the number of its executions.
         */
         int idx= tab - join->join_tab;
-        cond->walk(&Item::inform_item_in_cond_of_tab, false,
+        cond->walk(&Item::inform_item_in_cond_of_tab,
+                   Item::WALK_POSTFIX,
                    reinterpret_cast<uchar * const>(&idx));
       }
 

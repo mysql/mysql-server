@@ -4,7 +4,7 @@ SET end_markers_in_json="on";
 SET eq_range_index_dive_limit=default;
 SELECT @@eq_range_index_dive_limit;
 @@eq_range_index_dive_limit
-10
+200
 CREATE TABLE t1 (
 a INT, 
 b INT, 

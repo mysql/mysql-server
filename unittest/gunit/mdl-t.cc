@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,6 @@ protected:
     /* Save original and install our custom error hook. */
     m_old_error_handler_hook= error_handler_hook;
     error_handler_hook= test_error_handler_hook;
-    mdl_locks_hash_partitions= MDL_LOCKS_HASH_PARTITIONS_DEFAULT;
   }
 
   static void TearDownTestCase()

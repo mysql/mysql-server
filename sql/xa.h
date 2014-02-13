@@ -268,6 +268,9 @@ public:
   const XID *get_xid() const
   { return &m_xid; }
 
+  XID *get_xid()
+  { return &m_xid; }
+
   bool has_same_xid(const XID *xid) const
   { return m_xid.eq(xid); }
 
@@ -381,8 +384,10 @@ public:
 };
 
 
+class Transaction_ctx;
+
 /**
-  Initialize a cache to store xid values and a mutex to protect access
+  Initialize a cache to store Transaction_ctx and a mutex to protect access
   to the cache
 
   @return        result of initialization
@@ -390,25 +395,66 @@ public:
     @retval true   failure
 */
 
-bool xid_cache_init(void);
+bool transaction_cache_init();
 
 
 /**
-  Deallocate resources held by a cache for storing xid values
-  and by a mutex used to protect access to the cache.
+  Search information about XA transaction by a XID value.
+
+  @param xid    Pointer to a XID structure that identifies a XA transaction.
+
+  @return  pointer to a Transaction_ctx that describes the whole transaction
+           including XA-specific information (XID_STATE).
+    @retval  NULL     failure
+    @retval  != NULL  success
 */
 
-void xid_cache_free(void);
+Transaction_ctx *transaction_cache_search(XID *xid);
 
 
 /**
-  Delete information about XA transaction from cache.
+  Insert information about XA transaction into a cache indexed by XID.
 
-  @param xid_state  Pointer to a XID_STATE structure that describes
-                    an XA transaction.
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+
+  @return  operation result
+    @retval  false   success or a cache already contains XID_STATE
+                     for this XID value
+    @retval  true    failure
 */
 
-void xid_cache_delete(XID_STATE *xid_state);
+bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
 
+
+/**
+  Insert information about XA transaction being recovered into a cache
+  indexed by XID.
+
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+
+  @return  operation result
+    @retval  false   success or a cache already contains Transaction_ctx
+                     for this XID value
+    @retval  true    failure
+*/
+
+bool transaction_cache_insert_recovery(XID *xid);
+
+
+/**
+  Remove information about transaction from a cache.
+
+  @param transaction     Pointer to a Transaction_ctx that has to be removed
+                         from a cache.
+*/
+
+void transaction_cache_delete(Transaction_ctx *transaction);
+
+
+/**
+  Release resources occupied by transaction cache.
+*/
+
+void transaction_cache_free();
 
 #endif

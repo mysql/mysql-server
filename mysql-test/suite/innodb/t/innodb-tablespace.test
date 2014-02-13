@@ -190,7 +190,7 @@ SELECT name,n_cols,file_format,row_format
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces
        ORDER BY name;
---replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
 --echo ---- MYSQLD_DATADIR/test

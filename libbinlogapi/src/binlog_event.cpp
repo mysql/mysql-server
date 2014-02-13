@@ -354,19 +354,17 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
   This ctor will create a new object of Log_event_header, and initialize
   the variable m_header, which in turn will be used to initialize Log_event's
   member common_header.
-  It will also advance the buffer after reading the common_header_len
+  It will also advance the buffer after decoding the header(it is done through
+  the constructor of Log_event_header) and
+  will be pointing to the start of event data
 */
 Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
                                    const char *server_version)
 : m_header(*buf, binlog_version)
 {
-  Format_description_event *des= new Format_description_event(binlog_version,
-                                                              server_version);
   m_footer= Log_event_footer();
-  // remove the comments when all the events are moved to libbinlogevent
-  // (*buf)+= des->common_header_len;
-  delete des;
-  des= NULL;
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  (*buf)+= LOG_EVENT_HEADER_LEN;
 }
 
 /*
@@ -430,7 +428,8 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       ROTATE_HEADER_LEN,
       INTVAR_HEADER_LEN,
       LOAD_HEADER_LEN,
-      0, /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
+      /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
+      0,
       CREATE_FILE_HEADER_LEN,
       APPEND_BLOCK_HEADER_LEN,
       EXEC_LOAD_HEADER_LEN,
@@ -449,22 +448,21 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        Hence, we need to be assign some value here, to avoid reading
        uninitialized memory when the array is written to disk.
       */
-      0,/* PRE_GA_WRITE_ROWS_EVENT */
-      0,/* PRE_GA_UPDATE_ROWS_EVENT*/
-      0,/* PRE_GA_DELETE_ROWS_EVENT*/
-      ROWS_HEADER_LEN_V1, /* WRITE_ROWS_EVENT_V1*/
-      ROWS_HEADER_LEN_V1, /* UPDATE_ROWS_EVENT_V1*/
-      ROWS_HEADER_LEN_V1, /* DELETE_ROWS_EVENT_V1*/
+      0,                                       /* PRE_GA_WRITE_ROWS_EVENT */
+      0,                                       /* PRE_GA_UPDATE_ROWS_EVENT*/
+      0,                                       /* PRE_GA_DELETE_ROWS_EVENT*/
+      ROWS_HEADER_LEN_V1,                      /* WRITE_ROWS_EVENT_V1*/
+      ROWS_HEADER_LEN_V1,                      /* UPDATE_ROWS_EVENT_V1*/
+      ROWS_HEADER_LEN_V1,                      /* DELETE_ROWS_EVENT_V1*/
       INCIDENT_HEADER_LEN,
-      0,/* HEARTBEAT_LOG_EVENT*/
+      0,                                       /* HEARTBEAT_LOG_EVENT*/
       IGNORABLE_HEADER_LEN,
       IGNORABLE_HEADER_LEN,
       ROWS_HEADER_LEN_V2,
       ROWS_HEADER_LEN_V2,
       ROWS_HEADER_LEN_V2,
-      //TODO  25 will be replaced byGtid_log_event::POST_HEADER_LENGTH;
-       25,
-       25,
+       Gtid_event::POST_HEADER_LENGTH,         /*GTID_EVENT*/
+       Gtid_event::POST_HEADER_LENGTH,         /*ANONYMOUS_GTID_EVENT*/
        IGNORABLE_HEADER_LEN
     };
     post_header_len= (uint8_t*)bapi_malloc(number_of_event_types * sizeof(uint8_t)
@@ -577,12 +575,13 @@ bool Format_description_event::is_version_before_checksum() const
   return get_product_version() < checksum_version_product;
 }
 
+
 Start_event_v3::Start_event_v3(const char* buf,
                                const Format_description_event *description_event)
   :Binary_log_event(&buf, description_event->binlog_version,
    description_event->server_version)
 {
-  buf+= description_event->common_header_len;
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   memcpy(&binlog_version, buf + ST_BINLOG_VER_OFFSET, 2);
   binlog_version= le16toh(binlog_version);
   memcpy(server_version, buf + ST_SERVER_VER_OFFSET,
@@ -804,6 +803,7 @@ Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
                    description_event->server_version), new_log_ident(0),
   flags(DUP_NAME)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   // This will ensure that the event_len is what we have at EVENT_LEN_OFFSET
   size_t header_size= description_event->common_header_len;
   size_t post_header_len= description_event->post_header_len[ROTATE_EVENT - 1];
@@ -812,7 +812,6 @@ Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
   if (event_len < header_size)
     return;
 
-  buf += header_size;
 
   /**
     By default, an event start immediately after the magic bytes in the binary
@@ -875,15 +874,11 @@ Intvar_event::Intvar_event(const char* buf,
 : Binary_log_event(&buf, description_event->binlog_version,
                    description_event->server_version)
 {
-  /*
-    TODO: Move the addition by common header len to the constrcutor in
-          Binary_log_event when all events are refactored.
-  */
-  buf+= description_event->common_header_len;
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   /* The Post-Header is empty. The Varible Data part begins immediately. */
   buf+= description_event->post_header_len[INTVAR_EVENT - 1];
   type= buf[I_TYPE_OFFSET];
-  memcpy(&val, buf + I_VAL_OFFSET, sizeof(val));
+  memcpy(&val, buf + I_VAL_OFFSET, 8);
   val= le64toh(val);
 }
 
@@ -905,10 +900,10 @@ Xid_event(const char* buf,
   :Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   /* The Post-Header is empty. The Variable Data part begins immediately. */
-  buf+= description_event->common_header_len +
-        description_event->post_header_len[XID_EVENT-1];
-  memcpy((char*) &xid, buf, sizeof(xid));
+  buf+= description_event->post_header_len[XID_EVENT - 1];
+  memcpy((char*) &xid, buf, 8);
 }
 
 /**
@@ -922,9 +917,9 @@ Rand_event::Rand_event(const char* buf,
   :Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   /* The Post-Header is empty. The Variable Data part begins immediately. */
-  buf+= description_event->common_header_len +
-    description_event->post_header_len[RAND_EVENT - 1];
+  buf+= description_event->post_header_len[RAND_EVENT - 1];
   memcpy(&seed1, buf + RAND_SEED1_OFFSET, 8);
   seed1= le64toh(seed1);
   memcpy(&seed2, buf + RAND_SEED2_OFFSET, 8);
@@ -943,14 +938,14 @@ User_var_event(const char* buf, unsigned int event_len,
   :Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   bool error= false;
-  const char* buf_start= buf;
+  const char* buf_start= buf - description_event->common_header_len;
   /* The Post-Header is empty. The Variable Data part begins immediately. */
-  const char *start= buf;
-  buf+= description_event->common_header_len +
-    description_event->post_header_len[USER_VAR_EVENT-1];
+  const char *start= buf_start;
+  buf+= description_event->post_header_len[USER_VAR_EVENT-1];
 
-  memcpy(&name_len, buf, sizeof(name_len));
+  memcpy(&name_len, buf, 4);
   name_len= le32toh(name_len);
   name= (char *) buf + UV_NAME_LEN_SIZE;
   /*
@@ -1069,7 +1064,7 @@ Rows_query_event(const char *buf, unsigned int event_len,
   int len= event_len - offset;
   if (!(m_rows_query= (char*) bapi_malloc(len + 1, MEMORY_LOG_EVENT, 16)))
     return;
-  bapi_strmake(m_rows_query, buf + offset, len);
+  bapi_strmake(m_rows_query, buf + offset , len);
 }
 
 Rows_query_event::~Rows_query_event()
@@ -1099,7 +1094,8 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
  : Binary_log_event(&buffer, description_event->binlog_version,
                     description_event->server_version)
 {
-   uint8_t const common_header_len= description_event->common_header_len;
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  uint8_t const common_header_len= description_event->common_header_len;
 
 /*
   The layout of the buffer is as follows
@@ -1107,9 +1103,9 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
    | commit flag | ENCODED SID | ENCODED GNO| G_COMMIT_TS| commit_seq_no|
    +-------------+-------------+------------+------------+--------------+
 */
-  char const *ptr_buffer= buffer + common_header_len;
+  char const *ptr_buffer= buffer;
 
-  gtid_info_struct.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ?
+  gtid_info_struct.type= header()->type_code == ANONYMOUS_GTID_LOG_EVENT ?
     ANONYMOUS_GROUP : GTID_GROUP;
 
   commit_flag= *ptr_buffer != 0;
@@ -1127,9 +1123,9 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   gtid_info_struct.rpl_gtid_gno= le64toh(gtid_info_struct.rpl_gtid_gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
     /* fetch the commit timestamp */
-  if (
-      /*Old masters will not have this part, so we should prevent segfaulting */
-      (unsigned int)(ptr_buffer - buffer) < event_len &&
+  /*Old masters will not have this part, so we should prevent segfaulting */
+  //assert(buffer < common_header_len);
+  if (static_cast<unsigned int>(ptr_buffer - (buffer - common_header_len)) < event_len &&
       *ptr_buffer == G_COMMIT_TS)
   {
     ptr_buffer++;
@@ -1165,13 +1161,14 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
 : Binary_log_event(&buf, descr_event->binlog_version,
                    descr_event->server_version)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   uint8_t const common_header_len= descr_event->common_header_len;
   uint8_t const post_header_len= descr_event->post_header_len[INCIDENT_EVENT-1];
 
   message= NULL;
   message_length= 0;
   uint16_t incident_number;
-  memcpy(&incident_number, buf + common_header_len, sizeof(incident_number));
+  memcpy(&incident_number, buf, 2);
   incident_number= le16toh(incident_number);
   if (incident_number >= INCIDENT_COUNT ||
       incident_number <= INCIDENT_NONE)
@@ -1183,9 +1180,10 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
     incident= INCIDENT_NONE;
 
   }
+
   incident= static_cast<enum_incident>(incident_number);
-  char const *ptr= buf + common_header_len + post_header_len;
-  char const *const str_end= buf + event_len;
+  char const *ptr= buf + post_header_len;
+  char const *const str_end= buf - common_header_len + event_len;
   uint8_t len= 0;                   // Assignment to keep compiler happy
   const char *str= NULL;          // Assignment to keep compiler happy
   read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
@@ -1212,11 +1210,12 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
 : Binary_log_event(&buffer, description_event->binlog_version,
                      description_event->server_version)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   uint8_t const common_header_len= description_event->common_header_len;
   uint8_t const post_header_len=
     description_event->post_header_len[PREVIOUS_GTIDS_LOG_EVENT - 1];
 
-  buf= (const unsigned char *)buffer + common_header_len + post_header_len;
+  buf= (const unsigned char *)buffer  + post_header_len;
   buf_size= event_len - common_header_len - post_header_len;
   return;
 }
@@ -1361,6 +1360,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   charset_database_number(0), table_map_for_update(0), master_data_written(0),
   mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS), commit_seq_no(SEQ_UNINIT)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   uint32_t tmp;
   uint8_t common_header_len, post_header_len;
   Log_event_header::Byte *start;
@@ -1379,7 +1379,6 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   if (event_len < (unsigned int)(common_header_len + post_header_len))
     return;
   data_len= event_len - (common_header_len + post_header_len);
-  buf+= common_header_len;
 
   memcpy(&thread_id, buf + Q_THREAD_ID_OFFSET, sizeof(thread_id));
   thread_id= le32toh(thread_id);
@@ -1687,13 +1686,14 @@ Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
                                  const Format_description_event*
                                  description_event)
 : Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version)
+                   description_event->server_version),
+  log_ident(buf)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   unsigned char header_size= description_event->common_header_len;
   ident_len= event_len - header_size;
   if (ident_len > FN_REFLEN - 1)
     ident_len= FN_REFLEN - 1;
-  log_ident= buf + header_size;
 }
 
 
