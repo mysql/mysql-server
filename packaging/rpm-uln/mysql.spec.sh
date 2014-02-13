@@ -663,6 +663,7 @@ rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/ChangeLog
 rm -fr ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris/
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-stress-test.pl.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-test-run.pl.1*
+rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysqlbug.1*
 
 mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d
 echo "%{_libdir}/mysql" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/%{name}-%{_arch}.conf
@@ -981,9 +982,6 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
-* Thu Feb 13 2014 Harin Vadodaria <harin.vadodaria@oracle.com>
-- Removed references to mysqlbug
-
 * Mon Jul  8 2013 Tor Didriksen <tor.didriksen@oracle.com>
 - Fix Bug#35019 Use pthread_attr_getguardsize for better robustness
   of stack thread sizes
