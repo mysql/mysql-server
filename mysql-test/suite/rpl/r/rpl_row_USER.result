@@ -24,6 +24,7 @@ a	users
 2	@localhost%
 3	tester@localhost
 4	@localhost%
+include/sync_slave_sql_with_master.inc
 SELECT * FROM mysqltest1.t1 ORDER BY a;
 a	users
 1	tester@localhost
@@ -35,4 +36,5 @@ REVOKE ALL ON mysqltest1.* FROM 'tester'@'%';
 REVOKE ALL ON mysqltest1.* FROM ''@'localhost%';
 DROP USER tester@'%';
 DROP USER ''@'localhost%';
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

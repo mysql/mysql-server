@@ -81,6 +81,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
     m_dbnam(""), m_dblen(0), m_tblnam(""), m_tbllen(0),
     m_colcnt(0), m_field_metadata_size(0), m_field_metadata(0), m_null_bits(0)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   unsigned int bytes_read= 0;
   uint8_t common_header_len= description_event->common_header_len;
   uint8_t post_header_len=
@@ -90,7 +91,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   m_data_size= event_len - common_header_len;
 
   /* Read the post-header */
-  const char *post_start= buf + common_header_len;
+  const char *post_start= buf;
 
   post_start+= TM_MAPID_OFFSET;
   if (post_header_len == 6)
@@ -112,7 +113,7 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   m_flags= le16toh(m_flags);
 
   /* Read the variable part of the event */
-  const char *const vpart= buf + common_header_len + post_header_len;
+  const char *const vpart= buf + post_header_len;
 
   /* Extract the length of the various parts from the buffer */
   unsigned char const *const ptr_dblen= (unsigned char const*)vpart + 0;
@@ -134,7 +135,8 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   memcpy(m_coltype, ptr_after_colcnt, m_colcnt);
 
   ptr_after_colcnt= ptr_after_colcnt + m_colcnt;
-  bytes_read= (unsigned int) (ptr_after_colcnt - (unsigned char *)buf);
+  bytes_read= (unsigned int) (ptr_after_colcnt + common_header_len -
+                             (unsigned char *)buf);
   if (bytes_read < event_len)
   {
     m_field_metadata_size= get_field_length(&ptr_after_colcnt);
@@ -205,14 +207,14 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
     m_table_id(0), m_width(0), m_extra_row_data(0),
     columns_before_image(0), columns_after_image(0), row(0)
 {
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   uint8_t const common_header_len= description_event->common_header_len;
-  Log_event_type event_type= (Log_event_type) buf[EVENT_TYPE_OFFSET];
+  Log_event_type event_type= header()->type_code;
   m_type= event_type;
 
   uint8_t const post_header_len=
                 description_event->post_header_len[event_type - 1];
-
-  const char *post_start= buf + common_header_len;
+  const char *post_start= buf;
   post_start+= RW_MAPID_OFFSET;
   if (post_header_len == 6)
   {
@@ -283,7 +285,6 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   }
 
   unsigned char const *const var_start= (const unsigned char *)buf +
-                                        common_header_len +
                                         post_header_len + var_header_len;
   unsigned char const *const ptr_width= var_start;
   unsigned char *ptr_after_width= (unsigned char*) ptr_width;
@@ -318,7 +319,8 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   const unsigned char* ptr_rows_data= (unsigned char*) ptr_after_width;
 
   size_t const data_size= event_len -
-                          (ptr_rows_data - (const unsigned char *) buf);
+                          (ptr_rows_data + common_header_len -
+                          (const unsigned char *) buf);
 
   // Allocate one extra byte, in case we have to do uint3korr!
   row.reserve(data_size + 1);

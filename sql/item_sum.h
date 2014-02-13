@@ -1,8 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights
-   reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -461,7 +460,7 @@ public:
   virtual void make_unique() { force_copy_fields= TRUE; }
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *argument);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool clean_up_after_removal(uchar *arg);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
@@ -570,7 +569,7 @@ class Aggregator_distinct : public Aggregator
     Used in conjunction with 'table' to support the access to Field classes 
     for COUNT(DISTINCT). Needed by copy_fields()/copy_funcs().
   */
-  TMP_TABLE_PARAM *tmp_table_param;
+  Temp_table_param *tmp_table_param;
   
   /*
     If there are no blobs in the COUNT(DISTINCT) arguments, we can use a tree,
@@ -1420,7 +1419,7 @@ C_MODE_END
 
 class Item_func_group_concat : public Item_sum
 {
-  TMP_TABLE_PARAM *tmp_table_param;
+  Temp_table_param *tmp_table_param;
   String result;
   String *separator;
   TREE tree_base;
@@ -1522,7 +1521,10 @@ public:
   void no_rows_in_result() {}
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
-    { context= (Name_resolution_context *)cntx; return FALSE; }
+  {
+    context= reinterpret_cast<Name_resolution_context *>(cntx);
+    return false;
+  }
 };
 
 #endif /* ITEM_SUM_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,6 +148,24 @@ int pthread_create_get_handle(pthread_t *thread_id,
                               HANDLE *out_handle)
 {
   return pthread_create_base(thread_id, attr, func, param, out_handle);
+}
+
+/**
+   Get thread HANDLE.
+   @param thread      reference to pthread object
+   @return int
+     @retval !NULL    valid thread handle
+     @retval NULL     failure
+
+*/
+HANDLE pthread_get_handle(pthread_t thread_id)
+{
+  HANDLE handle;
+
+  handle= OpenThread(SYNCHRONIZE, FALSE, thread_id);
+  if (!handle)
+    my_osmaperr(GetLastError());
+  return handle;
 }
 
 void pthread_exit(void *a)

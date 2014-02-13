@@ -307,6 +307,7 @@ f299 int,
 f300 int,
 primary key (f1));
 insert into t300 set f1= 1;
+include/sync_slave_sql_with_master.inc
 select f300 from t300;
 f300
 NULL
@@ -315,4 +316,5 @@ one
 1
 *** Cleanup  ***
 DROP TABLE t300;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -369,8 +369,9 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
 */
 void Slave_worker::copy_values_for_PFS(ulong worker_id,
                                        en_running_state thd_running_status,
-                                       THD *worker_thd, Error last_error,
-                                       Gtid gtid)
+                                       THD *worker_thd,
+                                       const Error &last_error,
+                                       const Gtid_specification &gtid)
 {
   id= worker_id;
   running_status= thd_running_status;

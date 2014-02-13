@@ -444,7 +444,7 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 #define MIN_STRING_LENGTH_TO_PACK_ROWS   10
 
 TABLE *
-create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
+create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
 		 ulonglong select_options, ha_rows rows_limit,
 		 const char *table_alias)
@@ -538,7 +538,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     When loose index scan is employed as access method, it already
     computes all groups and the result of all aggregate functions. We
     make space for the items of the aggregate function in the list of
-    functions TMP_TABLE_PARAM::items_to_copy, so that the values of
+    functions Temp_table_param::items_to_copy, so that the values of
     these items are stored in the temporary table.
   */
   if (param->precomputed_group_by)
@@ -574,7 +574,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
-  /* Copy_field belongs to TMP_TABLE_PARAM, allocate it in THD mem_root */
+  /* Copy_field belongs to Temp_table_param, allocate it in THD mem_root */
   if (!(param->copy_field= copy= new (thd->mem_root) Copy_field[field_count]))
   {
     if (temp_pool_slot != MY_BIT_NONE)

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -89,9 +89,9 @@ ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Makefiles")
   # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS
+  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
     "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS
+  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
     "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
   FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
     SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
@@ -99,20 +99,11 @@ IF(CMAKE_GENERATOR MATCHES "Makefiles")
   ENDFOREACH()
 ELSE()
   # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS
+  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
     "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS
+  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
     "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 ENDIF()
-
-FOREACH(WFLAG
-    "-Wno-null-conversion"
-    "-Wno-unused-parameter"
-    "-Wno-unused-private-field"
-    )
-  STRING(REPLACE "${WFLAG}" "" CFLAGS "${CFLAGS}")
-  STRING(REPLACE "${WFLAG}" "" CXXFLAGS "${CXXFLAGS}")
-ENDFOREACH()
 
 IF(UNIX)
   # FIND_PROC and CHECK_PID are used by mysqld_safe
@@ -290,11 +281,16 @@ ENDMACRO()
 EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
 EXTRACT_LINK_LIBRARIES(mysqlserver LIBS)
 
-# mysql_config evaluates ${LIBDL}, we want to avoid it
-# as our CLIENT_LIBS and LIBS are already correct
-SET(LIBDL)
+SET(LIBMYSQLD_LIBS_USAGE "
+        --libmysqld-libs [$embedded_libs]")
+SET(DISABLE_EMBEDDED_SH "")
+SET(DISABLE_EMBEDDED_PL "")
+IF(WITHOUT_SERVER)
+  SET(LIBMYSQLD_LIBS_USAGE)
+  SET(DISABLE_EMBEDDED_SH  "usage; ")
+  SET(DISABLE_EMBEDDED_PL "usage(); ")
+ENDIF()
 
-SET(NON_THREADED_LIBS ${CLIENT_LIBS})
 SET(mysql_config_COMPONENT COMPONENT Development)
 
 IF(WIN32)
@@ -323,6 +319,9 @@ IF(WIN32)
     INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl COMPONENT Server_Scripts)
   ENDFOREACH()
 ELSE()
+  # Configure this one, for testing, but do not install it.
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_config.pl.in
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_config.pl ESCAPE_QUOTES @ONLY)
   # On Unix, most of the files end up in the bin directory
   SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
@@ -361,6 +360,15 @@ ELSE()
       COMPONENT ${${file}_COMPONENT}
      )
   ENDFOREACH()
+  IF(COPY_MYSQL_CONFIG)
+    CONFIGURE_FILE(${CMAKE_CURRENT_BINARY_DIR}/mysql_config
+       ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_config COPYONLY)
+    INSTALL_SCRIPT(
+      ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_config
+      DESTINATION ${INSTALL_BINDIR}
+      COMPONENT ${mysql_server_config_COMPONENT}
+    )
+  ENDIF()
 ENDIF()
 
 # Install libgcc as  mylibgcc.a

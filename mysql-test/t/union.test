@@ -31,8 +31,12 @@ select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 g
 --error 1250
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
 explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
+select count(*) from (
+(select                      a,b from t1 limit 2)  union all (select a,b from t2 order by a)) q;
 (select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
 select found_rows();
+select count(*) from (
+select                      a,b from t1  union all select a,b from t2) q;
 select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
 select found_rows();
 
@@ -215,40 +219,77 @@ create table t2 (a int);
 insert into t2 values (3),(4),(5);
 
 # Test global limits
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1) UNION all (SELECT * FROM t2)) q;
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2) LIMIT 1;
 select found_rows();
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2)) q;
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2) LIMIT 2;
 select found_rows();
 
 # Test cases where found_rows() should return number of returned rows
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2)) q;
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2);
 select found_rows();
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1) UNION all (SELECT * FROM t2 LIMIT 1)) q;
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2 LIMIT 1);
 select found_rows();
-# This used to work in 4.0 but not anymore in 4.1
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
-#select found_rows();
+select found_rows();
 
 # In these case found_rows() should work
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1 LIMIT 1) UNION all SELECT * FROM t2) q;
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION all SELECT * FROM t2 LIMIT 2;
 select found_rows();
+SELECT COUNT(*) FROM (
+SELECT                     * FROM t1 UNION all SELECT * FROM t2) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION all SELECT * FROM t2 LIMIT 2;
 select found_rows();
 
 # The following examples will not be exact
+SELECT COUNT(*) FROM (
+SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2;
 select found_rows();
+SELECT COUNT(*) FROM (
+SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 100;
 select found_rows();
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1 LIMIT 100) UNION SELECT * FROM t2) q;
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100) UNION SELECT * FROM t2;
 select found_rows();
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2;
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2;
 select found_rows();
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2 LIMIT 2;
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 2;
 select found_rows();
+SELECT COUNT(*) FROM (
+SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
 select found_rows();
+--error ER_WRONG_USAGE
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
+SELECT COUNT(*) FROM (
+(SELECT                     * FROM t1 limit 2,2) UNION SELECT * FROM t2) q;
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2) UNION SELECT * FROM t2;
 select found_rows();
 
 # Test some limits with ORDER BY
@@ -1322,9 +1363,13 @@ CREATE TABLE t1 (a INT) ENGINE=MEMORY;
 CREATE TABLE t2 (a INT) ENGINE=MEMORY;
 INSERT INTO t2 VALUES (1);
 
+SELECT COUNT(*) FROM (
+SELECT                     * FROM t2 UNION ALL SELECT * FROM t1) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t2 UNION ALL SELECT * FROM t1; 
 SELECT FOUND_ROWS();
 
+SELECT COUNT(*) FROM (
+SELECT                     * FROM t1 UNION ALL SELECT * FROM t2) q;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION ALL SELECT * FROM t2;
 SELECT FOUND_ROWS();
 

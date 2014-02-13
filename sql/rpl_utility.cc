@@ -41,7 +41,6 @@ static int compare(size_t a, size_t b)
   return 0;
 }
 
-
 /*
   Compare the pack lengths of a source field (on the master) and a
   target field (on the slave).
@@ -68,7 +67,7 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
   DBUG_PRINT("result", ("%d", result));
   DBUG_RETURN(result);
 }
-
+#endif //MYSQL_CLIENT  
 
 /*********************************************************************
  *                   table_def member definitions                    *
@@ -82,25 +81,12 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 {
   uint32 length= binary_log::calc_field_size(type(col), master_data,
                                              m_field_metadata[col]);
-
-  if (col == MYSQL_TYPE_GEOMETRY)
-  {
-    /*
-      BUG#29549: 
-      This is currently broken for NDB, which is using big-endian
-      order when packing length of BLOB. Once they have decided how to
-      fix the issue, we can disable this code below to make sure to
-      always read the length in little-endian order.
-    */
-    Field_blob fb(m_field_metadata[col]);
-    length= fb.get_packed_size(master_data, TRUE);
-  }
   return length;
 }
 
-
 /**
  */
+ #ifndef MYSQL_CLIENT
 static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
                           const CHARSET_INFO *field_cs)
 {

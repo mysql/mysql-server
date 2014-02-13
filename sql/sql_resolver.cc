@@ -32,6 +32,9 @@
 #include "auth_common.h"
 #include "opt_explain_format.h"
 
+static const Item::enum_walk walk_subquery=
+  Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
+
 static void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
                                               int hidden_group_field_count,
                                               int hidden_order_field_count,
@@ -761,7 +764,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
       */
       for (ORDER *group= group_list; group; group= group->next)
       {
-        if ((*group->item)->walk(&Item::find_item_processor, TRUE,
+        if ((*group->item)->walk(&Item::find_item_processor, walk_subquery,
                                  (uchar *) ref))
         {
           direct_ref= TRUE;
@@ -854,8 +857,8 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
     for (ORDER *o= subq_select_lex->order_list.first; o != NULL; o= o->next)
     {
       if (*o->item == o->item_ptr)
-        (*o->item)->walk(&Item::clean_up_after_removal, true,
-                      static_cast<uchar*>(static_cast<void*>(subq_select_lex)));
+        (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
+                         reinterpret_cast<uchar*>(subq_select_lex));
     }
     subq_select_lex->join->order= NULL;
     subq_select_lex->order_list.empty();
@@ -884,8 +887,8 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex,
     for (ORDER *g= subq_select_lex->group_list.first; g != NULL; g= g->next)
     {
       if (*g->item == g->item_ptr)
-        (*g->item)->walk(&Item::clean_up_after_removal, true,
-                      static_cast<uchar*>(static_cast<void*>(subq_select_lex)));
+        (*g->item)->walk(&Item::clean_up_after_removal, walk_subquery,
+                         reinterpret_cast<uchar*>(subq_select_lex));
     }
     subq_select_lex->join->group_list= NULL;
     subq_select_lex->group_list.empty();
@@ -1097,7 +1100,8 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
         unlinked.
       */
       if (*order->item != *select_item)
-        (*order->item)->walk(&Item::clean_up_after_removal, true, NULL);
+        (*order->item)->walk(&Item::clean_up_after_removal, walk_subquery,
+                             NULL);
       order->item= &ref_pointer_array[counter];
       order->in_field_list=1;
       if (resolution == RESOLVED_AGAINST_ALIAS)

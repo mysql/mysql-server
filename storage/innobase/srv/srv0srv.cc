@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -46,6 +46,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "dict0boot.h"
 #include "dict0load.h"
 #include "dict0stats_bg.h"
+#include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0recv.h"
@@ -57,7 +58,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "row0mysql.h"
 #include "row0trunc.h"
 #include "srv0mon.h"
-#include "srv0space.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0mutex.h"
@@ -150,12 +150,14 @@ ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 ib_uint64_t	srv_log_file_size_requested;
 /* size in database pages */
-ulint	srv_log_buffer_size	= ULINT_MAX;
-ulong	srv_flush_log_at_trx_commit = 1;
-uint	srv_flush_log_at_timeout = 1;
-ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
-ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
-ulong	srv_log_write_ahead_size = 0;
+ulint		srv_log_buffer_size = ULINT_MAX;
+ulong		srv_flush_log_at_trx_commit = 1;
+uint		srv_flush_log_at_timeout = 1;
+ulong		srv_page_size = UNIV_PAGE_SIZE_DEF;
+ulong		srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_DEF;
+ulong		srv_log_write_ahead_size = 0;
+
+page_size_t	univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
@@ -225,6 +227,9 @@ ulint	srv_max_n_open_files	  = 300;
 /* Number of IO operations per second the server can do */
 ulong	srv_io_capacity         = 200;
 ulong	srv_max_io_capacity     = 400;
+
+/* The number of page cleaner threads to use.*/
+ulong	srv_n_page_cleaners = 1;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -1932,7 +1937,7 @@ srv_master_do_active_tasks(void)
 /*============================*/
 {
 	ib_time_t	cur_time = ut_time();
-	ullint		counter_time = ut_time_us(NULL);
+	uintmax_t	counter_time = ut_time_us(NULL);
 
 	/* First do the tasks that we are suppose to do at each
 	invocation of this function. */
@@ -2024,7 +2029,7 @@ void
 srv_master_do_idle_tasks(void)
 /*==========================*/
 {
-	ullint	counter_time;
+	uintmax_t	counter_time;
 
 	++srv_main_idle_loops;
 
@@ -2522,7 +2527,8 @@ srv_purge_coordinator_suspend(
 
 		rw_lock_x_lock(&purge_sys->latch);
 
-		stop = (purge_sys->state == PURGE_STATE_STOP);
+		stop = (srv_shutdown_state == SRV_SHUTDOWN_NONE
+			&& purge_sys->state == PURGE_STATE_STOP);
 
 		if (!stop) {
 			ut_a(purge_sys->n_stop == 0);
@@ -2606,8 +2612,9 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		/* If there are no records to purge or the last
 		purge didn't purge any records then wait for activity. */
 
-		if (purge_sys->state == PURGE_STATE_STOP
-		    || n_total_purged == 0) {
+		if (srv_shutdown_state == SRV_SHUTDOWN_NONE
+		    && (purge_sys->state == PURGE_STATE_STOP
+			|| n_total_purged == 0)) {
 
 			srv_purge_coordinator_suspend(slot, rseg_history_len);
 		}
@@ -2746,7 +2753,7 @@ for independent tablespace are not applicable to system-tablespace).
 bool
 srv_is_tablespace_truncated(ulint space_id)
 {
-	if (Tablespace::is_system_tablespace(space_id)) {
+	if (is_system_tablespace(space_id)) {
 		return(false);
 	}
 

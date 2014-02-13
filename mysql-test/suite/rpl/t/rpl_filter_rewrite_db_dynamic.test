@@ -22,7 +22,7 @@ USE db1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 values (12);
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 # Just prove that there is no db1.t1 at slave after sync
 --error ER_NO_SUCH_TABLE

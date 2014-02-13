@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1957,17 +1957,21 @@ static Sys_var_ulonglong Sys_max_heap_table_size(
        VALID_RANGE(16384, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1024));
 
+static ulong mdl_locks_cache_size_unused;
 static Sys_var_ulong Sys_metadata_locks_cache_size(
-       "metadata_locks_cache_size", "Size of unused metadata locks cache",
-       READ_ONLY GLOBAL_VAR(mdl_locks_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 1024*1024), DEFAULT(MDL_LOCKS_CACHE_SIZE_DEFAULT),
-       BLOCK_SIZE(1));
+       "metadata_locks_cache_size", "Has no effect, deprecated",
+       READ_ONLY GLOBAL_VAR(mdl_locks_cache_size_unused),
+       CMD_LINE(REQUIRED_ARG, OPT_MDL_CACHE_SIZE),
+       VALID_RANGE(1, 1024*1024), DEFAULT(1024), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
+static ulong mdl_locks_hash_partitions_unused;
 static Sys_var_ulong Sys_metadata_locks_hash_instances(
-       "metadata_locks_hash_instances", "Number of metadata locks hash instances",
-       READ_ONLY GLOBAL_VAR(mdl_locks_hash_partitions), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 1024), DEFAULT(MDL_LOCKS_HASH_PARTITIONS_DEFAULT),
-       BLOCK_SIZE(1));
+       "metadata_locks_hash_instances", "Has no effect, deprecated",
+       READ_ONLY GLOBAL_VAR(mdl_locks_hash_partitions_unused),
+       CMD_LINE(REQUIRED_ARG, OPT_MDL_HASH_INSTANCES),
+       VALID_RANGE(1, 1024), DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_ulong Sys_pseudo_thread_id(
        "pseudo_thread_id",
@@ -2458,7 +2462,7 @@ static Sys_var_uint Sys_eq_range_index_dive_limit(
        "ranges for the index is larger than or equal to this number. "
        "If set to 0, index dives are always used.",
        SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX32), DEFAULT(10), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX32), DEFAULT(200), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
@@ -2562,9 +2566,9 @@ static Sys_var_charptr Sys_tmpdir(
 static bool fix_trans_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    reset_root_defaults(&thd->transaction.mem_root,
-                        thd->variables.trans_alloc_block_size,
-                        thd->variables.trans_prealloc_size);
+    thd->get_transaction()->init_mem_root_defaults(
+        thd->variables.trans_alloc_block_size,
+        thd->variables.trans_prealloc_size);
   return false;
 }
 static Sys_var_ulong Sys_trans_alloc_block_size(
@@ -3364,7 +3368,8 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
     */
     thd->variables.option_bits&=
                  ~(OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
-    thd->transaction.all.reset_unsafe_rollback_flags();
+    thd->get_transaction()->reset_unsafe_rollback_flags(
+        Transaction_ctx::SESSION);
     thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
     return false;
   }
@@ -3373,7 +3378,8 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       !(thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT))
   { // disabling autocommit
 
-    thd->transaction.all.reset_unsafe_rollback_flags();
+    thd->get_transaction()->reset_unsafe_rollback_flags(
+        Transaction_ctx::SESSION);
     thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
     return false;

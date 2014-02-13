@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -76,11 +76,10 @@ table_events_waits_summary_by_instance::m_share=
 {
   { C_STRING_WITH_LEN("events_waits_summary_by_instance") },
   &pfs_truncatable_acl,
-  &table_events_waits_summary_by_instance::create,
+  table_events_waits_summary_by_instance::create,
   NULL, /* write_row */
-  &table_events_waits_summary_by_instance::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_events_waits_summary_by_instance::delete_all_rows,
+  table_all_instr::get_row_count,
   sizeof(pos_all_instr),
   &m_table_lock,
   &m_field_def,

@@ -23,7 +23,10 @@ include/start_slave.inc
 include/assert.inc [Worker_Id should be 1]
 include/assert.inc [thread_name should should indicate worker thread.]
 include/assert.inc [Service_State should be "ON" on a fresh slave server.]
-include/assert.inc [Last_Seen_Transaction should show "ANONYMOUS" if gtid-mode=off.]
+include/assert.inc [Last_Seen_Transaction should show "" if no transaction executed]
+CREATE TABLE t1 (a INT);
+DROP TABLE t1;
+include/assert.inc [Last_Seen_Transaction should show "ANONYMOUS" if last transaction was anonymous.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should both be empty.]
 include/assert.inc [Value returned by PS table for Last_Error_Timestamp should be 0000-00-00 00:00:00.]
@@ -42,7 +45,7 @@ include/wait_for_slave_sql_error.inc [errno=1146]
 
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 Last_Error_Message
-Worker 0 failed executing transaction '' at master log master-bin.000001, end_log_pos 1705; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
+Worker 0 failed executing transaction '' at master log FILENAME, end_log_pos POSITION; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 
 # Verify that the error fields are preserved after STOP SLAVE.
@@ -60,7 +63,7 @@ include/assert.inc [So, Service_State after STOP SLAVE should be "OFF".]
 include/assert.inc [Worker_Id should be 1]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 Last_Error_Message
-Worker 0 failed executing transaction '' at master log master-bin.000001, end_log_pos 1705; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
+Worker 0 failed executing transaction '' at master log FILENAME, end_log_pos POSITION; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 stop slave;
 reset slave;

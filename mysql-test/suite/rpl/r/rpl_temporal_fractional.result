@@ -41,6 +41,7 @@ ts3	1970-01-01 07:10:10.123
 ts4	1970-01-01 07:10:10.1235
 ts5	1970-01-01 07:10:10.12346
 ts6	1970-01-01 07:10:10.123456
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 ts0	2001-01-01 13:10:10
 ts1	2001-01-01 13:10:10.1
@@ -64,6 +65,7 @@ ts4	1970-01-01 10:10:10.1235
 ts5	1970-01-01 10:10:10.12346
 ts6	1970-01-01 10:10:10.123456
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 CREATE TABLE t1
 (
 dt0 DATETIME(0),
@@ -100,6 +102,7 @@ dt3	1970-01-01 07:10:10.123
 dt4	1970-01-01 07:10:10.1235
 dt5	1970-01-01 07:10:10.12346
 dt6	1970-01-01 07:10:10.123456
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 dt0	2001-01-01 10:10:10
 dt1	2001-01-01 10:10:10.1
@@ -123,6 +126,7 @@ dt4	1970-01-01 07:10:10.1235
 dt5	1970-01-01 07:10:10.12346
 dt6	1970-01-01 07:10:10.123456
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 CREATE TABLE t1
 (
 t0 TIME(0),
@@ -159,6 +163,7 @@ t3	07:10:10.123
 t4	07:10:10.1235
 t5	07:10:10.12346
 t6	07:10:10.123456
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 t0	10:10:10
 t1	10:10:10.1
@@ -182,4 +187,5 @@ t4	07:10:10.1235
 t5	07:10:10.12346
 t6	07:10:10.123456
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

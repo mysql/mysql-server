@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,14 @@
   static uint binlog_dump_count= 0;
 #endif
 using binary_log::checksum_crc32;
+
+const uint32 Binlog_sender::PACKET_MIN_SIZE= 4096;
+const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
+const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
+const float Binlog_sender::PACKET_GROW_FACTOR= 2.0;
+const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
+const uint32 Binlog_sender::HOOK_NO_FLAG= 0;
+
 void Binlog_sender::init()
 {
   DBUG_ENTER("Binlog_sender::init");
@@ -37,13 +45,20 @@ void Binlog_sender::init()
   thd->current_linfo= &m_linfo;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
+  /* Initialize the buffer only once. */
+  m_packet.realloc(PACKET_MIN_SIZE); // size of the buffer
+  m_new_shrink_size= PACKET_MIN_SIZE;
+  DBUG_PRINT("info", ("Initial packet->alloced_length: %u",
+                      m_packet.alloced_length()));
+
   sql_print_information("Start binlog_dump to master_thread_id(%lu) "
                         "slave_server(%u), pos(%s, %llu)",
                         thd->thread_id, thd->server_id,
                         m_start_file, m_start_pos);
 
-  if (RUN_HOOK(binlog_transmit, transmit_start, (thd, 0/*flags*/,
-                                                 m_start_file, m_start_pos)))
+  if (RUN_HOOK(binlog_transmit, transmit_start,
+               (thd, HOOK_NO_FLAG, m_start_file, m_start_pos,
+                &m_observe_transmission)))
   {
     set_unknow_error("Failed to run hook 'transmit_start'");
     DBUG_VOID_RETURN;
@@ -91,7 +106,7 @@ void Binlog_sender::cleanup()
 
   THD *thd= m_thd;
 
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, 0/*flags*/));
+  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, HOOK_NO_FLAG));
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= NULL;
@@ -130,7 +145,7 @@ void Binlog_sender::run()
       The main issue here are some dependencies on mysqlbinlog, that should be
       solved in the future.
     */
-    if (unlikely(fake_rotate_event(&m_thd->packet, log_file, start_pos)))
+    if (unlikely(fake_rotate_event(log_file, start_pos)))
       break;
 
     file= open_binlog_file(&log_cache, log_file, &m_errmsg);
@@ -189,7 +204,7 @@ void Binlog_sender::run()
 
 int Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
 {
-  if (unlikely(send_format_description_event(&m_thd->packet, log_cache,
+  if (unlikely(send_format_description_event(log_cache,
                                              start_pos > BIN_LOG_HEADER_SIZE)))
     return 1;
 
@@ -313,7 +328,7 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
 
     log_pos= my_b_tell(log_cache);
 
-    if (before_send_hook(&thd->packet, log_file, log_pos))
+    if (before_send_hook(log_file, log_pos))
       DBUG_RETURN(1);
     /*
       TODO: Set m_exclude_gtid to NULL if all gtids in m_exclude_gtid has
@@ -335,23 +350,31 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
       */
       if (exclude_group_end_pos)
       {
-        if (unlikely(send_heartbeat_event(NULL, exclude_group_end_pos)))
+        /* Save a copy of the buffer content. */
+        String tmp;
+        tmp.copy(m_packet);
+        tmp.length(m_packet.length());
+
+        if (unlikely(send_heartbeat_event(exclude_group_end_pos)))
           DBUG_RETURN(1);
         exclude_group_end_pos= 0;
+
+        /* Restore the copy back. */
+        m_packet.copy(tmp);
+        m_packet.length(tmp.length());
       }
 
-      if (unlikely(send_packet(&thd->packet)))
+      if (unlikely(send_packet()))
         DBUG_RETURN(1);
     }
 
-    if (unlikely(after_send_hook(&thd->packet,
-                                 log_file, in_exclude_group ? log_pos : 0)))
+    if (unlikely(after_send_hook(log_file, in_exclude_group ? log_pos : 0)))
       DBUG_RETURN(1);
   }
 
   if (unlikely(in_exclude_group))
   {
-    if (send_heartbeat_event(&thd->packet, log_pos))
+    if (send_heartbeat_event(log_pos))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -436,7 +459,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
           sql_print_information("the rest of heartbeat info skipped ...");
       }
 #endif
-      if (send_heartbeat_event(&m_thd->packet, log_pos))
+      if (send_heartbeat_event(log_pos))
         return 1;
   } while (!m_thd->killed);
 
@@ -558,27 +581,22 @@ void Binlog_sender::init_checksum_alg()
   DBUG_VOID_RETURN;
 }
 
-int Binlog_sender::fake_rotate_event(String *packet, const char *next_log_file,
+int Binlog_sender::fake_rotate_event(const char *next_log_file,
                                      my_off_t log_pos)
 {
   DBUG_ENTER("fake_rotate_event");
-  DBUG_ASSERT(packet != NULL);
-
   const char* p = next_log_file + dirname_length(next_log_file);
   ulong ident_len = strlen(p);
   ulong event_len = ident_len + LOG_EVENT_HEADER_LEN + Binary_log_event::ROTATE_HEADER_LEN +
     (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
   /* reset transmit packet for the fake rotate event below */
-  if (reset_transmit_packet(packet, 0))
+  if (reset_transmit_packet(0, event_len))
     DBUG_RETURN(1);
 
-  uint32 event_offset= packet->length();
-
-  packet->realloc(event_len + event_offset);
-  packet->length(event_len + event_offset);
-
-  uchar *header= (uchar *)packet->ptr() + event_offset;
+  uint32 event_offset= m_packet.length();
+  m_packet.length(event_len + event_offset);
+  uchar *header= (uchar *)m_packet.ptr() + event_offset;
   uchar *rotate_header= header + LOG_EVENT_HEADER_LEN;
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
@@ -597,7 +615,7 @@ int Binlog_sender::fake_rotate_event(String *packet, const char *next_log_file,
   if (event_checksum_on())
     calc_event_checksum(header, event_len);
 
-  DBUG_RETURN(send_packet(packet));
+  DBUG_RETURN(send_packet());
 }
 
 inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_len)
@@ -607,27 +625,35 @@ inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, uint32 event_le
   int4store(event_ptr + event_len - BINLOG_CHECKSUM_LEN, crc);
 }
 
-inline int Binlog_sender::reset_transmit_packet(String *packet, ushort flags)
+inline int Binlog_sender::reset_transmit_packet(ushort flags, uint32 event_len)
 {
-  /* reserve and set default header */
-  packet->length(0);
-  /*
-    set() will free the original memory. It causes dump thread to free and
-    reallocate memory for each sending event. It consumes a little bit more CPU
-    resource. TODO: Use a shared send buffer to eliminate memory reallocating.
-  */
-  packet->set("\0", 1, &my_charset_bin);
+  DBUG_ENTER("Binlog_sender::reset_transmit_packet");
+  DBUG_PRINT("info", ("event_len: %u, m_packet->alloced_length: %u",
+                      event_len, m_packet.alloced_length()));
+  DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
-  if (RUN_HOOK(binlog_transmit, reserve_header, (m_thd, flags, packet)))
+  m_packet.length(0);  // size of the string
+  m_packet.qs_append('\0');
+
+  /* reserve and set default header */
+  if (m_observe_transmission &&
+      RUN_HOOK(binlog_transmit, reserve_header, (m_thd, flags, &m_packet)))
   {
     set_unknow_error("Failed to run hook 'reserve_header'");
-    return 1;
+    DBUG_RETURN(1);
   }
-  return 0;
+
+  /* Resizes the buffer if needed. */
+  if (grow_packet(event_len))
+    DBUG_RETURN(1);
+
+  DBUG_PRINT("info", ("m_packet.alloced_length: %u (after potential "
+                      "reallocation)", m_packet.alloced_length()));
+
+  DBUG_RETURN(0);
 }
 
-int Binlog_sender::send_format_description_event(String *packet,
-                                                 IO_CACHE *log_cache,
+int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
                                                  bool clear_log_pos)
 {
   DBUG_ENTER("Binlog_sender::send_format_description_event");
@@ -681,7 +707,7 @@ int Binlog_sender::send_format_description_event(String *packet,
       calc_event_checksum(event_ptr, event_len);
   }
 
-  DBUG_RETURN(send_packet(packet));
+  DBUG_RETURN(send_packet());
 }
 
 int Binlog_sender::has_previous_gtid_log_event(IO_CACHE *log_cache,
@@ -730,10 +756,16 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   DBUG_ENTER("Binlog_sender::read_event");
 
   uint32 event_offset;
-  String *packet= &m_thd->packet;
+  int error= 0;
 
-  if (reset_transmit_packet(packet, 0))
+  if ((error= Log_event::peek_event_length(event_len, log_cache)))
+    goto read_error;
+
+  if (reset_transmit_packet(0, *event_len))
     DBUG_RETURN(1);
+
+  event_offset= m_packet.length();
+  *event_ptr= (uchar *)m_packet.ptr() + event_offset;
 
   DBUG_EXECUTE_IF("dump_thread_before_read_event",
                   {
@@ -742,27 +774,14 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
                                                        STRING_WITH_LEN(act)));
                   };);
 
-  event_offset= packet->length();
-
-  int error= Log_event::read_log_event(log_cache, packet, NULL, checksum_alg);
-  if (error != 0)
-  {
-    /*
-      In theory, it should never happen. But RESET MASTER deletes binlog file
-      directly without checking if there is any dump thread working.
-    */
-    error= (error == LOG_READ_EOF) ? LOG_READ_IO : error;
-    set_fatal_error(log_read_error_msg(error));
-    DBUG_RETURN(1);
-  }
+  /*
+    packet is big enough to read the event, since we have reallocated based
+    on the length stated in the event header.
+  */
+  if ((error= Log_event::read_log_event(log_cache, &m_packet, NULL, checksum_alg)))
+    goto read_error;
 
   set_last_pos(my_b_tell(log_cache));
-  /*
-    The pointer must be set after read_log_event(), cause packet->ptr() may has
-    been reallocated when reading the event.
-  */
-  *event_ptr= (uchar *)packet->ptr() + event_offset;
-  *event_len= packet->length() - event_offset;
 
   DBUG_PRINT("info",
              ("Read event %s",
@@ -773,17 +792,20 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
     DBUG_RETURN(1);
 #endif
   DBUG_RETURN(0);
+read_error:
+  /*
+    In theory, it should never happen. But RESET MASTER deletes binlog file
+    directly without checking if there is any dump thread working.
+  */
+  error= (error == LOG_READ_EOF) ? LOG_READ_IO : error;
+  set_fatal_error(log_read_error_msg(error));
+  DBUG_RETURN(1);
 }
 
-int Binlog_sender::send_heartbeat_event(String* packet, my_off_t log_pos)
+int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
 {
   DBUG_ENTER("send_heartbeat_event");
-  String tmp;
   const char* filename= m_linfo.log_file_name;
-
-  if (packet == NULL)
-    packet= &tmp;
-
   const char* p= filename + dirname_length(filename);
   uint32 ident_len= (uint32) strlen(p);
   uint32 event_len= ident_len + LOG_EVENT_HEADER_LEN +
@@ -791,15 +813,12 @@ int Binlog_sender::send_heartbeat_event(String* packet, my_off_t log_pos)
 
   DBUG_PRINT("info", ("log_file_name %s, log_pos %llu", p, log_pos));
 
-  if (reset_transmit_packet(packet, 0))
+  if (reset_transmit_packet(0, event_len))
     DBUG_RETURN(1);
 
-  uint32 event_offset= packet->length();
-
-  packet->realloc(event_len + event_offset);
-  packet->length(event_len + event_offset);
-
-  uchar *header= (uchar *)packet->ptr() + event_offset;
+  uint32 event_offset= m_packet.length();
+  m_packet.length(event_len + event_offset);
+  uchar *header= (uchar *)m_packet.ptr() + event_offset;
 
   /* Timestamp field */
   int4store(header, 0);
@@ -813,7 +832,7 @@ int Binlog_sender::send_heartbeat_event(String* packet, my_off_t log_pos)
   if (event_checksum_on())
     calc_event_checksum(header, event_len);
 
-  DBUG_RETURN(send_packet_and_flush(packet));
+  DBUG_RETURN(send_packet_and_flush());
 }
 
 inline int Binlog_sender::flush_net()
@@ -826,29 +845,33 @@ inline int Binlog_sender::flush_net()
   return 0;
 }
 
-inline int Binlog_sender::send_packet(String *packet)
+inline int Binlog_sender::send_packet()
 {
+  // We should always use the same buffer to guarantee that the reallocation
+  // logic is not broken.
   if (DBUG_EVALUATE_IF("simulate_send_error", true,
-                       my_net_write(&m_thd->net, (uchar*) packet->ptr(),
-                                    packet->length())))
+                       my_net_write(&m_thd->net, (uchar*) m_packet.ptr(),
+                                    m_packet.length())))
   {
     set_unknow_error("Failed on my_net_write()");
     return 1;
   }
-  return 0;
+
+  /* Shrink the packet if needed. */
+  return shrink_packet() ? 1 : 0;
 }
 
-inline int Binlog_sender::send_packet_and_flush(String *packet)
+inline int Binlog_sender::send_packet_and_flush()
 {
-  return (send_packet(packet) || flush_net());
+  return (send_packet() || flush_net());
 }
 
-inline int Binlog_sender::before_send_hook(String *packet,
-                                           const char *log_file,
+inline int Binlog_sender::before_send_hook(const char *log_file,
                                            my_off_t log_pos)
 {
-  if (RUN_HOOK(binlog_transmit, before_send_event,
-               (m_thd, 0/*flags*/, packet, log_file, log_pos)))
+  if (m_observe_transmission &&
+      RUN_HOOK(binlog_transmit, before_send_event,
+               (m_thd, HOOK_NO_FLAG, &m_packet, log_file, log_pos)))
   {
     set_unknow_error("run 'before_send_event' hook failed");
     return 1;
@@ -856,12 +879,12 @@ inline int Binlog_sender::before_send_hook(String *packet,
   return 0;
 }
 
-inline int Binlog_sender::after_send_hook(String *packet,
-                                          const char *log_file,
+inline int Binlog_sender::after_send_hook(const char *log_file,
                                           my_off_t log_pos)
 {
-  if (RUN_HOOK(binlog_transmit, after_send_event,
-               (m_thd, 0/*flags*/, packet, log_file, log_pos)))
+  if (m_observe_transmission &&
+      RUN_HOOK(binlog_transmit, after_send_event,
+               (m_thd, HOOK_NO_FLAG, &m_packet, log_file, log_pos)))
   {
     set_unknow_error("Failed to run hook 'after_send_event'");
     return 1;
@@ -893,5 +916,123 @@ inline int Binlog_sender::check_event_count()
   return 0;
 }
 #endif
+
+
+inline bool Binlog_sender::grow_packet(uint32 extra_size)
+{
+  DBUG_ENTER("Binlog_sender::grow_packet");
+  uint32 cur_buffer_size= m_packet.alloced_length();
+  uint32 cur_buffer_used= m_packet.length();
+  uint32 needed_buffer_size= cur_buffer_used + extra_size;
+
+  if (extra_size > (PACKET_MAX_SIZE - cur_buffer_used))
+    /*
+       Not enough memory: requesting packet to be bigger than the max
+       allowed - PACKET_MAX_SIZE.
+    */
+    DBUG_RETURN(true);
+
+  /* Grow the buffer if needed. */
+  if (needed_buffer_size > cur_buffer_size)
+  {
+    uint32 new_buffer_size;
+    if (calc_buffer_size(cur_buffer_size, needed_buffer_size,
+                         PACKET_GROW_FACTOR, &new_buffer_size))
+      DBUG_RETURN(true);
+
+    if (m_packet.realloc(new_buffer_size))
+      DBUG_RETURN(true);
+
+    /*
+     Calculates the new, smaller buffer, size to use the next time
+     one wants to shrink the buffer.
+    */
+    if (calc_buffer_size(m_new_shrink_size, PACKET_MIN_SIZE,
+                         PACKET_SHRINK_FACTOR, &m_new_shrink_size))
+      DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+inline bool Binlog_sender::shrink_packet()
+{
+  DBUG_ENTER("Binlog_sender::shrink_packet");
+  bool res= false;
+  uint32 cur_buffer_size= m_packet.alloced_length();
+  uint32 buffer_used= m_packet.length();
+
+  DBUG_ASSERT(!(cur_buffer_size < PACKET_MIN_SIZE));
+
+  /*
+     If the packet is already at the minimum size, just
+     do nothing. Otherwise, check if we should shrink.
+   */
+  if (cur_buffer_size > PACKET_MIN_SIZE)
+  {
+    /* increment the counter if we used less than the new shrink size. */
+    if (buffer_used < m_new_shrink_size)
+    {
+      m_half_buffer_size_req_counter++;
+
+      /* Check if we should shrink the buffer. */
+      if (m_half_buffer_size_req_counter == PACKET_SHRINK_COUNTER_THRESHOLD)
+      {
+        /*
+         The last PACKET_SHRINK_COUNTER_THRESHOLD consecutive packets
+         required less than half of the current buffer size. Lets shrink
+         it to not hold more memory than we potentially need.
+        */
+        m_packet.shrink(m_new_shrink_size);
+
+        /*
+           Calculates the new, smaller buffer, size to use the next time
+           one wants to shrink the buffer.
+         */
+        res= calc_buffer_size(m_new_shrink_size, PACKET_MIN_SIZE,
+                              PACKET_SHRINK_FACTOR, &m_new_shrink_size);
+
+        /* Reset the counter. */
+        m_half_buffer_size_req_counter= 0;
+      }
+    }
+    else
+      m_half_buffer_size_req_counter= 0;
+  }
+#ifndef DBUG_OFF
+  if (res == false)
+  {
+    DBUG_ASSERT(m_new_shrink_size <= cur_buffer_size);
+    DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
+  }
+#endif
+  DBUG_RETURN(res);
+}
+
+inline bool Binlog_sender::calc_buffer_size(uint32 current_size,
+                                            uint32 min_size,
+                                            float factor,
+                                            uint32 *new_val)
+{
+  /* Check that a sane minimum buffer size was requested.  */
+  if (min_size < PACKET_MIN_SIZE || min_size > PACKET_MAX_SIZE)
+    return true;
+
+  /*
+     Even if this overflows (PACKET_MAX_SIZE == UINT_MAX32) and
+     new_size wraps around, the min_size will always be returned,
+     i.e., it is a safety net.
+
+     Also, cap new_size to PACKET_MAX_SIZE (in case
+     PACKET_MAX_SIZE < UINT_MAX32).
+   */
+  uint32 new_size= static_cast<uint32>(
+    std::min(static_cast<double>(PACKET_MAX_SIZE),
+             static_cast<double>(current_size * factor)));
+
+  *new_val= ALIGN_SIZE(std::max(new_size, min_size));
+
+  return false;
+}
 
 #endif // HAVE_REPLICATION

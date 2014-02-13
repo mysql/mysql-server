@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1753,9 +1753,6 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   uint length,key_length,ref_length;
 
   s_temp->totlength=key_length=_mi_keylength(keyinfo,key)+nod_flag;
-#ifdef HAVE_purify
-  s_temp->n_length= s_temp->n_ref_length=0;	/* For valgrind */
-#endif
   s_temp->key=key;
   s_temp->prev_key=org_key;
   if (prev_key)                                 /* If not first key in block */

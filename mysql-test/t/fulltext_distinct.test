@@ -1,7 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+# This tests the functionality of the fulltext search of Myisam engine
+# The implementation of the fulltext search is different in InnoDB engine
+# All tests are required to run with Myisam.
+# Hence MTR starts mysqld with MyISAM as default
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 #
 # Test of fulltext index

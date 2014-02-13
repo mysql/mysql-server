@@ -98,8 +98,8 @@ instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
 
 bool
-buf_flush_list(
-/*===========*/
+buf_flush_lists(
+/*============*/
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
@@ -180,14 +180,29 @@ buf_flush_ready_for_replace(
 				buf_page_in_file(bpage) and in the LRU list */
 /******************************************************************//**
 page_cleaner thread tasked with flushing dirty pages from the buffer
-pools. As of now we'll have only one instance of this thread.
+pools. As of now we'll have only one coordinator of this thread.
 @return a dummy parameter */
 extern "C"
 os_thread_ret_t
-DECLARE_THREAD(buf_flush_page_cleaner_thread)(
+DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
+/*===============================================*/
+	void*	arg);		/*!< in: a dummy parameter required by
+				os_thread_create */
+/******************************************************************//**
+Worker thread of page_cleaner.
+@return a dummy parameter */
+extern "C"
+os_thread_ret_t
+DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 /*==========================================*/
 	void*	arg);		/*!< in: a dummy parameter required by
 				os_thread_create */
+/******************************************************************//**
+Initialize page_cleaner. */
+
+void
+buf_flush_page_cleaner_init(void);
+/*=============================*/
 /*********************************************************************//**
 Clears up tail of the LRU lists:
 * Put replaceable pages at the tail of LRU to the free list
@@ -197,8 +212,8 @@ config parameter innodb_LRU_scan_depth.
 @return total pages flushed */
 
 ulint
-buf_flush_LRU_tail(void);
-/*====================*/
+buf_flush_LRU_lists(void);
+/*=====================*/
 /*********************************************************************//**
 Wait for any possible LRU flushes that are in progress to end. */
 

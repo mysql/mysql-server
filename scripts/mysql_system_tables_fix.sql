@@ -339,7 +339,7 @@ ALTER TABLE procs_priv
   MODIFY Proc_priv set('Execute','Alter Routine','Grant')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
-ALTER IGNORE TABLE procs_priv
+ALTER TABLE procs_priv
   MODIFY Routine_name char(64)
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 

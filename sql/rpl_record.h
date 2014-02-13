@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,8 @@ size_t pack_row(TABLE* table, MY_BITMAP const* cols,
 int unpack_row(Relay_log_info const *rli,
                TABLE *table, uint const colcnt,
                uchar const *const row_data, MY_BITMAP const *cols,
-               uchar const **const row_end, ulong *const master_reclength);
+               uchar const **const curr_row_end, ulong *const master_reclength,
+               uchar const *const row_end);
 
 // Fill table's record[0] with default values.
 int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check);
