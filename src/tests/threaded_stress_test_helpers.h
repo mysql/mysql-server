@@ -105,6 +105,11 @@ PATENT RIGHTS GRANT:
 #ifndef _THREADED_STRESS_TEST_HELPERS_H_
 #define _THREADED_STRESS_TEST_HELPERS_H_
 
+#define USE_BACKUP
+#ifdef USE_BACKUP
+#include "../../backup-enterprise/backup/backup.h"
+#endif
+
 #include "toku_config.h"
 #include "test.h"
 
@@ -175,6 +180,9 @@ struct cli_args {
     int num_elements; // number of elements per DB
     int num_DBs; // number of DBs
     int num_seconds; // how long test should run
+#ifdef USE_BACKUP
+    int backup_after_num_seconds; // Perform a backup after this many seconds
+#endif
     int join_timeout; // how long to wait for threads to join before assuming deadlocks
     bool only_create; // true if want to only create DBs but not run stress
     bool only_stress; // true if DBs are already created and want to only run stress
@@ -2248,6 +2256,9 @@ static struct cli_args UU() get_default_args(void) {
         .num_elements = 150000,
         .num_DBs = 1,
         .num_seconds = 180,
+#ifdef USE_BACKUP
+        .backup_after_num_seconds = -1, // negative means no backup
+#endif
         .join_timeout = 3600,
         .only_create = false,
         .only_stress = false,
@@ -2622,6 +2633,9 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         INT32_ARG_NONNEG("--num_elements",            num_elements,                  ""),
         INT32_ARG_NONNEG("--num_DBs",                 num_DBs,                       ""),
         INT32_ARG_NONNEG("--num_seconds",             num_seconds,                   "s"),
+#ifdef USE_BACKUP
+        INT32_ARG_NONNEG("--backup_after_num_seconds",backup_after_num_seconds,      "s"),
+#endif
         INT32_ARG_NONNEG("--node_size",               env_args.node_size,            " bytes"),
         INT32_ARG_NONNEG("--basement_node_size",      env_args.basement_node_size,   " bytes"),
         INT32_ARG_NONNEG("--rollback_node_size",      env_args.rollback_node_size,   " bytes"),
@@ -2864,9 +2878,45 @@ UU() stress_recover(struct cli_args *args) {
     { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
 }
 
+#ifdef USE_BACKUP
+static int simple_poll_fun(float progress, const char *progress_string, void *args_v) {
+    struct cli_args *UU(args) = (struct cli_args *)args_v;
+    if (verbose) {
+        printf("Progress %f: %s\n", progress, progress_string);
+    }
+    return 0;
+}
+
+static void simple_error_fun(int error_number, const char *error_string, void *UU(error_extra)) {
+    printf("Error not expected.  Got error %d (%s)\n", error_number, error_string);
+    abort();
+}
+static void* do_backup_thread(void * args_v) {
+    struct cli_args *args = (struct cli_args *)args_v;
+    printf("Doing backup source+dirs=%s\n", args->env_args.envdir);
+    sleep(args->backup_after_num_seconds);
+    const char *source_dirs[]={args->env_args.envdir};
+    const char *dest_dirs[]  ={"backup"};
+    int r = tokubackup_create_backup(source_dirs, dest_dirs, 1,
+                                     simple_poll_fun, args,
+                                     simple_error_fun, NULL);
+    CKERR(r);
+    printf("Done with backup\n");
+    return args_v;
+}
+#endif
+
 static void
 open_and_stress_tables(struct cli_args *args, bool fill_with_zeroes, int (*cmp)(DB *, const DBT *, const DBT *))
 {
+#ifdef USE_BACKUP
+    pthread_t backup_thread;
+    if (args->backup_after_num_seconds >= 0) {
+        assert(args->backup_after_num_seconds < args->num_seconds + 2); // allow things to shut down, but not drag out.
+        int chk_r = toku_pthread_create(&backup_thread, NULL, do_backup_thread, args);
+        CKERR(chk_r);
+    }
+#endif
     if ((args->key_size < 8 && args->key_size != 4) ||
         (args->val_size < 8 && args->val_size != 4)) {
         fprintf(stderr, "The only valid key/val sizes are 4, 8, and > 8.\n");
@@ -2902,6 +2952,12 @@ open_and_stress_tables(struct cli_args *args, bool fill_with_zeroes, int (*cmp)(
         stress_table(env, dbs, args);
         { int chk_r = close_tables(env, dbs, args->num_DBs); CKERR(chk_r); }
     }
+#ifdef USE_BACKUP
+    if (args->backup_after_num_seconds >= 0) {
+       int r = toku_pthread_join(backup_thread, NULL);
+       assert(r==0);
+    }
+#endif
 }
 
 static void
