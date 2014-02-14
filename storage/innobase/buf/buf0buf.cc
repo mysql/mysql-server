@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -465,6 +465,26 @@ buf_block_alloc(
 	return(block);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/********************************************************************//**
+Checks if a page is all zeroes.
+@return	TRUE if the page is all zeroes */
+bool
+buf_page_is_zeroes(
+/*===============*/
+	const byte*	read_buf,	/*!< in: a database page */
+	const ulint	zip_size)	/*!< in: size of compressed page;
+					0 for uncompressed pages */
+{
+	const ulint page_size = zip_size ? zip_size : UNIV_PAGE_SIZE;
+
+	for (ulint i = 0; i < page_size; i++) {
+		if (read_buf[i] != 0) {
+			return(false);
+		}
+	}
+	return(true);
+}
 
 /********************************************************************//**
 Checks if a page is corrupt.
