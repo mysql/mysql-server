@@ -1,0 +1,13 @@
+git clone https://github.com/Tokutek/ft-index.git
+cd /home/bradley/tokusandbox/ft-index
+mkdir third-party
+(cd third-party ; git clone https://github.com/Tokutek/jemalloc.git)
+(cd third-party; git clone https://github.com/Tokutek/backup-enterprise.git)
+mkdir build
+cd build
+cmake -D CMAKE_BUILD_TYPE=Debug -D USE_BDB=OFF -D CMAKE_INSTALL_PREFIX=/home/bradley/tokusandbox/ft-index/install ..
+make -j4 install
+
+cd src/tests
+mkdir backup
+TOKU_HUGE_PAGES_OK=1 ./test_stress1.tdb --num_seconds 10 --backup_after_num_seconds 1 -v --envdir mytest
