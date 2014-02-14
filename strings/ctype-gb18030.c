@@ -21125,14 +21125,16 @@ code_to_gb18030_chs(uchar *dst, uint dstlen, uint code)
   @param[out] dst     dest to store the gb18030 code in bytes
   @param[in]  destlen valid length of dest
   @param[in]  diff    the diff between gb18030 code and GB+81308130
-  @return             4 if the diff is a valid value, otherwise 0
+  @retval             4 if the diff is a valid value and there is enough
+                      space in dst
+                      0 otherwise
 */
 static uint
 diff_to_gb18030_4(uchar *dst, uint dstlen, uint diff)
 {
   DBUG_ASSERT(dstlen >= 4);
 
-  if (diff > MAX_GB18030_DIFF)
+  if (diff > MAX_GB18030_DIFF || dstlen < 4)
     return 0;
 
   dst[3]= (uchar) (diff % 10) + MIN_MB_EVEN_BYTE_4;
@@ -21637,20 +21639,24 @@ my_casefold_gb18030(const CHARSET_INFO *cs, char *src, size_t srclen,
 
       if (code != 0)
       {
-        uint mblen_dst= code_to_gb18030_chs((uchar *) dst, 4, code);
+        uint mblen_dst= code_to_gb18030_chs((uchar *) dst, dst_end - dst,
+                                            code);
+
+        DBUG_ASSERT(dst + mblen_dst <= dst_end);
         src+= mblen;
         dst+= mblen_dst;
       }
       else
       {
+        DBUG_ASSERT(mblen == 2 || mblen == 4);
+        DBUG_ASSERT(dst + mblen <= dst_end);
+
         if (mblen == 4)
         {
-          DBUG_ASSERT(dst + 2 <= dst_end);
           *dst++= *src++;
           *dst++= *src++;
         }
 
-        DBUG_ASSERT(dst + 2 <= dst_end);
         *dst++= *src++;
         *dst++= *src++;
       }
