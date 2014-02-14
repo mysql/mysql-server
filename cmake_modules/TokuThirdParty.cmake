@@ -118,12 +118,8 @@ if (EXISTS "${HOTBACKUP_SOURCE_DIR}/CMakeLists.txt")
           -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
           -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
    )
-#  ExternalProject_Add_Step(backup-enterprise
-#        COMMAND cp "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/libHotBackup.so" 
   add_library(HotBackup SHARED IMPORTED GLOBAL)
   set_property(TARGET HotBackup PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/backup-enterprise/lib/libHotBackup.so)
-#  set_target_properties(HotBackup PROPERTIES IMPORTED_LOCATION
-#       "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib/libHotBackup.so")
   install(DIRECTORY "${install_dir}/lib" DESTINATION .
           COMPONENT tokukv_libs_extra)
 endif ()
