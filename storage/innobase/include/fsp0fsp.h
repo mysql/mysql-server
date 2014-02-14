@@ -70,7 +70,7 @@ descriptor page, but used only in the first. */
 					< 64 pages, this number is 64, i.e.,
 					we have initialized the space
 					about the first extent, but have not
-					physically allocted those pages to the
+					physically allocated those pages to the
 					file */
 #define	FSP_SPACE_FLAGS		16	/* fsp_space_t.flags, similar to
 					dict_table_t::flags */
@@ -246,6 +246,7 @@ Initializes the file space system. */
 void
 fsp_init(void);
 /*==========*/
+
 /**********************************************************************//**
 Gets the size of the system tablespace from the tablespace header.  If
 we do not have an auto-extending data file, this should be equal to
