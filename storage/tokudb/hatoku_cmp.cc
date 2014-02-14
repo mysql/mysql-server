@@ -428,8 +428,8 @@ static inline int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, ui
             ret_val = a_num-b_num;
             goto exit;
         case (3):
-            a_num = uint3korr(a_buf);
-            b_num = uint3korr(b_buf);
+            a_num = tokudb_uint3korr(a_buf);
+            b_num = tokudb_uint3korr(b_buf);
             ret_val = a_num-b_num;
             goto exit;
         case (4):
@@ -663,7 +663,7 @@ static inline uchar* pack_toku_varbinary(
         length = uint2korr(from_mysql);
         break;
     case (3):
-        length = uint3korr(from_mysql);
+        length = tokudb_uint3korr(from_mysql);
         break;
     case (4):
         length = uint4korr(from_mysql);
@@ -777,7 +777,7 @@ static inline uchar* pack_toku_blob(
         length = uint2korr(from_mysql);
         break;
     case (3):
-        length = uint3korr(from_mysql);
+        length = tokudb_uint3korr(from_mysql);
         break;
     case (4):
         length = uint4korr(from_mysql);
@@ -932,7 +932,7 @@ static inline uchar* pack_toku_varstring(
         length = uint2korr(from_mysql);
         break;
     case (3):
-        length = uint3korr(from_mysql);
+        length = tokudb_uint3korr(from_mysql);
         break;
     case (4):
         length = uint4korr(from_mysql);

@@ -497,4 +497,11 @@ static const char *tokudb_thd_get_proc_info(THD *thd) {
     return thd->proc_info;
 }
 
+// uint3korr reads 4 bytes and valgrind reports an error, so we use this function instead
+static uint tokudb_uint3korr(const uchar *a) {
+    uchar b[4] = {};
+    memcpy(b, a, 3);
+    return uint3korr(b);
+}
+
 #endif // _TOKUDB_PORTABILITY_H

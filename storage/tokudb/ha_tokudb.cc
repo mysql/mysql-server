@@ -665,8 +665,8 @@ static ulonglong retrieve_auto_increment(uint16 type, uint32 offset,const uchar 
         break;
 
     case HA_KEYTYPE_UINT24:
-        unsigned_autoinc = (ulonglong) uint3korr(key);
-    break;
+        unsigned_autoinc = (ulonglong) tokudb_uint3korr(key);
+        break;
 
     case HA_KEYTYPE_LONGLONG:
         signed_autoinc   = sint8korr(key);
@@ -994,7 +994,7 @@ static uchar* pack_toku_field_blob(
         length = uint2korr(from_mysql);
         break;
     case (3):
-        length = uint3korr(from_mysql);
+        length = tokudb_uint3korr(from_mysql);
         break;
     case (4):
         length = uint4korr(from_mysql);

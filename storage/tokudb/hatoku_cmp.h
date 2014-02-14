@@ -243,7 +243,7 @@ static inline uint32_t get_blob_field_len(
         length = uint2korr(from_tokudb);
         break;
     case (3):
-        length = uint3korr(from_tokudb);
+        length = tokudb_uint3korr(from_tokudb);
         break;
     case (4):
         length = uint4korr(from_tokudb);
