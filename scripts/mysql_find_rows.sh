@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# Copyright (c) 2000, 2004, 2006 MySQL AB, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 # Use is subject to license terms.
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -22,6 +22,8 @@ use Getopt::Long;
 $opt_help=$opt_Information=$opt_skip_use_db=0;
 $opt_regexp=$opt_dbregexp=".*";
 $opt_start_row=1; $opt_rows=9999999999;
+
+print STDERR "Warning: $0 is deprecated and will be removed in a future version.\n";
 
 GetOptions("Information","help","regexp=s","start_row=i","rows=i",
 	   "dbregexp=s", "skip-use-db")
