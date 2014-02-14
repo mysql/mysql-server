@@ -351,8 +351,6 @@ struct recv_sys_t{
 	lsn_t		recovered_lsn;
 				/*!< the log records have been parsed up to
 				this lsn */
-	lsn_t		limit_lsn;/*!< recovery should be made at most
-				up to this lsn */
 	ibool		found_corrupt_log;
 				/*!< this is set to TRUE if we during log
 				scan find a corrupt log block, or a corrupt
