@@ -323,7 +323,17 @@ my $password;
 my $escaped_password;      # the password, with special characters escaped
 
 sub ensure_secret_file {
-  $secret_file = $ENV{HOME} . "/.mysql_secret";
+  if ( exists $ENV{HOME} ) {
+    $secret_file = $ENV{HOME} . "/.mysql_secret";
+  } elsif ( -d "/root" ) {
+    # If we don't have any environment this might be because we're 
+    # running as a service script. Assume the user is root and that he has
+    # a standard root account.
+    $secret_file= "/root/.mysql_secret";
+  } else
+  {
+    die "ERROR: Found no /root home directory. Please create one.";
+  }
 
   # Create safe files to avoid leaking info to other users
   # Loop may be extended if we need more ...
