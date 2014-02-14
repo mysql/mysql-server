@@ -230,10 +230,9 @@ if [ $load != 0 -a $testresult = "PASS" ] ; then
         echo `date` load table $tblname >>$runfile
         ls -l $tpchdir/data/tpch${SCALE}G/$tblname.tbl >>$runfile
         start=$(date +%s)
-        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set global tokudb_loader_memory_size=$tokudb_loader_memory_size;\
+        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set tokudb_loader_memory_size=$tokudb_loader_memory_size;\
             set tokudb_load_save_space=$tokudb_load_save_space;\
-            load data infile '$tpchdir/data/tpch${SCALE}G/$tblname.tbl' into table $tblname fields terminated by '|';\
-            set global tokudb_loader_memory_size=$default_loader_memory_size" >>$runfile 2>&1
+            load data infile '$tpchdir/data/tpch${SCALE}G/$tblname.tbl' into table $tblname fields terminated by '|';" >>$runfile 2>&1
         exitcode=$?
         let loadtime=$(date +%s)-$start
         echo `date` load table $tblname $exitcode loadtime=$loadtime>>$runfile
@@ -245,11 +244,10 @@ if [ $check != 0 -a $testresult = "PASS" ] ; then
     for tblname in lineitem ; do
         echo `date` add clustering index $tblname >>$runfile
         start=$(date +%s)
-        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set global tokudb_loader_memory_size=$tokudb_loader_memory_size;\
+        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set tokudb_loader_memory_size=$tokudb_loader_memory_size;\
             set tokudb_load_save_space=$tokudb_load_save_space;\
-            set session tokudb_create_index_online=0;\
-            create clustering index i_shipdate on lineitem (l_shipdate);\
-            set global tokudb_loader_memory_size=$default_loader_memory_size" >>$runfile 2>&1
+            set tokudb_create_index_online=0;\
+            create clustering index i_shipdate on lineitem (l_shipdate);" >>$runfile 2>&1
         exitcode=$?
         let loadtime=$(date +%s)-$start
         echo `date` add clustering index $tblname $exitcode loadtime=$loadtime >>$runfile
