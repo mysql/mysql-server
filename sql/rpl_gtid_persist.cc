@@ -30,6 +30,12 @@ static bool terminate_compress_thread= false;
 const LEX_STRING Gtid_table_access_context::TABLE_NAME= {C_STRING_WITH_LEN("gtid_executed")};
 const LEX_STRING Gtid_table_access_context::DB_NAME= {C_STRING_WITH_LEN("mysql")};
 
+
+/**
+  Initialize a new THD.
+
+  @param p_thd  Pointer to pointer to thread structure
+*/
 void init_thd(THD **p_thd)
 {
   DBUG_ENTER("init_thd");
@@ -44,6 +50,12 @@ void init_thd(THD **p_thd)
 }
 
 
+/**
+  Release resourses for the thread and restores the
+  system_thread information.
+
+  @param thd Thread requesting to be destroyed
+*/
 void deinit_thd(THD *thd)
 {
   DBUG_ENTER("deinit_thd");
@@ -785,6 +797,10 @@ int Gtid_table_persistor::delete_all(TABLE *table)
 }
 
 
+/**
+  The main function of the compression thread.
+  - compress the gtid table when get a compression signal.
+*/
 pthread_handler_t compress_gtid_table(void *arg)
 {
   THD *thd=(THD*) arg;
@@ -832,6 +848,9 @@ pthread_handler_t compress_gtid_table(void *arg)
 }
 
 
+/**
+  Create the compression thread to compress gtid table.
+*/
 void create_compress_gtid_table_thread()
 {
   pthread_attr_t attr;
@@ -859,6 +878,9 @@ void create_compress_gtid_table_thread()
 }
 
 
+/**
+  Terminate the compression thread.
+*/
 void terminate_compress_gtid_table_thread()
 {
   DBUG_ENTER("terminate_compress_gtid_table_thread");
