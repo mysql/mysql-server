@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -600,6 +600,12 @@ install -m 644 "%{malloc_lib_source}" \
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+rm -f $RBR%{_mandir}/man1/mysql_convert_table_format.1*
+rm -f $RBR%{_mandir}/man1/mysql_fix_extensions.1*
+rm -f $RBR%{_mandir}/man1/mysql_setpermission.1*
+rm -f $RBR%{_mandir}/man1/msql2mysql.1*
+rm -f $RBR%{_mandir}/man1/mysql_find_rows.1*
+rm -f $RBR%{_mandir}/man1/mysqlaccess.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -1069,8 +1075,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisampack.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_convert_table_format.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_extensions.1*
 %doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
@@ -1078,7 +1082,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_secure_installation.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_setpermission.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
@@ -1100,12 +1103,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
-%attr(755, root, root) %{_bindir}/mysql_convert_table_format
-%attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
-%attr(755, root, root) %{_bindir}/mysql_setpermission
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/mysql_zap
@@ -1138,13 +1138,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %files -n MySQL-client%{product_suffix}
 
 %defattr(-, root, root, 0755)
-%attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
-%attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_waitpid
-%attr(755, root, root) %{_bindir}/mysqlaccess
 # XXX: This should be moved to %{_sysconfdir}
-%attr(644, root, root) %{_bindir}/mysqlaccess.conf
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
 %attr(755, root, root) %{_bindir}/mysqlcheck
@@ -1154,11 +1150,8 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
-%doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_find_rows.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_waitpid.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqladmin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbinlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlcheck.1*
