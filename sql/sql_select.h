@@ -1110,7 +1110,8 @@ public:
   */
   JOIN *tmp_join;
   ROLLUP rollup;				///< Used with rollup
-
+  
+  bool mixed_implicit_grouping;
   bool select_distinct;				///< Set if SELECT DISTINCT
   /**
     If we have the GROUP BY statement in the query,
