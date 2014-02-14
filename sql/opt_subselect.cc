@@ -5204,6 +5204,7 @@ bool setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list,
         if (!(*join_where)->fixed)
           (*join_where)->fix_fields(join->thd, join_where);
       }
+      table->table->maybe_null= test(join->mixed_implicit_grouping);
     }
 
     if ((nested_join= table->nested_join))
