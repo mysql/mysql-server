@@ -1,6 +1,7 @@
 #
 # MDEV-5539 Empty results in UNION with Sphinx engine
 #
+--replace_result $SPHINXSEARCH_PORT PORT
 eval create table ts (id bigint unsigned not null, w int not null, query varchar(255) not null, index(query)) engine=sphinx connection="sphinx://127.0.0.1:$SPHINXSEARCH_PORT/*";
 let $q1=SELECT * FROM ts si WHERE si.query=';mode=extended2;limit=1000000;maxmatches=500';
 let $q2=SELECT * FROM ts si WHERE si.query='@* 123nothingtofind123;mode=extended2;limit=1000000;maxmatches=500';
