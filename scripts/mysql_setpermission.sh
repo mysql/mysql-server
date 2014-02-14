@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 ## Emacs, this is -*- perl -*- mode? :-)
 
-# Copyright (c) 2000, 2007 MySQL AB, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2000, 2014 Oracle and/or its affiliates. All rights reserved.
 # Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or
@@ -58,6 +58,8 @@ my $user = "";
 
 $dbh=$host=$opt_user= $opt_password= $opt_help= $opt_host= $opt_socket= "";
 $opt_port=0;
+
+print STDERR "Warning: $0 is deprecated and will be removed in a future version.\n";
 
 read_my_cnf();		# Read options from ~/.my.cnf
 
