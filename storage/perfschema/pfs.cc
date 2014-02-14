@@ -5429,6 +5429,11 @@ PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
   if (unlikely(pfs_thread == NULL))
     return NULL;
 
+  if (object_name_length > COL_OBJECT_NAME_SIZE)
+    object_name_length= COL_OBJECT_NAME_SIZE;
+  if (schema_name_length > COL_OBJECT_SCHEMA_SIZE)
+    schema_name_length= COL_OBJECT_SCHEMA_SIZE;
+
   PFS_program *pfs_program;
   pfs_program= find_or_create_program(pfs_thread,
                                       sp_type_to_object_type(sp_type),
@@ -5518,6 +5523,11 @@ void pfs_drop_sp_v1(uint sp_type,
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
     return;
+
+  if (object_name_length > COL_OBJECT_NAME_SIZE)
+    object_name_length= COL_OBJECT_NAME_SIZE;
+  if (schema_name_length > COL_OBJECT_SCHEMA_SIZE)
+    schema_name_length= COL_OBJECT_SCHEMA_SIZE;
 
   drop_program(pfs_thread,
                sp_type_to_object_type(sp_type),
