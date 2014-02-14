@@ -516,10 +516,14 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysqld
 %endif
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
-rm -rf %{buildroot}%{_bindir}/mysql_setpermission
 rm -rf %{buildroot}%{_mandir}/man1/mysql_setpermission.1*
 rm -rf %{buildroot}%{_bindir}/mysqlbug
 rm -rf %{buildroot}%{_mandir}/man1/mysqlbug.1*
+rm -rf %{buildroot}%{_mandir}/man1/mysql_convert_table_format.1*
+rm -rf %{buildroot}%{_mandir}/man1/mysql_fix_extensions.1*
+rm -rf %{buildroot}%{_mandir}/man1/msql2mysql.1*
+rm -rf %{buildroot}%{_mandir}/man1/mysql_find_rows.1*
+rm -rf %{buildroot}%{_mandir}/man1/mysqlaccess.1*
 
 %check
 %if 0%{?runselftest}
@@ -596,8 +600,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/myisamchk.1*
 %attr(644, root, root) %{_mandir}/man1/myisamlog.1*
 %attr(644, root, root) %{_mandir}/man1/myisampack.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_convert_table_format.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_fix_extensions.1*
 %attr(644, root, root) %{_mandir}/man8/mysqld.8*
 %attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
 %attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
@@ -624,8 +626,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
-%attr(755, root, root) %{_bindir}/mysql_convert_table_format
-%attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
@@ -718,13 +718,8 @@ fi
 
 %files client
 %defattr(-, root, root, -)
-%attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
-%attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_waitpid
-%attr(755, root, root) %{_bindir}/mysqlaccess
-# XXX: This should be moved to %{_sysconfdir}
-%attr(644, root, root) %{_bindir}/mysqlaccess.conf
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
 %attr(755, root, root) %{_bindir}/mysqlcheck
@@ -736,11 +731,8 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
-%attr(644, root, root) %{_mandir}/man1/msql2mysql.1*
 %attr(644, root, root) %{_mandir}/man1/mysql.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_find_rows.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_waitpid.1*
-%attr(644, root, root) %{_mandir}/man1/mysqlaccess.1*
 %attr(644, root, root) %{_mandir}/man1/mysqladmin.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlbinlog.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlcheck.1*
