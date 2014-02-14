@@ -89,6 +89,13 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 namespace tokudb {
+    uint compute_total_key_parts(TABLE_SHARE *table_share) {
+        uint total_key_parts = 0;
+        for (uint i = 0; i < table_share->keys; i++) {
+            total_key_parts += get_key_parts(&table_share->key_info[i]);
+        }
+        return total_key_parts;
+    }
 
     // Set the key_info cardinality counters for the table.
     void set_card_in_key_info(TABLE *table, uint rec_per_keys, uint64_t rec_per_key[]) {
@@ -171,11 +178,13 @@ namespace tokudb {
     void set_card_from_status(DB *status_db, DB_TXN *txn, TABLE_SHARE *table_share, TABLE_SHARE *altered_table_share) {
         int error;
         // read existing cardinality data from status
-        uint64_t rec_per_key[table_share->key_parts];
-        error = get_card_from_status(status_db, txn, table_share->key_parts, rec_per_key);
+        uint table_total_key_parts = tokudb::compute_total_key_parts(table_share);
+        uint64_t rec_per_key[table_total_key_parts];
+        error = get_card_from_status(status_db, txn, table_total_key_parts, rec_per_key);
         // set altered records per key to unknown
-        uint64_t altered_rec_per_key[altered_table_share->key_parts];
-        for (uint i = 0; i < altered_table_share->key_parts; i++)
+        uint altered_table_total_key_parts = tokudb::compute_total_key_parts(altered_table_share);
+        uint64_t altered_rec_per_key[altered_table_total_key_parts];
+        for (uint i = 0; i < altered_table_total_key_parts; i++)
             altered_rec_per_key[i] = 0;
         // compute the beginning of the key offsets in the original table
         uint orig_key_offset[table_share->keys];
@@ -197,7 +206,7 @@ namespace tokudb {
             }
         }
         if (error == 0)
-            set_card_in_status(status_db, txn, altered_table_share->key_parts, altered_rec_per_key);
+            set_card_in_status(status_db, txn, altered_table_total_key_parts, altered_rec_per_key);
         else
             delete_card_from_status(status_db, txn);
     }

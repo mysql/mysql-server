@@ -5944,14 +5944,15 @@ int ha_tokudb::info(uint flag) {
     }
     if ((flag & HA_STATUS_CONST)) {
         stats.max_data_file_length=  9223372036854775807ULL;
-        uint64_t rec_per_key[table_share->key_parts];
-        error = tokudb::get_card_from_status(share->status_block, txn, table_share->key_parts, rec_per_key);
+        uint total_key_parts = tokudb::compute_total_key_parts(table_share);
+        uint64_t rec_per_key[total_key_parts];
+        error = tokudb::get_card_from_status(share->status_block, txn, total_key_parts, rec_per_key);
         if (error == 0) {
-            tokudb::set_card_in_key_info(table, table_share->key_parts, rec_per_key);
+            tokudb::set_card_in_key_info(table, total_key_parts, rec_per_key);
         } else {
-            for (uint i = 0; i < table_share->key_parts; i++)
+            for (uint i = 0; i < total_key_parts; i++)
                 rec_per_key[i] = 0;
-            tokudb::set_card_in_key_info(table, table_share->key_parts, rec_per_key);
+            tokudb::set_card_in_key_info(table, total_key_parts, rec_per_key);
         }
     }
     /* Don't return key if we got an error for the internal primary key */
@@ -6155,10 +6156,12 @@ static const char *lock_type_str(int lock_type) {
 //
 int ha_tokudb::external_lock(THD * thd, int lock_type) {
     TOKUDB_HANDLER_DBUG_ENTER("cmd %d lock %d %s %s", thd_sql_command(thd), lock_type, lock_type_str(lock_type), share->table_name);
-    if (tokudb_debug & TOKUDB_DEBUG_LOCK)
+    if (!(tokudb_debug & TOKUDB_DEBUG_ENTER) && (tokudb_debug & TOKUDB_DEBUG_LOCK)) {
         TOKUDB_HANDLER_TRACE("cmd %d lock %d %s %s", thd_sql_command(thd), lock_type, lock_type_str(lock_type), share->table_name);
-    if (0)
+    }
+    if (tokudb_debug & TOKUDB_DEBUG_LOCK) {
         TOKUDB_HANDLER_TRACE("q %s", thd->query());
+    }
 
     int error = 0;
     tokudb_trx_data *trx = NULL;
