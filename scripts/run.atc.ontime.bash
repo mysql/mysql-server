@@ -182,13 +182,24 @@ if [ $load -ne 0 -a $testresult = "PASS" -a $engine != "tokudb" ] ; then
     if [ $exitcode -ne 0 ] ; then testresult="FAIL"; fi
 fi  
 
-mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "show create table $tblname"  >>$runfile 2>&1
+if [ $testresult = "PASS" ] ; then
+    mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "show create table $tblname"  >>$runfile 2>&1
+fi
+
+if [ $testresult = "PASS" ] ; then
+    let default_loader_memory_size="$(mysql -S $mysqlsocket -u $mysqluser -e'select @@tokudb_loader_memory_size' --silent --skip-column-names)"
+    exitcode=$?
+    echo `date` get tokudb_loader_memory_size $exitcode >>$runfile
+    if [ $exitcode -ne 0 ] ; then testresult="FAIL"; fi
+    if [ "$tokudb_loader_memory_size" = "" ] ; then tokudb_loader_memory_size=$default_loader_memory_size; fi
+fi
 
 # load the data
 if [ $load -ne 0 -a $testresult = "PASS" ] ; then
     echo `date` load data >>$runfile
     start=$(date +%s)
-    mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set tokudb_load_save_space=$tokudb_load_save_space; load data infile '$basedir/atc_On_Time_Performance.mysql.csv' into table $tblname" >>$runfile 2>&1
+    mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set tokudb_loader_memory_size=$tokudb_loader_memory_size;\
+        set tokudb_load_save_space=$tokudb_load_save_space; load data infile '$basedir/atc_On_Time_Performance.mysql.csv' into table $tblname" >>$runfile 2>&1
     exitcode=$?
     let loadtime=$(date +%s)-$start
     echo `date` load data loadtime=$loadtime $exitcode >>$runfile
