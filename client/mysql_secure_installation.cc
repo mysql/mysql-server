@@ -793,7 +793,7 @@ void remove_test_database()
 				     "y|Y for Yes, any other key for No) : ", 'y');
   if (reply == (int) 'y' || reply == (int) 'Y')
   {
-    execute_query_with_message((const char *) "DROP DATABASE test",
+    execute_query_with_message((const char *) "DROP DATABASE IF EXISTS DATABASE test",
 			       (const char *) " - Dropping test database...\n");
 
     execute_query_with_message((const char *) "DELETE FROM mysql.db WHERE "
@@ -835,12 +835,13 @@ void reload_privilege_tables()
 
 my_bool find_temporary_password(char **p)
 {
+  const char *root_path= "/root";
   const char *password_file_name= "/.mysql_secret";
   *p= NULL;
-  char *home= getenv("HOME");
+  const char *home= getenv("HOME");
   if (home == NULL)
-    return FALSE;
-    
+    home= root_path;
+
   int home_len= strlen(home);
   int path_len= home_len + strlen(password_file_name)+1;
   char *path= (char *)malloc(path_len);
