@@ -136,7 +136,7 @@ start(){
 	# If server has been started successfully and file created in
 	# mysql_install_db step is present we run mysql_secure_installation
 	if [ $ret = 0 -a -e "$datadir"/.phase_two_required -a -x /usr/bin/mysql_secure_installation ] ; then
-	    /usr/bin/mysql_secure_installation --use-default --defaults-file=/etc/my.cnf
+	    /usr/bin/mysql_secure_installation --defaults-file=/etc/my.cnf --use-default
 	    rm -f "$datadir"/.phase_two_required
 	fi
 
