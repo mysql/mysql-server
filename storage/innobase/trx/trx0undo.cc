@@ -1808,6 +1808,11 @@ trx_undo_assign_undo(
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
 	mtr_start(&mtr);
+	if (&trx->rsegs.m_noredo == undo_ptr) {
+		mtr.set_log_mode(MTR_LOG_NO_REDO);;
+	} else {
+		ut_ad(&trx->rsegs.m_redo == undo_ptr);
+	}
 
 	if (trx_sys_is_noredo_rseg_slot(rseg->id)) {
 		mtr.set_log_mode(MTR_LOG_NO_REDO);;
