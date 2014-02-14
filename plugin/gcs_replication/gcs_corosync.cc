@@ -428,8 +428,6 @@ Protocol_corosync::Protocol_corosync(Stats& collector) :
   pthread_cond_init(&vc_cond, 0);
 
   collector.set_view(&get_view());
-  last_seen_conf_id.nodeid= 0;
-  last_seen_conf_id.seq= 0;
 };
 
 Protocol_corosync::~Protocol_corosync()
@@ -463,6 +461,16 @@ bool Protocol_corosync::open_session(Event_handlers* handlers_arg)
        displaying with PS (a policy is inherited from Show-Slave-Status).
   */
   is_leaving= false;
+  /*
+    An "opposite" of the above to mean "is_joining"= true.
+    Even the resuming Member is forced to be Joiner being made to
+    forgot its possible glorious past with the Cluster.
+
+    todo: crash-safe member/cluster where a member of even the whole
+    cluster can be restarted (along with the server/client) in full conscious
+    about its past.
+  */
+  last_seen_conf_id= zero_ring_id;
   pending_awaited_vector= false;
   awaited_vector.clear();
   /*
@@ -718,7 +726,7 @@ bool Protocol_corosync::install_view()
   bool quorate;
 
   assert(ms_total.size() == member_states.size());
-
+  assert(is_leaving || member_states.find(local_process_id) != member_states.end());
   /*
     The former configuration protocol member id objects get deleted.
     Notice in between of this point and view.install below,
@@ -846,13 +854,13 @@ void Protocol_corosync::do_complete_local_member_init()
 
 /*
   The function is called when State message protocol is violated.
-  It details on the current and previously received state messages.
+  It details on a Member state carried with a state message.
 */
-void debug_unwelcome_state_message(char *buf, Member_state* ptr_m_state, const char* hdr)
+void debug_unwelcome_state_message(char *buf, uint limit, Member_state* ptr_m_state, const char* hdr)
 {
   set<string>::iterator it;
   set<string>& uuids= ptr_m_state->member_uuids;
-  int it_done= 0, limit=1024;
+  int it_done= 0;
   char *ptr_buf= buf;
 
   it_done= snprintf(ptr_buf, limit,
@@ -891,10 +899,10 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
         logger_func(GCS_ERROR_LEVEL, "The sender's state message was not delivered");
     else
     {
-      debug_unwelcome_state_message(buf, member_states[p_id], "The former message details: ");
+      debug_unwelcome_state_message(buf, sizeof(buf), member_states[p_id], "The former message details: ");
       get_client_info().logger_func(GCS_INFORMATION_LEVEL, buf);
     }
-    debug_unwelcome_state_message(buf, ms_info, "The current message details: ");
+    debug_unwelcome_state_message(buf, sizeof(buf), ms_info, "The current message details: ");
     get_client_info().logger_func(GCS_INFORMATION_LEVEL, buf);
 
     assert(0);
@@ -911,38 +919,44 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
     return;
   }
 
-  if (ms_info->member_uuids.size() != 0)
+  /*
+    max_view_id former setter gets overriden in case of the same
+    view-id different sender.
+    Eventually at install_view() the max view-id setter is the last
+    that showed a maximum value of view-id.
+  */
+  if (max_view_id <= ms_info->view_id)
   {
-    /* This member was a in Primary component */
-    if (max_view_id < ms_info->view_id)
-    {
-      /* and its view_id is higher than found so far so it's memorized. */
-      max_view_id= ms_info->view_id;
-      max_view_id_p_id= p_id;
-    }
-    else if (max_view_id == ms_info->view_id)
-    {
+    /* and its view_id is higher than found so far so it's memorized. */
+    max_view_id= ms_info->view_id;
+    max_view_id_p_id= p_id;
+  }
+  else if (max_view_id == ms_info->view_id)
+  {
 #ifndef DBUG_OFF
-      /*
-        When a state message claims to be from a same view-id member
-        its primary component members and the ordering must be of the
-        same set.
-      */
-      assert(max_view_id_p_id != zero_process_id);
+    assert(max_view_id_p_id != zero_process_id || max_view_id == 0);
+    /*
+      When a state message claims to be from a same view-id member
+      its primary component members and the ordering must be of the
+      same set.
+    */
+    set<string>& curr_uuids= ms_info->member_uuids;
+    set<string>& max_uuids= member_states[max_view_id_p_id]->member_uuids;
+    set<string>::iterator it_curr, it_max;
 
-      set<string>& curr_uuids= ms_info->member_uuids;
-      set<string>& max_uuids= member_states[max_view_id_p_id]->member_uuids;
-      set<string>::iterator it_curr, it_max;
-
-      for (it_curr= curr_uuids.begin(), it_max= max_uuids.begin();
-           it_curr != curr_uuids.end(); ++it_curr, ++it_max)
-      {
-        assert((*it_curr).compare(*it_max) == 0);
-      }
-#endif
+    for (it_curr= curr_uuids.begin(), it_max= max_uuids.begin();
+         it_curr != curr_uuids.end(); ++it_curr, ++it_max)
+    {
+      assert((*it_curr).compare(*it_max) == 0);
     }
+#endif
   }
   member_states[p_id]= ms_info;
+
+  /* Own state message sanity check */
+  assert(p_id != local_process_id ||
+         member_states[local_process_id]->client_info.get_uuid() ==
+         get_client_info().get_uuid());
   /*
     The rule of updating the awaited_vector at receiving is simply to
     decrement the counter in the right index. When the value drops to
