@@ -1,8 +1,14 @@
-include/master-slave.inc
-[connection master]
-include/wait_for_slave_to_stop.inc
-include/wait_for_slave_to_start.inc
-include/rpl_reset.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT) ENGINE=Merge;
 CREATE TABLE t3 (a INT, b INT) CHARSET=utf8;
@@ -105,7 +111,11 @@ NULL	3	6
 NULL	4	2
 NULL	5	10
 NULL	6	12
-include/rpl_reset.inc
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 ERROR 23000: Duplicate entry '2' for key 'b'
 show binlog events from <binlog_start>;
@@ -130,7 +140,11 @@ a	b
 1	2
 2	4
 3	6
-include/rpl_reset.inc
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 CREATE TEMPORARY TABLE tt4 (a INT, b INT);
 INSERT INTO tt4 VALUES (4,8), (5,10), (6,12);
 BEGIN;
@@ -160,7 +174,11 @@ a	b
 4	8
 5	10
 6	12
-include/rpl_reset.inc
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 CREATE TABLE t8 LIKE t4;
 CREATE TABLE t9 LIKE tt4;
 CREATE TEMPORARY TABLE tt5 LIKE t4;
@@ -201,12 +219,15 @@ Create Table	CREATE TABLE `t9` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
 STOP SLAVE;
-include/wait_for_slave_to_stop.inc
 SET GLOBAL storage_engine=@storage_engine;
 START SLAVE;
-include/wait_for_slave_to_start.inc
 ================ BUG#22864 ================
-include/rpl_reset.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
 SET AUTOCOMMIT=0;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
@@ -312,7 +333,10 @@ a
 3
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 SET AUTOCOMMIT=1;
-include/rpl_reset.inc
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+START SLAVE;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 CREATE TABLE t2 (a INT) ENGINE=INNODB;
@@ -353,7 +377,11 @@ a
 6
 9
 TRUNCATE TABLE t2;
-include/rpl_reset.inc
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
 BEGIN;
 INSERT INTO t2 SELECT a*a FROM t1;
 CREATE TEMPORARY TABLE tt2
@@ -368,12 +396,6 @@ SELECT * FROM t2 ORDER BY a;
 a
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	ROLLBACK
 SELECT * FROM t2 ORDER BY a;
 a
 DROP TABLE t1,t2;
@@ -390,7 +412,12 @@ a
 1
 2
 DROP TABLE t1;
-include/rpl_reset.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
 DROP DATABASE IF EXISTS mysqltest1;
 CREATE DATABASE mysqltest1;
 CREATE TABLE mysqltest1.without_select (f1 BIGINT);
@@ -408,7 +435,12 @@ master-bin.000001	#	Table_map	#	#	table_id: # (mysqltest1.with_select)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 DROP DATABASE mysqltest1;
-include/rpl_reset.inc
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
 CREATE TEMPORARY TABLE t7(c1 INT);
 CREATE TABLE t5(c1 INT);
 CREATE TABLE t4(c1 INT);
@@ -429,5 +461,4 @@ DROP VIEW IF EXISTS bug48506_t1, bug48506_t2, bug48506_t3;
 DROP TEMPORARY TABLES t7;
 DROP TABLES t4, t5;
 DROP TABLES IF EXISTS bug48506_t4;
-include/rpl_end.inc
 end of the tests
