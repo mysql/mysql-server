@@ -48,7 +48,7 @@ SET optimizer_switch=@save_optimizer_switch;
 drop table ts;
 show status like "sphinx_error%";
 Variable_name	Value
-Sphinx_error	OFF
+Sphinx_error	
 show status like "sphinx_total%";
 Variable_name	Value
 Sphinx_total	2

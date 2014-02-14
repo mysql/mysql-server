@@ -3575,11 +3575,13 @@ int sphinx_showfunc_words ( THD * thd, SHOW_VAR * out, char * sBuffer )
 int sphinx_showfunc_error ( THD * thd, SHOW_VAR * out, char * )
 {
 	CSphSEStats * pStats = sphinx_get_stats ( thd, out );
+	out->type = SHOW_CHAR;
 	if ( pStats && pStats->m_bLastError )
 	{
-		out->type = SHOW_CHAR;
 		out->value = pStats->m_sLastMessage;
 	}
+        else
+		out->value = (char*)"";
 	return 0;
 }
 
