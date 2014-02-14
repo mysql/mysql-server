@@ -21333,30 +21333,29 @@ my_wc_mb_gb18030_chs(const CHARSET_INFO *cs  __attribute__((unused)),
     return MY_CS_ILUNI;
   }
 
-  if (len == 2)
-  {
-    if (s + 2 > e)
-      return MY_CS_TOOSMALL2;
-
-    s[0]= (uchar) ((cp >> 8) & 0xFF);
-    s[1]= (uchar) (cp & 0xFF);
-
-    return 2;
-  }
-  else if (len == 4)
+  switch (len)
   {
     uint err;
+    case 2:
+      if (s + 2 > e)
+        return MY_CS_TOOSMALL2;
 
-    if (s + 4 > e)
-      return MY_CS_TOOSMALL4;
+      s[0]= (uchar) ((cp >> 8) & 0xFF);
+      s[1]= (uchar) (cp & 0xFF);
 
-    err= diff_to_gb18030_4(s, 4, idx);
-    DBUG_ASSERT(err != 0);
+      return len;
+    case 4:
+      if (s + 4 > e)
+        return MY_CS_TOOSMALL4;
 
-    return 4;
+      err= diff_to_gb18030_4(s, 4, idx);
+      DBUG_ASSERT(err != 0);
+
+      return err != 0 ? len : MY_CS_ILUNI;
   }
-  else
-    DBUG_ASSERT(0);
+
+  DBUG_ASSERT(0);
+  return MY_CS_ILUNI;
 }
 
 /**
@@ -21517,21 +21516,19 @@ get_case_info(const CHARSET_INFO *cs, const uchar *src, size_t srclen)
 
   switch (srclen)
   {
+    uint diff, code;
     case 1:
       return &cs->caseinfo->page[0][(uchar) src[0]];
     case 2:
-    {
       if (src[0] < ((MIN_2_BYTE_UNICASE >> 8) & 0xFF) ||
         src[0] > ((MAX_2_BYTE_UNICASE >> 8) & 0xFF))
         return NULL;
 
       p= cs->caseinfo->page[(uchar) src[0]];
       return p ? &p[(uchar) src[1]] : NULL;
-    }
     case 4:
-    {
-      const uint diff= gb18030_4_chs_to_diff(src);
-      uint code= 0;
+      diff= gb18030_4_chs_to_diff(src);
+      code= 0;
 
       if (diff < MIN_2_BYTE_UNICASE - UNICASE_4_BYTE_OFFSET)
         code= diff + UNICASE_4_BYTE_OFFSET;
@@ -21542,12 +21539,10 @@ get_case_info(const CHARSET_INFO *cs, const uchar *src, size_t srclen)
 
       p= cs->caseinfo->page[(code >> 8) & 0xFF];
       return p ? &p[code & 0xFF] : NULL;
-    }
-    default:
-      DBUG_ASSERT(0);
   }
 
   DBUG_ASSERT(0);
+  return NULL;
 }
 
 /**
@@ -21578,7 +21573,7 @@ case_info_code_to_gb18030(uint code)
     r= diff_to_gb18030_4(gbchs, 4, code);
     DBUG_ASSERT(r == 4);
 
-    return gb18030_chs_to_code(gbchs, 4);
+    return r == 4 ? gb18030_chs_to_code(gbchs, 4) : 0;
   }
 }
 
