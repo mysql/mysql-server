@@ -264,6 +264,13 @@ INET_NTOA(0)
 SELECT '1' IN ('1', INET_NTOA(0));
 '1' IN ('1', INET_NTOA(0))
 1
+SELECT NAME_CONST('a', -(1 OR 2)) OR 1;
+ERROR HY000: Incorrect arguments to NAME_CONST
+SELECT NAME_CONST('a', -(1 AND 2)) AND 1;
+ERROR HY000: Incorrect arguments to NAME_CONST
+SELECT NAME_CONST('a', -(1)) OR 1;
+NAME_CONST('a', -(1)) OR 1
+1
 #
 # Bug #52165: Assertion failed: file .\dtoa.c, line 465
 # 
@@ -339,7 +346,4 @@ drop view  v_merge, vm;
 drop table t1,tv;
 #
 # End of 5.5 tests
-#
-#
-# End of tests
 #

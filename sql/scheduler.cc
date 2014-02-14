@@ -129,7 +129,6 @@ void one_thread_scheduler(scheduler_functions *func)
 {
   scheduler_init();
   func->max_threads= 1;
-  //max_connections= 1;
   func->max_connections= &max_connections;
   func->connection_count= &connection_count;
 #ifndef EMBEDDED_LIBRARY

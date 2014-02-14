@@ -2883,7 +2883,7 @@ subselect_single_select_engine(THD *thd_arg, st_select_lex *select,
 			       select_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(thd_arg, item_arg, result_arg),
-   prepared(0), executed(0), optimize_error(0),
+   prepared(0), executed(0),
    select_lex(select), join(0)
 {
   select_lex->master_unit()->item= item_arg;
@@ -2897,7 +2897,7 @@ int subselect_single_select_engine::get_identifier()
 void subselect_single_select_engine::cleanup()
 {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
-  prepared= executed= optimize_error= 0;
+  prepared= executed= 0;
   join= 0;
   result->cleanup();
   select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT_INJECTED;
@@ -3131,9 +3131,6 @@ int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
 
-  if (optimize_error)
-    DBUG_RETURN(1);
-
   char const *save_where= thd->where;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
@@ -3146,7 +3143,7 @@ int subselect_single_select_engine::exec()
     if (join->optimize())
     {
       thd->where= save_where;
-      executed= optimize_error= 1;
+      executed= 1;
       thd->lex->current_select= save_select;
       DBUG_RETURN(join->error ? join->error : 1);
     }

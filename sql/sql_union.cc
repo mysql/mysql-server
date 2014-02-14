@@ -639,7 +639,8 @@ bool st_select_lex_unit::exec()
   if (!(uncacheable & ~UNCACHEABLE_EXPLAIN) && item)
     item->make_const();
   
-  saved_error= optimize();
+  if ((saved_error= optimize()))
+    DBUG_RETURN(saved_error);
 
   if (uncacheable || !item || !item->assigned() || describe)
   {

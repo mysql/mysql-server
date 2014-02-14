@@ -60,6 +60,7 @@ sub searchd_start {
   my ($sphinx, $test) = @_; # My::Config::Group, My::Test
 
   return unless $exe_sphinx_indexer and $exe_sphinx_searchd;
+  return if $sphinx->{proc}; # Already started
 
   # First we must run the indexer to create the data.
   my $sphinx_data_dir= "$::opt_vardir/" . $sphinx->name();
