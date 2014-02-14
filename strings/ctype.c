@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1074,4 +1074,29 @@ my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
 
   DBUG_ASSERT(FALSE); // Should never get to here
   return 0;           // Make compiler happy
+}
+
+/**
+  Get the length of the first code in given sequence of chars.
+  This func is introduced because we can't determine the length by
+  checking the first byte only for gb18030, so we first try my_mbcharlen,
+  and then my_mbcharlen_2 if necessary to get the length
+
+  @param[in]  cs   charset_info
+  @param[in]  s    start of the char sequence
+  @param[in]  e    end of the char sequence
+  @return     The length of the first code
+*/
+uint
+my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e)
+{
+  uint len= my_mbcharlen(cs, (uchar) *s);
+  if (len == 0 && my_mbmaxlenlen(cs) == 2 && s + 1 < e)
+  {
+    len= my_mbcharlen_2(cs, (uchar) *s, (uchar) *(s + 1));
+    /* Must be gb18030 charset */
+    DBUG_ASSERT(len == 2 || len == 4);
+  }
+
+  return len;
 }
