@@ -131,10 +131,11 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
     uint64_t rec_per_key[table_share->key_parts];
     int result = HA_ADMIN_OK;
     DB_TXN *txn = transaction;
-    if (!txn)
+    if (!txn) {
         result = HA_ADMIN_FAILED;
+    }
+    uint total_key_parts = 0;
     if (result == HA_ADMIN_OK) {
-        uint next_key_part = 0;
         // compute cardinality for each key
         for (uint i = 0; result == HA_ADMIN_OK && i < table_share->keys; i++) {
             KEY *key_info = &table_share->key_info[i];
@@ -146,7 +147,7 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
             bool is_unique = false;
             if (i == primary_key || (key_info->flags & HA_NOSAME))
                 is_unique = true;
-            int error = tokudb::analyze_card(share->key_file[i], txn, is_unique, num_key_parts, &rec_per_key[next_key_part],
+            int error = tokudb::analyze_card(share->key_file[i], txn, is_unique, num_key_parts, &rec_per_key[total_key_parts],
                                              tokudb_cmp_dbt_key_parts, analyze_progress, &analyze_progress_extra);
             if (error != 0 && error != ETIME) {
                 result = HA_ADMIN_FAILED;
@@ -156,14 +157,15 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
                     TOKUDB_HANDLER_TRACE("%s.%s.%s", 
                                          table_share->db.str, table_share->table_name.str, i == primary_key ? "primary" : table_share->key_info[i].name);
                     for (uint j = 0; j < num_key_parts; j++) 
-                        TOKUDB_HANDLER_TRACE("%lu", rec_per_key[next_key_part+j]);
+                        TOKUDB_HANDLER_TRACE("%lu", rec_per_key[total_key_parts+j]);
                 }
             }
-            next_key_part += num_key_parts;
+            total_key_parts += num_key_parts;
         } 
     }
-    if (result == HA_ADMIN_OK)
-        tokudb::set_card_in_status(share->status_block, txn, table_share->key_parts, rec_per_key);    
+    if (result == HA_ADMIN_OK) {
+        tokudb::set_card_in_status(share->status_block, txn, total_key_parts, rec_per_key);
+    }
     TOKUDB_HANDLER_DBUG_RETURN(result);
 }
 
