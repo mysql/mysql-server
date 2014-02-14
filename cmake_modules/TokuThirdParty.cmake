@@ -105,3 +105,25 @@ add_library(lzma STATIC IMPORTED)
 set_target_properties(lzma PROPERTIES IMPORTED_LOCATION
   "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz/lib/liblzma.a")
 add_dependencies(lzma build_lzma)
+
+## add backup_enterprise with an external project
+set(HOTBACKUP_SOURCE_DIR "${TokuDB_SOURCE_DIR}/third_party/backup-enterprise/backup" CACHE FILEPATH "Where to find backup enterprise sources.")
+if (EXISTS "${HOTBACKUP_SOURCE_DIR}/CMakeLists.txt")
+  set(hotbackup_configure_opts "CC=${CMAKE_C_COMPILER}" "CXX=${CMAKE_CXX_COMPILER}")
+  ExternalProject_Add(backup-enterprise
+        PREFIX backup-enterprise
+        SOURCE_DIR "${HOTBACKUP_SOURCE_DIR}"
+        #INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/backup-enterprise"
+        CMAKE_ARGS
+          -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+          -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+   )
+#  ExternalProject_Add_Step(backup-enterprise
+#        COMMAND cp "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/libHotBackup.so" 
+  add_library(HotBackup SHARED IMPORTED GLOBAL)
+  set_property(TARGET HotBackup PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/backup-enterprise/lib/libHotBackup.so)
+#  set_target_properties(HotBackup PROPERTIES IMPORTED_LOCATION
+#       "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib/libHotBackup.so")
+  install(DIRECTORY "${install_dir}/lib" DESTINATION .
+          COMPONENT tokukv_libs_extra)
+endif ()

@@ -390,6 +390,12 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     add_space_separated_property(TARGET ${base}.tdb COMPILE_FLAGS -fvisibility=hidden)
   endforeach(bin)
 
+
+  foreach(bin ${tdb_bins})
+     get_filename_component(base ${bin} NAME_WE)
+     target_link_libraries(${base}.tdb HotBackup)
+  endforeach(bin)
+
   if(BDB_FOUND)
     foreach(bin ${bdb_bins})
       get_filename_component(base ${bin} NAME_WE)
