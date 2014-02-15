@@ -89,9 +89,11 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include <set>
 #include <pthread.h>
 
 #include <toku_include/memory.h>
+#include <portability/toku_pthread.h>
 
 #include <util/scoped_malloc.h>
 
@@ -122,9 +124,12 @@ namespace toku {
 
     // see pthread_key handling at the bottom
     //
-    // when we use gcc 4.8, we can use the 'thread_local' keyword and proper
-    // c++ constructors/destructors instead of this pthread wizardy.
+    // when we use gcc 4.8, we can use the 'thread_local' keyword and proper c++
+    // constructors/destructors instead of this pthread / global set wizardy.
     static pthread_key_t tl_stack_destroy_pthread_key;
+    class tl_stack;
+    std::set<tl_stack *> *global_stack_set;
+    toku_mutex_t global_stack_set_mutex = TOKU_MUTEX_INITIALIZER;
 
     class tl_stack {
         // 1MB
@@ -145,10 +150,35 @@ namespace toku {
             }
         }
 
+        // initialize a tl_stack and insert it into the global map
+        static void init_and_register(tl_stack *st) {
+            st->init();
+            invariant_notnull(global_stack_set);
+
+            toku_mutex_lock(&global_stack_set_mutex);
+            std::pair<std::set<tl_stack *>::iterator, bool> p = global_stack_set->insert(st);
+            invariant(p.second);
+            toku_mutex_unlock(&global_stack_set_mutex);
+        }
+
+        // destruct a tl_stack and remove it from the global map
+        // passed in as void * to match the generic pthread destructor API
+        static void destroy_and_deregister(void *key) {
+            invariant_notnull(key);
+            tl_stack *st = reinterpret_cast<tl_stack *>(key);
+            st->destroy();
+
+            toku_mutex_lock(&global_stack_set_mutex);
+            invariant_notnull(global_stack_set);
+            size_t n = global_stack_set->erase(st);
+            invariant(n == 1);
+            toku_mutex_unlock(&global_stack_set_mutex);
+        }
+
         // Allocate 'size' bytes and return a pointer to the first byte
         void *alloc(const size_t size) {
             if (m_stack == NULL) {
-                init();
+                init_and_register(this);
             }
             invariant(m_current_offset + size <= STACK_SIZE);
             void *mem = &m_stack[m_current_offset];
@@ -198,24 +228,35 @@ namespace toku {
 // - there is a process-wide pthread key that is associated with the destructor for a tl_stack
 // - on process construction, we initialize the key; on destruction, we clean it up.
 // - when a thread first uses its tl_stack, it calls pthread_setspecific(&destroy_key, "some key"),
-//   associating the destroy key with the tl_stack_destroy destructor
-// - when a thread terminates, it calls the associated destructor; tl_stack_destroy.
-
-static void tl_stack_destroy(void *key) {
-    invariant_notnull(key);
-    toku::tl_stack *st = reinterpret_cast<toku::tl_stack *>(key);
-    st->destroy();
-}
+//   associating the destroy key with the tl_stack_destroy_and_deregister destructor
+// - when a thread terminates, it calls the associated destructor; tl_stack_destroy_and_deregister.
 
 void toku_scoped_malloc_init(void) {
-    int r = pthread_key_create(&toku::tl_stack_destroy_pthread_key, tl_stack_destroy);
+    toku_mutex_lock(&toku::global_stack_set_mutex);
+    invariant_null(toku::global_stack_set);
+    toku::global_stack_set = new std::set<toku::tl_stack *>();
+    toku_mutex_unlock(&toku::global_stack_set_mutex);
+
+    int r = pthread_key_create(&toku::tl_stack_destroy_pthread_key,
+                               toku::tl_stack::destroy_and_deregister);
     invariant_zero(r);
 }
 
 void toku_scoped_malloc_destroy(void) {
+    toku_mutex_lock(&toku::global_stack_set_mutex);
+    invariant_notnull(toku::global_stack_set);
+    // Destroy any tl_stacks that were registered as thread locals but did not
+    // get a chance to clean up using the pthread key destructor (because this code
+    // is now running before those threads fully shutdown)
+    for (std::set<toku::tl_stack *>::iterator i = toku::global_stack_set->begin();
+         i != toku::global_stack_set->end(); i++) {
+        (*i)->destroy();
+    }
+    delete toku::global_stack_set;
+    toku_mutex_unlock(&toku::global_stack_set_mutex);
+
     // We're deregistering the destructor key here. When this thread exits,
     // the tl_stack destructor won't get called, so we need to do that first.
-    tl_stack_destroy(&toku::local_stack);
     int r = pthread_key_delete(toku::tl_stack_destroy_pthread_key);
     invariant_zero(r);
 }
