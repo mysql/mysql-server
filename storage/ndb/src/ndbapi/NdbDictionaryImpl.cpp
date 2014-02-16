@@ -8389,10 +8389,11 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   }
 #endif
 
+  int errCodes[] = {GetTabInfoRef::Busy, 0 };
   int r = dictSignal(&tSignal, ptr, 1,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100);
+		     DICT_WAITFOR_TIMEOUT, 100, errCodes);
   if (r)
   {
     dst.m_id = -1;
@@ -8425,10 +8426,11 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
   tSignal.theLength = GetTabInfoReq::SignalLength;
 
+  int errCodes[] = {GetTabInfoRef::Busy, 0 };
   int r = dictSignal(&tSignal, 0, 0,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100);
+		     DICT_WAITFOR_TIMEOUT, 100, errCodes);
   if (r)
   {
     dst.m_id = -1;

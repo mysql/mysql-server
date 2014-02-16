@@ -1,0 +1,19 @@
+drop table if exists t1,t2;
+create table t1 (a1 int primary key, b1 int) engine ndb;
+create table t2 (a2 int primary key, b2 text) engine ndb;
+insert into t1 values (1,11),(2,22);
+insert into t2 values (1,repeat('x',10000)),(2,repeat('y',20000));
+select a1,crc32(b2) from t1,t2 where a1=a2 order by a1;
+a1	crc32(b2)
+1	223716515
+2	715074126
+# run backup
+drop table t1,t2;
+# error insert 6215
+# run restore
+# error insert clear
+select a1,crc32(b2) from t1,t2 where a1=a2 order by a1;
+a1	crc32(b2)
+1	223716515
+2	715074126
+drop table t1,t2;
