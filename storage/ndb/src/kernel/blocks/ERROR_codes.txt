@@ -19,7 +19,7 @@ Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4035
 Next DBLQH 5075
-Next DBDICT 6215
+Next DBDICT 6216
 Next DBDIH 7236
 Next DBTC 8100
 Next CMVMI 9000
@@ -685,6 +685,8 @@ Dbdict:
 6201 Set error code after handleTabInfoInit in master (index)
 6202 Set error code before CREATE_FRAGMENTATION in master
 6203 Set error code before CREATE_FRAGMENTATION in master (index)
+
+6215 Randomly fail GET_TABINFOREQ with Busy (no CLEAR_ERROR_INSERT_VALUE)
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer
