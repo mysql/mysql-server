@@ -10068,6 +10068,20 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
    */
   bool fromTimeQueue = (signal->senderBlockRef() == reference());
 
+  if (ERROR_INSERTED(6215) && fromTimeQueue == false)
+  {
+    jam();
+    // API tries 100 times and (80/100)^100 is quite small..
+    if (rand() % 100 >= 20)
+    {
+      jam();
+      releaseSections(handle);
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
+      return;
+    }
+    // no CLEAR_ERROR_INSERT_VALUE
+  }
+
   if (c_retrieveRecord.busyState && fromTimeQueue == true) {
     jam();
 
