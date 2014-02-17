@@ -3619,9 +3619,8 @@ sub mysql_install_db {
 			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
-  my $mtr_include_dir= "$basedir/mysql-test/include";
-  if (-f $path_sql && -f "$mtr_include_dir/mtr_system_tables_data.sql" &&
-      -f "$mtr_include_dir/mtr_test_data_timezone.sql")
+  if (-f $path_sql && -f "include/mtr_system_tables_data.sql" &&
+      -f "include/mtr_test_data_timezone.sql")
   {
     # Add the offical mysql system tables
     # for a production system
@@ -3635,20 +3634,20 @@ sub mysql_install_db {
     # for the test system. This should in most cases be the same as the
     # for the production system, but will for historial reasons contain 
     # more inital root accounts.
-    mtr_appendfile_to_file("$mtr_include_dir/mtr_system_tables_data.sql",
+    mtr_appendfile_to_file("include/mtr_system_tables_data.sql",
 		                       $bootstrap_sql_file);
 
     # Add test data for timezone - this is just a subset, on a real
     # system these tables will be populated either by mysql_tzinfo_to_sql
     # or by downloading the timezone table package from our website
-    mtr_appendfile_to_file("$mtr_include_dir/mtr_test_data_timezone.sql",
+    mtr_appendfile_to_file("include/mtr_test_data_timezone.sql",
                            $bootstrap_sql_file);
   }
   else
   {
     mtr_error("Error: The system table definition '".
-              $mtr_include_dir.
-              "/mtr_system_tables_data.sql' could not be found.");
+              "include/mtr_system_tables_data.sql' could not be found".
+              "in working directory.");
   }
 
   # Make sure no anonymous accounts exists as a safety precaution
