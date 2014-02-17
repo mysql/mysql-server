@@ -2969,7 +2969,6 @@ recv_recovery_from_checkpoint_finish(void)
 	DBUG_PRINT("ib_log", ("apply completed"));
 
 	if (recv_needed_recovery) {
-		trx_sys_print_mysql_master_log_pos();
 		trx_sys_print_mysql_binlog_offset();
 	}
 
