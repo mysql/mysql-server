@@ -13,10 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
-/* Some defines to make it easier to use valgrind */
-#include <m_string.h>           /* bfill */
-
 #ifdef HAVE_valgrind
 #define IF_VALGRIND(A,B) A
 #else
@@ -37,7 +33,7 @@
 #endif /* HAVE_VALGRIND */
 
 #ifndef DBUG_OFF
-#define TRASH_FILL(A,B,C) do { bfill(A, B, C); MEM_UNDEFINED(A, B); } while (0)
+#define TRASH_FILL(A,B,C) do { memset(A, C, B); MEM_UNDEFINED(A, B); } while (0)
 #else
 #define TRASH_FILL(A,B,C) do{ MEM_CHECK_ADDRESSABLE(A,B);MEM_UNDEFINED(A,B);} while (0)
 #endif
