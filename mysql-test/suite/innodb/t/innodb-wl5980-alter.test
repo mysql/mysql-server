@@ -585,6 +585,7 @@ DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 --replace_regex $regexp
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --rmdir $MYSQL_TMP_DIR/alt_dir/test
+--rmdir $MYSQL_TMP_DIR/alt_dir
 
 -- disable_query_log
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;

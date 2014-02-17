@@ -631,3 +631,612 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
   ] /* steps */
 }	0	0
 DROP TABLE t1, tmp;
+#
+# Bug#17231940: THE OPTIMIZER STILL USES FIXED LENGTH TEMPORARY TABLES
+#               ON DISK
+#
+CREATE TABLE t1 (
+c1 INT AUTO_INCREMENT PRIMARY KEY,
+c2 VARCHAR(250)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO t1(c2) VALUES ('b'),('b');
+INSERT INTO t1(c2) SELECT t1.c2 FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
+SET @@max_heap_table_size=1;
+Warnings:
+Warning	1292	Truncated incorrect max_heap_table_size value: '1'
+SET @@group_concat_max_len= 500;
+SELECT c1,GROUP_CONCAT(c2) cc FROM
+(SELECT * FROM t1 UNION SELECT c1, 'a' FROM t1) tt
+GROUP BY c1
+ORDER BY cc;
+c1	cc
+1	b,a
+2	b,a
+3	b,a
+4	b,a
+5	b,a
+6	b,a
+7	b,a
+8	b,a
+9	b,a
+10	b,a
+11	b,a
+12	b,a
+13	b,a
+14	b,a
+15	b,a
+16	b,a
+17	b,a
+18	b,a
+19	b,a
+20	b,a
+21	b,a
+22	b,a
+23	b,a
+24	b,a
+25	b,a
+26	b,a
+27	b,a
+28	b,a
+29	b,a
+30	b,a
+31	b,a
+32	b,a
+33	b,a
+34	b,a
+35	b,a
+36	b,a
+37	b,a
+38	b,a
+39	b,a
+40	b,a
+41	b,a
+42	b,a
+43	b,a
+44	b,a
+45	b,a
+46	b,a
+47	b,a
+48	b,a
+49	b,a
+50	b,a
+51	b,a
+52	b,a
+53	b,a
+54	b,a
+55	b,a
+56	b,a
+57	b,a
+58	b,a
+59	b,a
+60	b,a
+61	b,a
+62	b,a
+63	b,a
+64	b,a
+65	b,a
+66	b,a
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT c1,GROUP_CONCAT(c2) cc FROM
+(SELECT * FROM t1 UNION SELECT c1, 'a' FROM t1) tt
+GROUP BY c1
+ORDER BY cc	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 2,
+        "steps": [
+          {
+            "expanded_query": "/* select#2 */ select `t1`.`c1` AS `c1`,`t1`.`c2` AS `c2` from `t1`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_preparation": {
+        "select#": 3,
+        "steps": [
+          {
+            "expanded_query": "/* select#3 */ select `t1`.`c1` AS `c1`,'a' AS `a` from `t1`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "creating_tmp_table": {
+        "tmp_table_info": {
+          "table": "intermediate_tmp_table",
+          "row_length": 757,
+          "key_length": 757,
+          "unique_constraint": false,
+          "location": "memory (heap)",
+          "row_limit_estimate": 1
+        } /* tmp_table_info */
+      } /* creating_tmp_table */
+    },
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `tt`.`c1` AS `c1`,group_concat(`tt`.`c2` separator ',') AS `cc` from (/* select#2 */ select `t1`.`c1` AS `c1`,`t1`.`c2` AS `c2` from `t1` union /* select#3 */ select `t1`.`c1` AS `c1`,'a' AS `a` from `t1`) `tt` group by `tt`.`c1` order by `cc`"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_optimization": {
+              "select#": 2,
+              "steps": [
+                {
+                  "table_dependencies": [
+                    {
+                      "table": "`t1`",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": "`t1`",
+                      "table_scan": {
+                        "rows": 66,
+                        "cost": 1
+                      } /* table_scan */
+                    }
+                  ] /* rows_estimation */
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ] /* plan_prefix */,
+                      "table": "`t1`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "scan",
+                            "rows": 66,
+                            "cost": 14.2,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */,
+                      "cost_for_plan": 14.2,
+                      "rows_for_plan": 66,
+                      "chosen": true
+                    }
+                  ] /* considered_execution_plans */
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": null,
+                    "attached_conditions_computation": [
+                    ] /* attached_conditions_computation */,
+                    "attached_conditions_summary": [
+                      {
+                        "table": "`t1`",
+                        "attached": null
+                      }
+                    ] /* attached_conditions_summary */
+                  } /* attaching_conditions_to_tables */
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": "`t1`",
+                      "access_type": "table_scan"
+                    }
+                  ] /* refine_plan */
+                }
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
+            "join_optimization": {
+              "select#": 3,
+              "steps": [
+                {
+                  "table_dependencies": [
+                    {
+                      "table": "`t1`",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": "`t1`",
+                      "table_scan": {
+                        "rows": 66,
+                        "cost": 1
+                      } /* table_scan */
+                    }
+                  ] /* rows_estimation */
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ] /* plan_prefix */,
+                      "table": "`t1`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "scan",
+                            "rows": 66,
+                            "cost": 14.2,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */,
+                      "cost_for_plan": 14.2,
+                      "rows_for_plan": 66,
+                      "chosen": true
+                    }
+                  ] /* considered_execution_plans */
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": null,
+                    "attached_conditions_computation": [
+                    ] /* attached_conditions_computation */,
+                    "attached_conditions_summary": [
+                      {
+                        "table": "`t1`",
+                        "attached": null
+                      }
+                    ] /* attached_conditions_summary */
+                  } /* attaching_conditions_to_tables */
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": "`t1`",
+                      "access_type": "index_scan"
+                    }
+                  ] /* refine_plan */
+                }
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": " `tt`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": " `tt`",
+                "table_scan": {
+                  "rows": 132,
+                  "cost": 16
+                } /* table_scan */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": " `tt`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 132,
+                      "cost": 43,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 43,
+                "rows_for_plan": 132,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": " `tt`",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "clause_processing": {
+              "clause": "ORDER BY",
+              "original_clause": "`cc`",
+              "items": [
+                {
+                  "item": "group_concat(`tt`.`c2` separator ',')"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": false,
+              "resulting_clause": "`cc`"
+            } /* clause_processing */
+          },
+          {
+            "clause_processing": {
+              "clause": "GROUP BY",
+              "original_clause": "`tt`.`c1`",
+              "items": [
+                {
+                  "item": "`tt`.`c1`"
+                }
+              ] /* items */,
+              "resulting_clause_is_simple": true,
+              "resulting_clause": "`tt`.`c1`"
+            } /* clause_processing */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": " `tt`",
+                "access_type": "table_scan"
+              }
+            ] /* refine_plan */
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 753,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 1
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": " `tt`",
+                "row_length": 757,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 1
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
+            "join_execution": {
+              "select#": 2,
+              "steps": [
+                {
+                  "converting_tmp_table_to_myisam": {
+                    "cause": "memory_table_size_exceeded",
+                    "tmp_table_info": {
+                      "table": "intermediate_tmp_table",
+                      "row_length": 757,
+                      "key_length": 757,
+                      "unique_constraint": false,
+                      "location": "disk (MyISAM)",
+                      "record_format": "packed"
+                    } /* tmp_table_info */
+                  } /* converting_tmp_table_to_myisam */
+                }
+              ] /* steps */
+            } /* join_execution */
+          },
+          {
+            "join_execution": {
+              "select#": 3,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          },
+          {
+            "join_preparation": {
+              "select#": "fake",
+              "steps": [
+                {
+                  "expanded_query": "/* select#fake */ select `c1` AS `c1`,`c2` AS `c2` from dual"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "join_optimization": {
+              "select#": "fake",
+              "steps": [
+                {
+                  "table_dependencies": [
+                    {
+                      "table": "``.``",
+                      "row_may_be_null": false,
+                      "map_bit": 0,
+                      "depends_on_map_bits": [
+                      ] /* depends_on_map_bits */
+                    }
+                  ] /* table_dependencies */
+                },
+                {
+                  "rows_estimation": [
+                    {
+                      "table": "``.``",
+                      "table_scan": {
+                        "rows": 132,
+                        "cost": 2
+                      } /* table_scan */
+                    }
+                  ] /* rows_estimation */
+                },
+                {
+                  "considered_execution_plans": [
+                    {
+                      "plan_prefix": [
+                      ] /* plan_prefix */,
+                      "table": "``.``",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "scan",
+                            "rows": 132,
+                            "cost": 29.045,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */,
+                      "cost_for_plan": 29.045,
+                      "rows_for_plan": 132,
+                      "chosen": true
+                    }
+                  ] /* considered_execution_plans */
+                },
+                {
+                  "attaching_conditions_to_tables": {
+                    "original_condition": null,
+                    "attached_conditions_computation": [
+                    ] /* attached_conditions_computation */,
+                    "attached_conditions_summary": [
+                      {
+                        "table": "``.``",
+                        "attached": null
+                      }
+                    ] /* attached_conditions_summary */
+                  } /* attaching_conditions_to_tables */
+                },
+                {
+                  "refine_plan": [
+                    {
+                      "table": "``.``",
+                      "access_type": "table_scan"
+                    }
+                  ] /* refine_plan */
+                }
+              ] /* steps */
+            } /* join_optimization */
+          },
+          {
+            "join_execution": {
+              "select#": "fake",
+              "steps": [
+                {
+                  "converting_tmp_table_to_myisam": {
+                    "cause": "memory_table_size_exceeded",
+                    "tmp_table_info": {
+                      "table": " `tt`",
+                      "row_length": 757,
+                      "key_length": 0,
+                      "unique_constraint": false,
+                      "location": "disk (MyISAM)",
+                      "record_format": "packed"
+                    } /* tmp_table_info */
+                  } /* converting_tmp_table_to_myisam */
+                }
+              ] /* steps */
+            } /* join_execution */
+          },
+          {
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "table": " `tt`",
+                "field": "c1"
+              }
+            ] /* filesort_information */,
+            "filesort_priority_queue_optimization": {
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
+            } /* filesort_priority_queue_optimization */,
+            "filesort_execution": [
+            ] /* filesort_execution */,
+            "filesort_summary": {
+              "rows": 132,
+              "examined_rows": 132,
+              "number_of_tmp_files": 0,
+              "sort_buffer_size": 109482,
+              "sort_mode": "<sort_key, additional_fields>"
+            } /* filesort_summary */
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 1507,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 1
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
+            "converting_tmp_table_to_myisam": {
+              "cause": "memory_table_size_exceeded",
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 1507,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "disk (MyISAM)",
+                "record_format": "packed"
+              } /* tmp_table_info */
+            } /* converting_tmp_table_to_myisam */
+          },
+          {
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "table": "intermediate_tmp_table",
+                "field": "cc"
+              }
+            ] /* filesort_information */,
+            "filesort_priority_queue_optimization": {
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
+            } /* filesort_priority_queue_optimization */,
+            "filesort_execution": [
+            ] /* filesort_execution */,
+            "filesort_summary": {
+              "rows": 66,
+              "examined_rows": 66,
+              "number_of_tmp_files": 0,
+              "sort_buffer_size": 77140,
+              "sort_mode": "<sort_key, rowid>"
+            } /* filesort_summary */
+          }
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+DROP TABLE t1;
+#

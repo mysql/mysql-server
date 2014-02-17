@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -61,21 +61,28 @@ fts_get_table_id(
 					long */
 {
 	int		len;
+	bool		hex_name = DICT_TF2_FLAG_IS_SET(fts_table->table,
+						DICT_TF2_FTS_AUX_HEX_NAME);
+
+	ut_a(fts_table->table != NULL);
 
 	switch (fts_table->type) {
 	case FTS_COMMON_TABLE:
-		len = fts_write_object_id(fts_table->table_id, table_id);
+		len = fts_write_object_id(fts_table->table_id, table_id,
+					  hex_name);
 		break;
 
 	case FTS_INDEX_TABLE:
 
-		len = fts_write_object_id(fts_table->table_id, table_id);
+		len = fts_write_object_id(fts_table->table_id, table_id,
+					  hex_name);
 
 		table_id[len] = '_';
 		++len;
 		table_id += len;
 
-		len += fts_write_object_id(fts_table->index_id, table_id);
+		len += fts_write_object_id(fts_table->index_id, table_id,
+					   hex_name);
 		break;
 
 	default:
@@ -191,7 +198,7 @@ fts_parse_sql(
 	str = ut_str3cat(fts_sql_begin, str_tmp, fts_sql_end);
 	mem_free(str_tmp);
 
-	dict_locked = (fts_table && fts_table->table
+	dict_locked = (fts_table && fts_table->table->fts
 		       && (fts_table->table->fts->fts_status
 			   & TABLE_DICT_LOCKED));
 

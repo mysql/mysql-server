@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,13 +91,6 @@ public:
 
   /// Allocates the buffer, but does *not* initialize pointers.
   uchar **alloc_sort_buffer(uint num_records, uint record_length);
-
-  /// What is the <num_records, record_length> for the buffer?
-  std::pair<uint, uint> sort_buffer_properties() const
-  {
-    return std::make_pair(static_cast<uint>(m_idx_array.size()),
-                          m_record_length);
-  }
 
   /// Frees the buffer.
   void free_sort_buffer();

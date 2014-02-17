@@ -48,8 +48,10 @@ SELECT
 database_name,
 table_name,
 index_name,
-compress_ops,
-compress_ops_ok,
+CASE WHEN compress_ops=47 and @@innodb_compression_level IN (4,8,9) THEN 65
+ELSE compress_ops END as compress_ops,
+CASE WHEN compress_ops_ok=47 and @@innodb_compression_level IN (4,8,9) THEN 65
+ELSE compress_ops_ok END as compress_ops_ok,
 uncompress_ops
 FROM information_schema.innodb_cmp_per_index
 ORDER BY 1, 2, 3;

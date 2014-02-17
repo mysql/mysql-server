@@ -1,4 +1,4 @@
-/* Copyright © 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,6 +125,11 @@ static int validate_dictionary_check(mysql_string_handle password)
   int length;
   int error= 0;
   char *buffer;
+
+  if (dictionary_words.empty())
+   return (1);
+
+  /* New String is allocated */
   mysql_string_handle lower_string_handle= mysql_string_to_lowercase(password);
   if (!(buffer= (char*) malloc(MAX_PASSWORD_LENGTH)))
     return (0);
@@ -132,6 +137,8 @@ static int validate_dictionary_check(mysql_string_handle password)
   length= mysql_string_convert_to_char_ptr(lower_string_handle, "utf8",
                                            buffer, MAX_PASSWORD_LENGTH,
                                            &error);
+  /* Free the allocated string */
+  mysql_string_free(lower_string_handle);
   int substr_pos= 0;
   int substr_length= length;
   string_type password_str= (const char *)buffer;
@@ -141,24 +148,21 @@ static int validate_dictionary_check(mysql_string_handle password)
     std::set as container stores the dictionary words,
     binary comparison between dictionary words and password
   */
-  if (!dictionary_words.empty())
+  while (substr_length >= MIN_DICTIONARY_WORD_LENGTH)
   {
-    while (substr_length >= MIN_DICTIONARY_WORD_LENGTH)
+    substr_pos= 0;
+    while (substr_pos + substr_length <= length)
     {
-      substr_pos= 0;
-      while (substr_pos + substr_length <= length)
+      password_substr= password_str.substr(substr_pos, substr_length);
+      itr= dictionary_words.find(password_substr);
+      if (itr != dictionary_words.end())
       {
-        password_substr= password_str.substr(substr_pos, substr_length);
-        itr= dictionary_words.find(password_substr);
-        if (itr != dictionary_words.end())
-        {
-          free(buffer);
-          return (0);
-        }
-        substr_pos++;
+        free(buffer);
+        return (0);
       }
-      substr_length--;
+      substr_pos++;
     }
+    substr_length--;
   }
   free(buffer);
   return (1);

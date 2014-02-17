@@ -1277,7 +1277,9 @@ row_insert_for_mysql(
 		      " newraw is replaced\n"
 		      "InnoDB: with raw, and innodb_force_... is removed.\n",
 		      stderr);
-
+		if(srv_force_recovery) {
+			return(DB_READ_ONLY);
+		}
 		return(DB_ERROR);
 	}
 
@@ -1662,7 +1664,9 @@ row_update_for_mysql(
 		      " is replaced\n"
 		      "InnoDB: with raw, and innodb_force_... is removed.\n",
 		      stderr);
-
+		if(srv_force_recovery) {
+			return(DB_READ_ONLY);
+		}
 		return(DB_ERROR);
 	}
 
@@ -3240,7 +3244,6 @@ row_truncate_table_for_mysql(
 	ut_a(trx->dict_operation_lock_mode == 0);
 	/* Prevent foreign key checks etc. while we are truncating the
 	table */
-
 	row_mysql_lock_data_dictionary(trx);
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -3303,6 +3306,25 @@ row_truncate_table_for_mysql(
 
 		goto funct_exit;
 	}
+
+	/* Check if memcached plugin is running on this table. if is, we don't
+	allow truncate this table. */
+	if (table->memcached_sync_count != 0) {
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Cannot truncate table ", stderr);
+		ut_print_name(stderr, trx, TRUE, table->name);
+		fputs(" by DROP+CREATE\n"
+		      "InnoDB: because there are memcached operations"
+		      " running on it.\n",
+		      stderr);
+		err = DB_ERROR;
+
+		goto funct_exit;
+	} else {
+                /* We need to set this counter to -1 for blocking
+                memcached operations. */
+		table->memcached_sync_count = DICT_TABLE_IN_DDL;
+        }
 
 	/* Remove all locks except the table-level X lock. */
 
@@ -3487,6 +3509,7 @@ next_rec:
 
 		fts_table.name = table->name;
 		fts_table.id = new_id;
+		fts_table.flags2 = table->flags2;
 
 		err = fts_create_common_tables(
 			trx, &fts_table, table->name, TRUE);
@@ -3630,6 +3653,12 @@ next_rec:
 	trx_commit_for_mysql(trx);
 
 funct_exit:
+
+        if (table->memcached_sync_count == DICT_TABLE_IN_DDL) {
+                /* We need to set the memcached sync back to 0, unblock
+                memcached operationse. */
+                table->memcached_sync_count = 0;
+        }
 
 	row_mysql_unlock_data_dictionary(trx);
 
@@ -4702,6 +4731,9 @@ row_rename_table_for_mysql(
 		      " is replaced\n"
 		      "InnoDB: with raw, and innodb_force_... is removed.\n",
 		      stderr);
+		if(srv_force_recovery) {
+			err = DB_READ_ONLY;
+		}
 
 		goto funct_exit;
 	} else if (row_mysql_is_system_table(new_name)) {
@@ -4975,15 +5007,31 @@ row_rename_table_for_mysql(
 
 		if (err != DB_SUCCESS && (table->space != 0)) {
 			char*	orig_name = table->name;
+			trx_t*	trx_bg = trx_allocate_for_background();
+
+			/* If the first fts_rename fails, the trx would
+			be rolled back and committed, we can't use it any more,
+			so we have to start a new background trx here. */
+			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+			trx_bg->op_info = "Revert the failing rename "
+					  "for fts aux tables";
+			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
+			trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
 
 			/* If rename fails and table has its own tablespace,
 			we need to call fts_rename_aux_tables again to
 			revert the ibd file rename, which is not under the
 			control of trx. Also notice the parent table name
-			in cache is not changed yet. */
+			in cache is not changed yet. If the reverting fails,
+			the ibd data may be left in the new database, which
+			can be fixed only manually. */
 			table->name = const_cast<char*>(new_name);
-			fts_rename_aux_tables(table, old_name, trx);
+			fts_rename_aux_tables(table, old_name, trx_bg);
 			table->name = orig_name;
+
+			trx_bg->dict_operation_lock_mode = 0;
+			trx_commit_for_mysql(trx_bg);
+			trx_free_for_background(trx_bg);
 		}
 	}
 

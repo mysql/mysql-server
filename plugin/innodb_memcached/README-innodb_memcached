@@ -1,6 +1,6 @@
 Following are simple steps to get everything started:
 
-1) Build MySQL server. Please note libevent 1.6.0 is linked statically into daemon memcached.
+1) Build MySQL server. Please note libevent 1.4.12 is linked statically into daemon memcached.
 
 2) Start MySQL server. (make sure libmemcached.so and innodb_engine.so are copied to MySQL plugin directory).
 

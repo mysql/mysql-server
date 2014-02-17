@@ -58,6 +58,7 @@ ENDIF()
 SET(SIGNAL_WITH_VIO_SHUTDOWN 1)
 
 # Always enable -Wall for gnu C/C++
+# Remember to strip off these in scripts/CMakeLists.txt
 IF(CMAKE_COMPILER_IS_GNUCXX)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")
 ENDIF()
@@ -65,6 +66,7 @@ IF(CMAKE_COMPILER_IS_GNUCC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 ENDIF()
 
+# Remember to strip off these in scripts/CMakeLists.txt
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(CMAKE_CXX_FLAGS
     "${CMAKE_CXX_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
@@ -1024,7 +1026,7 @@ CHECK_CXX_SOURCE_COMPILES("
   "
   HAVE_SOLARIS_STYLE_GETHOST)
 
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 IF(WITH_ATOMIC_OPS STREQUAL "up")
   SET(MY_ATOMIC_MODE_DUMMY 1 CACHE BOOL "Assume single-CPU mode, no concurrency")
 ELSEIF(WITH_ATOMIC_OPS STREQUAL "rwlocks")
@@ -1055,6 +1057,11 @@ ELSEIF(NOT WITH_ATOMIC_OPS)
     return 0;
   }"
   HAVE_GCC_ATOMIC_BUILTINS)
+  IF(NOT HAVE_GCC_ATOMIC_BUILTINS)
+    MESSAGE(WARNING
+    "Unsupported version of GCC/Clang is used which does not support Atomic "
+    "Builtins. Using pthread rwlocks instead.")
+  ENDIF(NOT HAVE_GCC_ATOMIC_BUILTINS)
 ELSE()
   MESSAGE(FATAL_ERROR "${WITH_ATOMIC_OPS} is not a valid value for WITH_ATOMIC_OPS!")
 ENDIF()

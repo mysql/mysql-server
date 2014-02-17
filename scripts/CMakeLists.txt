@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -89,17 +89,30 @@ ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Makefiles")
   # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS
+    "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS
+    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
   FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
     SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
     SET(CXXFLAGS "${CXXFLAGS} -arch ${ARCH}")
   ENDFOREACH()
 ELSE()
   # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS
+    "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS
+    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 ENDIF()
+
+FOREACH(WFLAG
+    "-Wno-null-conversion"
+    "-Wno-unused-parameter"
+    "-Wno-unused-private-field"
+    )
+  STRING(REPLACE "${WFLAG}" "" CFLAGS "${CFLAGS}")
+  STRING(REPLACE "${WFLAG}" "" CXXFLAGS "${CXXFLAGS}")
+ENDFOREACH()
 
 IF(UNIX)
   # FIND_PROC and CHECK_PID are used by mysqld_safe

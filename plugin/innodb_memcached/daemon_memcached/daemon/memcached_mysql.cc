@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -183,6 +183,7 @@ mysql_declare_plugin(daemon_memcached)
 	0x0100 /* 1.0 */,
 	NULL,				/* status variables */
 	daemon_memcached_sys_var,	/* system variables */
-	NULL				/* config options */
+	NULL,				/* config options */
+	0				/* flags */
 }
 mysql_declare_plugin_end;

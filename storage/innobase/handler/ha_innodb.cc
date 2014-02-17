@@ -472,6 +472,7 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_open_index_using_name,
 	(ib_cb_t) ib_close_thd,
 	(ib_cb_t) ib_cfg_get_cfg,
+	(ib_cb_t) ib_cursor_set_memcached_sync,
 	(ib_cb_t) ib_cursor_set_cluster_access,
 	(ib_cb_t) ib_cursor_commit_trx,
 	(ib_cb_t) ib_cfg_trx_level,
@@ -731,6 +732,19 @@ innobase_rollback_to_savepoint(
 					the user whose XA transaction should
 					be rolled back to savepoint */
 	void*		savepoint);	/*!< in: savepoint data */
+
+/*****************************************************************//**
+Check whether innodb state allows to safely release MDL locks after
+rollback to savepoint.
+@return true if it is safe, false if its not safe. */
+static
+bool
+innobase_rollback_to_savepoint_can_release_mdl(
+/*===========================================*/
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
+	THD*		thd);		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be rolled back to savepoint */
 
 /*****************************************************************//**
 Sets a transaction savepoint.
@@ -1386,6 +1400,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_FOUND_DUPP_KEY);
 
 	case DB_READ_ONLY:
+		if(srv_force_recovery) {
+			return(HA_ERR_INNODB_FORCED_RECOVERY);
+		}
 		return(HA_ERR_TABLE_READONLY);
 
 	case DB_FOREIGN_DUPLICATE_KEY:
@@ -2774,6 +2791,8 @@ innobase_init(
 	innobase_hton->close_connection = innobase_close_connection;
 	innobase_hton->savepoint_set = innobase_savepoint;
 	innobase_hton->savepoint_rollback = innobase_rollback_to_savepoint;
+	innobase_hton->savepoint_rollback_can_release_mdl =
+				innobase_rollback_to_savepoint_can_release_mdl;
 	innobase_hton->savepoint_release = innobase_release_savepoint;
 	innobase_hton->commit = innobase_commit;
 	innobase_hton->rollback = innobase_rollback;
@@ -3689,6 +3708,38 @@ innobase_rollback_to_savepoint(
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+}
+
+/*****************************************************************//**
+Check whether innodb state allows to safely release MDL locks after
+rollback to savepoint. 
+When binlog is on, MDL locks acquired after savepoint unit are not 
+released if there are any locks held in InnoDB.
+@return true if it is safe, false if its not safe. */
+static
+bool
+innobase_rollback_to_savepoint_can_release_mdl(
+/*===========================================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd)		/*!< in: handle to the MySQL thread
+					of the user whose transaction should
+					be rolled back to savepoint */
+{
+	trx_t*		trx;
+
+	DBUG_ENTER("innobase_rollback_to_savepoint_can_release_mdl");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = check_trx_exists(thd);
+	ut_ad(trx);
+
+        /* If transaction has not acquired any locks then it is safe
+	   to release MDL after rollback to savepoint */
+	if (!(UT_LIST_GET_LEN(trx->lock.trx_locks))) {
+		DBUG_RETURN(true);
+	}
+
+	DBUG_RETURN(false);
 }
 
 /*****************************************************************//**
@@ -5343,23 +5394,7 @@ innobase_fts_text_cmp_prefix(
 	to negate the result */
 	return(-result);
 }
-/******************************************************************//**
-compare two character string according to their charset. */
-UNIV_INTERN
-int
-innobase_fts_string_cmp(
-/*====================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*     p1,		/*!< in: key */
-	const void*     p2)		/*!< in: node */
-{
-	const CHARSET_INFO*	charset = (const CHARSET_INFO*) cs;
-	uchar*			s1 = (uchar*) p1;
-	uchar*			s2 = *(uchar**) p2;
 
-	return(ha_compare_text(charset, s1, strlen((const char*) s1),
-			       s2, strlen((const char*) s2), 0, 0));
-}
 /******************************************************************//**
 Makes all characters in a string lower case. */
 UNIV_INTERN
@@ -8351,12 +8386,6 @@ ha_innobase::position(
 	}
 }
 
-/* limit innodb monitor access to users with PROCESS privilege.
-See http://bugs.mysql.com/32710 for expl. why we choose PROCESS. */
-#define IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name, thd) \
-	(row_is_magic_monitor_table(table_name) \
-	 && check_global_access(thd, PROCESS_ACL))
-
 /*****************************************************************//**
 Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
@@ -8469,16 +8498,6 @@ create_table_def(
 			"InnoDB: Table Name or Database Name is too long");
 
 		DBUG_RETURN(ER_TABLE_NAME);
-	}
-
-	/* table_name must contain '/'. Later in the code we assert if it
-	does not */
-	if (strcmp(strchr(table_name, '/') + 1,
-		   "innodb_table_monitor") == 0) {
-		push_warning(
-			thd, Sql_condition::WARN_LEVEL_WARN,
-			HA_ERR_WRONG_COMMAND,
-			DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 	}
 
 	n_cols = form->s->fields;
@@ -9399,6 +9418,11 @@ index_bad:
 		*flags2 |= DICT_TF2_USE_TABLESPACE;
 	}
 
+	/* Set the flags2 when create table or alter tables */
+	*flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
+	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
+			*flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
+
 	DBUG_RETURN(true);
 }
 
@@ -9490,8 +9514,23 @@ ha_innobase::create(
 		DBUG_RETURN(-1);
 	}
 
-	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
-		DBUG_RETURN(HA_ERR_GENERIC);
+	if (row_is_magic_monitor_table(norm_name)) {
+		push_warning_printf(thd,
+				    Sql_condition::WARN_LEVEL_WARN,
+				    HA_ERR_WRONG_COMMAND,
+				    "Using the table name %s to enable "
+				    "diagnostic output is deprecated "
+				    "and may be removed in future releases. "
+				    "Use INFORMATION_SCHEMA or "
+				    "PERFORMANCE_SCHEMA tables or "
+				    "SET GLOBAL innodb_status_output=ON.",
+				    dict_remove_db_name(norm_name));
+
+		/* Limit innodb monitor access to users with PROCESS privilege.
+		See http://bugs.mysql.com/32710 why we chose PROCESS. */
+		if (check_global_access(thd, PROCESS_ACL)) {
+			DBUG_RETURN(HA_ERR_GENERIC);
+		}
 	}
 
 	/* Get the transaction associated with the current thd, or create one
@@ -9935,7 +9974,8 @@ ha_innobase::delete_table(
 
 	if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
-	} else if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
+	} else if (row_is_magic_monitor_table(norm_name)
+		   && check_global_access(thd, PROCESS_ACL)) {
 		DBUG_RETURN(HA_ERR_GENERIC);
 	}
 
@@ -10171,17 +10211,7 @@ innobase_rename_table(
 			}
 		}
 
-		if (error != DB_SUCCESS) {
-			if (!srv_read_only_mode) {
-				FILE* ef = dict_foreign_err_file;
-
-				fputs("InnoDB: Renaming table ", ef);
-				ut_print_name(ef, trx, TRUE, norm_from);
-				fputs(" to ", ef);
-				ut_print_name(ef, trx, TRUE, norm_to);
-				fputs(" failed!\n", ef);
-			}
-		} else {
+		if (error == DB_SUCCESS) {
 #ifndef __WIN__
 			sql_print_warning("Rename partition table %s "
 					  "succeeds after converting to lower "
@@ -11170,7 +11200,8 @@ ha_innobase::optimize(
 	calls to OPTIMIZE, which is undesirable. */
 
 	if (innodb_optimize_fulltext_only) {
-		if (prebuilt->table->fts && prebuilt->table->fts->cache) {
+		if (prebuilt->table->fts && prebuilt->table->fts->cache
+		    && !dict_table_is_discarded(prebuilt->table)) {
 			fts_sync_table(prebuilt->table);
 			fts_optimize_table(prebuilt->table);
 		}
@@ -15220,6 +15251,7 @@ innobase_fts_find_ranking(
 static my_bool	innodb_purge_run_now = TRUE;
 static my_bool	innodb_purge_stop_now = TRUE;
 static my_bool	innodb_log_checkpoint_now = TRUE;
+static my_bool	innodb_buf_flush_list_now = TRUE;
 
 /****************************************************************//**
 Set the purge state to RUN. If purge is disabled then it
@@ -15291,6 +15323,29 @@ checkpoint_now_set(
 		}
 		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
 		fil_flush_file_spaces(FIL_TABLESPACE);
+	}
+}
+
+/****************************************************************//**
+Force a dirty pages flush now. */
+static
+void
+buf_flush_list_now_set(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 }
 #endif /* UNIV_DEBUG */
@@ -15442,6 +15497,26 @@ buffer_pool_load_abort(
 	}
 }
 
+/** Update innodb_status_output or innodb_status_output_locks,
+which control InnoDB "status monitor" output to the error log.
+@param[in]	thd	thread handle
+@param[in]	var	system variable
+@param[out]	var_ptr	current value
+@param[in]	save	to-be-assigned value */
+static
+void
+innodb_status_output_update(
+	THD*				thd __attribute__((unused)),
+	struct st_mysql_sys_var*	var __attribute__((unused)),
+	void*				var_ptr __attribute__((unused)),
+	const void*			save __attribute__((unused)))
+{
+	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
+	/* The lock timeout monitor thread also takes care of this
+	output. */
+	os_event_set(lock_sys->timeout_event);
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
 	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC},
 	{NullS, NullS, SHOW_LONG}
@@ -15522,6 +15597,11 @@ static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
   PLUGIN_VAR_OPCMDARG,
   "Force checkpoint now",
   NULL, checkpoint_now_set, FALSE);
+
+static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force dirty page flush now",
+  NULL, buf_flush_list_now_set, FALSE);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
@@ -16191,6 +16271,15 @@ static MYSQL_SYSVAR_STR(monitor_reset_all, innobase_reset_all_monitor_counter,
   innodb_monitor_validate,
   innodb_reset_all_monitor_update, NULL);
 
+static MYSQL_SYSVAR_BOOL(status_output, srv_print_innodb_monitor,
+  PLUGIN_VAR_OPCMDARG, "Enable InnoDB monitor output to the error log.",
+  NULL, innodb_status_output_update, FALSE);
+
+static MYSQL_SYSVAR_BOOL(status_output_locks, srv_print_innodb_lock_monitor,
+  PLUGIN_VAR_OPCMDARG, "Enable InnoDB lock monitor output to the error log."
+  " Requires innodb_status_output=ON.",
+  NULL, innodb_status_output_update, FALSE);
+
 static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
   PLUGIN_VAR_OPCMDARG,
   "Print all deadlocks to MySQL error log (off by default)",
@@ -16370,11 +16459,14 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_run_now),
   MYSQL_SYSVAR(purge_stop_now),
   MYSQL_SYSVAR(log_checkpoint_now),
+  MYSQL_SYSVAR(buf_flush_list_now),
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
   MYSQL_SYSVAR(doublewrite_batch_size),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
+  MYSQL_SYSVAR(status_output),
+  MYSQL_SYSVAR(status_output_locks),
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
@@ -16741,7 +16833,9 @@ ib_senderrf(
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #elif HAVE_VASPRINTF
-	(void) vasprintf(&str, format, args);
+	int	ret;
+	ret = vasprintf(&str, format, args);
+	ut_a(ret != -1);
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
@@ -16817,7 +16911,9 @@ ib_errf(
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #elif HAVE_VASPRINTF
-	(void) vasprintf(&str, format, args);
+	int	ret;
+	ret = vasprintf(&str, format, args);
+	ut_a(ret != -1);
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
@@ -16851,7 +16947,9 @@ ib_logf(
 	str[size - 1] = 0x0;
 	vsnprintf(str, size, format, args);
 #elif HAVE_VASPRINTF
-	(void) vasprintf(&str, format, args);
+	int	ret;
+	ret = vasprintf(&str, format, args);
+	ut_a(ret != -1);
 #else
 	/* Use a fixed length string. */
 	str = static_cast<char*>(malloc(BUFSIZ));
