@@ -4514,6 +4514,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                                         table_name, with_i_schema))
               continue;
           }
+          else if (schema_table_idx == SCH_TRIGGERS && with_i_schema)
+          {
+            continue;
+          }
           else
           {
             if (!(table_open_method & ~OPEN_FRM_ONLY) &&
