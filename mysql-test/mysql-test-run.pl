@@ -3619,7 +3619,7 @@ sub mysql_install_db {
 			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
-  my $mtr_include_dir= "$install_basedir/mysql-test/include";
+  my $mtr_include_dir= "$basedir/mysql-test/include";
   if (-f $path_sql && -f "$mtr_include_dir/mtr_system_tables_data.sql" &&
       -f "$mtr_include_dir/mtr_test_data_timezone.sql")
   {
