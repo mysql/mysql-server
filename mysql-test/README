@@ -68,6 +68,5 @@ extension. For example:
    that the bug is corrected in future releases.
 
 To submit your test case, put your .test file and .result file(s) into
-a tar.gz archive, add a README that explains the problem, ftp the 
-archive to ftp://support.mysql.com/pub/mysql/secret/ and send a mail
-to bugs@lists.mysql.com
+a tar.gz or zip archive, create a bug report at http://bugs.mysql.com/
+and attach the archive to the bug report.

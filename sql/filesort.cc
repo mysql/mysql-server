@@ -34,6 +34,7 @@
 #include "sql_test.h"                           // TEST_filesort
 #include "opt_range.h"                          // SQL_SELECT
 #include "debug_sync.h"
+#include "sql_base.h"
 
 /// How to write record_ref.
 #define WRITE_REF(file,from) \
@@ -337,6 +338,14 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     int kill_errno= thd->killed_errno();
     DBUG_ASSERT(thd->is_error() || kill_errno);
+
+    /*
+      We replace the table->sort at the end.
+      Hence calling free_io_cache to make sure table->sort.io_cache
+      used for QUICK_INDEX_MERGE_SELECT is free.
+    */
+    free_io_cache(table);
+
     my_printf_error(ER_FILSORT_ABORT,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
@@ -363,6 +372,10 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
 #endif
+
+  /* table->sort.io_cache should be free by this time */
+  DBUG_ASSERT(NULL == table->sort.io_cache);
+
   memcpy(&table->sort, &table_sort, sizeof(FILESORT_INFO));
   DBUG_PRINT("exit",("num_rows: %ld", (long) num_rows));
   MYSQL_FILESORT_DONE(error, num_rows);
@@ -602,6 +615,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
                        (uchar*) sort_form);
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
+  DEBUG_SYNC(thd, "after_index_merge_phase1");
   for (;;)
   {
     if (quick_select)
@@ -813,8 +827,6 @@ static void make_sortkey(register SORTPARAM *param,
       {
         CHARSET_INFO *cs=item->collation.collation;
         char fill_char= ((cs->state & MY_CS_BINSORT) ? (char) 0 : ' ');
-        int diff;
-        uint sort_field_length;
 
         if (maybe_null)
           *to++=1;
@@ -842,25 +854,13 @@ static void make_sortkey(register SORTPARAM *param,
           break;
         }
         length= res->length();
-        sort_field_length= sort_field->length - sort_field->suffix_length;
-        diff=(int) (sort_field_length - length);
-        if (diff < 0)
-        {
-          diff=0;
-          length= sort_field_length;
-        }
-        if (sort_field->suffix_length)
-        {
-          /* Store length last in result_string */
-          store_length(to + sort_field_length, length,
-                       sort_field->suffix_length);
-        }
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
           uint tmp_length;
           if ((uchar*) from == to)
           {
+            DBUG_ASSERT(sort_field->length >= length);
             set_if_smaller(length,sort_field->length);
             memcpy(param->tmp_buffer,from,length);
             from=param->tmp_buffer;
@@ -871,6 +871,22 @@ static void make_sortkey(register SORTPARAM *param,
         }
         else
         {
+          uint diff;
+          uint sort_field_length= sort_field->length -
+            sort_field->suffix_length;
+          if (sort_field_length < length)
+          {
+            diff= 0;
+            length= sort_field_length;
+          }
+          else
+            diff= sort_field_length - length;
+          if (sort_field->suffix_length)
+          {
+            /* Store length last in result_string */
+            store_length(to + sort_field_length, length,
+                         sort_field->suffix_length);
+          }
           my_strnxfrm(cs,(uchar*)to,length,(const uchar*)res->ptr(),length);
           cs->cset->fill(cs, (char *)to+length,diff,fill_char);
         }
