@@ -1,4 +1,5 @@
 --source include/have_gb18030.inc
+--source include/no_valgrind_without_big.inc
 
 SET @test_character_set= 'gb18030';
 SET @test_collation= 'gb18030_chinese_ci';
