@@ -373,8 +373,8 @@ UNIV_INTERN ulint	srv_available_undo_logs         = 0;
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
 UNIV_INTERN ibool	srv_print_verbose_log		= TRUE;
-UNIV_INTERN ibool	srv_print_innodb_monitor	= FALSE;
-UNIV_INTERN ibool	srv_print_innodb_lock_monitor	= FALSE;
+UNIV_INTERN my_bool	srv_print_innodb_monitor	= FALSE;
+UNIV_INTERN my_bool	srv_print_innodb_lock_monitor	= FALSE;
 UNIV_INTERN ibool	srv_print_innodb_tablespace_monitor = FALSE;
 UNIV_INTERN ibool	srv_print_innodb_table_monitor = FALSE;
 

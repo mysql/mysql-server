@@ -1927,7 +1927,7 @@ my_utf32_uni(const CHARSET_INFO *cs __attribute__((unused)),
 {
   if (s + 4 > e)
     return MY_CS_TOOSMALL4;
-  *pwc= (s[0] << 24) + (s[1] << 16) + (s[2] << 8) + (s[3]);
+  *pwc= (((my_wc_t)s[0]) << 24) + (s[1] << 16) + (s[2] << 8) + (s[3]);
   return 4;
 }
 

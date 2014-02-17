@@ -29,9 +29,6 @@ protected:
   virtual void TearDown()
   {
     fs_info.free_sort_buffer();
-    std::pair<uint, uint> buffer_properties= fs_info.sort_buffer_properties();
-    EXPECT_EQ(0U, buffer_properties.first);
-    EXPECT_EQ(0U, buffer_properties.second);
     EXPECT_TRUE(NULL == fs_info.get_sort_keys());
   }
 
@@ -42,15 +39,8 @@ protected:
 TEST_F(FileSortBufferTest, FileSortBuffer)
 {
   const char letters[10]= "abcdefghi";
-  std::pair<uint, uint> buffer_properties= fs_info.sort_buffer_properties();
-  EXPECT_EQ(0U, buffer_properties.first);
-  EXPECT_EQ(0U, buffer_properties.second);
 
   uchar **sort_keys= fs_info.alloc_sort_buffer(10, sizeof(char));
-  buffer_properties= fs_info.sort_buffer_properties();
-  EXPECT_EQ(10U, buffer_properties.first);
-  EXPECT_EQ(sizeof(char), buffer_properties.second);
-
   uchar **null_sort_keys= NULL;
   EXPECT_NE(null_sort_keys, sort_keys);
   EXPECT_NE(null_sort_keys, fs_info.get_sort_keys());

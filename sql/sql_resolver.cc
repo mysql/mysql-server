@@ -142,8 +142,10 @@ JOIN::prepare(TABLE_LIST *tables_init,
       select_lex->derived_table_count++;
     if (table_ptr->uses_materialization())
       select_lex->materialized_table_count++;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     if (table_ptr->table->part_info)
       select_lex->partitioned_table_count++;
+#endif
   }
   tables= primary_tables;       // This is currently the total number of tables
 

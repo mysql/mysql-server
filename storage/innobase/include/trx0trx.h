@@ -836,8 +836,7 @@ struct trx_t{
 					when trx->in_rw_trx_list. Initially
 					set to TRX_ID_MAX. */
 
-	time_t		start_time;	/*!< time the trx object was created
-					or the state last time became
+	time_t		start_time;	/*!< time the trx state last time became
 					TRX_STATE_ACTIVE */
 	trx_id_t	id;		/*!< transaction id */
 	XID		xid;		/*!< X/Open XA transaction

@@ -4418,6 +4418,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
         return NULL;
       }
 
+      pfs_thread->m_stmt_lock.allocated_to_dirty();
       PFS_events_statements *pfs= & pfs_thread->m_statement_stack[pfs_thread->m_events_statements_count];
       /* m_thread_internal_id is immutable and already set */
       DBUG_ASSERT(pfs->m_thread_internal_id == pfs_thread->m_thread_internal_id);
@@ -4468,6 +4469,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       flags|= STATE_FLAG_EVENT;
 
       pfs_thread->m_events_statements_count++;
+      pfs_thread->m_stmt_lock.dirty_to_allocated();
     }
   }
   else
@@ -4806,6 +4808,8 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
       DBUG_ASSERT(pfs != NULL);
 
+      thread->m_stmt_lock.allocated_to_dirty();
+
       switch(da->status())
       {
         case Diagnostics_area::DA_EMPTY:
@@ -4851,6 +4855,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
       DBUG_ASSERT(thread->m_events_statements_count > 0);
       thread->m_events_statements_count--;
+      thread->m_stmt_lock.dirty_to_allocated();
     }
   }
   else

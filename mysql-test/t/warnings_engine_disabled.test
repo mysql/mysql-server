@@ -2,23 +2,25 @@
 # Only run this test with a compiled in but disabled
 # engine
 #
-disable_query_log;
---require r/true.require
-select support = 'NO' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
-enable_query_log;
-
+let $federated_support = `select engine from information_schema.engines where engine = 'FEDERATED'`;
+if(!$federated_support) {
+	skip "Test need FEDERATED engine";
+}
 
 #
-# Test for handler type, will select MyISAM and print a warning
-# about that - since NDB is disabled
+# Test for using disabled engine
+# The server will throw an error - since FEDERATED is disabled
 #
-create table t1 (id int) engine=NDB;
-alter table t1 engine=NDB;
+--ERROR ER_UNKNOWN_STORAGE_ENGINE
+create table t1 (id int) engine=FEDERATED;
+--ERROR ER_UNKNOWN_STORAGE_ENGINE
+alter table t1 engine=FEDERATED;
+--ERROR ER_BAD_TABLE_ERROR
 drop table t1;
 
 #
 # Bug#29263 disabled storage engines omitted in SHOW ENGINES
 #
-SELECT ENGINE, SUPPORT FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='ndbcluster';
+SELECT ENGINE, SUPPORT FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='FEDERATED';
 SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE
-PLUGIN_NAME='ndbcluster';
+PLUGIN_NAME='FEDERATED';
