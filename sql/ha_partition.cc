@@ -80,6 +80,7 @@ static handler *partition_create_handler(handlerton *hton,
 static uint partition_flags();
 static uint alter_table_flags(uint flags);
 
+extern "C" int cmp_key_then_part_id(void *key_p, uchar *ref1, uchar *ref2);
 
 static int partition_initialize(void *p)
 {
@@ -4540,8 +4541,8 @@ bool ha_partition::init_record_priority_queue()
     } while (++i < m_tot_parts);
     m_start_key.key= (const uchar*)ptr;
     /* Initialize priority queue, initialized to reading forward. */
-    if (init_queue(&m_queue, used_parts, (uint) PARTITION_BYTES_IN_POS,
-                   0, key_rec_cmp, (void*)m_curr_key_info, 0, 0))
+    if (init_queue(&m_queue, used_parts, 0,
+                   0, cmp_key_then_part_id, (void*)m_curr_key_info, 0, 0))
     {
       my_free(m_ordered_rec_buffer);
       m_ordered_rec_buffer= NULL;
@@ -4734,6 +4735,52 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
   m_start_key.keypart_map= keypart_map;
   m_start_key.flag= find_flag;
   DBUG_RETURN(common_index_read(buf, TRUE));
+}
+
+
+/*
+  @brief
+  Provide ordering by (key_value, partition_id). 
+  
+  @detail
+  Ordering by partition id is required so that key scans on key=const
+  return rows in rowid order (this is required for some variants of 
+  index_merge to work).  
+  
+  In ha_partition, rowid is a (partition_id, underlying_table_rowid). 
+  handle_ordered_index_scan must return rows ordered by (key, rowid).
+
+  If two rows have the same key value and come from different partitions, 
+  it is sufficient to return them in the order of their partition_id.
+*/
+
+extern "C" int cmp_key_then_part_id(void *key_p, uchar *ref1, uchar *ref2)
+{
+  my_ptrdiff_t diff1, diff2;
+  int res;
+
+  if ((res= key_rec_cmp(key_p, ref1 + PARTITION_BYTES_IN_POS, 
+                        ref2 + PARTITION_BYTES_IN_POS)))
+  {
+    return res;
+  }
+  
+  /* The following was taken from ha_partition::cmp_ref */
+  diff1= ref2[1] - ref1[1];
+  diff2= ref2[0] - ref1[0];
+  if (!diff1 && !diff2)
+    return 0;
+
+  if (diff1 > 0)
+    return(-1);
+
+  if (diff1 < 0)
+    return(+1);
+
+  if (diff2 > 0)
+    return(-1);
+
+  return(+1);
 }
 
 
@@ -7650,6 +7697,16 @@ uint ha_partition::min_record_length(uint options) const
     If they belong to different partitions we decide that they are not
     the same record. Otherwise we use the particular handler to decide if
     they are the same. Sort in partition id order if not equal.
+
+  MariaDB note: 
+    Please don't merge the code from MySQL that does this:
+
+    We get two references and need to check if those records are the same.
+    If they belong to different partitions we decide that they are not
+    the same record. Otherwise we use the particular handler to decide if
+    they are the same. Sort in partition id order if not equal.
+
+    It is incorrect, MariaDB has an alternative fix.
 */
 
 int ha_partition::cmp_ref(const uchar *ref1, const uchar *ref2)
