@@ -473,11 +473,7 @@ buf_flush_or_remove_page(
 		yet; maybe the system is currently reading it
 		in, or flushing the modifications to the file */
 		return(false);
-
 	}
-
-	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
-	bool		processed = false;
 
 	/* We have to release the flush_list_mutex to obey the
 	latching order. We are however guaranteed that the page
@@ -487,6 +483,9 @@ buf_flush_or_remove_page(
 
 	buf_flush_list_mutex_exit(buf_pool);
 
+	bool		processed;
+	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+
 	mutex_enter(block_mutex);
 
 	ut_ad(bpage->oldest_modification != 0);
@@ -494,18 +493,11 @@ buf_flush_or_remove_page(
 	if (!flush) {
 
 		buf_flush_remove(bpage);
-
-		mutex_exit(block_mutex);
-
 		processed = true;
 
-	} else if (buf_flush_ready_for_flush(bpage,
-					     BUF_FLUSH_SINGLE_PAGE)) {
-
-		/* The following call will release the buffer pool
-		and block mutex. */
-		buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
-		ut_ad(!mutex_own(block_mutex));
+	} else if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)
+		   && buf_flush_page(
+			   buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false)) {
 
 		/* Wake possible simulated aio thread to actually
 		post the writes to the operating system */
@@ -513,14 +505,15 @@ buf_flush_or_remove_page(
 
 		buf_pool_mutex_enter(buf_pool);
 
-		processed = true;
+		buf_flush_list_mutex_enter(buf_pool);
+
+		return(true);
+
 	} else {
-		/* Not ready for flush. It can't be IO fixed because we
-		checked for that at the start of the function. It must
-		be buffer fixed. */
-		ut_ad(bpage->buf_fix_count > 0);
-		mutex_exit(block_mutex);
+		processed = false;
 	}
+
+	mutex_exit(block_mutex);
 
 	buf_flush_list_mutex_enter(buf_pool);
 
@@ -1684,8 +1677,6 @@ buf_LRU_add_block_low(
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
-	ut_ad(buf_pool);
-	ut_ad(bpage);
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	ut_a(buf_page_in_file(bpage));
@@ -1835,7 +1826,7 @@ buf_LRU_free_page(
 
 	if (!buf_page_can_relocate(bpage)) {
 
-		/* Do not free buffer-fixed or I/O-fixed blocks. */
+		/* Do not free buffer fixed or I/O-fixed blocks. */
 		goto func_exit;
 	}
 
@@ -1850,12 +1841,10 @@ buf_LRU_free_page(
 		if (bpage->oldest_modification) {
 			goto func_exit;
 		}
-	} else if ((bpage->oldest_modification)
-		   && (buf_page_get_state(bpage)
-		       != BUF_BLOCK_FILE_PAGE)) {
+	} else if (bpage->oldest_modification > 0
+		   && buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
 
-		ut_ad(buf_page_get_state(bpage)
-		      == BUF_BLOCK_ZIP_DIRTY);
+		ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY);
 
 func_exit:
 		rw_lock_x_unlock(hash_lock);
@@ -1915,10 +1904,8 @@ func_exit:
 		rw_lock_x_lock(hash_lock);
 		mutex_enter(block_mutex);
 
-		ut_a(!buf_page_hash_get_low(buf_pool,
-					    bpage->space,
-					    bpage->offset,
-					    fold));
+		ut_a(!buf_page_hash_get_low(
+				buf_pool, b->space, b->offset, fold));
 
 		b->state = b->oldest_modification
 			? BUF_BLOCK_ZIP_DIRTY
@@ -2332,6 +2319,11 @@ buf_LRU_block_remove_hashed(
 		UNIV_MEM_INVALID(((buf_block_t*) bpage)->frame,
 				 UNIV_PAGE_SIZE);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
+
+		if (buf_pool->flush_rbt == NULL) {
+			bpage->space = ULINT32_UNDEFINED;
+			bpage->offset = ULINT32_UNDEFINED;
+		}
 
 		/* Question: If we release bpage and hash mutex here
 		then what protects us against:

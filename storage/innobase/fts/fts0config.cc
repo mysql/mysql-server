@@ -151,7 +151,9 @@ fts_config_create_index_param_name(
 	strcpy(name, param);
 	name[len] = '_';
 
-	fts_write_object_id(index->id, name + len + 1);
+	fts_write_object_id(index->id, name + len + 1,
+			    DICT_TF2_FLAG_IS_SET(index->table,
+						 DICT_TF2_FTS_AUX_HEX_NAME));
 
 	return(name);
 }

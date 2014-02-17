@@ -440,13 +440,24 @@ rec_get_offsets_func(
 	ulint			n_fields,/*!< in: maximum number of
 					initialized fields
 					 (ULINT_UNDEFINED if all fields) */
-	mem_heap_t**		heap,	/*!< in/out: memory heap */
+#ifdef UNIV_DEBUG
 	const char*		file,	/*!< in: file name where called */
-	ulint			line)	/*!< in: line number where called */
-	__attribute__((nonnull(1,2,5,6),warn_unused_result));
+	ulint			line,	/*!< in: line number where called */
+#endif /* UNIV_DEBUG */
+	mem_heap_t**		heap)	/*!< in/out: memory heap */
+#ifdef UNIV_DEBUG
+	__attribute__((nonnull(1,2,5,7),warn_unused_result));
+#else /* UNIV_DEBUG */
+	__attribute__((nonnull(1,2,5),warn_unused_result));
+#endif /* UNIV_DEBUG */
 
-#define rec_get_offsets(rec,index,offsets,n,heap)	\
-	rec_get_offsets_func(rec,index,offsets,n,heap,__FILE__,__LINE__)
+#ifdef UNIV_DEBUG
+# define rec_get_offsets(rec,index,offsets,n,heap)			\
+	rec_get_offsets_func(rec,index,offsets,n,__FILE__,__LINE__,heap)
+#else /* UNIV_DEBUG */
+# define rec_get_offsets(rec, index, offsets, n, heap)	\
+	rec_get_offsets_func(rec, index, offsets, n, heap)
+#endif /* UNIV_DEBUG */
 
 /******************************************************//**
 The following function determines the offsets to each field

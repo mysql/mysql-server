@@ -18,6 +18,7 @@
 #ifdef MYSQL_CLIENT
 
 #include "sql_priv.h"
+#include "mysqld_error.h"
 
 #else
 
@@ -2011,14 +2012,9 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       my_decimal dec;
       binary2my_decimal(E_DEC_FATAL_ERROR, (uchar*) ptr, &dec,
                         precision, decimals);
-      int i, end;
-      char buff[512], *pos;
-      pos= buff;
-      pos+= sprintf(buff, "%s", dec.sign() ? "-" : "");
-      end= ROUND_UP(dec.frac) + ROUND_UP(dec.intg)-1;
-      for (i=0; i < end; i++)
-        pos+= sprintf(pos, "%09d.", dec.buf[i]);
-      pos+= sprintf(pos, "%09d", dec.buf[i]);
+      int len= DECIMAL_MAX_STR_LENGTH;
+      char buff[DECIMAL_MAX_STR_LENGTH + 1];
+      decimal2string(&dec,buff,&len, 0, 0, 0);
       my_b_printf(file, "%s", buff);
       my_snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
                   precision, decimals);
@@ -2285,6 +2281,14 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
     else
     {
       my_b_printf(file, "###   @%d=", static_cast<int>(i + 1));
+      size_t fsize= td->calc_field_size((uint)i, (uchar*) value);
+      if (value + fsize > m_rows_end)
+      {
+        my_b_printf(file, "***Corrupted replication event was detected."
+                    " Not printing the value***\n");
+        value+= fsize;
+        return 0;
+      }
       size_t size= log_event_print_value(file, value,
                                          td->type(i), td->field_metadata(i),
                                          typestr, sizeof(typestr));
@@ -3528,15 +3532,23 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    table_map_for_update((ulonglong)thd_arg->table_map_for_update),
    master_data_written(0), mts_accessed_dbs(0)
 {
-  time_t end_time;
 
   memset(&user, 0, sizeof(user));
   memset(&host, 0, sizeof(host));
 
   error_code= errcode;
 
-  time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
+  /*
+  exec_time calculation has changed to use the same method that is used
+  to fill out "thd_arg->start_time"
+  */
+
+  struct timeval end_time;
+  ulonglong micro_end_time= my_micro_time();
+  my_micro_time_to_timeval(micro_end_time, &end_time);
+
+  exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
+
   /**
     @todo this means that if we have no catalog, then it is replicated
     as an existing catalog of length zero. is that safe? /sven
@@ -5999,9 +6011,18 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
    db(db_arg), fname(ex->file_name), local_fname(FALSE),
    is_concurrent(is_concurrent_arg)
 {
-  time_t end_time;
-  time(&end_time);
-  exec_time = (ulong) (end_time  - thd_arg->start_time.tv_sec);
+
+  /*
+  exec_time calculation has changed to use the same method that is used
+  to fill out "thd_arg->start_time"
+  */
+
+  struct timeval end_time;
+  ulonglong micro_end_time= my_micro_time();
+  my_micro_time_to_timeval(micro_end_time, &end_time);
+
+  exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
+
   /* db can never be a zero pointer in 4.0 */
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
@@ -6143,11 +6164,22 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   fields = (char*)field_lens + num_fields;
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
+  DBUG_EXECUTE_IF ("simulate_invalid_address",
+                   db_len = data_len;);
   fname = db + db_len + 1;
+  if ((db_len > data_len) || (fname > buf_end))
+    goto err;
   fname_len = (uint) strlen(fname);
+  if ((fname_len > data_len) || (fname + fname_len > buf_end))
+    goto err;
   // null termination is accomplished by the caller doing buf[event_len]=0
 
   DBUG_RETURN(0);
+
+err:
+  // Invalid event.
+  table_name = 0;
+  DBUG_RETURN(1);
 }
 
 

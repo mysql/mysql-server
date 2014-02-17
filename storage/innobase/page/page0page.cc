@@ -2779,3 +2779,35 @@ page_delete_rec(
 	return(no_compress_needed);
 }
 
+/** Get the last non-delete-marked record on a page.
+@param[in]	page	index tree leaf page
+@return the last record, not delete-marked
+@retval infimum record if all records are delete-marked */
+
+const rec_t*
+page_find_rec_max_not_deleted(
+	const page_t*	page)
+{
+	const rec_t*	rec = page_get_infimum_rec(page);
+	const rec_t*	prev_rec = NULL; // remove warning
+
+	/* Because the page infimum is never delete-marked,
+	prev_rec will always be assigned to it first. */
+	ut_ad(!rec_get_deleted_flag(rec, page_rec_is_comp(rec)));
+	if (page_is_comp(page)) {
+		do {
+			if (!rec_get_deleted_flag(rec, true)) {
+				prev_rec = rec;
+			}
+			rec = page_rec_get_next_low(rec, true);
+		} while (rec != page + PAGE_NEW_SUPREMUM);
+	} else {
+		do {
+			if (!rec_get_deleted_flag(rec, false)) {
+				prev_rec = rec;
+			}
+			rec = page_rec_get_next_low(rec, false);
+		} while (rec != page + PAGE_OLD_SUPREMUM);
+	}
+	return(prev_rec);
+}

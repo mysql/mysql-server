@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 				    sizeof(prefix_buff)-7),"XXXXXX") -
 		     prefix_buff);
     if (!dir && ! (dir =getenv("TMPDIR")))
-      dir=P_tmpdir;
+      dir= DEFAULT_TMPDIR;
     if (strlen(dir)+ pfx_len > FN_REFLEN-2)
     {
       errno=my_errno= ENAMETOOLONG;

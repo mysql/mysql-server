@@ -1,5 +1,5 @@
 diff --git a/scripts/mysql_install_db.pl.in b/scripts/mysql_install_db.pl.in
-index c142d4f..f1f2891 100644
+index 440a977..7d068fc 100644
 --- a/scripts/mysql_install_db.pl.in
 +++ b/scripts/mysql_install_db.pl.in
 @@ -34,13 +34,35 @@
@@ -187,25 +187,9 @@ index c142d4f..f1f2891 100644
  {
    mkdir($dir, 0700) unless -d $dir;
    if ($opt_user and -w "/")
-@@ -838,15 +879,26 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
-              "  cd mysql-test ; perl mysql-test-run.pl");
-     }
-     report($opt,
--           "Please report any problems with the " . '@scriptdir@' . "/mysqlbug script!",
--           "",
-            "The latest information about MySQL is available on the web at",
+@@ -846,7 +887,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
             "",
-            "  http://www.mysql.com",
-            "",
--           "Support MySQL by buying support/licenses at http://shop.mysql.com");
-+           "Please visit",
-+           "",
-+           "  http://bugs.mysql.com/",
-+           "",
-+           "to report bugs. This database is public and can be browsed",
-+           "and searched by anyone. If you log in to the system",
-+           "you can enter new reports.");
-+
+            "Support MySQL by buying support/licenses at http://shop.mysql.com");
  
 -    if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
 +    if ($keep_my_cnf)
@@ -218,22 +202,3 @@ index c142d4f..f1f2891 100644
      {
        report($opt,
  	     "New default config file was created as $config_file and",
-@@ -900,9 +952,15 @@ else
-         "http://www.mysql.com",
-         "Please consult the MySQL manual section: 'Problems running mysql_install_db',",
-         "and the manual section that describes problems on your OS.",
--        "Another information source is the MySQL email archive.",
--        "Please check all of the above before mailing us!",
--        "And if you do mail us, you MUST use the " . '@scriptdir@' . "/mysqlbug script!")
-+        "Another information source is our bug database.",
-+        "Please visit",
-+        "",
-+        "  http://bugs.mysql.com/",
-+        "",
-+        "to report bugs. This database is public and can be browsed",
-+        "and searched by anyone. If you log in to the system you can",
-+        "enter new reports.");
-+
- }
- 
- ##############################################################################

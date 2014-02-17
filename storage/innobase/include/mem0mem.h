@@ -92,18 +92,35 @@ void
 mem_close(void);
 /*===========*/
 
+#ifdef UNIV_DEBUG
 /**************************************************************//**
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
-#define mem_heap_create(N)	mem_heap_create_func(\
-		(N), MEM_HEAP_DYNAMIC, __FILE__, __LINE__)
+# define mem_heap_create(N)	mem_heap_create_func(		\
+		(N), __FILE__, __LINE__, MEM_HEAP_DYNAMIC)
 /**************************************************************//**
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
-#define mem_heap_create_typed(N, T)	mem_heap_create_func(\
-		(N), (T), __FILE__, __LINE__)
+# define mem_heap_create_typed(N, T)	mem_heap_create_func(	\
+		(N), __FILE__, __LINE__, (T))
+
+#else /* UNIV_DEBUG */
+/**************************************************************//**
+Use this macro instead of the corresponding function! Macro for memory
+heap creation. */
+
+# define mem_heap_create(N)	mem_heap_create_func(		\
+		(N), MEM_HEAP_DYNAMIC)
+/**************************************************************//**
+Use this macro instead of the corresponding function! Macro for memory
+heap creation. */
+
+# define mem_heap_create_typed(N, T)	mem_heap_create_func(	\
+		(N), (T))
+
+#endif /* UNIV_DEBUG */
 /**************************************************************//**
 Use this macro instead of the corresponding function! Macro for memory
 heap freeing. */
@@ -124,9 +141,11 @@ mem_heap_create_func(
 					this means that a single user buffer
 					of size n will fit in the block,
 					0 creates a default size block */
-	ulint		type,		/*!< in: heap type */
+#ifdef UNIV_DEBUG
 	const char*	file_name,	/*!< in: file name where created */
-	ulint		line);		/*!< in: line where created */
+	ulint		line,		/*!< in: line where created */
+#endif /* UNIV_DEBUG */
+	ulint		type);		/*!< in: heap type */
 /*****************************************************************//**
 NOTE: Use the corresponding macro instead of this function. Frees the space
 occupied by a memory heap. In the debug version erases the heap memory
@@ -218,8 +237,14 @@ Macro for memory buffer allocation */
 
 #define mem_zalloc(N)	memset(mem_alloc(N), 0, (N))
 
-#define mem_alloc(N)	mem_alloc_func((N), NULL, __FILE__, __LINE__)
-#define mem_alloc2(N,S)	mem_alloc_func((N), (S), __FILE__, __LINE__)
+#ifdef UNIV_DEBUG
+#define mem_alloc(N)	mem_alloc_func((N), __FILE__, __LINE__, NULL)
+#define mem_alloc2(N,S) mem_alloc_func((N), __FILE__, __LINE__, (S))
+#else /* UNIV_DEBUG */
+#define mem_alloc(N)	mem_alloc_func((N), NULL)
+#define mem_alloc2(N,S) mem_alloc_func((N), (S))
+#endif /* UNIV_DEBUG */
+
 /***************************************************************//**
 NOTE: Use the corresponding macro instead of this function.
 Allocates a single buffer of memory from the dynamic memory of
@@ -231,10 +256,12 @@ void*
 mem_alloc_func(
 /*===========*/
 	ulint		n,		/*!< in: requested size in bytes */
-	ulint*		size,		/*!< out: allocated size in bytes,
-					or NULL */
+#ifdef UNIV_DEBUG
 	const char*	file_name,	/*!< in: file name where created */
-	ulint		line);		/*!< in: line where created */
+	ulint		line,		/*!< in: line where created */
+#endif /* UNIV_DEBUG */
+	ulint*		size);		/*!< out: allocated size in bytes,
+					or NULL */
 
 /**************************************************************//**
 Use this macro instead of the corresponding function!
@@ -343,8 +370,10 @@ mem_validate_all_blocks(void);
 /** The info structure stored at the beginning of a heap block */
 struct mem_block_info_t {
 	ulint	magic_n;/* magic number for debugging */
+#ifdef UNIV_DEBUG
 	char	file_name[8];/* file name where the mem heap was created */
 	ulint	line;	/*!< line number where the mem heap was created */
+#endif /* UNIV_DEBUG */
 	UT_LIST_BASE_NODE_T(mem_block_t) base; /* In the first block in the
 			the list this is the base node of the list of blocks;
 			in subsequent blocks this is undefined */

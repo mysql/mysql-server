@@ -70,10 +70,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     new_field->flags|= (org_field->flags & NO_DEFAULT_VALUE_FLAG);
     if (org_field->maybe_null() || (item && item->maybe_null))
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
-    if (org_field->type() == MYSQL_TYPE_VAR_STRING ||
-        org_field->type() == MYSQL_TYPE_VARCHAR)
-      table->s->db_create_options|= HA_OPTION_PACK_RECORD;
-    else if (org_field->type() == FIELD_TYPE_DOUBLE)
+    if (org_field->type() == FIELD_TYPE_DOUBLE)
       ((Field_double *) new_field)->not_fixed= TRUE;
   }
   return new_field;
@@ -755,6 +752,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         string_count++;
         string_total_length+= new_field->pack_length();
       }
+      // In order to reduce footprint ask SE to pack variable-length fields.
+      if (new_field->type() == MYSQL_TYPE_VAR_STRING ||
+          new_field->type() == MYSQL_TYPE_VARCHAR)
+        table->s->db_create_options|= HA_OPTION_PACK_RECORD;
 
       if (item->marker == 4 && item->maybe_null)
       {

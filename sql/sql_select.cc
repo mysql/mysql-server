@@ -2258,6 +2258,8 @@ void revise_cache_usage(JOIN_TAB *join_tab)
   JOIN_TAB *tab;
   JOIN_TAB *first_inner;
 
+  set_join_cache_denial(join_tab);
+
   if (join_tab->first_inner)
   {
     JOIN_TAB *end_tab= join_tab;
@@ -2279,7 +2281,6 @@ void revise_cache_usage(JOIN_TAB *join_tab)
         set_join_cache_denial(tab);
     }
   }
-  else set_join_cache_denial(join_tab);
 }
 
 
@@ -4069,11 +4070,24 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     }
 
     /*
-      filesort() and join cache are usually faster than reading in 
-      index order and not using join cache, except in case that chosen
-      index is clustered primary key.
+      Does the query have a "FORCE INDEX [FOR GROUP BY] (idx)" (if
+      clause is group by) or a "FORCE INDEX [FOR ORDER BY] (idx)" (if
+      clause is order by)?
     */
-    if ((select_limit >= table_records) &&
+    const bool is_group_by= join && join->group && order == join->group_list;
+    const bool is_force_index= table->force_index ||
+      (is_group_by ? table->force_index_group : table->force_index_order);
+
+    /*
+      filesort() and join cache are usually faster than reading in
+      index order and not using join cache. Don't use index scan
+      unless:
+       - the user specified FORCE INDEX [FOR {GROUP|ORDER} BY] (have to assume
+         the user knows what's best)
+       - the chosen index is clustered primary key (table scan is not cheaper)
+    */
+    if (!is_force_index &&
+        (select_limit >= table_records) &&
         (tab->type == JT_ALL &&
          tab->join->primary_tables > tab->join->const_tables + 1) &&
          ((unsigned) best_key != table->s->primary_key ||

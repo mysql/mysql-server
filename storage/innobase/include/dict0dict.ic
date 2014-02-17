@@ -1403,4 +1403,31 @@ dict_table_is_temporary(
 	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY));
 }
 
+/**********************************************************************//**
+Get index by first field of the index
+@return index which is having first field matches
+with the field present in field_index position of table */
+UNIV_INLINE
+dict_index_t*
+dict_table_get_index_on_first_col(
+/*==============================*/
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			col_index)	/*!< in: position of column
+						in table */
+{
+	ut_ad(col_index < table->n_cols);
+
+	dict_col_t* column = dict_table_get_nth_col(table, col_index);
+
+	for (dict_index_t* index = dict_table_get_first_index(table);
+		index != NULL; index = dict_table_get_next_index(index)) {
+
+		if (index->fields[0].col == column) {
+			return(index);
+		}
+	}
+	ut_error;
+	return(0);
+}
+
 #endif /* !UNIV_HOTBACKUP */
