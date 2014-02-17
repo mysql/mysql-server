@@ -793,7 +793,7 @@ void remove_test_database()
 				     "y|Y for Yes, any other key for No) : ", 'y');
   if (reply == (int) 'y' || reply == (int) 'Y')
   {
-    execute_query_with_message((const char *) "DROP DATABASE IF EXISTS DATABASE test",
+    execute_query_with_message((const char *) "DROP DATABASE IF EXISTS test",
 			       (const char *) " - Dropping test database...\n");
 
     execute_query_with_message((const char *) "DELETE FROM mysql.db WHERE "
