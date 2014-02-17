@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
       pathlist=getenv("TMP");
 #endif
     if (!pathlist || !pathlist[0])
-      pathlist=(char*) DEFAULT_TMPDIR;
+      pathlist= DEFAULT_TMPDIR;
   }
   do
   {

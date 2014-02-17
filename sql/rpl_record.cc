@@ -1,6 +1,5 @@
-/*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2014, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -171,11 +170,15 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
    @param row_data
                   Packed row data
    @param cols    Pointer to bitset describing columns to fill in
-   @param row_end Pointer to variable that will hold the value of the
-                  one-after-end position for the row
+   @param curr_row_end
+                  Pointer to variable that will hold the value of the
+                  one-after-end position for the current row
    @param master_reclength
                   Pointer to variable that will be set to the length of the
                   record on the master side
+   @param row_end
+                  Pointer to variable that will hold the value of the
+                  end position for the data in the row event
 
    @retval 0 No error
 
@@ -188,9 +191,9 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
 int
 unpack_row(Relay_log_info const *rli,
            TABLE *table, uint const colcnt,
-           uchar const *const row_data, uchar const *const row_buffer_end,
-           MY_BITMAP const *cols,
-           uchar const **const row_end, ulong *const master_reclength)
+           uchar const *const row_data, MY_BITMAP const *cols,
+           uchar const **const current_row_end, ulong *const master_reclength,
+           uchar const *const row_end)
 {
   DBUG_ENTER("unpack_row");
   DBUG_ASSERT(row_data);
@@ -305,7 +308,7 @@ unpack_row(Relay_log_info const *rli,
 #ifndef DBUG_OFF
         uchar const *const old_pack_ptr= pack_ptr;
 #endif
-        pack_ptr= f->unpack(f->ptr, pack_ptr, row_buffer_end, metadata);
+        pack_ptr= f->unpack(f->ptr, pack_ptr, row_end, metadata);
 	DBUG_PRINT("debug", ("field: %s; metadata: 0x%x;"
                              " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
                              f->field_name, metadata,
@@ -392,7 +395,7 @@ unpack_row(Relay_log_info const *rli,
 
   DBUG_DUMP("row_data", row_data, pack_ptr - row_data);
 
-  *row_end = pack_ptr;
+  *current_row_end = pack_ptr;
   if (master_reclength)
   {
     if (*field_ptr)

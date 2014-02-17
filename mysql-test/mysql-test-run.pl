@@ -173,6 +173,7 @@ my @DEFAULT_SUITES= qw(
     handler-
     heap-
     innodb-
+    innodb_zip-
     maria-
     optimizer_unfixed_bugs-
     oqgraph-

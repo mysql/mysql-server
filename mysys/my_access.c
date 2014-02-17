@@ -1,5 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
-   Copyright (c) 2012, Monty Program Ab
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates
+   Copyright (c) 2012, 2014, SkySQL Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

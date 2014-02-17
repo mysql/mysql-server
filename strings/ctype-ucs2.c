@@ -1,5 +1,5 @@
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates
-   Copyright (c) 2009, 2011, Monty Program Ab
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates
+   Copyright (c) 2009, 2014, SkySQL Ab.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1664,7 +1664,7 @@ struct charset_info_st my_charset_utf16_general_ci=
 struct charset_info_st my_charset_utf16_bin=
 {
   55,0,0,              /* number       */
-  MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_NONASCII,
+  MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
   "utf16",             /* cs name      */
   "utf16_bin",         /* name         */
   "UTF-16 Unicode",    /* comment      */

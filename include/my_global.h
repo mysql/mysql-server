@@ -1514,11 +1514,4 @@ static inline double rint(double x)
 
 #endif /* EMBEDDED_LIBRARY */
 
-/*
-  Define default tmpdir if not already set.
-*/
-#if !defined(DEFAULT_TMPDIR)
-#define DEFAULT_TMPDIR P_tmpdir
-#endif
-
 #endif /* my_global_h */

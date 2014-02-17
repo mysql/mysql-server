@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates.
    Copyright (c) 2011, 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 #ifndef _welcome_copyright_notice_h_
 #define _welcome_copyright_notice_h_
 
-#define COPYRIGHT_NOTICE_CURRENT_YEAR "2013"
+#define COPYRIGHT_NOTICE_CURRENT_YEAR "2014"
 
 /*
   This define specifies copyright notice which is displayed by every MySQL

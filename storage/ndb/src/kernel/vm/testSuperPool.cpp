@@ -6,7 +6,7 @@ _eof_
 exit $?
 #endif
 
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (c) 2003, 2005 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by

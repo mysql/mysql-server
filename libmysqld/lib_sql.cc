@@ -561,7 +561,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
     opt_mysql_tmpdir=getenv("TMP");
 #endif
   if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
-    opt_mysql_tmpdir=(char*) DEFAULT_TMPDIR;		/* purecov: inspected */
+    opt_mysql_tmpdir= const_cast<char*>(DEFAULT_TMPDIR); /* purecov: inspected*/
 
   init_ssl();
   umask(((~my_umask) & 0666));

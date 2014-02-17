@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -857,7 +857,7 @@ static int process_options(int argc, char *argv[], char *operation)
       strncat(buff, FN_DIRSEP, sizeof(buff) - strlen(buff) - 1);
 #endif
       buff[sizeof(buff) - 1]= 0;
-      my_delete(opt_basedir, MYF(0));
+      my_free(opt_basedir);
       opt_basedir= my_strdup(buff, MYF(MY_FAE));
     }
   }

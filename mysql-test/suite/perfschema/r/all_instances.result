@@ -149,6 +149,7 @@ wait/io/file/mysys/charset
 wait/io/file/sql/casetest
 wait/io/file/sql/dbopt
 wait/io/file/sql/ERRMSG
+wait/io/file/sql/file_parser
 wait/io/file/sql/FRM
 wait/io/file/sql/pid
 wait/io/file/sql/query_log

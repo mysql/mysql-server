@@ -1,6 +1,5 @@
-/*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2013, SkySQL Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,9 +32,9 @@ size_t pack_row(TABLE* table, MY_BITMAP const* cols,
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int unpack_row(Relay_log_info const *rli,
                TABLE *table, uint const colcnt,
-               uchar const *const row_data, uchar const *row_buffer_end,
-               MY_BITMAP const *cols,
-               uchar const **const row_end, ulong *const master_reclength);
+               uchar const *const row_data, MY_BITMAP const *cols,
+               uchar const **const curr_row_end, ulong *const master_reclength,
+               uchar const *const row_end);
 
 // Fill table's record[0] with default values.
 int prepare_record(TABLE *const table, const uint skip, const bool check);

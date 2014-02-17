@@ -655,7 +655,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     set_timespec_nsec(*heartbeat_ts, 0);
   }
   if (global_system_variables.log_warnings > 1)
-    sql_print_information("Start binlog_dump to slave_server(%d), pos(%s, %lu)",
+    sql_print_information("Start binlog_dump to slave_server(%u), pos(%s, %lu)",
                         thd->server_id, log_ident, (ulong)pos);
   if (RUN_HOOK(binlog_transmit, transmit_start, (thd, flags, log_ident, pos)))
   {

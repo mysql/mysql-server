@@ -1,6 +1,6 @@
 #!/bin/sh
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-# Copyright (c) 2009, 2011,2013 Monty Program Ab
+# Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2013, Monty Program Ab
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -436,7 +436,7 @@ else
   echo "The problem could be conflicting information in an external"
   echo "my.cnf files. You can ignore these by doing:"
   echo
-  echo "    shell> /scripts/mysql_install_db --defaults-file=~/.my.cnf"
+  echo "    shell> $scriptdir/scripts/mysql_install_db --defaults-file=~/.my.cnf"
   echo
   echo "You can also try to start the mysqld daemon with:"
   echo
@@ -454,8 +454,9 @@ else
   echo "MariaDB is hosted on launchpad; You can find the latest source and"
   echo "email lists at http://launchpad.net/maria"
   echo
-  echo "Please check all of the above before mailing us!  And remember, if"
-  echo "you do mail us, you should use the $scriptdir/mysqlbug script!"
+  echo "Please check all of the above before submitting a bug report"
+  echo "at http://mariadb.org/jira"
+  echo
   exit 1
 fi
 
@@ -506,7 +507,7 @@ then
   fi
 
   echo
-  echo "Please report any problems with the '$scriptdir/mysqlbug' script!"
+  echo "Please report any problems at http://mariadb.org/jira"
   echo
   echo "The latest information about MariaDB is available at http://mariadb.org/."
   echo "You can find additional information about the MySQL part at:"

@@ -999,4 +999,44 @@ c
 11112222
 33334444
 DROP TABLE t1;
+#
+# Bug#16539979 BASIC SELECT COUNT(DISTINCT ID) IS BROKEN.
+# Bug#17867117 ERROR RESULT WHEN "COUNT + DISTINCT + CASE WHEN" NEED MERGE_WALK 
+#
+SET @tmp_table_size_save= @@tmp_table_size;
+SET @@tmp_table_size= 1024;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 SELECT a+8 FROM t1;
+INSERT INTO t1 SELECT a+16 FROM t1;
+INSERT INTO t1 SELECT a+32 FROM t1;
+INSERT INTO t1 SELECT a+64 FROM t1;
+INSERT INTO t1 VALUE(NULL);
+SELECT COUNT(DISTINCT a) FROM t1;
+COUNT(DISTINCT a)
+128
+SELECT COUNT(DISTINCT (a+0)) FROM t1;
+COUNT(DISTINCT (a+0))
+128
+DROP TABLE t1;
+create table tb(
+id int auto_increment primary key,
+v varchar(32))
+engine=myisam charset=gbk;
+insert into tb(v) values("aaa");
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+update tb set v=concat(v, id);
+select count(distinct case when id<=64 then id end) from tb;
+count(distinct case when id<=64 then id end)
+64
+select count(distinct case when id<=63 then id end) from tb;
+count(distinct case when id<=63 then id end)
+63
+drop table tb;
+SET @@tmp_table_size= @tmp_table_size_save;
 End of 5.5 tests
