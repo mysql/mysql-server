@@ -162,6 +162,7 @@ static int daemon_example_plugin_deinit(void *p __attribute__ ((unused)))
   struct tm tm_tmp;
 
   pthread_cancel(con->heartbeat_thread);
+  pthread_join(con->heartbeat_thread, NULL);
 
   localtime_r(&result, &tm_tmp);
   my_snprintf(buffer, sizeof(buffer),
