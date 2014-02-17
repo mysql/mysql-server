@@ -296,7 +296,9 @@ int Gtid_table_persistor::write_row(TABLE *table, const char *sid,
     goto err;
 
   /* Inserts a new row into the gtid table. */
-  if ((error= table->file->ha_write_row(table->record[0])))
+  error= table->file->ha_write_row(table->record[0]);
+  if (DBUG_EVALUATE_IF("simulate_err_on_write_gtid_into_table",
+                       (error= -1), error))
   {
     table->file->print_error(error, MYF(0));
     /*
@@ -359,7 +361,9 @@ int Gtid_table_persistor::update_row(TABLE *table, const char *sid,
   }
 
   /* Update a row in the gtid table. */
-  if ((error= table->file->ha_update_row(table->record[1], table->record[0])))
+  error= table->file->ha_update_row(table->record[1], table->record[0]);
+  if (DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table",
+                       (error= -1), error))
   {
     table->file->print_error(error, MYF(0));
     /*
@@ -593,12 +597,6 @@ static int dbug_test_on_compress(THD *thd)
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(1););
 
   /*
-    Simulate error in the middle of the transaction of
-    compressing gtid table.
-  */
-  DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
-                  DBUG_RETURN(-1););
-  /*
     Wait until notified user thread executed the statement completely,
     then go to crash.
   */
@@ -830,6 +828,8 @@ pthread_handler_t compress_gtid_table(void *arg)
     if (gtid_state->compress(thd))
     {
       sql_print_warning("Failed to compress the gtid table.");
+      /* Clear the error for going to wait for next compression signal. */
+      thd->clear_error();
       DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
                       {
                         const char act[]= "now signal compression_failed";
