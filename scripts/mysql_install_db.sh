@@ -267,7 +267,7 @@ then
   bindir="$basedir/client"
   extra_bindir="$basedir/extra"
   mysqld="$basedir/sql/mysqld"
-  langdir="$srcdir/sql/share/english"
+  langdir="$basedir/sql/share/english"
   pkgdatadir="$srcdir/scripts"
   scriptdir="$srcdir/scripts"
 elif test -n "$basedir"
