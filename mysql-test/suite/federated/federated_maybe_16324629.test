@@ -1,0 +1,23 @@
+#
+# Inspired by a bug fix for internal Oracle MySQL bug#16324629
+#
+source include/federated.inc;
+
+connection slave;
+create table federated.t1 (a int, b int, unique key (a), key (b));
+
+connection master;
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table t1 (a int, b int, unique key (a), key (b))
+ engine=federated CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+insert into t1 values (3, 3), (7, 7);
+delete t1 from t1 where a = 3;
+select * from t1;
+drop table t1;
+
+connection slave;
+connection default;
+source include/federated_cleanup.inc;
+

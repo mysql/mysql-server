@@ -2744,7 +2744,8 @@ void ha_federated::position(const uchar *record __attribute__ ((unused)))
 {
   DBUG_ENTER("ha_federated::position");
   
-  DBUG_ASSERT(stored_result);
+  if (!stored_result)
+    DBUG_VOID_RETURN;
 
   position_called= TRUE;
   /* Store result set address. */
