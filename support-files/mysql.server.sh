@@ -147,66 +147,10 @@ parse_server_arguments() {
 		    datadir_set=1
 	;;
       --pid-file=*) mysqld_pid_file_path=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --socket=*) socket=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --service-startup-timeout=*) service_startup_timeout=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
     esac
   done
-}
-
-wait_for_pid () {
-  verb="$1"           # created | removed
-  pid="$2"            # process ID of the program operating on the pid-file
-  pid_file_path="$3" # path to the PID file.
-
-  i=0
-  avoid_race_condition="by checking again"
-
-  while test $i -ne $service_startup_timeout ; do
-
-    case "$verb" in
-      'created')
-        # wait for a PID-file to pop into existence.
-        test -s "$pid_file_path" && i='' && break
-        ;;
-      'removed')
-        # wait for this PID-file to disappear
-        test ! -s "$pid_file_path" && i='' && break
-        ;;
-      *)
-        echo "wait_for_pid () usage: wait_for_pid created|removed pid pid_file_path"
-        exit 1
-        ;;
-    esac
-
-    # if server isn't running, then pid-file will never be updated
-    if test -n "$pid"; then
-      if kill -0 "$pid" 2>/dev/null; then
-        :  # the server still runs
-      else
-        # The server may have exited between the last pid-file check and now.  
-        if test -n "$avoid_race_condition"; then
-          avoid_race_condition=""
-          continue  # Check again.
-        fi
-
-        # there's nothing that will affect the file.
-        log_failure_msg "The server quit without updating PID file ($pid_file_path)."
-        return 1  # not waiting any more.
-      fi
-    fi
-
-    echo $echo_n ".$echo_c"
-    i=`expr $i + 1`
-    sleep 1
-
-  done
-
-  if test -z "$i" ; then
-    log_success_msg
-    return 0
-  else
-    log_failure_msg
-    return 1
-  fi
 }
 
 # Get arguments from the my.cnf file,
@@ -266,6 +210,69 @@ fi
 
 parse_server_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
 
+# wait for the pid file to disappear
+wait_for_gone () {
+  pid="$1"           # process ID of the program operating on the pid-file
+  pid_file_path="$2" # path to the PID file.
+
+  i=0
+  crash_protection="by checking again"
+
+  while test $i -ne $service_startup_timeout ; do
+
+    if kill -0 "$pid" 2>/dev/null; then
+      :  # the server still runs
+    else
+      if test ! -s "$pid_file_path"; then
+        # no server process and no pid-file? great, we're done!
+        log_success_msg
+        return 0
+      fi
+
+      # pid-file exists, the server process doesn't.
+      # it must've crashed, and mysqld_safe will restart it
+      if test -n "$crash_protection"; then
+        crash_protection=""
+        sleep 5
+        continue  # Check again.
+      fi
+
+      # Cannot help it
+      log_failure_msg "The server quit without updating PID file ($pid_file_path)."
+      return 1  # not waiting any more.
+    fi
+
+    echo $echo_n ".$echo_c"
+    i=`expr $i + 1`
+    sleep 1
+
+  done
+
+  log_failure_msg
+  return 1
+}
+
+wait_for_ready () {
+
+  test -n "$socket" && sockopt="--socket=$socket"
+
+  i=0
+  while test $i -ne $service_startup_timeout ; do
+
+    if $bindir/mysqladmin $sockopt ping >/dev/null 2>&1; then
+      log_success_msg
+      return 0
+    fi
+
+    echo $echo_n ".$echo_c"
+    i=`expr $i + 1`
+    sleep 1
+
+  done
+
+  log_failure_msg
+  return 1
+}
 #
 # Set pid file if not given
 #
@@ -292,7 +299,7 @@ case "$mode" in
       # Give extra arguments to mysqld with the my.cnf file. This script
       # may be overwritten at next upgrade.
       $bindir/mysqld_safe --datadir="$datadir" --pid-file="$mysqld_pid_file_path" $other_args >/dev/null 2>&1 &
-      wait_for_pid created "$!" "$mysqld_pid_file_path"; return_value=$?
+      wait_for_ready; return_value=$?
 
       # Make lock for RedHat / SuSE
       if test -w "$lockdir"
@@ -319,7 +326,7 @@ case "$mode" in
         echo $echo_n "Shutting down MySQL"
         kill $mysqld_pid
         # mysqld should remove the pid file when it exits, so wait for it.
-        wait_for_pid removed "$mysqld_pid" "$mysqld_pid_file_path"; return_value=$?
+        wait_for_gone $mysqld_pid "$mysqld_pid_file_path"; return_value=$?
       else
         log_failure_msg "MySQL server process #$mysqld_pid is not running!"
         rm "$mysqld_pid_file_path"
