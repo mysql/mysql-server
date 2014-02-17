@@ -400,6 +400,11 @@ dict_stats_table_clone_create(
 
 	t->corrupted = table->corrupted;
 
+	/* This private object "t" is not shared with other threads, so
+	we do not need the stats_latch. The lock/unlock routines will do
+	nothing if stats_latch is NULL. */
+	t->stats_latch = NULL;
+
 	UT_LIST_INIT(t->indexes);
 
 	for (index = dict_table_get_first_index(table);
@@ -731,7 +736,7 @@ static
 dict_table_t*
 dict_stats_snapshot_create(
 /*=======================*/
-	const dict_table_t*	table)	/*!< in: table whose stats to copy */
+	dict_table_t*	table)	/*!< in: table whose stats to copy */
 {
 	mutex_enter(&dict_sys->mutex);
 
@@ -2131,8 +2136,16 @@ dict_stats_save_index_stat(
 
 	ret = dict_stats_exec_sql(
 		pinfo,
-		"PROCEDURE INDEX_STATS_SAVE_INSERT () IS\n"
+		"PROCEDURE INDEX_STATS_SAVE () IS\n"
 		"BEGIN\n"
+
+		"DELETE FROM \"" INDEX_STATS_NAME "\"\n"
+		"WHERE\n"
+		"database_name = :database_name AND\n"
+		"table_name = :table_name AND\n"
+		"index_name = :index_name AND\n"
+		"stat_name = :stat_name;\n"
+
 		"INSERT INTO \"" INDEX_STATS_NAME "\"\n"
 		"VALUES\n"
 		"(\n"
@@ -2146,47 +2159,6 @@ dict_stats_save_index_stat(
 		":stat_description\n"
 		");\n"
 		"END;");
-
-	if (ret == DB_DUPLICATE_KEY) {
-
-		pinfo = pars_info_create();
-		pars_info_add_str_literal(pinfo, "database_name", db_utf8);
-		pars_info_add_str_literal(pinfo, "table_name", table_utf8);
-		UNIV_MEM_ASSERT_RW_ABORT(index->name, strlen(index->name));
-		pars_info_add_str_literal(pinfo, "index_name", index->name);
-		UNIV_MEM_ASSERT_RW_ABORT(&last_update, 4);
-		pars_info_add_int4_literal(pinfo, "last_update", last_update);
-		UNIV_MEM_ASSERT_RW_ABORT(stat_name, strlen(stat_name));
-		pars_info_add_str_literal(pinfo, "stat_name", stat_name);
-		UNIV_MEM_ASSERT_RW_ABORT(&stat_value, 8);
-		pars_info_add_ull_literal(pinfo, "stat_value", stat_value);
-		if (sample_size != NULL) {
-			UNIV_MEM_ASSERT_RW_ABORT(sample_size, 8);
-			pars_info_add_ull_literal(pinfo, "sample_size", *sample_size);
-		} else {
-			pars_info_add_literal(pinfo, "sample_size", NULL,
-					      UNIV_SQL_NULL, DATA_FIXBINARY, 0);
-		}
-		UNIV_MEM_ASSERT_RW_ABORT(stat_description, strlen(stat_description));
-		pars_info_add_str_literal(pinfo, "stat_description",
-					  stat_description);
-
-		ret = dict_stats_exec_sql(
-			pinfo,
-			"PROCEDURE INDEX_STATS_SAVE_UPDATE () IS\n"
-			"BEGIN\n"
-			"UPDATE \"" INDEX_STATS_NAME "\" SET\n"
-			"last_update = :last_update,\n"
-			"stat_value = :stat_value,\n"
-			"sample_size = :sample_size,\n"
-			"stat_description = :stat_description\n"
-			"WHERE\n"
-			"database_name = :database_name AND\n"
-			"table_name = :table_name AND\n"
-			"index_name = :index_name AND\n"
-			"stat_name = :stat_name;\n"
-			"END;");
-	}
 
 	if (ret != DB_SUCCESS) {
 		char	buf_table[MAX_FULL_NAME_LEN];
@@ -2205,14 +2177,18 @@ dict_stats_save_index_stat(
 	return(ret);
 }
 
-/*********************************************************************//**
-Save the table's statistics into the persistent statistics storage.
+/** Save the table's statistics into the persistent statistics storage.
+@param[in] table_orig	table whose stats to save
+@param[in] only_for_index if this is non-NULL, then stats for indexes
+that are not equal to it will not be saved, if NULL, then all
+indexes' stats are saved
 @return DB_SUCCESS or error code */
 static
 dberr_t
 dict_stats_save(
 /*============*/
-	dict_table_t*	table_orig)	/*!< in: table */
+	dict_table_t*		table_orig,
+	const index_id_t*	only_for_index)
 {
 	pars_info_t*	pinfo;
 	lint		now;
@@ -2234,26 +2210,27 @@ dict_stats_save(
 	lint */
 	now = (lint) ut_time();
 
-#define PREPARE_PINFO_FOR_TABLE_SAVE(p, t, n)				\
-	do {								\
-	pars_info_add_str_literal((p), "database_name", db_utf8);	\
-	pars_info_add_str_literal((p), "table_name", table_utf8);	\
-	pars_info_add_int4_literal((p), "last_update", (n));		\
-	pars_info_add_ull_literal((p), "n_rows", (t)->stat_n_rows);	\
-	pars_info_add_ull_literal((p), "clustered_index_size",		\
-		(t)->stat_clustered_index_size);			\
-	pars_info_add_ull_literal((p), "sum_of_other_index_sizes",	\
-		(t)->stat_sum_of_other_index_sizes);			\
-	} while(false);
-
 	pinfo = pars_info_create();
 
-	PREPARE_PINFO_FOR_TABLE_SAVE(pinfo, table, now);
+	pars_info_add_str_literal(pinfo, "database_name", db_utf8);
+	pars_info_add_str_literal(pinfo, "table_name", table_utf8);
+	pars_info_add_int4_literal(pinfo, "last_update", now);
+	pars_info_add_ull_literal(pinfo, "n_rows", table->stat_n_rows);
+	pars_info_add_ull_literal(pinfo, "clustered_index_size",
+		table->stat_clustered_index_size);
+	pars_info_add_ull_literal(pinfo, "sum_of_other_index_sizes",
+		table->stat_sum_of_other_index_sizes);
 
 	ret = dict_stats_exec_sql(
 		pinfo,
-		"PROCEDURE TABLE_STATS_SAVE_INSERT () IS\n"
+		"PROCEDURE TABLE_STATS_SAVE () IS\n"
 		"BEGIN\n"
+
+		"DELETE FROM \"" TABLE_STATS_NAME "\"\n"
+		"WHERE\n"
+		"database_name = :database_name AND\n"
+		"table_name = :table_name;\n"
+
 		"INSERT INTO \"" TABLE_STATS_NAME "\"\n"
 		"VALUES\n"
 		"(\n"
@@ -2265,27 +2242,6 @@ dict_stats_save(
 		":sum_of_other_index_sizes\n"
 		");\n"
 		"END;");
-
-	if (ret == DB_DUPLICATE_KEY) {
-		pinfo = pars_info_create();
-
-		PREPARE_PINFO_FOR_TABLE_SAVE(pinfo, table, now);
-
-		ret = dict_stats_exec_sql(
-			pinfo,
-			"PROCEDURE TABLE_STATS_SAVE_UPDATE () IS\n"
-			"BEGIN\n"
-			"UPDATE \"" TABLE_STATS_NAME "\" SET\n"
-			"last_update = :last_update,\n"
-			"n_rows = :n_rows,\n"
-			"clustered_index_size = :clustered_index_size,\n"
-			"sum_of_other_index_sizes = "
-			"  :sum_of_other_index_sizes\n"
-			"WHERE\n"
-			"database_name = :database_name AND\n"
-			"table_name = :table_name;\n"
-			"END;");
-	}
 
 	if (ret != DB_SUCCESS) {
 		char	buf[MAX_FULL_NAME_LEN];
@@ -2303,6 +2259,10 @@ dict_stats_save(
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
+
+		if (only_for_index != NULL && index->id != *only_for_index) {
+			continue;
+		}
 
 		if (dict_stats_should_ignore_index(index)) {
 			continue;
@@ -2860,7 +2820,7 @@ dict_stats_update_for_index(
 			dict_table_stats_lock(index->table, RW_X_LATCH);
 			dict_stats_analyze_index(index);
 			dict_table_stats_unlock(index->table, RW_X_LATCH);
-			dict_stats_save(index->table);
+			dict_stats_save(index->table, &index->id);
 			DBUG_VOID_RETURN;
 		}
 		/* else */
@@ -2955,7 +2915,7 @@ dict_stats_update(
 				return(err);
 			}
 
-			err = dict_stats_save(table);
+			err = dict_stats_save(table, NULL);
 
 			return(err);
 		}
@@ -2988,7 +2948,7 @@ dict_stats_update(
 
 			if (dict_stats_persistent_storage_check(false)) {
 
-				return(dict_stats_save(table));
+				return(dict_stats_save(table, NULL));
 			}
 
 			return(DB_STATS_DO_NOT_EXIST);
@@ -3834,7 +3794,7 @@ test_dict_stats_save()
 	index2_stat_n_sample_sizes[2] = TEST_IDX2_N_DIFF3_SAMPLE_SIZE;
 	index2_stat_n_sample_sizes[3] = TEST_IDX2_N_DIFF4_SAMPLE_SIZE;
 
-	ret = dict_stats_save(&table);
+	ret = dict_stats_save(&table, NULL);
 
 	ut_a(ret == DB_SUCCESS);
 

@@ -16,6 +16,7 @@
 -- vertical_results
 
 let MYSQLD_DATADIR=`SELECT @@datadir`;
+let $innodb_compression_level = `SELECT @@global.innodb_compression_level`;
 
 --echo # set the flags
 SET GLOBAL innodb_file_per_table=on;
@@ -31,35 +32,35 @@ SET GLOBAL innodb_compression_level=0;
 --echo # create a table with page size=1K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=1;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for deterministic reasons simple data should be inserted.
 --echo # insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # Restarting server
 -- source include/restart_mysqld.inc
@@ -74,13 +75,13 @@ SET GLOBAL innodb_compression_level=0;
 
 --echo # fetch the compressed page and check the stats
 --echo # The stats figure may be different/same for each restart.
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table
 -- echo # testcase : pass = 1 fail = 0
 SET @comp_val=0;
 SET @uncomp_val=1;
---source suite/innodb/include/innodb_stats_restart.inc
+--source suite/innodb_zip/include/innodb_stats_restart.inc
 
 DROP TABLE tab5;
 
@@ -96,35 +97,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=1;
 --echo # create a table with page size=2K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=2;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # Restarting server
 -- source include/restart_mysqld.inc
@@ -139,13 +140,13 @@ SET GLOBAL innodb_compression_level=0;
 
 --echo # fetch the compressed page and check the stats
 --echo # The stats figure may be different/same for each restart.
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table
 -- echo # testcase : pass = 1 fail = 0
 SET @comp_val=0;
 SET @uncomp_val=2;
---source suite/innodb/include/innodb_stats_restart.inc
+--source suite/innodb_zip/include/innodb_stats_restart.inc
 
 DROP TABLE tab5;
 
@@ -161,35 +162,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=1;
 --echo # create a table with page size=4K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=4;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -205,35 +206,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=1;
 --echo # create a table with page size=8K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=8;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -249,35 +250,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=1;
 --echo # create a table with page size=16K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=16;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -308,37 +309,37 @@ SET GLOBAL innodb_compression_level=9;
 --echo # create a table with page size=1K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=1;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 65536
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 2097152
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # Restarting server
 -- source include/restart_mysqld.inc
@@ -354,13 +355,13 @@ SET GLOBAL innodb_compression_level=9;
 
 --echo # fetch the compressed page and check the stats
 --echo # The stats figure may be different/same for each restart.
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table
 -- echo # testcase : pass = 1 fail = 0
 SET @comp_val=0;
 SET @uncomp_val=1;
---source suite/innodb/include/innodb_stats_restart.inc
+--source suite/innodb_zip/include/innodb_stats_restart.inc
 
 DROP TABLE tab5;
 
@@ -376,37 +377,37 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=2K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=2;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 65536
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 2097152
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # Restarting server
 -- source include/restart_mysqld.inc
@@ -422,13 +423,13 @@ SET GLOBAL innodb_compression_level=9;
 
 --echo # fetch the compressed page and check the stats
 --echo # The stats figure may be different/same for each restart.
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table
 -- echo # testcase : pass = 1 fail = 0
 SET @comp_val=0;
 SET @uncomp_val=1;
---source suite/innodb/include/innodb_stats_restart.inc
+--source suite/innodb_zip/include/innodb_stats_restart.inc
 
 DROP TABLE tab5;
 
@@ -444,37 +445,37 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=4K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=4;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 65536
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 159744
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -490,37 +491,37 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=8K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=8;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 122880
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 212992
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -536,37 +537,37 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=16K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=16;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 245760
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 344064
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -595,37 +596,37 @@ SET GLOBAL innodb_compression_level=default;
 --echo # create a table with page size=1K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=1;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 65536
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 65536
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -643,29 +644,29 @@ SET GLOBAL innodb_compression_level=default;
 --echo # create a table with page size=4K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=4;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 65536
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 86016
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -683,29 +684,29 @@ SET GLOBAL innodb_compression_level=default;
 --echo # create a table with page size=8K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=8;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 122880
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 172032
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -723,29 +724,29 @@ SET GLOBAL innodb_compression_level=default;
 --echo # create a table with page size=16K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=16;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 245760
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 --echo # The size of the file with 0 compress = 344064
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -783,35 +784,35 @@ SELECT @@innodb_compression_level;
 --echo # create a table with page size=1K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=1;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # Restarting server
 -- source include/restart_mysqld.inc
@@ -827,13 +828,13 @@ SET GLOBAL innodb_file_format='barracuda';
 
 --echo # fetch the compressed page and check the stats
 --echo # The stats figure may be different/same for each restart.
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table
 -- echo # testcase : pass = 1 fail = 0
 SET @comp_val=0;
 SET @uncomp_val=1;
---source suite/innodb/include/innodb_stats_restart.inc
+--source suite/innodb_zip/include/innodb_stats_restart.inc
 
 DROP TABLE tab5;
 
@@ -849,35 +850,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=2K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=2;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -893,35 +894,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=4K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=4;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -937,35 +938,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=8K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=8;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -981,35 +982,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=16K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=16;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -1050,35 +1051,35 @@ SELECT @@innodb_compression_level;
 --echo # create a table with page size=1K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=1;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # Restarting server
 -- source include/restart_mysqld.inc
@@ -1095,13 +1096,13 @@ SET GLOBAL innodb_compression_failure_threshold_pct=10;
 
 --echo # fetch the compressed page and check the stats
 --echo # The stats figure may be different/same for each restart.
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table
 -- echo # testcase : pass = 1 fail = 0
 SET @comp_val=0;
 SET @uncomp_val=1;
---source suite/innodb/include/innodb_stats_restart.inc
+--source suite/innodb_zip/include/innodb_stats_restart.inc
 
 DROP TABLE tab5;
 
@@ -1118,35 +1119,35 @@ SET GLOBAL innodb_compression_failure_threshold_pct=10;
 --echo # create a table with page size=2K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=2;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=2;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -1162,35 +1163,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=4K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=4;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -1207,35 +1208,35 @@ SET GLOBAL innodb_compression_failure_threshold_pct=10;
 --echo # create a table with page size=8K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=8;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -1251,35 +1252,35 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 --echo # create a table with page size=16K
 --echo # create indexes on each column.(total 9 indexes)
 let $block_size=16;
---source suite/innodb/include/innodb_create_tab_indx.inc
+--source suite/innodb_zip/include/innodb_create_tab_indx.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # for determintic resons simple data should be inserted.
 --echo #insert some 100 records
 let $i = 100;
---source suite/innodb/include/innodb_load_data.inc
+--source suite/innodb_zip/include/innodb_load_data.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed page and check the stats
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 --echo # fetch the compressed same page once again and check the stats
 --echo # the stat figures should be same as above query
---source suite/innodb/include/innodb_fetch_records.inc
+--source suite/innodb_zip/include/innodb_fetch_records.inc
 
 --echo # check the stats of the table & size of the table
 SET @inl_val=1;
---source suite/innodb/include/innodb_stats_comp_index.inc
+--source suite/innodb_zip/include/innodb_stats_comp_index.inc
 
 DROP TABLE tab5;
 
@@ -1335,5 +1336,7 @@ DROP DATABASE sb;
 eval SET GLOBAL innodb_file_per_table=default;
 eval SET GLOBAL innodb_file_format=default;
 eval SET GLOBAL innodb_cmp_per_index_enabled=default;
-eval SET GLOBAL innodb_compression_level=default;
+--disable_query_log
+eval SET GLOBAL innodb_compression_level=$innodb_compression_level;
+--enable_query_log
 eval SET GLOBAL innodb_compression_failure_threshold_pct=default;

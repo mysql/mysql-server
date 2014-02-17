@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -23,6 +23,9 @@ Compressed page interface
 
 Created June 2005 by Marko Makela
 *******************************************************/
+
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
 
 #include <map>
 using namespace std;
@@ -1567,9 +1570,8 @@ page_zip_fields_free(
 		dict_table_t*	table = index->table;
 		os_fast_mutex_free(&index->zip_pad.mutex);
 		mem_heap_free(index->heap);
-		mutex_free(&(table->autoinc_mutex));
-		ut_free(table->name);
-		mem_heap_free(table->heap);
+
+		dict_mem_table_free(table);
 	}
 }
 
@@ -4894,8 +4896,12 @@ page_zip_verify_checksum(
 	/* declare empty pages non-corrupted */
 	if (stored == 0) {
 		/* make sure that the page is really empty */
-		ut_d(ulint i; for (i = 0; i < size; i++) {
-		     ut_a(*((const char*) data + i) == 0); });
+		ulint i;
+		for (i = 0; i < size; i++) {
+			if (*((const char*) data + i) != 0) {
+				return(FALSE);
+			}
+		}
 
 		return(TRUE);
 	}

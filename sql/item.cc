@@ -694,6 +694,15 @@ void Item::print_item_w_name(String *str, enum_query_type query_type)
    This has practical importance for views created as
    "CREATE VIEW v SELECT (subq) AS x GROUP BY x"
    (print_order() is used to write the view's definition in the frm file).
+   We make one exception: if the view is merge-able, its ORDER clause will be
+   merged into the parent query's. If an identifier in the merged ORDER clause
+   is allowed to be either an alias or an expression of the view's underlying
+   tables, resolution is difficult: it may be to be found in the underlying
+   tables of the view, or in the SELECT list of the view; unlike other ORDER
+   elements directly originating from the parent query.
+   To avoid this problem, if the view is merge-able, we print the
+   expression. This does not cause problems with only_full_group_by, because a
+   merge-able view never has GROUP BY. @see mysql_register_view().
 */
 void Item::print_for_order(String *str,
                            enum_query_type query_type,
@@ -1442,11 +1451,10 @@ bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime)
 }
 
 
-/*
-- Return NULL if argument is NULL.
-- Return zero if argument is not NULL, but we could not convert it to DATETIME.
-- Return zero if argument is not NULL and represents a valid DATETIME value,
-  but the value is out of the supported Unix timestamp range.
+/**
+   If argument is NULL, sets null_value. Otherwise:
+   if invalid DATETIME value, or a valid DATETIME value but which is out of
+   the supported Unix timestamp range, sets 'tm' to 0.
 */
 bool Item::get_timeval(struct timeval *tm, int *warnings)
 {
@@ -7302,7 +7310,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
 
         {
           Prepared_stmt_arena_holder ps_arena_holder(thd);
-          fld= new Item_field(thd, last_checked_context, from_field);
+          fld= new Item_field(thd, context, from_field);
 
           if (!fld)
             goto error;

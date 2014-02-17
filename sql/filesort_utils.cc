@@ -93,6 +93,22 @@ uchar **Filesort_buffer::alloc_sort_buffer(uint num_records, uint record_length)
   DBUG_EXECUTE_IF("alloc_sort_buffer_fail",
                   DBUG_SET("+d,simulate_out_of_memory"););
 
+  /*
+    For subqueries we try to re-use the buffer, in order to save
+    expensive malloc/free calls. Both of the sizing parameters may change:
+    - num_records due to e.g. different statistics from the engine.
+    - record_length due to different buffer usage:
+      a heap table may be flushed to myisam, which allows us to sort by
+      <key, addon fields> rather than <key, rowid>
+    If we already have a buffer, but with wrong size, we simply delete it.
+   */
+  if (!m_idx_array.is_null())
+  {
+    if (num_records != m_idx_array.size() ||
+        record_length != m_record_length)
+      free_sort_buffer();
+  }
+
   if (m_idx_array.is_null())
   {
     uchar **sort_keys=
@@ -103,11 +119,7 @@ uchar **Filesort_buffer::alloc_sort_buffer(uint num_records, uint record_length)
     uchar **start_of_data= m_idx_array.array() + m_idx_array.size();
     m_start_of_data= reinterpret_cast<uchar*>(start_of_data);
   }
-  else
-  {
-    DBUG_ASSERT(num_records == m_idx_array.size());
-    DBUG_ASSERT(record_length == m_record_length);
-  }
+
   DBUG_RETURN(m_idx_array.array());
 }
 

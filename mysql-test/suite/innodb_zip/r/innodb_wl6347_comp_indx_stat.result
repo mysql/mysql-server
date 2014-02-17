@@ -7967,5 +7967,4 @@ DROP DATABASE sb;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
 SET GLOBAL innodb_cmp_per_index_enabled=default;
-SET GLOBAL innodb_compression_level=default;
 SET GLOBAL innodb_compression_failure_threshold_pct=default;

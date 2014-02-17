@@ -28,21 +28,34 @@ Created 6/8/1994 Heikki Tuuri
 # include "mem0pool.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_DEBUG
+# define mem_heap_create_block(heap, n, type, file_name, line)		\
+	mem_heap_create_block_func(heap, n, file_name, line, type)
+# define mem_heap_create_at(N, file_name, line)				\
+	mem_heap_create_func(N, file_name, line, MEM_HEAP_DYNAMIC)
+#else /* UNIV_DEBUG */
+# define mem_heap_create_block(heap, n, type, file_name, line)		\
+	mem_heap_create_block_func(heap, n, type)
+# define mem_heap_create_at(N, file_name, line)				\
+	mem_heap_create_func(N, MEM_HEAP_DYNAMIC)
+#endif /* UNIV_DEBUG */
 /***************************************************************//**
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
 for MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
-mem_heap_create_block(
-/*==================*/
+mem_heap_create_block_func(
+/*=======================*/
 	mem_heap_t*	heap,	/*!< in: memory heap or NULL if first block
 				should be created */
 	ulint		n,	/*!< in: number of bytes needed for user data */
-	ulint		type,	/*!< in: type of heap: MEM_HEAP_DYNAMIC or
-				MEM_HEAP_BUFFER */
+#ifdef UNIV_DEBUG
 	const char*	file_name,/*!< in: file name where created */
-	ulint		line);	/*!< in: line where created */
+	ulint		line,	/*!< in: line where created */
+#endif /* UNIV_DEBUG */
+	ulint		type);	/*!< in: type of heap: MEM_HEAP_DYNAMIC or
+				MEM_HEAP_BUFFER */
 /******************************************************************//**
 Frees a block from a memory heap. */
 UNIV_INTERN
@@ -421,9 +434,11 @@ mem_heap_create_func(
 					this means that a single user buffer
 					of size n will fit in the block,
 					0 creates a default size block */
-	ulint		type,		/*!< in: heap type */
+#ifdef UNIV_DEBUG
 	const char*	file_name,	/*!< in: file name where created */
-	ulint		line)		/*!< in: line where created */
+	ulint		line,		/*!< in: line where created */
+#endif /* UNIV_DEBUG */
+	ulint		type)		/*!< in: heap type */
 {
 	mem_block_t*   block;
 
@@ -509,15 +524,17 @@ void*
 mem_alloc_func(
 /*===========*/
 	ulint		n,		/*!< in: desired number of bytes */
-	ulint*		size,		/*!< out: allocated size in bytes,
-					or NULL */
+#ifdef UNIV_DEBUG
 	const char*	file_name,	/*!< in: file name where created */
-	ulint		line)		/*!< in: line where created */
+	ulint		line,		/*!< in: line where created */
+#endif /* UNIV_DEBUG */
+	ulint*		size)		/*!< out: allocated size in bytes,
+					or NULL */
 {
 	mem_heap_t*	heap;
 	void*		buf;
 
-	heap = mem_heap_create_func(n, MEM_HEAP_DYNAMIC, file_name, line);
+	heap = mem_heap_create_at(n, file_name, line);
 
 	/* Note that as we created the first block in the heap big enough
 	for the buffer requested by the caller, the buffer will be in the

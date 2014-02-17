@@ -533,7 +533,6 @@ buf_buddy_relocate(
 {
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
-	ib_mutex_t*	mutex;
 	ulint		space;
 	ulint		offset;
 
@@ -556,13 +555,20 @@ buf_buddy_relocate(
 
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
 
-	bpage = buf_page_hash_get(buf_pool, space, offset);
+	ulint		fold = buf_page_address_fold(space, offset);
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+
+	rw_lock_x_lock(hash_lock);
+
+	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
 
 	if (!bpage || bpage->zip.data != src) {
 		/* The block has probably been freshly
 		allocated by buf_LRU_get_free_block() but not
 		added to buf_pool->page_hash yet.  Obviously,
 		it cannot be relocated. */
+
+		rw_lock_x_unlock(hash_lock);
 
 		return(false);
 	}
@@ -573,6 +579,8 @@ buf_buddy_relocate(
 		For the sake of simplicity, give up. */
 		ut_ad(page_zip_get_size(&bpage->zip) < size);
 
+		rw_lock_x_unlock(hash_lock);
+
 		return(false);
 	}
 
@@ -580,27 +588,42 @@ buf_buddy_relocate(
 	contain uninitialized data. */
 	UNIV_MEM_ASSERT_W(src, size);
 
-	mutex = buf_page_get_mutex(bpage);
+	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
-	mutex_enter(mutex);
+	mutex_enter(block_mutex);
 
 	if (buf_page_can_relocate(bpage)) {
 		/* Relocate the compressed page. */
-		ullint	usec	= ut_time_us(NULL);
+		ullint	usec = ut_time_us(NULL);
+
 		ut_a(bpage->zip.data == src);
-		memcpy(dst, src, size);
-		bpage->zip.data = (page_zip_t*) dst;
-		mutex_exit(mutex);
+
+		/* Note: This is potentially expensive, we need a better
+		solution here. We go with correctness for now. */
+		::memcpy(dst, src, size);
+
+		bpage->zip.data = reinterpret_cast<page_zip_t*>(dst);
+
+		rw_lock_x_unlock(hash_lock);
+
+		mutex_exit(block_mutex);
+
 		buf_buddy_mem_invalid(
 			reinterpret_cast<buf_buddy_free_t*>(src), i);
 
 		buf_buddy_stat_t*	buddy_stat = &buf_pool->buddy_stat[i];
-		buddy_stat->relocated++;
+
+		++buddy_stat->relocated;
+
 		buddy_stat->relocated_usec += ut_time_us(NULL) - usec;
+
 		return(true);
 	}
 
-	mutex_exit(mutex);
+	rw_lock_x_unlock(hash_lock);
+
+	mutex_exit(block_mutex);
+
 	return(false);
 }
 
