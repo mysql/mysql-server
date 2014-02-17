@@ -673,6 +673,12 @@ SELECT UPDATEXML('<a><c><a>x</a></c></a>','(a)/a','<b />');
 SELECT UPDATEXML('<a><c><a>x</a></c></a>','(a)//a','<b />');
 SELECT ExtractValue('<a><a>aa</a><b>bb</b></a>','(a)/a|(a)/b');
 
+#
+# MDEV-5689 ExtractValue(xml, 'substring(/x,/y)') crashes
+# MySQL bug#12428404 MYSQLD.EXE CRASHES WHEN EXTRACTVALUE() IS CALLED WITH MALFORMED XPATH EXP
+#
+SELECT ExtractValue('<a><b>abc</b><c>2</c><d>1</d></a>','substring(/a/b,..)');
+
 --echo #
 --echo # End of 5.5 tests
 --echo #
