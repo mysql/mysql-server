@@ -1092,7 +1092,7 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
-    if (gtid_mode <= 1)
+    if (gtid_mode <= GTID_MODE_UPGRADE_STEP_1)
       cached_group->spec.type= ANONYMOUS_GROUP;
     else
       cached_group->spec.type= GTID_GROUP;
@@ -4082,7 +4082,15 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 
   if (!is_relay_log)
   {
+    /*
+      Lock LOCK_reset_binlog before reset binlog files for preventing
+      transaction threads from acquring new automatic gtid.
+    */
     mysql_mutex_lock(&LOCK_reset_binlog);
+    /*
+      Waiting for finish of ongoing transaction threads
+      that acquired gtids.
+    */
     while (true)
     {
       global_sid_lock->wrlock();
@@ -4543,7 +4551,6 @@ err:
   @retval
     0			ok
   @retval
-    1                           failed to add purged gtid set
     LOG_INFO_EOF		to_log not found
     LOG_INFO_EMFILE             too many files opened
     LOG_INFO_FATAL              if any other than ENOENT error from
@@ -4644,19 +4651,12 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   // Update gtid_state->lost_gtids
   if (gtid_mode > 0 && !is_relay_log)
   {
-    /* Add purged gtids into GLOBAL.GTID_PURGED when purging logs. */
-    Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
-    Gtid_set *lost_gtids=
-      const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
     global_sid_lock->wrlock();
     error= init_gtid_sets(NULL,
-                          &purged_gtids_binlog,
+                          const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
                           NULL,
                           opt_master_verify_checksum,
                           false/*false=don't need lock*/);
-    if (!error &&
-        lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
-      error= 1;
     global_sid_lock->unlock();
     if (error)
       goto err;
