@@ -64,6 +64,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD
 	| Alter_inplace_info::ALTER_COLUMN_ORDER
 	| Alter_inplace_info::DROP_COLUMN
 	| Alter_inplace_info::ADD_COLUMN
+	| Alter_inplace_info::RECREATE_TABLE
 	/*
 	| Alter_inplace_info::ALTER_COLUMN_TYPE
 	*/
