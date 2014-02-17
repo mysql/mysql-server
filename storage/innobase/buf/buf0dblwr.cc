@@ -550,11 +550,10 @@ buf_dblwr_process(void)
 				   && !buf_page_is_zeroes(page, page_size)
 				   && !buf_page_is_corrupted(true, page,
 							     page_size)) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Database page"
-					" " ULINTPF ":" ULINTPF
-					" contained only zeroes.",
-					space_id, page_no);
+
+				/* Database page contained only zeroes, while
+				a valid copy is available in dblwr buffer. */
+
 			} else {
 				continue;
 			}
