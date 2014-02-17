@@ -634,7 +634,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         table->mdl_request.ticket= NULL;
 
         tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        result_code= mysql_recreate_table(thd, table);
+        result_code= mysql_recreate_table(thd, table, false);
         reenable_binlog(thd);
         /*
           mysql_recreate_table() can push OK or ERROR.
@@ -795,7 +795,7 @@ send_result_message:
       tmp_disable_binlog(thd); // binlogging is done by caller if wanted
       /* Don't forget to pre-open temporary tables. */
       result_code= (open_temporary_tables(thd, table) ||
-                    mysql_recreate_table(thd, table));
+                    mysql_recreate_table(thd, table, false));
       reenable_binlog(thd);
       /*
         mysql_recreate_table() can push OK or ERROR.
@@ -1125,7 +1125,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd)
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= (specialflag & SPECIAL_NO_NEW_FUNC) ?
-    mysql_recreate_table(thd, first_table) :
+    mysql_recreate_table(thd, first_table, true) :
     mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                       "optimize", TL_WRITE, 1, 0, 0, 0,
                       &handler::ha_optimize, 0);

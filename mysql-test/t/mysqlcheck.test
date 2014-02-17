@@ -265,10 +265,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 CHECK TABLE bug47205 FOR UPGRADE;
 
 --echo # ALTER TABLE ... FORCE should rebuild the table
---echo # and therefore output "affected rows: 1"
---enable_info
 ALTER TABLE bug47205 FORCE;
---disable_info
 
 --echo # Table should now be ok
 CHECK TABLE bug47205 FOR UPGRADE;

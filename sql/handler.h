@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1111,8 +1111,7 @@ public:
      All these operations are supported as in-place operations by the
      SQL layer. This means that operations that by their nature must
      be performed by copying the table to a temporary table, will not
-     have their own flags here (e.g. ALTER TABLE FORCE, ALTER TABLE
-     ENGINE).
+     have their own flags here.
 
      We generally try to specify handler flags only if there are real
      changes. But in cases when it is cumbersome to determine if some
@@ -1212,6 +1211,12 @@ public:
 
   // Partition operation with ALL keyword
   static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1L << 28;
+
+  /**
+    Recreate the table for ALTER TABLE FORCE, ALTER TABLE ENGINE
+    and OPTIMIZE TABLE operations.
+  */
+  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1L << 29;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
