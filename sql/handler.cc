@@ -1493,7 +1493,6 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
       error= tc_log->prepare(thd, all);
   }
-  DBUG_EXECUTE_IF("simulate_prepare_error", error= 1;);
   if (error || (error= tc_log->commit(thd, all)))
   {
     ha_rollback_trans(thd, all);

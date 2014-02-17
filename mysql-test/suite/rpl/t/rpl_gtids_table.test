@@ -102,10 +102,11 @@ SELECT * FROM mysql.gtid_executed;
 
 
 --echo # Verify that transaction's gtid is not stored into gtid table
---echo # if the transaction is rollbacked due to prepare error.
-SET SESSION debug="+d,simulate_prepare_error";
+--echo # if we encounter an error when writing gtid into table.
+SET SESSION debug="+d,simulate_err_on_write_gtid_into_table";
+--ERROR ER_GET_ERRNO
 INSERT INTO t1 values(5);
-SET SESSION debug="-d,simulate_prepare_error";
+SET SESSION debug="-d,simulate_err_on_write_gtid_into_table";
 --echo # Stored gtids MASTER_UUID:1-11 in gtid_executed table on master
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;

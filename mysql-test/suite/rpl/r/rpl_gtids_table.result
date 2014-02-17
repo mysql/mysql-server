@@ -106,10 +106,11 @@ MASTER_UUID	10	10
 MASTER_UUID	11	11
 include/assert.inc [committed gtids MASTER_UUID:1-11]
 # Verify that transaction's gtid is not stored into gtid table
-# if the transaction is rollbacked due to prepare error.
-SET SESSION debug="+d,simulate_prepare_error";
+# if we encounter an error when writing gtid into table.
+SET SESSION debug="+d,simulate_err_on_write_gtid_into_table";
 INSERT INTO t1 values(5);
-SET SESSION debug="-d,simulate_prepare_error";
+ERROR HY000: Got error -1 from storage engine
+SET SESSION debug="-d,simulate_err_on_write_gtid_into_table";
 # Stored gtids MASTER_UUID:1-11 in gtid_executed table on master
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
