@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -796,10 +796,15 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
   struct timeval tm;
-  my_socket fd= mysql_socket_getfd(vio->mysql_socket);
+  my_socket fd;
   fd_set readfds, writefds, exceptfds;
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("vio_io_wait");
+
+  fd= mysql_socket_getfd(vio->mysql_socket);
+
+  if (fd == INVALID_SOCKET)
+    DBUG_RETURN(-1);
 
   /* Convert the timeout, in milliseconds, to seconds and microseconds. */
   if (timeout >= 0)

@@ -171,7 +171,6 @@ command. Not tested on Windows. */
 #define UNIV_COMPILE_TEST_FUNCS
 */
 
-#undef UNIV_SYNC_DEBUG
 #if defined HAVE_VALGRIND
 # define UNIV_DEBUG_VALGRIND
 #endif /* HAVE_VALGRIND */
@@ -433,7 +432,7 @@ macro ULINTPF. */
 # define UINT32PF	"%I32u"
 # define INT64PF	"%I64d"
 # define UINT64PF	"%I64u"
-# define UINT64PFx	"%016I64u"
+# define UINT64PFx	"%016I64x"
 # define DBUG_LSN_PF    "%llu"
 typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;

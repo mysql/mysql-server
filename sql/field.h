@@ -3371,18 +3371,6 @@ public:
   {
     store_length(ptr, packlength, number);
   }
-
-  /**
-     Return the packed length plus the length of the data. 
-
-     This is used to determine the size of the data plus the 
-     packed length portion in the row data.
-
-     @returns The length in the row plus the size of the data.
-  */
-  uint32 get_packed_size(const uchar *ptr_arg, bool low_byte_first)
-    {return packlength + get_length(ptr_arg, packlength, low_byte_first);}
-
   inline uint32 get_length(uint row_offset= 0)
   { return get_length(ptr+row_offset, this->packlength, table->s->db_low_byte_first); }
   uint32 get_length(const uchar *ptr, uint packlength, bool low_byte_first);
@@ -3817,11 +3805,11 @@ public:
                           bool maybe_null, bool is_unsigned,
                           uint pack_length = ~0U);
 
-  bool init(THD *thd, char *field_name, enum_field_types type, char *length,
-            char *decimals, uint type_modifier, Item *default_value,
-            Item *on_update_value, LEX_STRING *comment, char *change,
-            List<String> *interval_list, const CHARSET_INFO *cs,
-            uint uint_geom_type);
+  bool init(THD *thd, const char *field_name, enum_field_types type,
+            const char *length, const char *decimals, uint type_modifier,
+            Item *default_value, Item *on_update_value, LEX_STRING *comment,
+            const char *change, List<String> *interval_list,
+            const CHARSET_INFO *cs, uint uint_geom_type);
 
   ha_storage_media field_storage_type() const
   {

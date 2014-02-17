@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -91,6 +91,7 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cursor_open_index_using_name,
 	(ib_cb_t*) &ib_cb_close_thd,
 	(ib_cb_t*) &ib_cb_get_cfg,
+	(ib_cb_t*) &ib_cb_cursor_set_memcached_sync,
 	(ib_cb_t*) &ib_cb_cursor_set_cluster_access,
 	(ib_cb_t*) &ib_cb_cursor_commit_trx,
 	(ib_cb_t*) &ib_cb_cfg_trx_level,
@@ -1964,6 +1965,11 @@ innodb_reset_conn(
 			ib_cb_trx_rollback(conn_data->crsr_trx);
 		}
 
+		/* Decrease the memcached sync counter to unblock SQL DDL.*/
+		if (conn_data->in_use) {
+			ib_cb_cursor_set_memcached_sync(ib_crsr, false);
+		}
+
 		commit_trx = true;
 		conn_data->in_use = false;
 	}
@@ -2099,6 +2105,8 @@ innodb_cb_cursor_lock(
 		err = ib_cb_cursor_set_lock(ib_crsr, ib_lck_mode);
 	}
 
+	err = ib_cb_cursor_set_memcached_sync(ib_crsr, true);
+
 	return(err);
 }
 
@@ -2220,4 +2228,3 @@ innodb_cb_get_cfg()
 {
 	return(ib_cb_get_cfg());
 }
-

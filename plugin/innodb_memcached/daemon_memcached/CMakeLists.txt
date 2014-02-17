@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,6 +30,13 @@ INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
 
+# If current CMAKE_C_FLAGS is with Werror, turn it off to compile successfully
+IF(CMAKE_C_FLAGS MATCHES "-Werror")
+  STRING(REGEX REPLACE "-Werror" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+  # Turn -Wdeclaration-after-statement off to reduce the number of warnings
+  STRING(REGEX REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+ENDIF(CMAKE_C_FLAGS MATCHES "-Werror")
+
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
 
 SET(LIBMEMCACHED_UTILITIES_SOURCES
@@ -47,7 +54,6 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
 ADD_LIBRARY(memcached_utilities STATIC ${LIBMEMCACHED_UTILITIES_SOURCES})
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/daemon")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
 
 SET(MEMCACHED_SOURCES
 		daemon/memcached_mysql.h

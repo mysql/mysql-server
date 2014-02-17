@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -223,6 +223,9 @@ public:
   {
     max_length= MAX_BLOB_WIDTH;
     collation.collation= pxml->charset();
+    // To avoid premature evaluation, mark all nodeset functions as non-const.
+    used_tables_cache= RAND_TABLE_BIT;
+    const_item_cache= false;
   }
   const char *func_name() const { return "nodeset"; }
 };

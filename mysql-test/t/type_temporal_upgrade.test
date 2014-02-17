@@ -70,14 +70,15 @@ SELECT f_timestamp, HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
 SELECT f_datetime, HEX(WEIGHT_STRING(f_datetime)) FROM t1;
 
 --echo #
---echo # This ALTER does not change old fields to new fields
---echo # Still expect old WEIGHT_STRING for the TIME and DATETIME fields
+--echo # This ALTER should change old fields to the new fields
+--echo # Expect new WEIGHT_STRING for the TIME and DATETIME fields
 --echo #
-ALTER TABLE t1 FORCE;
-INSERT INTO t1 VALUES ('22:22:22.5','2011-11-21 22:22:22.5','2011-11-21 22:22:22.5');
-SELECT f_time, HEX(WEIGHT_STRING(f_time)) FROM t1;
-SELECT f_timestamp, HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
-SELECT f_datetime, HEX(WEIGHT_STRING(f_datetime)) FROM t1;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+ALTER TABLE t2 FORCE;
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+       HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+DROP TABLE t2;
 
 --echo #
 --echo # This ALTER should change old fields to new fields

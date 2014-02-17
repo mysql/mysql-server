@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
   Published with a permission.
 */
 
+#include <my_config.h>
 #include <my_global.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,9 +61,9 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 static my_bool verbose;
 static my_bool debug;
 static my_bool just_count;
-static ulong start_page;
-static ulong end_page;
-static ulong do_page;
+static ullint start_page;
+static ullint end_page;
+static ullint do_page;
 static my_bool use_end_page;
 static my_bool do_one_page;
 ulong srv_page_size;              /* replaces declaration in srv0srv.c */
@@ -82,7 +83,7 @@ get_page_size(
 {
   ulong flags;
 
-  int bytes= fread(buf, 1, UNIV_PAGE_SIZE_MIN, f);
+  ulong bytes= ulong(fread(buf, 1, UNIV_PAGE_SIZE_MIN, f));
 
   if (ferror(f))
   {
@@ -93,7 +94,7 @@ get_page_size(
   if (bytes != UNIV_PAGE_SIZE_MIN)
   {
     fprintf(stderr, "Error; Was not able to read the minimum page size ");
-    fprintf(stderr, "of %d bytes.  Bytes read was %d\n", UNIV_PAGE_SIZE_MIN, bytes);
+    fprintf(stderr, "of %d bytes.  Bytes read was %lu\n", UNIV_PAGE_SIZE_MIN, bytes);
     return FALSE;
   }
 
@@ -112,6 +113,76 @@ get_page_size(
   return TRUE;
 }
 
+#ifdef __WIN__
+/***********************************************//*
+ @param		[in] error	error no. from the getLastError().
+
+ @retval error message corresponding to error no.
+*/
+static
+char*
+win32_error_message(
+	int	error)
+{
+	static char err_msg[1024] = {'\0'};
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+		NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)err_msg, sizeof(err_msg), NULL );
+
+	return (err_msg);
+}
+#endif /* __WIN__ */
+
+/***********************************************//*
+ @param [in] name	name of file.
+ @retval file pointer; file pointer is NULL when error occured.
+*/
+
+FILE*
+open_file(
+	const char*	name)
+{
+	int	fd;		/* file descriptor. */
+	FILE*	fil_in;
+#ifdef __WIN__
+	HANDLE		hFile;		/* handle to open file. */
+	DWORD		access;		/* define access control */
+	int		flags;		/* define the mode for file
+					descriptor */
+
+	access = GENERIC_READ;
+	flags = _O_RDONLY | _O_BINARY;
+	hFile = CreateFile(
+			(LPCTSTR) name, access, 0L, NULL,
+			OPEN_EXISTING, NULL, NULL);
+
+	if (hFile == INVALID_HANDLE_VALUE) {
+		/* print the error message. */
+		fprintf(stderr, "Filename::%s %s\n",
+			win32_error_message(GetLastError()));
+
+			return (NULL);
+		}
+
+	/* get the file descriptor. */
+	fd= _open_osfhandle((intptr_t)hFile, flags);
+#else /* __WIN__ */
+
+	int	create_flag;
+	create_flag = O_RDONLY;
+
+	fd = open(name, create_flag);
+	if ( -1 == fd) {
+		perror("open");
+		return (NULL);
+	}
+
+#endif /* __WIN__ */
+
+	fil_in = fdopen(fd, "rb");
+
+	return (fil_in);
+}
 
 /* command line argument to do page checks (that's it) */
 /* another argument to specify page ranges... seek to right spot and go from there */
@@ -131,14 +202,14 @@ static struct my_option innochecksum_options[] =
   {"count", 'c', "Print the count of pages in the file.",
     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"start_page", 's', "Start on this page number (0 based).",
-    &start_page, &start_page, 0, GET_ULONG, REQUIRED_ARG,
-    0, 0, (longlong) 2L*1024L*1024L*1024L, 0, 1, 0},
+    &start_page, &start_page, 0, GET_ULL, REQUIRED_ARG,
+    0, 0, ULONGLONG_MAX, 0, 1, 0},
   {"end_page", 'e', "End at this page number (0 based).",
-    &end_page, &end_page, 0, GET_ULONG, REQUIRED_ARG,
-    0, 0, (longlong) 2L*1024L*1024L*1024L, 0, 1, 0},
+    &end_page, &end_page, 0, GET_ULL, REQUIRED_ARG,
+    0, 0, ULONGLONG_MAX, 0, 1, 0},
   {"page", 'p', "Check only this page (0 based).",
-    &do_page, &do_page, 0, GET_ULONG, REQUIRED_ARG,
-    0, 0, (longlong) 2L*1024L*1024L*1024L, 0, 1, 0},
+    &do_page, &do_page, 0, GET_ULL, REQUIRED_ARG,
+    0, 0, ULONGLONG_MAX, 0, 1, 0},
 
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -222,12 +293,17 @@ int main(int argc, char **argv)
   time_t now;                    /* current time */
   time_t lastt;                  /* last time */
   ulint oldcsum, oldcsumfield, csum, csumfield, crc32, logseq, logseqfield;
+
                                  /* ulints for checksum storage */
-  struct stat st;                /* for stat, if you couldn't guess */
+  /* stat, to get file size. */
+#ifdef __WIN__
+  struct _stat64 st;
+#else
+  struct stat st;
+#endif
   unsigned long long int size;   /* size of file (has to be 64 bits) */
   ulint pages;                   /* number of pages in file */
   off_t offset= 0;
-  int fd;
 
   printf("InnoDB offline file checksum utility.\n");
 
@@ -250,7 +326,11 @@ int main(int argc, char **argv)
   }
 
   /* stat the file to get size and page count */
+#ifdef __WIN__
+  if (_stat64(filename, &st))
+#else
   if (stat(filename, &st))
+#endif
   {
     fprintf(stderr, "Error; %s cannot be found\n", filename);
     return 1;
@@ -258,11 +338,8 @@ int main(int argc, char **argv)
   size= st.st_size;
 
   /* Open the file for reading */
-  f= fopen(filename, "rb");
-  if (f == NULL)
-  {
-    fprintf(stderr, "Error; %s cannot be opened", filename);
-    perror(" ");
+  f= open_file(filename);
+  if (f == NULL) {
     return 1;
   }
 
@@ -291,27 +368,24 @@ int main(int argc, char **argv)
   {
     printf("file %s = %llu bytes (%lu pages)...\n", filename, size, pages);
     if (do_one_page)
-      printf("InnoChecksum; checking page %lu\n", do_page);
+      printf("InnoChecksum; checking page %llu\n", do_page);
     else
-      printf("InnoChecksum; checking pages in range %lu to %lu\n", start_page, use_end_page ? end_page : (pages - 1));
+      printf("InnoChecksum; checking pages in range %llu to %llu\n", start_page, use_end_page ? end_page : (pages - 1));
   }
 
   /* seek to the necessary position */
   if (start_page)
   {
-    fd= fileno(f);
-    if (!fd)
-    {
-      perror("Error; Unable to obtain file descriptor number");
-      return 1;
-    }
 
     offset= (off_t)start_page * (off_t)physical_page_size;
 
-    if (lseek(fd, offset, SEEK_SET) != offset)
-    {
-      perror("Error; Unable to seek to necessary offset");
-      return 1;
+#ifdef __WIN__
+	if (_fseeki64(f, offset, SEEK_SET)) {
+#else
+	if (fseeko(f, offset, SEEK_SET)) {
+#endif /* __WIN__ */
+	perror("Error; Unable to seek to necessary offset");
+	return 1;
     }
   }
 
@@ -320,7 +394,7 @@ int main(int argc, char **argv)
   lastt= 0;
   while (!feof(f))
   {
-    bytes= fread(buf, 1, physical_page_size, f);
+    bytes= ulong(fread(buf, 1, physical_page_size, f));
     if (!bytes && feof(f))
       return 0;
 

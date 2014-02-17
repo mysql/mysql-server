@@ -630,6 +630,32 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
     DBUG_RETURN(TRUE);
   }
 
+  /**
+    Checking whether it is safe to release metadata locks acquired after
+    savepoint, if rollback to savepoint is successful.
+  
+    Whether it is safe to release MDL after rollback to savepoint depends
+    on storage engines participating in transaction:
+  
+    - InnoDB doesn't release any row-locks on rollback to savepoint so it
+      is probably a bad idea to release MDL as well.
+    - Binary log implementation in some cases (e.g when non-transactional
+      tables involved) may choose not to remove events added after savepoint
+      from transactional cache, but instead will write them to binary
+      log accompanied with ROLLBACK TO SAVEPOINT statement. Since the real
+      write happens at the end of transaction releasing MDL on tables
+      mentioned in these events (i.e. acquired after savepoint and before
+      rollback ot it) can break replication, as concurrent DROP TABLES
+      statements will be able to drop these tables before events will get
+      into binary log,
+  
+    For backward-compatibility reasons we always release MDL if binary
+    logging is off.
+  */
+  bool mdl_can_safely_rollback_to_savepoint=
+                (!(mysql_bin_log.is_open() && thd->variables.sql_log_bin) ||
+                 ha_rollback_to_savepoint_can_release_mdl(thd));
+
   if (ha_rollback_to_savepoint(thd, sv))
     res= TRUE;
   else if (thd->transaction.all.cannot_safely_rollback() && !thd->slave_thread)
@@ -637,14 +663,7 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
 
   thd->transaction.savepoints= sv;
 
-  /*
-    Release metadata locks that were acquired during this savepoint unit
-    unless binlogging is on. Releasing locks with binlogging on can break
-    replication as it allows other connections to drop these tables before
-    rollback to savepoint is written to the binlog.
-  */
-  bool binlog_on= mysql_bin_log.is_open() && thd->variables.sql_log_bin;
-  if (!res && !binlog_on)
+  if (!res && mdl_can_safely_rollback_to_savepoint)
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
   DBUG_RETURN(MY_TEST(res));

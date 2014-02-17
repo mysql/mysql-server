@@ -166,11 +166,7 @@ OPTION(MYSQL_MAINTAINER_MODE
 # Whether the maintainer mode compiler options should be enabled.
 IF(MYSQL_MAINTAINER_MODE)
   IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
-    IF(WITH_INNODB_MEMCACHED)
-      SET_MYSQL_MAINTAINER_GNU_C_OPTIONS_NO_WERROR()
-    ELSE()
-      SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
-    ENDIF()
+    SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS()
@@ -330,6 +326,10 @@ OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
 OPTION(INNODB_COMPILER_HINTS "Compile InnoDB with compiler hints" ON)
 MARK_AS_ADVANCED(INNODB_COMPILER_HINTS)
 
+OPTION(INNODB_PAGE_ATOMIC_REF_COUNT "Use atomics for the page reference count"
+       ON)
+MARK_AS_ADVANCED(INNODB_PAGE_ATOMIC_REF_COUNT)
+
 # Set DBUG_OFF and other optional release-only flags for non-debug project types
 FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   FOREACH(LANG C CXX)
@@ -385,6 +385,15 @@ IF(SYSCONFDIR)
   SET(DEFAULT_SYSCONFDIR "${SYSCONFDIR}")
 ENDIF()
 
+OPTION(TMPDIR
+"PATH to MySQL TMP dir. If unspecified, defaults to P_tmpdir in <stdio.h>" OFF)
+IF(TMPDIR)
+  # Quote it, to make it a const char string.
+  SET(DEFAULT_TMPDIR "\"${TMPDIR}\"")
+ELSE()
+  # Do not quote it, to refer to the P_tmpdir macro in <stdio.h>.
+  SET(DEFAULT_TMPDIR "P_tmpdir")
+ENDIF()
 
 # Run platform tests
 INCLUDE(configure.cmake)

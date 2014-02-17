@@ -1,0 +1,32 @@
+--echo #
+--echo # Basic test for innodb_buf_flush_list_now.
+--echo #
+
+--source include/have_innodb.inc
+
+# The config variable is a debug variable for now
+-- source include/have_debug.inc
+
+SELECT @@global.innodb_buf_flush_list_now;
+
+set global innodb_buf_flush_list_now = 1;
+
+SELECT @@global.innodb_buf_flush_list_now;
+
+set global innodb_buf_flush_list_now = 0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_buf_flush_list_now = dummy;
+
+--error ER_GLOBAL_VARIABLE
+set innodb_buf_flush_list_now = ON;
+
+--echo # Setting to ON is ok.
+set global innodb_buf_flush_list_now = ON;
+
+--echo # Setting to OFF is ok.
+set global innodb_buf_flush_list_now = OFF;
+
+--echo # Must always be 0.
+SELECT @@global.innodb_buf_flush_list_now;
+
