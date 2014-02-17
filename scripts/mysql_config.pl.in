@@ -258,7 +258,7 @@ Options:
         --version        [$version]
         --libmysqld-libs [$embedded_libs]
 EOF
-  exit 1;
+  exit 0;
 }
 
 @ARGV or usage();

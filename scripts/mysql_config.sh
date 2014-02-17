@@ -176,7 +176,7 @@ Options:
                 pkglibdir     [$pkglibdir]
                 plugindir     [$plugindir]
 EOF
-        exit 1
+        exit 0
 }
 
 if test $# -le 0; then usage; fi
