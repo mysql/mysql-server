@@ -1605,21 +1605,14 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     if ((error= ha_rollback_low(thd, all)))
       goto end;
 
-  if (cache_mngr != NULL && ((!cache_mngr->stmt_cache.has_incident() &&
-       !cache_mngr->stmt_cache.is_binlog_empty()) ||
-      (ending_trans(thd, all) && trans_cannot_safely_rollback(thd))) &&
+  if (cache_mngr != NULL && !cache_mngr->stmt_cache.has_incident() &&
+      !cache_mngr->stmt_cache.is_binlog_empty() &&
       gtid_mode > GTID_MODE_UPGRADE_STEP_1 && !thd->is_operating_gtid_table)
   {
     /*
-      If the transaction is being rolled back and contains changes that
-      cannot be rolled back, the trx-cache's content is flushed.
+      Generate gtid and save it into table before transaction rollback
+      if the binlog stmt catch is not empty.
     */
-    if (ending_trans(thd, all) && trans_cannot_safely_rollback(thd))
-    {
-      Query_log_event
-        end_evt(thd, STRING_WITH_LEN("ROLLBACK"), true, false, true, 0, true);
-      error= cache_mngr->trx_cache.write_event(thd, &end_evt);
-    }
     error|= gtid_state->generate_and_save_gtid(thd);
   }
 
