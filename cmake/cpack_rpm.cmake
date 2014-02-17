@@ -30,7 +30,7 @@ SET(CPACK_COMPONENTS_ALL Server ManPagesServer IniFiles Server_Scripts
 SET(CPACK_RPM_PACKAGE_NAME "MariaDB")
 SET(CPACK_PACKAGE_FILE_NAME "${CPACK_RPM_PACKAGE_NAME}-${VERSION}-${RPM}-${CMAKE_SYSTEM_PROCESSOR}")
 
-SET(CPACK_RPM_PACKAGE_RELEASE 1) # FIX: add distribution name here
+SET(CPACK_RPM_PACKAGE_RELEASE "1%{?dist}")
 SET(CPACK_RPM_PACKAGE_LICENSE "GPL")
 SET(CPACK_RPM_PACKAGE_RELOCATABLE FALSE)
 SET(CPACK_RPM_PACKAGE_GROUP "Applications/Databases")
@@ -125,10 +125,15 @@ SET(CPACK_RPM_test_PACKAGE_PROVIDES "MySQL-test mysql-test")
 # Argh! Different distributions call packages differently, to be a drop-in replacement
 # we have to fake distribution-speficic dependencies
 MACRO(ALTERNATIVE_NAME real alt)
+  SET(ver "%{version}-%{release}")
+  IF (${ARGV2})
+    SET(ver "${ARGV2}:${ver}")
+  ENDIF()
+
   SET(p "CPACK_RPM_${real}_PACKAGE_PROVIDES")
-  SET(${p} "${${p}} ${alt} ${alt}(x86-32) ${alt}(x86-64) config(${alt})")
+  SET(${p} "${${p}} ${alt} = ${ver} ${alt}%{?_isa} = ${ver} config(${alt}) = ${ver}")
   SET(o "CPACK_RPM_${real}_PACKAGE_OBSOLETES")
-  SET(${o} "${${o}} ${alt}")
+  SET(${o} "${${o}} ${alt} ${alt}%{_isa}")
 ENDMACRO(ALTERNATIVE_NAME)
 
 IF(RPM MATCHES "(rhel|centos)5")
@@ -136,9 +141,9 @@ IF(RPM MATCHES "(rhel|centos)5")
 ELSEIF(RPM MATCHES "(rhel|centos)6")
   ALTERNATIVE_NAME("client" "mysql")
   ALTERNATIVE_NAME("shared" "mysql-libs")
-ELSEIF(RPM MATCHES "fedora")
-  ALTERNATIVE_NAME("client" "mysql")
-  ALTERNATIVE_NAME("shared" "mysql-libs")
+ELSEIF(RPM MATCHES "fedora") # epoch = 1 on fedora
+  ALTERNATIVE_NAME("client" "mysql" 1)
+  ALTERNATIVE_NAME("shared" "mysql-libs" 1)
 ENDIF()
 
 # workaround for lots of perl dependencies added by rpmbuild
