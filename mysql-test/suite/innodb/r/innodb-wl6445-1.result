@@ -1217,6 +1217,7 @@ i	LEFT(j,20)
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
 i	j
 4	mysql database
+5	mysql database innodb support
 SET GLOBAL innodb_max_purge_lag = 10;
 SET GLOBAL innodb_max_purge_lag_delay = 10;
 SET GLOBAL innodb_purge_batch_size = 600;
@@ -1247,6 +1248,7 @@ i	LEFT(j,20)
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
 i	j
 4	mysql database
+5	mysql database innodb support
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
 i	j
 5	mysql database innodb support
@@ -1264,6 +1266,7 @@ INSERT INTO t1 VALUES (4,'mysql database'),(5,'mysql database innodb support'),(
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
 i	j
 4	mysql database
+5	mysql database innodb support
 SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
 i	j
 5	mysql database innodb support

@@ -2088,8 +2088,7 @@ btr_cur_optimistic_update(
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread, or NULL if
-				appropriate flags are set */
+	que_thr_t*	thr,	/*!< in: query thread */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; if this
 				is a secondary index, the caller must
@@ -2382,8 +2381,7 @@ btr_cur_pessimistic_update(
 				the values in update vector have no effect */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread, or NULL if
-				appropriate flags are set */
+	que_thr_t*	thr,	/*!< in: query thread */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; must be
 				committed before latching any further pages */

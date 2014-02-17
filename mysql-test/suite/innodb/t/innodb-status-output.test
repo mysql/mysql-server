@@ -1,0 +1,108 @@
+--source include/have_innodb.inc
+# This restarts the server and waits a long time for output.
+--source include/big_test.inc
+# Embedded server does not support restarting.
+--source include/not_embedded.inc
+
+# Test the deprecation messages and connection to the flags.
+CREATE TABLE innodb_monitor(a SERIAL) ENGINE=InnoDB;
+SHOW VARIABLES LIKE 'innodb_status_output%';
+DROP TABLE innodb_monitor;
+SHOW VARIABLES LIKE 'innodb_status_output%';
+CREATE TABLE innodb_lock_monitor(a SERIAL) ENGINE=InnoDB;
+SHOW VARIABLES LIKE 'innodb_status_output%';
+DROP TABLE innodb_lock_monitor;
+SHOW VARIABLES LIKE 'innodb_status_output%';
+CREATE TABLE innodb_tablespace_monitor(a SERIAL) ENGINE=InnoDB;
+DROP TABLE innodb_tablespace_monitor;
+CREATE TABLE innodb_table_monitor(a SERIAL) ENGINE=InnoDB;
+DROP TABLE innodb_table_monitor;
+
+CREATE TABLE t(a SERIAL) ENGINE=InnoDB;
+INSERT INTO t VALUES(42);
+
+# Restart, writing the error log to a different file.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/innodb-status-output.err;
+
+--error 0,1
+--remove_file $SEARCH_FILE
+
+# Test that the output appears.
+--exec echo "restart: --log-error=$SEARCH_FILE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+BEGIN;
+SELECT * FROM t FOR UPDATE;
+# Enable full output.
+SET GLOBAL innodb_status_output_locks=ON;
+SET GLOBAL innodb_status_output=ON;
+SELECT SLEEP(30);
+COMMIT;
+
+# Restart, check the log output
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+
+let SEARCH_PATTERN= INNODB MONITOR OUTPUT;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= SELECT SLEEP.*\nTABLE LOCK.*\nRECORD LOCKS space id;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--exec echo "restart: --log-error=$SEARCH_FILE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+BEGIN;
+SELECT * FROM t FOR UPDATE;
+# This alone should not enable any output.
+SET GLOBAL innodb_status_output_locks=ON;
+SELECT SLEEP(30);
+COMMIT;
+
+# Restart, check the log output
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+
+# We should not see any extra output.
+let SEARCH_PATTERN= ready for connections.*\nVersion:.*\n.*Normal shutdown;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--exec echo "restart: --log-error=$SEARCH_FILE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+BEGIN;
+SELECT * FROM t FOR UPDATE;
+# Enable some output.
+SET GLOBAL innodb_status_output=ON;
+SELECT SLEEP(30);
+COMMIT;
+
+# Restart, check the log output
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+
+# We should have some extra output.
+let SEARCH_PATTERN= INNODB MONITOR OUTPUT;
+--source include/search_pattern_in_file.inc
+# No RECORD LOCKS output expected
+let SEARCH_PATTERN= SELECT SLEEP.*\n------;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+# Clean up.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+DROP TABLE t;

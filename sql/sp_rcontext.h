@@ -144,7 +144,8 @@ public:
       memcpy(sql_state, _sql_state, SQLSTATE_LENGTH);
       sql_state[SQLSTATE_LENGTH]= '\0';
 
-      strncpy(message, _message, MYSQL_ERRMSG_SIZE);
+      strncpy(message, _message, MYSQL_ERRMSG_SIZE - 1);
+      message[MYSQL_ERRMSG_SIZE - 1]= '\0';
     }
   };
 

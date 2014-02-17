@@ -374,6 +374,9 @@ compare to, new_val is the value to swap in. */
 # define os_compare_and_swap_lint(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
 
+#  define os_compare_and_swap_uint32(ptr, old_val, new_val) \
+	os_compare_and_swap(ptr, old_val, new_val)
+
 # ifdef HAVE_IB_ATOMIC_PTHREAD_T_GCC
 #  define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
@@ -395,6 +398,9 @@ amount of increment. */
 # define os_atomic_increment_lint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
+# define os_atomic_increment_uint32(ptr, amount ) \
+	os_atomic_increment(ptr, amount)
+
 # define os_atomic_increment_ulint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
@@ -406,6 +412,9 @@ amount to decrement. */
 
 # define os_atomic_decrement(ptr, amount) \
 	__sync_sub_and_fetch(ptr, amount)
+
+# define os_atomic_decrement_uint32(ptr, amount) \
+	os_atomic_decrement(ptr, amount)
 
 # define os_atomic_decrement_lint(ptr, amount) \
 	os_atomic_decrement(ptr, amount)
@@ -439,6 +448,9 @@ intrinsics and running on Solaris >= 10 use Solaris atomics */
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
 
+# define os_compare_and_swap_uint32(ptr, old_val, new_val) \
+	(atomic_cas_32(ptr, old_val, new_val) == old_val)
+
 # define os_compare_and_swap_ulint(ptr, old_val, new_val) \
 	(atomic_cas_ulong(ptr, old_val, new_val) == old_val)
 
@@ -467,6 +479,9 @@ compare to, new_val is the value to swap in. */
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
 
+# define os_atomic_increment_uint32(ptr, amount) \
+	atomic_add_32_nv(ptr, amount)
+
 # define os_atomic_increment_ulint(ptr, amount) \
 	atomic_add_long_nv(ptr, amount)
 
@@ -478,6 +493,9 @@ amount of increment. */
 
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
+
+# define os_atomic_decrement_uint32(ptr, amount) \
+	os_atomic_increment_uint32(ptr, -(amount))
 
 # define os_atomic_decrement_lint(ptr, amount) \
 	os_atomic_increment_ulint((ulong_t*) ptr, -(amount))
@@ -555,6 +573,9 @@ win_cmp_and_xchg_dword(
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
 
+# define os_compare_and_swap_uint32(ptr, old_val, new_val) \
+	(win_cmp_and_xchg_dword(ptr, new_val, old_val) == old_val)
+
 # define os_compare_and_swap_ulint(ptr, old_val, new_val) \
 	(win_cmp_and_xchg_ulint(ptr, new_val, old_val) == old_val)
 
@@ -576,6 +597,9 @@ amount of increment. */
 # define os_atomic_increment_lint(ptr, amount) \
 	(win_xchg_and_add(ptr, amount) + amount)
 
+# define os_atomic_increment_uint32(ptr, amount) \
+	((ulint) _InterlockedExchangeAdd((long*) ptr, amount))
+
 # define os_atomic_increment_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add((lint*) ptr, (lint) amount) + amount))
 
@@ -587,6 +611,9 @@ amount of increment. */
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. There is no atomic substract function on Windows */
+
+# define os_atomic_decrement_uint32(ptr, amount) \
+	((ulint) _InterlockedExchangeAdd((long*) ptr, (-amount)))
 
 # define os_atomic_decrement_lint(ptr, amount) \
 	(win_xchg_and_add(ptr, -(lint) amount) - amount)

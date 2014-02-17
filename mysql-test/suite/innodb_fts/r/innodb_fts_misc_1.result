@@ -34,6 +34,12 @@ INSERT INTO t2 (a2,b2) VALUES
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
 DELETE FROM t1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a2`) REFERENCES `t1` (`a1`) ON UPDATE CASCADE)
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial') ;
 id1
 1
@@ -44,6 +50,7 @@ id2
 3
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id1
+1
 3
 6
 2
@@ -51,6 +58,7 @@ id1
 5
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2
+1
 3
 6
 2
@@ -89,12 +97,14 @@ SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN
 id1
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2
+3
 6
 SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
 id1
 4
 2
 6
+1
 5
 3
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('+update +cascade' IN BOOLEAN MODE) ;
@@ -102,10 +112,12 @@ id2
 4
 2
 6
+1
 5
 3
 SELECT id2 FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
 id2
+1
 2
 3
 4
@@ -212,10 +224,8 @@ SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN B
 id2	a2	b2
 SELECT * FROM t1 WHERE a1 LIKE '%tutorial%';
 id1	a1	b1
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
 id2	a2	b2
-1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 DROP TABLE t2 , t1;
 DROP TABLE IF EXISTS t2,t1;
 SET NAMES utf8;
@@ -265,10 +275,12 @@ id2	a2	b2
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id1	a1	b1
 3	Optimizing MySQL	In this tutorial we will show ...
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 2	How To Use MySQL Well	After you went through a ...
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2	a2	b2
 3	Optimizing MySQL	In this tutorial we will show ...
+1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 2	How To Use MySQL Well	After you went through a ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
 id1	a1	b1
@@ -327,12 +339,14 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN B
 id1	a1	b1
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 id2	a2	b2
+3	changing column - on UPDATE cascade	In this tutorial we will show ...
 6	changing column - on UPDATE cascade	When configured properly, MySQL ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ;
 id1	a1	b1
 4	changing column - on UPDATE cascade	to check foreign constraint
 2	changing column - on UPDATE cascade	to check foreign constraint
 6	changing column - on UPDATE cascade	to check foreign constraint
+1	changing column - on UPDATE cascade	to check foreign constraint
 5	changing column - on UPDATE cascade	to check foreign constraint
 3	changing column - on UPDATE cascade	to check foreign constraint
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('+UPDATE +cascade' IN BOOLEAN MODE) ;
@@ -340,10 +354,12 @@ id2	a2	b2
 4	changing column - on UPDATE cascade	1. Never run mysqld as root. 2. ...
 2	changing column - on UPDATE cascade	After you went through a ...
 6	changing column - on UPDATE cascade	When configured properly, MySQL ...
+1	changing column - on UPDATE cascade	DBMS stands for DataBase VÐƷWİ...
 5	changing column - on UPDATE cascade	In the following database comparison ...
 3	changing column - on UPDATE cascade	In this tutorial we will show ...
 SELECT * FROM t2 WHERE a2 LIKE '%UPDATE CASCADE%';
 id2	a2	b2
+1	changing column - on UPDATE cascade	DBMS stands for DataBase VÐƷWİ...
 2	changing column - on UPDATE cascade	After you went through a ...
 3	changing column - on UPDATE cascade	In this tutorial we will show ...
 4	changing column - on UPDATE cascade	1. Never run mysqld as root. 2. ...

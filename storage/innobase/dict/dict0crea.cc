@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -269,6 +269,12 @@ dict_build_table_def_step(
 	dict_hdr_get_new_id(&table->id, NULL, NULL);
 
 	thr_get_trx(thr)->table_id = table->id;
+
+        /* Always set this bit for all new created tables */
+	DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_AUX_HEX_NAME);
+	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
+			DICT_TF2_FLAG_UNSET(table,
+					    DICT_TF2_FTS_AUX_HEX_NAME););
 
 	if (use_tablespace) {
 		/* This table will not use the system tablespace.

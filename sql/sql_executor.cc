@@ -116,6 +116,9 @@ JOIN::exec()
   if (prepare_result(&columns_list))
     DBUG_VOID_RETURN;
 
+  if (select_lex->materialized_table_count)
+    init_ftfuncs(thd, select_lex, order);
+
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
     /*

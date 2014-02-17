@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,6 +73,8 @@ static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event);
 static int binlog_close_connection(handlerton *hton, THD *thd);
 static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
+static bool binlog_savepoint_rollback_can_release_mdl(handlerton *hton,
+                                                      THD *thd);
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
@@ -881,6 +883,8 @@ static int binlog_init(void *p)
   binlog_hton->close_connection= binlog_close_connection;
   binlog_hton->savepoint_set= binlog_savepoint_set;
   binlog_hton->savepoint_rollback= binlog_savepoint_rollback;
+  binlog_hton->savepoint_rollback_can_release_mdl=
+                                     binlog_savepoint_rollback_can_release_mdl;
   binlog_hton->commit= binlog_commit;
   binlog_hton->rollback= binlog_rollback;
   binlog_hton->prepare= binlog_prepare;
@@ -1758,6 +1762,29 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (cache_mngr->trx_cache.is_binlog_empty())
     cache_mngr->trx_cache.group_cache.clear();
   DBUG_RETURN(0);
+}
+
+/**
+  Check whether binlog state allows to safely release MDL locks after
+  rollback to savepoint.
+
+  @param hton  The binlog handlerton.
+  @param thd   The client thread that executes the transaction.
+
+  @return true  - It is safe to release MDL locks.
+          false - If it is not.
+*/
+static bool binlog_savepoint_rollback_can_release_mdl(handlerton *hton,
+                                                      THD *thd)
+{
+  DBUG_ENTER("binlog_savepoint_rollback_can_release_mdl");
+  /*
+    If we have not updated any non-transactional tables rollback
+    to savepoint will simply truncate binlog cache starting from
+    SAVEPOINT command. So it should be safe to release MDL acquired
+    after SAVEPOINT command in this case.
+  */
+  DBUG_RETURN(!trans_cannot_safely_rollback(thd));
 }
 
 #ifdef HAVE_REPLICATION
@@ -4400,7 +4427,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         }
 
         DBUG_PRINT("info",("purging %s",log_info.log_file_name));
-        if (!my_delete(log_info.log_file_name, MYF(0)))
+        if (!mysql_file_delete(key_file_binlog, log_info.log_file_name, MYF(0)))
         {
           if (decrease_log_space)
             *decrease_log_space-= s.st_size;
@@ -6493,6 +6520,12 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
     if (head->transaction.flags.run_hooks &&
         head->commit_error == THD::CE_NONE)
     {
+
+      /*
+        TODO: This hook here should probably move outside/below this
+              if and be the only after_commit invocation left in the
+              code.
+      */
       excursion.try_to_attach_to(head);
       bool all= head->transaction.flags.real_commit;
       (void) RUN_HOOK(transaction, after_commit, (head, all));
@@ -6646,8 +6679,12 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
       dec_prep_xids(thd);
     /*
       If commit succeeded, we call the after_commit hook
+
+      TODO: This hook here should probably move outside/below this
+            if and be the only after_commit invocation left in the
+            code.
     */
-    if (thd->commit_error == THD::CE_NONE)
+    if ((thd->commit_error == THD::CE_NONE) && thd->transaction.flags.run_hooks)
     {
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
       thd->transaction.flags.run_hooks= false;
@@ -7286,7 +7323,56 @@ void
 THD::add_to_binlog_accessed_dbs(const char *db_param)
 {
   char *after_db;
-  MEM_ROOT *db_mem_root= &main_mem_root;
+  /*
+    binlog_accessed_db_names list is to maintain the database
+    names which are referenced in a given command.
+    Prior to bug 17806014 fix, 'main_mem_root' memory root used
+    to store this list. The 'main_mem_root' scope is till the end
+    of the query. Hence it caused increasing memory consumption
+    problem in big procedures like the ones mentioned below.
+    Eg: CALL p1() where p1 is having 1,00,000 create and drop tables.
+    'main_mem_root' is freed only at the end of the command CALL p1()'s
+    execution. But binlog_accessed_db_names list scope is only till the
+    individual statements specified the procedure(create/drop statements).
+    Hence the memory allocated in 'main_mem_root' was left uncleared
+    until the p1's completion, even though it is not required after
+    completion of individual statements.
+
+    Instead of using 'main_mem_root' whose scope is complete query execution,
+    now the memroot is changed to use 'thd->mem_root' whose scope is until the
+    individual statement in CALL p1(). 'thd->mem_root' is set to 'execute_mem_root'
+    in the context of procedure and it's scope is till the individual statement
+    in CALL p1() and thd->memroot is equal to 'main_mem_root' in the context
+    of a normal 'top level query'.
+
+    Eg: a) create table t1(i int); => If this function is called while
+           processing this statement, thd->memroot is equal to &main_mem_root
+           which will be freed immediately after executing this statement.
+        b) CALL p1() -> p1 contains create table t1(i int); => If this function
+           is called while processing create table statement which is inside
+           a stored procedure, then thd->memroot is equal to 'execute_mem_root'
+           which will be freed immediately after executing this statement.
+    In both a and b case, thd->memroot will be freed immediately and will not
+    increase memory consumption.
+
+    A special case(stored functions/triggers):
+    Consider the following example:
+    create function f1(i int) returns int
+    begin
+      insert into db1.t1 values (1);
+      insert into db2.t1 values (2);
+    end;
+    When we are processing SELECT f1(), the list should contain db1, db2 names.
+    Since thd->mem_root contains 'execute_mem_root' in the context of
+    stored function, the mem root will be freed after adding db1 in
+    the list and when we are processing the second statement and when we try
+    to add 'db2' in the db1's list, it will lead to crash as db1's memory
+    is already freed. To handle this special case, if in_sub_stmt is set
+    (which is true incase of stored functions/triggers), we use &main_mem_root,
+    if not set we will use thd->memroot which changes it's value to
+    'execute_mem_root' or '&main_mem_root' depends on the context.
+   */
+  MEM_ROOT *db_mem_root= in_sub_stmt ? &main_mem_root : mem_root;
 
   if (!binlog_accessed_db_names)
     binlog_accessed_db_names= new (db_mem_root) List<char>;
@@ -7333,7 +7419,7 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
     }
   }
   if (after_db)
-    binlog_accessed_db_names->push_back(after_db, &main_mem_root);
+    binlog_accessed_db_names->push_back(after_db, db_mem_root);
 }
 
 

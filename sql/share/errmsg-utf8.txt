@@ -7088,6 +7088,14 @@ ER_TABLE_CORRUPT
 ER_TEMP_FILE_WRITE_FAILURE
   eng "Temporary file write failure."
 
+ER_INNODB_FT_AUX_NOT_HEX_ID
+  eng "Upgrade index name failed, please use create index(alter table) algorithm copy to rebuild index."
+
+ER_OLD_TEMPORALS_UPGRADED
+  eng "TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format."
+
+ER_INNODB_FORCED_RECOVERY
+  eng "Operation not allowed when innodb_forced_recovery > 0."
 #
 #  End of 5.6 error messages.
 #

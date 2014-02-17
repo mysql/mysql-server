@@ -46,7 +46,7 @@ Smart ALTER TABLE
 #include "srv0mon.h"
 #include "fts0priv.h"
 #include "pars0pars.h"
-
+#include "row0sel.h"
 #include "ha_innodb.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
@@ -237,7 +237,9 @@ ha_innobase::check_if_supported_inplace_alter(
 			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	} else if (srv_created_new_raw || srv_force_recovery) {
-		ha_alter_info->unsupported_reason =
+
+		ha_alter_info->unsupported_reason =(srv_force_recovery)?
+			innobase_get_err_msg(ER_INNODB_FORCED_RECOVERY):
 			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
@@ -2474,15 +2476,16 @@ innobase_drop_fts_index_table(
 /** Get the new column names if any columns were renamed
 @param ha_alter_info	Data used during in-place alter
 @param altered_table	MySQL table that is being altered
+@param table		MySQL table as it is before the ALTER operation
 @param user_table	InnoDB table as it is before the ALTER operation
 @param heap		Memory heap for the allocation
 @return array of new column names in rebuilt_table, or NULL if not renamed */
 static __attribute__((nonnull, warn_unused_result))
 const char**
 innobase_get_col_names(
-/*===================*/
 	Alter_inplace_info*	ha_alter_info,
 	const TABLE*		altered_table,
+	const TABLE*		table,
 	const dict_table_t*	user_table,
 	mem_heap_t*		heap)
 {
@@ -2490,19 +2493,31 @@ innobase_get_col_names(
 	uint			i;
 
 	DBUG_ENTER("innobase_get_col_names");
-	DBUG_ASSERT(user_table->n_def > altered_table->s->fields);
+	DBUG_ASSERT(user_table->n_def > table->s->fields);
 	DBUG_ASSERT(ha_alter_info->handler_flags
 		    & Alter_inplace_info::ALTER_COLUMN_NAME);
 
 	cols = static_cast<const char**>(
-		mem_heap_alloc(heap, user_table->n_def * sizeof *cols));
+		mem_heap_zalloc(heap, user_table->n_def * sizeof *cols));
 
-	for (i = 0; i < altered_table->s->fields; i++) {
-		const Field*	field = altered_table->field[i];
-		cols[i] = field->field_name;
+	i = 0;
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+	while (const Create_field* new_field = cf_it++) {
+		DBUG_ASSERT(i < altered_table->s->fields);
+
+		for (uint old_i = 0; table->field[old_i]; old_i++) {
+			if (new_field->field == table->field[old_i]) {
+				cols[old_i] = new_field->field_name;
+				break;
+			}
+		}
+
+		i++;
 	}
 
 	/* Copy the internal column names. */
+	i = table->s->fields;
 	cols[i] = dict_table_get_col_name(user_table, i);
 
 	while (++i < user_table->n_def) {
@@ -3275,6 +3290,9 @@ ha_innobase::prepare_inplace_alter_table(
 	ulint		fts_doc_col_no		= ULINT_UNDEFINED;
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
+#ifdef _WIN32
+	bool		add_fts_idx		= false;
+#endif /* _WIN32 */
 
 	DBUG_ENTER("prepare_inplace_alter_table");
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
@@ -3419,6 +3437,9 @@ check_if_ok_to_rename:
 				      & ~(HA_FULLTEXT
 					  | HA_PACK_KEY
 					  | HA_BINARY_PACK_KEY)));
+#ifdef _WIN32
+			add_fts_idx = true;
+#endif /* _WIN32 */
 			continue;
 		}
 
@@ -3428,6 +3449,20 @@ check_if_ok_to_rename:
 			goto err_exit_no_heap;
 		}
 	}
+
+#ifdef _WIN32
+	/* We won't be allowed to add fts index to a table with
+	fts indexes already but without AUX_HEX_NAME set.
+	This means the aux tables of the table failed to
+	rename to hex format but new created aux tables
+	shall be in hex format, which is contradictory.
+	It's only for Windows. */
+	if (!DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS_AUX_HEX_NAME)
+	    && indexed_table->fts != NULL && add_fts_idx) {
+		my_error(ER_INNODB_FT_AUX_NOT_HEX_ID, MYF(0));
+		goto err_exit_no_heap;
+	}
+#endif /* _WIN32 */
 
 	/* Check existing index definitions for too-long column
 	prefixes as well, in case max_col_len shrunk. */
@@ -3462,8 +3497,8 @@ check_if_ok_to_rename:
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ALTER_COLUMN_NAME) {
 			col_names = innobase_get_col_names(
-				ha_alter_info, altered_table, indexed_table,
-				heap);
+				ha_alter_info, altered_table, table,
+				indexed_table, heap);
 		} else {
 			col_names = NULL;
 		}
@@ -4525,16 +4560,39 @@ commit_get_autoinc(
 		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
 		   && (ha_alter_info->create_info->used_fields
 		       & HA_CREATE_USED_AUTO)) {
-		/* An AUTO_INCREMENT value was supplied, but the table
-		was not rebuilt. Get the user-supplied value or the
-		last value from the sequence. */
-		ut_ad(old_table->found_next_number_field);
+		/* An AUTO_INCREMENT value was supplied, but the table was not
+		rebuilt. Get the user-supplied value or the last value from the
+		sequence. */
+		ib_uint64_t	max_value_table;
+		dberr_t		err;
+
+		Field*	autoinc_field =
+			old_table->found_next_number_field;
+
+		dict_index_t*	index = dict_table_get_index_on_first_col(
+			ctx->old_table, autoinc_field->field_index);
 
 		max_autoinc = ha_alter_info->create_info->auto_increment_value;
 
 		dict_table_autoinc_lock(ctx->old_table);
-		if (max_autoinc < ctx->old_table->autoinc) {
-			max_autoinc = ctx->old_table->autoinc;
+
+		err = row_search_max_autoinc(
+			index, autoinc_field->field_name, &max_value_table);
+
+		if (err != DB_SUCCESS) {
+			ut_ad(0);
+			max_autoinc = 0;
+		} else if (max_autoinc <= max_value_table) {
+			ulonglong	col_max_value;
+			ulonglong	offset;
+
+			col_max_value = innobase_get_int_col_max_value(
+				old_table->found_next_number_field);
+
+			offset = ctx->prebuilt->autoinc_offset;
+			max_autoinc = innobase_next_autoinc(
+				max_value_table, 1, 1, offset,
+				col_max_value);
 		}
 		dict_table_autoinc_unlock(ctx->old_table);
 	} else {

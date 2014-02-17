@@ -299,15 +299,17 @@ Creates a memory heap block where data can be allocated.
 for MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
-mem_heap_create_block(
-/*==================*/
+mem_heap_create_block_func(
+/*=======================*/
 	mem_heap_t*	heap,	/*!< in: memory heap or NULL if first block
 				should be created */
 	ulint		n,	/*!< in: number of bytes needed for user data */
-	ulint		type,	/*!< in: type of heap: MEM_HEAP_DYNAMIC or
-				MEM_HEAP_BUFFER */
+#ifdef UNIV_DEBUG
 	const char*	file_name,/*!< in: file name where created */
-	ulint		line)	/*!< in: line where created */
+	ulint		line,	/*!< in: line where created */
+#endif /* UNIV_DEBUG */
+	ulint		type)	/*!< in: type of heap: MEM_HEAP_DYNAMIC or
+				MEM_HEAP_BUFFER */
 {
 #ifndef UNIV_HOTBACKUP
 	buf_block_t*	buf_block = NULL;
@@ -368,8 +370,9 @@ mem_heap_create_block(
 #endif /* !UNIV_HOTBACKUP */
 
 	block->magic_n = MEM_BLOCK_MAGIC_N;
-	ut_strlcpy_rev(block->file_name, file_name, sizeof(block->file_name));
-	block->line = line;
+	ut_d(ut_strlcpy_rev(block->file_name, file_name,
+			    sizeof(block->file_name)));
+	ut_d(block->line = line);
 
 #ifdef MEM_PERIODIC_CHECK
 	mutex_enter(&(mem_comm_pool->mutex));

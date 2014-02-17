@@ -98,7 +98,7 @@ SET(GMOCK_DOWNLOAD_URL
 MACRO(HTTP_PROXY_HINT)
   MESSAGE(STATUS
     "If you are inside a firewall, you may need to use an http proxy: "
-    "export http_proxy=http://foo.bar.com:80")
+    "export http_proxy=http://example.com:80")
 ENDMACRO()
 
 

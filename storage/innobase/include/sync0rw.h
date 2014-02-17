@@ -181,6 +181,9 @@ unlocking, not the corresponding function. */
 # define rw_lock_s_lock_gen(M, P)				\
 	rw_lock_s_lock_func((M), (P), __FILE__, __LINE__)
 
+# define rw_lock_s_lock_gen_nowait(M, P)			\
+	rw_lock_s_lock_low((M), (P), __FILE__, __LINE__)
+
 # define rw_lock_s_lock_nowait(M, F, L)				\
 	rw_lock_s_lock_low((M), 0, (F), (L))
 
@@ -242,6 +245,9 @@ unlocking, not the corresponding function. */
 
 # define rw_lock_s_lock_gen(M, P)				\
 	pfs_rw_lock_s_lock_func((M), (P), __FILE__, __LINE__)
+
+# define rw_lock_s_lock_gen_nowait(M, P)			\
+	pfs_rw_lock_s_lock_low((M), (P), __FILE__, __LINE__)
 
 # define rw_lock_s_lock_nowait(M, F, L)				\
 	pfs_rw_lock_s_lock_low((M), 0, (F), (L))
