@@ -30,10 +30,14 @@ sub skip_combinations {
             unless $::mysqld_variables{'innodb'} eq "ON";
 
   # disable tests that use ipv6, if unsupported
-  use Socket;
-  $skip{'include/check_ipv6.inc'} = 'No IPv6'
-             unless socket SOCK, PF_INET6, SOCK_STREAM, getprotobyname('tcp');
-  close SOCK;
+  sub ipv6_ok() {
+    use Socket;
+    return 0 unless socket my $sock, PF_INET6, SOCK_STREAM, getprotobyname('tcp');
+    # eval{}, if there's no Socket::sockaddr_in6 at all, old Perl installation
+    eval { connect $sock, sockaddr_in6(7, Socket::IN6ADDR_LOOPBACK) };
+    return $! != 101;
+  }
+  $skip{'include/check_ipv6.inc'} = 'No IPv6' unless ipv6_ok();
 
   %skip;
 }
