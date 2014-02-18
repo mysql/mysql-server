@@ -111,7 +111,9 @@ exports.queueStartNdbTransaction = function(dbTransactionHandler, startTxCall) {
   }
   else {
     self.startTxQueue.push(startTxCall);   // wait in the startTx queue
-    udebug.log("startTransaction => start queue", self.startTxQueue.length);
+    if(udebug.is_debug()) {
+      udebug.log("startTransaction => start queue", self.startTxQueue.length);
+    }
   }
 };
 
@@ -121,7 +123,7 @@ exports.queueStartNdbTransaction = function(dbTransactionHandler, startTxCall) {
 exports.closeNdbTransaction = function(dbTransactionHandler, nTx) {
   var self, nextTx;
   self = dbTransactionHandler.dbSession;
-  udebug.log("closeNdbTransaction", nTx, self.openNdbTransactions);
+  if(udebug.is_debug()) udebug.log("closeNdbTransaction", nTx, self.openNdbTransactions);
   self.openNdbTransactions -= nTx;
   assert(self.openNdbTransactions >= 0);
   while(self.startTxQueue.length > 0 && 
@@ -129,7 +131,10 @@ exports.closeNdbTransaction = function(dbTransactionHandler, nTx) {
     /* move a waiting StartTxCall from the startTxQueue to the execQueue */
     nextTx = self.startTxQueue.shift();
     self.openNdbTransactions += nextTx.nTxRecords;
-    udebug.log("closeNdbTransaction: pulled 1 from startTxQueue. Length:", self.startTxQueue.length);
+    if(udebug.is_debug()) {
+      udebug.log("closeNdbTransaction: pulled 1 from startTxQueue. Length:", 
+                  self.startTxQueue.length);
+    }
     nextTx.enqueue(); 
   }
 };
@@ -190,7 +195,7 @@ NdbSession.prototype.buildReadOperation = function(dbIndexHandler, keys,
 */
 NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
                                                     tx, callback) {
-  udebug.log("buildInsertOperation " + tableHandler.dbTable.name);
+  if(udebug.is_debug()) udebug.log("buildInsertOperation " + tableHandler.dbTable.name);
   var op = ndboperation.newInsertOperation(tx, tableHandler, row);
   op.userCallback = callback;
   return op;
