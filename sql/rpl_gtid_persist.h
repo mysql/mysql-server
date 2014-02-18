@@ -250,11 +250,12 @@ private:
                 rpl_gno gno_start, rpl_gno gno_end);
   /**
     Update a gtid interval in the gtid table.
+    - locate the gtid interval by primary key (sid, gno_start)
+      to update it with the new_gno_end.
 
     @param  table        Reference to a table object.
     @param  sid          The source id of the gtid interval.
     @param  gno_star     The first GNO of the gtid interval.
-    @param  gno_end      The last GNO of the gtid interval.
     @param  new_gno_end  The new last GNO of the gtid interval.
 
     @return
@@ -262,8 +263,7 @@ private:
       @retval -1   Error.
   */
   int update_row(TABLE *table, const char *sid,
-                 rpl_gno gno_start, rpl_gno gno_end,
-                 rpl_gno new_gno_end);
+                 rpl_gno gno_start, rpl_gno new_gno_end);
   /**
     Delete all rows in the gtid_executed table.
 
