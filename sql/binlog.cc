@@ -6697,8 +6697,9 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
   DBUG_ENTER("MYSQL_BIN_LOG::prepare");
 
   int error= 0;
-  if (trans_has_updated_trans_table(thd) && ending_trans(thd, all) &&
-      gtid_mode > GTID_MODE_UPGRADE_STEP_1 && !thd->is_operating_gtid_table)
+  if (ending_trans(thd, all) && !thd->is_operating_gtid_table &&
+      trans_has_updated_trans_table(thd) &&
+      gtid_mode > GTID_MODE_UPGRADE_STEP_1)
   {
     /* Generate gtid and save it into table before transaction prepare. */
     if (gtid_state->generate_and_save_gtid(thd))
@@ -6787,7 +6788,12 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   {
     /*
       Generate gtid and save it into table before transaction commit
-      if the transaction does not need to be prepared.
+      if the transaction does not need to be prepared. For exapmle,
+      before the change, to a single stmt modifying non-transactional
+      table causes transaction commit, works fine without stmt commit.
+      After the change, the stmt causes a gtid stmt to insert gtid into
+      table, the gtid stmt causes the transaction commit, works fine
+      without stmt commit.
     */
     if (gtid_state->generate_and_save_gtid(thd))
       DBUG_RETURN(RESULT_ABORTED);
