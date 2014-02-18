@@ -1,6 +1,7 @@
 /* -*- c-basic-offset: 4; -*- */
 /*
  * Copyright (C) 2003-2005 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+ * Use is subject to license terms
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
