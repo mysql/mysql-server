@@ -1441,10 +1441,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     Save transaction's gtid into table before transaction prepare
     when binlog is disabled.
   */
-  if (!opt_bin_log && !thd->owned_gtid.is_null() &&
-      gtid_mode > GTID_MODE_UPGRADE_STEP_1 &&
-      (rw_trans || (all && thd->lex->sql_command == SQLCOM_COMMIT &&
-       thd->variables.gtid_next.type == GTID_GROUP)) &&
+  if (!opt_bin_log && all && thd->lex->sql_command == SQLCOM_COMMIT &&
+      thd->variables.gtid_next.type == GTID_GROUP &&
       !thd->is_operating_gtid_table)
   {
     error= gtid_state->save(thd);
@@ -1510,8 +1508,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     thd->m_transaction_psi= NULL;
   }
 #endif
-  if (!thd->is_operating_gtid_table)
-    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_commit_after",
+                  if (!thd->is_operating_gtid_table) DBUG_SUICIDE(););
 end:
   if (release_mdl && mdl_request.ticket)
   {

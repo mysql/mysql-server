@@ -4576,19 +4576,10 @@ int mysqld_main(int argc, char **argv)
     {
       /*
         If gtid_mode is enabled and binlog is disabled, initialize
-        executed_gtids from gtid table and lost_gtids has a same
-        gtid set with executed_gtids during server startup.
+        executed_gtids from gtid table.
       */
       if (gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
-      global_sid_lock->wrlock();
-      DBUG_ASSERT(lost_gtids->is_empty());
-      if (lost_gtids->add_gtid_set(executed_gtids) != RETURN_STATUS_OK)
-      {
-        global_sid_lock->unlock();
-        unireg_abort(1);
-      }
-      global_sid_lock->unlock();
     }
   }
 
