@@ -1438,12 +1438,11 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   }
 
   /*
-    Save transaction's gtid into table before transaction prepare
-    when binlog is disabled.
+    When binlog is disabled, save transaction's gtid into table
+    before transaction prepare if the transaction owned a gtid.
   */
-  if (!opt_bin_log && all && thd->lex->sql_command == SQLCOM_COMMIT &&
-      thd->variables.gtid_next.type == GTID_GROUP &&
-      !thd->is_operating_gtid_table)
+  if (!opt_bin_log && (all || !thd->in_multi_stmt_transaction_mode()) &&
+      !thd->owned_gtid.is_null() && !thd->is_operating_gtid_table)
   {
     error= gtid_state->save(thd);
     need_clear_owned_gtid= true;
