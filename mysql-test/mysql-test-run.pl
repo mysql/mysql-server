@@ -491,7 +491,7 @@ sub main {
     }
   }
 
-  if ( not @$completed ) {
+  if ( not $completed ) {
     mtr_error("Test suite aborted");
   }
 
