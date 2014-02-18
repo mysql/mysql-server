@@ -4844,19 +4844,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
   /*
-    InnoDB internally stores the master log position it has executed so far,
-    i.e. the position just after the COMMIT event.
-    When InnoDB will want to store, the positions in rli won't have
-    been updated yet, so group_master_log_* will point to old BEGIN
-    and event_master_log* will point to the beginning of current COMMIT.
-    But log_pos of the COMMIT Query event is what we want, i.e. the pos of the
-    END of the current log event (COMMIT). We save it in rli so that InnoDB can
-    access it.
-  */
-  const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
-  DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
-
-  /*
     todo: such cleanup should not be specific to Query event and therefore
           is preferable at a common with other event pre-execution point
   */
@@ -6641,12 +6628,9 @@ void Load_log_event::set_fields(const char* affected_db,
                                      Load_log_event::exec_event only for this
                                      function to have rli->get_rpl_log_name and
                                      rli->last_slave_error, both being used by
-                                     error reports. rli's position advancing
-                                     is skipped (done by the caller which is
-                                     Execute_load_log_event::exec_event).
-                                     If set to 0, rli is provided for full use,
-                                     i.e. for error reports and position
-                                     advancing.
+                                     error reports.  If set to 0, rli is provided
+                                     for full use, i.e. for error reports and
+                                     position advancing.
 
   @todo
     fix this; this can be done by testing rules in
@@ -6680,16 +6664,6 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   thd->lex->local_file= local_fname;
   mysql_reset_thd_for_next_command(thd);
 
-  if (!use_rli_only_for_errors)
-  {
-    /*
-      Saved for InnoDB, see comment in
-      Query_log_event::do_apply_event()
-    */
-    const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
-    DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
-  }
- 
    /*
     We test replicate_*_db rules. Note that we have already prepared
     the file to load, even if we are going to ignore and delete it
@@ -9024,14 +8998,11 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   }
   lev->thd = thd;
   /*
-    lev->do_apply_event should use rli only for errors i.e. should
-    not advance rli's position.
-
+    lev->do_apply_event should use rli only for errors.
     lev->do_apply_event is the place where the table is loaded (it
     calls mysql_load()).
   */
-  const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
-  if (lev->do_apply_event(0,rli,1)) 
+  if (lev->do_apply_event(0,rli,1))
   {
     /*
       We want to indicate the name of the file that could not be loaded

@@ -14115,7 +14115,7 @@ Make the first page of given user tablespace dirty. */
 static
 void
 innodb_make_page_dirty(
-/*=========================*/
+/*===================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
 						system variable */
@@ -14134,10 +14134,14 @@ innodb_make_page_dirty(
 		univ_page_size, RW_X_LATCH, &mtr);
 
 	if (block) {
+		byte* page = block->frame;
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Dirtying page:%lu of space:%lu",
-			srv_saved_page_number_debug, space_id);
-		fsp_header_inc_size(space_id, 0, &mtr);
+			page_get_page_no(page),
+			page_get_space_id(page));
+		mlog_write_ulint(page + FIL_PAGE_TYPE,
+				 fil_page_get_type(page),
+				 MLOG_2BYTES, &mtr);
 	}
 	mtr_commit(&mtr);
 }
