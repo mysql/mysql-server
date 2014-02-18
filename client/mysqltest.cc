@@ -521,6 +521,7 @@ struct st_command
 {
   char *query, *query_buf,*first_argument,*last_argument,*end;
   DYNAMIC_STRING content;
+  DYNAMIC_STRING eval_query;
   int first_word_len, query_len;
   my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
@@ -1392,6 +1393,8 @@ void free_used_memory()
   {
     struct st_command **q= dynamic_element(&q_lines, i, struct st_command**);
     my_free((*q)->query_buf);
+    if ((*q)->eval_query.str)
+      dynstr_free(&(*q)->eval_query);
     if ((*q)->content.str)
       dynstr_free(&(*q)->content);
     my_free((*q));
@@ -8315,7 +8318,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   DYNAMIC_STRING ds_result;
   DYNAMIC_STRING ds_sorted;
   DYNAMIC_STRING ds_warnings;
-  DYNAMIC_STRING eval_query;
   char *query;
   int query_len;
   my_bool view_created= 0, sp_created= 0;
@@ -8337,10 +8339,14 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   */
   if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
   {
-    init_dynamic_string(&eval_query, "", command->query_len+256, 1024);
-    do_eval(&eval_query, command->query, command->end, FALSE);
-    query = eval_query.str;
-    query_len = eval_query.length;
+    if (!command->eval_query.str)
+      init_dynamic_string(&command->eval_query, "", command->query_len + 256,
+                          1024);
+    else
+      dynstr_set(&command->eval_query, 0);
+    do_eval(&command->eval_query, command->query, command->end, FALSE);
+    query= command->eval_query.str;
+    query_len= command->eval_query.length;
   }
   else
   {
@@ -8498,8 +8504,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 
   dynstr_free(&ds_warnings);
   ds_warn= 0;
-  if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
-    dynstr_free(&eval_query);
 
   if (display_result_sorted)
   {
