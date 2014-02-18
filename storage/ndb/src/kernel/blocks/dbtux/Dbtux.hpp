@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,6 +73,8 @@ public:
 
   // pointer to TUP instance in this thread
   Dbtup* c_tup;
+  void execTUX_BOUND_INFO(Signal* signal);
+  void execREAD_PSEUDO_REQ(Signal* signal);
 
 private:
   // sizes are in words (Uint32)
@@ -638,7 +640,6 @@ private:
    * DbtuxScan.cpp
    */
   void execACC_SCANREQ(Signal* signal);
-  void execTUX_BOUND_INFO(Signal* signal);
   void execNEXT_SCANREQ(Signal* signal);
   void execACC_CHECK_SCAN(Signal* signal);
   void execACCKEYCONF(Signal* signal);
@@ -676,7 +677,6 @@ private:
   /*
    * DbtuxStat.cpp
    */
-  void execREAD_PSEUDO_REQ(Signal* signal);
   // one-round-trip tree-dive records in range
   void statRecordsInRange(ScanOpPtr scanPtr, Uint32* out);
   Uint32 getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir);

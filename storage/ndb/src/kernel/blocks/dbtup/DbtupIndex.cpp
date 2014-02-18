@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,6 +127,7 @@ Dbtup::tuxGetNode(Uint32 fragPtrI,
     get_ptr(pageOffset, tablePtr.p->m_offsets[MM].m_fix_header_size) + 
     attrDataOffset;
 }
+
 int
 Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
                     Uint32 fragPtrI,
@@ -156,7 +157,8 @@ Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
 
   tmpOp.m_tuple_location.m_page_no= pageId;
   tmpOp.m_tuple_location.m_page_idx= pageIndex;
-  tmpOp.op_struct.op_type = ZREAD; // valgrind
+  tmpOp.op_type = ZREAD; // valgrind
+  setup_fixed_tuple_ref(&req_struct, &tmpOp, tablePtr.p);
   setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
   Tuple_header *tuple_ptr= req_struct.m_tuple_ptr;
   if (tuple_ptr->get_tuple_version() != tupVersion)
@@ -167,7 +169,7 @@ Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
     Uint32 loopGuard= 0;
     while (opPtr.i != RNIL) {
       c_operation_pool.getPtr(opPtr);
-      if (opPtr.p->tupVersion == tupVersion) {
+      if (opPtr.p->op_struct.bit_field.tupVersion == tupVersion) {
 	jam();
 	if (!opPtr.p->m_copy_tuple_location.isNull()) {
 	  req_struct.m_tuple_ptr=
@@ -341,7 +343,8 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
     Operationrec tmpOp;
     tmpOp.m_tuple_location.m_page_no = pageId;
     tmpOp.m_tuple_location.m_page_idx = pageIndex;
-    tmpOp.op_struct.op_type = ZREAD; // valgrind
+    tmpOp.op_type = ZREAD; // valgrind
+    setup_fixed_tuple_ref(&req_struct, &tmpOp, tablePtr.p);
     setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
   }
 
@@ -375,7 +378,7 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
     else {
       // loop to first op (returns false)
       find_savepoint(loopOpPtr, 0);
-      const Uint32 op_type = loopOpPtr.p->op_struct.op_type;
+      const Uint32 op_type = loopOpPtr.p->op_type;
 
       if (op_type != ZINSERT) {
         jam();
@@ -394,12 +397,12 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
 
     if (find_savepoint(loopOpPtr, savepointId)) {
       jam();
-      const Uint32 op_type = loopOpPtr.p->op_struct.op_type;
+      const Uint32 op_type = loopOpPtr.p->op_type;
 
       if (op_type != ZDELETE) {
         jam();
         // check if this op has produced the scanned version
-        Uint32 loopVersion = loopOpPtr.p->tupVersion;
+        Uint32 loopVersion = loopOpPtr.p->op_struct.bit_field.tupVersion;
         if (loopVersion == tupVersion) {
           jam();
           res = true;
@@ -689,11 +692,12 @@ next_tuple:
        * At commit this version is removed by executeTuxCommitTriggers.
        * At abort it is preserved by executeTuxAbortTriggers.
        */
-      if (pageOperPtr.p->op_struct.op_type == ZUPDATE)
+      if (pageOperPtr.p->op_type == ZUPDATE)
       {
         jam();
         req->errorCode = RNIL;
-        req->tupVersion = decr_tup_version(pageOperPtr.p->tupVersion);
+        req->tupVersion =
+          decr_tup_version(pageOperPtr.p->op_struct.bit_field.tupVersion);
         EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,
                        signal, TuxMaintReq::SignalLength+2);
         ok = (req->errorCode == 0);
@@ -719,7 +723,7 @@ next_tuple:
         jam();
         c_operation_pool.getPtr(pageOperPtr);
         req->errorCode = RNIL;
-        req->tupVersion = pageOperPtr.p->tupVersion;
+        req->tupVersion = pageOperPtr.p->op_struct.bit_field.tupVersion;
         EXECUTE_DIRECT(buildPtr.p->m_buildRef, GSN_TUX_MAINT_REQ,
                        signal, TuxMaintReq::SignalLength+2);
         pageOperPtr.i = pageOperPtr.p->nextActiveOp;

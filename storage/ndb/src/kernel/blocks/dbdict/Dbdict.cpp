@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010-2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include <SimpleProperties.hpp>
 #include <AttributeHeader.hpp>
 #include <KeyDescriptor.hpp>
+#include <Checksum.hpp>
 #include <signaldata/DictSchemaInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/DropTabFile.hpp>
@@ -21413,10 +21414,7 @@ Dbdict::validateChecksum(const XSchemaFile * xsf){
 
 Uint32
 Dbdict::computeChecksum(const Uint32 * src, Uint32 len){
-  Uint32 ret = 0;
-  for(Uint32 i = 0; i<len; i++)
-    ret ^= src[i];
-  return ret;
+  return computeXorChecksum(src,len);
 }
 
 SchemaFile::TableEntry *
