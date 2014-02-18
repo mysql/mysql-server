@@ -2640,32 +2640,32 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
    g - mini-group representative event containing the partition info
       (any Table_map, a Query_log_event)
    p - a mini-group internal event that *p*receeding its g-parent
-      (int_, rand_, user_ var:s) 
+      (int_, rand_, user_ var:s)
    r - a mini-group internal "regular" event that follows its g-parent
       (Delete, Update, Write -rows)
    T - terminator of the group (XID, COMMIT, ROLLBACK, auto-commit query)
 
-   Only the first g-event computes the assigned Worker which once 
+   Only the first g-event computes the assigned Worker which once
    is determined remains to be for the rest of the group.
    That is the g-event solely carries partitioning info.
-   For B-event the assigned Worker is NULL to indicate Coordinator 
+   For B-event the assigned Worker is NULL to indicate Coordinator
    has not yet decided. The same applies to p-event.
-   
+
    Notice, these is a special group consisting of optionally multiple p-events
    terminating with a g-event.
    Such case is caused by old master binlog and a few corner-cases of
-   the current master version (todo: to fix). 
+   the current master version (todo: to fix).
 
    In case of the event accesses more than OVER_MAX_DBS the method
    has to ensure sure previously assigned groups to all other workers are
    done.
 
 
-   @note The function updates GAQ queue directly, updates APH hash 
+   @note The function updates GAQ queue directly, updates APH hash
          plus relocates some temporary tables from Coordinator's list into
          involved entries of APH through @c map_db_to_worker.
          There's few memory allocations commented where to be freed.
-   
+
    @return a pointer to the Worker struct or NULL.
 */
 
@@ -2673,7 +2673,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 {
   Slave_job_group group, *ptr_group= NULL;
   bool is_s_event;
-  int  num_dbs= 0;
   Slave_worker *ret_worker= NULL;
   char llbuff[22];
 #ifndef DBUG_OFF
@@ -2707,7 +2706,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
       gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
-    
+
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
       DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
                   group_relay_log_name == NULL);
@@ -2729,7 +2728,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           rli->mts_end_group_sets_max_dbs= true;
           rli->curr_group_seen_begin= true;
         }
-     
+
         if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
@@ -2755,10 +2754,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
     int i= 0;
-    num_dbs= mts_number_dbs();
-    List_iterator<char> it(*get_mts_dbs(&rli->mts_coor_mem_root));
-    it++;
+    Mts_db_names mts_dbs;
 
+    get_mts_dbs(&mts_dbs);
     /*
       Bug 12982188 - MTS: SBR ABORTS WITH ERROR 1742 ON LOAD DATA
       Logging on master can create a group with no events holding
@@ -2777,13 +2775,13 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
                  (rli->curr_group_da.elements == 2 && !rli->curr_group_seen_gtid)) &&
                  ((*(Log_event **)
                    dynamic_array_ptr(&rli->curr_group_da,
-                                     rli->curr_group_da.elements - 1))-> 
+                                     rli->curr_group_da.elements - 1))->
                   get_type_code() == BEGIN_LOAD_QUERY_EVENT)));
 
     // partioning info is found which drops the flag
     rli->mts_end_group_sets_max_dbs= false;
     ret_worker= rli->last_assigned_worker;
-    if (num_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
+    if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS)
     {
       // Worker with id 0 to handle serial execution
       if (!ret_worker)
@@ -2796,15 +2794,20 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       rli->curr_group_isolated= TRUE;
     }
 
-    do
+    /* One run of the loop in the case of over-max-db:s */
+    for (i= 0; i < ((mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS) ? mts_dbs.num : 1);
+         i++)
     {
-      char **ref_cur_db= it.ref();
-      
+      /*
+        The over max db:s case handled through passing to map_db_to_worker
+        such "all" db as encoded as  the "" empty string.
+      */
       if (!(ret_worker=
-            map_db_to_worker(*ref_cur_db, rli,
+            map_db_to_worker(mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS ?
+                             "" : mts_dbs.name[i], rli,
                              &mts_assigned_partitions[i],
                              /*
-                               todo: optimize it. Although pure 
+                               todo: optimize it. Although pure
                                rows- event load in insensetive to the flag value
                              */
                              TRUE,
@@ -2817,31 +2820,31 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         return ret_worker;
       }
       // all temporary tables are transferred from Coordinator in over-max case
-      DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
-      DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db, *ref_cur_db));
+      DBUG_ASSERT(mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
+      DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db,
+                          mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS ?
+                          mts_dbs.name[i] : ""));
       DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
       DBUG_ASSERT(mts_assigned_partitions[i]->usage >= 0);
-
-      i++;
-    } while (it++);
+    }
 
     if ((ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index))->
         worker_id == MTS_WORKER_UNDEF)
     {
       ptr_group->worker_id= ret_worker->id;
-      
+
       DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
     }
 
-    DBUG_ASSERT(i == num_dbs || num_dbs == OVER_MAX_DBS_IN_EVENT_MTS);
+    DBUG_ASSERT(i == mts_dbs.num || mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS);
   }
-  else 
+  else
   {
     // a mini-group internal "regular" event
     if (rli->last_assigned_worker)
     {
       ret_worker= rli->last_assigned_worker;
-      
+
       DBUG_ASSERT(rli->curr_group_assigned_parts.elements > 0 ||
                   ret_worker->id == 0);
     }
@@ -2857,7 +2860,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
             get_type_code() == APPEND_BLOCK_EVENT))
       {
         DBUG_ASSERT(!ret_worker);
-        
+
         llstr(rli->get_event_relay_log_pos(), llbuff);
         my_error(ER_MTS_CANT_PARALLEL, MYF(0),
                  get_type_str(), rli->get_event_relay_log_name(), llbuff,
@@ -2868,7 +2871,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       }
 
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
-      
+
       DBUG_ASSERT(!ret_worker);
       return ret_worker;
     }
@@ -2905,10 +2908,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
 
     DBUG_ASSERT(ret_worker != NULL);
-    
+
     /*
       The following two blocks are executed if the worker has not been
-      notified about new relay-log or a new checkpoints. 
+      notified about new relay-log or a new checkpoints.
       Relay-log string is freed by Coordinator, Worker deallocates
       strings in the checkpoint block.
       However if the worker exits earlier reclaiming for both happens anyway at
@@ -2952,16 +2955,22 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
     ptr_group->ts= when.tv_sec + (time_t) exec_time; // Seconds_behind_master related
     rli->checkpoint_seqno++;
-
-    // reclaiming resources allocated during the group scheduling
-    free_root(&rli->mts_coor_mem_root, MYF(MY_KEEP_PREALLOC));
+    /*
+      Coordinator should not use the main memroot however its not
+      reset elsewhere either, so let's do it safe way.
+      The main mem root is also reset by the SQL thread in at the end
+      of applying which Coordinator does not do in this case.
+      That concludes the memroot reset can't harm anything in SQL thread roles
+      after Coordinator has finished its current scheduling.
+    */
+    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
 #ifndef DBUG_OFF
     w_rr++;
 #endif
 
   }
-  
+
   return ret_worker;
 }
 
