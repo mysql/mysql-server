@@ -36,7 +36,7 @@ const LEX_STRING Gtid_table_access_context::DB_NAME= {C_STRING_WITH_LEN("mysql")
 
   @param p_thd  Pointer to pointer to thread structure
 */
-void init_thd(THD **p_thd)
+static void init_thd(THD **p_thd)
 {
   DBUG_ENTER("init_thd");
   THD *thd= *p_thd;
@@ -56,7 +56,7 @@ void init_thd(THD **p_thd)
 
   @param thd Thread requesting to be destroyed
 */
-void deinit_thd(THD *thd)
+static void deinit_thd(THD *thd)
 {
   DBUG_ENTER("deinit_thd");
   thd->release_resources();
@@ -326,8 +326,21 @@ int Gtid_table_persistor::update_row(TABLE *table, const char *sid,
   fields= table->field;
   empty_record(table);
 
-  if(fill_fields(fields, sid, gno_start, gno_end))
+  /* Store SID */
+  fields[0]->set_notnull();
+  if (fields[0]->store(sid, rpl_sid::TEXT_LENGTH, &my_charset_bin))
+  {
+    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[0]->field_name);
     DBUG_RETURN(-1);
+  }
+
+  /* Store gno_start */
+  fields[1]->set_notnull();
+  if (fields[1]->store(gno_start, true /* unsigned = true*/))
+  {
+    my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[1]->field_name);
+    DBUG_RETURN(-1);
+  }
 
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);

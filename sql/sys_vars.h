@@ -2262,8 +2262,19 @@ end:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_purged::global_value_ptr");
+    const Gtid_set *gs;
     global_sid_lock->wrlock();
-    const Gtid_set *gs= gtid_state->get_lost_gtids();
+    if (opt_bin_log)
+      gs= gtid_state->get_lost_gtids();
+    else
+      /*
+        When binlog is off, report @@GLOBAL.GTID_PURGED from
+        executed_gtids, since @@GLOBAL.GTID_PURGED and
+        @@GLOBAL.GTID_EXECUTED are always same, so we did not
+        save gtid into lost_gtids for every transaction for
+        improving performance.
+      */
+      gs= gtid_state->get_executed_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
