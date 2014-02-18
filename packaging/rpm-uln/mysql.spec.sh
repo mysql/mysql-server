@@ -638,12 +638,6 @@ install -m 0755 release/libmysqld/work/libmysqld.so.$SO_FULL ${RPM_BUILD_ROOT}%{
 ln -s libmysqld.so.$SO_FULL ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so.$SO_USE
 ln -s libmysqld.so.$SO_USE  ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so
 
-rm -f %{RPM_BUILD_ROOT}%{_mandir}/man1/mysql_convert_table_format.1*
-rm -f %{RPM_BUILD_ROOT}%{_mandir}/man1/mysql_fix_extensions.1*
-rm -f %{RPM_BUILD_ROOT}%{_mandir}/man1/mysql_setpermission.1*
-rm -f %{RPM_BUILD_ROOT}%{_mandir}/man1/msql2mysql.1*
-rm -f %{RPM_BUILD_ROOT}%{_mandir}/man1/mysql_find_rows.1*
-rm -f %{RPM_BUILD_ROOT}%{_mandir}/man1/mysqlaccess.1*
 rm -f ${RPM_BUILD_ROOT}%{_bindir}/comp_err
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/comp_err.1*
 rm -f ${RPM_BUILD_ROOT}%{_bindir}/make_win_binary_distribution
