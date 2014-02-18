@@ -111,7 +111,9 @@ SELECT * FROM mysql.gtid_executed;
 --eval SET GTID_NEXT='AUTOMATIC'
 --echo # Verify that no gtid is generated for transaction
 --echo # when binlog is disabled
+CREATE TABLE t3 (a int);
 INSERT INTO t1 values(12);
+DROP TABLE t3;
 --echo # Stored gtids MASTER_UUID:1-5:16-17 in gtid_executed table on slave.
 --replace_result $master_uuid MASTER_UUID
 --eval SELECT * FROM mysql.gtid_executed
