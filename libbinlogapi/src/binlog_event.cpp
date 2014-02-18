@@ -901,7 +901,11 @@ Xid_event(const char* buf,
                     description_event->server_version)
 {
   //buf is advanced in Binary_log_event constructor to point to beginning of post-header
-  /* The Post-Header is empty. The Variable Data part begins immediately. */
+  /*
+   We step to the post-header despite it being empty because it could later be
+   filled with something and we have to support that case.
+   The Variable Data part begins immediately.
+  */
   buf+= description_event->post_header_len[XID_EVENT - 1];
   memcpy((char*) &xid, buf, 8);
 }
@@ -918,7 +922,11 @@ Rand_event::Rand_event(const char* buf,
                     description_event->server_version)
 {
   //buf is advanced in Binary_log_event constructor to point to beginning of post-header
-  /* The Post-Header is empty. The Variable Data part begins immediately. */
+  /*
+   We step to the post-header despite it being empty because it could later be
+   filled with something and we have to support that case.
+   The Variable Data part begins immediately.
+  */
   buf+= description_event->post_header_len[RAND_EVENT - 1];
   memcpy(&seed1, buf + RAND_SEED1_OFFSET, 8);
   seed1= le64toh(seed1);
