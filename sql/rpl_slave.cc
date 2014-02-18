@@ -5301,11 +5301,6 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   rli->checkpoint_seqno= 0;
   rli->mts_last_online_stat= my_time(0);
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
-  /*
-    dyn memory to consume by Coordinator per event
-  */
-  init_alloc_root(&rli->mts_coor_mem_root, NAME_LEN,
-                  (MAX_DBS_IN_EVENT_MTS / 2) * NAME_LEN);
 
   if (init_hash_workers(n))  // MTS: mapping_db_to_worker
   {
@@ -5461,7 +5456,6 @@ end:
   delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
   rli->deinit_workers();
   rli->slave_parallel_workers= 0;
-  free_root(&rli->mts_coor_mem_root, MYF(0));
   *mts_inited= false;
 }
 
