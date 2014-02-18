@@ -34,17 +34,6 @@
 #include "pfs_program.h"
 #include "pfs_prepared_stmt.h"
 
-#ifdef MY_ATOMIC_MODE_DUMMY
-/*
-  The performance schema can can not function with MY_ATOMIC_MODE_DUMMY,
-  a fully functional implementation of MY_ATOMIC should be used instead.
-  If the build fails with this error message:
-  - either use a different ./configure --with-atomic-ops option
-  - or do not build with the performance schema.
-*/
-#error "The performance schema needs a functional MY_ATOMIC implementation."
-#endif
-
 handlerton *pfs_hton= NULL;
 
 static handler* pfs_create_handler(handlerton *hton,

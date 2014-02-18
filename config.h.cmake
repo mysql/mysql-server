@@ -283,7 +283,6 @@
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 
-#cmakedefine MY_ATOMIC_MODE_DUMMY 1
 #cmakedefine MY_ATOMIC_MODE_RWLOCKS 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
@@ -356,10 +355,6 @@
 # define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)
 #endif
-/* We don't want the min/max macros */
-#ifdef _WIN32
-#define NOMINMAX
-#endif
 
 /*
    Memcached config options
@@ -405,6 +400,7 @@
 #cmakedefine HAVE_CHARSET_euckr 1
 #cmakedefine HAVE_CHARSET_gb2312 1
 #cmakedefine HAVE_CHARSET_gbk 1
+#cmakedefine HAVE_CHARSET_gb18030 1
 #cmakedefine HAVE_CHARSET_geostd8 1
 #cmakedefine HAVE_CHARSET_greek 1
 #cmakedefine HAVE_CHARSET_hebrew 1

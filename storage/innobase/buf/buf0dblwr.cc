@@ -88,8 +88,9 @@ buf_dblwr_get(
 {
 	buf_block_t*	block;
 
-	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
-			     RW_X_LATCH, mtr);
+	block = buf_page_get(page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO),
+			     univ_page_size, RW_X_LATCH, mtr);
+
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 	return(buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE);
@@ -270,7 +271,7 @@ start_again:
 		has not been written to in doublewrite. */
 
 		ut_ad(rw_lock_get_x_lock_count(&new_block->lock) == 1);
-		page_no = buf_block_get_page_no(new_block);
+		page_no = new_block->page.id.page_no();
 
 		if (i == FSP_EXTENT_SIZE / 2) {
 			ut_a(page_no == FSP_EXTENT_SIZE);
@@ -348,22 +349,24 @@ we already have a doublewrite buffer created in the data files. If we are
 upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
 recovery, this function loads the pages from double write buffer into memory. */
+
 void
 buf_dblwr_init_or_load_pages(
-/*==========================*/
-	bool load_corrupt_pages)
+/*=========================*/
+	os_file_t	file,
+	const char*	path)
 {
-	byte*	buf;
-	byte*	read_buf;
-	byte*	unaligned_read_buf;
-	ulint	block1;
-	ulint	block2;
-	byte*	page;
-	ibool	reset_space_ids = FALSE;
-	byte*	doublewrite;
-	ulint	space_id;
-	ulint	i;
-	recv_dblwr_t& recv_dblwr = recv_sys->dblwr;
+	byte*		buf;
+	byte*		read_buf;
+	byte*		unaligned_read_buf;
+	ulint		block1;
+	ulint		block2;
+	byte*		page;
+	ibool		reset_space_ids = FALSE;
+	byte*		doublewrite;
+	ulint		space_id;
+	ulint		i;
+	recv_dblwr_t&	recv_dblwr = recv_sys->dblwr;
 
 	/* We do the file i/o past the buffer pool */
 
@@ -374,9 +377,9 @@ buf_dblwr_init_or_load_pages(
 
 	/* Read the trx sys header to check if we are using the doublewrite
 	buffer */
+        os_file_read(file, read_buf, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE,
+		     UNIV_PAGE_SIZE);
 
-	fil_io(OS_FILE_READ, true, TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, 0,
-	       UNIV_PAGE_SIZE, read_buf, NULL);
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
@@ -390,7 +393,8 @@ buf_dblwr_init_or_load_pages(
 
 		buf = buf_dblwr->write_buf;
 	} else {
-		goto leave_func;
+		ut_free(unaligned_read_buf);
+		return;
 	}
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED)
@@ -409,28 +413,26 @@ buf_dblwr_init_or_load_pages(
 	}
 
 	/* Read the pages from the doublewrite buffer to memory */
+        os_file_read(file, buf, block1 * UNIV_PAGE_SIZE,
+		     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
-	fil_io(OS_FILE_READ, true, TRX_SYS_SPACE, 0, block1, 0,
-	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-	       buf, NULL);
-	fil_io(OS_FILE_READ, true, TRX_SYS_SPACE, 0, block2, 0,
-	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-	       NULL);
+        os_file_read(file,
+		     buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
+		     block2 * UNIV_PAGE_SIZE,
+		     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
+
 	/* Check if any of these pages is half-written in data files, in the
 	intended position */
 
 	page = buf;
 
 	for (i = 0; i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 2; i++) {
-
-		ulint source_page_no;
-
 		if (reset_space_ids) {
+			ulint source_page_no;
 
 			space_id = 0;
-			mach_write_to_4(page
-					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
+			mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+					space_id);
 			/* We do not need to calculate new checksums for the
 			pages because the field .._SPACE_ID does not affect
 			them. Write the page back to where we read it from. */
@@ -442,99 +444,98 @@ buf_dblwr_init_or_load_pages(
 					+ i - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
 			}
 
-			fil_io(OS_FILE_WRITE, true, space_id, 0, source_page_no, 0,
-			       UNIV_PAGE_SIZE, page, NULL);
+			os_file_write(path, file, page,
+				      source_page_no * UNIV_PAGE_SIZE,
+				      UNIV_PAGE_SIZE);
 
-		} else if (load_corrupt_pages) {
+		} else {
 
 			recv_dblwr.add(page);
 		}
 
-		page += UNIV_PAGE_SIZE;
+		page += univ_page_size.physical();
 	}
 
-	fil_flush_file_spaces(FIL_TABLESPACE);
+	if (reset_space_ids) {
+		os_file_flush(file);
+	}
 
-leave_func:
 	ut_free(unaligned_read_buf);
 }
 
-/****************************************************************//**
-Process the double write buffer pages. */
+/** Process and remove the double write buffer pages for all tablespaces. */
+
 void
-buf_dblwr_process()
-/*===============*/
+buf_dblwr_process(void)
 {
-	ulint	space_id;
-	ulint	page_no;
-	ulint	page_no_dblwr = 0;
-	byte*	page;
-	byte*	read_buf;
-	byte*	unaligned_read_buf;
-	recv_dblwr_t& recv_dblwr = recv_sys->dblwr;
+	ulint		page_no_dblwr	= 0;
+	byte*		read_buf;
+	byte*		unaligned_read_buf;
+	recv_dblwr_t&	recv_dblwr	= recv_sys->dblwr;
 
 	unaligned_read_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 
 	read_buf = static_cast<byte*>(
 		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
 
-	for (std::list<byte*>::iterator i = recv_dblwr.pages.begin();
-	     i != recv_dblwr.pages.end(); ++i, ++page_no_dblwr ) {
+	for (recv_dblwr_t::list::iterator i = recv_dblwr.pages.begin();
+	     i != recv_dblwr.pages.end();
+	     ++i, ++page_no_dblwr) {
 
-		page = *i;
-		page_no  = mach_read_from_4(page + FIL_PAGE_OFFSET);
-		space_id = mach_read_from_4(page + FIL_PAGE_SPACE_ID);
+		const byte*	page		= *i;
+		ulint		page_no		= page_get_page_no(page);
+		ulint		space_id	= page_get_space_id(page);
 
 		if (!fil_tablespace_exists_in_mem(space_id)) {
 			/* Maybe we have dropped the single-table tablespace
 			and this page once belonged to it: do nothing */
-
 		} else if (!fil_check_adress_in_tablespace(space_id,
 							   page_no)) {
-
 			/* Do not report the warning if the tablespace is
 			truncated as it's reasonable */
 			if (!srv_is_tablespace_truncated(space_id)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"A page in the doublewrite buffer is "
-					"not within space bounds; space id %lu"
-					" page number %lu, page %lu in "
-					"doublewrite buf.", (ulong) space_id,
-					(ulong) page_no, page_no_dblwr);
+					"Page " ULINTPF
+					" in the doublewrite buffer is"
+					" not within space bounds:"
+					" page " ULINTPF ":" ULINTPF,
+					page_no_dblwr, space_id, page_no);
 			}
-
 		} else {
-			ulint	zip_size = fil_space_get_zip_size(space_id);
+			bool			found;
+			const page_size_t	page_size(
+				fil_space_get_page_size(space_id, &found));
+
+			ut_ad(found);
 
 			/* Read in the actual page from the file */
-			fil_io(OS_FILE_READ, true, space_id, zip_size,
-			       page_no, 0,
-			       zip_size ? zip_size : UNIV_PAGE_SIZE,
-			       read_buf, NULL);
+			fil_io(OS_FILE_READ, true,
+			       page_id_t(space_id, page_no), page_size,
+			       0, page_size.physical(), read_buf, NULL);
 
 			/* Check if the page is corrupt */
 
-			if (buf_page_is_corrupted(true, read_buf, zip_size)) {
-
+			if (buf_page_is_corrupted(true, read_buf, page_size)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Database page corruption or a failed"
-					" file read of space %lu page %lu."
+					" file read of"
+					" page " ULINTPF ":" ULINTPF "."
 					" Trying to recover it from the"
 					" doublewrite buffer.",
-					(ulong) space_id, (ulong) page_no);
+					space_id, page_no);
 
-				if (buf_page_is_corrupted(true,
-							  page, zip_size)) {
+				if (buf_page_is_corrupted(true, page,
+							  page_size)) {
 					ib_logf(IB_LOG_LEVEL_ERROR,
 						"Dump of the page:");
 					buf_page_print(
-						read_buf, zip_size,
+						read_buf, page_size,
 						BUF_PAGE_PRINT_NO_CRASH);
 					ib_logf(IB_LOG_LEVEL_ERROR,
 						"Dump of corresponding page"
 						" in doublewrite buffer:");
 					buf_page_print(
-						page, zip_size,
+						page, page_size,
 						BUF_PAGE_PRINT_NO_CRASH);
 
 					ib_logf(IB_LOG_LEVEL_FATAL,
@@ -545,26 +546,37 @@ buf_dblwr_process()
 						" database with"
 						" innodb_force_recovery=6");
 				}
+			} else if (buf_page_is_zeroes(read_buf, page_size)
+				   && !buf_page_is_zeroes(page, page_size)
+				   && !buf_page_is_corrupted(true, page,
+							     page_size)) {
 
-				/* Write the good page from the
-				doublewrite buffer to the intended
-				position */
+				/* Database page contained only zeroes, while
+				a valid copy is available in dblwr buffer. */
 
-				fil_io(OS_FILE_WRITE, true, space_id,
-				       zip_size, page_no, 0,
-				       zip_size ? zip_size : UNIV_PAGE_SIZE,
-				       page, NULL);
-
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Recovered the page from"
-					" the doublewrite buffer.");
+			} else {
+				continue;
 			}
+
+			/* Write the good page from the doublewrite
+			buffer to the intended position. */
+
+			fil_io(OS_FILE_WRITE, true,
+			       page_id_t(space_id, page_no), page_size,
+			       0, page_size.physical(),
+			       const_cast<byte*>(page), NULL);
+
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Recovered page " ULINTPF ":" ULINTPF
+				" from the doublewrite buffer.",
+				space_id, page_no);
 		}
 	}
 
+	recv_dblwr.pages.clear();
+
 	fil_flush_file_spaces(FIL_TABLESPACE);
 	ut_free(unaligned_read_buf);
-	recv_dblwr.pages.clear();
 }
 
 /****************************************************************//**
@@ -696,15 +708,15 @@ buf_dblwr_assert_on_corrupt_block(
 /*==============================*/
 	const buf_block_t*	block)	/*!< in: block to check */
 {
-	buf_page_print(block->frame, 0, BUF_PAGE_PRINT_NO_CRASH);
+	buf_page_print(block->frame, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
 
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Apparent corruption of an index page n:o %lu in space"
 		" %lu to be written to data file. We intentionally crash"
 		" the server to prevent corrupt data from ending up in"
 		" data files.",
-		(ulong) buf_block_get_page_no(block),
-		(ulong) buf_block_get_space(block));
+		(ulong) block->page.id.page_no(),
+		(ulong) block->page.id.space());
 }
 
 /********************************************************************//**
@@ -752,30 +764,29 @@ buf_dblwr_write_block_to_datafile(
 	ut_a(bpage);
 	ut_a(buf_page_in_file(bpage));
 
-	const ulint flags = sync
+	const ulint	flags = sync
 		? OS_FILE_WRITE
 		: OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER;
 
-	if (bpage->zip.data) {
-		fil_io(flags, sync, buf_page_get_space(bpage),
-		       buf_page_get_zip_size(bpage),
-		       buf_page_get_page_no(bpage), 0,
-		       buf_page_get_zip_size(bpage),
+	if (bpage->zip.data != NULL) {
+		ut_ad(bpage->size.is_compressed());
+
+		fil_io(flags, sync, bpage->id, bpage->size, 0,
+		       bpage->size.physical(),
 		       (void*) bpage->zip.data,
 		       (void*) bpage);
 
 		return;
 	}
 
+	ut_ad(!bpage->size.is_compressed());
 
-	const buf_block_t* block = (buf_block_t*) bpage;
+	const buf_block_t*	block = (buf_block_t*) bpage;
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	buf_dblwr_check_page_lsn(block->frame);
 
-	fil_io(flags, sync, buf_block_get_space(block), 0,
-	       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
+	fil_io(flags, sync, bpage->id, bpage->size, 0, bpage->size.physical(),
 	       (void*) block->frame, (void*) block);
-
 }
 
 /********************************************************************//**
@@ -867,9 +878,9 @@ try_again:
 	len = ut_min(TRX_SYS_DOUBLEWRITE_BLOCK_SIZE,
 		     buf_dblwr->first_free) * UNIV_PAGE_SIZE;
 
-	fil_io(OS_FILE_WRITE, true, TRX_SYS_SPACE, 0,
-	       buf_dblwr->block1, 0, len,
-	       (void*) write_buf, NULL);
+	fil_io(OS_FILE_WRITE, true,
+	       page_id_t(TRX_SYS_SPACE, buf_dblwr->block1), univ_page_size,
+	       0, len, (void*) write_buf, NULL);
 
 	if (buf_dblwr->first_free <= TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		/* No unwritten pages in the second block. */
@@ -883,9 +894,9 @@ try_again:
 	write_buf = buf_dblwr->write_buf
 		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
 
-	fil_io(OS_FILE_WRITE, true, TRX_SYS_SPACE, 0,
-	       buf_dblwr->block2, 0, len,
-	       (void*) write_buf, NULL);
+	fil_io(OS_FILE_WRITE, true,
+	       page_id_t(TRX_SYS_SPACE, buf_dblwr->block2), univ_page_size,
+	       0, len, (void*) write_buf, NULL);
 
 flush:
 	/* increment the doublewrite flushed pages counter */
@@ -933,8 +944,6 @@ buf_dblwr_add_to_batch(
 /*====================*/
 	buf_page_t*	bpage)	/*!< in: buffer block to write */
 {
-	ulint	zip_size;
-
 	ut_a(buf_page_in_file(bpage));
 
 try_again:
@@ -965,25 +974,24 @@ try_again:
 		goto try_again;
 	}
 
-	zip_size = buf_page_get_zip_size(bpage);
+	byte*	p = buf_dblwr->write_buf
+		+ univ_page_size.physical() * buf_dblwr->first_free;
 
-	if (zip_size) {
-		UNIV_MEM_ASSERT_RW(bpage->zip.data, zip_size);
+	if (bpage->size.is_compressed()) {
+		UNIV_MEM_ASSERT_RW(bpage->zip.data, bpage->size.physical());
 		/* Copy the compressed page and clear the rest. */
-		memcpy(buf_dblwr->write_buf
-		       + UNIV_PAGE_SIZE * buf_dblwr->first_free,
-		       bpage->zip.data, zip_size);
-		memset(buf_dblwr->write_buf
-		       + UNIV_PAGE_SIZE * buf_dblwr->first_free
-		       + zip_size, 0, UNIV_PAGE_SIZE - zip_size);
+
+		memcpy(p, bpage->zip.data, bpage->size.physical());
+
+		memset(p + bpage->size.physical(), 0x0,
+		       univ_page_size.physical() - bpage->size.physical());
 	} else {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
-		UNIV_MEM_ASSERT_RW(((buf_block_t*) bpage)->frame,
-				   UNIV_PAGE_SIZE);
 
-		memcpy(buf_dblwr->write_buf
-		       + UNIV_PAGE_SIZE * buf_dblwr->first_free,
-		       ((buf_block_t*) bpage)->frame, UNIV_PAGE_SIZE);
+		UNIV_MEM_ASSERT_RW(((buf_block_t*) bpage)->frame,
+				   bpage->size.logical());
+
+		memcpy(p, ((buf_block_t*) bpage)->frame, bpage->size.logical());
 	}
 
 	buf_dblwr->buf_block_arr[buf_dblwr->first_free] = bpage;
@@ -1023,7 +1031,6 @@ buf_dblwr_write_single_page(
 {
 	ulint		n_slots;
 	ulint		size;
-	ulint		zip_size;
 	ulint		offset;
 	ulint		i;
 
@@ -1104,22 +1111,26 @@ retry:
 	write it. This is so because we want to pad the remaining
 	bytes in the doublewrite page with zeros. */
 
-	zip_size = buf_page_get_zip_size(bpage);
-	if (zip_size) {
-		memcpy(buf_dblwr->write_buf + UNIV_PAGE_SIZE * i,
-		       bpage->zip.data, zip_size);
-		memset(buf_dblwr->write_buf + UNIV_PAGE_SIZE * i
-		       + zip_size, 0, UNIV_PAGE_SIZE - zip_size);
+	if (bpage->size.is_compressed()) {
+		memcpy(buf_dblwr->write_buf + univ_page_size.physical() * i,
+		       bpage->zip.data, bpage->size.physical());
 
-		fil_io(OS_FILE_WRITE, true, TRX_SYS_SPACE, 0,
-		       offset, 0, UNIV_PAGE_SIZE,
+		memset(buf_dblwr->write_buf + univ_page_size.physical() * i
+		       + bpage->size.physical(), 0x0,
+		       univ_page_size.physical() - bpage->size.physical());
+
+		fil_io(OS_FILE_WRITE, true,
+		       page_id_t(TRX_SYS_SPACE, offset), univ_page_size, 0,
+		       univ_page_size.physical(),
 		       (void*) (buf_dblwr->write_buf
-				+ UNIV_PAGE_SIZE * i), NULL);
+				+ univ_page_size.physical() * i),
+		       NULL);
 	} else {
 		/* It is a regular page. Write it directly to the
 		doublewrite buffer */
-		fil_io(OS_FILE_WRITE, true, TRX_SYS_SPACE, 0,
-		       offset, 0, UNIV_PAGE_SIZE,
+		fil_io(OS_FILE_WRITE, true,
+		       page_id_t(TRX_SYS_SPACE, offset), univ_page_size, 0,
+		       univ_page_size.physical(),
 		       (void*) ((buf_block_t*) bpage)->frame,
 		       NULL);
 	}

@@ -409,6 +409,7 @@ create_log_files(
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
 		FIL_LOG);
 	ut_a(fil_validate());
+	ut_a(log_space != NULL);
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
@@ -963,6 +964,8 @@ srv_open_tmp_tablespace(
 		return(DB_SUCCESS);
 	}
 
+	ulint	sum_of_new_sizes;
+
 	/* Will try to remove if there is existing file left-over by last
 	unclean shutdown */
 	tmp_space->set_sanity_check_status(true);
@@ -996,7 +999,8 @@ srv_open_tmp_tablespace(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not create the shared %s.", tmp_space->name());
 
-	} else if ((err = tmp_space->open_or_create()) != DB_SUCCESS) {
+	} else if ((err = tmp_space->open_or_create(
+			&sum_of_new_sizes, NULL, NULL)) != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to create the shared %s", tmp_space->name());
@@ -1006,10 +1010,11 @@ srv_open_tmp_tablespace(
 		mtr_t	mtr;
 		ulint	size = tmp_space->get_sum_of_sizes();
 
-		ut_a(tmp_space->space_id() == temp_space_id
-		     && temp_space_id != ULINT_UNDEFINED);
+		ut_a(temp_space_id != ULINT_UNDEFINED);
+		ut_a(tmp_space->space_id() == temp_space_id);
 
 		mtr_start(&mtr);
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 		fsp_header_init(tmp_space->space_id(), size, &mtr);
 
@@ -1194,6 +1199,9 @@ innobase_start_or_create_for_mysql(void)
 			(ulong) sizeof(ulint),
 			(ulong) sizeof(void*));
 	}
+
+	univ_page_size.copy_from(
+		page_size_t(srv_page_size, srv_page_size, false));
 
 #ifdef UNIV_DEBUG
 	ib_logf(IB_LOG_LEVEL_INFO, "!!!!!!!! UNIV_DEBUG switched on !!!!!!!!!");
@@ -1580,6 +1588,8 @@ innobase_start_or_create_for_mysql(void)
 	fsp_init();
 	log_init();
 
+	recv_sys_create();
+	recv_sys_init(buf_pool_get_curr_size());
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
@@ -2135,17 +2145,13 @@ files_checked:
 		log_buffer_flush_to_disk();
 	}
 
+	/* Open temp-tablespace and keep it open until shutdown. */
+
 	err = srv_open_tmp_tablespace(&srv_tmp_space);
 
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
 	}
-
-	/* Open temp-tablespace and keep it open until shutdown. */
-	fil_open_log_and_system_tablespace_files();
-
-	/* fprintf(stderr, "Max allowed record size %lu\n",
-	page_get_free_space_of_empty() / 2); */
 
 	/* Create the doublewrite buffer to a new tablespace */
 	if (buf_dblwr == NULL && !buf_dblwr_create()) {

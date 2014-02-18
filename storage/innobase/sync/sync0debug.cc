@@ -1144,12 +1144,6 @@ sync_latch_meta_init()
 		  PFS_NOT_INSTRUMENTED);
 
 	// Add the RW locks
-#ifdef UNIV_LOG_ARCHIVE
-	LATCH_ADD(SrvLatches, "archive",
-		  SYNC_NO_ORDER_CHECK,
-		  archive_lock_key);
-#endif /* UNIV_LOG_ARCHIVE */
-
 	LATCH_ADD(SrvLatches, "btr_search",
 		  SYNC_SEARCH_SYS,
 		  btr_search_latch_key);

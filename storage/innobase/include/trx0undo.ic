@@ -154,40 +154,39 @@ trx_read_roll_ptr(
 }
 
 #ifndef UNIV_HOTBACKUP
-/******************************************************************//**
-Gets an undo log page and x-latches it.
+
+/** Gets an undo log page and x-latches it.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to page x-latched */
 UNIV_INLINE
 page_t*
 trx_undo_page_get(
-/*==============*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	mtr_t*	mtr)		/*!< in: mtr */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
 {
-	buf_block_t*	block = buf_page_get(space, zip_size, page_no,
+	buf_block_t*	block = buf_page_get(page_id, page_size,
 					     RW_X_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 
 	return(buf_block_get_frame(block));
 }
 
-/******************************************************************//**
-Gets an undo log page and s-latches it.
+/** Gets an undo log page and s-latches it.
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return pointer to page s-latched */
 UNIV_INLINE
 page_t*
 trx_undo_page_get_s_latched(
-/*========================*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	mtr_t*	mtr)		/*!< in: mtr */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
 {
-	buf_block_t*	block = buf_page_get(space, zip_size, page_no,
+	buf_block_t*	block = buf_page_get(page_id, page_size,
 					     RW_S_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 

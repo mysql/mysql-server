@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -24,6 +24,7 @@ Compressed page interface
 Created June 2005 by Marko Makela
 *******************************************************/
 
+#include "page0size.h"
 #include "page0zip.h"
 #ifdef UNIV_NONINL
 # include "page0zip.ic"
@@ -1232,7 +1233,7 @@ page_zip_compress(
 						columns */
 	index_id_t		ind_id;
 #ifndef UNIV_HOTBACKUP
-	ullint			usec = ut_time_us(NULL);
+	uintmax_t		usec = ut_time_us(NULL);
 #endif /* !UNIV_HOTBACKUP */
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	FILE*			logfile = NULL;
@@ -1495,7 +1496,7 @@ err_exit:
 			dict_index_zip_failure(index);
 		}
 
-		ullint	time_diff = ut_time_us(NULL) - usec;
+		uintmax_t	time_diff = ut_time_us(NULL) - usec;
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
 			+= time_diff;
 		if (cmp_per_index_enabled) {
@@ -1565,7 +1566,7 @@ err_exit:
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-	ullint	time_diff = ut_time_us(NULL) - usec;
+	uintmax_t	time_diff = ut_time_us(NULL) - usec;
 	page_zip_stat[page_zip->ssize - 1].compressed_ok++;
 	page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
 	if (cmp_per_index_enabled) {
@@ -3187,7 +3188,7 @@ page_zip_decompress(
 				after page creation */
 {
 #ifndef UNIV_HOTBACKUP
-	ullint		usec = ut_time_us(NULL);
+	uintmax_t	usec = ut_time_us(NULL);
 #endif /* !UNIV_HOTBACKUP */
 
 	if (!page_zip_decompress_low(page_zip, page, all)) {
@@ -3195,7 +3196,7 @@ page_zip_decompress(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	ullint	time_diff = ut_time_us(NULL) - usec;
+	uintmax_t	time_diff = ut_time_us(NULL) - usec;
 	page_zip_stat[page_zip->ssize - 1].decompressed++;
 	page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
 
@@ -4945,7 +4946,7 @@ page_zip_verify_checksum(
 	ulint		size		/*!< in: size of compressed page */
 #ifdef UNIV_INNOCHECKSUM
 	/* these variables are used only for innochecksum tool. */
-	,ullint		page_no,	/*!< in: page number of
+	,uintmax_t	page_no,	/*!< in: page number of
 					given read_buf */
 	bool		strict_check,	/*!< in: true if strict-check
 					option is enable */
@@ -4975,7 +4976,7 @@ page_zip_verify_checksum(
 		}
 		if (i >= size) {
 			if (is_log_enabled) {
-				fprintf(log_file, "Page::%llu is empty and"
+				fprintf(log_file, "Page::%" PRIuMAX " is empty and"
 					" uncorrupted\n", page_no);
 			}
 
@@ -4998,12 +4999,13 @@ page_zip_verify_checksum(
 
 #ifdef UNIV_INNOCHECKSUM
 	if (is_log_enabled) {
-		fprintf(log_file, "page::%llu; %s checksum: calculated = %u;"
+		fprintf(log_file, "page::%" PRIuMAX ";"
+			" %s checksum: calculated = %u;"
 			" recorded = %u\n", page_no,
 			buf_checksum_algorithm_name(
 				static_cast<srv_checksum_algorithm_t>(
 				srv_checksum_algorithm)),
-			calc,stored);
+			calc, stored);
 	}
 
 	if (!strict_check) {
@@ -5011,10 +5013,10 @@ page_zip_verify_checksum(
 		crc32 = page_zip_calc_checksum(data, size,
 					       SRV_CHECKSUM_ALGORITHM_CRC32);
 		if (is_log_enabled) {
-			fprintf(log_file, "page::%llu: crc32 checksum:"
+			fprintf(log_file, "page::%" PRIuMAX ": crc32 checksum:"
 				" calculated = %u; recorded = %u\n",
 				page_no, crc32, stored);
-			fprintf(log_file, "page::%llu: none checksum:"
+			fprintf(log_file, "page::%" PRIuMAX ": none checksum:"
 				" calculated = %lu; recorded = %u\n",
 				page_no, BUF_NO_CHECKSUM_MAGIC, stored);
 		}
