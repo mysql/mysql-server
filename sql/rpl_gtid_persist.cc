@@ -805,16 +805,13 @@ pthread_handler_t compress_gtid_table(void *arg)
   init_thd(&thd);
   for (;;)
   {
+    mysql_mutex_lock(&LOCK_compress_gtid_table);
     if (terminate_compress_thread)
       break;
-
-    mysql_mutex_lock(&LOCK_compress_gtid_table);
     THD_ENTER_COND(thd, &COND_compress_gtid_table,
                    &LOCK_compress_gtid_table,
                    &stage_suspending, NULL);
-    mysql_mutex_assert_owner(&LOCK_compress_gtid_table);
     mysql_cond_wait(&COND_compress_gtid_table, &LOCK_compress_gtid_table);
-    mysql_mutex_assert_owner(&LOCK_compress_gtid_table);
     THD_EXIT_COND(thd, NULL);
 
     if (terminate_compress_thread)
@@ -853,7 +850,7 @@ void create_compress_gtid_table_thread()
   pthread_attr_t attr;
   int error;
   THD *thd;
-  if (!(thd=new THD))
+  if (!(thd= new THD))
   {
     sql_print_error("Failed to compress the gtid table, because "
                     "it is failed to allocate the THD.");
@@ -882,14 +879,22 @@ void terminate_compress_gtid_table_thread()
 {
   DBUG_ENTER("terminate_compress_gtid_table_thread");
   int error= 0;
+
+#ifdef _WIN32
+  HANDLE handle;
+  if (compress_thread_id != 0)
+    handle= pthread_get_handle(compress_thread_id);
+#endif
+
   terminate_compress_thread= true;
   /* Notify suspended compression thread. */
+  mysql_mutex_lock(&LOCK_compress_gtid_table);
   mysql_cond_signal(&COND_compress_gtid_table);
+  mysql_mutex_unlock(&LOCK_compress_gtid_table);
 
   if (compress_thread_id != 0)
   {
 #ifdef _WIN32
-    HANDLE handle= pthread_get_handle(compress_thread_id);
     if (handle)
       error= pthread_join_with_handle(handle);
 #else
