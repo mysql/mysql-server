@@ -532,6 +532,25 @@ SysTablespace::read_lsn_and_check_flags()
 
 			set_flags(it->m_flags);
 
+			buf_dblwr_init_or_load_pages(
+				it->handle(), it->filepath());
+
+			/* Check the contents of the first page of the
+			first datafile */
+			for (int retry = 0; retry < 2; ++retry) {
+				err = it->validate_first_page();
+				if (err != DB_SUCCESS && retry == 0) {
+					if (it->restore_from_doublewrite(0)
+					    == DB_SUCCESS) {
+						continue;
+					}
+				}
+				if (err != DB_SUCCESS) {
+					it->close();
+					return(err);
+				}
+			}
+
 			/* Make sure the tablespace space ID matches the
 			space ID on the first page of the first datafile. */
 			if (space_id() != it->m_space_id) {
@@ -545,13 +564,6 @@ SysTablespace::read_lsn_and_check_flags()
 				return(err);
 			}
 
-			/* Check the contents of the first page of the
-			first datafile */
-			err = it->validate_first_page();
-			if (err != DB_SUCCESS) {
-				it->close();
-				return(err);
-			}
 		}
 
 		it->close();
@@ -849,7 +861,7 @@ SysTablespace::open_or_create(
 		}
 	}
 
-	if (create_new_db) {
+	if (create_new_db && min_lsn != NULL && max_lsn != NULL) {
 		/* Validate the header page in the first datafile
 		and read LSNs fom the others. */
 		err = read_lsn_and_check_flags();

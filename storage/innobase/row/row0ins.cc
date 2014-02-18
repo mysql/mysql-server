@@ -3038,6 +3038,10 @@ row_ins_index_entry(
 {
 	ut_ad(thr_get_trx(thr)->id != 0);
 
+	DBUG_EXECUTE_IF("row_ins_index_entry_timeout", {
+			DBUG_SET("-d,row_ins_index_entry_timeout");
+			return(DB_LOCK_WAIT);});
+
 	if (dict_index_is_clust(index)) {
 		return(row_ins_clust_index_entry(index, entry, thr, 0));
 	} else {

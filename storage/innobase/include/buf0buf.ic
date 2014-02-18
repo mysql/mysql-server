@@ -400,19 +400,17 @@ buf_page_set_flush_type(
 	ut_ad(buf_page_get_flush_type(bpage) == flush_type);
 }
 
-/*********************************************************************//**
-Map a block to a file page. */
+/** Map a block to a file page.
+@param[in,out]	block	pointer to control block
+@param[in]	page_id	page id */
 UNIV_INLINE
 void
 buf_block_set_file_page(
-/*====================*/
-	buf_block_t*		block,	/*!< in/out: pointer to control block */
-	ulint			space,	/*!< in: tablespace id */
-	ulint			page_no)/*!< in: page number */
+	buf_block_t*		block,
+	const page_id_t&	page_id)
 {
 	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
-	block->page.space = static_cast<ib_uint32_t>(space);
-	block->page.offset = static_cast<ib_uint32_t>(page_no);
+	block->page.id.copy_from(page_id);
 }
 
 /*********************************************************************//**
@@ -694,50 +692,6 @@ ok:
 }
 #endif /* UNIV_DEBUG */
 
-/*********************************************************************//**
-Gets the space id of a block.
-@return space id */
-UNIV_INLINE
-ulint
-buf_page_get_space(
-/*===============*/
-	const buf_page_t*	bpage)	/*!< in: pointer to the control block */
-{
-	ut_ad(bpage);
-	ut_a(buf_page_in_file(bpage));
-
-	return(bpage->space);
-}
-
-/*********************************************************************//**
-Gets the space id of a block.
-@return space id */
-UNIV_INLINE
-ulint
-buf_block_get_space(
-/*================*/
-	const buf_block_t*	block)	/*!< in: pointer to the control block */
-{
-	ut_ad(block);
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-
-	return(block->page.space);
-}
-
-/*********************************************************************//**
-Gets the page number of a block.
-@return page number */
-UNIV_INLINE
-ulint
-buf_page_get_page_no(
-/*=================*/
-	const buf_page_t*	bpage)	/*!< in: pointer to the control block */
-{
-	ut_ad(bpage);
-	ut_a(buf_page_in_file(bpage));
-
-	return(bpage->offset);
-}
 /***********************************************************************
 FIXME_FTS Gets the frame the pointer is pointing to. */
 UNIV_INLINE
@@ -754,47 +708,6 @@ buf_frame_align(
         frame = (buf_frame_t*) ut_align_down(ptr, UNIV_PAGE_SIZE);
 
         return(frame);
-}
-
-/*********************************************************************//**
-Gets the page number of a block.
-@return page number */
-UNIV_INLINE
-ulint
-buf_block_get_page_no(
-/*==================*/
-	const buf_block_t*	block)	/*!< in: pointer to the control block */
-{
-	ut_ad(block);
-	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-
-	return(block->page.offset);
-}
-
-/*********************************************************************//**
-Gets the compressed page size of a block.
-@return compressed page size, or 0 */
-UNIV_INLINE
-ulint
-buf_page_get_zip_size(
-/*==================*/
-	const buf_page_t*	bpage)	/*!< in: pointer to the control block */
-{
-	return(bpage->zip.ssize
-	       ? (UNIV_ZIP_SIZE_MIN >> 1) << bpage->zip.ssize : 0);
-}
-
-/*********************************************************************//**
-Gets the compressed page size of a block.
-@return compressed page size, or 0 */
-UNIV_INLINE
-ulint
-buf_block_get_zip_size(
-/*===================*/
-	const buf_block_t*	block)	/*!< in: pointer to the control block */
-{
-	return(block->page.zip.ssize
-	       ? (UNIV_ZIP_SIZE_MIN >> 1) << block->page.zip.ssize : 0);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -924,20 +837,6 @@ buf_frame_copy(
 }
 
 #ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-Calculates a folded value of a file page address to use in the page hash
-table.
-@return the folded value */
-UNIV_INLINE
-ulint
-buf_page_address_fold(
-/*==================*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: offset of the page within space */
-{
-	return((space << 20) + space + offset);
-}
-
 /********************************************************************//**
 Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
@@ -1094,24 +993,22 @@ buf_block_buf_fix_dec(
 #endif /* UNIV_SYNC_DEBUG */
 }
 
-/******************************************************************//**
-Returns the buffer pool instance given space and offset of page
+/** Returns the buffer pool instance given a page id.
+@param[in]	page_id	page id
 @return buffer pool */
 UNIV_INLINE
 buf_pool_t*
 buf_pool_get(
-/*==========*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: offset of the page within space */
+	const page_id_t&	page_id)
 {
-	ulint	fold;
-	ulint	index;
-	ulint	ignored_offset;
+        /* 2log of BUF_READ_AHEAD_AREA (64) */
+        ulint		ignored_page_no = page_id.page_no() >> 6;
 
-	ignored_offset = offset >> 6; /* 2log of BUF_READ_AHEAD_AREA (64)*/
-	fold = buf_page_address_fold(space, ignored_offset);
-	index = fold % srv_buf_pool_instances;
-	return(&buf_pool_ptr[index]);
+        page_id_t	id(page_id.space(), ignored_page_no);
+
+        ulint		i = id.fold() % srv_buf_pool_instances;
+
+        return(&buf_pool_ptr[i]);
 }
 
 /******************************************************************//**
@@ -1129,38 +1026,33 @@ buf_pool_from_array(
 	return(&buf_pool_ptr[index]);
 }
 
-/******************************************************************//**
-Returns the control block of a file page, NULL if not found.
+/** Returns the control block of a file page, NULL if not found.
+@param[in]	buf_pool	buffer pool instance
+@param[in]	page_id		page id
 @return block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
 buf_page_hash_get_low(
-/*==================*/
-	buf_pool_t*	buf_pool,/*!< buffer pool instance */
-	ulint		space,	/*!< in: space id */
-	ulint		offset,	/*!< in: offset of the page within space */
-	ulint		fold)	/*!< in: buf_page_address_fold(space, offset) */
+	buf_pool_t*		buf_pool,
+	const page_id_t&	page_id)
 {
 	buf_page_t*	bpage;
 
 #ifdef UNIV_SYNC_DEBUG
-	ulint		hash_fold;
 	rw_lock_t*	hash_lock;
 
-	hash_fold = buf_page_address_fold(space, offset);
-	ut_ad(hash_fold == fold);
-
-	hash_lock = hash_get_lock(buf_pool->page_hash, fold);
+	hash_lock = hash_get_lock(buf_pool->page_hash, page_id.fold());
 	ut_ad(rw_lock_own(hash_lock, RW_LOCK_X)
 	      || rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Look for the page in the hash table */
 
-	HASH_SEARCH(hash, buf_pool->page_hash, fold, buf_page_t*, bpage,
+	HASH_SEARCH(hash, buf_pool->page_hash, page_id.fold(), buf_page_t*,
+		    bpage,
 		    ut_ad(bpage->in_page_hash && !bpage->in_zip_hash
 			  && buf_page_in_file(bpage)),
-		    bpage->space == space && bpage->offset == offset);
+		    page_id.equals_to(bpage->id));
 	if (bpage) {
 		ut_a(buf_page_in_file(bpage));
 		ut_ad(bpage->in_page_hash);
@@ -1177,35 +1069,29 @@ buf_page_hash_get_low(
 	return(bpage);
 }
 
-/******************************************************************//**
-Returns the control block of a file page, NULL if not found.
+/** Returns the control block of a file page, NULL if not found.
 If the block is found and lock is not NULL then the appropriate
 page_hash lock is acquired in the specified lock mode. Otherwise,
 mode value is ignored. It is up to the caller to release the
 lock. If the block is found and the lock is NULL then the page_hash
 lock is released by this function.
-@return block, NULL if not found */
+@param[in]	buf_pool	buffer pool instance
+@param[in]	page_id		page id
+@param[in,out]	lock		lock of the page hash acquired if bpage is
+found, NULL otherwise. If NULL is passed then the hash_lock is released by
+this function.
+@param[in]	lock_mode	RW_LOCK_X or RW_LOCK_S. Ignored if
+lock == NULL
+@return pointer to the bpage or NULL; if NULL, lock is also NULL. */
 UNIV_INLINE
 buf_page_t*
 buf_page_hash_get_locked(
-/*=====================*/
-					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_lock
-					is also NULL. */
-	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	ulint		space,		/*!< in: space id */
-	ulint		offset,		/*!< in: page number */
-	rw_lock_t**	lock,		/*!< in/out: lock of the page
-					hash acquired if bpage is
-					found. NULL otherwise. If NULL
-					is passed then the hash_lock
-					is released by this function */
-	ulint		lock_mode)	/*!< in: RW_LOCK_X or
-					RW_LOCK_S. Ignored if
-					lock == NULL */
+	buf_pool_t*		buf_pool,
+	const page_id_t&	page_id,
+	rw_lock_t**		lock,
+	ulint			lock_mode)
 {
 	buf_page_t*	bpage = NULL;
-	ulint		fold;
 	rw_lock_t*	hash_lock;
 	ulint		mode = RW_LOCK_S;
 
@@ -1216,8 +1102,7 @@ buf_page_hash_get_locked(
 		mode = lock_mode;
 	}
 
-	fold = buf_page_address_fold(space, offset);
-	hash_lock = hash_get_lock(buf_pool->page_hash, fold);
+	hash_lock = hash_get_lock(buf_pool->page_hash, page_id.fold());
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X)
@@ -1230,7 +1115,7 @@ buf_page_hash_get_locked(
 		rw_lock_x_lock(hash_lock);
 	}
 
-	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
+	bpage = buf_page_hash_get_low(buf_pool, page_id);
 
 	if (!bpage || buf_pool_watch_is_sentinel(buf_pool, bpage)) {
 		bpage = NULL;
@@ -1238,8 +1123,7 @@ buf_page_hash_get_locked(
 	}
 
 	ut_ad(buf_page_in_file(bpage));
-	ut_ad(offset == bpage->offset);
-	ut_ad(space == bpage->space);
+	ut_ad(page_id.equals_to(bpage->id));
 
 	if (lock == NULL) {
 		/* The caller wants us to release the page_hash lock */
@@ -1260,36 +1144,30 @@ exit:
 	return(bpage);
 }
 
-/******************************************************************//**
-Returns the control block of a file page, NULL if not found.
+/** Returns the control block of a file page, NULL if not found.
 If the block is found and lock is not NULL then the appropriate
 page_hash lock is acquired in the specified lock mode. Otherwise,
 mode value is ignored. It is up to the caller to release the
 lock. If the block is found and the lock is NULL then the page_hash
 lock is released by this function.
-@return block, NULL if not found */
+@param[in]	buf_pool	buffer pool instance
+@param[in]	page_id		page id
+@param[in,out]	lock		lock of the page hash acquired if bpage is
+found, NULL otherwise. If NULL is passed then the hash_lock is released by
+this function.
+@param[in]	lock_mode	RW_LOCK_X or RW_LOCK_S. Ignored if
+lock == NULL
+@return pointer to the block or NULL; if NULL, lock is also NULL. */
 UNIV_INLINE
 buf_block_t*
 buf_block_hash_get_locked(
-/*=====================*/
-					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_lock
-					is also NULL. */
-	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	ulint		space,		/*!< in: space id */
-	ulint		offset,		/*!< in: page number */
-	rw_lock_t**	lock,		/*!< in/out: lock of the page
-					hash acquired if bpage is
-					found. NULL otherwise. If NULL
-					is passed then the hash_lock
-					is released by this function */
-	ulint		lock_mode)	/*!< in: RW_LOCK_X or
-					RW_LOCK_S. Ignored if
-					lock == NULL */
+	buf_pool_t*		buf_pool,
+	const page_id_t&	page_id,
+	rw_lock_t**		lock,
+	ulint			lock_mode)
 {
 	buf_page_t*	bpage = buf_page_hash_get_locked(buf_pool,
-							 space,
-							 offset,
+							 page_id,
 							 lock,
 							 lock_mode);
 	buf_block_t*	block = buf_page_get_block(bpage);
@@ -1320,23 +1198,19 @@ buf_block_hash_get_locked(
 	return(NULL);
 }
 
-/********************************************************************//**
-Returns TRUE if the page can be found in the buffer pool hash table.
-
+/** Returns TRUE if the page can be found in the buffer pool hash table.
 NOTE that it is possible that the page is not yet read from disk,
 though.
-
+@param[in]	page_id	page id
 @return TRUE if found in the page hash table */
 UNIV_INLINE
 ibool
 buf_page_peek(
-/*==========*/
-	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: page number */
+	const page_id_t&	page_id)
 {
-	buf_pool_t*		buf_pool = buf_pool_get(space, offset);
+	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 
-	return(buf_page_hash_get(buf_pool, space, offset) != NULL);
+	return(buf_page_hash_get(buf_pool, page_id) != NULL);
 }
 
 /********************************************************************//**

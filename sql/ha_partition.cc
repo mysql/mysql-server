@@ -6986,6 +6986,12 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   HA_EXTRA_IS_ATTACHED_CHILDREN:
   HA_EXTRA_DETACH_CHILDREN:
     Special actions for MERGE tables. Ignore.
+
+  10) Operations only used by InnoDB
+  ----------------------------------
+  HA_EXTRA_EXPORT:
+    Prepare table for export
+    (e.g. quiesce the table and write table metadata).
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -7126,6 +7132,9 @@ int ha_partition::extra(enum ha_extra_function operation)
   */
   case HA_EXTRA_MARK_AS_LOG_TABLE:
     DBUG_RETURN(ER_UNSUPORTED_LOG_ENGINE);
+    /* Category 10), used by InnoDB handlers */
+  case HA_EXTRA_EXPORT:
+    DBUG_RETURN(loop_extra(operation));
   default:
   {
     /* Temporary crash to discover what is wrong */

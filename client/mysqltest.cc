@@ -6317,7 +6317,25 @@ int read_line(char *buf, int size)
     {
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
-      uint charlen= my_mbcharlen(charset_info, (unsigned char) c);
+      uint charlen;
+      if (my_mbmaxlenlen(charset_info) == 1)
+        charlen= my_mbcharlen(charset_info, (unsigned char) c);
+      else
+      {
+        if (!(charlen= my_mbcharlen(charset_info, (unsigned char) c)))
+        {
+          char c1= my_getc(cur_file->file);
+          if (c1 == EOF)
+          {
+            *p++= c;
+            goto found_eof;
+          }
+
+          charlen= my_mbcharlen_2(charset_info, (unsigned char) c,
+                                  (unsigned char) c1);
+          my_ungetc(c1);
+        }
+      }
       if(charlen == 0)
         DBUG_RETURN(1);
       /* We give up if multibyte character is started but not */
@@ -6901,7 +6919,7 @@ int parse_args(int argc, char **argv)
   if (argc == 1)
     opt_db= *argv;
   if (tty_password)
-    opt_pass= get_tty_password(NullS);          /* purify tested */
+    opt_pass= get_tty_password(NullS);
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
