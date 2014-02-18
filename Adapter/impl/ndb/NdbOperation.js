@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -151,7 +151,7 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
         }
         err = adapter.impl.encoderWrite(metadata[i], value, buffer, offset);
         if(err) { 
-          udebug.log("encoderWrite:", err);
+          if(udebug.is_debug()) udebug.log("encoderWrite:", err);
           errors[metadata[i].name] = err;
         }
       }
@@ -531,8 +531,9 @@ function getScanResults(scanop, userCallback) {
     if(scanop.params.skip > 0)   { nSkip = scanop.params.skip;           }
     if(scanop.params.limit >= 0) { maxRow = nSkip + scanop.params.limit; }
   }
-  udebug.log("skip", nSkip, "+ limit", scanop.params.limit, "=", maxRow);
-
+  if(udebug.is_debug()) {
+    udebug.log("skip", nSkip, "+ limit", scanop.params.limit, "=", maxRow);
+  }
   if(ResultConstructor == null) {
     storeNativeConstructorInMapping(scanop.tableHandler);
     ResultConstructor = scanop.tableHandler.ValueObject;
@@ -568,7 +569,7 @@ function getScanResults(scanop, userCallback) {
     }
 
     if(status < 0) { // error
-      udebug.log("scan gather() error", status, error);
+      if(udebug.is_debug()) udebug.log("scan gather() error", status, error);
       postScanCallback.arg0 = error;
       return postScanCallback;
     }
@@ -667,7 +668,7 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
     } 
   }
   stats.incr( [ "result_code", result_code ] );
-  udebug.log_detail("buildOperationResult finished:", op.result);
+  if(udebug.is_detail()) udebug.log("buildOperationResult finished:", op.result);
 }
 
 function completeExecutedOps(dbTxHandler, execMode, operations) {
@@ -677,8 +678,8 @@ function completeExecutedOps(dbTxHandler, execMode, operations) {
         "pendingOperationSet" : pendingOpsSet
       };
   */
-  udebug.log("completeExecutedOps mode:", execMode,
-             "operations: ", operations.operationList.length);
+  if(udebug.is_debug()) udebug.log("completeExecutedOps mode:", execMode,
+                        "operations: ", operations.operationList.length);
   var n, op, op_err;
   for(n = 0 ; n < operations.operationList.length ; n++) {
     op = operations.operationList[n];

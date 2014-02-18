@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -104,7 +104,7 @@ SessionFactory.prototype.close = function(user_callback) {
   }
     
   function closeConnection() {
-    udebug.log_detail('closeConnection calling mynode.delete_callback for key', self.key,
+    if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('closeConnection calling mynode.delete_callback for key', self.key,
         'database', self.properties.database);
     self.delete_callback(self.key, self.properties.database, closeOnConnectionClose);
   }

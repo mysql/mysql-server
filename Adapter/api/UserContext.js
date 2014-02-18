@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -56,9 +56,9 @@ function emptyRejectedCallback(err) {
 var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rejected_callback, new_promise, result) {
   var new_result;
   try {
-    udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected before');
+    if(udebug.is_detail()) udebug.log(original_promise.name, 'thenPromiseFulfilledOrRejected before');
     new_result = fulfilled_or_rejected_callback.call(undefined, result);
-    udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected after', new_result);
+    if(udebug.is_detail()) udebug.log(original_promise.name, 'thenPromiseFulfilledOrRejected after', new_result);
     var new_result_type = typeof new_result;
     if ((new_result_type === 'object' && new_result_type != null) | new_result_type === 'function') { 
       // 2.3.3 if result is an object or function
@@ -87,14 +87,14 @@ var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rej
           then.call(new_result,
             // 2.3.3.3.1 If/when resolvePromise is called with a value y, run [[Resolve]](promise, y).
             function(result) {
-            udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected deferred fulfill callback', new_result);
+            if(udebug.is_detail()) udebug.log(original_promise.name, 'thenPromiseFulfilledOrRejected deferred fulfill callback', new_result);
               if (!new_promise.resolved) {
                 new_promise.fulfill(result);
               }
             },
             // 2.3.3.3.2 If/when rejectPromise is called with a reason r, reject promise with r.
             function(err) {
-              udebug.log_detail(original_promise.name, 'thenPromiseFulfilledOrRejected deferred reject callback', new_result);
+              if(udebug.is_detail()) udebug.log(original_promise.name, 'thenPromiseFulfilledOrRejected deferred reject callback', new_result);
               if (!new_promise.resolved) {
                 new_promise.reject(err);
               }
@@ -126,7 +126,7 @@ var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rej
 
 Promise.prototype.then = function(fulfilled_callback, rejected_callback, progress_callback) {
   var self = this;
-  if (!self) udebug.log_detail('Promise.then called with no this');
+  if (!self) udebug.log('Promise.then called with no this');
   // create a new promise to return from the "then" method
   var new_promise = new Promise();
   if (typeof self.fulfilled_callbacks === 'undefined') {
@@ -136,19 +136,19 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
   }
   if (self.resolved) {
     var resolved_result;
-    udebug.log_detail(this.name, 'UserContext.Promise.then resolved; err:', self.err);
+    if(udebug.is_detail()) udebug.log(this.name, 'UserContext.Promise.then resolved; err:', self.err);
     if (self.err) {
       // this promise was already rejected
-      udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling (delayed) rejected_callback', rejected_callback);
+      if(udebug.is_detail()) udebug.log(self.name, 'UserContext.Promise.then resolved calling (delayed) rejected_callback', rejected_callback);
       global.setImmediate(function() {
-        udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling rejected_callback', fulfilled_callback);
+        if(udebug.is_detail()) udebug.log(self.name, 'UserContext.Promise.then resolved calling rejected_callback', fulfilled_callback);
         thenPromiseFulfilledOrRejected(self, rejected_callback, new_promise, self.err);
       });
     } else {
       // this promise was already fulfilled, possibly with a null or undefined result
-      udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling (delayed) fulfilled_callback', fulfilled_callback);
+      if(udebug.is_detail()) udebug.log(self.name, 'UserContext.Promise.then resolved calling (delayed) fulfilled_callback', fulfilled_callback);
       global.setImmediate(function() {
-        udebug.log_detail(self.name, 'UserContext.Promise.then resolved calling fulfilled_callback', fulfilled_callback);
+        if(udebug.is_detail()) udebug.log(self.name, 'UserContext.Promise.then resolved calling fulfilled_callback', fulfilled_callback);
         thenPromiseFulfilledOrRejected(self, fulfilled_callback, new_promise, self.result);
       });
     }
@@ -157,7 +157,7 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
   // create a closure for each fulfilled_callback
   // the closure is a function that when called, calls setImmediate to call the fulfilled_callback with the result
   if (typeof fulfilled_callback === 'function') {
-    udebug.log_detail(self.name, 'UserContext.Promise.then with fulfilled_callback', fulfilled_callback);
+    if(udebug.is_detail()) udebug.log(self.name, 'UserContext.Promise.then with fulfilled_callback', fulfilled_callback);
     // the following function closes (this, fulfilled_callback, new_promise)
     // and is called asynchronously when this promise is fulfilled
     this.fulfilled_callbacks.push(function(result) {
@@ -166,7 +166,7 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
       });
     });
   } else {
-    udebug.log_detail(self.name, 'UserContext.Promise.then with no fulfilled_callback');
+    if(udebug.is_detail()) udebug.log(self.name, 'UserContext.Promise.then with no fulfilled_callback');
     // create a dummy function for a missing fulfilled callback per 2.2.7.3 
     // If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value.
     this.fulfilled_callbacks.push(function(result) {
@@ -179,14 +179,14 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
   // create a closure for each rejected_callback
   // the closure is a function that when called, calls setImmediate to call the rejected_callback with the error
   if (typeof rejected_callback === 'function') {
-    udebug.log_detail(self.name, 'UserContext.Promise.then with rejected_callback', rejected_callback);
+    if(udebug.is_detail()) udebug.log(self.name, 'UserContext.Promise.then with rejected_callback', rejected_callback);
     this.rejected_callbacks.push(function(err) {
       global.setImmediate(function() {
         thenPromiseFulfilledOrRejected(self, rejected_callback, new_promise, err);
       });
     });
   } else {
-    udebug.log_detail(self.name, 'UserContext.Promise.then with no rejected_callback');
+    if(udebug.is_detail()) udebug.log(self.name, 'UserContext.Promise.then with no rejected_callback');
     // create a dummy function for a missing rejected callback per 2.2.7.4 
     // If onRejected is not a function and promise1 is rejected, promise2 must be rejected with the same reason.
     this.rejected_callbacks.push(function(err) {
@@ -211,7 +211,7 @@ Promise.prototype.fulfill = function(result) {
   if (this.resolved) {
     throw new Error('Fatal User Exception: fulfill called after fulfill or reject');
   }
-  udebug.log_detail(name, 'Promise.fulfill with result', result, 'fulfilled_callbacks length:', 
+  if(udebug.is_detail()) udebug.log(name, 'Promise.fulfill with result', result, 'fulfilled_callbacks length:', 
       this.fulfilled_callbacks?  this.fulfilled_callbacks.length: 0);
   this.resolved = true;
   this.result = result;
@@ -219,7 +219,7 @@ Promise.prototype.fulfill = function(result) {
   if (this.fulfilled_callbacks) {
     while(this.fulfilled_callbacks.length > 0) {
       fulfilled_callback = this.fulfilled_callbacks.shift();
-      udebug.log_detail('Promise.fulfill for', result);
+      if(udebug.is_detail()) udebug.log('Promise.fulfill for', result);
       fulfilled_callback(result);
     }
   }
@@ -230,7 +230,7 @@ Promise.prototype.reject = function(err) {
     throw new Error('Fatal User Exception: reject called after fulfill or reject');
   }
   var name = this?this.name: 'no this';
-  udebug.log_detail(name, 'Promise.reject with err', err, 'rejected_callbacks length:', 
+  if(udebug.is_detail()) udebug.log(name, 'Promise.reject with err', err, 'rejected_callbacks length:', 
       this.rejected_callbacks?  this.rejected_callbacks.length: 0);
   this.resolved = true;
   this.err = err;
@@ -238,7 +238,7 @@ Promise.prototype.reject = function(err) {
   if (this.rejected_callbacks) {
     while(this.rejected_callbacks.length > 0) {
       rejected_callback = this.rejected_callbacks.shift();
-      udebug.log_detail('Promise.reject for', err);
+      if(udebug.is_detail()) udebug.log('Promise.reject for', err);
       rejected_callback(err);
     }
   }
@@ -381,7 +381,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
       var onTableMetadata = function(err, tableMetadata) {
         var tableHandler;
         var tableKey = tableHandlerFactory.tableSpecification.qualifiedTableName;
-        udebug.log_detail('TableHandlerFactory.onTableMetadata for ',
+        if(udebug.is_detail()) udebug.log('TableHandlerFactory.onTableMetadata for ',
             tableHandlerFactory.tableSpecification.qualifiedTableName + ' with err: ' + err);
         if (err) {
           tableHandlerFactory.onTableHandler(err, null);
@@ -395,14 +395,14 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
           if (tableHandlerFactory.mapping === null) {
             // put the default table handler into the session factory
             if (typeof(tableHandlerFactory.sessionFactory.tableHandlers[tableKey]) === 'undefined') {
-              udebug.log_detail('UserContext caching the table handler in the sessionFactory for ', 
+              if(udebug.is_detail()) udebug.log('UserContext caching the table handler in the sessionFactory for ', 
                   tableHandlerFactory.tableName);
               tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
                   tableHandlerFactory.ctor);
               tableHandlerFactory.sessionFactory.tableHandlers[tableKey] = tableHandler;
             } else {
               tableHandler = tableHandlerFactory.sessionFactory.tableHandlers[tableKey];
-              udebug.log_detail('UserContext got tableHandler but someone else put it in the cache first for ', 
+              if(udebug.is_detail()) udebug.log('UserContext got tableHandler but someone else put it in the cache first for ', 
                   tableHandlerFactory.tableName);
             }
           }
@@ -414,15 +414,15 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
                   tableHandlerFactory.ctor);
               if (tableHandler.isValid) {
                 tableHandlerFactory.ctor.prototype.mynode.tableHandler = tableHandler;
-                udebug.log_detail('UserContext caching the table handler in the prototype for constructor.');
+                if(udebug.is_detail()) udebug.log('UserContext caching the table handler in the prototype for constructor.');
               } else {
                 tableHandlerFactory.err = tableHandler.err;
-                udebug.log_detail('UserContext got invalid tableHandler', tableHandler.errorMessages);
+                if(udebug.is_detail()) udebug.log('UserContext got invalid tableHandler', tableHandler.errorMessages);
               }
             } else {
               tableHandler = tableHandlerFactory.ctor.prototype.mynode.tableHandler;
               stats.incr( [ "TableHandler","idempotent" ] );
-              udebug.log_detail('UserContext got tableHandler but someone else put it in the prototype first.');
+              if(udebug.is_detail()) udebug.log('UserContext got tableHandler but someone else put it in the prototype first.');
             }
           }
           tableHandlerFactory.onTableHandler(tableHandlerFactory.err, tableHandler);
@@ -455,7 +455,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
 
   tableIndicatorType = typeof(domainObjectTableNameOrConstructor);
   if (tableIndicatorType === 'string') {
-    udebug.log_detail('UserContext.getTableHandler for table ', domainObjectTableNameOrConstructor);
+    if(udebug.is_detail()) udebug.log('UserContext.getTableHandler for table ', domainObjectTableNameOrConstructor);
     tableSpecification = getTableSpecification(session.sessionFactory.properties.database,
         domainObjectTableNameOrConstructor);
 
@@ -471,13 +471,13 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
           null, null, onTableHandler);
       tableHandlerFactory.createTableHandler(null);
     } else {
-      udebug.log_detail('UserContext.getTableHandler found cached tableHandler for table ',
+      if(udebug.is_detail()) udebug.log('UserContext.getTableHandler found cached tableHandler for table ',
           tableSpecification.qualifiedTableName);
       // send back the tableHandler
       onTableHandler(null, tableHandler);
     }
   } else if (tableIndicatorType === 'function') {
-    udebug.log_detail('UserContext.getTableHandler for constructor.');
+    if(udebug.is_detail()) udebug.log('UserContext.getTableHandler for constructor.');
     mynode = domainObjectTableNameOrConstructor.prototype.mynode;
     // parameter is a constructor; it must have been annotated already
     if (typeof(mynode) === 'undefined') {
@@ -497,13 +497,13 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
         tableHandlerFactory.createTableHandler();
       } else {
         stats.incr( [ "TableHandler","cache_hit" ] );
-        udebug.log_detail('UserContext.getTableHandler found cached tableHandler for constructor.');
+        if(udebug.is_detail()) udebug.log('UserContext.getTableHandler found cached tableHandler for constructor.');
         // prototype has been annotated; return the table handler
         onTableHandler(null, tableHandler);
       }
     }
   } else if (tableIndicatorType === 'object') {
-    udebug.log_detail('UserContext.getTableHandler for domain object.');
+    if(udebug.is_detail()) udebug.log('UserContext.getTableHandler for domain object.');
     // parameter is a domain object; it must have been mapped already
     mynode = domainObjectTableNameOrConstructor.constructor.prototype.mynode;
     if (typeof(mynode) === 'undefined') {
@@ -512,7 +512,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
     } else {
       tableHandler = mynode.tableHandler;
       if (typeof(tableHandler) === 'undefined') {
-        udebug.log_detail('UserContext.getTableHandler did not find cached tableHandler for object\n',
+        if(udebug.is_detail()) udebug.log('UserContext.getTableHandler did not find cached tableHandler for object\n',
             util.inspect(domainObjectTableNameOrConstructor),
             'constructor\n', domainObjectTableNameOrConstructor.constructor);
         tableSpecification = getTableSpecification(session.sessionFactory.properties.database, mynode.mapping.table);
@@ -523,7 +523,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
             mynode.mapping, domainObjectTableNameOrConstructor.constructor, onTableHandler);
         tableHandlerFactory.createTableHandler();
       } else {
-        udebug.log_detail('UserContext.getTableHandler found cached tableHandler for constructor.');
+        if(udebug.is_detail()) udebug.log('UserContext.getTableHandler found cached tableHandler for constructor.');
         // prototype has been annotated; return the table handler
         onTableHandler(null, tableHandler);
       }
@@ -554,7 +554,7 @@ var getSessionFactory = function(userContext, properties, tableMappings, callbac
     var mappingBeingResolved = 0;
 
     var resolveTableMappingsOnTableHandler = function(err, tableHandler) {
-      udebug.log_detail('UserContext.resolveTableMappinsgOnTableHandler', mappingBeingResolved + 1,
+      if(udebug.is_detail()) udebug.log('UserContext.resolveTableMappinsgOnTableHandler', mappingBeingResolved + 1,
           'of', mappings.length, mappings[mappingBeingResolved]);
       if (err) {
         userContext.appendErrorMessage(err);
@@ -617,11 +617,11 @@ var getSessionFactory = function(userContext, properties, tableMappings, callbac
       break;
     }
     if (mappings.length === 0) {
-      udebug.log_detail('resolveTableMappingsOnSession no mappings!');
+      if(udebug.is_detail()) udebug.log('resolveTableMappingsOnSession no mappings!');
       callback(null, factory);
     }
     // get table handler for the first; the callback will then do the next one...
-    udebug.log_detail('getSessionFactory resolving mappings:', mappings);
+    if(udebug.is_detail()) udebug.log('getSessionFactory resolving mappings:', mappings);
     getTableHandler(mappings[0], session, resolveTableMappingsOnTableHandler);
   };
 
@@ -663,7 +663,7 @@ var getSessionFactory = function(userContext, properties, tableMappings, callbac
       }
       // notify all others that the connection is now ready (or an error was signaled)
       for (i = 0; i < connection.waitingForConnection.length; ++i) {
-        udebug.log_detail('dbConnectionPoolCreated_callback notifying...');
+        if(udebug.is_detail()) udebug.log('dbConnectionPoolCreated_callback notifying...');
         connection.waitingForConnection[i](error, dbConnectionPool);
       }
     } else {
@@ -766,7 +766,7 @@ exports.UserContext.prototype.find = function() {
       }
       userContext.applyCallback(err, null);
     } else {
-      udebug.log_detail('findOnResult returning ', dbOperation.result.value);
+      if(udebug.is_detail()) udebug.log('findOnResult returning ', dbOperation.result.value);
       userContext.applyCallback(null, dbOperation.result.value);      
     }
   }
@@ -794,7 +794,7 @@ exports.UserContext.prototype.find = function() {
             transactionHandler, findOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
-            udebug.log_detail('find transactionHandler.execute callback.');
+            if(udebug.is_detail()) udebug.log('find transactionHandler.execute callback.');
           });
         } else if (typeof(userContext.operationDefinedCallback) === 'function') {
           userContext.operationDefinedCallback(1);
@@ -830,7 +830,7 @@ exports.UserContext.prototype.createQuery = function() {
     } else {
       // create the query domain type and bind it to this session
       queryDomainType = new query.QueryDomainType(userContext.session, dbTableHandler, userContext.domainObject);
-      udebug.log_detail('UserContext.createQuery queryDomainType:', queryDomainType);
+      if(udebug.is_detail()) udebug.log('UserContext.createQuery queryDomainType:', queryDomainType);
       userContext.applyCallback(null, queryDomainType);
     }
   }
@@ -889,13 +889,13 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
 
   // transform query result
   function executeQueryScanOnResult(err, dbOperation) {
-    udebug.log_detail('executeQuery.executeQueryScanOnResult');
+    if(udebug.is_detail()) udebug.log('executeQuery.executeQueryScanOnResult');
     var result, values, resultList;
     var error = checkOperation(err, dbOperation);
     if (error) {
       userContext.applyCallback(error, null);
     } else {
-      udebug.log_detail('executeQuery.executeQueryScanOnResult', dbOperation.result.value);
+      if(udebug.is_detail()) udebug.log('executeQuery.executeQueryScanOnResult', dbOperation.result.value);
       // TODO: filter in memory if the adapter didn't filter all conditions
       userContext.applyCallback(null, dbOperation.result.value);      
     }
@@ -945,12 +945,12 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
           executeQueryScanOnResult);
       // TODO: this currently does not support batching
       transactionHandler.execute([userContext.operation], function() {
-        udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
+        if(udebug.is_detail()) udebug.log('executeQueryPK transactionHandler.execute callback.');
       });
     }
 //  if (userContext.execute) {
 //  transactionHandler.execute([userContext.operation], function() {
-//    udebug.log_detail('find transactionHandler.execute callback.');
+//    if(udebug.is_detail()) udebug.log('find transactionHandler.execute callback.');
 //  });
 //} else if (typeof(userContext.operationDefinedCallback) === 'function') {
 //  userContext.operationDefinedCallback(1);
@@ -968,11 +968,11 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
         executeQueryKeyOnResult);
     // TODO: this currently does not support batching
     transactionHandler.execute([userContext.operation], function() {
-      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
+      if(udebug.is_detail()) udebug.log('executeQueryPK transactionHandler.execute callback.');
     });
 //    if (userContext.execute) {
 //      transactionHandler.execute([userContext.operation], function() {
-//        udebug.log_detail('find transactionHandler.execute callback.');
+//        if(udebug.is_detail()) udebug.log('find transactionHandler.execute callback.');
 //      });
 //    } else if (typeof(userContext.operationDefinedCallback) === 'function') {
 //      userContext.operationDefinedCallback(1);
@@ -1037,7 +1037,7 @@ exports.UserContext.prototype.persist = function() {
 
   function persistOnTableHandler(err, dbTableHandler) {
     userContext.dbTableHandler = dbTableHandler;
-    udebug.log_detail('UserContext.persist.persistOnTableHandler ' + err);
+    if(udebug.is_detail()) udebug.log('UserContext.persist.persistOnTableHandler ' + err);
     var transactionHandler;
     var dbSession = userContext.session.dbSession;
     if (userContext.clear) {
@@ -1052,7 +1052,7 @@ exports.UserContext.prototype.persist = function() {
           persistOnResult);
       if (userContext.execute) {
         transactionHandler.execute([userContext.operation], function() {
-          udebug.log_detail('persist transactionHandler.execute callback.');
+          if(udebug.is_detail()) udebug.log('persist transactionHandler.execute callback.');
         });
       } else if (typeof(userContext.operationDefinedCallback) === 'function') {
         userContext.operationDefinedCallback(1);
@@ -1258,7 +1258,7 @@ exports.UserContext.prototype.load = function() {
             loadOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
-            udebug.log_detail('load transactionHandler.execute callback.');
+            if(udebug.is_detail()) udebug.log('load transactionHandler.execute callback.');
           });
         } else if (typeof(userContext.operationDefinedCallback) === 'function') {
           userContext.operationDefinedCallback(1);
@@ -1321,7 +1321,7 @@ exports.UserContext.prototype.remove = function() {
             dbIndexHandler, userContext.keys, transactionHandler, removeOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
-            udebug.log_detail('remove transactionHandler.execute callback.');
+            if(udebug.is_detail()) udebug.log('remove transactionHandler.execute callback.');
           });
         } else if (typeof(userContext.operationDefinedCallback) === 'function') {
           userContext.operationDefinedCallback(1);
@@ -1385,7 +1385,7 @@ exports.UserContext.prototype.executeBatch = function(operationContexts) {
   // will call this function after the operation is defined
   var executeBatchOnOperationDefined = function(definedOperationCount) {
     userContext.numberOfOperationsDefined += definedOperationCount;
-    udebug.log_detail('UserContext.executeBatch expecting', userContext.numberOfOperations, 
+    if(udebug.is_detail()) udebug.log('UserContext.executeBatch expecting', userContext.numberOfOperations, 
         'operations with', userContext.numberOfOperationsDefined, 'already defined.');
     if (userContext.numberOfOperationsDefined === userContext.numberOfOperations) {
       var operations = [];
@@ -1508,7 +1508,7 @@ exports.UserContext.prototype.openSession = function() {
   if (userContext.session_factory) {
     openSessionOnSessionFactory(null, userContext.session_factory);
   } else {
-    udebug.log_detail('openSession for', util.inspect(userContext));
+    if(udebug.is_detail()) udebug.log('openSession for', util.inspect(userContext));
     // properties might be null, a name, or a properties object
     userContext.user_arguments[0] = resolveProperties(userContext.user_arguments[0]);
     getSessionFactory(userContext, userContext.user_arguments[0], userContext.user_arguments[1], 
@@ -1553,14 +1553,14 @@ exports.UserContext.prototype.applyCallback = function(err, result) {
   }
   // notify (either fulfill or reject) the promise
   if (err) {
-    udebug.log_detail('UserContext.applyCallback.reject', err);
+    if(udebug.is_detail()) udebug.log('UserContext.applyCallback.reject', err);
     this.promise.reject(err);
   } else {
-    udebug.log_detail('UserContext.applyCallback.fulfill', result);
+    if(udebug.is_detail()) udebug.log('UserContext.applyCallback.fulfill', result);
     this.promise.fulfill(result);
   }
   if (typeof(this.user_callback) === 'undefined') {
-    udebug.log_detail('UserContext.applyCallback with no user_callback.');
+    if(udebug.is_detail()) udebug.log('UserContext.applyCallback with no user_callback.');
     return;
   }
   var args = [];

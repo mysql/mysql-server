@@ -170,9 +170,10 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
   var apiCall;
   /* Update our own success and error objects */
   attachErrorToTransaction(dbTxHandler, err);
-  udebug.log("onExecute", modeNames[execMode], dbTxHandler.moniker,
-             "success:", dbTxHandler.success);
-
+  if(udebug.is_debug()) {
+    udebug.log("onExecute", modeNames[execMode], dbTxHandler.moniker,
+                "success:", dbTxHandler.success);
+  }
   function continueAfterExecute() {
     /* send the next exec call on its way */
     runExecAfterOpenQueue(dbTxHandler);
@@ -227,7 +228,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
 
   /* Execute NdbTransaction after reading from scan */
   function executeNdbTransaction() {
-    udebug.log(self.moniker, "executeScan executeNdbTransaction");
+    if(udebug.is_debug()) udebug.log(self.moniker, "executeScan executeNdbTransaction");
 
     function onCompleteExec(err) {
       onExecute(self, execMode, err, execId, callback);
@@ -248,7 +249,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
 
     function retryAfterClose() {
       op.ndbScanOp = null;
-      udebug.log(self.moniker, "retrying scan:", self.retries);
+      if(udebug.is_debug()) udebug.log(self.moniker, "retrying scan:", self.retries);
       executeScan(self, execMode, abortFlag, dbOperationList, callback);
     }
     
@@ -277,7 +278,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   
   /* Fetch results */
   function getScanResults(err) {
-    udebug.log(self.moniker, "executeScan getScanResults");
+    if(udebug.is_debug()) udebug.log(self.moniker, "executeScan getScanResults");
     if(err) {
       onFetchComplete(err);
     }
@@ -289,7 +290,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   /* Execute NoCommit so that you can start reading from scans */
   function executeScanNoCommit(err, ndbScanOp) {
     var fatalError;
-    udebug.log(self.moniker, "executeScan executeScanNoCommit");
+    if(udebug.is_debug()) udebug.log(self.moniker, "executeScan executeScanNoCommit");
     if(! ndbScanOp) {
       fatalError = self.ndbtx.getNdbError();
       callback(new ndboperation.DBOperationError(fatalError), self);
@@ -301,7 +302,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
   }
 
   /* executeScan() starts here */
-  udebug.log(self.moniker, "executeScan");
+  if(udebug.is_debug()) udebug.log(self.moniker, "executeScan");
   op.prepareScan(self.ndbtx, executeScanNoCommit);
 }
 
@@ -320,7 +321,7 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
   }
 
   function prepareOperations() {
-    udebug.log("executeNonScan prepareOperations", self.moniker);
+    if(udebug.is_debug()) udebug.log("executeNonScan prepareOperations", self.moniker);
     var i, op, fatalError;
     pendingOperationSet = ndboperation.prepareOperations(self.ndbtx, dbOperationList);
 
@@ -337,7 +338,9 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
   function getAutoIncrementValues() {
     var autoIncHandler = new AutoIncHandler(dbOperationList);
     if(autoIncHandler.values_needed > 0) {
-      udebug.log("executeNonScan getAutoIncrementValues", autoIncHandler.values_needed);
+      if(udebug.is_debug()) {
+        udebug.log("executeNonScan getAutoIncrementValues", autoIncHandler.values_needed);
+      }
       autoIncHandler.getAllValues(prepareOperations);
     }
     else {
@@ -368,7 +371,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   function onStartTx(err, ndbtx) {
     if(err) {
       ndbsession.closeNdbTransaction(self, self.nTxRecords);
-      udebug.log("execute onStartTx [ERROR].", err);
+      if(udebug.is_debug()) udebug.log("execute onStartTx [ERROR].", err);
       if(callback) {
         err = new ndboperation.DBOperationError(err.ndb_error);
         callback(err, self);
@@ -377,9 +380,9 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     }
 
     self.ndbtx = ndbtx;
-    udebug.log("execute onStartTx. ", self.moniker, 
-               " TC node:", ndbtx.getConnectedNodeId(),
-               "operations:",  dbOperationList.length);
+    if(udebug.is_debug()) udebug.log("execute onStartTx. ", self.moniker, 
+                                     " TC node:", ndbtx.getConnectedNodeId(),
+                                     "operations:",  dbOperationList.length);
     executeSpecific();
   }
 
@@ -417,19 +420,19 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
 proto.execute = function(dbOperationList, userCallback) {
 
   if(! dbOperationList.length) {
-    udebug.log("Execute -- STUB EXECUTE (no operation list)");
+    if(udebug.is_debug()) udebug.log("Execute -- STUB EXECUTE (no operation list)");
     userCallback(null, this);
     return;
   }
   
   if(this.autocommit) {
-    udebug.log("Execute -- AutoCommit", this.moniker);
+    if(udebug.is_debug()) udebug.log("Execute -- AutoCommit", this.moniker);
     stats.incr(["execute","commit"]);
     ndbsession.closeActiveTransaction(this);
     execute(this, COMMIT, AO_IGNORE, dbOperationList, userCallback);
   }
   else {
-    udebug.log("Execute -- NoCommit", this.moniker);
+    if(udebug.is_debug()) udebug.log("Execute -- NoCommit", this.moniker);
     stats.incr(["execute","no_commit"]);
     execute(this, NOCOMMIT, AO_IGNORE, dbOperationList, userCallback);
   }
@@ -452,13 +455,13 @@ proto.commit = function commit(userCallback) {
   }
 
   /* commit begins here */
-  udebug.log("commit");
+  if(udebug.is_debug()) udebug.log("commit");
   ndbsession.closeActiveTransaction(this);
   if(self.ndbtx) {  
     run(self, COMMIT, AO_IGNORE, onNdbCommit);
   }
   else {
-    udebug.log("commit STUB COMMIT (no underlying NdbTransaction)");
+    if(udebug.is_debug()) udebug.log("commit STUB COMMIT (no underlying NdbTransaction)");
     onNdbCommit();
   }
 };
@@ -482,13 +485,13 @@ proto.rollback = function rollback(callback) {
   }
 
   /* rollback begins here */
-  udebug.log("rollback");
+  if(udebug.is_debug()) udebug.log("rollback");
 
   if(self.ndbtx) {
     run(self, ROLLBACK, AO_DEFAULT, onNdbRollback);
   }
   else {
-    udebug.log("rollback STUB ROLLBACK (no underlying NdbTransaction)");
+    if(udebug.is_debug()) udebug.log("rollback STUB ROLLBACK (no underlying NdbTransaction)");
     onNdbRollback();
   }
 };
