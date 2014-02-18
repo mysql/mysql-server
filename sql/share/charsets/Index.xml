@@ -386,11 +386,25 @@ To make maintaining easier please:
   <description>GBK Simplified Chinese</description>
   <alias>cp936</alias>
   <collation name="gbk_chinese_ci"	id="28"	order="Chinese">
-    <flag>primary</flag>	
+    <flag>primary</flag>
     <flag>compiled</flag>
   </collation>
   <collation name="gbk_bin"	id="87"	order="Binary">
-    <flag>binary</flag>	
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
+</charset>
+
+<charset name="gb18030">
+  <family>East Asian</family>
+  <description>China National Standard GB18030</description>
+  <alias>cp54936</alias>
+  <collation name="gb18030_chinese_ci" id="248" order="Chinese">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="gb18030_bin" id="249" order="Binary">
+    <flag>binary</flag>
     <flag>compiled</flag>
   </collation>
 </charset>

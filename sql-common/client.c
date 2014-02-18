@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -854,14 +854,14 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     Server replies to COM_STATISTICS with a single packet 
     containing a string with statistics information.
   */
-  /* Server replies to COM_RESET_CONNECTION with OK or
-     Error Packet.
-  */
   case COM_STATISTICS:
-  case COM_RESET_CONNECTION:
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PACKET);
     break;
 
+  /*
+    For all other commands we expect server to send regular reply which
+    is either OK, ERR or a result-set header.
+  */
   default: MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT); break;
   }
 #endif
@@ -2207,9 +2207,7 @@ const MY_CSET_OS_NAME charsets[]=
   {"cp51936",        "gb2312",   my_cs_exact},
   {"cp51949",        "euckr",    my_cs_exact},
   {"cp51950",        "big5",     my_cs_exact},
-#ifdef UNCOMMENT_THIS_WHEN_WL_WL_4024_IS_DONE
   {"cp54936",        "gb18030",  my_cs_exact},
-#endif
   {"cp65001",        "utf8",     my_cs_exact},
 
 #else /* not Windows */
@@ -2230,9 +2228,7 @@ const MY_CSET_OS_NAME charsets[]=
   {"euc-JP",         "ujis",     my_cs_exact},
   {"eucKR",          "euckr",    my_cs_exact},
   {"euc-KR",         "euckr",    my_cs_exact},
-#ifdef UNCOMMENT_THIS_WHEN_WL_WL_4024_IS_DONE
   {"gb18030",        "gb18030",  my_cs_exact},
-#endif
   {"gb2312",         "gb2312",   my_cs_exact},
   {"gbk",            "gbk",      my_cs_exact},
   {"georgianps",     "geostd8",  my_cs_exact},

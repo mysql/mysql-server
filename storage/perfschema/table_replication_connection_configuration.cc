@@ -273,7 +273,7 @@ void table_replication_connection_configuration::make_row()
 
   temp_store= (char*)active_mi->ssl_crlpath;
   m_row.ssl_crl_path_length= strlen(temp_store);
-  memcpy(m_row.ssl_crl_path, m_row.ssl_crl_path, m_row.ssl_crl_path_length);
+  memcpy(m_row.ssl_crl_path, temp_store, m_row.ssl_crl_path_length);
 
   m_row.connection_retry_interval= (unsigned int) active_mi->connect_retry;
 

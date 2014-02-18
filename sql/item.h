@@ -653,7 +653,7 @@ class Item
   void operator=(Item &);
   /* Cache of the result of is_expensive(). */
   int8 is_expensive_cache;
-  virtual bool is_expensive_processor(uchar *arg) { return 0; }
+  virtual bool is_expensive_processor(uchar *arg) { return false; }
 
 public:
   static void *operator new(size_t size) throw ()
@@ -676,6 +676,13 @@ public:
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   enum traverse_order { POSTFIX, PREFIX };
+
+  enum enum_walk
+  {
+    WALK_PREFIX=   0x01,
+    WALK_POSTFIX=  0x02,
+    WALK_SUBQUERY= 0x04
+  };
   
   /* Reuse size, only used by SP local variable assignment, otherwize 0 */
   uint rsize;
@@ -1375,7 +1382,27 @@ public:
                                             &my_charset_bin;
   };
 
-  virtual bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  /**
+    Traverses a tree of Items in prefix and/or postfix order.
+    Optionally walks into subqueries.
+
+    @param processor   processor function to be invoked per item
+                       returns true to abort traversal, false to continue
+    @param walk        controls how to traverse the item tree
+                       WALK_PREFIX:  call processor before invoking children
+                       WALK_POSTFIX: call processor after invoking children
+                       WALK_SUBQUERY go down into subqueries
+                       walk values are bit-coded and may be combined.
+                       Omitting both WALK_PREFIX and WALK_POSTFIX is "undefined
+                       behaviour" but will traverse all leaf nodes of the tree.
+    @param arg         Optional pointer to a walk-specific object
+
+    @retval      false walk succeeded
+    @retval      true  walk aborted
+                       by agreement, an error may have been reported
+  */
+
+  virtual bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
     return (this->*processor)(arg);
   }
@@ -1423,13 +1450,13 @@ public:
     this function and set the int_arg to maximum of the input data
     and their own version info.
   */
-  virtual bool intro_version(uchar *int_arg) { return 0; }
+  virtual bool intro_version(uchar *int_arg) { return false; }
 
-  virtual bool remove_dependence_processor(uchar * arg) { return 0; }
-  virtual bool remove_fixed(uchar * arg) { fixed= 0; return 0; }
+  virtual bool remove_dependence_processor(uchar * arg) { return false; }
+  virtual bool remove_fixed(uchar * arg) { fixed= 0; return false; }
   virtual bool cleanup_processor(uchar *arg);
-  virtual bool collect_item_field_processor(uchar * arg) { return 0; }
-  virtual bool add_field_to_set_processor(uchar * arg) { return 0; }
+  virtual bool collect_item_field_processor(uchar * arg) { return false; }
+  virtual bool add_field_to_set_processor(uchar * arg) { return false; }
 
   /**
      Visitor interface for removing all column expressions (Item_field) in
@@ -1439,12 +1466,12 @@ public:
                  Field::field_index values.
    */
   virtual bool remove_column_from_bitmap(uchar *arg) { return false; }
-  virtual bool find_item_in_field_list_processor(uchar *arg) { return 0; }
-  virtual bool change_context_processor(uchar *context) { return 0; }
-  virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
+  virtual bool find_item_in_field_list_processor(uchar *arg) { return false; }
+  virtual bool change_context_processor(uchar *context) { return false; }
+  virtual bool reset_query_id_processor(uchar *query_id_arg) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
-  virtual bool register_field_in_read_map(uchar *arg) { return 0; }
-  virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) { return false; }
+  virtual bool register_field_in_read_map(uchar *arg) { return false; }
+  virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) {return false;}
   /**
      Clean up after removing the item from the item tree.
 
@@ -1532,28 +1559,25 @@ public:
     assumes that there are no multi-byte collations amongst the partition
     fields.
   */
-  virtual bool check_partition_func_processor(uchar *bool_arg) { return TRUE;}
+  virtual bool check_partition_func_processor(uchar *bool_arg) { return true;}
   virtual bool subst_argument_checker(uchar **arg)
   { 
     if (*arg)
       *arg= NULL; 
-    return TRUE;     
+    return true;     
   }
   virtual bool explain_subquery_checker(uchar **arg) { return true; }
   virtual Item *explain_subquery_propagator(uchar *arg) { return this; }
 
   virtual Item *equal_fields_propagator(uchar * arg) { return this; }
-  virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
+  virtual bool set_no_const_sub(uchar *arg) { return false; }
   virtual Item *replace_equal_field(uchar * arg) { return this; }
   /*
     Check if an expression value has allowed arguments, like DATE/DATETIME
     for date functions. Also used by partitioning code to reject
     timezone-dependent expressions in a (sub)partitioning function.
   */
-  virtual bool check_valid_arguments_processor(uchar *bool_arg)
-  {
-    return FALSE;
-  }
+  virtual bool check_valid_arguments_processor(uchar *arg) { return false; }
 
   /**
     Find a function of a given type
@@ -1674,7 +1698,8 @@ public:
   virtual bool is_expensive()
   {
     if (is_expensive_cache < 0)
-      is_expensive_cache= walk(&Item::is_expensive_processor, 0, (uchar*)0);
+      is_expensive_cache= walk(&Item::is_expensive_processor, WALK_POSTFIX,
+                               NULL);
     return MY_TEST(is_expensive_cache);
   }
   virtual bool can_be_evaluated_now() const;
@@ -1739,7 +1764,7 @@ public:
   void mark_subqueries_optimized_away()
   {
     if (has_subquery())
-      walk(&Item::subq_opt_away_processor, false, NULL);
+      walk(&Item::subq_opt_away_processor, WALK_POSTFIX, NULL);
   }
 private:
   virtual bool subq_opt_away_processor(uchar *arg) { return false; }
@@ -2074,7 +2099,7 @@ public:
   Item_num() { collation.set_numeric(); } /* Remove gcc warning */
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) { return false;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -2123,7 +2148,11 @@ public:
   bool remove_dependence_processor(uchar * arg);
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
-    { context= (Name_resolution_context *)cntx; return FALSE; }
+  {
+    context= reinterpret_cast<Name_resolution_context *>(cntx);
+    return false;
+  }
+
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
                             const char *db_name,
                             const char *table_name, List_iterator<Item> *it,
@@ -2258,7 +2287,7 @@ public:
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
@@ -2371,7 +2400,7 @@ public:
   }
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 /**
@@ -2399,7 +2428,7 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return true;}
   enum_field_types field_type() const { return fld_type; }
   Item_result result_type() const { return res_type; }
 };  
@@ -2617,7 +2646,7 @@ public:
   uint decimal_precision() const
   { return (uint)(max_length - MY_TEST(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
-  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return false;}
 };
 
 
@@ -2699,7 +2728,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
-  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return false;}
 };
 
 
@@ -2748,7 +2777,7 @@ public:
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
-  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return false;}
 };
 
 
@@ -2926,7 +2955,7 @@ public:
     max_length= str_value.numchars() * collation.collation->mbmaxlen;
   }
   virtual void print(String *str, enum_query_type query_type);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 
   /**
     Return TRUE if character-set-introducer was explicitly specified in the
@@ -2995,7 +3024,7 @@ public:
     str->append(func_name);
   }
 
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return true;}
 };
 
 
@@ -3089,7 +3118,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 private:
   void hex_string_init(const char *str, uint str_length);
 };
@@ -3246,10 +3275,11 @@ public:
   {
     return ref ? (*ref)->real_item() : this;
   }
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
-    return (*ref)->walk(processor, walk_subquery, arg) ||
-           (this->*processor)(arg);
+    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+           (*ref)->walk(processor, walk, arg) ||
+           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
   virtual Item* transform(Item_transformer, uchar *arg);
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
@@ -3989,12 +4019,11 @@ public:
   table_map used_tables() const { return (table_map)0L; }
   Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
-  bool walk(Item_processor processor, bool walk_subquery, uchar *args)
+  bool walk(Item_processor processor, enum_walk walk, uchar *args)
   {
-    if (arg && arg->walk(processor, walk_subquery, args))
-      return true;
-
-    return (this->*processor)(args);
+    return ((walk & WALK_PREFIX) && (this->*processor)(args)) ||
+           (arg && arg->walk(processor, walk, args)) ||
+           ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
 
   Item *transform(Item_transformer transformer, uchar *args);
@@ -4031,10 +4060,11 @@ public:
   */
   table_map used_tables() const { return RAND_TABLE_BIT; }
 
-  bool walk(Item_processor processor, bool walk_subquery, uchar *args)
+  bool walk(Item_processor processor, enum_walk walk, uchar *args)
   {
-    return arg->walk(processor, walk_subquery, args) ||
-	    (this->*processor)(args);
+    return ((walk & WALK_PREFIX) && (this->*processor)(args)) ||
+           arg->walk(processor, walk, args) ||
+           ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
 };
 
@@ -4222,7 +4252,7 @@ public:
   virtual bool cache_value()= 0;
   bool basic_const_item() const
   { return MY_TEST(example && example->basic_const_item());}
-  bool walk (Item_processor processor, bool walk_subquery, uchar *argument);
+  bool walk (Item_processor processor, enum_walk walk, uchar *arg);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
   bool is_null() { return value_cached ? null_value : example->is_null(); }
   Item_result result_type() const

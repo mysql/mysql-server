@@ -1723,7 +1723,7 @@ public:
                          Item **conds);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item, bool real_items= false);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   void traverse_cond(Cond_traverser, void *arg, traverse_order order);
   void neg_arguments(THD *thd);
@@ -1857,7 +1857,7 @@ public:
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
   void update_used_tables();
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
   const CHARSET_INFO *compare_collation() 

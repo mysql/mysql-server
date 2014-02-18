@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -436,6 +436,13 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
     return TRUE;
   }
 #endif
+
+  if (val && val->type() == Item::FIELD_ITEM &&
+      ((Item_field*)val)->table_name)
+  {
+    my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), tmp->var->name.str);
+    return TRUE;
+  }
 
   if (! (var= new set_var(var_type, tmp->var, &tmp->base_name, val)))
     return TRUE;
@@ -14764,6 +14771,61 @@ start_option_value_list:
             Lex->option_type= $1;
           }
           start_option_value_list_following_option_type
+        | PASSWORD equal text_or_password
+          {
+            THD *thd= YYTHD;
+            LEX *lex= thd->lex;
+            sp_head *sp= lex->sphead;
+            sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
+            LEX_STRING pw= { C_STRING_WITH_LEN("password") };
+
+            if (pctx && pctx->find_variable(pw, false))
+            {
+              my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
+              MYSQL_YYABORT;
+            }
+
+            LEX_USER *user= (LEX_USER*) thd->alloc(sizeof(LEX_USER));
+
+            if (!user)
+              MYSQL_YYABORT;
+
+            user->host= null_lex_str;
+            user->user.str= thd->security_ctx->user;
+            user->user.length= strlen(thd->security_ctx->user);
+
+            set_var_password *var= new set_var_password(user, $3);
+            if (var == NULL)
+              MYSQL_YYABORT;
+
+            lex->var_list.push_back(var);
+            lex->autocommit= true;
+            lex->is_set_password_sql= true;
+
+            if (sp)
+              sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+
+            if (sp_create_assignment_instr(YYTHD, @3.raw_end))
+              MYSQL_YYABORT;
+          }
+        | PASSWORD FOR_SYM user equal text_or_password
+          {
+            LEX_USER *user= $3;
+            LEX *lex= Lex;
+            set_var_password *var;
+
+            var= new set_var_password(user, $5);
+            if (var == NULL)
+              MYSQL_YYABORT;
+            lex->var_list.push_back(var);
+            lex->autocommit= true;
+            lex->is_set_password_sql= true;
+            if (lex->sphead)
+              lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+
+            if (sp_create_assignment_instr(YYTHD, @5.raw_end))
+              MYSQL_YYABORT;
+          }
         ;
 
 
@@ -15041,55 +15103,6 @@ option_value_no_option_type:
             if (var == NULL)
               MYSQL_YYABORT;
             lex->var_list.push_back(var);
-          }
-        | PASSWORD equal text_or_password
-          {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            sp_head *sp= lex->sphead;
-            sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-            LEX_STRING pw= { C_STRING_WITH_LEN("password") };
-
-            if (pctx && pctx->find_variable(pw, false))
-            {
-              my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
-              MYSQL_YYABORT;
-            }
-
-            LEX_USER *user= (LEX_USER*) thd->alloc(sizeof(LEX_USER));
-
-            if (!user)
-              MYSQL_YYABORT;
-
-            user->host=null_lex_str;
-            user->user.str=thd->security_ctx->user;
-            user->user.length= strlen(thd->security_ctx->user);
-
-            set_var_password *var= new set_var_password(user, $3);
-            if (var == NULL)
-              MYSQL_YYABORT;
-
-            lex->var_list.push_back(var);
-            lex->autocommit= TRUE;
-            lex->is_set_password_sql= true;
-
-            if (sp)
-              sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-          }
-        | PASSWORD FOR_SYM user equal text_or_password
-          {
-            LEX_USER *user= $3;
-            LEX *lex= Lex;
-            set_var_password *var;
-
-            var= new set_var_password(user,$5);
-            if (var == NULL)
-              MYSQL_YYABORT;
-            lex->var_list.push_back(var);
-            lex->autocommit= TRUE;
-            lex->is_set_password_sql= true;
-            if (lex->sphead)
-              lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
           }
         ;
 
