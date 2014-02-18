@@ -84,6 +84,12 @@ SELECT * FROM mysql.gtid_executed;
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5:16"
 --source include/assert.inc
 
+--echo # Verify that gtid_executed and gtid_purged are always same
+--echo # when binlog is disabled.
+--let $assert_text= gtid_executed and gtid_purged are always same when binlog is disabled
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "[SELECT @@GLOBAL.GTID_PURGED]"
+--source include/assert.inc
+
 --echo # Verify that the specified gtid to GTID_NEXT is stored into
 --echo # gtid table.
 --replace_result $master_uuid MASTER_UUID
@@ -94,6 +100,12 @@ COMMIT;
 SELECT * FROM mysql.gtid_executed;
 --let $assert_text= committed gtids MASTER_UUID:1-5:16-17
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-5:16-17"
+--source include/assert.inc
+
+--echo # Verify that gtid_executed and gtid_purged are always same
+--echo # when binlog is disabled.
+--let $assert_text= gtid_executed and gtid_purged are always same when binlog is disabled
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "[SELECT @@GLOBAL.GTID_PURGED]"
 --source include/assert.inc
 
 --eval SET GTID_NEXT='AUTOMATIC'

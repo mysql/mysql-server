@@ -6814,8 +6814,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   /*
     If there is anything in the stmt cache, and GTIDs are enabled,
     then this is a single statement outside a transaction and it is
-    impossible that there is anything in the trx cache.  Hence, we
-    write any empty group(s) to the stmt cache.
+    impossible that there is anything in the trx cache.
 
     Otherwise, we write any empty group(s) to the trx cache at the end
     of the transaction.

@@ -77,6 +77,9 @@ MASTER_UUID	4	4
 MASTER_UUID	5	5
 MASTER_UUID	16	16
 include/assert.inc [committed gtids MASTER_UUID:1-5:16]
+# Verify that gtid_executed and gtid_purged are always same
+# when binlog is disabled.
+include/assert.inc [gtid_executed and gtid_purged are always same when binlog is disabled]
 # Verify that the specified gtid to GTID_NEXT is stored into
 # gtid table.
 SET @@SESSION.GTID_NEXT= 'MASTER_UUID:17';
@@ -92,6 +95,9 @@ MASTER_UUID	5	5
 MASTER_UUID	16	16
 MASTER_UUID	17	17
 include/assert.inc [committed gtids MASTER_UUID:1-5:16-17]
+# Verify that gtid_executed and gtid_purged are always same
+# when binlog is disabled.
+include/assert.inc [gtid_executed and gtid_purged are always same when binlog is disabled]
 SET GTID_NEXT='AUTOMATIC';
 # Verify that no gtid is generated for transaction
 # when binlog is disabled

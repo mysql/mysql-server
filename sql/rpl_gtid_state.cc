@@ -213,13 +213,11 @@ void Gtid_state::update_on_commit(THD *thd)
       {
         int err= 0;
         /*
-          Add every transaction's gtid into global executed_gtids and
-          lost_gtids if binlog is disabled and gtid_mode is enabled.
+          Add every transaction's gtid into global executed_gtids
+          if binlog is disabled and gtid_mode is enabled.
         */
         if (!(err= executed_gtids.ensure_sidno(gtid->sidno)))
           err |= executed_gtids._add_gtid(*gtid);
-        if (!err && !(err= lost_gtids.ensure_sidno(gtid->sidno)))
-          err |= lost_gtids._add_gtid(*gtid);
         DBUG_ASSERT(err == 0);
       }
       else
