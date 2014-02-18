@@ -59,8 +59,10 @@ MYSQL_ADD_EXECUTABLE(ndbd
   COMPONENT ClusterDataNode)
 TARGET_LINK_LIBRARIES(ndbd ${NDBD_LIBS} ndbsched ${LIBDL})
 
-MYSQL_ADD_EXECUTABLE(ndbmtd
-  main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC}
-  DESTINATION ${INSTALL_SBINDIR}
-  COMPONENT ClusterDataNode)
-TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt ${LIBDL})
+IF(WITH_NDBMTD)
+  MYSQL_ADD_EXECUTABLE(ndbmtd
+    main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC}
+    DESTINATION ${INSTALL_SBINDIR}
+    COMPONENT ClusterDataNode)
+  TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt ${LIBDL})
+ENDIF()
