@@ -101,7 +101,9 @@ include/assert.inc [gtid_executed and gtid_purged are always same when binlog is
 SET GTID_NEXT='AUTOMATIC';
 # Verify that no gtid is generated for transaction
 # when binlog is disabled
+CREATE TABLE t3 (a int);
 INSERT INTO t1 values(12);
+DROP TABLE t3;
 # Stored gtids MASTER_UUID:1-5:16-17 in gtid_executed table on slave.
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
