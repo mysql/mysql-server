@@ -383,7 +383,6 @@ sub tell_root_password {
              "# The random password set for the root user at $now (local time):\n" .
              $password . "\n",
              "");
-  print "A random root password has been set. You will find it in '$secret_file'.\n";
 }
 
 ##############################################################################
@@ -398,13 +397,32 @@ sub generate_random_password {
   open(FD, $randfile) || die "Can't open $randfile for reading: $!";
   my $password = "";
   my $pass_len = 16;
+  my $got_special= 0;
+  my $got_num= 0;
+  my $got_upper= 0;
   my $c;
-  while (length($password) < $pass_len) {
-    $c = getc(FD);
-    if ($c =~ /\w/) {
-      $password .= $c;
+  do
+  {
+    while (length($password) < $pass_len) {
+      $c = getc(FD);
+      if ($c =~ /\w/ || $c =~ /[\,\.\!£\$\@\{\}\\\=\#[\]\(\)]/) {
+        $password .= $c;
+        if ($c =~ /[0-9]/)
+        { $got_num = 1; }
+        if ( $c =~ /[A-Z]/ )
+        { $got_upper = 1; }
+        if ($c =~ /[\,\.\!£\$\@\{\}\\\=\#\[\]\(\)]/)
+        { $got_special= 1; }
+      }
     }
-  }
+    if ($got_special == 0 || $got_num == 0 || $got_upper == 0)
+    {
+      $got_special= 0;
+      $got_num= 0;
+      $got_upper= 0;
+      $password= "";
+    }
+  } while(length($password) < $pass_len);
   close(FD); 
   return $password;
 }
@@ -793,7 +811,7 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
       # using the implicit variable $_ !
       s/ABC123xyz/$escaped_password/e ;  # Replace placeholder by random password
     print PIPE $_;
-  }
+    }
     close SQL3;
     tell_root_password();
   }
@@ -830,16 +848,8 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
                  "The \"HELP\" command might not work properly");
   }
 
-  report_verbose($opt,"To start mysqld at boot time you have to copy",
-                      "support-files/mysql.server to the right place " .
-                      "for your system");
-
   if ( !$opt->{'cross-bootstrap'} )
   {
-    # This is not a true installation on a running system.  The end user must
-    # set a password after installing the data files on the real host system.
-    # At this point, there is no end user, so it does not make sense to print
-    # this reminder.
     if ( !$opt->{'skip-random-passwords'} ) {
       report($opt,
              "A RANDOM PASSWORD HAS BEEN SET FOR THE MySQL root USER !",
@@ -848,31 +858,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
              "You must change that password on your first connect,",
              "no other statement but 'SET PASSWORD' will be accepted.",
              "See the manual for the semantics of the 'password expired' flag.",
-             "",
-             "Also, the account for the anonymous user has been removed.",
-             "",
-             "In addition, you can run:",
-             "",
-             "  $bindir/mysql_secure_installation",
-             "",
-             "which will also give you the option of removing the test database.",
-             "This is strongly recommended for production servers.",
-             "",
-             "See the manual for more instructions.");
+             "");
     } else {
     report($opt,
            "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !",
            "To do so, start the server, then issue the following commands:",
            "",
            "  $bindir/mysqladmin -u root password 'new-password'",
-           "",
-           "Alternatively you can run:",
-           "",
-           "  $bindir/mysql_secure_installation",
-           "",
-           "which will also give you the option of removing the test",
-           "databases and anonymous user created by default.  This is",
-           "strongly recommended for production servers.",
            "",
            "See the manual for more instructions.");
     }
@@ -897,41 +889,34 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
            "",
            "Support MySQL by buying support/licenses at http://shop.mysql.com");
 
-    if ($keep_my_cnf)
+    if (!$keep_my_cnf)
     {
-      report($opt,
-	     "Note: new default config file not created.",
-	     "Please make sure your config file is current");
-    }
-    elsif ($copy_cfg_file eq $config_file and !$failed_write_cfg)
-    {
-      report($opt,
-	     "New default config file was created as $config_file and",
-	     "will be used by default by the server when you start it.",
-	     "You may edit this file to change server settings");
-    }
-    elsif ($failed_write_cfg)
-    {
-      warning($opt,
-	      "Could not copy config file template $cfg_template to",
-	      "$copy_cfg_file, may not have access rights to do so.",
-	      "You may want to copy the file manually, or create your own,",
-              "it will then be used by default by the server when you start it.");
-    }
-    else
-    {
-      warning($opt,
-	      "Found existing config file $config_file on the system.",
-	      "Because this file might be in use, it was not replaced,",
-	      "but was used in bootstrap (unless you used --defaults-file)",
-	      "and when you later start the server.",
-	      "The new default config file was created as $copy_cfg_file,",
-	      "please compare it with your file and take the changes you need.");
-    }
-    foreach my $cfg ( "/etc/my.cnf", "/etc/mysql/my.cnf" )
-    {
-      check_sys_cfg_file ($opt, $cfg);
-    }
+      if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
+      {
+        report($opt,
+	       "New default config file was created as $config_file and",
+	       "will be used by default by the server when you start it.",
+	       "You may edit this file to change server settings");
+      }
+      elsif ($failed_write_cfg)
+      {
+        warning($opt,
+	        "Could not copy config file template $cfg_template to",
+	        "$copy_cfg_file, may not have access rights to do so.",
+	        "You may want to copy the file manually, or create your own,",
+                "it will then be used by default by the server when you start it.");
+      }
+      else
+      {
+        warning($opt,
+	        "Found existing config file $config_file on the system.",
+	        "Because this file might be in use, it was not replaced,",
+	        "but was used in bootstrap (unless you used --defaults-file)",
+	        "and when you later start the server.",
+	        "The new default config file was created as $copy_cfg_file,",
+	        "please compare it with your file and take the changes you need.");
+      }
+    } # if (!keep_my_cnf)
   }
   exit 0
 }
@@ -968,21 +953,6 @@ else
 #  Misc
 #
 ##############################################################################
-
-sub check_sys_cfg_file
-{
-  my $opt= shift;
-  my $fname= shift;
-
-  if ( -e $fname )
-  {
-    warning($opt,
-	    "Default config file $fname exists on the system",
-	    "This file will be read by default by the MySQL server",
-	    "If you do not want to use this, either remove it, or use the",
-	    "--defaults-file argument to mysqld_safe when starting the server");
-  }
-}
 
 sub report_verbose
 {
