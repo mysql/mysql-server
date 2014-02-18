@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,7 +93,6 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   addRecSignal(GSN_SEND_PACKED, &Dbtup::execSEND_PACKED, true);
   addRecSignal(GSN_STTOR, &Dbtup::execSTTOR);
   addRecSignal(GSN_MEMCHECKREQ, &Dbtup::execMEMCHECKREQ);
-  addRecSignal(GSN_TUPKEYREQ, &Dbtup::execTUPKEYREQ);
   addRecSignal(GSN_TUPSEIZEREQ, &Dbtup::execTUPSEIZEREQ);
   addRecSignal(GSN_TUPRELEASEREQ, &Dbtup::execTUPRELEASEREQ);
   addRecSignal(GSN_STORED_PROCREQ, &Dbtup::execSTORED_PROCREQ);
@@ -863,13 +862,13 @@ void Dbtup::execTUPSEIZEREQ(Signal* signal)
 
   new (regOperPtr.p) Operationrec();
   regOperPtr.p->m_any_value = 0;
-  regOperPtr.p->op_struct.op_type = ZREAD;
-  regOperPtr.p->op_struct.in_active_list = false;
+  regOperPtr.p->op_type = ZREAD;
+  regOperPtr.p->op_struct.bit_field.in_active_list = false;
   set_trans_state(regOperPtr.p, TRANS_DISCONNECTED);
   regOperPtr.p->prevActiveOp = RNIL;
   regOperPtr.p->nextActiveOp = RNIL;
-  regOperPtr.p->tupVersion = ZNIL;
-  regOperPtr.p->op_struct.delete_insert_flag = false;
+  regOperPtr.p->op_struct.bit_field.tupVersion = ZNIL;
+  regOperPtr.p->op_struct.bit_field.delete_insert_flag = false;
   
   initOpConnection(regOperPtr.p);
   regOperPtr.p->userpointer = userPtr;
