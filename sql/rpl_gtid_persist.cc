@@ -315,8 +315,7 @@ err:
 
 
 int Gtid_table_persistor::update_row(TABLE *table, const char *sid,
-                                     rpl_gno gno_start, rpl_gno gno_end,
-                                     rpl_gno new_gno_end)
+                                     rpl_gno gno_start, rpl_gno new_gno_end)
 {
   DBUG_ENTER("Gtid_table_persistor::update_row");
   int error= 0;
@@ -449,14 +448,8 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table)
   string sid;
   /* Record the first GNO of the first consecutive gtid. */
   rpl_gno gno_start= 0;
-  /* Record the last GNO of the first consecutive gtid. */
-  rpl_gno gno_end= 0;
   /* Record the last GNO of the last consecutive gtid. */
-  rpl_gno last_gno_end= 0;
-  /* Record the gtid interval of the previous gtid. */
-  string prev_sid;
-  rpl_gno prev_gno_start= 0;
-  rpl_gno prev_gno_end= 0;
+  rpl_gno gno_end= 0;
   /* Record the gtid interval of the current gtid. */
   string cur_sid;
   rpl_gno cur_gno_start= 0;
@@ -482,16 +475,10 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table)
       Check if gtid intervals of previous gtid and current gtid
       are consecutive.
     */
-    if (prev_sid == cur_sid && prev_gno_end + 1 == cur_gno_start)
+    if (sid == cur_sid && gno_end + 1 == cur_gno_start)
     {
-      if (!find_first_consecutive_gtids)
-      {
-        /* Record the gtid interval of the first consecutive gtid. */
-        sid= prev_sid;
-        gno_start= prev_gno_start;
-        gno_end= prev_gno_end;
-        find_first_consecutive_gtids= true;
-      }
+      find_first_consecutive_gtids= true;
+      gno_end= cur_gno_end;
       /* Delete the consecutive gtid. We do not delete the first
          consecutive gtid, so that we can update it later. */
       if ((err= table->file->ha_delete_row(table->record[0])))
@@ -500,21 +487,18 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table)
         break;
       }
     }
-    else if (find_first_consecutive_gtids)
-      break;
+    else
+    {
+      if (find_first_consecutive_gtids)
+        break;
 
-    prev_sid= cur_sid;
-    prev_gno_start= cur_gno_start;
-    prev_gno_end= cur_gno_end;
+      /* Record the gtid interval of the first consecutive gtid. */
+      sid= cur_sid;
+      gno_start= cur_gno_start;
+      gno_end= cur_gno_end;
+    }
     err= table->file->ha_index_next(table->record[0]);
   }
-
-  /*
-    Record the gno_end of the last consecutive gtid in
-    both 'err == HA_ERR_END_OF_FILE' and 'err == 0' cases.
-  */
-  if (find_first_consecutive_gtids)
-    last_gno_end= prev_gno_end;
 
   table->file->ha_index_end();
   if (err != HA_ERR_END_OF_FILE && err != 0)
@@ -524,7 +508,7 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table)
       Update the gno_end of the first consecutive gtid with the gno_end of
       the last consecutive gtid for the first consecutive range of gtids.
     */
-    ret= update_row(table, sid.c_str(), gno_start, gno_end, last_gno_end);
+    ret= update_row(table, sid.c_str(), gno_start, gno_end);
 
   DBUG_RETURN(ret);
 }
