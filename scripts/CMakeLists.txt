@@ -264,8 +264,7 @@ IF(WIN32)
   SET(PLIN_FILES mysql_config)
   # Input files with .sh extension
 
-  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow
-    mysqlhotcopy)
+  SET(SH_FILES mysqld_multi mysqldumpslow mysqlhotcopy)
 
   FOREACH(file ${PLIN_FILES})
     IF(NOT ${file}_COMPONENT)
@@ -288,15 +287,8 @@ ELSE()
   # On Unix, most of the files end up in the bin directory
   SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
-    msql2mysql
     mysql_config
-    mysql_fix_extensions
-    mysql_setpermission
     mysql_zap
-    mysqlaccess
-    mysqlaccess.conf
-    mysql_convert_table_format
-    mysql_find_rows
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi

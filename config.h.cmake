@@ -400,6 +400,7 @@
 #cmakedefine HAVE_CHARSET_euckr 1
 #cmakedefine HAVE_CHARSET_gb2312 1
 #cmakedefine HAVE_CHARSET_gbk 1
+#cmakedefine HAVE_CHARSET_gb18030 1
 #cmakedefine HAVE_CHARSET_geostd8 1
 #cmakedefine HAVE_CHARSET_greek 1
 #cmakedefine HAVE_CHARSET_hebrew 1
