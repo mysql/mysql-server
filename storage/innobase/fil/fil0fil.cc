@@ -56,7 +56,6 @@ Created 10/25/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
-#include <set>
 
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
@@ -256,7 +255,7 @@ data space) is stored here; below we talk about tablespaces, but also
 the ib_logfiles form a 'space' and it is handled here */
 struct fil_system_t {
 #ifndef UNIV_HOTBACKUP
-	ib_mutex_t		mutex;		/*!< The mutex protecting the cache */
+	ib_mutex_t	mutex;		/*!< The mutex protecting the cache */
 #endif /* !UNIV_HOTBACKUP */
 	hash_table_t*	spaces;		/*!< The hash table of spaces in the
 					system; they are hashed on the space
@@ -1221,7 +1220,6 @@ fil_space_create(
 
 	space->purpose = purpose;
 	space->flags = flags;
-	space->is_being_truncated = false;
 
 	space->magic_n = FIL_SPACE_MAGIC_N;
 
@@ -1231,7 +1229,6 @@ fil_space_create(
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
-	space->is_in_unflushed_spaces = false;
 
 	UT_LIST_ADD_LAST(fil_system->space_list, space);
 
@@ -4130,7 +4127,7 @@ will_not_choose:
 
 	space = fil_space_get_by_id(df->space_id());
 
-	if (space != NULL)) {
+	if (space != NULL) {
 		char*	new_path;
 
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -4492,7 +4489,7 @@ fil_space_for_table_exists_in_mem(
 				DBUG_SUICIDE(););
 
 		if (fnamespace) {
-			char*	tmp_name;
+			const char*	tmp_name;
 
 			tmp_name = dict_mem_create_temporary_tablename(
 				heap, name, table_id);
@@ -6063,7 +6060,7 @@ fil_delete_file(
 	os_file_delete_if_exists(innodb_data_file_key, ibd_filepath, NULL);
 
 	char*	cfg_filepath = fil_make_filepath(
-			ibd_filepath, NULL, CFG, false);
+		ibd_filepath, NULL, CFG, false);
 	if (cfg_filepath != NULL) {
 		os_file_delete_if_exists(
 			innodb_data_file_key, cfg_filepath, NULL);
