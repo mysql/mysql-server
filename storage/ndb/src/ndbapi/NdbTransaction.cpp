@@ -28,6 +28,8 @@
 #include <signaldata/TcHbRep.hpp>
 #include <signaldata/TcRollbackRep.hpp>
 
+static const Uint64 InvalidTransactionId = ~Uint64(0);
+
 /*****************************************************************************
 NdbTransaction( Ndb* aNdb );
 
@@ -2103,6 +2105,7 @@ transactions.
     /*	and we only need to report completion and return with the     */
     /*	error code to the application.				      */
     /**********************************************************************/
+    theTransactionId = InvalidTransactionId; /* No further signals please */
     theCompletionStatus = CompletedFailure;
     theCommitStatus = Aborted;
     theReturnStatus = ReturnFailure;
