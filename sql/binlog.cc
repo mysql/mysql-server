@@ -6372,7 +6372,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
     {
       /**
         TODO: Change the implementation to Stop_event after write() is
-        moved into libbinlogapi
+        moved into libbinlogevents
       */
       Stop_log_event s;
       // the checksumming rule for relay-log case is similar to Rotate

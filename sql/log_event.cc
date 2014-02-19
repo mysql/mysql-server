@@ -4076,7 +4076,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     const pointers to the data buffer.
 
     Please Note: Any changes to this data_buf will not be reflected
-    to the string variables in binlogapi library which was used to
+    to the string variables in binlogevents library which was used to
     populate the data buffer. This is not a requirement right now.
   */
   //TODO: define a separate func for this?
