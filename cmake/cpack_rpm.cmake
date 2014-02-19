@@ -180,8 +180,14 @@ ELSEIF(RPM MATCHES "(rhel|centos)6")
   ALTERNATIVE_NAME("shared" "mysql-libs")
 ELSEIF(RPM MATCHES "fedora")
   SET(epoch 1) # this is fedora
+  ALTERNATIVE_NAME("client" "mariadb")
   ALTERNATIVE_NAME("client" "mysql")
+  ALTERNATIVE_NAME("devel"  "mariadb-devel")
+  ALTERNATIVE_NAME("server" "mariadb-server")
+  ALTERNATIVE_NAME("shared" "mariadb-libs")
   ALTERNATIVE_NAME("shared" "mysql-libs")
+  ALTERNATIVE_NAME("test"   "mariadb-test")
+  SET(CPACK_RPM_common_PACKAGE_CONFLICTS "mariadb-libs < 1:%{version}-%{release}") 
 ENDIF()
 
 # workaround for lots of perl dependencies added by rpmbuild
