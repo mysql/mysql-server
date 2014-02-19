@@ -44,7 +44,6 @@
 #include "sql_trigger.h"        // TRG_EXT, TRN_EXT
 #include <my_bit.h>
 #include <list>
-#include "rpl_gtid_persist.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
