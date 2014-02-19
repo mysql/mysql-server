@@ -4897,7 +4897,7 @@ Default database: '%s'. Query: '%s'",
              ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
-      if (log_warnings > 1 && ignored_error_code(actual_error))
+      if (actual_error && log_warnings > 1 && ignored_error_code(actual_error))
       {
         if (actual_error == ER_SLAVE_IGNORED_TABLE)
         {
