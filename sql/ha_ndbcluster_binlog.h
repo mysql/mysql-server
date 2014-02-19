@@ -127,9 +127,8 @@ extern NDB_SHARE *ndb_apply_status_share;
 
 extern my_bool ndb_binlog_running;
 
-bool
-ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
-                              enum ha_stat_type stat_type);
+/* Prints ndb binlog status string in buf */
+size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);
 
 /*
   Helper functions
