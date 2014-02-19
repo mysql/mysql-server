@@ -1,7 +1,7 @@
 INCLUDE(configure.cmake)
 # General settings
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogapi/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogapi/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
 
 # Locate Google Test package and enable tests if it is found
 find_package(GTest ${GTEST_VERSION} QUIET)
@@ -21,7 +21,7 @@ find_package(ZLIB REQUIRED)
 message(status "The zlib paths are ${ZLIB_INCLUDE_DIR} and ${ZLIB_INCLUDE_DIRS}")
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/libbinlogapi/include
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
 # ZLIB_INCLUDE_DIR points to ${CMAKE_SOURCE_DIR}/zlib, when compiled with
 # MySQL server version (< 5.7). It is NULL otherwise.
   ${ZLIB_INCLUDE_DIR}
@@ -29,7 +29,7 @@ INCLUDE_DIRECTORIES(
 
 
 CONFIGURE_FILE(config.h.cmake
-               ${CMAKE_SOURCE_DIR}/libbinlogapi/include/config.h)
+               ${CMAKE_SOURCE_DIR}/libbinlogevents/include/config.h)
 
 add_subdirectory(src)
 
