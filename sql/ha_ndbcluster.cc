@@ -434,7 +434,6 @@ static void modify_shared_stats(NDB_SHARE *share,
 
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
                                     const NdbRecord *, struct Ndb_statistics *,
-                                    bool have_lock= FALSE,
                                     uint part_id= ~(uint)0);
 
 static ulong multi_range_fixed_size(int num_ranges);
@@ -1388,8 +1387,7 @@ void ha_ndbcluster::no_uncommitted_rows_update(int c)
 }
 
 
-int ha_ndbcluster::ndb_err(NdbTransaction *trans,
-                           bool have_lock)
+int ha_ndbcluster::ndb_err(NdbTransaction *trans)
 {
   THD *thd= current_thd;
   int res;
@@ -7187,7 +7185,7 @@ void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
     if ((error = check_ndb_connection(thd)))
       goto err;
   }
-  error = update_stats(thd, 1, false, part_id);
+  error = update_stats(thd, 1, part_id);
 
   if (error == 0)
   {
@@ -11177,7 +11175,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(res);
   }
 
-  if ((res= update_stats(thd, 1, true)) ||
+  if ((res= update_stats(thd, 1)) ||
       (res= info(HA_STATUS_CONST)))
   {
     local_close(thd, TRUE);
@@ -13702,7 +13700,6 @@ struct ndb_table_statistics_row {
 
 int ha_ndbcluster::update_stats(THD *thd,
                                 bool do_read_stat,
-                                bool have_lock,
                                 uint part_id)
 {
   struct Ndb_statistics stat;
@@ -13731,7 +13728,7 @@ int ha_ndbcluster::update_stats(THD *thd,
     }
     if (int err= ndb_get_table_statistics(thd, this, TRUE, ndb,
                                           m_ndb_record, &stat,
-                                          have_lock, part_id))
+                                          part_id))
     {
       DBUG_RETURN(err);
     }
@@ -13812,7 +13809,6 @@ int
 ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* ndb,
                          const NdbRecord *record,
                          struct Ndb_statistics * ndbstat,
-                         bool have_lock,
                          uint part_id)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
@@ -13981,7 +13977,7 @@ retry:
     {
       if (file && pTrans)
       {
-        reterr= file->ndb_err(pTrans, have_lock);
+        reterr= file->ndb_err(pTrans);
       }
       else
       {
