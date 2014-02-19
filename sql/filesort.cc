@@ -398,6 +398,84 @@ static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
 }
 
 #ifndef DBUG_OFF
+
+/* Buffer where record is returned */
+char dbug_print_row_buff[512];
+
+/* Temporary buffer for printing a column */
+char dbug_print_row_buff_tmp[512];
+
+/*
+  Print table's current row into a buffer and return a pointer to it.
+
+  This is intended to be used from gdb:
+  
+    (gdb) p dbug_print_table_row(table)
+      $33 = "SUBQUERY2_t1(col_int_key,col_varchar_nokey)=(7,c)"
+    (gdb)
+
+  Only columns in table->read_set are printed
+*/
+
+const char* dbug_print_table_row(TABLE *table)
+{
+  Field **pfield;
+  String tmp(dbug_print_row_buff_tmp,
+             sizeof(dbug_print_row_buff_tmp),&my_charset_bin);
+
+  String output(dbug_print_row_buff, sizeof(dbug_print_row_buff),
+                &my_charset_bin);
+
+  output.length(0);
+  output.append(table->alias);
+  output.append("(");
+  bool first= true;
+
+  for (pfield= table->field; *pfield ; pfield++)
+  {
+    if (table->read_set && !bitmap_is_set(table->read_set, (*pfield)->field_index))
+      continue;
+    
+    if (first)
+      first= false;
+    else
+      output.append(",");
+
+    output.append((*pfield)->field_name? (*pfield)->field_name: "NULL");
+  }
+
+  output.append(")=(");
+
+  first= true;
+  for (pfield= table->field; *pfield ; pfield++)
+  {
+    Field *field=  *pfield;
+
+    if (table->read_set && !bitmap_is_set(table->read_set, (*pfield)->field_index))
+      continue;
+
+    if (first)
+      first= false;
+    else
+      output.append(",");
+
+    if (field->is_null())
+      output.append("NULL");
+    else
+    {
+      if (field->type() == MYSQL_TYPE_BIT)
+        (void) field->val_int_as_str(&tmp, 1);
+      else
+        field->val_str(&tmp);
+      output.append(tmp.ptr(), tmp.length());
+    }
+  }
+  output.append(")");
+  
+  return output.c_ptr_safe();
+}
+
+
 /*
   Print a text, SQL-like record representation into dbug trace.
 
@@ -446,6 +524,7 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
   fprintf(DBUG_FILE, "\n");
   DBUG_UNLOCK_FILE;
 }
+
 #endif 
 
 /**
