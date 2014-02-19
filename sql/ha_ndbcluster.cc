@@ -16857,7 +16857,7 @@ err:
   DBUG_RETURN(true);
 }
 
-int ha_ndbcluster::alter_frm(THD *thd, const char *file, 
+int ha_ndbcluster::alter_frm(const char *file,
                              NDB_ALTER_DATA *alter_data)
 {
   uchar *data= NULL, *pack_data= NULL;
@@ -16959,7 +16959,7 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   }
 
   DBUG_PRINT("info", ("getting frm file %s", altered_table->s->path.str));
-  error= alter_frm(thd, altered_table->s->path.str, alter_data);
+  error= alter_frm(altered_table->s->path.str, alter_data);
   if (!error)
   {
     /*
