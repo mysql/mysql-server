@@ -67,9 +67,6 @@ implementation.prototype.persist = function(parameters, callback) {
   var o = new parameters.object.constructor();
   o.init(parameters.object.id);
   this.context.persist(o, function(err) {
-    if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.persist callback err:', err);
-    if (err)
-      console.log(err);
     callback(err);
   });
 };
@@ -77,10 +74,6 @@ implementation.prototype.persist = function(parameters, callback) {
 implementation.prototype.find = function(parameters, callback) {
   if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.find key:', parameters.key);
   this.context.find(parameters.object.constructor, parameters.key, function(err, found) {
-    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.find callback err:', err);
-    if (err)
-      console.log(err);
-    // account for verification
     parameters.object.verify(found);
     callback(err);
   });
@@ -89,9 +82,6 @@ implementation.prototype.find = function(parameters, callback) {
 implementation.prototype.remove = function(parameters, callback) {
   if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.remove key:', parameters.key);
   this.context.remove(parameters.object.constructor, parameters.key, function(err) {
-    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.remove callback err:', err);
-    if (err)
-      console.log(err);
     callback(err);
   });
 };
@@ -106,9 +96,6 @@ implementation.prototype.createBatch = function(callback) {
 implementation.prototype.executeBatch = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.executeBatch');
   this.context.execute(function(err) {
-    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.executeBatch callback err:', err);
-    if (err)
-      console.log(err);
     callback(err);
   });
   this.context = this.session;
@@ -118,9 +105,6 @@ implementation.prototype.begin = function(callback) {
   if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.begin');
   // begin() signals programming error by exception if no callback provided
   this.session.currentTransaction().begin(function(err) {
-    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.begin callback err:', err);
-    if (err)
-      console.log(err);
     callback(err);
   });
 };
@@ -128,9 +112,6 @@ implementation.prototype.begin = function(callback) {
 implementation.prototype.commit = function(callback) {
   if(DETAIL) JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.commit');
   this.session.currentTransaction().commit(function(err) {
-    JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.commit callback err:', err);
-    if (err)
-      console.log(err);
     callback(err);
   });
 };
