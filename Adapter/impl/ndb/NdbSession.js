@@ -68,7 +68,7 @@ exports.newDBSession = function(pool, impl) {
 /* DBSession Simple Constructor
 */
 NdbSession = function() { 
-  stats.incr("created");
+  stats.incr(["created"]);
   this.tx                  = null;
   this.execQueue           = [];
   this.startTxQueue        = [];

@@ -89,7 +89,7 @@ exports.DBSession = function(pooledConnection, connectionPool, index) {
     this.transactionHandler = null;
     this.autocommit = true;
     this.index = index;
-    session_stats.incr("created");
+    session_stats.incr(["created"]);
   }
 };
 
@@ -1057,7 +1057,7 @@ exports.DBSession.prototype.rollback = function(callback) {
 exports.DBSession.prototype.close = function(callback) {
   udebug.log('MySQLConnection.close');
   var dbSession = this;
-  session_stats.incr("closed");
+  session_stats.incr(["closed"]);
   if (dbSession.pooledConnection) {
     dbSession.pooledConnection.end(function(err) {
       udebug.log('close dbSession', dbSession);

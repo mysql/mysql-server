@@ -182,7 +182,7 @@ if(! ndbPool.ndbConnection.isDisconnecting) {
    Throws an exception if the Properties object is invalid.
 */   
 function DBConnectionPool(props) {
-  stats.incr("created");
+  stats.incr(["created"]);
   this.properties         = props;
   this.ndbConnection      = null;
   this.impl               = null;
@@ -378,7 +378,7 @@ function makeListTablesCall(dbSession, ndbConnectionPool, databaseName) {
   */
 DBConnectionPool.prototype.listTables = function(databaseName, dictSession, 
                                                  user_callback) {
-  stats.incr("listTables");
+  stats.incr(["listTables"]);
   assert(databaseName && user_callback);
 
   if(this.pendingListTables[databaseName]) {
@@ -455,7 +455,7 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
 DBConnectionPool.prototype.getTableMetadata = function(dbname, tabname, 
                                                        dictSession, user_callback) {
   var tableKey;
-  stats.incr("getTableMetadata");
+  stats.incr(["getTableMetadata"]);
   assert(dbname && tabname && user_callback);
   tableKey = dbname + "." + tabname;
 
