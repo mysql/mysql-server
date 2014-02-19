@@ -2,7 +2,7 @@
 #   This file was modified by Oracle in 2011 and later.
 #   Details of the modifications are described in the "changelog" section.
 #
-#   Modifications copyright (c) 2011, 2012, Oracle and/or its
+#   Modifications copyright (c) 2011, 2014, Oracle and/or its
 #   affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -789,13 +789,9 @@ fi
 # The below file *only* applies to builds not done by MySQL / Sun / Oracle:
 # %doc README.mysql-docs
 
-%{_bindir}/msql2mysql
 %{_bindir}/mysql
 %{_bindir}/mysql_config
-%{_bindir}/mysql_find_rows
 %{_bindir}/mysql_waitpid
-%{_bindir}/mysqlaccess
-%{_bindir}/mysqlaccess.conf
 %{_bindir}/mysqladmin
 %{_bindir}/mysqlbinlog
 %{_bindir}/mysqlcheck
@@ -808,9 +804,7 @@ fi
 
 %{_mandir}/man1/mysql.1*
 %{_mandir}/man1/mysql_config.1*
-%{_mandir}/man1/mysql_find_rows.1*
 %{_mandir}/man1/mysql_waitpid.1*
-%{_mandir}/man1/mysqlaccess.1*
 %{_mandir}/man1/mysqladmin.1*
 %{_mandir}/man1/mysqldump.1*
 %{_mandir}/man1/mysqlshow.1*
@@ -870,15 +864,9 @@ fi
 %{_bindir}/myisam_ftdump
 %{_bindir}/myisamlog
 %{_bindir}/myisampack
-%{_bindir}/mysql_convert_table_format
-%{_bindir}/mysql_fix_extensions
 %{_bindir}/mysql_install_db
 %{_bindir}/mysql_plugin
 %{_bindir}/mysql_secure_installation
-%if %{commercial}
-%else
-%{_bindir}/mysql_setpermission
-%endif
 %{_bindir}/mysql_tzinfo_to_sql
 %{_bindir}/mysql_upgrade
 %{_bindir}/mysql_zap
@@ -905,14 +893,11 @@ fi
 # obsolete by "-f release/support-files/plugins.files" above
 # %{_libdir}/mysql/plugin
 
-%{_mandir}/man1/msql2mysql.1*
 %{_mandir}/man1/myisamchk.1*
 %{_mandir}/man1/myisamlog.1*
 %{_mandir}/man1/myisampack.1*
-%{_mandir}/man1/mysql_convert_table_format.1*
 %{_mandir}/man1/myisam_ftdump.1*
 %{_mandir}/man1/mysql.server.1*
-%{_mandir}/man1/mysql_fix_extensions.1*
 %{_mandir}/man1/mysql_install_db.1*
 %{_mandir}/man1/mysql_plugin.1*
 %{_mandir}/man1/mysql_secure_installation.1*
@@ -927,10 +912,6 @@ fi
 %{_mandir}/man1/mysqlhotcopy.1*
 %{_mandir}/man1/mysqlimport.1*
 %{_mandir}/man1/mysqlman.1*
-%if %{commercial}
-%else
-%{_mandir}/man1/mysql_setpermission.1*
-%endif
 %{_mandir}/man1/mysqltest.1*
 %{_mandir}/man1/innochecksum.1*
 %{_mandir}/man1/perror.1*
