@@ -472,7 +472,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 #Since the hedear files of libbinblogevent are contained in
 #libbinlogevents/include, they need to be explicitly included.
 ### end comment ##
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogapi/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
@@ -515,7 +515,7 @@ ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(mysys_ssl)
 ADD_SUBDIRECTORY(libmysql)
-ADD_SUBDIRECTORY(libbinlogapi)
+ADD_SUBDIRECTORY(libbinlogevents)
 
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)
