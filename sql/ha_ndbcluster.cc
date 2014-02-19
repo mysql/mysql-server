@@ -15816,7 +15816,7 @@ ha_ndbcluster::cond_pop()
 
 
 /*
-  Implements the SHOW NDB STATUS command.
+  Implements the SHOW ENGINE NDB STATUS command.
 */
 bool
 ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
@@ -15889,7 +15889,14 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
         DBUG_RETURN(TRUE);
     }
   }
-  ndbcluster_show_status_binlog(thd, stat_print, stat_type);
+
+  buflen = (uint)ndbcluster_show_status_binlog(buf, sizeof(buf));
+  if (buflen)
+  {
+    if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
+                   STRING_WITH_LEN("binlog"), buf, buflen))
+      DBUG_RETURN(TRUE);
+  }
 
   DBUG_RETURN(FALSE);
 }
