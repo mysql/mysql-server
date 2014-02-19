@@ -1509,6 +1509,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_INTERNAL_ERROR);
 	case DB_TABLE_CORRUPT:
 		return(HA_ERR_TABLE_CORRUPT);
+	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
+		return(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE);
 	}
 }
 
@@ -14115,7 +14117,7 @@ Make the first page of given user tablespace dirty. */
 static
 void
 innodb_make_page_dirty(
-/*=========================*/
+/*===================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
 						system variable */
@@ -14134,10 +14136,14 @@ innodb_make_page_dirty(
 		univ_page_size, RW_X_LATCH, &mtr);
 
 	if (block) {
+		byte* page = block->frame;
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Dirtying page:%lu of space:%lu",
-			srv_saved_page_number_debug, space_id);
-		fsp_header_inc_size(space_id, 0, &mtr);
+			page_get_page_no(page),
+			page_get_space_id(page));
+		mlog_write_ulint(page + FIL_PAGE_TYPE,
+				 fil_page_get_type(page),
+				 MLOG_2BYTES, &mtr);
 	}
 	mtr_commit(&mtr);
 }
@@ -15815,7 +15821,7 @@ static MYSQL_SYSVAR_ULONG(ft_total_cache_size, fts_max_total_cache_size,
 static MYSQL_SYSVAR_ULONG(ft_result_cache_limit, fts_result_cache_limit,
   PLUGIN_VAR_RQCMDARG,
   "InnoDB Fulltext search query result cache limit in bytes",
-  NULL, NULL, 2000000000L, 1000000L, ~0UL, 0);
+  NULL, NULL, 2000000000L, 1000000L, 4294967295UL, 0);
 
 static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

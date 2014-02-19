@@ -281,15 +281,27 @@ private:
 };
 
 struct recv_dblwr_t {
-	void add(byte* page);
+	/** Add a page frame to the doublewrite recovery buffer. */
+	void add(const byte* page) {
+		pages.push_back(page);
+	}
 
-	byte* find_page(ulint space_id, ulint page_no);
-
-	std::list<byte*> pages; /* Pages from double write buffer */
-
+	/** Clear the list of pages (invoked by ut_when_dtor) */
 	void operator() () {
 		pages.clear();
 	}
+
+	/** Find a doublewrite copy of a page.
+	@param[in]	space_id	tablespace identifier
+	@param[in]	page_no		page number
+	@return	page frame
+	@retval NULL if no page was found */
+	const byte* find_page(ulint space_id, ulint page_no);
+
+	typedef std::list<const byte*> list;
+
+	/** Recovered doublewrite buffer page frames */
+	list pages;
 };
 
 /** Recovery system data structure */
@@ -339,8 +351,6 @@ struct recv_sys_t{
 	lsn_t		recovered_lsn;
 				/*!< the log records have been parsed up to
 				this lsn */
-	lsn_t		limit_lsn;/*!< recovery should be made at most
-				up to this lsn */
 	ibool		found_corrupt_log;
 				/*!< this is set to TRUE if we during log
 				scan find a corrupt log block, or a corrupt

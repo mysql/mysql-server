@@ -7128,7 +7128,7 @@ DROP TABLE t1;
 # Check whether the new collation is loaded after restart
 SHOW COLLATION LIKE 'utf8_test';
 Collation	Charset	Id	Default	Compiled	Sortlen
-utf8_test	utf8	248			8
+utf8_test	utf8	999			8
 # Create a table with the unknown collation.
 CREATE TABLE t1(id INT PRIMARY KEY, c CHAR(1) COLLATE utf8_test);
 ERROR HY000: Unknown collation: 'utf8_test'
