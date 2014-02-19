@@ -23,6 +23,7 @@
 #include "ndb_table_guard.h"
 #include "ndb_global_schema_lock.h"
 #include "ndb_global_schema_lock_guard.h"
+#include "ndb_tdc.h"
 
 #include "global_threads.h"
 #include "rpl_injector.h"
@@ -1604,7 +1605,7 @@ ndb_binlog_setup(THD *thd)
     if (opt_ndb_extra_logging)
       sql_print_information("NDB Binlog: ndb tables writable");
 
-    close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
+    ndb_tdc_close_cached_tables();
 
     /*
        Signal any waiting thread that ndb table setup is
@@ -2258,11 +2259,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 
   if (do_close_cached_tables)
   {
-    TABLE_LIST table_list;
-    memset(&table_list, 0, sizeof(table_list));
-    table_list.db= (char *)dbname;
-    table_list.alias= table_list.table_name= (char *)tabname;
-    close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
+    ndb_tdc_close_cached_table(thd, dbname, tabname);
     /* ndb_share reference create free */
     DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                              share->key, share->use_count));
@@ -3712,7 +3709,7 @@ public:
       ndb_binlog_is_ready= FALSE;
       pthread_mutex_unlock(&ndb_schema_share_mutex);
 
-      close_cached_tables(NULL, NULL, FALSE, FALSE, FALSE);
+      ndb_tdc_close_cached_tables();
       // fall through
     case NDBEVENT::TE_ALTER:
       /* ndb_schema table ALTERed */
@@ -7062,7 +7059,7 @@ restart_cluster_failure:
 
   if (opt_ndb_extra_logging)
     sql_print_information("NDB Binlog: ndb tables writable");
-  close_cached_tables((THD*) 0, (TABLE_LIST*) 0, FALSE, FALSE, FALSE);
+  ndb_tdc_close_cached_tables();
 
   /* 
      Signal any waiting thread that ndb table setup is
@@ -7692,7 +7689,7 @@ restart_cluster_failure:
     pthread_mutex_unlock(&ndbcluster_mutex);
   }
 
-  close_cached_tables((THD*) 0, (TABLE_LIST*) 0, FALSE, FALSE, FALSE);
+  ndb_tdc_close_cached_tables();
   if (opt_ndb_extra_logging > 15)
   {
     sql_print_information("NDB Binlog: remaining open tables: ");
