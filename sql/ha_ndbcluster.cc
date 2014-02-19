@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -55,6 +55,7 @@
 #include "ndb_util_thread.h"
 #include "ndb_local_connection.h"
 #include "ndb_local_schema.h"
+#include "ndb_tdc.h"
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/include/util/SparseBitmask.hpp"
 
@@ -1401,11 +1402,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans,
     // TODO perhaps we need to do more here, invalidate also in the cache
     m_table->setStatusInvalid();
     /* Close other open handlers not used by any thread */
-    TABLE_LIST table_list;
-    memset(&table_list, 0, sizeof(table_list));
-    table_list.db= m_dbname;
-    table_list.alias= table_list.table_name= m_tabname;
-    close_cached_tables(thd, &table_list, have_lock, FALSE, FALSE);
+    ndb_tdc_close_cached_table(thd, m_dbname, m_tabname);
     break;
   }
   default:
@@ -11993,11 +11990,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       ndbtab_g.invalidate();
 
       // Flush the table from table def. cache.
-      TABLE_LIST table_list;
-      memset(&table_list, 0, sizeof(table_list));
-      table_list.db= (char*)db;
-      table_list.alias= table_list.table_name= file_name_str;
-      close_cached_tables(thd, &table_list, false, 0);
+      ndb_tdc_close_cached_table(thd, db, file_name_str);
 
       DBUG_ASSERT(!thd->is_error());
     }
@@ -13262,11 +13255,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
                            share->key, share->use_count));
   pthread_mutex_unlock(&ndbcluster_mutex);
 
-  TABLE_LIST table_list;
-  memset(&table_list, 0, sizeof(table_list));
-  table_list.db= share->db;
-  table_list.alias= table_list.table_name= share->table_name;
-  close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
+  ndb_tdc_close_cached_table(thd, share->db, share->table_name);
 
   pthread_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference temporary free */
