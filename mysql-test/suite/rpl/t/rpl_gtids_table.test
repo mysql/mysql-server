@@ -33,8 +33,8 @@ SELECT * FROM mysql.gtid_executed;
 --eval SET GTID_NEXT='AUTOMATIC'
 --echo # Verify that these gtids are stored into gtid table and can be
 --echo # reported from global.gtid_executed for normal DDLs.
-CREATE TABLE IF NOT EXISTS t1 (a int) engine=Innodb;
-CREATE TABLE t2 (a int) engine=myisam;
+CREATE TABLE IF NOT EXISTS t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT) ENGINE=MyISAM;
 --echo # Stored gtids MASTER_UUID:1-4 in gtid_executed table on master
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
@@ -46,14 +46,14 @@ SELECT * FROM mysql.gtid_executed;
 --echo # reported from global.gtid_executed for compound statement with
 --echo # regular and temporary tables.
 CREATE TEMPORARY TABLE tmp1 (c1 INT) Engine=MyISAM;
-CREATE TABLE t3 (a int);
+CREATE TABLE t3 (a INT);
 if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
 {
   # We did not generate gtid for above 'CREATE TEMPORARY TABLE' statement
   # in row format, but we did in statement format. So let the 'INSERT'
   # statement generate the missed gtid in row format.
   --disable_query_log
-  INSERT INTO t3 values(1);
+  INSERT INTO t3 VALUES(1);
   --enable_query_log
 }
 --error ER_BAD_TABLE_ERROR
@@ -69,16 +69,16 @@ SELECT * FROM mysql.gtid_executed;
 --echo # Verify that transactions' gtids are stored into gtid table and can be
 --echo # reported from global.gtid_executed correctly.
 BEGIN;
-INSERT INTO t2 values(2);
-INSERT INTO t1 values(1);
-INSERT INTO t1 values(2);
+INSERT INTO t2 VALUES(2);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
 COMMIT;
 --echo # Verify that specified gtid is stored into gtid table for transaction
 --echo # and can be reported from global.gtid_executed correctly.
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:11'
 BEGIN;
-INSERT INTO t1 values(3);
+INSERT INTO t1 VALUES(3);
 COMMIT;
 --eval SET GTID_NEXT='AUTOMATIC'
 --echo # Stored gtids MASTER_UUID:1-11 in gtid_executed table on master
@@ -91,7 +91,7 @@ SELECT * FROM mysql.gtid_executed;
 --echo # Verify that transaction's gtid is not stored into gtid table
 --echo # if the transaction is rollbacked.
 BEGIN;
-INSERT INTO t1 values(4);
+INSERT INTO t1 VALUES(4);
 ROLLBACK;
 --echo # Stored gtids MASTER_UUID:1-11 in gtid_executed table on master
 --replace_result $master_uuid MASTER_UUID
@@ -105,7 +105,7 @@ SELECT * FROM mysql.gtid_executed;
 --echo # if we encounter an error when writing gtid into table.
 SET SESSION debug="+d,simulate_err_on_write_gtid_into_table";
 --ERROR ER_GET_ERRNO
-INSERT INTO t1 values(5);
+INSERT INTO t1 VALUES(5);
 SET SESSION debug="-d,simulate_err_on_write_gtid_into_table";
 --echo # Stored gtids MASTER_UUID:1-11 in gtid_executed table on master
 --replace_result $master_uuid MASTER_UUID
@@ -123,13 +123,13 @@ SELECT * FROM mysql.gtid_executed;
 --echo # is already in gtid table.
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:6'
-INSERT INTO t1 values(11);
+INSERT INTO t1 VALUES(11);
+--let $assert_text= Table t1 must not contain 11
+--let $assert_cond= "[SELECT a FROM t1 WHERE a=11]" = ""
+--source include/assert.inc
 --echo # Stored gtids MASTER_UUID:1-11 in gtid_executed table on slave
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
---let $assert_text= committed gtids MASTER_UUID:1-11
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
---source include/assert.inc
 
 --echo # Verify that the specified gtid to GTID_NEXT is stored into
 --echo # gtid table.
@@ -156,7 +156,7 @@ FLUSH LOGS;
 --echo # Verify that transaction's gtid generated on slave is stored
 --echo # into gtid table.
 BEGIN;
-INSERT INTO t1 values(12);
+INSERT INTO t1 VALUES(12);
 COMMIT;
 --echo # Stored gtids MASTER_UUID:1-11:17 and SLAVE_UUID:1
 --echo # in gtid_executed table on slave.
