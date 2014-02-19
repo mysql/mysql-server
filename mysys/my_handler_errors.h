@@ -94,6 +94,7 @@ static const char *handler_error_messages[]=
   "FTS query exceeds result cache memory limit",
   "Temporary file write failure",
   "Operation not allowed when innodb_forced_recovery > 0",
+  "Too many words in a FTS phrase or proximity search",
   "Foreign key cascade delete/update exceeds max depth",
   "Required Create option missing",
   "Out of memory in storage engine",
