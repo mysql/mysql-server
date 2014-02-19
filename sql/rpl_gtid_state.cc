@@ -468,8 +468,7 @@ int Gtid_state::generate_automatic_gtid(THD *thd)
   int error= 0;
 
   /* Wait until finish resetting binlog files. */
-  if (opt_bin_log)
-    mysql_mutex_lock(&LOCK_reset_binlog);
+  mysql_mutex_lock(&LOCK_reset_binlog);
 
   global_sid_lock->rdlock();
   Gtid automatic_gtid= { 0, 0 };
@@ -485,8 +484,7 @@ int Gtid_state::generate_automatic_gtid(THD *thd)
     acquire_ownership(thd, automatic_gtid);
   unlock_sidno(automatic_gtid.sidno);
   global_sid_lock->unlock();
-  if (opt_bin_log)
-    mysql_mutex_unlock(&LOCK_reset_binlog);
+  mysql_mutex_unlock(&LOCK_reset_binlog);
 
   DBUG_RETURN(error);
 }
