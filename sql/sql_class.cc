@@ -2814,18 +2814,28 @@ bool select_export::send_data(List<Item> &items)
            escape_char != -1)
       {
         char *pos, *start, *end;
+        bool escape_4_bytes= false;
+        int in_escapable_4_bytes= 0;
         const CHARSET_INFO *res_charset= res->charset();
         const CHARSET_INFO *character_set_client=
           thd->variables.character_set_client;
-        bool check_second_byte= (res_charset == &my_charset_bin) &&
-                                 character_set_client->
-                                 escape_with_backslash_is_dangerous;
+        bool check_following_byte= (res_charset == &my_charset_bin) &&
+                                    character_set_client->
+                                    escape_with_backslash_is_dangerous;
+        /*
+          The judgement of mbmaxlenlen == 2 is for gb18030 only.
+          Since there are several charsets with mbmaxlen == 4,
+          so we have to use mbmaxlenlen == 2 here, which is only true
+          for gb18030 currently.
+        */
         DBUG_ASSERT(character_set_client->mbmaxlen == 2 ||
+                    my_mbmaxlenlen(character_set_client) == 2 ||
                     !character_set_client->escape_with_backslash_is_dangerous);
 	for (start=pos=(char*) res->ptr(),end=pos+used_length ;
 	     pos != end ;
 	     pos++)
 	{
+          bool need_escape= false;
 	  if (use_mb(res_charset))
 	  {
 	    int l;
@@ -2838,41 +2848,112 @@ bool select_export::send_data(List<Item> &items)
 
           /*
             Special case when dumping BINARY/VARBINARY/BLOB values
-            for the clients with character sets big5, cp932, gbk and sjis,
-            which can have the escape character (0x5C "\" by default)
-            as the second byte of a multi-byte sequence.
-            
+            for the clients with character sets big5, cp932, gbk, sjis
+            and gb18030, which can have the escape character
+            (0x5C "\" by default) as the second byte of a multi-byte sequence.
+
+            The escape character had better be single-byte character,
+            non-ASCII characters are not prohibited, but not fully supported.
+
             If
             - pos[0] is a valid multi-byte head (e.g 0xEE) and
             - pos[1] is 0x00, which will be escaped as "\0",
-            
+
             then we'll get "0xEE + 0x5C + 0x30" in the output file.
-            
+
             If this file is later loaded using this sequence of commands:
-            
+
             mysql> create table t1 (a varchar(128)) character set big5;
             mysql> LOAD DATA INFILE 'dump.txt' INTO TABLE t1;
-            
+
             then 0x5C will be misinterpreted as the second byte
             of a multi-byte character "0xEE + 0x5C", instead of
             escape character for 0x00.
-            
+
             To avoid this confusion, we'll escape the multi-byte
             head character too, so the sequence "0xEE + 0x00" will be
             dumped as "0x5C + 0xEE + 0x5C + 0x30".
-            
+
             Note, in the condition below we only check if
             mbcharlen is equal to 2, because there are no
             character sets with mbmaxlen longer than 2
             and with escape_with_backslash_is_dangerous set.
             DBUG_ASSERT before the loop makes that sure.
+
+            But gb18030 is an exception. First of all, 2-byte codes
+            would be affected by the issue above without doubt.
+            Then, 4-byte gb18030 codes would be affected as well.
+
+            Supposing the input is GB+81358130, and the
+            field_term_char is set to '5', escape char is 0x5C by default.
+            When we come to the first byte 0x81, if we don't escape it but
+            escape the second byte 0x35 as it's the field_term_char,
+            we would get 0x81 0x5C 0x35 0x81 0x30 for the gb18030 character.
+            That would be the same issue as mentioned above.
+
+            Also, if we just escape the leading 2 bytes, we would get
+            0x5C 0x81 0x5C 0x35 0x81 0x30 in this case.
+            The reader of this sequence would assume that 0x81 0x30
+            is the starting of a new gb18030 character, which would
+            result in further confusion.
+
+            Once we find any byte of the 4-byte gb18030 character should
+            be escaped, we have to escape all the 4 bytes.
+            So for GB+81358130, we will get:
+            0x5C 0x81 0x5C 0x35 0x5C 0x81 0x30
+
+            The byte 0x30 shouldn't be escaped(no matter it's the second
+            or fourth byte in the sequence), since '\0' would be treated
+            as 0x00, which is not what we expect. And 0x30 would be treated as
+            an ASCII char when we read it, which is correct.
           */
 
-          if ((NEED_ESCAPING(*pos) ||
-               (check_second_byte &&
-                my_mbcharlen(character_set_client, (uchar) *pos) == 2 &&
-                pos + 1 < end &&
-                NEED_ESCAPING(pos[1]))) &&
+          DBUG_ASSERT(in_escapable_4_bytes >= 0);
+          if (in_escapable_4_bytes > 0)
+          {
+            DBUG_ASSERT(check_following_byte);
+            /* We should escape or not escape all the 4 bytes. */
+            need_escape= escape_4_bytes;
+          }
+          else if (NEED_ESCAPING(*pos))
+          {
+            need_escape= true;
+            if (my_mbmaxlenlen(character_set_client) == 2 &&
+                my_mbcharlen_ptr(character_set_client, pos, end) == 4)
+            {
+              in_escapable_4_bytes= 4;
+              escape_4_bytes= true;
+            }
+          }
+          else if (check_following_byte)
+          {
+             int len= my_mbcharlen_ptr(character_set_client, pos, end);
+             if (len == 2 && pos + 1 < end && NEED_ESCAPING(pos[1]))
+               need_escape= true;
+             else if (len == 4 && my_mbmaxlenlen(character_set_client) == 2 &&
+                      pos + 3 < end)
+             {
+               in_escapable_4_bytes= 4;
+               escape_4_bytes= (NEED_ESCAPING(pos[1]) ||
+                                NEED_ESCAPING(pos[2]) ||
+                                NEED_ESCAPING(pos[3]));
+               need_escape= escape_4_bytes;
+             }
+          }
+          /* Mark how many coming bytes should be escaped, only for gb18030 */
+          if (in_escapable_4_bytes > 0)
+          {
+            in_escapable_4_bytes--;
+            /*
+             Note that '0' (0x30) in the middle of a 4-byte sequence
+             can't be escaped. Please read more details from above comments.
+             2-byte codes won't be affected by this issue.
+            */
+            if (pos[0] == 0x30)
+              need_escape= false;
+          }
+
+          if (need_escape &&
               /*
                Don't escape field_term_char by doubling - doubling is only
                valid for ENCLOSED BY characters:
@@ -2891,6 +2972,10 @@ bool select_export::send_data(List<Item> &items)
 	    start=pos+1;
 	  }
 	}
+
+        /* Assert that no escape mode is active here */
+        DBUG_ASSERT(in_escapable_4_bytes == 0);
+
 	if (my_b_write(&cache,(uchar*) start,(uint) (pos-start)))
 	  goto err;
       }

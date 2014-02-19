@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -425,8 +425,9 @@ struct mtr_write_log_t {
 
 /**
 Starts a mini-transaction.
-@param sync		true if it is a synchronouse mini-transaction
+@param sync		true if it is a synchronous mini-transaction
 @param read_only	true if read only mini-transaction */
+
 void
 mtr_t::start(bool sync, bool read_only)
 {
@@ -495,33 +496,18 @@ mtr_t::commit()
 	/* This is a dirty read, for debugging. */
 	ut_ad(!recv_no_log_write);
 
+	Command	cmd(this);
+
 	if (m_impl.m_modifications
 	    && (m_impl.m_n_log_recs > 0
 		|| m_impl.m_log_mode == MTR_LOG_NO_REDO)) {
 
 		ut_ad(!srv_read_only_mode);
-
-		Command	cmd(this);
-
 		cmd.execute();
-
 	} else {
-		Command	cmd(this);
-
 		cmd.release_all();
 		cmd.release_resources();
 	}
-}
-
-/**
-@return the commit lsn */
-
-lsn_t
-mtr_t::commit_lsn() const
-{
-	ut_a(m_commit_lsn != 0);
-
-	return(m_commit_lsn);
 }
 
 /**

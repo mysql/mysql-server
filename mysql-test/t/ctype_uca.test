@@ -557,6 +557,7 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 --remove_file $MYSQL_CHARSETSDIR/Index.xml
 
 # Adding an unknown collation with invalid grammer rules.
+# Please make sure the id is not used by any existing collations.
 --write_file $MYSQL_CHARSETSDIR/Index.xml
 <?xml version='1.0' encoding="utf-8"?>
 <charsets max-id="99">
@@ -564,7 +565,7 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_520_ci;
   <family>Unicode</family>
   <description>UTF-8 Unicode</description>
   <alias>utf-8</alias>
-  <collation name="utf8_test"            id="248">
+  <collation name="utf8_test"            id="999">
     <rules>
       <reset>A</reset>
     </rules>
@@ -591,7 +592,7 @@ call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
 --remove_file $MYSQL_CHARSETSDIR/Index.xml
 --copy_file $MYSQLTEST_VARDIR/temp.xml $MYSQL_CHARSETSDIR/Index.xml
 --remove_file $MYSQLTEST_VARDIR/temp.xml
-
+-- source include/restart_mysqld.inc
 
 --echo #
 --echo # End of 5.6 tests

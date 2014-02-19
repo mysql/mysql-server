@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -291,30 +291,6 @@ page_create_write_log(
 # define page_create_write_log(frame,mtr,comp) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
-/***********************************************************//**
-Parses a redo log record of creating a page.
-@return end of log record or NULL */
-
-byte*
-page_parse_create(
-/*==============*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr __attribute__((unused)), /*!< in: buffer end */
-	ulint		comp,	/*!< in: nonzero=compact page format */
-	buf_block_t*	block,	/*!< in: block or NULL */
-	mtr_t*		mtr)	/*!< in: mtr or NULL */
-{
-	ut_ad(ptr && end_ptr);
-
-	/* The record is empty, except for the record initial part */
-
-	if (block) {
-		page_create(block, mtr, comp);
-	}
-
-	return(ptr);
-}
-
 /**********************************************************//**
 The index page creation function.
 @return pointer to the page */
@@ -466,6 +442,20 @@ page_create_low(
 	}
 
 	return(page);
+}
+
+/** Parses a redo log record of creating a page.
+@param[in,out]	block	buffer block, or NULL
+@param[in]	comp	nonzero=compact page format */
+
+void
+page_parse_create(
+	buf_block_t*	block,
+	ulint		comp)
+{
+	if (block != NULL) {
+		page_create_low(block, comp);
+	}
 }
 
 /**********************************************************//**

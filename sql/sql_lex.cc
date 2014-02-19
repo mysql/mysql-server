@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1391,8 +1391,15 @@ static int lex_one_token(void *arg, void *yythd)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
-        if (my_mbcharlen(cs, lip->yyGetLast()) > 1)
+        switch (my_mbcharlen(cs, lip->yyGetLast()))
         {
+        case 1:
+          break;
+        case 0:
+          if (my_mbmaxlenlen(cs) < 2)
+            break;
+          /* else fall through */
+        default:
           int l = my_ismbchar(cs,
                               lip->get_ptr() -1,
                               lip->get_end_of_query());
@@ -1404,8 +1411,15 @@ static int lex_one_token(void *arg, void *yythd)
         }
         while (ident_map[c=lip->yyGet()])
         {
-          if (my_mbcharlen(cs, c) > 1)
+          switch (my_mbcharlen(cs, c))
           {
+          case 1:
+            break;
+          case 0:
+            if (my_mbmaxlenlen(cs) < 2)
+              break;
+            /* else fall through */
+          default:
             int l;
             if ((l = my_ismbchar(cs,
                                  lip->get_ptr() -1,
@@ -1546,8 +1560,15 @@ static int lex_one_token(void *arg, void *yythd)
 	result_state= IDENT_QUOTED;
         while (ident_map[c=lip->yyGet()])
         {
-          if (my_mbcharlen(cs, c) > 1)
+          switch (my_mbcharlen(cs, c))
           {
+          case 1:
+            break;
+          case 0:
+            if (my_mbmaxlenlen(cs) < 2)
+              break;
+            /* else fall through */
+          default:
             int l;
             if ((l = my_ismbchar(cs,
                                  lip->get_ptr() -1,

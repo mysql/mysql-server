@@ -150,6 +150,10 @@ SET @@session.character_set_connection = gbk;
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 gbk
+SET @@session.character_set_connection = gb18030;
+SELECT @@session.character_set_connection;
+@@session.character_set_connection
+gb18030
 SET @@session.character_set_connection = latin5;
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
@@ -295,6 +299,10 @@ SET @@global.character_set_connection = gbk;
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 gbk
+SET @@global.character_set_connection = gb18030;
+SELECT @@global.character_set_connection;
+@@global.character_set_connection
+gb18030
 SET @@global.character_set_connection = latin5;
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
@@ -424,7 +432,7 @@ ERROR 42000: Unknown character set: '100'
 SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
 SELECT @total_charset;
 @total_charset
-40
+41
 '#--------------------FN_DYNVARS_011_10-------------------------#'
 SET @@character_set_connection = abc;
 ERROR 42000: Unknown character set: 'abc'

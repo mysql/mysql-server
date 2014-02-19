@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 #ifdef HAVE_UCA_COLLATIONS
 
-#ifdef HAVE_CHARSET_ucs2
+# ifdef HAVE_CHARSET_ucs2
 extern CHARSET_INFO my_charset_ucs2_german2_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_latvian_uca_ci;
@@ -47,10 +47,10 @@ extern CHARSET_INFO my_charset_ucs2_croatian_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_unicode_520_ci;
 extern CHARSET_INFO my_charset_ucs2_vietnamese_ci;
-#endif /* HAVE_CHARSET_ucs2 */
+# endif /* HAVE_CHARSET_ucs2 */
 
 
-#ifdef HAVE_CHARSET_utf32
+# ifdef HAVE_CHARSET_utf32
 extern CHARSET_INFO my_charset_utf32_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf32_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf32_latvian_uca_ci;
@@ -74,10 +74,10 @@ extern CHARSET_INFO my_charset_utf32_croatian_uca_ci;
 extern CHARSET_INFO my_charset_utf32_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf32_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf32_vietnamese_ci;
-#endif /* HAVE_CHARSET_utf32 */
+# endif /* HAVE_CHARSET_utf32 */
 
 
-#ifdef HAVE_CHARSET_utf16
+# ifdef HAVE_CHARSET_utf16
 extern CHARSET_INFO my_charset_utf16_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf16_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf16_latvian_uca_ci;
@@ -101,10 +101,10 @@ extern CHARSET_INFO my_charset_utf16_croatian_uca_ci;
 extern CHARSET_INFO my_charset_utf16_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf16_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf16_vietnamese_ci;
-#endif  /* HAVE_CHARSET_utf16 */
+# endif  /* HAVE_CHARSET_utf16 */
 
 
-#ifdef HAVE_CHARSET_utf8
+# ifdef HAVE_CHARSET_utf8
 extern CHARSET_INFO my_charset_utf8_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf8_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf8_latvian_uca_ci;
@@ -128,12 +128,12 @@ extern CHARSET_INFO my_charset_utf8_croatian_uca_ci;
 extern CHARSET_INFO my_charset_utf8_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf8_vietnamese_ci;
-#ifdef HAVE_UTF8_GENERAL_CS
+#  ifdef HAVE_UTF8_GENERAL_CS
 extern CHARSET_INFO my_charset_utf8_general_cs;
-#endif
-#endif
+#  endif
+# endif
 
-#ifdef HAVE_CHARSET_utf8mb4
+# ifdef HAVE_CHARSET_utf8mb4
 extern CHARSET_INFO my_charset_utf8mb4_german2_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci;
@@ -157,8 +157,11 @@ extern CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf8mb4_vietnamese_ci;
-#endif /* HAVE_CHARSET_utf8mb4 */
+# endif /* HAVE_CHARSET_utf8mb4 */
 
+# ifdef HAVE_CHARSET_gb18030
+extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
+# endif /* HAVE_CHARSET_gb18030 */
 #endif /* HAVE_UCA_COLLATIONS */
 
 my_bool init_compiled_charsets(myf flags __attribute__((unused)))
@@ -209,6 +212,14 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_gbk_chinese_ci);
   add_compiled_collation(&my_charset_gbk_bin);
 #endif
+
+#ifdef HAVE_CHARSET_gb18030
+# ifdef HAVE_UCA_COLLATIONS
+  add_compiled_collation(&my_charset_gb18030_unicode_520_ci);
+# endif /* HAVE_UCA_COLLATIONS  */
+  add_compiled_collation(&my_charset_gb18030_chinese_ci);
+  add_compiled_collation(&my_charset_gb18030_bin);
+#endif /* HAVE_CHARSET_gb18030 */
 
 #ifdef HAVE_CHARSET_sjis
   add_compiled_collation(&my_charset_sjis_japanese_ci);

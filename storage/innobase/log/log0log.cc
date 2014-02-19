@@ -116,19 +116,9 @@ should be bigger than LOG_POOL_PREFLUSH_RATIO_SYNC */
 the previous */
 #define LOG_POOL_PREFLUSH_RATIO_ASYNC	8
 
-/* Extra margin, in addition to one log file, used in archiving */
-#define LOG_ARCHIVE_EXTRA_MARGIN	(4 * UNIV_PAGE_SIZE)
-
-/* This parameter controls asynchronous writing to the archive */
-#define LOG_ARCHIVE_RATIO_ASYNC		16
-
 /* Codes used in unlocking flush latches */
 #define LOG_UNLOCK_NONE_FLUSHED_LOCK	1
 #define LOG_UNLOCK_FLUSH_LOCK		2
-
-/* States of an archiving operation */
-#define	LOG_ARCHIVE_READ	1
-#define	LOG_ARCHIVE_WRITE	2
 
 /******************************************************//**
 Completes a checkpoint write i/o to a log file. */
@@ -639,8 +629,8 @@ log_group_set_fields(
 }
 
 /*****************************************************************//**
-Calculates the recommended highest values for lsn - last_checkpoint_lsn,
-lsn - buf_get_oldest_modification(), and lsn - max_archive_lsn_age.
+Calculates the recommended highest values for lsn - last_checkpoint_lsn
+and lsn - buf_get_oldest_modification().
 @retval true on success
 @retval false if the smallest log group is too small to
 accommodate the number of OS threads in the database server */
@@ -654,8 +644,6 @@ log_calc_max_ages(void)
 	ulint		free;
 	bool		success	= true;
 	lsn_t		smallest_capacity;
-	lsn_t		archive_margin;
-	lsn_t		smallest_archive_margin;
 
 	log_mutex_enter();
 
@@ -664,21 +652,11 @@ log_calc_max_ages(void)
 	ut_ad(group);
 
 	smallest_capacity = LSN_MAX;
-	smallest_archive_margin = LSN_MAX;
 
 	while (group) {
 		if (log_group_get_capacity(group) < smallest_capacity) {
 
 			smallest_capacity = log_group_get_capacity(group);
-		}
-
-		archive_margin = log_group_get_capacity(group)
-			- (group->file_size - LOG_FILE_HDR_SIZE)
-			- LOG_ARCHIVE_EXTRA_MARGIN;
-
-		if (archive_margin < smallest_archive_margin) {
-
-			smallest_archive_margin = archive_margin;
 		}
 
 		group = UT_LIST_GET_NEXT(log_groups, group);
@@ -1962,7 +1940,6 @@ Reads a specified log segment to a buffer. */
 void
 log_group_read_log_seg(
 /*===================*/
-	ulint		type,		/*!< in: LOG_ARCHIVE or LOG_RECOVER */
 	byte*		buf,		/*!< in: buffer where to read */
 	log_group_t*	group,		/*!< in: log group */
 	lsn_t		start_lsn,	/*!< in: read area start */
@@ -1970,11 +1947,9 @@ log_group_read_log_seg(
 {
 	ulint	len;
 	lsn_t	source_offset;
-	bool	sync;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
-	sync = (type == LOG_RECOVER);
 loop:
 	source_offset = log_group_calc_lsn_offset(start_lsn, group);
 
@@ -2000,7 +1975,7 @@ loop:
 	const ulint	page_no
 		= (ulint) (source_offset / univ_page_size.physical());
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, sync,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, true,
 	       page_id_t(group->space_id, page_no),
 	       univ_page_size,
 	       (ulint) (source_offset % univ_page_size.physical()),
