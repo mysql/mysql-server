@@ -2925,7 +2925,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
                      .xids = lbuf->xids,
                      .u = { .id = { &thekey, &theval } } };
     uint64_t workdone=0;
-    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, TXNID_NONE, make_gc_info(true), &workdone, stats_to_update);
+    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, TXNID_NONE, make_gc_info(true), nullptr, &workdone, stats_to_update);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {

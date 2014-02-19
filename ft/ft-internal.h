@@ -1065,6 +1065,10 @@ typedef enum {
     LE_MAX_PROVISIONAL_XR,
     LE_EXPANDED,
     LE_MAX_MEMSIZE,
+    LE_APPLY_GC_BYTES_IN,
+    LE_APPLY_GC_BYTES_OUT,
+    LE_NORMAL_GC_BYTES_IN,
+    LE_NORMAL_GC_BYTES_OUT,
     LE_STATUS_NUM_ROWS
 } le_status_entry;
 
@@ -1196,6 +1200,7 @@ toku_ft_bn_apply_cmd_once (
     LEAFENTRY le,
     TXNID oldest_referenced_xid,
     GC_INFO gc_info,
+    txn_manager_state *txn_state_for_gc,
     uint64_t *workdonep,
     STAT64INFO stats_to_update
     );
@@ -1209,6 +1214,7 @@ toku_ft_bn_apply_cmd (
     FT_MSG cmd,
     TXNID oldest_referenced_xid,
     GC_INFO gc_info,
+    txn_manager_state *txn_state_for_gc,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
@@ -1222,6 +1228,7 @@ toku_ft_leaf_apply_cmd (
     int target_childnum,
     FT_MSG cmd,
     GC_INFO gc_info,
+    txn_manager_state *txn_state_for_gc,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
@@ -1236,6 +1243,7 @@ toku_ft_node_put_cmd (
     FT_MSG cmd,
     bool is_fresh,
     GC_INFO gc_info,
+    txn_manager_state *txn_state_for_gc,
     size_t flow_deltas[],
     STAT64INFO stats_to_update
     );

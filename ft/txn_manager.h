@@ -121,6 +121,28 @@ struct txn_manager {
 
     TXNID last_xid;
     TXNID last_xid_seen_for_recover;
+    TXNID last_calculated_oldest_referenced_xid;
+};
+
+struct txn_manager_state { 
+    // a snapshot of the txn manager's mvcc state
+    xid_omt_t snapshot_xids;
+    rx_omt_t referenced_xids;
+    xid_omt_t live_root_txns;
+
+    // the oldest xid in any live list
+    //
+    // suitible for simple garbage collection that cleans up multiple committed
+    // transaction records into one. not suitible for implicit promotions, which
+    // must be correct in the face of abort messages - see ftnode->oldest_referenced_xid
+    TXNID oldest_referenced_xid_for_simple_gc;
+
+    txn_manager_state() { }
+    void init(TXN_MANAGER txn_manager);
+    void destroy();
+
+private:
+    txn_manager_state(txn_manager_state &rhs); // shouldn't need to copy construct
 };
 
 
@@ -128,6 +150,8 @@ void toku_txn_manager_init(TXN_MANAGER* txn_manager);
 void toku_txn_manager_destroy(TXN_MANAGER txn_manager);
 
 TXNID toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager);
+
+TXNID toku_txn_manager_get_oldest_referenced_xid_estimate(TXN_MANAGER txn_manager);
 
 void toku_txn_manager_handle_snapshot_create_for_child_txn(
     TOKUTXN txn,

@@ -249,6 +249,7 @@ toku_le_apply_msg(FT_MSG   msg,
                   uint32_t idx, // index in data_buffer where leafentry is stored (and should be replaced
                   TXNID oldest_referenced_xid,
                   GC_INFO gc_info,
+                  txn_manager_state *txn_state_for_gc,
                   LEAFENTRY *new_leafentry_p,
                   int64_t * numbytes_delta_p);
 
