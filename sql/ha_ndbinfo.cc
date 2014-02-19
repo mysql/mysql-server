@@ -17,6 +17,7 @@
 
 #include "ha_ndbcluster_glue.h"
 #include "ha_ndbinfo.h"
+#include "ndb_tdc.h"
 #include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
 
 
@@ -111,7 +112,7 @@ offline_update(THD* thd, struct st_mysql_sys_var* var,
   opt_ndbinfo_offline = new_offline;
 
   // Close any open tables which may be in the old mode
-  (void)close_cached_tables(thd, NULL, false, false, false);
+  (void)ndb_tdc_close_cached_tables();
 
   DBUG_VOID_RETURN;
 }
