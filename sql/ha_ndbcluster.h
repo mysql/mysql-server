@@ -475,7 +475,7 @@ private:
 
   int ndb_optimize_table(THD* thd, uint delay);
 
-  int alter_frm(THD *thd, const char *file, class NDB_ALTER_DATA *alter_data);
+  int alter_frm(const char *file, class NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
