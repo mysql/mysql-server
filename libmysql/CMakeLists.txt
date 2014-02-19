@@ -26,8 +26,6 @@ ADD_DEFINITIONS(${SSL_DEFINES})
 
 SET(CLIENT_API_FUNCTIONS_5_1
 get_tty_password
-handle_options
-load_defaults
 mysql_thread_end
 mysql_thread_init
 myodbc_remove_escape
@@ -131,6 +129,12 @@ mysql_server_init
 mysql_server_end
 mysql_set_character_set
 mysql_get_character_set_info
+# These are documented in Paul DuBois' MySQL book,
+# so we treat them as part of the de-facto API.
+handle_options
+load_defaults
+free_defaults
+my_print_help
 )
 
 SET(CLIENT_API_FUNCTIONS_5_5
@@ -153,6 +157,8 @@ mysql_close_cont
 mysql_close_start
 mysql_commit_cont
 mysql_commit_start
+mysql_dump_debug_info_cont
+mysql_dump_debug_info_start
 mysql_fetch_row_cont
 mysql_fetch_row_start
 mysql_free_result_cont
@@ -239,73 +245,76 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   # for compatibility with distribution packages, so client shared library can 
   # painlessly replace the one supplied by the distribution.
   
-  # Also list of exported symbols in distributions may differ from what is considered
-  # official API. Define CLIENT_API_EXTRA for the set of symbols, that required to
-  # be exported on different platforms.
+  # Also list of exported symbols in distributions may differ from what is
+  # considered official API. Define CLIENT_API_5_1_EXTRA for the set of
+  # symbols, that required to be exported on different platforms.
   
-  IF(RPM)
-    # Fedora & Co declared following functions as part of API 
-    SET(CLIENT_API_EXTRA
-      mysql_default_charset_info
-      mysql_get_charset
-      mysql_get_charset_by_csname
-      mysql_net_realloc
-      mysql_client_errors
+  # Fedora & Co declared following functions as part of API 
+  SET(CLIENT_API_5_1_EXTRA
+    # why does Fedora export these?
+    _fini
+    _init
+    my_init
 
-      #  Also export the non-renamed variants
-      # (in case someone wants to rebuild mysqli-php or something similar)
-      # See MDEV-4127
-      default_charset_info
-      get_charset
-      get_charset_by_csname
-      net_realloc
-      client_errors
-      THR_KEY_mysys
-    )  
-  
-    # Add special script to fix symbols renames by Fedora
-    SET(CLIENT_SOURCES_EXTRA rpm_support.cc)
-    SET(VERSION_SCRIPT_TEMPLATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/libmysql_rpm_version.in)	  
-  ELSEIF(DEB)
-    # libmyodbc on Ubuntu is using functions below
-    # If we don't export them, linker would just remove 
-    # them (they are not used inside libmysqlclient)
-    SET(CLIENT_API_EXTRA
-      strfill
-      init_dynamic_string
-    )
-    # MySQL supplied with Ubuntu does not have versioning, bug Debian does.
-    IF(DEB MATCHES "debian") 
-      SET(VERSION_SCRIPT_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/libmysql.ver.in)
-    ENDIF()
-  ENDIF()
+    #  mysql-connector-odbc requires these
+    mysql_default_charset_info
+    mysql_get_charset
+    mysql_get_charset_by_csname
+    mysql_net_realloc
 
-  IF(VERSION_SCRIPT_TEMPLATE)
-    # Generate version script.  
-    # Create semicolon separated lists of functions to export from 
-    # Since RPM packages use separate versioning for 5.1 API
-    # and 5.5 API (libmysqlclient_16 vs libmysqlclient_18), 
-    # we need 2 lists.
-    SET (CLIENT_API_5_1_LIST)
-    FOREACH (f ${CLIENT_API_FUNCTIONS_5_1})
-      SET(CLIENT_API_5_1_LIST "${CLIENT_API_5_1_LIST}\n${f};")
-    ENDFOREACH()
-	
-    SET (CLIENT_API_5_5_LIST)
-    FOREACH (f ${CLIENT_API_FUNCTIONS_5_5})
-      SET(CLIENT_API_5_5_LIST "${CLIENT_API_5_5_LIST}\n${f};")
-    ENDFOREACH()
+    # PHP's mysqli.so requires this (via the ER() macro)
+    mysql_client_errors
 
-    CONFIGURE_FILE(
-      ${VERSION_SCRIPT_TEMPLATE}
-      ${CMAKE_CURRENT_BINARY_DIR}/libmysql.version
-      @ONLY@
-    )
-    SET(VERSION_SCRIPT_LINK_FLAGS 
-      "-Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.version")
-  ENDIF()
-  
+    # Also export the non-renamed variants
+    # (in case someone wants to rebuild mysqli-php or something similar)
+    # See MDEV-4127
+    default_charset_info
+    get_charset
+    get_charset_by_csname
+    net_realloc
+    client_errors
+
+    # pure-ftpd requires this
+    my_make_scrambled_password
+
+    # hydra requires this
+    scramble
+
+    # ODB requires this: https://bugzilla.redhat.com/show_bug.cgi?id=846602
+    THR_KEY_mysys
+
+    # DBD::mysql requires this
+    is_prefix
+  )  
+
+  # Linker script to version symbols in Fedora- and Debian- compatible way, MDEV-5529
+  SET(VERSION_SCRIPT_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/libmysql_versions.ld.in)
+
+  # Generate version script.  
+  # Create semicolon separated lists of functions to export from 
+  # Since RPM packages use separate versioning for 5.1 API
+  # and 5.5 API (libmysqlclient_16 vs libmysqlclient_18), 
+  # we need 2 lists.
+  SET (CLIENT_API_5_1_LIST)
+  SET (CLIENT_API_5_1_ALIASES)
+  FOREACH (f ${CLIENT_API_FUNCTIONS_5_1} ${CLIENT_API_5_1_EXTRA})
+    SET(CLIENT_API_5_1_LIST "${CLIENT_API_5_1_LIST}\t${f};\n")
+    SET(CLIENT_API_5_1_ALIASES "${CLIENT_API_5_1_ALIASES}\"${f}@libmysqlclient_16\" = ${f};\n")
+  ENDFOREACH()
+      
+  SET (CLIENT_API_5_5_LIST)
+  FOREACH (f ${CLIENT_API_FUNCTIONS_5_5})
+    SET(CLIENT_API_5_5_LIST "${CLIENT_API_5_5_LIST}\t${f};\n")
+  ENDFOREACH()
+
+  CONFIGURE_FILE(
+    ${VERSION_SCRIPT_TEMPLATE}
+    ${CMAKE_CURRENT_BINARY_DIR}/libmysql_versions.ld
+    @ONLY@
+  )
+  SET(VERSION_SCRIPT_LINK_FLAGS 
+    "-Wl,${CMAKE_CURRENT_BINARY_DIR}/libmysql_versions.ld")
+
 ENDIF()
 
 
@@ -355,7 +364,7 @@ IF(UNIX)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_EXTRA} COMPONENT SharedLibraries)
+  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_5_1_EXTRA} COMPONENT SharedLibraries)
   IF(UNIX)
     # libtool compatability
     IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)
@@ -372,9 +381,6 @@ IF(NOT DISABLE_SHARED)
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
     IF(LINK_FLAG_NO_UNDEFINED OR VERSION_SCRIPT_LINK_FLAGS)
       GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-      IF(NOT libmysql_link_flag)
-        SET(libmysql_link_flags)
-      ENDIF()
       SET_TARGET_PROPERTIES(libmysql PROPERTIES LINK_FLAGS 
         "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED} ${VERSION_SCRIPT_LINK_FLAGS}")
     ENDIF() 

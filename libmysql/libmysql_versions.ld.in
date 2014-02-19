@@ -1,0 +1,45 @@
+/*
+  This version script is heavily inspired  by Fedora's and Mageia's version
+  scripts for MySQL client shared library.
+  But it was modified to support Debian-compatible versioning too.
+
+  In RedHat universe, symbols from old libmysqlclient.so.16
+  keep their libmysqlclient_16 version. New symbols added in
+  libmysqlclient.so.18 get the new libmysqlclient_18 version.
+
+  In Debian all symbols in libmysqlclient.so.18 have libmysqlclient_18 version,
+  including symbols that existed in libmysqlclient.so.16
+
+  We solve this by putting all symbols into libmysqlclient_18 version node,
+  but creating aliases for old symbols in the libmysqlclient_16 version node.
+*/
+
+@CLIENT_API_5_1_ALIASES@
+
+/*
+  On Fedora the following symbols are exported, but renamed into a mysql_
+  namespace. We export them as aliases, but keep original symbols too. See
+  MDEV-4127.
+*/
+mysql_default_charset_info = default_charset_info;
+mysql_get_charset = get_charset;
+mysql_get_charset_by_csname = get_charset_by_csname;
+mysql_net_realloc = net_realloc;
+mysql_client_errors = client_errors;
+
+VERSION {
+
+libmysqlclient_18 {
+  global:
+@CLIENT_API_5_1_LIST@
+@CLIENT_API_5_5_LIST@
+
+  local:
+	*;
+};
+
+libmysqlclient_16 {
+  /* empty here. aliases are added above */
+};
+
+}
