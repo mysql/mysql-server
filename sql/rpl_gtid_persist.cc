@@ -27,6 +27,7 @@
 
 pthread_t compress_thread_id= 0;
 static bool terminate_compress_thread= false;
+static bool should_compress= false;
 const LEX_STRING Gtid_table_access_context::TABLE_NAME= {C_STRING_WITH_LEN("gtid_executed")};
 const LEX_STRING Gtid_table_access_context::DB_NAME= {C_STRING_WITH_LEN("mysql")};
 
@@ -431,6 +432,7 @@ end:
          DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
     {
       m_count= 0;
+      should_compress= true;
       mysql_cond_signal(&COND_compress_gtid_table);
     }
   }
@@ -811,7 +813,10 @@ pthread_handler_t compress_gtid_table(void *arg)
     THD_ENTER_COND(thd, &COND_compress_gtid_table,
                    &LOCK_compress_gtid_table,
                    &stage_suspending, NULL);
-    mysql_cond_wait(&COND_compress_gtid_table, &LOCK_compress_gtid_table);
+    /* Add the check to handle spurious wakeups from system. */
+    while(!(should_compress || terminate_compress_thread))
+      mysql_cond_wait(&COND_compress_gtid_table, &LOCK_compress_gtid_table);
+    should_compress= false;
     THD_EXIT_COND(thd, NULL);
 
     if (terminate_compress_thread)
