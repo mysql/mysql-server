@@ -1144,9 +1144,9 @@ ERROR HY000: Internal error: Cannot reset LSNs in table '"test"."t1" /* Partitio
 restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 ERROR HY000: Tablespace for table 't1' exists. Please DISCARD the tablespace before IMPORT.
+ALTER TABLE t1 IMPORT PARTITION p0sp2 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table 't1'
 Warning	1812	InnoDB: Tablespace is missing for table 't1'
 Warning	1812	InnoDB: Tablespace is missing for table 't1'
 Warning	1812	InnoDB: Tablespace is missing for table 't1'
@@ -1177,6 +1177,74 @@ ALTER TABLE t1 DISCARD PARTITION pNonExisting TABLESPACE;
 ERROR HY000: Partition management on a not partitioned table is not possible
 ALTER TABLE t1 IMPORT PARTITION pNonExisting TABLESPACE;
 ERROR HY000: Partition management on a not partitioned table is not possible
+ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
+ERROR HY000: Partition management on a not partitioned table is not possible
+DROP TABLE t1;
+# discard partition one by one
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+PARTITION BY RANGE (c1)
+SUBPARTITION BY HASH (c1) SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE);
+ALTER TABLE t1 DISCARD PARTITION p0sp0 TABLESPACE;
+restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
+ALTER TABLE t1 IMPORT PARTITION p0sp0 TABLESPACE;
+SELECT * FROM t1 PARTITION (p0sp0) ORDER BY c1;
+c1
+3
+6
+SELECT * FROM t1 ORDER BY c1;
+c1
+3
+6
+ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
+restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
+restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
+ALTER TABLE t1 IMPORT PARTITION p1 TABLESPACE;
+SELECT * FROM t1 PARTITION (p1) ORDER BY c1;
+c1
+101
+102
+103
+104
+105
+106
+SELECT * FROM t1 ORDER BY c1;
+c1
+3
+6
+101
+102
+103
+104
+105
+106
+ALTER TABLE t1 DISCARD PARTITION p0sp0 TABLESPACE;
+ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
+ALTER TABLE t1 DISCARD PARTITION p0sp1 TABLESPACE;
+ALTER TABLE t1 DISCARD PARTITION p0sp2 TABLESPACE;
+restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
+restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
+restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
+restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
+restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
+restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
+ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+101
+102
+103
+104
+105
+106
 DROP TABLE t1;
 call mtr.add_suppression("InnoDB: Cannot calculate statistics for table .* because the .ibd file is missing");
 call mtr.add_suppression("InnoDB: Cannot delete tablespace .* in DISCARD TABLESPACE. Tablespace not found");
