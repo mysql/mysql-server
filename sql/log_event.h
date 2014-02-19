@@ -1230,14 +1230,9 @@ protected:
 */
 class Query_log_event: public virtual Query_event, public Log_event
 {
-  const char* user;
-  const char* host;
 protected:
   Log_event_header::Byte* data_buf;
 public:
-  const char* query;
-  const char* catalog;
-  const char* db;
   /*
     For events created by Query_log_event::do_apply_event (and
     Load_log_event::do_apply_event()) we need the *original* thread
@@ -1246,7 +1241,6 @@ public:
   */
   ulong slave_proxy_id;
 
-  const char *time_zone_str;
 
 #ifdef MYSQL_SERVER
 
