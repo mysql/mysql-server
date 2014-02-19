@@ -5136,7 +5136,7 @@ compare_errors:
              ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
-      if (ignored_error_code(actual_error))
+      if (actual_error && ignored_error_code(actual_error))
       {
         if (actual_error == ER_SLAVE_IGNORED_TABLE)
         {
