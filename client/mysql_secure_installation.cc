@@ -22,7 +22,7 @@
 
 using namespace std;
 
-static char **defaults_argv;
+static char **defaults_argv= 0;
 static char *opt_host= 0;
 static char *opt_user= 0;
 static uint opt_port= 0;
@@ -113,7 +113,8 @@ static void free_resources()
   if (password)
     my_free(password);
   mysql_close(&mysql);
-  free_defaults(defaults_argv);
+  if (defaults_argv && *defaults_argv)
+    free_defaults(defaults_argv);
 }
 my_bool
 my_arguments_get_one_option(int optid,
@@ -900,6 +901,12 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
+  if (mysql_init(&mysql) == NULL)
+  {
+    printf("... Failed to initialize the MySQL client framework.\n");
+    exit(1);
+  }
+
 #ifdef __WIN__
   /* Convert command line parameters from UTF16LE to UTF8MB4. */
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
@@ -908,11 +915,11 @@ int main(int argc,char *argv[])
   my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
   {
-    free_defaults(argv);
     my_end(0);
     free_resources();
     exit(1);
   }
+
   defaults_argv= argv;
   my_getopt_use_args_separator= FALSE;
 
@@ -922,12 +929,6 @@ int main(int argc,char *argv[])
     fprintf(stdout, "Skipping unrecognized options");
   }
 
-  if (mysql_init(&mysql) == NULL)
-  {
-    printf("... Failed to initialize the MySQL client framework.\n");
-    free_resources();
-    exit(1);
-  }
   init_connection_options(&mysql);
 
   fprintf(stdout, "\nSecuring the MySQL server deployment.\n\n");
