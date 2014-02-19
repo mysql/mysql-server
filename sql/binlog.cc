@@ -29,7 +29,6 @@
 #include "sql_parse.h"
 #include "rpl_mi.h"
 #include "dur_prop.h"
-#include "rpl_gtid_persist.h"
 #include <list>
 #include <string>
 #include <m_ctype.h>				// For is_number
