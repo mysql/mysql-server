@@ -405,13 +405,13 @@ sub generate_random_password {
   {
     while (length($password) < $pass_len) {
       $c = getc(FD);
-      if ($c =~ /\w/ || $c =~ /[\,\.\!£\$\@\{\}\\\=\#[\]\(\)]/) {
+      if ($c =~ /\w/ || $c =~ /[,.!\$\@\{\}\=\-\+\#\[\]\(\)]/) {
         $password .= $c;
         if ($c =~ /[0-9]/)
         { $got_num = 1; }
         if ( $c =~ /[A-Z]/ )
         { $got_upper = 1; }
-        if ($c =~ /[\,\.\!£\$\@\{\}\\\=\#\[\]\(\)]/)
+        if ($c =~ /[,.!\$\@\{\}\=\-\+\#\[\]\(\)]/)
         { $got_special= 1; }
       }
     }
