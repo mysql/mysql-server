@@ -36,6 +36,9 @@ JSCRUND.nullAdapter = require('./jscrund_null');
 
 JSCRUND.errors  = [];
 
+var DEBUG  = JSCRUND.udebug.is_debug();
+var DETAIL = JSCRUND.udebug.is_detail();
+
 // webkit-devtools-agent allows you to profile the process from a Chrome browser
 try {
  require('webkit-devtools-agent');
@@ -142,7 +145,7 @@ function parse_command_line(options) {
         if(isFinite(parseInt(pair[1]))) {
           pair[1] = parseInt(pair[1])
         }
-        JSCRUND.udebug.log("Setting global:", pair[0], "=", pair[1]);
+        if(DEBUG) JSCRUND.udebug.log("Setting global:", pair[0], "=", pair[1]);
         options.setProp[pair[0]] = pair[1];
       }
       else {
@@ -454,7 +457,7 @@ function main() {
      * and then call the operationsDoneCallback
      */
     var indyOperationsLoop = function(err) {
-      JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'err:', err);
+      if(DETAIL) JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'err:', err);
       // check result
       if (err) {
         appendError(err);
@@ -464,7 +467,7 @@ function main() {
         operation.apply(JSCRUND.implementation, [parameters[iteration], indyOperationsLoop]);
         iteration++;
       } else {
-        JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'complete.');
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'complete.');
         timer.stop();
         resultStats.push({
           name: testName + "," + modeName,
@@ -483,7 +486,7 @@ function main() {
       if (testNumber < testNames.length) {
         if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
-        JSCRUND.udebug.log_detail('jscrund.indyTestsLoop', testNumber, 'of', testNames.length, ':', testName);
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.indyTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
         setImmediate(indyOperationsLoop, null);
@@ -513,7 +516,7 @@ function main() {
      * and then call the operationsDoneCallback
      */
     var eachOperationsLoop = function(err) {
-      JSCRUND.udebug.log_detail('jscrund.eachOperationsLoop iteration:', iteration, 'err:', err);
+      if(DETAIL) JSCRUND.udebug.log_detail('jscrund.eachOperationsLoop iteration:', iteration, 'err:', err);
       // check result
       if (err) {
         appendError(err);
@@ -523,7 +526,7 @@ function main() {
         operation.apply(JSCRUND.implementation, [parameters[iteration], eachOperationsLoop]);
         iteration++;
       } else {
-        JSCRUND.udebug.log_detail('jscrund.eachOperationLoop iteration:', iteration, 'complete.');
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.eachOperationLoop iteration:', iteration, 'complete.');
         JSCRUND.implementation.commit(eachCommitDoneCallback);
       }
     };
@@ -537,7 +540,7 @@ function main() {
       if (testNumber < testNames.length) {
         if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
-        JSCRUND.udebug.log_detail('jscrund.eachTestsLoop', testNumber, 'of', testNames.length, ':', testName);
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.eachTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
         JSCRUND.implementation.begin(function(err) {
@@ -553,7 +556,7 @@ function main() {
     /** Check the results of a bulk execute.
      */
     var bulkCheckBatchCallback = function(err) {
-      JSCRUND.udebug.log_detail('jscrund.bulkCheckBatchCallback', err);
+      if(DETAIL) JSCRUND.udebug.log_detail('jscrund.bulkCheckBatchCallback', err);
       // check result
       if (err) {
         appendError(err);
@@ -570,7 +573,7 @@ function main() {
      * numberOfIterations times per test.
      */
     var bulkCheckOperationCallback = function(err) {
-      JSCRUND.udebug.log_detail('jscrund.bulkCheckOperationCallback', err);
+      if(DETAIL) JSCRUND.udebug.log_detail('jscrund.bulkCheckOperationCallback', err);
       if (err) {
         appendError(err);
       }
@@ -585,7 +588,7 @@ function main() {
       if (testNumber < testNames.length) {
         if(options.use_gc) global.gc();  // Full GC between tests
         testNumber++;
-        JSCRUND.udebug.log_detail('jscrund.bulkTestsLoop', testNumber, 'of', testNames.length, ':', testName);
+        if(DETAIL) JSCRUND.udebug.log_detail('jscrund.bulkTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         timer.start(modeName, testName, numberOfIterations);
         JSCRUND.implementation.createBatch(function(err) {
           for (iteration = 0; iteration < numberOfIterations; ++iteration) {
