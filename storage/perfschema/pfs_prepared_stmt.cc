@@ -112,7 +112,10 @@ create_prepared_stmt(void *identity,
                      const char* sqltext, uint sqltext_length)
 {
   if (prepared_stmt_array == NULL || prepared_stmt_max == 0)
+  {
+    prepared_stmt_lost++;
     return NULL;
+  }
 
   PFS_prepared_stmt *pfs= NULL;
   static uint PFS_ALIGNED prepared_stmt_monotonic_index= 0;
