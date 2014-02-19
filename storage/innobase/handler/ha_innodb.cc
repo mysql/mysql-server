@@ -1509,6 +1509,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_INTERNAL_ERROR);
 	case DB_TABLE_CORRUPT:
 		return(HA_ERR_TABLE_CORRUPT);
+	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
+		return(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE);
 	}
 }
 
