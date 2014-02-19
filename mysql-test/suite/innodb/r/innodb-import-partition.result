@@ -1197,6 +1197,11 @@ SELECT * FROM t1 ORDER BY c1;
 c1
 3
 6
+ALTER TABLE t1 REBUILD PARTITION p0sp0;
+SELECT * FROM t1 PARTITION (p0sp0) ORDER BY c1;
+c1
+3
+6
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
 restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
@@ -1210,6 +1215,27 @@ c1
 104
 105
 106
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+test.t1	optimize	status	OK
+SELECT * FROM t1 PARTITION (p1) ORDER BY c1;
+c1
+101
+102
+103
+104
+105
+106
+ALTER TABLE t1 CHECK PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+ALTER TABLE t1 ANALYZE PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ALTER TABLE t1 REPAIR PARTITION p0sp0,p1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
 SELECT * FROM t1 ORDER BY c1;
 c1
 3

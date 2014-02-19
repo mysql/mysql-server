@@ -96,6 +96,7 @@ eval set global innodb_file_per_table = $slave_per_table;
 connection master;
 eval set global innodb_file_per_table = $master_per_table;
 DROP TABLE t1;
+DROP TABLE t2;
 --source include/rpl_end.inc
 
 call mtr.add_suppression("Got error -1 when reading table '.*'");
