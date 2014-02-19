@@ -917,9 +917,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DEBUG_SYNC(thd,"dispatch_command_before_set_time");
 
   thd->set_time();
-  thd->set_query_id(get_query_id());
-  if (!(server_command_flags[command] & CF_SKIP_QUERY_ID))
-    next_query_id();
+  if (server_command_flags[command] & CF_SKIP_QUERY_ID)
+    thd->set_query_id(get_query_id());
+  else
+    thd->set_query_id(next_query_id());
   inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
