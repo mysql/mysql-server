@@ -7728,42 +7728,52 @@ restart_cluster_failure:
   return NULL;                              // Avoid compiler warnings
 }
 
-bool
-ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
-                              enum ha_stat_type stat_type)
+
+/*
+  Return string containing current status of ndb binlog as
+  comma separated name value pairs.
+
+  Used by ndbcluster_show_status() to fill the "binlog" row
+  in result of SHOW ENGINE NDB STATUS
+
+  @param     buf     The buffer where to print status string
+  @param     bufzies Size of the buffer
+
+  @return    Length of the string printed to "buf" or 0 if no string
+             is printed
+*/
+
+size_t
+ndbcluster_show_status_binlog(char *buf, size_t buf_size)
 {
-  char buf[IO_SIZE];
-  uint buflen;
-  ulonglong ndb_latest_epoch= 0;
   DBUG_ENTER("ndbcluster_show_status_binlog");
   
   pthread_mutex_lock(&injector_mutex);
   if (injector_ndb)
   {
-    char buff1[22],buff2[22],buff3[22],buff4[22],buff5[22];
-    ndb_latest_epoch= injector_ndb->getLatestGCI();
+    const ulonglong latest_epoch= injector_ndb->getLatestGCI();
     pthread_mutex_unlock(&injector_mutex);
 
-    buflen= (uint)
-      my_snprintf(buf, sizeof(buf),
-                  "latest_epoch=%s, "
-                  "latest_trans_epoch=%s, "
-                  "latest_received_binlog_epoch=%s, "
-                  "latest_handled_binlog_epoch=%s, "
-                  "latest_applied_binlog_epoch=%s",
-                  llstr(ndb_latest_epoch, buff1),
-                  llstr(ndb_get_latest_trans_gci(), buff2),
-                  llstr(ndb_latest_received_binlog_epoch, buff3),
-                  llstr(ndb_latest_handled_binlog_epoch, buff4),
-                  llstr(ndb_latest_applied_binlog_epoch, buff5));
-    if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
-                   "binlog", (uint)strlen("binlog"),
-                   buf, buflen))
-      DBUG_RETURN(TRUE);
+    // Get highest trans gci seen by the cluster connections
+    const ulonglong latest_trans_epoch = ndb_get_latest_trans_gci();
+
+    const size_t buf_len =
+      my_snprintf(buf, buf_size,
+                  "latest_epoch=%llu, "
+                  "latest_trans_epoch=%llu, "
+                  "latest_received_binlog_epoch=%llu, "
+                  "latest_handled_binlog_epoch=%llu, "
+                  "latest_applied_binlog_epoch=%llu",
+                  latest_epoch,
+                  latest_trans_epoch,
+                  ndb_latest_received_binlog_epoch,
+                  ndb_latest_handled_binlog_epoch,
+                  ndb_latest_applied_binlog_epoch);
+      DBUG_RETURN(buf_len);
   }
   else
     pthread_mutex_unlock(&injector_mutex);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(0);
 }
 
 
