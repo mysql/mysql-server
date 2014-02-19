@@ -349,7 +349,7 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
   // getTableMetadata starts here
   // getTableMetadata = function(databaseName, tableName, dbSession, user_callback)
   var pooledConnection, dictionary;
-  stats.incr("getTableMetadata");
+  stats.incr(["getTableMetadata"]);
 
   if (dbSession) {
     // dbSession exists; call the dictionary directly

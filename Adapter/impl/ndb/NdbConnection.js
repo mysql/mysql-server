@@ -169,7 +169,7 @@ NdbConnection.prototype.close = function(userCallback) {
     disconnect();  /* Free Resources anyway */
   }
   else if(this.isDisconnecting) { 
-    stats.incr("very_strange_simultaneous_disconnects");
+    stats.incr(["very_strange_simultaneous_disconnects"]);
   }
   else { 
     this.isDisconnecting = true;

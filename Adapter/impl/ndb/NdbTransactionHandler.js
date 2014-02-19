@@ -58,7 +58,7 @@ function DBTransactionHandler(dbsession) {
   this.moniker            = "(" + this.serial + ")";
   this.retries            = 0;
   udebug.log("NEW ", this.moniker);
-  stats.incr("created");
+  stats.incr(["created"]);
 }
 DBTransactionHandler.prototype = proto;
 
@@ -446,7 +446,7 @@ proto.execute = function(dbOperationList, userCallback) {
 */
 proto.commit = function commit(userCallback) {
   assert(this.autocommit === false);
-  stats.incr("commit");
+  stats.incr(["commit"]);
   var self = this;
   var execId = getExecIdForOperationList(self, [], null);
 
@@ -474,7 +474,7 @@ proto.commit = function commit(userCallback) {
 */
 proto.rollback = function rollback(callback) {
   assert(this.autocommit === false);
-  stats.incr("rollback");
+  stats.incr(["rollback"]);
   var self = this;
   var execId = getExecIdForOperationList(self, [], null);
 

@@ -26,6 +26,7 @@ var running_servers = {};
 var unified_debug = require("./unified_debug");
 var udebug = unified_debug.getLogger("STATS");
 var http = require("http");
+var DETAIL = udebug.is_detail();
 
 /* Because modules are cached, this initialization should happen only once. 
    If you try to do it twice the assert will fail.
@@ -75,7 +76,10 @@ function stats_incr(baseDomain, basePrefix, keyPath) {
     domain[key] = 1;
   }
 
-  udebug.log_detail(dotted_name(basePrefix, keyPath), "INCR", "(" + domain[key] + ")");
+  if(DETAIL) {
+    udebug.log_detail(dotted_name(basePrefix, keyPath), 
+                      "INCR", "(" + domain[key] + ")");
+  }
 }
 
 function stats_set(baseDomain, basePrefix, keyPath, value) {
@@ -84,7 +88,9 @@ function stats_set(baseDomain, basePrefix, keyPath, value) {
   var key = keyPath[(len)];
    
   domain[key] = value;
-  udebug.log_detail(dotted_name(basePrefix, keyPath), "SET", value);
+  if(DETAIL) {
+    udebug.log_detail(dotted_name(basePrefix, keyPath), "SET", value);
+  }
 }
 
 function stats_push(baseDomain, basePrefix, keyPath, value) {
@@ -97,19 +103,11 @@ function stats_push(baseDomain, basePrefix, keyPath, value) {
   }  
   domain[key].push(value);
 
-  udebug.log_detail(dotted_name(basePrefix, keyPath), "PUSH", value);
+  if(DETAIL) {
+    udebug.log_detail(dotted_name(basePrefix, keyPath), "PUSH", value);
+  }
 }
 
-function testPathIsArray(keyOrPath) {
-  var r = true;
-  if(typeof keyOrPath === 'string') {
-    r = false;
-  }
-  else if(! Array.isArray(keyOrPath)) {
-    throw new Error("stats.incr() takes string key or array key path");
-  }    
-  return r;
-}
 
 
 exports.getWriter = function(domainPath) {
@@ -117,25 +115,19 @@ exports.getWriter = function(domainPath) {
   var thisDomain = getStatsDomain(global_stats, domainPath, domainPath.length);
   var prefix = dot(domainPath, domainPath.length);
   
-  statWriter.incr = function(keyOrPath) {
-    return( testPathIsArray(keyOrPath) ? 
-      stats_incr(thisDomain, prefix, keyOrPath) :
-      stats_incr(thisDomain, prefix, [ keyOrPath ] )
-    );
+  statWriter.incr = function(path) {
+    assert(Array.isArray(path));
+    return stats_incr(thisDomain, prefix, path);
   };
 
-  statWriter.set = function(keyOrPath, value) {
-    return( testPathIsArray(keyOrPath) ? 
-      stats_set(thisDomain, prefix, keyOrPath,      value) :
-      stats_set(thisDomain, prefix, [ keyOrPath ] , value )
-    );
+  statWriter.set = function(path, value) {
+    assert(Array.isArray(path));
+    return stats_set(thisDomain, prefix, path, value);
   };
   
-  statWriter.push = function(keyOrPath, value) {
-    return( testPathIsArray(keyOrPath) ? 
-      stats_push(thisDomain, prefix, keyOrPath,      value) :
-      stats_push(thisDomain, prefix, [ keyOrPath ] , value )
-    );      
+  statWriter.push = function(path, value) {
+    assert(Array.isArray(path));
+    return stats_push(thisDomain, prefix, path, value);      
   };
   
   return statWriter;

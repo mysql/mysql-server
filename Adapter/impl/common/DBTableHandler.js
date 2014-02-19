@@ -114,10 +114,10 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       stubFields,      // fields created through default mapping
       nMappedFields;
 
-  stats.incr("constructor_calls");
+  stats.incr(["constructor_calls"]);
 
   if(! ( dbtable && dbtable.columns)) {
-    stats.incr("return_null");
+    stats.incr(["return_null"]);
     return null;
   }
 
@@ -130,11 +130,11 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
 
   if(tablemapping) {     
-    stats.incr("explicit_mappings");
+    stats.incr(["explicit_mappings"]);
     this.mapping = tablemapping;
   }
   else {                                          // Create a default mapping
-    stats.incr("default_mappings");
+    stats.incr(["default_mappings"]);
     this.mapping          = new TableMapping(this.dbTable.name);
     this.mapping.database = this.dbTable.database;
   }
@@ -261,7 +261,7 @@ DBTableHandler.prototype = proto;     // Connect prototype to constructor
 */
 DBTableHandler.prototype.newResultObject = function(values, adapter) {
   udebug.log("newResultObject");
-  stats.incr("result_objects_created");
+  stats.incr(["result_objects_created"]);
   var newDomainObj;
   
   if(this.newObjectConstructor && this.newObjectConstructor.prototype) {
