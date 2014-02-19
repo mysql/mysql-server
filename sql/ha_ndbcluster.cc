@@ -4267,12 +4267,7 @@ ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
 {
   Ndb *ndb= get_ndb(thd);
   DBUG_ENTER("ha_ndbcluster::set_auto_inc_val");
-#ifndef DBUG_OFF
-  char buff[22];
-  DBUG_PRINT("info", 
-             ("Trying to set next auto increment value to %s",
-              llstr(value, buff)));
-#endif
+  DBUG_PRINT("enter", ("value: %llu", value));
   if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, value))
   {
     Ndb_tuple_id_range_guard g(m_share);
@@ -9110,13 +9105,10 @@ static int create_ndb_column(THD *thd,
   // Set autoincrement
   if (field->flags & AUTO_INCREMENT_FLAG) 
   {
-#ifndef DBUG_OFF
-    char buff[22];
-#endif
     col.setAutoIncrement(TRUE);
     ulonglong value= create_info->auto_increment_value ?
       create_info->auto_increment_value : (ulonglong) 1;
-    DBUG_PRINT("info", ("Autoincrement key, initial: %s", llstr(value, buff)));
+    DBUG_PRINT("info", ("Autoincrement key, initial: %llu", value));
     col.setAutoIncrementInitialValue(value);
   }
   else
@@ -12946,12 +12938,9 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
   {
     if (share->commit_count != 0)
     {
+      DBUG_PRINT("info", ("Getting commit_count: %llu from share",
+                          share->commit_count));
       *commit_count= share->commit_count;
-#ifndef DBUG_OFF
-      char buff[22];
-#endif
-      DBUG_PRINT("info", ("Getting commit_count: %s from share",
-                          llstr(share->commit_count, buff)));
       pthread_mutex_unlock(&share->mutex);
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
@@ -12996,11 +12985,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
   pthread_mutex_lock(&share->mutex);
   if (share->commit_count_lock == lock)
   {
-#ifndef DBUG_OFF
-    char buff[22];
-#endif
-    DBUG_PRINT("info", ("Setting commit_count to %s",
-                        llstr(stat.commit_count, buff)));
+    DBUG_PRINT("info", ("Setting commit_count: %llu", stat.commit_count));
     share->commit_count= stat.commit_count;
     *commit_count= stat.commit_count;
   }
@@ -13054,9 +13039,6 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
   Uint64 commit_count;
   char dbname[NAME_LEN + 1];
   char tabname[NAME_LEN + 1];
-#ifndef DBUG_OFF
-  char buff[22], buff2[22];
-#endif
 
   ha_ndbcluster::set_dbname(full_name, dbname);
   ha_ndbcluster::set_tabname(full_name, tabname);
@@ -13094,8 +13076,8 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
     DBUG_PRINT("exit", ("No, could not retrieve commit_count"));
     DBUG_RETURN(FALSE);
   }
-  DBUG_PRINT("info", ("*engine_data: %s, commit_count: %s",
-                      llstr(*engine_data, buff), llstr(commit_count, buff2)));
+  DBUG_PRINT("info", ("engine_data: %llu, commit_count: %llu",
+                      *engine_data, commit_count));
   if (commit_count == 0)
   {
     *engine_data= 0; /* invalidate */
@@ -13109,8 +13091,8 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
      DBUG_RETURN(FALSE);
    }
 
-  DBUG_PRINT("exit", ("OK to use cache, engine_data: %s",
-                      llstr(*engine_data, buff)));
+  DBUG_PRINT("exit", ("OK to use cache, engine_data: %llu",
+                      *engine_data));
   DBUG_RETURN(TRUE);
 }
 
@@ -13143,9 +13125,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
                                           ulonglong *engine_data)
 {
   Uint64 commit_count;
-#ifndef DBUG_OFF
-  char buff[22];
-#endif
+
   DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
   DBUG_PRINT("enter",("dbname: %s, tabname: %s",
 		      m_dbname, m_tabname));
@@ -13179,7 +13159,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
   }
   *engine_data= commit_count;
   *engine_callback= ndbcluster_cache_retrieval_allowed;
-  DBUG_PRINT("exit", ("commit_count: %s", llstr(commit_count, buff)));
+  DBUG_PRINT("exit", ("commit_count: %llu", commit_count));
   DBUG_RETURN(commit_count > 0);
 }
 
@@ -13821,9 +13801,7 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
   NdbOperation::GetValueSpec extraGets[8];
   Uint64 rows, commits, fixed_mem, var_mem, ext_space, free_ext_space;
   Uint32 size, fragid;
-#ifndef DBUG_OFF
-  char buff[22], buff2[22], buff3[22], buff4[22], buff5[22], buff6[22];
-#endif
+
   DBUG_ENTER("ndb_get_table_statistics");
 
   DBUG_ASSERT(record != 0);
@@ -13915,12 +13893,11 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
     
     while ((check= pOp->nextResult(&dummyRowPtr, TRUE, TRUE)) == 0)
     {
-      DBUG_PRINT("info", ("nextResult rows: %d  commits: %d"
-                          "fixed_mem_size %d var_mem_size %d "
-                          "fragmentid %d extent_space %d free_extent_space %d",
-                          (int)rows, (int)commits, (int)fixed_mem,
-                          (int)var_mem, (int)fragid, (int)ext_space,
-                          (int)free_ext_space));
+      DBUG_PRINT("info", ("nextResult rows: %llu, commits: %llu"
+                          "fixed_mem_size %llu var_mem_size %llu "
+                          "fragmentid %u extent_space %llu free_extent_space %llu",
+                          rows, commits, fixed_mem, var_mem, fragid,
+                          ext_space, free_ext_space));
 
       if ((part_id != ~(uint)0) && fragid != part_id)
       {
@@ -13959,17 +13936,10 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
     ndbstat->fragment_extent_space= sum_ext_space;
     ndbstat->fragment_extent_free_space= sum_free_ext_space;
 
-    DBUG_PRINT("exit", ("records: %s  commits: %s "
-                        "row_size: %s  mem: %s "
-                        "allocated: %s  free: %s "
-                        "count: %u",
-			llstr(sum_rows, buff),
-                        llstr(sum_commits, buff2),
-                        llstr(sum_row_size, buff3),
-                        llstr(sum_mem, buff4),
-                        llstr(sum_ext_space, buff5),
-                        llstr(sum_free_ext_space, buff6),
-                        count));
+    DBUG_PRINT("exit", ("records: %llu commits: %llu row_size: %llu "
+                        "mem: %llu allocated: %llu free: %llu count: %u",
+                        sum_rows, sum_commits, sum_row_size,
+                        sum_mem, sum_ext_space, sum_free_ext_space, count));
 
     DBUG_RETURN(0);
 retry:
@@ -15687,14 +15657,8 @@ Ndb_util_thread::do_run()
                                      ndbtab_g.get_table()->getDefaultRecord(), 
                                      &stat) == 0)
         {
-#ifndef DBUG_OFF
-          char buff[22], buff2[22];
-#endif
-          DBUG_PRINT("info",
-                     ("Table: %s  commit_count: %s  rows: %s",
-                      share->key,
-                      llstr(stat.commit_count, buff),
-                      llstr(stat.row_count, buff2)));
+          DBUG_PRINT("info", ("Table: %s, commit_count: %llu,  rows: %llu",
+                              share->key, stat.commit_count, stat.row_count));
         }
         else
         {
@@ -15816,7 +15780,7 @@ ha_ndbcluster::cond_pop()
 
 
 /*
-  Implements the SHOW NDB STATUS command.
+  Implements the SHOW ENGINE NDB STATUS command.
 */
 bool
 ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
@@ -15889,7 +15853,14 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
         DBUG_RETURN(TRUE);
     }
   }
-  ndbcluster_show_status_binlog(thd, stat_print, stat_type);
+
+  buflen = (uint)ndbcluster_show_status_binlog(buf, sizeof(buf));
+  if (buflen)
+  {
+    if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
+                   STRING_WITH_LEN("binlog"), buf, buflen))
+      DBUG_RETURN(TRUE);
+  }
 
   DBUG_RETURN(FALSE);
 }
