@@ -23,9 +23,9 @@ SET(CPACK_COMPONENT_SHAREDLIBRARIES_GROUP "shared")
 SET(CPACK_COMPONENT_COMMON_GROUP "common")
 SET(CPACK_COMPONENT_COMPAT_GROUP "compat")
 SET(CPACK_COMPONENTS_ALL Server ManPagesServer IniFiles Server_Scripts
-                                SupportFiles Development ManPagesDevelopment
-                                ManPagesTest Readme ManPagesClient Test 
-                                Common Client SharedLibraries)
+                         SupportFiles Development ManPagesDevelopment
+                         ManPagesTest Readme ManPagesClient Test 
+                         Common Client SharedLibraries)
 
 SET(CPACK_RPM_PACKAGE_NAME "MariaDB")
 SET(CPACK_PACKAGE_FILE_NAME "${CPACK_RPM_PACKAGE_NAME}-${VERSION}-${RPM}-${CMAKE_SYSTEM_PROCESSOR}")
@@ -94,40 +94,70 @@ SET(CPACK_RPM_compat_USER_FILELIST ${ignored})
 SET(CPACK_RPM_devel_USER_FILELIST ${ignored})
 SET(CPACK_RPM_test_USER_FILELIST ${ignored})
 
-SET(CPACK_RPM_client_PACKAGE_OBSOLETES "mysql-client MySQL-client MySQL-OurDelta-client")
-SET(CPACK_RPM_client_PACKAGE_PROVIDES "MySQL-client mysql-client")
+# "set/append array" - append a set of strings, separated by a space
+MACRO(SETA var)
+  FOREACH(v ${ARGN})
+    SET(${var} "${${var}} ${v}")
+  ENDFOREACH()
+ENDMACRO(SETA)
 
-# this is a workaround for CPackRPM.cmake (as of 2.8.8) bug.
-# If a package group does not specify OBSOLETES/REQUIRES the values of the
-# previous (alphabetically) group will apply. 
-SET(CPACK_RPM_common_PACKAGE_OBSOLETES "MySQL-common")
-SET(CPACK_RPM_common_PACKAGE_PROVIDES "MariaDB-common")
+SETA(CPACK_RPM_client_PACKAGE_OBSOLETES
+  "mysql-client"
+  "MySQL-client"
+  "MySQL-OurDelta-client")
+SETA(CPACK_RPM_client_PACKAGE_PROVIDES
+  "MySQL-client"
+  "mysql-client")
 
-SET(CPACK_RPM_devel_PACKAGE_OBSOLETES "mysql-devel MySQL-devel MySQL-OurDelta-devel")
-SET(CPACK_RPM_devel_PACKAGE_PROVIDES "MySQL-devel mysql-devel")
+SETA(CPACK_RPM_devel_PACKAGE_OBSOLETES
+  "MySQL-devel"
+  "MySQL-OurDelta-devel")
+SETA(CPACK_RPM_devel_PACKAGE_PROVIDES
+  "MySQL-devel")
 
-SET(CPACK_RPM_server_PACKAGE_OBSOLETES "MariaDB MySQL mysql-server MySQL-server MySQL-OurDelta-server")
-SET(CPACK_RPM_server_PACKAGE_PROVIDES "MariaDB MySQL MySQL-server msqlormysql mysql-server")
+SETA(CPACK_RPM_server_PACKAGE_OBSOLETES
+  "MariaDB"
+  "MySQL"
+  "mysql-server"
+  "MySQL-server"
+  "MySQL-OurDelta-server")
+SETA(CPACK_RPM_server_PACKAGE_PROVIDES
+  "MariaDB"
+  "MySQL"
+  "MySQL-server"
+  "msqlormysql"
+  "mysql-server")
+
+SETA(CPACK_RPM_shared_PACKAGE_OBSOLETES
+  "mysql-shared"
+  "MySQL-shared-standard"
+  "MySQL-shared-pro"
+  "MySQL-shared-pro-cert"
+  "MySQL-shared-pro-gpl"
+  "MySQL-shared-pro-gpl-cert"
+  "MySQL-shared"
+  "MySQL-OurDelta-shared")
+SETA(CPACK_RPM_shared_PACKAGE_PROVIDES
+  "MySQL-shared"
+  "mysql-shared")
+
+SETA(CPACK_RPM_test_PACKAGE_OBSOLETES
+  "MySQL-test"
+  "MySQL-OurDelta-test")
+SETA(CPACK_RPM_test_PACKAGE_PROVIDES
+  "MySQL-test")
+
 SET(CPACK_RPM_server_PRE_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-prein.sh)
 SET(CPACK_RPM_server_PRE_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-preun.sh)
 SET(CPACK_RPM_server_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postin.sh)
 SET(CPACK_RPM_server_POST_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postun.sh)
-
-SET(CPACK_RPM_shared_PACKAGE_OBSOLETES "mysql-shared MySQL-shared-standard MySQL-shared-pro MySQL-shared-pro-cert MySQL-shared-pro-gpl MySQL-shared-pro-gpl-cert MySQL-shared MySQL-OurDelta-shared mysql-libs")
-SET(CPACK_RPM_shared_PACKAGE_PROVIDES "MySQL-shared mysql-shared")
-
 SET(CPACK_RPM_shared_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/shared-post.sh)
 SET(CPACK_RPM_shared_POST_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/shared-post.sh)
 
-SET(CPACK_RPM_test_PACKAGE_OBSOLETES "mysql-test MySQL-test MySQL-OurDelta-test")
-SET(CPACK_RPM_test_PACKAGE_PROVIDES "MySQL-test mysql-test")
-
-# Argh! Different distributions call packages differently, to be a drop-in replacement
-# we have to fake distribution-speficic dependencies
 MACRO(ALTERNATIVE_NAME real alt)
   SET(ver "%{version}-%{release}")
-  IF (${ARGV2})
-    SET(ver "${ARGV2}:${ver}")
+  IF (${epoch})
+    SET(ver "${epoch}:${ver}")
   ENDIF()
 
   SET(p "CPACK_RPM_${real}_PACKAGE_PROVIDES")
@@ -136,18 +166,50 @@ MACRO(ALTERNATIVE_NAME real alt)
   SET(${o} "${${o}} ${alt} ${alt}%{_isa}")
 ENDMACRO(ALTERNATIVE_NAME)
 
+# Argh! Different distributions call packages differently, to be a drop-in
+# replacement we have to fake distribution-speficic dependencies
+
+ALTERNATIVE_NAME("devel"  "mysql-devel")
+ALTERNATIVE_NAME("server" "mysql-server")
+ALTERNATIVE_NAME("test"   "mysql-test")
+
 IF(RPM MATCHES "(rhel|centos)5")
   ALTERNATIVE_NAME("shared" "mysql")
 ELSEIF(RPM MATCHES "(rhel|centos)6")
   ALTERNATIVE_NAME("client" "mysql")
   ALTERNATIVE_NAME("shared" "mysql-libs")
-ELSEIF(RPM MATCHES "fedora") # epoch = 1 on fedora
-  ALTERNATIVE_NAME("client" "mysql" 1)
-  ALTERNATIVE_NAME("shared" "mysql-libs" 1)
+ELSEIF(RPM MATCHES "fedora")
+  SET(epoch 1) # this is fedora
+  ALTERNATIVE_NAME("client" "mysql")
+  ALTERNATIVE_NAME("shared" "mysql-libs")
 ENDIF()
 
 # workaround for lots of perl dependencies added by rpmbuild
-SET(CPACK_RPM_test_PACKAGE_PROVIDES "${CPACK_RPM_test_PACKAGE_PROVIDES} perl(lib::mtr_gcov.pl) perl(lib::mtr_gprof.pl) perl(lib::mtr_io.pl) perl(lib::mtr_misc.pl) perl(lib::mtr_process.pl) perl(lib::v1/mtr_cases.pl) perl(lib::v1/mtr_gcov.pl) perl(lib::v1/mtr_gprof.pl) perl(lib::v1/mtr_im.pl) perl(lib::v1/mtr_io.pl) perl(lib::v1/mtr_match.pl) perl(lib::v1/mtr_misc.pl) perl(lib::v1/mtr_process.pl) perl(lib::v1/mtr_report.pl) perl(lib::v1/mtr_stress.pl) perl(lib::v1/mtr_timer.pl) perl(lib::v1/mtr_unique.pl) perl(mtr_cases) perl(mtr_io.pl) perl(mtr_match) perl(mtr_misc.pl) perl(mtr_report) perl(mtr_results) perl(mtr_unique)")
+SETA(CPACK_RPM_test_PACKAGE_PROVIDES
+  "perl(lib::mtr_gcov.pl)"
+  "perl(lib::mtr_gprof.pl)"
+  "perl(lib::mtr_io.pl)"
+  "perl(lib::mtr_misc.pl)"
+  "perl(lib::mtr_process.pl)"
+  "perl(lib::v1/mtr_cases.pl)"
+  "perl(lib::v1/mtr_gcov.pl)"
+  "perl(lib::v1/mtr_gprof.pl)"
+  "perl(lib::v1/mtr_im.pl)"
+  "perl(lib::v1/mtr_io.pl)"
+  "perl(lib::v1/mtr_match.pl)"
+  "perl(lib::v1/mtr_misc.pl)"
+  "perl(lib::v1/mtr_process.pl)"
+  "perl(lib::v1/mtr_report.pl)"
+  "perl(lib::v1/mtr_stress.pl)"
+  "perl(lib::v1/mtr_timer.pl)"
+  "perl(lib::v1/mtr_unique.pl)"
+  "perl(mtr_cases)"
+  "perl(mtr_io.pl)"
+  "perl(mtr_match)"
+  "perl(mtr_misc.pl)"
+  "perl(mtr_report)"
+  "perl(mtr_results)"
+  "perl(mtr_unique)")
 
 # If we want to build build MariaDB-shared-compat,
 # extract compat libraries from MariaDB-shared-5.3 rpm
@@ -175,7 +237,6 @@ IF (compat_rpm)
   ENDIF()
 ENDIF(compat_rpm)
 
-SET(CPACK_RPM_compat_PACKAGE_REQUIRES "/bin/sh") # to mask CPACK_RPM_PACKAGE_REQUIRES
 SET(CPACK_RPM_compat_PACKAGE_PROVIDES "mysql-libs = 5.3.5") # exact version doesn't matter as long as it greater than 5.1
 SET(CPACK_RPM_compat_PACKAGE_OBSOLETES "mysql-libs < 5.3.5")
 
