@@ -7734,28 +7734,26 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 {
   char buf[IO_SIZE];
   uint buflen;
-  ulonglong ndb_latest_epoch= 0;
   DBUG_ENTER("ndbcluster_show_status_binlog");
   
   pthread_mutex_lock(&injector_mutex);
   if (injector_ndb)
   {
-    char buff1[22],buff2[22],buff3[22],buff4[22],buff5[22];
-    ndb_latest_epoch= injector_ndb->getLatestGCI();
+    const ulonglong latest_epoch= injector_ndb->getLatestGCI();
     pthread_mutex_unlock(&injector_mutex);
 
     buflen= (uint)
       my_snprintf(buf, sizeof(buf),
-                  "latest_epoch=%s, "
-                  "latest_trans_epoch=%s, "
-                  "latest_received_binlog_epoch=%s, "
-                  "latest_handled_binlog_epoch=%s, "
-                  "latest_applied_binlog_epoch=%s",
-                  llstr(ndb_latest_epoch, buff1),
-                  llstr(ndb_get_latest_trans_gci(), buff2),
-                  llstr(ndb_latest_received_binlog_epoch, buff3),
-                  llstr(ndb_latest_handled_binlog_epoch, buff4),
-                  llstr(ndb_latest_applied_binlog_epoch, buff5));
+                  "latest_epoch=%llu, "
+                  "latest_trans_epoch=%llu, "
+                  "latest_received_binlog_epoch=%llu, "
+                  "latest_handled_binlog_epoch=%llu, "
+                  "latest_applied_binlog_epoch=%llu",
+                  latest_epoch,
+                  ndb_get_latest_trans_gci(),
+                  ndb_latest_received_binlog_epoch,
+                  ndb_latest_handled_binlog_epoch,
+                  ndb_latest_applied_binlog_epoch);
     if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                    "binlog", (uint)strlen("binlog"),
                    buf, buflen))
