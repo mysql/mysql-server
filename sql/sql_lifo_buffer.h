@@ -67,7 +67,8 @@ public:
   {
     start= start_arg;
     end= end_arg;
-    TRASH(start, end - start);
+    if (end != start)
+      TRASH(start, end - start);
     reset();
   }
   
