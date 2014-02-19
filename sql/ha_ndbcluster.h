@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -347,7 +347,7 @@ static void set_tabname(const char *pathname, char *tabname);
   /*
    * Internal to ha_ndbcluster, used by C functions
    */
-  int ndb_err(NdbTransaction*, bool have_lock= FALSE);
+  int ndb_err(NdbTransaction*);
 
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
@@ -701,7 +701,7 @@ private:
   NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb(THD *thd) const;
 
-  int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE,
+  int update_stats(THD *thd, bool do_read_stat,
                    uint part_id= ~(uint)0);
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
 };
