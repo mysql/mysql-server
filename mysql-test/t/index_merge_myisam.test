@@ -149,5 +149,32 @@ GROUP BY 2;
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # MDEV-4556 Server crashes in SEL_ARG::rb_insert with index_merge+index_merge_sort_union, FORCE INDEX
+--echo #
+CREATE TABLE t1 (
+  pk int,
+  code char(2),
+  population_rate int,
+  area_rate int,
+  primary key (pk),
+  index (code),
+  key (population_rate),
+  key (area_rate)
+);
+
+INSERT INTO t1 VALUES  (1,'WI',20, 23), (2, 'WA', 13, 18);
+
+EXPLAIN
+SELECT * FROM t1 FORCE INDEX ( PRIMARY, population_rate, area_rate, code ) 
+WHERE pk = 1 OR population_rate = 1 OR ( area_rate IN ( 1,2 ) OR area_rate IS NULL )
+AND (population_rate = 25 OR area_rate BETWEEN 2 AND 25 OR code BETWEEN 'MA' AND 'TX');
+
+SELECT * FROM t1 FORCE INDEX ( PRIMARY, population_rate, area_rate, code ) 
+WHERE pk = 1 OR population_rate = 1 OR ( area_rate IN ( 1,2 ) OR area_rate IS NULL )
+AND (population_rate = 25 OR area_rate BETWEEN 2 AND 25 OR code BETWEEN 'MA' AND 'TX');
+
+DROP TABLE t1;
+
 set optimizer_switch= @optimizer_switch_save;
 
