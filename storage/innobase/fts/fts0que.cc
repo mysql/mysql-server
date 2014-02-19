@@ -1925,6 +1925,7 @@ fts_query_fetch_document(
 
 		if (cur_len != UNIV_SQL_NULL && cur_len != 0) {
 			if (phrase->proximity_pos) {
+				ut_ad(prev_len + cur_len <= total_len);
 				memcpy(document_text + prev_len, data, cur_len);
 			} else {
 				/* For phrase search */
@@ -1935,17 +1936,18 @@ fts_query_fetch_document(
 						cur_len, prev_len,
 						phrase->heap);
 			}
+
+			/* Document positions are calculated from the beginning
+			of the first field, need to save the length for each
+			searched field to adjust the doc position when search
+			phrases. */
+			prev_len += cur_len + 1;
 		}
 
 		if (phrase->found) {
 			break;
 		}
 
-		/* Document positions are calculated from the beginning
-		of the first field, need to save the length for each
-		searched field to adjust the doc position when search
-		phrases. */
-		prev_len += cur_len + 1;
 		exp = que_node_get_next(exp);
 	}
 
