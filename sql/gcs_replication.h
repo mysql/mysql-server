@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,8 @@ public:
   bool is_gcs_rpl_running();
   /* functions accessing GCS cluster status and stats */
   bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info);
-  bool get_gcs_nodes_info(RPL_GCS_NODES_INFO *info);
+  bool get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info);
+  uint get_gcs_nodes_number();
 
 private:
   LEX_STRING plugin_name;
@@ -89,7 +90,8 @@ int cleanup_gcs_rpl();
 bool is_gcs_plugin_loaded();
 
 bool get_gcs_stats(RPL_GCS_STATS_INFO *info);
-bool get_gcs_nodes_stats(RPL_GCS_NODES_INFO *info);
+bool get_gcs_nodes_stats(uint index, RPL_GCS_NODES_INFO *info);
+uint get_gcs_nodes_stats_number();
 /* Server access methods and variables */
 
 extern ulong opt_rli_repository_id;

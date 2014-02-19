@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,6 +64,9 @@ bool operator == (const Corosync_ring_id& lhs, const Corosync_ring_id& rhs)
 static pthread_cond_t dispatcher_cond;
 static pthread_mutex_t dispatcher_mutex;
 static bool is_dispatcher_inited= false;
+static pthread_cond_t wait_for_left_view_cond;
+static pthread_mutex_t wait_for_left_view_mutex;
+static bool wait_for_left_view= false;
 
 /*
   The Totem protocol callback notifies on network changes.
@@ -270,7 +273,7 @@ void view_change(cpg_handle_t handle, const struct cpg_name *name,
   if (proto->get_local_process_id() == zero_process_id)
     proto->do_complete_local_member_init();
 
-  /* CPG protocol must not deliver any VC to gracefully left/leaving member */
+  /* CPG protocol must not deliver any VC after the one on which the member left. */
   assert(!proto->is_leaving);
 
   /*
@@ -320,6 +323,16 @@ void view_change(cpg_handle_t handle, const struct cpg_name *name,
   {
     proto->pending_awaited_vector= false;
     proto->do_leave_local_member();
+
+    /*
+      Notify leave() that we received the view on which we are
+      removed from the group.
+    */
+    pthread_mutex_lock(&wait_for_left_view_mutex);
+    wait_for_left_view= false;
+    pthread_cond_broadcast(&wait_for_left_view_cond);
+    pthread_mutex_unlock(&wait_for_left_view_mutex);
+
     return;
   }
   /*
@@ -488,6 +501,8 @@ bool Protocol_corosync::open_session(Event_handlers* handlers_arg)
   // needed by dispatcher exit notification
   pthread_cond_init(&dispatcher_cond, NULL);
   pthread_mutex_init(&dispatcher_mutex, NULL);
+  pthread_cond_init(&wait_for_left_view_cond, NULL);
+  pthread_mutex_init(&wait_for_left_view_mutex, NULL);
 
   handlers= handlers_arg;
 
@@ -588,6 +603,10 @@ bool Protocol_corosync::join(const string& name_arg, enum_member_role role)
   if (!rc)
     get_view().set_group_name(name_arg);
 
+  pthread_mutex_lock(&wait_for_left_view_mutex);
+  wait_for_left_view= true;
+  pthread_mutex_unlock(&wait_for_left_view_mutex);
+
   return rc;
 };
 
@@ -597,7 +616,20 @@ bool Protocol_corosync::leave(const string& group_name)
   name.length= group_name.length();
   strncpy(name.value, group_name.c_str(), CPG_MAX_NAME_LENGTH);
 
-  return cpg_leave(handle, &name) != CS_OK;
+  bool res= cpg_leave(handle, &name) != CS_OK;
+
+  /*
+    We need to ensure that we receive the view change on which
+    local node is removed from the group to ensure that we make a
+    clean exit, that is, we received all messages sent on the view
+    we left.
+  */
+  pthread_mutex_lock(&wait_for_left_view_mutex);
+  while (wait_for_left_view)
+    pthread_cond_wait(&wait_for_left_view_cond, &wait_for_left_view_mutex);
+  pthread_mutex_unlock(&wait_for_left_view_mutex);
+
+  return res;
 };
 
 bool Protocol_corosync::close_session()

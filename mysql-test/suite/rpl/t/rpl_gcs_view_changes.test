@@ -12,6 +12,7 @@
 # III. Proof of view-id monotonicity and cluster-wide consistency.
 #
 --source include/have_gcs_replication_plugin.inc
+--let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429573
 
 #
 # a counter to be used with source include/rpl_gcs_error_out.inc
@@ -22,14 +23,10 @@
 # First prepare four nodes and manually create a table on each.
 # (There's a bug Gtid_state::acquire_ownership assert preventing normal execution)
 #
-
---let $group_name= "8a94f357-aab4-11df-86ab-c80aa9429573"
-
 --connection server1
 --source include/install_gcs_replication.inc
 call mtr.add_suppression("could not form the cluster");
 call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
---eval SET GLOBAL gcs_replication_plugin_group_name= $group_name;
 
 if (`select view_id <> 0 from performance_schema.replication_connection_status`)
 {
@@ -44,7 +41,6 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually until cer
 --source include/install_gcs_replication.inc
 call mtr.add_suppression("could not form the cluster");
 call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
---eval SET GLOBAL gcs_replication_plugin_group_name= $group_name;
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
 
@@ -52,7 +48,6 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
 --source include/install_gcs_replication.inc
 call mtr.add_suppression("could not form the cluster");
 call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
---eval SET GLOBAL gcs_replication_plugin_group_name= $group_name;
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
 
@@ -60,7 +55,6 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
 --source include/install_gcs_replication.inc
 call mtr.add_suppression("could not form the cluster");
 call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
---eval SET GLOBAL gcs_replication_plugin_group_name= $group_name;
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
 
@@ -76,12 +70,13 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
 
 --disable_query_log
 --disable_result_log
+--let $include_silent= 1
 
 --let $s_cnt=4
 while($s_cnt)
 {
     --connection server$s_cnt
-    START GCS_REPLICATION;
+    --source include/start_gcs_replication.inc
 
     --dec $s_cnt
 }
@@ -121,6 +116,7 @@ while($restart_cnt)
 
     dec $restart_cnt;
 }
+--let $include_silent= 0
 --enable_result_log
 --enable_query_log
 
@@ -133,13 +129,13 @@ while($restart_cnt)
 #
 
 --connection server3
-STOP GCS_REPLICATION;
+--source include/stop_gcs_replication.inc
 
 --connection server4
 let $wait_condition= select number_of_nodes = 3 from performance_schema.replication_connection_status;
 --source include/wait_condition.inc
 
-STOP GCS_REPLICATION;
+--source include/stop_gcs_replication.inc
 
 --connection server1
 let $wait_condition= select number_of_nodes = 2 from performance_schema.replication_connection_status;
@@ -203,7 +199,7 @@ INSERT INTO t1 SET c1=2;
 # Primary Component out of itself.
 
 --connection server2
-STOP GCS_REPLICATION;
+--source include/stop_gcs_replication.inc
 
 # TODO: implement COMMIT instead of the coded rollback
 --connection server1
@@ -230,15 +226,15 @@ let $wait_condition= select view_id = 0 from performance_schema.replication_conn
 # Form the four node cluster, check up monotonic and cluster consistent view-id.
 #
 --connection server2
-START GCS_REPLICATION;
+--source include/start_gcs_replication.inc
 #
 # TODO: fix the acquire_ownership bug. Can't executed anything - hitting the above assert.
 # INSERT INTO t1 SET c1=2;
 --connection server3
-START GCS_REPLICATION;
+--source include/start_gcs_replication.inc
 
 --connection server4
-START GCS_REPLICATION;
+--source include/start_gcs_replication.inc
 
 --let $s_cnt=4
 while ($s_cnt)
@@ -285,7 +281,7 @@ while ($s_cnt)
 while ($s_cnt)
 {
     --connection server$s_cnt
-    STOP GCS_REPLICATION;
+    --source include/stop_gcs_replication.inc
     DROP TABLE t1;  # manual removal until certification is fixed
     --source include/uninstall_gcs_replication.inc
 

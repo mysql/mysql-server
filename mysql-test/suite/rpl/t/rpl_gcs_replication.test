@@ -36,11 +36,7 @@ SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-invalid";
 --error ER_GCS_REPLICATION_CONFIGURATION
 START GCS_REPLICATION;
 
---eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
-
-# TODO:This command and the START one need a similar include like start_slave.inc,
-# which will only possible with WL#6841
-START GCS_REPLICATION;
+--source include/start_gcs_replication.inc
 
 # This start command will error out since the cluster is already running.
 --error ER_GCS_REPLICATION_RUNNING
@@ -52,6 +48,6 @@ START GCS_REPLICATION;
 --error ER_WRONG_VALUE_FOR_VAR
 --eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
 
-STOP GCS_REPLICATION;
+--source include/stop_gcs_replication.inc
 
 --source include/uninstall_gcs_replication.inc

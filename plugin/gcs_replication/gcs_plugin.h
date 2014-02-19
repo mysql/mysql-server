@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <rpl_gtid.h>             // rpl_sidno
 #include "gcs_applier.h"
 #include <gcs_protocol.h>
+#include <gcs_stats.h>
 
 /*
   Plugin errors
@@ -45,7 +46,9 @@ extern char gcs_replication_group[UUID_LENGTH+1];
 extern rpl_sidno gcs_cluster_sidno;
 extern char gcs_replication_boot;
 extern ulong handler_pipeline_type;
+extern GCS::Protocol *gcs_instance;
 extern Applier_module *applier;
+extern GCS::Stats cluster_stats;
 extern bool wait_on_engine_initialization;
 extern ulong gcs_applier_thread_timeout;
 extern char *gcs_group_pointer;
@@ -63,6 +66,7 @@ int gcs_rpl_start();
 int gcs_rpl_stop();
 bool is_gcs_rpl_running();
 bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info);
-bool get_gcs_nodes_info(RPL_GCS_NODES_INFO *info);
+bool get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info);
+uint get_gcs_nodes_number();
 
 #endif /* GCS_PLUGIN_INCLUDE */

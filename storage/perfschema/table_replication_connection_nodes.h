@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,23 +25,13 @@
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
-#include "rpl_mi.h"
-#include "rpl_reporting.h"
 #include "mysql_com.h"
+#include <mysql/plugin_gcs_rpl.h>
 
 /**
   @addtogroup Performance_schema_tables
   @{
 */
-
-/** enum values for Node_State*/
-// TODO: Add functionality for recovering node state
-
-enum enum_node_state {
-    PS_NODE_STATE_ONLINE= 1,
-    PS_NODE_STATE_OFFLINE,
-    PS_NODE_STATE_RECOVERING
-};
 
 /**
   A row in connection nodes table. The fields with string values have an additional
@@ -49,11 +39,12 @@ enum enum_node_state {
 */
 struct st_row_connect_nodes {
   char group_name[UUID_LENGTH];
-  bool is_gcs_plugin_loaded;
   bool is_group_name_null;
-  uint node_id;
-  char node_address[HOSTNAME_LENGTH];
-  uint node_address_length;
+  char node_id[HOSTNAME_LENGTH];
+  uint node_id_length;
+  char node_host[HOSTNAME_LENGTH];
+  uint node_host_length;
+  uint node_port;
   enum_node_state node_state;
 };
 
@@ -61,7 +52,7 @@ struct st_row_connect_nodes {
 class table_replication_connection_nodes: public PFS_engine_table
 {
 private:
-  void make_row();
+  void make_row(uint index);
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,11 +21,19 @@
 #include <mysql/plugin.h>
 #define MYSQL_GCS_REPLICATION_INTERFACE_VERSION 0x0100
 
+enum enum_node_state {
+  NODE_STATE_ONLINE= 1,
+  NODE_STATE_OFFLINE,
+  NODE_STATE_RECOVERING
+};
+
 typedef struct st_rpl_gcs_nodes_info
 {
-  char*group_name;
-  uint node_id;
-  bool node_state;
+  char* group_name;
+  const char* node_id;
+  const char* node_host;
+  uint node_port;
+  enum enum_node_state node_state;
 } RPL_GCS_NODES_INFO;
 
 typedef struct st_rpl_gcs_stats_info
@@ -55,7 +63,13 @@ struct st_mysql_gcs_rpl
   /*
     This function is used to fetch information for gcs nodes.
   */
-  bool (*get_gcs_nodes_info)(RPL_GCS_NODES_INFO *info);
+  bool (*get_gcs_nodes_info)(uint index, RPL_GCS_NODES_INFO *info);
+
+  /*
+    Get number of gcs nodes.
+  */
+  uint (*get_gcs_nodes_number)();
+
   /*
     This function is to used to start the gcs replication based on the
     gcs group that is specified by the user.

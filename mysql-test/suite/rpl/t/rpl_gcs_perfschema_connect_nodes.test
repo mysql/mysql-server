@@ -3,9 +3,6 @@
 # This test checks the basic functionality of the GCS replication
 # P_S for replication_connection_nodes table.
 # DDL and DML testing for this table is addressed in other tests.
-#
-# TODO: Check for Node_Id after starting and stopping GCS for expected values
-# when node_id is fixed at corosync layer. Same applies to node_address.
 
 --source include/have_gcs_replication_plugin.inc
 --source include/install_gcs_replication.inc
@@ -23,8 +20,18 @@
 --source include/assert.inc
 
 --let $node_id= query_get_value(SELECT Node_Id from performance_schema.replication_connection_nodes, Node_Id, 1)
---let $assert_text= The value of node_id should be zero before starting gcs
---let $assert_cond= "$node_id" = 0
+--let $assert_text= The value of node_id should be empty before starting gcs
+--let $assert_cond= "$node_id" = ""
+--source include/assert.inc
+
+--let $node_host= query_get_value(SELECT Node_Host from performance_schema.replication_connection_nodes, Node_Host, 1)
+--let $assert_text= The value of node_host should be empty before starting gcs
+--let $assert_cond= "$node_host" = ""
+--source include/assert.inc
+
+--let $node_port= query_get_value(SELECT Node_Port from performance_schema.replication_connection_nodes, Node_Port, 1)
+--let $assert_text= The value of node_port should be 0 before starting gcs
+--let $assert_cond= $node_port = 0
 --source include/assert.inc
 
 --let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
@@ -32,13 +39,28 @@
 --let $assert_cond= "$node_state" = "OFFLINE"
 --source include/assert.inc
 
-# Checking the performance schema outout for preserving values at START/STOP
-# GCS Replication.
-START GCS_REPLICATION;
+# Start GCS replication
+--source include/start_gcs_replication.inc
 
 --let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_nodes, Group_Name, 1)
 --let $assert_text= The value of group name should be $gcs_group_name
 --let $assert_cond= "$group_name" = "$gcs_group_name"
+--source include/assert.inc
+
+--let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $node_id= query_get_value(SELECT Node_Id from performance_schema.replication_connection_nodes, Node_Id, 1)
+--let $assert_text= The value of node_id should be equal to server uuid after starting gcs
+--let $assert_cond= "$node_id" = "$server_uuid"
+--source include/assert.inc
+
+--let $node_host= query_get_value(SELECT Node_Host from performance_schema.replication_connection_nodes, Node_Host, 1)
+--let $assert_text= The value of node_host should not be empty after starting gcs
+--let $assert_cond= "$node_host" != ""
+--source include/assert.inc
+
+--let $node_port= query_get_value(SELECT Node_Port from performance_schema.replication_connection_nodes, Node_Port, 1)
+--let $assert_text= The value of node_port should not be 0 after starting gcs
+--let $assert_cond= $node_port > 0
 --source include/assert.inc
 
 --let $node_state= query_get_value(SELECT Node_State from performance_schema.replication_connection_nodes, Node_State, 1)
@@ -46,7 +68,8 @@ START GCS_REPLICATION;
 --let $assert_cond= "$node_state" = "ONLINE"
 --source include/assert.inc
 
-STOP GCS_REPLICATION;
+# Stop GCS replication
+--source include/stop_gcs_replication.inc
 
 --let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_nodes, Group_Name, 1)
 --let $assert_text= The value of group name should be $gcs_group_name

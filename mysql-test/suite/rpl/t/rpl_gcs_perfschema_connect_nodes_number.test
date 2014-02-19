@@ -1,0 +1,147 @@
+#
+# WL#7331: Check that node status are properly updated when
+# nodes join and leave group.
+#
+--source include/have_gcs_replication_plugin.inc
+--let $gcs_group_name= 8a94f357-aab4-11df-86ab-c80aa9429500
+
+--echo
+--echo ###########################################################
+--echo # 1. No nodes on group.
+--connection server1
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server2
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server3
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 2. One node on group.
+--connection server1
+--source include/install_gcs_replication.inc
+--source include/start_gcs_replication.inc
+
+--connection server1
+--let $gcs_number_of_nodes= 1
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server2
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server3
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 3. Two nodes on group.
+--connection server2
+--source include/install_gcs_replication.inc
+--source include/start_gcs_replication.inc
+
+--connection server1
+--let $gcs_number_of_nodes= 2
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server2
+--let $gcs_number_of_nodes= 2
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server3
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 4. Three nodes on group.
+--connection server3
+--source include/install_gcs_replication.inc
+--source include/start_gcs_replication.inc
+
+--connection server1
+--let $gcs_number_of_nodes= 3
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server2
+--let $gcs_number_of_nodes= 3
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server3
+--let $gcs_number_of_nodes= 3
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--replace_column 2 NODE_ID 3 NODE_HOST 4 NODE_PORT
+SELECT * FROM performance_schema.replication_connection_nodes;
+
+
+--echo
+--echo ###########################################################
+--echo # 5. Two nodes on group.
+--connection server1
+--source include/stop_gcs_replication.inc
+--source include/uninstall_gcs_replication.inc
+
+--connection server1
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server2
+--let $gcs_number_of_nodes= 2
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server3
+--let $gcs_number_of_nodes= 2
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 6. One node on group.
+--connection server2
+--source include/stop_gcs_replication.inc
+--source include/uninstall_gcs_replication.inc
+
+--connection server1
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server2
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+# Quorate is killing this test, after server2 leaves server3
+# reports a group with two nodes, where one is OFFLINE.
+# This must be fixed on binding layer.
+#--connection server3
+#--let $gcs_number_of_nodes= 1
+#--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 7. No nodes on group.
+--connection server3
+--source include/stop_gcs_replication.inc
+--source include/uninstall_gcs_replication.inc
+
+--let $gcs_number_of_nodes= 0
+--connection server1
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server2
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
+
+--connection server3
+--let $gcs_number_of_nodes= 0
+--source include/rpl_gcs_wait_for_number_of_nodes.inc

@@ -34,9 +34,8 @@
 --let $assert_cond= "$num_nodes" = 0
 --source include/assert.inc
 
-# Checking the performance schema outout for preserving values at START/STOP
-# GCS Replication.
-START GCS_REPLICATION;
+# Start GCS replication
+--source include/start_gcs_replication.inc
 
 --let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
 --let $assert_text= The value of group name should be $gcs_group_name
@@ -80,8 +79,8 @@ START GCS_REPLICATION;
 --let $assert_cond= "$num_nodes" = 1
 --source include/assert.inc
 
-
-STOP GCS_REPLICATION;
+# Stop GCS replication
+--source include/stop_gcs_replication.inc
 
 --let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
 

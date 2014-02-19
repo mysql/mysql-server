@@ -821,9 +821,10 @@ def	performance_schema	replication_connection_configuration	SSL_CRL_PATH	14	NULL
 def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_INTERVAL	15	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_COUNT	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	replication_connection_nodes	GROUP_NAME	1	NULL	NO	varchar	36	108	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(36)			select,insert,update,references	
-def	performance_schema	replication_connection_nodes	NODE_ID	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	replication_connection_nodes	NODE_ADDRESS	3	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
-def	performance_schema	replication_connection_nodes	NODE_STATE	4	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ONLINE','OFFLINE','RECOVERING')			select,insert,update,references	
+def	performance_schema	replication_connection_nodes	NODE_ID	2	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
+def	performance_schema	replication_connection_nodes	NODE_HOST	3	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
+def	performance_schema	replication_connection_nodes	NODE_PORT	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	replication_connection_nodes	NODE_STATE	5	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ONLINE','OFFLINE','RECOVERING')			select,insert,update,references	
 def	performance_schema	replication_connection_status	GROUP_NAME	1	NULL	NO	varchar	36	108	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(36)			select,insert,update,references	
 def	performance_schema	replication_connection_status	SOURCE_UUID	2	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references	
 def	performance_schema	replication_connection_status	THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	

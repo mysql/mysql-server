@@ -11,18 +11,7 @@ call mtr.add_suppression("An handler, marked as unique *.*");
 call mtr.add_suppression("Cannot start the applier as a *.*");
 
 --let $gcs_group_name= 2d249320-2e06-11e3-aa6e-0800200c9a66
---echo [ON THE NODE]
-
 --eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
---eval SET GLOBAL gcs_replication_plugin_start_on_boot= 1
-
---let $assert_text= The value of group name should be $gcs_group_name
---let $assert_cond= "[SELECT @@gcs_replication_plugin_group_name]" = "$gcs_group_name"
---source include/assert.inc
-
---let $assert_text= The value of gcs_boot should be 1
---let $assert_cond= [SELECT @@gcs_replication_plugin_start_on_boot] = 1
---source include/assert.inc
 
 SET @debug_save= @@GLOBAL.DEBUG;
 SET GLOBAL debug= 'd,double_unique_handler';
@@ -35,7 +24,7 @@ START GCS_REPLICATION;
 SET @@GLOBAL.DEBUG= @debug_save;
 
 #The initialization process should now go smoothly
-START GCS_REPLICATION;
+--source include/start_gcs_replication.inc
 
 #Set the timeout to the minimum value: 2
 --eval SET GLOBAL gcs_replication_plugin_stop_applier_timeout= 2
@@ -61,10 +50,8 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --sleep 5
 
 #start and stop commands should work properly
-
-START GCS_REPLICATION;
-
-STOP GCS_REPLICATION;
+--source include/start_gcs_replication.inc
+--source include/stop_gcs_replication.inc
 
 SET @@GLOBAL.DEBUG= @debug_save;
 --source include/uninstall_gcs_replication.inc

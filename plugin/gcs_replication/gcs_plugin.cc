@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include <gcs_protocol.h>
 #include <gcs_protocol_factory.h>
 #include "gcs_event_handlers.h"
-#include "gcs_stats.h"
 
 using std::string;
 
@@ -53,7 +52,7 @@ Applier_module *applier= NULL;  // andrei: todo - rename it to e.g gcs_applier
 char *gcs_group_pointer=NULL;
 
 // Specific/configured GCS protocol
-static GCS::Protocol *gcs_instance= NULL;
+GCS::Protocol *gcs_instance= NULL;
 static GCS::Client_info rinfo((GCS::Client_logger_func) log_message);
 
 GCS::Event_handlers gcs_plugin_event_handlers=
@@ -107,17 +106,13 @@ struct st_mysql_gcs_rpl gcs_rpl_descriptor=
   MYSQL_GCS_REPLICATION_INTERFACE_VERSION,
   get_gcs_stats_info,
   get_gcs_nodes_info,
+  get_gcs_nodes_number,
   gcs_rpl_start,
   gcs_rpl_stop,
   is_gcs_rpl_running
 };
 
 GCS::Stats cluster_stats;
-
-/*
-  TODO:Make sure the related fields are fetched in a snapshot.
-  Use LOCKS to protect related columns.
-*/
 
 bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info)
 {
@@ -136,15 +131,47 @@ bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info)
   return false;
 }
 
-bool get_gcs_nodes_info(RPL_GCS_NODES_INFO *info)
+bool get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info)
 {
   info->group_name= gcs_group_pointer;
-  info->node_state= is_gcs_rpl_running();
-  // The signature of get_node_id is corrected by WL#7332 patch.
-  // TODO: to refine invokation in WL#7331.
-  //info->node_id= cluster_stats.get_node_id();
 
+  uint number_of_nodes= cluster_stats.get_number_of_nodes();
+  if (index >= number_of_nodes) {
+    if (index == 0) {
+      // No nodes on view and index= 0 so return local node info.
+      GCS::Client_info node_info= gcs_instance->get_client_info();
+      info->node_id= node_info.get_uuid().c_str();
+      info->node_host= node_info.get_hostname().c_str();
+      info->node_port= node_info.get_port();
+      info->node_state=
+          map_protocol_node_state_to_server_node_state(
+              node_info.get_recovery_status());
+      return false;
+    }
+    else {
+      // No nodes on view.
+      return true;
+    }
+  }
+
+  // Get info from view.
+  info->node_id= cluster_stats.get_node_id(index);
+  info->node_host= cluster_stats.get_node_host(index);
+  info->node_port= cluster_stats.get_node_port(index);
+  info->node_state=
+      map_protocol_node_state_to_server_node_state(
+          cluster_stats.get_recovery_status(index));
   return false;
+}
+
+uint get_gcs_nodes_number()
+{
+  /*
+    Even when node is disconnected from group there is the
+    local node.
+  */
+  uint number_of_nodes= cluster_stats.get_number_of_nodes();
+  return number_of_nodes == 0 ? 1 : number_of_nodes;
 }
 
 int gcs_rpl_start()

@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -46,12 +46,17 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("NODE_ID")},
-    {C_STRING_WITH_LEN("int")},
+    {C_STRING_WITH_LEN("char(60)")},
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("NODE_ADDRESS")},
+    {C_STRING_WITH_LEN("NODE_HOST")},
     {C_STRING_WITH_LEN("char(60)")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("NODE_PORT")},
+    {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
@@ -63,7 +68,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_replication_connection_nodes::m_field_def=
-{ 4, field_types };
+{ 5, field_types };
 
 PFS_engine_table_share
 table_replication_connection_nodes::m_share=
@@ -101,24 +106,19 @@ void table_replication_connection_nodes::reset_position(void)
 
 ha_rows table_replication_connection_nodes::get_row_count()
 {
-  uint row_count= 0;
-
-  if (is_gcs_plugin_loaded())
-    row_count= 1;
-
-  return row_count;
+  return get_gcs_nodes_stats_number();
 }
 
 int table_replication_connection_nodes::rnd_next(void)
 {
-  if (get_row_count() == 0)
+  if (!is_gcs_plugin_loaded())
     return HA_ERR_END_OF_FILE;
 
-  m_pos.set_at(&m_next_pos);
-
-  if (m_pos.m_index == 0)
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < get_row_count();
+       m_pos.next())
   {
-    make_row();
+    make_row(m_pos.m_index);
     m_next_pos.set_after(&m_pos);
     return 0;
   }
@@ -128,51 +128,37 @@ int table_replication_connection_nodes::rnd_next(void)
 
 int table_replication_connection_nodes::rnd_pos(const void *pos)
 {
-  if (get_row_count() == 0)
+  if (!is_gcs_plugin_loaded())
     return HA_ERR_END_OF_FILE;
 
   set_position(pos);
-
-  DBUG_ASSERT(m_pos.m_index < 1);
-
-  make_row();
+  DBUG_ASSERT(m_pos.m_index < get_row_count());
+  make_row(m_pos.m_index);
 
   return 0;
 }
 
-void table_replication_connection_nodes::make_row()
+void table_replication_connection_nodes::make_row(uint index)
 {
   DBUG_ENTER("table_replication_connection_nodes::make_row");
   m_row_exists= false;
 
-  m_row.is_gcs_plugin_loaded= is_gcs_plugin_loaded();
-
   RPL_GCS_NODES_INFO* gcs_info;
   if(!(gcs_info= (RPL_GCS_NODES_INFO*)my_malloc(PSI_NOT_INSTRUMENTED,
-                                                     sizeof(RPL_GCS_NODES_INFO),
-                                                     MYF(MY_WME))))
+                                                sizeof(RPL_GCS_NODES_INFO),
+                                                MYF(MY_WME))))
   {
     sql_print_error("Unable to allocate memory on"
                     " table_replication_connection_nodes::make_row");
     DBUG_VOID_RETURN;
   }
 
-  bool stats_not_available= get_gcs_nodes_stats(gcs_info);
+  bool stats_not_available= get_gcs_nodes_stats(index, gcs_info);
   if (stats_not_available)
-  {
     DBUG_PRINT("info", ("GCS stats not available!"));
-    /*
-      Here, these stats about GCS would not be available only when plugin is
-      not available/not loaded at this point in time.
-      Hence, modified the flag after the check.
-    */
-    m_row.is_gcs_plugin_loaded= false;
-  }
-
-  if(m_row.is_gcs_plugin_loaded)
+  else
   {
     char* gcs_replication_group= gcs_info->group_name;
-
     if (gcs_replication_group)
     {
       memcpy(m_row.group_name, gcs_replication_group, UUID_LENGTH);
@@ -181,24 +167,19 @@ void table_replication_connection_nodes::make_row()
     else
       m_row.is_group_name_null= true;
 
-    //TODO: Obtain values here when available via GCS communication layer.
-    m_row.node_id= gcs_info->node_id;
+    m_row.node_id_length= strlen(gcs_info->node_id);
+    memcpy(m_row.node_id, gcs_info->node_id, m_row.node_id_length);
 
-    //TODO: Add functionality to fetch node address when defined at
-    //communication layer.
-    m_row.node_address_length= 21;
-    memcpy(m_row.node_address, "default_node_address", m_row.node_address_length);
+    m_row.node_host_length= strlen(gcs_info->node_host);
+    memcpy(m_row.node_host, gcs_info->node_host, m_row.node_host_length);
+    m_row.node_port= gcs_info->node_port;
 
-    if (gcs_info->node_state)
-      m_row.node_state= PS_NODE_STATE_ONLINE;
-    else
-      m_row.node_state= PS_NODE_STATE_OFFLINE;
+    m_row.node_state= gcs_info->node_state;
 
     m_row_exists= true;
   }
 
   my_free(gcs_info);
-
   DBUG_VOID_RETURN;
 }
 
@@ -229,12 +210,15 @@ int table_replication_connection_nodes::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 1: /** node_id */
-        set_field_ulong(f, m_row.node_id);
+        set_field_char_utf8(f, m_row.node_id, m_row.node_id_length);
         break;
-      case 2: /** node_address */
-        set_field_char_utf8(f, m_row.node_address, m_row.node_address_length);
+      case 2: /** node_host */
+        set_field_char_utf8(f, m_row.node_host, m_row.node_host_length);
         break;
-      case 3: /** node_state */
+      case 3: /** node_port */
+        set_field_ulong(f, m_row.node_port);
+        break;
+      case 4: /** node_state */
         set_field_enum(f, m_row.node_state);
         break;
       default:

@@ -2094,8 +2094,9 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.replication_connection_nodes("
     "GROUP_NAME varchar(36) not null,"
-    "NODE_ID integer not null,"
-    "NODE_ADDRESS char(60) collate utf8_bin not null,"
+    "NODE_ID char(60) collate utf8_bin not null,"
+    "NODE_HOST char(60) collate utf8_bin not null,"
+    "NODE_PORT integer not null,"
     "NODE_STATE ENUM('ONLINE','OFFLINE','RECOVERING') not null"
     ") ENGINE=PERFORMANCE_SCHEMA;";
 

@@ -27,6 +27,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/plugin/gcs_replication/include)
   SET(GCS_SOURCES
     gcs_plugin.cc gcs_plugin.h
+    gcs_plugin_utils.cc gcs_plugin_utils.h
     observer_server_state.cc observer_server_state.h
     observer_trans.cc observer_trans.h
     gcs_certifier.cc gcs_certifier.h

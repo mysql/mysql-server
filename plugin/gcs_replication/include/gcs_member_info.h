@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,9 +47,9 @@ typedef struct cpg_ring_id Corosync_ring_id;
 
 typedef enum en_recovery_status
 {
-  MEMBER_ONLINE,
-  MEMBER_IN_RECOVERY,
+  MEMBER_ONLINE= 1,
   MEMBER_OFFLINE,
+  MEMBER_IN_RECOVERY,
   MEMBER_END  // the end of the enum
 } Member_recovery_status;
 
@@ -77,9 +77,10 @@ private:
   Member_recovery_status status;
 
 public:
-  Client_info(Client_logger_func f_arg= NULL) :
+  Client_info(Client_logger_func f_arg= NULL) : port(0),
     status(MEMBER_OFFLINE), logger_func(f_arg) {};
-  Client_info(string& uuid_arg) : uuid(uuid_arg), status(MEMBER_OFFLINE),
+  Client_info(string& uuid_arg) : port(0), uuid(uuid_arg),
+                                  status(MEMBER_OFFLINE),
                                   logger_func(NULL) {};
 
   /* Decoder constructor */
@@ -95,10 +96,16 @@ public:
     uuid= uuid_arg;
     status= status_arg;
   }
-  string& get_hostname() { return hostname; }
-  uint get_port() { return port; }
-  string& get_uuid() { return uuid; }
-  Member_recovery_status get_recovery_status() { return status; }
+  string& get_hostname() const { return const_cast<string&>(hostname); }
+  uint get_port() const { return port; }
+  string& get_uuid() const { return const_cast<string&>(uuid); }
+  Member_recovery_status get_recovery_status() const { return status; }
+
+  void set_recovery_status(Member_recovery_status member_status)
+  {
+    status= member_status;
+  }
+
   int (*logger_func)(Client_log_level level, const char *format, ...);
 };
 

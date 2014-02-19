@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,11 +70,18 @@ bool Gcs_replication_handler::get_gcs_stats_info(RPL_GCS_STATS_INFO *info)
   return true;
 }
 
-bool Gcs_replication_handler::get_gcs_nodes_info(RPL_GCS_NODES_INFO *info)
+bool Gcs_replication_handler::get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info)
 {
   if (plugin_handle)
-    return plugin_handle->get_gcs_nodes_info(info);
+    return plugin_handle->get_gcs_nodes_info(index, info);
   return true;
+}
+
+uint Gcs_replication_handler::get_gcs_nodes_number()
+{
+  if (plugin_handle)
+    return plugin_handle->get_gcs_nodes_number();
+  return 0;
 }
 
 bool Gcs_replication_handler::is_gcs_rpl_running()
@@ -188,11 +195,18 @@ bool get_gcs_stats(RPL_GCS_STATS_INFO *info)
   return true;
 }
 
-bool get_gcs_nodes_stats(RPL_GCS_NODES_INFO *info)
+bool get_gcs_nodes_stats(uint index, RPL_GCS_NODES_INFO *info)
 {
   if (gcs_rpl_handler)
-    return gcs_rpl_handler->get_gcs_nodes_info(info);
+    return gcs_rpl_handler->get_gcs_nodes_info(index, info);
   return true;
+}
+
+uint get_gcs_nodes_stats_number()
+{
+  if (gcs_rpl_handler)
+    return gcs_rpl_handler->get_gcs_nodes_number();
+  return 0;
 }
 
 bool is_running_gcs_rpl()

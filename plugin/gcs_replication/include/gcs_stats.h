@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,10 +19,6 @@
 
 namespace GCS
 {
-
-// Astha,Nuno-todo: wl7331 review - aggregated changes to Stats
-// due to wl#7332 and 7331 logics.
-
 /**
    GCS statitics collector.
    getters are wrapped into C-style functions to be invoked by the server
@@ -81,21 +77,42 @@ public:
   time_t get_last_message_timestamp() { return last_message_timestamp; };
 
   ulong get_view_id() { return cluster_view->get_view_id(); };
-  const char* get_node_id(ulong index)
+
+  const char* get_node_id(uint index)
   {
-    return get_number_of_nodes() == 0 ? NULL :
-      cluster_view->get_member(index).get_uuid().c_str();
+    const Member* member= cluster_view->get_member(index);
+    return member == NULL ? "" : member->get_uuid().c_str();
   };
 
-  // TODO/fixme: wl7331 provide the exact def of the node address. Does it include port?
-  // I guess it should 'cos
-  // PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_NODES does not specify port.
-
-  const char* get_node_address(ulong index)
+  const char* get_node_host(uint index)
   {
-    return get_number_of_nodes() == 0 ? NULL :
-      cluster_view->get_member(index).get_hostname().c_str();
+    const Member* member= cluster_view->get_member(index);
+    return member == NULL ? "" : member->get_hostname().c_str();
   };
+
+  uint get_node_port(uint index)
+  {
+    const Member* member= cluster_view->get_member(index);
+    return member == NULL ? 0 : member->get_port();
+  };
+
+  Member_recovery_status get_recovery_status(uint index)
+  {
+    const Member* member= cluster_view->get_member(index);
+    return member == NULL ? MEMBER_OFFLINE : member->get_recovery_status();
+  }
+
+  Member_recovery_status get_node_status(string* uuid)
+  {
+    const Member* member= cluster_view->get_member(*uuid);
+    return member == NULL ? MEMBER_OFFLINE : member->get_recovery_status();
+  }
+
+  bool set_node_status(string* uuid, GCS::Member_recovery_status member_status)
+  {
+    return cluster_view->set_member_status(*uuid, member_status);
+  }
+
   uint get_number_of_nodes() { return number_of_nodes; };
   ulonglong get_total_messages_sent() { return total_messages_sent; };
   ulonglong get_total_bytes_sent() { return total_bytes_sent; };
@@ -106,13 +123,7 @@ public:
   void  set_view(View* view_arg) { cluster_view= view_arg; };
 
 private:
-
-  /*
-     Todo: most of the attributes require atomic type.
-     Convert into that.
-  */
-
-  uint number_of_nodes;  // todo: can be optimized out, moreover replaced with a string containing all node id:s
+  uint number_of_nodes;
   ulonglong total_messages_sent;
   ulonglong total_bytes_sent;
   ulonglong total_messages_received;

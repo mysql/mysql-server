@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 #include <my_sys.h>
 #include <mysql/plugin.h>
 #include <mysql/service_my_plugin_log.h>
+#include <mysql/plugin_gcs_rpl.h>
+#include <gcs_protocol.h>
 
 
 int log_message(enum plugin_log_level level, const char *format, ...);
@@ -148,5 +150,8 @@ private:
   Mutex_autolock(Mutex_autolock const&); // no copies permitted
   void operator=(Mutex_autolock const&);
 };
+
+enum enum_node_state
+map_protocol_node_state_to_server_node_state(GCS::Member_recovery_status protocol_status);
 
 #endif /* GCS_UTILS_INCLUDE */

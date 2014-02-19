@@ -1,19 +1,16 @@
 include/have_gcs_replication_plugin.inc
-include/install_gcs_replication.inc
 set @@session.sql_log_bin=off;
 call mtr.add_suppression("could not form the cluster");
 call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 set @@session.sql_log_bin=on;
-SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
-START GCS_REPLICATION;
 include/install_gcs_replication.inc
+include/start_gcs_replication.inc
 set @@session.sql_log_bin=off;
 call mtr.add_suppression("could not form the cluster");
 call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 set @@session.sql_log_bin=on;
-SET GLOBAL gcs_replication_plugin_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
-START GCS_REPLICATION;
-sleeping for view with 2 nodes
+include/install_gcs_replication.inc
+include/start_gcs_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 BEGIN;
@@ -53,9 +50,7 @@ include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/diff_tables.inc [server1:test.t2, server2:test.t2]
 
 DROP TABLE t1, t2, t3;
-STOP GCS_REPLICATION;
+include/stop_gcs_replication.inc
 include/uninstall_gcs_replication.inc
-UNINSTALL PLUGIN gcs_replication_plugin;
-STOP GCS_REPLICATION;
+include/stop_gcs_replication.inc
 include/uninstall_gcs_replication.inc
-UNINSTALL PLUGIN gcs_replication_plugin;

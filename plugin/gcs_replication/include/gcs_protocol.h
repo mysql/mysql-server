@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,20 +53,25 @@ public:
   Member(Client_info c_arg, Protocol_member_id *m_arg= NULL) :
     info(c_arg), m_id(m_arg) {}
   /* Member's info getters: */
-  string& get_hostname()  { return info.get_hostname(); }
-  uint get_port()         { return info.get_port(); }
+  string& get_hostname() const { return info.get_hostname(); }
+  uint get_port() const { return info.get_port(); }
   /*
     info.uuid is effectively (and by the def of uuid as well) the
     member identifier.
   */
-  string& get_uuid()      { return info.get_uuid(); }
+  string& get_uuid() const { return info.get_uuid(); }
   uchar* describe_member_id(uchar *buf, size_t len)
   {
     return m_id->describe(buf, len);
   }
-  Member_recovery_status get_recovery_status()
+  Member_recovery_status get_recovery_status() const
   {
     return info.get_recovery_status();
+  }
+
+  void set_recovery_status(Member_recovery_status member_status)
+  {
+    info.set_recovery_status(member_status);
   }
 
 private:
@@ -128,39 +133,85 @@ inline Member_set& mset_diff(Member_set& c, Member_set& a, Member_set& b)
 class Group_members
 {
 public:
-  //TODO: this class does not have a good reason to exist,
-  //consider to dismantle it in WL#7331.
-  //Methods invoked in WL#7331 shoul migrate either into View or Protocol.
-
   Group_members() {};
   ~Group_members() {};
   const string& get_group_name() { return group_name; }
   Member_set& get_members() { return members; }
-  // Astha,Nuno-todo: wl7331 review
-  Member get_member(ulong index)
+
+  /**
+    Returns the member at the given index on members set.
+
+    @param index      position on set
+    @return           a member
+    @retval NULL      a member with the given index was not found
+    @retval member    the member with the given index
+  */
+  const Member* get_member(uint index)
   {
-    Member_set::iterator it;
-    for (ulong i=0; i < index; i++, it++)
-    {};
-    return *it;
+    uint i=0;
+    for (std::set<Member>::iterator it= members.begin();
+         it != members.end();
+         i++, ++it)
+    {
+      if (i == index)
+        return &(*it);
+    }
+    return NULL;
   }
 
-  /*
-  class dummy_member_id : public Protocol_member_id
-  {
-  public:
-  dummy_member_id() {}
-  uchar* describe(uchar *buf, size_t len) { return buf; }
-  };
+  /**
+    Returns the member with the given uuid.
 
-  Member_set::iterator find_member(string& key_str)
-  {
-  Client_info key(key_str);
-  dummy_member_id m_id;
-  Member mbr(key, (Protocol_member_id*) &m_id);
-  return members.find(mbr);
-  };
+    @param uuid       the member uuid
+    @return           a member
+    @retval NULL      a member with the given uuid was not found
+    @retval member    the member with the given uuid
   */
+  const Member* get_member(string& uuid)
+  {
+    for (std::set<Member>::iterator it= members.begin();
+         it != members.end();
+         ++it)
+    {
+      if(!(*it).get_uuid().compare(uuid))
+        return &(*it);
+    }
+    return NULL;
+  }
+
+  /**
+    Set the node status of the member with the given uuid.
+
+    @param uuid       the member uuid
+    @param status     the node status
+    @retval false     updated node status
+    @retval true      a member with the given uuid was not found
+  */
+  bool set_member_status(string& uuid, GCS::Member_recovery_status status)
+  {
+    for (std::set<Member>::iterator it= members.begin();
+         it != members.end();
+         ++it)
+    {
+      Member member = *it;
+      if(!member.get_uuid().compare(uuid))
+      {
+        /*
+          There is a race condition between this method and
+          View::install(), the proper solution is move all
+          status code to a independent class with concurrency
+          control.
+        */
+        member.set_recovery_status(status);
+        members.erase(it);
+        members.insert(member);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   const string& set_group_name(const string& arg)
   {
       return const_cast<string&>(group_name)= arg;
