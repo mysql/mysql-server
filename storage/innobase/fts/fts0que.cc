@@ -47,9 +47,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #define RANK_DOWNGRADE		(-1.0F)
 #define RANK_UPGRADE		(1.0F)
 
-/* Maximum number of words supported in a proximity search.
-FIXME, this limitation can be removed easily. Need to see
-if we want to enforce such limitation */
+/* Maximum number of words supported in a phrase or proximity search. */
 #define MAX_PROXIMITY_ITEM	128
 
 /* Memory used by rbt itself for create and node add */
@@ -183,6 +181,8 @@ struct fts_select_t {
 					the FTS index */
 };
 
+typedef std::vector<ulint>       pos_vector_t;
+
 /** structure defines a set of ranges for original documents, each of which
 has a minimum position and maximum position. Text in such range should
 contain all words in the proximity search. We will need to count the
@@ -192,9 +192,9 @@ struct fts_proximity_t {
 	ulint		n_pos;		/*!< number of position set, defines
 					a range (min to max) containing all
 					matching words */
-	ulint*		min_pos;	/*!< the minimum position (in bytes)
+	pos_vector_t	min_pos;	/*!< the minimum position (in bytes)
 					of the range */
-	ulint*		max_pos;	/*!< the maximum position (in bytes)
+	pos_vector_t	max_pos;	/*!< the maximum position (in bytes)
 					of the range */
 };
 
@@ -1705,6 +1705,9 @@ fts_proximity_is_word_in_range(
 {
 	fts_proximity_t*	proximity_pos = phrase->proximity_pos;
 
+	ut_ad(proximity_pos->n_pos == proximity_pos->min_pos.size());
+	ut_ad(proximity_pos->n_pos == proximity_pos->max_pos.size());
+
 	/* Search each matched position pair (with min and max positions)
 	and count the number of words in the range */
 	for (ulint i = 0; i < proximity_pos->n_pos; i++) {
@@ -2588,6 +2591,11 @@ fts_query_phrase_search(
 	}
 
 	num_token = ib_vector_size(tokens);
+	if (num_token > MAX_PROXIMITY_ITEM) {
+		query->error = DB_FTS_TOO_MANY_WORDS_IN_PHRASE;
+		goto func_exit;
+	}
+
 	ut_ad(ib_vector_size(orig_tokens) >= num_token);
 
 	/* Ignore empty strings. */
@@ -2613,7 +2621,7 @@ fts_query_phrase_search(
 					heap_alloc, sizeof(fts_match_t),
 					64);
 			} else {
-				ut_a(num_token < MAX_PROXIMITY_ITEM);
+				ut_a(num_token <= MAX_PROXIMITY_ITEM);
 				query->match_array =
 					(ib_vector_t**) mem_heap_alloc(
 						heap,
@@ -4236,10 +4244,6 @@ fts_phrase_or_proximity_search(
 		ulint		j;
 		ulint		k = 0;
 		fts_proximity_t	qualified_pos;
-		ulint		qualified_pos_buf[MAX_PROXIMITY_ITEM * 2];
-
-		qualified_pos.min_pos = &qualified_pos_buf[0];
-		qualified_pos.max_pos = &qualified_pos_buf[MAX_PROXIMITY_ITEM];
 
 		match[0] = static_cast<fts_match_t*>(
 			ib_vector_get(query->match_array[0], i));
@@ -4371,7 +4375,7 @@ fts_proximity_get_positions(
 
 	qualified_pos->n_pos = 0;
 
-	ut_a(num_match < MAX_PROXIMITY_ITEM);
+	ut_a(num_match <= MAX_PROXIMITY_ITEM);
 
 	/* Each word could appear multiple times in a doc. So
 	we need to walk through each word's position list, and find
@@ -4426,8 +4430,8 @@ fts_proximity_get_positions(
 			length encoding, record the min_pos and
 			max_pos, we will need to verify the actual
 			number of characters */
-			qualified_pos->min_pos[qualified_pos->n_pos] = min_pos;
-			qualified_pos->max_pos[qualified_pos->n_pos] = max_pos;
+			qualified_pos->min_pos.push_back(min_pos);
+			qualified_pos->max_pos.push_back(max_pos);
 			qualified_pos->n_pos++;
 		}
 
@@ -4435,8 +4439,6 @@ fts_proximity_get_positions(
 		list for the word with the smallest position */
 		idx[min_idx]++;
 	}
-
-	ut_ad(qualified_pos->n_pos <= MAX_PROXIMITY_ITEM);
 
 	return(qualified_pos->n_pos != 0);
 }
