@@ -80,6 +80,7 @@ i
 set global innodb_file_per_table = 1;
 set global innodb_file_per_table = 1;
 DROP TABLE t1;
+DROP TABLE t2;
 include/rpl_end.inc
 call mtr.add_suppression("Got error -1 when reading table '.*'");
 call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
