@@ -3767,8 +3767,7 @@ bool Query_log_event::write(IO_CACHE* file)
   to the log.
 */
 Query_log_event::Query_log_event()
-: Query_event(), Log_event(header(), footer()),
-  user(0), host(0)
+: Query_event(), Log_event(header(), footer())
 {
   if (query != 0)
     is_valid= true;
@@ -3811,9 +3810,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
                           Log_event::EVENT_STMT_CACHE,
             Log_event::EVENT_NORMAL_LOGGING,
             header(), footer()),
-  user(0), host(0), data_buf(0), query(query_arg),
-  catalog(thd_arg->catalog),
-  db(thd_arg->db)
+  data_buf(0)
 {
   /* save the original thread id; we already know the server id */
   slave_proxy_id= thd_arg->variables.pseudo_thread_id;
@@ -4037,81 +4034,35 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  *description_event,
                                  Log_event_type event_type)
   :Query_event(buf, event_len, description_event, event_type),
-   Log_event(header(), footer(), true),
-   user(0), host(0), query(0), catalog(0), db(0), time_zone_str(0)
+   Log_event(header(), footer(), true)
 {
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
-
   slave_proxy_id= thread_id;
   exec_time= query_exec_time;
 
+  ulong buf_len= catalog_len + 1 +
+                  time_zone_len + 1 +
+                  user_len + 1 +
+                  host_len + 1 +
+                  data_len + 1;
 #if !defined(MYSQL_CLIENT)
-  if(!(data_buf= (Log_event_header::Byte*) my_malloc(key_memory_log_event,
-                                                      catalog_len + 1
-                                                   +  time_zone_len + 1
-                                                   +  get_user().length() + 1
-                                                   +  get_host().length() + 1
-                                                   +  data_len + 1
-                                                   +  sizeof(size_t)//for db_len
-                                                   +  db_len + 1
-                                                   +  QUERY_CACHE_FLAGS_SIZE,
-                                                      MYF(MY_WME))))
-#else
-  if (!(data_buf = (Log_event_header::Byte*) my_malloc(key_memory_log_event,
-                                                      catalog_len + 1
-                                                   +  time_zone_len + 1
-                                                   +  get_user().length() + 1
-                                                   +  get_host().length() + 1
-                                                   +  data_len + 1,
-                                                      MYF(MY_WME))))
+  buf_len+= sizeof(size_t)/*for db_len */ + db_len + 1 + QUERY_CACHE_FLAGS_SIZE;
 #endif
-    DBUG_VOID_RETURN;
-  if (!(fill_data_buf(data_buf)))
-    DBUG_VOID_RETURN;
 
+  if (!(data_buf = (Log_event_header::Byte*) my_malloc(key_memory_log_event,
+                                                       buf_len, MYF(MY_WME))))
+    DBUG_VOID_RETURN;
   /*
     The data buffer is used by the slave SQL thread while applying
     the event. The catalog, time_zone)str, user, host, db, query
-    are pointers to this data_buf. Below, we initialize these
+    are pointers to this data_buf. The function call below, points these
     const pointers to the data buffer.
-
-    Please Note: Any changes to this data_buf will not be reflected
-    to the string variables in binlogevents library which was used to
-    populate the data buffer. This is not a requirement right now.
   */
-  //TODO: define a separate func for this?
-  unsigned long tmp_catalog_len, tmp_time_zone_len,
-                tmp_user_length, tmp_host_length, tmp_data_len;
-  tmp_catalog_len= (catalog_len) ? (catalog_len+1) : 0;
-  tmp_time_zone_len= (time_zone_len) ? (time_zone_len + 1) : 0;
-  tmp_user_length= (get_user().length()) ? (get_user().length() + 1) : 0;
-  tmp_host_length= (get_host().length()) ? (get_host().length() + 1) : 0;
-  tmp_data_len= (data_len) ? (data_len + 1) : 0;
+  if (!(fill_data_buf(data_buf, buf_len)))
+    DBUG_VOID_RETURN;
 
-  if (tmp_catalog_len > 1)
-    catalog= (const char*)data_buf + 0;
-  if (tmp_time_zone_len > 1)
-    time_zone_str= (const char*)(data_buf + tmp_catalog_len);
-  if (tmp_user_length > 1)
-    user= (const char*)(data_buf + tmp_time_zone_len
-                                 + tmp_catalog_len);
-  if (tmp_host_length > 1)
-    host= (const char*)(data_buf + tmp_user_length
-                                 + tmp_time_zone_len
-                                 + tmp_catalog_len);
-  if (tmp_data_len > 1)
-  {
-    db= (const char*)(data_buf + tmp_host_length
-                                 + tmp_user_length
-                                 + tmp_time_zone_len
-                                 + tmp_catalog_len);
-    if (!get_query().empty())
-      query= (const char*)(data_buf + tmp_host_length
-                                    + tmp_user_length
-                                    + tmp_time_zone_len
-                                    + tmp_catalog_len
-                                    + db_len + 1);
-  }
+  if(query != 0)
+    is_valid= true;
 
   /**
     The buffer contains the following:
@@ -4131,8 +4082,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     We append the db length at the end of the buffer. This will be used by
     Query_cache::send_result_to_client() in case the query cache is On.
    */
-  if(query!=0)
-    is_valid= true;
 #if !defined(MYSQL_CLIENT)
   size_t db_length= (size_t)db_len;
   memcpy(data_buf + query_data_written, &db_length, sizeof(db_length));
@@ -6519,7 +6468,7 @@ bool Intvar_log_event::write(IO_CACHE* file)
   int8store(buf + I_VAL_OFFSET, val);
   return (write_header(file, sizeof(buf)) ||
           wrapper_my_b_safe_write(file, buf, sizeof(buf)) ||
-	  write_footer(file));
+          write_footer(file));
 }
 #endif
 

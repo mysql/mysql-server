@@ -1237,7 +1237,8 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
 */
 Query_event::Query_event(Log_event_type type_arg)
 : Binary_log_event(type_arg),
-  m_user(""), m_host("")
+  query(0), db(0), user(0), user_len(0), host(0), host_len(0),
+  db_len(0), q_len(0)
 {
 }
 
@@ -1256,8 +1257,8 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
                          int errcode,
                          unsigned int db_arg_len, unsigned int catalog_arg_len)
 : Binary_log_event(QUERY_EVENT),
-  m_user(""), m_host(""), m_catalog(""),
-  m_db(""), m_query(""),
+  query(query_arg), db(db_arg), catalog(catalog_arg),
+  user(0), user_len(0), host(0), host_len(0),
   thread_id(thread_id_arg), db_len(0), error_code(errcode),
   status_vars_len(0), q_len(query_length),
   flags2_inited(1), sql_mode_inited(1), charset_inited(1),
@@ -1269,12 +1270,6 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
   table_map_for_update(table_map_for_update_arg),
   master_data_written(0), mts_accessed_dbs(0)
 {
-  if (db_arg)
-    m_db.append(db_arg, db_arg_len);
-  if (query_arg)
-    m_query.append(query_arg, query_length);
-  if (catalog_arg)
-    m_catalog.append(catalog_arg, catalog_arg_len);
 }
 
 /**
@@ -1287,13 +1282,15 @@ Query_event::Query_event(const char* query_arg, const char* catalog_arg,
   @param len The number of bytes to be copied
 */
 static void copy_str_and_move(Log_event_header::Byte **dst,
-                              const std::string &src,
+                              const char** src,
                               unsigned int len)
 {
-  memcpy(*dst, src.c_str(), len);
+  memcpy(*dst, *src, len);
+  *src= (const char*)*dst;
   (*dst)+= len;
   *(*dst)++= 0;
 }
+
 
 /**
   utility function to return the string representation of the status variable
@@ -1338,7 +1335,7 @@ Query_event::code_name(int code)
   do {                                                \
     assert((PTR) + (CNT) <= (END));              \
     if ((PTR) + (CNT) > (END)) {                      \
-      m_query= "";                                       \
+      query= 0;                                       \
       return;                               \
     }                                                 \
   } while (0)
@@ -1360,7 +1357,8 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
                          Log_event_type event_type)
 : Binary_log_event(&buf, description_event->binlog_version,
                    description_event->server_version),
-  m_user(""), m_host(""),m_db(""), m_query(""),
+  query(0), db(0), catalog(0), time_zone_str(0),
+  user(0), user_len(0), host(0), host_len(0),
   db_len(0), status_vars_len(0), q_len(0),
   flags2_inited(0), sql_mode_inited(0), charset_inited(0),
   auto_increment_increment(1), auto_increment_offset(1),
@@ -1418,7 +1416,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
     if (status_vars_len >
         std::min<unsigned long>(data_len, MAX_SIZE_LOG_EVENT_STATUS))
     {
-      m_query= "";
+      query= 0;
       return;
     }
     data_len-= status_vars_len;
@@ -1466,7 +1464,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
     }
     case Q_CATALOG_NZ_CODE:
       if ((catalog_len= *pos))
-        m_catalog= std::string((const char*) (pos + 1), catalog_len);
+        catalog= (const char*) (pos + 1);
       CHECK_SPACE(pos, end, catalog_len + 1);
       pos+= catalog_len + 1;
       break;
@@ -1489,14 +1487,14 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
     case Q_TIME_ZONE_CODE:
     {
       if ((time_zone_len= *pos))
-        m_time_zone_str= std::string((const char*) (pos + 1), time_zone_len);
+        time_zone_str= (const char*)(pos + 1);
       pos+= time_zone_len + 1;
       break;
     }
     case Q_CATALOG_CODE: /* for 5.0.x where 0<=x<=3 masters */
       CHECK_SPACE(pos, end, 1);
       if ((catalog_len= *pos))
-        m_catalog= std::string((const char*) (pos+1), catalog_len);
+        catalog= (const char*) (pos+1);
       CHECK_SPACE(pos, end, catalog_len + 2);
       pos+= catalog_len + 2; // leap over end 0
       break;
@@ -1537,15 +1535,15 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
     case Q_INVOKER:
     {
       CHECK_SPACE(pos, end, 1);
-      size_t user_len= *pos++;
+      user_len= *pos++;
       CHECK_SPACE(pos, end, user_len);
-      m_user= std::string((const char *)pos, user_len);
+      user= (const char*)pos;
       pos+= user_len;
 
       CHECK_SPACE(pos, end, 1);
-      size_t host_len= *pos++;
+      host_len= *pos++;
       CHECK_SPACE(pos, end, host_len);
-      m_host= std::string((const char *)pos, host_len);
+      host= (const char*)pos;
       pos+= host_len;
       break;
     }
@@ -1609,10 +1607,10 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
     query_data_written+= catalog_len + 1;
   if (time_zone_len)
     query_data_written+= time_zone_len + 1;
-  if (m_user.length() > 0)
-    query_data_written+= m_user.length() + 1;
-  if (m_host.length() > 0)
-    query_data_written+= m_host.length() + 1;
+  if (user_len > 0)
+    query_data_written+= user_len + 1;
+  if (host_len > 0)
+    query_data_written+= host_len + 1;
 
   /*
     if time_zone_len or catalog_len are 0, then time_zone and catalog
@@ -1623,9 +1621,9 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
 
   /* A 2nd variable part; this is common to all versions */
   query_data_written+= data_len + 1;
-  m_db= std::string((const char *)end, db_len);
+  db= (const char* )end;
   q_len= data_len - db_len -1;
-  m_query= std::string((const char *)(end + db_len + 1), q_len);
+  query= (const char *)(end + db_len + 1);
   return;
 }
 
@@ -1637,9 +1635,13 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   +--------+-----------+------+------+---------+----+-------+----+
   </pre>
 */
-int Query_event::fill_data_buf(Log_event_header::Byte* buf)
+int Query_event::fill_data_buf(Log_event_header::Byte* buf, unsigned long buf_len)
 {
   if (!buf)
+    return 0;
+  /* We need to check the buffer size */
+  if (buf_len < catalog_len + 1 + time_zone_len +
+                1 + user_len+ 1 + host_len+ 1 + data_len )
     return 0;
   unsigned char* start= buf;
   /*
@@ -1653,17 +1655,19 @@ int Query_event::fill_data_buf(Log_event_header::Byte* buf)
       hence using catalog.length() instead of catalog_len makes the flags
       catalog_nz redundant.
      */
-    copy_str_and_move(&start, m_catalog, catalog_len);
-  if (m_time_zone_str.length() > 0)
-    copy_str_and_move(&start, m_time_zone_str, m_time_zone_str.length());
-  if (m_user.length() > 0)
-    copy_str_and_move(&start, m_user, m_user.length());
-  if (m_host.length() > 0)
-    copy_str_and_move(&start, m_host, m_host.length());
+    copy_str_and_move(&start, &catalog, catalog_len);
+  if (time_zone_len > 0)
+    copy_str_and_move(&start, &time_zone_str, time_zone_len);
+  if (user_len > 0)
+    copy_str_and_move(&start, &user, user_len);
+  if (host_len > 0)
+    copy_str_and_move(&start, &host, host_len);
   if (data_len)
   {
-    copy_str_and_move(&start, m_db, m_db.length());
-    copy_str_and_move(&start, m_query, m_query.length());
+    if (db_len >0 && db)
+      copy_str_and_move(&start, &db, db_len);
+    if (q_len > 0 && query)
+      copy_str_and_move(&start, &query, q_len);
   }
   return 1;
 }
@@ -1671,12 +1675,12 @@ int Query_event::fill_data_buf(Log_event_header::Byte* buf)
 
 void Query_event::print_event_info(std::ostream& info)
 {
-  if (strcmp(m_query.c_str(), "BEGIN") != 0 &&
-      strcmp(m_query.c_str(), "COMMIT") != 0)
+  if (memcmp(query, "BEGIN", 5) != 0 &&
+      memcmp(query, "COMMIT", 6) != 0)
   {
-    info << "use `" << m_db << "`; ";
+    info << "use `" << db << "`; ";
   }
-  info << m_query;
+  info << query;
 }
 
 void Query_event::print_long_info(std::ostream& info)
@@ -1684,7 +1688,7 @@ void Query_event::print_long_info(std::ostream& info)
   info << "Timestamp: " << header()->when.tv_sec;
   info << "\tThread id: " << (int)thread_id;
   info << "\tExec time: " << (int)query_exec_time;
-  info << "\nDatabase: " << m_db;
+  info << "\nDatabase: " << db;
   info << "\tQuery: ";
   this->print_event_info(info);
 }

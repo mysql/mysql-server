@@ -958,6 +958,7 @@ public:
     return &m_footer;
   }
 
+
 private:
   Log_event_header m_header;
   Log_event_footer m_footer;
@@ -1404,16 +1405,16 @@ public:
    */
    Q_COMMIT_TS
   };
-
-private:
-  std::string m_user;
-  std::string m_host;
-  std::string m_catalog;
-  std::string m_time_zone_str;
-  std::string m_db;
-  std::string m_query;
-
+  const char* query;
+  const char* db;
+  const char* catalog;
+  const char* time_zone_str;
 protected:
+  const char* user;
+  size_t user_len;
+  const char* host;
+  size_t host_len;
+
   /* Required by the MySQL server class Log_event::Query_event */
   unsigned long data_len;
   /* Pointer to the end of the buffer shown below */
@@ -1424,7 +1425,7 @@ protected:
     | catlog | time_zone | user | host | db name | \0 | Query | \0 |
     +--------+-----------+------+------+---------+----+-------+----+
   */
-  int fill_data_buf(unsigned char* dest);
+  int fill_data_buf(unsigned char* dest, unsigned long len);
   static char const *code_name(int code);
 
 public:
@@ -1433,7 +1434,6 @@ public:
   uint32_t query_exec_time;
   uint32_t db_len;
   uint16_t error_code;
-
   /*
     We want to be able to store a variable number of N-bit status vars:
     (generally N=32; but N=64 for SQL_MODE) a user may want to log the number
@@ -1537,63 +1537,6 @@ public:
   virtual ~Query_event()
   {
   }
-
-  /*
-    Define getters and setters for the string members
-  */
-  void set_user(const std::string &s)
-  {
-    m_user= s;
-  }
-  std::string get_user() const
-  {
-    return m_user;
-  }
-  void set_host(const std::string &s)
-  {
-    m_host= s;
-  }
-  std::string get_host() const
-  {
-    return m_host;
-  }
-  void set_time_zone_str(const std::string &s)
-  {
-    m_time_zone_str= s;
-    time_zone_len= m_time_zone_str.length();
-  }
-  std::string get_time_zone_str() const
-  {
-    return m_time_zone_str;
-  }
-  void set_catalog(const std::string &s)
-  {
-    m_catalog= s;
-    catalog_len= m_catalog.length();
-  }
-  std::string get_catalog() const
-  {
-    return m_catalog;
-  }
-  void set_db(const std::string &s)
-  {
-    m_db= s;
-    db_len= m_db.length();
-  }
-  std::string get_db() const
-  {
-    return m_db;
-  }
-  void set_query(const std::string &s)
-  {
-    m_query= s;
-    q_len= m_query.length();
-  }
-  std::string get_query() const
-  {
-    return m_query;
-  }
-
 
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
