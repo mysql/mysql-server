@@ -2387,6 +2387,7 @@ void mysql_sql_stmt_prepare(THD *thd)
       DBUG_VOID_RETURN;
     }
 
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     stmt->deallocate();
   }
 

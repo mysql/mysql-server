@@ -4255,7 +4255,6 @@ int mysqld_main(int argc, char **argv)
       pfs_param.m_hints.m_table_open_cache= table_cache_size;
       pfs_param.m_hints.m_max_connections= max_connections;
       pfs_param.m_hints.m_open_files_limit= requested_open_files;
-      // Mayank TODO
       pfs_param.m_hints.m_max_prepared_stmt_count= max_prepared_stmt_count;
       PSI_hook= initialize_performance_schema(&pfs_param);
       if (PSI_hook == NULL)

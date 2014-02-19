@@ -61,7 +61,7 @@ loose-performance-schema-max-file-instances=10000
 loose-performance-schema-max-socket-instances=1000
 loose-performance-schema-max-table-instances=500
 loose-performance-schema-max-table-handles=1000
-loose-performance-schema-max-prepared-statement-instances=100
+loose-performance-schema-max-prepared-statements-instances=100
 
 loose-performance-schema-events-waits-history-size=10
 loose-performance-schema-events-waits-history-long-size=10000
