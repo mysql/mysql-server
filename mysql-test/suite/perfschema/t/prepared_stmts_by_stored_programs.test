@@ -1,5 +1,6 @@
 # Test to check instrumentation of prepared statements created by 
-# stored programs
+# stored programs. SQL prepared statements (PREPARE, EXECUTE, DEALLOCATE PREPARE) 
+# can be used in stored procedures, but not stored functions or triggers.
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
@@ -117,14 +118,6 @@ DELIMITER ;|
 SET GLOBAL event_scheduler=OFF;
 --source include/no_running_event_scheduler.inc
 
-SET @a=4;
-SET @b=5;
-#EXECUTE st USING @a,@b;
---eval $psi_select
-
-#DEALLOCATE PREPARE st;
---eval $psi_select
-
 # clean-up
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 
@@ -134,6 +127,6 @@ DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 DROP PROCEDURE p4;
 DROP PROCEDURE p5;
-#DROP EVENT e1;
+DROP EVENT IF EXISTS e1;
 
 DROP DATABASE db;
