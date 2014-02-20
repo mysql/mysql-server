@@ -16768,6 +16768,15 @@ void Dbdih::readFragment(RWFragment* rf, FragmentstorePtr fragPtr)
     fragPtr.p->m_log_part_id %= 4;
   }
 
+  /* Older nodes stored unlimited log part ids in the fragment definition, 
+   * now we constrain them to a valid range of actual values for this node.  
+   * Here we ensure that unlimited log part ids fit in the value range for
+   * this node.
+   */
+  fragPtr.p->m_log_part_id %= globalData.ndbLogParts;
+
+  ndbrequire(fragPtr.p->m_log_part_id <= NDB_MAX_LOG_PART_ID);
+
   inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
 }//Dbdih::readFragment()
 
