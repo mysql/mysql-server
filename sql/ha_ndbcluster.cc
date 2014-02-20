@@ -15718,10 +15718,9 @@ ndb_util_thread_fail:
   pthread_mutex_unlock(&LOCK);
   DBUG_PRINT("exit", ("ndb_util_thread"));
 
-  DBUG_LEAVE;                               // Must match DBUG_ENTER()
-
   log_info("Stopped");
 
+  DBUG_VOID_RETURN;
 }
 
 /*
