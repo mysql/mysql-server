@@ -1740,6 +1740,22 @@ int ha_tokudb::initialize_share(
 
     share->num_DBs = table_share->keys + tokudb_test(hidden_primary_key);
 
+    init_hidden_prim_key_info(txn);
+
+    // initialize cardinality info from the status dictionary
+    {
+        uint total_key_parts = tokudb::compute_total_key_parts(table_share);
+        uint64_t rec_per_key[total_key_parts];
+        error = tokudb::get_card_from_status(share->status_block, txn, total_key_parts, rec_per_key);
+        if (error == 0) {
+            tokudb::set_card_in_key_info(table, total_key_parts, rec_per_key);
+        } else {
+            for (uint i = 0; i < total_key_parts; i++)
+                rec_per_key[i] = 0;
+            tokudb::set_card_in_key_info(table, total_key_parts, rec_per_key);
+        }
+    }
+
     error = 0;
 exit:
     if (do_commit && txn) {
@@ -1874,8 +1890,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
     key_read = false;
     stats.block_size = 1<<20;    // QQQ Tokudb DB block size
-
-    init_hidden_prim_key_info();
 
     info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
@@ -2975,26 +2989,11 @@ DBT *ha_tokudb::pack_ext_key(
 //
 // get max used hidden primary key value
 //
-void ha_tokudb::init_hidden_prim_key_info() {
+void ha_tokudb::init_hidden_prim_key_info(DB_TXN *txn) {
     TOKUDB_HANDLER_DBUG_ENTER("");
-    tokudb_pthread_mutex_lock(&share->mutex);
     if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
         int error = 0;
-        THD* thd = ha_thd();
-        DB_TXN* txn = NULL;
-        DBC* c = NULL;
-        tokudb_trx_data *trx = NULL;
-        trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
-        bool do_commit = false;
-        if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
-            txn = trx->sub_sp_level;
-        }
-        else {
-            do_commit = true;
-            error = txn_begin(db_env, 0, &txn, 0, thd);
-            assert(error == 0);
-        }
-        
+        DBC* c = NULL;        
         error = share->key_file[primary_key]->cursor(
             share->key_file[primary_key],
             txn,
@@ -3012,12 +3011,8 @@ void ha_tokudb::init_hidden_prim_key_info() {
         }
         error = c->c_close(c);
         assert(error == 0);
-        if (do_commit) {
-            commit_txn(txn, 0);
-        }
         share->status |= STATUS_PRIMARY_KEY_INIT;
     }
-    tokudb_pthread_mutex_unlock(&share->mutex);
     TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
@@ -5944,21 +5939,13 @@ int ha_tokudb::info(uint flag) {
     }
     if ((flag & HA_STATUS_CONST)) {
         stats.max_data_file_length=  9223372036854775807ULL;
-        uint total_key_parts = tokudb::compute_total_key_parts(table_share);
-        uint64_t rec_per_key[total_key_parts];
-        error = tokudb::get_card_from_status(share->status_block, txn, total_key_parts, rec_per_key);
-        if (error == 0) {
-            tokudb::set_card_in_key_info(table, total_key_parts, rec_per_key);
-        } else {
-            for (uint i = 0; i < total_key_parts; i++)
-                rec_per_key[i] = 0;
-            tokudb::set_card_in_key_info(table, total_key_parts, rec_per_key);
-        }
     }
+
     /* Don't return key if we got an error for the internal primary key */
     if (flag & HA_STATUS_ERRKEY && last_dup_key < table_share->keys) {
         errkey = last_dup_key;
     }    
+
     if (flag & HA_STATUS_AUTO && table->found_next_number_field) {        
         THD *thd= table->in_use;
         struct system_variables *variables= &thd->variables;

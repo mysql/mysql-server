@@ -603,7 +603,7 @@ public:
     THR_LOCK_DATA **store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type);
 
     int get_status(DB_TXN* trans);
-    void init_hidden_prim_key_info();
+    void init_hidden_prim_key_info(DB_TXN *txn);
     inline void get_auto_primary_key(uchar * to) {
         tokudb_pthread_mutex_lock(&share->mutex);
         share->auto_ident++;
