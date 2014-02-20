@@ -2629,7 +2629,7 @@ ndb_index_stat_thread_end:
 
   log_info("Stopped");
 
-  DBUG_LEAVE;
+  DBUG_VOID_RETURN;
 }
 
 /* Optimizer queries */
