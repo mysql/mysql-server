@@ -116,7 +116,7 @@ PATENT RIGHTS GRANT:
 #include "ule-internal.h"
 #include <util/status.h>
 #include <util/scoped_malloc.h>
-
+#include <util/partitioned_counter.h>
 
 #define ULE_DEBUG 0
 
@@ -141,6 +141,10 @@ status_init(void) {
     STATUS_INIT(LE_MAX_PROVISIONAL_XR, nullptr, UINT64, "max provisional xr", TOKU_ENGINE_STATUS);
     STATUS_INIT(LE_EXPANDED,           nullptr, UINT64, "expanded", TOKU_ENGINE_STATUS);
     STATUS_INIT(LE_MAX_MEMSIZE,        nullptr, UINT64, "max memsize", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_APPLY_GC_BYTES_IN,  nullptr, PARCOUNT, "size of leafentries before garbage collection (during message application)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_APPLY_GC_BYTES_OUT, nullptr, PARCOUNT, "size of leafentries after garbage collection (during message application)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_NORMAL_GC_BYTES_IN, nullptr, PARCOUNT, "size of leafentries before garbage collection (outside message application)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_NORMAL_GC_BYTES_OUT,nullptr, PARCOUNT, "size of leafentries after garbage collection (outside message application)", TOKU_ENGINE_STATUS);
     le_status.initialized = true;
 }
 #undef STATUS_INIT
@@ -153,6 +157,14 @@ toku_le_get_status(LE_STATUS statp) {
 }
 
 #define STATUS_VALUE(x) le_status.status[x].value.num
+#define STATUS_INC(x, d)                                                            \
+    do {                                                                            \
+        if (le_status.status[x].type == PARCOUNT) {                                 \
+            increment_partitioned_counter(le_status.status[x].value.parcount, d);   \
+        } else {                                                                    \
+            toku_sync_fetch_and_add(&le_status.status[x].value.num, d);             \
+        }                                                                           \
+    } while (0)
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -441,6 +453,18 @@ ule_garbage_collect(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &ref
 done:;
 }
 
+static size_t ule_packed_memsize(ULE ule) {
+// Returns: The size 'ule' would be when packed into a leafentry, or 0 if the
+//          topmost committed value is a delete.
+    if (ule->num_cuxrs == 1 && ule->num_puxrs == 0) {
+        UXR uxr = ule_get_innermost_uxr(ule);
+        if (uxr_is_delete(uxr)) {
+            return 0;
+        }
+    }
+    return le_memsize_from_ule(ule);
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 // This is the big enchilada.  (Bring Tums.)  Note that this level of abstraction 
 // has no knowledge of the inner structure of either leafentry or msg.  It makes
@@ -462,6 +486,7 @@ toku_le_apply_msg(FT_MSG   msg,
                   uint32_t idx, // index in data_buffer where leafentry is stored (and should be replaced
                   TXNID oldest_referenced_xid,
                   GC_INFO gc_info,
+                  txn_manager_state *txn_state_for_gc,
                   LEAFENTRY *new_leafentry_p,
                   int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
     paranoid_invariant_notnull(new_leafentry_p);
@@ -486,7 +511,27 @@ toku_le_apply_msg(FT_MSG   msg,
         oldnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
-    ule_simple_garbage_collection(&ule, oldest_referenced_xid, gc_info);
+
+    // - we may be able to immediately promote the newly-apllied outermost provisonal uxr
+    // - either way, run simple gc first, and then full gc if there are still some committed uxrs.
+    ule_try_promote_provisional_outermost(&ule, oldest_referenced_xid);
+    ule_simple_garbage_collection(&ule,
+                                  txn_state_for_gc != nullptr ?
+                                      txn_state_for_gc->oldest_referenced_xid_for_simple_gc :
+                                      oldest_referenced_xid,
+                                  gc_info);
+    if (ule.num_cuxrs > 1 && txn_state_for_gc != nullptr) {
+        size_t size_before_gc = ule_packed_memsize(&ule);
+        ule_garbage_collect(&ule,
+                            txn_state_for_gc->snapshot_xids,
+                            txn_state_for_gc->referenced_xids,
+                            txn_state_for_gc->live_root_txns
+                            );
+        size_t size_after_gc = ule_packed_memsize(&ule);
+
+        STATUS_INC(LE_APPLY_GC_BYTES_IN, size_before_gc);
+        STATUS_INC(LE_APPLY_GC_BYTES_OUT, size_after_gc);
+    }
     int rval = le_pack(
         &ule, // create packed leafentry
         data_buffer,
@@ -578,7 +623,18 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     // garbage in leafentries.
     TXNID oldest_possible_live_xid = oldest_referenced_xid_known;
     ule_try_promote_provisional_outermost(&ule, oldest_possible_live_xid);
-    ule_garbage_collect(&ule, snapshot_xids, referenced_xids, live_root_txns);
+    // No need to run simple gc here if we're going straight for full gc.
+    if (ule.num_cuxrs > 1) {
+        size_t size_before_gc = ule_packed_memsize(&ule);
+        ule_garbage_collect(&ule,
+                            snapshot_xids,
+                            referenced_xids,
+                            live_root_txns);
+        size_t size_after_gc = ule_packed_memsize(&ule);
+
+        STATUS_INC(LE_APPLY_GC_BYTES_IN, size_before_gc);
+        STATUS_INC(LE_APPLY_GC_BYTES_OUT, size_after_gc);
+    }
 
     int r = le_pack(
         &ule,

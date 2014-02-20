@@ -1692,6 +1692,7 @@ toku_ft_bn_apply_cmd_once (
     LEAFENTRY le,
     TXNID oldest_referenced_xid,
     GC_INFO gc_info,
+    txn_manager_state *txn_state_for_gc,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     )
@@ -1719,6 +1720,7 @@ toku_ft_bn_apply_cmd_once (
         idx,
         oldest_referenced_xid, 
         gc_info, 
+        txn_state_for_gc,
         &new_le, 
         &numbytes_delta
         );
@@ -1768,6 +1770,7 @@ struct setval_extra_s {
     LEAFENTRY le;
     TXNID oldest_referenced_xid;
     GC_INFO gc_info;
+    txn_manager_state *txn_state_for_gc;
     uint64_t * workdone;  // set by toku_ft_bn_apply_cmd_once()
     STAT64INFO stats_to_update;
 };
@@ -1801,6 +1804,7 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
         toku_ft_bn_apply_cmd_once(svextra->bn, &msg,
                                   svextra->idx, svextra->le,
                                   svextra->oldest_referenced_xid, svextra->gc_info,
+                                  svextra->txn_state_for_gc,
                                   svextra->workdone, svextra->stats_to_update);
         svextra->setval_r = 0;
     }
@@ -1816,6 +1820,7 @@ static int do_update(ft_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn
                      uint32_t keylen,
                      TXNID oldest_referenced_xid,
                      GC_INFO gc_info,
+                     txn_manager_state *txn_state_for_gc,
                      uint64_t * workdone,
                      STAT64INFO stats_to_update) {
     LEAFENTRY le_for_update;
@@ -1860,7 +1865,8 @@ static int do_update(ft_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn
     le_for_update = le;
 
     struct setval_extra_s setval_extra = {setval_tag, false, 0, bn, cmd->msn, cmd->xids,
-                                          keyp, idx, le_for_update, oldest_referenced_xid, gc_info, workdone, stats_to_update};
+                                          keyp, idx, le_for_update, oldest_referenced_xid, gc_info,
+                                          txn_state_for_gc, workdone, stats_to_update};
     // call handlerton's brt->update_fun(), which passes setval_extra to setval_fun()
     FAKE_DB(db, desc);
     int r = update_fun(
@@ -1885,6 +1891,7 @@ toku_ft_bn_apply_cmd (
     FT_MSG cmd,
     TXNID oldest_referenced_xid_known,
     GC_INFO gc_info, 
+    txn_manager_state *txn_state_for_gc,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     )
@@ -1931,7 +1938,7 @@ toku_ft_bn_apply_cmd (
         } else {
             assert_zero(r);
         }
-        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
+        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, txn_state_for_gc, workdone, stats_to_update);
 
         // if the insertion point is within a window of the right edge of
         // the leaf then it is sequential
@@ -1963,7 +1970,7 @@ toku_ft_bn_apply_cmd (
             );
         if (r == DB_NOTFOUND) break;
         assert_zero(r);
-        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
+        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, txn_state_for_gc, workdone, stats_to_update);
 
         break;
     }
@@ -1985,7 +1992,7 @@ toku_ft_bn_apply_cmd (
             cmd->u.id.key = &curr_keydbt;
             int deleted = 0;
             if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
-                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
+                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, txn_state_for_gc, workdone, stats_to_update);
                 uint32_t new_omt_size = bn->data_buffer.omt_size();
                 if (new_omt_size != omt_size) {
                     paranoid_invariant(new_omt_size+1 == omt_size);
@@ -2017,7 +2024,7 @@ toku_ft_bn_apply_cmd (
             cmd->u.id.key = &curr_keydbt;
             int deleted = 0;
             if (le_has_xids(storeddata, cmd->xids)) {
-                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
+                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid_known, gc_info, txn_state_for_gc, workdone, stats_to_update);
                 uint32_t new_omt_size = bn->data_buffer.omt_size();
                 if (new_omt_size != omt_size) {
                     paranoid_invariant(new_omt_size+1 == omt_size);
@@ -2049,9 +2056,9 @@ toku_ft_bn_apply_cmd (
                 key = cmd->u.id.key->data;
                 keylen = cmd->u.id.key->size;
             }
-            r = do_update(update_fun, desc, bn, cmd, idx, NULL, NULL, 0, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
+            r = do_update(update_fun, desc, bn, cmd, idx, NULL, NULL, 0, oldest_referenced_xid_known, gc_info, txn_state_for_gc, workdone, stats_to_update);
         } else if (r==0) {
-            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, key, keylen, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
+            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, key, keylen, oldest_referenced_xid_known, gc_info, txn_state_for_gc, workdone, stats_to_update);
         } // otherwise, a worse error, just return it
         break;
     }
@@ -2074,7 +2081,7 @@ toku_ft_bn_apply_cmd (
 
             // This is broken below. Have a compilation error checked
             // in as a reminder
-            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, curr_key, curr_keylen, oldest_referenced_xid_known, gc_info, workdone, stats_to_update);
+            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, curr_key, curr_keylen, oldest_referenced_xid_known, gc_info, txn_state_for_gc, workdone, stats_to_update);
             assert_zero(r);
 
             if (num_leafentries_before == bn->data_buffer.omt_size()) {
@@ -2442,29 +2449,24 @@ static void
 ft_leaf_run_gc(FTNODE node, FT ft) {
     TOKULOGGER logger = toku_cachefile_logger(ft->cf);
     if (logger) {
-        xid_omt_t snapshot_txnids;
-        rx_omt_t referenced_xids;
-        xid_omt_t live_root_txns;
-        toku_txn_manager_clone_state_for_gc(
-            logger->txn_manager,
-            &snapshot_txnids,
-            &referenced_xids,
-            &live_root_txns
-            );
+        TXN_MANAGER txn_manager = toku_logger_get_txn_manager(logger);
+        txn_manager_state txn_state_for_gc;
+        txn_state_for_gc.init(txn_manager);
         
-        // Perform garbage collection. Provide a full snapshot of the transaction
+        // Perform full garbage collection. Provide a fresh snapshot of the transaction
         // system plus the oldest known referenced xid that could have had messages
-        // applied to this leaf.
+        // applied to this leaf (which comes from the node, NOT the txn_manager_state,
+        // which has a value only suitible for simple garbage colletion).
         //
         // Using the oldest xid in either the referenced_xids or live_root_txns
         // snapshots is not sufficient, because there could be something older that is neither
         // live nor referenced, but instead aborted somewhere above us as a message in the tree.
-        ft_leaf_gc_all_les(node, ft, snapshot_txnids, referenced_xids, live_root_txns, node->oldest_referenced_xid_known);
-        
-        // Free the OMT's we used for garbage collecting.
-        snapshot_txnids.destroy();
-        referenced_xids.destroy();
-        live_root_txns.destroy();
+        ft_leaf_gc_all_les(node, ft,
+                           txn_state_for_gc.snapshot_xids,
+                           txn_state_for_gc.referenced_xids,
+                           txn_state_for_gc.live_root_txns,
+                           node->oldest_referenced_xid_known);
+        txn_state_for_gc.destroy();
     }
 }
 
@@ -2478,6 +2480,14 @@ void toku_bnc_flush_to_child(
     paranoid_invariant(bnc);
     STAT64INFO_S stats_delta = {0,0};
     size_t remaining_memsize = toku_fifo_buffer_size_in_use(bnc->buffer);
+
+    txn_manager_state txn_state_for_gc;
+    bool do_garbage_collection = child->height == 0 && toku_cachefile_logger(ft->cf) != nullptr;
+    if (do_garbage_collection) {
+        TOKULOGGER logger = toku_cachefile_logger(ft->cf);
+        TXN_MANAGER txn_manager = toku_logger_get_txn_manager(logger);
+        txn_state_for_gc.init(txn_manager);
+    }
     FIFO_ITERATE(
         bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
         ({
@@ -2503,6 +2513,7 @@ void toku_bnc_flush_to_child(
                 &ftcmd,
                 is_fresh,
                 make_gc_info(true), // mvcc_needed
+                &txn_state_for_gc,
                 flow_deltas,
                 &stats_delta
                 );
@@ -2514,8 +2525,8 @@ void toku_bnc_flush_to_child(
     if (stats_delta.numbytes || stats_delta.numrows) {
         toku_ft_update_stats(&ft->in_memory_stats, stats_delta);
     }
-    if (child->height == 0) {
-        ft_leaf_run_gc(child, ft);
+    if (do_garbage_collection) {
+        txn_state_for_gc.destroy();
         size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
         STATUS_INC(FT_MSG_BYTES_OUT, buffsize);
         // may be misleading if there's a broadcast message in there
@@ -2539,6 +2550,7 @@ toku_ft_node_put_cmd (
     FT_MSG cmd,
     bool is_fresh,
     GC_INFO gc_info,
+    txn_manager_state *txn_state_for_gc,
     size_t flow_deltas[],
     STAT64INFO stats_to_update
     )
@@ -2556,7 +2568,7 @@ toku_ft_node_put_cmd (
     // and instead defer to these functions
     //
     if (node->height==0) {
-        toku_ft_leaf_apply_cmd(compare_fun, update_fun, desc, node, target_childnum, cmd, gc_info, nullptr, stats_to_update);
+        toku_ft_leaf_apply_cmd(compare_fun, update_fun, desc, node, target_childnum, cmd, gc_info, txn_state_for_gc, nullptr, stats_to_update);
     } else {
         ft_nonleaf_put_cmd(compare_fun, desc, node, target_childnum, cmd, is_fresh, flow_deltas);
     }
@@ -2577,6 +2589,7 @@ void toku_ft_leaf_apply_cmd(
     int target_childnum,  // which child to inject to, or -1 if unknown
     FT_MSG cmd,
     GC_INFO gc_info,
+    txn_manager_state *txn_state_for_gc,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     )
@@ -2627,6 +2640,7 @@ void toku_ft_leaf_apply_cmd(
                                  cmd,
                                  oldest_referenced_xid_known,
                                  gc_info,
+                                 txn_state_for_gc,
                                  workdone,
                                  stats_to_update);
         } else {
@@ -2638,14 +2652,15 @@ void toku_ft_leaf_apply_cmd(
             if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
                 BLB(node, childnum)->max_msn_applied = cmd->msn;
                 toku_ft_bn_apply_cmd(compare_fun,
-                                      update_fun,
-                                      desc,
-                                      BLB(node, childnum),
-                                      cmd,
-                                      oldest_referenced_xid_known,
-                                      gc_info,
-                                      workdone,
-                                      stats_to_update);
+                                     update_fun,
+                                     desc,
+                                     BLB(node, childnum),
+                                     cmd,
+                                     oldest_referenced_xid_known,
+                                     gc_info,
+                                     txn_state_for_gc,
+                                     workdone,
+                                     stats_to_update);
             } else {
                 STATUS_INC(FT_MSN_DISCARDS, 1);
             }
@@ -2696,6 +2711,7 @@ static void inject_message_in_locked_node(
         cmd,
         true,
         gc_info,
+        nullptr,
         flow_deltas,
         &stats_delta
         );
@@ -4331,6 +4347,7 @@ do_bn_apply_cmd(FT_HANDLE t, BASEMENTNODE bn, struct fifo_entry *entry, TXNID ol
             &ftcmd,
             oldest_referenced_xid,
             make_gc_info(true), //mvcc is needed
+            nullptr,
             workdone,
             stats_to_update
             );
