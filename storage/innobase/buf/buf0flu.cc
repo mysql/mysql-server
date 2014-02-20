@@ -1363,15 +1363,15 @@ buf_flush_page_and_try_neighbors(
 		buf_pool_mutex_exit(buf_pool);
 
 		/* Try to flush also all the neighbors */
-		*count += buf_flush_try_neighbors(page_id,
-						  flush_type,
-						  *count,
-						  n_to_flush);
+		*count += buf_flush_try_neighbors(
+			page_id, flush_type, *count, n_to_flush);
 
 		buf_pool_mutex_enter(buf_pool);
 		flushed = TRUE;
 	} else {
 		mutex_exit(block_mutex);
+
+		flushed = false;
 	}
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
