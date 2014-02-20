@@ -1,6 +1,7 @@
 --source include/have_innodb.inc
 
 --source include/have_gbk.inc
+--source include/have_gb18030.inc
 #
 # test of new fulltext search features
 #
@@ -36,3 +37,16 @@ FULLTEXT(a)) ENGINE=$default_engine;
 DROP TABLE t1;
 
 # End of 5.1 tests
+
+# End of 5.6 tests
+SET NAMES utf8;
+
+CREATE TABLE t1(a VARCHAR(255) CHARACTER SET gb18030, FULLTEXT(a)) ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES(0xF043616161),(0xBEF361616197C22061616161);
+SELECT CONVERT(a USING utf8) FROM t1;
+SELECT CONVERT(_gb18030 0x97C22061616161 USING utf8);
+SELECT HEX(a), CONVERT(a USING utf8) FROM t1 WHERE MATCH(a) AGAINST(0x97C22061616161 IN BOOLEAN MODE);
+
+SET NAMES latin1;
+DROP TABLE t1;
