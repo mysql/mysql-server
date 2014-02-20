@@ -96,6 +96,7 @@ PATENT RIGHTS GRANT:
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 static const char *fname = TOKU_TEST_FILENAME;
+static txn_gc_info non_mvcc_gc_info(nullptr, TXNID_NONE, TXNID_NONE, false);
 
 static int dummy_cmp(DB *db __attribute__((unused)),
                      const DBT *a, const DBT *b) {
@@ -217,8 +218,8 @@ insert_random_message_to_bn(
     *keylenp = keydbt->size;
     *keyp = toku_xmemdup(keydbt->data, keydbt->size);
     int64_t numbytes;
-    toku_le_apply_msg(&msg, NULL, NULL, 0, TXNID_NONE, make_gc_info(false), save, &numbytes);
-    toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb, &msg, TXNID_NONE, make_gc_info(false), NULL, NULL);
+    toku_le_apply_msg(&msg, NULL, NULL, 0, &non_mvcc_gc_info, save, &numbytes);
+    toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb, &msg, &non_mvcc_gc_info, NULL, NULL);
     if (msn.msn > blb->max_msn_applied.msn) {
         blb->max_msn_applied = msn;
     }
@@ -267,12 +268,12 @@ insert_same_message_to_bns(
     *keylenp = keydbt->size;
     *keyp = toku_xmemdup(keydbt->data, keydbt->size);
     int64_t numbytes;
-    toku_le_apply_msg(&msg, NULL, NULL, 0, TXNID_NONE, make_gc_info(false), save, &numbytes);
-    toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb1, &msg, TXNID_NONE, make_gc_info(false), NULL, NULL);
+    toku_le_apply_msg(&msg, NULL, NULL, 0, &non_mvcc_gc_info, save, &numbytes);
+    toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb1, &msg, &non_mvcc_gc_info, NULL, NULL);
     if (msn.msn > blb1->max_msn_applied.msn) {
         blb1->max_msn_applied = msn;
     }
-    toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb2, &msg, TXNID_NONE, make_gc_info(false), NULL, NULL);
+    toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb2, &msg, &non_mvcc_gc_info, NULL, NULL);
     if (msn.msn > blb2->max_msn_applied.msn) {
         blb2->max_msn_applied = msn;
     }
@@ -684,7 +685,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     if (make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], make_gc_info(false), NULL, NULL);
+                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -908,7 +909,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (dummy_cmp(NULL, parent_messages[i]->u.id.key, &childkeys[7]) <= 0 &&
                 !parent_messages_is_fresh[i]) {
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], make_gc_info(false), NULL, NULL);
+                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -1104,8 +1105,8 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     if (make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child1, -1, parent_messages[i], make_gc_info(false), NULL, NULL);
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child2, -1, parent_messages[i], make_gc_info(false), NULL, NULL);
+                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child1, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
+                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child2, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
