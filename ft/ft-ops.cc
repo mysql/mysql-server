@@ -2606,12 +2606,6 @@ void toku_ft_leaf_apply_cmd(
         node->max_msn_applied_to_node_on_disk = cmd_msn;
     }
 
-    if (gc_info->mvcc_needed) { // False during recover and non-transactional environments
-        // Caller should have recognized that the oldest referenced xid for
-        // simple gc is this node's oldest referenced xid known.
-        invariant(gc_info->oldest_referenced_xid_for_implicit_promotion == node->oldest_referenced_xid_known);
-    }
-
     if (ft_msg_applies_once(cmd)) {
         unsigned int childnum = (target_childnum >= 0
                                  ? target_childnum
@@ -2670,10 +2664,14 @@ static void inject_message_in_locked_node(
     invariant(toku_ctpair_is_write_locked(node->ct_pair));
     toku_assert_entire_node_in_memory(node);
 
-    // If the current gc_info knows about a newer xid suitible for implicit
-    // promotions, update the oldest referenced xid known for this node.
-    if (gc_info->oldest_referenced_xid_for_implicit_promotion >= node->oldest_referenced_xid_known) {
+    // Take the newer of the two oldest referenced xid values from the node and gc_info.
+    // The gc_info usually has a newer value, because we got it at the top of this call
+    // stack from the txn manager. But sometimes the node has a newer value, if some
+    // other thread sees a newer value and writes to this node before we got the lock.
+    if (gc_info->oldest_referenced_xid_for_implicit_promotion > node->oldest_referenced_xid_known) {
         node->oldest_referenced_xid_known = gc_info->oldest_referenced_xid_for_implicit_promotion;
+    } else if (gc_info->oldest_referenced_xid_for_implicit_promotion < node->oldest_referenced_xid_known) {
+        gc_info->oldest_referenced_xid_for_implicit_promotion = node->oldest_referenced_xid_known;
     }
 
     // Get the MSN from the header.  Now that we have a write lock on the
