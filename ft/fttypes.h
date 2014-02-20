@@ -143,10 +143,6 @@ typedef TOKU_XA_XID *XIDP; // this is the type that's passed to the logger code 
 
 static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }
 
-typedef struct gc_info_s { bool mvcc_needed; } GC_INFO;
-
-static inline GC_INFO make_gc_info(bool mvcc_needed) { GC_INFO result = {mvcc_needed}; return result; }
-
 // This struct hold information about values stored in the cachetable.
 // As one can tell from the names, we are probably violating an
 // abstraction layer by placing names.

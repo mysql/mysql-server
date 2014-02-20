@@ -615,7 +615,13 @@ indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xi
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            toku_ft_send_delete(db_struct_i(hotdb)->ft_handle, hotkey, xids, TXNID_NONE, make_gc_info(true));
+            TXNID oldest_referenced_xid_estimate =
+                toku_ft_get_oldest_referenced_xid_estimate(db_struct_i(hotdb)->ft_handle);
+            txn_gc_info gc_info(nullptr,
+                                oldest_referenced_xid_estimate,
+                                oldest_referenced_xid_estimate,
+                                true);
+            toku_ft_send_delete(db_struct_i(hotdb)->ft_handle, hotkey, xids, &gc_info);
         }
     }
     return result;
@@ -651,7 +657,13 @@ indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *ho
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            toku_ft_send_insert(db_struct_i(hotdb)->ft_handle, hotkey, hotval, xids, FT_INSERT, TXNID_NONE, make_gc_info(true));
+            TXNID oldest_referenced_xid_estimate =
+                toku_ft_get_oldest_referenced_xid_estimate(db_struct_i(hotdb)->ft_handle);
+            txn_gc_info gc_info(nullptr,
+                                oldest_referenced_xid_estimate,
+                                oldest_referenced_xid_estimate,
+                                true);
+            toku_ft_send_insert(db_struct_i(hotdb)->ft_handle, hotkey, hotval, xids, FT_INSERT, &gc_info);
         }
     }
     return result;
@@ -670,8 +682,15 @@ indexer_ft_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
             result = indexer->i->test_commit_any(indexer, hotdb, hotkey, xids);
         } else {
             result = toku_ydb_check_avail_fs_space(indexer->i->env);
-            if (result == 0)
-                toku_ft_send_commit_any(db_struct_i(hotdb)->ft_handle, hotkey, xids, TXNID_NONE, make_gc_info(true));
+            if (result == 0) {
+                TXNID oldest_referenced_xid_estimate =
+                    toku_ft_get_oldest_referenced_xid_estimate(db_struct_i(hotdb)->ft_handle);
+                txn_gc_info gc_info(nullptr,
+                                    oldest_referenced_xid_estimate,
+                                    oldest_referenced_xid_estimate,
+                                    true);
+                toku_ft_send_commit_any(db_struct_i(hotdb)->ft_handle, hotkey, xids, &gc_info);
+            }
         }
     }
     return result;

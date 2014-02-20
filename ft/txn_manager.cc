@@ -615,7 +615,6 @@ void toku_txn_manager_start_txn_for_recovery(
     // using xid that is passed in
     txn_manager->last_xid = max_xid(txn_manager->last_xid, xid);
     toku_txn_update_xids_in_txn(txn, xid);
-    txn->oldest_referenced_xid = TXNID_NONE;
 
     uint32_t idx;
     int r = txn_manager->live_root_txns.find_zero<TOKUTXN, find_xid>(txn, nullptr, &idx);
@@ -838,7 +837,6 @@ void txn_manager_state::init(TXN_MANAGER txn_manager) {
         &referenced_xids,
         &live_root_txns
         );
-    oldest_referenced_xid_for_simple_gc = txn_manager->last_calculated_oldest_referenced_xid;
 }
 
 void txn_manager_state::destroy() {
