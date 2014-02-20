@@ -53,6 +53,10 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     m_transporter_registry(t_reg)
 {
   DBUG_ENTER("Transporter::Transporter");
+
+  m_pending_connection = false;
+  my_socket_invalidate(&m_pending_connection_fd);
+
   if (rHostName && strlen(rHostName) > 0){
     strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
   }
@@ -155,6 +159,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   resetCounters();
 
   m_connected  = true;
+  clear_pending_connection(false);
 
   DBUG_RETURN(true);
 }
@@ -172,6 +177,10 @@ Transporter::connect_client() {
   {
     sockfd= m_transporter_registry.connect_ndb_mgmd(m_socket_client);
   }
+  else if (m_pending_connection)
+  {
+    sockfd = m_pending_connection_fd;
+  }
   else
   {
     if (!m_socket_client->init())
@@ -188,11 +197,24 @@ Transporter::connect_client() {
     sockfd= m_socket_client->connect();
   }
 
-  DBUG_RETURN(connect_client(sockfd));
+  int res = connect_client(sockfd);
+  switch(res) {
+  case 1:  /** OK */
+    clear_pending_connection(false);
+    DBUG_RETURN(true);
+  case 0:  /** WAIT */
+    DBUG_RETURN(false);
+  case -1: /** FAIL */
+    clear_pending_connection(true);
+    DBUG_RETURN(false);
+  default: /** WTF */
+    clear_pending_connection(true);
+    DBUG_RETURN(false);
+  }
 }
 
 
-bool
+int
 Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
 
   DBUG_ENTER("Transporter::connect_client(sockfd)");
@@ -200,14 +222,14 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   if(m_connected)
   {
     DBUG_PRINT("error", ("Already connected"));
-    DBUG_RETURN(true);
+    DBUG_RETURN(1);
   }
 
   if (!my_socket_valid(sockfd))
   {
     DBUG_PRINT("error", ("Socket " MY_SOCKET_FORMAT " is not valid",
                          MY_SOCKET_FORMAT_VALUE(sockfd)));
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
   }
 
   DBUG_PRINT("info",("server port: %d, isMgmConnection: %d",
@@ -216,12 +238,13 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   // Send "hello"
   DBUG_PRINT("info", ("Sending own nodeid: %d and transporter type: %d",
                       localNodeId, m_type));
+  int max_wait = 30;
   SocketOutputStream s_output(sockfd);
-  if (s_output.println("%d %d", localNodeId, m_type) < 0)
+  if (s_output.println("%d %d WAIT %d", localNodeId, m_type, max_wait) < 0)
   {
     DBUG_PRINT("error", ("Send of 'hello' failed"));
     NDB_CLOSE_SOCKET(sockfd);
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
   }
 
   // Read reply
@@ -232,7 +255,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   {
     DBUG_PRINT("error", ("Failed to read reply"));
     NDB_CLOSE_SOCKET(sockfd);
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
   }
 
   // Parse reply
@@ -246,9 +269,15 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     // ok, but with no checks on transporter configuration compatability
     break;
   default:
+    if (strncmp(buf, "WAIT", 4) == 0)
+    {
+      m_pending_connection = true;
+      m_pending_connection_fd = sockfd;
+      DBUG_RETURN(0);
+    }
     DBUG_PRINT("error", ("Failed to parse reply"));
     NDB_CLOSE_SOCKET(sockfd);
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
   }
 
   DBUG_PRINT("info", ("nodeId=%d remote_transporter_type=%d",
@@ -260,7 +289,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     g_eventLogger->error("Connected to wrong nodeid: %d, expected: %d",
                          nodeId, remoteNodeId);
     NDB_CLOSE_SOCKET(sockfd);
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
   }
 
   // Check transporter type
@@ -271,26 +300,31 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
                          "type: %d, expected type: %d",
                          nodeId, remote_transporter_type, m_type);
     NDB_CLOSE_SOCKET(sockfd);
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
   }
 
   // Cache the connect address
   my_socket_connect_address(sockfd, &m_connect_address);
 
   if (!connect_client_impl(sockfd))
-    DBUG_RETURN(false);
+  {
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(-1);
+  }
 
   m_connect_count++;
   resetCounters();
 
   m_connected = true;
+  clear_pending_connection(false);
 
   DBUG_RETURN(true);
 }
 
 void
-Transporter::doDisconnect() {
-
+Transporter::doDisconnect()
+{
+  clear_pending_connection(true);
   if(!m_connected)
     return;
 
@@ -307,3 +341,36 @@ Transporter::resetCounters()
   m_overload_count = 0;
   m_slowdown_count = 0;
 };
+
+bool
+Transporter::hasPendingConnection() const {
+  if (m_pending_connection)
+  {
+    assert(my_socket_valid(m_pending_connection_fd));
+  }
+  return m_pending_connection;
+}
+
+bool
+Transporter::hasPendingConnectionData(Uint32 timeout_millis) const
+{
+  if (!m_pending_connection)
+  {
+    return false;
+  }
+
+  int res = ndb_poll(m_pending_connection_fd, true, false, true,
+                     timeout_millis);
+  return res > 0;
+}
+
+void
+Transporter::clear_pending_connection(bool close_if_open)
+{
+  m_pending_connection = false;
+  if (close_if_open && my_socket_valid(m_pending_connection_fd))
+  {
+    NDB_CLOSE_SOCKET(m_pending_connection_fd);
+  }
+  my_socket_invalidate(&m_pending_connection_fd);
+}

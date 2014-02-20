@@ -47,7 +47,7 @@ public:
    *    Use isConnected() to check status
    */
   virtual bool connect_client();
-  bool connect_client(NDB_SOCKET_TYPE sockfd);
+  int connect_client(NDB_SOCKET_TYPE sockfd);
   bool connect_server(NDB_SOCKET_TYPE socket, BaseString& errormsg);
 
   /**
@@ -59,7 +59,17 @@ public:
    * Are we currently connected
    */
   bool isConnected() const;
-  
+
+  /**
+   * Do we have a pending connection
+   */
+  bool hasPendingConnection() const;
+
+  /**
+   * Is there data on the pending connection
+   */
+  bool hasPendingConnectionData(Uint32 timeout_millis) const;
+
   /**
    * Remote Node Id
    */
@@ -189,7 +199,7 @@ private:
 protected:
   Uint32 m_os_max_iovec;
   Uint32 m_timeOutMillis;
-  bool m_connected;     // Are we connected
+  bool m_connected;          // Are we connected
   TransporterType m_type;
 
   TransporterRegistry &m_transporter_registry;
@@ -200,6 +210,10 @@ protected:
 
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);
   void iovec_data_sent(int nBytesSent);
+
+  bool m_pending_connection; // Is there an pending connection ongoing...
+  NDB_SOCKET_TYPE m_pending_connection_fd;
+  void clear_pending_connection(bool close_if_open);
 };
 
 inline

@@ -77,7 +77,8 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
   }
 
   BaseString msg;
-  if (!m_transporter_registry->connect_server(sockfd, msg))
+  int res = m_transporter_registry->connect_server(sockfd, msg);
+  if (res < 0)
   {
     NDB_CLOSE_SOCKET(sockfd);
     DBUG_RETURN(0);
@@ -434,9 +435,30 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
   return recvhandle.init(maxTransporters);
 }
 
-bool
+void
+TransporterRegistry::connect_server_check_pending(Transporter * t)
+{
+  if (t->hasPendingConnectionData(0))
+  {
+    BaseString msg;
+    int res = connect_server(t->m_pending_connection_fd, msg, t);
+    switch(res) {
+    case 1:  /** SUCCESS */
+      break;
+    case 0:  /** WAIT */
+      break;
+    default:
+    case -1: /** FAIL */
+      t->clear_pending_connection(true);
+      break;
+    }
+  }
+}
+
+int
 TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
-                                    BaseString & msg) const
+                                    BaseString & msg,
+                                    Transporter * expected) const
 {
   DBUG_ENTER("TransporterRegistry::connect_server(sockfd)");
 
@@ -447,12 +469,16 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
   if (s_input.gets(buf, sizeof(buf)) == 0) {
     msg.assfmt("line: %u : Failed to get nodeid from client", __LINE__);
     DBUG_PRINT("error", ("Failed to read 'hello' from client"));
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
   }
 
-  int nodeId, remote_transporter_type= -1;
-  int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
+  int nodeId, remote_transporter_type= -1, max_wait = 0;
+  int r= sscanf(buf, "%d %d WAIT %d",
+                &nodeId,
+                &remote_transporter_type,
+                &max_wait);
   switch (r) {
+  case 3:
   case 2:
     break;
   case 1:
@@ -463,7 +489,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
     DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
                          (int)sizeof(buf), buf));
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
   }
 
   DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d",
@@ -477,7 +503,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
     DBUG_PRINT("error", ("Out of range nodeId: %d from client",
                          nodeId));
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
   }
 
   // Check that transporter is allocated
@@ -487,7 +513,80 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     msg.assfmt("line: %u : Incorrect reply from client: >%s<, node: %u",
                __LINE__, buf, nodeId);
     DBUG_PRINT("error", ("No transporter available for node id %d", nodeId));
-    DBUG_RETURN(false);
+    DBUG_RETURN(-1);
+  }
+
+  // Check transporter type
+  if (remote_transporter_type != -1 &&
+      remote_transporter_type != t->m_type)
+  {
+    g_eventLogger->error("Connection from node: %d uses different transporter "
+                         "type: %d, expected type: %d",
+                         nodeId, remote_transporter_type, t->m_type);
+    DBUG_RETURN(-1);
+  }
+
+  if (expected != 0 && t != expected)
+  {
+    g_eventLogger->error("line: %u : Connection with already "
+                         " pending connection for node %u", __LINE__, nodeId);
+    msg.assfmt("line: %u : Connection with already "
+               "pending connection for node %u",
+               __LINE__, nodeId);
+
+    /**
+     * Weird!! disconnect everything
+     */
+    t->clear_pending_connection(true);
+    expected->clear_pending_connection(true);
+    DBUG_RETURN(-1);
+  }
+
+  if (performStates[nodeId] == TransporterRegistry::DISCONNECTED)
+  {
+    if (expected != 0)
+    {
+      if (!expected->hasPendingConnection())
+      {
+        g_eventLogger->error("line: %u : Connection with already "
+                             " pending connection for node %u",
+                             __LINE__, nodeId);
+        msg.assfmt("line: %u : Connection with already "
+                   "pending connection for node %u",
+                   __LINE__, nodeId);
+        DBUG_RETURN(-1);
+      }
+    }
+    else if (t->hasPendingConnection())
+    {
+      g_eventLogger->error("line: %u : Connection with already "
+                           " pending connection for node %u", __LINE__, nodeId);
+      msg.assfmt("line: %u : Connection with already "
+                 "pending connection for node %u",
+                 __LINE__, nodeId);
+      t->clear_pending_connection(true);
+      DBUG_RETURN(-1);
+    }
+  }
+
+  if (performStates[nodeId] == TransporterRegistry::DISCONNECTED &&
+      max_wait > 0)
+  {
+    /**
+     * Send back wait
+     */
+    SocketOutputStream s_output(sockfd);
+    if (s_output.println("WAIT") < 0)
+    {
+      msg.assfmt("line: %u : Failed to reply to connecting socket (node: %u)",
+                 __LINE__, nodeId);
+      DBUG_PRINT("error", ("Send of reply failed"));
+      DBUG_RETURN(-1);
+    }
+
+    t->m_pending_connection = true;
+    t->m_pending_connection_fd = sockfd;
+    DBUG_RETURN(0);
   }
 
   // Check that the transporter should be connecting
@@ -500,17 +599,8 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
 
     DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
                          nodeId));
-    DBUG_RETURN(false);
-  }
-
-  // Check transporter type
-  if (remote_transporter_type != -1 &&
-      remote_transporter_type != t->m_type)
-  {
-    g_eventLogger->error("Connection from node: %d uses different transporter "
-                         "type: %d, expected type: %d",
-                         nodeId, remote_transporter_type, t->m_type);
-    DBUG_RETURN(false);
+    t->clear_pending_connection(false);
+    DBUG_RETURN(-1);
   }
 
   // Send reply to client
@@ -520,7 +610,8 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     msg.assfmt("line: %u : Failed to reply to connecting socket (node: %u)",
                __LINE__, nodeId);
     DBUG_PRINT("error", ("Send of reply failed"));
-    DBUG_RETURN(false);
+    t->clear_pending_connection(false);
+    DBUG_RETURN(-1);
   }
 
   // Setup transporter (transporter responsible for closing sockfd)
@@ -534,10 +625,13 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
                performStates[nodeId]);
     // Connection suceeded, but not connecting anymore, return
     // false to close the connection
-    DBUG_RETURN(false);
+    t->clear_pending_connection(false);
+    DBUG_RETURN(-1);
   }
 
-  DBUG_RETURN(res);
+  t->clear_pending_connection(false);
+
+  DBUG_RETURN(res ? 1 : -1);
 }
 
 
@@ -1979,6 +2073,13 @@ TransporterRegistry::start_clients_thread()
                                  " while being connected, disconnecting!",
                                  t->getRemoteNodeId());
           t->doDisconnect();
+        }
+        else if (t->isServer && t->hasPendingConnection())
+        {
+          /**
+           * We need to send data so that client doesn't give up...
+           */
+          connect_server_check_pending(t);
         }
         break;
       }

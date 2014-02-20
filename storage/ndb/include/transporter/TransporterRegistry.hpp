@@ -183,7 +183,9 @@ public:
      NOTE! Connection should be closed if function
      returns false
   */
-  bool connect_server(NDB_SOCKET_TYPE sockfd, BaseString& errormsg) const;
+  int connect_server(NDB_SOCKET_TYPE sockfd, BaseString& errormsg,
+                     Transporter * exptected = 0) const;
+  void connect_server_check_pending(Transporter * trp);
 
   bool connect_client(NdbMgmHandle *h);
 
