@@ -160,6 +160,8 @@ static void dynstr_set_checked(DYNAMIC_STRING *str, const char *init_str);
 static void dynstr_append_mem_checked(DYNAMIC_STRING *str, const char *append,
 			  uint length);
 static void dynstr_realloc_checked(DYNAMIC_STRING *str, ulong additional_size);
+
+static int do_start_slave_sql(MYSQL *mysql_con);
 /*
   Constant for detection of default value of default_charset.
   If default_charset is equal to mysql_universal_client_charset, then
@@ -1494,6 +1496,8 @@ static void free_resources()
 
 static void maybe_exit(int error)
 {
+  if (opt_slave_data)
+    do_start_slave_sql(mysql);
   if (!first_error)
     first_error= error;
   if (ignore_errors)
@@ -5646,10 +5650,6 @@ int main(int argc, char **argv)
     dump_databases(argv);
   }
 
-  /* if --dump-slave , start the slave sql thread */
-  if (opt_slave_data && do_start_slave_sql(mysql))
-    goto err;
-
   /* add 'START SLAVE' to end of dump */
   if (opt_slave_apply && add_slave_statements())
     goto err;
@@ -5665,9 +5665,6 @@ int main(int argc, char **argv)
   if (opt_delete_master_logs && purge_bin_logs_to(mysql, bin_log_name))
     goto err;
 
-#ifdef HAVE_SMEM
-  my_free(shared_memory_base_name);
-#endif
   /*
     No reason to explicitely COMMIT the transaction, neither to explicitely
     UNLOCK TABLES: these will be automatically be done by the server when we
@@ -5675,6 +5672,14 @@ int main(int argc, char **argv)
     server.
   */
 err:
+  /* if --dump-slave , start the slave sql thread */
+  if (opt_slave_data && do_start_slave_sql(mysql))
+    goto err;
+
+#ifdef HAVE_SMEM
+  my_free(shared_memory_base_name);
+#endif
+
   dbDisconnect(current_host);
   if (!path)
     write_footer(md_result_file);
