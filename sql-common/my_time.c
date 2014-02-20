@@ -426,6 +426,16 @@ str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
         last_field_pos= str;
         field_length= 6;                        /* 6 digits */
       }
+      else if (my_isdigit(&my_charset_latin1,str[0]))
+      {
+        /*
+          We do not see a decimal point which would have indicated a
+          fractional second part in further read. So we skip the further
+          processing of digits.
+        */
+        i++;
+        break;
+      }
       continue;
     }
     while (str != end &&
