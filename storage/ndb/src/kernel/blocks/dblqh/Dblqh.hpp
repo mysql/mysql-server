@@ -2222,8 +2222,11 @@ public:
     UintR tcRecNow;
     BlockReference lastNewTcBlockref;
     BlockReference newTcBlockref;
+    Uint32 lastTakeOverInstanceId;
+    Uint32 takeOverInstanceId;
+    Uint32 maxInstanceId;
     Uint16 oldNodeId;
-  }; // Size 28 bytes
+  };
   typedef Ptr<TcNodeFailRecord> TcNodeFailRecordPtr;
 
   struct CommitLogRecord {

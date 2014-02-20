@@ -310,7 +310,8 @@ protected:
      * Is this entry valid, or has it been made obsolete by
      *   a new LQH_TRANSREQ (i.e a new TC-failure)
      */
-    bool m_valid; 
+    bool m_valid;
+    Uint32 maxInstanceId;
     LqhTransReq m_req;
     LqhTransConf m_conf; // latest conf
     Ss_LQH_TRANSREQ() {

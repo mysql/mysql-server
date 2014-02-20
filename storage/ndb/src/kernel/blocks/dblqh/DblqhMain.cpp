@@ -49,6 +49,7 @@
 #include <signaldata/TupFrag.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/PackedSignal.hpp>
+#include <signaldata/LqhTransReq.hpp>
 
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/CreateTable.hpp>
@@ -9591,9 +9592,11 @@ void Dblqh::execLQH_TRANSREQ(Signal* signal)
     jam();
     return;
   }
-  Uint32 newTcPtr = signal->theData[0];
-  BlockReference newTcBlockref = signal->theData[1];
-  Uint32 oldNodeId = signal->theData[2];
+  LqhTransReq * const lqhTransReq = (LqhTransReq *)&signal->theData[0];
+  Uint32 newTcPtr = lqhTransReq->senderData;
+  BlockReference newTcBlockref = lqhTransReq->senderRef;
+  Uint32 oldNodeId = lqhTransReq->failedNodeId;
+  Uint32 instanceId = lqhTransReq->instanceId;
   tcNodeFailptr.i = oldNodeId;
   ptrCheckGuard(tcNodeFailptr, ctcNodeFailrecFileSize, tcNodeFailRecord);
   if ((tcNodeFailptr.p->tcFailStatus == TcNodeFailRecord::TC_STATE_TRUE) ||
@@ -9612,12 +9615,15 @@ void Dblqh::execLQH_TRANSREQ(Signal* signal)
    * PROCESS WHAT IS HAPPENING.
    * ------------------------------------------------------------------------ */
     tcNodeFailptr.p->lastNewTcRef = newTcPtr;
+    tcNodeFailptr.p->lastTakeOverInstanceId = instanceId;
     tcNodeFailptr.p->tcFailStatus = TcNodeFailRecord::TC_STATE_BREAK;
     return;
   }//if
   tcNodeFailptr.p->oldNodeId = oldNodeId;
   tcNodeFailptr.p->newTcBlockref = newTcBlockref;
   tcNodeFailptr.p->newTcRef = newTcPtr;
+  tcNodeFailptr.p->takeOverInstanceId = instanceId;
+  tcNodeFailptr.p->maxInstanceId = 0;
   tcNodeFailptr.p->tcRecNow = 0;
   tcNodeFailptr.p->tcFailStatus = TcNodeFailRecord::TC_STATE_TRUE;
   signal->theData[0] = ZLQH_TRANS_NEXT;
@@ -9641,6 +9647,9 @@ void Dblqh::lqhTransNextLab(Signal* signal)
      * ---------------------------------------------------------------------- */
     tcNodeFailptr.p->newTcBlockref = tcNodeFailptr.p->lastNewTcBlockref;
     tcNodeFailptr.p->newTcRef = tcNodeFailptr.p->lastNewTcRef;
+    tcNodeFailptr.p->takeOverInstanceId =
+      tcNodeFailptr.p->lastTakeOverInstanceId;
+    tcNodeFailptr.p->maxInstanceId = 0;
     tcNodeFailptr.p->tcRecNow = 0;
     tcNodeFailptr.p->tcFailStatus = TcNodeFailRecord::TC_STATE_TRUE;
   }//if
@@ -9701,28 +9710,59 @@ void Dblqh::lqhTransNextLab(Signal* signal)
       return;
     }//if
     ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-    if (tcConnectptr.p->transactionState != TcConnectionrec::IDLE) {
-      if (tcConnectptr.p->transactionState != TcConnectionrec::TC_NOT_CONNECTED) {
-        if (tcConnectptr.p->tcScanRec == RNIL) {
-          if (refToNode(tcConnectptr.p->tcBlockref) == tcNodeFailptr.p->oldNodeId) {
-            switch( tcConnectptr.p->operation ) {
-            case ZUNLOCK :
-              jam(); /* Skip over */
-              break;
-            case ZREAD :
-              jam();
-              if (tcConnectptr.p->opSimple == ZTRUE) {
+    if (tcConnectptr.p->transactionState != TcConnectionrec::IDLE)
+    {
+      if (tcConnectptr.p->transactionState !=
+          TcConnectionrec::TC_NOT_CONNECTED)
+      {
+        if (tcConnectptr.p->tcScanRec == RNIL)
+        {
+          if (refToNode(tcConnectptr.p->tcBlockref) ==
+              tcNodeFailptr.p->oldNodeId)
+          {
+            jam();
+            Uint32 instanceId = refToInstance(tcConnectptr.p->tcBlockref);
+            if (instanceId > tcNodeFailptr.p->maxInstanceId)
+            {
+              /**
+               * Inform take over TC instance about the maximum instance id
+               * such that the TC instance knows when to stop the take over
+               * process.
+               */
+              tcNodeFailptr.p->maxInstanceId = instanceId;
+            }
+            if ((tcNodeFailptr.p->takeOverInstanceId == RNIL) ||
+                (instanceId == tcNodeFailptr.p->takeOverInstanceId))
+            {
+              /**
+               * We send the take over message only for operations that belong
+               * to the failed node and also are part of the TC instance that
+               * we are currently taking over, instanceId == RNIL means that the
+               * signal came from an old version that didn't support multi-TC
+               * instance take over. In this case we try to take over all
+               * instances in one go.
+               */
+              switch( tcConnectptr.p->operation )
+              {
+              case ZUNLOCK :
+                jam(); /* Skip over */
+                break;
+              case ZREAD :
                 jam();
-                break; /* Skip over */
-              }
-              /* Fall through */
-            default :
-              jam();
-              tcConnectptr.p->tcNodeFailrec = tcNodeFailptr.i;
-              tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
-              abortStateHandlerLab(signal);
-              return;
-            } // switch
+                if (tcConnectptr.p->opSimple == ZTRUE)
+                {
+                  jam();
+                  break; /* Skip over */
+                }
+                /* Fall through */
+              default :
+                jam();
+                tcConnectptr.p->tcNodeFailrec = tcNodeFailptr.i;
+                tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
+                abortStateHandlerLab(signal);
+                return;
+              } // switch
+            }
           }//if
         } else {
           scanptr.i = tcConnectptr.p->tcScanRec;
@@ -9838,11 +9878,13 @@ Dblqh::scanMarkers(Signal* signal,
       jam();
       
       tcNodeFailPtr.p->tcFailStatus = TcNodeFailRecord::TC_STATE_FALSE;
-      signal->theData[0] = tcNodeFailPtr.p->newTcRef;
-      signal->theData[1] = cownNodeid;
-      signal->theData[2] = LqhTransConf::LastTransConf;
+      LqhTransConf * const lqhTransConf = (LqhTransConf *)&signal->theData[0];
+      lqhTransConf->tcRef     = tcNodeFailPtr.p->newTcRef;
+      lqhTransConf->lqhNodeId = cownNodeid;
+      lqhTransConf->operationStatus = LqhTransConf::LastTransConf;
+      lqhTransConf->maxInstanceId = tcNodeFailptr.p->maxInstanceId;
       sendSignal(tcNodeFailPtr.p->newTcBlockref, GSN_LQH_TRANSCONF, 
-		 signal, 3, JBB);
+		 signal, LqhTransConf::SignalLength, JBB);
       return;
     }
     

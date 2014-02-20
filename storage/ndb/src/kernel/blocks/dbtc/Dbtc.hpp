@@ -1000,11 +1000,10 @@ public:
   /* THIS RECORD CONTAINS ALIVE-STATUS ON ALL NODES IN THE*/
   /* SYSTEM                                               */
   /********************************************************/
-  /*       THIS RECORD IS ALIGNED TO BE 128 BYTES.        */
-  /********************************************************/
   struct HostRecord {
     struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
     struct PackedWordsContainer packTCKEYCONF;
+    Uint32 maxInstanceId;
     HostState hostStatus;
     LqhTransState lqhTransStatus;
     bool  inPackedList;
@@ -1334,11 +1333,13 @@ public:
     Uint8 takeOverProcState[MAX_NDB_NODES];
     UintR completedTakeOver;
     UintR currentHashIndexTakeOver;
+    Uint32 maxInstanceId;
+    bool   takeOverFailed;
+    Uint32 takeOverInstanceId;
     FailState failStatus;
     Uint16 queueIndex;
     Uint16 takeOverNode;
-  }; /* p2c: size = 64 bytes */
-  
+  };
   typedef Ptr<TcFailRecord> TcFailRecordPtr;
 
 public:
@@ -1466,6 +1467,8 @@ private:
   void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>, Uint32 firstTcConnect);
   Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass);
 
+#define TC_FAIL_HASH_SIZE 4096
+#define TRANSID_FAIL_HASH_SIZE 1024
   void sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord *);
   void sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord *);
   void routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord *, 
@@ -1476,8 +1479,15 @@ private:
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
   int  releaseAndAbort(Signal* signal);
-  void findApiConnectFail(Signal* signal);
-  void findTcConnectFail(Signal* signal, Uint32 instanceKey);
+  Uint32 get_transid_fail_hash(Uint32 transid1);
+  void insert_transid_fail_hash();
+  bool findApiConnectFail(Signal* signal);
+  void remove_from_transid_fail_hash(Signal *signal);
+  void releaseMarker(ApiConnectRecord * const regApiPtr);
+  Uint32 get_tc_fail_hash(Uint32 transid1, Uint32 tcOprec);
+  void insert_tc_fail_hash();
+  bool findTcConnectFail(Signal* signal);
+  void remove_from_tc_fail_hash(Signal *signal);
   void initApiConnectFail(Signal* signal);
   void initTcConnectFail(Signal* signal, Uint32 instanceKey);
   void initTcFail(Signal* signal);
@@ -1674,7 +1684,7 @@ private:
   void packLqhkeyreq040Lab(Signal* signal,
                            BlockReference TBRef);
   void returnFromQueuedDeliveryLab(Signal* signal);
-  void startTakeOverLab(Signal* signal);
+  void startTakeOverLab(Signal* signal, Uint32 instanceId);
   void toCompleteHandlingLab(Signal* signal);
   void toCommitHandlingLab(Signal* signal);
   void toAbortHandlingLab(Signal* signal);
@@ -1963,8 +1973,8 @@ private:
   UintR tconfig1;
   UintR tconfig2;
 
-  UintR ctransidFailHash[512];
-  UintR ctcConnectFailHash[1024];
+  UintR ctransidFailHash[TRANSID_FAIL_HASH_SIZE];
+  UintR ctcConnectFailHash[TC_FAIL_HASH_SIZE];
 
   /**
    * Commit Ack handling
