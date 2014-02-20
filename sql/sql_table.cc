@@ -4194,22 +4194,21 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
 
-    if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
-        !sql_field->def &&
+    if (thd->is_strict_mode() && !sql_field->def &&
         is_timestamp_type(sql_field->sql_type) &&
         (sql_field->flags & NOT_NULL_FLAG) &&
         (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
     {
       /*
         An error should be reported if:
-          - NO_ZERO_DATE SQL mode is active;
+          - STRICT SQL mode is active;
           - there is no explicit DEFAULT clause (default column value);
           - this is a TIMESTAMP column;
           - the column is not NULL;
           - this is not the DEFAULT CURRENT_TIMESTAMP column.
 
         In other words, an error should be reported if
-          - NO_ZERO_DATE SQL mode is active;
+          - STRICT SQL mode is active;
           - the column definition is equivalent to
             'column_name TIMESTAMP DEFAULT 0'.
       */
@@ -7120,7 +7119,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
          def->sql_type == MYSQL_TYPE_DATETIME2) &&
          !alter_ctx->datetime_field &&
          !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
-         thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+         thd->is_strict_mode())
     {
         alter_ctx->datetime_field= def;
         alter_ctx->error_if_not_empty= true;
