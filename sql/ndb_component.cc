@@ -17,8 +17,9 @@
 
 #include "ndb_component.h"
 
-Ndb_component::Ndb_component()
-  : m_thread_state(TS_UNINIT)
+Ndb_component::Ndb_component(const char *name)
+  : m_thread_state(TS_UNINIT),
+    m_name(name)
 {
 }
 
@@ -140,4 +141,46 @@ Ndb_component::deinit()
   pthread_mutex_destroy(&m_start_stop_mutex);
   pthread_cond_destroy(&m_start_stop_cond);
   return do_deinit();
+}
+
+#include "ndb_log.h"
+
+
+void Ndb_component::log_verbose(unsigned verbose_level, const char *fmt, ...)
+{
+  // Print message only if verbose level is set high enough
+  if (ndb_log_get_verbose_level() < verbose_level)
+    return;
+
+  va_list args;
+  va_start(args, fmt);
+  ndb_log_print(NDB_LOG_INFORMATION_LEVEL, m_name, fmt, args);
+  va_end(args);
+}
+
+
+void Ndb_component::log_error(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  ndb_log_print(NDB_LOG_ERROR_LEVEL, m_name, fmt, args);
+  va_end(args);
+}
+
+
+void Ndb_component::log_warning(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  ndb_log_print(NDB_LOG_WARNING_LEVEL, m_name, fmt, args);
+  va_end(args);
+}
+
+
+void Ndb_component::log_info(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  ndb_log_print(NDB_LOG_INFORMATION_LEVEL, m_name, fmt, args);
+  va_end(args);
 }

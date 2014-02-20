@@ -40,7 +40,8 @@ typedef NdbDictionary::Index NDBINDEX;
 
 /** ndb_index_stat_thread */
 Ndb_index_stat_thread::Ndb_index_stat_thread()
-  : running(-1)
+  : Ndb_component("Index Stat"),
+    running(-1)
 {
   pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND, NULL);
@@ -2435,12 +2436,15 @@ Ndb_index_stat_thread::do_run()
   bool have_listener;
   have_listener= false;
 
+  log_info("Starting...");
+
   /* Signal successful initialization */
   pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
   ndb_index_stat_thread.running= 1;
   pthread_cond_signal(&ndb_index_stat_thread.COND_ready);
   pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
 
+  log_verbose(1, "Wait for server start completed");
   /*
     wait for mysql server to start
   */
@@ -2459,6 +2463,7 @@ Ndb_index_stat_thread::do_run()
   }
   mysql_mutex_unlock(&LOCK_server_started);
 
+  log_verbose(1, "Wait for cluster to start");
   /*
     Wait for cluster to start
   */
@@ -2499,6 +2504,8 @@ Ndb_index_stat_thread::do_run()
   pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.set_status();
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+
+  log_info("Started");
 
   bool enable_ok;
   enable_ok= false;
@@ -2596,6 +2603,8 @@ Ndb_index_stat_thread::do_run()
   }
 
 ndb_index_stat_thread_end:
+  log_info("Stopping...");
+
   /* Prevent clients */
   ndb_index_stat_allow(0);
 
@@ -2617,6 +2626,8 @@ ndb_index_stat_thread_end:
   pthread_cond_signal(&ndb_index_stat_thread.COND_ready);
   pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
   DBUG_PRINT("exit", ("ndb_index_stat_thread"));
+
+  log_info("Stopped");
 
   DBUG_LEAVE;
 }

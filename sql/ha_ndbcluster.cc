@@ -12390,7 +12390,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   ndbcluster_inited= 0;
 
   /* wait for index stat thread to finish */
-  sql_print_information("Stopping Cluster Index Statistics thread");
+  sql_print_information("Stopping NDB Index Stat thread");
   pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
   ndbcluster_terminating= 1;
   pthread_cond_signal(&ndb_index_stat_thread.COND);
@@ -15420,7 +15420,8 @@ ha_ndbcluster::update_table_comment(
   Utility thread main loop.
 */
 Ndb_util_thread::Ndb_util_thread()
-  : running(-1)
+  : Ndb_component("Util"),
+    running(-1)
 {
   pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND, NULL);
@@ -15435,6 +15436,8 @@ Ndb_util_thread::~Ndb_util_thread()
   pthread_cond_destroy(&COND_ready);
 }
 
+#include "ndb_log.h"
+
 void
 Ndb_util_thread::do_run()
 {
@@ -15446,6 +15449,8 @@ Ndb_util_thread::do_run()
 
   DBUG_ENTER("ndb_util_thread");
   DBUG_PRINT("enter", ("cache_check_time: %lu", opt_ndb_cache_check_time));
+
+  log_info("Starting...");
 
   pthread_mutex_lock(&LOCK);
 
@@ -15482,6 +15487,7 @@ Ndb_util_thread::do_run()
   pthread_cond_signal(&COND_ready);
   pthread_mutex_unlock(&LOCK);
 
+  log_info("Wait for server start completed");
   /*
     wait for mysql server to start
   */
@@ -15504,6 +15510,7 @@ Ndb_util_thread::do_run()
   // to ensure that the parts of MySQL Server it uses has been created
   thd->init_for_queries();
 
+  log_info("Wait for cluster to start");
   /*
     Wait for cluster to start
   */
@@ -15529,6 +15536,8 @@ Ndb_util_thread::do_run()
 
   if (opt_ndb_extra_logging && ndb_binlog_running)
     sql_print_information("NDB Binlog: Ndb tables initially read only.");
+
+  log_info("Started");
 
   set_timespec(abstime, 0);
   for (;;)
@@ -15687,6 +15696,8 @@ next:
     set_timespec_nsec(abstime, opt_ndb_cache_check_time * 1000000ULL);
   }
 
+  log_info("Stopping...");
+
   pthread_mutex_lock(&LOCK);
 
 ndb_util_thread_end:
@@ -15708,6 +15719,9 @@ ndb_util_thread_fail:
   DBUG_PRINT("exit", ("ndb_util_thread"));
 
   DBUG_LEAVE;                               // Must match DBUG_ENTER()
+
+  log_info("Stopped");
+
 }
 
 /*
