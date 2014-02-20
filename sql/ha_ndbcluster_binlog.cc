@@ -6896,7 +6896,7 @@ restart_cluster_failure:
     set_timespec(abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
                          &abstime);
-    if (ndbcluster_terminating)
+    if (ndbcluster_binlog_terminating)
     {
       mysql_mutex_unlock(&LOCK_server_started);
       goto err;
