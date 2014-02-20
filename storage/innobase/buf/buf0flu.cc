@@ -1095,7 +1095,8 @@ buf_flush_page_try(
 	/* The following call will release the buffer pool and
 	block mutex. */
 	return(buf_flush_page(
-			buf_pool, &block->page, BUF_FLUSH_SINGLE_PAGE, true));
+			buf_pool, &block->page,
+			BUF_FLUSH_SINGLE_PAGE, true));
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
@@ -1234,7 +1235,7 @@ buf_flush_try_neighbors(
 			      page_id.space(),
 			      (unsigned) low, (unsigned) high));
 
-	for (i = low; i < high; i++) {
+	for (ulint i = low; i < high; i++) {
 
 		buf_page_t*	bpage;
 
@@ -1262,7 +1263,7 @@ buf_flush_try_neighbors(
 		/* We only want to flush pages from this buffer pool. */
 		bpage = buf_page_hash_get(buf_pool, cur_page_id);
 
-		if (!bpage) {
+		if (bpage == NULL) {
 
 			buf_pool_mutex_exit(buf_pool);
 			continue;
@@ -1290,6 +1291,7 @@ buf_flush_try_neighbors(
 
 				if (buf_flush_page(
 					buf_pool, bpage, flush_type, false)) {
+
 					++count;
 				} else {
 					mutex_exit(block_mutex);
@@ -1323,7 +1325,7 @@ is ready to flush then flush the page and try o flush its neighbors.
 This does not guarantee that some pages were written as well.
 Number of pages written are incremented to the count. */
 static
-ibool
+bool
 buf_flush_page_and_try_neighbors(
 /*=============================*/
 	buf_page_t*	bpage,		/*!< in: buffer control block,
@@ -1336,15 +1338,15 @@ buf_flush_page_and_try_neighbors(
 	ulint*		count)		/*!< in/out: number of pages
 					flushed */
 {
-	BPageMutex*	block_mutex;
-	ibool		flushed = FALSE;
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-#endif /* UNIV_DEBUG */
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
+#endif /* UNIV_DEBUG */
 
-	block_mutex = buf_page_get_mutex(bpage);
+	bool		flushed;
+	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
+
 	mutex_enter(block_mutex);
 
 	ut_a(buf_page_in_file(bpage));
@@ -1403,7 +1405,8 @@ buf_free_from_unzip_LRU_list_batch(
 
 	buf_block_t*	block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
 
-	while (block != NULL && count < max
+	while (block != NULL
+	       && count < max
 	       && free_len < srv_LRU_scan_depth
 	       && lru_len > UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
 
@@ -1969,7 +1972,8 @@ buf_flush_single_page_from_LRU(
 
 		ut_ad(buf_pool_mutex_own(buf_pool));
 
-		buf_page_t* prev = UT_LIST_GET_PREV(LRU, bpage);
+		buf_page_t*	prev = UT_LIST_GET_PREV(LRU, bpage);
+
 		buf_pool->single_scan_itr.set(prev);
 
 		BPageMutex*	block_mutex;
@@ -1982,6 +1986,7 @@ buf_flush_single_page_from_LRU(
 			/* block is ready for eviction i.e., it is
 			clean and is not IO-fixed or buffer fixed. */
 			mutex_exit(block_mutex);
+
 			if (buf_LRU_free_page(bpage, true)) {
 				buf_pool_mutex_exit(buf_pool);
 				freed = true;
@@ -1998,6 +2003,7 @@ buf_flush_single_page_from_LRU(
 
 			Note: There is no guarantee that this page has actually
 			been freed, only that it has been flushed to disk */
+
 			freed = buf_flush_page(
 				buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, true);
 
