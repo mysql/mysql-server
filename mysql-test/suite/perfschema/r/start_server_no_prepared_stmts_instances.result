@@ -157,6 +157,7 @@ PREPARE st4 FROM
 '(SELECT a FROM t1) UNION (SELECT a+10 FROM t1) ORDER BY RAND()*0+a';
 show status like "%performance_schema_prepared_statements_lost%";
 Variable_name	Value
+Performance_schema_prepared_statements_lost	4
 SET @a = 3;
 SET @b = 4;
 EXECUTE st1 USING @a, @b;
@@ -185,6 +186,7 @@ a
 90
 show status like "%performance_schema_prepared_statements_lost%";
 Variable_name	Value
+Performance_schema_prepared_statements_lost	4
 DEALLOCATE PREPARE st1;
 DEALLOCATE PREPARE st2;
 DEALLOCATE PREPARE st3;
@@ -192,7 +194,9 @@ DEALLOCATE PREPARE st4;
 DROP TABLE t1;
 show status like "%performance_schema_prepared_statements_lost%";
 Variable_name	Value
+Performance_schema_prepared_statements_lost	4
 flush status;
 show status like "%performance_schema_prepared_statements_lost%";
 Variable_name	Value
+Performance_schema_prepared_statements_lost	0
 DROP DATABASE db;
