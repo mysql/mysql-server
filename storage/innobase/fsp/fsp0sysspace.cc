@@ -836,7 +836,7 @@ SysTablespace::open_or_create(
 	files_t::iterator	end = m_files.end();
 
 	ut_ad(begin->order() == 0);
-	bool create_new_db = begin->m_exists;
+	bool	create_new_db = begin->m_exists;
 
 	for (files_t::iterator it = begin; it != end; ++it) {
 
@@ -859,6 +859,24 @@ SysTablespace::open_or_create(
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
+
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		/* Note: This should really be per node and not per
+		tablespace because a tablespace can contain multiple
+		files (nodes). The implication is that all files of
+		the tablespace should be on the same medium. */
+
+		if (fil_fusionio_enable_atomic_write(it->m_handle)) {
+
+			if (srv_use_doublewrite_buf) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"FusionIO atomic IO enabled, disabling"
+					" the double write buffer");
+
+				srv_use_doublewrite_buf = false;
+			}
+		}
+#endif /* !NO_FALLOCATE && UNIV_LINUX*/
 	}
 
 	if (create_new_db && min_lsn != NULL && max_lsn != NULL) {

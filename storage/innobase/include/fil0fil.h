@@ -628,7 +628,7 @@ fil_open_single_table_tablespace(
 	ulint		flags,
 	const char*	tablename,
 	const char*	path_in)
-	__attribute__((nonnull(5), warn_unused_result));
+	__attribute__((warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************************//**
@@ -963,7 +963,7 @@ fil_tablespace_iterate(
 	dict_table_t*		table,
 	ulint			n_io_buffers,
 	PageCallback&		callback)
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /********************************************************************//**
 Looks for a pre-existing fil_space_t with the given tablespace ID
@@ -1017,8 +1017,17 @@ fil_mtr_rename_log(
 	const char*	new_name,	/*!< in: new table name */
 	const char*	tmp_name,	/*!< in: temp table name used while
 					swapping */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+/**
+Try and enable FusionIO atomic writes.
+@param[in] file		OS file handle
+@return true if successful */
+
+bool
+fil_fusionio_enable_atomic_write(os_file_t file);
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 void test_make_filepath();
