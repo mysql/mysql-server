@@ -7349,9 +7349,9 @@ DROP TABLE t1;
 #
 # Testing values with zeros in dates
 #
-SET sql_mode=no_zero_in_date;
+SET sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
-INSERT INTO t1 VALUES ('1999-00-00 00:00:00', '1999-00-00 00:00:00');
+INSERT IGNORE INTO t1 VALUES ('1999-00-00 00:00:00', '1999-00-00 00:00:00');
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 Warning	1264	Out of range value for column 'b' at row 1

@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -389,10 +389,7 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'NO_BACKSLASH_ESCAPES',
                             'STRICT_TRANS_TABLES',
                             'STRICT_ALL_TABLES',
-                            'NO_ZERO_IN_DATE',
-                            'NO_ZERO_DATE',
                             'INVALID_DATES',
-                            'ERROR_FOR_DIVISION_BY_ZERO',
                             'TRADITIONAL',
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE',
@@ -513,10 +510,7 @@ ALTER TABLE event MODIFY sql_mode
                             'NO_BACKSLASH_ESCAPES',
                             'STRICT_TRANS_TABLES',
                             'STRICT_ALL_TABLES',
-                            'NO_ZERO_IN_DATE',
-                            'NO_ZERO_DATE',
                             'INVALID_DATES',
-                            'ERROR_FOR_DIVISION_BY_ZERO',
                             'TRADITIONAL',
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE',
