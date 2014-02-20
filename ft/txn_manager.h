@@ -155,11 +155,11 @@ struct txn_gc_info {
     // suitible for simple garbage collection that cleans up multiple committed
     // transaction records into one. not suitible for implicit promotions, which
     // must be correct in the face of abort messages - see ftnode->oldest_referenced_xid
-    const TXNID oldest_referenced_xid_for_simple_gc;
+    TXNID oldest_referenced_xid_for_simple_gc;
 
     // lower bound on the oldest xid in any live when the messages to be cleaned
     // had no messages above them. suitable for implicitly promoting a provisonal uxr.
-    const TXNID oldest_referenced_xid_for_implicit_promotion;
+    TXNID oldest_referenced_xid_for_implicit_promotion;
 
     // whether or not mvcc is actually needed - false during recovery and non-transactional systems
     const bool mvcc_needed;
