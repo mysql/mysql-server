@@ -1063,7 +1063,8 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime,
+                                        my_time_flags_t fuzzydate)
 {
   if (!no_rows && !exec() && !value->null_value)
   {

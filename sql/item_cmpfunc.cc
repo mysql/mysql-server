@@ -438,7 +438,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       dbug_tmp_use_all_columns(table, old_maps, 
                                table->read_set, table->write_set);
     /* For comparison purposes allow invalid dates like 2000-01-32 */
-    thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
+    thd->variables.sql_mode= (orig_sql_mode & ~(MODE_STRICT_ALL_TABLES |
+                                                MODE_STRICT_TRANS_TABLES)) |
                              MODE_INVALID_DATES;
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
@@ -728,12 +729,12 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
 {
   bool value;
   MYSQL_TIME_STATUS status;
+  my_time_flags_t flags= TIME_FUZZY_DATE | TIME_INVALID_DATES;
+  if (thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE;
 
-  if (!str_to_datetime(str, l_time,
-                      (TIME_FUZZY_DATE | MODE_INVALID_DATES |
-                       (thd->variables.sql_mode &
-                       (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))), &status) &&
-      (l_time->time_type == MYSQL_TIMESTAMP_DATETIME || 
+  if (!str_to_datetime(str, l_time, flags, &status) &&
+      (l_time->time_type == MYSQL_TIMESTAMP_DATETIME ||
        l_time->time_type == MYSQL_TIMESTAMP_DATE))
     /*
       Do not return yet, we may still want to throw a "trailing garbage"
@@ -2954,7 +2955,7 @@ my_decimal *Item_func_ifnull::decimal_op(my_decimal *decimal_value)
 }
 
 
-bool Item_func_ifnull::date_op(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_ifnull::date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   if (!args[0]->get_date(ltime, fuzzydate))
@@ -3178,7 +3179,7 @@ Item_func_if::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_func_if::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_if::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_bool() ? args[1] : args[2];
@@ -3440,7 +3441,7 @@ my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_func_case::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_case::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
@@ -3787,7 +3788,7 @@ my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value)
 
 
 
-bool Item_func_coalesce::date_op(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_coalesce::date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   for (uint i= 0; i < arg_count; i++)

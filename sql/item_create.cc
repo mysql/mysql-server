@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5709,7 +5709,11 @@ Item *create_temporal_literal(THD *thd,
   MYSQL_TIME_STATUS status;
   MYSQL_TIME ltime;
   Item *item= NULL;
-  ulonglong flags= TIME_FUZZY_DATE | thd->datetime_flags();
+  my_time_flags_t flags= TIME_FUZZY_DATE;
+  if (thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_INVALID_DATES)
+    flags|= TIME_INVALID_DATES;
 
   switch(type)
   {
