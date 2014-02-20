@@ -62,6 +62,7 @@ struct mysql_position
 class federatedx_io_mysql :public federatedx_io
 {
   MYSQL mysql; /* MySQL connection */
+  MYSQL_ROWS *current;
   DYNAMIC_ARRAY savepoints;
   bool requested_autocommit;
   bool actual_autocommit;
@@ -510,7 +511,9 @@ my_ulonglong federatedx_io_mysql::get_num_rows(FEDERATEDX_IO_RESULT *io_result)
 
 FEDERATEDX_IO_ROW *federatedx_io_mysql::fetch_row(FEDERATEDX_IO_RESULT *io_result)
 {
-  return (FEDERATEDX_IO_ROW *) mysql_fetch_row((MYSQL_RES *) io_result);
+  MYSQL_RES *result= (MYSQL_RES*)io_result;
+  current= result->data_cursor;
+  return (FEDERATEDX_IO_ROW *) mysql_fetch_row(result);
 }
 
 
@@ -619,19 +622,9 @@ size_t federatedx_io_mysql::get_ref_length() const
 void federatedx_io_mysql::mark_position(FEDERATEDX_IO_RESULT *io_result,
                                         void *ref)
 {
-  MYSQL_ROWS *tmp= 0;
   mysql_position& pos= *reinterpret_cast<mysql_position*>(ref);
   pos.result= (MYSQL_RES *) io_result;
-
-  if (pos.result && pos.result->data)
-  {
-    for (tmp= pos.result->data->data;
-         tmp && (tmp->next != pos.result->data_cursor);
-         tmp= tmp->next)
-    {}
-  }
-
-  pos.offset= tmp;
+  pos.offset= current;
 }
 
 int federatedx_io_mysql::seek_position(FEDERATEDX_IO_RESULT **io_result,
