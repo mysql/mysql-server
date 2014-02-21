@@ -202,12 +202,12 @@ struct mtr_t {
 
 	/**
 	Starts a mini-transaction.
-	@param sync		true if it is a synchronouse mini-transaction
+	@param sync		true if it is a synchronous mini-transaction
 	@param read_only	true if read only mini-transaction */
 	void start(bool sync = true, bool read_only = false);
 
 	/**
-	@return true if it is an asynchronouse mini-transaction. */
+	@return true if it is an asynchronous mini-transaction. */
 	bool is_async() const
 	{
 		return(!m_sync);
@@ -321,8 +321,13 @@ struct mtr_t {
 	}
 
 	/**
-	@return the commit LSN */
-	lsn_t commit_lsn() const;
+	@return the commit LSN
+	@retval 0 if the transaction only modified temporary tablespaces */
+	lsn_t commit_lsn() const
+	{
+		ut_ad(has_committed());
+		return(m_commit_lsn);
+	}
 
 	/**
 	Note that we are inside the change buffer code */
@@ -514,7 +519,7 @@ private:
 	/** LSN at commit time */
 	volatile lsn_t		m_commit_lsn;
 
-	/** true if it is synchronouse mini-transaction */
+	/** true if it is synchronous mini-transaction */
 	bool			m_sync;
 };
 

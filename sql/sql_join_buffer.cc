@@ -585,8 +585,9 @@ int JOIN_CACHE_BKA::init()
         Item *ref_item= ref->items[i]; 
         if (!(tab->table->map & ref_item->used_tables()))
 	  continue;
-	 ref_item->walk(&Item::add_field_to_set_processor, 1,
-                        (uchar *) tab->table);
+	 ref_item->walk(&Item::add_field_to_set_processor,
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      (uchar *) tab->table);
       }
       if ((key_args= bitmap_bits_set(&tab->table->tmp_set)))
       {

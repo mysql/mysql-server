@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -429,7 +429,6 @@ sub main {
     );
   mtr_error("Could not create testcase server port: $!") unless $server;
   my $server_port = $server->sockport();
-  mtr_report("Using server port $server_port");
 
   if ($opt_resfile) {
     resfile_init("$opt_vardir/mtr-results.txt");
@@ -501,7 +500,7 @@ sub main {
     }
   }
 
-  if ( not defined @$completed ) {
+  if ( not $completed ) {
     mtr_error("Test suite aborted");
   }
 
@@ -3617,52 +3616,41 @@ sub mysql_install_db {
   my $path_sql= my_find_file($install_basedir,
 			     ["mysql", "sql/share", "share/mysql",
 			      "share", "scripts"],
-			     "mysql_system_tables.sql",
+			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
-  if (-f $path_sql )
+  if (-f $path_sql && -f "include/mtr_system_tables_data.sql" &&
+      -f "include/mtr_test_data_timezone.sql")
   {
-    my $sql_dir= dirname($path_sql);
-    # Use the mysql database for system tables
-    mtr_tofile($bootstrap_sql_file, "use mysql;\n");
-
     # Add the offical mysql system tables
     # for a production system
-    mtr_appendfile_to_file("$sql_dir/mysql_system_tables.sql",
-			   $bootstrap_sql_file);
+    mtr_tofile($bootstrap_sql_file, "use mysql;\n");
+    mtr_appendfile_to_file($path_sql,
+	                         $bootstrap_sql_file);
+
+
 
     # Add the mysql system tables initial data
-    # for a production system
-    mtr_appendfile_to_file("$sql_dir/mysql_system_tables_data.sql",
-			   $bootstrap_sql_file);
+    # for the test system. This should in most cases be the same as the
+    # for the production system, but will for historial reasons contain 
+    # more inital root accounts.
+    mtr_appendfile_to_file("include/mtr_system_tables_data.sql",
+		                       $bootstrap_sql_file);
 
     # Add test data for timezone - this is just a subset, on a real
     # system these tables will be populated either by mysql_tzinfo_to_sql
     # or by downloading the timezone table package from our website
-    mtr_appendfile_to_file("$sql_dir/mysql_test_data_timezone.sql",
-			   $bootstrap_sql_file);
-
-    # Fill help tables, just an empty file when running from bk repo
-    # but will be replaced by a real fill_help_tables.sql when
-    # building the source dist
-    mtr_appendfile_to_file("$sql_dir/fill_help_tables.sql",
-			   $bootstrap_sql_file);
-
+    mtr_appendfile_to_file("include/mtr_test_data_timezone.sql",
+                           $bootstrap_sql_file);
   }
   else
   {
-    # Install db from init_db.sql that exist in early 5.1 and 5.0
-    # versions of MySQL
-    my $init_file= "$install_basedir/mysql-test/lib/init_db.sql";
-    mtr_report(" - from '$init_file'");
-    my $text= mtr_grab_file($init_file) or
-      mtr_error("Can't open '$init_file': $!");
-
-    mtr_tofile($bootstrap_sql_file,
-	       sql_to_bootstrap($text));
+    mtr_error("Error: The system table definition '".
+              "include/mtr_system_tables_data.sql' could not be found".
+              "in working directory.");
   }
 
-  # Remove anonymous users
+  # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';\n");
 

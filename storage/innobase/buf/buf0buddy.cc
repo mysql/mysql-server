@@ -600,7 +600,7 @@ buf_buddy_relocate(
 
 	if (buf_page_can_relocate(bpage)) {
 		/* Relocate the compressed page. */
-		ullint	usec = ut_time_us(NULL);
+		uintmax_t	usec = ut_time_us(NULL);
 
 		ut_a(bpage->zip.data == src);
 

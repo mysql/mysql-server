@@ -6063,6 +6063,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -6097,6 +6098,7 @@ CHARSET_INFO my_charset_utf8_tolower_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -6131,6 +6133,7 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci=
   1,                                            /* casedn_multiply  */
   1,                                            /* mbminlen         */
   3,                                            /* mbmaxlen         */
+  1,                                            /* mbmaxlenlen      */
   0,                                            /* min_sort_char    */
   0xFFFF,                                       /* max_sort_char    */
   ' ',                                          /* pad char         */
@@ -6166,6 +6169,7 @@ CHARSET_INFO my_charset_utf8_bin=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -6348,6 +6352,7 @@ CHARSET_INFO my_charset_utf8_general_cs=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -7651,6 +7656,7 @@ CHARSET_INFO my_charset_filename=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     5,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -8618,6 +8624,7 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen     */
   4,                  /* mbmaxlen     */
+  1,                  /* mbmaxlenlen  */
   0,                  /* min_sort_char */
   0xFFFF,             /* max_sort_char */
   ' ',                /* pad char      */
@@ -8653,6 +8660,7 @@ CHARSET_INFO my_charset_utf8mb4_bin=
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen     */
   4,                  /* mbmaxlen     */
+  1,                  /* mbmaxlenlen  */
   0,                  /* min_sort_char */
   0xFFFF,             /* max_sort_char */
   ' ',                /* pad char      */

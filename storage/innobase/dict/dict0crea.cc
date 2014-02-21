@@ -806,18 +806,15 @@ dict_create_index_tree_in_mem(
 	ulint		page_no = FIL_NULL;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(dict_table_is_temporary(index->table));
 
 	if (index->type == DICT_FTS) {
 		/* FTS index does not need an index tree */
 		return(DB_SUCCESS);
 	}
 
-	/* Run a mini-transaction in which the index tree is allocated for
-	the index and its root address is written to the index entry in
-	sys_indexes */
-
 	mtr_start(&mtr);
-	dict_disable_redo_if_temporary(index->table, &mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	dberr_t		err = DB_SUCCESS;
 
@@ -837,10 +834,6 @@ dict_create_index_tree_in_mem(
 	if (page_no == FIL_NULL) {
 		err = DB_OUT_OF_FILE_SPACE;
 	}
-
-	DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
-			page_no = FIL_NULL;
-			err = DB_OUT_OF_FILE_SPACE; );
 
 	mtr_commit(&mtr);
 
@@ -1067,8 +1060,8 @@ dict_recreate_index_tree(
 	}
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Failed to create index with index id %llu of table '%s' ",
-		(ullint) index_id, table->name);
+		"Failed to create index with index id " IB_ID_FMT
+		" of table '%s'", index_id, table->name);
 
 	return(FIL_NULL);
 }
@@ -1087,10 +1080,10 @@ dict_truncate_index_tree_in_mem(
 	ulint		space = index->space;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(dict_table_is_temporary(index->table));
 
 	mtr_start(&mtr);
-
-	dict_disable_redo_if_temporary(index->table, &mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	ulint		type = index->type;
 	ulint		root_page_no = index->page;
@@ -1150,8 +1143,7 @@ dict_truncate_index_tree_in_mem(
 	mtr_commit(&mtr);
 
 	mtr_start(&mtr);
-
-	dict_disable_redo_if_temporary(index->table, &mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	root_page_no = btr_create(
 		type, space, page_size, index->id, index, NULL, &mtr);

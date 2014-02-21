@@ -363,7 +363,7 @@ Datafile::validate_for_recovery()
 		};
 
 		err = find_space_id();
-		if (err != DB_SUCCESS) {
+		if (err != DB_SUCCESS || m_space_id == 0) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Datafile '%s' is corrupted. Cannot determine"
 				" the space ID from the first 64 pages.",
@@ -614,25 +614,18 @@ dberr_t
 Datafile::restore_from_doublewrite(
 	ulint	restore_page_no)
 {
-	if (m_space_id == 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot restore corrupted page %lu of from data file"
-			" '%s' in tablespace %lu from the doublewrite buffer.",
-			ulong(restore_page_no), m_name, ulong(m_space_id));
-		return(DB_ERROR);
-	}
-
 	/* Find if double write buffer contains page_no of given space id. */
-	byte*	page = recv_sys->dblwr.find_page(m_space_id, restore_page_no);
+	const byte*	page = recv_sys->dblwr.find_page(
+		m_space_id, restore_page_no);
 
 	if (page == NULL) {
 		/* If the first page of the given user tablespace is not there
 		in the doublewrite buffer, then the recovery is going to fail
 		now. Hence this is treated as an error. */
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Corrupted page %lu of datafile '%s' in tablespace"
-			" %lu could not be found in the doublewrite buffer.",
-			ulong(restore_page_no), m_name, ulong(m_space_id));
+			"Corrupted page " ULINTPF ":" ULINTPF " of datafile '%s'"
+			" could not be found in the doublewrite buffer.",
+			m_space_id, restore_page_no, m_name);
 
 		return(DB_CORRUPTION);
 	}
@@ -645,10 +638,10 @@ Datafile::restore_from_doublewrite(
 	ut_a(page_get_page_no(page) == restore_page_no);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Restoring page %lu of datafile '%s' in tablespace %lu from"
-		" the doublewrite buffer. Writing " ULINTPF
-		" bytes into file '%s'",
-		ulong(restore_page_no), m_name, ulong(m_space_id),
+		"Restoring page " ULINTPF ":" ULINTPF " of datafile '%s' from"
+		" the doublewrite buffer."
+		" Writing " ULINTPF " bytes into file '%s'",
+		m_space_id, restore_page_no, m_name,
 		page_size.physical(), m_filepath);
 
 	if (!os_file_write(m_filepath, m_handle, page, 0,

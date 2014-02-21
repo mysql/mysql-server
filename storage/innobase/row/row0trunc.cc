@@ -115,7 +115,7 @@ public:
 	}
 
 private:
-	// Disably copying
+	// Disable copying
 	IndexIterator(const IndexIterator&);
 	IndexIterator& operator=(const IndexIterator&);
 
@@ -2028,9 +2028,9 @@ truncate_t::fixup_tables()
 		drop indexes and re-create indexes. */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Completing truncate for table with id (%llu)"
+			"Completing truncate for table with id (" IB_ID_FMT ")"
 			" residing in space with id (%lu)",
-			(ullint) (*it)->m_old_table_id,
+			(*it)->m_old_table_id,
 			(ulong) (*it)->m_space_id);
 
 		if (!is_system_tablespace((*it)->m_space_id)) {
@@ -2518,11 +2518,11 @@ truncate_t::create_index(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"innodb_force_recovery was set to %lu."
 			" Continuing crash recovery even though"
-			" we failed to create index %llu for"
+			" we failed to create index " IB_ID_FMT " for"
 			" compressed table '%s' with tablespace"
 			" %lu during recovery",
 			srv_force_recovery,
-			(ullint) index_id, table_name, (ulong) space_id);
+			index_id, table_name, (ulong) space_id);
 	}
 
 	return(root_page_no);
@@ -2602,10 +2602,11 @@ truncate_t::drop_indexes(
 
 		mtr_start(&mtr);
 
-		/* Don't log the operation while fixing up table truncate
-		operation as crash at this level can still be sustained with
-		recovery restarting from last checkpoint. */
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		if (space_id != TRX_SYS_SPACE) {
+			/* Do not log changes for single-table
+			tablespaces, we are in recovery mode. */
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		}
 
 		if (root_page_no != FIL_NULL) {
 
@@ -2614,7 +2615,7 @@ truncate_t::drop_indexes(
 			/* We free all the pages but the root page first;
 			this operation may span several mini-transactions */
 			btr_free_but_not_root(root_page_id, page_size,
-					      MTR_LOG_NO_REDO);
+					      mtr.get_log_mode());
 
 			/* Then we free the root page. */
 			btr_free_root(root_page_id, page_size, &mtr);
@@ -2647,8 +2648,11 @@ truncate_t::create_indexes(
 
 	mtr_start(&mtr);
 
-	/* Don't log changes, we are in recoery mode. */
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	if (space_id != TRX_SYS_SPACE) {
+		/* Do not log changes for single-table tablespaces, we
+		are in recovery mode. */
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
 
 	/* Create all new index trees with table format, index ids, index
 	types, number of index fields and index field information taken

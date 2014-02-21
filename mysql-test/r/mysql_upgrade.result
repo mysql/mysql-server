@@ -119,7 +119,7 @@ Run mysql_upgrade with a non existing server socket
 mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
 FATAL ERROR: Upgrade failed
-set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
+set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES';
 mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 mysql.columns_priv                                 OK

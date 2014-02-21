@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ public:
   longlong val_int();
   double val_real();
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -584,11 +584,13 @@ public:
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
 
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
-    return item->walk(processor, walk_subquery, arg) ||
-      Item_str_func::walk(processor, walk_subquery, arg);
+    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+           item->walk(processor, walk, arg) ||
+           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
+
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
 };
