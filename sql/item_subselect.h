@@ -161,9 +161,9 @@ public:
   virtual void reset_value_registration() {}
   enum_parsing_context place() { return parsing_place; }
   bool walk_join_condition(List<TABLE_LIST> *tables, Item_processor processor,
-                           bool walk_subquery, uchar *argument);
-  bool walk_body(Item_processor processor, bool walk_subquery, uchar *arg);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+                           enum_walk walk, uchar *arg);
+  bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);
   bool inform_item_in_cond_of_tab(uchar *join_tab_index);
   virtual bool clean_up_after_removal(uchar *arg);
@@ -207,7 +207,7 @@ public:
   longlong val_int ();
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool val_bool();
   enum Item_result result_type() const;
@@ -328,7 +328,7 @@ public:
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -461,7 +461,7 @@ public:
   trans_res single_value_in_to_exists_transformer(JOIN * join,
                                                   Comp_creator *func);
   trans_res row_value_in_to_exists_transformer(JOIN * join);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool exec();
   longlong val_int();
   double val_real();

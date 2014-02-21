@@ -441,7 +441,8 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg,
        order;
        order=order->next)
   {
-    (*order->item)->walk(&Item::change_context_processor, 0,
+    (*order->item)->walk(&Item::change_context_processor,
+                         Item::WALK_POSTFIX,
                          (uchar*) &fake_select_lex->context);
   }
   if (!fake_select_lex->join)

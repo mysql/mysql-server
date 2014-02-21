@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ public:
     illegal_method_call((const char*)"val_decimal");
     return 0;
   };
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     illegal_method_call((const char *) "get_date");
     return true;
@@ -94,7 +94,7 @@ public:
   table_map not_null_tables() const { return not_null_tables_cache; }
   virtual void print(String *str, enum_query_type query_type);
 
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
 
   uint cols() { return arg_count; }

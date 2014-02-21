@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,6 +69,10 @@ static CHARSET_INFO *charset_list[]=
 #ifdef HAVE_CHARSET_gbk
   &my_charset_gbk_chinese_ci,
   &my_charset_gbk_bin,
+#endif
+#ifdef HAVE_CHARSET_gb18030
+  &my_charset_gb18030_chinese_ci,
+  &my_charset_gb18030_bin,
 #endif
 #ifdef HAVE_CHARSET_latin1
   &my_charset_latin1,

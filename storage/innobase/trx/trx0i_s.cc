@@ -150,7 +150,7 @@ struct i_s_table_cache_t {
 struct trx_i_s_cache_t {
 	rw_lock_t	rw_lock;	/*!< read-write lock protecting
 					the rest of this structure */
-	ullint		last_read;	/*!< last time the cache was read;
+	uintmax_t	last_read;	/*!< last time the cache was read;
 					measured in microseconds since
 					epoch */
 	ib_mutex_t		last_read_mutex;/*!< mutex protecting the
@@ -483,7 +483,7 @@ fill_trx_row(
 		row->trx_wait_started = 0;
 	}
 
-	row->trx_weight = (ullint) TRX_WEIGHT(trx);
+	row->trx_weight = static_cast<uintmax_t>(TRX_WEIGHT(trx));
 
 	if (trx->mysql_thd == NULL) {
 		/* For internal transactions e.g., purge and transactions
@@ -1221,7 +1221,7 @@ can_cache_be_updated(
 /*=================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	ullint	now;
+	uintmax_t	now;
 
 	/* Here we read cache->last_read without acquiring its mutex
 	because last_read is only updated when a shared rw lock on the
@@ -1478,7 +1478,7 @@ trx_i_s_cache_end_read(
 /*===================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	ullint	now;
+	uintmax_t	now;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_S));

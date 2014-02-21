@@ -156,17 +156,17 @@ time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
 @return us since epoch */
 
-ullint
+uintmax_t
 ut_time_us(
 /*=======*/
-	ullint*	tloc)	/*!< out: us since epoch, if non-NULL */
+	uintmax_t*	tloc)	/*!< out: us since epoch, if non-NULL */
 {
 	struct timeval	tv;
-	ullint		us;
+	uintmax_t	us;
 
 	ut_gettimeofday(&tv, NULL);
 
-	us = (ullint) tv.tv_sec * 1000000 + tv.tv_usec;
+	us = static_cast<uintmax_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
 
 	if (tloc != NULL) {
 		*tloc = us;
@@ -877,6 +877,8 @@ ut_strerr(
 		return ("Cannot open a file");
 	case DB_TABLE_CORRUPT:
 		return("Table is corrupted");
+	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
+		return("Too many words in a FTS phrase or proximity search");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

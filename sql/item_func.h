@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,6 +67,7 @@ public:
   Item_func(void):
     allowed_arg_cols(1), arg_count(0)
   {
+    args= tmp_arg;
     with_sum_func= 0;
   }
   Item_func(Item *a):
@@ -156,7 +157,7 @@ public:
   void count_datetime_length(Item **item, uint nitems);
   bool count_string_result_length(enum_field_types field_type,
                                   Item **item, uint nitems);
-  inline bool get_arg0_date(MYSQL_TIME *ltime, uint fuzzy_date)
+  bool get_arg0_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }
@@ -220,7 +221,7 @@ public:
                                                                items, nitems,
                                                                item_sep);
   }
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   Item* compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t);
@@ -366,7 +367,7 @@ public:
   my_decimal *val_decimal(my_decimal *decimal_value);
   longlong val_int()
     { DBUG_ASSERT(fixed == 1); return (longlong) rint(val_real()); }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_real(ltime, fuzzydate);
   }
@@ -403,7 +404,7 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   /**
      @brief Performs the operation that this functions implements when the
@@ -446,7 +447,7 @@ public:
 
      @return The result of the operation.
   */
-  virtual bool date_op(MYSQL_TIME *ltime, uint fuzzydate)= 0;
+  virtual bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
   virtual bool time_op(MYSQL_TIME *ltime)= 0;
   bool is_null() { update_null_value(); return null_value; }
 };
@@ -461,7 +462,7 @@ public:
   void fix_num_length_and_dec();
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool date_op(MYSQL_TIME *ltime, uint fuzzydate)
+  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   { DBUG_ASSERT(0); return 0; }
   bool time_op(MYSQL_TIME *ltime)
   { DBUG_ASSERT(0); return 0; }
@@ -482,7 +483,7 @@ class Item_num_op :public Item_func_numhybrid
 
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool date_op(MYSQL_TIME *ltime, uint fuzzydate)
+  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   { DBUG_ASSERT(0); return 0; }
   bool time_op(MYSQL_TIME *ltime)
   { DBUG_ASSERT(0); return 0; }
@@ -506,7 +507,7 @@ public:
   { collation.set_numeric(); }
   double val_real();
   String *val_str(String*str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -579,7 +580,7 @@ public:
   String *val_str(String *str);
   double val_real();
   longlong val_int();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
@@ -601,7 +602,7 @@ class Item_func_additive_op :public Item_num_op
 public:
   Item_func_additive_op(Item *a,Item *b) :Item_num_op(a,b) {}
   void result_precision();
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -636,7 +637,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   void result_precision();
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -668,7 +669,7 @@ public:
     print_op(str, query_type);
   }
 
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -682,7 +683,7 @@ public:
   const char *func_name() const { return "%"; }
   void result_precision();
   void fix_length_and_dec();
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -698,7 +699,7 @@ public:
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -711,7 +712,7 @@ public:
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "abs"; }
   void fix_length_and_dec();
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 // A class to handle logarithmic and trigonometric functions
@@ -874,7 +875,7 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 
@@ -886,7 +887,7 @@ public:
   longlong int_op();
   double real_op();
   my_decimal *decimal_op(my_decimal *);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 /* This handles round and truncate */
@@ -974,7 +975,7 @@ public:
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);  
   void fix_length_and_dec();
   enum Item_result result_type () const
@@ -1031,7 +1032,7 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *dec);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return (null_value= args[0]->get_date(ltime, fuzzydate));
   }
@@ -1287,7 +1288,7 @@ class Item_udf_func :public Item_func
 {
 protected:
   udf_handler udf;
-  bool is_expensive_processor(uchar *arg) { return TRUE; }
+  bool is_expensive_processor(uchar *arg) { return true; }
 
 public:
   Item_udf_func(udf_func *udf_arg)
@@ -1358,7 +1359,7 @@ public:
   void cleanup();
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
-  bool is_expensive() { return 1; }
+  bool is_expensive() { return true; }
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -1386,7 +1387,7 @@ class Item_func_udf_float :public Item_udf_func
   }
   double val_real();
   String *val_str(String *str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_real(ltime, fuzzydate);
   }
@@ -1409,7 +1410,7 @@ public:
   longlong val_int();
   double val_real() { return (double) Item_func_udf_int::val_int(); }
   String *val_str(String *str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -1433,7 +1434,7 @@ public:
   double val_real();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String *str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
@@ -1478,7 +1479,7 @@ public:
     string2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf);
     return dec_buf;
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -1620,7 +1621,7 @@ public:
   Item_var_func() :Item_func() { }
   Item_var_func(THD *thd, Item_var_func *item) :Item_func(thd, item) { }
   Item_var_func(Item *a) :Item_func(a) { }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_non_temporal(ltime, fuzzydate);
   }
@@ -1789,7 +1790,7 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *decimal_buffer);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     DBUG_ASSERT(0);
     return true;
@@ -2100,7 +2101,7 @@ private:
   bool init_result_field(THD *thd);
   
 protected:
-  bool is_expensive_processor(uchar *arg) { return TRUE; }
+  bool is_expensive_processor(uchar *arg) { return true; }
 
 public:
 
@@ -2145,7 +2146,7 @@ public:
     return sp_result_field->val_real();
   }
 
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     if (execute())
       return true;
@@ -2186,14 +2187,17 @@ public:
   }
 
   virtual bool change_context_processor(uchar *cntx)
-    { context= (Name_resolution_context *)cntx; return FALSE; }
+  {
+    context= reinterpret_cast<Name_resolution_context *>(cntx);
+    return false;
+  }
 
   bool sp_check_access(THD * thd);
   virtual enum Functype functype() const { return FUNC_SP; }
 
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec(void);
-  bool is_expensive() { return 1; }
+  bool is_expensive() { return true; }
 
   inline Field *get_sp_result_field()
   {
@@ -2224,7 +2228,7 @@ public:
   longlong val_int();
   void fix_length_and_dec()
   { max_length= 21; unsigned_flag=1; }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,

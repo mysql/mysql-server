@@ -779,8 +779,8 @@ mach_read_int_type(
 {
 	/* XXX this can be optimized on big-endian machines */
 
-	ullint	ret;
-	uint	i;
+	uintmax_t	ret;
+	uint		i;
 
 	if (unsigned_type || (src[0] & 0x80)) {
 

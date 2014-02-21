@@ -404,11 +404,15 @@ create_log_files(
 	has been completed and renamed. */
 	sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
 
-	fil_space_t* log_space = fil_space_create(
+	/* Disable the doublewrite buffer for log files, not required */
+
+	fil_space_t*	log_space = fil_space_create(
 		logfilename, SRV_LOG_SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
 		FIL_LOG);
+
 	ut_a(fil_validate());
+	ut_a(log_space != NULL);
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
@@ -592,9 +596,9 @@ srv_undo_tablespace_open(
 	ulint		space_id)	/*!< in: tablespace id */
 {
 	os_file_t	fh;
-	dberr_t		err	= DB_ERROR;
 	bool		ret;
 	ulint		flags;
+	dberr_t		err	= DB_ERROR;
 
 	if (!srv_file_check_mode(name)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -619,6 +623,12 @@ srv_undo_tablespace_open(
 		os_offset_t	size;
 		fil_space_t*	space;
 
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		if (!srv_use_doublewrite_buf) {
+			fil_fusionio_enable_atomic_write(fh);
+		}
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
+
 		size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t) -1);
 
@@ -636,8 +646,8 @@ srv_undo_tablespace_open(
 
 		/* Set the compressed page size to 0 (non-compressed) */
 		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
-		space = fil_space_create(
-			name, space_id, flags, FIL_TABLESPACE);
+
+		space = fil_space_create(name, space_id, flags, FIL_TABLESPACE);
 
 		ut_a(fil_validate());
 		ut_a(space);
@@ -1009,10 +1019,11 @@ srv_open_tmp_tablespace(
 		mtr_t	mtr;
 		ulint	size = tmp_space->get_sum_of_sizes();
 
-		ut_a(tmp_space->space_id() == temp_space_id
-		     && temp_space_id != ULINT_UNDEFINED);
+		ut_a(temp_space_id != ULINT_UNDEFINED);
+		ut_a(tmp_space->space_id() == temp_space_id);
 
 		mtr_start(&mtr);
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 		fsp_header_init(tmp_space->space_id(), size, &mtr);
 
@@ -1586,6 +1597,8 @@ innobase_start_or_create_for_mysql(void)
 	fsp_init();
 	log_init();
 
+	recv_sys_create();
+	recv_sys_init(buf_pool_get_curr_size());
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
@@ -1809,7 +1822,8 @@ innobase_start_or_create_for_mysql(void)
 
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
-		fil_space_t* log_space = fil_space_create(
+		/* Disable the doublewrite buffer for log files. */
+		fil_space_t*	log_space = fil_space_create(
 			logfilename,
 			SRV_LOG_SPACE_FIRST_ID,
 			fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
@@ -2141,17 +2155,13 @@ files_checked:
 		log_buffer_flush_to_disk();
 	}
 
+	/* Open temp-tablespace and keep it open until shutdown. */
+
 	err = srv_open_tmp_tablespace(&srv_tmp_space);
 
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
 	}
-
-	/* Open temp-tablespace and keep it open until shutdown. */
-	fil_open_log_and_system_tablespace_files();
-
-	/* fprintf(stderr, "Max allowed record size %lu\n",
-	page_get_free_space_of_empty() / 2); */
 
 	/* Create the doublewrite buffer to a new tablespace */
 	if (buf_dblwr == NULL && !buf_dblwr_create()) {

@@ -1148,6 +1148,12 @@ public:
   static const HA_ALTER_FLAGS RENAME_INDEX               = 1L << 29;
 
   /**
+    Recreate the table for ALTER TABLE FORCE, ALTER TABLE ENGINE
+    and OPTIMIZE TABLE operations.
+  */
+  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1L << 30;
+
+  /**
     Create options (like MAX_ROWS) for the new version of table.
 
     @note The referenced instance of HA_CREATE_INFO object was already

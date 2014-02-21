@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4194,22 +4194,21 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
 
-    if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
-        !sql_field->def &&
+    if (thd->is_strict_mode() && !sql_field->def &&
         is_timestamp_type(sql_field->sql_type) &&
         (sql_field->flags & NOT_NULL_FLAG) &&
         (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
     {
       /*
         An error should be reported if:
-          - NO_ZERO_DATE SQL mode is active;
+          - STRICT SQL mode is active;
           - there is no explicit DEFAULT clause (default column value);
           - this is a TIMESTAMP column;
           - the column is not NULL;
           - this is not the DEFAULT CURRENT_TIMESTAMP column.
 
         In other words, an error should be reported if
-          - NO_ZERO_DATE SQL mode is active;
+          - STRICT SQL mode is active;
           - the column definition is equivalent to
             'column_name TIMESTAMP DEFAULT 0'.
       */
@@ -5765,6 +5764,9 @@ static bool fill_alter_inplace_info(THD *thd,
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_REMOVE_PARTITIONING;
   if (alter_info->flags & Alter_info::ALTER_ALL_PARTITION)
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_ALL_PARTITION;
+  /* Check for: ALTER TABLE FORCE, ALTER TABLE ENGINE and OPTIMIZE TABLE. */
+  if (alter_info->flags & Alter_info::ALTER_RECREATE)
+    ha_alter_info->handler_flags|= Alter_inplace_info::RECREATE_TABLE;
 
   /*
     If we altering table with old VARCHAR fields we will be automatically
@@ -6393,12 +6395,8 @@ static bool is_inplace_alter_impossible(TABLE *table,
   if (table->s->tmp_table)
     DBUG_RETURN(true);
 
-
   /*
-    We also test if OPTIMIZE TABLE was given and was mapped to alter table.
-    In that case we always do full copy (ALTER_RECREATE is set in this case).
-
-    For the ALTER TABLE tbl_name ORDER BY ... we also always use copy
+    For the ALTER TABLE tbl_name ORDER BY ... we always use copy
     algorithm. In theory, this operation can be done in-place by some
     engine, but since a) no current engine does this and b) our current
     API lacks infrastructure for passing information about table ordering
@@ -6408,26 +6406,17 @@ static bool is_inplace_alter_impossible(TABLE *table,
     not supported for in-place in combination with other operations.
     Alone, it will be done by simple_rename_or_index_change().
   */
-  if (alter_info->flags & (Alter_info::ALTER_RECREATE |
-                           Alter_info::ALTER_ORDER |
+  if (alter_info->flags & (Alter_info::ALTER_ORDER |
                            Alter_info::ALTER_KEYS_ONOFF))
     DBUG_RETURN(true);
 
   /*
-    Test also that engine was not given during ALTER TABLE, or
-    we are force to run regular alter table (copy).
-    E.g. ALTER TABLE tbl_name ENGINE=MyISAM.
-    Note that in addition to checking flag in HA_CREATE_INFO we
-    also check HA_CREATE_INFO::db_type value. This is done
-    to cover cases in which engine is changed implicitly
-    (e.g. when non-partitioned table becomes partitioned).
-
-    Note that we do copy even if the table is already using the
-    given engine. Many users and tools depend on using ENGINE
-    to force a table rebuild.
+    If the table engine is changed explicitly (using ENGINE clause)
+    or implicitly (e.g. when non-partitioned table becomes
+    partitioned) a regular alter table (copy) needs to be
+    performed.
   */
-  if (create_info->db_type != table->s->db_type() ||
-      create_info->used_fields & HA_CREATE_USED_ENGINE)
+  if (create_info->db_type != table->s->db_type())
     DBUG_RETURN(true);
 
   /*
@@ -7130,7 +7119,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
          def->sql_type == MYSQL_TYPE_DATETIME2) &&
          !alter_ctx->datetime_field &&
          !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
-         thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+         thd->is_strict_mode())
     {
         alter_ctx->datetime_field= def;
         alter_ctx->error_if_not_empty= true;
@@ -8234,6 +8223,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     DBUG_RETURN(true);
 
   /*
+    ALTER TABLE ... ENGINE to the same engine is a common way to
+    request table rebuild. Set ALTER_RECREATE flag to force table
+    rebuild.
+  */
+  if (create_info->db_type == table->s->db_type() &&
+      create_info->used_fields & HA_CREATE_USED_ENGINE)
+    alter_info->flags|= Alter_info::ALTER_RECREATE;
+
+  /*
     If the old table had partitions and we are doing ALTER TABLE ...
     engine= <new_engine>, the new table must preserve the original
     partitioning. This means that the new engine is still the
@@ -9125,11 +9123,13 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     mysql_recreate_table()
     thd			Thread handler
     tables		Tables to recreate
+    table_copy          Recreate the table by using
+                        ALTER TABLE COPY algorithm
 
  RETURN
     Like mysql_alter_table().
 */
-bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
+bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
 {
   HA_CREATE_INFO create_info;
   Alter_info alter_info;
@@ -9147,6 +9147,10 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   /* Force alter table to recreate table */
   alter_info.flags= (Alter_info::ALTER_CHANGE_COLUMN |
                      Alter_info::ALTER_RECREATE);
+
+  if (table_copy)
+    alter_info.requested_algorithm= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
+
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, &alter_info, 0,
                                 (ORDER *) 0));

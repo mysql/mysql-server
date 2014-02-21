@@ -292,14 +292,14 @@ public:
 
 private:
 
-	/** Tablespace id. Protected by buf_pool->lock(). */
+	/** Tablespace id. */
 	ib_uint32_t	m_space;
 
-	/** Page number. Protected by buf_pool->lock(). */
+	/** Page number. */
 	ib_uint32_t	m_page_no;
 
 	/** A fold value derived from m_space and m_page_no,
-	used in hashing. Protected by buf_pool->lock(). */
+	used in hashing. */
 	mutable ulint	m_fold;
 
 	/* Disable implicit copying. */
@@ -720,6 +720,15 @@ buf_block_unfix(
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !UNIV_INNOCHECKSUM */
 
+/** Checks if a page contains only zeroes.
+@param[in]	read_buf	database page
+@param[in]	page_size	page size
+@return true if page is filled with zeroes */
+bool
+buf_page_is_zeroes(
+	const byte*		read_buf,
+	const page_size_t&	page_size);
+
 /** Checks if a page is corrupt.
 @param[in]	check_lsn	true if we need to check and complain about
 the LSN
@@ -736,7 +745,7 @@ buf_page_is_corrupted(
 	const byte*		read_buf,
 	const page_size_t&	page_size
 #ifdef UNIV_INNOCHECKSUM
-	,ullint			page_no,
+	,uintmax_t		page_no,
 	bool			strict_check,
 	bool			is_log_enabled,
 	FILE*			log_file

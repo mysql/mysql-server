@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1819,7 +1819,7 @@ my_decimal* Field_num::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Field_num::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_num::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(result_type() == INT_RESULT);
   return my_longlong_to_datetime_with_warn(val_int(), ltime, fuzzydate);
@@ -1920,7 +1920,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
 }
 
 
-bool Field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Field::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   char buff[MAX_DATE_STRING_REP_LENGTH];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
@@ -2963,7 +2963,7 @@ String *Field_new_decimal::val_str(String *val_buffer,
 }
 
 
-bool Field_new_decimal::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_new_decimal::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   my_decimal buf, *decimal_value= val_decimal(&buf);
   if (!decimal_value)
@@ -4716,7 +4716,7 @@ my_decimal *Field_real::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Field_real::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_real::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   return my_double_to_datetime_with_warn(val_real(), ltime, fuzzydate);
 }
@@ -5057,8 +5057,9 @@ Field_temporal::convert_number_to_datetime(longlong nr, bool unsigned_val,
 *****************************************************************************/
 
 
-bool Field_temporal_with_date::get_internal_check_zero(MYSQL_TIME *ltime,
-                                                       uint fuzzydate)
+bool
+Field_temporal_with_date::get_internal_check_zero(MYSQL_TIME *ltime,
+                                                  my_time_flags_t fuzzydate)
 {
   if (get_date_internal(ltime)) /* '0000-00-00' */
   {
@@ -5332,7 +5333,7 @@ Field_temporal_with_date_and_time::convert_TIME_to_timestamp(THD *thd,
                                                              int *warnings)
 {
   /*
-    No needs to do check_date(TIME_NO_ZERO_IN_DATE),
+    No need to do check_date(TIME_NO_ZERO_IN_DATE),
     because it has been done earlier in
     store_time(), number_to_datetime() or str_to_datetime().
   */
@@ -5461,10 +5462,13 @@ Field_timestamp::Field_timestamp(bool maybe_null_arg,
 }
 
 
-ulonglong Field_timestamp::date_flags(const THD *thd)
+my_time_flags_t Field_timestamp::date_flags(const THD *thd)
 {
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
-  return (thd->variables.sql_mode & MODE_NO_ZERO_DATE) | MODE_NO_ZERO_IN_DATE;
+  my_time_flags_t flags= TIME_NO_ZERO_IN_DATE;
+  if (thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_DATE;
+  return flags;
 }
 
 
@@ -5558,7 +5562,7 @@ longlong Field_timestamp::val_int()
 }
 
 
-bool Field_timestamp::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_timestamp::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   /* Don't do check_fuzzy_date() as month and year are never 0 for timestamp */
   return get_internal_check_zero(ltime, fuzzydate);
@@ -5656,10 +5660,13 @@ Field_timestampf::Field_timestampf(bool maybe_null_arg,
 }
 
 
-ulonglong Field_timestampf::date_flags(const THD *thd)
+my_time_flags_t Field_timestampf::date_flags(const THD *thd)
 {
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
-  return (thd->variables.sql_mode & MODE_NO_ZERO_DATE) | MODE_NO_ZERO_IN_DATE;
+  my_time_flags_t flags= TIME_NO_ZERO_IN_DATE;
+  if (thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_DATE;
+  return flags;
 }
 
 
@@ -5697,7 +5704,7 @@ type_conversion_status Field_timestampf::store_packed(longlong nr)
 }
 
 
-bool Field_timestampf::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_timestampf::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   /* Don't do check_fuzzy_date() as month and year are never 0 for timestamp */
   return get_internal_check_zero(ltime, fuzzydate);
@@ -5851,7 +5858,7 @@ String *Field_time_common::val_str(String *val_buffer,
   the result as a DATETIME value.
 */
 
-bool Field_time_common::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_time_common::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME tm;
@@ -6233,9 +6240,14 @@ void Field_year::sql_type(String &res) const
 ** In number context: YYYYMMDD
 ****************************************************************************/
 
-ulonglong Field_newdate::date_flags(const THD *thd)
+my_time_flags_t Field_newdate::date_flags(const THD *thd)
 {
-  return TIME_FUZZY_DATE | thd->datetime_flags();
+  my_time_flags_t flags= TIME_FUZZY_DATE;
+  if (thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_INVALID_DATES)
+    flags|= TIME_INVALID_DATES;
+  return flags;
 }
 
 
@@ -6336,7 +6348,7 @@ String *Field_newdate::val_str(String *val_buffer,
 }
 
 
-bool Field_newdate::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Field_newdate::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   return get_internal_check_zero(ltime, fuzzydate) ||
          check_fuzzy_date(ltime, fuzzydate);
@@ -6375,9 +6387,14 @@ void Field_newdate::sql_type(String &res) const
 ****************************************************************************/
 
 
-ulonglong Field_datetime::date_flags(const THD *thd)
+my_time_flags_t Field_datetime::date_flags(const THD *thd)
 {
-  return TIME_FUZZY_DATE | thd->datetime_flags();
+  my_time_flags_t flags= TIME_FUZZY_DATE;
+  if (thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_INVALID_DATES)
+    flags|= TIME_INVALID_DATES;
+  return flags;
 }
 
 
@@ -6510,7 +6527,7 @@ String *Field_datetime::val_str(String *val_buffer,
 }
 
 
-bool Field_datetime::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_datetime::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   return get_internal_check_zero(ltime, fuzzydate) ||
          check_fuzzy_date(ltime, fuzzydate);
@@ -6562,9 +6579,14 @@ void Field_datetime::sql_type(String &res) const
 ****************************************************************************/
 
 
-ulonglong Field_datetimef::date_flags(const THD *thd)
+my_time_flags_t Field_datetimef::date_flags(const THD *thd)
 {
-  return TIME_FUZZY_DATE | thd->datetime_flags();
+  my_time_flags_t flags= TIME_FUZZY_DATE;
+  if (thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_INVALID_DATES)
+    flags|= TIME_INVALID_DATES;
+  return flags;
 }
 
 
@@ -6580,7 +6602,7 @@ void Field_datetimef::store_timestamp_internal(const timeval *tm)
 
 
 
-bool Field_datetimef::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Field_datetimef::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   return get_internal_check_zero(ltime, fuzzydate) ||
          check_fuzzy_date(ltime, fuzzydate);
@@ -9295,7 +9317,7 @@ int Field_bit::cmp_max(const uchar *a, const uchar *b, uint max_len)
     if ((flag= (int) (bits_a - bits_b)))
       return flag;
   }
-  return memcmp(a, b, field_length);
+  return memcmp(a, b, pack_length());
 }
 
 

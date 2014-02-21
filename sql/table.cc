@@ -4203,7 +4203,7 @@ void TABLE_LIST::cleanup_items()
   for (Field_translator *transl= field_translation;
        transl < field_translation_end;
        transl++)
-    transl->item->walk(&Item::cleanup_processor, 0, 0);
+    transl->item->walk(&Item::cleanup_processor, Item::WALK_POSTFIX, NULL);
 }
 
 
