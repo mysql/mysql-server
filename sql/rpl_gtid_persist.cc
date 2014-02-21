@@ -777,7 +777,9 @@ int Gtid_table_persistor::delete_all(TABLE *table)
   while(!(err= table->file->ha_rnd_next(table->record[0])))
   {
     /* Delete current row. */
-    if ((err= table->file->ha_delete_row(table->record[0])))
+    err= table->file->ha_delete_row(table->record[0]);
+    if (DBUG_EVALUATE_IF("simulate_error_on_delete_gtid_from_table",
+                         (err= -1), err))
     {
       table->file->print_error(err, MYF(0));
       sql_print_error("Failed to delete the row: '%s' from the gtid "

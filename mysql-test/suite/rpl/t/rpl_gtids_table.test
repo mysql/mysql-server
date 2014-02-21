@@ -102,7 +102,8 @@ SELECT * FROM mysql.gtid_executed;
 
 
 --echo # Verify that transaction's gtid is not stored into gtid table
---echo # if we encounter an error when writing gtid into table.
+--echo # and the transaction is rolled back if we encounter an error
+--echo # when writing gtid into table.
 SET SESSION debug="+d,simulate_err_on_write_gtid_into_table";
 --ERROR ER_GET_ERRNO
 INSERT INTO t1 VALUES(5);
@@ -113,7 +114,9 @@ SELECT * FROM mysql.gtid_executed;
 --let $assert_text= committed gtids MASTER_UUID:1-11
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
 --source include/assert.inc
-
+--let $assert_text= Table t1 must not contain 5
+--let $assert_cond= "[SELECT a FROM t1 WHERE a=5]" = ""
+--source include/assert.inc
 
 --source include/sync_slave_sql_with_master.inc
 --echo connection slave
@@ -167,5 +170,4 @@ COMMIT;
 
 --connection master
 DROP TABLE t1, t2;
---source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

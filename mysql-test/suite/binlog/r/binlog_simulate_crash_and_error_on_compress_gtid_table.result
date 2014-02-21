@@ -43,5 +43,13 @@ NAME	thread/sql/compress_gtid_table
 TYPE	FOREGROUND
 PROCESSLIST_STATE	Compressing gtid_executed table
 PROCESSLIST_COMMAND	Daemon
-SET GLOBAL DEBUG= @debug_save;
+SET @@GLOBAL.DEBUG= '-d, fetch_compression_thread_stage_info';
 DROP TABLE t1;
+
+# Write test case to cover error branches of resetting gtid table.
+
+call mtr.add_suppression("Failed to delete the row: .* from the gtid table.");
+SET @@GLOBAL.DEBUG= '+d, simulate_error_on_delete_gtid_from_table';
+RESET MASTER;
+ERROR HY000: Got error -1 from storage engine
+SET GLOBAL DEBUG= @debug_save;
