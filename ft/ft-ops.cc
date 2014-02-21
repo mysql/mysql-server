@@ -4644,15 +4644,7 @@ toku_apply_ancestors_messages_to_node (
     paranoid_invariant(node->height == 0);
 
     TXNID oldest_referenced_xid_for_simple_gc = toku_ft_get_oldest_referenced_xid_estimate(t);
-    TXNID oldest_referenced_xid_for_implicit_promotion = ancestors->node->oldest_referenced_xid_known;
-
-    // We want the newest value from any of our ancestors, for it to be most effecitve.
-    for (ANCESTORS curr_ancestors = ancestors; curr_ancestors; curr_ancestors = curr_ancestors->next) {
-        if (curr_ancestors->node->oldest_referenced_xid_known > oldest_referenced_xid_for_implicit_promotion) {
-            oldest_referenced_xid_for_implicit_promotion = curr_ancestors->node->oldest_referenced_xid_known;
-        }
-    }
-
+    TXNID oldest_referenced_xid_for_implicit_promotion = node->oldest_referenced_xid_known;
     txn_gc_info gc_info(nullptr,
                         oldest_referenced_xid_for_simple_gc,
                         oldest_referenced_xid_for_implicit_promotion,
