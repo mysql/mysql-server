@@ -580,7 +580,7 @@ recv_find_max_checkpoint(
 				buf + LOG_CHECKPOINT_NO);
 
 			DBUG_PRINT("ib_log",
-				   ("checkpoint " ULINTPF
+				   ("checkpoint " UINT64PF
 				    " found in group " ULINTPF,
 				    checkpoint_no, group->id));
 
