@@ -138,6 +138,7 @@ class Item_func_aes_encrypt :public Item_str_func
 {
 public:
   Item_func_aes_encrypt(Item *a, Item *b) :Item_str_func(a,b) {}
+  Item_func_aes_encrypt(Item *a, Item *b, Item *c) :Item_str_func(a, b, c) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "aes_encrypt"; }
@@ -147,11 +148,30 @@ class Item_func_aes_decrypt :public Item_str_func
 {
 public:
   Item_func_aes_decrypt(Item *a, Item *b) :Item_str_func(a,b) {}
+  Item_func_aes_decrypt(Item *a, Item *b, Item *c) :Item_str_func(a, b, c) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "aes_decrypt"; }
 };
 
+
+class Item_func_random_bytes : public Item_str_func
+{
+  /** limitation from the SSL library */
+  static const longlong MAX_RANDOM_BYTES_BUFFER;
+public:
+  Item_func_random_bytes(Item *a) : Item_str_func(a)
+  {}
+
+  void fix_length_and_dec();
+  String *val_str(String *a);
+
+  const char *func_name() const
+  {
+    return "random_bytes";
+  }
+
+};
 
 class Item_func_concat :public Item_str_func
 {

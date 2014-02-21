@@ -62,6 +62,7 @@
 #include "connection_handler_manager.h"         // Connection_handler_manager
 #include "socket_connection.h"                  // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
+#include "my_aes.h" // my_aes_opmode_names
 
 #include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -4771,3 +4772,7 @@ static Sys_var_mybool Sys_validate_user_plugins(
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 #endif
 
+static Sys_var_enum Sys_block_encryption_mode(
+  "block_encryption_mode", "mode for AES_ENCRYPT/AES_DECRYPT",
+  SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG),
+  my_aes_opmode_names, DEFAULT(my_aes_128_ecb));
