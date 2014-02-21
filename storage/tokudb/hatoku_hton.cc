@@ -494,6 +494,8 @@ static int tokudb_init_func(void *p) {
     r = db_env->set_lock_timeout(db_env, DEFAULT_TOKUDB_LOCK_TIMEOUT, tokudb_get_lock_wait_time_callback);
     assert(r == 0);
 
+    db_env->set_killed_callback(db_env, DEFAULT_TOKUDB_KILLED_TIME, tokudb_get_killed_time_callback, tokudb_killed_callback);
+
     r = db_env->get_engine_status_num_rows (db_env, &toku_global_status_max_rows);
     assert(r == 0);
 
@@ -1283,6 +1285,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(lock_timeout_debug),
     MYSQL_SYSVAR(loader_memory_size),
     MYSQL_SYSVAR(hide_default_row_format),
+    MYSQL_SYSVAR(killed_time),
     NULL
 };
 
