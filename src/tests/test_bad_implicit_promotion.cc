@@ -148,7 +148,7 @@ static void test_insert_bad_implicit_promotion(void) {
     DB_TXN *txn_A;
     r = env->txn_begin(env, NULL, &txn_A, DB_SERIALIZABLE); CKERR(r);
     dbt_init(&key, &key_500, sizeof(key_500));
-    r = db->del(db, NULL, &key, 0); CKERR(r);
+    r = db->del(db, txn_A, &key, DB_DELETE_ANY); CKERR(r);
     r = txn_A->abort(txn_A); CKERR(r);
 
     // Commit two deletes on keys 499 and 501. This should inject
@@ -157,9 +157,9 @@ static void test_insert_bad_implicit_promotion(void) {
     DB_TXN *txn_B;
     r = env->txn_begin(env, NULL, &txn_B, DB_SERIALIZABLE); CKERR(r);
     dbt_init(&key, &key_499, sizeof(key_499));
-    r = db->del(db, NULL, &key, 0); CKERR(r);
+    r = db->del(db, txn_B, &key, DB_DELETE_ANY); CKERR(r);
     dbt_init(&key, &key_501, sizeof(key_501));
-    r = db->del(db, NULL, &key, 0); CKERR(r);
+    r = db->del(db, txn_B, &key, DB_DELETE_ANY); CKERR(r);
     r = txn_B->commit(txn_B, 0); CKERR(r);
 
     // No transactions are live - so when we create txn C, the oldest
@@ -169,7 +169,7 @@ static void test_insert_bad_implicit_promotion(void) {
     DB_TXN *txn_C;
     dbt_init(&key, &key_500, sizeof(key_500));
     r = env->txn_begin(env, NULL, &txn_C, DB_TXN_SNAPSHOT); CKERR(r);
-    r = db->get(db, txn_B, &key, &val, 0); CKERR(r);
+    r = db->get(db, txn_C, &key, &val, 0); CKERR(r);
     r = txn_C->commit(txn_C, 0); CKERR(r);
 
     toku_free(val_buf);
