@@ -237,3 +237,4 @@ my_bool my_aes_needs_iv(my_aes_opmode opmode)
 
   return enc.needs_iv() ? TRUE : FALSE;
 }
+
