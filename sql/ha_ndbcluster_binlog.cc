@@ -943,9 +943,8 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
   DBUG_RETURN(res);
 }
 
-void ndbcluster_binlog_init_handlerton()
+void ndbcluster_binlog_init(handlerton* h)
 {
-  handlerton *h= ndbcluster_hton;
   h->flush_logs=       ndbcluster_flush_logs;
   h->binlog_func=      ndbcluster_binlog_func;
   h->binlog_log_query= ndbcluster_binlog_log_query;
