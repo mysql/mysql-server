@@ -2389,7 +2389,7 @@ ib_col_copy_value_low(
 		switch (dtype_get_mtype(dfield_get_type(dfield))) {
 		case DATA_INT: {
 			ibool		usign;
-			ullint		ret;
+			uintmax_t	ret;
 
 			ut_a(data_len == len);
 

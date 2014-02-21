@@ -80,6 +80,8 @@ cache_record_length(JOIN *join,uint idx)
      keyparts without equality predicates.
   3) Otherwise, the index with best cost estimate is chosen.
 
+  As a side-effect, bound_keyparts/read_cost/fanout is set for the first
+  Key_use of every considered key.
 
   @param tab                        the table to be joined by the function
   @param remaining_tables           set of tables not included in the
@@ -280,7 +282,15 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       {
         trace_access_idx.add("chosen", false).
           add_alnum("cause", "heuristic_eqref_already_found");
-        continue;
+        if (unlikely(!test_all_ref_keys))
+          continue;
+        else
+        {
+          /*
+            key will be rejected further down, after we compute its
+            bound_keyparts/read_cost/fanout.
+          */
+        }
       }
 
       // Check if we found full key
@@ -578,6 +588,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       {
         trace_access_idx.add("chosen", false).
           add_alnum("cause", "heuristic_eqref_already_found");
+        // Ignore test_all_ref_keys, semijoin loosescan never uses fulltext
         continue;
       }
       // Actually it should be cur_fanout=0.0 (yes!) but 1.0 is probably safer
@@ -629,7 +640,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     if (best_found_keytype == CLUSTERED_PK)
     {
       trace_access_idx.add_alnum("cause", "clustered_pk_chosen_by_heuristics");
-      break;
+      if (unlikely(!test_all_ref_keys))
+        break;
     }
   } // for each key
 
@@ -3107,19 +3119,28 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     POSITION *pos;        // Position for later calculations
     /*
       We always need a new calculation for the first inner table in
-      the LooseScan strategy. Notice the use of loose_scan_pos.
+      the LooseScan strategy.
     */
-    if ((i == first_tab && loosescan) || positions[i].use_join_buffer)
+    const bool is_ls_driving_tab= (i == first_tab) && loosescan;
+    if (is_ls_driving_tab || positions[i].use_join_buffer)
     {
       Opt_trace_object trace_one_table(trace);
       trace_one_table.add_utf8_table(tab->table);
 
-      // Find the best access method with specified join buffering strategy.
-      best_access_path(tab, remaining_tables, i, 
-                       i < no_jbuf_before,
+      /*
+        Find the best access method with specified join buffering strategy.
+        If this is a loosescan driving table,
+        semijoin_loosescan_fill_driving_table_position will consider all keys,
+        so best_access_path() should fill bound_keyparts/read_cost/fanout for
+        all keys => test_all_ref_keys==true.
+       */
+      DBUG_ASSERT(!test_all_ref_keys);
+      test_all_ref_keys= is_ls_driving_tab;
+      best_access_path(tab, remaining_tables, i, i < no_jbuf_before,
                        rowcount * inner_fanout * outer_fanout,
                        dst_pos);
-      if (i == first_tab && loosescan)  // Use loose scan position
+      test_all_ref_keys= false;
+      if (is_ls_driving_tab)  // Use loose scan position
       {
         if (semijoin_loosescan_fill_driving_table_position(tab,
                                                            remaining_tables,

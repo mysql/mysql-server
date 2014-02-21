@@ -774,7 +774,7 @@ static void print_result()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  char prev[NAME_LEN*2+2];
+  char prev[NAME_LEN*3+2];
   char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
   char *db_name;

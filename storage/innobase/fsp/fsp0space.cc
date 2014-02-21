@@ -119,8 +119,8 @@ Tablespace::file_found(Datafile& file)
 dberr_t
 Tablespace::open_or_create()
 {
-	dberr_t		err	= DB_SUCCESS;
-	fil_space_t*	space	= NULL;
+	fil_space_t*		space = NULL;
+	dberr_t			err = DB_SUCCESS;
 
 	ut_ad(!m_files.empty());
 
@@ -144,6 +144,18 @@ Tablespace::open_or_create()
 		if (err != DB_SUCCESS) {
 			break;
 		}
+
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		/* Note: This should really be per node and not per
+		tablespace because a tablespace can contain multiple
+		files (nodes). The implication is that all files of
+		the tablespace should be on the same medium. */
+
+		if (!srv_use_doublewrite_buf) {
+			fil_fusionio_enable_atomic_write(it->m_handle);
+		}
+
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 		/* We can close the handle now and open the tablespace
 		the proper way. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34829,7 +34829,8 @@ CHARSET_INFO my_charset_cp932_japanese_ci=
     1,			/* caseup_multiply  */
     1,			/* casedn_multiply  */
     1,			/* mbminlen   */
-    2,			/* mbmaxlen */
+    2,			/* mbmaxlen   */
+    1,			/* mbmaxlenlen */
     0,			/* min_sort_char */
     0xFCFC,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -34862,7 +34863,8 @@ CHARSET_INFO my_charset_cp932_bin=
     1,			/* caseup_multiply  */
     1,			/* casedn_multiply  */
     1,			/* mbminlen   */
-    2,			/* mbmaxlen */
+    2,			/* mbmaxlen   */
+    1,			/* mbmaxlenlen */
     0,			/* min_sort_char */
     0xFCFC,		/* max_sort_char */
     ' ',                /* pad char      */

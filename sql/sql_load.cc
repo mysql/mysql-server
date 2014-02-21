@@ -1512,6 +1512,28 @@ READ_INFO::~READ_INFO()
 #define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
 #define PUSH(A) *(stack_pos++)=(A)
 
+/**
+  The logic here is similar with my_mbcharlen, except for GET and PUSH
+
+  @param[in]  cs  charset info
+  @param[in]  chr the first char of sequence
+  @param[out] len the length of multi-byte char
+*/
+#define GET_MBCHARLEN(cs, chr, len)                                           \
+  do {                                                                        \
+    len= my_mbcharlen((cs), (chr));                                           \
+    if (len == 0 && my_mbmaxlenlen((cs)) == 2)                                \
+    {                                                                         \
+      int chr1= GET;                                                          \
+      if (chr1 != my_b_EOF)                                                   \
+      {                                                                       \
+        len= my_mbcharlen_2((cs), (chr), chr1);                               \
+        /* Must be gb18030 charset */                                         \
+        DBUG_ASSERT(len == 2 || len == 4);                                    \
+      }                                                                       \
+      PUSH(chr1);                                                             \
+    }                                                                         \
+  } while (0)
 
 inline int READ_INFO::terminator(const char *ptr,uint length)
 {
@@ -1652,7 +1674,8 @@ int READ_INFO::read_field()
 	}
       }
 
-      uint ml= my_mbcharlen(read_charset, chr);
+      uint ml;
+      GET_MBCHARLEN(read_charset, chr, ml);
       if (ml == 0)
       {
         error= 1;
@@ -1666,14 +1689,7 @@ int READ_INFO::read_field()
         uchar* p= (uchar*) to;
         *to++ = chr;
 
-        ml= my_mbcharlen(read_charset, chr);
-        if (ml == 0)
-        {
-          error= 1;
-          return 1;
-        }
-
-        for (uint i= 1; i < ml; i++) 
+        for (uint i= 1; i < ml; i++)
         {
           chr= GET;
           if (chr == my_b_EOF)
@@ -1799,15 +1815,17 @@ int READ_INFO::next_line()
   for (;;)
   {
     int chr = GET;
+    uint ml;
     if (chr == my_b_EOF)
     {
       eof= 1;
       return 1;
     }
-   if (my_mbcharlen(read_charset, chr) > 1)
+   GET_MBCHARLEN(read_charset, chr, ml);
+   if (ml > 1)
    {
        for (uint i=1;
-            chr != my_b_EOF && i<my_mbcharlen(read_charset, chr);
+            chr != my_b_EOF && i < ml;
             i++)
 	   chr = GET;
        if (chr == escape_char)
@@ -1940,7 +1958,8 @@ int READ_INFO::read_value(int delim, String *val)
 
   for (chr= GET; my_tospace(chr) != delim && chr != my_b_EOF;)
   {
-    uint ml= my_mbcharlen(read_charset, chr);
+    uint ml;
+    GET_MBCHARLEN(read_charset, chr, ml);
     if (ml == 0)
     {
       chr= my_b_EOF;
