@@ -268,9 +268,14 @@ int toku_db_wait_range_lock(DB *db, DB_TXN *txn, toku::lock_request *request) {
     DB_TXN *txn_anc = txn_oldest_ancester(txn);
     const DBT *left_key = request->get_left_key();
     const DBT *right_key = request->get_right_key();
-
-    uint64_t wait_time = txn->mgrp->i->ltm.get_lock_wait_time();
-    const int r = request->wait(wait_time);
+    DB_ENV *env = db->dbenv;
+    uint64_t wait_time_msec = env->i->default_lock_timeout_msec;
+    if (env->i->get_lock_timeout_callback)
+        wait_time_msec = env->i->get_lock_timeout_callback(wait_time_msec);
+    uint64_t killed_time_msec = env->i->default_killed_time_msec;
+    if (env->i->get_killed_time_callback)
+        killed_time_msec = env->i->get_killed_time_callback(killed_time_msec);
+    const int r = request->wait(wait_time_msec, killed_time_msec, env->i->killed_callback);
     if (r == 0) {
         db_txn_note_row_lock(db, txn_anc, left_key, right_key);
     } else if (r == DB_LOCK_NOTGRANTED) {
