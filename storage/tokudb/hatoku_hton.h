@@ -348,18 +348,9 @@ static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC, "last TokuDB loc
 
 static MYSQL_THDVAR_BOOL(hide_default_row_format, 0, "hide the default row format", NULL /*check*/, NULL /*update*/, true);
 
-#define DEFAULT_TOKUDB_LOCK_TIMEOUT 4000 /*milliseconds*/
+static const uint64_t DEFAULT_TOKUDB_LOCK_TIMEOUT = 4000; /*milliseconds*/
 
-static MYSQL_THDVAR_ULONGLONG(lock_timeout,
-    0,
-    "TokuDB lock timeout",
-    NULL, 
-    NULL, 
-    DEFAULT_TOKUDB_LOCK_TIMEOUT, /*default*/
-    0, /*min*/
-    ~0ULL, /*max*/
-    1 /*blocksize*/
-);
+static MYSQL_THDVAR_ULONGLONG(lock_timeout, 0, "TokuDB lock timeout", NULL, NULL, DEFAULT_TOKUDB_LOCK_TIMEOUT, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
 
 static uint64_t tokudb_get_lock_wait_time_callback(uint64_t default_wait_time) {
     THD *thd = current_thd;
@@ -382,6 +373,21 @@ static uint64_t tokudb_get_loader_memory_size_callback(void) {
     THD *thd = current_thd;
     uint64_t memory_size = THDVAR(thd, loader_memory_size);
     return memory_size;
+}
+
+static const uint64_t DEFAULT_TOKUDB_KILLED_TIME = 4000; 
+
+static MYSQL_THDVAR_ULONGLONG(killed_time, 0, "TokuDB killed time", NULL, NULL, DEFAULT_TOKUDB_KILLED_TIME, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
+
+static uint64_t tokudb_get_killed_time_callback(uint64_t default_killed_time) {
+    THD *thd = current_thd;
+    uint64_t killed_time = THDVAR(thd, killed_time);
+    return killed_time;
+}
+
+static int tokudb_killed_callback(void) {
+    THD *thd = current_thd;
+    return thd->killed;
 }
 
 extern HASH tokudb_open_tables;
