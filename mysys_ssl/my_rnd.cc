@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,6 +53,41 @@ double my_rnd(struct rand_struct *rand_st)
   return (((double) rand_st->seed1) / rand_st->max_value_dbl);
 }
 
+
+
+/**
+Fill a buffer with random bytes using the SSL library routines
+
+@param buffer       [OUT]   Buffer to receive the random data
+@param buffer_size  [IN]    sizeof the the buffer
+
+@retval      1  error ocurred.
+@retval      0  OK
+*/
+int
+my_rand_buffer(unsigned char *buffer, size_t buffer_size)
+{
+  int rc;
+#if defined(HAVE_YASSL) /* YaSSL */
+  rc= yaSSL::RAND_bytes(buffer, buffer_size);
+
+  if (!rc)
+    return 1;
+#elif defined(HAVE_OPENSSL)
+  rc= RAND_bytes(buffer, buffer_size);
+
+  if (!rc)
+  {
+    ERR_clear_error();
+    return 1;
+  }
+#else /* no SSL */
+#error not using an SSL library not supported
+#endif
+  return 0;
+}
+
+
 /**
   Generate a random number using the OpenSSL/yaSSL supplied
   random number generator if available.
@@ -66,33 +101,14 @@ double my_rnd(struct rand_struct *rand_st)
 
 double my_rnd_ssl(struct rand_struct *rand_st)
 {
-#if defined(HAVE_YASSL) || defined(HAVE_OPENSSL)
-  int rc;
   unsigned int res;
 
-#if defined(HAVE_YASSL) /* YaSSL */
-  rc= yaSSL::RAND_bytes((unsigned char *) &res, sizeof (unsigned int));
-
-  if (!rc)
+  if (my_rand_buffer((unsigned char *) &res, sizeof(res)))
     return my_rnd(rand_st);
-#else                   /* OpenSSL */
-  rc= RAND_bytes((unsigned char *) &res, sizeof (unsigned int));
-
-  if (!rc)
-  {
-    ERR_clear_error();
-    return my_rnd(rand_st);
-  }
-#endif /* HAVE_YASSL */
 
   return (double)res / (double)UINT_MAX;
-
-#else /* !defined(HAVE_YASSL) && !defined(HAVE_OPENSSL) */
-
-  return my_rnd(rand_st);
-
-#endif /* defined(HAVE_YASSL) || defined(HAVE_OPENSSL) */
 }
+
 
 #ifdef __cplusplus
 }
