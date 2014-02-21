@@ -74,6 +74,14 @@ SET @@GLOBAL.DEBUG= '+d, fetch_compression_thread_stage_info';
 INSERT INTO t1 VALUES(4);
 SET DEBUG_SYNC='now WAIT_FOR fetch_thread_stage';
 --query_vertical SELECT NAME, TYPE, PROCESSLIST_STATE, PROCESSLIST_COMMAND FROM performance_schema.threads where NAME= "thread/sql/compress_gtid_table";
-
-SET GLOBAL DEBUG= @debug_save;
+SET @@GLOBAL.DEBUG= '-d, fetch_compression_thread_stage_info';
 DROP TABLE t1;
+
+--echo
+--echo # Write test case to cover error branches of resetting gtid table.
+--echo
+call mtr.add_suppression("Failed to delete the row: .* from the gtid table.");
+SET @@GLOBAL.DEBUG= '+d, simulate_error_on_delete_gtid_from_table';
+--ERROR ER_GET_ERRNO
+RESET MASTER;
+SET GLOBAL DEBUG= @debug_save;
