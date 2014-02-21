@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1933,11 +1933,21 @@ private:
   // MT LQH
   Uint32 c_fragments_per_node_;
   Uint32 getFragmentsPerNode();
+  /**
+   * dihGetInstanceKey
+   *
+   * This method maps a fragment to a block instance key
+   * This is the LDM instance which manages the fragment
+   * on this node.
+   * The range of an instance key is 1 to 
+   * NDBMT_MAX_WORKER_INSTANCES inclusive.
+   * 0 is the proxy block instance.
+   */
   Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
-    Uint32 instanceKey = 1 + (log_part_id % NDBMT_MAX_BLOCK_INSTANCES);
-    return instanceKey;
+    ndbrequire(log_part_id < NDBMT_MAX_WORKER_INSTANCES);
+    return 1 + log_part_id;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
 
