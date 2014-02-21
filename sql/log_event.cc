@@ -2801,10 +2801,13 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       /*
         The over max db:s case handled through passing to map_db_to_worker
         such "all" db as encoded as  the "" empty string.
+        Note, the empty string is allocated in a large buffer
+        to satisfy hashcmp() implementation.
       */
+      const char all_db[NAME_LEN]= {0};
       if (!(ret_worker=
             map_db_to_worker(mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS ?
-                             "" : mts_dbs.name[i], rli,
+                             all_db : mts_dbs.name[i], rli,
                              &mts_assigned_partitions[i],
                              /*
                                todo: optimize it. Although pure
@@ -2823,7 +2826,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
       DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db,
                           mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS ?
-                          mts_dbs.name[i] : ""));
+                          mts_dbs.name[i] : all_db));
       DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
       DBUG_ASSERT(mts_assigned_partitions[i]->usage >= 0);
     }
