@@ -12241,7 +12241,7 @@ static int ndbcluster_init(void *p)
 #else
     h->fill_files_table= ndbcluster_fill_files_table;
 #endif
-    ndbcluster_binlog_init_handlerton();
+    ndbcluster_binlog_init(h);
     h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED |
       HTON_NO_BINLOG_ROW_OPT;
     h->discover=         ndbcluster_discover;

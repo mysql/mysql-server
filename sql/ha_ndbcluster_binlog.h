@@ -29,8 +29,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 #define NDB_INVALID_SCHEMA_OBJECT 241
 
-extern handlerton *ndbcluster_hton;
-
 const uint max_ndb_nodes= 256; /* multiple of 32 */
 
 static const char *ha_ndb_ext=".ndb";
@@ -51,7 +49,8 @@ extern HASH ndbcluster_open_tables;
 /*
   Initialize the binlog part of the ndb handlerton
 */
-void ndbcluster_binlog_init_handlerton();
+void ndbcluster_binlog_init(handlerton* hton);
+
 /*
   Initialize the binlog part of the NDB_SHARE
 */
