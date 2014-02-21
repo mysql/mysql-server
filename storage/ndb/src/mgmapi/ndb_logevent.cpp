@@ -593,16 +593,7 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
     return -1;
   }
 
-  /* convert LogLevel::EventCategory enum values to ndb_mgm_event_category 
-   * enum values and store in dst->category
-   */
-  enum ndb_mgm_event_category mgm_category;
-  if(category == LogLevel::llInvalid) 
-      mgm_category= NDB_MGM_ILLEGAL_EVENT_CATEGORY;
-  else
-      mgm_category= (enum ndb_mgm_event_category)(category + CFG_MIN_LOGLEVEL);
-
-  dst->category= mgm_category;
+  dst->category= (enum ndb_mgm_event_category)category;
   dst->severity= (enum ndb_mgm_event_severity)severity;
   dst->level=    level;
 
