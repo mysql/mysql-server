@@ -1723,15 +1723,17 @@ env_set_redzone(DB_ENV *env, int redzone) {
     return r;
 }
 
-static int
-env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
-    *lock_timeout_msec = env->i->ltm.get_lock_wait_time();
+static int env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
+    uint64_t t = env->i->default_lock_timeout_msec;
+    if (env->i->get_lock_timeout_callback)
+        t = env->i->get_lock_timeout_callback(t);
+    *lock_timeout_msec = t;
     return 0;
 }
 
-static int
-env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_msec, uint64_t (*get_lock_timeout_callback)(uint64_t default_lock_timeout_msec)) {
-    env->i->ltm.set_lock_wait_time(lock_timeout_msec, get_lock_timeout_callback);
+static int env_set_lock_timeout(DB_ENV *env, uint64_t default_lock_timeout_msec, uint64_t (*get_lock_timeout_callback)(uint64_t default_lock_timeout_msec)) {
+    env->i->default_lock_timeout_msec = default_lock_timeout_msec;
+    env->i->get_lock_timeout_callback = get_lock_timeout_callback;
     return 0;
 }
 
@@ -2452,6 +2454,12 @@ static uint64_t env_get_loader_memory_size(DB_ENV *env) {
     return memory_size;
 }
 
+static void env_set_killed_callback(DB_ENV *env, uint64_t default_killed_time_msec, uint64_t (*get_killed_time_callback)(uint64_t default_killed_time_msec), int (*killed_callback)(void)) {
+    env->i->default_killed_time_msec = default_killed_time_msec;
+    env->i->get_killed_time_callback = get_killed_time_callback;
+    env->i->killed_callback = killed_callback;
+}
+
 static int 
 toku_env_create(DB_ENV ** envp, uint32_t flags) {
     int r = ENOSYS;
@@ -2527,6 +2535,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     USENV(change_fsync_log_period);
     USENV(set_loader_memory_size);
     USENV(get_loader_memory_size);
+    USENV(set_killed_callback);
 #undef USENV
     
     // unlocked methods

@@ -103,7 +103,6 @@ namespace toku {
 void locktree::manager::create(lt_create_cb create_cb, lt_destroy_cb destroy_cb, lt_escalate_cb escalate_cb, void *escalate_extra) {
     m_max_lock_memory = DEFAULT_MAX_LOCK_MEMORY;
     m_current_lock_memory = 0;
-    m_lock_wait_time_ms = DEFAULT_LOCK_WAIT_TIME;
     m_mem_tracker.set_manager(this);
 
     m_locktree_map.create();
@@ -151,19 +150,6 @@ int locktree::manager::set_max_lock_memory(size_t max_lock_memory) {
     }
     mutex_unlock();
     return r;
-}
-
-uint64_t locktree::manager::get_lock_wait_time(void) {
-    uint64_t wait_time = m_lock_wait_time_ms;
-    if (m_get_lock_wait_time_cb) {
-        wait_time = m_get_lock_wait_time_cb(wait_time);
-    }
-    return wait_time;
-}
-
-void locktree::manager::set_lock_wait_time(uint64_t lock_wait_time_ms, uint64_t (*get_lock_wait_time_cb)(uint64_t)) {
-    m_lock_wait_time_ms = lock_wait_time_ms;
-    m_get_lock_wait_time_cb = get_lock_wait_time_cb;
 }
 
 int locktree::manager::find_by_dict_id(locktree *const &lt, const DICTIONARY_ID &dict_id) {

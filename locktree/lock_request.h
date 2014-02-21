@@ -143,7 +143,8 @@ public:
     // effect: Sleeps until either the request is granted or the wait time expires.
     // returns: The return code of locktree::acquire_[write,read]_lock()
     //          or simply DB_LOCK_NOTGRANTED if the wait time expired.
-    int wait(uint64_t wait_time);
+    int wait(uint64_t wait_time_ms);
+    int wait(uint64_t wait_time_ms, uint64_t killed_time_ms, int (*killed_callback)(void));
 
     // return: left end-point of the lock range
     const DBT *get_left_key(void) const;
@@ -234,8 +235,6 @@ private:
     bool deadlock_exists(const txnid_set &conflicts);
 
     void copy_keys(void);
-
-    void calculate_cond_wakeup_time(struct timespec *ts, uint64_t wait_time);
 
     static int find_by_txnid(lock_request * const &request, const TXNID &txnid);
 

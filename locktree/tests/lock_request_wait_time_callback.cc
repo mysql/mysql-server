@@ -93,12 +93,7 @@ PATENT RIGHTS GRANT:
 
 namespace toku {
 
-static int my_calls = 0;
-
-static uint64_t my_lock_wait_time_callback(uint64_t default_lock_wait_time UU()) {
-    my_calls++;
-    return 1000;
-}
+static const uint64_t my_lock_wait_time = 10 * 1000; // 10 sec
 
 // make sure deadlocks are detected when a lock request starts
 void lock_request_unit_test::test_wait_time_callback(void) {
@@ -107,7 +102,6 @@ void lock_request_unit_test::test_wait_time_callback(void) {
     locktree *lt;
 
     mgr.create(nullptr, nullptr, nullptr, nullptr);
-    mgr.set_lock_wait_time(10*1000, my_lock_wait_time_callback);
     DICTIONARY_ID dict_id = { 1 };
     lt = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
 
@@ -131,15 +125,13 @@ void lock_request_unit_test::test_wait_time_callback(void) {
     request_b.set(lt, txnid_b, one, two, lock_request::type::WRITE, false);
     r = request_b.start();
     assert(r == DB_LOCK_NOTGRANTED);
-    assert(my_calls == 0);
     uint64_t t_start = toku_current_time_microsec();
-    r = request_b.wait(mgr.get_lock_wait_time());
+    r = request_b.wait(my_lock_wait_time);
     uint64_t t_end = toku_current_time_microsec();
     assert(r == DB_LOCK_NOTGRANTED);
-    assert(my_calls == 1);
     assert(t_end > t_start);
     uint64_t t_delta = t_end - t_start;
-    assert(1000000 <= t_delta && t_delta < 10000000);
+    assert(t_delta >= my_lock_wait_time);
     request_b.destroy();
 
     release_lock_and_retry_requests(lt, txnid_a, one, one);

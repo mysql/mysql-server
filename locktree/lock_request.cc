@@ -234,38 +234,50 @@ int lock_request::start(void) {
     return m_state == state::COMPLETE ? m_complete_r : r;
 }
 
-void lock_request::calculate_cond_wakeup_time(struct timespec *ts, uint64_t wait_time) {
-    struct timeval now;
-    int r = gettimeofday(&now, NULL);
-    invariant_zero(r);
-    int64_t sec = now.tv_sec + (wait_time / 1000);
-    int64_t usec = now.tv_usec + ((wait_time % 1000) * 1000);
-    int64_t d_sec = usec / 1000000;
-    int64_t d_usec = usec % 1000000;
-    ts->tv_sec = sec + d_sec;
-    ts->tv_nsec = d_usec * 1000;
+// sleep on the lock request until it becomes resolved or the wait time has elapsed.
+int lock_request::wait(uint64_t wait_time_ms) {
+    return wait(wait_time_ms, 0, nullptr);
 }
 
-// sleep on the lock request until it becomes resolved or the wait time has elapsed.
-int lock_request::wait(uint64_t wait_time) {
-    uint64_t t_start = toku_current_time_microsec();
+int lock_request::wait(uint64_t wait_time_ms, uint64_t killed_time_ms, int (*killed_callback)(void)) {
+    uint64_t t_now = toku_current_time_microsec();
+    uint64_t t_start = t_now;
+    uint64_t t_end = t_start + wait_time_ms * 1000;
+
     toku_mutex_lock(&m_info->mutex);
+
     while (m_state == state::PENDING) {
-        struct timespec ts;
-        calculate_cond_wakeup_time(&ts, wait_time);
+
+        // compute next wait time
+        uint64_t t_wait;
+        if (killed_time_ms == 0) {
+            t_wait = t_end;
+        } else {
+            t_wait = t_now + killed_time_ms * 1000;
+            if (t_wait > t_end)
+                t_wait = t_end;
+        }
+        struct timespec ts = {};
+        ts.tv_sec = t_wait / 1000000;
+        ts.tv_nsec = (t_wait % 1000000) * 1000;
         int r = toku_cond_timedwait(&m_wait_cond, &m_info->mutex, &ts);
         invariant(r == 0 || r == ETIMEDOUT);
-        if (r == ETIMEDOUT && m_state == state::PENDING) {
+
+        t_now = toku_current_time_microsec();
+        if (m_state == state::PENDING && (t_now >= t_end || (killed_callback && killed_callback()))) {
             m_info->counters.timeout_count += 1;
+            
             // if we're still pending and we timed out, then remove our
             // request from the set of lock requests and fail.
             remove_from_lock_requests();
+            
             // complete sets m_state to COMPLETE, breaking us out of the loop
             complete(DB_LOCK_NOTGRANTED);
         }
     }
-    uint64_t t_end = toku_current_time_microsec();
-    uint64_t duration = t_end - t_start;
+
+    uint64_t t_real_end = toku_current_time_microsec();
+    uint64_t duration = t_real_end - t_start;
     m_info->counters.wait_count += 1;
     m_info->counters.wait_time += duration;
     if (duration >= 1000000) {

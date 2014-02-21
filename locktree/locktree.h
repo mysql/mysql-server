@@ -258,10 +258,6 @@ public:
 
         int set_max_lock_memory(size_t max_lock_memory);
 
-        uint64_t get_lock_wait_time(void);
-
-        void set_lock_wait_time(uint64_t lock_wait_time, uint64_t (*get_lock_wait_time_cb)(uint64_t default_lock_wait_time));
-
         // effect: Get a locktree from the manager. If a locktree exists with the given
         //         dict_id, it is referenced and then returned. If one did not exist, it
         //         is created. It will use the given descriptor and comparison function
@@ -353,7 +349,6 @@ public:
 
     private:
         static const uint64_t DEFAULT_MAX_LOCK_MEMORY = 64L * 1024 * 1024;
-        static const uint64_t DEFAULT_LOCK_WAIT_TIME = 0;
 
         // tracks the current number of locks and lock memory
         uint64_t m_max_lock_memory;
@@ -361,10 +356,6 @@ public:
         memory_tracker m_mem_tracker;
 
         struct lt_counters m_lt_counters;
-
-        // lock wait time for blocking row locks, in ms
-        uint64_t m_lock_wait_time_ms;
-        uint64_t (*m_get_lock_wait_time_cb)(uint64_t);
 
         // the create and destroy callbacks for the locktrees
         lt_create_cb m_lt_create_callback;
