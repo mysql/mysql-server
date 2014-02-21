@@ -511,7 +511,6 @@ static int tokudb_hcad_update_fun(
 
     old_null_bytes = (uchar *)old_val->data;
     new_null_bytes = new_val_data;
-
     
     memcpy(&curr_old_null_pos, extra_pos, sizeof(uint32_t));
     extra_pos += sizeof(uint32_t);
@@ -520,6 +519,8 @@ static int tokudb_hcad_update_fun(
 
     memcpy(&num_columns, extra_pos, sizeof(num_columns));
     extra_pos += sizeof(num_columns);
+
+    memset(new_null_bytes, 0, new_num_null_bytes); // shut valgrind up
     
     //
     // now go through and apply the change into new_val_data
