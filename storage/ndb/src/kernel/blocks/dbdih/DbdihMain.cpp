@@ -7737,8 +7737,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           break;
         }
         const Uint32 max = NGPtr.p->nodeCount;
-	
-	fragments[count++] = (NGPtr.p->m_next_log_part++ / cnoReplicas) % globalData.ndbLogParts; // Store logpart first
+	const Uint32 logPart = (NGPtr.p->m_next_log_part++ / cnoReplicas) % globalData.ndbLogParts; 
+        ndbrequire(logPart < NDBMT_MAX_WORKER_INSTANCES);
+	fragments[count++] = logPart; // Store logpart first
 	Uint32 tmp= next_replica_node[NGPtr.i];
         for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
         {
@@ -7839,7 +7840,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
                                        NDB_ARRAY_SIZE(fragments_per_node));
           NGPtr.i = getNodeGroup(node);
           ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
-          fragments[count++] = (NGPtr.p->m_next_log_part++) % globalData.ndbLogParts;
+          const Uint32 logPart = (NGPtr.p->m_next_log_part++) % globalData.ndbLogParts;
+          ndbrequire(logPart < NDBMT_MAX_WORKER_INSTANCES);
+          fragments[count++] = logPart;
           fragments[count++] = node;
           fragments_per_node[node]++;
           for (Uint32 r = 0; r<noOfReplicas; r++)
@@ -8070,6 +8073,8 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     getFragstore(tabPtr.p, fragId, fragPtr);
     fragPtr.p->m_log_part_id = fragments[index++];
     fragPtr.p->preferredPrimary = fragments[index];
+
+    ndbrequire(fragPtr.p->m_log_part_id < NDBMT_MAX_WORKER_INSTANCES);
 
     inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
     
@@ -8837,6 +8842,7 @@ Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
       goto error;
 
     fragPtr.p->m_log_part_id = buf[2+(1 + replicas)*i];
+    ndbrequire(fragPtr.p->m_log_part_id < NDBMT_MAX_WORKER_INSTANCES);
     fragPtr.p->preferredPrimary = buf[2+(1 + replicas)*i + 1];
 
     inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
@@ -16760,6 +16766,17 @@ void Dbdih::readFragment(RWFragment* rf, FragmentstorePtr fragPtr)
      */
     fragPtr.p->m_log_part_id %= 4;
   }
+
+  /* Older nodes stored unlimited log part ids in the fragment definition, 
+   * now we constrain them to a valid range of actual values for this node.  
+   * Here we ensure that unlimited log part ids fit in the value range for
+   * this node.
+   */
+  ndbrequire(globalData.ndbLogParts <= NDBMT_MAX_WORKER_INSTANCES);
+
+  fragPtr.p->m_log_part_id %= globalData.ndbLogParts;
+
+  ndbrequire(fragPtr.p->m_log_part_id < NDBMT_MAX_WORKER_INSTANCES);
 
   inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
 }//Dbdih::readFragment()
