@@ -3279,9 +3279,9 @@ innobase_change_buffering_inited_ok:
 	/* Unit Tests */
 	test_make_filepath();
 //	test_dict_stats_all();
-#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H)
+#ifdef HAVE_UT_CHRONO_T
 	test_row_raw_format_int();
-#endif
+#endif /* HAVE_UT_CHRONO_T */
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 
 	DBUG_RETURN(0);
