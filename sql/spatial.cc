@@ -302,7 +302,8 @@ int Geometry::create_from_opresult(Geometry_buffer *g_buf,
 
   res->q_append((char) wkb_ndr);
   res->q_append(geom_type);
-  return obj->init_from_opresult(res, rr.result(), rr.length());
+  return obj->init_from_opresult(res, rr.result(), rr.length()) == 0 &&
+         rr.length();
 }
 
 

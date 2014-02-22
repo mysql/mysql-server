@@ -2489,6 +2489,24 @@ INSERT INTO t1 VALUES ('mysql'),('information_schema');
 SELECT * FROM t1 WHERE db IN (SELECT `SCHEMA_NAME` FROM information_schema.SCHEMATA); 
 DROP TABLE t1;
 
+--echo #
+--echo # MDEV-5581: Server crashes in in JOIN::prepare on 2nd execution of PS with materialization+semijoin
+--echo #
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (2),(3);
+
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (8),(9);
+
+CREATE TABLE t3 (c INT, INDEX(c));
+INSERT INTO t2 VALUES (5),(6);
+
+PREPARE stmt FROM 
+"SELECT * FROM t1 WHERE ( 9, 5 ) IN ( SELECT b, COUNT(*) FROM t2 WHERE 1 IN ( SELECT MIN(c) FROM t3 ) )";
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1,t2,t3;
 
 --echo #
 --echo # MySQL Bug#13340270: assertion table->sort.record_pointers == __null

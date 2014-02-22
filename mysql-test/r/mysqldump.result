@@ -5264,6 +5264,20 @@ slow_log	CREATE TABLE `slow_log` (
 SET @@global.log_output=       @old_log_output_state;
 SET @@global.slow_query_log=   @old_slow_query_log_state;
 SET @@global.general_log=      @old_general_log_state;
+# MDEV-5481 mysqldump fails to dump geometry types properly
+create table t1 (g GEOMETRY) CHARSET koi8r;
+create table t2 (g GEOMETRY) CHARSET koi8r;
+insert into t1 values (point(1,1)), (point(2,2));
+##################################################
+\0\0\0\0\0\0\0\0\0\0\0\0\0ð?\0\0\0\0\0\0ð?
+\0\0\0\0\0\0\0\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@
+##################################################
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET koi8r;
+select astext(g) from t2;
+astext(g)
+POINT(1 1)
+POINT(2 2)
+drop table t1, t2;
 #
 # End of 5.1 tests
 #

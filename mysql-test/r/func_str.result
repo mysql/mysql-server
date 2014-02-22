@@ -1153,7 +1153,6 @@ str	num
 notnumber	0
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'notnumber'
-Warning	1292	Truncated incorrect DOUBLE value: 'notnumber'
 SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
 str	num
 notnumber	0

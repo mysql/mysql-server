@@ -325,3 +325,6 @@ SELECT ST_NUMPOINTS(ST_EXTERIORRING(ST_BUFFER( POLYGONFROMTEXT( 'POLYGON( ( 0.0 
   0.0 -3.0
 ))' ), 3 )));
 
+# MDEV-5615 crash in Gcalc_function::add_operation
+select astext(buffer(st_linestringfromwkb(linestring(point(-1,1), point(-1,-2))),-1));
+

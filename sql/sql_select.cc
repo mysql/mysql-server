@@ -663,7 +663,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     aggregate functions in the SELECT list is a MySQL exptenstion that
     is allowed only if the ONLY_FULL_GROUP_BY sql mode is not set.
   */
-  bool mixed_implicit_grouping= false;
+  mixed_implicit_grouping= false;
   if ((~thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
       select_lex->with_sum_func && !group_list)
   {
@@ -702,7 +702,7 @@ JOIN::prepare(Item ***rref_pointer_array,
       Note: this loop doesn't touch tables inside merged semi-joins, because
       subquery-to-semijoin conversion has not been done yet. This is intended.
     */
-    if (mixed_implicit_grouping)
+    if (mixed_implicit_grouping && tbl->table)
       tbl->table->maybe_null= 1;
   }
 
@@ -3603,6 +3603,7 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   join->impossible_where= false;
   if (conds && const_count)
   { 
+    conds->update_used_tables();
     conds= remove_eq_conds(join->thd, conds, &join->cond_value);
     join->select_lex->where= conds;
     if (join->cond_value == Item::COND_FALSE)

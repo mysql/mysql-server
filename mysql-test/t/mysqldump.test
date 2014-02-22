@@ -2437,6 +2437,21 @@ SET @@global.log_output=       @old_log_output_state;
 SET @@global.slow_query_log=   @old_slow_query_log_state;
 SET @@global.general_log=      @old_general_log_state;
  
+--echo # MDEV-5481 mysqldump fails to dump geometry types properly
+
+create table t1 (g GEOMETRY) CHARSET koi8r;
+create table t2 (g GEOMETRY) CHARSET koi8r;
+insert into t1 values (point(1,1)), (point(2,2));
+--exec $MYSQL_DUMP --hex-blob --character-sets-dir=$MYSQL_SHAREDIR/charsets --tab=$MYSQLTEST_VARDIR/tmp/ test t1
+--echo ##################################################
+--cat_file $file
+--echo ##################################################
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET koi8r
+--remove_file $file
+select astext(g) from t2;
+drop table t1, t2;
+
 --echo #
 --echo # End of 5.1 tests
 --echo #

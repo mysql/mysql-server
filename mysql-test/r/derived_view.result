@@ -2253,7 +2253,7 @@ EXPLAIN EXTENDED SELECT a FROM v1 WHERE a > 100 ORDER BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select 4 AS `a` from dual where (4 > 100) order by 1
+Note	1003	select 4 AS `a` from dual where 0 order by 1
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE IF NOT EXISTS `galleries` ( 

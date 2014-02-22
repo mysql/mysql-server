@@ -2807,6 +2807,22 @@ information_schema
 mysql
 DROP TABLE t1;
 #
+# MDEV-5581: Server crashes in in JOIN::prepare on 2nd execution of PS with materialization+semijoin
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (2),(3);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (8),(9);
+CREATE TABLE t3 (c INT, INDEX(c));
+INSERT INTO t2 VALUES (5),(6);
+PREPARE stmt FROM 
+"SELECT * FROM t1 WHERE ( 9, 5 ) IN ( SELECT b, COUNT(*) FROM t2 WHERE 1 IN ( SELECT MIN(c) FROM t3 ) )";
+EXECUTE stmt;
+a
+EXECUTE stmt;
+a
+DROP TABLE t1,t2,t3;
+#
 # MySQL Bug#13340270: assertion table->sort.record_pointers == __null
 #
 CREATE TABLE t1 (

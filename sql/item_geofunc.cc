@@ -859,7 +859,7 @@ String *Item_func_spatial_operation::val_str(String *str_value)
   str_value->length(0);
   str_value->q_append(srid);
 
-  if (!Geometry::create_from_opresult(&buffer1, str_value, res_receiver))
+  if (Geometry::create_from_opresult(&buffer1, str_value, res_receiver))
     goto exit;
 
 exit:
@@ -1116,6 +1116,8 @@ int Item_func_buffer::Transporter::start_line()
 {
   if (buffer_op == Gcalc_function::op_difference)
   {
+    if (m_fn->reserve_op_buffer(1))
+      return 1;
     m_fn->add_operation(Gcalc_function::op_false, 0);
     skip_line= TRUE;
     return 0;
@@ -1317,7 +1319,7 @@ String *Item_func_buffer::val_str(String *str_value)
   str_value->length(0);
   str_value->q_append(srid);
 
-  if (!Geometry::create_from_opresult(&buffer, str_value, res_receiver))
+  if (Geometry::create_from_opresult(&buffer, str_value, res_receiver))
     goto mem_error;
 
   null_value= 0;

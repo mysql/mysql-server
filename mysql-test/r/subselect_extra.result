@@ -46,7 +46,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	select 1 AS `id`,'2007-04-25 18:30:22' AS `cur_date` from (dual) where ('2007-04-25 18:30:22' = 0)
+Note	1003	select 1 AS `id`,'2007-04-25 18:30:22' AS `cur_date` from (dual) where 0
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
@@ -57,7 +57,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
-Note	1003	select 1 AS `id`,'2007-04-25' AS `cur_date` from (dual) where ('2007-04-25' = 0)
+Note	1003	select 1 AS `id`,'2007-04-25' AS `cur_date` from (dual) where 0
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	cur_date
