@@ -465,6 +465,13 @@ static size_t ule_packed_memsize(ULE ule) {
     return le_memsize_from_ule(ule);
 }
 
+// Heuristics to control when we decide to initialize
+// txn manager state (possibly expensive) and run gc.
+enum {
+    ULE_MIN_STACK_SIZE_TO_FORCE_GC = 5,
+    ULE_MIN_MEMSIZE_TO_FORCE_GC = 1024 * 1024
+};
+
 /////////////////////////////////////////////////////////////////////////////////
 // This is the big enchilada.  (Bring Tums.)  Note that this level of abstraction 
 // has no knowledge of the inner structure of either leafentry or msg.  It makes
@@ -515,12 +522,24 @@ toku_le_apply_msg(FT_MSG   msg,
     // - either way, run simple gc first, and then full gc if there are still some committed uxrs.
     ule_try_promote_provisional_outermost(&ule, gc_info->oldest_referenced_xid_for_implicit_promotion);
     ule_simple_garbage_collection(&ule, gc_info);
-    if (ule.num_cuxrs > 1 && gc_info->txn_state_for_gc != nullptr) {
-        size_t size_before_gc = ule_packed_memsize(&ule);
+    txn_manager_state *txn_state_for_gc = gc_info->txn_state_for_gc;
+    size_t size_before_gc = 0;
+    if (ule.num_cuxrs > 1 && txn_state_for_gc != nullptr && // there is garbage to clean, and our caller gave us state..
+            // ..and either the state is pre-initialized, or the committed stack is large enough
+            (txn_state_for_gc->initialized || ule.num_cuxrs >= ULE_MIN_STACK_SIZE_TO_FORCE_GC ||
+            // ..or the ule's raw memsize is sufficiently large
+            (size_before_gc = ule_packed_memsize(&ule)) >= ULE_MIN_MEMSIZE_TO_FORCE_GC)) {
+        // ..then it's worth running gc, possibly initializing the txn manager state, if it isn't already
+        if (!txn_state_for_gc->initialized) {
+            txn_state_for_gc->init();
+        }
+
+        size_before_gc = size_before_gc != 0 ? size_before_gc : // it's already been calculated above
+                         ule_packed_memsize(&ule);
         ule_garbage_collect(&ule,
-                            gc_info->txn_state_for_gc->snapshot_xids,
-                            gc_info->txn_state_for_gc->referenced_xids,
-                            gc_info->txn_state_for_gc->live_root_txns
+                            txn_state_for_gc->snapshot_xids,
+                            txn_state_for_gc->referenced_xids,
+                            txn_state_for_gc->live_root_txns
                             );
         size_t size_after_gc = ule_packed_memsize(&ule);
 

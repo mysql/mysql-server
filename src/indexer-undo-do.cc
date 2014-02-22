@@ -615,9 +615,12 @@ indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xi
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            TXNID oldest_referenced_xid_estimate =
-                toku_ft_get_oldest_referenced_xid_estimate(db_struct_i(hotdb)->ft_handle);
-            txn_gc_info gc_info(nullptr,
+            FT_HANDLE ft_h = db_struct_i(hotdb)->ft_handle;
+            TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+            txn_manager_state txn_state_for_gc(txn_manager);
+
+            TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
+            txn_gc_info gc_info(&txn_state_for_gc,
                                 oldest_referenced_xid_estimate,
                                 oldest_referenced_xid_estimate,
                                 true);
@@ -657,9 +660,12 @@ indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *ho
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            TXNID oldest_referenced_xid_estimate =
-                toku_ft_get_oldest_referenced_xid_estimate(db_struct_i(hotdb)->ft_handle);
-            txn_gc_info gc_info(nullptr,
+            FT_HANDLE ft_h = db_struct_i(hotdb)->ft_handle;
+            TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+            txn_manager_state txn_state_for_gc(txn_manager);
+
+            TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
+            txn_gc_info gc_info(&txn_state_for_gc,
                                 oldest_referenced_xid_estimate,
                                 oldest_referenced_xid_estimate,
                                 true);
@@ -683,9 +689,12 @@ indexer_ft_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
         } else {
             result = toku_ydb_check_avail_fs_space(indexer->i->env);
             if (result == 0) {
-                TXNID oldest_referenced_xid_estimate =
-                    toku_ft_get_oldest_referenced_xid_estimate(db_struct_i(hotdb)->ft_handle);
-                txn_gc_info gc_info(nullptr,
+                FT_HANDLE ft_h = db_struct_i(hotdb)->ft_handle;
+                TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+                txn_manager_state txn_state_for_gc(txn_manager);
+
+                TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
+                txn_gc_info gc_info(&txn_state_for_gc,
                                     oldest_referenced_xid_estimate,
                                     oldest_referenced_xid_estimate,
                                     true);

@@ -829,7 +829,8 @@ void toku_txn_manager_clone_state_for_gc(
     txn_manager_unlock(txn_manager);
 }
 
-void txn_manager_state::init(TXN_MANAGER txn_manager) {
+void txn_manager_state::init() {
+    invariant(!initialized);
     invariant_notnull(txn_manager);
     toku_txn_manager_clone_state_for_gc(
         txn_manager,
@@ -837,12 +838,7 @@ void txn_manager_state::init(TXN_MANAGER txn_manager) {
         &referenced_xids,
         &live_root_txns
         );
-}
-
-void txn_manager_state::destroy() {
-    snapshot_xids.destroy();
-    referenced_xids.destroy();
-    live_root_txns.destroy();
+    initialized = true;
 }
 
 void toku_txn_manager_id2txn_unlocked(TXN_MANAGER txn_manager, TXNID_PAIR txnid, TOKUTXN *result) {
