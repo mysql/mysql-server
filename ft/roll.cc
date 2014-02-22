@@ -267,8 +267,10 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                                           : toku_init_dbt(&data_dbt) } } };
 
         TXN_MANAGER txn_manager = toku_logger_get_txn_manager(txn->logger);
+        txn_manager_state txn_state_for_gc(txn_manager);
+
         TXNID oldest_referenced_xid_estimate = toku_txn_manager_get_oldest_referenced_xid_estimate(txn_manager);
-        txn_gc_info gc_info(nullptr,
+        txn_gc_info gc_info(&txn_state_for_gc,
                             oldest_referenced_xid_estimate,
                             // no messages above us, we can implicitly promote uxrs based on this xid
                             oldest_referenced_xid_estimate,

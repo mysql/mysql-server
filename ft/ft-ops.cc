@@ -2422,8 +2422,8 @@ ft_leaf_run_gc(FT ft, FTNODE node) {
     TOKULOGGER logger = toku_cachefile_logger(ft->cf);
     if (logger) {
         TXN_MANAGER txn_manager = toku_logger_get_txn_manager(logger);
-        txn_manager_state txn_state_for_gc;
-        txn_state_for_gc.init(txn_manager);
+        txn_manager_state txn_state_for_gc(txn_manager);
+        txn_state_for_gc.init();
         TXNID oldest_referenced_xid_for_simple_gc = toku_txn_manager_get_oldest_referenced_xid_estimate(txn_manager);
         
         // Perform full garbage collection.
@@ -2446,7 +2446,6 @@ ft_leaf_run_gc(FT ft, FTNODE node) {
                             node->oldest_referenced_xid_known,
                             true);
         ft_leaf_gc_all_les(ft, node, &gc_info);
-        txn_state_for_gc.destroy();
     }
 }
 
@@ -2462,16 +2461,16 @@ void toku_bnc_flush_to_child(
     size_t remaining_memsize = toku_fifo_buffer_size_in_use(bnc->buffer);
 
     TOKULOGGER logger = toku_cachefile_logger(ft->cf);
+    TXN_MANAGER txn_manager = logger != nullptr ? toku_logger_get_txn_manager(logger) : nullptr;
     TXNID oldest_referenced_xid_for_simple_gc = TXNID_NONE;
 
-    txn_manager_state txn_state_for_gc;
-    bool do_garbage_collection = child->height == 0 && logger != nullptr;
+    txn_manager_state txn_state_for_gc(txn_manager);
+    bool do_garbage_collection = child->height == 0 && txn_manager != nullptr;
     if (do_garbage_collection) {
-        TXN_MANAGER txn_manager = toku_logger_get_txn_manager(logger);
-        txn_state_for_gc.init(txn_manager);
+        txn_state_for_gc.init();
         oldest_referenced_xid_for_simple_gc = toku_txn_manager_get_oldest_referenced_xid_estimate(txn_manager);
     }
-    txn_gc_info gc_info(do_garbage_collection ? &txn_state_for_gc : nullptr,
+    txn_gc_info gc_info(&txn_state_for_gc,
                         oldest_referenced_xid_for_simple_gc,                    
                         child->oldest_referenced_xid_known,
                         true);
@@ -2512,7 +2511,6 @@ void toku_bnc_flush_to_child(
         toku_ft_update_stats(&ft->in_memory_stats, stats_delta);
     }
     if (do_garbage_collection) {
-        txn_state_for_gc.destroy();
         size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
         STATUS_INC(FT_MSG_BYTES_OUT, buffsize);
         // may be misleading if there's a broadcast message in there
@@ -2723,13 +2721,6 @@ static void inject_message_in_locked_node(
         toku_ft_flush_node_on_background_thread(ft, node);
     }
     else {
-        // Garbage collect in-memory leaf nodes that appear to be very overfull.
-        //
-        // This mechanism prevents direct leaf injections from producing an arbitrary amount
-        // of MVCC garbage if they never get evicted.
-        if (node->height == 0 && toku_serialize_ftnode_size(node) > (ft->h->nodesize * 8)) {
-            ft_leaf_run_gc(ft, node);
-        }
         toku_unpin_ftnode(ft, node);
     }
 }
@@ -3236,8 +3227,8 @@ void toku_ft_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, in
 }
 
 // Effect: Optimize the ft.
-void toku_ft_optimize (FT_HANDLE brt) {
-    TOKULOGGER logger = toku_cachefile_logger(brt->ft->cf);
+void toku_ft_optimize (FT_HANDLE ft_h) {
+    TOKULOGGER logger = toku_cachefile_logger(ft_h->ft->cf);
     if (logger) {
         TXNID oldest = toku_txn_manager_get_oldest_living_xid(logger->txn_manager);
 
@@ -3256,8 +3247,17 @@ void toku_ft_optimize (FT_HANDLE brt) {
         toku_init_dbt(&key);
         toku_init_dbt(&val);
         FT_MSG_S ftcmd = { FT_OPTIMIZE, ZERO_MSN, message_xids, .u = { .id = {&key,&val} } };
-        txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
-        toku_ft_root_put_cmd(brt->ft, &ftcmd, &gc_info);
+
+        TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+        txn_manager_state txn_state_for_gc(txn_manager);
+
+        TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
+        txn_gc_info gc_info(&txn_state_for_gc,
+                            oldest_referenced_xid_estimate,
+                            // no messages above us, we can implicitly promote uxrs based on this xid
+                            oldest_referenced_xid_estimate,
+                            true);
+        toku_ft_root_put_cmd(ft_h->ft, &ftcmd, &gc_info);
         xids_destroy(&message_xids);
     }
 }
@@ -3305,14 +3305,14 @@ toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32
     }
 }
 
-TXNID toku_ft_get_oldest_referenced_xid_estimate(FT_HANDLE ft_h) {
-    TXNID oldest_referenced_xid_estimate = TXNID_NONE;
+TXN_MANAGER toku_ft_get_txn_manager(FT_HANDLE ft_h) {
     TOKULOGGER logger = toku_cachefile_logger(ft_h->ft->cf);
-    if (logger != nullptr) {
-        TXN_MANAGER txn_manager = toku_logger_get_txn_manager(logger);
-        oldest_referenced_xid_estimate = toku_txn_manager_get_oldest_referenced_xid_estimate(txn_manager);
-    }
-    return oldest_referenced_xid_estimate;
+    return logger != nullptr ? toku_logger_get_txn_manager(logger) : nullptr;
+}
+
+TXNID toku_ft_get_oldest_referenced_xid_estimate(FT_HANDLE ft_h) {
+    TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+    return txn_manager != nullptr ? toku_txn_manager_get_oldest_referenced_xid_estimate(txn_manager) : TXNID_NONE;
 }
 
 void toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging, enum ft_msg_type type) {
@@ -3341,8 +3341,11 @@ void toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, bool
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         // do nothing
     } else {
+        TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+        txn_manager_state txn_state_for_gc(txn_manager);
+
         TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
-        txn_gc_info gc_info(nullptr,
+        txn_gc_info gc_info(&txn_state_for_gc,
                             oldest_referenced_xid_estimate,
                             // no messages above us, we can implicitly promote uxrs based on this xid
                             oldest_referenced_xid_estimate,
@@ -3357,8 +3360,11 @@ ft_send_update_msg(FT_HANDLE ft_h, FT_MSG_S *msg, TOKUTXN txn) {
                  ? toku_txn_get_xids(txn)
                  : xids_get_root_xids());
     
+    TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+    txn_manager_state txn_state_for_gc(txn_manager);
+
     TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
-    txn_gc_info gc_info(nullptr,
+    txn_gc_info gc_info(&txn_state_for_gc,
                         oldest_referenced_xid_estimate,
                         // no messages above us, we can implicitly promote uxrs based on this xid
                         oldest_referenced_xid_estimate,
@@ -3496,8 +3502,11 @@ void toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, bool oplsn_vali
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         // do nothing
     } else {
+        TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+        txn_manager_state txn_state_for_gc(txn_manager);
+
         TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
-        txn_gc_info gc_info(nullptr,
+        txn_gc_info gc_info(&txn_state_for_gc,
                             oldest_referenced_xid_estimate,
                             // no messages above us, we can implicitly promote uxrs based on this xid
                             oldest_referenced_xid_estimate,
@@ -4643,11 +4652,13 @@ toku_apply_ancestors_messages_to_node (
     VERIFY_NODE(t, node);
     paranoid_invariant(node->height == 0);
 
+    TXN_MANAGER txn_manager = toku_ft_get_txn_manager(t);
+    txn_manager_state txn_state_for_gc(txn_manager);
+
     TXNID oldest_referenced_xid_for_simple_gc = toku_ft_get_oldest_referenced_xid_estimate(t);
-    TXNID oldest_referenced_xid_for_implicit_promotion = node->oldest_referenced_xid_known;
-    txn_gc_info gc_info(nullptr,
+    txn_gc_info gc_info(&txn_state_for_gc,
                         oldest_referenced_xid_for_simple_gc,
-                        oldest_referenced_xid_for_implicit_promotion,
+                        node->oldest_referenced_xid_known,
                         true);
     if (!node->dirty && child_to_read >= 0) {
         paranoid_invariant(BP_STATE(node, child_to_read) == PT_AVAIL);

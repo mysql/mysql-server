@@ -125,17 +125,34 @@ struct txn_manager {
 };
 
 struct txn_manager_state { 
+    txn_manager_state(TXN_MANAGER mgr) :
+        txn_manager(mgr),
+        initialized(false) {
+        snapshot_xids.create_no_array();
+        referenced_xids.create_no_array();
+        live_root_txns.create_no_array();
+    }
+
+    // should not copy construct
+    txn_manager_state &operator=(txn_manager_state &rhs) = delete;
+    txn_manager_state(txn_manager_state &rhs) = delete;
+
+    ~txn_manager_state() {
+        snapshot_xids.destroy();
+        referenced_xids.destroy();
+        live_root_txns.destroy();
+    }
+
+    void init();
+
+    TXN_MANAGER txn_manager;
+    bool initialized;
+
     // a snapshot of the txn manager's mvcc state
+    // only valid if initialized = true
     xid_omt_t snapshot_xids;
     rx_omt_t referenced_xids;
     xid_omt_t live_root_txns;
-
-    txn_manager_state() { }
-    void init(TXN_MANAGER txn_manager);
-    void destroy();
-
-private:
-    txn_manager_state(txn_manager_state &rhs); // shouldn't need to copy construct
 };
 
 // represents all of the information needed to run garbage collection
@@ -148,7 +165,7 @@ struct txn_gc_info {
     }
 
     // a snapshot of the transcation system. may be null.
-    txn_manager_state *const txn_state_for_gc;
+    txn_manager_state *txn_state_for_gc;
 
     // the oldest xid in any live list
     //
