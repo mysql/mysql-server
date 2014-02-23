@@ -247,7 +247,6 @@ struct tokutxn {
     DB_TXN *container_db_txn; // reference to DB_TXN that contains this tokutxn
     xid_omt_t *live_root_txn_list; // the root txns live when the root ancestor (self if a root) started.
     XIDS xids; // Represents the xid list
-    TXNID oldest_referenced_xid;
 
     TOKUTXN snapshot_next;
     TOKUTXN snapshot_prev;

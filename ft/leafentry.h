@@ -247,12 +247,11 @@ toku_le_apply_msg(FT_MSG   msg,
                   LEAFENTRY old_leafentry, // NULL if there was no stored data.
                   bn_data* data_buffer, // bn_data storing leafentry, if NULL, means there is no bn_data
                   uint32_t idx, // index in data_buffer where leafentry is stored (and should be replaced
-                  TXNID oldest_referenced_xid,
-                  GC_INFO gc_info,
+                  txn_gc_info *gc_info,
                   LEAFENTRY *new_leafentry_p,
                   int64_t * numbytes_delta_p);
 
-bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_referenced_xid_known);
+bool toku_le_worth_running_garbage_collection(LEAFENTRY le, txn_gc_info *gc_info);
 
 void
 toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
@@ -260,11 +259,8 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
                         uint32_t idx,
                         void* keyp,
                         uint32_t keylen,
+                        txn_gc_info *gc_info,
                         LEAFENTRY *new_leaf_entry,
-                        const xid_omt_t &snapshot_xids,
-                        const rx_omt_t &referenced_xids,
-                        const xid_omt_t &live_root_txns,
-                        TXNID oldest_referenced_xid_known,
                         int64_t * numbytes_delta_p);
 
 #endif /* TOKU_LEAFENTRY_H */

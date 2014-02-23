@@ -30,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 COPYRIGHT NOTICE:
 
   TokuDB, Tokutek Fractal Tree Indexing Library.
-  Copyright (C) 2007-2013 Tokutek, Inc.
+  Copyright (C) 2014 Tokutek, Inc.
 
 DISCLAIMER:
 
@@ -86,118 +86,105 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2011-2013 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
 
-// generate a tree with a single leaf node containing duplicate keys
-// check that brt verify finds them
-
-
-#include <ft-cachetable-wrappers.h>
 #include "test.h"
 
-static FTNODE
-make_node(FT_HANDLE brt, int height) {
-    FTNODE node = NULL;
-    int n_children = (height == 0) ? 1 : 0;
-    toku_create_new_ftnode(brt, &node, height, n_children);
-    if (n_children) BP_STATE(node,0) = PT_AVAIL;
-    return node;
-}
+// Test the following scenario:
+// Begin A
+// A deletes key K
+// A aborts
+// Begin B
+// B deletes key K-1
+// B deletes key K
+// B deletes key K+1
+// B commits
+// Begin C
+// C queries K, should read K (not the delete!).
+//
+// An incorrect mvcc implementation would 'implicitly' promote
+// A's delete to committed, based on the fact that the oldest
+// referenced xid at the time of injection for key k-1 and k+1
+// is greater than A's xid.
 
-static void
-append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen) {
-    assert(leafnode->height == 0);
-
-    DBT thekey; toku_fill_dbt(&thekey, key, keylen);
-    DBT theval; toku_fill_dbt(&theval, val, vallen);
-
-    // get an index that we can use to create a new leaf entry
-    uint32_t idx = BLB_DATA(leafnode, 0)->omt_size();
-
-    // apply an insert to the leaf node
-    MSN msn = next_dummymsn();
-    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
-    txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, false);
-    toku_ft_bn_apply_cmd_once(BLB(leafnode, 0), &cmd, idx, NULL, &gc_info, NULL, NULL);
-
-    // dont forget to dirty the node
-    leafnode->dirty = 1;
-}
-
-static void 
-populate_leaf(FTNODE leafnode, int k, int v) {
-    append_leaf(leafnode, &k, sizeof k, &v, sizeof v);
-}
-
-static void 
-test_dup_in_leaf(int do_verify) {
+static void test_insert_bad_implicit_promotion(void) {
     int r;
 
-    // cleanup
-    const char *fname = TOKU_TEST_FILENAME;
-    r = unlink(fname);
-    assert(r == 0 || (r == -1 && errno == ENOENT));
+    DB_ENV *env;
+    r = db_env_create(&env, 0); CKERR(r);
+    r = env->set_cachesize(env, 1, 0, 1); CKERR(r); // 1gb cache so this test fits in memory
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL+DB_INIT_TXN, 0); CKERR(r);
 
-    // create a cachetable
-    CACHETABLE ct = NULL;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    DB *db;
+    r = db_create(&db, env, 0); CKERR(r);
+    r = db->set_pagesize(db, 4096); CKERR(r);
+    r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
 
-    // create the brt
-    TOKUTXN null_txn = NULL;
-    FT_HANDLE brt = NULL;
-    r = toku_open_ft_handle(fname, 1, &brt, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
-    assert(r == 0);
+    const int val_size = 512;
 
-    // discard the old root block
+    DBT key;
+    DBT val;
+    char *XMALLOC_N(val_size, val_buf);
+    memset(val_buf, 'x', val_size);
+    dbt_init(&val, val_buf, val_size);
 
-    FTNODE newroot = make_node(brt, 0);
-    populate_leaf(newroot, htonl(2), 1);
-    populate_leaf(newroot, htonl(2), 2);
-
-    // set the new root to point to the new tree
-    toku_ft_set_new_root_blocknum(brt->ft, newroot->thisnodename);
-
-    // unpin the new root
-    toku_unpin_ftnode(brt->ft, newroot);
-
-    if (do_verify) {
-        r = toku_verify_ft(brt);
-        assert(r != 0);
+    // Insert rows [0, N]
+    const int N = 1000;
+    for (int i = 0; i < N; i++) {
+        int k = toku_htonl(i);
+        dbt_init(&key, &k, sizeof(k));
+        r = db->put(db, NULL, &key, &val, 0); CKERR(r);
     }
 
-    // flush to the file system
-    r = toku_close_ft_handle_nolsn(brt, 0);     
-    assert(r == 0);
+    int key_500 = toku_htonl(500);
+    int key_499 = toku_htonl(499);
+    int key_501 = toku_htonl(501);
+    // sanity check our keys
+    r = db->get(db, NULL, dbt_init(&key, &key_500, sizeof(key_500)), &val, 0); CKERR(r);
+    r = db->get(db, NULL, dbt_init(&key, &key_500, sizeof(key_499)), &val, 0); CKERR(r);
+    r = db->get(db, NULL, dbt_init(&key, &key_500, sizeof(key_501)), &val, 0); CKERR(r);
 
-    // shutdown the cachetable
-    toku_cachetable_close(&ct);
-}
+    // Abort a delete for key 500
+    DB_TXN *txn_A;
+    r = env->txn_begin(env, NULL, &txn_A, DB_SERIALIZABLE); CKERR(r);
+    dbt_init(&key, &key_500, sizeof(key_500));
+    r = db->del(db, txn_A, &key, DB_DELETE_ANY); CKERR(r);
+    r = txn_A->abort(txn_A); CKERR(r);
 
-static int
-usage(void) {
-    return 1;
+    // Commit two deletes on keys 499 and 501. This should inject
+    // at least one message in the same buffer that has the delete/abort
+    // messages for key 500.
+    DB_TXN *txn_B;
+    r = env->txn_begin(env, NULL, &txn_B, DB_SERIALIZABLE); CKERR(r);
+    dbt_init(&key, &key_499, sizeof(key_499));
+    r = db->del(db, txn_B, &key, DB_DELETE_ANY); CKERR(r);
+    dbt_init(&key, &key_501, sizeof(key_501));
+    r = db->del(db, txn_B, &key, DB_DELETE_ANY); CKERR(r);
+    r = txn_B->commit(txn_B, 0); CKERR(r);
+
+    // No transactions are live - so when we create txn C, the oldest
+    // referenced xid will be txn C. If our implicit promotion logic is
+    // wrong, we will use txn C's xid to promote the delete on key 500
+    // before the abort message hits it, and C's query will return nothing.
+    DB_TXN *txn_C;
+    dbt_init(&key, &key_500, sizeof(key_500));
+    r = env->txn_begin(env, NULL, &txn_C, DB_TXN_SNAPSHOT); CKERR(r);
+    r = db->get(db, txn_C, &key, &val, 0); CKERR(r);
+    r = txn_C->commit(txn_C, 0); CKERR(r);
+
+    toku_free(val_buf);
+    r = db->close(db, 0); CKERR(r);
+    r = env->close(env, 0); CKERR(r);
 }
 
 int
-test_main (int argc , const char *argv[]) {
-    int do_verify = 1;
-    initialize_dummymsn();
-    for (int i = 1; i < argc; i++) {
-        const char *arg = argv[i];
-        if (strcmp(arg, "-v") == 0) {
-            verbose++;
-            continue;
-        }
-        if (strcmp(arg, "-q") == 0) {
-            verbose = 0;
-            continue;
-        }
-        if (strcmp(arg, "--verify") == 0 && i+1 < argc) {
-            do_verify = atoi(argv[++i]);
-            continue;
-        }
-        return usage();
-    }
-    test_dup_in_leaf(do_verify);
+test_main(int argc, char *const argv[]) {
+    parse_args(argc, argv);
+
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    int r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+
+    test_insert_bad_implicit_promotion();
+
     return 0;
 }

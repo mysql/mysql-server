@@ -453,12 +453,12 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
 
     size_t result_memsize = 0;
     int64_t ignoreme;
+    txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
     toku_le_apply_msg(msg,
                       le_initial,
                       nullptr,
                       0,
-                      TXNID_NONE,
-                      make_gc_info(true),
+                      &gc_info,
                       &le_result,
                       &ignoreme);
     if (le_result) {
@@ -751,7 +751,8 @@ static bool ule_worth_running_garbage_collection(ULE ule, TXNID oldest_reference
     LEAFENTRY le;
     int r = le_pack(ule, nullptr, 0, nullptr, 0, 0, &le); CKERR(r);
     invariant_notnull(le);
-    bool worth_running = toku_le_worth_running_garbage_collection(le, oldest_referenced_xid_known);
+    txn_gc_info gc_info(nullptr, oldest_referenced_xid_known, oldest_referenced_xid_known, true);
+    bool worth_running = toku_le_worth_running_garbage_collection(le, &gc_info);
     toku_free(le);
     return worth_running;
 }

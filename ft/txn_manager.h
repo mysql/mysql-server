@@ -121,13 +121,73 @@ struct txn_manager {
 
     TXNID last_xid;
     TXNID last_xid_seen_for_recover;
+    TXNID last_calculated_oldest_referenced_xid;
 };
 
+struct txn_manager_state { 
+    txn_manager_state(TXN_MANAGER mgr) :
+        txn_manager(mgr),
+        initialized(false) {
+        snapshot_xids.create_no_array();
+        referenced_xids.create_no_array();
+        live_root_txns.create_no_array();
+    }
+
+    // should not copy construct
+    txn_manager_state &operator=(txn_manager_state &rhs) = delete;
+    txn_manager_state(txn_manager_state &rhs) = delete;
+
+    ~txn_manager_state() {
+        snapshot_xids.destroy();
+        referenced_xids.destroy();
+        live_root_txns.destroy();
+    }
+
+    void init();
+
+    TXN_MANAGER txn_manager;
+    bool initialized;
+
+    // a snapshot of the txn manager's mvcc state
+    // only valid if initialized = true
+    xid_omt_t snapshot_xids;
+    rx_omt_t referenced_xids;
+    xid_omt_t live_root_txns;
+};
+
+// represents all of the information needed to run garbage collection
+struct txn_gc_info {
+    txn_gc_info(txn_manager_state *st, TXNID xid_sgc, TXNID xid_ip, bool mvcc)
+        : txn_state_for_gc(st),
+          oldest_referenced_xid_for_simple_gc(xid_sgc),
+          oldest_referenced_xid_for_implicit_promotion(xid_ip),
+          mvcc_needed(mvcc) {
+    }
+
+    // a snapshot of the transcation system. may be null.
+    txn_manager_state *txn_state_for_gc;
+
+    // the oldest xid in any live list
+    //
+    // suitible for simple garbage collection that cleans up multiple committed
+    // transaction records into one. not suitible for implicit promotions, which
+    // must be correct in the face of abort messages - see ftnode->oldest_referenced_xid
+    TXNID oldest_referenced_xid_for_simple_gc;
+
+    // lower bound on the oldest xid in any live when the messages to be cleaned
+    // had no messages above them. suitable for implicitly promoting a provisonal uxr.
+    TXNID oldest_referenced_xid_for_implicit_promotion;
+
+    // whether or not mvcc is actually needed - false during recovery and non-transactional systems
+    const bool mvcc_needed;
+};
 
 void toku_txn_manager_init(TXN_MANAGER* txn_manager);
 void toku_txn_manager_destroy(TXN_MANAGER txn_manager);
 
 TXNID toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager);
+
+TXNID toku_txn_manager_get_oldest_referenced_xid_estimate(TXN_MANAGER txn_manager);
 
 void toku_txn_manager_handle_snapshot_create_for_child_txn(
     TOKUTXN txn,

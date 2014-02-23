@@ -132,8 +132,9 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, uint32_t keylen, void *va
     MSN msn = next_dummymsn();
     brt->ft->h->max_msn_in_ft = msn;
     FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
+    txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, false);
 
-    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &cmd, make_gc_info(false), nullptr, nullptr);
+    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &cmd, &gc_info, nullptr, nullptr);
     {
 	int r = toku_ft_lookup(brt, &thekey, lookup_checkf, &pair);
 	assert(r==0);
@@ -141,7 +142,7 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, uint32_t keylen, void *va
     }
 
     FT_MSG_S badcmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &badval }} };
-    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &badcmd, make_gc_info(false), nullptr, nullptr);
+    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &badcmd, &gc_info, nullptr, nullptr);
 
     // message should be rejected for duplicate msn, row should still have original val
     {
@@ -154,7 +155,7 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, uint32_t keylen, void *va
     msn = next_dummymsn();
     brt->ft->h->max_msn_in_ft = msn;
     FT_MSG_S cmd2 = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &val2 }} };
-    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &cmd2, make_gc_info(false), nullptr, nullptr);
+    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &cmd2, &gc_info, nullptr, nullptr);
 
     // message should be accepted, val should have new value
     {
@@ -166,7 +167,7 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, uint32_t keylen, void *va
     // now verify that message with lesser (older) msn is rejected
     msn.msn = msn.msn - 10;
     FT_MSG_S cmd3 = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &badval } }};
-    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &cmd3, make_gc_info(false), nullptr, nullptr);
+    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &cmd3, &gc_info, nullptr, nullptr);
 
     // message should be rejected, val should still have value in pair2
     {

@@ -96,6 +96,7 @@ PATENT RIGHTS GRANT:
 #include "ft.h"
 #include "ft-ops.h"
 #include "log-internal.h"
+//#include "txn_manager.h"
 #include "xids.h"
 #include "rollback-apply.h"
 
@@ -265,7 +266,16 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                                           ? toku_fill_dbt(&data_dbt, data->data, data->len)
                                           : toku_init_dbt(&data_dbt) } } };
 
-        toku_ft_root_put_cmd(h, &ftcmd, txn->oldest_referenced_xid, make_gc_info(!txn->for_recovery));
+        TXN_MANAGER txn_manager = toku_logger_get_txn_manager(txn->logger);
+        txn_manager_state txn_state_for_gc(txn_manager);
+
+        TXNID oldest_referenced_xid_estimate = toku_txn_manager_get_oldest_referenced_xid_estimate(txn_manager);
+        txn_gc_info gc_info(&txn_state_for_gc,
+                            oldest_referenced_xid_estimate,
+                            // no messages above us, we can implicitly promote uxrs based on this xid
+                            oldest_referenced_xid_estimate,
+                            !txn->for_recovery);
+        toku_ft_root_put_cmd(h, &ftcmd, &gc_info);
         if (reset_root_xid_that_created) {
             TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
             toku_reset_root_xid_that_created(h, new_root_xid_that_created);
