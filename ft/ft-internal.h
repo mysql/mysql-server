@@ -229,7 +229,7 @@ long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
 void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
-void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID oldest_referenced_xid);
+void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID parent_oldest_referenced_xid_known);
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) __attribute__((const, nonnull));
 bool toku_ft_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);
 
@@ -1027,7 +1027,7 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM, enum ft_msg_type,
 void toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t);
 
 // toku_ft_root_put_cmd() accepts non-constant cmd because this is where we set the msn
-void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd, TXNID oldest_referenced_xid, GC_INFO gc_info);
+void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd, txn_gc_info *gc_info);
 
 void
 toku_get_node_for_verify(
@@ -1065,6 +1065,10 @@ typedef enum {
     LE_MAX_PROVISIONAL_XR,
     LE_EXPANDED,
     LE_MAX_MEMSIZE,
+    LE_APPLY_GC_BYTES_IN,
+    LE_APPLY_GC_BYTES_OUT,
+    LE_NORMAL_GC_BYTES_IN,
+    LE_NORMAL_GC_BYTES_OUT,
     LE_STATUS_NUM_ROWS
 } le_status_entry;
 
@@ -1197,8 +1201,7 @@ toku_ft_bn_apply_cmd_once (
     const FT_MSG cmd,
     uint32_t idx,
     LEAFENTRY le,
-    TXNID oldest_referenced_xid,
-    GC_INFO gc_info,
+    txn_gc_info *gc_info,
     uint64_t *workdonep,
     STAT64INFO stats_to_update
     );
@@ -1210,8 +1213,7 @@ toku_ft_bn_apply_cmd (
     DESCRIPTOR desc,
     BASEMENTNODE bn,
     FT_MSG cmd,
-    TXNID oldest_referenced_xid,
-    GC_INFO gc_info,
+    txn_gc_info *gc_info,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
@@ -1224,7 +1226,7 @@ toku_ft_leaf_apply_cmd (
     FTNODE node,
     int target_childnum,
     FT_MSG cmd,
-    GC_INFO gc_info,
+    txn_gc_info *gc_info,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
@@ -1238,7 +1240,7 @@ toku_ft_node_put_cmd (
     int target_childnum,
     FT_MSG cmd,
     bool is_fresh,
-    GC_INFO gc_info,
+    txn_gc_info *gc_info,
     size_t flow_deltas[],
     STAT64INFO stats_to_update
     );

@@ -239,7 +239,6 @@ toku_txn_begin_with_xid (
         }
         else {
             parent->child_manager->start_child_txn_for_recovery(txn, parent, xid);
-            txn->oldest_referenced_xid = parent->oldest_referenced_xid;
         }
     }
     else {
@@ -255,7 +254,6 @@ toku_txn_begin_with_xid (
         }
         else {
             parent->child_manager->start_child_txn(txn, parent);
-            txn->oldest_referenced_xid = parent->oldest_referenced_xid;
             toku_txn_manager_handle_snapshot_create_for_child_txn(
                 txn, 
                 logger->txn_manager, 
@@ -327,7 +325,6 @@ static txn_child_manager tcm;
         .container_db_txn = container_db_txn,
         .live_root_txn_list = nullptr,
         .xids = NULL,
-        .oldest_referenced_xid = TXNID_NONE,
         .snapshot_next = NULL,
         .snapshot_prev = NULL,
         .begin_was_logged = false,

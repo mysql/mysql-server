@@ -291,6 +291,7 @@ void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
     txn_manager->last_xid = 0;
 
     txn_manager->last_xid_seen_for_recover = TXNID_NONE;
+    txn_manager->last_calculated_oldest_referenced_xid = TXNID_NONE;
     
     *txn_managerp = txn_manager;
 }
@@ -322,6 +323,10 @@ toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager) {
     }
     txn_manager_unlock(txn_manager);
     return rval;
+}
+
+TXNID toku_txn_manager_get_oldest_referenced_xid_estimate(TXN_MANAGER txn_manager) {
+    return txn_manager->last_calculated_oldest_referenced_xid;
 }
 
 int live_root_txn_list_iter(const TOKUTXN &live_xid, const uint32_t UU(index), TXNID **const referenced_xids);
@@ -371,7 +376,7 @@ max_xid(TXNID a, TXNID b) {
     return a < b ? b : a;
 }
 
-static TXNID get_oldest_referenced_xid_unlocked(TXN_MANAGER txn_manager) {
+static void set_oldest_referenced_xid(TXN_MANAGER txn_manager) {
     TXNID oldest_referenced_xid = TXNID_MAX;
     int r;
     if (txn_manager->live_root_ids.size() > 0) {
@@ -397,8 +402,8 @@ static TXNID get_oldest_referenced_xid_unlocked(TXN_MANAGER txn_manager) {
     if (txn_manager->last_xid < oldest_referenced_xid) {
         oldest_referenced_xid = txn_manager->last_xid;
     }
-    paranoid_invariant(oldest_referenced_xid != TXNID_MAX);
-    return oldest_referenced_xid;
+    invariant(oldest_referenced_xid != TXNID_MAX);
+    txn_manager->last_calculated_oldest_referenced_xid = oldest_referenced_xid;
 }
 
 //Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
@@ -610,7 +615,6 @@ void toku_txn_manager_start_txn_for_recovery(
     // using xid that is passed in
     txn_manager->last_xid = max_xid(txn_manager->last_xid, xid);
     toku_txn_update_xids_in_txn(txn, xid);
-    txn->oldest_referenced_xid = TXNID_NONE;
 
     uint32_t idx;
     int r = txn_manager->live_root_txns.find_zero<TOKUTXN, find_xid>(txn, nullptr, &idx);
@@ -672,7 +676,7 @@ void toku_txn_manager_start_txn(
         r = txn_manager->live_root_ids.insert_at(txn->txnid.parent_id64, idx);
         invariant_zero(r);
     }
-    txn->oldest_referenced_xid = get_oldest_referenced_xid_unlocked(txn_manager);
+    set_oldest_referenced_xid(txn_manager);
     
     if (needs_snapshot) {
         txn_manager_create_snapshot_unlocked(
@@ -825,7 +829,17 @@ void toku_txn_manager_clone_state_for_gc(
     txn_manager_unlock(txn_manager);
 }
 
-
+void txn_manager_state::init() {
+    invariant(!initialized);
+    invariant_notnull(txn_manager);
+    toku_txn_manager_clone_state_for_gc(
+        txn_manager,
+        &snapshot_xids,
+        &referenced_xids,
+        &live_root_txns
+        );
+    initialized = true;
+}
 
 void toku_txn_manager_id2txn_unlocked(TXN_MANAGER txn_manager, TXNID_PAIR txnid, TOKUTXN *result) {
     TOKUTXN txn;
