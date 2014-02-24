@@ -87,14 +87,14 @@ inline const char* bapi_strndup(const char *destination, size_t n)
 */
 inline const void* bapi_memdup(const void* source, size_t len)
 {
-  const void* dest;
+  void* dest;
 #if HAVE_MYSYS
   /* Call the function in mysys library, required for memory instrumentation */
   dest= my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
 #else
   dest= malloc(len);
   if (dest)
-    memcpy(&dest, source, len);
+    memcpy(dest, source, len);
 #endif
   return dest;
 }
