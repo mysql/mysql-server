@@ -591,10 +591,11 @@ public:
             + LOAD_HEADER_LEN
             + sql_ex_data.data_size() + field_block_len + num_fields);
   }
-
+#ifndef HAVE_MYSYS
   //TODO: Define the methods when required
   void print_event_info(std::ostream& info) {};
   void print_long_info(std::ostream& info) {};
+#endif
 
 };
 

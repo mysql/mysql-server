@@ -454,8 +454,10 @@ public:
     return m_dbnam;
   }
 
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
 };
 
 
@@ -655,8 +657,10 @@ public:
       str.append("Unknown Flag");
     return str;
   }
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
 };
 
 

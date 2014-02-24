@@ -23,7 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "transitional_methods.h"
 #include <stdlib.h>
 #include <string.h>
-#include <iostream>
 
 namespace binary_log
 {
@@ -172,29 +171,6 @@ Table_map_event::~Table_map_event()
 
 }
 
-void Table_map_event::print_event_info(std::ostream& info)
-{
-  info << "table id: " << m_table_id << " ("
-       << m_dbnam.c_str() << "."
-        << m_tblnam.c_str() << ")";
-}
-
-void Table_map_event::print_long_info(std::ostream& info)
-{
-  info << "Timestamp: " << this->header()->when.tv_sec;
-  info << "\tFlags: " << m_flags;
-  info << "\tColumn Type: ";
-  /*
-    TODO: Column types are stored as integers. To be
-    replaced by string representation of types.
-  */
-  for (unsigned int i= 0; i < m_colcnt; i++)
-  {
-    info << "\t" << (int)m_coltype[i];
-  }
-  info << "\n";
-  this->print_event_info(info);
-}
 
 
 /*****************************************************************************
@@ -342,6 +318,33 @@ Rows_event::~Rows_event()
   }
 }
 
+
+#ifndef HAVE_MYSYS
+void Table_map_event::print_event_info(std::ostream& info)
+{
+  info << "table id: " << m_table_id << " ("
+       << m_dbnam.c_str() << "."
+        << m_tblnam.c_str() << ")";
+}
+
+void Table_map_event::print_long_info(std::ostream& info)
+{
+  info << "Timestamp: " << this->header()->when.tv_sec;
+  info << "\tFlags: " << m_flags;
+  info << "\tColumn Type: ";
+  /*
+    TODO: Column types are stored as integers. To be
+    replaced by string representation of types.
+  */
+  for (unsigned int i= 0; i < m_colcnt; i++)
+  {
+    info << "\t" << (int)m_coltype[i];
+  }
+  info << "\n";
+  this->print_event_info(info);
+}
+
+
 void Rows_event::print_event_info(std::ostream& info)
 {
   info << "table id: " << m_table_id << " flags: ";
@@ -371,4 +374,5 @@ void Rows_event::print_long_info(std::ostream& info)
       this->get_event_type() == UPDATE_ROWS_EVENT)
     info << "\nType: Update" ;
 }
+#endif
 } // end namespace binary_log

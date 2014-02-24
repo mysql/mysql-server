@@ -566,21 +566,11 @@ void Converter::to(std::string &str, const Value &val) const
       uint64_t timestamp= val.as_int64();
       uint64_t d= timestamp / 1000000;
       uint64_t t= timestamp % 1000000;
-      std::ostringstream os;
-
-      os << std::setfill('0') << std::setw(4) << d / 10000
-         << std::setw(1) << '-'
-         << std::setw(2) << (d % 10000) / 100
-         << std::setw(1) << '-'
-         << std::setw(2) << d % 100
-         << std::setw(1) << ' '
-         << std::setw(2) << t / 10000
-         << std::setw(1) << ':'
-         << std::setw(2) << (t % 10000) / 100
-         << std::setw(1) << ':'
-         << std::setw(2) << t % 100;
-
-      str= os.str();
+      char buf[19]= {0};
+      sprintf(buf, "%llu-%llu-%llu %llu:%llu:%llu",
+              d / 10000, (d % 10000) / 100,
+              d % 100, t / 10000, (t % 10000) / 100, t % 100);
+      str= buf;
     }
       break;
     case MYSQL_TYPE_TIME:

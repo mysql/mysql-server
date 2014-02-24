@@ -911,14 +911,23 @@ protected:
   Binary_log_event(const char **buf, uint16_t binlog_version,
                    const char *server_version);
 public:
+#ifndef HAVE_MYSYS
+  /*
+    The print_event_info functions are used in the free standing version of
+    the library only. Since MySQL server does not use them, and it does not
+    link to standard input/output library on Windows 32 bit system ,these
+    methods are commented out when the library(libbinlogevents) is built
+    with the server.
+  */
   /**
     Returns short information about the event
   */
-  virtual void print_event_info(std::ostream& info);
+  virtual void print_event_info(std::ostream& info)= 0;
   /**
     Returns detailed information about the event
   */
-  virtual void print_long_info(std::ostream& info);
+  virtual void print_long_info(std::ostream& info)= 0;
+#endif
   virtual ~Binary_log_event() = 0;
 
   /**
@@ -1538,8 +1547,10 @@ public:
   {
   }
 
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
 };
 
 
@@ -1625,8 +1636,10 @@ public:
   Rotate_event(const char* buf, unsigned int event_len,
                const Format_description_event *description_event);
 
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
 
   ~Rotate_event()
   {
@@ -1728,9 +1741,11 @@ class Start_event_v3: public Binary_log_event
   public:
   Start_event_v3(const char* buf,
                  const Format_description_event* description_event);
+#ifndef HAVE_MYSYS
   //TODO: Add definition for them
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
+#endif
 };
 
 /**
@@ -1823,8 +1838,10 @@ public:
   unsigned long get_product_version() const;
   bool is_version_before_checksum() const;
   void calc_server_version_split();
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
   ~Format_description_event();
 };
 /**
@@ -1855,8 +1872,10 @@ public:
   {
   }
 
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info) {};
   void print_long_info(std::ostream& info);
+#endif
 };
 
 
@@ -1971,8 +1990,10 @@ public:
   unsigned int charset_number;
   bool is_null;
   unsigned char flags;
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
   std::string static get_value_type_string(enum Value_type type)
   {
     switch(type)
@@ -2025,9 +2046,11 @@ public:
   : Binary_log_event(type_arg)
   {
   };
+#ifndef HAVE_MYSYS
   //TODO: Add definitions
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
+#endif
 };
 
 /**
@@ -2179,8 +2202,10 @@ public:
     Else, they contain the value indicating whether the event was
     correctly initialized.
   */
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
 };
 
 /**
@@ -2251,9 +2276,10 @@ public:
   }
   Incident_event(const char *buf, unsigned int event_len,
                  const Format_description_event *description_event);
-
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
 protected:
   enum_incident incident;
   char *message;
@@ -2298,8 +2324,10 @@ public:
   }
   Xid_event(const char *buf, const Format_description_event *fde);
   uint64_t xid;
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
 };
 
 
@@ -2359,8 +2387,10 @@ class Rand_event: public Binary_log_event
   }
   Rand_event(const char* buf,
              const Format_description_event *description_event);
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
 };
 
 
@@ -2510,9 +2540,11 @@ public:
   : commit_flag(commit_flag_arg)
   {
   }
+#ifndef HAVE_MYSYS
   //TODO: Add definitions for these methods
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
+#endif
 protected:
   static const int ENCODED_FLAG_LENGTH= 1;
   static const int ENCODED_SID_LENGTH= 16;// Uuid::BYTE_LENGTH;
@@ -2573,9 +2605,11 @@ public:
   : Binary_log_event(PREVIOUS_GTIDS_LOG_EVENT)
   {
   }
+#ifndef HAVE_MYSYS
   //TODO: Add definitions
   void print_event_info(std::ostream& info) { }
   void print_long_info(std::ostream& info) { }
+#endif
 protected:
   int buf_size;
   const unsigned char *buf;
@@ -2656,8 +2690,10 @@ public:
   {
   }
 
+#ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
+#endif
 };
 } // end namespace binary_log
 /**
