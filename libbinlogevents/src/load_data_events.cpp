@@ -23,7 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "transitional_methods.h"
 #include <stdlib.h>
 #include <string.h>
-#include <iostream>
 
 namespace binary_log
 {

@@ -24,7 +24,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <stdint.h>
 #include <string.h>
 
@@ -774,8 +773,6 @@ Format_description_event::~Format_description_event()
   if(post_header_len)
     bapi_free((void*)post_header_len);
 }
-void Binary_log_event::print_event_info(std::ostream& info) {}
-void Binary_log_event::print_long_info(std::ostream& info) {}
 
 /********************************************************************
            Rotate_event methods
@@ -835,20 +832,6 @@ Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
   new_log_ident= bapi_strndup(buf + ident_offset, ident_len);
 }
 
-/**
-  This method is used by the binlog_browser to print short and long
-  information about the event. Since the body of Stop_event is empty
-  the relevant information contains only the timestamp.
-  Please note this is different from the print_event_info methods
-  used by mysqlbinlog.cc.
-
-  @param std output stream to which the event data is appended.
-*/
-void Stop_event::print_long_info(std::ostream& info)
-{
-  info << "Timestamp: " << header()->when.tv_sec;
-  this->print_event_info(info);
-}
 
 /******************************************************************
             Intvar_event methods
@@ -880,17 +863,6 @@ Intvar_event::Intvar_event(const char* buf,
   type= buf[I_TYPE_OFFSET];
   memcpy(&val, buf + I_VAL_OFFSET, 8);
   val= le64toh(val);
-}
-
-void Unknown_event::print_event_info(std::ostream& info)
-{
-  info << "Unhandled event";
-}
-
-void Unknown_event::print_long_info(std::ostream& info)
-{
-  info << "Timestamp: " << header()->when.tv_sec;
-  this->print_event_info(info);
 }
 
 
@@ -1673,6 +1645,51 @@ int Query_event::fill_data_buf(Log_event_header::Byte* buf, unsigned long buf_le
 }
 
 
+Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
+                                 const Format_description_event*
+                                 description_event)
+: Binary_log_event(&buf, description_event->binlog_version,
+                   description_event->server_version),
+  log_ident(buf)
+{
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  unsigned char header_size= description_event->common_header_len;
+  ident_len= event_len - header_size;
+  if (ident_len > FN_REFLEN - 1)
+    ident_len= FN_REFLEN - 1;
+}
+
+#ifndef HAVE_MYSYS
+void Binary_log_event::print_event_info(std::ostream& info) {}
+void Binary_log_event::print_long_info(std::ostream& info) {}
+/**
+  This method is used by the binlog_browser to print short and long
+  information about the event. Since the body of Stop_event is empty
+  the relevant information contains only the timestamp.
+  Please note this is different from the print_event_info methods
+  used by mysqlbinlog.cc.
+
+  @param std output stream to which the event data is appended.
+*/
+void Stop_event::print_long_info(std::ostream& info)
+{
+  info << "Timestamp: " << header()->when.tv_sec;
+  this->print_event_info(info);
+}
+
+void Unknown_event::print_event_info(std::ostream& info)
+{
+  info << "Unhandled event";
+}
+
+void Unknown_event::print_long_info(std::ostream& info)
+{
+  info << "Timestamp: " << header()->when.tv_sec;
+  this->print_event_info(info);
+}
+
+
+
 void Query_event::print_event_info(std::ostream& info)
 {
   if (memcmp(query, "BEGIN", 5) != 0 &&
@@ -1691,21 +1708,6 @@ void Query_event::print_long_info(std::ostream& info)
   info << "\nDatabase: " << db;
   info << "\tQuery: ";
   this->print_event_info(info);
-}
-
-
-Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
-                                 const Format_description_event*
-                                 description_event)
-: Binary_log_event(&buf, description_event->binlog_version,
-                   description_event->server_version),
-  log_ident(buf)
-{
-  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
-  unsigned char header_size= description_event->common_header_len;
-  ident_len= event_len - header_size;
-  if (ident_len > FN_REFLEN - 1)
-    ident_len= FN_REFLEN - 1;
 }
 
 
@@ -1805,4 +1807,5 @@ void Rand_event::print_long_info(std::ostream& info)
   info << "\t";
   this->print_event_info(info);
 }
+#endif
 } // end namespace binary_log
