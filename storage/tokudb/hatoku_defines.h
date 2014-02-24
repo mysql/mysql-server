@@ -146,12 +146,17 @@ PATENT RIGHTS GRANT:
 
 #endif
 
+#ifdef MARIADB_BASE_VERSION
 // In MariaDB 5.3, thread progress reporting was introduced.
 // Only include that functionality if we're using maria 5.3 +
-#ifdef MARIADB_BASE_VERSION
-#if MYSQL_VERSION_ID >= 50300
-#define HA_TOKUDB_HAS_THD_PROGRESS
-#endif
+#define HA_TOKUDB_HAS_THD_PROGRESS 1
+
+// MariaDB supports thdvar memalloc correctly
+#define TOKU_THDVAR_MEMALLOC_BUG 0
+#else
+// MySQL does not support thdvar memalloc correctly
+// see http://bugs.mysql.com/bug.php?id=71759
+#define TOKU_THDVAR_MEMALLOC_BUG 1
 #endif
 
 #if !defined(HA_CLUSTERING)

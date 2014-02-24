@@ -173,6 +173,29 @@ DB_ENV *db_env;
 HASH tokudb_open_tables;
 pthread_mutex_t tokudb_mutex;
 
+#if TOKU_THDVAR_MEMALLOC_BUG
+static pthread_mutex_t tokudb_map_mutex;
+static TREE tokudb_map;
+struct tokudb_map_pair {
+    THD *thd;
+    char *last_lock_timeout;
+};
+#if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
+static int tokudb_map_pair_cmp(void *custom_arg, const void *a, const void *b) {
+#else
+static int tokudb_map_pair_cmp(const void *custom_arg, const void *a, const void *b) {
+#endif
+    const struct tokudb_map_pair *a_key = (const struct tokudb_map_pair *) a;
+    const struct tokudb_map_pair *b_key = (const struct tokudb_map_pair *) b;
+    if (a_key->thd < b_key->thd)
+        return -1;
+    else if (a_key->thd > b_key->thd)
+        return +1;
+    else
+        return 0;
+};
+#endif
+
 #if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static my_bool tokudb_gdb_on_fatal;
 static char *tokudb_gdb_path;
@@ -507,6 +530,11 @@ static int tokudb_init_func(void *p) {
 
     tokudb_primary_key_bytes_inserted = create_partitioned_counter();
 
+#if TOKU_THDVAR_MEMALLOC_BUG
+    tokudb_pthread_mutex_init(&tokudb_map_mutex, MY_MUTEX_INIT_FAST);
+    init_tree(&tokudb_map, 0, 0, 0, tokudb_map_pair_cmp, true, NULL, NULL);
+#endif
+
     //3938: succeeded, set the init status flag and unlock
     tokudb_hton_initialized = 1;
     rw_unlock(&tokudb_hton_initialized_lock);
@@ -567,6 +595,11 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
         tokudb_primary_key_bytes_inserted = NULL;
     }
 
+#if TOKU_THDVAR_MEMALLOC_BUG
+    tokudb_pthread_mutex_destroy(&tokudb_map_mutex);
+    delete_tree(&tokudb_map);
+#endif
+
     // 3938: drop the initialized flag and unlock
     tokudb_hton_initialized = 0;
     rw_unlock(&tokudb_hton_initialized_lock);
@@ -585,6 +618,17 @@ static int tokudb_close_connection(handlerton * hton, THD * thd) {
         error = db_env->checkpointing_resume(db_env);
     }
     tokudb_my_free(trx);
+#if TOKU_THDVAR_MEMALLOC_BUG
+    tokudb_pthread_mutex_lock(&tokudb_map_mutex);
+    struct tokudb_map_pair key = { thd, NULL };
+    struct tokudb_map_pair *found_key = (struct tokudb_map_pair *) tree_search(&tokudb_map, &key, NULL);
+    if (found_key) {
+        if (0) TOKUDB_TRACE("thd %p %p", thd, found_key->last_lock_timeout);
+        tokudb_my_free(found_key->last_lock_timeout);
+        tree_delete(&tokudb_map, found_key, sizeof *found_key, NULL);
+    }
+    tokudb_pthread_mutex_unlock(&tokudb_map_mutex);
+#endif
     return error;
 }
 
@@ -989,10 +1033,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
         for (uint64_t row = 0; row < num_rows; row++) {
             switch (mystat[row].type) {
             case FS_STATE:
-                snprintf(buf, bufsiz, "%"PRIu64"", mystat[row].value.num);
+                snprintf(buf, bufsiz, "%" PRIu64 "", mystat[row].value.num);
                 break;
             case UINT64:
-                snprintf(buf, bufsiz, "%"PRIu64"", mystat[row].value.num);
+                snprintf(buf, bufsiz, "%" PRIu64 "", mystat[row].value.num);
                 break;
             case CHARSTR:
                 snprintf(buf, bufsiz, "%s", mystat[row].value.str);
@@ -1849,10 +1893,19 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
             char *new_lock_timeout = tokudb_my_strdup(log_str.c_ptr(), MY_FAE);
             THDVAR(thd, last_lock_timeout) = new_lock_timeout;
             tokudb_my_free(old_lock_timeout);
+#if TOKU_THDVAR_MEMALLOC_BUG
+            if (0) TOKUDB_TRACE("thd %p %p %p", thd, old_lock_timeout, new_lock_timeout);
+            tokudb_pthread_mutex_lock(&tokudb_map_mutex);
+            struct tokudb_map_pair old_key = { thd, old_lock_timeout };
+            tree_delete(&tokudb_map, &old_key, sizeof old_key, NULL);
+            struct tokudb_map_pair new_key = { thd, new_lock_timeout };
+            tree_insert(&tokudb_map, &new_key, sizeof new_key, NULL);
+            tokudb_pthread_mutex_unlock(&tokudb_map_mutex);
+#endif
         }
         // dump to stderr
         if (lock_timeout_debug & 2) {
-            fprintf(stderr, "tokudb_lock_timeout: %s", log_str.c_ptr());
+            TOKUDB_TRACE("%s", log_str.c_ptr());
         }
     }
 }
