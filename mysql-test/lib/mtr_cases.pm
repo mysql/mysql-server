@@ -336,7 +336,7 @@ sub collect_one_suite($)
   # Build a hash of disabled testcases for this suite
   # ----------------------------------------------------------------------
   my %disabled;
-  my @disabled_collection= @{$opt_skip_test_list} if @{$opt_skip_test_list};
+  my @disabled_collection= @{$opt_skip_test_list} if $opt_skip_test_list;
   unshift (@disabled_collection, "$testdir/disabled.def");
   for my $skip (@disabled_collection)
     {
