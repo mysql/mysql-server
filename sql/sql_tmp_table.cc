@@ -1030,7 +1030,7 @@ update_hidden:
       param->group_parts;
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
-    keyinfo->rec_per_key=0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "group_key";
     ORDER *cur_group= group;
@@ -1108,7 +1108,7 @@ update_hidden:
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "<auto_key>";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
-    keyinfo->rec_per_key= 0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
 
     /*
       Create an extra field to hold NULL bits so that unique indexes on
@@ -1423,7 +1423,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     keyinfo->usable_key_parts= keyinfo->user_defined_key_parts= 1;
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
-    keyinfo->rec_per_key=0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "weedout_key";
     {
