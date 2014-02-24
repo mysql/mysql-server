@@ -1,0 +1,194 @@
+install plugin server_audit soname 'server_audit';
+show variables like 'server_audit%';
+Variable_name	Value
+server_audit_events	
+server_audit_excl_users	
+server_audit_file_path	server_audit.log
+server_audit_file_rotate_now	OFF
+server_audit_file_rotate_size	1000000
+server_audit_file_rotations	9
+server_audit_incl_users	
+server_audit_logging	OFF
+server_audit_mode	0
+server_audit_output_type	file
+server_audit_syslog_facility	LOG_USER
+server_audit_syslog_ident	mysql-server_auditing
+server_audit_syslog_info	
+server_audit_syslog_priority	LOG_INFO
+set global server_audit_file_path='server_audit.log';
+set global server_audit_output_type=file;
+set global server_audit_logging=on;
+connect(localhost,no_such_user,,mysql,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'no_such_user'@'localhost' (using password: NO)
+set global server_audit_incl_users='odin, dva, tri';
+create table t1 (id int);
+set global server_audit_incl_users='odin, root, dva, tri';
+create table t2 (id int);
+set global server_audit_excl_users='odin, dva, tri';
+Warnings:
+Warning	1	User 'odin' is in the server_audit_incl_users, so wasn't added.
+Warning	1	User 'dva' is in the server_audit_incl_users, so wasn't added.
+Warning	1	User 'tri' is in the server_audit_incl_users, so wasn't added.
+insert into t1 values (1), (2);
+select * from t1;
+id
+1
+2
+set global server_audit_incl_users='odin, root, dva, tri';
+insert into t2 values (1), (2);
+select * from t2;
+id
+1
+2
+alter table t1 rename renamed_t1;
+set global server_audit_events='connect,query';
+insert into t2 values (1), (2);
+select * from t2;
+id
+1
+2
+1
+2
+select * from t_doesnt_exist;
+ERROR 42S02: Table 'test.t_doesnt_exist' doesn't exist
+syntax_error_query;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'syntax_error_query' at line 1
+drop table renamed_t1, t2;
+show variables like 'server_audit%';
+Variable_name	Value
+server_audit_events	CONNECT,QUERY
+server_audit_excl_users	
+server_audit_file_path	server_audit.log
+server_audit_file_rotate_now	OFF
+server_audit_file_rotate_size	1000000
+server_audit_file_rotations	9
+server_audit_incl_users	odin, root, dva, tri
+server_audit_logging	ON
+server_audit_mode	0
+server_audit_output_type	file
+server_audit_syslog_facility	LOG_USER
+server_audit_syslog_ident	mysql-server_auditing
+server_audit_syslog_info	
+server_audit_syslog_priority	LOG_INFO
+set global server_audit_mode=1;
+set global server_audit_events='';
+create database sa_db;
+create table t1 (id2 int);
+insert into t1 values (1), (2);
+select * from t1;
+id2
+1
+2
+drop table t1;
+use sa_db;
+create table sa_t1(id int);
+insert into sa_t1 values (1), (2);
+drop table sa_t1;
+drop database sa_db;
+set global server_audit_file_path='.';
+show status like 'server_audit_current_log';
+Variable_name	Value
+server_audit_current_log	HOME_DIR/server_audit.log
+set global server_audit_file_path='';
+show status like 'server_audit_current_log';
+Variable_name	Value
+server_audit_current_log	server_audit.log
+set global server_audit_file_path='  ';
+show status like 'server_audit_current_log';
+Variable_name	Value
+server_audit_current_log	server_audit.log
+set global server_audit_file_path='nonexisting_dir/';
+Warnings:
+Warning	1	SERVER AUDIT plugin can't create file 'nonexisting_dir/'.
+show status like 'server_audit_current_log';
+Variable_name	Value
+server_audit_current_log	server_audit.log
+show variables like 'server_audit%';
+Variable_name	Value
+server_audit_events	
+server_audit_excl_users	
+server_audit_file_path	  
+server_audit_file_rotate_now	OFF
+server_audit_file_rotate_size	1000000
+server_audit_file_rotations	9
+server_audit_incl_users	odin, root, dva, tri
+server_audit_logging	ON
+server_audit_mode	1
+server_audit_output_type	file
+server_audit_syslog_facility	LOG_USER
+server_audit_syslog_ident	mysql-server_auditing
+server_audit_syslog_info	
+server_audit_syslog_priority	LOG_INFO
+uninstall plugin server_audit;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_logging=on',0
+TIME,HOSTNAME,root,localhost,ID,0,CONNECT,mysql,,0
+TIME,HOSTNAME,root,localhost,ID,0,DISCONNECT,mysql,,0
+TIME,HOSTNAME,no_such_user,localhost,ID,0,FAILED_CONNECT,,,ID
+TIME,HOSTNAME,no_such_user,localhost,ID,0,DISCONNECT,,,0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_incl_users=\'odin, root, dva, tri\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,CREATE,test,t2,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'create table t2 (id int)',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_excl_users=\'odin, dva, tri\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'SHOW WARNINGS',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,test,t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'insert into t1 values (1), (2)',0
+TIME,HOSTNAME,root,localhost,ID,ID,READ,test,t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'select * from t1',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_incl_users=\'odin, root, dva, tri\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,test,t2,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'insert into t2 values (1), (2)',0
+TIME,HOSTNAME,root,localhost,ID,ID,READ,test,t2,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'select * from t2',0
+TIME,HOSTNAME,root,localhost,ID,ID,READ,test,t1,
+TIME,HOSTNAME,root,localhost,ID,ID,ALTER,test,t1,
+TIME,HOSTNAME,root,localhost,ID,ID,RENAME,test,t1|test.renamed_t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'alter table t1 rename renamed_t1',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_events=\'connect,query\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'insert into t2 values (1), (2)',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'select * from t2',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'select * from t_doesnt_exist',ID
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'syntax_error_query',ID
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'drop table renamed_t1, t2',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show variables like \'server_audit%\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_mode=1',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_events=\'\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'create database sa_db',0
+TIME,HOSTNAME,root,localhost,ID,0,CONNECT,test,,0
+TIME,HOSTNAME,root,localhost,ID,ID,CREATE,test,t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'create table t1 (id2 int)',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,test,t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'insert into t1 values (1), (2)',0
+TIME,HOSTNAME,root,localhost,ID,ID,READ,test,t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'select * from t1',0
+TIME,HOSTNAME,root,localhost,ID,ID,DROP,test,t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'drop table t1',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'use sa_db',0
+TIME,HOSTNAME,root,localhost,ID,ID,CREATE,sa_db,sa_t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'create table sa_t1(id int)',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,sa_db,sa_t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'insert into sa_t1 values (1), (2)',0
+TIME,HOSTNAME,root,localhost,ID,ID,DROP,sa_db,sa_t1,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'drop table sa_t1',0
+TIME,HOSTNAME,root,localhost,ID,ID,READ,mysql,proc,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,proc,
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,event,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,sa_db,'drop database sa_db',0
+TIME,HOSTNAME,root,localhost,ID,0,DISCONNECT,sa_db,,0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'.\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'.\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show status like \'server_audit_current_log\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show status like \'server_audit_current_log\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'  \'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'  \'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show status like \'server_audit_current_log\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'nonexisting_dir/\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'set global server_audit_file_path=\'nonexisting_dir/\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'SHOW WARNINGS',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show status like \'server_audit_current_log\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'show variables like \'server_audit%\'',0
+TIME,HOSTNAME,root,localhost,ID,ID,WRITE,mysql,plugin,
+TIME,HOSTNAME,root,localhost,ID,ID,QUERY,test,'uninstall plugin server_audit',0
