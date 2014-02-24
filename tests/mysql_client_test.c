@@ -19686,10 +19686,27 @@ static void test_wl5768()
 
   // Query P_S table.
   QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE;
+ 
+  // execute the prepared statement for 3 more times to check COUNT_EXECUTE 
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  int_data= 74;
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  int_data= 123;
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  // Query P_S table.
+  QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE;
 
   // Deallocate/Close the prepared statement.
   mysql_stmt_close(stmt);
-
+ 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS ps_t1");
   myquery(rc);
 }
