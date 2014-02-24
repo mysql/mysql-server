@@ -1167,13 +1167,14 @@ void
 Ndb::check_send_timeout()
 {
   const Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
-  const NDB_TICKS now = NdbTick_getCurrentTicks();
-  if (NdbTick_Elapsed(the_last_check_ticks, now).milliSec() > 1000) {
-    the_last_check_ticks = now;
+  const Uint64 current_time = NdbTick_CurrentMillisecond();
+  assert(current_time >= the_last_check_time);
+  if (current_time - the_last_check_time > 1000) {
+    the_last_check_time = current_time;
     Uint32 no_of_sent = theNoOfSentTransactions;
     for (Uint32 i = 0; i < no_of_sent; i++) {
       NdbTransaction* a_con = theSentTransactionsArray[i];
-      if (NdbTick_Elapsed(a_con->theStartTransTime, now).milliSec() > timeout)
+      if ((current_time - a_con->theStartTransTime) > timeout)
       {
 #ifdef VM_TRACE
         a_con->printState();
@@ -1274,8 +1275,8 @@ Ndb::sendPrepTrans(int forceSend)
       */
       if (theImpl->check_send_size(node_id, a_con->get_send_size())) {
         if (a_con->doSend() == 0) {
-          const NDB_TICKS current_ticks = NdbTick_getCurrentTicks();
-          a_con->theStartTransTime = current_ticks;
+          const Uint64 current_time = NdbTick_CurrentMillisecond();
+          a_con->theStartTransTime = current_time;
           continue;
         } else {
           /*
