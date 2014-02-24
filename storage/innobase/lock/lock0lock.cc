@@ -1705,8 +1705,11 @@ lock_rec_other_trx_holds_expl(
 	trx_t* holds = NULL;
 
 	lock_mutex_enter();
+
 	if (trx_t *impl_trx = trx_rw_is_active(trx_id, NULL)) {
 		ulint heap_no = page_rec_get_heap_no(rec);
+		mutex_enter(&trx_sys->mutex);
+
 		for (trx_t* t = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 		     t != NULL;
 		     t = UT_LIST_GET_NEXT(trx_list, t)) {
@@ -1721,7 +1724,10 @@ lock_rec_other_trx_holds_expl(
 				break;
 			}
 		}
+
+		mutex_exit(&trx_sys->mutex);
         }
+
 	lock_mutex_exit();
 
 	return(holds);
