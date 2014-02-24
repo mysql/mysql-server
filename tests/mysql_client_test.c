@@ -19635,6 +19635,64 @@ static void test_wl6791()
   mysql_close(l_mysql);
 }
 
+#define QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE \
+  rc= mysql_query(mysql, "SELECT STATEMENT_NAME, SQL_TEXT, COUNT_REPREPARE," \
+  " COUNT_EXECUTE from performance_schema.prepared_statements_instances where" \
+  " sql_text like \"%ps_t1%\""); \
+  myquery(rc); \
+  result= mysql_store_result(mysql); \
+  mytest(result); \
+  (void) my_process_result_set(result); \
+  mysql_free_result(result); 
+
+static void test_wl5768()
+{
+  MYSQL_RES  *result;
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind[1];
+  long       int_data;
+  int        rc;
+
+  myheader("test_wl5768");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS ps_t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE ps_t1(Id INT)");
+  myquery(rc);
+
+  // Prepare an insert statement.
+  stmt= mysql_simple_prepare(mysql, "INSERT INTO ps_t1 VALUES(?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  // Query P_S table.
+  QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE;
+
+  memset(bind, 0, sizeof (bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (long *) &int_data;
+  bind[0].length= 0;
+  bind[0].is_null= 0;
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+  
+  // Set the data to be inserted.
+  int_data= 25;
+  
+  // Execute the prepared statement.
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  // Query P_S table.
+  QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE;
+
+  // Deallocate/Close the prepared statement.
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS ps_t1");
+  myquery(rc);
+}
 
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
@@ -19908,6 +19966,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl5928", test_wl5928 },
   { "test_wl6797", test_wl6797 },
   { "test_wl6791", test_wl6791 },
+  { "test_wl5768", test_wl5768 },
   { 0, 0 }
 };
 
