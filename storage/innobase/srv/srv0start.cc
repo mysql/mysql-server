@@ -409,8 +409,7 @@ create_log_files(
 	fil_space_t*	log_space = fil_space_create(
 		logfilename, SRV_LOG_SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-		FIL_LOG);
-
+		FIL_TYPE_LOG);
 	ut_a(fil_validate());
 	ut_a(log_space != NULL);
 
@@ -646,8 +645,8 @@ srv_undo_tablespace_open(
 
 		/* Set the compressed page size to 0 (non-compressed) */
 		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
-
-		space = fil_space_create(name, space_id, flags, FIL_TABLESPACE);
+		space = fil_space_create(
+			name, space_id, flags, FIL_TYPE_TABLESPACE);
 
 		ut_a(fil_validate());
 		ut_a(space);
@@ -1009,7 +1008,8 @@ srv_open_tmp_tablespace(
 			"Could not create the shared %s.", tmp_space->name());
 
 	} else if ((err = tmp_space->open_or_create(
-			&sum_of_new_sizes, NULL, NULL)) != DB_SUCCESS) {
+			    true, &sum_of_new_sizes, NULL, NULL))
+		   != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to create the shared %s", tmp_space->name());
@@ -1662,9 +1662,8 @@ innobase_start_or_create_for_mysql(void)
 	/* Open or create the data files. */
 	ulint	sum_of_new_sizes;
 
-	err = srv_sys_space.open_or_create(&sum_of_new_sizes,
-					   &min_flushed_lsn,
-					   &max_flushed_lsn);
+	err = srv_sys_space.open_or_create(
+		false, &sum_of_new_sizes, &min_flushed_lsn, &max_flushed_lsn);
 
 	switch (err) {
 	case DB_SUCCESS:
@@ -1827,7 +1826,7 @@ innobase_start_or_create_for_mysql(void)
 			logfilename,
 			SRV_LOG_SPACE_FIRST_ID,
 			fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-			FIL_LOG);
+			FIL_TYPE_LOG);
 
 		ut_a(fil_validate());
 		ut_a(log_space);
@@ -1923,7 +1922,7 @@ files_checked:
 		/* Stamp the LSN to the data files. */
 		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
-		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
 		create_log_files_rename(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
@@ -2092,7 +2091,7 @@ files_checked:
 			/* Stamp the LSN to the data files. */
 			fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
-			fil_flush_file_spaces(FIL_TABLESPACE);
+			fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
 			RECOVERY_CRASH(4);
 

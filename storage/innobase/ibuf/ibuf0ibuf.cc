@@ -1141,7 +1141,7 @@ ibuf_page_low(
 		return(FALSE);
 	}
 
-	ut_ad(fil_space_get_type(IBUF_SPACE_ID) == FIL_TABLESPACE);
+	ut_ad(fil_space_get_type(IBUF_SPACE_ID) == FIL_TYPE_TABLESPACE);
 
 #ifdef UNIV_DEBUG
 	if (!x_latch) {

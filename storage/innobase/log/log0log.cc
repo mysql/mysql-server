@@ -1748,7 +1748,7 @@ log_checkpoint(
 	}
 
 	if (srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
-		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 	}
 
 	log_mutex_enter();
@@ -2251,8 +2251,8 @@ loop:
 	}
 
 	if (!srv_read_only_mode) {
-		fil_flush_file_spaces(FIL_TABLESPACE);
-		fil_flush_file_spaces(FIL_LOG);
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+		fil_flush_file_spaces(FIL_TYPE_LOG);
 	}
 
 	/* The call fil_write_flushed_lsn_to_data_files() will pass the buffer
@@ -2294,7 +2294,7 @@ loop:
 	if (!srv_read_only_mode) {
 		fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);
 
-		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 	}
 
 	fil_close_all_files();

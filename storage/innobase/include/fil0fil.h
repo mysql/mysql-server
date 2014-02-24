@@ -72,6 +72,16 @@ extern const char* dot_ext[];
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
 
+/** File types */
+enum fil_type_t {
+	/** temporary tablespace (temporary undo log or tables) */
+	FIL_TYPE_TEMPORARY,
+	/** persistent tablespace (for system, undo log or tables) */
+	FIL_TYPE_TABLESPACE,
+	/** redo log covering changes to files of FIL_TYPE_TABLESPACE */
+	FIL_TYPE_LOG
+};
+
 /** 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED
 
@@ -179,11 +189,6 @@ extern fil_addr_t	fil_addr_null;
 
 #ifndef UNIV_INNOCHECKSUM
 
-/** Space types @{ */
-#define FIL_TABLESPACE		501	/*!< tablespace */
-#define FIL_LOG			502	/*!< redo log */
-/* @} */
-
 /** The number of fsyncs done to the log */
 extern ulint	fil_n_log_flushes;
 
@@ -215,14 +220,34 @@ fil_space_get_latch(
 	ulint	id,
 	ulint*	flags);
 
-/*******************************************************************//**
-Returns the type of a file space.
-@return FIL_TABLESPACE or FIL_LOG */
+/** Gets the type of a file space.
+@param[in]	id	tablespace identifier
+@return file type */
 
-ulint
+fil_type_t
 fil_space_get_type(
-/*===============*/
-	ulint	id);	/*!< in: space id */
+	ulint	id);
+
+/** @brief Note that a tablespace has been imported.
+It is initially marked as FIL_TYPE_TEMPORARY so that no logging is
+done during the import process when the space ID is stamped to each page.
+Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
+NOTE: temporary tablespaces are never imported.
+@param[in] id tablespace identifier */
+
+void
+fil_space_set_imported(
+	ulint		id);
+
+# ifdef UNIV_DEBUG
+/** Determine if a tablespace is temporary.
+@param[in]	id	tablespace identifier
+@return whether it is a temporary tablespace */
+
+bool
+fsp_is_temporary(ulint id)
+__attribute__((warn_unused_result, pure));
+# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Appends a new file to the chain of files of a space. File must be closed.
@@ -244,15 +269,16 @@ If there is an error, prints an error message to the .err log.
 @param[in]	space	name
 @param[in]	id	space id
 @param[in]	flags	space flags
-@param[in]	purpose	FIL_TABLESPACE, or FIL_LOG if log
+@param[in]	purpose	space type
 @retval pointer to the tablespace
 @retval NULL on failure */
+
 fil_space_t*
 fil_space_create(
 	const char*	name,
 	ulint		id,
 	ulint		flags,
-	ulint		purpose);
+	fil_type_t	purpose);
 
 /*******************************************************************//**
 Assigns a new space id for a new single-table tablespace. This works simply by
@@ -614,6 +640,7 @@ statement to update the dictionary tables if they are incorrect.
 
 @param[in] validate True if we should validate the tablespace.
 @param[in] fix_dict True if the dictionary is available to be fixed.
+@param[in] purpose FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
 @param[in] id Tablespace ID
 @param[in] flags Tablespace flags
 @param[in] tablename Table name in the databasename/tablename format.
@@ -624,6 +651,7 @@ dberr_t
 fil_open_single_table_tablespace(
 	bool		validate,
 	bool		fix_dict,
+	fil_type_t	purpose,
 	ulint		id,
 	ulint		flags,
 	const char*	tablename,
@@ -805,14 +833,13 @@ fil_flush(
 /*======*/
 	ulint	space_id);	/*!< in: file space id (this can be a group of
 				log files or a tablespace of the database) */
-/**********************************************************************//**
-Flushes to disk writes in file spaces of the given type possibly cached by
-the OS. */
+/** Flush to disk the writes in file spaces of the given type
+possibly cached by the OS.
+@param[in]	purpose	FIL_TYPE_TABLESPACE or FIL_TYPE_LOG */
 
 void
 fil_flush_file_spaces(
-/*==================*/
-	ulint	purpose);	/*!< in: FIL_TABLESPACE, FIL_LOG */
+	fil_type_t	purpose);
 /******************************************************************//**
 Checks the consistency of the tablespace cache.
 @return true if ok */

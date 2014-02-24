@@ -115,9 +115,11 @@ Tablespace::file_found(Datafile& file)
 }
 
 /** Open or Create the data files if they do not exist.
+@param[in]	is_temp	whether this is a temporary tablespace
 @return DB_SUCCESS or error code */
+
 dberr_t
-Tablespace::open_or_create()
+Tablespace::open_or_create(bool is_temp)
 {
 	fil_space_t*		space = NULL;
 	dberr_t			err = DB_SUCCESS;
@@ -171,8 +173,8 @@ Tablespace::open_or_create()
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
 			space = fil_space_create(
-				it->m_filepath, m_space_id, flags,
-				FIL_TABLESPACE);
+				it->m_filepath, m_space_id, flags, is_temp
+				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 
 		ut_a(fil_validate());
