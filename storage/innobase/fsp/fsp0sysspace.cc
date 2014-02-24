@@ -813,12 +813,15 @@ SysTablespace::check_file_spec(
 }
 
 /** Opens or Creates the data files if they do not exist.
+@param[in]  is_temp		Whether this is a temporary tablespace
 @param[out] sum_new_sizes	Sum of sizes of the new files added.
 @param[out] min_lsn		Minimum flushed LSN among all datafiles.
 @param[out] max_lsn		Maximum flushed LSN among all datafiles.
 @return DB_SUCCESS or error code */
+
 dberr_t
 SysTablespace::open_or_create(
+	bool	is_temp,
 	ulint*	sum_new_sizes,
 	lsn_t*	min_lsn,
 	lsn_t*	max_lsn)
@@ -906,8 +909,8 @@ SysTablespace::open_or_create(
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
 			space = fil_space_create(
-				it->m_filepath, space_id(), flags,
-				FIL_TABLESPACE);
+				it->m_filepath, space_id(), flags, is_temp
+				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 
 		ut_a(fil_validate());

@@ -15117,10 +15117,10 @@ checkpoint_now_set(
 	if (*(my_bool*) save) {
 		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
-			fil_flush_file_spaces(FIL_LOG);
+			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
 		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
-		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 	}
 }
 
