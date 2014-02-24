@@ -1872,7 +1872,6 @@ lock_rec_other_trx_holds_expl(
 	trx_t* holds = NULL;
 
 	lock_mutex_enter();
-	mutex_enter(&trx_sys->mutex);
 
 	if (trx_t* impl_trx = trx_rw_is_active(trx->id, NULL, false)) {
 		ulint heap_no = page_rec_get_heap_no(rec);
@@ -1892,7 +1891,6 @@ lock_rec_other_trx_holds_expl(
 		}
         }
 
-	mutex_exit(&trx_sys->mutex);
 	lock_mutex_exit();
 
 	return(holds);
