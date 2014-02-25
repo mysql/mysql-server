@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ void set_max_time(MYSQL_TIME *tm, my_bool neg)
 */
 
 my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                   ulonglong flags, int *was_cut)
+                   my_time_flags_t flags, int *was_cut)
 {
   if (not_zero_date)
   {
@@ -267,7 +267,7 @@ my_bool check_datetime_range(const MYSQL_TIME *ltime)
 
 my_bool
 str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
-                ulonglong flags, MYSQL_TIME_STATUS *status)
+                my_time_flags_t flags, MYSQL_TIME_STATUS *status)
 {
   uint field_length, UNINIT_VAR(year_length), digits, i, number_of_fields;
   uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
@@ -425,6 +425,16 @@ str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
         */
         last_field_pos= str;
         field_length= 6;                        /* 6 digits */
+      }
+      else if (my_isdigit(&my_charset_latin1,str[0]))
+      {
+        /*
+          We do not see a decimal point which would have indicated a
+          fractional second part in further read. So we skip the further
+          processing of digits.
+        */
+        i++;
+        break;
       }
       continue;
     }
@@ -1368,7 +1378,7 @@ int my_timeval_to_str(const struct timeval *tm, char *to, uint dec)
 */
 
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
-                            ulonglong flags, int *was_cut)
+                            my_time_flags_t flags, int *was_cut)
 {
   long part1,part2;
 
@@ -1441,7 +1451,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
       !check_date(time_res, (nr != 0), flags, was_cut))
     return nr;
 
-  /* Don't want to have was_cut get set if NO_ZERO_DATE was violated. */
+  /* Don't want to have was_cut get set if TIME_NO_ZERO_DATE was violated. */
   if (!nr && (flags & TIME_NO_ZERO_DATE))
     return LL(-1);
 
