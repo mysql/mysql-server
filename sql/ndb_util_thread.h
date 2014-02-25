@@ -26,10 +26,11 @@ public:
   Ndb_util_thread();
   virtual ~Ndb_util_thread();
 
-  int running;
   pthread_mutex_t LOCK;
   pthread_cond_t COND;
-  pthread_cond_t COND_ready;
+
+  // Stop thread
+  virtual int stop();
 
 private:
   virtual int do_init() { return 0;}
