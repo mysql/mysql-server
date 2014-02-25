@@ -6868,7 +6868,14 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   /*
     Stage #2: Syncing binary log file to disk
   */
-  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log, &LOCK_sync))
+  bool need_LOCK_log= (get_sync_period() == 1);
+
+  /*
+    LOCK_log is not released when sync_binlog is 1. It guarantees that the
+    events are not be replicated by dump threads before they are synced to disk.
+  */
+  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue,
+                   need_LOCK_log ? NULL : &LOCK_log, &LOCK_sync))
   {
     DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
                           thd->thread_id, thd->commit_error));
@@ -6877,9 +6884,13 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   THD *final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
   if (flush_error == 0 && total_bytes > 0)
   {
+    DEBUG_SYNC(thd, "before_sync_binlog_file");
     std::pair<bool, bool> result= sync_binlog_file(false);
     flush_error= result.first;
   }
+
+  if (need_LOCK_log)
+    mysql_mutex_unlock(&LOCK_log);
 
   /*
     Stage #3: Commit all transactions in order.
