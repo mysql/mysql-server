@@ -3279,9 +3279,9 @@ innobase_change_buffering_inited_ok:
 	/* Unit Tests */
 	test_make_filepath();
 //	test_dict_stats_all();
-#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H)
+#ifdef HAVE_UT_CHRONO_T
 	test_row_raw_format_int();
-#endif
+#endif /* HAVE_UT_CHRONO_T */
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 
 	DBUG_RETURN(0);
@@ -15117,10 +15117,10 @@ checkpoint_now_set(
 	if (*(my_bool*) save) {
 		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
-			fil_flush_file_spaces(FIL_LOG);
+			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
 		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
-		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 	}
 }
 

@@ -32,5 +32,12 @@ DELETE FROM mysql.user WHERE User='';
 # 3) Force the root user to change the password on first connect.
 UPDATE mysql.user SET Password_expired='Y' WHERE User='root'; 
 
+# 4) remove remote accounts
+DELETE FROM mysql.user WHERE Host <> 'localhost';
+
+# 5) Drop the test database
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+
 # In case this file is sent to a running server.
 FLUSH PRIVILEGES;

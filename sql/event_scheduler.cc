@@ -29,18 +29,10 @@
   @{
 */
 
-#ifdef __GNUC__
-#if __GNUC__ >= 2
-#define SCHED_FUNC __FUNCTION__
-#endif
-#else
-#define SCHED_FUNC "<unknown>"
-#endif
-
-#define LOCK_DATA()       lock_data(SCHED_FUNC, __LINE__)
-#define UNLOCK_DATA()     unlock_data(SCHED_FUNC, __LINE__)
+#define LOCK_DATA()       lock_data(__func__, __LINE__)
+#define UNLOCK_DATA()     unlock_data(__func__, __LINE__)
 #define COND_STATE_WAIT(mythd, abstime, stage) \
-        cond_wait(mythd, abstime, stage, SCHED_FUNC, __FILE__, __LINE__)
+        cond_wait(mythd, abstime, stage, __func__, __FILE__, __LINE__)
 
 extern pthread_attr_t connection_attrib;
 

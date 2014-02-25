@@ -91,6 +91,7 @@ ins_node_create(
 	node->select = NULL;
 
 	node->trx_id = 0;
+	node->duplicate = NULL;
 
 	node->entry_sys_heap = mem_heap_create(128);
 
@@ -198,6 +199,7 @@ ins_node_set_new_row(
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->index = NULL;
 	node->entry = NULL;
+	node->duplicate = NULL;
 
 	node->row = row;
 
@@ -2985,6 +2987,10 @@ row_ins_sec_index_entry(
 	mem_heap_t*	offsets_heap;
 	mem_heap_t*	heap;
 
+	DBUG_EXECUTE_IF("row_ins_sec_index_entry_timeout", {
+			DBUG_SET("-d,row_ins_sec_index_entry_timeout");
+			return(DB_LOCK_WAIT);});
+
 	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
 		err = row_ins_check_foreign_constraints(index->table, index,
 							entry, thr);
@@ -3232,11 +3238,14 @@ row_ins(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t	err;
-	dict_index_t *index_dup = 0;
 
 	DBUG_ENTER("row_ins");
 
 	DBUG_PRINT("row_ins", ("table: %s", node->table->name));
+
+	if (node->duplicate) {
+		thr_get_trx(thr)->error_state = DB_DUPLICATE_KEY;
+	}
 
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
@@ -3282,10 +3291,10 @@ row_ins(
 					secondary indexes to block concurrent
 					transactions from inserting the
 					searched records. */
-					if (!index_dup) {
+					if (!node->duplicate) {
 						/* Save 1st dup error. Ignore
 						subsequent dup errors. */
-						index_dup = node->index;
+						node->duplicate = node->index;
 						thr_get_trx(thr)->error_state
 							= DB_DUPLICATE_KEY;
 					}
@@ -3315,7 +3324,7 @@ row_ins(
 		remaining indexes just to place gap locks and no actual
 		insertion will take place.  These gap locks are needed
 		only for unique indexes.  So skipping non-unique indexes. */
-		if (index_dup) {
+		if (node->duplicate) {
 			while (node->index
 			       && !dict_index_is_unique(node->index)) {
 
@@ -3329,10 +3338,10 @@ row_ins(
 
 	ut_ad(node->entry == NULL);
 
-	thr_get_trx(thr)->error_info = index_dup;
+	thr_get_trx(thr)->error_info = node->duplicate;
 	node->state = INS_NODE_ALLOC_ROW_ID;
 
-	DBUG_RETURN(index_dup ? DB_DUPLICATE_KEY : DB_SUCCESS);
+	DBUG_RETURN(node->duplicate ? DB_DUPLICATE_KEY : DB_SUCCESS);
 }
 
 /***********************************************************//**

@@ -602,13 +602,17 @@ fsp_space_modify_check(
 		when there is a higher-level redo log record written. */
 		break;
 	case MTR_LOG_NO_REDO:
+		ut_ad(id == srv_tmp_space.space_id()
+		      || srv_is_tablespace_truncated(id)
+		      || fil_space_get_flags(id) == ULINT_UNDEFINED
+		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY);
 		return;
 	case MTR_LOG_ALL:
 		/* We must not write redo log for the shared temporary
 		tablespace. */
 		ut_ad(id != srv_tmp_space.space_id());
 		/* If we write redo log, the tablespace must exist. */
-		ut_ad(fil_space_get_flags(id) != ULINT_UNDEFINED);
+		ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
 		return;
 	}
 
@@ -1158,7 +1162,9 @@ fsp_fill_free_list(
 
 				/* Avoid logging while truncate table
 				fix-up is active. */
-				if (srv_is_tablespace_truncated(space)) {
+				if (srv_is_tablespace_truncated(space)
+				    || fil_space_get_type(space)
+				    == FIL_TYPE_TEMPORARY) {
 					mtr_set_log_mode(
 						&ibuf_mtr, MTR_LOG_NO_REDO);
 				}

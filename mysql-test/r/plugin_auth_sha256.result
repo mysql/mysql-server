@@ -47,7 +47,7 @@ USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
 DROP USER 'kristofer'@'localhost';
 GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password';
 SET PASSWORD FOR 'kristofer'@'33.33.33.33'=PASSWORD('');

@@ -2017,7 +2017,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
 }
 
 
-bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   if (null_value)

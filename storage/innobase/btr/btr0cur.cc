@@ -6034,7 +6034,7 @@ btr_free_externally_stored_field(
 	ulint		i,		/*!< in: field number of field_ref;
 					ignored if rec == NULL */
 	bool		rollback,	/*!< in: performing rollback? */
-	mtr_t*		local_mtr __attribute__((unused))) /*!< in: mtr
+	mtr_t*		local_mtr)	/*!< in: mtr
 					containing the latch to data an an
 					X-latch to the index tree */
 {
@@ -6083,7 +6083,9 @@ btr_free_externally_stored_field(
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
-		dict_disable_redo_if_temporary(index->table, &mtr);
+		ut_ad(!dict_table_is_temporary(index->table)
+		      || local_mtr->get_log_mode() == MTR_LOG_NO_REDO);
+		mtr.set_log_mode(local_mtr->get_log_mode());
 
 		const page_t*	p = page_align(field_ref);
 
