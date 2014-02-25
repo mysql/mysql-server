@@ -877,6 +877,8 @@ ut_strerr(
 		return ("Cannot open a file");
 	case DB_TABLE_CORRUPT:
 		return("Table is corrupted");
+	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
+		return("Too many words in a FTS phrase or proximity search");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
