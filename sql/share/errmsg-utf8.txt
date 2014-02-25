@@ -7108,6 +7108,10 @@ ER_NO_FT_MATERIALIZED_SUBQUERY
 ER_INNODB_UNDO_LOG_FULL
   eng "Undo Log error: %s"
 
+ER_AES_INVALID_IV
+  eng "The initialization vector supplied to %s is too short. Must be at least %d bytes long"
+  bg "Инициализационния вектор подаден на %s е прекалено къс. Трябва да е поне %d байта"
+
 ER_SLAVE_IO_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first."
 

@@ -1146,7 +1146,8 @@ loop:
 			If the filepath is not known, it will need to
 			be discovered. */
 			dberr_t	err = fil_open_single_table_tablespace(
-				false, srv_read_only_mode ? false : true,
+				false, !srv_read_only_mode,
+				FIL_TYPE_TABLESPACE,
 				space_id, dict_tf_to_fsp_flags(flags),
 				name, filepath);
 
@@ -2445,7 +2446,8 @@ err_exit:
 			2nd param (fix_dict = false) here because we
 			do not have an x-lock on dict_operation_lock */
 			err = fil_open_single_table_tablespace(
-				true, false, table->space,
+				true, false, FIL_TYPE_TABLESPACE,
+				table->space,
 				dict_tf_to_fsp_flags(table->flags),
 				name, filepath);
 

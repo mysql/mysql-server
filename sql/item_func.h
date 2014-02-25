@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -157,7 +157,7 @@ public:
   void count_datetime_length(Item **item, uint nitems);
   bool count_string_result_length(enum_field_types field_type,
                                   Item **item, uint nitems);
-  inline bool get_arg0_date(MYSQL_TIME *ltime, uint fuzzy_date)
+  bool get_arg0_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }
@@ -367,7 +367,7 @@ public:
   my_decimal *val_decimal(my_decimal *decimal_value);
   longlong val_int()
     { DBUG_ASSERT(fixed == 1); return (longlong) rint(val_real()); }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_real(ltime, fuzzydate);
   }
@@ -404,7 +404,7 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   /**
      @brief Performs the operation that this functions implements when the
@@ -447,7 +447,7 @@ public:
 
      @return The result of the operation.
   */
-  virtual bool date_op(MYSQL_TIME *ltime, uint fuzzydate)= 0;
+  virtual bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
   virtual bool time_op(MYSQL_TIME *ltime)= 0;
   bool is_null() { update_null_value(); return null_value; }
 };
@@ -462,7 +462,7 @@ public:
   void fix_num_length_and_dec();
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool date_op(MYSQL_TIME *ltime, uint fuzzydate)
+  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   { DBUG_ASSERT(0); return 0; }
   bool time_op(MYSQL_TIME *ltime)
   { DBUG_ASSERT(0); return 0; }
@@ -483,7 +483,7 @@ class Item_num_op :public Item_func_numhybrid
 
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool date_op(MYSQL_TIME *ltime, uint fuzzydate)
+  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   { DBUG_ASSERT(0); return 0; }
   bool time_op(MYSQL_TIME *ltime)
   { DBUG_ASSERT(0); return 0; }
@@ -507,7 +507,7 @@ public:
   { collation.set_numeric(); }
   double val_real();
   String *val_str(String*str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -580,7 +580,7 @@ public:
   String *val_str(String *str);
   double val_real();
   longlong val_int();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
@@ -975,7 +975,7 @@ public:
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);  
   void fix_length_and_dec();
   enum Item_result result_type () const
@@ -1032,7 +1032,7 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *dec);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return (null_value= args[0]->get_date(ltime, fuzzydate));
   }
@@ -1387,7 +1387,7 @@ class Item_func_udf_float :public Item_udf_func
   }
   double val_real();
   String *val_str(String *str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_real(ltime, fuzzydate);
   }
@@ -1410,7 +1410,7 @@ public:
   longlong val_int();
   double val_real() { return (double) Item_func_udf_int::val_int(); }
   String *val_str(String *str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -1434,7 +1434,7 @@ public:
   double val_real();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String *str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
@@ -1479,7 +1479,7 @@ public:
     string2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf);
     return dec_buf;
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -1621,7 +1621,7 @@ public:
   Item_var_func() :Item_func() { }
   Item_var_func(THD *thd, Item_var_func *item) :Item_func(thd, item) { }
   Item_var_func(Item *a) :Item_func(a) { }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_non_temporal(ltime, fuzzydate);
   }
@@ -1790,7 +1790,7 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *decimal_buffer);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     DBUG_ASSERT(0);
     return true;
@@ -2146,7 +2146,7 @@ public:
     return sp_result_field->val_real();
   }
 
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     if (execute())
       return true;

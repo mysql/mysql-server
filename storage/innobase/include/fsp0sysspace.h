@@ -147,20 +147,14 @@ public:
 	@return next increment size */
 	ulint get_increment() const;
 
-	/** Open or Create the data files if they do not exist.
-	@return DB_SUCCESS or error code */
-	dberr_t open_or_create()
-		__attribute__((warn_unused_result))
-	{
-		return(Tablespace::open_or_create());
-	}
-
 	/** Opens or Creates the data files if they do not exist.
+	@param[in]	is_temp		Whether this is a temporary tablespace
 	@param[out]	sum_new_sizes	Sum of sizes of the new files added
 	@param[out]	min_lsn		Minimum flushed LSN among all datafiles
 	@param[out]	max_lsn		Maximum flushed LSN among all datafiles
 	@return DB_SUCCESS or error code */
 	dberr_t open_or_create(
+		bool	is_temp,
 		ulint*	sum_new_sizes,
 		lsn_t*	min_lsn,
 		lsn_t*	max_lsn)

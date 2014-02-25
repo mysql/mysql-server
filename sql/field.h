@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1264,7 +1264,7 @@ public:
   void copy_data(my_ptrdiff_t src_record_offset);
 
   uint fill_cache_field(struct st_cache_field *copy);
-  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   virtual bool get_time(MYSQL_TIME *ltime);
   virtual const CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual const CHARSET_INFO *charset_for_protocol(void) const
@@ -1622,7 +1622,7 @@ public:
   type_conversion_status store_decimal(const my_decimal *);
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   uint is_equal(Create_field *new_field);
   uint row_pack_length() const { return pack_length(); }
@@ -1724,7 +1724,7 @@ public:
   type_conversion_status store_decimal(const my_decimal *);
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool truncate(double *nr, double max_length);
   uint32 max_display_length() { return field_length; }
@@ -1819,7 +1819,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   String *val_str(String*, String *);
   int cmp(const uchar *, const uchar *);
@@ -2443,7 +2443,7 @@ protected:
     check_date(), number_to_datetime(), str_to_datetime().
 
     Flags depend on the session sql_mode settings, such as
-    MODE_NO_ZERO_DATE, MODE_NO_ZERO_IN_DATE.
+    MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES.
     Also, Field_newdate, Field_datetime, Field_datetimef add TIME_FUZZY_DATE
     to the session sql_mode settings, to allow relaxed date format,
     while Field_timestamp, Field_timestampf do not.
@@ -2451,7 +2451,7 @@ protected:
     @param  thd  THD
     @retval      sql_mode flags mixed with the field type flags.
   */
-  virtual ulonglong date_flags(const THD *thd)
+  virtual my_time_flags_t date_flags(const THD *thd)
   {
     return 0;
   }
@@ -2460,7 +2460,7 @@ protected:
     check_date(), number_to_datetime(), str_to_datetime().
     Similar to the above when we don't have a THD value.
   */
-  inline ulonglong date_flags()
+  my_time_flags_t date_flags()
   {
     return date_flags(table ? table->in_use : current_thd);
   }
@@ -2556,7 +2556,7 @@ protected:
     @retval   True on error: we get a zero value but flags disallow zero dates.
     @retval   False on success.
   */
-  bool get_internal_check_zero(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_internal_check_zero(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   
   type_conversion_status convert_number_to_TIME(longlong nr, bool unsigned_val,
                                                 int nanoseconds,
@@ -2733,7 +2733,7 @@ public:
 */
 class Field_timestamp :public Field_temporal_with_date_and_time {
 protected:
-  ulonglong date_flags(const THD *thd);
+  my_time_flags_t date_flags(const THD *thd);
   type_conversion_status store_internal(const MYSQL_TIME *ltime, int *error);
   bool get_date_internal(MYSQL_TIME *ltime);
   void store_timestamp_internal(const struct timeval *tm);
@@ -2759,7 +2759,7 @@ public:
   bool zero_pack() const { return 0; }
   /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
   bool get_timestamp(struct timeval *tm, int *warnings);
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   Field_timestamp *clone(MEM_ROOT *mem_root) const {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     return new (mem_root) Field_timestamp(*this);
@@ -2792,7 +2792,7 @@ class Field_timestampf :public Field_temporal_with_date_and_timef {
 protected:
   bool get_date_internal(MYSQL_TIME *ltime);
   type_conversion_status store_internal(const MYSQL_TIME *ltime, int *error);
-  ulonglong date_flags(const THD *thd);
+  my_time_flags_t date_flags(const THD *thd);
   void store_timestamp_internal(const struct timeval *tm);
 public:
   static const int PACK_LENGTH= 8;
@@ -2846,7 +2846,7 @@ public:
 
   type_conversion_status reset();
   type_conversion_status store_packed(longlong nr);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   void sql_type(String &str) const;
 
   bool get_timestamp(struct timeval *tm, int *warnings);
@@ -2889,7 +2889,7 @@ public:
 class Field_newdate :public Field_temporal_with_date {
 protected:
   static const int PACK_LENGTH= 3;
-  ulonglong date_flags(const THD *thd);
+  my_time_flags_t date_flags(const THD *thd);
   bool get_date_internal(MYSQL_TIME *ltime);
   type_conversion_status store_internal(const MYSQL_TIME *ltime, int *error);
 
@@ -2923,7 +2923,7 @@ public:
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   Field_newdate *clone(MEM_ROOT *mem_root) const
   {
     DBUG_ASSERT(type() == MYSQL_TYPE_DATE);
@@ -2997,7 +2997,7 @@ public:
     { }
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec);
   String *val_str(String*, String *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   longlong val_date_temporal();
   bool send_binary(Protocol *protocol);
 };
@@ -3136,7 +3136,7 @@ class Field_datetime :public Field_temporal_with_date_and_time {
 protected:
   type_conversion_status store_internal(const MYSQL_TIME *ltime, int *error);
   bool get_date_internal(MYSQL_TIME *ltime);
-  ulonglong date_flags(const THD *thd);
+  my_time_flags_t date_flags(const THD *thd);
   void store_timestamp_internal(const struct timeval *tm);
 
 public:
@@ -3196,7 +3196,7 @@ public:
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   Field_datetime *clone(MEM_ROOT *mem_root) const
   {
     DBUG_ASSERT(type() == MYSQL_TYPE_DATETIME);
@@ -3228,7 +3228,7 @@ class Field_datetimef :public Field_temporal_with_date_and_timef {
 protected:
   bool get_date_internal(MYSQL_TIME *ltime);
   type_conversion_status store_internal(const MYSQL_TIME *ltime, int *error);
-  ulonglong date_flags(const THD *thd);
+  my_time_flags_t date_flags(const THD *thd);
   void store_timestamp_internal(const struct timeval *tm);
 
 public:
@@ -3290,7 +3290,7 @@ public:
   type_conversion_status store_packed(longlong nr);
   type_conversion_status reset();
   longlong val_date_temporal();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   void sql_type(String &str) const;
 };
 
