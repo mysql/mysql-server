@@ -19637,7 +19637,8 @@ static void test_wl6791()
 
 #define QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE \
   rc= mysql_query(mysql, "SELECT STATEMENT_NAME, SQL_TEXT, COUNT_REPREPARE," \
-  " COUNT_EXECUTE from performance_schema.prepared_statements_instances where" \
+  " COUNT_EXECUTE, OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME" \
+  " from performance_schema.prepared_statements_instances where" \
   " sql_text like \"%ps_t1%\""); \
   myquery(rc); \
   result= mysql_store_result(mysql); \
@@ -19648,7 +19649,7 @@ static void test_wl6791()
 static void test_wl5768()
 {
   MYSQL_RES  *result;
-  MYSQL_STMT *stmt;
+  MYSQL_STMT *stmt, *sp_stmt;
   MYSQL_BIND bind[1];
   long       int_data;
   int        rc;
@@ -19706,6 +19707,46 @@ static void test_wl5768()
 
   // Deallocate/Close the prepared statement.
   mysql_stmt_close(stmt);
+ 
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS proc");
+  myquery(rc);
+
+  // Check the instrumentation of the statement prepared in a stored procedure
+  rc= mysql_query(mysql, "CREATE PROCEDURE proc(IN a INT)"
+                         "BEGIN" 
+                         "  SET @stmt = UPDATE ps_t1 SET Id=a WHERE Id > 100;"
+                         "  PREPARE st FROM @stmt;"
+                         "  EXECUTE st;"
+                         "  DEALLOCATE PREPARE st;"
+                         "END;");
+  myquery(rc);
+  
+  sp_stmt= mysql_simple_prepare(mysql, "CALL proc(?)");
+  check_stmt(sp_stmt);
+  verify_param_count(sp_stmt, 1);
+  
+  memset(bind, 0, sizeof (bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (long *) &int_data;
+  bind[0].length= 0;
+  bind[0].is_null= 0;
+  rc= mysql_stmt_execute(sp_stmt);
+  check_execute(sp_stmt, rc);
+
+  int_data= 100;
+
+  // Execute the prepared statement.
+  rc= mysql_stmt_execute(sp_stmt);
+  check_execute(sp_stmt, rc);
+
+  // Query P_S table.
+  QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE;
+  
+  // Deallocate/Close the prepared statement.
+  mysql_stmt_close(sp_stmt);
+  
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS proc");
+  myquery(rc);
  
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS ps_t1");
   myquery(rc);
