@@ -866,16 +866,24 @@ void create_compress_gtid_table_thread()
   thd->thread_id= thd->variables.pseudo_thread_id= pthread_self();
   THD_CHECK_SENTRY(thd);
 
-  if ((error= pthread_attr_init(&attr)) ||
+  if (pthread_attr_init(&attr))
+  {
+    sql_print_error("Failed to initialize thread attribute "
+                    "when creating compression thread.");
+    return;
+  }
+
+  if (DBUG_EVALUATE_IF("simulate_create_compress_thread_failure",
+                       error= 1, 0) ||
       (error= pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE)) ||
       (error= pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM)) ||
       (error= mysql_thread_create(key_thread_compress_gtid_table,
                                   &compress_thread_id, &attr,
                                   compress_gtid_table, (void*) thd)))
-    sql_print_warning("Can't create thread to compress gtid table "
-                      "(errno= %d)", error);
+    sql_print_error("Can not create thread to compress gtid table "
+                    "(errno= %d)", error);
 
-    (void) pthread_attr_destroy(&attr);
+  (void) pthread_attr_destroy(&attr);
 }
 
 
