@@ -632,7 +632,7 @@ drop table t1;
 #            NO_ZERO_DATE mode.
 #
 set @orig_sql_mode = @@sql_mode;
-set sql_mode="no_zero_date";
+set sql_mode="STRICT_ALL_TABLES";
 create table t1(f1 int);
 alter table t1 add column f2 datetime not null, add column f21 date not null;
 insert into t1 values(1,'2000-01-01','2000-01-01');

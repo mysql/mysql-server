@@ -1539,6 +1539,10 @@ void THD::cleanup(void)
   if (tc_log)
     tc_log->commit(this, true);
 
+  /*
+    Debug sync system must be closed after tc_log->commit(), because
+    DEBUG_SYNC is used in commit code.
+  */
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_end_thread(this);

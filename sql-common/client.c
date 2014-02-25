@@ -694,13 +694,13 @@ cli_safe_read(MYSQL *mysql)
 
     if (len > 3)
     {
-      char *pos=(char*) net->read_pos+1;
+      uchar *pos= net->read_pos+1;
       net->last_errno=uint2korr(pos);
       pos+=2;
       len-=2;
       if (protocol_41(mysql) && pos[0] == '#')
       {
-	strmake(net->sqlstate, pos+1, SQLSTATE_LENGTH);
+	strmake(net->sqlstate, (char*)pos+1, SQLSTATE_LENGTH);
 	pos+= SQLSTATE_LENGTH+1;
       }
       else
@@ -938,7 +938,7 @@ my_bool flush_one_result(MYSQL *mysql)
 
   if (protocol_41(mysql))
   {
-    char *pos= (char*) mysql->net.read_pos + 1;
+    uchar *pos= mysql->net.read_pos + 1;
     mysql->warning_count=uint2korr(pos);
     pos+=2;
     mysql->server_status=uint2korr(pos);
@@ -1633,7 +1633,7 @@ unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
       field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
       field->name=   strdup_root(alloc,(char*) row->data[1]);
-      field->length= (uint) uint3korr(row->data[2]);
+      field->length= (uint) uint3korr((uchar*) row->data[2]);
       field->type=   (enum enum_field_types) (uchar) row->data[3][0];
 
       field->catalog=(char*)  "";
@@ -1645,7 +1645,7 @@ unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 
       if (server_capabilities & CLIENT_LONG_FLAG)
       {
-        field->flags=   uint2korr(row->data[4]);
+        field->flags=   uint2korr((uchar*) row->data[4]);
         field->decimals=(uint) (uchar) row->data[4][2];
       }
       else
@@ -2736,7 +2736,7 @@ static int send_change_user_packet(MCPVIO_EXT *mpvio,
 
   if (mysql->server_capabilities & CLIENT_PROTOCOL_41)
   {
-    int2store(end, (ushort) mysql->charset->number);
+    int2store((uchar*) end, (ushort) mysql->charset->number);
     end+= 2;
   }
 
@@ -2843,16 +2843,18 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   if (mysql->client_flag & CLIENT_PROTOCOL_41)
   {
     /* 4.1 server and 4.1 client has a 32 byte option flag */
-    int4store(buff,mysql->client_flag);
-    int4store(buff+4, net->max_packet_size);
+    uchar *buff_p= (uchar*) buff;
+    int4store(buff_p,mysql->client_flag);
+    int4store(buff_p + 4, net->max_packet_size);
     buff[8]= (char) mysql->charset->number;
     memset(buff+9, 0, 32-9);
     end= buff+32;
   }
   else
   {
-    int2store(buff, mysql->client_flag);
-    int3store(buff+2, net->max_packet_size);
+    uchar *buff_p= (uchar*) buff;
+    int2store(buff_p, mysql->client_flag);
+    int3store(buff_p + 2, net->max_packet_size);
     end= buff+5;
   }
 #ifdef HAVE_OPENSSL
@@ -3937,7 +3939,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
   server_version_end= end= strend((char*) net->read_pos+1);
-  mysql->thread_id=uint4korr(end+1);
+  mysql->thread_id=uint4korr((uchar*) end + 1);
   end+=5;
   /* 
     Scramble is split into two parts because old clients do not understand
@@ -3949,13 +3951,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   end+= scramble_data_len;
 
   if (pkt_end >= end + 1)
-    mysql->server_capabilities=uint2korr(end);
+    mysql->server_capabilities=uint2korr((uchar*) end);
   if (pkt_end >= end + 18)
   {
     /* New protocol with 16 bytes to describe server characteristics */
     mysql->server_language=end[2];
-    mysql->server_status=uint2korr(end+3);
-    mysql->server_capabilities|= uint2korr(end+5) << 16;
+    mysql->server_status=uint2korr((uchar*) end + 3);
+    mysql->server_capabilities|= uint2korr((uchar*) end + 5) << 16;
     pkt_scramble_len= end[7];
     if (pkt_scramble_len < 0)
     {
