@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,7 +42,8 @@ SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
                             PROPERTIES GENERATED 1)
 
 # Gen_lex_token
-ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
+# Make sure sql_yacc.h is generated before compiling gen_lex_token
+ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
@@ -455,9 +456,6 @@ ADD_CUSTOM_TARGET(
         GenDigestServerSource
         DEPENDS ${GEN_DIGEST_SOURCES}
 )
-
-# Make sure sql_yacc.h is generated before compiling gen_lex_token
-ADD_DEPENDENCIES(GenDigestServerSource GenServerSource)
 
 #Need this only for embedded
 SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
