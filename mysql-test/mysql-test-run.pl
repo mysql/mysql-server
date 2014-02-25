@@ -477,7 +477,7 @@ sub main {
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
 
-  if (!IS_WINDOWS) {
+  if (!IS_WINDOWS) { 
     # Wait for children to exit
     foreach my $pid (keys %children)
     {
