@@ -256,6 +256,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_abort1
       test_abort4
       test_abort5
+      test_bad_implicit_promotion
       test_blobs_leaf_split
       test_bulk_fetch
       test_compression_methods
@@ -269,6 +270,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_db_descriptor_named_db
       test_db_txn_locks_read_uncommitted
       test_get_max_row_size
+      test_insert_many_gc
       test_iterate_live_transactions
       test_iterate_pending_lock_requests
       test_large_update_broadcast_small_cachetable
