@@ -1161,24 +1161,21 @@ function_exit:
 	mtr_commit(&mtr);
 }
 
-/***********************************************************************//**
-Truncates an undo log from the start. This function is used during a purge
-operation. */
+/** Truncate the head of an undo log.
+NOTE that only whole pages are freed; the header page is not
+freed, but emptied, if all the records there are below the limit.
+@param[in,out]	rseg		rollback segment
+@param[in]	hdr_page_no	header page number
+@param[in]	hdr_offset	header offset on the page
+@param[in]	limit		first undo number to preserve
+(everything below the limit will be truncated) */
 
 void
 trx_undo_truncate_start(
-/*====================*/
-	trx_rseg_t*	rseg,		/*!< in: rollback segment */
-	ulint		space,		/*!< in: space id of the log */
-	ulint		hdr_page_no,	/*!< in: header page number */
-	ulint		hdr_offset,	/*!< in: header offset on the page */
-	undo_no_t	limit)		/*!< in: all undo pages with
-					undo numbers < this value
-					should be truncated; NOTE that
-					the function only frees whole
-					pages; the header page is not
-					freed, but emptied, if all the
-					records there are < limit */
+	trx_rseg_t*	rseg,
+	ulint		hdr_page_no,
+	ulint		hdr_offset,
+	undo_no_t	limit)
 {
 	page_t*		undo_page;
 	trx_undo_rec_t* rec;
@@ -1189,13 +1186,16 @@ trx_undo_truncate_start(
 	ut_ad(mutex_own(&(rseg->mutex)));
 
 	if (!limit) {
-
 		return;
 	}
 loop:
 	mtr_start(&mtr);
 
-	rec = trx_undo_get_first_rec(space, rseg->page_size,
+	if (trx_sys_is_noredo_rseg_slot(rseg->id)) {
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	}
+
+	rec = trx_undo_get_first_rec(rseg->space, rseg->page_size,
 				     hdr_page_no, hdr_offset,
 				     RW_X_LATCH, &mtr);
 	if (rec == NULL) {
@@ -1220,11 +1220,11 @@ loop:
 	page_no = page_get_page_no(undo_page);
 
 	if (page_no == hdr_page_no) {
-		trx_undo_empty_header_page(space, rseg->page_size,
+		trx_undo_empty_header_page(rseg->space, rseg->page_size,
 					   hdr_page_no, hdr_offset,
 					   &mtr);
 	} else {
-		trx_undo_free_page(rseg, TRUE, space, hdr_page_no,
+		trx_undo_free_page(rseg, TRUE, rseg->space, hdr_page_no,
 				   page_no, &mtr);
 	}
 

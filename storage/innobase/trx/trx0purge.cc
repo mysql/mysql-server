@@ -568,7 +568,7 @@ loop:
 		if (undo_trx_no == limit->trx_no) {
 
 			trx_undo_truncate_start(
-				rseg, rseg->space, hdr_addr.page,
+				rseg, hdr_addr.page,
 				hdr_addr.boffset, limit->undo_no);
 		}
 
