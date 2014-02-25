@@ -628,6 +628,7 @@ t1#P#p1.cfg
 t1#P#p1.ibd
 t1.frm
 t1.par
+# Copying the .cfg and .ibd files as backup
 UNLOCK TABLES;
 # List of files after UNLOCK (no .cfg files).
 t1#P#p0.ibd
@@ -635,8 +636,17 @@ t1#P#p1.ibd
 t1.frm
 t1.par
 ALTER TABLE t1 DISCARD TABLESPACE;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+# List of files after DISCARD (no .cfg/.ibd files).
+t1.frm
+t1.par
+# Moving the .cfg and .ibd files back from backup
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+# List of files after IMPORT (.cfg files still there).
+t1#P#p0.cfg
+t1#P#p0.ibd
+t1#P#p1.cfg
+t1#P#p1.ibd
+t1.frm
+t1.par
 DROP TABLE t1;
-USE test;
+# List of files after DROP (.cfg files should also be removed).
