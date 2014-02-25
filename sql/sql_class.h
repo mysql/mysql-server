@@ -145,15 +145,12 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
 #define MODE_STRICT_TRANS_TABLES        (MODE_NO_BACKSLASH_ESCAPES*2)
 #define MODE_STRICT_ALL_TABLES          (MODE_STRICT_TRANS_TABLES*2)
-#define MODE_NO_ZERO_IN_DATE            (MODE_STRICT_ALL_TABLES*2)
-#define MODE_NO_ZERO_DATE               (MODE_NO_ZERO_IN_DATE*2)
-#define MODE_INVALID_DATES              (MODE_NO_ZERO_DATE*2)
-#define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
-#define MODE_TRADITIONAL                (MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
+#define MODE_INVALID_DATES              (MODE_STRICT_ALL_TABLES*2)
+#define MODE_TRADITIONAL                (MODE_INVALID_DATES*2)
 #define MODE_NO_AUTO_CREATE_USER        (MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
-#define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
+#define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 28)
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
@@ -490,6 +487,8 @@ typedef struct system_variables
   ulong tx_isolation;
   ulong updatable_views_with_limit;
   uint max_user_connections;
+  ulong my_aes_mode;
+
   /**
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
@@ -545,7 +544,6 @@ typedef struct system_variables
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
-
 } SV;
 
 
@@ -2453,6 +2451,8 @@ public:
                           pos_var ? *pos_var : 0));
     DBUG_VOID_RETURN;
   }
+
+  my_off_t get_trans_pos() { return m_trans_end_pos; }
   /**@}*/
 
 
@@ -2787,11 +2787,6 @@ public:
 
   // End implementation of MDL_context_owner interface.
 
-  inline sql_mode_t datetime_flags() const
-  {
-    return variables.sql_mode &
-      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
-  }
   inline bool is_strict_mode() const
   {
     return MY_TEST(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |

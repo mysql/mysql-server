@@ -62,6 +62,7 @@
 #include "connection_handler_manager.h"         // Connection_handler_manager
 #include "socket_connection.h"                  // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
+#include "my_aes.h" // my_aes_opmode_names
 
 #include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -2944,9 +2945,7 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
     sql_mode|= MODE_HIGH_NOT_PRECEDENCE;
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
-                MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER |
-                MODE_NO_ENGINE_SUBSTITUTION);
+                MODE_NO_AUTO_CREATE_USER | MODE_NO_ENGINE_SUBSTITUTION);
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
@@ -2978,8 +2977,7 @@ static const char *sql_mode_names[]=
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
   "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES",
-  "STRICT_ALL_TABLES", "NO_ZERO_IN_DATE", "NO_ZERO_DATE",
-  "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO", "TRADITIONAL",
+  "STRICT_ALL_TABLES", "ALLOW_INVALID_DATES", "TRADITIONAL",
   "NO_AUTO_CREATE_USER", "HIGH_NOT_PRECEDENCE", "NO_ENGINE_SUBSTITUTION",
   "PAD_CHAR_TO_FULL_LENGTH",
   0
@@ -4775,3 +4773,7 @@ static Sys_var_mybool Sys_validate_user_plugins(
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 #endif
 
+static Sys_var_enum Sys_block_encryption_mode(
+  "block_encryption_mode", "mode for AES_ENCRYPT/AES_DECRYPT",
+  SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG),
+  my_aes_opmode_names, DEFAULT(my_aes_128_ecb));

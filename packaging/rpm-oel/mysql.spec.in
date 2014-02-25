@@ -351,7 +351,7 @@ the embedded version of the MySQL server.
 %setup -q -T -a 0 -c -n %{src_dir}
 %endif # 0%{?compatlib}
 pushd %{src_dir}
-%patch0 -p1
+#patch0 -p1
 %{?el7:%patch1 -p1}
 
 %build
@@ -516,7 +516,6 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysqld
 %endif
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
-rm -rf %{buildroot}%{_bindir}/mysqlbug
 rm -rf %{buildroot}%{_mandir}/man1/mysqlbug.1*
 
 %check

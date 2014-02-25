@@ -1847,7 +1847,6 @@ scripts/mysql_tableinfo
 scripts/mysql_upgrade
 scripts/mysql_upgrade_shell
 scripts/mysql_zap
-scripts/mysqlbug
 scripts/mysqld_multi
 scripts/mysqld_safe
 scripts/mysqldumpslow
