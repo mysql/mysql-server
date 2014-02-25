@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/install_semisync.inc
 call mtr.add_suppression(".*Semi-sync master failed on net_flush.*before waiting for slave reply.*");
 call mtr.add_suppression(".*Timeout waiting for reply of binlog .* semi-sync up to file .*");
+include/sync_slave_sql_with_master.inc
 [connection slave]
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_SSL = 1;

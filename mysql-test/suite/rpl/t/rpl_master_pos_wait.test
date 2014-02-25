@@ -3,11 +3,15 @@
 # to MASTER_POS_WAIT and when it timeouts.
 #
 source include/master-slave.inc;
+--source include/sync_slave_sql_with_master.inc
 # Bug#18259359 
 # To fix sporadic failure due to improper cleanup.
---let $rpl_server_number= 1
---source include/rpl_restart_server.inc
---source include/sync_slave_sql_with_master.inc
+let $rpl_server_number= 1;
+source include/rpl_restart_server.inc;
+let $rpl_server_number= 2;
+source include/rpl_restart_server.inc;
+--connection slave
+--source include/start_slave.inc
 
 #
 # MASTER_POS_WAIT: Check if time-out is correctly handled.
