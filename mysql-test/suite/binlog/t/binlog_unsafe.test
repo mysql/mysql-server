@@ -692,6 +692,9 @@ INSERT INTO t1 VALUES (UUID());               #marked unsafe before BUG#47995
 INSERT INTO t1 VALUES (UUID_SHORT());         #marked unsafe before BUG#47995
 INSERT INTO t1 VALUES (VERSION());            #marked unsafe in BUG#47995
 INSERT INTO t1 VALUES (RAND());               #marked unsafe in BUG#49222
+INSERT INTO t1 VALUES (RANDOM_BYTES(16));     #marked unsafe in BUG#18221667
+INSERT INTO t1 VALUES (AES_ENCRYPT('a', 'a')); #marked unsafe in BUG#18221667
+INSERT INTO t1 VALUES (AES_DECRYPT('a', 'a')); #marked unsafe in BUG#18221667
 DELETE FROM t1;
 
 # Since we replicate the TIMESTAMP variable, functions affected by the
