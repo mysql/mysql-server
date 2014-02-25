@@ -111,12 +111,12 @@ fi
 
 # Create options 
 # We intentionally add a space to the beginning and end of lib strings, simplifies replace later
-libs=" $ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@"
+libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@"
 libs="$libs @openssl_libs@ "
-libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
+libs_r=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient_r @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
 libs="$libs @QUOTED_CMAKE_C_LINK_FLAGS@"
 libs_r="$libs_r @QUOTED_CMAKE_C_LINK_FLAGS@"
-embedded_libs=" $ldflags -L$pkglibdir -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
+embedded_libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
 embedded_libs="$embedded_libs @QUOTED_CMAKE_CXX_LINK_FLAGS@"
 
 cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -828,6 +828,9 @@ update_hidden:
   if (!table->file)
     goto err;
 
+  // Update the handler with information about the table object
+  table->file->change_table_ptr(table, share);
+
   if (table->file->set_ha_share_ref(&share->ha_share))
   {
     delete table->file;
@@ -1027,7 +1030,7 @@ update_hidden:
       param->group_parts;
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
-    keyinfo->rec_per_key=0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "group_key";
     ORDER *cur_group= group;
@@ -1105,7 +1108,7 @@ update_hidden:
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "<auto_key>";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
-    keyinfo->rec_per_key= 0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
 
     /*
       Create an extra field to hold NULL bits so that unique indexes on
@@ -1420,7 +1423,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     keyinfo->usable_key_parts= keyinfo->user_defined_key_parts= 1;
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
-    keyinfo->rec_per_key=0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "weedout_key";
     {

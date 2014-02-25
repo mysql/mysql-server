@@ -278,7 +278,9 @@
 #cmakedefine HAVE_STRDUP 1
 #cmakedefine HAVE_LANGINFO_CODESET 
 
-#cmakedefine HAVE_WEAK_SYMBOL 1
+#cmakedefine HAVE_BUILTIN_UNREACHABLE 1
+#cmakedefine HAVE_BUILTIN_EXPECT 1
+#cmakedefine HAVE_BUILTIN_STPCPY 1
 #cmakedefine HAVE_ABI_CXA_DEMANGLE 1
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
@@ -329,15 +331,12 @@
 #cmakedefine access @access@
 #cmakedefine chdir @chdir@
 #cmakedefine chmod @chmod@
-#cmakedefine close @close@
 #cmakedefine dup @dup@
 #cmakedefine fdopen @fdopen@
 #cmakedefine fileno @fileno@
 #cmakedefine getcwd @getcwd@
-#cmakedefine getpid @getpid@
 #cmakedefine isatty @isatty@
 #cmakedefine mkdir @mkdir@
-#cmakedefine open @open@
 #cmakedefine putenv @putenv@
 #cmakedefine read @read@
 #cmakedefine rmdir @rmdir@

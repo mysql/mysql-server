@@ -115,12 +115,14 @@ Tablespace::file_found(Datafile& file)
 }
 
 /** Open or Create the data files if they do not exist.
+@param[in]	is_temp	whether this is a temporary tablespace
 @return DB_SUCCESS or error code */
+
 dberr_t
-Tablespace::open_or_create()
+Tablespace::open_or_create(bool is_temp)
 {
-	dberr_t		err	= DB_SUCCESS;
-	fil_space_t*	space	= NULL;
+	fil_space_t*		space = NULL;
+	dberr_t			err = DB_SUCCESS;
 
 	ut_ad(!m_files.empty());
 
@@ -145,6 +147,18 @@ Tablespace::open_or_create()
 			break;
 		}
 
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		/* Note: This should really be per node and not per
+		tablespace because a tablespace can contain multiple
+		files (nodes). The implication is that all files of
+		the tablespace should be on the same medium. */
+
+		if (!srv_use_doublewrite_buf) {
+			fil_fusionio_enable_atomic_write(it->m_handle);
+		}
+
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
+
 		/* We can close the handle now and open the tablespace
 		the proper way. */
 		it->close();
@@ -159,8 +173,8 @@ Tablespace::open_or_create()
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
 			space = fil_space_create(
-				it->m_filepath, m_space_id, flags,
-				FIL_TABLESPACE);
+				it->m_filepath, m_space_id, flags, is_temp
+				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 
 		ut_a(fil_validate());

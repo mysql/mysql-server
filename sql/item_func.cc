@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -730,10 +730,20 @@ bool Item_func::count_string_result_length(enum_field_types field_type,
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
-  if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+  if (thd->is_strict_mode())
     push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
                  ER(ER_DIVISION_BY_ZERO));
   null_value= 1;
+}
+
+
+void Item_func::signal_invalid_argument_for_log()
+{
+  THD *thd= current_thd;
+  push_warning(thd, Sql_condition::SL_WARNING,
+               ER_INVALID_ARGUMENT_FOR_LOGARITHM,
+               ER(ER_INVALID_ARGUMENT_FOR_LOGARITHM));
+  null_value= TRUE;
 }
 
 
@@ -1065,7 +1075,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   switch (field_type())
@@ -2054,11 +2064,12 @@ double Item_func_ln::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log(value);
 }
+
 
 /** 
   Extended but so slower LOG function.
@@ -2074,7 +2085,7 @@ double Item_func_log::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   if (arg_count == 2)
@@ -2084,7 +2095,7 @@ double Item_func_log::val_real()
       return 0.0;
     if (value2 <= 0.0 || value == 1.0)
     {
-      signal_divide_by_null();
+      signal_invalid_argument_for_log();
       return 0.0;
     }
     return log(value2) / log(value);
@@ -2101,7 +2112,7 @@ double Item_func_log2::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log(value) / M_LN2;
@@ -2115,7 +2126,7 @@ double Item_func_log10::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log10(value);
@@ -2941,7 +2952,7 @@ String *Item_func_min_max::val_str(String *str)
 }
 
 
-bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_min_max::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   if (compare_as_dates)

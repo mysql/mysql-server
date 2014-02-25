@@ -485,7 +485,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
-  ATTRIBUTE_FORMAT_FPTR(printf, 2, 3);
+  __attribute__((format(printf, 2, 3)));
 
 extern my_error_reporter my_charset_error_reporter;
 
@@ -649,7 +649,7 @@ extern const char *my_get_err_msg(int nr);
 extern void my_error(int nr,myf MyFlags, ...);
 extern void my_printf_error(uint my_err, const char *format,
                             myf MyFlags, ...)
-                            ATTRIBUTE_FORMAT(printf, 2, 4);
+  __attribute__((format(printf, 2, 4)));
 extern void my_printv_error(uint error, const char *format, myf MyFlags,
                             va_list ap);
 extern int my_error_register(const char** (*get_errmsgs) (),
@@ -762,7 +762,7 @@ extern void my_b_seek(IO_CACHE *info,my_off_t pos);
 extern size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length);
 extern my_off_t my_b_filelength(IO_CACHE *info);
 extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 2, 3);
+  __attribute__((format(printf, 2, 3)));
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, size_t cache_size,

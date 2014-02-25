@@ -89,7 +89,7 @@ extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
 */
 static inline char *my_stpcpy(char *dst, const char *src)
 {
-#if defined(HAVE_STPCPY) && MY_GNUC_PREREQ(3, 4)
+#if defined(HAVE_BUILTIN_STPCPY)
   return __builtin_stpcpy(dst, src);
 #elif defined(HAVE_STPCPY)
   return stpcpy(dst, src);

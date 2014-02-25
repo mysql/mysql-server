@@ -1081,20 +1081,22 @@ enum enum_mts_parallel_type {
    Prints a printf style error message to the error log.
    @see error_log_print
 */
-void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_error(const char *format, ...)
+  __attribute__((format(printf, 1, 2)));
 
 /**
    Prints a printf style warning message to the error log.
    @see error_log_print
 */
-void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_warning(const char *format, ...)
+  __attribute__((format(printf, 1, 2)));
 
 /**
    Prints a printf style information message to the error log.
    @see error_log_print
 */
 void sql_print_information(const char *format, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 
 /**
    Prints a printf style message to the error log and, under NT, to the
