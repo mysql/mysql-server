@@ -59,7 +59,7 @@ extern  void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_pargs_(uint _line_,const char *keyword);
 extern  int _db_enabled_();
 extern  void _db_doprnt_(const char *format,...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 extern  void _db_dump_(uint _line_,const char *keyword,
                        const unsigned char *memory, size_t length);
 extern  void _db_end_(void);
