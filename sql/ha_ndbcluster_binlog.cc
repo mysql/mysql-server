@@ -824,25 +824,6 @@ int ndbcluster_binlog_end(THD *thd)
     pthread_mutex_unlock(&ndb_util_thread.LOCK);
   }
 
-  if (ndb_index_stat_thread.running > 0)
-  {
-    /*
-      Index stats thread blindly imitates util thread.  Following actually
-      fixes some "[Warning] Plugin 'ndbcluster' will be forced to shutdown".
-    */
-    sql_print_information("Stopping Cluster Index Stats thread");
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-    /* Ensure mutex are not freed if ndb_cluster_end is running at same time */
-    ndb_index_stat_thread.running++;
-    ndbcluster_terminating= 1;
-    pthread_cond_signal(&ndb_index_stat_thread.COND);
-    while (ndb_index_stat_thread.running > 1)
-      pthread_cond_wait(&ndb_index_stat_thread.COND_ready,
-                        &ndb_index_stat_thread.LOCK);
-    ndb_index_stat_thread.running--;
-    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
-  }
-
   if (ndbcluster_binlog_inited)
   {
     ndbcluster_binlog_inited= 0;
