@@ -133,8 +133,7 @@ static LE_STATUS_S le_status;
 
 #define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(le_status, k, c, t, "le: " l, inc)
 
-static void
-status_init(void) {
+void toku_ule_status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
     STATUS_INIT(LE_MAX_COMMITTED_XR,   nullptr, UINT64, "max committed xr", TOKU_ENGINE_STATUS);
@@ -149,10 +148,15 @@ status_init(void) {
 }
 #undef STATUS_INIT
 
-void
-toku_le_get_status(LE_STATUS statp) {
-    if (!le_status.initialized)
-        status_init();
+void toku_ule_status_destroy(void) {
+    for (int i = 0; i < LE_STATUS_NUM_ROWS; ++i) {
+        if (le_status.status[i].type == PARCOUNT) {
+            destroy_partitioned_counter(le_status.status[i].value.parcount);
+        }
+    }
+}
+
+void toku_le_get_status(LE_STATUS statp) {
     *statp = le_status;
 }
 

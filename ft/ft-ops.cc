@@ -213,6 +213,7 @@ basement nodes, bulk fetch,  and partial fetch:
 #include "leafentry.h"
 #include "xids.h"
 #include "ft_msg.h"
+#include "ule.h"
 
 #include <toku_race_tools.h>
 
@@ -6456,6 +6457,7 @@ int toku_ft_layer_init(void) {
     partitioned_counters_init();
     status_init();
     txn_status_init();
+    toku_ule_status_init();
     toku_checkpoint_init();
     toku_ft_serialize_layer_init();
     toku_mutex_init(&ft_open_close_lock, NULL);
@@ -6470,6 +6472,7 @@ void toku_ft_layer_destroy(void) {
     toku_checkpoint_destroy();
     status_destroy();
     txn_status_destroy();
+    toku_ule_status_destroy();
     toku_context_status_destroy();
     partitioned_counters_destroy();
     toku_scoped_malloc_destroy();
