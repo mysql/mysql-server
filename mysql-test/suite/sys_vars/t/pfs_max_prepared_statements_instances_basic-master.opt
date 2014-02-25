@@ -1,2 +1,2 @@
 --loose-enable-performance-schema
---loose-performance-schema-max-prepared-statement-instances=1000
+--loose-performance-schema-max-prepared-statements-instances=1000
