@@ -453,7 +453,7 @@ bool trans_xa_end(THD *thd)
       on the top of XA_END.
     */
     if (gtid_state->generate_and_save_gtid(thd))
-      DBUG_RETURN(true);
+      xid_state->set_state(XID_STATE::XA_ROLLBACK_ONLY);
   }
 
   /* TODO: SUSPEND and FOR MIGRATE are not supported yet. */

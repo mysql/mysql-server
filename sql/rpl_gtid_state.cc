@@ -313,13 +313,15 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
   {
     const Gtid_set::Interval *iv= ivit.get();
     rpl_gno next_interval_start= iv != NULL ? iv->start : MAX_GNO;
-    while (next_candidate.gno < next_interval_start)
+    while (next_candidate.gno < next_interval_start &&
+           DBUG_EVALUATE_IF("simulate_gno_exhausted", false, true))
     {
       if (owned_gtids.get_owner(next_candidate) == 0)
         DBUG_RETURN(next_candidate.gno);
       next_candidate.gno++;
     }
-    if (iv == NULL)
+    if (iv == NULL ||
+        DBUG_EVALUATE_IF("simulate_gno_exhausted", true, false))
     {
       my_error(ER_GNO_EXHAUSTED, MYF(0));
       DBUG_RETURN(-1);
@@ -476,10 +478,7 @@ int Gtid_state::generate_automatic_gtid(THD *thd)
   lock_sidno(automatic_gtid.sidno);
   automatic_gtid.gno= get_automatic_gno(automatic_gtid.sidno);
   if (automatic_gtid.gno == -1)
-  {
     error= 1;
-    sql_print_error("Failed to generate automatic gtid.");
-  }
   else
     acquire_ownership(thd, automatic_gtid);
   unlock_sidno(automatic_gtid.sidno);
