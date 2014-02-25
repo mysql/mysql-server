@@ -5834,12 +5834,12 @@ void Item_func_like::bm_compute_bad_character_shifts()
   if (!cs->sort_order)
   {
     for (j = 0; j < plm1; j++)
-      bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
+      bmBc[(uchar) pattern[j]] = plm1 - j;
   }
   else
   {
     for (j = 0; j < plm1; j++)
-      bmBc[(uint) likeconv(cs,pattern[j])] = plm1 - j;
+      bmBc[likeconv(cs,pattern[j])] = plm1 - j;
   }
 }
 
@@ -5874,7 +5874,7 @@ bool Item_func_like::bm_matches(const char* text, int text_len) const
 	return true;
       else
       {
-        bcShift= bmBc[(uint) text[i + j]] - plm1 + i;
+        bcShift= bmBc[(uchar) text[i + j]] - plm1 + i;
         shift= max(bcShift, bmGs[i]);
       }
       j+= shift;
@@ -5895,7 +5895,7 @@ bool Item_func_like::bm_matches(const char* text, int text_len) const
 	return true;
       else
       {
-        bcShift= bmBc[(uint) likeconv(cs, text[i + j])] - plm1 + i;
+        bcShift= bmBc[likeconv(cs, text[i + j])] - plm1 + i;
         shift= max(bcShift, bmGs[i]);
       }
       j+= shift;

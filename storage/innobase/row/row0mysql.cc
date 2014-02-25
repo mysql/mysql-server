@@ -1418,10 +1418,13 @@ error_exit:
 			goto run_again;
 		}
 
+		node->duplicate = NULL;
 		trx->op_info = "";
 
 		return(err);
 	}
+
+	node->duplicate = NULL;
 
 	if (dict_table_has_fts_index(table)) {
 		doc_id_t	doc_id;
