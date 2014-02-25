@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6834,6 +6834,7 @@ ndb_binlog_thread_func(void *arg)
 #endif
   thd->client_capabilities= 0;
   thd->security_ctx->skip_grants();
+  // Create thd->net vithout vio
   my_net_init(&thd->net, 0);
 
   // Ndb binlog thread always use row format
@@ -7740,6 +7741,8 @@ restart_cluster_failure:
     goto restart_cluster_failure;
   }
 
+  // Release the thd->net created without vio
+  net_end(&thd->net);
   thd->release_resources();
   mysql_mutex_lock(&LOCK_thread_count);
   remove_global_thread(thd);
