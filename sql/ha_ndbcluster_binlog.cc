@@ -6803,6 +6803,7 @@ ndb_binlog_thread_func(void *arg)
 #endif
   thd->client_capabilities= 0;
   thd->security_ctx->skip_grants();
+  // Create thd->net vithout vio
   my_net_init(&thd->net, 0);
 
   // Ndb binlog thread always use row format
@@ -7710,6 +7711,8 @@ restart_cluster_failure:
     goto restart_cluster_failure;
   }
 
+  // Release the thd->net created without vio
+  net_end(&thd->net);
   thd->release_resources();
   mysql_mutex_lock(&LOCK_thread_count);
   remove_global_thread(thd);
