@@ -143,21 +143,6 @@ static Ndb *injector_ndb= 0;
 static Ndb *schema_ndb= 0;
 
 static int ndbcluster_binlog_inited= 0;
-/*
-  Flag "ndbcluster_binlog_terminating" set when shutting down mysqld.
-  Server main loop should call handlerton function:
-
-  ndbcluster_hton->binlog_func ==
-  ndbcluster_binlog_func(...,BFN_BINLOG_END,...) ==
-  ndbcluster_binlog_end
-
-  at shutdown, which sets the flag. And then server needs to wait for it
-  to complete.  Otherwise binlog will not be complete.
-
-  ndbcluster_hton->panic == ndbcluster_end() will not return until
-  ndb binlog is completed
-*/
-static int ndbcluster_binlog_terminating= 0;
 
 /*
   Mutex and condition used for interacting between client sql thread
@@ -812,17 +797,8 @@ int ndbcluster_binlog_end(THD *thd)
   if (ndbcluster_binlog_inited)
   {
     ndbcluster_binlog_inited= 0;
-    if (ndb_binlog_thread.running)
-    {
-      /* wait for injector thread to finish */
-      ndbcluster_binlog_terminating= 1;
-      pthread_mutex_lock(&injector_mutex);
-      pthread_cond_signal(&injector_cond);
-      while (ndb_binlog_thread.running > 0)
-        pthread_cond_wait(&injector_cond, &injector_mutex);
-      pthread_mutex_unlock(&injector_mutex);
-    }
 
+    ndb_binlog_thread.stop();
     ndb_binlog_thread.deinit();
 
     pthread_mutex_destroy(&injector_mutex);
@@ -4062,25 +4038,15 @@ int ndbcluster_binlog_start()
   pthread_cond_init(&injector_cond, NULL);
   pthread_mutex_init(&ndb_schema_share_mutex, MY_MUTEX_INIT_FAST);
 
-  /* Create ndb binlog thread */
-  if (ndb_binlog_thread.start())
-  {
-    DBUG_PRINT("error", ("Could not create ndb binlog thread"));
-    pthread_cond_destroy(&injector_cond);
-    pthread_mutex_destroy(&injector_mutex);
-    DBUG_RETURN(-1);
-  }
-
+  // The binlog thread globals has been initied and should be freed
   ndbcluster_binlog_inited= 1;
 
-  /* Wait for the injector thread to start */
-  pthread_mutex_lock(&injector_mutex);
-  while (!ndb_binlog_thread.running)
-    pthread_cond_wait(&injector_cond, &injector_mutex);
-  pthread_mutex_unlock(&injector_mutex);
-
-  if (ndb_binlog_thread.running < 0)
+  /* Start ndb binlog thread */
+  if (ndb_binlog_thread.start())
+  {
+    DBUG_PRINT("error", ("Could not start ndb binlog thread"));
     DBUG_RETURN(-1);
+  }
 
   DBUG_RETURN(0);
 }
@@ -6710,15 +6676,32 @@ extern ulong opt_ndb_report_thresh_binlog_mem_usage;
 extern ulong opt_ndb_eventbuffer_max_alloc;
 
 Ndb_binlog_thread::Ndb_binlog_thread()
-  : Ndb_component("Binlog"),
-    running(0)
+  : Ndb_component("Binlog")
 {
 }
 
 
 Ndb_binlog_thread::~Ndb_binlog_thread()
 {
-  assert(running <= 0);
+}
+
+
+int Ndb_binlog_thread::stop()
+{
+  log_verbose(10, "Time to stop!");
+  /*
+    The binlog thread is normally waiting for another
+    event from the cluster with short timeout and should
+    soon(within 1 second) detect that stop has been requested.
+
+    There are really no purpose to signal some condition
+    trying to wake the thread up should it be waiting somewhere
+    else since those waits are also short.
+  */
+
+  // Continue in baseclass stop()
+  return Ndb_component::stop();
+
 }
 
 
@@ -6761,7 +6744,6 @@ Ndb_binlog_thread::do_run()
   if (thd->store_globals())
   {
     delete thd;
-    running= -1;
     pthread_mutex_unlock(&injector_mutex);
     pthread_cond_signal(&injector_cond);
     DBUG_VOID_RETURN;
@@ -6797,8 +6779,7 @@ restart_cluster_failure:
 
   if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
-    sql_print_error("Could not allocate Thd_ndb object");
-    running= -1;
+    log_error("Creating Thd_ndb object failed");
     pthread_mutex_unlock(&injector_mutex);
     pthread_cond_signal(&injector_cond);
     goto err;
@@ -6807,8 +6788,7 @@ restart_cluster_failure:
   if (!(s_ndb= new Ndb(g_ndb_cluster_connection, NDB_REP_DB)) ||
       s_ndb->init())
   {
-    sql_print_error("NDB Binlog: Getting Schema Ndb object failed");
-    running= -1;
+    log_error("Creating schema Ndb object failed");
     pthread_mutex_unlock(&injector_mutex);
     pthread_cond_signal(&injector_cond);
     goto err;
@@ -6818,8 +6798,7 @@ restart_cluster_failure:
   if (!(i_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
       i_ndb->init())
   {
-    sql_print_error("NDB Binlog: Getting Ndb object failed");
-    running= -1;
+    log_error("Creating injector Ndb object failed");
     pthread_mutex_unlock(&injector_mutex);
     pthread_cond_signal(&injector_cond);
     goto err;
@@ -6846,7 +6825,6 @@ restart_cluster_failure:
   log_verbose(1, "Setup completed");
 
   /* Thread start up completed  */
-  running= 1;
   pthread_mutex_unlock(&injector_mutex);
   pthread_cond_signal(&injector_cond);
 
@@ -6862,7 +6840,7 @@ restart_cluster_failure:
     set_timespec(abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
                          &abstime);
-    if (ndbcluster_binlog_terminating)
+    if (is_stop_requested())
     {
       mysql_mutex_unlock(&LOCK_server_started);
       goto err;
@@ -6937,7 +6915,7 @@ restart_cluster_failure:
       struct timespec abstime;
       set_timespec(abstime, 1);
       pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
-      if (ndbcluster_binlog_terminating)
+      if (is_stop_requested())
       {
         pthread_mutex_unlock(&injector_mutex);
         goto err;
@@ -6974,7 +6952,7 @@ restart_cluster_failure:
     {
       DBUG_PRINT("info", ("Waiting for the first event"));
 
-      if (ndbcluster_binlog_terminating)
+      if (is_stop_requested())
         goto err;
 
       schema_res= s_ndb->pollEvents(100, &schema_gci);
@@ -6984,7 +6962,7 @@ restart_cluster_failure:
       Uint64 gci= i_ndb->getLatestGCI();
       while (gci < schema_gci || gci == ndb_latest_received_binlog_epoch)
       {
-        if (ndbcluster_binlog_terminating)
+        if (is_stop_requested())
           goto err;
         res= i_ndb->pollEvents(10, &gci);
       }
@@ -7059,7 +7037,7 @@ restart_cluster_failure:
   */
   do_incident = true; // If we get disconnected again...do incident report
   binlog_thread_state= BCCC_running;
-  for ( ; !((ndbcluster_binlog_terminating ||
+  for ( ; !((is_stop_requested() ||
              binlog_thread_state) &&
             ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci()) &&
           binlog_thread_state != BCCC_restart; )
@@ -7112,11 +7090,11 @@ restart_cluster_failure:
       schema_res= s_ndb->pollEvents(10, &schema_gci);
     }
 
-    if ((ndbcluster_binlog_terminating ||
+    if ((is_stop_requested() ||
          binlog_thread_state) &&
         (ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci() ||
          !ndb_binlog_running))
-      break; /* Shutting down server */
+      break; /* Stopping thread */
 
     if (thd->killed == THD::KILL_CONNECTION)
     {
@@ -7701,7 +7679,6 @@ restart_cluster_failure:
   mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 
-  running= -1;
   ndb_binlog_running= FALSE;
   (void) pthread_cond_signal(&injector_cond);
 
