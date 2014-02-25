@@ -25,14 +25,14 @@
 extern struct st_ndb_status g_ndb_status;
 extern pthread_mutex_t ndbcluster_mutex;
 
+// Implementation still uses its own instance
+extern Ndb_index_stat_thread ndb_index_stat_thread;
+
 /* Implemented in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
 extern const char* g_ndb_status_index_stat_status;
 extern long g_ndb_status_index_stat_cache_query;
 extern long g_ndb_status_index_stat_cache_clean;        
-
-// Do we have waiter...
-static bool ndb_index_stat_waiter= false;
 
 // Typedefs for long names 
 typedef NdbDictionary::Table NDBTAB;
@@ -41,11 +41,11 @@ typedef NdbDictionary::Index NDBINDEX;
 /** ndb_index_stat_thread */
 Ndb_index_stat_thread::Ndb_index_stat_thread()
   : Ndb_component("Index Stat"),
-    running(-1)
+    ndb_index_stat_waiter(false)
 {
   pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND, NULL);
-  pthread_cond_init(&COND_ready, NULL);
+
   pthread_mutex_init(&stat_mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&stat_cond, NULL);
 }
@@ -54,9 +54,27 @@ Ndb_index_stat_thread::~Ndb_index_stat_thread()
 {
   pthread_mutex_destroy(&LOCK);
   pthread_cond_destroy(&COND);
-  pthread_cond_destroy(&COND_ready);
+
   pthread_mutex_destroy(&stat_mutex);
   pthread_cond_destroy(&stat_cond);
+}
+
+int Ndb_index_stat_thread::stop()
+{
+  // Wakeup thread from sleeping on COND
+  log_verbose(10, "Wakeup, time to stop");
+  wakeup();
+
+  // Continue in baseclasss stop()
+  return Ndb_component::stop();
+}
+
+void Ndb_index_stat_thread::wakeup()
+{
+  pthread_mutex_lock(&LOCK);
+  ndb_index_stat_waiter= true;
+  pthread_cond_signal(&COND);
+  pthread_mutex_unlock(&LOCK);
 }
 
 struct Ndb_index_stat {
@@ -2438,12 +2456,6 @@ Ndb_index_stat_thread::do_run()
 
   log_info("Starting...");
 
-  /* Signal successful initialization */
-  pthread_mutex_lock(&LOCK);
-  running= 1;
-  pthread_cond_signal(&COND_ready);
-  pthread_mutex_unlock(&LOCK);
-
   log_verbose(1, "Wait for server start completed");
   /*
     wait for mysql server to start
@@ -2454,7 +2466,7 @@ Ndb_index_stat_thread::do_run()
     set_timespec(abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
 	                 &abstime);
-    if (ndbcluster_terminating)
+    if (is_stop_requested())
     {
       mysql_mutex_unlock(&LOCK_server_started);
       pthread_mutex_lock(&LOCK);
@@ -2468,7 +2480,7 @@ Ndb_index_stat_thread::do_run()
     Wait for cluster to start
   */
   pthread_mutex_lock(&ndb_util_thread.LOCK);
-  while (!ndbcluster_terminating && !g_ndb_status.cluster_node_id &&
+  while (!is_stop_requested() && !g_ndb_status.cluster_node_id &&
          (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
@@ -2476,7 +2488,7 @@ Ndb_index_stat_thread::do_run()
   }
   pthread_mutex_unlock(&ndb_util_thread.LOCK);
 
-  if (ndbcluster_terminating)
+  if (is_stop_requested())
   {
     pthread_mutex_lock(&LOCK);
     goto ndb_index_stat_thread_end;
@@ -2514,7 +2526,7 @@ Ndb_index_stat_thread::do_run()
   for (;;)
   {
     pthread_mutex_lock(&LOCK);
-    if (!ndbcluster_terminating && ndb_index_stat_waiter == false) {
+    if (!is_stop_requested() && ndb_index_stat_waiter == false) {
       int ret= pthread_cond_timedwait(&COND,
                                       &LOCK,
                                       &abstime);
@@ -2522,7 +2534,7 @@ Ndb_index_stat_thread::do_run()
       (void)reason; // USED
       DBUG_PRINT("index_stat", ("loop: %s", reason));
     }
-    if (ndbcluster_terminating) /* Shutting down server */
+    if (is_stop_requested()) /* Shutting down server */
       goto ndb_index_stat_thread_end;
     ndb_index_stat_waiter= false;
     pthread_mutex_unlock(&LOCK);
@@ -2621,9 +2633,6 @@ ndb_index_stat_thread_end:
 
   pr.destroy();
 
-  /* signal termination */
-  running= 0;
-  pthread_cond_signal(&COND_ready);
   pthread_mutex_unlock(&LOCK);
   DBUG_PRINT("exit", ("ndb_index_stat_thread"));
 
@@ -2712,10 +2721,8 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
     count++;
     DBUG_PRINT("index_stat", ("st %s wait_query count:%u",
                               st->id, count));
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-    ndb_index_stat_waiter= true;
-    pthread_cond_signal(&ndb_index_stat_thread.COND);
-    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    ndb_index_stat_thread.wakeup();
+
     set_timespec(abstime, 1);
     ret= pthread_cond_timedwait(&ndb_index_stat_thread.stat_cond,
                                 &ndb_index_stat_thread.stat_mutex,
@@ -2788,10 +2795,8 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     count++;
     DBUG_PRINT("index_stat", ("st %s wait_analyze count:%u",
                               st->id, count));
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-    ndb_index_stat_waiter= true;
-    pthread_cond_signal(&ndb_index_stat_thread.COND);
-    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    ndb_index_stat_thread.wakeup();
+
     set_timespec(abstime, 1);
     ret= pthread_cond_timedwait(&ndb_index_stat_thread.stat_cond,
                                 &ndb_index_stat_thread.stat_mutex,

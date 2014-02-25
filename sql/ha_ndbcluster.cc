@@ -12324,22 +12324,6 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
-  /* Wait for the index statistics thread to start */
-  pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-  while (ndb_index_stat_thread.running < 0)
-    pthread_cond_wait(&ndb_index_stat_thread.COND_ready,
-                      &ndb_index_stat_thread.LOCK);
-  pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
-
-  if (!ndb_index_stat_thread.running)
-  {
-    DBUG_PRINT("error", ("ndb index statistics thread exited prematurely"));
-    my_hash_free(&ndbcluster_open_tables);
-    my_hash_free(&ndbcluster_dropped_tables);
-    pthread_mutex_destroy(&ndbcluster_mutex);
-    goto ndbcluster_init_error;
-  }
-
 #ifndef NDB_NO_WAIT_SETUP
   ndb_wait_setup_func= ndb_wait_setup_func_impl;
 #endif
@@ -12389,15 +12373,9 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
     DBUG_RETURN(0);
   ndbcluster_inited= 0;
 
-  /* wait for index stat thread to finish */
+  /* Stop index stat thread */
   sql_print_information("Stopping NDB Index Stat thread");
-  pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-  ndbcluster_terminating= 1;
-  pthread_cond_signal(&ndb_index_stat_thread.COND);
-  while (ndb_index_stat_thread.running > 0)
-    pthread_cond_wait(&ndb_index_stat_thread.COND_ready,
-                      &ndb_index_stat_thread.LOCK);
-  pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+  ndb_index_stat_thread.stop();
 
   /* wait for util and binlog thread to finish */
   ndbcluster_binlog_end(NULL);
