@@ -697,12 +697,11 @@ digest_start_noop(PSI_statement_locker *locker NNN)
   return NULL;
 }
 
-static PSI_digest_locker*
-digest_add_token_noop(PSI_digest_locker *locker NNN,
-                      uint token NNN,
-                      struct OPAQUE_LEX_YYSTYPE *yylval NNN)
+static void
+digest_end_noop(PSI_digest_locker *locker NNN,
+                const struct sql_digest_storage *digest NNN)
 {
-  return NULL;
+  return;
 }
 
 static int
@@ -918,7 +917,7 @@ static PSI PSI_noop=
   set_socket_info_noop,
   set_socket_thread_owner_noop,
   digest_start_noop,
-  digest_add_token_noop,
+  digest_end_noop,
   set_thread_connect_attrs_noop,
   pfs_start_sp_noop,
   pfs_end_sp_noop,
