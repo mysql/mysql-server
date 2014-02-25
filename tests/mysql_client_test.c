@@ -13476,7 +13476,7 @@ static void test_bug9478()
     DIE_UNLESS(rc == MYSQL_NO_DATA);
 
     {
-      char buff[8];
+      uchar buff[8];
       /* Fill in the fetch packet */
       int4store(buff, stmt->stmt_id);
       buff[4]= 1;                               /* prefetch rows */
