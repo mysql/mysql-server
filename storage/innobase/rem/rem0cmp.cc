@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -834,27 +834,26 @@ order_resolved:
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
-#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H)
+
+#ifdef HAVE_UT_CHRONO_T
 
 void
 test_cmp_data_data(ulint len)
 {
-	speedo_t		speedo;
-	int			i;
-	static byte		zeros[64];
+	int		i;
+	static byte	zeros[64];
 
 	if (len > sizeof zeros) {
 		len = sizeof zeros;
 	}
 
-	speedo_reset(&speedo);
+	ut_chrono_t	ch(__func__);
 
 	for (i = 1000000; i > 0; i--) {
 		i += cmp_data(DATA_INT, 0, zeros, len, zeros, len);
 	}
-
-	speedo_show(&speedo);
 }
-#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_RESOURCE_H */
+
+#endif /* HAVE_UT_CHRONO_T */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
