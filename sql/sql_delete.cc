@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -442,6 +442,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
         select && select->quick && select->quick->index != MAX_KEY)
       read_removal= table->check_read_removal(select->quick->index);
 
+    const bool save_abort_on_warning= thd->abort_on_warning;
+    thd->abort_on_warning= thd->is_strict_mode();
     while (!(error=info.read_record(&info)) && !thd->killed &&
            ! thd->is_error())
     {
@@ -501,6 +503,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       else
         break;
     }
+    thd->abort_on_warning= save_abort_on_warning;
+
     killed_status= thd->killed;
     if (killed_status != THD::NOT_KILLED || thd->is_error())
       error= 1;					// Aborted
