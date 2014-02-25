@@ -99,6 +99,7 @@ prepare dump_waits_history_long from
     where event_name = \'wait/lock/metadata/sql/mdl\';";
 
 # reset lost counters
+truncate table performance_schema.events_statements_summary_by_digest;
 flush status;
 
 flush tables;
