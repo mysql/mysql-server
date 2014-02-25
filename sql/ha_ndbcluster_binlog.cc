@@ -790,9 +790,11 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd,
   DBUG_VOID_RETURN;
 }
 
+extern void ndb_util_thread_stop(void);
 
 // Instantiate Ndb_binlog_thread component
 static Ndb_binlog_thread ndb_binlog_thread;
+
 
 /*
   End use of the NDB Cluster binlog
@@ -803,26 +805,9 @@ int ndbcluster_binlog_end(THD *thd)
 {
   DBUG_ENTER("ndbcluster_binlog_end");
 
-  if (ndb_util_thread.running > 0)
-  {
-    /*
-      Wait for util thread to die (as this uses the injector mutex)
-      There is a very small change that ndb_util_thread dies and the
-      following mutex is freed before it's accessed. This shouldn't
-      however be a likely case as the ndbcluster_binlog_end is supposed to
-      be called before ndb_cluster_end().
-    */
-    sql_print_information("Stopping Cluster Utility thread");
-    pthread_mutex_lock(&ndb_util_thread.LOCK);
-    /* Ensure mutex are not freed if ndb_cluster_end is running at same time */
-    ndb_util_thread.running++;
-    ndbcluster_terminating= 1;
-    pthread_cond_signal(&ndb_util_thread.COND);
-    while (ndb_util_thread.running > 1)
-      pthread_cond_wait(&ndb_util_thread.COND_ready, &ndb_util_thread.LOCK);
-    ndb_util_thread.running--;
-    pthread_mutex_unlock(&ndb_util_thread.LOCK);
-  }
+  // Stop ndb_util_thread first since it uses THD(which
+  // implicitly depend on binlog
+  ndb_util_thread_stop();
 
   if (ndbcluster_binlog_inited)
   {

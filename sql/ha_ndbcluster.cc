@@ -405,7 +405,6 @@ ndbcluster_alter_table_flags(uint flags)
 }
 
 static int ndbcluster_inited= 0;
-int ndbcluster_terminating= 0;
 
 /* 
    Indicator and CONDVAR used to delay client and slave
@@ -12216,7 +12215,6 @@ static int ndbcluster_init(void *p)
 
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_setup_complete, NULL);
-  ndbcluster_terminating= 0;
   ndb_dictionary_is_mysqld= 1;
   ndb_setup_complete= 0;
   ndbcluster_hton= (handlerton *)p;
@@ -12291,22 +12289,6 @@ static int ndbcluster_init(void *p)
   if (ndb_util_thread.start())
   {
     DBUG_PRINT("error", ("Could not create ndb utility thread"));
-    my_hash_free(&ndbcluster_open_tables);
-    my_hash_free(&ndbcluster_dropped_tables);
-    pthread_mutex_destroy(&ndbcluster_mutex);
-    pthread_cond_destroy(&COND_ndb_setup_complete);
-    goto ndbcluster_init_error;
-  }
-
-  /* Wait for the util thread to start */
-  pthread_mutex_lock(&ndb_util_thread.LOCK);
-  while (ndb_util_thread.running < 0)
-    pthread_cond_wait(&ndb_util_thread.COND_ready, &ndb_util_thread.LOCK);
-  pthread_mutex_unlock(&ndb_util_thread.LOCK);
-  
-  if (!ndb_util_thread.running)
-  {
-    DBUG_PRINT("error", ("ndb utility thread exited prematurely"));
     my_hash_free(&ndbcluster_open_tables);
     my_hash_free(&ndbcluster_dropped_tables);
     pthread_mutex_destroy(&ndbcluster_mutex);
@@ -15398,20 +15380,35 @@ ha_ndbcluster::update_table_comment(
   Utility thread main loop.
 */
 Ndb_util_thread::Ndb_util_thread()
-  : Ndb_component("Util"),
-    running(-1)
+  : Ndb_component("Util")
 {
   pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND, NULL);
-  pthread_cond_init(&COND_ready, NULL);
 }
 
 Ndb_util_thread::~Ndb_util_thread()
 {
-  assert(running <= 0);
   pthread_mutex_destroy(&LOCK);
   pthread_cond_destroy(&COND);
-  pthread_cond_destroy(&COND_ready);
+}
+
+int Ndb_util_thread::stop()
+{
+  // Wakeup thread from sleeping on COND
+  log_verbose(10, "Wakeup, time to stop");
+
+  pthread_mutex_lock(&LOCK);
+  pthread_cond_signal(&COND);
+  pthread_mutex_unlock(&LOCK);
+
+  // Continue in baseclass stop()
+  return Ndb_component::stop();
+}
+
+
+void ndb_util_thread_stop(void)
+{
+  ndb_util_thread.stop();
 }
 
 #include "ndb_log.h"
@@ -15460,9 +15457,6 @@ Ndb_util_thread::do_run()
   thd->variables.collation_connection= charset_connection;
   thd->update_charset();
 
-  /* Signal successful initialization */
-  running= 1;
-  pthread_cond_signal(&COND_ready);
   pthread_mutex_unlock(&LOCK);
 
   log_info("Wait for server start completed");
@@ -15475,7 +15469,7 @@ Ndb_util_thread::do_run()
     set_timespec(abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
                          &abstime);
-    if (ndbcluster_terminating)
+    if (is_stop_requested())
     {
       mysql_mutex_unlock(&LOCK_server_started);
       pthread_mutex_lock(&LOCK);
@@ -15497,7 +15491,7 @@ Ndb_util_thread::do_run()
   {
     /* ndb not connected yet */
     pthread_cond_wait(&COND, &LOCK);
-    if (ndbcluster_terminating)
+    if (is_stop_requested())
       goto ndb_util_thread_end;
   }
   pthread_mutex_unlock(&LOCK);
@@ -15521,11 +15515,11 @@ Ndb_util_thread::do_run()
   for (;;)
   {
     pthread_mutex_lock(&LOCK);
-    if (!ndbcluster_terminating)
+    if (!is_stop_requested())
       pthread_cond_timedwait(&COND,
                              &LOCK,
                              &abstime);
-    if (ndbcluster_terminating) /* Shutting down server */
+    if (is_stop_requested()) /* Stopping thread */
       goto ndb_util_thread_end;
     pthread_mutex_unlock(&LOCK);
 #ifdef NDB_EXTRA_DEBUG_UTIL_THREAD
@@ -15690,9 +15684,6 @@ ndb_util_thread_fail:
   }
   delete thd;
   
-  /* signal termination */
-  running= 0;
-  pthread_cond_signal(&COND_ready);
   pthread_mutex_unlock(&LOCK);
   DBUG_PRINT("exit", ("ndb_util_thread"));
 
