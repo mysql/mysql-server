@@ -26,12 +26,8 @@ public:
   Ndb_binlog_thread();
   virtual ~Ndb_binlog_thread();
 
-  /*
-    Flag showing if the ndb injector thread is running, if so == 1
-    -1 if it was started but later stopped for some reason
-     0 if never started
-  */
-  int running;
+  // Stop the thread
+  virtual int stop();
 
 private:
   virtual int do_init() { return 0;}
