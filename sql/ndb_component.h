@@ -20,6 +20,7 @@
 
 #include <my_global.h>
 #include <my_pthread.h>
+#include <my_attribute.h>
 
 extern "C" void * Ndb_component_run_C(void *);
 
@@ -35,7 +36,7 @@ protected:
   /**
    * Con/de-structor is protected...so that sub-class needs to provide own
    */
-  Ndb_component();
+  Ndb_component(const char* name);
   virtual ~Ndb_component();
 
   /**
@@ -58,6 +59,16 @@ protected:
    */
   bool is_stop_requested();
 
+protected:
+  void log_verbose(unsigned verbose_level, const char* fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 3, 4);
+  void log_error(const char *fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  void log_warning(const char *fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  void log_info(const char *fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+
 private:
 
   enum ThreadState
@@ -74,6 +85,8 @@ private:
   pthread_t m_thread;
   pthread_mutex_t m_start_stop_mutex;
   pthread_cond_t m_start_stop_cond;
+
+  const char* m_name;
 
   void run_impl();
   friend void * Ndb_component_run_C(void *);

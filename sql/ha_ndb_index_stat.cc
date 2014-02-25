@@ -40,7 +40,8 @@ typedef NdbDictionary::Index NDBINDEX;
 
 /** ndb_index_stat_thread */
 Ndb_index_stat_thread::Ndb_index_stat_thread()
-  : running(-1)
+  : Ndb_component("Index Stat"),
+    running(-1)
 {
   pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND, NULL);
@@ -2435,12 +2436,15 @@ Ndb_index_stat_thread::do_run()
   bool have_listener;
   have_listener= false;
 
-  /* Signal successful initialization */
-  pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-  ndb_index_stat_thread.running= 1;
-  pthread_cond_signal(&ndb_index_stat_thread.COND_ready);
-  pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+  log_info("Starting...");
 
+  /* Signal successful initialization */
+  pthread_mutex_lock(&LOCK);
+  running= 1;
+  pthread_cond_signal(&COND_ready);
+  pthread_mutex_unlock(&LOCK);
+
+  log_verbose(1, "Wait for server start completed");
   /*
     wait for mysql server to start
   */
@@ -2453,12 +2457,13 @@ Ndb_index_stat_thread::do_run()
     if (ndbcluster_terminating)
     {
       mysql_mutex_unlock(&LOCK_server_started);
-      pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+      pthread_mutex_lock(&LOCK);
       goto ndb_index_stat_thread_end;
     }
   }
   mysql_mutex_unlock(&LOCK_server_started);
 
+  log_verbose(1, "Wait for cluster to start");
   /*
     Wait for cluster to start
   */
@@ -2473,7 +2478,7 @@ Ndb_index_stat_thread::do_run()
 
   if (ndbcluster_terminating)
   {
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    pthread_mutex_lock(&LOCK);
     goto ndb_index_stat_thread_end;
   }
 
@@ -2481,14 +2486,14 @@ Ndb_index_stat_thread::do_run()
   if (!(pr.is_util= new NdbIndexStat))
   {
     sql_print_error("Could not allocate NdbIndexStat is_util object");
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    pthread_mutex_lock(&LOCK);
     goto ndb_index_stat_thread_end;
   }
 
   if (!pr.init_ndb(g_ndb_cluster_connection))
   {
     // Error already printed
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    pthread_mutex_lock(&LOCK);
     goto ndb_index_stat_thread_end;
   }
 
@@ -2496,9 +2501,11 @@ Ndb_index_stat_thread::do_run()
   ndb_index_stat_allow(1);
 
   /* Fill in initial status variable */
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  pthread_mutex_lock(&stat_mutex);
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  pthread_mutex_unlock(&stat_mutex);
+
+  log_info("Started");
 
   bool enable_ok;
   enable_ok= false;
@@ -2506,10 +2513,10 @@ Ndb_index_stat_thread::do_run()
   set_timespec(abstime, 0);
   for (;;)
   {
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    pthread_mutex_lock(&LOCK);
     if (!ndbcluster_terminating && ndb_index_stat_waiter == false) {
-      int ret= pthread_cond_timedwait(&ndb_index_stat_thread.COND,
-                                      &ndb_index_stat_thread.LOCK,
+      int ret= pthread_cond_timedwait(&COND,
+                                      &LOCK,
                                       &abstime);
       const char* reason= ret == ETIMEDOUT ? "timed out" : "wake up";
       (void)reason; // USED
@@ -2518,7 +2525,7 @@ Ndb_index_stat_thread::do_run()
     if (ndbcluster_terminating) /* Shutting down server */
       goto ndb_index_stat_thread_end;
     ndb_index_stat_waiter= false;
-    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    pthread_mutex_unlock(&LOCK);
 
     if (ndb_index_stat_restart_flag)
     {
@@ -2590,12 +2597,14 @@ Ndb_index_stat_thread::do_run()
     glob.th_enable= enable_ok;
     glob.th_busy= pr.busy;
     glob.th_loop= msecs;
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    pthread_mutex_lock(&stat_mutex);
     glob.set_status();
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    pthread_mutex_unlock(&stat_mutex);
   }
 
 ndb_index_stat_thread_end:
+  log_info("Stopping...");
+
   /* Prevent clients */
   ndb_index_stat_allow(0);
 
@@ -2613,12 +2622,14 @@ ndb_index_stat_thread_end:
   pr.destroy();
 
   /* signal termination */
-  ndb_index_stat_thread.running= 0;
-  pthread_cond_signal(&ndb_index_stat_thread.COND_ready);
-  pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+  running= 0;
+  pthread_cond_signal(&COND_ready);
+  pthread_mutex_unlock(&LOCK);
   DBUG_PRINT("exit", ("ndb_index_stat_thread"));
 
-  DBUG_LEAVE;
+  log_info("Stopped");
+
+  DBUG_VOID_RETURN;
 }
 
 /* Optimizer queries */
