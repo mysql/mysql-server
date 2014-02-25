@@ -31,14 +31,13 @@ typedef struct st_key KEY;
 
 class Ndb_index_stat_thread : public Ndb_component
 {
+  // Someone is waiting for stats
+  bool ndb_index_stat_waiter;
+  pthread_mutex_t LOCK;
+  pthread_cond_t COND;
 public:
   Ndb_index_stat_thread();
   virtual ~Ndb_index_stat_thread();
-
-  int running;
-  pthread_mutex_t LOCK;
-  pthread_cond_t COND;
-  pthread_cond_t COND_ready;
 
   /*
     protect stats entry lists where needed
@@ -46,6 +45,12 @@ public:
   */
   pthread_mutex_t stat_mutex;
   pthread_cond_t stat_cond;
+
+  // Stop thread
+  virtual int stop();
+
+  // Wake thread up to fetch stats or do other stuff
+  void wakeup();
 
   /* are we setup */
   bool is_setup_complete();
