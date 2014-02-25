@@ -58,7 +58,8 @@
 
 #define JAM_FILE_ID 345
 
-
+// Index pages used by ACC instances, used by CMVMI to report index memory usage
+extern Uint32 g_acc_pages_used[MAX_NDBMT_LQH_WORKERS];
 
 // Signal entries and statement blocks
 /* --------------------------------------------------------------------------------- */
@@ -618,6 +619,8 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
 
 void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
 {
+  jam();
+  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
   FragmentrecPtr regFragPtr;
   regFragPtr.i = fragIndex;
   ptrCheckGuard(regFragPtr, cfragmentsize, fragmentrec);
@@ -640,6 +643,9 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
       cnoOfAllocatedPages -= regFragPtr.p->fullpages.getCount();
       freelist.appendList(regFragPtr.p->fullpages);
       ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
+      g_acc_pages_used[instance()] = cnoOfAllocatedPages;
+      if (cnoOfAllocatedPages < m_maxAllocPages)
+        m_oom = false;
     }
     jam();
     Uint32 tab = regFragPtr.p->mytabptr;
@@ -7523,14 +7529,13 @@ void Dbacc::releaseOverpage(Signal* signal)
 }//Dbacc::releaseOverpage()
 
 
-extern Uint32 g_acc_pages_used[MAX_NDBMT_LQH_WORKERS];
-
 /* ------------------------------------------------------------------------- */
 /* RELEASE_PAGE                                                              */
 /* ------------------------------------------------------------------------- */
 void Dbacc::releasePage(Signal* signal) 
 {
   jam();
+  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
   LocalPage8List freelist(*this, cfreepages);
 #ifdef VM_TRACE
 //  ndbrequire(!freelist.find(rpPageptr));
@@ -7589,6 +7594,7 @@ void Dbacc::zpagesize_error(const char* where){
 void Dbacc::seizePage(Signal* signal) 
 {
   jam();
+  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
   tresult = 0;
   if (cfreepages.isEmpty() || m_oom)
   {
