@@ -329,15 +329,12 @@
 #cmakedefine access @access@
 #cmakedefine chdir @chdir@
 #cmakedefine chmod @chmod@
-#cmakedefine close @close@
 #cmakedefine dup @dup@
 #cmakedefine fdopen @fdopen@
 #cmakedefine fileno @fileno@
 #cmakedefine getcwd @getcwd@
-#cmakedefine getpid @getpid@
 #cmakedefine isatty @isatty@
 #cmakedefine mkdir @mkdir@
-#cmakedefine open @open@
 #cmakedefine putenv @putenv@
 #cmakedefine read @read@
 #cmakedefine rmdir @rmdir@

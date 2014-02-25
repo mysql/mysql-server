@@ -308,7 +308,7 @@ the embedded version of the MySQL server.
 %setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
 %patch0 -p1
-%patch1 -p1
+#patch1 -p1
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -415,14 +415,7 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
-rm -rf %{buildroot}%{_mandir}/man1/mysql_setpermission.1*
-rm -rf %{buildroot}%{_bindir}/mysqlbug
 rm -rf %{buildroot}%{_mandir}/man1/mysqlbug.1*
-rm -rf %{buildroot}%{_mandir}/man1/mysql_convert_table_format.1*
-rm -rf %{buildroot}%{_mandir}/man1/mysql_fix_extensions.1*
-rm -rf %{buildroot}%{_mandir}/man1/msql2mysql.1*
-rm -rf %{buildroot}%{_mandir}/man1/mysql_find_rows.1*
-rm -rf %{buildroot}%{_mandir}/man1/mysqlaccess.1*
 
 %check
 %if 0%{?runselftest}

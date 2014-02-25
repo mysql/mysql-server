@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4001,7 +4001,7 @@ static void test_fetch_date()
 
   myheader("test_fetch_date");
 
-  /* Will not work if sql_mode is NO_ZERO_DATE (implicit if TRADITIONAL) */
+  /* Will not work if sql_mode is STRICT (implicit if TRADITIONAL) */
   rc= mysql_query(mysql, "SET SQL_MODE=''");
   myquery(rc);
 
@@ -15048,7 +15048,7 @@ static void test_bug15510()
 
   myheader("test_bug15510");
 
-  rc= mysql_query(mysql, "set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO'");
+  rc= mysql_query(mysql, "set @@sql_mode='STRICT_ALL_TABLES'");
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);

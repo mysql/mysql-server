@@ -1,0 +1,38 @@
+###############################################################################
+# Bug:#17581990:SLAVE SQL: COULD NOT EXECUTE QUERY EVENT. DETAILED ERROR: ;,
+# ERROR_CODE: 0
+#
+# Problem:
+# ========
+# Setting slave-skip-errors=all on the slave will make mysql slave
+# error log to grow continuously with the following warnings.
+#
+# [Warning] Slave SQL: Could not execute Query event.
+# Detailed error: ;, Error_code: 0
+#
+# Test:
+# =====
+# Set up master slave replication. Set "slave-skip-errors=all" on the slve.
+# Execute simple statments on master which does not cause any error on slave.
+# Check that no warning should be generated on slave.
+###############################################################################
+--source include/have_binlog_format_statement.inc
+# Inorder to grep a specific error pattern in error log a fresh error log
+# needs to be generated.
+--source include/force_restart.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (100);
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+# Script produces different warning when executed along with MTS, hence added
+# a generic replace regular expression.
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [0-9]+/--TIME--/ s/Worker .* end_log_pos [0-9]*; //
+--let GREP_FILE=$MYSQLTEST_VARDIR/tmp/slave.err
+--let GREP_PATTERN=Could not execute Query event.
+--source extra/rpl_tests/grep_pattern.inc
+--remove_file $GREP_FILE
+
+--source include/rpl_end.inc
