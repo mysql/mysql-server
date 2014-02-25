@@ -12,6 +12,7 @@
 call mtr.add_suppression(".*Semi-sync master failed on net_flush.*before waiting for slave reply.*");
 call mtr.add_suppression(".*Timeout waiting for reply of binlog .* semi-sync up to file .*");
 
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 

@@ -697,6 +697,46 @@ WHERE t1.i1 = 1;
 pk	i1	c1	pk	c1	c2	pk	c1	pk	c1_key	c2	c3	pk	c1
 DROP TABLE ten, t1, t2, t3, t4, t5;
 #
+# Bug 18172819 CRASH ON DSMRR_IMPL::CHOOSE_MRR_IMPL IN SQL/HANDLER.CC 
+#
+set @big_tables_save= @@big_tables;
+set big_tables=ON;
+SELECT @@big_tables;
+@@big_tables
+1
+CREATE TABLE t1 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1)
+);
+INSERT INTO t1 VALUES (1,'a'), (2, NULL);
+CREATE TABLE t2 (
+c1 VARCHAR(1),
+i1 INTEGER NOT NULL,
+KEY (c1)
+);
+INSERT INTO t2 VALUES ('a', 1), (NULL, 2);
+EXPLAIN SELECT *
+FROM
+( SELECT * FROM  t1 ) AS d1
+WHERE d1.c1 IN ( SELECT c1 FROM t2 )
+AND d1.c1 IS NULL
+ORDER BY d1.i1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	const	2	10.00	Using where; Using filesort
+3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	4	func	1	100.00	Using index
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `d1`.`i1` AS `i1`,`d1`.`c1` AS `c1` from (/* select#2 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1` from `test`.`t1`) `d1` where (<in_optimizer>(`d1`.`c1`,<exists>(<index_lookup>(<cache>(`d1`.`c1`) in t2 on c1))) and isnull(`d1`.`c1`)) order by `d1`.`i1`
+SELECT *
+FROM
+( SELECT * FROM  t1 ) AS d1
+WHERE d1.c1 IN ( SELECT c1 FROM t2 )
+AND d1.c1 IS NULL
+ORDER BY d1.i1;
+i1	c1
+DROP TABLE t1, t2;
+set big_tables=@big_tables_save;
+#
 # Bug#41029 "MRR: SELECT FOR UPDATE fails to lock gaps (InnoDB table)"
 #
 SET AUTOCOMMIT=0;

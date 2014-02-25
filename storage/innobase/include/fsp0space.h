@@ -177,8 +177,9 @@ public:
 	ulint get_sum_of_sizes() const;
 
 	/** Open or Create the data files if they do not exist.
+	@param[in]	is_temp	whether this is a temporary tablespace
 	@return DB_SUCCESS or error code */
-	dberr_t open_or_create()
+	dberr_t open_or_create(bool is_temp)
 		__attribute__((warn_unused_result));
 
 	/** Delete all the data files. */
