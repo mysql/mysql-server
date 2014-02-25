@@ -563,9 +563,9 @@ void Converter::to(std::string &str, const Value &val) const
       break;
     case MYSQL_TYPE_DATETIME:
     {
-      uint64_t timestamp= val.as_int64();
-      uint64_t d= timestamp / 1000000;
-      uint64_t t= timestamp % 1000000;
+      long long unsigned int timestamp= val.as_int64();
+      long long unsigned int d= timestamp / 1000000;
+      long long unsigned int t= timestamp % 1000000;
       char buf[19]= {0};
       sprintf(buf, "%llu-%llu-%llu %llu:%llu:%llu",
               d / 10000, (d % 10000) / 100,

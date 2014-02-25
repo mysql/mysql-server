@@ -719,6 +719,12 @@ public:
   Delete_file_event(const char* buf, uint event_len,
                     const Format_description_event* description_event);
   ~Delete_file_event() {}
+
+#ifndef HAVE_MYSYS
+  //TODO: Define the methods when required
+  void print_event_info(std::ostream& info) {};
+  void print_long_info(std::ostream& info) {};
+#endif
 };
 
 /**
@@ -770,6 +776,12 @@ public:
                      const Format_description_event *description_event);
 
   ~Execute_load_event() {}
+
+#ifndef HAVE_MYSYS
+  //TODO: Define the methods when required
+  void print_event_info(std::ostream& info) {};
+  void print_long_info(std::ostream& info) {};
+#endif
 };
 
 /**
@@ -852,6 +864,12 @@ public:
   Append_block_event(const char* buf, unsigned int event_len,
                      const Format_description_event *description_event);
   ~Append_block_event() {}
+
+#ifndef HAVE_MYSYS
+  //TODO: Define the methods when required
+  void print_event_info(std::ostream& info) {};
+  void print_long_info(std::ostream& info) {};
+#endif
 };
 
 /**
@@ -879,6 +897,12 @@ public:
   Begin_load_query_event(const char* buf, unsigned int event_len,
                          const Format_description_event *description_event);
   ~Begin_load_query_event() {}
+
+#ifndef HAVE_MYSYS
+  //TODO: Define the methods when required
+  void print_event_info(std::ostream& info) {};
+  void print_long_info(std::ostream& info) {};
+#endif
 };
 } // end namespace binary_log
 /**
