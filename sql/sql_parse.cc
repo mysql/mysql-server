@@ -784,6 +784,7 @@ bool do_command(THD *thd)
     /* Mark the statement completed. */
     MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
     thd->m_statement_psi= NULL;
+    thd->m_digest= NULL;
 
     if (net->error != 3)
     {
@@ -833,6 +834,7 @@ bool do_command(THD *thd)
 
 out:
   /* The statement instrumentation must be closed in all cases. */
+  DBUG_ASSERT(thd->m_digest == NULL);
   DBUG_ASSERT(thd->m_statement_psi == NULL);
   DBUG_RETURN(return_value);
 }
@@ -1117,6 +1119,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_QUERY:
   {
+    DBUG_ASSERT(thd->m_digest == NULL);
+    thd->m_digest= & thd->m_digest_state;
+    thd->m_digest->reset();
+
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     MYSQL_QUERY_START(const_cast<char*>(thd->query().str), thd->thread_id,
@@ -1176,6 +1182,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 /* PSI end */
       MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
       thd->m_statement_psi= NULL;
+      thd->m_digest= NULL;
 
 /* DTRACE end */
       if (MYSQL_QUERY_DONE_ENABLED())
@@ -1202,6 +1209,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (char *) thd->security_ctx->host_or_ip);
 
 /* PSI begin */
+      thd->m_digest= & thd->m_digest_state;
+
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   com_statement_info[command].m_key,
                                                   thd->db, thd->db_length,
@@ -1585,6 +1594,7 @@ done:
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
+  thd->m_digest= NULL;
 
   thd_manager->dec_thread_running();
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
@@ -5184,6 +5194,7 @@ bool mysql_test_parse_for_slave(THD *thd)
 {
   LEX *lex= thd->lex;
   bool error= 0;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
@@ -5193,10 +5204,12 @@ bool mysql_test_parse_for_slave(THD *thd)
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
 
+    thd->m_digest= NULL;
     thd->m_statement_psi= NULL;
     if (!parse_sql(thd, & parser_state, NULL) &&
         all_tables_not_ok(thd, lex->select_lex->table_list.first))
       error= 1;                  /* Ignore question */
+    thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
     thd->end_statement();
   }
@@ -6611,6 +6624,37 @@ extern int MYSQLparse(void *thd); // from sql_yacc.cc
   This is a wrapper of MYSQLparse(). All the code should call parse_sql()
   instead of MYSQLparse().
 
+  As a by product of parsing, the parser can also generate a query digest.
+  To compute a digest, invoke this function as follows.
+
+  @verbatim
+    THD *thd = ...;
+    const char *query_text = ...;
+    uint query_length = ...;
+    Object_creation_ctx *ctx = ...;
+    bool rc;
+
+    Parser_state parser_state;
+    if (parser_state.init(thd, query_text, query_length)
+    {
+      ... handle error
+    }
+
+    parser_state.m_input.m_compute_digest= true;
+    
+    rc= parse_sql(the, &parser_state, ctx);
+    if (! rc)
+    {
+      unsigned char md5[MD5_HASH_SIZE];
+      char digest_text[1024];
+      bool truncated;
+      const sql_digest_storage *digest= & thd->m_digest->m_digest_storage;
+
+      compute_digest_md5(digest, & md5[0]);
+      compute_digest_text(digest, & digest_text[0], sizeof(digest_text), & truncated);
+    }
+  @endverbatim
+
   @param thd Thread context.
   @param parser_state Parser state.
   @param creation_ctx Object creation context.
@@ -6640,10 +6684,29 @@ bool parse_sql(THD *thd,
 
   thd->m_parser_state= parser_state;
 
-#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-  /* Start Digest */
-  thd->m_parser_state->m_lip.m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
-#endif
+  parser_state->m_digest_psi= NULL;
+  parser_state->m_lip.m_digest= NULL;
+
+  if (thd->m_digest != NULL)
+  {
+    thd->m_digest->reset();
+
+    /* Start Digest */
+    parser_state->m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
+
+    if (parser_state->m_input.m_compute_digest ||
+       (parser_state->m_digest_psi != NULL))
+    {
+      /*
+        If either:
+        - the caller wants to compute a digest
+        - the performance schema wants to compute a digest
+        set the digest listener in the lexer.
+      */
+      parser_state->m_lip.m_digest= thd->m_digest;
+      parser_state->m_lip.m_digest->m_digest_storage.m_charset_number= thd->charset()->number;
+    }
+  }
 
   /* Parse the query. */
 
@@ -6735,6 +6798,18 @@ bool parse_sql(THD *thd,
   /* That's it. */
 
   ret_value= mysql_parse_status || thd->is_fatal_error;
+
+  if ((ret_value == 0) &&
+      (parser_state->m_digest_psi != NULL))
+  {
+    /*
+      On parsing success, record the digest in the performance schema.
+    */
+    DBUG_ASSERT(thd->m_digest != NULL);
+    MYSQL_DIGEST_END(parser_state->m_digest_psi,
+                     & thd->m_digest->m_digest_storage);
+  }
+
   MYSQL_QUERY_PARSE_DONE(ret_value);
   return ret_value;
 }
