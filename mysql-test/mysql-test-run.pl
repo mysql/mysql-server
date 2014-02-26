@@ -634,6 +634,10 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
 	      rename($worker_savedir, $savedir);
+              #look for the test.log file and put in savedir
+	      my $logf= "$result->{shortname}" . ".log";
+              my $logfilepath= dirname($worker_savedir); 
+              move($logfilepath . "/" . $logf, $savedir);
 	      # Move any core files from e.g. mysqltest
 	      foreach my $coref (glob("core*"), glob("*.dmp"))
 	      {
@@ -4430,7 +4434,7 @@ sub run_testcase ($) {
       # relevant part of logfile has already been appended to master log
       {
 	my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
-	if (-e $log_file_name) {
+	if (-e $log_file_name && ($tinfo->{'result'} ne 'MTR_RES_FAILED')) {
 	  unlink($log_file_name);
 	}
       }
