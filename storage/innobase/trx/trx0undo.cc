@@ -1323,9 +1323,7 @@ trx_undo_mem_create_at_db_start(
 	XID		xid;
 	ibool		xid_exists = FALSE;
 
-	if (id >= TRX_RSEG_N_SLOTS) {
-		ib_logf(IB_LOG_LEVEL_FATAL, "undo->id is %lu", (ulong) id);
-	}
+	ut_a(id < TRX_RSEG_N_SLOTS);
 
 	undo_page = trx_undo_page_get(
 		page_id_t(rseg->space, page_no), rseg->page_size, mtr);
@@ -1499,9 +1497,7 @@ trx_undo_mem_create(
 
 	ut_ad(mutex_own(&(rseg->mutex)));
 
-	if (id >= TRX_RSEG_N_SLOTS) {
-		ib_logf(IB_LOG_LEVEL_FATAL, "undo->id is %lu", (ulong) id);
-	}
+	ut_a(id < TRX_RSEG_N_SLOTS);
 
 	undo = static_cast<trx_undo_t*>(ut_malloc(sizeof(*undo)));
 
@@ -1549,11 +1545,7 @@ trx_undo_mem_init_for_reuse(
 {
 	ut_ad(mutex_own(&((undo->rseg)->mutex)));
 
-	if (UNIV_UNLIKELY(undo->id >= TRX_RSEG_N_SLOTS)) {
-		mem_analyze_corruption(undo);
-		ib_logf(IB_LOG_LEVEL_FATAL, "undo->id is %lu",
-			(ulong) undo->id);
-	}
+	ut_a(undo->id < TRX_RSEG_N_SLOTS);
 
 	undo->state = TRX_UNDO_ACTIVE;
 	undo->del_marks = FALSE;
@@ -1574,10 +1566,7 @@ trx_undo_mem_free(
 /*==============*/
 	trx_undo_t*	undo)	/*!< in: the undo object to be freed */
 {
-	if (undo->id >= TRX_RSEG_N_SLOTS) {
-		ib_logf(IB_LOG_LEVEL_FATAL, "undo->id is %lu",
-			(ulong) undo->id);
-	}
+	ut_a(undo->id < TRX_RSEG_N_SLOTS);
 
 	ut_free(undo);
 }
@@ -1701,12 +1690,7 @@ trx_undo_reuse_cached(
 	}
 
 	ut_ad(undo->size == 1);
-
-	if (undo->id >= TRX_RSEG_N_SLOTS) {
-		mem_analyze_corruption(undo);
-		ib_logf(IB_LOG_LEVEL_FATAL, "undo->id is %lu",
-			(ulong) undo->id);
-	}
+	ut_a(undo->id < TRX_RSEG_N_SLOTS);
 
 	undo_page = trx_undo_page_get(
 		page_id_t(undo->space, undo->hdr_page_no),
@@ -1880,11 +1864,7 @@ trx_undo_set_state_at_finish(
 	page_t*		undo_page;
 	ulint		state;
 
-	if (undo->id >= TRX_RSEG_N_SLOTS) {
-		mem_analyze_corruption(undo);
-		ib_logf(IB_LOG_LEVEL_FATAL, "undo->id is %lu",
-			(ulong) undo->id);
-	}
+	ut_a(undo->id < TRX_RSEG_N_SLOTS);
 
 	undo_page = trx_undo_page_get(
 		page_id_t(undo->space, undo->hdr_page_no),
@@ -1931,11 +1911,7 @@ trx_undo_set_state_at_prepare(
 
 	ut_ad(trx && undo && mtr);
 
-	if (undo->id >= TRX_RSEG_N_SLOTS) {
-		mem_analyze_corruption(undo);
-		ib_logf(IB_LOG_LEVEL_FATAL, "undo->id is %lu",
-			(ulong) undo->id);
-	}
+	ut_a(undo->id < TRX_RSEG_N_SLOTS);
 
 	undo_page = trx_undo_page_get(
 		page_id_t(undo->space, undo->hdr_page_no),

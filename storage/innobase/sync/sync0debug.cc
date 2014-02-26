@@ -276,7 +276,7 @@ struct SyncDebug {
 		    && latch->m_level != SYNC_LEVEL_VARYING) {
 
 			Latches*	latches = check_order(latch);
-		
+
 			ut_a(latches->empty()
 			     || latch->m_level == SYNC_LEVEL_VARYING
 			     || latch->m_level == SYNC_NO_ORDER_CHECK

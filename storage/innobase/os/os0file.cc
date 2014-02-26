@@ -2748,6 +2748,7 @@ error_handling:
 #endif
 		goto try_again;
 	}
+
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Cannot read from file. OS error number %lu.",
 #ifdef _WIN32
