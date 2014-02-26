@@ -24,6 +24,15 @@
 
 extern "C" void * Ndb_component_run_C(void *);
 
+/**
+ * Baseclass encapsulating the different components
+ * in ndbcluster.
+ *
+ * NOTE! The intention should be to not correlate to number of
+ * threads since that is an implementation detail in each
+ * component.
+ */
+
 class Ndb_component
 {
 public:
@@ -53,6 +62,13 @@ protected:
    * Component deinit function
    */
   virtual int do_deinit() = 0;
+
+  /**
+   * Component wakeup function
+   * - called when component is set to stop, should
+   *   wakeup component from waiting
+   */
+  virtual void do_wakeup() = 0;
 
   /**
    * For usage in threads main loop

@@ -6686,22 +6686,19 @@ Ndb_binlog_thread::~Ndb_binlog_thread()
 }
 
 
-int Ndb_binlog_thread::stop()
+void Ndb_binlog_thread::do_wakeup()
 {
-  log_verbose(10, "Time to stop!");
+  log_verbose(10, "Wakeup");
+
   /*
     The binlog thread is normally waiting for another
     event from the cluster with short timeout and should
     soon(within 1 second) detect that stop has been requested.
 
-    There are really no purpose to signal some condition
+    There are really no purpose(yet) to signal some condition
     trying to wake the thread up should it be waiting somewhere
     else since those waits are also short.
   */
-
-  // Continue in baseclass stop()
-  return Ndb_component::stop();
-
 }
 
 
