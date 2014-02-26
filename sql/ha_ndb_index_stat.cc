@@ -41,7 +41,7 @@ typedef NdbDictionary::Index NDBINDEX;
 /** ndb_index_stat_thread */
 Ndb_index_stat_thread::Ndb_index_stat_thread()
   : Ndb_component("Index Stat"),
-    ndb_index_stat_waiter(false)
+    client_waiting(false)
 {
   pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND, NULL);
@@ -70,7 +70,7 @@ void Ndb_index_stat_thread::do_wakeup()
 void Ndb_index_stat_thread::wakeup()
 {
   pthread_mutex_lock(&LOCK);
-  ndb_index_stat_waiter= true;
+  client_waiting= true;
   pthread_cond_signal(&COND);
   pthread_mutex_unlock(&LOCK);
 }
@@ -2524,7 +2524,7 @@ Ndb_index_stat_thread::do_run()
   for (;;)
   {
     pthread_mutex_lock(&LOCK);
-    if (!is_stop_requested() && ndb_index_stat_waiter == false) {
+    if (!is_stop_requested() && client_waiting == false) {
       int ret= pthread_cond_timedwait(&COND,
                                       &LOCK,
                                       &abstime);
@@ -2534,7 +2534,7 @@ Ndb_index_stat_thread::do_run()
     }
     if (is_stop_requested()) /* Shutting down server */
       goto ndb_index_stat_thread_end;
-    ndb_index_stat_waiter= false;
+    client_waiting= false;
     pthread_mutex_unlock(&LOCK);
 
     if (ndb_index_stat_restart_flag)
