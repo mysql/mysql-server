@@ -701,7 +701,7 @@ SysTablespace::file_not_found(
 }
 
 /** Note that the data file was found.
-@param[in/out]	file	data file object */
+@param[in,out]	file	data file object */
 
 void
 SysTablespace::file_found(

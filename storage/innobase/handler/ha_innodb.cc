@@ -1149,7 +1149,7 @@ innobase_srv_conc_enter_innodb(
 				< srv_thread_concurrency,
 				srv_replication_delay * 1000);
 
-		}  else {
+		} else {
 			srv_conc_enter_innodb(trx);
 		}
 	}
@@ -2051,9 +2051,8 @@ check_trx_exists(
 
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
-	} else if (UNIV_UNLIKELY(trx->magic_n != TRX_MAGIC_N)) {
-		mem_analyze_corruption(trx);
-		ut_error;
+	} else {
+		ut_a(trx->magic_n == TRX_MAGIC_N);
 	}
 
 	innobase_trx_init(thd, trx);

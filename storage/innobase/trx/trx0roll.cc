@@ -93,7 +93,7 @@ trx_rollback_to_savepoint_low(
 		roll_node->partial = TRUE;
 		roll_node->savept = *savept;
 		check_trx_state(trx);
-	}  else {
+	} else {
 		assert_trx_nonlocking_or_in_list(trx);
 	}
 
