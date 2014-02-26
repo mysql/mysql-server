@@ -127,19 +127,18 @@ trx_rsegf_undo_find_free(
 {
 	ulint		i;
 	ulint		page_no;
+	ulint		max_slots = TRX_RSEG_N_SLOTS;
 
-	for (i = 0;
-#ifndef UNIV_DEBUG
-	     i < TRX_RSEG_N_SLOTS;
-#else
-	     i < (trx_rseg_n_slots_debug ? trx_rseg_n_slots_debug : TRX_RSEG_N_SLOTS);
+#ifdef UNIV_DEBUG
+	if (trx_rseg_n_slots_debug) {
+		max_slots = ut_min(trx_rseg_n_slots_debug, TRX_RSEG_N_SLOTS);
+	}
 #endif
-	     i++) {
 
+	for (i = 0; i < max_slots; i++) {
 		page_no = trx_rsegf_get_nth_undo(rsegf, i, mtr);
 
 		if (page_no == FIL_NULL) {
-
 			return(i);
 		}
 	}

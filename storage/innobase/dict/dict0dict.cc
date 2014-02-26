@@ -2320,7 +2320,7 @@ dict_index_add_to_cache(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(!dict_index_is_online_ddl(index));
 
-	ut_ad(mem_heap_validate(index->heap));
+	ut_d(mem_heap_validate(index->heap));
 	ut_a(!dict_index_is_clust(index)
 	     || UT_LIST_GET_LEN(table->indexes) == 0);
 

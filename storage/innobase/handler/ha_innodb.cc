@@ -75,6 +75,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "log0log.h"
+#include "mem0mem.h"
 #include "mtr0mtr.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -127,7 +128,6 @@ static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
 static long innobase_log_buffer_size;
-static long innobase_additional_mem_pool_size;
 static long innobase_file_io_threads;
 static long innobase_open_files;
 static long innobase_autoinc_lock_mode;
@@ -306,10 +306,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(server_mutex),
 #  endif /* !HAVE_ATOMIC_BUILTINS */
 	PSI_KEY(log_sys_mutex),
-#  ifdef UNIV_MEM_DEBUG
-	PSI_KEY(mem_hash_mutex),
-#  endif /* UNIV_MEM_DEBUG */
-	PSI_KEY(mem_pool_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_pq_mutex),
 	PSI_KEY(recv_sys_mutex),
@@ -346,7 +342,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #ifndef HAVE_ATOMIC_BUILTINS_64
 	PSI_KEY(monitor_mutex),
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
-	PSI_KEY(ut_list_mutex),
 	PSI_KEY(trx_sys_mutex),
 	PSI_KEY(zip_pad_mutex),
 };
@@ -3109,26 +3104,6 @@ innobase_change_buffering_inited_ok:
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
 
-	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
-
-	if (innobase_additional_mem_pool_size
-	    != 8*1024*1024L /* the default */ ) {
-
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Using innodb_additional_mem_pool_size is DEPRECATED."
-			" This option may be removed in future releases,"
-			" together with the option innodb_use_sys_malloc"
-			" and with the InnoDB's internal memory allocator.");
-	}
-
-	if (!srv_use_sys_malloc ) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Setting innodb_use_sys_malloc to FALSE is DEPRECATED."
-			" This option may be removed in future releases,"
-			" together with the InnoDB's internal memory"
-			" allocator.");
-	}
-
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
@@ -3144,8 +3119,8 @@ innobase_change_buffering_inited_ok:
 	}
 
 #ifdef HAVE_LARGE_PAGES
-	if ((os_use_large_pages = (ibool) my_use_large_pages)) {
-		os_large_page_size = (ulint) opt_large_page_size;
+	if ((os_use_large_pages = my_use_large_pages)) {
+		os_large_page_size = opt_large_page_size;
 	}
 #endif
 
@@ -15678,15 +15653,6 @@ static MYSQL_SYSVAR_BOOL(log_compressed_pages, page_zip_log_pages,
   " compression algorithm doesn't change.",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "DEPRECATED. This option may be removed in future releases,"
-  " together with the option innodb_use_sys_malloc and with the InnoDB's"
-  " internal memory allocator."
-  " Size of a memory pool InnoDB uses to store data dictionary information"
-  " and other internal data structures.",
-  NULL, NULL, 8*1024*1024L, 512*1024L, LONG_MAX, 1024);
-
 static MYSQL_SYSVAR_ULONG(autoextend_increment,
   sys_tablespace_auto_extend_increment,
   PLUGIN_VAR_RQCMDARG,
@@ -16014,13 +15980,6 @@ static MYSQL_SYSVAR_STR(version, innodb_version_str,
   PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
   "InnoDB version", NULL, NULL, INNODB_VERSION_STR);
 
-static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "DEPRECATED. This option may be removed in future releases,"
-  " together with the InnoDB's internal memory allocator."
-  " Use OS memory allocator instead of InnoDB's internal memory allocator",
-  NULL, NULL, TRUE);
-
 static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Use native AIO if supported on this platform.",
@@ -16195,7 +16154,6 @@ static MYSQL_SYSVAR_ULONG(saved_page_number_debug,
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
-  MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(api_bk_commit_interval),
   MYSQL_SYSVAR(autoextend_increment),
@@ -16300,7 +16258,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
-  MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(change_buffer_max_size),
