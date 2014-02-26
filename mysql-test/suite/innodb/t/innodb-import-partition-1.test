@@ -14,17 +14,21 @@
 
 LET MYSQLD_DATADIR = `select @@datadir`;
 
+--disable_result_log
+DROP TABLE IF EXISTS t1;
+--enable_result_log
+
 perl;
 
     my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
     open FH,">$tmpd/part_table.txt";
-    my $partition_clause = " create table t1 ( i int ) engine = innodb PARTITION BY RANGE (MOD(i,8192)) ( ";
+    my $partition_clause = " create table t1 (i int) engine = innodb PARTITION BY RANGE (MOD(i,8192)) (";
     my $insert_clause = "INSERT INTO t1 VALUES ";
     for($i=0;$i<8191;$i++){
        $partition_clause = $partition_clause . " PARTITION p$i VALUES LESS THAN ($i),";
-       $insert_clause = $insert_clause . " ($i) ,"; 
+       $insert_clause = $insert_clause . " ($i) ,";
     }
-    $partition_clause = $partition_clause . " PARTITION p$i VALUES LESS THAN (8192) ) ;";
+    $partition_clause = $partition_clause . " PARTITION p$i VALUES LESS THAN (8192)) ;";
     $insert_clause = " $insert_clause (8191) ;";
     print FH "$partition_clause\n";
     print FH "$insert_clause\n";
