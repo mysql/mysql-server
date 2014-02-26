@@ -15405,17 +15405,14 @@ Ndb_util_thread::~Ndb_util_thread()
   pthread_cond_destroy(&COND);
 }
 
-int Ndb_util_thread::stop()
+void Ndb_util_thread::do_wakeup()
 {
-  // Wakeup thread from sleeping on COND
-  log_verbose(10, "Wakeup, time to stop");
+  // Wakeup from potential wait
+  log_verbose(10, "Wakeup");
 
   pthread_mutex_lock(&LOCK);
   pthread_cond_signal(&COND);
   pthread_mutex_unlock(&LOCK);
-
-  // Continue in baseclass stop()
-  return Ndb_component::stop();
 }
 
 

@@ -46,9 +46,6 @@ public:
   pthread_mutex_t stat_mutex;
   pthread_cond_t stat_cond;
 
-  // Stop thread
-  virtual int stop();
-
   // Wake thread up to fetch stats or do other stuff
   void wakeup();
 
@@ -58,6 +55,9 @@ private:
   virtual int do_init() { return 0;}
   virtual void do_run();
   virtual int do_deinit() { return 0;}
+  // Wakeup for stop
+  virtual void do_wakeup();
+
 };
 
 /* free entries from share or at end */
