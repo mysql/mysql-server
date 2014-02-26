@@ -32,7 +32,7 @@ typedef struct st_key KEY;
 class Ndb_index_stat_thread : public Ndb_component
 {
   // Someone is waiting for stats
-  bool ndb_index_stat_waiter;
+  bool client_waiting;
   pthread_mutex_t LOCK;
   pthread_cond_t COND;
 public:
