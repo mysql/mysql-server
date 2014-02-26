@@ -185,6 +185,9 @@ public:
                     bool open_cursor,
                     uchar *packet_arg, uchar *packet_end_arg);
   bool execute_server_runnable(Server_runnable *server_runnable);
+#ifdef HAVE_PSI_PS_INTERFACE
+  PSI_prepared_stmt* get_PS_prepared_stmt();
+#endif
   /* Destroy this statement */
   void deallocate();
 private:
@@ -866,6 +869,12 @@ inline bool is_param_long_data_type(Item_param *param)
           (param->param_type <= MYSQL_TYPE_STRING));
 }
 
+#ifdef HAVE_PSI_PS_INTERFACE
+PSI_prepared_stmt* Prepared_statement::get_PS_prepared_stmt()
+{
+  return m_prepared_stmt;
+}
+#endif
 
 /**
   Routines to assign parameters from data supplied by the client.
