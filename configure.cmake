@@ -806,6 +806,8 @@ int main()
   return 0;
 }" HAVE_BUILTIN_EXPECT)
 
+# GCC has __builtin_stpcpy but still calls stpcpy
+IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS" OR NOT CMAKE_COMPILER_IS_GNUCC)
 CHECK_C_SOURCE_COMPILES("
 int main()
 {
@@ -814,6 +816,7 @@ int main()
   __builtin_stpcpy(foo1, foo2);
   return 0;
 }" HAVE_BUILTIN_STPCPY)
+ENDIF()
 
 CHECK_CXX_SOURCE_COMPILES("
     #undef inline
