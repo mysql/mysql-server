@@ -4117,11 +4117,14 @@ fil_extend_space_to_desired_size(
 		success = os_file_set_size(node->name, node->handle,
 				offset_low, offset_high);
 		mutex_enter(&fil_system->mutex);
+
 		if (success) {
 			node->size += (size_after_extend - start_page_no);
 			space->size += (size_after_extend - start_page_no);
 			os_has_said_disk_full = FALSE;
 		}
+
+		fil_node_complete_io(node, fil_system, OS_FILE_READ);
 		goto complete_io;
 	}
 #endif
@@ -4178,11 +4181,9 @@ fil_extend_space_to_desired_size(
 
 	mem_free(buf2);
 
-#ifdef HAVE_POSIX_FALLOCATE
-complete_io:
-#endif
-
 	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
+
+complete_io:
 
 	*actual_size = space->size;
 

@@ -4953,20 +4953,20 @@ fil_extend_space_to_desired_size(
 
 #ifdef HAVE_POSIX_FALLOCATE
 	if (srv_use_posix_fallocate) {
-		offset_high = (size_after_extend - file_start_page_no)
-			* page_size / (4ULL * 1024 * 1024 * 1024);
-		offset_low = (size_after_extend - file_start_page_no)
-			* page_size % (4ULL * 1024 * 1024 * 1024);
+		offset_high = size_after_extend * page_size / (4ULL*1024*1024*1024);
+		offset_low = size_after_extend * page_size % (4ULL*1024*1024*1024);
 
 		mutex_exit(&fil_system->mutex);
 		success = os_file_set_size(node->name, node->handle,
 					   offset_low, offset_high);
 		mutex_enter(&fil_system->mutex);
+
 		if (success) {
 			node->size += (size_after_extend - start_page_no);
 			space->size += (size_after_extend - start_page_no);
 			os_has_said_disk_full = FALSE;
 		}
+
 		fil_node_complete_io(node, fil_system, OS_FILE_READ);
 		goto complete_io;
 	}
@@ -5028,21 +5028,9 @@ fil_extend_space_to_desired_size(
 
 	mem_free(buf2);
 
-#ifdef HAVE_POSIX_FALLOCATE
-complete_io:
-	/* If posix_fallocate was used to extent the file space
-	we need to complete the io. Because no actual writes were
-	dispatched read operation is enough here. Without this
-	there will be assertion at shutdown indicating that
-	all IO is not completed. */
-	if (srv_use_posix_fallocate) {
-		fil_node_complete_io(node, fil_system, OS_FILE_READ);
-	} else {
-		fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
-	}
-#else
 	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
-#endif
+
+complete_io:
 
 	*actual_size = space->size;
 
