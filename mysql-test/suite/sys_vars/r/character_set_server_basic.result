@@ -152,6 +152,10 @@ SET @@session.character_set_server = gbk;
 SELECT @@session.character_set_server;
 @@session.character_set_server
 gbk
+SET @@session.character_set_server = gb18030;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+gb18030
 SET @@session.character_set_server = latin5;
 SELECT @@session.character_set_server;
 @@session.character_set_server
@@ -297,6 +301,10 @@ SET @@global.character_set_server = gbk;
 SELECT @@global.character_set_server;
 @@global.character_set_server
 gbk
+SET @@global.character_set_server = gb18030;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+gb18030
 SET @@global.character_set_server = latin5;
 SELECT @@global.character_set_server;
 @@global.character_set_server

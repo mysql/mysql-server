@@ -2921,32 +2921,32 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
    g - mini-group representative event containing the partition info
       (any Table_map, a Query_log_event)
    p - a mini-group internal event that *p*receeding its g-parent
-      (int_, rand_, user_ var:s) 
+      (int_, rand_, user_ var:s)
    r - a mini-group internal "regular" event that follows its g-parent
       (Delete, Update, Write -rows)
    T - terminator of the group (XID, COMMIT, ROLLBACK, auto-commit query)
 
-   Only the first g-event computes the assigned Worker which once 
+   Only the first g-event computes the assigned Worker which once
    is determined remains to be for the rest of the group.
    That is the g-event solely carries partitioning info.
-   For B-event the assigned Worker is NULL to indicate Coordinator 
+   For B-event the assigned Worker is NULL to indicate Coordinator
    has not yet decided. The same applies to p-event.
-   
+
    Notice, these is a special group consisting of optionally multiple p-events
    terminating with a g-event.
    Such case is caused by old master binlog and a few corner-cases of
-   the current master version (todo: to fix). 
+   the current master version (todo: to fix).
 
    In case of the event accesses more than OVER_MAX_DBS the method
    has to ensure sure previously assigned groups to all other workers are
    done.
 
 
-   @note The function updates GAQ queue directly, updates APH hash 
+   @note The function updates GAQ queue directly, updates APH hash
          plus relocates some temporary tables from Coordinator's list into
          involved entries of APH through @c map_db_to_worker.
          There's few memory allocations commented where to be freed.
-   
+
    @return a pointer to the Worker struct or NULL.
 */
 
@@ -2954,12 +2954,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 {
   Slave_job_group group, *ptr_group= NULL;
   bool is_s_event;
-  int  num_dbs= 0;
   Slave_worker *ret_worker= NULL;
   char llbuff[22];
-#ifndef DBUG_OFF
-  THD *rli_thd= rli->info_thd;
-#endif
   Slave_committed_queue *gaq= rli->gaq;
   DBUG_ENTER("Log_event::get_slave_worker");
 
@@ -3013,7 +3009,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           rli->mts_end_group_sets_max_dbs= true;
           rli->curr_group_seen_begin= true;
         }
-     
+
         if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
@@ -3068,10 +3064,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
     int i= 0;
-    num_dbs= mts_number_dbs();
-    List_iterator<char> it(*get_mts_dbs(&rli->mts_coor_mem_root));
-    it++;
+    Mts_db_names mts_dbs;
 
+    get_mts_dbs(&mts_dbs);
     /*
       Bug 12982188 - MTS: SBR ABORTS WITH ERROR 1742 ON LOAD DATA
       Logging on master can create a group with no events holding
@@ -3095,7 +3090,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     // partioning info is found which drops the flag
     rli->mts_end_group_sets_max_dbs= false;
     ret_worker= rli->last_assigned_worker;
-    if (num_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
+    if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS)
     {
       // Worker with id 0 to handle serial execution
       if (!ret_worker)
@@ -3109,15 +3104,23 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       rli->curr_group_isolated= TRUE;
     }
 
-    do
+    /* One run of the loop in the case of over-max-db:s */
+    for (i= 0; i < ((mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS) ? mts_dbs.num : 1);
+         i++)
     {
-      char **ref_cur_db= it.ref();
-      
+      /*
+        The over max db:s case handled through passing to map_db_to_worker
+        such "all" db as encoded as  the "" empty string.
+        Note, the empty string is allocated in a large buffer
+        to satisfy hashcmp() implementation.
+      */
+      const char all_db[NAME_LEN]= {0};
       if (!(ret_worker=
-            map_db_to_worker(*ref_cur_db, rli,
+            map_db_to_worker(mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS ?
+                             all_db : mts_dbs.name[i], rli,
                              &mts_assigned_partitions[i],
                              /*
-                               todo: optimize it. Although pure 
+                               todo: optimize it. Although pure
                                rows- event load in insensetive to the flag value
                              */
                              TRUE,
@@ -3130,31 +3133,31 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         DBUG_RETURN(ret_worker);
       }
       // all temporary tables are transferred from Coordinator in over-max case
-      DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !rli_thd->temporary_tables);
-      DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db, *ref_cur_db));
+      DBUG_ASSERT(mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
+      DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db,
+                          mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS ?
+                          mts_dbs.name[i] : all_db));
       DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
       DBUG_ASSERT(mts_assigned_partitions[i]->usage >= 0);
-
-      i++;
-    } while (it++);
+    }
 
     if ((ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index))->
         worker_id == MTS_WORKER_UNDEF)
     {
       ptr_group->worker_id= ret_worker->id;
-      
+
       DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
     }
 
-    DBUG_ASSERT(i == num_dbs || num_dbs == OVER_MAX_DBS_IN_EVENT_MTS);
+    DBUG_ASSERT(i == mts_dbs.num || mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS);
   }
-  else 
+  else
   {
     // a mini-group internal "regular" event
     if (rli->last_assigned_worker)
     {
       ret_worker= rli->last_assigned_worker;
-      
+
       DBUG_ASSERT(rli->curr_group_assigned_parts.elements > 0 ||
                   ret_worker->id == 0);
     }
@@ -3170,7 +3173,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
             get_type_code() == APPEND_BLOCK_EVENT))
       {
         DBUG_ASSERT(!ret_worker);
-        
+
         llstr(rli->get_event_relay_log_pos(), llbuff);
         my_error(ER_MTS_CANT_PARALLEL, MYF(0),
                  get_type_str(), rli->get_event_relay_log_name(), llbuff,
@@ -3181,7 +3184,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       }
 
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
-      
+
       DBUG_ASSERT(!ret_worker);
       DBUG_RETURN (ret_worker);
     }
@@ -3218,10 +3221,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
 
     DBUG_ASSERT(ret_worker != NULL);
-    
+
     /*
       The following two blocks are executed if the worker has not been
-      notified about new relay-log or a new checkpoints. 
+      notified about new relay-log or a new checkpoints.
       Relay-log string is freed by Coordinator, Worker deallocates
       strings in the checkpoint block.
       However if the worker exits earlier reclaiming for both happens anyway at
@@ -3266,9 +3269,15 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ptr_group->checkpoint_seqno= rli->checkpoint_seqno;
     ptr_group->ts= when.tv_sec + (time_t) exec_time; // Seconds_behind_master related
     rli->checkpoint_seqno++;
-
-    // reclaiming resources allocated during the group scheduling
-    free_root(&rli->mts_coor_mem_root, MYF(MY_KEEP_PREALLOC));
+    /*
+      Coordinator should not use the main memroot however its not
+      reset elsewhere either, so let's do it safe way.
+      The main mem root is also reset by the SQL thread in at the end
+      of applying which Coordinator does not do in this case.
+      That concludes the memroot reset can't harm anything in SQL thread roles
+      after Coordinator has finished its current scheduling.
+    */
+    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
 #ifndef DBUG_OFF
     w_rr++;
@@ -4844,19 +4853,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
   /*
-    InnoDB internally stores the master log position it has executed so far,
-    i.e. the position just after the COMMIT event.
-    When InnoDB will want to store, the positions in rli won't have
-    been updated yet, so group_master_log_* will point to old BEGIN
-    and event_master_log* will point to the beginning of current COMMIT.
-    But log_pos of the COMMIT Query event is what we want, i.e. the pos of the
-    END of the current log event (COMMIT). We save it in rli so that InnoDB can
-    access it.
-  */
-  const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
-  DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
-
-  /*
     todo: such cleanup should not be specific to Query event and therefore
           is preferable at a common with other event pre-execution point
   */
@@ -5031,6 +5027,9 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query().str, thd->query().length))
       {
+        DBUG_ASSERT(thd->m_digest == NULL);
+        thd->m_digest= & thd->m_digest_state;
+        DBUG_ASSERT(thd->m_statement_psi == NULL);
         thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                     stmt_info_rpl.m_key,
                                                     thd->db, thd->db_length,
@@ -5143,7 +5142,7 @@ compare_errors:
              ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
-      if (ignored_error_code(actual_error))
+      if (actual_error && ignored_error_code(actual_error))
       {
         if (actual_error == ER_SLAVE_IGNORED_TABLE)
         {
@@ -5246,6 +5245,7 @@ end:
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
+  thd->m_digest= NULL;
 
   /*
     As a disk space optimization, future masters will not log an event for
@@ -6641,12 +6641,9 @@ void Load_log_event::set_fields(const char* affected_db,
                                      Load_log_event::exec_event only for this
                                      function to have rli->get_rpl_log_name and
                                      rli->last_slave_error, both being used by
-                                     error reports. rli's position advancing
-                                     is skipped (done by the caller which is
-                                     Execute_load_log_event::exec_event).
-                                     If set to 0, rli is provided for full use,
-                                     i.e. for error reports and position
-                                     advancing.
+                                     error reports.  If set to 0, rli is provided
+                                     for full use, i.e. for error reports and
+                                     position advancing.
 
   @todo
     fix this; this can be done by testing rules in
@@ -6680,16 +6677,6 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   thd->lex->local_file= local_fname;
   mysql_reset_thd_for_next_command(thd);
 
-  if (!use_rli_only_for_errors)
-  {
-    /*
-      Saved for InnoDB, see comment in
-      Query_log_event::do_apply_event()
-    */
-    const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
-    DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
-  }
- 
    /*
     We test replicate_*_db rules. Note that we have already prepared
     the file to load, even if we are going to ignore and delete it
@@ -9024,14 +9011,11 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   }
   lev->thd = thd;
   /*
-    lev->do_apply_event should use rli only for errors i.e. should
-    not advance rli's position.
-
+    lev->do_apply_event should use rli only for errors.
     lev->do_apply_event is the place where the table is loaded (it
     calls mysql_load()).
   */
-  const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
-  if (lev->do_apply_event(0,rli,1)) 
+  if (lev->do_apply_event(0,rli,1))
   {
     /*
       We want to indicate the name of the file that could not be loaded

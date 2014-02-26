@@ -1141,7 +1141,7 @@ ibuf_page_low(
 		return(FALSE);
 	}
 
-	ut_ad(fil_space_get_type(IBUF_SPACE_ID) == FIL_TABLESPACE);
+	ut_ad(fil_space_get_type(IBUF_SPACE_ID) == FIL_TYPE_TABLESPACE);
 
 #ifdef UNIV_DEBUG
 	if (!x_latch) {
@@ -3996,11 +3996,11 @@ ibuf_insert_to_index_page(
 
 	DBUG_ENTER("ibuf_insert_to_index_page");
 
-	DBUG_PRINT("ibuf", ("page_no: " UINT32PF, block->page.id.page_no()));
-	DBUG_PRINT("ibuf", ("index name: %s", index->name));
-	DBUG_PRINT("ibuf", ("online status: %d",
-			    dict_index_get_online_status(index)));
+	DBUG_PRINT("ibuf", ("page " UINT32PF ":" UINT32PF,
+			    block->page.id.space(),
+			    block->page.id.page_no()));
 
+	ut_ad(!dict_index_is_online_ddl(index));// this is an ibuf_dummy index
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!buf_block_align(page)->index);

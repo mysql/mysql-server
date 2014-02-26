@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved. & tommy@valley.ne.jp.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved. & tommy@valley.ne.jp.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -590,6 +590,7 @@ CHARSET_INFO my_charset_bin =
     1,                          /* casedn_multiply  */
     1,				/* mbminlen      */
     1,				/* mbmaxlen      */
+    1,				/* mbmaxlenlen   */
     0,				/* min_sort_char */
     255,			/* max_sort_char */
     0,                          /* pad char      */

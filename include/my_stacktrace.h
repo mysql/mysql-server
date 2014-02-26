@@ -32,8 +32,7 @@
 #endif
 
 #if HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS && \
-    HAVE_CXXABI_H && HAVE_ABI_CXA_DEMANGLE && \
-    HAVE_WEAK_SYMBOL
+    HAVE_CXXABI_H && HAVE_ABI_CXA_DEMANGLE
 #define BACKTRACE_DEMANGLE 1
 #endif
 
@@ -96,7 +95,7 @@ char *my_safe_utoa(int base, ulonglong val, char *buf);
   Implemented with simplicity, and async-signal-safety in mind.
 */
 size_t my_safe_snprintf(char* to, size_t n, const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 3, 4);
+  __attribute__((format(printf, 3, 4)));
 
 /**
   A (very) limited version of snprintf, which writes the result to STDERR.
@@ -106,7 +105,7 @@ size_t my_safe_snprintf(char* to, size_t n, const char* fmt, ...)
   which should suffice for our signal handling routines.
 */
 size_t my_safe_printf_stderr(const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 
 /**
   Writes up to count bytes from buffer to STDERR.

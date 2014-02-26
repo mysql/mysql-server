@@ -2178,46 +2178,51 @@ os_file_set_eof(
 #endif /* _WIN32 */
 }
 
-/***********************************************************************//**
-Truncates a file to a specified size in bytes. Do nothing if the size
-preserved is smaller or equal than current size of file.
+/** Truncates a file to a specified size in bytes.
+Do nothing if the size to preserve is greater or equal to the current
+size of the file.
+@param[in]	pathname	file path
+@param[in]	file		file to be truncated
+@param[in]	size		size to preserve in bytes
 @return true if success */
 
 bool
 os_file_truncate(
-/*=============*/
-	const char*     pathname,	/*!< in: file path */
-	os_file_t       file,		/*!< in: file to be truncated */
-	os_offset_t	size)		/*!< in: size preserved in bytes */
+	const char*     pathname,
+	os_file_t       file,
+	os_offset_t	size)
 {
-	int		res;
-	os_offset_t	size_bytes;
-
-	size_bytes = os_file_get_size(file);
-
-	/* Do nothing if the size preserved is larger than or equal with
+	/* Do nothing if the size preserved is larger than or equal to the
 	current size of file */
+	os_offset_t	size_bytes = os_file_get_size(file);
 	if (size >= size_bytes) {
 		return(true);
 	}
 
 #ifdef _WIN32
-        int fd;
-	/* Get the file descriptor from the handle */
-	fd = _open_osfhandle(long(file), _O_TEXT);
-	/* Truncate the file */
-	res = _chsize(fd, long(size));
-	if (res == -1) {
-		os_file_handle_error_no_exit(pathname, "chsize", false);
+	LARGE_INTEGER    length;
+	length.QuadPart = size;
+
+	BOOL	success = SetFilePointerEx(file, length, NULL, FILE_BEGIN);
+	if (!success) {
+		os_file_handle_error_no_exit(
+			pathname, "SetFilePointerEx", false);
+	} else {
+		success = SetEndOfFile(file);
+		if (!success) {
+			os_file_handle_error_no_exit(
+				pathname, "SetEndOfFile", false);
+		}
 	}
+	return(success);
 #else /* _WIN32 */
-	res = ftruncate(file, size);
+	int	res = ftruncate(file, size);
 	if (res == -1) {
 		os_file_handle_error_no_exit(pathname, "truncate", false);
 	}
-#endif /* _WIN32 */
 
 	return(res == 0);
+#endif /* _WIN32 */
 }
 
 #ifndef _WIN32

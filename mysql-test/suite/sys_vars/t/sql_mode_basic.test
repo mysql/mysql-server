@@ -6,7 +6,7 @@
 # Data Type: enumeration                                                      #
 # Default Value: YES                                                          #
 # Valid Values : ANSI, STRICT_TRANS_TABLES, TRADITIONAL,                      #
-#                ERROR_FOR_DIVISION_BY_ZERO, ANSI_QUOTES, HIGH_NOT_PRECEDENCE,#
+#                ANSI_QUOTES, HIGH_NOT_PRECEDENCE,#
 #                IGNORE_SPACE, NO_AUTO_CREATE_USER, ONLY_FULL_GROUP_BY,       #
 #                NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,                  #
 #                NO_UNSIGNED_SUBTRACTION, OFF                                 #
@@ -101,8 +101,6 @@ SET @@global.sql_mode = ALLOW_INVALID_DATES;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = ANSI_QUOTES;
 SELECT @@global.sql_mode;
-SET @@global.sql_mode = ERROR_FOR_DIVISION_BY_ZERO;
-SELECT @@global.sql_mode;
 SET @@global.sql_mode = HIGH_NOT_PRECEDENCE;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = IGNORE_SPACE;
@@ -124,10 +122,6 @@ SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_TABLE_OPTIONS;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_UNSIGNED_SUBTRACTION;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = NO_ZERO_DATE;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = NO_ZERO_IN_DATE;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = ONLY_FULL_GROUP_BY;
 SELECT @@global.sql_mode;
@@ -170,8 +164,6 @@ SET @@session.sql_mode = ALLOW_INVALID_DATES;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = ANSI_QUOTES;
 SELECT @@session.sql_mode;
-SET @@session.sql_mode = ERROR_FOR_DIVISION_BY_ZERO;
-SELECT @@session.sql_mode;
 SET @@session.sql_mode = HIGH_NOT_PRECEDENCE;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = IGNORE_SPACE;
@@ -193,10 +185,6 @@ SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_TABLE_OPTIONS;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_UNSIGNED_SUBTRACTION;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = NO_ZERO_DATE;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = NO_ZERO_IN_DATE;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = ONLY_FULL_GROUP_BY;
 SELECT @@session.sql_mode;
@@ -307,9 +295,6 @@ SELECT @@global.sql_mode;
 SET @@global.sql_mode = 500000;
 SELECT @@global.sql_mode;
 
-SET @@global.sql_mode = 4294967295;
-SELECT @@global.sql_mode;
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.sql_mode = 4294967296;
 
@@ -360,7 +345,7 @@ SELECT @@global.sql_mode;
 
 #try combining invalid mode with correct mode
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO,FOOBAR,IGNORE_SPACE';
+SET @@session.sql_mode = 'FOOBAR,IGNORE_SPACE';
 
 #zero-length values are ok
 SET @@sql_mode=',';

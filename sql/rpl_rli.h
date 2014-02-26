@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -236,18 +236,6 @@ protected:
   */
   char group_master_log_name[FN_REFLEN];
   volatile my_off_t group_master_log_pos;
-
-  /*
-    When it commits, InnoDB internally stores the master log position it has
-    processed so far; the position to store is the one of the end of the
-    committing event (the COMMIT query event, or the event if in autocommit
-    mode).
-  */
-#if MYSQL_VERSION_ID < 40100
-  ulonglong future_master_log_pos;
-#else
-  ulonglong future_group_master_log_pos;
-#endif
 
 private:
   Gtid_set gtid_set;
@@ -595,13 +583,6 @@ public:
   bool mts_recovery_group_seen_begin;
 
   /*
-    Coordinator's specific mem-root to hold various temporary data while
-    the current group is being schedulled. The root is shunk to default size
-    at the end of the group distribution.
-  */
-  MEM_ROOT mts_coor_mem_root;
-
-  /*
     While distibuting events basing on their properties MTS
     Coordinator changes its mts group status.
     Transition normally flowws to follow `=>' arrows on the diagram:
@@ -888,16 +869,6 @@ public:
   {
     return (group_master_log_name[0] ? group_master_log_name : "FIRST");
   }
-
-#if MYSQL_VERSION_ID < 40100
-  inline ulonglong get_future_master_log_pos() { return future_master_log_pos; }
-#else
-  inline ulonglong get_future_group_master_log_pos() { return future_group_master_log_pos; }
-  inline void set_future_group_master_log_pos(ulonglong log_pos)
-  {
-    future_group_master_log_pos= log_pos;
-  }
-#endif
 
   static size_t get_number_info_rli_fields();
 

@@ -90,16 +90,6 @@ number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
 recv_recovery_from_checkpoint_start_func(). */
 ibool	recv_lsn_checks_on;
 
-/** There are two conditions under which we scan the logs, the first
-is normal startup and the second is when we do a recovery from an
-archive.
-This flag is set if we are doing a scan from the last checkpoint during
-startup. If we find log entries that were written after the last checkpoint
-we know that the server was not cleanly shutdown. We must then initialize
-the crash recovery environment before attempting to store these entries in
-the log hash table. */
-static ibool		recv_log_scan_is_startup_type;
-
 /** If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
 the log record hash table becomes too full, and log records must be merged
@@ -127,7 +117,7 @@ log scan */
 static ulint	recv_scan_print_counter;
 
 /** The type of the previous parsed redo log record */
-static ulint	recv_previous_parsed_rec_type;
+static mlog_id_t	recv_previous_parsed_rec_type;
 /** The offset of the previous parsed redo log record */
 static ulint	recv_previous_parsed_rec_offset;
 /** The 'multi' flag of the previous parsed redo log record */
@@ -267,13 +257,11 @@ recv_sys_var_init(void)
 
 	recv_lsn_checks_on = FALSE;
 
-	recv_log_scan_is_startup_type = FALSE;
-
 	recv_no_ibuf_operations = FALSE;
 
 	recv_scan_print_counter	= 0;
 
-	recv_previous_parsed_rec_type	= 999999;
+	recv_previous_parsed_rec_type = MLOG_SINGLE_REC_FLAG;
 
 	recv_previous_parsed_rec_offset	= 0;
 
@@ -475,7 +463,7 @@ recv_synchronize_groups(void)
 
 	ut_a(start_lsn != end_lsn);
 
-	log_group_read_log_seg(LOG_RECOVER, recv_sys->last_block,
+	log_group_read_log_seg(recv_sys->last_block,
 			       UT_LIST_GET_FIRST(log_sys->log_groups),
 			       start_lsn, end_lsn);
 
@@ -571,9 +559,9 @@ recv_find_max_checkpoint(
 			if (!recv_check_cp_is_consistent(buf)) {
 				DBUG_PRINT("ib_log",
 					   ("invalid checkpoint,"
-					    " group %u at %u, checksum %#x",
-					    (unsigned) group->id,
-					    (unsigned) field,
+					    " group " ULINTPF " at " ULINTPF
+					    ", checksum %#x",
+					    group->id, field,
 					    (unsigned) mach_read_from_4(
 						    LOG_CHECKPOINT_CHECKSUM_1
 						    + buf)));
@@ -592,9 +580,9 @@ recv_find_max_checkpoint(
 				buf + LOG_CHECKPOINT_NO);
 
 			DBUG_PRINT("ib_log",
-				   ("checkpoint %u found in group %u",
-				    unsigned(checkpoint_no),
-				    unsigned(group->id)));
+				   ("checkpoint " UINT64PF
+				    " found in group " ULINTPF,
+				    checkpoint_no, group->id));
 
 			if (checkpoint_no >= max_no) {
 				*max_group = group;
@@ -1035,9 +1023,7 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
 		/* Allow anything in page_type when creating a page. */
 		ut_a(!page_zip);
-		ptr = page_parse_create(ptr, end_ptr,
-					type == MLOG_COMP_PAGE_CREATE,
-					block, mtr);
+		page_parse_create(block, type == MLOG_COMP_PAGE_CREATE);
 		break;
 	case MLOG_UNDO_INSERT:
 		ut_ad(!page || page_type == FIL_PAGE_UNDO_LOG);
@@ -1950,23 +1936,32 @@ skip_this_recv_addr:
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*******************************************************************//**
-Tries to parse a single log record and returns its length.
+/** Tries to parse a single log record.
+@param[out]	type		log record type
+@param[in]	ptr		pointer to a buffer
+@param[in]	end_ptr		end of the buffer
+@param[out]	space_id	tablespace identifier
+@param[out]	page_no		page number
+@param[out]	body		start of log record body
 @return length of the record, or 0 if the record was not complete */
 static
 ulint
 recv_parse_log_rec(
-/*===============*/
-	byte*		ptr,	/*!< in: pointer to a buffer */
-	byte*		end_ptr,/*!< in: pointer to the buffer end */
-	mlog_id_t*	type,	/*!< out: type */
-	ulint*		space,	/*!< out: space id */
-	ulint*		page_no,/*!< out: page number */
-	byte**		body)	/*!< out: log record body start */
+	mlog_id_t*	type,
+	byte*		ptr,
+	byte*		end_ptr,
+	ulint*		space,
+	ulint*		page_no,
+	byte**		body)
 {
 	byte*	new_ptr;
 
 	*body = NULL;
+
+	UNIV_MEM_INVALID(type, sizeof *type);
+	UNIV_MEM_INVALID(space, sizeof *space);
+	UNIV_MEM_INVALID(page_no, sizeof *page_no);
+	UNIV_MEM_INVALID(body, sizeof *body);
 
 	if (ptr == end_ptr) {
 
@@ -1982,9 +1977,8 @@ recv_parse_log_rec(
 
 	if (*ptr == MLOG_DUMMY_RECORD) {
 		*type = static_cast<mlog_id_t>(*ptr);
-
-		*space = ULINT_UNDEFINED - 1; /* For debugging */
-
+		ut_d(*space = ULINT_UNDEFINED - 1);
+		UNIV_MEM_INVALID(space, sizeof *space);
 		return(1);
 	}
 
@@ -2005,7 +1999,7 @@ recv_parse_log_rec(
 #endif /* UNIV_LOG_LSN_DEBUG */
 
 	new_ptr = recv_parse_or_apply_log_rec_body(
-			*type, new_ptr, end_ptr, NULL, NULL, *space, *page_no);
+		*type, new_ptr, end_ptr, NULL, NULL, *space, *page_no);
 
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
@@ -2058,13 +2052,13 @@ recv_report_corrupt_log(
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"############### CORRUPT LOG RECORD FOUND ##################");
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Log record type %lu, space id %lu, page number %lu."
+		"Log record type %d, page " ULINTPF ":" ULINTPF "."
 		" Log parsing proceeded successfully up to " LSN_PF "."
-		" Previous log record type %lu, is multi %lu"
+		" Previous log record type %d, is multi %lu"
 		" Recv offset %lu, prev %lu",
-		(ulong) type, (ulong) space, (ulong) page_no,
+		type, space, page_no,
 		recv_sys->recovered_lsn,
-		(ulong) recv_previous_parsed_rec_type,
+		recv_previous_parsed_rec_type,
 		(ulong) recv_previous_parsed_rec_is_multi,
 		(ulong) (ptr - recv_sys->buf),
 		(ulong) recv_previous_parsed_rec_offset);
@@ -2149,7 +2143,7 @@ loop:
 		/* Try to parse a log record, fetching its type, space id,
 		page no, and a pointer to the body of the log record */
 
-		len = recv_parse_log_rec(ptr, end_ptr, &type, &space,
+		len = recv_parse_log_rec(&type, ptr, end_ptr, &space,
 					 &page_no, &body);
 
 		if (len == 0 || recv_sys->found_corrupt_log) {
@@ -2172,7 +2166,7 @@ loop:
 			return(FALSE);
 		}
 
-		recv_previous_parsed_rec_type = (ulint) type;
+		recv_previous_parsed_rec_type = type;
 		recv_previous_parsed_rec_offset = recv_sys->recovered_offset;
 		recv_previous_parsed_rec_is_multi = 0;
 
@@ -2180,10 +2174,10 @@ loop:
 		recv_sys->recovered_lsn = new_recovered_lsn;
 
 		DBUG_PRINT("ib_log",
-			   ("scan " LSN_PF ": log rec %u len %u"
-			    " page %u:%u", old_lsn,
-			    (unsigned) type, (unsigned) len,
-			    (unsigned) space, (unsigned) page_no));
+			   ("scan " LSN_PF ": log rec %d"
+			    " len " ULINTPF
+			    " page " ULINTPF ":" ULINTPF,
+			    old_lsn, type, len, space, page_no));
 
 		switch (type) {
 		case MLOG_DUMMY_RECORD:
@@ -2217,7 +2211,7 @@ loop:
 		n_recs = 0;
 
 		for (;;) {
-			len = recv_parse_log_rec(ptr, end_ptr, &type, &space,
+			len = recv_parse_log_rec(&type, ptr, end_ptr, &space,
 						 &page_no, &body);
 			if (len == 0 || recv_sys->found_corrupt_log) {
 
@@ -2230,17 +2224,16 @@ loop:
 				return(FALSE);
 			}
 
-			recv_previous_parsed_rec_type = (ulint) type;
+			recv_previous_parsed_rec_type = type;
 			recv_previous_parsed_rec_offset
 				= recv_sys->recovered_offset + total_len;
 			recv_previous_parsed_rec_is_multi = 1;
 
 			DBUG_PRINT("ib_log",
-				   ("scan " LSN_PF ": multi-log rec %u"
-				    " len %u page %u:%u",
+				   ("scan " LSN_PF ": multi-log rec %d"
+				    " len " ULINTPF " page " ULINTPF ":" ULINTPF,
 				    recv_sys->recovered_lsn,
-				    (unsigned) type, (unsigned) len,
-				    (unsigned) space, (unsigned) page_no));
+				    type, len, space, page_no));
 
 			total_len += len;
 			n_recs++;
@@ -2273,7 +2266,7 @@ loop:
 		for (;;) {
 			old_lsn = recv_sys->recovered_lsn;
 			len = recv_parse_log_rec(
-				ptr, end_ptr, &type, &space, &page_no, &body);
+				&type, ptr, end_ptr, &space, &page_no, &body);
 
 			if (recv_sys->found_corrupt_log) {
 
@@ -2416,8 +2409,7 @@ Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
 UNIV_HOTBACKUP is defined, this function will apply log records
 automatically when the hash table becomes full.
-@return TRUE if limit_lsn has been reached, or not able to scan any
-more in this log group */
+@return TRUE if not able to scan any more in this log group */
 static
 ibool
 recv_scan_log_recs(
@@ -2532,12 +2524,11 @@ recv_scan_log_recs(
 		if (scanned_lsn > recv_sys->scanned_lsn) {
 
 			/* We have found more entries. If this scan is
- 			of startup type, we must initiate crash recovery
+			of startup type, we must initiate crash recovery
 			environment before parsing these log records. */
 
 #ifndef UNIV_HOTBACKUP
-			if (recv_log_scan_is_startup_type
-			    && !recv_needed_recovery) {
+			if (!recv_needed_recovery) {
 
 				if (!srv_read_only_mode) {
 					ib_logf(IB_LOG_LEVEL_INFO,
@@ -2666,8 +2657,8 @@ recv_group_scan_log_recs(
 	while (!finished) {
 		end_lsn = start_lsn + RECV_SCAN_SIZE;
 
-		log_group_read_log_seg(LOG_RECOVER, log_sys->buf,
-				       group, start_lsn, end_lsn);
+		log_group_read_log_seg(
+			log_sys->buf, group, start_lsn, end_lsn);
 
 		finished = recv_scan_log_recs(
 			(buf_pool_get_n_pages()
@@ -2759,8 +2750,6 @@ recv_recovery_from_checkpoint_start(
 
 	recv_recovery_on = TRUE;
 
-	recv_sys->limit_lsn = LSN_MAX;
-
 	mutex_enter(&(log_sys->mutex));
 
 	/* Look for the latest checkpoint from any of the log groups */
@@ -2837,8 +2826,6 @@ recv_recovery_from_checkpoint_start(
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
-	/* Set the flag to publish that we are doing startup scan. */
-	recv_log_scan_is_startup_type = 1;
 	while (group) {
 		recv_group_scan_log_recs(group, &contiguous_lsn,
 					 &group_scanned_lsn);
@@ -2847,8 +2834,6 @@ recv_recovery_from_checkpoint_start(
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
-	/* Done with startup scan. Clear the flag. */
-	recv_log_scan_is_startup_type = FALSE;
 	/* NOTE: we always do a 'recovery' at startup, but only if
 	there is something wrong we will print a message to the
 	user about recovery: */
@@ -2984,7 +2969,6 @@ recv_recovery_from_checkpoint_finish(void)
 	DBUG_PRINT("ib_log", ("apply completed"));
 
 	if (recv_needed_recovery) {
-		trx_sys_print_mysql_master_log_pos();
 		trx_sys_print_mysql_binlog_offset();
 	}
 
@@ -3209,21 +3193,21 @@ recv_reset_log_files_for_backup(
 }
 #endif /* UNIV_HOTBACKUP */
 
-void recv_dblwr_t::add(byte* page)
+/** Find a doublewrite copy of a page.
+@param[in]	space_id	tablespace identifier
+@param[in]	page_no		page number
+@return	page frame
+@retval NULL if no page was found */
+
+const byte*
+recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 {
-	pages.push_back(page);
-}
+	std::vector<const byte*> matches;
+	const byte*	result = 0;
 
-byte* recv_dblwr_t::find_page(ulint space_id, ulint page_no)
-{
-	std::vector<byte*> matches;
-	byte*	result = 0;
-
-	for (std::list<byte*>::iterator i = pages.begin();
-	     i != pages.end(); ++i) {
-
-		if ((page_get_space_id(*i) == space_id)
-		    && (page_get_page_no(*i) == page_no)) {
+	for (list::iterator i = pages.begin(); i != pages.end(); ++i) {
+		if (page_get_space_id(*i) == space_id
+		    && page_get_page_no(*i) == page_no) {
 			matches.push_back(*i);
 		}
 	}
@@ -3235,7 +3219,7 @@ byte* recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 		lsn_t max_lsn	= 0;
 		lsn_t page_lsn	= 0;
 
-		for (std::vector<byte*>::iterator i = matches.begin();
+		for (std::vector<const byte*>::iterator i = matches.begin();
 		     i != matches.end(); ++i) {
 
 			page_lsn = mach_read_from_8(*i + FIL_PAGE_LSN);

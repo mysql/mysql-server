@@ -404,11 +404,14 @@ create_log_files(
 	has been completed and renamed. */
 	sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
 
-	fil_space_t* log_space = fil_space_create(
+	/* Disable the doublewrite buffer for log files, not required */
+
+	fil_space_t*	log_space = fil_space_create(
 		logfilename, SRV_LOG_SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-		FIL_LOG);
+		FIL_TYPE_LOG);
 	ut_a(fil_validate());
+	ut_a(log_space != NULL);
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
@@ -592,9 +595,9 @@ srv_undo_tablespace_open(
 	ulint		space_id)	/*!< in: tablespace id */
 {
 	os_file_t	fh;
-	dberr_t		err	= DB_ERROR;
 	bool		ret;
 	ulint		flags;
+	dberr_t		err	= DB_ERROR;
 
 	if (!srv_file_check_mode(name)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -619,6 +622,12 @@ srv_undo_tablespace_open(
 		os_offset_t	size;
 		fil_space_t*	space;
 
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		if (!srv_use_doublewrite_buf) {
+			fil_fusionio_enable_atomic_write(fh);
+		}
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
+
 		size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t) -1);
 
@@ -637,7 +646,7 @@ srv_undo_tablespace_open(
 		/* Set the compressed page size to 0 (non-compressed) */
 		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
 		space = fil_space_create(
-			name, space_id, flags, FIL_TABLESPACE);
+			name, space_id, flags, FIL_TYPE_TABLESPACE);
 
 		ut_a(fil_validate());
 		ut_a(space);
@@ -999,7 +1008,8 @@ srv_open_tmp_tablespace(
 			"Could not create the shared %s.", tmp_space->name());
 
 	} else if ((err = tmp_space->open_or_create(
-			&sum_of_new_sizes, NULL, NULL)) != DB_SUCCESS) {
+			    true, &sum_of_new_sizes, NULL, NULL))
+		   != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to create the shared %s", tmp_space->name());
@@ -1009,10 +1019,11 @@ srv_open_tmp_tablespace(
 		mtr_t	mtr;
 		ulint	size = tmp_space->get_sum_of_sizes();
 
-		ut_a(tmp_space->space_id() == temp_space_id
-		     && temp_space_id != ULINT_UNDEFINED);
+		ut_a(temp_space_id != ULINT_UNDEFINED);
+		ut_a(tmp_space->space_id() == temp_space_id);
 
 		mtr_start(&mtr);
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 		fsp_header_init(tmp_space->space_id(), size, &mtr);
 
@@ -1651,9 +1662,8 @@ innobase_start_or_create_for_mysql(void)
 	/* Open or create the data files. */
 	ulint	sum_of_new_sizes;
 
-	err = srv_sys_space.open_or_create(&sum_of_new_sizes,
-					   &min_flushed_lsn,
-					   &max_flushed_lsn);
+	err = srv_sys_space.open_or_create(
+		false, &sum_of_new_sizes, &min_flushed_lsn, &max_flushed_lsn);
 
 	switch (err) {
 	case DB_SUCCESS:
@@ -1811,11 +1821,12 @@ innobase_start_or_create_for_mysql(void)
 
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
-		fil_space_t* log_space = fil_space_create(
+		/* Disable the doublewrite buffer for log files. */
+		fil_space_t*	log_space = fil_space_create(
 			logfilename,
 			SRV_LOG_SPACE_FIRST_ID,
 			fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-			FIL_LOG);
+			FIL_TYPE_LOG);
 
 		ut_a(fil_validate());
 		ut_a(log_space);
@@ -1911,7 +1922,7 @@ files_checked:
 		/* Stamp the LSN to the data files. */
 		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
-		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
 		create_log_files_rename(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
@@ -2080,7 +2091,7 @@ files_checked:
 			/* Stamp the LSN to the data files. */
 			fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
-			fil_flush_file_spaces(FIL_TABLESPACE);
+			fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
 			RECOVERY_CRASH(4);
 
@@ -2143,17 +2154,13 @@ files_checked:
 		log_buffer_flush_to_disk();
 	}
 
+	/* Open temp-tablespace and keep it open until shutdown. */
+
 	err = srv_open_tmp_tablespace(&srv_tmp_space);
 
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
 	}
-
-	/* Open temp-tablespace and keep it open until shutdown. */
-	fil_open_log_and_system_tablespace_files();
-
-	/* fprintf(stderr, "Max allowed record size %lu\n",
-	page_get_free_space_of_empty() / 2); */
 
 	/* Create the doublewrite buffer to a new tablespace */
 	if (buf_dblwr == NULL && !buf_dblwr_create()) {
