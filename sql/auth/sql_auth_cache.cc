@@ -22,6 +22,9 @@
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
+#include "sql_time.h"
+
+#define INVALID_DATE "0000-00-00 00:00:00"
 
 using std::min;
 
@@ -1580,6 +1583,43 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
             password_expired= true;
           }
         }
+
+	/*
+	   Initalize the values of timestamp and expire after day
+	   to error and true respectively.
+	*/
+	user.password_last_changed.time_type= MYSQL_TIMESTAMP_ERROR;
+	user.use_default_password_lifetime= true;
+	user.password_lifetime= 0;
+
+	if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED)
+        {
+	  if (!table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->is_null())
+	  {
+            char *password_last_changed= get_field(&global_acl_memory,
+	          table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]);
+
+	    if (password_last_changed &&
+	        memcmp(password_last_changed, INVALID_DATE, sizeof(INVALID_DATE)))
+	    {
+	      String str(password_last_changed, &my_charset_bin);
+              str_to_time_with_warn(&str,&(user.password_last_changed));
+	    }
+	  }
+	}
+
+        if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LIFETIME)
+        {
+          if (!table->
+              field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->is_null())
+	  {
+	    char *ptr= get_field(&global_acl_memory,
+		table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]);
+	    user.password_lifetime= ptr ? atoi(ptr) : 0;
+	    user.use_default_password_lifetime= false;
+	  }
+	}
+
       } // end if (table->s->fields >= 31)
       else
       {
@@ -2323,7 +2363,8 @@ void acl_update_user(const char *user, const char *host,
                      USER_RESOURCES  *mqh,
                      ulong privileges,
                      const LEX_STRING *plugin,
-                     const LEX_STRING *auth)
+                     const LEX_STRING *auth,
+		     MYSQL_TIME password_change_time)
 {
   DBUG_ENTER("acl_update_user");
   mysql_mutex_assert_owner(&acl_cache->lock);
@@ -2379,6 +2420,8 @@ void acl_update_user(const char *user, const char *host,
           DBUG_ASSERT(hash_not_ok == 0);
           /* dummy addition to fool the compiler */
           password_len+= hash_not_ok;
+
+	  acl_user->password_last_changed= password_change_time;
         }
         /* search complete: */
         break;
@@ -2398,7 +2441,8 @@ void acl_insert_user(const char *user, const char *host,
                      USER_RESOURCES *mqh,
                      ulong privileges,
                      const LEX_STRING *plugin,
-                     const LEX_STRING *auth)
+                     const LEX_STRING *auth,
+		     MYSQL_TIME password_change_time)
 {
   DBUG_ENTER("acl_insert_user");
   ACL_USER acl_user;
@@ -2449,6 +2493,12 @@ void acl_insert_user(const char *user, const char *host,
     x509_issuer ? strdup_root(&global_acl_memory, x509_issuer) : 0;
   acl_user.x509_subject=
     x509_subject ? strdup_root(&global_acl_memory, x509_subject) : 0;
+  /*
+    During create user we can never specify a value for password expiry days field.
+  */
+  acl_user.use_default_password_lifetime= true;
+
+  acl_user.password_last_changed= password_change_time;
 
   hash_not_ok= set_user_salt(&acl_user, password, password_len);
   DBUG_ASSERT(hash_not_ok == 0);

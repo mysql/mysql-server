@@ -388,6 +388,7 @@ static SYMBOL symbols[] = {
   { "NDB",              SYM(NDBCLUSTER_SYM)},
   { "NDBCLUSTER",       SYM(NDBCLUSTER_SYM)},
   { "NCHAR",		SYM(NCHAR_SYM)},
+  { "NEVER",            SYM(NEVER_SYM)},
   { "NEW",              SYM(NEW_SYM)},
   { "NEXT",		SYM(NEXT_SYM)},
   { "NO",		SYM(NO_SYM)},

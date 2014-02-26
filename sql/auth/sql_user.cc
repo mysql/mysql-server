@@ -25,7 +25,7 @@
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "prealloced_array.h"
-
+#include "tztime.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -323,6 +323,13 @@ bool change_password(THD *thd, const char *host, const char *user,
                                                        new_password_len + 1);
         acl_user->auth_string.length= new_password_len;
       }
+      else
+      {
+	my_error(ER_PASSWORD_FORMAT, MYF(0));
+	result= 1;
+	mysql_mutex_unlock(&acl_cache->lock);
+        goto end;
+      }
     } else
     {
       /*
@@ -334,6 +341,9 @@ bool change_password(THD *thd, const char *host, const char *user,
       mysql_mutex_unlock(&acl_cache->lock);
       goto end;
     }
+    thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
+	thd->query_start());
+
   }
   else
 #endif
@@ -389,6 +399,8 @@ bool change_password(THD *thd, const char *host, const char *user,
       mysql_mutex_unlock(&acl_cache->lock);
       goto end;
     }
+    thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
+         thd->query_start());
   }
   else
   {
@@ -404,7 +416,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (update_user_table(thd, table,
                         acl_user->host.get_host() ? acl_user->host.get_host() : "",
                         acl_user->user ? acl_user->user : "",
-                        new_password, new_password_len, password_field, false))
+                        new_password, new_password_len, password_field, false,
+			auth_plugin_is_built_in(acl_user->plugin.str)))
   {
     mysql_mutex_unlock(&acl_cache->lock); /* purecov: deadcode */
     goto end;
@@ -1269,7 +1282,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
 
 /*
-  Mark user's password as expired.
+  Mark user's password as expired or update the days
+  after which the user's password will expire
 
   SYNOPSIS
     mysql_user_password_expire()
@@ -1388,7 +1402,9 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
                           acl_user->host.get_host() ?
                           acl_user->host.get_host() : "",
                           acl_user->user ? acl_user->user : "",
-                          NULL, 0, password_field, true))
+                          NULL, 0, password_field, true,
+			  auth_plugin_is_built_in(acl_user->plugin.str),
+		          &user_from->alter_status))
     {
       result= true;
       append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
@@ -1396,7 +1412,19 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    acl_user->password_expired= true;
+    acl_user->password_expired= user_from->alter_status.
+      update_password_expired_column;
+    if (!user_from->alter_status.update_password_expired_column)
+    {
+      if (!user_from->alter_status.use_default_password_lifetime)
+      {
+        acl_user->password_lifetime=user_from->alter_status.
+	  expire_after_days;
+	acl_user->use_default_password_lifetime= false;
+      }
+      else
+        acl_user->use_default_password_lifetime= true;
+    }
     some_passwords_expired= true;
   }
 
