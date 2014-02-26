@@ -121,6 +121,9 @@ Ndb_component::stop()
     m_thread_state= TS_STOPPING;
   }
 
+  // Give subclass a call, should wake itself up to quickly detect the stop
+  do_wakeup();
+
   if (m_thread_state == TS_STOPPING)
   {
     while (m_thread_state != TS_STOPPED)

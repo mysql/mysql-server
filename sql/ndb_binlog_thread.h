@@ -25,14 +25,12 @@ class Ndb_binlog_thread : public Ndb_component
 public:
   Ndb_binlog_thread();
   virtual ~Ndb_binlog_thread();
-
-  // Stop the thread
-  virtual int stop();
-
 private:
   virtual int do_init() { return 0;}
   virtual void do_run();
   virtual int do_deinit() { return 0;}
+  // Wake up for stop
+  virtual void do_wakeup();
 };
 
 #endif

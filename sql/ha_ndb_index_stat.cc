@@ -59,14 +59,12 @@ Ndb_index_stat_thread::~Ndb_index_stat_thread()
   pthread_cond_destroy(&stat_cond);
 }
 
-int Ndb_index_stat_thread::stop()
+void Ndb_index_stat_thread::do_wakeup()
 {
-  // Wakeup thread from sleeping on COND
-  log_verbose(10, "Wakeup, time to stop");
-  wakeup();
+  // Wakeup from potential wait
+  log_verbose(10, "Wakeup");
 
-  // Continue in baseclasss stop()
-  return Ndb_component::stop();
+  wakeup();
 }
 
 void Ndb_index_stat_thread::wakeup()
