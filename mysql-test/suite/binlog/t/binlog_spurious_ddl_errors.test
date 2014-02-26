@@ -25,6 +25,11 @@
 --source include/have_example_plugin.inc
 --source include/have_log_bin.inc
 
+if (`SELECT $PS_PROTOCOL = 1`)
+{
+  --skip Not with ps-protocol
+}
+
 SET @old_binlog_format= @@global.binlog_format;
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
