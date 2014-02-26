@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -396,6 +396,13 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd,
   m_cpp_utf8_processed_ptr= end_ptr;
 }
 
+void Lex_input_stream::add_digest_token(uint token, LEX_YYSTYPE yylval)
+{
+  if (m_digest != NULL)
+  {
+    m_digest= digest_add_token(m_digest, token, yylval);
+  }
+}
 
 /**
   Reset a LEX object so that it is ready for a new query preparation
@@ -1213,7 +1220,7 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
     yylloc->raw_start= lip->get_tok_start();
     yylloc->raw_end= lip->get_ptr();
     lip->lookahead_yylval= NULL;
-    lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
+    lip->add_digest_token(token, yylval);
     return token;
   }
 
@@ -1235,14 +1242,12 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
     case CUBE_SYM:
       yylloc->end= lip->get_cpp_ptr();
       yylloc->raw_end= lip->get_ptr();
-      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_CUBE_SYM,
-                                         yylval);
+      lip->add_digest_token(WITH_CUBE_SYM, yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
       yylloc->end= lip->get_cpp_ptr();
       yylloc->raw_end= lip->get_ptr();
-      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_ROLLUP_SYM,
-                                         yylval);
+      lip->add_digest_token(WITH_ROLLUP_SYM, yylval);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -1253,7 +1258,7 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
       lip->lookahead_token= token;
       yylloc->end= lip->get_cpp_ptr();
       yylloc->raw_end= lip->get_ptr();
-      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH, yylval);
+      lip->add_digest_token(WITH, yylval);
       return WITH;
     }
     break;
@@ -1262,7 +1267,7 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
   }
   yylloc->end= lip->get_cpp_ptr();
   yylloc->raw_end= lip->get_ptr();
-  lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
+  lip->add_digest_token(token, yylval);
   return token;
 }
 
@@ -1386,8 +1391,15 @@ static int lex_one_token(void *arg, void *yythd)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
-        if (my_mbcharlen(cs, lip->yyGetLast()) > 1)
+        switch (my_mbcharlen(cs, lip->yyGetLast()))
         {
+        case 1:
+          break;
+        case 0:
+          if (my_mbmaxlenlen(cs) < 2)
+            break;
+          /* else fall through */
+        default:
           int l = my_ismbchar(cs,
                               lip->get_ptr() -1,
                               lip->get_end_of_query());
@@ -1399,8 +1411,15 @@ static int lex_one_token(void *arg, void *yythd)
         }
         while (ident_map[c=lip->yyGet()])
         {
-          if (my_mbcharlen(cs, c) > 1)
+          switch (my_mbcharlen(cs, c))
           {
+          case 1:
+            break;
+          case 0:
+            if (my_mbmaxlenlen(cs) < 2)
+              break;
+            /* else fall through */
+          default:
             int l;
             if ((l = my_ismbchar(cs,
                                  lip->get_ptr() -1,
@@ -1541,8 +1560,15 @@ static int lex_one_token(void *arg, void *yythd)
 	result_state= IDENT_QUOTED;
         while (ident_map[c=lip->yyGet()])
         {
-          if (my_mbcharlen(cs, c) > 1)
+          switch (my_mbcharlen(cs, c))
           {
+          case 1:
+            break;
+          case 0:
+            if (my_mbmaxlenlen(cs) < 2)
+              break;
+            /* else fall through */
+          default:
             int l;
             if ((l = my_ismbchar(cs,
                                  lip->get_ptr() -1,

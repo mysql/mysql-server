@@ -115,7 +115,7 @@ public:
 	}
 
 private:
-	// Disably copying
+	// Disable copying
 	IndexIterator(const IndexIterator&);
 	IndexIterator& operator=(const IndexIterator&);
 
@@ -2602,10 +2602,11 @@ truncate_t::drop_indexes(
 
 		mtr_start(&mtr);
 
-		/* Don't log the operation while fixing up table truncate
-		operation as crash at this level can still be sustained with
-		recovery restarting from last checkpoint. */
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		if (space_id != TRX_SYS_SPACE) {
+			/* Do not log changes for single-table
+			tablespaces, we are in recovery mode. */
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		}
 
 		if (root_page_no != FIL_NULL) {
 
@@ -2614,7 +2615,7 @@ truncate_t::drop_indexes(
 			/* We free all the pages but the root page first;
 			this operation may span several mini-transactions */
 			btr_free_but_not_root(root_page_id, page_size,
-					      MTR_LOG_NO_REDO);
+					      mtr.get_log_mode());
 
 			/* Then we free the root page. */
 			btr_free_root(root_page_id, page_size, &mtr);
@@ -2647,8 +2648,11 @@ truncate_t::create_indexes(
 
 	mtr_start(&mtr);
 
-	/* Don't log changes, we are in recoery mode. */
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	if (space_id != TRX_SYS_SPACE) {
+		/* Do not log changes for single-table tablespaces, we
+		are in recovery mode. */
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
 
 	/* Create all new index trees with table format, index ids, index
 	types, number of index fields and index field information taken

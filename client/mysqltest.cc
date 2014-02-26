@@ -550,13 +550,13 @@ void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
 static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
 
 void die(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
+  __attribute__((format(printf, 1, 2))) __attribute__((noreturn));
 void abort_not_supported_test(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
+  __attribute__((format(printf, 1, 2))) __attribute__((noreturn));
 void verbose_msg(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 void log_msg(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 
 VAR* var_from_env(const char *, const char *);
 VAR* var_init(VAR* v, const char *name, size_t name_len, const char *val,
@@ -6317,7 +6317,25 @@ int read_line(char *buf, int size)
     {
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
-      uint charlen= my_mbcharlen(charset_info, (unsigned char) c);
+      uint charlen;
+      if (my_mbmaxlenlen(charset_info) == 1)
+        charlen= my_mbcharlen(charset_info, (unsigned char) c);
+      else
+      {
+        if (!(charlen= my_mbcharlen(charset_info, (unsigned char) c)))
+        {
+          char c1= my_getc(cur_file->file);
+          if (c1 == EOF)
+          {
+            *p++= c;
+            goto found_eof;
+          }
+
+          charlen= my_mbcharlen_2(charset_info, (unsigned char) c,
+                                  (unsigned char) c1);
+          my_ungetc(c1);
+        }
+      }
       if(charlen == 0)
         DBUG_RETURN(1);
       /* We give up if multibyte character is started but not */

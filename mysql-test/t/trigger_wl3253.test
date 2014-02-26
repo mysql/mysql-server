@@ -391,7 +391,7 @@ let $MYSQLD_DATADIR=`SELECT @@datadir`;
 --write_file $MYSQLD_DATADIR/test/t1.TRG
 TYPE=TRIGGERS
 triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1' 'CREATE DEFINER=`root`@`localhost` TRIGGER tr1_ai AFTER INSERT ON t1 FOR EACH ROW SET @a:=2'
-sql_modes=1073741824 1073741824
+sql_modes=134217728 134217728
 definers='root@localhost' 'root@localhost'
 client_cs_names='latin1' 'latin1'
 connection_cl_names='latin1_swedish_ci' 'latin1_swedish_ci'

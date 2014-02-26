@@ -3593,10 +3593,13 @@ row_import_for_mysql(
 
 	/* Open the tablespace so that we can access via the buffer pool.
 	We set the 2nd param (fix_dict = true) here because we already
-	have an x-lock on dict_operation_lock and dict_sys->mutex. */
+	have an x-lock on dict_operation_lock and dict_sys->mutex.
+	The tablespace is initially opened as a temporary one, because
+	we will not be writing any redo log for it before we have invoked
+	fil_space_set_imported() to declare it a persistent tablespace. */
 
 	err = fil_open_single_table_tablespace(
-		true, true, table->space,
+		true, true, FIL_TYPE_TEMPORARY, table->space,
 		dict_tf_to_fsp_flags(table->flags),
 		table->name, filepath);
 
@@ -3707,9 +3710,10 @@ row_import_for_mysql(
 	if (trx_is_interrupted(trx)) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Phase III - Flush interrupted");
 		return(row_import_error(prebuilt, trx, DB_INTERRUPTED));
-	} else {
-		ib_logf(IB_LOG_LEVEL_INFO, "Phase IV - Flush complete");
 	}
+
+	ib_logf(IB_LOG_LEVEL_INFO, "Phase IV - Flush complete");
+	fil_space_set_imported(prebuilt->table->space);
 
 	/* The dictionary latches will be released in in row_import_cleanup()
 	after the transaction commit, for both success and error. */

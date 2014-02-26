@@ -677,7 +677,7 @@ public:
   }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_numeric(ltime, fuzzydate); /* Decimal or real */
   }
@@ -698,7 +698,7 @@ public:
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -821,7 +821,7 @@ public:
     /* can't be fix_fields()ed */
     return (longlong) rint(val_real());
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_numeric(ltime, fuzzydate); /* Decimal or real */
   }
@@ -1049,7 +1049,7 @@ protected:
   longlong val_time_temporal();
   longlong val_date_temporal();
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   void reset_field();
   String *val_str(String *);
@@ -1217,7 +1217,7 @@ class Item_sum_udf_float :public Item_udf_sum
   double val_real();
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_real(ltime, fuzzydate);
   }
@@ -1244,7 +1244,7 @@ public:
     { DBUG_ASSERT(fixed == 1); return (double) Item_sum_udf_int::val_int(); }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -1291,7 +1291,7 @@ public:
     return cs->cset->strtoll10(cs, res->ptr(), &end, &err_not_used);
   }
   my_decimal *val_decimal(my_decimal *dec);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -1318,7 +1318,7 @@ public:
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
@@ -1508,7 +1508,7 @@ public:
   {
     return val_decimal_from_string(decimal_value);
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }

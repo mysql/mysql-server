@@ -87,6 +87,7 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
 
     if (! rc)
     {
+      DBUG_ASSERT(thd->m_statement_psi == NULL);
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   stmt_info_new_packet.m_key,
                                                   thd->db, thd->db_length,

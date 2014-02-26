@@ -63,55 +63,37 @@ static inline int64 my_atomic_add64(int64 volatile *a, int64 v)
 
 static inline int32 my_atomic_load32(int32 volatile *a)
 {
-  int32 ret= 0; /* avoid compiler warning */
-  ret= InterlockedCompareExchange((volatile LONG *)a, ret, ret);
-  return ret;
+  return (int32)InterlockedCompareExchange((volatile LONG *)a, 0, 0);
 }
 
 static inline int64 my_atomic_load64(int64 volatile *a)
 {
-  int64 ret= 0; /* avoid compiler warning */
-  ret= InterlockedCompareExchange64((volatile LONGLONG *)a,
-                                    (LONGLONG)ret,
-                                    (LONGLONG)ret);
-  return ret;
+  return (int64)InterlockedCompareExchange64((volatile LONGLONG *)a, 0, 0);
 }
 
 static inline int32 my_atomic_fas32(int32 volatile *a, int32 v)
 {
-  int32 tmp= *a;
-  while (!my_atomic_cas32(a, &tmp, v))
-    ;
-  return tmp;
+  return (int32)InterlockedExchange((volatile LONG*)a, v);
 }
 
 static inline int64 my_atomic_fas64(int64 volatile *a, int64 v)
 {
-  int64 tmp= *a;
-  while (!my_atomic_cas64(a, &tmp, v))
-    ;
-  return tmp;
+  return (int64)InterlockedExchange64((volatile LONGLONG*)a, v);
 }
 
 static inline void my_atomic_store32(int32 volatile *a, int32 v)
 {
-  int32 tmp= *a;
-  while (!my_atomic_cas32(a, &tmp, v))
-    ;
+  (void)InterlockedExchange((volatile LONG*)a, v);
 }
 
 static inline void my_atomic_store64(int64 volatile *a, int64 v)
 {
-  int64 tmp= *a;
-  while (!my_atomic_cas64(a, &tmp, v))
-    ;
+  (void)InterlockedExchange64((volatile LONGLONG*)a, v);
 }
 
 static inline void my_atomic_storeptr(void * volatile *a, void *v)
 {
-  void *tmp= *a;
-  while (!my_atomic_casptr(a, &tmp, v))
-    ;
+  (void)InterlockedExchangePointer(a, v);
 }
 
 

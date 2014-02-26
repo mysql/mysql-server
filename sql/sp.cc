@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,8 +138,7 @@ TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] =
     "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
     "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
     "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
-    "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
-    "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
+    "'STRICT_ALL_TABLES','INVALID_DATES','TRADITIONAL','NO_AUTO_CREATE_USER',"
     "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')") },
     { NULL, 0 }
   },
@@ -758,6 +757,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   Silence_deprecated_warning warning_handler;
   Parser_state parser_state;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
 
   thd->variables.sql_mode= sql_mode;
@@ -774,6 +774,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->push_internal_handler(&warning_handler);
   thd->sp_runtime_ctx= NULL;
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, creation_ctx) || thd->lex == NULL)
   {
@@ -785,6 +786,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   {
     sp= thd->lex->sphead;
   }
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   thd->pop_internal_handler();

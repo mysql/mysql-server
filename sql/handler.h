@@ -1148,6 +1148,12 @@ public:
   static const HA_ALTER_FLAGS RENAME_INDEX               = 1L << 29;
 
   /**
+    Recreate the table for ALTER TABLE FORCE, ALTER TABLE ENGINE
+    and OPTIMIZE TABLE operations.
+  */
+  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1L << 30;
+
+  /**
     Create options (like MAX_ROWS) for the new version of table.
 
     @note The referenced instance of HA_CREATE_INFO object was already
@@ -3353,9 +3359,19 @@ class DsMrr_impl
 public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
-  DsMrr_impl()
-    : h2(NULL) {};
-  ~DsMrr_impl() { DBUG_ASSERT(h2 == NULL); }
+  DsMrr_impl() : h2(NULL) {}
+
+  ~DsMrr_impl()
+  {
+    /*
+      If ha_reset() has not been called then the h2 dialog might still
+      exist. This must be closed and deleted (this is the case for
+      internally created temporary tables).
+    */
+    if (h2)
+      reset();
+    DBUG_ASSERT(h2 == NULL);
+  }
   
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
@@ -3380,11 +3396,25 @@ private:
 
   bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
 public:
+  /**
+    Initialize the DsMrr_impl object.
+
+    This object is used for both doing default MRR scans and DS-MRR scans.
+    This function just initializes the object. To do a DS-MRR scan,
+    this must also be initialized by calling dsmrr_init().
+
+    @param h_arg     pointer to the handler that owns this object
+    @param table_arg pointer to the TABLE that owns the handler
+  */
+
   void init(handler *h_arg, TABLE *table_arg)
   {
+    DBUG_ASSERT(h_arg != NULL);
+    DBUG_ASSERT(table_arg != NULL);
     h= h_arg; 
     table= table_arg;
   }
+
   int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();

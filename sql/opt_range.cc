@@ -771,11 +771,19 @@ public:
       estimate for range access on this index is too pessimistic.
   */
   enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
-  SEL_TREE(enum Type type_arg) :type(type_arg) {}
-  SEL_TREE() :type(KEY)
+
+  SEL_TREE(enum Type type_arg) :type(type_arg), n_ror_scans(0) {}
+  SEL_TREE() :type(KEY), n_ror_scans(0)
   {
     memset(keys, 0, sizeof(keys));
   }
+  /**
+    Constructor that performs deep-copy of the SEL_ARG trees in
+    'keys[]' and the index merge alternatives in 'merges'.
+
+    @param arg     The SEL_TREE to copy
+    @param param   Parameters for range analysis
+  */
   SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param);
   /*
     Possible ways to read rows using a single index because the
@@ -1119,6 +1127,7 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree)
 
 int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tree)
 {
+  DBUG_ENTER("SEL_IMERGE::or_sel_tree_with_checks");
   for (SEL_TREE** tree = trees;
        tree != trees_next;
        tree++)
@@ -1127,17 +1136,18 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tr
     {
       *tree = tree_or(param, *tree, new_tree);
       if (!*tree)
-        return 1;
+        DBUG_RETURN(1);
       if (((*tree)->type == SEL_TREE::MAYBE) ||
           ((*tree)->type == SEL_TREE::ALWAYS))
-        return 1;
+        DBUG_RETURN(1);
       /* SEL_TREE::IMPOSSIBLE is impossible here */
-      return 0;
+      DBUG_RETURN(0);
     }
   }
 
   /* New tree cannot be combined with any of existing trees. */
-  return or_sel_tree(param, new_tree);
+  const int ret= or_sel_tree(param, new_tree);
+  DBUG_RETURN(ret);
 }
 
 
@@ -1164,17 +1174,21 @@ int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, SEL_IMERGE* im
 }
 
 
-SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
+SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param):
+  Sql_alloc(), n_ror_scans(0)
 {
   keys_map= arg->keys_map;
   type= arg->type;
   for (uint idx= 0; idx < MAX_KEY; idx++)
   {
-    if ((keys[idx]= arg->keys[idx]))
+    if (arg->keys[idx])
     {
+      keys[idx]= arg->keys[idx]->clone_tree(param);
       keys[idx]->use_count++;
       keys[idx]->increment_use_count(1);
     }
+    else 
+      keys[idx]= NULL;
   }
 
   List_iterator<SEL_IMERGE> it(arg->merges);
@@ -1188,6 +1202,14 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
     }
     merges.push_back (merge);
   }
+
+  /*
+    SEL_TREEs are only created by get_mm_tree() (and functions called
+    by get_mm_tree()). Index intersection is checked after
+    get_mm_tree() has constructed all ranges. In other words, there
+    should not be any ROR scans to copy when this ctor is called.
+  */
+  DBUG_ASSERT(n_ror_scans == 0);
 }
 
 
