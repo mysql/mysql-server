@@ -6066,6 +6066,10 @@ static void bind_date_conv(uint row_count, my_bool preserveFractions)
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
+
+  /* set the timestamp back to default */
+  rc= mysql_query(mysql, "SET timestamp=DEFAULT");
+  myquery(rc);
 }
 
 

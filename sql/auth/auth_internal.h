@@ -74,7 +74,8 @@ void acl_update_user(const char *user, const char *host,
                      USER_RESOURCES  *mqh,
                      ulong privileges,
                      const LEX_STRING *plugin,
-                     const LEX_STRING *auth);
+                     const LEX_STRING *auth,
+		     MYSQL_TIME password_change_time);
 void acl_insert_user(const char *user, const char *host,
                      const char *password, uint password_len,
                      enum SSL_type ssl_type,
@@ -84,7 +85,8 @@ void acl_insert_user(const char *user, const char *host,
                      USER_RESOURCES *mqh,
                      ulong privileges,
                      const LEX_STRING *plugin,
-                     const LEX_STRING *auth);
+                     const LEX_STRING *auth,
+		     MYSQL_TIME password_change_time);
 void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke);
 void acl_update_db(const char *user, const char *host, const char *db,
                    ulong privileges);
@@ -101,7 +103,9 @@ bool update_user_table(THD *thd, TABLE *table,
                        const char *host, const char *user,
                        const char *new_password, uint new_password_len,
                        enum mysql_user_table_field password_field,
-                       bool password_expired);
+                       bool password_expired,
+		       bool builtin_plugin,
+		       LEX_ALTER *alter_status= NULL);
 int replace_db_table(TABLE *table, const char *db,
                      const LEX_USER &combo,
                      ulong rights, bool revoke_grant);

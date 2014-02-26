@@ -6364,6 +6364,9 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->uses_identified_by_clause= false;
   definer->uses_authentication_string_clause= false;
   definer->uses_identified_by_password_clause= false;
+  definer->alter_status.update_password_expired_column= false;
+  definer->alter_status.use_default_password_lifetime= true;
+  definer->alter_status.expire_after_days= 0;
 }
 
 
@@ -6421,6 +6424,9 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
   definer->uses_identified_by_clause= false;
   definer->uses_identified_by_password_clause= false;
   definer->uses_identified_with_clause= false;
+  definer->alter_status.update_password_expired_column= false;
+  definer->alter_status.use_default_password_lifetime= true;
+  definer->alter_status.expire_after_days= 0;
   return definer;
 }
 
@@ -6462,6 +6468,12 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
       default_definer->plugin.length= user->plugin.length;
       default_definer->auth.str= user->auth.str;
       default_definer->auth.length= user->auth.length;
+      default_definer->alter_status.update_password_expired_column=
+        user->alter_status.update_password_expired_column;
+      default_definer->alter_status.use_default_password_lifetime=
+	user->alter_status.use_default_password_lifetime;
+      default_definer->alter_status.expire_after_days=
+        user->alter_status.expire_after_days;
       return default_definer;
     }
   }
