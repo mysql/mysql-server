@@ -62,7 +62,7 @@ Ndb_index_stat_thread::~Ndb_index_stat_thread()
 void Ndb_index_stat_thread::do_wakeup()
 {
   // Wakeup from potential wait
-  log_verbose(10, "Wakeup");
+  log_info("Wakeup");
 
   wakeup();
 }
