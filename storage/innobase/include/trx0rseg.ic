@@ -92,12 +92,7 @@ trx_rsegf_get_nth_undo(
 	ulint		n,	/*!< in: index of slot */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	if (n >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to get slot %lu of rseg\n",
-			(ulong) n);
-		ut_error;
-	}
+	ut_a(n < TRX_RSEG_N_SLOTS);
 
 	return(mtr_read_ulint(rsegf + TRX_RSEG_UNDO_SLOTS
 			      + n * TRX_RSEG_SLOT_SIZE, MLOG_4BYTES, mtr));
@@ -114,12 +109,7 @@ trx_rsegf_set_nth_undo(
 	ulint		page_no,/*!< in: page number of the undo log segment */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	if (n >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to set slot %lu of rseg\n",
-			(ulong) n);
-		ut_error;
-	}
+	ut_a(n < TRX_RSEG_N_SLOTS);
 
 	mlog_write_ulint(rsegf + TRX_RSEG_UNDO_SLOTS + n * TRX_RSEG_SLOT_SIZE,
 			 page_no, MLOG_4BYTES, mtr);
@@ -169,7 +159,7 @@ trx_rseg_get_on_id(
 {
 	ut_a(id < TRX_SYS_N_RSEGS);
 
-	/* If redo rseg is being requested and id falls in range of 
+	/* If redo rseg is being requested and id falls in range of
 	non-redo rseg that is from slot-1....slot-srv_tmp_undo_logs then
 	server is being upgraded from pre-5.7.2. In such case return
 	rseg from pending_purge_rseg_array array. */

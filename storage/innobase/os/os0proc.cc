@@ -58,20 +58,19 @@ os_proc_get_number(void)
 /*====================*/
 {
 #ifdef _WIN32
-	return((ulint)GetCurrentProcessId());
+	return(static_cast<ulint>(GetCurrentProcessId()));
 #else
-	return((ulint) getpid());
+	return(static_cast<ulint>(getpid()));
 #endif
 }
 
-/****************************************************************//**
-Allocates large pages memory.
+/** Allocates large pages memory.
+@param[in,out]	n	Number of bytes to allocate
 @return allocated memory */
 
 void*
 os_mem_alloc_large(
-/*===============*/
-	ulint*	n)			/*!< in/out: number of bytes */
+	ulint*	n)
 {
 	void*	ptr;
 	ulint	size;
@@ -167,16 +166,14 @@ skip:
 	return(ptr);
 }
 
-/****************************************************************//**
-Frees large pages memory. */
+/** Frees large pages memory.
+@param[in]	ptr	pointer returned by os_mem_alloc_large()
+@param[in]	size	size returned by os_mem_alloc_large() */
 
 void
 os_mem_free_large(
-/*==============*/
-	void	*ptr,			/*!< in: pointer returned by
-					os_mem_alloc_large() */
-	ulint	size)			/*!< in: size returned by
-					os_mem_alloc_large() */
+	void	*ptr,
+	ulint	size)
 {
 	mutex_enter(&ut_list_mutex);
 	ut_a(ut_total_allocated_memory >= size);
