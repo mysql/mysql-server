@@ -903,8 +903,8 @@ static void make_sortkey(register SORTPARAM *param,
 
         if (maybe_null)
           *to++=1;
-        /* All item->str() to use some extra byte for end null.. */
-        String tmp((char*) to,sort_field->length+4,cs);
+        char *tmp_buffer= param->tmp_buffer ? param->tmp_buffer : (char*)to;
+        String tmp(tmp_buffer, param->sort_length, cs);
         String *res= item->str_result(&tmp);
         if (!res)
         {
@@ -929,17 +929,9 @@ static void make_sortkey(register SORTPARAM *param,
         length= res->length();
         if (sort_field->need_strxnfrm)
         {
-          char *from=(char*) res->ptr();
           uint tmp_length __attribute__((unused));
-          if ((uchar*) from == to)
-          {
-            DBUG_ASSERT(sort_field->length >= length);
-            set_if_smaller(length,sort_field->length);
-            memcpy(param->tmp_buffer,from,length);
-            from=param->tmp_buffer;
-          }
-          tmp_length= my_strnxfrm(cs,to,sort_field->length,
-                                  (uchar*) from, length);
+          tmp_length= my_strnxfrm(cs, to ,sort_field->length,
+                                  (uchar*) res->ptr(), length);
           DBUG_ASSERT(tmp_length == sort_field->length);
         }
         else
@@ -960,6 +952,7 @@ static void make_sortkey(register SORTPARAM *param,
             store_length(to + sort_field_length, length,
                          sort_field->suffix_length);
           }
+          /* apply cs->sort_order for case-insensitive comparison if needed */
           my_strnxfrm(cs,(uchar*)to,length,(const uchar*)res->ptr(),length);
           cs->cset->fill(cs, (char *)to+length,diff,fill_char);
         }
