@@ -946,6 +946,12 @@ bool match_authorized_user(Security_context *ctx, LEX_USER *user)
     enum enum_trigger_order_type ordering_clause;
     LEX_STRING anchor_trigger_name;
   } trg_characteristics;
+  struct
+  {
+    bool set_password_expire_flag;    /* true if password expires */
+    bool use_default_password_expiry; /* true if password_lifetime is NULL*/
+    uint16 expire_after_days;
+  } user_password_expiration;
 }
 
 %{
@@ -1322,6 +1328,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  NDBCLUSTER_SYM
 %token  NE                            /* OPERATOR */
 %token  NEG
+%token  NEVER_SYM
 %token  NEW_SYM                       /* SQL-2003-R */
 %token  NEXT_SYM                      /* SQL-2003-N */
 %token  NODEGROUP_SYM
@@ -1893,6 +1900,7 @@ END_OF_INPUT
 %type <is_not_empty> opt_union_order_or_limit
         opt_into opt_procedure_analyse_clause
 
+%type <user_password_expiration> opt_user_password_expiration
 %%
 
 /*
@@ -7649,16 +7657,54 @@ alter:
         ;
 
 alter_user_list:
-        user PASSWORD EXPIRE_SYM
-        {
+          alter_user
+        | alter_user_list ',' alter_user
+        ;
+
+alter_user:
+          user PASSWORD EXPIRE_SYM opt_user_password_expiration
+          {
+	    $1->alter_status.update_password_expired_column=
+	      $4.set_password_expire_flag;
+	    $1->alter_status.expire_after_days=
+	      $4.expire_after_days;
+	    $1->alter_status.use_default_password_lifetime=
+	      $4.use_default_password_expiry;
+
             if (Lex->users_list.push_back($1))
               MYSQL_YYABORT;
-        }
-        | alter_user_list ',' user PASSWORD EXPIRE_SYM
-          {
-            if (Lex->users_list.push_back($3))
-              MYSQL_YYABORT;
           }
+        ;
+
+opt_user_password_expiration:
+          /* For traditional "ALTER USER <foo> PASSWORD EXPIRE": */
+          {
+            $$.set_password_expire_flag= true;
+          }
+        | INTERVAL_SYM real_ulong_num DAY_SYM
+          {
+            if ($2 == 0 || $2 > UINT_MAX16)
+            {
+	      char buf[MAX_BIGINT_WIDTH + 1];
+	      snprintf(buf, sizeof(buf), "%lu", $2);
+	      my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
+              MYSQL_YYABORT;
+            }
+            $$.set_password_expire_flag= false;
+            $$.expire_after_days= $2;
+            $$.use_default_password_expiry= false;
+	  }
+        | NEVER_SYM
+          {
+            $$.set_password_expire_flag= false;
+            $$.expire_after_days= 0;
+	    $$.use_default_password_expiry= false;
+	  }
+	| DEFAULT
+	  {
+	    $$.set_password_expire_flag= false;
+	    $$.use_default_password_expiry= true;
+	  }
         ;
 
 ev_alter_on_schedule_completion:
@@ -14581,6 +14627,7 @@ keyword_sp:
         | NATIONAL_SYM             {}
         | NCHAR_SYM                {}
         | NDBCLUSTER_SYM           {}
+        | NEVER_SYM                {}
         | NEXT_SYM                 {}
         | NEW_SYM                  {}
         | NO_WAIT_SYM              {}
