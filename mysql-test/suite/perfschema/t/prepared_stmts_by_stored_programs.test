@@ -8,6 +8,8 @@
 
 --let $psi_select = SELECT STATEMENT_NAME, SQL_TEXT, COUNT_EXECUTE, OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME FROM performance_schema.prepared_statements_instances
 
+TRUNCATE TABLE performance_schema.prepared_statements_instances; 
+
 CREATE DATABASE db;
 USE db;
 
@@ -120,6 +122,7 @@ SET GLOBAL event_scheduler=OFF;
 --source include/no_running_event_scheduler.inc
 
 # clean-up
+TRUNCATE TABLE performance_schema.prepared_statements_instances;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 
 DROP TABLE t;
@@ -129,5 +132,4 @@ DROP PROCEDURE p3;
 DROP PROCEDURE p4;
 DROP PROCEDURE p5;
 DROP EVENT IF EXISTS e1;
-
 DROP DATABASE db;
