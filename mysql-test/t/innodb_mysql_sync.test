@@ -652,7 +652,7 @@ SET DEBUG_SYNC= 'RESET';
 --echo #ALTER TABLE FORCE and ALTER TABLE ENGINE uses online rebuild
 --echo #of the table.
 
-CREATE TABLE t1(fld1 INT, fld2 INT);
+CREATE TABLE t1(fld1 INT, fld2 INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES(10, 20);
 
 --enable_info
