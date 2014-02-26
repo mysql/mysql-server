@@ -1,3 +1,4 @@
+TRUNCATE TABLE performance_schema.prepared_statements_instances;
 CREATE DATABASE db;
 USE db;
 CREATE TABLE t
@@ -99,6 +100,7 @@ SELECT STATEMENT_NAME, SQL_TEXT, COUNT_EXECUTE, OWNER_OBJECT_TYPE, OWNER_OBJECT_
 STATEMENT_NAME	SQL_TEXT	COUNT_EXECUTE	OWNER_OBJECT_TYPE	OWNER_OBJECT_SCHEMA	OWNER_OBJECT_NAME
 st	SELECT POW(?,?)	1	EVENT	db	e1
 SET GLOBAL event_scheduler=OFF;
+TRUNCATE TABLE performance_schema.prepared_statements_instances;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 DROP TABLE t;
 DROP PROCEDURE p1;

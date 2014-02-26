@@ -19714,9 +19714,9 @@ static void test_wl5768()
   // Check the instrumentation of the statement prepared in a stored procedure
   rc= mysql_query(mysql, "CREATE PROCEDURE proc(IN a INT)"
                          "BEGIN" 
-                         "  SET @stmt = UPDATE ps_t1 SET Id=a WHERE Id > 100;"
+                         "  SET @stmt = CONCAT('UPDATE ps_t1 SET Id = ? WHERE Id > 100');"
                          "  PREPARE st FROM @stmt;"
-                         "  EXECUTE st;"
+                         "  EXECUTE st USING @a;"
                          "  DEALLOCATE PREPARE st;"
                          "END;");
   myquery(rc);
@@ -19730,7 +19730,7 @@ static void test_wl5768()
   bind[0].buffer= (long *) &int_data;
   bind[0].length= 0;
   bind[0].is_null= 0;
-  rc= mysql_stmt_execute(sp_stmt);
+  rc= mysql_stmt_bind_param(sp_stmt, bind);
   check_execute(sp_stmt, rc);
 
   int_data= 100;
