@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4360,6 +4360,11 @@ void Dblqh::lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
 /* TcConnectionrec's identified as not requiring hash lookup are not         */
 /* inserted in the hash table!                                               */
 /*                                                                           */
+/* 'tcOpRec' ids comes from TC. Where TC has released the record (dirtyOp),  */
+/* the id can be reused. Therefore it cannot be considered 'unique' beyond   */
+/* the reception of the request signal (train). For non dirty operations it  */
+/* is unique for the lifecycle of the operation at TC.                       */
+/*                                                                           */
 /* NOTE:                                                                     */
 /*   The internal clients of NDB does *not* guarantee hash uniqueness        */
 /*   for LQHKEYREQs as described above (SPJ, node restart ..). However,      */
@@ -7529,8 +7534,9 @@ void Dblqh::deleteTransidHash(Signal* signal)
   if (regTcPtr->hashIndex == RNIL)
   {
     jam();
-    /* Check that this, or an equal, TcConnectionrec isn't hashed */
-    ndbassert(findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
+    /* If this operation is 'non-dirty', there should be no duplicates */
+    ndbassert(regTcPtr->dirtyOp == ZTRUE ||
+              findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
                               regTcPtr->tcOprec, regTcPtr->tcHashKeyHi) == ZNOT_FOUND);
     return;
   }
