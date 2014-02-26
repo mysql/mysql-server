@@ -6688,7 +6688,7 @@ Ndb_binlog_thread::~Ndb_binlog_thread()
 
 void Ndb_binlog_thread::do_wakeup()
 {
-  log_verbose(10, "Wakeup");
+  log_info("Wakeup");
 
   /*
     The binlog thread is normally waiting for another
@@ -7539,14 +7539,12 @@ restart_cluster_failure:
  err:
   if (binlog_thread_state != BCCC_restart)
   {
-    sql_print_information("Stopping Cluster Binlog");
-    DBUG_PRINT("info",("Shutting down cluster binlog thread"));
+    log_info("Shutting down");
     thd->proc_info= "Shutting down";
   }
   else
   { 
-    sql_print_information("Restarting Cluster Binlog");
-    DBUG_PRINT("info",("Restarting cluster binlog thread"));
+    log_info("Restarting");
     thd->proc_info= "Restarting";
   }
   if (!have_injector_mutex_lock)

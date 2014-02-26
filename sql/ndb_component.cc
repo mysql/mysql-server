@@ -111,6 +111,7 @@ Ndb_component::is_stop_requested()
 int
 Ndb_component::stop()
 {
+  log_info("Stop");
   pthread_mutex_lock(&m_start_stop_mutex);
   assert(m_thread_state == TS_RUNNING ||
          m_thread_state == TS_STOPPING ||
@@ -133,7 +134,7 @@ Ndb_component::stop()
     }
   }
   pthread_mutex_unlock(&m_start_stop_mutex);
-
+  log_info("Stop completed");
   return 0;
 }
 
