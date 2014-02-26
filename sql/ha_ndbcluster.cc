@@ -12369,7 +12369,6 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   ndbcluster_inited= 0;
 
   /* Stop index stat thread */
-  sql_print_information("Stopping NDB Index Stat thread");
   ndb_index_stat_thread.stop();
 
   /* wait for util and binlog thread to finish */
@@ -15408,7 +15407,7 @@ Ndb_util_thread::~Ndb_util_thread()
 void Ndb_util_thread::do_wakeup()
 {
   // Wakeup from potential wait
-  log_verbose(10, "Wakeup");
+  log_info("Wakeup");
 
   pthread_mutex_lock(&LOCK);
   pthread_cond_signal(&COND);
