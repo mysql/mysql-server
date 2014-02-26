@@ -349,6 +349,9 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->flags |= HTON_EXTENDED_KEYS;
 #endif
 #endif
+#if defined(HTON_SUPPORTS_CLUSTERED_KEYS)
+    tokudb_hton->flags |= HTON_SUPPORTS_CLUSTERED_KEYS;
+#endif
 
 #if defined(TOKU_USE_DB_TYPE_TOKUDB) && TOKU_USE_DB_TYPE_TOKUDB
     tokudb_hton->db_type = DB_TYPE_TOKUDB;
