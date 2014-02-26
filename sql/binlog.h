@@ -671,6 +671,15 @@ public:
     }
   }
 
+  void update_binlog_end_pos(my_off_t pos)
+  {
+    lock_binlog_end_pos();
+    if (pos > binlog_end_pos)
+      binlog_end_pos= pos;
+    signal_update();
+    unlock_binlog_end_pos();
+  }
+
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
 public:

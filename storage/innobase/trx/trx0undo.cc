@@ -1101,6 +1101,7 @@ trx_undo_truncate_end_func(
 	trx_undo_rec_t* rec;
 	trx_undo_rec_t* trunc_here;
 	mtr_t		mtr;
+	const bool	noredo = trx_sys_is_noredo_rseg_slot(undo->rseg->id);
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
@@ -1108,6 +1109,12 @@ trx_undo_truncate_end_func(
 
 	for (;;) {
 		mtr_start(&mtr);
+		if (noredo) {
+			mtr.set_log_mode(MTR_LOG_NO_REDO);
+			ut_ad(trx->rsegs.m_noredo.rseg == undo->rseg);
+		} else {
+			ut_ad(trx->rsegs.m_redo.rseg == undo->rseg);
+		}
 
 		trunc_here = NULL;
 
@@ -1154,24 +1161,21 @@ function_exit:
 	mtr_commit(&mtr);
 }
 
-/***********************************************************************//**
-Truncates an undo log from the start. This function is used during a purge
-operation. */
+/** Truncate the head of an undo log.
+NOTE that only whole pages are freed; the header page is not
+freed, but emptied, if all the records there are below the limit.
+@param[in,out]	rseg		rollback segment
+@param[in]	hdr_page_no	header page number
+@param[in]	hdr_offset	header offset on the page
+@param[in]	limit		first undo number to preserve
+(everything below the limit will be truncated) */
 
 void
 trx_undo_truncate_start(
-/*====================*/
-	trx_rseg_t*	rseg,		/*!< in: rollback segment */
-	ulint		space,		/*!< in: space id of the log */
-	ulint		hdr_page_no,	/*!< in: header page number */
-	ulint		hdr_offset,	/*!< in: header offset on the page */
-	undo_no_t	limit)		/*!< in: all undo pages with
-					undo numbers < this value
-					should be truncated; NOTE that
-					the function only frees whole
-					pages; the header page is not
-					freed, but emptied, if all the
-					records there are < limit */
+	trx_rseg_t*	rseg,
+	ulint		hdr_page_no,
+	ulint		hdr_offset,
+	undo_no_t	limit)
 {
 	page_t*		undo_page;
 	trx_undo_rec_t* rec;
@@ -1182,13 +1186,16 @@ trx_undo_truncate_start(
 	ut_ad(mutex_own(&(rseg->mutex)));
 
 	if (!limit) {
-
 		return;
 	}
 loop:
 	mtr_start(&mtr);
 
-	rec = trx_undo_get_first_rec(space, rseg->page_size,
+	if (trx_sys_is_noredo_rseg_slot(rseg->id)) {
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	}
+
+	rec = trx_undo_get_first_rec(rseg->space, rseg->page_size,
 				     hdr_page_no, hdr_offset,
 				     RW_X_LATCH, &mtr);
 	if (rec == NULL) {
@@ -1213,11 +1220,11 @@ loop:
 	page_no = page_get_page_no(undo_page);
 
 	if (page_no == hdr_page_no) {
-		trx_undo_empty_header_page(space, rseg->page_size,
+		trx_undo_empty_header_page(rseg->space, rseg->page_size,
 					   hdr_page_no, hdr_offset,
 					   &mtr);
 	} else {
-		trx_undo_free_page(rseg, TRUE, space, hdr_page_no,
+		trx_undo_free_page(rseg, TRUE, rseg->space, hdr_page_no,
 				   page_no, &mtr);
 	}
 
@@ -1226,13 +1233,14 @@ loop:
 	goto loop;
 }
 
-/**********************************************************************//**
-Frees an undo log segment which is not in the history list. */
+/** Frees an undo log segment which is not in the history list.
+@param[in]	undo	undo log
+@param[in]	noredo	whether the undo tablespace is redo logged */
 static
 void
 trx_undo_seg_free(
-/*==============*/
-	trx_undo_t*	undo)	/*!< in: undo log */
+	const trx_undo_t*	undo,
+	bool			noredo)
 {
 	trx_rseg_t*	rseg;
 	fseg_header_t*	file_seg;
@@ -1246,6 +1254,10 @@ trx_undo_seg_free(
 	do {
 
 		mtr_start(&mtr);
+
+		if (noredo) {
+			mtr.set_log_mode(MTR_LOG_NO_REDO);
+		}
 
 		mutex_enter(&(rseg->mutex));
 
@@ -1796,6 +1808,18 @@ trx_undo_assign_undo(
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
 	mtr_start(&mtr);
+	if (&trx->rsegs.m_noredo == undo_ptr) {
+		mtr.set_log_mode(MTR_LOG_NO_REDO);;
+	} else {
+		ut_ad(&trx->rsegs.m_redo == undo_ptr);
+	}
+
+	if (trx_sys_is_noredo_rseg_slot(rseg->id)) {
+		mtr.set_log_mode(MTR_LOG_NO_REDO);;
+		ut_ad(undo_ptr == &trx->rsegs.m_noredo);
+	} else {
+		ut_ad(undo_ptr == &trx->rsegs.m_redo);
+	}
 
 	mutex_enter(&rseg->mutex);
 
@@ -1981,25 +2005,26 @@ trx_undo_update_cleanup(
 	}
 }
 
-/******************************************************************//**
-Frees or caches an insert undo log after a transaction commit or rollback.
+/** Frees an insert undo log after a transaction commit or rollback.
 Knowledge of inserts is not needed after a commit or rollback, therefore
-the data can be discarded. */
+the data can be discarded.
+@param[in,out]	undo_ptr	undo log to clean up
+@param[in]	noredo		whether the undo tablespace is redo logged */
 
 void
 trx_undo_insert_cleanup(
-/*====================*/
-	trx_undo_ptr_t* undo_ptr)       /*!< in: undo log to cleanup. */
+	trx_undo_ptr_t*	undo_ptr,
+	bool		noredo)
 {
 	trx_undo_t*	undo;
 	trx_rseg_t*	rseg;
 
 	undo = undo_ptr->insert_undo;
-	if (undo == 0) {
-		return;
-	}
+	ut_ad(undo != NULL);
 
 	rseg = undo_ptr->rseg;
+
+	ut_ad(noredo == trx_sys_is_noredo_rseg_slot(rseg->id));
 
 	mutex_enter(&(rseg->mutex));
 
@@ -2018,7 +2043,7 @@ trx_undo_insert_cleanup(
 
 		mutex_exit(&(rseg->mutex));
 
-		trx_undo_seg_free(undo);
+		trx_undo_seg_free(undo, noredo);
 
 		mutex_enter(&(rseg->mutex));
 

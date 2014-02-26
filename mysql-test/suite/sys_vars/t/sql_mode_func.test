@@ -4,12 +4,12 @@
 # Scope: GLOBAL & SESSION                                                          #
 # Access Type: Dynamic                                                             #
 # Data Type: enumeration                                                           #
-# Values:       ALLOW_INVALID_DATES, ANSI_QUOTES, ERROR_FOR_DIVISION_BY_ZERO,      #
+# Values:       ALLOW_INVALID_DATES, ANSI_QUOTES,				   #
 #               HIGH_NOT_PRECEDENCE, IGNORE_SPACE, NO_AUTO_CREATE_USER,            #
 #               NO_AUTO_VALUE_ON_ZERO, NO_BACKSLASH_ESCAPES, NO_DIR_IN_CREATE,     #
 #               NO_ENGINE_SUBSTITUTION, NO_FIELD_OPTIONS, NO_KEY_OPTIONS,          #
-#               NO_TABLE_OPTIONS, NO_UNSIGNED_SUBTRACTION, NO_ZERO_DATE,           #
-#               NO_ZERO_IN_DATE, ONLY_FULL_GROUP_BY, PIPES_AS_CONCAT, REAL_AS_FLOAT#
+#               NO_TABLE_OPTIONS, NO_UNSIGNED_SUBTRACTION,		           #
+#               ONLY_FULL_GROUP_BY, PIPES_AS_CONCAT, REAL_AS_FLOAT		   #
 #               STRICT_ALL_TABLES, STRICT_TRANS_TABLES, OFF                        #
 #                                                                                  #
 #                                                                                  #
@@ -176,7 +176,7 @@ SELECT @@SESSION.sql_mode;
 --echo ** Connection con_int1 **
 connection con_int1;
 SELECT @@SESSION.sql_mode;
---echo 'STRICT_TRANS_TABLES, STRICT_ALL_TABLES, NO_ZERO_IN_DATE, NO_ZERO_DATE, ERROR_FOR_DIVISION_BY_ZERO, NO_AUTO_CREATE_USER, TRADITIONAL' Expected
+--echo 'STRICT_TRANS_TABLES, STRICT_ALL_TABLES, NO_AUTO_CREATE_USER, TRADITIONAL' Expected
 
 
 SELECT @@GLOBAL.sql_mode;

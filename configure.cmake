@@ -781,14 +781,39 @@ CHECK_C_SOURCE_COMPILES("
 HAVE_BSS_START)
 
 CHECK_C_SOURCE_COMPILES("
-    int main()
-    {
-      extern void __attribute__((weak)) foo(void);
-      return 0;
-    }"
-    HAVE_WEAK_SYMBOL
-)
+int main()
+{
+  __builtin_unreachable();
+  return 0;
+}" HAVE_BUILTIN_UNREACHABLE_C)
 
+CHECK_CXX_SOURCE_COMPILES("
+int main()
+{
+  __builtin_unreachable();
+  return 0;
+}" HAVE_BUILTIN_UNREACHABLE_CXX)
+
+IF(HAVE_BUILTIN_UNREACHABLE_C AND HAVE_BUILTIN_UNREACHABLE_CXX)
+  SET(HAVE_BUILTIN_UNREACHABLE 1)
+ENDIF()
+
+CHECK_C_SOURCE_COMPILES("
+int main()
+{
+  long l= 0;
+  __builtin_expect(l, 0);
+  return 0;
+}" HAVE_BUILTIN_EXPECT)
+
+CHECK_C_SOURCE_COMPILES("
+int main()
+{
+  char foo1[1];
+  char foo2[1];
+  __builtin_stpcpy(foo1, foo2);
+  return 0;
+}" HAVE_BUILTIN_STPCPY)
 
 CHECK_CXX_SOURCE_COMPILES("
     #undef inline

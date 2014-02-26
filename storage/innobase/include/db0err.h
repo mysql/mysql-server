@@ -130,6 +130,8 @@ enum dberr_t {
 					exceeds result cache limit */
 	DB_TEMP_FILE_WRITE_FAILURE,	/*!< Temp file write failure */
 	DB_CANNOT_OPEN_FILE,		/*!< Cannot open a file */
+	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
+					/*< Too many words in a phrase */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

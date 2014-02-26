@@ -1,7 +1,3 @@
---disable_warnings
-DROP TABLE IF EXISTS test.t1;
---enable_warnings
-
 eval SET NAMES $cset;
 
 let $std_cset= 1;
@@ -34,7 +30,4 @@ DELETE FROM test.t1 WHERE CHAR_LENGTH(a) <> 1;
 
 SELECT HEX(ASCII(a)) AS a_ascii, CHAR_LENGTH(a) AS a_len FROM test.t1 ORDER BY a, ORD(a);
 
---disable_warnings
-DROP TABLE IF EXISTS test.t1;
---enable_warnings
-
+DROP TABLE test.t1;

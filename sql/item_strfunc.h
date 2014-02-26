@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ public:
   longlong val_int();
   double val_real();
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -138,6 +138,7 @@ class Item_func_aes_encrypt :public Item_str_func
 {
 public:
   Item_func_aes_encrypt(Item *a, Item *b) :Item_str_func(a,b) {}
+  Item_func_aes_encrypt(Item *a, Item *b, Item *c) :Item_str_func(a, b, c) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "aes_encrypt"; }
@@ -147,11 +148,30 @@ class Item_func_aes_decrypt :public Item_str_func
 {
 public:
   Item_func_aes_decrypt(Item *a, Item *b) :Item_str_func(a,b) {}
+  Item_func_aes_decrypt(Item *a, Item *b, Item *c) :Item_str_func(a, b, c) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "aes_decrypt"; }
 };
 
+
+class Item_func_random_bytes : public Item_str_func
+{
+  /** limitation from the SSL library */
+  static const longlong MAX_RANDOM_BYTES_BUFFER;
+public:
+  Item_func_random_bytes(Item *a) : Item_str_func(a)
+  {}
+
+  void fix_length_and_dec();
+  String *val_str(String *a);
+
+  const char *func_name() const
+  {
+    return "random_bytes";
+  }
+
+};
 
 class Item_func_concat :public Item_str_func
 {

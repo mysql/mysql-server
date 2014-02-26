@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -852,7 +852,12 @@ my_decimal *Item_temporal_hybrid_func::val_decimal(my_decimal *decimal_value)
   else
   {
     MYSQL_TIME ltime;
-    val_datetime(&ltime, TIME_FUZZY_DATE | sql_mode);
+    my_time_flags_t flags= TIME_FUZZY_DATE;
+    if (sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
+      flags|= TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE;
+    if (sql_mode & MODE_INVALID_DATES)
+      flags|= TIME_INVALID_DATES;
+    val_datetime(&ltime, flags);
     return null_value ? 0:
            ltime.time_type == MYSQL_TIMESTAMP_TIME ? 
            time2my_decimal(&ltime, decimal_value) :
@@ -861,7 +866,8 @@ my_decimal *Item_temporal_hybrid_func::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_temporal_hybrid_func::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_temporal_hybrid_func::get_date(MYSQL_TIME *ltime,
+                                         my_time_flags_t fuzzy_date)
 {
   MYSQL_TIME tm;
   if (val_datetime(&tm, fuzzy_date))
@@ -1173,7 +1179,7 @@ longlong Item_func_dayofyear::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (get_arg0_date(&ltime,TIME_NO_ZERO_DATE))
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
     return 0;
   return (longlong) calc_daynr(ltime.year,ltime.month,ltime.day) -
     calc_daynr(ltime.year,1,1) + 1;
@@ -1695,7 +1701,8 @@ bool get_interval_value(Item *args, interval_type int_type,
 }
 
 
-bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_from_days::get_date(MYSQL_TIME *ltime,
+                                   my_time_flags_t fuzzy_date)
 {
   longlong value=args[0]->val_int();
   if ((null_value=args[0]->null_value))
@@ -1790,7 +1797,8 @@ const char *MYSQL_TIME_cache::cptr()
 }
 
 
-bool MYSQL_TIME_cache::get_date(MYSQL_TIME *ltime, uint fuzzydate) const
+bool MYSQL_TIME_cache::get_date(MYSQL_TIME *ltime,
+                                my_time_flags_t fuzzydate) const
 {
   int warnings;
   get_TIME(ltime);
@@ -1903,7 +1911,8 @@ Item_func_now::save_in_field(Field *to, bool no_conversions)
     time zone. Defines time zone (local) used for whole SYSDATE function.
 */
 bool Item_func_sysdate_local::get_date(MYSQL_TIME *now_time,
-                                       uint fuzzy_date __attribute__((unused)))
+                                       my_time_flags_t fuzzy_date
+                                       __attribute__((unused)))
 {
   THD *thd= current_thd;
   ulonglong tmp= my_micro_time();
@@ -2139,7 +2148,8 @@ void Item_func_from_unixtime::fix_length_and_dec()
 
 
 bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
-				       uint fuzzy_date __attribute__((unused)))
+				       my_time_flags_t fuzzy_date
+                                       __attribute__((unused)))
 {
   lldiv_t lld;
   if (decimals)
@@ -2178,7 +2188,8 @@ void Item_func_convert_tz::fix_length_and_dec()
 
 
 bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
-                                    uint fuzzy_date __attribute__((unused)))
+                                    my_time_flags_t fuzzy_date
+                                    __attribute__((unused)))
 {
   my_time_t my_time_tmp;
   String str;
@@ -2290,7 +2301,7 @@ void Item_date_add_interval::fix_length_and_dec()
 
 /* Here arg[1] is a Item_interval object */
 bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
-                                               uint fuzzy_date)
+                                               my_time_flags_t fuzzy_date)
 {
   INTERVAL interval;
 
@@ -2356,7 +2367,8 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
 }
 
 
-bool Item_date_add_interval::val_datetime(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_date_add_interval::val_datetime(MYSQL_TIME *ltime,
+                                          my_time_flags_t fuzzy_date)
 {
   if (cached_field_type != MYSQL_TYPE_TIME)
     return get_date_internal(ltime, fuzzy_date | TIME_NO_ZERO_DATE);
@@ -2533,7 +2545,8 @@ void Item_datetime_typecast::print(String *str, enum_query_type query_type)
 }
 
 
-bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime,
+                                      my_time_flags_t fuzzy_date)
 {
   if ((null_value= args[0]->get_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN)))
     return true;
@@ -2581,7 +2594,7 @@ void Item_date_typecast::print(String *str, enum_query_type query_type)
 }
 
 
-bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_date_typecast::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
 {
   bool res= get_arg0_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN);
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
@@ -2600,7 +2613,7 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     for dates between 0000-01-01 and 0099-12-31
 */
 
-bool Item_func_makedate::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
 {
   DBUG_ASSERT(fixed == 1);
   long daynr=  (long) args[1]->val_int();
@@ -2678,7 +2691,8 @@ void Item_func_add_time::fix_length_and_dec()
   @retval 1 on error
 */
 
-bool Item_func_add_time::val_datetime(MYSQL_TIME *time, uint fuzzy_date)
+bool Item_func_add_time::val_datetime(MYSQL_TIME *time,
+                                      my_time_flags_t fuzzy_date)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME l_time1, l_time2;
@@ -3220,7 +3234,9 @@ void Item_func_str_to_date::fix_length_and_dec()
   cached_timestamp_type= MYSQL_TIMESTAMP_DATETIME;
   fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH,
                                           DATETIME_MAX_DECIMALS);
-  sql_mode= current_thd->datetime_flags();
+  sql_mode= current_thd->variables.sql_mode & (MODE_STRICT_ALL_TABLES |
+                                               MODE_STRICT_TRANS_TABLES |
+                                               MODE_INVALID_DATES);
   if ((const_item= args[1]->const_item()))
   {
     char format_buff[64];
@@ -3232,14 +3248,19 @@ void Item_func_str_to_date::fix_length_and_dec()
 }
 
 
-bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
+                                         my_time_flags_t fuzzy_date)
 {
   DATE_TIME_FORMAT date_time_format;
   char val_buff[64], format_buff[64];
   String val_string(val_buff, sizeof(val_buff), &my_charset_bin), *val;
   String format_str(format_buff, sizeof(format_buff), &my_charset_bin), *format;
 
-  fuzzy_date|= sql_mode;
+  if (sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES))
+    fuzzy_date|= TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE;
+  if (sql_mode & MODE_INVALID_DATES)
+    fuzzy_date|= TIME_INVALID_DATES;
+
   val=    args[0]->val_str(&val_string);
   format= args[1]->val_str(&format_str);
   if (args[0]->null_value || args[1]->null_value)
@@ -3280,7 +3301,7 @@ null_date:
 }
 
 
-bool Item_func_last_day::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+bool Item_func_last_day::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
 {
   if ((null_value= get_arg0_date(ltime, fuzzy_date)))
     return true;

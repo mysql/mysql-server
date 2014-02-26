@@ -409,9 +409,10 @@ trx_purge_free_segment(
 /*===================*/
 	trx_rseg_t*	rseg,		/*!< in: rollback segment */
 	fil_addr_t	hdr_addr,	/*!< in: the file address of log_hdr */
-	ulint		n_removed_logs)	/*!< in: count of how many undo logs we
+	ulint		n_removed_logs,	/*!< in: count of how many undo logs we
 					will cut off from the end of the
 					history list */
+	bool		noredo)		/*!< in: skip redo logging */
 {
 	mtr_t		mtr;
 	trx_rsegf_t*	rseg_hdr;
@@ -419,14 +420,16 @@ trx_purge_free_segment(
 	trx_usegf_t*	seg_hdr;
 	ulint		seg_size;
 	ulint		hist_size;
-	ibool		marked		= FALSE;
-
-	/*	fputs("Freeing an update undo log segment\n", stderr); */
+	bool		marked		= noredo;
 
 	for (;;) {
 		page_t*	undo_page;
 
 		mtr_start(&mtr);
+		if (noredo) {
+			mtr.set_log_mode(MTR_LOG_NO_REDO);
+		}
+		ut_ad(noredo == trx_sys_is_noredo_rseg_slot(rseg->id));
 
 		mutex_enter(&rseg->mutex);
 
@@ -447,11 +450,10 @@ trx_purge_free_segment(
 		not try to access them again. */
 
 		if (!marked) {
+			marked = true;
 			mlog_write_ulint(
 				log_hdr + TRX_UNDO_DEL_MARKS, FALSE,
 				MLOG_2BYTES, &mtr);
-
-			marked = TRUE;
 		}
 
 		if (fseg_free_step_not_header(
@@ -530,8 +532,13 @@ trx_purge_truncate_rseg_history(
 	ulint		n_removed_logs	= 0;
 	mtr_t		mtr;
 	trx_id_t	undo_trx_no;
+	const bool	noredo		= trx_sys_is_noredo_rseg_slot(
+		rseg->id);
 
 	mtr_start(&mtr);
+	if (noredo) {
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	}
 	mutex_enter(&(rseg->mutex));
 
 	rseg_hdr = trx_rsegf_get(rseg->space, rseg->page_no,
@@ -561,7 +568,7 @@ loop:
 		if (undo_trx_no == limit->trx_no) {
 
 			trx_undo_truncate_start(
-				rseg, rseg->space, hdr_addr.page,
+				rseg, hdr_addr.page,
 				hdr_addr.boffset, limit->undo_no);
 		}
 
@@ -598,7 +605,7 @@ loop:
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		trx_purge_free_segment(rseg, hdr_addr, n_removed_logs);
+		trx_purge_free_segment(rseg, hdr_addr, n_removed_logs, noredo);
 
 		n_removed_logs = 0;
 	} else {
@@ -607,6 +614,9 @@ loop:
 	}
 
 	mtr_start(&mtr);
+	if (noredo) {
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	}
 	mutex_enter(&(rseg->mutex));
 
 	rseg_hdr = trx_rsegf_get(rseg->space, rseg->page_no,
