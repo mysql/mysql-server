@@ -578,14 +578,9 @@ buf_dblwr_process()
 				    && !buf_page_is_corrupted(true, page,
 							      zip_size)) {
 
-					ib_logf(IB_LOG_LEVEL_WARN,
-						"Database page (space:%lu"
-						" page:%lu) contained only"
-						" zeroes in data file. Valid"
-						" copy was restored from"
-						" double write buffer.",
-						static_cast<ulong>(space_id),
-						static_cast<ulong>(page_no));
+					/* Database page contained only
+					zeroes, while a valid copy is
+					available in dblwr buffer. */
 
 					fil_io(OS_FILE_WRITE, true, space_id,
 					       zip_size, page_no, 0,
