@@ -1,8 +1,5 @@
 # Test need anonymous user when connection are made as "zedjzlcsjhd"
-source include/not_gtid_enabled.inc;
 source include/add_anonymous_users.inc;
--- source include/master-slave.inc
--- source include/have_myisam.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates
@@ -10,7 +7,7 @@ source include/add_anonymous_users.inc;
 # binlog. But previous tests can influence the current test's
 # binlog (e.g. a temporary table in the previous test has not
 # been explicitly deleted, or it has but the slave hasn't had
-# enough time to catch it before STOP SLAVE, 
+# enough time to catch it before STOP SLAVE,
 # and at the beginning of the current
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
@@ -30,7 +27,7 @@ reset master;
 #
 #  This test checks that both reported issues (assertion failure and
 #  crash) go away. It is implemented as follows:
-#    
+#
 #    case 1: assertion failure
 #      i) create and insert into temporary table on master
 #     ii) sync slave with master
@@ -47,8 +44,8 @@ reset master;
 #     iv) insert into master more values
 #      v) sync slave with master
 
-# case 1: Assertion in Field_string::store() failed because current 
-#         thread reference differed from table->in_use after slave 
+# case 1: Assertion in Field_string::store() failed because current
+#         thread reference differed from table->in_use after slave
 #         restart
 
 connection master;
@@ -62,7 +59,7 @@ enable_warnings;
 
 CREATE TEMPORARY TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('a');
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # Temporary table t1 open when stop slave is done. So we will have a warning here.
 # But this warning is NOT generated in RBR. So the results will be different in
@@ -75,9 +72,9 @@ source include/start_slave.inc;
 
 connection master;
 INSERT INTO t1 VALUES ('b');
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
-# case 2: crash on sp_rcontext::find_handler because it used 
+# case 2: crash on sp_rcontext::find_handler because it used
 #         reference to invalid THD object after slave restart
 
 connection master;
@@ -88,7 +85,7 @@ enable_warnings;
 CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
 INSERT INTO `t1` set `a`=128,`b`='128';
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # Temporary table `t1` open when stop slave is done. So we will have a warning here.
 # But this warning is NOT generated in RBR. So the results will be different in
@@ -101,13 +98,13 @@ source include/start_slave.inc;
 
 connection master;
 INSERT INTO `t1` set `a`=128,`b`='128';
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # cleanup
 
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 connection master;
 
@@ -234,7 +231,7 @@ drop table t1,t2;
 # don't get any memory leaks for this
 
 create temporary table t3 (f int);
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # The server will now close done
 
@@ -246,7 +243,7 @@ create temporary table t3 (f int);
 connection master;
 create temporary table t4 (f int);
 create table t5 (f int);
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 # connection slave
 
 # Temporary table t3,t4 are open when stop slave is done. So we will have a warning here.
@@ -296,11 +293,11 @@ connection master;
 create table t1(f int);
 insert into t1 values (1);
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 #connection slave;
 select * from t1 /* must be 1 */;
 
-connection master; 
+connection master;
 drop table t1;
 
 #
@@ -315,14 +312,14 @@ insert into t1 select * from `\E4\F6\FC\C4\D6\DC`
 EOF
 --exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 #connection slave;
 select * from t1;
 
-connection master; 
+connection master;
 drop table t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
---source include/sync_slave_sql_with_master.inc
+--sync_slave_with_master
 
 # Delete the anonymous users.
 
@@ -368,8 +365,3 @@ disconnect cont43748;
 connection slave;
 
 DROP USER user43748@127.0.0.1;
-
-
---echo End of 5.1 tests
---let $rpl_only_running_threads= 1
---source include/rpl_end.inc
