@@ -18,8 +18,7 @@
 #ifndef NDB_LOG_H
 #define NDB_LOG_H
 
-#include <stdarg.h>
-#include <my_attribute.h>
+#include <my_global.h>
 
 // Returns the current verbose level
 unsigned ndb_log_get_verbose_level(void);
@@ -31,16 +30,16 @@ unsigned ndb_log_get_verbose_level(void);
   "NDB <prefix>" if one of the prefix functions are used
 */
 void ndb_log_info(const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 
 void ndb_log_warning(const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 
 void ndb_log_error(const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 
 void ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 2, 3);
+  __attribute__((format(printf, 2, 3)));
 
 enum ndb_log_loglevel {
    NDB_LOG_ERROR_LEVEL=       0,
