@@ -105,7 +105,7 @@ PREPARE st FROM 'INSERT INTO tab VALUES(?)';
 SET @a=1;
 EXECUTE st USING @a;
 END|
-SELECT * FROM tab;
+SELECT * FROM tab LIMIT 1;
 a
 1
 SET GLOBAL event_scheduler=OFF;
