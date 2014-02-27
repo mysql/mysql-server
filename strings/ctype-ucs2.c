@@ -1827,7 +1827,7 @@ my_lengthsp_utf16le(const CHARSET_INFO *cs __attribute__((unused)),
                     const char *ptr, size_t length)
 {
   const char *end= ptr + length;
-  while (end > ptr + 1 && uint2korr(end - 2) == 0x20)
+  while (end > ptr + 1 && uint2korr((uchar*) end - 2) == 0x20)
     end-= 2;
   return (size_t) (end - ptr);
 }

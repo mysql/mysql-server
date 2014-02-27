@@ -14,5 +14,6 @@ i_rpl.rpl_relay_log_5_5_filter_perf_schema # Bug#18259193 2014-02-11 Vinay follo
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
 rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-02-09 anitha Fails very frequently on windows
 rpl.rpl_parallel                         # Bug#17506885 2013-09-30 agopi Fails for all runs with MTS
+rpl.rpl_optimize                         # Bug#181283232013-02-26 agopi Test failing frequently on PushBuild
 
 perfschema.transaction_nested_events     # Bug#17752288 2013-12-17 agopi Fails several times each day in PB2

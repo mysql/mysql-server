@@ -4697,7 +4697,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       pfs->m_sort_scan= 0;
       pfs->m_no_index_used= 0;
       pfs->m_no_good_index_used= 0;
-      digest_reset(& pfs->m_digest_storage);
+      pfs->m_digest_storage.reset();
 
       /* New stages will have this statement as parent */
       PFS_events_stages *child_stage= & pfs_thread->m_stage_current;
@@ -4774,11 +4774,7 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
   if (flag_statements_digest)
   {
-    const CHARSET_INFO *cs= static_cast <const CHARSET_INFO*> (charset);
     flags|= STATE_FLAG_DIGEST;
-    state->m_digest_state.m_last_id_index= 0;
-    digest_reset(& state->m_digest_state.m_digest_storage);
-    state->m_digest_state.m_digest_storage.m_charset_number= cs->number;
   }
 
   state->m_discarded= false;
@@ -4801,6 +4797,8 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_sort_scan= 0;
   state->m_no_index_used= 0;
   state->m_no_good_index_used= 0;
+
+  state->m_digest= NULL;
 
   state->m_schema_name_length= 0;
   state->m_parent_sp_share= sp_share;
@@ -5077,7 +5075,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   /*
    Capture statement stats by digest.
   */
-  PSI_digest_storage *digest_storage= NULL;
+  const sql_digest_storage *digest_storage= NULL;
   PFS_statement_stat *digest_stat= NULL;
   PFS_program *pfs_program= NULL;
   PFS_prepared_stmt *pfs_prepared_stmt= NULL;
@@ -5092,11 +5090,15 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
     if (flags & STATE_FLAG_DIGEST)
     {
-      digest_storage= &state->m_digest_state.m_digest_storage;
-      /* Populate PFS_statements_digest_stat with computed digest information.*/
-      digest_stat= find_or_create_digest(thread, digest_storage,
-                                         state->m_schema_name,
-                                         state->m_schema_name_length);
+      digest_storage= state->m_digest;
+
+      if (digest_storage != NULL)
+      {
+        /* Populate PFS_statements_digest_stat with computed digest information.*/
+        digest_stat= find_or_create_digest(thread, digest_storage,
+                                           state->m_schema_name,
+                                           state->m_schema_name_length);
+      }
     }
 
     if (flags & STATE_FLAG_EVENT)
@@ -5136,7 +5138,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       pfs->m_timer_end= timer_end;
       pfs->m_end_event_id= thread->m_event_id;
 
-      if (flags & STATE_FLAG_DIGEST)
+      if (digest_storage != NULL)
       {
         /*
           The following columns in events_statement_current:
@@ -5144,7 +5146,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
           - DIGEST_TEXT
           are computed from the digest storage.
         */
-        digest_copy(& pfs->m_digest_storage, digest_storage);
+        pfs->m_digest_storage.copy(digest_storage);
       }
 
       pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share);
@@ -5170,11 +5172,15 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       if (thread != NULL)
       {
         /* Set digest stat. */
-        digest_storage= &state->m_digest_state.m_digest_storage;
-        /* Populate statements_digest_stat with computed digest information. */
-        digest_stat= find_or_create_digest(thread, digest_storage,
-                                           state->m_schema_name,
-                                           state->m_schema_name_length);
+        digest_storage= state->m_digest;
+
+        if (digest_storage != NULL)
+        {
+          /* Populate statements_digest_stat with computed digest information. */
+          digest_stat= find_or_create_digest(thread, digest_storage,
+                                             state->m_schema_name,
+                                             state->m_schema_name_length);
+        }
       }
     }
 
@@ -5977,6 +5983,40 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket)
   pfs_socket->m_thread_owner= my_pthread_get_THR_PFS();
 }
 
+struct PSI_digest_locker*
+pfs_digest_start_v1(PSI_statement_locker *locker)
+{
+  PSI_statement_locker_state *statement_state;
+  statement_state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  DBUG_ASSERT(statement_state != NULL);
+
+  if (statement_state->m_discarded)
+    return NULL;
+
+  if (statement_state->m_flags & STATE_FLAG_DIGEST)
+  {
+    return reinterpret_cast<PSI_digest_locker*> (locker);
+  }
+
+  return NULL;
+}
+
+void pfs_digest_end_v1(PSI_digest_locker *locker, const sql_digest_storage *digest)
+{
+  PSI_statement_locker_state *statement_state;
+  statement_state= reinterpret_cast<PSI_statement_locker_state*> (locker);
+  DBUG_ASSERT(statement_state != NULL);
+  DBUG_ASSERT(digest != NULL);
+
+  if (statement_state->m_discarded)
+    return;
+
+  if (statement_state->m_flags & STATE_FLAG_DIGEST)
+  {
+    statement_state->m_digest= digest;
+  }
+}
+
 PSI_prepared_stmt*
 pfs_create_prepared_stmt_v1(void *identity, uint stmt_id, 
                            PSI_statement_locker *locker, 
@@ -6556,7 +6596,7 @@ PSI_v1 PFS_v1=
   pfs_reprepare_prepared_stmt_v1,
   pfs_execute_prepared_stmt_v1,
   pfs_digest_start_v1,
-  pfs_digest_add_token_v1,
+  pfs_digest_end_v1,
   pfs_set_thread_connect_attrs_v1,
   pfs_start_sp_v1,
   pfs_end_sp_v1,

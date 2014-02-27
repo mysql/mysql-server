@@ -188,7 +188,7 @@ if ( $^O eq "MSWin32" )
 }
 else
 {
-  my $linkpath   = "-L$pkglibdir";
+  my $linkpath   = "-L$pkglibdir @RPATH_OPTION@";
   @lib_opts   = ($linkpath,"-lmysqlclient");
   @lib_r_opts = ($linkpath,"-lmysqlclient_r");
   @lib_e_opts = ($linkpath,"-lmysqld");

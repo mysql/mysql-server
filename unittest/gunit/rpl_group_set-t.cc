@@ -246,7 +246,8 @@ public:
   int errtext_stack_pos;
   bool verbose;
 
-  void append_errtext(int line, const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 3, 4)
+  void append_errtext(int line, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)))
   {
     va_list argp;
     va_start(argp, fmt);

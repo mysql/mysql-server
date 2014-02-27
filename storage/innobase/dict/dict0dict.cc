@@ -43,35 +43,36 @@ dict_index_t*	dict_ind_redundant;
 dict_index_t*	dict_ind_compact;
 
 #ifndef UNIV_HOTBACKUP
-#include "buf0buf.h"
-#include "data0type.h"
-#include "mach0data.h"
-#include "dict0boot.h"
-#include "dict0mem.h"
-#include "dict0crea.h"
-#include "dict0stats.h"
-#include "trx0undo.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
-#include "page0zip.h"
+#include "buf0buf.h"
+#include "data0type.h"
+#include "dict0boot.h"
+#include "dict0crea.h"
+#include "dict0mem.h"
+#include "dict0priv.h"
+#include "dict0stats.h"
+#include "fsp0sysspace.h"
+#include "fts0fts.h"
+#include "fts0types.h"
+#include "lock0lock.h"
+#include "mach0data.h"
+#include "mem0mem.h"
 #include "page0page.h"
+#include "page0zip.h"
 #include "pars0pars.h"
 #include "pars0sym.h"
 #include "que0que.h"
 #include "rem0cmp.h"
-#include "fts0fts.h"
-#include "fts0types.h"
+#include "row0log.h"
+#include "row0merge.h"
+#include "row0mysql.h"
+#include "row0upd.h"
 #include "srv0mon.h"
 #include "srv0start.h"
-#include "lock0lock.h"
-#include "dict0priv.h"
-#include "row0upd.h"
-#include "row0mysql.h"
-#include "row0merge.h"
-#include "row0log.h"
-#include "fsp0sysspace.h"
 #include "sync0sync.h"
+#include "trx0undo.h"
 
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
@@ -2319,7 +2320,7 @@ dict_index_add_to_cache(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(!dict_index_is_online_ddl(index));
 
-	ut_ad(mem_heap_validate(index->heap));
+	ut_d(mem_heap_validate(index->heap));
 	ut_a(!dict_index_is_clust(index)
 	     || UT_LIST_GET_LEN(table->indexes) == 0);
 
