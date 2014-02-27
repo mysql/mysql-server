@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,20 +15,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef NDB_UTIL_THREAD_H
-#define NDB_UTIL_THREAD_H
+#ifndef NDB_BINLOG_THREAD_H
+#define NDB_BINLOG_THREAD_H
 
 #include "ndb_component.h"
 
-class Ndb_util_thread : public Ndb_component
+class Ndb_binlog_thread : public Ndb_component
 {
 public:
-  Ndb_util_thread();
-  virtual ~Ndb_util_thread();
-
-  pthread_mutex_t LOCK;
-  pthread_cond_t COND;
-
+  Ndb_binlog_thread();
+  virtual ~Ndb_binlog_thread();
 private:
   virtual int do_init() { return 0;}
   virtual void do_run();
