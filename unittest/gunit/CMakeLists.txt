@@ -288,6 +288,7 @@ SET(SERVER_TESTS
   join_tab_sort
   log_throttle
   make_sortkey
+  mdl_sync
   my_decimal
   opt_range
   opt_ref
