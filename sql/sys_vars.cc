@@ -2809,7 +2809,7 @@ static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
     mysql_mutex_lock(&active_mi->rli->run_lock);
     if (active_mi->rli->slave_running)
     {
-      my_error(ER_SLAVE_MUST_STOP, MYF(0));
+      my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
       result= true;
     }
     mysql_mutex_unlock(&active_mi->rli->run_lock);
@@ -4155,7 +4155,8 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
     mysql_mutex_lock(&active_mi->rli->run_lock);
     if (active_mi->rli->slave_running)
     {
-      my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+      my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
+                 ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
       result= true;
     }
     if (gtid_mode == 3)
