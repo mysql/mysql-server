@@ -1,3 +1,4 @@
+create table test.t0(a int) engine = innodb;
 flush status;
 flush tables;
 select * from performance_schema.mutex_instances;
@@ -257,3 +258,4 @@ AND (@file_per_handle = 0),
 as status;
 status
 OK: heuristics are up to date
+drop table test.t0;
