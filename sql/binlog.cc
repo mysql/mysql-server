@@ -1609,8 +1609,8 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       gtid_mode > GTID_MODE_UPGRADE_STEP_1 && !thd->is_operating_gtid_table)
   {
     /*
-      Generate gtid and save it into table before transaction rollback
-      if the binlog stmt catch is not empty.
+      Generate gtid and save it into the gtid system table before
+      transaction rollback if the binlog stmt catch is not empty.
     */
     error|= gtid_state->generate_and_save_gtid(thd);
   }
@@ -6700,7 +6700,10 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
       trans_has_updated_trans_table(thd) &&
       gtid_mode > GTID_MODE_UPGRADE_STEP_1)
   {
-    /* Generate gtid and save it into table before transaction prepare. */
+    /*
+      Generate gtid and save it into the gtid system table
+      before transaction prepare.
+    */
     if (gtid_state->generate_and_save_gtid(thd))
       DBUG_RETURN(1);
   }
@@ -6786,13 +6789,14 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       gtid_mode > GTID_MODE_UPGRADE_STEP_1 && !thd->is_operating_gtid_table)
   {
     /*
-      Generate gtid and save it into table before transaction commit
-      if the transaction does not need to be prepared. For exapmle,
-      before the change, to a single stmt modifying non-transactional
-      table causes transaction commit, works fine without stmt commit.
-      After the change, the stmt causes a gtid stmt to insert gtid into
-      table, the gtid stmt causes the transaction commit, works fine
-      without stmt commit.
+      Generate gtid and save it into the gtid system table before
+      transaction commit if the transaction does not need to
+      be prepared. For exapmle, before the change, single
+      non-transactional statement causes the transaction commit,
+      works fine without stmt commit. After the change, the
+      non-transactional statement causes a gtid stmt to insert
+      a record into the gtid system table, the gtid stmt causes
+      the transaction commit, works fine without stmt commit.
     */
     if (gtid_state->generate_and_save_gtid(thd))
       DBUG_RETURN(RESULT_ABORTED);

@@ -56,6 +56,7 @@ XA PREPARE '1';
 XA COMMIT '1';
 --eval SET GTID_NEXT='AUTOMATIC'
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
+SET GLOBAL DEBUG= @debug_save;
 --echo # Stored gtids MASTER_UUID:1-5:16 in gtid_executed table on master
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
@@ -66,13 +67,13 @@ SELECT * FROM mysql.gtid_executed;
 --echo # Verify that transaction's gtid is not stored into gtid table
 --echo # and the transaction is rolled back if we encounter an error
 --echo # when writing gtid into table.
-SET @@GLOBAL.DEBUG="+d,simulate_err_on_write_gtid_into_table";
+SET SESSION debug="+d,simulate_err_on_write_gtid_into_table";
 XA START '1';
 INSERT INTO t1 VALUES(4);
 --ERROR ER_GET_ERRNO
 XA END '1';
 XA ROLLBACK '1';
-SET GLOBAL DEBUG= @debug_save;
+SET SESSION debug="-d,simulate_err_on_write_gtid_into_table";
 --echo # Stored gtids MASTER_UUID:1-5:16 in gtid_executed table on master
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
