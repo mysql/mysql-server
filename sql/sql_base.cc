@@ -1446,7 +1446,14 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 
 /*
   Close all temporary tables created by 'CREATE TEMPORARY TABLE' for thread
-  creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread 
+  creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread.
+
+  TODO: In future, we should have temporary_table= 0 and
+        modify_slave_open_temp_tables() at one place instead of repeating
+        it all across the function. An alternative would be to use
+        close_temporary_table() instead of close_temporary() that maintains
+        the correct invariant regarding empty list of temporary tables
+        and zero slave_open_temp_tables already.
 */
 
 bool close_temporary_tables(THD *thd)
@@ -1462,6 +1469,9 @@ bool close_temporary_tables(THD *thd)
   if (!thd->temporary_tables)
     DBUG_RETURN(FALSE);
 
+  DBUG_ASSERT(!thd->slave_thread ||
+              thd->system_thread != SYSTEM_THREAD_SLAVE_WORKER);
+
   if (!mysql_bin_log.is_open())
   {
     TABLE *tmp_next;
@@ -1470,7 +1480,11 @@ bool close_temporary_tables(THD *thd)
       tmp_next= table->next;
       close_temporary(table, 1, 1);
     }
+
     thd->temporary_tables= 0;
+    if (thd->slave_thread)
+      modify_slave_open_temp_tables(thd, -slave_open_temp_tables);
+
     DBUG_RETURN(FALSE);
   }
 
@@ -1604,7 +1618,10 @@ bool close_temporary_tables(THD *thd)
   }
   if (!was_quote_show)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
+
   thd->temporary_tables=0;
+  if (thd->slave_thread)
+    modify_slave_open_temp_tables(thd, -slave_open_temp_tables);
 
   DBUG_RETURN(error);
 }

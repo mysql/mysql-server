@@ -43,8 +43,10 @@
   error() is used in macro BINLOG_ERROR which is invoked in
   rpl_gtid.h, hence the early forward declaration.
 */
-static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
-static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+static void error(const char *format, ...)
+  __attribute__((format(printf, 1, 2)));
+static void warning(const char *format, ...)
+  __attribute__((format(printf, 1, 2)));
 
 #include "rpl_gtid.h"
 #include "log_event.h"

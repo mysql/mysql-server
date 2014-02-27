@@ -737,6 +737,16 @@ void Item_func::signal_divide_by_null()
 }
 
 
+void Item_func::signal_invalid_argument_for_log()
+{
+  THD *thd= current_thd;
+  push_warning(thd, Sql_condition::SL_WARNING,
+               ER_INVALID_ARGUMENT_FOR_LOGARITHM,
+               ER(ER_INVALID_ARGUMENT_FOR_LOGARITHM));
+  null_value= TRUE;
+}
+
+
 Item *Item_func::get_tmp_table_item(THD *thd)
 {
   if (!with_sum_func && !const_item())
@@ -2054,11 +2064,12 @@ double Item_func_ln::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log(value);
 }
+
 
 /** 
   Extended but so slower LOG function.
@@ -2074,7 +2085,7 @@ double Item_func_log::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   if (arg_count == 2)
@@ -2084,7 +2095,7 @@ double Item_func_log::val_real()
       return 0.0;
     if (value2 <= 0.0 || value == 1.0)
     {
-      signal_divide_by_null();
+      signal_invalid_argument_for_log();
       return 0.0;
     }
     return log(value2) / log(value);
@@ -2101,7 +2112,7 @@ double Item_func_log2::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log(value) / M_LN2;
@@ -2115,7 +2126,7 @@ double Item_func_log10::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log10(value);

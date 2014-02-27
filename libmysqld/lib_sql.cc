@@ -1304,6 +1304,9 @@ void Protocol_text::prepare_for_resend()
 
 bool Protocol_text::store_null()
 {
+  if (!thd->mysql)            // bootstrap file handling
+    return false;
+
   *(next_field++)= NULL;
   ++next_mysql_field;
   return false;

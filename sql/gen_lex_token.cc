@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 /* We only need the tokens here */
 #define YYSTYPE_IS_DECLARED
-#include <../sql/sql_yacc.h>
+#include <sql_yacc.h>
 #include <lex.h>
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -48,13 +48,13 @@ int max_token_seen= 0;
 
 char char_tokens[256];
 
-int tok_pfs_generic_value= 0;
-int tok_pfs_generic_value_list= 0;
-int tok_pfs_row_single_value= 0;
-int tok_pfs_row_single_value_list= 0;
-int tok_pfs_row_multiple_value= 0;
-int tok_pfs_row_multiple_value_list= 0;
-int tok_pfs_unused= 0;
+int tok_generic_value= 0;
+int tok_generic_value_list= 0;
+int tok_row_single_value= 0;
+int tok_row_single_value_list= 0;
+int tok_row_multiple_value= 0;
+int tok_row_multiple_value_list= 0;
+int tok_unused= 0;
 
 void set_token(int tok, const char *str)
 {
@@ -177,32 +177,32 @@ void compute_tokens()
   */
 
   max_token_seen++;
-  tok_pfs_generic_value= max_token_seen;
-  set_token(tok_pfs_generic_value, "?");
+  tok_generic_value= max_token_seen;
+  set_token(tok_generic_value, "?");
 
   max_token_seen++;
-  tok_pfs_generic_value_list= max_token_seen;
-  set_token(tok_pfs_generic_value_list, "?, ...");
+  tok_generic_value_list= max_token_seen;
+  set_token(tok_generic_value_list, "?, ...");
 
   max_token_seen++;
-  tok_pfs_row_single_value= max_token_seen;
-  set_token(tok_pfs_row_single_value, "(?)");
+  tok_row_single_value= max_token_seen;
+  set_token(tok_row_single_value, "(?)");
 
   max_token_seen++;
-  tok_pfs_row_single_value_list= max_token_seen;
-  set_token(tok_pfs_row_single_value_list, "(?) /* , ... */");
+  tok_row_single_value_list= max_token_seen;
+  set_token(tok_row_single_value_list, "(?) /* , ... */");
 
   max_token_seen++;
-  tok_pfs_row_multiple_value= max_token_seen;
-  set_token(tok_pfs_row_multiple_value, "(...)");
+  tok_row_multiple_value= max_token_seen;
+  set_token(tok_row_multiple_value, "(...)");
 
   max_token_seen++;
-  tok_pfs_row_multiple_value_list= max_token_seen;
-  set_token(tok_pfs_row_multiple_value_list, "(...) /* , ... */");
+  tok_row_multiple_value_list= max_token_seen;
+  set_token(tok_row_multiple_value_list, "(...) /* , ... */");
 
   max_token_seen++;
-  tok_pfs_unused= max_token_seen;
-  set_token(tok_pfs_unused, "UNUSED");
+  tok_unused= max_token_seen;
+  set_token(tok_unused, "UNUSED");
 }
 
 void print_tokens()
@@ -231,14 +231,14 @@ void print_tokens()
   printf("/* DUMMY */ { \"\", 0}\n");
   printf("};\n");
 
-  printf("/* PFS specific tokens. */\n");
-  printf("#define TOK_PFS_GENERIC_VALUE %d\n", tok_pfs_generic_value);
-  printf("#define TOK_PFS_GENERIC_VALUE_LIST %d\n", tok_pfs_generic_value_list);
-  printf("#define TOK_PFS_ROW_SINGLE_VALUE %d\n", tok_pfs_row_single_value);
-  printf("#define TOK_PFS_ROW_SINGLE_VALUE_LIST %d\n", tok_pfs_row_single_value_list);
-  printf("#define TOK_PFS_ROW_MULTIPLE_VALUE %d\n", tok_pfs_row_multiple_value);
-  printf("#define TOK_PFS_ROW_MULTIPLE_VALUE_LIST %d\n", tok_pfs_row_multiple_value_list);
-  printf("#define TOK_PFS_UNUSED %d\n", tok_pfs_unused);
+  printf("/* DIGEST specific tokens. */\n");
+  printf("#define TOK_GENERIC_VALUE %d\n", tok_generic_value);
+  printf("#define TOK_GENERIC_VALUE_LIST %d\n", tok_generic_value_list);
+  printf("#define TOK_ROW_SINGLE_VALUE %d\n", tok_row_single_value);
+  printf("#define TOK_ROW_SINGLE_VALUE_LIST %d\n", tok_row_single_value_list);
+  printf("#define TOK_ROW_MULTIPLE_VALUE %d\n", tok_row_multiple_value);
+  printf("#define TOK_ROW_MULTIPLE_VALUE_LIST %d\n", tok_row_multiple_value_list);
+  printf("#define TOK_UNUSED %d\n", tok_unused);
 }
 
 int main(int argc,char **argv)
@@ -249,7 +249,7 @@ int main(int argc,char **argv)
 
   printf("/*\n");
   printf("  This file is generated, do not edit.\n");
-  printf("  See file storage/perfschema/gen_pfs_lex_token.cc.\n");
+  printf("  See file sql/gen_lex_token.cc.\n");
   printf("*/\n");
   printf("struct lex_token_string\n");
   printf("{\n");

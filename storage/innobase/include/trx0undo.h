@@ -269,24 +269,21 @@ trx_undo_truncate_end_func(
 	trx_undo_truncate_end_func(undo,limit)
 #endif /* UNIV_DEBUG */
 
-/***********************************************************************//**
-Truncates an undo log from the start. This function is used during a purge
-operation. */
+/** Truncate the head of an undo log.
+NOTE that only whole pages are freed; the header page is not
+freed, but emptied, if all the records there are below the limit.
+@param[in,out]	rseg		rollback segment
+@param[in]	hdr_page_no	header page number
+@param[in]	hdr_offset	header offset on the page
+@param[in]	limit		first undo number to preserve
+(everything below the limit will be truncated) */
 
 void
 trx_undo_truncate_start(
-/*====================*/
-	trx_rseg_t*	rseg,		/*!< in: rollback segment */
-	ulint		space,		/*!< in: space id of the log */
-	ulint		hdr_page_no,	/*!< in: header page number */
-	ulint		hdr_offset,	/*!< in: header offset on the page */
-	undo_no_t	limit);		/*!< in: all undo pages with
-					undo numbers < this value
-					should be truncated; NOTE that
-					the function only frees whole
-					pages; the header page is not
-					freed, but emptied, if all the
-					records there are < limit */
+	trx_rseg_t*	rseg,
+	ulint		hdr_page_no,
+	ulint		hdr_offset,
+	undo_no_t	limit);
 /********************************************************************//**
 Initializes the undo log lists for a rollback segment memory copy.
 This function is only called when the database is started or a new

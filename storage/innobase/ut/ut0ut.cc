@@ -744,15 +744,14 @@ ut_snprintf(
 }
 #endif /* _WIN32 */
 
-/*************************************************************//**
-Convert an error number to a human readable text message. The
-returned string is static and should not be freed or modified.
+/** Convert an error number to a human readable text message.
+The returned string is static and should not be freed or modified.
+@param[in]	num	InnoDB internal error number
 @return string, describing the error */
 
 const char*
 ut_strerr(
-/*======*/
-	dberr_t	num)	/*!< in: error number */
+	dberr_t	num)
 {
 	switch (num) {
 	case DB_SUCCESS:
