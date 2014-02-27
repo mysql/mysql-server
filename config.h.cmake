@@ -55,14 +55,12 @@
 #cmakedefine HAVE_SYS_DIR_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
-#cmakedefine HAVE_SYS_IPC_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
 #cmakedefine HAVE_SYS_MMAN_H 1
 #cmakedefine HAVE_SYS_NDIR_H 1
 #cmakedefine HAVE_SYS_PRCTL_H 1
 #cmakedefine HAVE_SYS_RESOURCE_H 1
 #cmakedefine HAVE_SYS_SELECT_H 1
-#cmakedefine HAVE_SYS_SHM_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
 #cmakedefine HAVE_SYS_STAT_H 1
 #cmakedefine HAVE_SYS_TIMES_H 1
@@ -135,7 +133,6 @@
 #cmakedefine HAVE_GETGID 1
 #cmakedefine HAVE_GETEGID 1
 #cmakedefine HAVE_ISINF 1
-#cmakedefine HAVE_LARGE_PAGE_OPTION 1
 #cmakedefine HAVE_LRAND48 1
 #cmakedefine HAVE_LOG2 1
 #cmakedefine HAVE_LSTAT 1
@@ -145,7 +142,6 @@
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_DECL_MADVISE 1
 #cmakedefine HAVE_DECL_TGOTO 1
-#cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
 #cmakedefine HAVE_MALLOC_INFO 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP 1
@@ -171,7 +167,6 @@
 #cmakedefine HAVE_SCHED_YIELD 1
 #cmakedefine HAVE_SELECT 1
 #cmakedefine HAVE_SETFD 1
-#cmakedefine HAVE_SETENV 1
 #cmakedefine HAVE_SIGSET 1
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
@@ -288,9 +283,7 @@
 #cmakedefine MY_ATOMIC_MODE_RWLOCKS 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
-#cmakedefine HAVE_DECL_SHM_HUGETLB 1
-#cmakedefine HAVE_LARGE_PAGES 1
-#cmakedefine HUGETLB_USE_PROC_MEMINFO 1
+#cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine NO_FCNTL_NONBLOCK 1
 
 #cmakedefine _LARGE_FILES 1
@@ -349,11 +342,6 @@
 #cmakedefine strtok_r @strtok_r@
 
 #cmakedefine ssize_t @ssize_t@
-
-#if (_MSC_VER > 1310)
-# define HAVE_SETENV
-#define setenv(a,b,c) _putenv_s(a,b)
-#endif
 
 /*
    Memcached config options

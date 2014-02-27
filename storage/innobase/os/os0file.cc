@@ -2362,30 +2362,10 @@ os_file_io(
 
 	for (ulint i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
 		if (type == OS_FILE_READ ) {
-#if defined(HAVE_PREAD)
 			n_bytes = pread(file, buf, n, offset);
-#else
-			off_t ret_offset;
-			ret_offset = lseek(file, offset, SEEK_SET);
-			if (ret_offset < 0) {
-				bytes_returned = -1;
-				return(bytes_returned);
-			}
-			n_bytes = read(file, buf, (ssize_t) n);
-#endif /* HAVE_PREAD */
 		} else {
 			ut_ad(type == OS_FILE_WRITE);
-#if defined(HAVE_PWRITE)
 			n_bytes = pwrite(file, buf, n, offset);
-#else
-			off_t ret_offset;
-			ret_offset = lseek(file, offset, SEEK_SET);
-			if (ret_offset < 0) {
-				bytes_returned = -1;
-				return(bytes_returned);
-			}
-			n_bytes = write(file, buf, (ssize_t) n);
-#endif /* HAVE_PWRITE */
 		}
 
 		if ((ulint) n_bytes == n) {
@@ -2453,8 +2433,6 @@ os_file_pread(
 
 	os_n_file_reads++;
 
-#if defined(HAVE_PREAD)
-
 # if defined(HAVE_ATOMIC_BUILTINS)
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
@@ -2482,43 +2460,6 @@ os_file_pread(
 # endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(read_bytes);
-#else /* HAVE_PREAD */
-
-# ifdef HAVE_ATOMIC_BUILTINS
-	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
-	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
-# else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads++;
-	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-# endif /* HAVE_ATOMIC_BUILTINS */
-
-# ifndef UNIV_HOTBACKUP
-	/* Protect the seek / read operation with a mutex */
-	ulint	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-
-	mutex_enter(os_file_seek_mutexes[i]);
-# endif /* !UNIV_HOTBACKUP */
-
-	read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
-
-# ifndef UNIV_HOTBACKUP
-	mutex_exit(os_file_seek_mutexes[i]);
-# endif /* !UNIV_HOTBACKUP */
-
-# ifdef HAVE_ATOMIC_BUILTINS
-	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
-	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-# else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads--;
-	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-# endif /* HAVE_ATOMIC_BUILTINS */
-
-	return(read_bytes);
-#endif /* HAVE_PREAD */
 }
 
 /*******************************************************************//**
@@ -2549,8 +2490,6 @@ os_file_pwrite(
 
 	os_n_file_writes++;
 
-#if defined(HAVE_PWRITE)
-
 #ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_pwrites, 1);
@@ -2579,39 +2518,6 @@ os_file_pwrite(
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(written_bytes);
-#else /* HAVE_PWRITE */
-	{
-# ifndef UNIV_HOTBACKUP
-		ulint	i;
-# endif /* !UNIV_HOTBACKUP */
-
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_writes++;
-		MONITOR_INC(MONITOR_OS_PENDING_WRITES);
-		mutex_exit(&os_file_count_mutex);
-
-# ifndef UNIV_HOTBACKUP
-		/* Protect the seek / write operation with a mutex */
-		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-
-		mutex_enter(os_file_seek_mutexes[i]);
-# endif /* UNIV_HOTBACKUP */
-
-		written_bytes = os_file_io(
-			file, (void*) buf, n, offs, OS_FILE_WRITE);
-
-# ifndef UNIV_HOTBACKUP
-		mutex_exit(os_file_seek_mutexes[i]);
-# endif /* !UNIV_HOTBACKUP */
-
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_writes--;
-		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-		mutex_exit(&os_file_count_mutex);
-
-		return(written_bytes);
-	}
-#endif /* HAVE_PWRITE */
 }
 
 # endif /* _WIN32*/
