@@ -110,13 +110,13 @@
   performance gains in frequently executed sections of the code, and the
   other reason to use them is for documentation
 */
-
-#if !defined(__GNUC__) || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
-#define __builtin_expect(x, expected_value) (x)
+#ifdef HAVE_BUILTIN_EXPECT
+#  define likely(x)    __builtin_expect((x),1)
+#  define unlikely(x)  __builtin_expect((x),0)
+#else
+#  define likely(x)    (x)
+#  define unlikely(x)  (x)
 #endif
-
-#define likely(x)	__builtin_expect((x),1)
-#define unlikely(x)	__builtin_expect((x),0)
 
 /* Fix problem with S_ISLNK() on Linux */
 #if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
@@ -865,21 +865,9 @@ typedef char		my_bool; /* Small bool */
 #define bool In_C_you_should_use_my_bool_instead()
 #endif
 
-/* Provide __func__ macro definition for platforms that miss it. */
-#if __STDC_VERSION__ < 199901L
-#  if __GNUC__ >= 2
-#    define __func__ __FUNCTION__
-#  else
-#    define __func__ "<unknown>"
-#  endif
-#elif defined(_MSC_VER)
-#  if _MSC_VER < 1300
-#    define __func__ "<unknown>"
-#  else
-#    define __func__ __FUNCTION__
-#  endif
-#else
-#  define __func__ "<unknown>"
+/* Provide __func__ macro definition for Visual Studio. */
+#if defined(_MSC_VER)
+#  define __func__ __FUNCTION__
 #endif
 
 #ifndef HAVE_RINT

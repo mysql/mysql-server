@@ -729,3 +729,11 @@ DROP PROCEDURE mysql.warn_host_table_nonempty;
 ALTER TABLE help_category MODIFY url TEXT NOT NULL;
 ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 
+--
+-- Add timestamp and expiry columns
+--
+
+ALTER TABLE user ADD password_last_changed timestamp NULL;
+UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','mysql_old_password','sha256_password') and password_last_changed is NULL;
+
+ALTER TABLE user ADD password_lifetime smallint unsigned NULL;
