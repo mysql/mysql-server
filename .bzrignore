@@ -401,6 +401,7 @@ client/mysqlslap
 client/mysqltest
 client/mysqltestmanager-pwgen
 client/mysqltestmanagerc
+client/mysql_secure_installation
 client/mysys_priv.h
 client/readline.cpp
 client/rpl_constants.h
@@ -1833,6 +1834,7 @@ scripts/make_win_binary_distribution
 scripts/make_win_src_distribution
 scripts/make_win_src_distribution_old
 scripts/mysql_config
+scripts/mysql_config.pl
 scripts/mysql_create_system_tables
 scripts/mysql_explain_log
 scripts/mysql_fix_privilege_tables
@@ -2875,6 +2877,7 @@ support-files/MacOSX/postinstall
 support-files/MacOSX/preflight
 support-files/MacOSX/preinstall
 support-files/binary-configure
+support-files/my-default.cnf
 support-files/my-huge.cnf
 support-files/my-innodb-heavy-4G.cnf
 support-files/my-large.cnf
@@ -2976,6 +2979,7 @@ unittest/examples/.deps/skip_all-t.Po
 unittest/examples/.deps/todo-t.Po
 unittest/gunit/merge_large_tests.cc
 unittest/gunit/merge_small_tests.cc
+unittest/gunit/innodb/merge_innodb_tests-t.cc
 unittest/mysys/*.t
 unittest/mysys/.deps/base64-t.Po
 unittest/mysys/.deps/my_atomic-t.Po
@@ -3142,3 +3146,6 @@ sql/share/bulgarian
 storage/ndb/test/dox
 sql/lex_token.h
 sql/gen_lex_token
+internal/plugin/thread_pool/src/thread_pool_config.h
+internal/tests/innorwlocktest
+packaging/solaris/postinstall-solaris
