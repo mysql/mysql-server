@@ -5296,7 +5296,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         {
           prepared_stmt_stat->aggregate_counted();
         }
-      } 
+      }
     }
     else
     {
@@ -6018,8 +6018,8 @@ void pfs_digest_end_v1(PSI_digest_locker *locker, const sql_digest_storage *dige
 }
 
 PSI_prepared_stmt*
-pfs_create_prepared_stmt_v1(void *identity, uint stmt_id, 
-                           PSI_statement_locker *locker, 
+pfs_create_prepared_stmt_v1(void *identity, uint stmt_id,
+                           PSI_statement_locker *locker,
                            const char *stmt_name, size_t stmt_name_length,
                            const char *sql_text, size_t sql_text_length)
 {
@@ -6058,18 +6058,18 @@ void pfs_execute_prepared_stmt_v1 (PSI_statement_locker *locker,
 
 void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
 {
-  PFS_prepared_stmt *pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt); 
+  PFS_prepared_stmt *pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt);
   delete_prepared_stmt(pfs_prepared_stmt);
   return;
 }
 
 void pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
 {
-  PFS_prepared_stmt *pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt); 
+  PFS_prepared_stmt *pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt);
   PFS_single_stat *prepared_stmt_stat= &pfs_prepared_stmt->m_reprepare_stat;
 
   if (prepared_stmt_stat != NULL)
-    prepared_stmt_stat->aggregate_counted();  
+    prepared_stmt_stat->aggregate_counted();
   return;
 }
 

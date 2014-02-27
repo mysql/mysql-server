@@ -65,7 +65,7 @@ int init_prepared_stmt(const PFS_global_param *param)
 
   PFS_prepared_stmt *pfs= prepared_stmt_array;
   PFS_prepared_stmt *pfs_last= prepared_stmt_array + prepared_stmt_max;
-  
+
   for (; pfs < pfs_last ; pfs++)
   {
     pfs->reset_data();
@@ -96,7 +96,7 @@ void reset_prepared_stmt_instances()
 
   PFS_prepared_stmt *pfs= prepared_stmt_array;
   PFS_prepared_stmt *pfs_last= prepared_stmt_array + prepared_stmt_max;
-  
+
   /* Reset statistics in prepared_stmt_array. */
   for (; pfs < pfs_last ; pfs++)
   {
@@ -134,12 +134,12 @@ create_prepared_stmt(void *identity,
   {
     index= PFS_atomic::add_u32(& prepared_stmt_monotonic_index, 1) % prepared_stmt_max;
     pfs= prepared_stmt_array + index;
-    
+
     if (pfs->m_lock.is_free())
     {
       if (pfs->m_lock.free_to_dirty(& dirty_state))
       {
-        /* Reset the stats. */ 
+        /* Reset the stats. */
         pfs->reset_data();
         /* Do the assignments. */
         pfs->m_identity= identity;
@@ -164,7 +164,7 @@ create_prepared_stmt(void *identity,
           pfs->m_owner_object_type= pfs_program->m_type;
           strncpy(pfs->m_owner_object_schema, pfs_program->m_schema_name, pfs_program->m_schema_name_length);
           pfs->m_owner_object_schema_length= pfs_program->m_schema_name_length;
-          strncpy(pfs->m_owner_object_name, pfs_program->m_object_name, pfs_program->m_object_name_length); 
+          strncpy(pfs->m_owner_object_name, pfs_program->m_object_name, pfs_program->m_object_name_length);
           pfs->m_owner_object_name_length= pfs_program->m_object_name_length;
         }
         else
@@ -172,7 +172,7 @@ create_prepared_stmt(void *identity,
           pfs->m_owner_object_type= NO_OBJECT_TYPE;
           pfs->m_owner_object_schema_length= 0;
           pfs->m_owner_object_name_length= 0;
-        } 
+        }
 
         if (pfs_stmt)
         {
@@ -181,7 +181,7 @@ create_prepared_stmt(void *identity,
           else
             pfs->m_owner_event_id= pfs_stmt->m_event_id;
         }
- 
+
         /* Insert this record. */
         pfs->m_lock.dirty_to_allocated(& dirty_state);
         return pfs;
