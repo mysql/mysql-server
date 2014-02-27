@@ -130,8 +130,80 @@ public:
   void init();
   void destroy();
 
-  MDL_lock *find_or_insert(LF_PINS *pins, const MDL_key *key);
-  void remove(LF_PINS *pins, MDL_lock *lock);
+  inline MDL_lock *find_or_insert(LF_PINS *pins, const MDL_key *key, bool *pinned);
+
+  /**
+    Decrement unused MDL_lock objects counter.
+  */
+  void lock_object_used()
+  {
+    my_atomic_rwlock_wrlock(&m_unused_lock_objects_lock);
+    my_atomic_add32(&m_unused_lock_objects, -1);
+    my_atomic_rwlock_wrunlock(&m_unused_lock_objects_lock);
+  }
+
+  /**
+    Increment unused MDL_lock objects counter. If number of such objects
+    exceeds threshold and unused/total objects ratio is high enough try
+    to free some of them.
+  */
+  void lock_object_unused(MDL_context *ctx, LF_PINS *pins)
+  {
+    /*
+      Use thread local copy of unused locks counter for performance/
+      scalability reasons. It is updated on both successfull and failed
+      attempts to delete unused MDL_lock objects in order to avoid infinite
+      loops,
+    */
+    int32 unused_locks;
+
+    my_atomic_rwlock_wrlock(&m_unused_lock_objects_lock);
+    unused_locks= my_atomic_add32(&m_unused_lock_objects, 1) + 1;
+    my_atomic_rwlock_wrunlock(&m_unused_lock_objects_lock);
+
+    while (unused_locks > mdl_locks_unused_locks_low_water &&
+           (unused_locks > m_locks.count * MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO))
+    {
+      /*
+        If number of unused lock objects exceeds low water threshold and
+        unused/total objects ratio is high enough - try to do random dive
+        into m_locks hash, find an unused object by iterating upwards
+        through its split-ordered list and try to free it.
+        If we fail to do this - update local copy of unused objects
+        counter and retry if needed,
+
+        Note that:
+        *) It is not big deal if "m_unused_lock_objects" due to races becomes
+           negative temporarily as we perform signed comparison.
+        *) There is a good chance that we will find an unused object quickly
+           because unused/total ratio is high enough.
+        *) There is no possibility for infinite loop since our PRNG works
+           in such way that we eventually cycle through all LF_HASH hash
+           buckets (@sa MDL_context::get_random()).
+        *) Thanks to the fact that we choose random object to expel -
+           objects which are used more often will naturally stay
+           in the cache and rarely used objects will be expelled from it.
+        *) Non-atomic read of LF_HASH::count which happens above should be
+           OK as LF_HASH code does them too + preceding atomic operation
+           provides memory barrier.
+      */
+      remove_random_unused(ctx, pins, &unused_locks);
+    }
+  }
+
+  /**
+    Get number of unused MDL_lock objects in MDL_map cache.
+
+    @note Does non-atomic read so can return stale results. This is OK since
+          this method is used only in unit-tests. The latter employ means
+          of thread synchronization which are external to MDL and prevent
+          memory reordering/ensure that thread calling this method have
+          up-to-date view on the memory. @sa m_unused_lock_objects.
+  */
+  int32 get_unused_locks_count() const
+  {
+    return m_unused_lock_objects;
+  }
 
   /**
     Allocate pins which are necessary for MDL_context/thread to be able
@@ -139,14 +211,59 @@ public:
   */
   LF_PINS *get_pins() { return lf_hash_get_pins(&m_locks); }
 
+  /**
+    Check if MDL_lock object corresponding to the key is going to be
+    singleton.
+  */
+  bool is_lock_object_singleton(const MDL_key *mdl_key) const
+  {
+    return (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
+            mdl_key->mdl_namespace() == MDL_key::COMMIT);
+  }
+
 private:
-  /** LF_HASH with of all acquired locks in the server. */
+
+  void remove_random_unused(MDL_context *ctx, LF_PINS *pins, int32 *unused_locks);
+
+  /** LF_HASH with all locks in the server. */
   LF_HASH m_locks;
   /** Pre-allocated MDL_lock object for GLOBAL namespace. */
   MDL_lock *m_global_lock;
   /** Pre-allocated MDL_lock object for COMMIT namespace. */
   MDL_lock *m_commit_lock;
+  /**
+    Number of unused MDL_lock objects in the server.
+
+    Updated using atomic operations, read using both atomic and ordinary
+    reads. We assume that ordinary reads of 32-bit words can't result in
+    partial results, but may produce stale results thanks to memory
+    reordering, LF_HASH seems to be using similar assumption.
+
+    Note that due to fact that updates to this counter are not atomic with
+    marking MDL_lock objects as used/unused it might easily get negative
+    for some short period of time. Code which uses its value needs to take
+    this into account.
+  */
+  volatile int32 m_unused_lock_objects;
+  /**
+    Lock protecting m_unused_lock_objects counter to be used on systems
+    without native atomics support.
+  */
+  my_atomic_rwlock_t m_unused_lock_objects_lock;
 };
+
+
+/**
+  Threshold for number of unused MDL_lock objects.
+
+  We will start considering freeing some unused objects only after exceeding
+  this value and if unused/total objects ratio is high enough.
+
+  Normally this threshold is constant. It is exposed outside of MDL subsystem
+  as a variable only in order to simplify unit testing.
+*/
+int32 mdl_locks_unused_locks_low_water=
+        MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
 
 
 /**
@@ -337,7 +454,7 @@ public:
 
   typedef Ticket_list::List::Iterator Ticket_iterator;
 
-  typedef ulonglong packed_counter_t;
+  typedef longlong fast_path_state_t;
 
   /**
     Helper struct which defines how different types of locks are handled
@@ -364,7 +481,7 @@ public:
       Array of increments for "unobtrusive" types of lock requests for locks.
       @sa MDL_lock::get_unobtrusive_lock_increment().
     */
-    packed_counter_t m_unobtrusive_lock_increment[MDL_TYPE_END];
+    fast_path_state_t m_unobtrusive_lock_increment[MDL_TYPE_END];
     /**
       Bitmap of lock types which, in order to prevent starvation, should be
       only granted max_write_lock_count times in a row while other lock
@@ -386,7 +503,7 @@ public:
     void (*m_notify_conflicting_locks)(MDL_context *ctx, MDL_lock *lock);
     /**
       Pointer to a static method which converts information about
-      locks granted using "fast" path from packed_counter_t
+      locks granted using "fast" path from fast_path_state_t
       representation to bitmap of lock types.
     */
     bitmap_t (*m_fast_path_granted_bitmap)(const MDL_lock &lock);
@@ -430,12 +547,6 @@ public:
   */
   mysql_prlock_t m_rwlock;
 
-  bool is_empty() const
-  {
-    return (! m_fast_path_granted_count &&
-            m_granted.is_empty() && m_waiting.is_empty());
-  }
-
   const bitmap_t *incompatible_granted_types_bitmap() const
   {
     return m_strategy->m_granted_incompatible;
@@ -453,7 +564,8 @@ public:
 
   void reschedule_waiters();
 
-  void remove_ticket(LF_PINS *pins, Ticket_list MDL_lock::*queue,
+  void remove_ticket(MDL_context *ctx, LF_PINS *pins,
+                     Ticket_list MDL_lock::*queue,
                      MDL_ticket *ticket);
 
   bool visit_subgraph(MDL_ticket *waiting_ticket,
@@ -500,9 +612,8 @@ public:
           scalability.
 
           The amount by which acquisition/release of specific type
-          "unobtrusive" lock increases/decreases
-          MDL_lock::m_fast_path_granted_count counter is increment
-          returned by this function.
+          "unobtrusive" lock increases/decreases packed counter in
+          MDL_lock::m_fast_path_state is returned by this function.
 
           B) "obtrusive" lock types
             1) Granted or pending lock of those type is incompatible with
@@ -518,14 +629,14 @@ public:
     @sa MDL_scoped_lock/MDL_object_lock::m_unobtrusive_lock_increment for
         definitions of these sets for scoped and per-object locks.
   */
-  inline static packed_counter_t
+  inline static fast_path_state_t
     get_unobtrusive_lock_increment(const MDL_request *request);
 
   /**
     @returns "Fast path" increment if type of lock is "unobtrusive" type,
               0 - if it is "obtrusive" type of lock.
   */
-  packed_counter_t get_unobtrusive_lock_increment(enum_mdl_type type) const
+  fast_path_state_t get_unobtrusive_lock_increment(enum_mdl_type type) const
   {
     return m_strategy->m_unobtrusive_lock_increment[type];
   }
@@ -543,6 +654,14 @@ public:
   /**
     Return set of types of lock requests which were granted using
     "fast path" algorithm in the bitmap_t form.
+
+    This method is only called from MDL_lock::can_grant_lock() and its
+    return value is only important when we are trying to figure out if
+    we can grant an obtrusive lock. But this means that the HAS_OBTRUSIVE
+    flag is set so all changes to m_fast_path_state happen under protection
+    of MDL_lock::m_rwlock (see invariant [INV1]).
+    Since can_grant_lock() is called only when MDL_lock::m_rwlock is held,
+    it is safe to do an ordinary read of m_fast_path_state here.
   */
   bitmap_t fast_path_granted_bitmap() const
   {
@@ -570,8 +689,7 @@ public:
     MDL_lock::reinit(). So @sa MDL_lock::reiniti()
   */
   MDL_lock()
-    : m_obtrusive_locks_granted_waiting_count(0),
-      m_fast_path_granted_count(0)
+    : m_obtrusive_locks_granted_waiting_count(0)
   {
     mysql_prlock_init(key_MDL_lock_rwlock, &m_rwlock);
   }
@@ -588,14 +706,10 @@ public:
 
 public:
   /**
-    Indicates that the MDL_lock object was marked for destruction and will be
-    destroyed once all threads referencing to it through hazard pointers
-    will unpin it. Should be set and read only under protection of
-    MDL_lock::m_rwlock lock.
-  */
-  bool m_is_destroyed;
-  /**
     Number of granted or waiting lock requests of "obtrusive" type.
+    Also includes "obtrusive" lock requests for which we about to check
+    if they can be granted.
+
 
     @sa MDL_lock::get_unobtrusive_lock_increment() description.
 
@@ -604,16 +718,143 @@ public:
   */
   uint m_obtrusive_locks_granted_waiting_count;
   /**
-    Packed counter of specific types of "unobtrusive" locks which were
-    granted using "fast path".
+    Flag in MDL_lock::m_fast_path_state that indicates that the MDL_lock
+    object was marked for destruction and will be destroyed once all threads
+    referencing to it through hazard pointers have unpinned it.
+    Set using atomic compare-and-swap AND under protection of
+    MDL_lock::m_rwlock lock.
+    Thanks to this can be read either by using atomic compare-and-swap OR
+    using ordinary read under protection of MDL_lock::m_rwlock lock.
+  */
+  static const fast_path_state_t IS_DESTROYED=  1ULL << 62;
+  /**
+    Flag in MDL_lock::m_fast_path_state that indicates that there are
+    "obtrusive" locks which are granted, waiting or for which we are
+    about to check if they can be granted.
+    Corresponds to "MDL_lock::m_obtrusive_locks_granted_waiting_count == 0"
+    predicate.
+    Set using atomic compare-and-swap AND under protection of
+    MDL_lock::m_rwlock lock.
+    Thanks to this can be read either by using atomic compare-and-swap OR
+    using ordinary read under protection of MDL_lock::m_rwlock lock.
+
+    Invariant [INV1]: When this flag is set all changes to m_fast_path_state
+    member has to be done under protection of m_rwlock lock.
+  */
+  static const fast_path_state_t HAS_OBTRUSIVE= 1ULL << 61;
+  /**
+    Flag in MDL_lock::m_fast_path_state that indicates that there are
+    "slow" path locks which are granted, waiting or for which we are
+    about to check if they can be granted.
+    Corresponds to MDL_lock::m_granted/m_waiting lists being non-empty
+    (except special case in MDL_context::try_acquire_lock()).
+    Set using atomic compare-and-swap AND under protection of m_rwlock
+    lock. The latter is necessary because value of this flag needs to be
+    synchronized with contents of MDL_lock::m_granted/m_waiting lists.
+  */
+  static const fast_path_state_t HAS_SLOW_PATH= 1ULL << 60;
+  /**
+    Combination of IS_DESTROYED/HAS_OBTRUSIVE/HAS_SLOW_PATH flags and packed
+    counters of specific types of "unobtrusive" locks which were granted using
+    "fast path".
 
     @sa MDL_scoped_lock::m_unobtrusive_lock_increment and
         MDL_object_lock::m_unobtrusive_lock_increment for details about how
         counts of different types of locks are packed into this field.
 
     @note Doesn't include "unobtrusive" locks granted using "slow path".
+
+    @note We use combination of atomic operations and protection by
+          MDL_lock::m_rwlock lock to work with this member:
+
+          * Write and Read-Modify-Write operations are always carried out
+            atomically. This is necessary to avoid lost updates on 32-bit
+            platforms among other things.
+          * In some cases Reads can be done non-atomically because we don't
+            really care about value which they will return (for example,
+            if further down the line there will be an atomic compare-and-swap
+            operation, which will validate this value and provide the correct
+            value if the validation will fail).
+          * In other cases Reads can be done non-atomically since they happen
+            under protection of MDL_lock::m_rwlock and there is some invariant
+            which ensures that concurrent updates of the m_fast_path_state
+            member can't happen while  MDL_lock::m_rwlock is held
+            (@sa IS_DESTROYED, HAS_OBTRUSIVE, HAS_SLOW_PATH).
+
+    @note IMPORTANT!!!
+          In order to enforce the above rules and other invariants,
+          MDL_lock::m_fast_path_state should not be updated directly.
+          Use fast_path_state_cas()/add()/reset() wrapper methods instead.
+
+    @note Needs to be volatile in order to be compatible with our
+          my_atomic_*() API.
   */
-  packed_counter_t m_fast_path_granted_count;
+  volatile fast_path_state_t m_fast_path_state;
+
+  /**
+    Wrapper for my_atomic_cas64 operation on m_fast_path_state member
+    which enforces locking and other invariants.
+  */
+  bool fast_path_state_cas(fast_path_state_t *old_state,
+                           fast_path_state_t new_state)
+  {
+    /*
+      IS_DESTROYED, HAS_OBTRUSIVE and HAS_SLOW_PATH flags can be set or
+      cleared only while holding MDL_lock::m_rwlock lock.
+      If HAS_SLOW_PATH flag is set all changes to m_fast_path_state
+      should happen under protection of MDL_lock::m_rwlock ([INV1]).
+    */
+#if !defined(DBUG_OFF)
+    if (((*old_state & (IS_DESTROYED | HAS_OBTRUSIVE | HAS_SLOW_PATH)) !=
+         (new_state & (IS_DESTROYED | HAS_OBTRUSIVE | HAS_SLOW_PATH))) ||
+        *old_state & HAS_OBTRUSIVE)
+    {
+      mysql_prlock_assert_write_owner(&m_rwlock);
+    }
+#endif
+    /*
+      We should not change state of destroyed object
+      (fast_path_state_reset() being exception).
+    */
+    DBUG_ASSERT(! (*old_state & IS_DESTROYED));
+
+    return my_atomic_cas64(&m_fast_path_state, old_state, new_state);
+  }
+
+  /**
+    Wrapper for my_atomic_add64 operation on m_fast_path_state member
+    which enforces locking and other invariants.
+  */
+  fast_path_state_t fast_path_state_add(fast_path_state_t value)
+  {
+    /*
+      Invariant [INV1] requires all changes to m_fast_path_state happen
+      under protection of m_rwlock if HAS_OBTRUSIVE flag is set.
+      Since this operation doesn't check this flag it can be called only
+      under protection of m_rwlock.
+    */
+    mysql_prlock_assert_write_owner(&m_rwlock);
+
+    fast_path_state_t old_state= my_atomic_add64(&m_fast_path_state, value);
+
+    /*
+      We should not change state of destroyed object
+      (fast_path_state_reset() being exception).
+    */
+    DBUG_ASSERT(! (old_state & IS_DESTROYED));
+    return old_state;
+  }
+
+  /**
+    Wrapper for resetting m_fast_path_state enforcing locking invariants.
+  */
+  void fast_path_state_reset()
+  {
+    /* HAS_DESTROYED flag can be cleared only under protection of m_rwlock. */
+    mysql_prlock_assert_write_owner(&m_rwlock);
+    my_atomic_store64(&m_fast_path_state, 0);
+  }
+
   /**
     Pointer to strategy object which defines how different types of lock
     requests should be handled for the namespace to which this lock belongs.
@@ -624,11 +865,14 @@ public:
   /**
     Get bitmap of "unobtrusive" locks granted using "fast path" algorithm
     for scoped locks.
+
+    @sa MDL_lock::fast_path_granted_bitmap() for explanation about why it
+        is safe to use non-atomic read of MDL_lock::m_fast_path_state here.
   */
   static bitmap_t scoped_lock_fast_path_granted_bitmap(const MDL_lock &lock)
   {
-    return lock.m_fast_path_granted_count ?
-           MDL_BIT(MDL_INTENTION_EXCLUSIVE) : 0;
+    return (lock.m_fast_path_state & 0xFFFFFFFFFFFFFFFULL) ?
+            MDL_BIT(MDL_INTENTION_EXCLUSIVE) : 0;
   }
   /**
     Check if type of lock requested on per-object lock is X, SNW or SNRW,
@@ -645,15 +889,19 @@ public:
   /**
     Get bitmap of "unobtrusive" locks granted using "fast path" algorithm
     for per-object locks.
+
+    @sa MDL_lock::fast_path_granted_bitmap() for explanation about why it
+        is safe to use non-atomic read of MDL_lock::m_fast_path_state here.
   */
   static bitmap_t object_lock_fast_path_granted_bitmap(const MDL_lock &lock)
   {
     bitmap_t result= 0;
-    if (lock.m_fast_path_granted_count & 0xFFFFFULL)
-    result|= MDL_BIT(MDL_SHARED);
-    if (lock.m_fast_path_granted_count & (0xFFFFFULL << 20))
+    fast_path_state_t fps= lock.m_fast_path_state;
+    if (fps & 0xFFFFFULL)
+      result|= MDL_BIT(MDL_SHARED);
+    if (fps & (0xFFFFFULL << 20))
       result|= MDL_BIT(MDL_SHARED_READ);
-    if (lock.m_fast_path_granted_count & (0xFFFFFULL << 40))
+    if (fps & (0xFFFFFULL << 40))
       result|= MDL_BIT(MDL_SHARED_WRITE);
     return result;
   }
@@ -721,6 +969,17 @@ void mdl_destroy()
 }
 
 
+/**
+  Get number of unused MDL_lock objects in MDL_map cache.
+  Mostly needed for unit-testing.
+*/
+
+int32 mdl_get_unused_locks_count()
+{
+  return mdl_locks.get_unused_locks_count();
+}
+
+
 extern "C"
 {
 static void mdl_lock_cons(uchar *arg)
@@ -763,6 +1022,9 @@ void MDL_map::init()
   m_global_lock= MDL_lock::create(&global_lock_key);
   m_commit_lock= MDL_lock::create(&commit_lock_key);
 
+  m_unused_lock_objects= 0;
+  my_atomic_rwlock_init(&m_unused_lock_objects_lock);
+
   lf_hash_init2(&m_locks, sizeof(MDL_lock), LF_HASH_UNIQUE,
                 0, 0, mdl_locks_key, &my_charset_bin, &murmur3_adapter,
                 &mdl_lock_cons, &mdl_lock_dtor, &mdl_lock_reinit);
@@ -779,7 +1041,8 @@ void MDL_map::destroy()
   MDL_lock::destroy(m_global_lock);
   MDL_lock::destroy(m_commit_lock);
 
-  DBUG_ASSERT(m_locks.count == 0);
+  my_atomic_rwlock_destroy(&m_unused_lock_objects_lock);
+
   lf_hash_destroy(&m_locks);
 }
 
@@ -788,22 +1051,30 @@ void MDL_map::destroy()
   Find MDL_lock object corresponding to the key, create it
   if it does not exist.
 
+  @param[in/out]  pins     LF_PINS to be used for pinning pointers during
+                           look-up and returned MDL_lock object.
+  @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
+  @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
+                           FALSE - if MDL_lock object doesn't require pinning
+                                   (i.e. it is an object for GLOBAL or COMMIT
+                                   namespaces).
+
   @retval non-NULL - Success. MDL_lock instance for the key with
                      locked MDL_lock::m_rwlock.
   @retval NULL     - Failure (OOM).
 */
 
-MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key)
+MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
+                                  bool *pinned)
 {
   MDL_lock *lock;
 
-  if (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
-      mdl_key->mdl_namespace() == MDL_key::COMMIT)
+  if (is_lock_object_singleton(mdl_key))
   {
     /*
-      Avoid locking any m_mutex when lock for GLOBAL or COMMIT namespace is
-      requested. Return pointer to pre-allocated MDL_lock instance instead.
-      Such an optimization allows to save one mutex lock/unlock for any
+      Avoid look up in m_locks hash when lock for GLOBAL or COMMIT namespace
+      is requested. Return pointer to pre-allocated MDL_lock instance instead.
+      Such an optimization allows us to avoid a few atomic operations for any
       statement changing data.
 
       It works since these namespaces contain only one element so keys
@@ -814,112 +1085,206 @@ MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key)
     lock= (mdl_key->mdl_namespace() == MDL_key::GLOBAL) ? m_global_lock :
                                                           m_commit_lock;
 
-    mysql_prlock_wrlock(&lock->m_rwlock);
+    *pinned= false;
 
     return lock;
   }
 
-retry:
   while ((lock= static_cast<MDL_lock *>(lf_hash_search(&m_locks,
                                           pins,
                                           mdl_key->ptr(),
                                           mdl_key->length()))) == NULL)
   {
+    lf_hash_search_unpin(pins);
     /*
       MDL_lock for key isn't present in hash, try to insert new object.
       This can fail due to concurrent inserts.
     */
     if (lf_hash_insert(&m_locks, pins, mdl_key) == -1) /* If OOM. */
       return NULL;
-  }
-  if (lock == MY_ERRPTR) /* If OOM in lf_hash_search. */
-    return NULL;
 
-  /*
-    At this point we have pointer to MDL_lock for the key which is pinned,
-    so it can't be deleted until we unpin it (but it can be marked as
-    destroyed).
-  */
-
-  mysql_prlock_wrlock(&lock->m_rwlock);
-
-  /*
-    Check if hash contained object marked as destroyed or it was marked as such
-    while it was pinned by us.
-  */
-  if (unlikely(lock->m_is_destroyed))
-  {
-    mysql_prlock_unlock(&lock->m_rwlock);
     /*
-      We can't unpin object earlier as lf_hash_delete() might have been called
-      for it already and so LF_ALLOCATOR is free to deallocate it once unpinned.
+      New MDL_lock object is not used yet. So we need to
+      increment number of unused lock objects.
     */
+    my_atomic_rwlock_wrlock(&m_unused_lock_objects_lock);
+    my_atomic_add32(&m_unused_lock_objects, 1);
+    my_atomic_rwlock_wrunlock(&m_unused_lock_objects_lock);
+  }
+  if (lock == MY_ERRPTR)
+  {
     lf_hash_search_unpin(pins);
-    goto retry;
+    /* If OOM in lf_hash_search. */
+    return NULL;
   }
 
-  /*
-    Object was not marked as destroyed. Since it can't be deleted from hash
-    and deallocated until this happens we can unpin it and work with it safely
-    while MDL_lock::m_rwlock is held.
-  */
-  lf_hash_search_unpin(pins);
+  *pinned= true;
 
   return lock;
 }
 
 
+extern "C"
+{
 /**
-  Remove MDL_lock object from MDL_map and return it back to allocator.
-  In reality the last step will be executed once this MDL_lock object
-  is no longer pinned by any threads.
+  Helper function which allows to check if MDL_lock object stored in LF_HASH
+  is unused - i.e. doesn't have any locks on both "fast" and "slow" paths
+  and is not marked as deleted.
+*/
+static int mdl_lock_match_unused(const uchar *arg)
+{
+  const MDL_lock *lock= (const MDL_lock *)arg;
+  /*
+    It is OK to check MDL_lock::m_fast_path_state non-atomically here
+    since the fact that MDL_lock object is unused will be properly
+    validated later anyway.
+  */
+  return (lock->m_fast_path_state == 0);
+}
+} /* extern "C" */
+
+
+/**
+  Try to find random MDL_lock object in MDL_map for which there are no "fast"
+  path nor "slow" path locks. If found - mark it as destroyed, remove object
+  from MDL_map and return it back to allocator.
+
+  @param[in]     ctx           Context on which behalf we are trying to remove
+                               unused object. Primarily needed to generate
+                               random value to be used for random dive into
+                               the hash in MDL_map.
+  @param[in/out] pins          Pins for the calling thread to be used for
+                               hash lookup and deletion.
+  @param[out]    unused_locks  Number of unused lock objects after operation.
+
+  @note
+    In reality MDL_lock object will be returned to allocator once it is no
+    longer pinned by any threads.
 */
 
-void MDL_map::remove(LF_PINS *pins, MDL_lock *lock)
+void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
+                                   int32 *unused_locks)
 {
-  if (lock->key.mdl_namespace() == MDL_key::GLOBAL ||
-      lock->key.mdl_namespace() == MDL_key::COMMIT)
+  DEBUG_SYNC(ctx->get_thd(), "mdl_remove_random_unused_before_search");
+
+  /*
+    Try to find an unused MDL_lock object by doing random dive into the hash.
+    Since this method is called only when unused/total lock objects ratio is
+    high enough, there is a good chance for this technique to succeed.
+  */
+  MDL_lock *lock= static_cast<MDL_lock *>(lf_hash_random_match(&m_locks,
+                                            pins, &mdl_lock_match_unused,
+                                            ctx->get_random()));
+
+  if (lock == NULL || lock == MY_ERRPTR)
   {
     /*
-      Never destroy pre-allocated MDL_lock objects for GLOBAL and
-      COMMIT namespaces.
-    */
-    mysql_prlock_unlock(&lock->m_rwlock);
+      We were unlucky and no unused objects were found. This can happen,
+      for example, if our random dive into LF_HASH was close to the tail
+      of split-ordered list used in its implementation or if some other
+      thread managed to destroy or start re-using MDL_lock object
+      concurrently.
+     */
+    lf_hash_search_unpin(pins);
+    *unused_locks= m_unused_lock_objects;
     return;
   }
 
-  /*
-    Mark the object as destroyed, after this point other threads can't rely
-    on object being around unless it is pinned.
-  */
-  lock->m_is_destroyed= true;
-
-  mysql_prlock_unlock(&lock->m_rwlock);
+  DEBUG_SYNC(ctx->get_thd(), "mdl_remove_random_unused_after_search");
 
   /*
-    Even though other threads can't rely on the MDL_lock object being around
-    once MDL_lock::m_destroyed is set, we know that it was not removed from
-    the hash yet (as it is responsibility of the current thread, i.e. one
-    which executes this MDL_map::remove() call) and thus was not deallocated.
-    And since lf_hash_delete() finds and pins the object for the key as its
-    first step and keeps pins until its end it is safe to use MDL_lock::key
-    as parameter to lf_hash_delete().
+    Acquire MDL_lock::m_rwlock to ensure that IS_DESTROYED flag is set
+    atomically AND under protection of MDL_lock::m_rwlock, so it can be
+    safely read using both atomics and ordinary read under protection of
+    m_rwlock. This also means that it is safe to unpin MDL_lock object
+    after we have checked its IS_DESTROYED flag if we keep m_rwlock lock.
   */
-  int rc= lf_hash_delete(&m_locks, pins, lock->key.ptr(), lock->key.length());
+  mysql_prlock_wrlock(&lock->m_rwlock);
 
-  /* The MDL_lock object must be present in the hash. */
-  DBUG_ASSERT(rc != 1);
-
-  if (rc == -1)
+  if (lock->m_fast_path_state & MDL_lock::IS_DESTROYED)
   {
     /*
-      In unlikely case of OOM MDL_lock object stays in the hash. The best thing
-      we can do is to reset m_is_destroyed. The object will be destroyed either
-      by further calls to lf_hash_delete() or by final call to lf_hash_destroy().
+      Somebody has managed to mark MDL_lock object as destroyed before
+      we have acquired MDL_lock::m_rwlock.
     */
-    mysql_prlock_wrlock(&lock->m_rwlock);
-    lock->m_is_destroyed= false;
     mysql_prlock_unlock(&lock->m_rwlock);
+    lf_hash_search_unpin(pins);
+    *unused_locks= m_unused_lock_objects;
+    return;
+  }
+  lf_hash_search_unpin(pins);
+
+  /*
+    Atomically check that number of "fast path" and "slow path" locks is 0 and
+    set IS_DESTROYED flag.
+
+    This is the only place where we rely on the fact that our compare-and-swap
+    operation can't spuriously fail i.e. is of strong kind.
+  */
+  MDL_lock::fast_path_state_t old_state= 0;
+
+  if (lock->fast_path_state_cas(&old_state, MDL_lock::IS_DESTROYED))
+  {
+    /*
+      There were no "fast path" or "slow path" references and we
+      have successfully set IS_DESTROYED flag.
+    */
+    mysql_prlock_unlock(&lock->m_rwlock);
+
+    DEBUG_SYNC(ctx->get_thd(), "mdl_remove_random_unused_after_is_destroyed_set");
+
+    /*
+      Even though other threads can't rely on the MDL_lock object being around
+      once IS_DESTROYED flag is set, we know that it was not removed from
+      the hash yet (as it is responsibility of the current thread, i.e. one
+      which executes this MDL_map::remove_random_unused() call) and thus was
+      not deallocated.
+      And since lf_hash_delete() finds and pins the object for the key as its
+      first step and keeps pins until its end it is safe to use MDL_lock::key
+      as parameter to lf_hash_delete().
+    */
+    int rc= lf_hash_delete(&m_locks, pins, lock->key.ptr(), lock->key.length());
+
+    /* The MDL_lock object must be present in the hash. */
+    DBUG_ASSERT(rc != 1);
+
+    if (rc == -1)
+    {
+      /*
+        In unlikely case of OOM MDL_lock object stays in the hash. The best
+        thing we can do is to reset IS_DESTROYED flag. The object will be
+        destroyed either by further calls to lf_hash_delete() or by final
+        call to lf_hash_destroy().
+        Resetting needs to happen atomically AND under protection of
+        MDL_lock::m_rwlock so it safe to read this flag both using atomics
+        and ordinary reads under protection of m_rwlock lock.
+      */
+      mysql_prlock_wrlock(&lock->m_rwlock);
+      lock->fast_path_state_reset();
+      mysql_prlock_unlock(&lock->m_rwlock);
+    }
+    else
+    {
+      /* Success. */
+      my_atomic_rwlock_wrlock(&m_unused_lock_objects_lock);
+      *unused_locks= my_atomic_add32(&m_unused_lock_objects, -1) - 1;
+      my_atomic_rwlock_wrunlock(&m_unused_lock_objects_lock);
+    }
+  }
+  else
+  {
+    /*
+      Some other thread has managed to find and use this MDL_lock object after
+      it has been found by the above call to lf_hash_random_match().
+      There are/were "fast" or "slow path" references so MDL_lock object can't
+      be deleted.
+
+      Assert that compare-and-swap operation is of strong kind and can't
+      fail spuriously.
+    */
+    DBUG_ASSERT(old_state != 0);
+    mysql_prlock_unlock(&lock->m_rwlock);
+    *unused_locks= m_unused_lock_objects;
   }
 }
 
@@ -935,7 +1300,8 @@ MDL_context::MDL_context()
   m_owner(NULL),
   m_needs_thr_lock_abort(FALSE),
   m_waiting_for(NULL),
-  m_pins(NULL)
+  m_pins(NULL),
+  m_rand_state(UINT_MAX32)
 {
   mysql_prlock_init(key_MDL_context_LOCK_waiting_for, &m_LOCK_waiting_for);
 }
@@ -1064,7 +1430,7 @@ void MDL_lock::destroy(MDL_lock *lock)
 
   @note All non-static MDL_lock members:
         1) either have to be reinitialized here
-           (like MDL_lock::m_is_destroyed).
+           (like IS_DESTROYED flag in MDL_lock::m_fast_path_state).
         2) or need to be initialized in constructor AND returned to their
            pristine state once they are removed from MDL_map container
            (like MDL_lock::m_granted or MDL_lock::m_rwlock).
@@ -1088,12 +1454,12 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key)
       break;
   }
   m_hog_lock_count= 0;
-  m_is_destroyed= false;
+  m_fast_path_state= 0;
   /*
-    Check that we have clean "m_fast_path_granted_count" and "m_granted" and
-    "m_waiting" sets/lists in both cases when we have fresh and re-used object.
+    Check that we have clean "m_granted" and "m_waiting" sets/lists in both
+    cases when we have fresh and re-used object.
   */
-  DBUG_ASSERT(is_empty());
+  DBUG_ASSERT(m_granted.is_empty() && m_waiting.is_empty());
   /* The same should be true for "m_obtrusive_locks_granted_waiting_count". */
   DBUG_ASSERT(m_obtrusive_locks_granted_waiting_count == 0);
 }
@@ -1107,7 +1473,7 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key)
   @sa Description at method declaration for more details.
 */
 
-MDL_lock::packed_counter_t
+MDL_lock::fast_path_state_t
 MDL_lock::get_unobtrusive_lock_increment(const MDL_request *request)
 {
   switch (request->key.mdl_namespace())
@@ -1572,7 +1938,7 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy =
     - "obtrusive" types: X and S
 
     We encode number of IX locks acquired using "fast path" in bits 0 .. 59
-    of MDL_lock::m_fast_path_granted_count.
+    of MDL_lock::m_fast_path_state.
   */
   { 1, 0, 0, 0, 0, 0, 0, 0, 0 },
   /*
@@ -1697,7 +2063,7 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy =
     - "obtrusive" types: SU, SNW, SNRW, X
 
     Number of locks acquired using "fast path" are encoded in the following
-    bits of MDL_lock::m_fast_path_granted_count:
+    bits of MDL_lock::m_fast_path_state:
 
     - bits 0 .. 19  - S and SH (we don't differentiate them once acquired)
     - bits 20 .. 39 - SR
@@ -1814,10 +2180,12 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
 
 /** Remove a ticket from waiting or pending queue and wakeup up waiters. */
 
-void MDL_lock::remove_ticket(LF_PINS *pins, Ticket_list MDL_lock::*list,
+void MDL_lock::remove_ticket(MDL_context *ctx, LF_PINS *pins,
+                             Ticket_list MDL_lock::*list,
                              MDL_ticket *ticket)
 {
   bool is_obtrusive= is_obtrusive_lock(ticket->get_type());
+  bool is_singleton= mdl_locks.is_lock_object_singleton(&key);
 
   mysql_prlock_wrlock(&m_rwlock);
   (this->*list).remove_ticket(ticket);
@@ -1825,13 +2193,42 @@ void MDL_lock::remove_ticket(LF_PINS *pins, Ticket_list MDL_lock::*list,
   /*
     If we are removing "obtrusive" type of request either from granted or
     waiting lists we need to decrement "obtrusive" requests counter.
+    Once last ticket for "obtrusive" lock is removed we should clear
+    HAS_OBTRUSIVE flag in m_fast_path_state as well.
   */
-  if (is_obtrusive)
-    --m_obtrusive_locks_granted_waiting_count;
+  bool last_obtrusive= is_obtrusive &&
+                       ((--m_obtrusive_locks_granted_waiting_count) == 0);
+  /*
+    If both m_granted and m_waiting lists become empty as result we also
+    need to clear HAS_SLOW_PATH flag in m_fast_path_state.
+  */
+  bool last_slow_path= m_granted.is_empty() && m_waiting.is_empty();
+  bool last_use= false;
 
-  if (is_empty())
-    mdl_locks.remove(pins, this);
-  else
+  if (last_slow_path || last_obtrusive)
+  {
+    fast_path_state_t old_state= m_fast_path_state;
+    fast_path_state_t new_state;
+    do
+    {
+      new_state= old_state;
+      if (last_slow_path)
+        new_state&= ~MDL_lock::HAS_SLOW_PATH;
+      if (last_obtrusive)
+        new_state&= ~MDL_lock::HAS_OBTRUSIVE;
+    }
+    while (! fast_path_state_cas(&old_state, new_state));
+
+    /*
+      We don't have any "fast" or "slow" path locks. MDL_lock object becomes
+      unused so unused objects counter needs to be incremented.
+    */
+    if (new_state == 0)
+      last_use= true;
+  }
+
+
+  if (! last_slow_path)
   {
     /*
       There can be some contexts waiting to acquire a lock
@@ -1848,8 +2245,12 @@ void MDL_lock::remove_ticket(LF_PINS *pins, Ticket_list MDL_lock::*list,
       pending request).
     */
     reschedule_waiters();
-    mysql_prlock_unlock(&m_rwlock);
   }
+  mysql_prlock_unlock(&m_rwlock);
+
+  /* Don't count singleton MDL_lock objects as unused. */
+  if (last_use && ! is_singleton)
+    mdl_locks.lock_object_unused(ctx, pins);
 }
 
 
@@ -1994,11 +2395,48 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
     /*
       Our attempt to acquire lock without waiting has failed.
       Let us release resources which were acquired in the process.
-      We can't get here if we allocated a new lock object so there
-      is no need to release it.
+
+      We don't need to count MDL_lock object as unused and possibly
+      delete it here because:
+      - Either there was a conflicting ticket in MDL_lock::m_granted/
+        m_waiting lists during our call to MDL_lock::can_grant_lock().
+        This ticket can't go away while MDL_lock::m_rwlock is held.
+      - Or we have tried to acquire an "obtrusive" lock and there was
+        a conflicting "fast path" lock in MDL_lock::m_fast_path_state
+        counter during our call to MDL_lock::can_grant_lock().
+        In this case HAS_OBTRUSIVE lock flag should have been set before
+        call to MDL_lock::can_grant_lock() so release of this "fast path"
+        lock will have to take slow path (see release_lock() and invariant
+        [INV1]). This means that conflicting "fast path" lock can't go
+        away until MDL_lock::m_rwlock is released or HAS_OBSTRUSIVE flag
+        is cleared. In the latter case counting MDL_lock object as unused
+        is responsibility of thread which is decrementing "fast path" lock
+        counter. MDL_lock object can't be deleted under out feet since
+        thread doing deletion needs to acquire MDL_lock::m_rwlock first.
     */
-    DBUG_ASSERT(! ticket->m_lock->is_empty());
-    mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
+    MDL_lock *lock= ticket->m_lock;
+
+    bool last_obtrusive= lock->is_obtrusive_lock(mdl_request->type) &&
+           ((--lock->m_obtrusive_locks_granted_waiting_count) == 0);
+    bool last_slow_path= lock->m_granted.is_empty() &&
+                         lock->m_waiting.is_empty();
+
+    if (last_slow_path || last_obtrusive)
+    {
+      MDL_lock::fast_path_state_t old_state= lock->m_fast_path_state;
+      MDL_lock::fast_path_state_t new_state;
+      do
+      {
+        new_state= old_state;
+        if (last_slow_path)
+          new_state&= ~MDL_lock::HAS_SLOW_PATH;
+        if (last_obtrusive)
+          new_state&= ~MDL_lock::HAS_OBTRUSIVE;
+      }
+      while (! lock->fast_path_state_cas(&old_state, new_state));
+    }
+
+    mysql_prlock_unlock(&lock->m_rwlock);
     MDL_ticket::destroy(ticket);
   }
 
@@ -2010,7 +2448,7 @@ MDL_context::try_acquire_lock(MDL_request *mdl_request)
   "Materialize" requests for locks which were satisfied using
   "fast path" by properly including them into corresponding
   MDL_lock::m_granted bitmaps/lists and removing it from
-  MDL_lock::m_fast_path_granted_count counter.
+  packed counter in MDL_lock::m_fast_path_state.
 
   @note In future we might optimize this method if necessary,
         for example, by keeping pointer to first "fast path"
@@ -2031,17 +2469,47 @@ void MDL_context::materialize_fast_path_locks()
       if (ticket->m_is_fast_path)
       {
         MDL_lock *lock= ticket->m_lock;
-        MDL_lock::packed_counter_t unobtrusive_lock_increment=
+        MDL_lock::fast_path_state_t unobtrusive_lock_increment=
           lock->get_unobtrusive_lock_increment(ticket->get_type());
         ticket->m_is_fast_path= false;
         mysql_prlock_wrlock(&lock->m_rwlock);
         lock->m_granted.add_ticket(ticket);
-        lock->m_fast_path_granted_count-= unobtrusive_lock_increment;
+        /*
+          Atomically decrement counter in MDL_lock::m_fast_path_state.
+          This needs to happen under protection of MDL_lock::m_rwlock to make
+          it atomic with addition of ticket to MDL_lock::m_granted list and
+          to enforce invariant [INV1].
+        */
+        MDL_lock::fast_path_state_t old_state= lock->m_fast_path_state;
+        while (! lock->fast_path_state_cas(&old_state,
+                         ((old_state - unobtrusive_lock_increment) |
+                          MDL_lock::HAS_SLOW_PATH)))
+        { }
         mysql_prlock_unlock(&lock->m_rwlock);
       }
     }
   }
 }
+
+
+#ifdef MY_ATOMIC_MODE_RWLOCKS
+/*
+  In cases when platform lacks support for native atomics we rely on
+  MDL_lock:m_rwlock to ensure atomicity instead of adding additional
+  instance of my_atomic_rwlock_t and using my_atomic_rwlock* macros.
+  This makes sense since we hold MDL_lock::m_rwlock in most of the
+  places (with two important exceptions being "fast" paths in acquire
+  and release) where we are dealing with MDL_lock::m_fast_path_state
+  anyway.
+*/
+#define mysql_prlock_wrlock_if_atomic_mode_rwlocks(A) mysql_prlock_wrlock(A)
+#define mysql_prlock_unlock_if_atomic_mode_rwlocks(A) mysql_prlock_unlock(A)
+#define mysql_prlock_wrlock_if_atomic_mode_native(A)
+#else
+#define mysql_prlock_wrlock_if_atomic_mode_rwlocks(A)
+#define mysql_prlock_unlock_if_atomic_mode_rwlocks(A)
+#define mysql_prlock_wrlock_if_atomic_mode_native(A) mysql_prlock_wrlock(A)
+#endif
 
 
 /**
@@ -2068,8 +2536,9 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   MDL_key *key= &mdl_request->key;
   MDL_ticket *ticket;
   enum_mdl_duration found_duration;
-  MDL_lock::packed_counter_t unobtrusive_lock_increment;
+  MDL_lock::fast_path_state_t unobtrusive_lock_increment;
   bool force_slow;
+  bool pinned;
 
   DBUG_ASSERT(mdl_request->type != MDL_EXCLUSIVE ||
               is_lock_owner(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
@@ -2163,38 +2632,116 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
                                   mdl_request->m_src_file,
                                   mdl_request->m_src_line);
 
-  /* The below call implicitly locks MDL_lock::m_rwlock on success. */
-  if (!(lock= mdl_locks.find_or_insert(m_pins, key)))
+retry:
+  /*
+    The below call pins pointer to returned MDL_lock object (unless
+    it is the singleton object for GLOBAL or COMMIT namespaces).
+  */
+  if (!(lock= mdl_locks.find_or_insert(m_pins, key, &pinned)))
   {
     MDL_ticket::destroy(ticket);
     return TRUE;
   }
 
-  if (! force_slow && ! lock->m_obtrusive_locks_granted_waiting_count)
+  /*
+    Code counting unused MDL_lock objects below assumes that object is not
+    pinned iff it is a singleton.
+  */
+  DBUG_ASSERT(mdl_locks.is_lock_object_singleton(key) == !pinned);
+
+  mysql_prlock_wrlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
+
+  if (! force_slow)
   {
     /*
       "Fast path".
 
       Hurray! We are acquring "unobtrusive" type of lock and not forced
-      to take "slow path" because of granted/pending "obtrusive" locks
-      or open HANDLERs.
+      to take "slow path" because of open HANDLERs.
 
-      We simply need to increment m_fast_path_granted_count with
-      a value which corresponds to type of our request (i.e.
-      increment part of counter which corresponds to this type).
+      Let us do a few checks first to figure out if we really can acquire
+      lock using "fast path".
 
-      @sa MDL_object_lock::m_unobtrusive_lock_increment for explanation
-      why overflow is not an issue here.
+      Since the MDL_lock object is pinned at this point (or it is the
+      singleton) we can access its members without risk of it getting deleted
+      under out feet.
+
+      Ordinary read of MDL_lock::m_fast_path_state which we do here is OK as
+      correctness of value returned by it will be anyway validated by atomic
+      compare-and-swap which happens later.
+      In theory, this algorithm will work correctly (but not very efficiently)
+      if the read will return random values.
+      In practice, it won't return values which are too out-of-date as the
+      above call to MDL_map::find_or_insert() contains memory barrier.
     */
-    lock->m_fast_path_granted_count+= unobtrusive_lock_increment;
-    mysql_prlock_unlock(&lock->m_rwlock);
+    MDL_lock::fast_path_state_t old_state= lock->m_fast_path_state;
+    bool first_use;
+
+    do
+    {
+      /*
+        Check if hash look-up returned object marked as destroyed or
+        it was marked as such while it was pinned by us. If yes we
+        need to unpin it and retry look-up.
+      */
+      if (old_state & MDL_lock::IS_DESTROYED)
+      {
+        mysql_prlock_unlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
+        if (pinned)
+          lf_hash_search_unpin(m_pins);
+        DEBUG_SYNC(get_thd(), "mdl_acquire_lock_is_destroyed_fast_path");
+        goto retry;
+      }
+
+      /*
+        Check that there are no granted/pending "obtrusive" locks and nobody
+        even is about to try to check if such lock can be acquired.
+
+        In these cases we need to take "slow path".
+      */
+      if (old_state & MDL_lock::HAS_OBTRUSIVE)
+        goto slow_path;
+
+      /*
+        If m_fast_path_state doesn't have HAS_SLOW_PATH set and all "fast"
+        path counters are 0 then we are about to use an unused MDL_lock
+        object. We need to decrement unused objects counter eventually.
+      */
+      first_use= (old_state == 0);
+
+      /*
+        Now we simply need to increment m_fast_path_state with a value which
+        corresponds to type of our request (i.e. increment part this member
+        which contains counter which corresponds to this type).
+
+        This needs to be done as atomical operation with the above checks,
+        which is achieved by using atomic compare-and-swap.
+
+        @sa MDL_object_lock::m_unobtrusive_lock_increment for explanation
+        why overflow is not an issue here.
+      */
+    }
+    while (! lock->fast_path_state_cas(&old_state,
+                                       old_state + unobtrusive_lock_increment));
+
+    mysql_prlock_unlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
+
+    if (pinned)
+      lf_hash_search_unpin(m_pins);
+
+    /*
+      Don't count singleton MDL_lock objects as used, use "pinned == false"
+      as an indication of such objects.
+    */
+    if (first_use && pinned)
+      mdl_locks.lock_object_used();
 
     /*
       Since this MDL_ticket is not visible to any threads other than
       the current one, we can set MDL_ticket::m_lock member without
       protect of MDL_lock::m_rwlock. MDL_lock won't be deleted
-      underneath our feet as MDL_lock::m_fast_path_granted_count
-      serves as reference counter in this case.
+      underneath our feet as MDL_lock::m_fast_path_state serves as
+      reference counter in this case.
     */
     ticket->m_lock= lock;
     ticket->m_is_fast_path= true;
@@ -2204,38 +2751,113 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     mdl_request->ticket= ticket;
 
     mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
+    return FALSE;
+  }
+
+slow_path:
+
+  /*
+   "Slow path".
+
+    Do full-blown check and list manipulation if necessary.
+  */
+  mysql_prlock_wrlock_if_atomic_mode_native(&lock->m_rwlock);
+
+  /*
+    First of all, let us check if hash look-up returned MDL_lock object which
+    is marked as destroyed or was marked as such while it was pinned by us.
+    If we have got such object we need to retry look-up.
+
+    We can use ordinary non-atomic read in this case as this flag is set under
+    protection of MDL_lock::m_rwlock (we can get inconsistent data for other
+    parts of m_fast_path_state due to concurrent atomic updates, but we don't
+    care about them yet).
+  */
+  MDL_lock::fast_path_state_t state= lock->m_fast_path_state;
+
+  if (state & MDL_lock::IS_DESTROYED)
+  {
+    mysql_prlock_unlock(&lock->m_rwlock);
+    /*
+      We can't unpin object earlier as lf_hash_delete() might have been
+      called for it already and so LF_ALLOCATOR is free to deallocate it
+      once unpinned.
+    */
+    if (pinned)
+      lf_hash_search_unpin(m_pins);
+    DEBUG_SYNC(get_thd(), "mdl_acquire_lock_is_destroyed_slow_path");
+    goto retry;
+  }
+
+  /*
+    Object was not marked as destroyed. Since it can't be deleted from hash
+    and deallocated until this happens we can unpin it and work with it safely
+    while MDL_lock::m_rwlock is held.
+  */
+  if (pinned)
+    lf_hash_search_unpin(m_pins);
+
+  /*
+    When we try to acquire the first obtrusive lock for MDL_lock object we
+    need to atomically set the HAS_OBTRUSIVE flag in m_fast_path_state before
+    we call the MDL_lock::can_grant_lock() method.
+    This is necessary to prevent concurrent fast path acquisitions from
+    invalidating the results of this method.
+  */
+  bool first_obtrusive_lock= (unobtrusive_lock_increment == 0) &&
+         ((lock->m_obtrusive_locks_granted_waiting_count++) == 0);
+  bool first_use= false;
+
+  /*
+    When we try to acquire the first "slow" path lock for MDL_lock object
+    we also need to atomically set HAS_SLOW_PATH flag. It is OK to read
+    HAS_SLOW_PATH non-atomically here since it can be only set under
+    protection of MDL_lock::m_rwlock lock.
+  */
+  if (!(state & MDL_lock::HAS_SLOW_PATH) || first_obtrusive_lock)
+  {
+    do
+    {
+      /*
+        If HAS_SLOW_PATH flag is not set and all "fast" path counters
+        are zero we are about to use previously unused MDL_lock object.
+        MDL_map::m_unused_lock_objects counter needs to be decremented
+        eventually.
+      */
+      first_use= (state == 0);
+    }
+    while (! lock->fast_path_state_cas(&state,
+                     state | MDL_lock::HAS_SLOW_PATH |
+                     (first_obtrusive_lock ? MDL_lock::HAS_OBTRUSIVE: 0)));
+  }
+
+  /*
+    Don't count singleton MDL_lock objects as used, use "pinned == false"
+    as an indication of such objects.
+
+    If the fact that we do this atomic decrement under MDL_lock::m_rwlock
+    ever becomes bottleneck (which is unlikely) it can be safely moved
+    outside of critical section.
+  */
+  if (first_use && pinned)
+    mdl_locks.lock_object_used();
+
+  ticket->m_lock= lock;
+
+  if (lock->can_grant_lock(mdl_request->type, this, false))
+  {
+    lock->m_granted.add_ticket(ticket);
+
+    mysql_prlock_unlock(&lock->m_rwlock);
+
+    m_tickets[mdl_request->duration].push_front(ticket);
+
+    mdl_request->ticket= ticket;
+
+    mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
   }
   else
-  {
-    /*
-      "Slow path".
-
-      Do full-blown check and list manipulation if necessary.
-    */
-    ticket->m_lock= lock;
-
-    if (lock->can_grant_lock(mdl_request->type, this, false))
-    {
-      lock->m_granted.add_ticket(ticket);
-
-      /*
-        If we have acquired "obtrusive" type of lock, force "unobtrusive"
-        lock requests to take "slow path".
-      */
-      if (! unobtrusive_lock_increment)
-        ++lock->m_obtrusive_locks_granted_waiting_count;
-
-      mysql_prlock_unlock(&lock->m_rwlock);
-
-      m_tickets[mdl_request->duration].push_front(ticket);
-
-      mdl_request->ticket= ticket;
-
-      mysql_mdl_set_status(ticket->m_psi, MDL_wait::GRANTED);
-    }
-    else
-      *out_ticket= ticket;
-  }
+    *out_ticket= ticket;
 
   return FALSE;
 }
@@ -2294,18 +2916,22 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
       We are cloning ticket which was acquired on "fast path".
       Let us use "fast path" to create clone as well.
     */
-    MDL_lock::packed_counter_t unobtrusive_lock_increment=
+    MDL_lock::fast_path_state_t unobtrusive_lock_increment=
       ticket->m_lock->get_unobtrusive_lock_increment(ticket->get_type());
 
     /*
-      "Hindering" type of lock can't be cloned from weaker, "unobtrusive"
+      "Obtrusive" type of lock can't be cloned from weaker, "unobtrusive"
       type of lock.
     */
     DBUG_ASSERT(unobtrusive_lock_increment != 0);
 
+    /*
+      Increment of counter in MDL_lock::m_fast_path_state needs to happen here
+      atomically and under protection of MDL_lock::m_rwlock in order to enforce
+      invariant [INV1].
+    */
     mysql_prlock_wrlock(&ticket->m_lock->m_rwlock);
-    ticket->m_lock->m_fast_path_granted_count+=
-      unobtrusive_lock_increment;
+    ticket->m_lock->fast_path_state_add(unobtrusive_lock_increment);
     mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
     ticket->m_is_fast_path= true;
   }
@@ -2321,7 +2947,15 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
     mysql_prlock_wrlock(&ticket->m_lock->m_rwlock);
     ticket->m_lock->m_granted.add_ticket(ticket);
     if (is_obtrusive)
+    {
+      /*
+        We don't need to set HAS_OBTRUSIVE flag in MDL_lock::m_fast_path_state
+        here as it is already set since the ticket being cloned already
+        represents "obtrusive" lock for this MDL_lock object.
+      */
+      DBUG_ASSERT(ticket->m_lock->m_obtrusive_locks_granted_waiting_count != 0);
       ++ticket->m_lock->m_obtrusive_locks_granted_waiting_count;
+    }
     mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
   }
 
@@ -2432,13 +3066,6 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   lock->m_waiting.add_ticket(ticket);
 
   /*
-    If we are waiting for "obtrusive" type of lock we need to block
-    "unobtrusive" types of requests from taking "fast path".
-  */
-  if (lock->is_obtrusive_lock(mdl_request->type))
-    ++lock->m_obtrusive_locks_granted_waiting_count;
-
-  /*
     Once we added a pending ticket to the waiting queue,
     we must ensure that our wait slot is empty, so
     that our lock request can be scheduled. Do that in the
@@ -2509,7 +3136,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
   if (wait_status != MDL_wait::GRANTED)
   {
-    lock->remove_ticket(m_pins, &MDL_lock::m_waiting, ticket);
+    lock->remove_ticket(this, m_pins, &MDL_lock::m_waiting, ticket);
     MDL_ticket::destroy(ticket);
     switch (wait_status)
     {
@@ -2689,6 +3316,10 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
   if (is_new_ticket)
   {
     lock->m_granted.remove_ticket(mdl_new_lock_request.ticket);
+    /*
+      We should not clear HAS_OBTRUSIVE flag in this case as we will
+      get "obtrusive' lock as result in any case.
+    */
     --lock->m_obtrusive_locks_granted_waiting_count;
   }
   /*
@@ -2703,8 +3334,17 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
   */
   if (mdl_ticket->m_is_fast_path)
   {
-    lock->m_fast_path_granted_count-=
-      lock->get_unobtrusive_lock_increment(mdl_ticket->m_type);
+    /*
+      Decrement of counter in MDL_lock::m_fast_path_state needs to be done
+      under protection of MDL_lock::m_rwlock to ensure that it is atomic with
+      changes to MDL_lock::m_granted list and to enforce invariant [INV1].
+      Note that since we have HAS_OBTRUSIVE flag set at this point all
+      concurrent lock acquisitions and releases will have to acquire
+      MDL_lock::m_rwlock, so nobody will see results of this decrement until
+      m_rwlock is released.
+    */
+    lock->fast_path_state_add(
+            -lock->get_unobtrusive_lock_increment(mdl_ticket->m_type));
     mdl_ticket->m_is_fast_path= false;
   }
   else
@@ -2713,6 +3353,8 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
     /*
       Also if we are upgrading from "obtrusive" lock we need to temporarily
       decrement m_obtrusive_locks_granted_waiting_count counter.
+      We should not clear HAS_OBTRUSIVE flag in this case as we will get
+      "obtrusive' lock as result in any case.
     */
     if (lock->is_obtrusive_lock(mdl_ticket->m_type))
       --lock->m_obtrusive_locks_granted_waiting_count;
@@ -2724,7 +3366,11 @@ MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
   /*
     Since we always upgrade to "obtrusive" type of lock we need to
     increment m_obtrusive_locks_granted_waiting_count counter.
+
+    HAS_OBTRUSIVE flag has been already set by acquire_lock()
+    and should not have been cleared since then.
   */
+  DBUG_ASSERT(lock->m_fast_path_state & MDL_lock::HAS_OBTRUSIVE);
   ++lock->m_obtrusive_locks_granted_waiting_count;
 
   mysql_prlock_unlock(&lock->m_rwlock);
@@ -3021,37 +3667,81 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket)
       satisfied using "fast path". We can use "fast path" release
       algorithm of release for it as well.
     */
-    MDL_lock::packed_counter_t unobtrusive_lock_increment=
+    MDL_lock::fast_path_state_t unobtrusive_lock_increment=
       lock->get_unobtrusive_lock_increment(ticket->get_type());
+    bool is_singleton= mdl_locks.is_lock_object_singleton(&lock->key);
 
     /* We should not have "fast path" tickets for "obtrusive" lock types. */
     DBUG_ASSERT(unobtrusive_lock_increment != 0);
 
-    mysql_prlock_wrlock(&lock->m_rwlock);
     /*
-      We need decrement part of counter which hold number of
-      acquired "fast path" locks of this type.
+      We need decrement part of m_fast_path_state which holds number of
+      acquired "fast path" locks of this type. This needs to be done
+      by atomic compare-and-swap.
+
+      The same atomic compare-and-swap needs to check:
+
+      *) If HAS_OBSTRUSIVE flag is set. In this case we need to acquire
+         MDL_lock::m_rwlock before changing m_fast_path_state. This is
+         needed to enforce invariant [INV1] and also because we might
+         have to atomically wake-up some waiters for our "unobtrusive"
+         lock to go away.
+      *) If we are about to release last "fast path" lock and there
+         are no "slow path" locks. In this case we need to count
+         MDL_lock object as unused and maybe even delete some
+         unused MDL_lock objects eventually.
+
+      Similarly to the case with "fast path" acquisition it is OK to
+      perform ordinary read of MDL_lock::m_fast_path_state as correctness
+      of value returned by it will be validated by atomic compare-and-swap.
+      Again, in theory, this algorithm will work correctly if the read will
+      return random values.
     */
-    lock->m_fast_path_granted_count-= unobtrusive_lock_increment;
-    /*
-      We also need to check if it was last ticket for this MDL_lock
-      object and remove it from MDL_map if yes.
-    */
-    if (lock->is_empty())
-      mdl_locks.remove(m_pins, lock);
-    else
+    mysql_prlock_wrlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
+
+    MDL_lock::fast_path_state_t old_state= lock->m_fast_path_state;
+    bool last_use;
+
+    do
     {
+      if (old_state & MDL_lock::HAS_OBTRUSIVE)
+      {
+        mysql_prlock_wrlock_if_atomic_mode_native(&lock->m_rwlock);
+        /*
+          It is possible that obtrusive lock has gone away since we have
+          read m_fast_path_state value. This means that there is possibility
+          that there are no "slow path" locks (HAS_SLOW_PATH is not set) and
+          we are about to release last "fast path" lock. In this case MDL_lock
+          will become unused and needs to be counted as such eventually.
+        */
+        last_use= (lock->fast_path_state_add(-unobtrusive_lock_increment) ==
+                   unobtrusive_lock_increment);
+        /*
+          There might be some lock requests waiting for ticket being released
+          to go away. Since this is "fast path" ticket it represents
+          "unobtrusive" type of lock. In this case if there are any waiters
+          for it there should be "obtrusive" type of request among them.
+        */
+        if (lock->m_obtrusive_locks_granted_waiting_count)
+          lock->reschedule_waiters();
+        mysql_prlock_unlock(&lock->m_rwlock);
+        goto end_fast_path;
+      }
       /*
-        Or if there are any lock requests waiting for ticket being
-        released to go away. Since this is "fast path" ticket it
-        represents "unobtrusive" type of lock. In this case if there are
-        any waiters for it there should be "obtrusive" type of request
-        among them.
+        If there are no "slow path" locks (HAS_SLOW_PATH is not set) and
+        we are about to release last "fast path" lock - MDL_lock object
+        will become unused and needs to be counted as such.
       */
-      if (lock->m_obtrusive_locks_granted_waiting_count)
-        lock->reschedule_waiters();
-      mysql_prlock_unlock(&lock->m_rwlock);
+      last_use= (old_state == unobtrusive_lock_increment);
     }
+    while (! lock->fast_path_state_cas(&old_state,
+                                       old_state - unobtrusive_lock_increment));
+    mysql_prlock_unlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
+
+end_fast_path:
+    /* Don't count singleton MDL_lock objects as unused. */
+    if (last_use && ! is_singleton)
+      mdl_locks.lock_object_unused(this, m_pins);
   }
   else
   {
@@ -3059,7 +3749,7 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket)
       Lock request represented by ticket was acquired using "slow path"
       or ticket was materialized later. We need to use "slow path" release.
     */
-    lock->remove_ticket(m_pins, &MDL_lock::m_granted, ticket);
+    lock->remove_ticket(this, m_pins, &MDL_lock::m_granted, ticket);
   }
 
   m_tickets[duration].remove(ticket);
@@ -3181,11 +3871,27 @@ void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
     Since we downgrade only "obtrusive" locks we can always assume that the
     ticket for the lock being downgraded is a "slow path" ticket.
     If we are downgrading to non-"obtrusive" lock we also should decrement
-    counter of waiting and granted DDL locks.
+    counter of waiting and granted "obtrusive" locks.
   */
   m_lock->m_granted.remove_ticket(this);
   if (new_type_is_unobtrusive)
-    --m_lock->m_obtrusive_locks_granted_waiting_count;
+  {
+    if ((--m_lock->m_obtrusive_locks_granted_waiting_count) == 0)
+    {
+      /*
+        We are downgrading the last "obtrusive" lock. So we need to clear
+        HAS_OBTRUSIVE flag.
+        Note that it doesn't matter that we do this before including ticket
+        to MDL_lock::m_granted list. Threads requesting "obtrusive" locks
+        won't see this until MDL_lock::m_rwlock is released. And threads
+        requesting "unobtrusive" locks don't care about this ticket.
+      */
+      MDL_lock::fast_path_state_t old_state= m_lock->m_fast_path_state;
+      while (! m_lock->fast_path_state_cas(&old_state,
+                         old_state & ~MDL_lock::HAS_OBTRUSIVE))
+      { }
+    }
+  }
   m_type= new_type;
   m_lock->m_granted.add_ticket(this);
   m_lock->reschedule_waiters();

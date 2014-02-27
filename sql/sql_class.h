@@ -2790,6 +2790,19 @@ public:
   virtual bool notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
+  /**
+    Provide thread specific random seed for MDL_context's PRNG.
+
+    Note that even if two connections will request seed during handling of
+    statements which were started at exactly the same time, and thus will
+    get the same values in PRNG at the start, they will naturally diverge
+    soon, since calls to PRNG in MDL subsystem are affected by many factors
+    making process quite random. OTOH the fact that we use time as a seed
+    gives more randomness and thus better coverage in tests as opposed to
+    using thread_id for the same purpose.
+  */
+  virtual uint get_rand_seed() { return (uint)start_utime; }
+
   // End implementation of MDL_context_owner interface.
 
   inline bool is_strict_mode() const
