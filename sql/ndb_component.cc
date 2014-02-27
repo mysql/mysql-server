@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011-2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,9 @@
 
 #include "ndb_component.h"
 
-Ndb_component::Ndb_component()
-  : m_thread_state(TS_UNINIT)
+Ndb_component::Ndb_component(const char *name)
+  : m_thread_state(TS_UNINIT),
+    m_name(name)
 {
 }
 
@@ -110,6 +111,7 @@ Ndb_component::is_stop_requested()
 int
 Ndb_component::stop()
 {
+  log_info("Stop");
   pthread_mutex_lock(&m_start_stop_mutex);
   assert(m_thread_state == TS_RUNNING ||
          m_thread_state == TS_STOPPING ||
@@ -120,6 +122,9 @@ Ndb_component::stop()
     m_thread_state= TS_STOPPING;
   }
 
+  // Give subclass a call, should wake itself up to quickly detect the stop
+  do_wakeup();
+
   if (m_thread_state == TS_STOPPING)
   {
     while (m_thread_state != TS_STOPPED)
@@ -129,7 +134,7 @@ Ndb_component::stop()
     }
   }
   pthread_mutex_unlock(&m_start_stop_mutex);
-
+  log_info("Stop completed");
   return 0;
 }
 
@@ -140,4 +145,46 @@ Ndb_component::deinit()
   pthread_mutex_destroy(&m_start_stop_mutex);
   pthread_cond_destroy(&m_start_stop_cond);
   return do_deinit();
+}
+
+#include "ndb_log.h"
+
+
+void Ndb_component::log_verbose(unsigned verbose_level, const char *fmt, ...)
+{
+  // Print message only if verbose level is set high enough
+  if (ndb_log_get_verbose_level() < verbose_level)
+    return;
+
+  va_list args;
+  va_start(args, fmt);
+  ndb_log_print(NDB_LOG_INFORMATION_LEVEL, m_name, fmt, args);
+  va_end(args);
+}
+
+
+void Ndb_component::log_error(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  ndb_log_print(NDB_LOG_ERROR_LEVEL, m_name, fmt, args);
+  va_end(args);
+}
+
+
+void Ndb_component::log_warning(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  ndb_log_print(NDB_LOG_WARNING_LEVEL, m_name, fmt, args);
+  va_end(args);
+}
+
+
+void Ndb_component::log_info(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  ndb_log_print(NDB_LOG_INFORMATION_LEVEL, m_name, fmt, args);
+  va_end(args);
 }

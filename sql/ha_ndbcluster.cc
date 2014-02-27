@@ -56,6 +56,7 @@
 #include "ndb_local_connection.h"
 #include "ndb_local_schema.h"
 #include "ndb_tdc.h"
+#include "ndb_log.h"
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/include/util/SparseBitmask.hpp"
 
@@ -405,7 +406,6 @@ ndbcluster_alter_table_flags(uint flags)
 }
 
 static int ndbcluster_inited= 0;
-int ndbcluster_terminating= 0;
 
 /* 
    Indicator and CONDVAR used to delay client and slave
@@ -12049,11 +12049,6 @@ static bool is_supported_system_table(const char *db,
 }
 
 
-/*
-  Initialise all gloal variables before creating 
-  a NDB Cluster table handler
- */
-
 /* Call back after cluster connect */
 static int connect_callback()
 {
@@ -12189,12 +12184,36 @@ static int ndb_recv_thread_cpu_mask_check_str(const char *str);
 static void ndb_recv_thread_cpu_mask_update();
 handlerton* ndbcluster_hton;
 
-static int ndbcluster_init(void *p)
+
+/*
+  Handle failure from ndbcluster_init() by printing error
+  message(s) and exit the MySQL Server.
+
+  NOTE! This is done to avoid the current undefined behaviour which occurs
+  when an error return code from plugin's init() function just disables
+  the plugin.
+*/
+
+static
+void ndbcluster_init_abort(const char* error)
+{
+  ndb_log_error("%s", error);
+  ndb_log_error("Failed to initialize ndbcluster, aborting!");
+  ndb_log_error("Use --skip-ndbcluster to start without ndbcluster.");
+  exit(1);
+}
+
+
+/*
+  Initialize the ndbcluster storage engine
+ */
+
+static
+int ndbcluster_init(void* p)
 {
   DBUG_ENTER("ndbcluster_init");
 
-  if (ndbcluster_inited)
-    DBUG_RETURN(FALSE);
+  DBUG_ASSERT(!ndbcluster_inited);
 
 #ifdef HAVE_NDB_BINLOG
   /* Check const alignment */
@@ -12211,12 +12230,19 @@ static int ndbcluster_init(void *p)
 
   }
 #endif
-  ndb_util_thread.init();
-  ndb_index_stat_thread.init();
+  if (ndb_util_thread.init() ||
+      DBUG_EVALUATE_IF("ndbcluster_init_fail1", true, false))
+  {
+    ndbcluster_init_abort("Failed to initialize NDB Util");
+  }
+
+  if (ndb_index_stat_thread.init())
+  {
+    ndbcluster_init_abort("Failed to initialize NDB Index Stat");
+  }
 
   pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND_ndb_setup_complete, NULL);
-  ndbcluster_terminating= 0;
   ndb_dictionary_is_mysqld= 1;
   ndb_setup_complete= 0;
   ndbcluster_hton= (handlerton *)p;
@@ -12241,7 +12267,7 @@ static int ndbcluster_init(void *p)
 #else
     h->fill_files_table= ndbcluster_fill_files_table;
 #endif
-    ndbcluster_binlog_init_handlerton();
+    ndbcluster_binlog_init(h);
     h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED |
       HTON_NO_BINLOG_ROW_OPT;
     h->discover=         ndbcluster_discover;
@@ -12251,7 +12277,7 @@ static int ndbcluster_init(void *p)
     h->is_supported_system_table = is_supported_system_table;
   }
 
-  // Initialize ndb interface
+  // Initialize NdbApi
   ndb_init_internal();
 
   /* allocate connection resources and connect to cluster */
@@ -12263,8 +12289,7 @@ static int ndbcluster_init(void *p)
                          opt_ndb_nodeid,
                          opt_ndb_recv_thread_activation_threshold))
   {
-    DBUG_PRINT("error", ("Could not initiate connection to cluster"));
-    goto ndbcluster_init_error;
+    ndbcluster_init_abort("Failed to initialize connection(s)");
   }
 
   /* Translate recv thread cpu mask if set */
@@ -12283,61 +12308,20 @@ static int ndbcluster_init(void *p)
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())
   {
-    DBUG_PRINT("error", ("Could start the injector thread"));
-    goto ndbcluster_init_error;
+    ndbcluster_init_abort("Failed to start NDB Binlog");
   }
 
   // Create utility thread
   if (ndb_util_thread.start())
   {
-    DBUG_PRINT("error", ("Could not create ndb utility thread"));
-    my_hash_free(&ndbcluster_open_tables);
-    my_hash_free(&ndbcluster_dropped_tables);
-    pthread_mutex_destroy(&ndbcluster_mutex);
-    pthread_cond_destroy(&COND_ndb_setup_complete);
-    goto ndbcluster_init_error;
-  }
-
-  /* Wait for the util thread to start */
-  pthread_mutex_lock(&ndb_util_thread.LOCK);
-  while (ndb_util_thread.running < 0)
-    pthread_cond_wait(&ndb_util_thread.COND_ready, &ndb_util_thread.LOCK);
-  pthread_mutex_unlock(&ndb_util_thread.LOCK);
-  
-  if (!ndb_util_thread.running)
-  {
-    DBUG_PRINT("error", ("ndb utility thread exited prematurely"));
-    my_hash_free(&ndbcluster_open_tables);
-    my_hash_free(&ndbcluster_dropped_tables);
-    pthread_mutex_destroy(&ndbcluster_mutex);
-    pthread_cond_destroy(&COND_ndb_setup_complete);
-    goto ndbcluster_init_error;
+    ndbcluster_init_abort("Failed to start NDB Util");
   }
 
   // Create index statistics thread
-  if (ndb_index_stat_thread.start())
+  if (ndb_index_stat_thread.start() ||
+      DBUG_EVALUATE_IF("ndbcluster_init_fail2", true, false))
   {
-    DBUG_PRINT("error", ("Could not create ndb index statistics thread"));
-    my_hash_free(&ndbcluster_open_tables);
-    my_hash_free(&ndbcluster_dropped_tables);
-    pthread_mutex_destroy(&ndbcluster_mutex);
-    goto ndbcluster_init_error;
-  }
-
-  /* Wait for the index statistics thread to start */
-  pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-  while (ndb_index_stat_thread.running < 0)
-    pthread_cond_wait(&ndb_index_stat_thread.COND_ready,
-                      &ndb_index_stat_thread.LOCK);
-  pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
-
-  if (!ndb_index_stat_thread.running)
-  {
-    DBUG_PRINT("error", ("ndb index statistics thread exited prematurely"));
-    my_hash_free(&ndbcluster_open_tables);
-    my_hash_free(&ndbcluster_dropped_tables);
-    pthread_mutex_destroy(&ndbcluster_mutex);
-    goto ndbcluster_init_error;
+    ndbcluster_init_abort("Failed to start NDB Index Stat");
   }
 
 #ifndef NDB_NO_WAIT_SETUP
@@ -12347,18 +12331,8 @@ static int ndbcluster_init(void *p)
   memset(&g_slave_api_client_stats, 0, sizeof(g_slave_api_client_stats));
 
   ndbcluster_inited= 1;
-  DBUG_RETURN(FALSE);
 
-ndbcluster_init_error:
-  ndb_util_thread.deinit();
-  ndb_index_stat_thread.deinit();
-  /* disconnect from cluster and free connection resources */
-  ndbcluster_disconnect();
-  ndbcluster_hton->state= SHOW_OPTION_DISABLED;               // If we couldn't use handler
-
-  ndbcluster_global_schema_lock_deinit();
-
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(0); // OK
 }
 
 #ifndef DBUG_OFF
@@ -12389,15 +12363,8 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
     DBUG_RETURN(0);
   ndbcluster_inited= 0;
 
-  /* wait for index stat thread to finish */
-  sql_print_information("Stopping Cluster Index Statistics thread");
-  pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-  ndbcluster_terminating= 1;
-  pthread_cond_signal(&ndb_index_stat_thread.COND);
-  while (ndb_index_stat_thread.running > 0)
-    pthread_cond_wait(&ndb_index_stat_thread.COND_ready,
-                      &ndb_index_stat_thread.LOCK);
-  pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+  /* Stop index stat thread */
+  ndb_index_stat_thread.stop();
 
   /* wait for util and binlog thread to finish */
   ndbcluster_binlog_end(NULL);
@@ -12463,7 +12430,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   pthread_mutex_destroy(&ndbcluster_mutex);
   pthread_cond_destroy(&COND_ndb_setup_complete);
 
-  // cleanup ndb interface
+  // Cleanup NdbApi
   ndb_end_internal();
 
   DBUG_RETURN(0);
@@ -15420,20 +15387,35 @@ ha_ndbcluster::update_table_comment(
   Utility thread main loop.
 */
 Ndb_util_thread::Ndb_util_thread()
-  : running(-1)
+  : Ndb_component("Util")
 {
   pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&COND, NULL);
-  pthread_cond_init(&COND_ready, NULL);
 }
 
 Ndb_util_thread::~Ndb_util_thread()
 {
-  assert(running <= 0);
   pthread_mutex_destroy(&LOCK);
   pthread_cond_destroy(&COND);
-  pthread_cond_destroy(&COND_ready);
 }
+
+void Ndb_util_thread::do_wakeup()
+{
+  // Wakeup from potential wait
+  log_info("Wakeup");
+
+  pthread_mutex_lock(&LOCK);
+  pthread_cond_signal(&COND);
+  pthread_mutex_unlock(&LOCK);
+}
+
+
+void ndb_util_thread_stop(void)
+{
+  ndb_util_thread.stop();
+}
+
+#include "ndb_log.h"
 
 void
 Ndb_util_thread::do_run()
@@ -15447,7 +15429,9 @@ Ndb_util_thread::do_run()
   DBUG_ENTER("ndb_util_thread");
   DBUG_PRINT("enter", ("cache_check_time: %lu", opt_ndb_cache_check_time));
 
-  pthread_mutex_lock(&ndb_util_thread.LOCK);
+  log_info("Starting...");
+
+  pthread_mutex_lock(&LOCK);
 
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   if (thd == NULL)
@@ -15477,11 +15461,9 @@ Ndb_util_thread::do_run()
   thd->variables.collation_connection= charset_connection;
   thd->update_charset();
 
-  /* Signal successful initialization */
-  ndb_util_thread.running= 1;
-  pthread_cond_signal(&ndb_util_thread.COND_ready);
-  pthread_mutex_unlock(&ndb_util_thread.LOCK);
+  pthread_mutex_unlock(&LOCK);
 
+  log_info("Wait for server start completed");
   /*
     wait for mysql server to start
   */
@@ -15491,10 +15473,10 @@ Ndb_util_thread::do_run()
     set_timespec(abstime, 1);
     mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
                          &abstime);
-    if (ndbcluster_terminating)
+    if (is_stop_requested())
     {
       mysql_mutex_unlock(&LOCK_server_started);
-      pthread_mutex_lock(&ndb_util_thread.LOCK);
+      pthread_mutex_lock(&LOCK);
       goto ndb_util_thread_end;
     }
   }
@@ -15504,24 +15486,25 @@ Ndb_util_thread::do_run()
   // to ensure that the parts of MySQL Server it uses has been created
   thd->init_for_queries();
 
+  log_info("Wait for cluster to start");
   /*
     Wait for cluster to start
   */
-  pthread_mutex_lock(&ndb_util_thread.LOCK);
+  pthread_mutex_lock(&LOCK);
   while (!g_ndb_status.cluster_node_id && (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
-    pthread_cond_wait(&ndb_util_thread.COND, &ndb_util_thread.LOCK);
-    if (ndbcluster_terminating)
+    pthread_cond_wait(&COND, &LOCK);
+    if (is_stop_requested())
       goto ndb_util_thread_end;
   }
-  pthread_mutex_unlock(&ndb_util_thread.LOCK);
+  pthread_mutex_unlock(&LOCK);
 
   /* Get thd_ndb for this thread */
   if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
     sql_print_error("Could not allocate Thd_ndb object");
-    pthread_mutex_lock(&ndb_util_thread.LOCK);
+    pthread_mutex_lock(&LOCK);
     goto ndb_util_thread_end;
   }
   thd_set_thd_ndb(thd, thd_ndb);
@@ -15530,17 +15513,19 @@ Ndb_util_thread::do_run()
   if (opt_ndb_extra_logging && ndb_binlog_running)
     sql_print_information("NDB Binlog: Ndb tables initially read only.");
 
+  log_info("Started");
+
   set_timespec(abstime, 0);
   for (;;)
   {
-    pthread_mutex_lock(&ndb_util_thread.LOCK);
-    if (!ndbcluster_terminating)
-      pthread_cond_timedwait(&ndb_util_thread.COND,
-                             &ndb_util_thread.LOCK,
+    pthread_mutex_lock(&LOCK);
+    if (!is_stop_requested())
+      pthread_cond_timedwait(&COND,
+                             &LOCK,
                              &abstime);
-    if (ndbcluster_terminating) /* Shutting down server */
+    if (is_stop_requested()) /* Stopping thread */
       goto ndb_util_thread_end;
-    pthread_mutex_unlock(&ndb_util_thread.LOCK);
+    pthread_mutex_unlock(&LOCK);
 #ifdef NDB_EXTRA_DEBUG_UTIL_THREAD
     DBUG_PRINT("ndb_util_thread", ("Started, cache_check_time: %lu",
                                    opt_ndb_cache_check_time));
@@ -15687,7 +15672,9 @@ next:
     set_timespec_nsec(abstime, opt_ndb_cache_check_time * 1000000ULL);
   }
 
-  pthread_mutex_lock(&ndb_util_thread.LOCK);
+  log_info("Stopping...");
+
+  pthread_mutex_lock(&LOCK);
 
 ndb_util_thread_end:
   net_end(&thd->net);
@@ -15701,13 +15688,12 @@ ndb_util_thread_fail:
   }
   delete thd;
   
-  /* signal termination */
-  ndb_util_thread.running= 0;
-  pthread_cond_signal(&ndb_util_thread.COND_ready);
-  pthread_mutex_unlock(&ndb_util_thread.LOCK);
+  pthread_mutex_unlock(&LOCK);
   DBUG_PRINT("exit", ("ndb_util_thread"));
 
-  DBUG_LEAVE;                               // Must match DBUG_ENTER()
+  log_info("Stopped");
+
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -16857,7 +16843,7 @@ err:
   DBUG_RETURN(true);
 }
 
-int ha_ndbcluster::alter_frm(THD *thd, const char *file, 
+int ha_ndbcluster::alter_frm(const char *file,
                              NDB_ALTER_DATA *alter_data)
 {
   uchar *data= NULL, *pack_data= NULL;
@@ -16959,7 +16945,7 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   }
 
   DBUG_PRINT("info", ("getting frm file %s", altered_table->s->path.str));
-  error= alter_frm(thd, altered_table->s->path.str, alter_data);
+  error= alter_frm(altered_table->s->path.str, alter_data);
   if (!error)
   {
     /*
