@@ -43,7 +43,8 @@ SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
 
 # Gen_lex_token
 # Make sure sql_yacc.h is generated before compiling gen_lex_token
-ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h)
+ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
+ADD_DEPENDENCIES(gen_lex_token GenServerSource)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
@@ -457,8 +458,6 @@ ADD_CUSTOM_TARGET(
         DEPENDS ${GEN_DIGEST_SOURCES}
 )
 
-#Need this only for embedded
-SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   ADD_LIBRARY(udf_example MODULE udf_example.cc)
