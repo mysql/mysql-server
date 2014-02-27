@@ -139,6 +139,8 @@ create_prepared_stmt(void *identity,
     {
       if (pfs->m_lock.free_to_dirty(& dirty_state))
       {
+        /* Reset the stats. */ 
+        pfs->reset_data();
         /* Do the assignments. */
         pfs->m_identity= identity;
         strncpy(pfs->m_sqltext, sqltext, sqltext_length);
@@ -165,6 +167,12 @@ create_prepared_stmt(void *identity,
           strncpy(pfs->m_owner_object_name, pfs_program->m_object_name, pfs_program->m_object_name_length); 
           pfs->m_owner_object_name_length= pfs_program->m_object_name_length;
         }
+        else
+        {
+          pfs->m_owner_object_type= NO_OBJECT_TYPE;
+          pfs->m_owner_object_schema_length= 0;
+          pfs->m_owner_object_name_length= 0;
+        } 
 
         if (pfs_stmt)
         {

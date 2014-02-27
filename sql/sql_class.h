@@ -866,7 +866,7 @@ public:
 #ifdef HAVE_PSI_PS_INTERFACE 
   virtual PSI_prepared_stmt* get_PS_prepared_stmt()
   {
-    /* Code should never reach here. */
+    /* One should never reach here. */
     DBUG_ASSERT(0);
     return NULL;
   }
