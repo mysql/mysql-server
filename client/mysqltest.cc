@@ -60,6 +60,10 @@ using std::max;
 #define SIGNAL_FMT "signal %d"
 #endif
 
+#ifdef _WIN32
+#define setenv(a,b,c) _putenv_s(a,b)
+#endif
+
 #define MAX_VAR_NAME_LENGTH    256
 #define MAX_COLUMNS            256
 #define MAX_EMBEDDED_SERVER_ARGS 64
@@ -69,10 +73,6 @@ using std::max;
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
-
-#ifndef HAVE_SETENV
-static int setenv(const char *name, const char *value, int overwrite);
-#endif
 
 C_MODE_START
 static void signal_handler(int sig);
@@ -10776,18 +10776,3 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
   delete_dynamic(&lines);
   DBUG_VOID_RETURN;
 }
-
-#ifndef HAVE_SETENV
-static int setenv(const char *name, const char *value, int overwrite)
-{
-  size_t buflen= strlen(name) + strlen(value) + 2;
-  char *envvar= (char *)malloc(buflen);
-  if(!envvar)
-    return ENOMEM;
-  strcpy(envvar, name);
-  strcat(envvar, "=");
-  strcat(envvar, value);
-  putenv(envvar);
-  return 0;
-}
-#endif
