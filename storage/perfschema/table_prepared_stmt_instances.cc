@@ -310,9 +310,9 @@ void table_prepared_stmt_instances::make_row(PFS_prepared_stmt* prepared_stmt)
   m_row_exists= false;
 
   prepared_stmt->m_lock.begin_optimistic_lock(&lock);
-  
+
   m_row.m_identity= prepared_stmt->m_identity;
- 
+
   m_row.m_stmt_id= prepared_stmt->m_stmt_id;
 
   m_row.m_owner_thread_id= prepared_stmt->m_owner_thread_id;
@@ -406,7 +406,7 @@ int table_prepared_stmt_instances
         break;
       case 6: /* OWNER_OBJECT_TYPE */
         if(m_row.m_owner_object_type != 0)
-          set_field_enum(f, m_row.m_owner_object_type); 
+          set_field_enum(f, m_row.m_owner_object_type);
         else
           f->set_null();
         break;

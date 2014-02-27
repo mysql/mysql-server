@@ -54,7 +54,7 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
   ulonglong m_owner_event_id;
 
   /** Column OBJECT_OWNER_TYPE. */
-  enum_object_type m_owner_object_type;                                               
+  enum_object_type m_owner_object_type;
 
   /** Column OBJECT_OWNER_SCHEMA. */
   char m_owner_object_schema[COL_OBJECT_SCHEMA_SIZE];
@@ -73,8 +73,8 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
   /** Prepared stmt execution stat. */
   PFS_statement_stat m_execute_stat;
 
-  /** Reset data for this record. */                                            
-  void reset_data(); 
+  /** Reset data for this record. */
+  void reset_data();
 };
 
 extern PFS_prepared_stmt *prepared_stmt_array;
