@@ -5452,6 +5452,34 @@ int mysql_discard_or_import_tablespace(THD *thd,
     DBUG_RETURN(-1);
   }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (table_list->table->part_info)
+  {
+    /*
+      If not ALL is mentioned and there is at least one specified
+      [sub]partition name, use the specified [sub]partitions only.
+    */
+    if (thd->lex->alter_info.partition_names.elements > 0 &&
+        !(thd->lex->alter_info.flags & Alter_info::ALTER_ALL_PARTITION))
+    {
+      table_list->partition_names= &thd->lex->alter_info.partition_names;
+      /* Set all [named] partitions as used. */
+      if (table_list->table->part_info->set_partition_bitmaps(table_list))
+        DBUG_RETURN(-1);
+    }
+  }
+  else
+  {
+    if (thd->lex->alter_info.partition_names.elements > 0 ||
+        thd->lex->alter_info.flags & Alter_info::ALTER_ALL_PARTITION)
+    {
+      /* Don't allow DISCARD/IMPORT PARTITION on a nonpartitioned table */
+      my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+      DBUG_RETURN(true);
+    }
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
   error= table_list->table->file->ha_discard_or_import_tablespace(discard);
 
   THD_STAGE_INFO(thd, stage_end);

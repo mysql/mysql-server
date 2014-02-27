@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -257,11 +257,6 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
 
-#ifndef UNIV_HOTBACKUP
-extern my_bool	srv_use_sys_malloc;
-#else
-extern ibool	srv_use_sys_malloc;
-#endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 #define SRV_BUF_POOL_INSTANCES_NOT_SET	0
 extern ulong	srv_buf_pool_instances; /*!< requested number of buffer pool instances */
@@ -275,7 +270,6 @@ extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulong	srv_buf_pool_dump_pct;	/*!< dump that may % of each buffer
 					pool during BP dump */
-extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
@@ -368,7 +362,6 @@ extern ibool	srv_priority_boost;
 extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
 
-extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG

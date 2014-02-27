@@ -51,7 +51,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "mem0mem.h"
-#include "mem0pool.h"
 #include "os0proc.h"
 #include "pars0pars.h"
 #include "que0que.h"
@@ -173,8 +172,6 @@ srv_printf_innodb_monitor() will request mutex acquisition
 with mutex_enter(), which will wait until it gets the mutex. */
 #define MUTEX_NOWAIT(mutex_skipped)	((mutex_skipped) < MAX_MUTEX_NOWAIT)
 
-/* use os/external memory allocator */
-my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
@@ -192,7 +189,6 @@ ulint	srv_buf_pool_curr_size	= 0;
 /* dump that may % of each buffer pool during BP dump */
 ulong	srv_buf_pool_dump_pct;
 /* size in bytes */
-ulint	srv_mem_pool_size	= ULINT_MAX;
 ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
@@ -390,9 +386,6 @@ current_time % 5 != 0. */
 
 # define	SRV_MASTER_CHECKPOINT_INTERVAL		(7)
 # define	SRV_MASTER_PURGE_INTERVAL		(10)
-#ifdef MEM_PERIODIC_CHECK
-# define	SRV_MASTER_MEM_VALIDATE_INTERVAL	(13)
-#endif /* MEM_PERIODIC_CHECK */
 # define	SRV_MASTER_DICT_LRU_INTERVAL		(47)
 
 /** Acquire the system_mutex. */
@@ -962,11 +955,9 @@ srv_general_init(void)
 {
 	os_event_init();
 	sync_check_init();
-	ut_mem_init();
 	/* Reset the system variables in the recovery module. */
 	recv_sys_var_init();
 	os_thread_init();
-	mem_init(srv_mem_pool_size);
 	trx_pool_init();
 	que_init();
 	row_mysql_init();
@@ -1173,11 +1164,9 @@ srv_printf_innodb_monitor(
 	      "BUFFER POOL AND MEMORY\n"
 	      "----------------------\n", file);
 	fprintf(file,
-		"Total memory allocated " ULINTPF
-		"; in additional pool allocated " ULINTPF "\n",
-		ut_total_allocated_memory,
-		mem_pool_get_reserved(mem_comm_pool));
-	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
+		"Total large memory allocated " ULINTPF "\n"
+		"Dictionary memory allocated " ULINTPF "\n",
+		os_total_large_mem_allocated,
 		dict_sys->size);
 
 	buf_print_io(file);
@@ -1201,16 +1190,12 @@ srv_printf_innodb_monitor(
 			(ulong) n_reserved);
 	}
 
-#ifdef UNIV_LINUX
-	fprintf(file, "Main thread process no. %lu, id %lu, state: %s\n",
-		(ulong) srv_main_thread_process_no,
-		(ulong) srv_main_thread_id,
+	fprintf(file,
+		"Process ID=" ULINTPF
+		", Main thread ID=" ULINTPF ", state: %s\n",
+		srv_main_thread_process_no,
+		srv_main_thread_id,
 		srv_main_thread_op_info);
-#else
-	fprintf(file, "Main thread id %lu, state: %s\n",
-		(ulong) srv_main_thread_id,
-		srv_main_thread_op_info);
-#endif
 	fprintf(file,
 		"Number of rows inserted " ULINTPF
 		", updated " ULINTPF ", deleted " ULINTPF
@@ -1979,15 +1964,6 @@ srv_master_do_active_tasks(void)
 	/* Now see if various tasks that are performed at defined
 	intervals need to be performed. */
 
-#ifdef MEM_PERIODIC_CHECK
-	/* Check magic numbers of every allocated mem block once in
-	SRV_MASTER_MEM_VALIDATE_INTERVAL seconds */
-	if (cur_time % SRV_MASTER_MEM_VALIDATE_INTERVAL == 0) {
-		mem_validate_all_blocks();
-		MONITOR_INC_TIME_IN_MICRO_SECS(
-			MONITOR_SRV_MEM_VALIDATE_MICROSECOND, counter_time);
-	}
-#endif
 	if (srv_shutdown_state > 0) {
 		return;
 	}

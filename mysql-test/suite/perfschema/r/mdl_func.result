@@ -69,6 +69,7 @@ prepare dump_waits_history_long from
     OPERATION
     from performance_schema.events_waits_history_long
     where event_name = \'wait/lock/metadata/sql/mdl\';";
+truncate table performance_schema.events_statements_summary_by_digest;
 flush status;
 flush tables;
 DROP TABLE IF EXISTS t1;
