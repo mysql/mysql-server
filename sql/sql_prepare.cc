@@ -3743,6 +3743,7 @@ Prepared_statement::reprepare()
 
   if (! error)
   {
+    copy.m_prepared_stmt= m_prepared_stmt;
     /* Update reprepare count for this prepared statement in P_S table. */
     MYSQL_REPREPARE_PS(copy.m_prepared_stmt);
 

@@ -218,7 +218,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     p->m_prepared_stmt_sizing= apply_load_factor(count,
                                                  h->m_load_factor_volatile);
   }
- 
+
   if (p->m_table_sizing < 0)
   {
     count= handle;
