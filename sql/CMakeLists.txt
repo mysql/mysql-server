@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,9 +32,25 @@ SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
+SET(GEN_DIGEST_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
+)
+
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
+                            ${GEN_DIGEST_SOURCES}
                             ${CONF_SOURCES}
                             PROPERTIES GENERATED 1)
+
+# Gen_lex_token
+# Make sure sql_yacc.h is generated before compiling gen_lex_token
+ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
+  COMMAND gen_lex_token > lex_token.h
+  DEPENDS gen_lex_token
+)
+
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION)
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
@@ -122,6 +138,7 @@ SET(SQL_SHARED_SOURCES
   sql_db.cc
   sql_delete.cc
   sql_derived.cc
+  sql_digest.cc
   sql_do.cc 
   sql_error.cc
   sql_executor.cc
@@ -186,6 +203,7 @@ SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
+  ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
@@ -242,6 +260,7 @@ RECOMPILE_FOR_EMBEDDED)
 
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
+ADD_DEPENDENCIES(sql GenDigestServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
   mysys mysys_ssl dbug strings vio regex   
@@ -431,6 +450,11 @@ TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys mysys_ssl)
 ADD_CUSTOM_TARGET( 
         GenServerSource
         DEPENDS ${GEN_SOURCES}
+)
+
+ADD_CUSTOM_TARGET( 
+        GenDigestServerSource
+        DEPENDS ${GEN_DIGEST_SOURCES}
 )
 
 #Need this only for embedded

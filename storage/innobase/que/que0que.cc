@@ -440,14 +440,7 @@ que_graph_free_recursive(
 
 		thr = static_cast<que_thr_t*>(node);
 
-		if (thr->magic_n != QUE_THR_MAGIC_N) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"que_thr struct appears corrupt;"
-				" magic n %lu",
-				(unsigned long) thr->magic_n);
-			mem_analyze_corruption(thr);
-			ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-		}
+		ut_a(thr->magic_n == QUE_THR_MAGIC_N);
 
 		thr->magic_n = QUE_THR_MAGIC_FREED;
 
@@ -564,11 +557,7 @@ que_graph_free_recursive(
 
 		break;
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"que_node struct appears corrupt; type %lu",
-			(unsigned long) que_node_get_type(node));
-		mem_analyze_corruption(node);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
+		ut_error;
 	}
 
 	DBUG_VOID_RETURN;
@@ -845,13 +834,7 @@ que_thr_move_to_run_state_for_mysql(
 	que_thr_t*	thr,	/*!< in: an query thread */
 	trx_t*		trx)	/*!< in: transaction */
 {
-	if (thr->magic_n != QUE_THR_MAGIC_N) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"que_thr struct appears corrupt; magic n %lu",
-			(unsigned long) thr->magic_n);
-		mem_analyze_corruption(thr);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
+	ut_a(thr->magic_n == QUE_THR_MAGIC_N);
 
 	if (!thr->is_active) {
 
@@ -879,14 +862,7 @@ que_thr_stop_for_mysql_no_error(
 	ut_ad(thr->is_active == TRUE);
 	ut_ad(trx->lock.n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);
-
-	if (thr->magic_n != QUE_THR_MAGIC_N) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"que_thr struct appears corrupt; magic n %lu",
-			(unsigned long) thr->magic_n);
-		mem_analyze_corruption(thr);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
+	ut_a(thr->magic_n == QUE_THR_MAGIC_N);
 
 	thr->state = QUE_THR_COMPLETED;
 
