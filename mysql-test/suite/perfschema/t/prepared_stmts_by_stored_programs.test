@@ -6,7 +6,7 @@
 --source include/have_perfschema.inc
 --source suite/perfschema/include/no_protocol.inc
 
---let $psi_select = SELECT STATEMENT_NAME, SQL_TEXT, COUNT_EXECUTE, OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME FROM performance_schema.prepared_statements_instances
+--let $psi_select = SELECT STATEMENT_NAME, SQL_TEXT, COUNT_EXECUTE, COUNT_REPREPARE, OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME FROM performance_schema.prepared_statements_instances
 
 TRUNCATE TABLE performance_schema.prepared_statements_instances; 
 
@@ -16,15 +16,16 @@ USE db;
 CREATE TABLE t
 (
   a INT,
-  b CHAR(10)
+  b CHAR(10),
+  name CHAR(10)
 );
 
-INSERT INTO t VALUES (1,"kuchipudi");
-INSERT INTO t VALUES (2,"odissi");
-INSERT INTO t VALUES (3,"kathak");
-INSERT INTO t VALUES (4,"mohiyattam");
-INSERT INTO t VALUES (5,"manipuri");
-INSERT INTO t VALUES (6,"kathakali");
+INSERT INTO t VALUES (1,"kuchipudi","Vempati");
+INSERT INTO t VALUES (2,"odissi","Mohapatra");
+INSERT INTO t VALUES (3,"kathak","Maharaj");
+INSERT INTO t VALUES (4,"mohiyattam","Kalyanikutty");
+INSERT INTO t VALUES (5,"manipuri","Guru");
+INSERT INTO t VALUES (6,"kathakali","Manavedan");
 
 # Stored Procedure
 DELIMITER |;
@@ -77,6 +78,12 @@ END|
 CALL p4()|
 --eval $psi_select
 
+ALTER TABLE t DROP COLUMN name;
+
+# COUNT_REPREPARE must be 1 
+CALL p4()|
+--eval $psi_select
+
 DEALLOCATE PREPARE st2|
 --eval $psi_select
 
@@ -97,35 +104,40 @@ DELIMITER ;|
 
 # Events
 
+CREATE TABLE tab(a INT);
+
 SET GLOBAL event_scheduler=ON;
 
 DELIMITER |;
-
 CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO
 BEGIN
-  PREPARE st FROM 'SELECT POW(?,?)';  
-  SET @b=5;
-  SET @a=10;
-  EXECUTE st USING @a, @b;
+  PREPARE st FROM 'INSERT INTO tab VALUES(?)';  
+  SET @a=1;
+  EXECUTE st USING @a;
 END|
 
 DELIMITER ;|
 
-# Wait till the  above one execution of event is instrumented.
+# Let e1 insert 1 records into the table tab
 
---let $wait_condition= select count(*) = 1 from performance_schema.prepared_statements_instances where OWNER_OBJECT_TYPE='EVENT'
+--let $wait_condition= select count(*) = 1 from tab
 --source include/wait_condition.inc
-
---eval $psi_select
+SELECT * FROM tab;
 
 SET GLOBAL event_scheduler=OFF;
 --source include/no_running_event_scheduler.inc
+
+# The following should return empty set as the instrumented prepared statement
+# row is removed as de allocation of the statement happens automatically as 
+# event thread is cleaned up. 
+--eval $psi_select
 
 # clean-up
 TRUNCATE TABLE performance_schema.prepared_statements_instances;
 TRUNCATE TABLE performance_schema.events_statements_history_long;
 
 DROP TABLE t;
+DROP TABLE tab;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;
