@@ -7,6 +7,7 @@ usr/lib/mysql/plugin/semisync_master.so
 usr/lib/mysql/plugin/semisync_slave.so
 usr/lib/mysql/plugin/handlersocket.so
 usr/lib/mysql/plugin/sql_errlog.so
+usr/lib/mysql/plugin/server_audit.so
 usr/lib/libhsclient.so.*
 etc/apparmor.d/usr.sbin.mysqld
 usr/share/apport/package-hooks/source_mariadb-5.5.py
