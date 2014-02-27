@@ -791,7 +791,7 @@ int ndbcluster_binlog_end(THD *thd)
   DBUG_ENTER("ndbcluster_binlog_end");
 
   // Stop ndb_util_thread first since it uses THD(which
-  // implicitly depend on binlog
+  // implicitly depend on binlog)
   ndb_util_thread_stop();
 
   if (ndbcluster_binlog_inited)

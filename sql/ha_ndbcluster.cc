@@ -12049,11 +12049,6 @@ static bool is_supported_system_table(const char *db,
 }
 
 
-/*
-  Initialise all gloal variables before creating 
-  a NDB Cluster table handler
- */
-
 /* Call back after cluster connect */
 static int connect_callback()
 {
