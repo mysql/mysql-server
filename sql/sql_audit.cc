@@ -84,7 +84,7 @@ static void general_class_handler(THD *thd, uint event_subtype, va_list ap)
   event.general_rows= (unsigned long long) va_arg(ap, ha_rows);
   event.database= va_arg(ap, const char *);
   event.database_length= va_arg(ap, unsigned int);
-  event.query_id= (unsigned long long) thd->query_id;
+  event.query_id= (unsigned long long) (thd ? thd->query_id : 0);
   event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
 }
 
@@ -134,7 +134,7 @@ static void table_class_handler(THD *thd, uint event_subclass, va_list ap)
   event.new_database_length= va_arg(ap, unsigned int);
   event.new_table= va_arg(ap, const char *);
   event.new_table_length= va_arg(ap, unsigned int);
-  event.query_id= (unsigned long long) thd->query_id;
+  event.query_id= (unsigned long long) (thd ? thd->query_id : 0);
   event_class_dispatch(thd, MYSQL_AUDIT_TABLE_CLASS, &event);
 }
 

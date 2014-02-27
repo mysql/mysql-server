@@ -90,11 +90,13 @@ void mysql_audit_general_log(THD *thd, time_t time,
   {
     CHARSET_INFO *clientcs= thd ? thd->variables.character_set_client
                                 : global_system_variables.character_set_client;
+    const char *db= thd ? thd->db : "";
+    size_t db_length= thd ? thd->db_length : 0;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
                        0, time, user, userlen, cmd, cmdlen,
                        query, querylen, clientcs, (ha_rows) 0,
-                       thd->db, thd->db_length);
+                       db, db_length);
   }
 }
 
@@ -123,6 +125,8 @@ void mysql_audit_general(THD *thd, uint event_subtype,
     char user_buff[MAX_USER_HOST_SIZE];
     CSET_STRING query;
     ha_rows rows;
+    const char *db;
+    size_t db_length;
 
     if (thd)
     {
@@ -130,18 +134,22 @@ void mysql_audit_general(THD *thd, uint event_subtype,
       user= user_buff;
       userlen= make_user_name(thd, user_buff);
       rows= thd->warning_info->current_row_for_warning();
+      db= thd->db;
+      db_length= thd->db_length;
     }
     else
     {
       user= 0;
       userlen= 0;
       rows= 0;
+      db= "";
+      db_length= 0;
     }
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, event_subtype,
                        error_code, time, user, userlen, msg, msglen,
                        query.str(), query.length(), query.charset(), rows,
-                       thd->db, thd->db_length);
+                       db, db_length);
   }
 }
 
