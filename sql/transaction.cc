@@ -176,14 +176,15 @@ bool trans_commit(THD *thd)
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_commit_trans(thd, TRUE);
   /*
-    To a statement modified a non-transational table, its gtid
-    is saved into table in (right before) 'COMMIT' phase. To
-    the case, we need to clear the SERVER_STATUS_IN_TRANS
-    after 'COMMIT', due to SERVER_STATUS_IN_TRANS is set
-    when saving the gtid into table with InnoDB engine
-    in trans_register_ha(...).
+    When gtid mode is enabled, single non-transactional statements
+    insert a record into the gtid system table (which is probably
+    a transactional table). Thence, the flag SERVER_STATUS_IN_TRANS
+    may be set again while calling ha_commit_trans(...) Consequently,
+    we need to reset it back, much like we are doing before calling
+    ha_commit_trans(...).
   */
-  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
   thd->lex->start_transaction_opt= 0;

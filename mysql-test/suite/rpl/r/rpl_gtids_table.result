@@ -223,11 +223,4 @@ SELECT * FROM mysql.gtid_executed where sid="SLAVE_UUID";
 sid	gno_start	gno_end
 SLAVE_UUID	1	1
 DROP TABLE t1, t2;
-# Failure on creating compression thread
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-call mtr.add_suppression("Can not create thread to compress gtid table .*");
-include/rpl_restart_server.inc [server_number=2 parameters: --debug=d,simulate_create_compress_thread_failure]
-include/assert.inc [compression thread is destroied;]
-include/start_slave.inc
 include/rpl_end.inc

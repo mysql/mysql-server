@@ -52,6 +52,7 @@ XA PREPARE '1';
 XA COMMIT '1';
 SET GTID_NEXT='AUTOMATIC';
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
+SET GLOBAL DEBUG= @debug_save;
 # Stored gtids MASTER_UUID:1-5:16 in gtid_executed table on master
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
@@ -61,13 +62,13 @@ include/assert.inc [committed gtids MASTER_UUID:1-5:16]
 # Verify that transaction's gtid is not stored into gtid table
 # and the transaction is rolled back if we encounter an error
 # when writing gtid into table.
-SET @@GLOBAL.DEBUG="+d,simulate_err_on_write_gtid_into_table";
+SET SESSION debug="+d,simulate_err_on_write_gtid_into_table";
 XA START '1';
 INSERT INTO t1 VALUES(4);
 XA END '1';
 ERROR HY000: Got error -1 from storage engine
 XA ROLLBACK '1';
-SET GLOBAL DEBUG= @debug_save;
+SET SESSION debug="-d,simulate_err_on_write_gtid_into_table";
 # Stored gtids MASTER_UUID:1-5:16 in gtid_executed table on master
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
