@@ -120,9 +120,9 @@ DELIMITER ;|
 
 # Let e1 insert 1 records into the table tab
 
---let $wait_condition= select count(*) = 1 from tab
+--let $wait_condition= select count(*) >= 1 from tab
 --source include/wait_condition.inc
-SELECT * FROM tab;
+SELECT * FROM tab LIMIT 1;
 
 SET GLOBAL event_scheduler=OFF;
 --source include/no_running_event_scheduler.inc
