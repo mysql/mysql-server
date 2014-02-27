@@ -76,7 +76,7 @@ os_mem_alloc_large(
 {
 	void*	ptr;
 	ulint	size;
-#if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
+#if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
 	int shmid;
 	struct shmid_ds buf;
 
@@ -120,7 +120,7 @@ os_mem_alloc_large(
 
 	ib_logf(IB_LOG_LEVEL_WARN, "Using conventional memory pool");
 skip:
-#endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
+#endif /* HAVE_LINUX_LARGE_PAGES && UNIV_LINUX */
 
 #ifdef _WIN32
 	SYSTEM_INFO	system_info;
@@ -177,14 +177,14 @@ os_mem_free_large(
 {
 	ut_a(os_total_large_mem_allocated >= size);
 
-#if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
+#if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
 	if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
 		os_decrement_counter_by_amount(
 			server_mutex, os_total_large_mem_allocated, size);
 		UNIV_MEM_FREE(ptr, size);
 		return;
 	}
-#endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
+#endif /* HAVE_LINUX_LARGE_PAGES && UNIV_LINUX */
 #ifdef _WIN32
 	/* When RELEASE memory, the size parameter must be 0.
 	Do not use MEM_RELEASE with MEM_DECOMMIT. */
