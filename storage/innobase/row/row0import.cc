@@ -864,7 +864,7 @@ private:
 		buf_block_t*	block,
 		ulint&		page_type) UNIV_NOTHROW;
 
-#if defined UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	/**
 	@return true error condition is enabled. */
 	bool trigger_corruption() UNIV_NOTHROW

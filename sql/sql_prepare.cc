@@ -3066,6 +3066,7 @@ Execute_sql_statement(LEX_STRING sql_text)
 bool
 Execute_sql_statement::execute_server_code(THD *thd)
 {
+  sql_digest_state *parent_digest;
   PSI_statement_locker *parent_locker;
   bool error;
 
@@ -3079,9 +3080,12 @@ Execute_sql_statement::execute_server_code(THD *thd)
   parser_state.m_lip.multi_statements= FALSE;
   lex_start(thd);
 
+  parent_digest= thd->m_digest;
   parent_locker= thd->m_statement_psi;
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   error= parse_sql(thd, &parser_state, NULL) || thd->is_error();
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   if (error)
@@ -3278,6 +3282,7 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   bool error;
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("Prepared_statement::prepare");
   /*
@@ -3325,10 +3330,12 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   lex_start(thd);
   lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_PREPARE;
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   error= parse_sql(thd, & parser_state, NULL) ||
     thd->is_error() ||
     init_param_array(this);
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   lex->set_trg_event_type_for_tables();

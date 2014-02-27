@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -88,13 +88,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Table reference counter",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_TABLE_REFERENCE},
-
-	{"metadata_mem_pool_size", "metadata",
-	 "Size of a memory pool InnoDB uses to store data dictionary"
-	 " and internal data structures in bytes",
-	 static_cast<monitor_type_t>(
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT),
-	 MONITOR_DEFAULT_START, MONITOR_OVLD_META_MEM_POOL},
 
 	/* ========== Counters for Lock Module ========== */
 	{"module_lock", "lock", "Lock Module",
@@ -1491,10 +1484,6 @@ srv_mon_process_existing_counter(
 
 	/* Get the value from corresponding global variable */
 	switch (monitor_id) {
-	case MONITOR_OVLD_META_MEM_POOL:
-		value = srv_mem_pool_size;
-		break;
-
 	/* export_vars.innodb_buffer_pool_reads. Num Reads from
 	disk (page not in buffer) */
 	case MONITOR_OVLD_BUF_POOL_READS:

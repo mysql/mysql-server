@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -208,8 +208,6 @@ enum latch_level_t {
 
 	SYNC_MONITOR_MUTEX,
 
-	SYNC_MEM_POOL,
-	SYNC_MEM_HASH,
 	SYNC_ANY_LATCH,
 
 	SYNC_DOUBLEWRITE,

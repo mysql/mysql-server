@@ -120,26 +120,6 @@ ut_rnd_interval(
 	return(low + (rnd % (high - low)));
 }
 
-/*********************************************************//**
-Generates a random iboolean value.
-@return the random value */
-UNIV_INLINE
-ibool
-ut_rnd_gen_ibool(void)
-/*=================*/
-{
-	ulint	 x;
-
-	x = ut_rnd_gen_ulint();
-
-	if (((x >> 20) + (x >> 15)) & 1) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
-}
-
 /*******************************************************//**
 The following function generates a hash value for a ulint integer
 to a hash table of size table_size, which should be a prime
