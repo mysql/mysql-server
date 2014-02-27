@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011-2104, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef HA_NDBCLUSTER_COMPONENT_H
-#define HA_NDBCLUSTER_COMPONENT_H
+#ifndef NDB_COMPONENT_H
+#define NDB_COMPONENT_H
 
 #include <my_global.h>
 #include <my_pthread.h>
-#include <my_attribute.h>
 
 extern "C" void * Ndb_component_run_C(void *);
 
@@ -77,13 +76,13 @@ protected:
 
 protected:
   void log_verbose(unsigned verbose_level, const char* fmt, ...)
-    ATTRIBUTE_FORMAT(printf, 3, 4);
+    __attribute__((format(printf, 3, 4)));
   void log_error(const char *fmt, ...)
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+    __attribute__((format(printf, 2, 3)));
   void log_warning(const char *fmt, ...)
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+    __attribute__((format(printf, 2, 3)));
   void log_info(const char *fmt, ...)
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+    __attribute__((format(printf, 2, 3)));
 
 private:
 
