@@ -89,7 +89,8 @@ enum enum_mysql_set_option
 enum enum_session_state_type
 {
   SESSION_TRACK_SYSTEM_VARIABLES,
-  SESSION_TRACK_SCHEMA
+  SESSION_TRACK_SCHEMA,
+  SESSION_TRACK_STATE_CHANGE
 };
 my_bool my_net_init(NET *net, Vio* vio);
 void my_net_local_init(NET *net);

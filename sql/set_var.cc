@@ -200,6 +200,9 @@ bool sys_var::update(THD *thd, set_var *var)
     if ((!ret) &&
         thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
       thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&(var->var->name));
+    if ((!ret) &&
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(&var->var->name);
     return ret;
   }
 }
@@ -744,6 +747,8 @@ int set_var_user::update(THD *thd)
     my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY), MYF(0));
     return -1;
   }
+  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
   return 0;
 }
 
@@ -863,7 +868,8 @@ int set_var_collation_client::update(THD *thd)
                                 sizeof("character_set_connection") - 1};
     thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_connection);
   }
-
+  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
   thd->protocol_text.init(thd);
   thd->protocol_binary.init(thd);
   return 0;

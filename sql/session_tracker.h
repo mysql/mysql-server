@@ -24,10 +24,11 @@ class set_var;
 enum enum_session_tracker
 {
   SESSION_SYSVARS_TRACKER,                      /* Session system variables */
-  CURRENT_SCHEMA_TRACKER                        /* Current schema */
+  CURRENT_SCHEMA_TRACKER,                        /* Current schema */
+  SESSION_STATE_CHANGE_TRACKER
 };
 
-#define SESSION_TRACKER_END CURRENT_SCHEMA_TRACKER
+#define SESSION_TRACKER_END SESSION_STATE_CHANGE_TRACKER
 
 
 /**
@@ -157,6 +158,38 @@ public:
     for (int i= 0; i <= SESSION_TRACKER_END; i ++)
       delete m_trackers[i];
   }
+};
+
+/*
+  Session_state_change_tracker
+  ----------------------------
+  This is a boolean tracker class that will monitor any change that contributes
+  to a session state change.
+  Attributes that contribute to session state change include:
+     - Successful change to System variables
+     - User defined variables assignments
+     - temporary tables created, altered or deleted
+     - prepared statements added or removed
+     - change in current database
+*/
+
+class Session_state_change_tracker : public State_tracker
+{
+private:
+
+  void reset();
+
+public:
+  Session_state_change_tracker();
+  bool enable(THD *thd);
+  bool check(THD *thd, set_var *var)
+  { return false; }
+  bool update(THD *thd);
+  bool store(THD *thd, String &buf);
+  void mark_as_changed(LEX_CSTRING *tracked_item_name);
+  bool is_state_changed(THD*);
+  void ensure_enabled(THD *thd)
+  {}
 };
 
 #endif /* SESSION_TRACKER_INCLUDED */
