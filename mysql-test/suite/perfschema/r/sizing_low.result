@@ -88,9 +88,9 @@ performance_schema	events_waits_history_long.memory	17600
 performance_schema	(pfs_mutex_class).size	256
 performance_schema	(pfs_mutex_class).count	200
 performance_schema	(pfs_mutex_class).memory	51200
-performance_schema	(pfs_rwlock_class).size	320
+performance_schema	(pfs_rwlock_class).size	256
 performance_schema	(pfs_rwlock_class).count	40
-performance_schema	(pfs_rwlock_class).memory	12800
+performance_schema	(pfs_rwlock_class).memory	10240
 performance_schema	(pfs_cond_class).size	256
 performance_schema	(pfs_cond_class).count	80
 performance_schema	(pfs_cond_class).memory	20480
@@ -103,12 +103,12 @@ performance_schema	(pfs_file_class).memory	16000
 performance_schema	mutex_instances.size	128
 performance_schema	mutex_instances.count	2945
 performance_schema	mutex_instances.memory	376960
-performance_schema	rwlock_instances.size	192
+performance_schema	rwlock_instances.size	128
 performance_schema	rwlock_instances.count	2056
-performance_schema	rwlock_instances.memory	394752
-performance_schema	cond_instances.size	128
+performance_schema	rwlock_instances.memory	263168
+performance_schema	cond_instances.size	64
 performance_schema	cond_instances.count	612
-performance_schema	cond_instances.memory	78336
+performance_schema	cond_instances.memory	39168
 performance_schema	threads.size	3200
 performance_schema	threads.count	112
 performance_schema	threads.memory	358400
@@ -275,17 +275,17 @@ performance_schema	events_transactions_summary_by_user_by_event_name.memory	440
 performance_schema	events_transactions_summary_by_host_by_event_name.size	88
 performance_schema	events_transactions_summary_by_host_by_event_name.count	20
 performance_schema	events_transactions_summary_by_host_by_event_name.memory	1760
-performance_schema	performance_schema.memory	40793320
+performance_schema	performance_schema.memory	40620008
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
 COUNT_ALLOC	59
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	40793320
+SUM_NUMBER_OF_BYTES_ALLOC	40620008
 SUM_NUMBER_OF_BYTES_FREE	0
 LOW_COUNT_USED	59
 CURRENT_COUNT_USED	59
 HIGH_COUNT_USED	59
-LOW_NUMBER_OF_BYTES_USED	40793320
-CURRENT_NUMBER_OF_BYTES_USED	40793320
-HIGH_NUMBER_OF_BYTES_USED	40793320
+LOW_NUMBER_OF_BYTES_USED	40620008
+CURRENT_NUMBER_OF_BYTES_USED	40620008
+HIGH_NUMBER_OF_BYTES_USED	40620008
