@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -939,8 +939,7 @@ class SQL_SELECT :public Sql_alloc {
 
   SQL_SELECT();
   ~SQL_SELECT();
-  void cleanup();
-  void set_quick(QUICK_SELECT_I *new_quick) { delete quick; quick= new_quick; }
+  void set_quick(QUICK_SELECT_I *new_quick);
   bool check_quick(THD *thd, bool force_quick_range, ha_rows limit)
   {
     key_map tmp(key_map::ALL_BITS);

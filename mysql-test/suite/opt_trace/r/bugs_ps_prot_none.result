@@ -548,16 +548,13 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
           {
             "refine_plan": [
               {
-                "table": "`t2` `alias1`",
-                "access_type": "table_scan"
+                "table": "`t2` `alias1`"
               },
               {
-                "table": "`t2` `alias2`",
-                "access_type": "table_scan"
+                "table": "`t2` `alias2`"
               },
               {
-                "table": "`t2` `alias3`",
-                "access_type": "table_scan"
+                "table": "`t2` `alias3`"
               }
             ] /* refine_plan */
           }
@@ -660,8 +657,7 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
           {
             "refine_plan": [
               {
-                "table": "`t3` `sq2_alias1`",
-                "access_type": "table_scan"
+                "table": "`t3` `sq2_alias1`"
               }
             ] /* refine_plan */
           }
@@ -823,12 +819,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
           {
             "refine_plan": [
               {
-                "table": "`t4`",
-                "access_type": "table_scan"
+                "table": "`t4`"
               },
               {
-                "table": "`t1` `sq1_alias2`",
-                "access_type": "table_scan"
+                "table": "`t1` `sq1_alias2`"
               }
             ] /* refine_plan */
           }
@@ -1446,8 +1440,7 @@ ON table2 .col_int_key = table1 .col_int_key
           {
             "refine_plan": [
               {
-                "table": "`where_subselect_20070`",
-                "access_type": "table_scan"
+                "table": "`where_subselect_20070`"
               }
             ] /* refine_plan */
           }
@@ -1549,8 +1542,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 {
                                   "refine_plan": [
                                     {
-                                      "table": "`t1`",
-                                      "access_type": "index_scan"
+                                      "table": "`t1`"
                                     }
                                   ] /* refine_plan */
                                 }
@@ -1851,8 +1843,7 @@ ON table2 .col_int_key = table1 .col_int_key
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "index_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -2296,13 +2287,6 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                   } /* clause_processing */
                                 },
                                 {
-                                  "refine_plan": [
-                                    {
-                                      "table": "`t1`"
-                                    }
-                                  ] /* refine_plan */
-                                },
-                                {
                                   "added_back_ref_condition": "((`t1`.`a` <=> 1))"
                                 },
                                 {
@@ -2317,6 +2301,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                       "access_type": "ref"
                                     } /* index_order_summary */
                                   } /* reconsidering_access_paths_for_index_ordering */
+                                },
+                                {
+                                  "refine_plan": [
+                                    {
+                                      "table": "`t1`"
+                                    }
+                                  ] /* refine_plan */
                                 }
                               ] /* steps */
                             } /* join_optimization */

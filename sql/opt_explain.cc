@@ -473,17 +473,6 @@ private:
 };
 
 
-static join_type calc_join_type(int quick_type)
-{
-  if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
-      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
-      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
-    return JT_INDEX_MERGE;
-  else
-    return JT_RANGE;
-}
-
-
 /* Explain class functions ****************************************************/
 
 
@@ -1261,10 +1250,10 @@ bool Explain_join::explain_join_tab(size_t tab_num)
   select= (tab->filesort && tab->filesort->select) ?
            tab->filesort->select : tab->select;
 
-  if (tab->type == JT_ALL && select && select->quick)
+  if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE)
   {
+    DBUG_ASSERT(select && select->quick);
     quick_type= select->quick->get_type();
-    tab->type= calc_join_type(quick_type);
   }
 
   if (tab->starts_weedout())
@@ -1393,7 +1382,9 @@ bool Explain_join::explain_key_and_len()
                                      tab->ref.key_parts);
   else if (tab->type == JT_INDEX_SCAN)
     return explain_key_and_len_index(tab->index);
-  else if (select && select->quick)
+  else if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE ||
+      ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
+       select && select->quick))
     return explain_key_and_len_quick(select);
   else
   {
@@ -1451,9 +1442,21 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   double examined_rows;
-  if (select && select->quick)
+  if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE ||
+      ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
+       select && select->quick))
+  {
+    /*
+      Because filesort can't handle REF it's converted into quick select,
+      but type is kept as is. This is an exception and the only case when
+      REF has quick select.
+    */
+    DBUG_ASSERT(!(tab->type == JT_REF || tab->type == JT_REF_OR_NULL) ||
+                tab->filesort);
     examined_rows= rows2double(select->quick->records);
-  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL)
+  }
+  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL ||
+           tab->type == JT_CONST || tab->type == JT_SYSTEM)
     examined_rows= rows2double(tab->rowcount);
   else
     examined_rows= tab->position->fanout;
@@ -1527,7 +1530,7 @@ bool Explain_join::explain_extra()
     uint keyno= MAX_KEY;
     if (tab->ref.key_parts)
       keyno= tab->ref.key;
-    else if (select && select->quick)
+    else if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE)
       keyno = select->quick->index;
 
     if (explain_extra_common(select, tab, quick_type, keyno))

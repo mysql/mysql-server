@@ -557,7 +557,7 @@ void Filesort::cleanup()
 {
   if (select && own_select)
   {
-    select->cleanup();
+    delete select;
     select= NULL;
   }
 }
