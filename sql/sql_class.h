@@ -153,12 +153,22 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
 #define MODE_STRICT_TRANS_TABLES        (MODE_NO_BACKSLASH_ESCAPES*2)
 #define MODE_STRICT_ALL_TABLES          (MODE_STRICT_TRANS_TABLES*2)
-#define MODE_INVALID_DATES              (MODE_STRICT_ALL_TABLES*2)
-#define MODE_TRADITIONAL                (MODE_INVALID_DATES*2)
+/*
+ * NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
+ * removed in 5.7 and their functionality is merged with STRICT MODE.
+ * However, For backward compatibility during upgrade, these modes are kept
+ * but they are not used. Setting these modes in 5.7 will give warning and
+ * have no effect.
+ */
+#define MODE_NO_ZERO_IN_DATE            (MODE_STRICT_ALL_TABLES*2)
+#define MODE_NO_ZERO_DATE               (MODE_NO_ZERO_IN_DATE*2)
+#define MODE_INVALID_DATES              (MODE_NO_ZERO_DATE*2)
+#define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
+#define MODE_TRADITIONAL                (MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
 #define MODE_NO_AUTO_CREATE_USER        (MODE_TRADITIONAL*2)
 #define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
 #define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
-#define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 28)
+#define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
