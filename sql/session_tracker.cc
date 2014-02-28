@@ -702,6 +702,122 @@ void Current_schema_tracker::reset()
   m_changed= false;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+ 
+/** Constructor */
+Session_state_change_tracker::Session_state_change_tracker()
+{
+  m_changed= false;
+}
+
+/**
+  @brief Initiate the value of m_enabled based on
+  @@session_track_state_change value.
+
+  @param thd [IN]           The thd handle.
+  @return                   false (always)
+
+**/
+
+bool Session_state_change_tracker::enable(THD *thd)
+{
+  m_enabled= (thd->variables.session_track_state_change)? true: false;
+  return false;
+}
+
+/**
+  @Enable/disable the tracker based on @@session_track_state_change value.
+
+  @param thd [IN]           The thd handle.
+  @return                   false (always)
+
+**/
+
+bool Session_state_change_tracker::update(THD *thd)
+{
+  return enable(thd);
+}
+
+/**
+  @brief Store the 1byte boolean flag in the specified buffer. Once the
+         data is stored, we reset the flags related to state-change. If
+         1byte flag valie is 1 then there is a session state change else
+         there is no state change information.
+
+  @param thd [IN]           The thd handle.
+  @paran buf [INOUT]        Buffer to store the information to.
+
+  @return
+    false                   Success
+    true                    Error
+**/
+
+bool Session_state_change_tracker::store(THD *thd, String &buf)
+{
+  /* since its a boolean tracker length is always 1 */
+  const ulonglong length= 1;
+
+  uchar *to= (uchar *) buf.prep_append(3,EXTRA_ALLOC);
+
+  /* format of the payload is as follows:
+     [ tracker type] [length] [1 byte flag] */
+
+  /* Session state type (SESSION_TRACK_STATE_CHANGE) */
+  to= net_store_length((uchar *) to, (ulonglong)SESSION_TRACK_STATE_CHANGE);
+
+  /* Length of the overall entity it is always 1 byte */
+  to= net_store_length((uchar *) to, length);
+
+  /* boolean tracker will go here */
+  *to= (is_state_changed(thd) ? '1' : '0');
+
+  reset();
+
+  return false;
+}
+
+/**
+  @brief Mark the tracker as changed and associated session
+         attributes accordingly.
+
+  @param name [IN]          Always null.
+  @return void
+*/
+
+void Session_state_change_tracker::mark_as_changed(LEX_CSTRING *tracked_item_name)
+{
+  /* do not send the boolean flag for the tracker itself
+     in the OK packet */
+  if(tracked_item_name &&
+     (strncmp(tracked_item_name->str, "session_track_state_change", 26) == 0))
+    m_changed= false;
+  else
+    m_changed= true;
+}
+
+/**
+  @brief Reset the m_changed flag for next statement.
+
+  @return                   void
+*/
+
+void Session_state_change_tracker::reset()
+{
+  m_changed= false;
+}
+
+/**
+  @brief find if there is a session state change
+
+  @return
+  true  - if there is a session state change
+  false - if there is no session state change
+**/
+
+bool Session_state_change_tracker::is_state_changed(THD* thd)
+{
+  return m_changed;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -719,6 +835,8 @@ void Session_tracker::init(const CHARSET_INFO *char_set)
     new (std::nothrow) Session_sysvars_tracker(char_set);
   m_trackers[CURRENT_SCHEMA_TRACKER]=
     new (std::nothrow) Current_schema_tracker;
+  m_trackers[SESSION_STATE_CHANGE_TRACKER]=
+    new (std::nothrow) Session_state_change_tracker;
 }
 
 /**
