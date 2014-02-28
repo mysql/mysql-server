@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1470,7 +1470,7 @@ bool Explain_join::explain_rows_and_filtered()
   // Print cost-related info
   double prefix_rows= tab->position->prefix_record_count;
   fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
-  double const cond_cost= prefix_rows * ROW_EVALUATE_COST;
+  double const cond_cost= join->cost_model()->row_evaluate_cost(prefix_rows);
   fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
 
   fmt->entry()->col_read_cost.set(tab->position->read_cost < 0.0 ?

@@ -63,6 +63,7 @@
 #include "mysqld.h"
 #include "connection_handler_manager.h"   // Connection_handler_manager
 #include "mysqld_thd_manager.h"           // Global_THD_manager
+#include "sql_timer.h"                          // thd_timer_destroy
 
 #include <mysql/psi/mysql_statement.h>
 #include "mysql/psi/mysql_ps.h"
@@ -1032,6 +1033,9 @@ THD::THD(bool enable_plugins)
 
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
+
+  timer= NULL;
+  timer_cache= NULL;
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
@@ -1383,6 +1387,10 @@ void THD::init(void)
   debug_sync_init_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
+  /* Initialize session_tracker and create all tracker objects */
+  session_tracker.init(this->charset());
+  session_tracker.enable(this);
+
   owned_gtid.sidno= 0;
   owned_gtid.gno= 0;
   owned_sid.clear();
@@ -1485,6 +1493,7 @@ void THD::cleanup(void)
   DBUG_ASSERT(cleanup_done == 0);
 
   killed= KILL_CONNECTION;
+  session_tracker.deinit();
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
   if (transaction.xid_state.has_state(XA_STATE::XA_PREPARED))
   {
@@ -1593,6 +1602,13 @@ void THD::release_resources()
   mysql_audit_release(this);
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
+
+#ifdef HAVE_MY_TIMER
+  DBUG_ASSERT(timer == NULL);
+
+  if (timer_cache)
+    thd_timer_destroy(timer_cache);
+#endif
 
 #ifndef EMBEDDED_LIBRARY
   if (rli_fake)
@@ -1753,7 +1769,7 @@ void THD::awake(THD::killed_state state_to_set)
     killed= state_to_set;
   }
 
-  if (state_to_set != THD::KILL_QUERY)
+  if (state_to_set != THD::KILL_QUERY && state_to_set != THD::KILL_TIMEOUT)
   {
     if (this != current_thd)
     {
@@ -1794,6 +1810,14 @@ void THD::awake(THD::killed_state state_to_set)
       MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                      post_kill_notification, (this));
   }
+
+  /* Interrupt target waiting inside a storage engine. */
+  if (state_to_set != THD::NOT_KILLED)
+    ha_kill_connection(this);
+
+  if (state_to_set == THD::KILL_TIMEOUT)
+    status_var.max_statement_time_exceeded++;
+
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
@@ -3944,6 +3968,16 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
   return(thd->killed);
+}
+
+/**
+  Set the killed status of the current statement.
+
+  @param thd  user thread connection handle
+*/
+extern "C" void thd_set_kill_status(const MYSQL_THD thd)
+{
+  thd->send_kill_message();
 }
 
 /**

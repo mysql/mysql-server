@@ -2435,6 +2435,10 @@ void mysql_sql_stmt_prepare(THD *thd)
   }
   else
   {
+    /* send the boolean tracker in the OK packet when
+       @@session_track_state_change is set to ON */
+    if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
     my_ok(thd, 0L, 0L, "Statement prepared");
   }
 
@@ -2657,7 +2661,6 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
-
   thd->protocol= save_protocol;
 
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
@@ -2911,6 +2914,8 @@ void mysql_sql_stmt_close(THD *thd)
   {
     MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     stmt->deallocate();
+    if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
     my_ok(thd);
   }
 }

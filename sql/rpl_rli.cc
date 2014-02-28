@@ -1139,6 +1139,13 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   group_master_log_name[0]= 0;
   group_master_log_pos= 0;
 
+  /*
+    Following the the relay log purge, the master_log_pos will be in sync
+    with relay_log_pos, so the flag should be cleared. Refer bug#11766010.
+  */
+
+  is_group_master_log_pos_invalid= false;
+
   if (!inited)
   {
     DBUG_PRINT("info", ("inited == 0"));
@@ -1854,6 +1861,10 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
+
+    mysql_mutex_t *log_lock= relay_log.get_log_lock();
+    mysql_mutex_lock(log_lock);
+
     if (relay_log.open_binlog(ln, 0,
                               (max_relay_log_size ? max_relay_log_size :
                                max_binlog_size), true,
@@ -1861,9 +1872,13 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                               true/*need_sid_lock=true*/,
                               mi->get_mi_description_event()))
     {
+      mysql_mutex_unlock(log_lock);
       sql_print_error("Failed in open_log() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
     }
+
+    mysql_mutex_unlock(log_lock);
+
   }
 
    /*
