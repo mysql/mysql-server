@@ -31,6 +31,7 @@ Created 9/30/1995 Heikki Tuuri
 #include "os0proc.ic"
 #endif
 
+#include "srv0srv.h"
 #include "ut0mem.h"
 #include "ut0byte.h"
 
