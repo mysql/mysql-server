@@ -408,5 +408,353 @@ SET @@session.session_track_system_variables='validate_password_policy,autocommi
 
 # Cleanup.
 UNINSTALL PLUGIN validate_password;
+#
+# WL#6885  Track session state change
+#
+
+# testing @@session.session_track_state_change for
+# different session attributes like system variables,
+# user variables, current database, temporary tables,
+# prepared statements.
+#
+# @@session.session_track_state_change=ON
+# will send boolean tracker in the OK packet
+# @@session.session_track_state_change=OFF
+# will not send boolean tracker in the OK packet
+# reset the session.
+CREATE TABLE test.t(i INT);
+SET @@session.session_track_state_change=ON;
+# Create a temporary table
+expect 1
+CREATE TEMPORARY TABLE test.t1(i INT);
+-- 1
+
+expect 1
+DROP TEMPORARY TABLE test.t1;
+-- 1
+
+SET @@session.session_track_state_change=OFF;
+# Create a temporary table
+CREATE TEMPORARY TABLE test.t1(i INT);
+DROP TEMPORARY TABLE test.t1;
+CREATE TEMPORARY TABLE test.t1(i INT);
+SET @@session.session_track_state_change=ON;
+expect 1
+ALTER TABLE test.t1 ADD COLUMN (j INT);
+-- 1
+
+expect 1
+DROP TEMPORARY TABLE test.t1;
+-- 1
+
+SET @@session.session_track_state_change=ON;
+# Create a prepared statement
+expect 1
+PREPARE p1 FROM 'SELECT i FROM test.t';
+-- 1
+
+expect 1
+DEALLOCATE PREPARE p1;
+-- 1
+
+SET @@session.session_track_state_change=OFF;
+# Create a prepared statement
+PREPARE p1 FROM 'SELECT i FROM test.t';
+DEALLOCATE PREPARE p1;
+SET @@session.session_track_state_change=ON;
+# Change system variable
+expect 1
+SET NAMES 'utf8';
+-- character_set_client
+-- utf8
+-- character_set_connection
+-- utf8
+-- character_set_results
+-- utf8
+-- 1
+
+SET @@session.session_track_state_change=OFF;
+# Change system variable
+SET NAMES 'utf8';
+-- character_set_client
+-- utf8
+-- character_set_connection
+-- utf8
+-- character_set_results
+-- utf8
+
+# reset the session.
+SET @@session.session_track_state_change=ON;
+# Change database
+expect 1
+USE test;
+-- test
+-- 1
+
+SET @@session.session_track_state_change=OFF;
+# Change database
+USE test;
+-- test
+
+# reset the session.
+SET @@session.session_track_state_change=ON;
+# Define a user defined variable
+expect 1
+SET @var1=20;
+-- 1
+
+SET @@session.session_track_state_change=OFF;
+# Define a user defined variable
+SET @var1=20;
+# reset the session.
+
+# Test with multiple session attributes
+
+SET @@session.session_track_state_change=ON;
+# expect 1
+PREPARE p1 FROM 'SELECT i FROM test.t';
+-- 1
+
+# expect 1
+PREPARE p2 FROM 'SELECT i FROM test.t';
+-- 1
+
+# expect 1
+DEALLOCATE PREPARE p1;
+-- 1
+
+expect 1
+CREATE TEMPORARY TABLE test.t1(i INT);
+-- 1
+
+expect 1
+DROP TEMPORARY TABLE test.t1;
+-- 1
+
+# expect 1
+DEALLOCATE PREPARE p2;
+-- 1
+
+SET @@session.session_track_state_change=ON;
+# expect 1
+USE test;
+-- test
+-- 1
+
+# expect 1
+SET @var3= 10;
+-- 1
+
+# expect 1
+CREATE TEMPORARY TABLE test.t1(i INT);
+-- 1
+
+# expect 1
+ALTER TABLE test.t1 ADD COLUMN (j INT);
+-- 1
+
+expect 1
+DROP TEMPORARY TABLE test.t1;
+-- 1
+
+
+# Test cases to check if tracker tracks only what is needed
+
+# CASE1: current DB exists in current session
+SET @@session.session_track_state_change=OFF;
+USE test;
+-- test
+
+SET @@session.session_track_state_change=ON;
+# expect 1
+PREPARE p1 FROM 'SELECT i FROM test.t';
+-- 1
+
+# expect 1 there is session context
+# 'Use test' context was not tracked
+DEALLOCATE PREPARE p1;
+-- 1
+
+# CASE2: prepared stmt exists in current session
+SET @@session.session_track_state_change=OFF;
+PREPARE p1 FROM 'SELECT i FROM test.t';
+SET @@session.session_track_state_change=ON;
+# expect 1
+CREATE TEMPORARY TABLE test.t1(i INT);
+-- 1
+
+# expect 1 there is prepared stmt context
+# since tracker is OFF it is not tracked
+DROP TEMPORARY TABLE test.t1;
+-- 1
+
+# expect 1
+DEALLOCATE PREPARE p1;
+-- 1
+
+# CASE3: user variables exists in current session
+SET @@session.session_track_state_change=OFF;
+SET @var1= 20;
+SET @@session.session_track_state_change=ON;
+# expect 1
+PREPARE p1 FROM 'SELECT i FROM test.t';
+-- 1
+
+# expect 1 if session context is present
+DEALLOCATE PREPARE p1;
+-- 1
+
+# CASE4: system variables exists in current session
+SET @@session.session_track_state_change=OFF;
+SET autocommit= 1;
+-- autocommit
+-- ON
+
+SET @@session.session_track_state_change=ON;
+# expect 1
+PREPARE p1 FROM 'SELECT i FROM test.t';
+-- 1
+
+# expect 1
+CREATE TEMPORARY TABLE test.t1(i INT);
+-- 1
+
+# expect 1
+DROP TEMPORARY TABLE test.t1;
+-- 1
+
+# expect 1
+DEALLOCATE PREPARE p1;
+-- 1
+
+# CASE5: temporary table exists in current session
+SET @@session.session_track_state_change=OFF;
+CREATE TEMPORARY TABLE test.t1(i INT);
+SET @@session.session_track_state_change=ON;
+# expect 1
+PREPARE p1 FROM 'SELECT i FROM test.t';
+-- 1
+
+# expect 1
+DEALLOCATE PREPARE p1;
+-- 1
+
+# reset the session.
+
+# Test for all valid values
+
+SET @@session.session_track_state_change=1;
+# expect 1
+PREPARE p1 FROM 'SELECT i FROM test.t';
+-- 1
+
+SET @@session.session_track_state_change=0;
+EXECUTE p1;
+i
+SET @@session.session_track_state_change=True;
+# expect 1
+DEALLOCATE PREPARE p1;
+-- 1
+
+SET @@session.session_track_state_change=falSe;
+DROP TABLE test.t;
+
+# Test for invalid values
+
+SET @@session.session_track_state_change=oNN;
+ERROR 42000: Variable 'session_track_state_change' can't be set to the value of 'oNN'
+SET @@session.session_track_state_change=FALS;
+ERROR 42000: Variable 'session_track_state_change' can't be set to the value of 'FALS'
+SET @@session.session_track_state_change=20;
+ERROR 42000: Variable 'session_track_state_change' can't be set to the value of '20'
+SET @@session.session_track_state_change=OFFF;
+ERROR 42000: Variable 'session_track_state_change' can't be set to the value of 'OFFF'
+SET @@session.session_track_state_change=NULL;
+ERROR 42000: Variable 'session_track_state_change' can't be set to the value of 'NULL'
+SET @@session.session_track_state_change='';
+ERROR 42000: Variable 'session_track_state_change' can't be set to the value of ''
+
+# Test in combination with other trackers
+
+# CASE1: with session_track_system_variables
+SET @@session.session_track_system_variables='time_zone,tx_isolation';
+SET @@session.time_zone='-6:00';
+-- time_zone
+-- -06:00
+
+SET @@session.session_track_state_change=1;
+# expect 1 as well in OK packet
+SET @@session.tx_isolation='READ-COMMITTED';
+-- tx_isolation
+-- READ-COMMITTED
+-- 1
+
+# expect 1 as well in OK packet
+SET @var2= 20;
+-- 1
+
+# CASE2: with session_track_schema
+SET @@session.session_track_state_change=1;
+SET @@session.session_track_schema=1;
+-- 1
+
+# expect 1 as well in OK packet
+USE test;
+-- test
+-- 1
+
+# CASE3: with both session_track_system_variables, session_track_schema
+# expect 1 as well in OK packet
+SET @@session.time_zone='-6:00';
+-- time_zone
+-- -06:00
+-- 1
+
+SET @@session.session_track_state_change=1;
+# expect 1 as well in OK packet
+SET @var2= 20;
+-- 1
+
+SET @@session.session_track_schema=1;
+-- 1
+
+# expect 1 as well in OK packet
+USE test;
+-- test
+-- 1
+
+# CASE4: check for trackers itself
+SET @@session.session_track_state_change=1;
+# expect 1
+SET @@session.session_track_system_variables='tx_isolation';
+-- 1
+
+# expect 1
+SET @@session.session_track_schema=1;
+-- 1
+
+# we dont send the boolean tracker for the tracker itself
+SET @@session.session_track_state_change=1;
+SET @@session.session_track_state_change=0;
+# Test if resetconnection sets the OFF the tracker
+SET @@session.session_track_state_change=1;
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+1
+# expect 0/FALSE
+SELECT @@session.session_track_state_change;
+@@session.session_track_state_change
+0
+# Test show variables
+SHOW VARIABLES like 'session_track_state_change';
+Variable_name	Value
+session_track_state_change	OFF
+SET @@session.session_track_state_change=1;
+SHOW VARIABLES like 'session_track_state_change';
+Variable_name	Value
+session_track_state_change	ON
+SHOW VARIABLES like 'session_track_state_change';
+Variable_name	Value
+session_track_state_change	OFF
 
 # End of tests

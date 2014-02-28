@@ -867,6 +867,34 @@ void read_ok_ex(MYSQL *mysql, ulong length)
 	  mysql->db= db;
 
           break;
+        case SESSION_TRACK_STATE_CHANGE:
+          if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
+                               MYF(0),
+                               &element, sizeof(LIST),
+                               &data, sizeof(LEX_STRING),
+                               NullS))
+          {
+            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+            return;
+          }
+
+          /* Get the length of the boolean tracker */
+          len= (size_t) net_field_length(&pos);
+          /* length for boolean tracker is always 1 */
+          DBUG_ASSERT(len == 1);
+          if(!(data->str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME))))
+          {
+            set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+            return;
+          }
+          memcpy(data->str, (char *) pos, len);
+          data->length= len;
+          pos += len;
+
+          element->data= data;
+          ADD_INFO(info, element);
+
+          break;
         default:
           DBUG_ASSERT(type <= SESSION_TRACK_END);
           /*
@@ -880,7 +908,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
         total_len -= (pos - saved_pos);
       }
     }
-    for(type=0;type<2;type++)
+    for (type= SESSION_TRACK_BEGIN; type<SESSION_TRACK_END; type++)
       if(info && info->info_list[type].head_node)
 	info->info_list[type].current_node= info->info_list[type].head_node=
 	  list_reverse(info->info_list[type].head_node);
