@@ -383,15 +383,11 @@ enum join_type { /*
                  */
                  JT_REF,
                  /*
-                   Full table scan or range scan.
-                   If select->quick != NULL, it is range access.
-                   Otherwise it is table scan.
+                   Full table scan.
                  */
                  JT_ALL,
                  /*
-                   Range scan. Note that range scan is not indicated
-                   by JT_RANGE but by "JT_ALL + select->quick" except
-                   when printing EXPLAIN output. @see calc_join_type()
+                   Range scan.
                  */
                  JT_RANGE,
                  /*
@@ -421,6 +417,9 @@ enum join_type { /*
                    produce unions and intersections
                  */
                  JT_INDEX_MERGE};
+
+/// @returns join type according to quick select type used
+join_type calc_join_type(int quick_type);
 
 class JOIN;
 
@@ -694,14 +693,6 @@ public:
   st_join_table *last_inner;    /**< last table table for embedding outer join*/
   st_join_table *first_upper;  /**< first inner table for embedding outer join*/
   st_join_table *first_unmatched; /**< used for optimization purposes only   */
-  /* 
-    The value of m_condition before we've attempted to do Index Condition
-    Pushdown. We may need to restore everything back if we first choose one
-    index but then reconsider (see test_if_skip_sort_order() for such
-    scenarios).
-    NULL means no index condition pushdown was performed.
-  */
-  Item          *pre_idx_push_cond;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
   Extra_tag     info;
@@ -910,6 +901,12 @@ public:
   /** TRUE <=> only index is going to be read for this table */
   bool use_keyread;
 
+  /** Flags from SE's MRR implementation, to be used by JOIN_CACHE */
+  uint join_cache_flags;
+
+  /** TRUE <=> AM will scan backward */
+  bool reversed_access;
+
   /** Clean up associated table after query execution, including resources */
   void cleanup();
 
@@ -1024,6 +1021,11 @@ public:
   bool use_order() const; ///< Use ordering provided by chosen index?
   bool sort_table();
   bool remove_duplicates();
+  /**
+    A helper function that allocates appropriate join cache object and
+    sets next_select function of previous tab.
+  */
+  void init_join_cache();
 } JOIN_TAB;
 
 inline
@@ -1043,7 +1045,6 @@ st_join_table::st_join_table()
     last_inner(NULL),
     first_upper(NULL),
     first_unmatched(NULL),
-    pre_idx_push_cond(NULL),
     info(ET_none),
     packed_info(0),
     materialize_table(NULL),
@@ -1111,7 +1112,9 @@ st_join_table::st_join_table()
     send_records(0),
     having(NULL),
     distinct(false),
-    use_keyread(false)
+    use_keyread(false),
+    join_cache_flags(0),
+    reversed_access(false)
 {
   /**
     @todo Add constructor to READ_RECORD.
@@ -1489,10 +1492,6 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
                                Item **const_item= NULL);
 bool test_if_subpart(ORDER *a,ORDER *b);
 void calc_group_buffer(JOIN *join,ORDER *group);
-bool
-test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
-                        const bool no_changes, const key_map *map,
-                        const char *clause_type);
 bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
 bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                         table_map used_tables);
@@ -1509,5 +1508,33 @@ uint actual_key_flags(KEY *key_info);
 
 int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
                          uint *used_key_parts= NULL);
+bool test_if_cheaper_ordering(const JOIN_TAB *tab,
+                              ORDER *order, TABLE *table,
+                              key_map usable_keys, int key,
+                              ha_rows select_limit,
+                              int *new_key, int *new_key_direction,
+                              ha_rows *new_select_limit,
+                              uint *new_used_key_parts= NULL,
+                              uint *saved_best_key_parts= NULL);
+/**
+  Calculate properties of ref key: key length, number of used key parts,
+  dependency map, possibility of null.
+
+  @param keyuse               Array of keys to consider
+  @param tab                  join_tab to calculate ref parameters for
+  @param key                  number of the key to use
+  @param used_tables          tables read prior to this table
+  @param [out] chosen_keyuses when given, this function will fill array with
+                              chosen keyuses
+  @param [out] length_out     calculated length of the ref
+  @param [out] keyparts_out   calculated number of used keyparts
+  @param [out] dep_map        when given, calculated dependency map
+  @param [out] maybe_null     when given, calculated maybe_null property
+*/
+
+void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
+                              table_map used_tables,Key_use **chosen_keyuses,
+                              uint *length_out, uint *keyparts_out,
+                              table_map *dep_map, bool *maybe_null);
 
 #endif /* SQL_SELECT_INCLUDED */

@@ -777,6 +777,13 @@ multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("multi_delete::prepare");
   unit= u;
   do_delete= true;
+  /* Don't use KEYREAD optimization on this table */
+  for (TABLE_LIST *walk= delete_tables; walk; walk= walk->next_local)
+    if (walk->correspondent_table)
+    {
+      TABLE_LIST *ref= walk->correspondent_table->updatable_base_table();
+      ref->table->no_keyread= true;
+    }
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
   DBUG_RETURN(0);
 }
@@ -822,8 +829,6 @@ multi_delete::initialize_tables(JOIN *join)
       continue;
 
     // We are going to delete from this table
-    // Don't use KEYREAD optimization on this table
-    table->no_keyread= 1;
     // Don't use record cache
     table->no_cache= 1;
     table->covering_keys.clear_all();
