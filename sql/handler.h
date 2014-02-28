@@ -1536,10 +1536,6 @@ private:
   double mem_cost;                              ///< memory used (bytes)
   
 public:
-
-  /// The cost of one I/O operation
-  static double IO_BLOCK_READ_COST() { return  1.0; } 
-
   Cost_estimate() :
     io_cost(0),
     cpu_cost(0),
@@ -2103,24 +2099,13 @@ public:
   /**
     Cost estimate for doing a complete table scan.
 
-    This function returns a Cost_estimate object. The function should be
-    implemented in a way that allows the compiler to use "return value
-    optimization" to avoid creating the temporary object for the return value
-    and use of the copy constructor.
-
     @note For this version it is recommended that storage engines continue
     to override scan_time() instead of this function.
 
     @returns the estimated cost
   */
 
-  virtual Cost_estimate table_scan_cost()
-  {
-    const double io_cost= scan_time() * Cost_estimate::IO_BLOCK_READ_COST();
-    Cost_estimate cost;
-    cost.add_io(io_cost);
-    return cost;
-  }
+  virtual Cost_estimate table_scan_cost();
 
   /**
     Cost estimate for reading a number of ranges from an index.
@@ -2128,11 +2113,6 @@ public:
     The cost estimate will only include the cost of reading data that
     is contained in the index. If the records need to be read, use
     read_cost() instead.
-
-    This function returns a Cost_estimate object. The function should be
-    implemented in a way that allows the compiler to use "return value
-    optimization" to avoid creating the temporary object for the return value
-    and use of the copy constructor.
 
     @note The ranges parameter is currently ignored and is not taken
     into account in the cost estimate.
@@ -2147,26 +2127,12 @@ public:
     @returns the estimated cost
   */
   
-  virtual Cost_estimate index_scan_cost(uint index, double ranges, double rows)
-  {
-    DBUG_ASSERT(ranges >= 0.0);
-    DBUG_ASSERT(rows >= 0.0);
-    const double io_cost= index_only_read_time(index, rows) *
-                          Cost_estimate::IO_BLOCK_READ_COST();
-    Cost_estimate cost;
-    cost.add_io(io_cost);
-    return cost;
-  }
+  virtual Cost_estimate index_scan_cost(uint index, double ranges, double rows);
 
   /**
     Cost estimate for reading a set of ranges from the table using an index
     to access it.
 
-    This function returns a Cost_estimate object. The function should be
-    implemented in a way that allows the compiler to use "return value
-    optimization" to avoid creating the temporary object for the return value
-    and use of the copy constructor.
- 
     @note For this version it is recommended that storage engines continue
     to override read_time() instead of this function.
 
@@ -2177,17 +2143,7 @@ public:
     @returns the estimated cost
   */
 
-  virtual Cost_estimate read_cost(uint index, double ranges, double rows)
-  {
-    DBUG_ASSERT(ranges >= 0.0);
-    DBUG_ASSERT(rows >= 0.0);
-    const double io_cost= read_time(index, static_cast<uint>(ranges),
-                                    static_cast<ha_rows>(rows)) *
-                          Cost_estimate::IO_BLOCK_READ_COST();
-    Cost_estimate cost;
-    cost.add_io(io_cost);
-    return cost;
-  }
+  virtual Cost_estimate read_cost(uint index, double ranges, double rows);
   
   /**
     Return an estimate on the amount of memory the storage engine will

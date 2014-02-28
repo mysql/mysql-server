@@ -29,6 +29,9 @@
 
 #include "opt_explain_format.h"
 
+class Cost_model_server;
+
+
 typedef struct st_sargable_param
 {
   Field *field;              /* field against which to check sargability */
@@ -611,6 +614,18 @@ public:
   /// See enum_plan_state
   enum_plan_state get_plan_state() const { return plan_state; }
   bool is_executed() const { return executed; }
+
+  /**
+    Retrieve the cost model object to be used for this join.
+
+    @return Cost model object for the join
+  */
+
+  const Cost_model_server* cost_model() const
+  {
+    DBUG_ASSERT(thd != NULL);
+    return thd->cost_model();
+  }
 
 private:
   bool executed;                          ///< Set by exec(), reset by reset()

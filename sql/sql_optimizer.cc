@@ -39,6 +39,7 @@
 #include "lock.h"
 #include "abstract_query_plan.h"
 #include "opt_explain_format.h"  // Explain_format_flags
+#include "opt_costmodel.h"
 #include "sql_view.h"            // repoint_contexts_of_join_nests
 
 #include <algorithm>
@@ -3358,6 +3359,9 @@ bool JOIN::init_planner_arrays()
     table->pos_in_table_list= tl;
     const int error= tl->fetch_number_of_rows();
 
+    // Initialize the cost model for the table
+    table->init_cost_model(cost_model());
+
     DBUG_EXECUTE_IF("bug11747970_raise_error",
                     {
                       if (!error)
@@ -3830,6 +3834,7 @@ bool JOIN::estimate_rowcount()
   JOIN_TAB *const tab_end= join_tab + tables;
   for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
   {
+    const Cost_model_table *const cost_model= tab->table->cost_model();
     Opt_trace_object trace_table(trace);
     trace_table.add_utf8_table(tab->table);
     if (tab->type == JT_SYSTEM || tab->type == JT_CONST)
@@ -3838,9 +3843,10 @@ bool JOIN::estimate_rowcount()
         .add_alnum("table_type", (tab->type == JT_SYSTEM) ? "system": "const")
         .add("empty", static_cast<bool>(tab->table->null_row));
 
-      // Only one matching row
-      tab->found_records= tab->records= tab->read_time= 1;
-      tab->worst_seeks= 1.0;
+      // Only one matching row and one block to read
+      tab->found_records= tab->records= 1;
+      tab->worst_seeks= cost_model->io_block_read_cost(1.0);
+      tab->read_time= static_cast<ha_rows>(tab->worst_seeks);
       continue;
     }
     // Approximate number of found rows and cost to read them
@@ -3852,10 +3858,12 @@ bool JOIN::estimate_rowcount()
       Set a max range of how many seeks we can expect when using keys
       This is can't be to high as otherwise we are likely to use table scan.
     */
-    tab->worst_seeks= min((double) tab->found_records / 10,
-                          (double) tab->read_time * 3);
-    if (tab->worst_seeks < 2.0)      // Fix for small tables
-      tab->worst_seeks= 2.0;
+    tab->worst_seeks= 
+      min(cost_model->io_block_read_cost((double) tab->found_records / 10),
+          (double) tab->read_time * 3);
+    double min_worst_seek= cost_model->io_block_read_cost(2.0);
+    if (tab->worst_seeks < min_worst_seek)      // Fix for small tables
+      tab->worst_seeks= min_worst_seek;
 
     /*
       Add to tab->const_keys those indexes for which all group fields or
@@ -9879,28 +9887,24 @@ static void calculate_materialization_costs(JOIN *join,
   */
   const uint rowlen= get_tmp_table_rec_length(*inner_expr_list);
 
-  double row_cost;    // The cost to write or lookup a row in temp. table
-  double create_cost; // The cost to create a temporary table
-  if (rowlen * distinct_rowcount <
-      join->thd->variables.max_heap_table_size)
-  {
-    row_cost=    HEAP_TEMPTABLE_ROW_COST;
-    create_cost= HEAP_TEMPTABLE_CREATE_COST;
-  }
-  else
-  {
-    row_cost=    DISK_TEMPTABLE_ROW_COST;
-    create_cost= DISK_TEMPTABLE_CREATE_COST;
-  }
+  const Cost_model_server *cost_model= join->cost_model();
 
+  Cost_model_server::enum_tmptable_type tmp_table_type;
+  if (rowlen * distinct_rowcount < join->thd->variables.max_heap_table_size)
+    tmp_table_type= Cost_model_server::MEMORY_TMPTABLE;
+  else
+    tmp_table_type= Cost_model_server::DISK_TMPTABLE;
+  
   /*
     Let materialization cost include the cost to create the temporary
     table and write the rows into it:
   */
-  mat_cost+= create_cost + (mat_rowcount * row_cost);
+  mat_cost+= cost_model->tmptable_create_cost(tmp_table_type);
+  mat_cost+= cost_model->tmptable_readwrite_cost(tmp_table_type, mat_rowcount,
+                                                 0.0);
+  
   sjm->materialization_cost.reset();
-  sjm->materialization_cost
-    .add_io(mat_cost);
+  sjm->materialization_cost.add_io(mat_cost);
 
   sjm->expected_rowcount= distinct_rowcount;
 
@@ -9910,8 +9914,16 @@ static void calculate_materialization_costs(JOIN *join,
   */
   sjm->scan_cost.reset();
   if (distinct_rowcount > 0.0)
-    sjm->scan_cost.add_io(distinct_rowcount * row_cost);
+  {
+    const double scan_cost=
+      cost_model->tmptable_readwrite_cost(tmp_table_type,
+                                          0.0, distinct_rowcount);
+    sjm->scan_cost.add_io(scan_cost);
+  }
 
+  // The cost to lookup a row in temp. table
+  const double row_cost= cost_model->tmptable_readwrite_cost(tmp_table_type,
+                                                             0.0, 1.0);
   sjm->lookup_cost.reset();
   sjm->lookup_cost.add_io(row_cost);
 }
