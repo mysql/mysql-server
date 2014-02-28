@@ -865,6 +865,26 @@ void ha_close_connection(THD* thd)
   plugin_foreach(thd, closecon_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
 }
 
+
+static my_bool kill_handlerton(THD *thd, plugin_ref plugin, void *)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->state == SHOW_OPTION_YES && hton->kill_connection)
+  {
+    if (thd_get_ha_data(thd, hton))
+      hton->kill_connection(hton, thd);
+  }
+
+  return FALSE;
+}
+
+void ha_kill_connection(THD *thd)
+{
+  plugin_foreach(thd, kill_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
+}
+
+
 /* ========================================================================
  ======================= TRANSACTIONS ===================================*/
 

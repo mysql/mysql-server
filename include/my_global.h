@@ -226,6 +226,16 @@
 #include <crypt.h>
 #endif
 
+/**
+  Cast a member of a structure to the structure that contains it.
+
+  @param  ptr     Pointer to the member.
+  @param  type    Type of the structure that contains the member.
+  @param  member  Name of the member within the structure.
+*/
+#define my_container_of(ptr, type, member)              \
+  ((type *)((char *)ptr - offsetof(type, member)))
+
 /*
   A lot of our programs uses asserts, so better to always include it
   This also fixes a problem when people uses DBUG_ASSERT without including
