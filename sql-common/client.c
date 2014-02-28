@@ -862,7 +862,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
 	  if (mysql->db)
 	    my_free(mysql->db);
 
-	  memcpy(db, data->str, data->length + 1);
+	  memcpy(db, data->str, data->length);
           db[data->length]= '\0';
 	  mysql->db= db;
 
