@@ -1637,6 +1637,14 @@ public:
       JOIN::plan_state
       Tree of SELECT_LEX_UNIT after THD::Query_plan was set till
         THD::Query_plan cleanup
+      JOIN_TAB::select->quick
+    Code that changes objects above should take this mutex.
+    Explain code takes this mutex to block changes to named structures to
+    avoid crashes in following functions:
+      explain_single_table_modification
+      explain_query
+      mysql_explain_other
+    All explain code assumes that this mutex is already taken.
   */
   mysql_mutex_t LOCK_query_plan;
 
@@ -3969,7 +3977,7 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
-  select_result_interceptor() {}              /* Remove gcc warning */
+  select_result_interceptor() {}  /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_result_set_metadata(List<Item> &fields, uint flag) { return FALSE; }
 };

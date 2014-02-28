@@ -109,7 +109,7 @@ public:
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
   bool     sort_and_group; 
-  bool     first_record,full_join, no_field_update;
+  bool     first_record, no_field_update;
   bool     group;            ///< If query contains GROUP BY clause
   bool     do_send_rows;
   table_map all_table_map;   ///< Set of tables contained in query
@@ -725,10 +725,66 @@ private:
   bool estimate_rowcount();
   void optimize_keyuse();
   void set_semijoin_info();
-  bool set_access_methods();
+  /**
+   An utility function - apply heuristics and optimize access methods to tables.
+   @note Side effect - this function could set 'Impossible WHERE' zero
+   result.
+  */
+  void adjust_access_methods();
   void update_depend_map();
   void update_depend_map(ORDER *order);
+  /**
+    Fill in outer join related info for the execution plan structure.
+
+      For each outer join operation left after simplification of the
+      original query the function set up the following pointers in the linear
+      structure join->join_tab representing the selected execution plan.
+      The first inner table t0 for the operation is set to refer to the last
+      inner table tk through the field t0->last_inner.
+      Any inner table ti for the operation are set to refer to the first
+      inner table ti->first_inner.
+      The first inner table t0 for the operation is set to refer to the
+      first inner table of the embedding outer join operation, if there is any,
+      through the field t0->first_upper.
+      The on expression for the outer join operation is attached to the
+      corresponding first inner table through the field t0->on_expr_ref.
+      Here ti are structures of the JOIN_TAB type.
+
+    EXAMPLE. For the query: 
+    @code
+          SELECT * FROM t1
+                        LEFT JOIN
+                        (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
+                        ON (t1.a=t2.a AND t1.b=t3.b)
+            WHERE t1.c > 5,
+    @endcode
+
+      given the execution plan with the table order t1,t2,t3,t4
+      is selected, the following references will be set;
+      t4->last_inner=[t4], t4->first_inner=[t4], t4->first_upper=[t2]
+      t2->last_inner=[t4], t2->first_inner=t3->first_inner=[t2],
+      on expression (t1.a=t2.a AND t1.b=t3.b) will be attached to 
+      *t2->on_expr_ref, while t3.a=t4.a will be attached to *t4->on_expr_ref.
+
+    @note
+      The function assumes that the simplification procedure has been
+      already applied to the join query (see simplify_joins).
+      This function can be called only after the execution plan
+      has been chosen.
+  */
   void make_outerjoin_info();
+
+  /**
+    Initialize ref access for all tables that use it.
+
+    @return False if success, True if error
+
+    @note We cannot setup fields used for ref access before we have sorted
+          the items within multiple equalities according to the final order of
+          the tables involved in the join operation. Currently, this occurs in
+          @see substitute_for_best_equal_field().
+  */
+  bool init_ref_access();
   bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
                                 const POSITION *inner_pos,
                                 POSITION *sjm_pos);
@@ -743,6 +799,41 @@ private:
     Recount temp table field types recursively.
   */
   void recount_field_types();
+
+  /**
+    Check whether this is a subquery that can be evaluated by index look-ups.
+    If so, change subquery engine to subselect_indexsubquery_engine.
+
+    @retval  1   engine was changed
+    @retval  0   engine wasn't changed
+    @retval -1   OOM
+  */
+  int replace_index_subquery();
+
+  /**
+    Optimize DISTINCT, GROUP BY, ORDER BY clauses
+
+    @retval false ok
+    @retval true  an error occured
+  */
+  bool optimize_distinct_group_order();
+
+  /**
+    Test if an index could be used to replace filesort for ORDER BY/GROUP BY
+
+    @details
+      Investigate whether we may use an ordered index as part of either
+      DISTINCT, GROUP BY or ORDER BY execution. An ordered index may be
+      used for only the first of any of these terms to be executed. This
+      is reflected in the order which we check for test_if_skip_sort_order()
+      below. However we do not check for DISTINCT here, as it would have
+      been transformed to a GROUP BY at this stage if it is a candidate for 
+      ordered index optimization.
+      If a decision was made to use an ordered index, the availability
+      if such an access path is stored in 'ordered_index_usage' for later
+      use by 'execute' or 'explain'
+  */
+  void test_skip_sort();
 };
 
 /// RAII class to ease the call of LEX::mark_broken() if error.
