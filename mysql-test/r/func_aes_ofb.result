@@ -127,4 +127,6 @@ COUNT(*)
 SET SESSION block_encryption_mode=DEFAULT;
 DROP TABLE aes_ofb;
 SET SESSION block_encryption_mode=default;
+#
 # End of 5.7 tests
+#

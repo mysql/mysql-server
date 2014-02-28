@@ -173,3 +173,8 @@ SELECT AES_DECRYPT(f1, @KEYS, @IV)=@ENCSTR FROM t1;
 
 SET @@session.block_encryption_mode = DEFAULT;
 DROP TABLE IF EXISTS t1;
+
+
+--echo #
+--echo # End of 5.7 tests
+--echo #
