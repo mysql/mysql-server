@@ -98,30 +98,36 @@ public:
     m_thd= m_initializer.thd();
     m_mdl_context= &m_thd->mdl_context;
 
-    Mock_error_handler error_handler(m_thd, 0);
-
-    if (m_sync)
+    /*
+      Use a block to ensure that Mock_error_handler dtor is called
+      before m_initalizer.TearDown().
+    */
     {
-      EXPECT_FALSE(debug_sync_set_action(m_thd, m_sync));
+      Mock_error_handler error_handler(m_thd, 0);
+
+      if (m_sync)
+      {
+        EXPECT_FALSE(debug_sync_set_action(m_thd, m_sync));
+      }
+
+      MDL_request request;
+      MDL_REQUEST_INIT(&request, MDL_key::TABLE, "db", "table", m_mdl_type,
+                       MDL_TRANSACTION);
+
+      EXPECT_FALSE(m_mdl_context->acquire_lock(&request, 3600));
+      EXPECT_TRUE(m_mdl_context->
+                  is_lock_owner(MDL_key::TABLE, "db", "table", m_mdl_type));
+
+      if (m_lock_grabbed)
+        m_lock_grabbed->notify();
+      if (m_lock_release)
+        m_lock_release->wait_for_notification();
+
+      m_mdl_context->release_transactional_locks();
+
+      /* The above should not generate any warnings (e.g. about timeouts). */
+      EXPECT_EQ(0, error_handler.handle_called());
     }
-
-    MDL_request request;
-    MDL_REQUEST_INIT(&request, MDL_key::TABLE, "db", "table", m_mdl_type,
-                     MDL_TRANSACTION);
-
-    EXPECT_FALSE(m_mdl_context->acquire_lock(&request, 3600));
-    EXPECT_TRUE(m_mdl_context->
-                is_lock_owner(MDL_key::TABLE, "db", "table", m_mdl_type));
-
-    if (m_lock_grabbed)
-      m_lock_grabbed->notify();
-    if (m_lock_release)
-      m_lock_release->wait_for_notification();
-
-    m_mdl_context->release_transactional_locks();
-
-    /* The above should not generate any warnings (e.g. about timeouts). */
-    EXPECT_EQ(0, error_handler.handle_called());
 
     m_initializer.TearDown();
   }
