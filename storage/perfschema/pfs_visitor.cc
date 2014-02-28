@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -681,22 +681,42 @@ void PFS_connection_wait_visitor::visit_global()
 
 void PFS_connection_wait_visitor::visit_host(PFS_host *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_waits_stats[m_index]);
+  const PFS_single_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_waits_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_wait_visitor::visit_user(PFS_user *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_waits_stats[m_index]);
+  const PFS_single_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_waits_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_wait_visitor::visit_account(PFS_account *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_waits_stats[m_index]);
+  const PFS_single_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_waits_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_wait_visitor::visit_thread(PFS_thread *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_waits_stats[m_index]);
+  const PFS_single_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_waits_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 PFS_connection_all_wait_visitor
@@ -714,11 +734,14 @@ void PFS_connection_all_wait_visitor::visit_global()
 
 void PFS_connection_all_wait_visitor::visit_connection_slice(PFS_connection_slice *pfs)
 {
-  PFS_single_stat *stat= pfs->m_instr_class_waits_stats;
-  PFS_single_stat *stat_last= stat + wait_class_max;
-  for ( ; stat < stat_last; stat++)
+  const PFS_single_stat *stat= pfs->read_instr_class_waits_stats();
+  if (stat != NULL)
   {
-    m_stat.aggregate(stat);
+    const PFS_single_stat *stat_last= stat + wait_class_max;
+    for ( ; stat < stat_last; stat++)
+    {
+      m_stat.aggregate(stat);
+    }
   }
 }
 
@@ -757,22 +780,42 @@ void PFS_connection_stage_visitor::visit_global()
 
 void PFS_connection_stage_visitor::visit_host(PFS_host *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_stages_stats[m_index]);
+  const PFS_stage_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_stages_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_stage_visitor::visit_user(PFS_user *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_stages_stats[m_index]);
+  const PFS_stage_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_stages_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_stage_visitor::visit_account(PFS_account *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_stages_stats[m_index]);
+  const PFS_stage_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_stages_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_stage_visitor::visit_thread(PFS_thread *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_stages_stats[m_index]);
+  const PFS_stage_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_stages_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 PFS_connection_statement_visitor
@@ -791,22 +834,42 @@ void PFS_connection_statement_visitor::visit_global()
 
 void PFS_connection_statement_visitor::visit_host(PFS_host *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_statements_stats[m_index]);
+  const PFS_statement_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_statements_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_statement_visitor::visit_user(PFS_user *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_statements_stats[m_index]);
+  const PFS_statement_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_statements_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_statement_visitor::visit_account(PFS_account *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_statements_stats[m_index]);
+  const PFS_statement_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_statements_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_statement_visitor::visit_thread(PFS_thread *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_statements_stats[m_index]);
+  const PFS_statement_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_statements_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 /** Instance wait visitor */
@@ -829,11 +892,14 @@ void PFS_connection_all_statement_visitor::visit_global()
 
 void PFS_connection_all_statement_visitor::visit_connection_slice(PFS_connection_slice *pfs)
 {
-  PFS_statement_stat *stat= pfs->m_instr_class_statements_stats;
-  PFS_statement_stat *stat_last= stat + statement_class_max;
-  for ( ; stat < stat_last; stat++)
+  const PFS_statement_stat *stat= pfs->read_instr_class_statements_stats();
+  if (stat != NULL)
   {
-    m_stat.aggregate(stat);
+    const PFS_statement_stat *stat_last= stat + statement_class_max;
+    for ( ; stat < stat_last; stat++)
+    {
+      m_stat.aggregate(stat);
+    }
   }
 }
 
@@ -873,22 +939,42 @@ void PFS_connection_transaction_visitor::visit_global()
 
 void PFS_connection_transaction_visitor::visit_host(PFS_host *pfs)
 {
-  m_stat.aggregate(&pfs->m_instr_class_transactions_stats[m_index]);
+  const PFS_transaction_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_transactions_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_transaction_visitor::visit_user(PFS_user *pfs)
 {
-  m_stat.aggregate(&pfs->m_instr_class_transactions_stats[m_index]);
+  const PFS_transaction_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_transactions_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_transaction_visitor::visit_account(PFS_account *pfs)
 {
-  m_stat.aggregate(&pfs->m_instr_class_transactions_stats[m_index]);
+  const PFS_transaction_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_transactions_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 void PFS_connection_transaction_visitor::visit_thread(PFS_thread *pfs)
 {
-  m_stat.aggregate(&pfs->m_instr_class_transactions_stats[m_index]);
+  const PFS_transaction_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_transactions_stats();
+  if (event_name_array != NULL)
+  {
+    m_stat.aggregate(& event_name_array[m_index]);
+  }
 }
 
 /** Disabled pending code review */
@@ -981,30 +1067,50 @@ void PFS_connection_memory_visitor::visit_global()
 
 void PFS_connection_memory_visitor::visit_host(PFS_host *pfs)
 {
-  PFS_memory_stat *stat;
-  stat= & pfs->m_instr_class_memory_stats[m_index];
-  stat->full_aggregate_to(& m_stat);
+  const PFS_memory_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_memory_stats();
+  if (event_name_array != NULL)
+  {
+    const PFS_memory_stat *stat;
+    stat= & event_name_array[m_index];
+    stat->full_aggregate_to(& m_stat);
+  }
 }
 
 void PFS_connection_memory_visitor::visit_user(PFS_user *pfs)
 {
-  PFS_memory_stat *stat;
-  stat= & pfs->m_instr_class_memory_stats[m_index];
-  stat->full_aggregate_to(& m_stat);
+  const PFS_memory_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_memory_stats();
+  if (event_name_array != NULL)
+  {
+    const PFS_memory_stat *stat;
+    stat= & event_name_array[m_index];
+    stat->full_aggregate_to(& m_stat);
+  }
 }
 
 void PFS_connection_memory_visitor::visit_account(PFS_account *pfs)
 {
-  PFS_memory_stat *stat;
-  stat= & pfs->m_instr_class_memory_stats[m_index];
-  stat->full_aggregate_to(& m_stat);
+  const PFS_memory_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_memory_stats();
+  if (event_name_array != NULL)
+  {
+    const PFS_memory_stat *stat;
+    stat= & event_name_array[m_index];
+    stat->full_aggregate_to(& m_stat);
+  }
 }
 
 void PFS_connection_memory_visitor::visit_thread(PFS_thread *pfs)
 {
-  PFS_memory_stat *stat;
-  stat= & pfs->m_instr_class_memory_stats[m_index];
-  stat->full_aggregate_to(& m_stat);
+  const PFS_memory_stat *event_name_array;
+  event_name_array= pfs->read_instr_class_memory_stats();
+  if (event_name_array != NULL)
+  {
+    const PFS_memory_stat *stat;
+    stat= & event_name_array[m_index];
+    stat->full_aggregate_to(& m_stat);
+  }
 }
 
 PFS_instance_wait_visitor::PFS_instance_wait_visitor()

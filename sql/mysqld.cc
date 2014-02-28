@@ -113,6 +113,8 @@
 #include "sp_head.h"  // init_sp_psi_keys
 #include "event_data_objects.h" //init_scheduler_psi_keys
 
+#include "my_timer.h"    // my_timer_init, my_timer_deinit
+
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
@@ -657,6 +659,7 @@ SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
+SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 /* Thread specific variables */
 
@@ -1516,6 +1519,13 @@ void clean_up(bool print_message)
     THR_MALLOC_initialized= false;
     (void) pthread_key_delete(THR_MALLOC);
   }
+
+#ifdef HAVE_MY_TIMER
+  if (have_statement_timeout == SHOW_OPTION_YES)
+    my_timer_deinitialize();
+
+  have_statement_timeout= SHOW_OPTION_DISABLED;
+#endif
 
   /*
     The following lines may never be executed as the main thread may have
@@ -2885,7 +2895,6 @@ int init_common_variables()
 		    "Invalid value for --default-authentication-plugin");
     return 1;
   }
-
   set_server_version();
 
   log_warnings= log_error_verbosity - 1; // backward compatibility
@@ -2902,7 +2911,7 @@ int init_common_variables()
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
          server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
-#ifdef HAVE_LARGE_PAGES
+#ifdef HAVE_LINUX_LARGE_PAGES
   /* Initialize large page size */
   if (opt_large_pages && (opt_large_page_size= my_get_large_page_size()))
   {
@@ -2919,7 +2928,7 @@ int init_common_variables()
        been compiled with large page support
     */
   }
-#endif /* HAVE_LARGE_PAGES */
+#endif /* HAVE_LINUX_LARGE_PAGES */
 #ifdef HAVE_SOLARIS_LARGE_PAGES
 #define LARGE_PAGESIZE (4*1024*1024)  /* 4MB */
 #define SUPER_LARGE_PAGESIZE (256*1024*1024)  /* 256MB */
@@ -3658,6 +3667,16 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(1);
 
+#ifdef HAVE_MY_TIMER
+  if (my_timer_initialize())
+    sql_print_error("Failed to initialize timer component (errno %d).", errno);
+  else
+    have_statement_timeout= SHOW_OPTION_YES;
+#else
+  have_statement_timeout= SHOW_OPTION_NO;
+#endif
+
+
   init_server_query_cache();
 
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
@@ -3912,6 +3931,26 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
   plugins_are_initialized= TRUE;  /* Don't separate from init function */
 
+  Session_tracker session_track_system_variables_check;
+  LEX_STRING var_list;
+  char *tmp_str;
+  size_t len= strlen(global_system_variables.track_sysvars_ptr);
+  tmp_str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len*sizeof(char)+2,
+                             MYF(MY_WME));
+  strcpy(tmp_str,global_system_variables.track_sysvars_ptr);
+  var_list.length= len;
+  var_list.str= tmp_str;
+  if (session_track_system_variables_check.server_boot_verify(system_charset_info,
+	                                                      var_list))
+  {
+    sql_print_error("The variable session_track_system_variables either has "
+	            "duplicate values or invalid values.");
+    if (tmp_str)
+      my_free(tmp_str);
+    unireg_abort(1);
+  }
+  if (tmp_str)
+    my_free(tmp_str);
   /* we do want to exit if there are any other unknown options */
   if (remaining_argc > 1)
   {
@@ -4058,12 +4097,20 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     */
     mysql_bin_log.set_previous_gtid_set(
       const_cast<Gtid_set*>(gtid_state->get_logged_gtids()));
+
+    mysql_mutex_t *log_lock= mysql_bin_log.get_log_lock();
+    mysql_mutex_lock(log_lock);
+
     if (mysql_bin_log.open_binlog(opt_bin_logname, 0,
                                   max_binlog_size, false,
                                   true/*need_lock_index=true*/,
                                   true/*need_sid_lock=true*/,
                                   NULL))
+    {
+      mysql_mutex_unlock(log_lock);
       unireg_abort(1);
+    }
+    mysql_mutex_unlock(log_lock);
   }
 
 #ifdef HAVE_REPLICATION
@@ -5275,7 +5322,7 @@ struct my_option my_long_options[]=
    "Set up signals usable for debugging.",
    &opt_debugging, &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_LARGE_PAGE_OPTION
+#if defined(HAVE_LINUX_LARGE_PAGES) || defined (HAVE_SOLARIS_LARGE_PAGES)
   {"super-large-pages", 0, "Enable support for super large pages.",
    &opt_super_large_pages, &opt_super_large_pages, 0,
    GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
@@ -6185,6 +6232,9 @@ SHOW_VAR status_vars[]= {
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
   {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections, SHOW_LONG},
+  {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded), SHOW_LONG_STATUS},
+  {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set), SHOW_LONG_STATUS},
+  {"Max_statement_time_set_failed", (char*) offsetof(STATUS_VAR, max_statement_time_set_failed), SHOW_LONG_STATUS},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},
@@ -7639,6 +7689,9 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
+#ifdef HAVE_MY_TIMER
+PSI_mutex_key key_thd_timer_mutex;
+#endif
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7715,6 +7768,9 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
+#ifdef HAVE_MY_TIMER
+  { &key_thd_timer_mutex, "thd_timer_mutex", 0},
+#endif
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7814,6 +7870,10 @@ static PSI_cond_info all_server_conds[]=
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand;
 
+#ifdef HAVE_MY_TIMER
+PSI_thread_key key_thread_timer_notifier;
+#endif
+
 static PSI_thread_info all_server_threads[]=
 {
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -7822,6 +7882,9 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
+#ifdef HAVE_MY_TIMER
+  { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_GLOBAL},
+#endif
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
@@ -8213,6 +8276,11 @@ PSI_memory_key key_memory_READ_RECORD_cache;
 PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_File_query_log_name;
 PSI_memory_key key_memory_Table_trigger_dispatcher;
+#ifdef HAVE_MY_TIMER
+PSI_memory_key key_memory_thd_timer;
+#endif
+PSI_memory_key key_memory_THD_Session_tracker;
+PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_server_memory[]=
@@ -8350,7 +8418,13 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_READ_RECORD_cache, "READ_RECORD_cache", 0},
   { &key_memory_Quick_ranges, "Quick_ranges", 0},
   { &key_memory_File_query_log_name, "File_query_log::name", 0},
-  { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0}
+  { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0},
+#ifdef HAVE_MY_TIMER
+  { &key_memory_thd_timer, "thd_timer", 0},
+#endif
+  { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0},
+  { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
+  { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0}
 };
 
 /* TODO: find a good header */

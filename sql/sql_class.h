@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +48,12 @@
 #include <mysql/psi/mysql_idle.h>
 
 #include <mysql_com_server.h>
+#include "opt_costmodel.h"                      // Cost_model_server
 #include "sql_data_change.h"
+
+#include "sys_vars_resource_mgr.h"
+#include "session_tracker.h"
+
 #include "transaction_info.h"
 
 /**
@@ -87,6 +93,8 @@ class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
 typedef struct st_log_info LOG_INFO;
+
+struct st_thd_timer;
 
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 
@@ -544,6 +552,12 @@ typedef struct system_variables
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
+
+  ulong max_statement_time;
+
+  char *track_sysvars_ptr;
+  my_bool session_track_schema;
+  my_bool session_track_state_change;
 } SV;
 
 
@@ -606,6 +620,11 @@ typedef struct system_status_var
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+
+  ulonglong max_statement_time_exceeded;
+  ulonglong max_statement_time_set;
+  ulonglong max_statement_time_set_failed;
+
   /*
     Number of statements sent from the client
   */
@@ -622,6 +641,7 @@ typedef struct system_status_var
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
+
 } STATUS_VAR;
 
 /*
@@ -1911,6 +1931,16 @@ public:
     return m_binlog_filter_state;
   }
 
+#ifdef HAVE_MY_TIMER
+  /** Holds active timer object */
+  struct st_thd_timer_info *timer;
+  /**
+    After resetting(cancelling) timer, current timer object is cached
+    with timer_cache timer to reuse.
+  */
+  struct st_thd_timer_info *timer_cache;
+#endif
+
 private:
   /**
     Indicate if the current statement should be discarded
@@ -2498,6 +2528,7 @@ public:
     KILL_BAD_DATA=1,
     KILL_CONNECTION=ER_SERVER_SHUTDOWN,
     KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILL_TIMEOUT=ER_QUERY_TIMEOUT,
     KILLED_NO_VALUE      /* means neither of the states */
   };
   killed_state volatile killed;
@@ -2798,6 +2829,19 @@ public:
   virtual bool notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
+  /**
+    Provide thread specific random seed for MDL_context's PRNG.
+
+    Note that even if two connections will request seed during handling of
+    statements which were started at exactly the same time, and thus will
+    get the same values in PRNG at the start, they will naturally diverge
+    soon, since calls to PRNG in MDL subsystem are affected by many factors
+    making process quite random. OTOH the fact that we use time as a seed
+    gives more randomness and thus better coverage in tests as opposed to
+    using thread_id for the same purpose.
+  */
+  virtual uint get_rand_seed() { return (uint)start_utime; }
+
   // End implementation of MDL_context_owner interface.
 
   inline bool is_strict_mode() const
@@ -3089,6 +3133,7 @@ public:
       DBUG_PRINT("info",
                  ("change_item_tree place %p old_value %p new_value %p",
                   place, *place, new_value));
+      new_value->set_runtime_created(); /* Note the change of item tree */
       nocheck_register_item_tree_change(place, *place, mem_root);
     }
     *place= new_value;
@@ -3673,6 +3718,28 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+
+private:
+  /**
+    Optimizer cost model for server operations.
+  */
+  Cost_model_server m_cost_model;
+
+public:
+  /**
+    Initialize the optimizer cost model.
+
+    This function should be called each time a new query is started.
+  */
+  void init_cost_model() { m_cost_model.init(); }
+
+  /**
+    Retrieve the optimizer cost model for this connection.
+  */
+  const Cost_model_server* cost_model() const { return &m_cost_model; }
+
+  Session_tracker session_tracker;
+  Session_sysvar_resource_manager session_sysvar_res_mgr;
 };
 
 

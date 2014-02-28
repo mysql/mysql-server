@@ -4,6 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 **** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
 STOP SLAVE;
 include/wait_for_slave_to_stop.inc
 **** On Master ****

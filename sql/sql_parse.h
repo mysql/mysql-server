@@ -18,6 +18,7 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "auth_common.h"                        /* GLOBAL_ACLS */
+#include "mysqld_thd_manager.h"                 /* Global_THD_manager */
 
 class Comp_creator;
 class Item;
@@ -123,6 +124,11 @@ extern uint server_command_flags[];
 extern const LEX_STRING command_name[];
 extern uint server_command_flags[];
 
+#ifdef HAVE_MY_TIMER
+// Statement timeout function(s)
+extern void reset_statement_timer(THD *thd);
+#endif
+
 /* Inline functions */
 inline bool check_identifier_name(LEX_STRING *str, uint err_code)
 {
@@ -143,5 +149,29 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 
 extern "C" bool sqlcom_can_generate_row_events(const THD *thd);
 
+/**
+  Callback function used by kill_one_thread and timer_notify functions
+  to find "thd" based on the thread id.
 
+  @note It acquires LOCK_thd_data mutex when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_thd_with_id: public Find_THD_Impl
+{
+public:
+  Find_thd_with_id(ulong value): m_id(value) {}
+  virtual bool operator()(THD *thd)
+  {
+    if (thd->get_command() == COM_DAEMON)
+      return false;
+    if (thd->thread_id == m_id)
+    {
+      mysql_mutex_lock(&thd->LOCK_thd_data);
+      return true;
+    }
+    return false;
+  }
+private:
+  ulong m_id;
+};
 #endif /* SQL_PARSE_INCLUDED */

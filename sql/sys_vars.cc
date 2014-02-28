@@ -2821,7 +2821,7 @@ static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
     mysql_mutex_lock(&active_mi->rli->run_lock);
     if (active_mi->rli->slave_running)
     {
-      my_error(ER_SLAVE_MUST_STOP, MYF(0));
+      my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
       result= true;
     }
     mysql_mutex_unlock(&active_mi->rli->run_lock);
@@ -3019,6 +3019,12 @@ static Sys_var_set Sys_sql_mode(
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
        sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
+
+static Sys_var_ulong Sys_max_statement_time(
+       "max_statement_time",
+       "Kill SELECT statement that takes over the specified number of milliseconds",
+       SESSION_VAR(max_statement_time), NO_CMD_LINE,
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)
@@ -3963,6 +3969,9 @@ static Sys_var_have Sys_have_symlink(
        "have_symlink", "have_symlink",
        READ_ONLY GLOBAL_VAR(have_symlink), NO_CMD_LINE);
 
+static Sys_var_have Sys_have_statement_timeout(
+       "have_statement_timeout", "have_statement_timeout",
+       READ_ONLY GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
 
 static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -4167,7 +4176,8 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
     mysql_mutex_lock(&active_mi->rli->run_lock);
     if (active_mi->rli->slave_running)
     {
-      my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+      my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
+                 ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
       result= true;
     }
     if (gtid_mode == 3)
@@ -4795,3 +4805,67 @@ static Sys_var_enum Sys_block_encryption_mode(
   "block_encryption_mode", "mode for AES_ENCRYPT/AES_DECRYPT",
   SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG),
   my_aes_opmode_names, DEFAULT(my_aes_128_ecb));
+
+static bool check_track_session_sys_vars(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_sysvar_change_reporter");
+  DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->check(thd, var));
+  DBUG_RETURN(false);
+}
+
+static bool update_track_session_sys_vars(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  DBUG_ENTER("check_sysvar_change_reporter");
+  /* Populate map only for session variable. */
+  if (type == OPT_SESSION)
+    DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->update(thd));
+  DBUG_RETURN(false);
+}
+
+static Sys_var_charptr Sys_track_session_sys_vars(
+       "session_track_system_variables",
+       "Track changes in registered system variables.",
+       SESSION_VAR(track_sysvars_ptr),
+       CMD_LINE(REQUIRED_ARG),
+       IN_FS_CHARSET,
+       DEFAULT("time_zone,autocommit,character_set_client,character_set_results,"
+               "character_set_connection"),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(check_track_session_sys_vars),
+       ON_UPDATE(update_track_session_sys_vars)
+);
+
+static bool update_session_track_schema(sys_var *self, THD *thd,
+                                        enum_var_type type)
+{
+  DBUG_ENTER("update_session_track_schema");
+  DBUG_RETURN(thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->update(thd));
+}
+
+static Sys_var_mybool Sys_session_track_schema(
+       "session_track_schema",
+       "Track changes to the 'default schema'.",
+       SESSION_VAR(session_track_schema),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(update_session_track_schema));
+
+static bool update_session_track_state_change(sys_var *self, THD *thd,
+                                              enum_var_type type)
+{
+  DBUG_ENTER("update_session_track_state_change");
+  DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->update(thd));
+}
+
+static Sys_var_mybool Sys_session_track_state_change(
+       "session_track_state_change",
+       "Track changes to the 'session state'.",
+       SESSION_VAR(session_track_state_change),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(update_session_track_state_change));
+
