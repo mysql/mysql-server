@@ -109,7 +109,7 @@ CREATE TABLE tab(a INT);
 SET GLOBAL event_scheduler=ON;
 
 DELIMITER |;
-CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO
+CREATE EVENT e1 ON SCHEDULE EVERY 10 HOUR DO
 BEGIN
   PREPARE st FROM 'INSERT INTO tab VALUES(?)';  
   SET @a=1;
@@ -123,6 +123,11 @@ DELIMITER ;|
 --let $wait_condition= select count(*) >= 1 from tab
 --source include/wait_condition.inc
 SELECT * FROM tab LIMIT 1;
+
+# Wait till the  above one execution of event is instrumented.
+
+--let $wait_condition= select count_star >= 1 from performance_schema.events_statements_summary_by_program where object_type='EVENT'
+--source include/wait_condition.inc
 
 SET GLOBAL event_scheduler=OFF;
 --source include/no_running_event_scheduler.inc
