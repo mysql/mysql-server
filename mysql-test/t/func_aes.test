@@ -220,4 +220,6 @@ let $block_mode=default;
 SELECT RANDOM_BYTES(2147483647 - 9);
 
 
+--echo #
 --echo # End of 5.7 tests
+--echo #
