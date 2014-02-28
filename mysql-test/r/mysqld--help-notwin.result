@@ -848,6 +848,11 @@ The following options may be given as the first argument:
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --server-id-bits=#  Set number of significant bits in server-id
+ --session-track-schema 
+ Track changes to the 'default schema'.
+ (Defaults to on; use --skip-session-track-schema to disable.)
+ --session-track-system-variables=name 
+ Track changes in registered system variables.
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
@@ -1278,6 +1283,8 @@ secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
+session-track-schema TRUE
+session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
