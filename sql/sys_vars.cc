@@ -2906,8 +2906,75 @@ static Sys_var_ulong Sys_sort_buffer(
        VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(DEFAULT_SORT_MEMORY),
        BLOCK_SIZE(1));
 
+/**
+  NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
+  removed in 5.7 and their functionality is merged with STRICT MODE.
+  However, For backward compatibility during upgrade, these modes are kept
+  but they are not used. Setting these modes in 5.7 will give warning and
+  have no effect.
+*/
+
+void unset_removed_sql_modes(sql_mode_t &sql_mode)
+{
+  /**
+    If sql_mode is set throught the client, the warning should
+    go to the client connection. If it is used as server startup option,
+    it will go the error-log if the removed sql_modes are used.
+  */
+  THD *thd= current_thd;
+  if (thd)
+  {
+    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_SQL_MODE_NO_EFFECT,
+                          ER(ER_SQL_MODE_NO_EFFECT),
+                          "ERROR_FOR_DIVISION_BY_ZERO");
+    }
+
+    if (sql_mode & MODE_NO_ZERO_DATE)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_SQL_MODE_NO_EFFECT,
+                          ER(ER_SQL_MODE_NO_EFFECT),
+                          "NO_ZERO_DATE");
+    }
+
+    if (sql_mode & MODE_NO_ZERO_IN_DATE)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_SQL_MODE_NO_EFFECT,
+                          ER(ER_SQL_MODE_NO_EFFECT),
+                          "NO_ZERO_IN_DATE");
+    }
+  }
+  else
+  {
+    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+    {
+      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
+                        "Setting this will have no effect.");
+    }
+    if (sql_mode & MODE_NO_ZERO_DATE)
+    {
+      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
+                        "Setting this will have no effect.");
+    }
+    if (sql_mode & MODE_NO_ZERO_IN_DATE)
+    {
+      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
+                        "Setting this will have no effect.");
+    }
+  }
+  /* Unset removed SQL MODES */
+  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
+               MODE_NO_ZERO_IN_DATE);
+}
+
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
+  unset_removed_sql_modes(sql_mode);
+
   if (sql_mode & MODE_ANSI)
   {
     /*
@@ -2984,7 +3051,8 @@ static const char *sql_mode_names[]=
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
   "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES",
-  "STRICT_ALL_TABLES", "ALLOW_INVALID_DATES", "TRADITIONAL",
+  "STRICT_ALL_TABLES", "NO_ZERO_IN_DATE", "NO_ZERO_DATE",
+  "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO", "TRADITIONAL",
   "NO_AUTO_CREATE_USER", "HIGH_NOT_PRECEDENCE", "NO_ENGINE_SUBSTITUTION",
   "PAD_CHAR_TO_FULL_LENGTH",
   0
@@ -2992,6 +3060,9 @@ static const char *sql_mode_names[]=
 export bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls)
 {
+  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
+               MODE_NO_ZERO_IN_DATE);
+
   set_to_string(thd, ls, sql_mode, sql_mode_names);
   return ls->str == 0;
 }
