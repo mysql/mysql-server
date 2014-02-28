@@ -554,6 +554,8 @@ extern PSI_memory_key key_memory_Table_trigger_dispatcher;
 #ifdef HAVE_MY_TIMER
 extern PSI_memory_key key_memory_thd_timer;
 #endif
+extern PSI_memory_key key_memory_THD_Session_tracker;
+extern PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 
 C_MODE_END
 

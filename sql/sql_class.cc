@@ -1386,6 +1386,10 @@ void THD::init(void)
   debug_sync_init_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
+  /* Initialize session_tracker and create all tracker objects */
+  session_tracker.init(this->charset());
+  session_tracker.enable(this);
+
   owned_gtid.sidno= 0;
   owned_gtid.gno= 0;
   owned_sid.clear();
@@ -1488,6 +1492,7 @@ void THD::cleanup(void)
   DBUG_ASSERT(cleanup_done == 0);
 
   killed= KILL_CONNECTION;
+  session_tracker.deinit();
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
   if (transaction.xid_state.has_state(XA_STATE::XA_PREPARED))
   {

@@ -2562,6 +2562,162 @@ inline void make_upper(char *buf)
     *buf= my_toupper(system_charset_info, *buf);
 }
 
+
+/**
+  @brief Returns the value of a system or a status variable.
+
+  @param thd        [IN]    The thd handle.
+  @param variable   [IN]    Details of the variable.
+  @param value_type [IN]    Variable type.
+  @param show_type  [IN]    Variable show type.
+  @pramm charset    [OUT]   Character set of the value.
+  @param buff       [INOUT] Buffer to store the value.
+                            (Needs to have enough memory
+			     to hold the value of variable.)
+  @param length     [OUT]   Length of the value.
+
+  @return                   Pointer to the value buffer.
+*/
+
+const char* get_one_variable(THD *thd, SHOW_VAR *variable,
+                             enum_var_type value_type, SHOW_TYPE show_type,
+                             system_status_var *status_var,
+                             const CHARSET_INFO **charset, char *buff,
+                             size_t *length)
+{
+  const char *value= variable->value;
+  const char *pos= buff;
+  const char *end= buff;
+
+  if (show_type == SHOW_SYS)
+  {
+    LEX_STRING null_lex_str;
+    null_lex_str.str= 0;                        // For sys_var->value_ptr()
+    null_lex_str.length= 0;
+    sys_var *var= ((sys_var *) variable->value);
+    show_type= var->show_type();
+    value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
+    *charset= var->charset(thd);
+  }
+
+  pos= end= buff;
+  /*
+    note that value may be == buff. All SHOW_xxx code below
+    should still work in this case
+  */
+  switch (show_type) {
+  case SHOW_DOUBLE_STATUS:
+    value= ((char *) status_var + (ulong) value);
+    /* fallthrough */
+
+  case SHOW_DOUBLE:
+    /* 6 is the default precision for '%f' in sprintf() */
+    end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+    break;
+
+  case SHOW_LONG_STATUS:
+    value= ((char *) status_var + (ulong) value);
+    /* fallthrough */
+
+  case SHOW_LONG:
+  // the difference lies in refresh_status()
+  case SHOW_LONG_NOFLUSH:
+    end= int10_to_str(*(long*) value, buff, 10);
+    break;
+
+  case SHOW_SIGNED_LONG:
+    end= int10_to_str(*(long*) value, buff, -10);
+    break;
+
+  case SHOW_LONGLONG_STATUS:
+    value= ((char *) status_var + (ulong) value);
+    /* fallthrough */
+
+  case SHOW_LONGLONG:
+    end= longlong10_to_str(*(longlong*) value, buff, 10);
+    break;
+
+  case SHOW_HA_ROWS:
+    end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
+    break;
+
+  case SHOW_BOOL:
+    end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
+    break;
+
+  case SHOW_MY_BOOL:
+    end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
+    break;
+
+  case SHOW_INT:
+    end= int10_to_str((long) *(uint32*) value, buff, 10);
+    break;
+
+  case SHOW_HAVE:
+  {
+    SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
+    pos= show_comp_option_name[(int) tmp];
+    end= strend(pos);
+    break;
+  }
+
+  case SHOW_CHAR:
+  {
+    if (!(pos= value))
+      pos= "";
+    end= strend(pos);
+    break;
+  }
+
+  case SHOW_CHAR_PTR:
+  {
+    if (!(pos= *(char**) value))
+      pos= "";
+
+    DBUG_EXECUTE_IF("alter_server_version_str",
+                    if (!my_strcasecmp(system_charset_info,
+                                       variable->name, "version")) {
+                      pos= "some-other-version";
+                    });
+
+    end= strend(pos);
+    break;
+  }
+
+  case SHOW_LEX_STRING:
+  {
+    LEX_STRING *ls=(LEX_STRING*)value;
+    if (!(pos= ls->str))
+      end= pos= "";
+    else
+      end= pos + ls->length;
+    break;
+  }
+
+  case SHOW_KEY_CACHE_LONG:
+    value= (char*) dflt_key_cache + (ulong)value;
+    end= int10_to_str(*(long*) value, buff, 10);
+    break;
+
+  case SHOW_KEY_CACHE_LONGLONG:
+    value= (char*) dflt_key_cache + (ulong)value;
+    end= longlong10_to_str(*(longlong*) value, buff, 10);
+    break;
+
+  case SHOW_UNDEF:
+    break;                                      // Return empty string
+
+  case SHOW_SYS:                                // Cannot happen
+
+  default:
+    DBUG_ASSERT(0);
+    break;
+  }
+  *length= (size_t) (end - pos);
+  return pos;
+}
+
+
 static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
                               enum enum_var_type value_type,
@@ -2576,7 +2732,6 @@ static bool show_status_array(THD *thd, const char *wild,
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
   int len;
-  LEX_STRING null_lex_str;
   SHOW_VAR tmp, *var;
   Item *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
@@ -2585,8 +2740,6 @@ static bool show_status_array(THD *thd, const char *wild,
   DBUG_ENTER("show_status_array");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;  
-  null_lex_str.str= 0;				// For sys_var->value_ptr()
-  null_lex_str.length= 0;
 
   prefix_end=my_stpnmov(name_buffer, prefix, sizeof(name_buffer)-1);
   if (*prefix)
@@ -2623,117 +2776,15 @@ static bool show_status_array(THD *thd, const char *wild,
                                                  name_buffer, wild)) &&
           (!partial_cond || partial_cond->val_int()))
       {
-        char *value=var->value;
-        const char *pos, *end;                  // We assign a lot of const's
+        const char *pos;
+        size_t length;
 
         mysql_mutex_lock(&LOCK_global_system_variables);
-
-        if (show_type == SHOW_SYS)
-        {
-          sys_var *var= ((sys_var *) value);
-          show_type= var->show_type();
-          value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
-          charset= var->charset(thd);
-        }
-
-        pos= end= buff;
-        /*
-          note that value may be == buff. All SHOW_xxx code below
-          should still work in this case
-        */
-        switch (show_type) {
-        case SHOW_DOUBLE_STATUS:
-          value= ((char *) status_var + (ulong) value);
-          /* fall through */
-        case SHOW_DOUBLE:
-          /* 6 is the default precision for '%f' in sprintf() */
-          end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
-          break;
-        case SHOW_LONG_STATUS:
-          value= ((char *) status_var + (ulong) value);
-          /* fall through */
-        case SHOW_LONG:
-        case SHOW_LONG_NOFLUSH: // the difference lies in refresh_status()
-          end= int10_to_str(*(long*) value, buff, 10);
-          break;
-        case SHOW_SIGNED_LONG:
-          end= int10_to_str(*(long*) value, buff, -10);
-          break;
-        case SHOW_LONGLONG_STATUS:
-          value= ((char *) status_var + (ulong) value);
-          /* fall through */
-        case SHOW_LONGLONG:
-          end= longlong10_to_str(*(longlong*) value, buff, 10);
-          break;
-        case SHOW_HA_ROWS:
-          end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
-          break;
-        case SHOW_BOOL:
-          end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
-          break;
-        case SHOW_MY_BOOL:
-          end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
-          break;
-        case SHOW_INT:
-          end= int10_to_str((long) *(uint32*) value, buff, 10);
-          break;
-        case SHOW_HAVE:
-        {
-          SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
-          pos= show_comp_option_name[(int) tmp];
-          end= strend(pos);
-          break;
-        }
-        case SHOW_CHAR:
-        {
-          if (!(pos= value))
-            pos= "";
-          end= strend(pos);
-          break;
-        }
-       case SHOW_CHAR_PTR:
-        {
-          if (!(pos= *(char**) value))
-            pos= "";
-
-          DBUG_EXECUTE_IF("alter_server_version_str",
-                          if (!my_strcasecmp(system_charset_info,
-                                             variables->name,
-                                             "version")) {
-                            pos= "some-other-version";
-                          });
-
-          end= strend(pos);
-          break;
-        }
-        case SHOW_LEX_STRING:
-        {
-          LEX_STRING *ls=(LEX_STRING*)value;
-          if (!(pos= ls->str))
-            end= pos= "";
-          else
-            end= pos + ls->length;
-          break;
-        }
-        case SHOW_KEY_CACHE_LONG:
-          value= (char*) dflt_key_cache + (ulong)value;
-          end= int10_to_str(*(long*) value, buff, 10);
-          break;
-        case SHOW_KEY_CACHE_LONGLONG:
-          value= (char*) dflt_key_cache + (ulong)value;
-	  end= longlong10_to_str(*(longlong*) value, buff, 10);
-	  break;
-        case SHOW_UNDEF:
-          break;                                        // Return empty string
-        case SHOW_SYS:                                  // Cannot happen
-        default:
-          DBUG_ASSERT(0);
-          break;
-        }
-        table->field[1]->store(pos, (uint32) (end - pos), charset);
+        pos= get_one_variable(thd, var, value_type, show_type, status_var,
+                              &charset, buff, &length);
+        table->field[1]->store(pos, (uint32) length, charset);
         thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         table->field[1]->set_notnull();
-
         mysql_mutex_unlock(&LOCK_global_system_variables);
 
         if (schema_table_store_record(thd, table))

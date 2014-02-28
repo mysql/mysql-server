@@ -7090,7 +7090,6 @@ ER_REFERENCED_TRG_DOES_NOT_EXIST
 
 ER_EXPLAIN_NOT_SUPPORTED
         eng "EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE"
-
 ER_INVALID_FIELD_SIZE
         eng "Invalid size for column '%-.192s'."
 
@@ -7129,6 +7128,10 @@ ER_QUERY_TIMEOUT
 
 ER_NON_RO_SELECT_DISABLE_TIMER
   eng "Select is not a read only statement, disabling timer"
+
+ER_DUP_LIST_ENTRY
+        eng "Duplicate entry '%-.192s'."
+
 
 #
 #  End of 5.7 error messages.
