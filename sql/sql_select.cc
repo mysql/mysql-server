@@ -2688,13 +2688,14 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
                  1.0 : (tab-1)->position->prefix_record_count;
   if (!sjm_exec->is_scan)
   {
+    const double block_read_cost= table->cost_model()->io_block_read_cost(1.0);
     sjm_pos->key= keyuse->begin(); // MaterializeLookup will use the index
     tab->keyuse= keyuse->begin();
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
-    sjm_pos->set_prefix_costs(1.0, fanout);
+    sjm_pos->set_prefix_costs(block_read_cost, fanout);
     sjm_pos->fanout= 1.0;   
-    sjm_pos->read_cost= 1.0;      
+    sjm_pos->read_cost= block_read_cost;      
   }
   else
   {

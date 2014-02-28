@@ -116,6 +116,7 @@
 #include "opt_trace.h"
 #include "filesort.h"         // filesort_free_buffers
 #include "sql_optimizer.h"    // is_indexed_agg_distinct,field_time_cmp_date
+#include "opt_costmodel.h"
 #include "uniques.h"
 
 using std::min;
@@ -2696,6 +2697,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 		      (ulong) keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
 
+  const Cost_model_server *const cost_model= thd->cost_model();
   set_quick(NULL);
   needed_reg.clear_all();
   if (keys_to_use.is_clear_all())
@@ -2703,14 +2705,16 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   records= head->file->stats.records;
   if (!records)
     records++;					/* purecov: inspected */
-  scan_time= records * ROW_EVALUATE_COST + 1;
+  scan_time= cost_model->row_evaluate_cost(records) + 1;
   const Cost_estimate table_scan_time= head->file->table_scan_cost();
   read_time= table_scan_time.total_cost() + scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
-    read_time= (double) records + scan_time + 1; // Force to use index
-  else if (read_time <= 2.0 && !force_quick_range)
+    read_time= head->cost_model()->io_block_read_cost(records) +
+               scan_time + 1; // Force to use index
+  else if (read_time <= head->cost_model()->io_block_read_cost(2.0) &&
+           !force_quick_range)
     DBUG_RETURN(0);				/* No need for quick select */
 
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -2830,7 +2834,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       const Cost_estimate index_read_time= 
         param.table->file->index_scan_cost(key_for_use, 1, records);
       const double key_read_time= index_read_time.total_cost() +
-                                  records * ROW_EVALUATE_COST;
+                                  cost_model->row_evaluate_cost(records);
 
       bool chosen= false;
       if (key_read_time < read_time)
@@ -4374,8 +4378,9 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num)
 
       The total cost of reading all needed blocks in one "sweep" is:
 
-      E(n_busy_blocks)*
-       (DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*n_blocks/E(n_busy_blocks)).
+        E(n_busy_blocks) * disk_seek_cost(n_blocks/E(n_busy_blocks))
+
+      This cost estimate is calculated in get_sweep_read_cost().
 
     3. Cost of Unique use is calculated in Unique::get_use_cost function.
 
@@ -4410,6 +4415,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   double roru_index_costs;
   ha_rows roru_total_records;
   double roru_intersect_part= 1.0;
+  const Cost_model_table *const cost_model= param->table->cost_model();
+
   DBUG_ENTER("get_best_disjunct_quick");
   DBUG_PRINT("info", ("Full table scan cost: %g", read_time));
 
@@ -4506,10 +4513,11 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   if (cpk_scan)
   {
     /*
-      Add one ROWID comparison for each row retrieved on non-CPK scan.  (it
-      is done in QUICK_RANGE_SELECT::row_in_ranges)
-     */
-    const double rid_comp_cost= non_cpk_scan_records * ROWID_COMPARE_COST;
+      Add one rowid/key comparison for each row retrieved on non-CPK
+      scan. (it is done in QUICK_RANGE_SELECT::row_in_ranges)
+    */
+    const double rid_comp_cost=
+      cost_model->key_compare_cost(non_cpk_scan_records);
     imerge_cost+= rid_comp_cost;
     trace_best_disjunct.add("cost_of_mapping_rowid_in_non_clustered_pk_scan",
                             rid_comp_cost);
@@ -4559,7 +4567,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       Unique::get_use_cost(param->imerge_cost_buff,
                            (uint)non_cpk_scan_records,
                            param->table->file->ref_length,
-                           param->thd->variables.sortbuff_size);
+                           param->thd->variables.sortbuff_size,
+                           cost_model);
 
     trace_best_disjunct.add("cost_duplicate_removal", dup_removal_cost);
     imerge_cost += dup_removal_cost;
@@ -4626,7 +4635,7 @@ skip_to_ror_scan:
         param->table->file->read_cost(param->real_keynr[(*cur_child)->key_idx],
                                       1, (*cur_child)->records);
       cost= read_cost.total_cost() +
-            rows2double((*cur_child)->records) * ROW_EVALUATE_COST;
+            cost_model->row_evaluate_cost(rows2double((*cur_child)->records));
     }
     else
       cost= read_time;
@@ -4674,9 +4683,9 @@ skip_to_ror_scan:
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
     roru_total_cost= roru_index_costs +
-                     rows2double(roru_total_records) *
-                     log((double)n_child_scans) * ROWID_COMPARE_COST / M_LN2 +
-                     sweep_cost.total_cost();
+      cost_model->key_compare_cost(rows2double(roru_total_records) *
+                                   log((double)n_child_scans) / M_LN2) +
+      sweep_cost.total_cost();
   }
 
   trace_best_disjunct.add("index_roworder_union_cost", roru_total_cost).
@@ -5232,12 +5241,13 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   if (is_cpk_scan)
   {
     /*
-      CPK scan is used to filter out rows. We apply filtering for 
-      each record of every scan. Assuming ROWID_COMPARE_COST
-      per check this gives us:
+      CPK scan is used to filter out rows. We apply filtering for each
+      record of every scan. For each record we assume that one key
+      compare is done:
     */
+    const Cost_model_table *const cost_model= info->param->table->cost_model();
     const double idx_cost= 
-      rows2double(info->index_records) * ROWID_COMPARE_COST;
+      cost_model->key_compare_cost(rows2double(info->index_records));
     info->index_scan_costs+= idx_cost;
     trace_costs->add("index_scan_cost", idx_cost);
   }
@@ -12629,7 +12639,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
                           /* formed by a key infix. */
   double p_overlap; /* Probability that a sub-group overlaps two blocks. */
   double quick_prefix_selectivity;
-  double io_cost;
+  double io_blocks;       // Number of blocks to read from table
   DBUG_ENTER("cost_group_min_max");
 
   table_records= table->file->stats.records;
@@ -12668,13 +12678,19 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
       p_overlap= (blocks_per_group * (keys_per_subgroup - 1)) / keys_per_group;
       p_overlap= min(p_overlap, 1.0);
     }
-    io_cost= min<double>(num_groups * (1 + p_overlap), num_blocks);
+    io_blocks= min<double>(num_groups * (1 + p_overlap), num_blocks);
   }
   else
-    io_cost= (keys_per_group > keys_per_block) ?
-             (have_min && have_max) ? (double) (num_groups + 1) :
-                                      (double) num_groups :
-             (double) num_blocks;
+    io_blocks= (keys_per_group > keys_per_block) ?
+               (have_min && have_max) ? (double) (num_groups + 1) :
+                                        (double) num_groups :
+               (double) num_blocks;
+
+  /*
+    Estimate IO cost.
+  */
+  const Cost_model_table *const cost_model= table->cost_model();
+  const double io_cost= cost_model->io_block_read_cost(io_blocks);
 
   /*
     CPU cost must be comparable to that of an index scan as computed
@@ -12689,11 +12705,12 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
              b-tree the number of comparisons will be larger.
        TODO: This cost should be provided by the storage engine.
   */
-  const double tree_traversal_cost= 
+  const double tree_traversal_cost= cost_model->key_compare_cost(
     ceil(log(static_cast<double>(table_records))/
-         log(static_cast<double>(keys_per_block))) * ROWID_COMPARE_COST; 
+         log(static_cast<double>(keys_per_block))));
 
-  const double cpu_cost= num_groups * (tree_traversal_cost + ROW_EVALUATE_COST);
+  const double cpu_cost= num_groups * (tree_traversal_cost +
+                                       cost_model->row_evaluate_cost(1.0));
 
   *read_cost= io_cost + cpu_cost;
   *records= num_groups;

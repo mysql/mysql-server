@@ -32,6 +32,7 @@
 #include "parse_file.h"
 #include "sql_sort.h"
 #include "table_id.h"
+#include "opt_costmodel.h"
 
 /* Structs that defines the TABLE */
 
@@ -1178,6 +1179,11 @@ public:
 #endif
   MDL_ticket *mdl_ticket;
 
+private:
+  /// Cost model object for operations on this table
+  Cost_model_table m_cost_model;
+public:
+
   void init(THD *thd, TABLE_LIST *tl);
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
@@ -1267,6 +1273,23 @@ public:
   {
     created= false;
   }
+
+  /**
+    Initialize the optimizer cost model.
+ 
+    This function should be called each time a new query is started.
+
+    @param cost_model_server the main cost model object for the query
+  */
+  void init_cost_model(const Cost_model_server* cost_model_server)
+  {
+    m_cost_model.init(cost_model_server);
+  }
+
+  /**
+    Return the cost model object for this table.
+  */
+  const Cost_model_table* cost_model() const { return &m_cost_model; }
 };
 
 

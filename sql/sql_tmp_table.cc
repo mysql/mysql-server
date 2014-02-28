@@ -20,6 +20,7 @@
 #include "sql_executor.h"
 #include "sql_base.h"
 #include "opt_trace.h"
+#include "opt_costmodel.h"
 #include "debug_sync.h"
 #include "filesort.h"   // filesort_free_buffers
 
@@ -836,6 +837,9 @@ update_hidden:
     delete table->file;
     goto err;
   }
+
+  // Initialize cost model for this table
+  table->init_cost_model(thd->cost_model());
 
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately

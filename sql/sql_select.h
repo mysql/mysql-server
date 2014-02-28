@@ -226,7 +226,7 @@ public:
     cost of using ref access once multiplied by estimated number of
     partial rows from tables earlier in the join sequence.
     read_cost does NOT include cost of processing rows on the
-    server side (ROW_EVALUATE_COST).
+    server side (row_evaluate_cost).
 
     Example: If the cost of ref access on this index is 5, and the
     estimated number of partial rows from earlier tables is 10,
@@ -500,7 +500,7 @@ typedef struct st_position : public Sql_alloc
     earlier in the join sequence.
 
     read_cost does NOT include cost of processing rows within the
-    executor (ROW_EVALUATE_COST).
+    executor (row_evaluate_cost).
   */
   double read_cost;
   JOIN_TAB *table;

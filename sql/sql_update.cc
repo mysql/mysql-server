@@ -457,6 +457,9 @@ bool mysql_update(THD *thd,
     }
   }
 #endif
+  // Initialize the cost model that will be used for this table
+  table->init_cost_model(thd->cost_model());
+
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
