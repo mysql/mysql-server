@@ -116,6 +116,8 @@ When one supplies long data for a placeholder:
 #include "sql_analyse.h"
 #include "sql_rewrite.h"
 #include "transaction.h"                        // trans_rollback_implicit
+#include "mysqld.h"
+#include "mysql/psi/mysql_ps.h"
 
 #include <algorithm>
 using std::max;
@@ -165,6 +167,8 @@ public:
   uint flags;
   char last_error[MYSQL_ERRMSG_SIZE];
   bool with_log;
+  /* Performance Schema interface for a prepared statement. */
+  PSI_prepared_stmt* m_prepared_stmt;
 public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
@@ -181,6 +185,9 @@ public:
                     bool open_cursor,
                     uchar *packet_arg, uchar *packet_end_arg);
   bool execute_server_runnable(Server_runnable *server_runnable);
+#ifdef HAVE_PSI_PS_INTERFACE
+  PSI_prepared_stmt* get_PS_prepared_stmt();
+#endif
   /* Destroy this statement */
   void deallocate();
 private:
@@ -862,6 +869,12 @@ inline bool is_param_long_data_type(Item_param *param)
           (param->param_type <= MYSQL_TYPE_STRING));
 }
 
+#ifdef HAVE_PSI_PS_INTERFACE
+PSI_prepared_stmt* Prepared_statement::get_PS_prepared_stmt()
+{
+  return m_prepared_stmt;
+}
+#endif
 
 /**
   Routines to assign parameters from data supplied by the client.
@@ -2233,8 +2246,15 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
 
   thd->protocol= &thd->protocol_binary;
 
+  stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                         thd->m_statement_psi,
+                                         stmt->name.str, stmt->name.length,
+                                         packet, packet_length);
+
   if (stmt->prepare(packet, packet_length))
   {
+    /* Delete this stmt stats from PS table. */
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
   }
@@ -2376,6 +2396,7 @@ void mysql_sql_stmt_prepare(THD *thd)
       DBUG_VOID_RETURN;
     }
 
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     stmt->deallocate();
   }
 
@@ -2400,8 +2421,15 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
+  stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                         thd->m_statement_psi,
+                                         stmt->name.str, stmt->name.length,
+                                         query, query_len);
+
   if (stmt->prepare(query, query_len))
   {
+    /* Delete this stmt stats from PS table. */
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     /* Statement map deletes the statement on erase */
     thd->stmt_map.erase(stmt);
   }
@@ -2413,6 +2441,7 @@ void mysql_sql_stmt_prepare(THD *thd)
       thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
     my_ok(thd, 0L, 0L, "Statement prepared");
   }
+
   DBUG_VOID_RETURN;
 }
 
@@ -2628,6 +2657,9 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
   open_cursor= MY_TEST(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
   thd->protocol= &thd->protocol_binary;
+
+  MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
+
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
   thd->protocol= save_protocol;
 
@@ -2682,6 +2714,8 @@ void mysql_sql_stmt_execute(THD *thd)
   }
 
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
+
+  MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 
   (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
 
@@ -2844,6 +2878,7 @@ void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length)
     in use is from within Dynamic SQL.
   */
   DBUG_ASSERT(! stmt->is_in_use());
+  MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
   stmt->deallocate();
   query_logger.general_log_print(thd, thd->get_command(), NullS);
 
@@ -2877,6 +2912,7 @@ void mysql_sql_stmt_close(THD *thd)
     my_error(ER_PS_NO_RECURSION, MYF(0));
   else
   {
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     stmt->deallocate();
     if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
       thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
@@ -3135,7 +3171,8 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   param_count(0),
   last_errno(0),
   flags((uint) IS_IN_USE),
-  with_log(false)
+  with_log(false),
+  m_prepared_stmt(0)
 {
   init_sql_alloc(key_memory_prepared_statement_main_mem_root,
                  &main_mem_root, thd_arg->variables.query_alloc_block_size,
@@ -3711,6 +3748,10 @@ Prepared_statement::reprepare()
 
   if (! error)
   {
+    copy.m_prepared_stmt= m_prepared_stmt;
+    /* Update reprepare count for this prepared statement in P_S table. */
+    MYSQL_REPREPARE_PS(copy.m_prepared_stmt);
+
     swap_prepared_statement(&copy);
     swap_parameter_array(param_array, copy.param_array, param_count);
 #ifndef DBUG_OFF

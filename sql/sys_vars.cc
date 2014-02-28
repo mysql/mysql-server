@@ -329,6 +329,15 @@ static Sys_var_long Sys_pfs_max_program_instances(
        DEFAULT(5000),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_long Sys_pfs_max_prepared_stmt_instances(
+       "performance_schema_max_prepared_statements_instances",
+       "Maximum number of instrumented prepared statements."
+         " Use 0 to disable, -1 for automated sizing.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_prepared_stmt_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
+       DEFAULT(-1),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_ulong Sys_pfs_max_file_classes(
        "performance_schema_max_file_classes",
        "Maximum number of file instruments.",
@@ -2025,7 +2034,10 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
        "Maximum number of prepared statements in the server",
        GLOBAL_VAR(max_prepared_stmt_count), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 1024*1024), DEFAULT(16382), BLOCK_SIZE(1),
-       &PLock_prepared_stmt_count);
+       &PLock_prepared_stmt_count, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL), NULL,
+       /* max_prepared_stmt_count is used as a sizing hint by the performance schema. */
+       sys_var::PARSE_EARLY);
 
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
