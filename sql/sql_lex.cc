@@ -468,6 +468,7 @@ void LEX::reset()
   exchange= NULL;
   is_set_password_sql= false;
   mark_broken(false);
+  max_statement_time= 0;
 }
 
 
@@ -488,6 +489,8 @@ bool lex_start(THD *thd)
 
   lex->thd= thd;
   lex->reset();
+  // Initialize the cost model to be used for this query
+  thd->init_cost_model();
 
   const bool status= lex->new_top_level_query();
 

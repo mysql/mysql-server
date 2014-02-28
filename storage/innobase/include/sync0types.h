@@ -341,7 +341,9 @@ struct btrsea_sync_check : public sync_check_functor_t {
 	virtual bool operator()(const latch_t& latch)
 	{
 		// FIXME: This condition doesn't look right
-		if (!m_has_search_latch || latch.m_level != SYNC_SEARCH_SYS) {
+		if (!m_has_search_latch
+		    || (latch.m_level != SYNC_SEARCH_SYS
+			&& latch.m_level != SYNC_FTS_CACHE)) {
 			m_result = true;
 			return(m_result);
 		}

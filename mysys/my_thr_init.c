@@ -442,20 +442,16 @@ extern void **my_thread_var_dbug()
   EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
 */
 
-#if (_MSC_VER >= 1400)
 static void my_sigabrt_handler(int sig)
 {
   __debugbreak();
 }
-#endif /*_MSC_VER >=1400 */
 
 static void install_sigabrt_handler(void)
 {
-#if (_MSC_VER >=1400)
   /*abort() should not override our exception filter*/
   _set_abort_behavior(0,_CALL_REPORTFAULT);
   signal(SIGABRT,my_sigabrt_handler);
-#endif /* _MSC_VER >=1400 */
 }
 #endif
 

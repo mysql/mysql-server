@@ -5985,7 +5985,18 @@ int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
   if (uses_materialization())
+  {
+    /*
+      @todo: CostModel: This updates the stats.record value to the
+      estimated number of records. This number is used when estimating 
+      the cost of a table scan for a heap table (ie. it helps producing
+      a reasonable good cost estimate for heap tables). If the materialized
+      table is stored in MyISAM, this number is not used in the cost estimate
+      for table scan. The table scan cost for MyISAM thus always becomes
+      the estimate for an empty table.
+    */
     table->file->stats.records= derived->get_result()->estimated_rowcount;
+  }
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return error;

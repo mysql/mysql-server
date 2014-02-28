@@ -26,6 +26,7 @@
 
 #include "sql_planner.h"
 #include "sql_optimizer.h"
+#include "opt_costmodel.h"
 #include "opt_range.h"
 #include "opt_trace.h"
 #include "sql_executor.h"
@@ -124,7 +125,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     Cost of using best_ref; used to determine if ref access on another
     index is cheaper. Calculated as follows:
 
-    (cost_ref_for_one_value + ROW_EVALUATE_COST * fanout_for_ref) *
+    (cost_ref_for_one_value + row_evaluate_cost(fanout_for_ref)) *
     prefix_rowcount
   */
   double best_ref_cost= DBL_MAX;
@@ -299,7 +300,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         cur_used_keyparts= (uint) ~0;
         if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
         {
-          cur_read_cost= prev_record_reads(join, idx, table_deps);
+          cur_read_cost= prev_record_reads(join, idx, table_deps) *
+                         table->cost_model()->io_block_read_cost();
           cur_fanout= 1.0;
         }
         else
@@ -385,7 +387,9 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
             cur_read_cost= prefix_rowcount * table_read_cost.total_cost();
           }
           else
-            cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
+            cur_read_cost= prefix_rowcount *
+              table->cost_model()->io_block_read_cost(
+                min(tmp_fanout, tab->worst_seeks));
         }
       }
       else if ((found_part & 1) &&
@@ -571,7 +575,9 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           cur_read_cost= prefix_rowcount * table_read_cost.total_cost();
         }
         else
-          cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
+          cur_read_cost= prefix_rowcount *
+            table->cost_model()->io_block_read_cost(
+              min(tmp_fanout, tab->worst_seeks));
       }
       else
       {
@@ -592,7 +598,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         continue;
       }
       // Actually it should be cur_fanout=0.0 (yes!) but 1.0 is probably safer
-      cur_read_cost= prev_record_reads(join, idx, table_deps);
+      cur_read_cost= prev_record_reads(join, idx, table_deps) *
+                     table->cost_model()->io_block_read_cost();
       cur_fanout= 1.0;
     }
 
@@ -600,8 +607,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     start_key->fanout= cur_fanout;
     start_key->read_cost= cur_read_cost;
 
-    const double cur_ref_cost=
-      cur_read_cost + prefix_rowcount * cur_fanout * ROW_EVALUATE_COST;
+    const double cur_ref_cost= cur_read_cost +
+      prefix_rowcount * join->cost_model()->row_evaluate_cost(cur_fanout);
     trace_access_idx.add("rows", cur_fanout).add("cost", cur_ref_cost);
 
     /*
@@ -653,10 +660,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
   Calculate the cost of range/table/index scanning table 'tab'.
 
   Returns a hybrid scan cost number: the cost of fetching rows from
-  the storage engine pluss CPU cost during execution
-  (ROW_EVALUATE_COST) for the rows (estimate) that will be filtered
-  out by predicates relevant to the table. The cost does not include
-  the CPU cost during execution for rows that are not filtered out.
+  the storage engine plus CPU cost during execution for evaluating the
+  rows (estimate) that will be filtered out by predicates relevant to
+  the table. The cost does not include the CPU cost during execution
+  for rows that are not filtered out.
 
   This hybrid cost is needed because if join buffering is used to
   reduce the number of scans, then the final cost depends on how many
@@ -694,6 +701,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
 {
   double scan_and_filter_cost;
   TABLE *const table= tab->table;
+  const Cost_model_server *const cost_model= join->cost_model();
   ha_rows rows_after_filtering= tab->found_records;
   /*
     If there is a filtering condition on the table (i.e. ref analyzer found
@@ -733,7 +741,8 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
     */
     scan_and_filter_cost= prefix_rowcount *
       (tab->quick->read_time +
-       (tab->found_records - rows_after_filtering) * ROW_EVALUATE_COST);
+       cost_model->row_evaluate_cost(tab->found_records -
+                                     rows_after_filtering));
   }
   else
   {
@@ -760,8 +769,8 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
         greedy_search().
       */
       scan_and_filter_cost= prefix_rowcount *
-        (single_scan_read_cost + 
-         (tab->records - rows_after_filtering) * ROW_EVALUATE_COST);
+        (single_scan_read_cost +
+         cost_model->row_evaluate_cost(tab->records - rows_after_filtering));
     }
     else
     {
@@ -790,7 +799,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
 
       scan_and_filter_cost= buffer_count *
         (single_scan_read_cost +
-         (tab->records - rows_after_filtering) * ROW_EVALUATE_COST);
+         cost_model->row_evaluate_cost(tab->records - rows_after_filtering));
 
       trace_access_scan->add("using_join_cache", true);
       trace_access_scan->add("buffers_needed", (ulong)buffer_count);
@@ -835,6 +844,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   bool best_uses_jbuf=  false;
   Opt_trace_context * const trace= &thd->opt_trace;
   TABLE *const table= tab->table;
+  const Cost_model_server *const cost_model= join->cost_model();
 
   thd->status_var.last_query_partial_plans++;
 
@@ -921,7 +931,8 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   {
     // "scan" means (full) index scan or (full) table scan.
     trace_access_scan.add_alnum("access_type", tab->quick ? "range" : "scan").
-      add("cost", tab->read_time + tab->found_records * ROW_EVALUATE_COST).
+      add("cost", tab->read_time +
+          cost_model->row_evaluate_cost(tab->found_records)).
       add("rows", tab->found_records).
       add("chosen", false).
       add_alnum("cause", "cost");
@@ -969,19 +980,19 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
 
     /*
       We estimate the cost of evaluating WHERE clause for found
-      records as prefix_rowcount * scan_fanout * ROW_EVALUATE_COST.
-      This cost plus scan_cost gives us total cost of
-      using TABLE/INDEX/RANGE SCAN
+      records as row_evaluate_cost(prefix_rowcount * scan_fanout).
+      This cost plus scan_cost gives us total cost of using
+      TABLE/INDEX/RANGE SCAN.
     */
-    const double scan_total_cost=
-      scan_read_cost + (prefix_rowcount * scan_fanout * ROW_EVALUATE_COST);
+    const double scan_total_cost= scan_read_cost +
+      cost_model->row_evaluate_cost(prefix_rowcount * scan_fanout);
 
     trace_access_scan.add("rows", rows2double(scan_fanout));
     trace_access_scan.add("cost", scan_total_cost);
 
     if (best_ref == NULL ||
-        (scan_total_cost < best_read_cost + (prefix_rowcount *
-                                             fanout * ROW_EVALUATE_COST)))
+        (scan_total_cost < best_read_cost +
+         cost_model->row_evaluate_cost(prefix_rowcount * fanout)))
     {
       /*
         If the table has a range (tab->quick is set) make_join_select()
@@ -1557,6 +1568,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
   uint idx= join->const_tables;
   double    record_count= 1.0;
   double    read_time=    0.0;
+  const Cost_model_server *const cost_model= join->cost_model();
 
   // resolve_subquery() disables semijoin if STRAIGHT_JOIN
   DBUG_ASSERT(join->select_lex->sj_nests.is_empty());
@@ -1583,7 +1595,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     /* compute the cost of the new plan extended with 's' */
     record_count*= position->fanout;
     read_time+=    position->read_cost;
-    read_time+=    record_count * ROW_EVALUATE_COST;
+    read_time+=    cost_model->row_evaluate_cost(record_count);
     position->set_prefix_costs(read_time, record_count);
     position->no_semijoin(); // advance_sj_state() is not needed
 
@@ -1770,6 +1782,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
   uint      best_idx;
   POSITION  best_pos;
   JOIN_TAB  *best_table; // the next plan node to be added to the curr QEP
+  const Cost_model_server *const cost_model= join->cost_model();
   DBUG_ENTER("Optimize_table_order::greedy_search");
 
   /* Number of tables that we are optimizing */
@@ -1847,8 +1860,8 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
 
     /* compute the cost of the new plan extended with 'best_table' */
     record_count*= join->positions[idx].fanout;
-    read_time+=    join->positions[idx].read_cost
-                   + record_count * ROW_EVALUATE_COST;
+    read_time+= join->positions[idx].read_cost +
+                cost_model->row_evaluate_cost(record_count);
 
     remaining_tables&= ~(best_table->table->map);
     --size_remain;
@@ -1886,6 +1899,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
 void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
                            double *record_count_arg)
 {
+  const Cost_model_server *const cost_model= join->cost_model();
   double record_count= 1;
   double read_time= 0.0;
   for (uint i= join->const_tables; i < n_tables + join->const_tables ; i++)
@@ -1893,8 +1907,8 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
     if (join->best_positions[i].fanout)
     {
       record_count*= join->best_positions[i].fanout;
-      read_time+= join->best_positions[i].read_cost
-                   + record_count * ROW_EVALUATE_COST;
+      read_time+= join->best_positions[i].read_cost +
+                  cost_model->row_evaluate_cost(record_count);
     }
   }
   *read_time_arg= read_time;
@@ -2098,6 +2112,8 @@ bool Optimize_table_order::best_extension_by_limited_search(
   DBUG_EXECUTE_IF("bug13820776_2", thd->killed= THD::KILL_QUERY;);
   if (thd->killed)  // Abort
     DBUG_RETURN(true);
+
+  const Cost_model_server *const cost_model= join->cost_model();
   Opt_trace_context * const trace= &thd->opt_trace;
 
   /* 
@@ -2163,9 +2179,9 @@ bool Optimize_table_order::best_extension_by_limited_search(
 
       /* Compute the cost of extending the plan with 's' */
       current_record_count= record_count * position->fanout;
-      current_read_time=    read_time
-                            + position->read_cost
-                            + current_record_count * ROW_EVALUATE_COST;
+      current_read_time= read_time +
+                         position->read_cost +
+                         cost_model->row_evaluate_cost(current_record_count);
       position->set_prefix_costs(current_read_time, current_record_count);
 
       trace_one_table.add("cost_for_plan", current_read_time).
@@ -2520,10 +2536,11 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
         double current_record_count, current_read_time;
 
         /* Add the cost of extending the plan with 's' */
+        const Cost_model_server *const cost_model= join->cost_model();
         current_record_count= record_count * position->fanout;
-        current_read_time=    read_time
-                              + position->read_cost
-                              + current_record_count * ROW_EVALUATE_COST;
+        current_read_time= read_time +
+                           position->read_cost +
+                           cost_model->row_evaluate_cost(current_record_count);
         position->set_prefix_costs(current_read_time, current_record_count);
 
         trace_one_table.add("cost_for_plan", current_read_time).
@@ -3069,6 +3086,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   double rowcount;           // Rowcount of join prefix (ie before first_tab).
   double outer_fanout= 1.0;  // Fanout contributed by outer tables in range.
   double inner_fanout= 1.0;  // Fanout contributed by inner tables in range.
+  const Cost_model_server *const cost_model= join->cost_model();
   Opt_trace_context *const trace= &thd->opt_trace;
   Opt_trace_object recalculate(trace, "recalculate_access_paths_and_cost");
   Opt_trace_array trace_tables(trace, "tables");
@@ -3149,7 +3167,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
           dst_pos->table= tab;
           const double rows= rowcount * dst_pos->fanout;
           dst_pos->set_prefix_costs(cost + dst_pos->read_cost +
-                                    rows * ROW_EVALUATE_COST,
+                                    cost_model->row_evaluate_cost(rows),
                                     rows);
         }
         else
@@ -3181,7 +3199,8 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
       outer_fanout*= pos->fanout;
 
     cost+= pos->read_cost +
-           rowcount * inner_fanout * outer_fanout * ROW_EVALUATE_COST;
+           cost_model->row_evaluate_cost(rowcount * inner_fanout *
+                                         outer_fanout);
   }
 
   *newcount= rowcount * outer_fanout;
@@ -3221,6 +3240,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
 {
   DBUG_ENTER("Optimize_table_order::semijoin_mat_scan_access_paths");
 
+  const Cost_model_server *const cost_model= join->cost_model();
   Opt_trace_context *const trace= &thd->opt_trace;
   Opt_trace_object recalculate(trace, "recalculate_access_paths_and_cost");
   Opt_trace_array trace_tables(trace, "tables");
@@ -3270,7 +3290,8 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
     remaining_tables&= ~tab->table->map;
     outer_fanout*= dst_pos->fanout;
     cost+= dst_pos->read_cost +
-           rowcount * inner_fanout * outer_fanout * ROW_EVALUATE_COST;
+           cost_model->row_evaluate_cost(rowcount * inner_fanout *
+                                         outer_fanout);
   }
 
   *newcount= rowcount * outer_fanout;
@@ -3360,6 +3381,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
 {
   DBUG_ENTER("Optimize_table_order::semijoin_dupsweedout_access_paths");
 
+  const Cost_model_server *const cost_model= join->cost_model();
   double cost, rowcount;
   double inner_fanout= 1.0;
   double outer_fanout= 1.0;
@@ -3411,7 +3433,8 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
       rowsize+= p->table->table->file->ref_length;
     }
     cost+= p->read_cost +
-           rowcount * inner_fanout * outer_fanout * ROW_EVALUATE_COST;
+           cost_model->row_evaluate_cost(rowcount * inner_fanout *
+                                         outer_fanout);
   }
 
   /*
@@ -3420,22 +3443,18 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
     and we will make 
     - rowcount * outer_fanout writes
     - rowcount * inner_fanout * outer_fanout lookups.
-    We assume here that a lookup and a write has the same cost.
   */
-  double one_lookup_cost, create_cost;
-  if (outer_fanout * rowsize > thd->variables.max_heap_table_size)
-  {
-    one_lookup_cost= DISK_TEMPTABLE_ROW_COST;
-    create_cost=     DISK_TEMPTABLE_CREATE_COST;
-  }
+  Cost_model_server::enum_tmptable_type tmp_table_type;
+  if (outer_fanout * rowsize < thd->variables.max_heap_table_size)
+    tmp_table_type= Cost_model_server::MEMORY_TMPTABLE;
   else
-  {
-    one_lookup_cost= HEAP_TEMPTABLE_ROW_COST;
-    create_cost=     HEAP_TEMPTABLE_CREATE_COST;
-  }
-  const double write_cost= rowcount * outer_fanout * one_lookup_cost;
-  const double full_lookup_cost= write_cost * inner_fanout;
-  cost+= create_cost + write_cost + full_lookup_cost;
+    tmp_table_type= Cost_model_server::DISK_TMPTABLE;
+
+  cost+= cost_model->tmptable_create_cost(tmp_table_type);
+  cost+=
+    cost_model->tmptable_readwrite_cost(tmp_table_type,
+                                        rowcount * outer_fanout,
+                                        rowcount * inner_fanout * outer_fanout);
 
   *newcount= rowcount * outer_fanout;
   *newcost=  cost;

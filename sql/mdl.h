@@ -106,6 +106,12 @@ public:
    */
   virtual bool notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort) = 0;
+
+  /**
+    Get random seed specific to this THD to be used for initialization
+    of PRNG for the MDL_context.
+  */
+  virtual uint get_rand_seed() = 0;
 };
 
 /**
@@ -837,6 +843,40 @@ public:
     return m_needs_thr_lock_abort;
   }
 
+  /**
+    Get pseudo random value in [0 .. 2^31-1] range.
+
+    @note We use Linear Congruential Generator with venerable constant
+          parameters for this.
+          It is known to have problems with its lower bits are not being
+          very random so probably is not good enough for generic use.
+          However, we only use it to do random dives into MDL_lock objects
+          hash when searching for unused objects to be freed, and for this
+          purposes it is sufficient.
+          We rely on values of "get_random() % 2^k" expression having "2^k"
+          as a period to ensure that random dives eventually cover all hash
+          (the former can be proven to be true). This also means that there
+          is no bias towards any specific objects to be expelled (as hash
+          values don't repeat), which is nice for performance.
+  */
+  uint get_random()
+  {
+    if (m_rand_state > INT_MAX32)
+    {
+      /*
+        Perform lazy initialization of LCG. We can't initialize it at the
+        point when MDL_context is created since THD represented through
+        MDL_context_owner interface is not fully initialized at this point
+        itself.
+      */
+      m_rand_state= m_owner->get_rand_seed() & INT_MAX32;
+    }
+    m_rand_state= (m_rand_state * 1103515245 + 12345) & INT_MAX32;
+    return m_rand_state;
+  }
+
+  THD *get_thd() const { return m_owner->get_thd(); }
+
 public:
   /**
     If our request for a lock is scheduled, or aborted by the deadlock
@@ -933,9 +973,14 @@ private:
     not yet allocated from container's pinbox.
   */
   LF_PINS *m_pins;
+  /**
+    State for pseudo random numbers generator (PRNG) which output
+    is used to perform random dives into MDL_lock objects hash
+    when searching for unused objects to free.
+  */
+  uint m_rand_state;
 
 private:
-  THD *get_thd() const { return m_owner->get_thd(); }
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           enum_mdl_duration *duration);
   void release_locks_stored_before(enum_mdl_duration duration, MDL_ticket *sentinel);
@@ -1006,4 +1051,25 @@ extern mysql_mutex_t LOCK_open;
   to avoid starving out weak, low-prio locks.
 */
 extern "C" ulong max_write_lock_count;
+
+extern int32 mdl_locks_unused_locks_low_water;
+
+/**
+  Default value for threshold for number of unused MDL_lock objects after
+  exceeding which we start considering freeing them. Only unit tests use
+  different threshold value.
+*/
+const int32 MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT= 1000;
+
+/**
+  Ratio of unused/total MDL_lock objects after exceeding which we
+  start trying to free unused MDL_lock objects (assuming that
+  mdl_locks_unused_locks_low_water threshold is passed as well).
+  Note that this value should be high enough for our algorithm
+  using random dives into hash to work well.
+*/
+const double MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO= 0.25;
+
+int32 mdl_get_unused_locks_count();
+
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define SQL_SHOW_H
 
 #include "sql_list.h"                           /* List */
+#include "sql_priv.h"                           /* enum_var_type */
 #include "handler.h"                            /* enum_schema_tables */
 #include "table.h"                              /* enum_schema_table_state */
 
@@ -206,6 +207,12 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list);
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
+
+const char* get_one_variable(THD *thd, SHOW_VAR *variable,
+                             enum_var_type value_type, SHOW_TYPE show_type,
+                             system_status_var *status_var,
+                             const CHARSET_INFO **charset, char *buff,
+                             size_t *length);
 
 /* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
