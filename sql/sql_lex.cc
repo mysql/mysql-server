@@ -468,6 +468,7 @@ void LEX::reset()
   exchange= NULL;
   is_set_password_sql= false;
   mark_broken(false);
+  max_statement_time= 0;
 }
 
 
