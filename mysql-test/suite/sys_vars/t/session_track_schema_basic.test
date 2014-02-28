@@ -1,0 +1,101 @@
+--source include/not_embedded.inc
+
+--echo #
+--echo # Variable name : session_track_schema
+--echo # Scope         : Global & Session
+--echo #
+
+--echo # Global - default
+SELECT @@global.session_track_schema;
+--echo # Session - default
+SELECT @@session.session_track_schema;
+--echo
+
+--echo # via INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME LIKE 'track_current%';
+
+--echo # via INFORMATION_SCHEMA.SESSION_VARIABLES
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'track_current%';
+
+# Save the global value to be used to restore the original value.
+SET @global_saved_tmp =  @@global.session_track_schema;
+--echo
+
+--echo # Altering global variable's value
+SET @@global.session_track_schema = 0;
+SELECT @@global.session_track_schema;
+SELECT @@session.session_track_schema;
+
+SET @@global.session_track_schema = TrUe;
+SELECT @@global.session_track_schema;
+SELECT @@session.session_track_schema;
+
+SET @@global.session_track_schema = FaLsE;
+SELECT @@global.session_track_schema;
+SELECT @@session.session_track_schema;
+--echo
+
+--echo # Altering session variable's value
+SET @@session.session_track_schema = 0;
+SELECT @@global.session_track_schema;
+SELECT @@session.session_track_schema;
+--echo
+
+--echo # Variables' values in a new session.
+connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+
+--echo # Global - expect 0
+SELECT @@global.session_track_schema;
+--echo
+--echo # Session - expect 0
+SELECT @@session.session_track_schema;
+--echo
+
+--echo # Switching to the default connection.
+connection default;
+
+SELECT @@global.session_track_schema;
+SELECT @@session.session_track_schema;
+--echo
+
+--echo # Test if DEFAULT is working as expected.
+SET @@global.session_track_schema = DEFAULT;
+SET @@session.session_track_schema = DEFAULT;
+--echo
+
+--echo # Global - expect 1
+SELECT @@global.session_track_schema;
+--echo # Session - expect 1
+SELECT @@session.session_track_schema;
+--echo
+
+--echo # Variables' values in a new session (con2).
+connect (con2,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+
+SELECT @@global.session_track_schema;
+SELECT @@session.session_track_schema;
+--echo
+
+--echo # Altering session should not affect global.
+SET @@session.session_track_schema = FALSE;
+SELECT @@global.session_track_schema;
+SELECT @@session.session_track_schema;
+--echo
+
+--echo # Variables' values in a new session (con3).
+connect (con3,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+
+--echo # Altering global should not affect session.
+SET @@global.session_track_schema = OFF;
+SELECT @@global.session_track_schema;
+SELECT @@session.session_track_schema;
+--echo
+
+--echo # Switching to the default connection.
+connection default;
+
+--echo # Restoring the original values.
+SET @@global.session_track_schema = @global_saved_tmp;
+
+--echo # End of tests.
+

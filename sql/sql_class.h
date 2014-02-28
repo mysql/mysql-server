@@ -50,6 +50,10 @@
 #include <mysql_com_server.h>
 #include "opt_costmodel.h"                      // Cost_model_server
 #include "sql_data_change.h"
+
+#include "sys_vars_resource_mgr.h"
+#include "session_tracker.h"
+
 #include "transaction_info.h"
 
 /**
@@ -550,6 +554,9 @@ typedef struct system_variables
   Gtid_set_or_null gtid_next_list;
 
   ulong max_statement_time;
+
+  char *track_sysvars_ptr;
+  my_bool session_track_schema;
 } SV;
 
 
@@ -3721,6 +3728,9 @@ public:
     Retrieve the optimizer cost model for this connection.
   */
   const Cost_model_server* cost_model() const { return &m_cost_model; }
+
+  Session_tracker session_tracker;
+  Session_sysvar_resource_manager session_sysvar_res_mgr;
 };
 
 

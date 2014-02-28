@@ -1,0 +1,412 @@
+#
+# WL#4797  Extending protocol's OK packet
+#
+#
+# Default values of the session variables session_track_system_variables and
+# session_track_schema.
+#
+SELECT @@session.session_track_schema;
+@@session.session_track_schema
+1
+SELECT @@session.session_track_system_variables;
+@@session.session_track_system_variables
+time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+SELECT @@global.session_track_schema;
+@@global.session_track_schema
+1
+SELECT @@global.session_track_system_variables;
+@@global.session_track_system_variables
+time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+
+# testing @@session.session_track_system_variables
+
+## Testing default tracked system variables.
+# SET NAMES ..
+SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
+@@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
+latin1	latin1	latin1
+SET NAMES 'utf8';
+-- character_set_client
+-- utf8
+-- character_set_connection
+-- utf8
+-- character_set_results
+-- utf8
+
+SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
+@@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
+utf8	utf8	utf8
+SET NAMES 'big5';
+-- character_set_client
+-- big5
+-- character_set_connection
+-- big5
+-- character_set_results
+-- big5
+
+SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
+@@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
+big5	big5	big5
+SET @@session.character_set_client=utf8;
+-- character_set_client
+-- utf8
+
+SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
+@@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
+utf8	big5	big5
+SET @@session.character_set_results=utf8;
+-- character_set_results
+-- utf8
+
+SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
+@@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
+utf8	utf8	big5
+SET @@session.character_set_connection=utf8;
+-- character_set_connection
+-- utf8
+
+SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
+@@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
+utf8	utf8	utf8
+
+# time_zone
+SELECT @@session.time_zone;
+@@session.time_zone
+SYSTEM
+SET @@session.time_zone='Europe/Moscow';
+-- time_zone
+-- Europe/Moscow
+
+SELECT @@session.time_zone;
+@@session.time_zone
+Europe/Moscow
+SET @@session.time_zone='MET';
+-- time_zone
+-- MET
+
+SELECT @@session.time_zone;
+@@session.time_zone
+MET
+# Expect no change info.
+SET @@session.time_zone='funny';
+ERROR HY000: Unknown or incorrect time zone: 'funny'
+SELECT @@session.time_zone;
+@@session.time_zone
+MET
+
+# autocommit
+SELECT @@session.autocommit;
+@@session.autocommit
+1
+SET @@session.autocommit= 1;
+-- autocommit
+-- ON
+
+SELECT @@session.autocommit;
+@@session.autocommit
+1
+SET @@session.autocommit= 0;
+-- autocommit
+-- OFF
+
+SELECT @@session.autocommit;
+@@session.autocommit
+0
+SET @@session.autocommit= OFF;
+-- autocommit
+-- OFF
+
+SELECT @@session.autocommit;
+@@session.autocommit
+0
+SET @@session.autocommit= ON;
+-- autocommit
+-- ON
+
+SELECT @@session.autocommit;
+@@session.autocommit
+1
+# Expect no change info.
+SET @@session.autocommit= foo;
+ERROR 42000: Variable 'autocommit' can't be set to the value of 'foo'
+SELECT @@session.autocommit;
+@@session.autocommit
+1
+
+# Setting multiple variables in one shot..
+
+SET @@session.autocommit=OFF, @@time_zone='SYSTEM';
+-- autocommit
+-- OFF
+-- time_zone
+-- SYSTEM
+
+SELECT @@session.autocommit;
+@@session.autocommit
+0
+SELECT @@session.time_zone;
+@@session.time_zone
+SYSTEM
+# Expect no change info.
+SET @@session.autocommit=ON, @@time_zone='INVALID';
+ERROR HY000: Unknown or incorrect time zone: 'INVALID'
+SELECT @@session.autocommit;
+@@session.autocommit
+0
+SELECT @@session.time_zone;
+@@session.time_zone
+SYSTEM
+
+## Testing some other session system variables.
+# Testing sql_mode
+SELECT @@session.sql_mode;
+@@session.sql_mode
+NO_ENGINE_SUBSTITUTION
+
+SET @@session.session_track_system_variables='sql_mode';
+SELECT @@session.session_track_system_variables;
+@@session.session_track_system_variables
+sql_mode
+SET @sql_mode_saved= @@session.sql_mode;
+SET @@session.sql_mode='traditional';
+-- sql_mode
+-- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+
+SET @@session.sql_mode='traditional';
+-- sql_mode
+-- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+
+SELECT @@session.sql_mode;
+@@session.sql_mode
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+SET @@session.sql_mode='invalid';
+ERROR 42000: Variable 'sql_mode' can't be set to the value of 'invalid'
+# Test the wildcard value for tracking.
+SET @@session.session_track_system_variables='*';
+-- session_track_system_variables
+-- *
+
+# Expect change info.
+SET @@session.sql_mode= @sql_mode_saved;
+-- sql_mode
+-- NO_ENGINE_SUBSTITUTION
+
+# Expect change info.
+SET @@old_passwords=0;
+-- old_passwords
+-- 0
+
+# Expect change info.
+SET @@session.sql_mode= @sql_mode_saved;
+-- sql_mode
+-- NO_ENGINE_SUBSTITUTION
+
+# Test the wildcard value for tracking.
+SET @@session.session_track_system_variables='*,old_passwords';
+Warnings:
+Warning	1231	* is not a valid system variable and will be ignored.
+# Expect no change info.
+SET @@session.sql_mode= @sql_mode_saved;
+# Expect change info.
+SET @@old_passwords=0;
+-- old_passwords
+-- 0
+
+# Expect no change info.
+SET @@session.sql_mode= @sql_mode_saved;
+# Switch off the session system variables tracker (using empty string).
+SET @@session.session_track_system_variables='';
+# Expect no change info.
+SET @@session.sql_mode= @sql_mode_saved;
+SELECT @@session.sql_mode;
+@@session.sql_mode
+NO_ENGINE_SUBSTITUTION
+
+# Switch off the session system variables tracker (using empty NULL).
+SET @@session.session_track_system_variables=NULL;
+# Expect no change info.
+SET @@session.sql_mode= @sql_mode_saved;
+SELECT @@session.sql_mode;
+@@session.sql_mode
+NO_ENGINE_SUBSTITUTION
+
+# Check to see that string NULL acts no different from other invalid strings.
+SET @@session.session_track_system_variables='var1,NULL';
+Warnings:
+Warning	1231	var1 is not a valid system variable and will be ignored.
+Warning	1231	NULL is not a valid system variable and will be ignored.
+# Expect no change info.
+SET @@session.sql_mode= @sql_mode_saved;
+SELECT @@session.sql_mode;
+@@session.sql_mode
+NO_ENGINE_SUBSTITUTION
+
+
+# Testing with stored procedure.
+
+SET @@session.session_track_system_variables='autocommit,time_zone,tx_isolation';
+SELECT @@session.session_track_system_variables;
+@@session.session_track_system_variables
+autocommit,time_zone,tx_isolation
+
+CREATE PROCEDURE my_proc() BEGIN
+SET @@session.autocommit=OFF;
+SET @@session.time_zone='-6:00';
+SET @@session.tx_isolation='READ-COMMITTED';
+END;|
+CALL my_proc;
+-- tx_isolation
+-- READ-COMMITTED
+-- autocommit
+-- OFF
+-- time_zone
+-- -06:00
+
+CALL my_proc;
+-- tx_isolation
+-- READ-COMMITTED
+-- autocommit
+-- OFF
+-- time_zone
+-- -06:00
+
+DROP PROCEDURE my_proc;
+# Testing with unknown/invalid system variables.
+SHOW VARIABLES LIKE 'var1';
+Variable_name	Value
+SHOW VARIABLES LIKE 'var1';
+Variable_name	Value
+# Expect a warning..
+SET @@session.session_track_system_variables='var1,sql_mode,var2';
+Warnings:
+Warning	1231	var1 is not a valid system variable and will be ignored.
+Warning	1231	var2 is not a valid system variable and will be ignored.
+SELECT @@session.session_track_system_variables;
+@@session.session_track_system_variables
+var1,sql_mode,var2
+
+SET @@session.sql_mode='ANSI';
+-- sql_mode
+-- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+
+# Tracking by self-assigning the value of a system variable.
+
+SELECT @@session.sql_mode;
+@@session.sql_mode
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+SET @@session.sql_mode=@@session.sql_mode;
+-- sql_mode
+-- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+
+# Tracking @@session.session_track_system_variables itself.
+
+SET @@session.session_track_system_variables='session_track_system_variables';
+-- session_track_system_variables
+-- session_track_system_variables
+
+SELECT @@session.session_track_system_variables;
+@@session.session_track_system_variables
+session_track_system_variables
+
+# testing @@session.session_track_schema
+
+SELECT @@session.session_track_schema;
+@@session.session_track_schema
+1
+USE mysql;
+-- mysql
+
+USE test;
+-- test
+
+# Expect no change info.
+USE non_existing_db;
+ERROR 42000: Unknown database 'non_existing_db'
+USE mysql;
+-- mysql
+
+USE mysql;
+-- mysql
+
+USE test;
+-- test
+
+# Turing current schema tracking off.
+
+SET @@session.session_track_schema=false;
+SELECT @@session.session_track_schema;
+@@session.session_track_schema
+0
+# Expect no change info.
+USE mysql;
+# Expect no change info.
+USE test;
+
+# Testing with invalid values.
+
+SET @@session.session_track_schema=ONN;
+ERROR 42000: Variable 'session_track_schema' can't be set to the value of 'ONN'
+SELECT @@session.session_track_schema;
+@@session.session_track_schema
+0
+# Expect no change info.
+USE mysql;
+# Expect no change info.
+USE test;
+
+# Turn tracking on.
+SET @@session.session_track_schema=ON;
+USE test;
+-- test
+
+# Set to an invalid value, the tracking should remain on.
+SET @@session.session_track_schema=OFFF;
+ERROR 42000: Variable 'session_track_schema' can't be set to the value of 'OFFF'
+USE test;
+-- test
+
+# Testing COM_CHANGE_USER
+
+# Turn off the @@session.session_track_schema and try to assign
+# @@global.session_track_schema to it.
+
+SET @@session.session_track_schema=OFF;
+SELECT @@global.session_track_schema;
+@@global.session_track_schema
+1
+SELECT @@session.session_track_schema;
+@@session.session_track_schema
+0
+SET @@session.session_track_schema=@@global.session_track_schema;
+SELECT @@session.session_track_schema;
+@@session.session_track_schema
+1
+#
+# Lets try to add a variable from the validate_password plugin
+# while its not installed. (expect warning)
+#
+call mtr.add_suppression("Dictionary file not specified");
+SELECT @@global.session_track_system_variables;
+@@global.session_track_system_variables
+time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+SELECT @@session.session_track_system_variables;
+@@session.session_track_system_variables
+time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+
+SET @@session.session_track_system_variables='validate_password_policy,autocommit';
+Warnings:
+Warning	1231	validate_password_policy is not a valid system variable and will be ignored.
+# Now lets install the validate password plugin.
+INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+# plugin installed!
+
+SELECT @@session.session_track_system_variables;
+@@session.session_track_system_variables
+validate_password_policy,autocommit
+# The following SET should now execute successfully without a warning.
+SET @@session.session_track_system_variables='validate_password_policy,autocommit';
+
+# Cleanup.
+UNINSTALL PLUGIN validate_password;
+
+# End of tests
