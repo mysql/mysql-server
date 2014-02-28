@@ -3516,11 +3516,13 @@ void pfs_unlock_rwlock_v1(PSI_rwlock *rwlock)
 */
 void pfs_signal_cond_v1(PSI_cond* cond)
 {
+#ifdef PFS_LATER
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
 
   DBUG_ASSERT(pfs_cond != NULL);
 
   pfs_cond->m_cond_stat.m_signal_count++;
+#endif
 }
 
 /**
@@ -3529,11 +3531,13 @@ void pfs_signal_cond_v1(PSI_cond* cond)
 */
 void pfs_broadcast_cond_v1(PSI_cond* cond)
 {
+#ifdef PFS_LATER
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
 
   DBUG_ASSERT(pfs_cond != NULL);
 
   pfs_cond->m_cond_stat.m_broadcast_count++;
+#endif
 }
 
 /**
@@ -3645,7 +3649,7 @@ void pfs_end_idle_wait_v1(PSI_idle_locker* locker)
   {
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
+    event_name_array= thread->write_instr_class_waits_stats();
 
     if (flags & STATE_FLAG_TIMED)
     {
@@ -3725,7 +3729,7 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
   if (flags & STATE_FLAG_THREAD)
   {
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
+    event_name_array= thread->write_instr_class_waits_stats();
     uint index= mutex->m_class->m_event_name_index;
 
     DBUG_ASSERT(index <= wait_class_max);
@@ -3809,7 +3813,7 @@ void pfs_end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
     DBUG_ASSERT(thread != NULL);
 
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
+    event_name_array= thread->write_instr_class_waits_stats();
     uint index= rwlock->m_class->m_event_name_index;
 
     if (state->m_flags & STATE_FLAG_TIMED)
@@ -3881,7 +3885,7 @@ void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
   if (state->m_flags & STATE_FLAG_THREAD)
   {
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
+    event_name_array= thread->write_instr_class_waits_stats();
     uint index= rwlock->m_class->m_event_name_index;
 
     if (state->m_flags & STATE_FLAG_TIMED)
@@ -3945,7 +3949,7 @@ void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int rc)
     DBUG_ASSERT(thread != NULL);
 
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
+    event_name_array= thread->write_instr_class_waits_stats();
     uint index= cond->m_class->m_event_name_index;
 
     if (state->m_flags & STATE_FLAG_TIMED)
@@ -4038,7 +4042,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
     DBUG_ASSERT(thread != NULL);
 
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
+    event_name_array= thread->write_instr_class_waits_stats();
 
     /*
       Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
@@ -4107,7 +4111,7 @@ void pfs_end_table_lock_wait_v1(PSI_table_locker* locker)
     DBUG_ASSERT(thread != NULL);
 
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
+    event_name_array= thread->write_instr_class_waits_stats();
 
     /*
       Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
@@ -4352,7 +4356,7 @@ void pfs_end_file_wait_v1(PSI_file_locker *locker,
     DBUG_ASSERT(thread != NULL);
 
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
+    event_name_array= thread->write_instr_class_waits_stats();
     uint index= klass->m_event_name_index;
 
     if (flags & STATE_FLAG_TIMED)
@@ -4485,7 +4489,7 @@ void pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
   if (old_class != NULL)
   {
     PFS_stage_stat *event_name_array;
-    event_name_array= pfs_thread->m_instr_class_stages_stats;
+    event_name_array= pfs_thread->write_instr_class_stages_stats();
     uint index= old_class->m_event_name_index;
 
     /* Finish old event */
@@ -4582,7 +4586,7 @@ void pfs_end_stage_v1()
   if (old_class != NULL)
   {
     PFS_stage_stat *event_name_array;
-    event_name_array= pfs_thread->m_instr_class_stages_stats;
+    event_name_array= pfs_thread->write_instr_class_stages_stats();
     uint index= old_class->m_event_name_index;
 
     /* Finish old event */
@@ -5077,7 +5081,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   {
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
     DBUG_ASSERT(thread != NULL);
-    event_name_array= thread->m_instr_class_statements_stats;
+    event_name_array= thread->write_instr_class_statements_stats();
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat= & event_name_array[index];
 
@@ -5181,6 +5185,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     stat= & event_name_array[index];
   }
 
+  stat->mark_used();
+
   if (flags & STATE_FLAG_TIMED)
   {
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (timed) */
@@ -5211,6 +5217,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   if (digest_stat != NULL)
   {
+    digest_stat->mark_used();
+
     if (flags & STATE_FLAG_TIMED)
     {
       digest_stat->aggregate_value(wait_time);
@@ -5244,6 +5252,8 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     sub_stmt_stat= &pfs_program->m_stmt_stat;
     if(sub_stmt_stat != NULL)
     {
+      sub_stmt_stat->mark_used();
+
       if (flags & STATE_FLAG_TIMED)
       {
         sub_stmt_stat->aggregate_value(wait_time);
@@ -5708,7 +5718,7 @@ void pfs_end_transaction_v1(PSI_transaction_locker *locker, my_bool commit)
     DBUG_ASSERT(pfs_thread != NULL);
 
     /* Aggregate to EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-    stat= &pfs_thread->m_instr_class_transactions_stats[GLOBAL_TRANSACTION_INDEX];
+    stat= &pfs_thread->write_instr_class_transactions_stats()[GLOBAL_TRANSACTION_INDEX];
 
     if (flags & STATE_FLAG_EVENT)
     {
@@ -5994,7 +6004,7 @@ static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size)
       return PSI_NOT_INSTRUMENTED;
 
     /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-    event_name_array= pfs_thread->m_instr_class_memory_stats;
+    event_name_array= pfs_thread->write_instr_class_memory_stats();
     stat= & event_name_array[index];
     delta= stat->count_alloc(size, &delta_buffer);
 
@@ -6032,7 +6042,7 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
     if (likely(pfs_thread != NULL))
     {
       /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-      event_name_array= pfs_thread->m_instr_class_memory_stats;
+      event_name_array= pfs_thread->write_instr_class_memory_stats();
       stat= & event_name_array[index];
 
       if (klass->m_enabled)
@@ -6099,7 +6109,7 @@ static void pfs_memory_free_v1(PSI_memory_key key, size_t size)
         the corresponding free must be instrumented.
       */
       /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
-      event_name_array= pfs_thread->m_instr_class_memory_stats;
+      event_name_array= pfs_thread->write_instr_class_memory_stats();
       stat= & event_name_array[index];
       delta= stat->count_free(size, &delta_buffer);
 
@@ -6296,7 +6306,7 @@ pfs_end_metadata_wait_v1(PSI_metadata_locker *locker,
   if (flags & STATE_FLAG_THREAD)
   {
     PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
+    event_name_array= thread->write_instr_class_waits_stats();
 
     if (flags & STATE_FLAG_TIMED)
     {
