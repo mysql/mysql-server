@@ -47,6 +47,7 @@
 #include <mysql/psi/mysql_idle.h>
 
 #include <mysql_com_server.h>
+#include "opt_costmodel.h"                      // Cost_model_server
 #include "sql_data_change.h"
 #include "transaction_info.h"
 
@@ -3699,6 +3700,25 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+
+private:
+  /**
+    Optimizer cost model for server operations.
+  */
+  Cost_model_server m_cost_model;
+
+public:
+  /**
+    Initialize the optimizer cost model.
+
+    This function should be called each time a new query is started.
+  */
+  void init_cost_model() { m_cost_model.init(); }
+
+  /**
+    Retrieve the optimizer cost model for this connection.
+  */
+  const Cost_model_server* cost_model() const { return &m_cost_model; }
 };
 
 

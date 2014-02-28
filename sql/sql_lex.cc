@@ -489,6 +489,8 @@ bool lex_start(THD *thd)
 
   lex->thd= thd;
   lex->reset();
+  // Initialize the cost model to be used for this query
+  thd->init_cost_model();
 
   const bool status= lex->new_top_level_query();
 

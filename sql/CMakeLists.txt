@@ -101,6 +101,7 @@ SET(SQL_SHARED_SOURCES
   mdl.cc
   my_decimal.cc
   net_serv.cc
+  opt_costmodel.cc
   opt_explain.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
@@ -309,6 +310,7 @@ ADD_DEPENDENCIES(slave GenError)
 SET(SQL_GUNIT_LIB_SOURCE 
   filesort_utils.cc 
   mdl.cc 
+  opt_costmodel.cc
   sql_list.cc 
   sql_string.cc
   thr_malloc.cc
