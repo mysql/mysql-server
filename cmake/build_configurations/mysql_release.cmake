@@ -154,9 +154,6 @@ IF(UNIX)
       # libmysqld.so will depend on libaio.so
       SET(LIBMYSQLD_SO_EXTRA_LIBS aio)
     ENDIF()
-
-    # Enable fast mutexes on Linux
-    OPTION(WITH_FAST_MUTEXES "" ON)
   ENDIF()
 
 ENDIF()
