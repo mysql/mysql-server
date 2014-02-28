@@ -7132,6 +7132,8 @@ ER_NON_RO_SELECT_DISABLE_TIMER
 ER_DUP_LIST_ENTRY
         eng "Duplicate entry '%-.192s'."
 
+ER_SQL_MODE_NO_EFFECT
+  eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
 
 #
 #  End of 5.7 error messages.
