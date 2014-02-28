@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3116,6 +3117,7 @@ public:
       DBUG_PRINT("info",
                  ("change_item_tree place %p old_value %p new_value %p",
                   place, *place, new_value));
+      new_value->set_runtime_created(); /* Note the change of item tree */
       nocheck_register_item_tree_change(place, *place, mem_root);
     }
     *place= new_value;
