@@ -66,6 +66,7 @@
 #include "sql_timer.h"                          // thd_timer_destroy
 
 #include <mysql/psi/mysql_statement.h>
+#include "mysql/psi/mysql_ps.h"
 
 using std::min;
 using std::max;
@@ -3601,6 +3602,13 @@ void Statement_map::reset()
   /* Must be first, hash_free will reset st_hash.records */
   if (st_hash.records > 0)
   {
+#ifdef HAVE_PSI_PS_INTERFACE
+    for (uint i=0 ; i < st_hash.records ; i++)
+    {
+      Statement *stmt= (Statement *)my_hash_element(&st_hash, i);
+      MYSQL_DESTROY_PS(stmt->get_PS_prepared_stmt());
+    }
+#endif
     mysql_mutex_lock(&LOCK_prepared_stmt_count);
     DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
     prepared_stmt_count-= st_hash.records;
