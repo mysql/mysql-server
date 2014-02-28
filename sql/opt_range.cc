@@ -1388,9 +1388,9 @@ SQL_SELECT::SQL_SELECT() :
 }
 
 
-void SQL_SELECT::cleanup()
+SQL_SELECT::~SQL_SELECT()
 {
-  set_quick(NULL);
+  delete quick;
   if (free_cond)
   {
     free_cond=0;
@@ -1399,12 +1399,6 @@ void SQL_SELECT::cleanup()
   }
   close_cached_file(&file);
   traced_before= false;
-}
-
-
-SQL_SELECT::~SQL_SELECT()
-{
-  cleanup();
 }
 
 #undef index					// Fix for Unixware 7
@@ -2616,6 +2610,15 @@ static int fill_used_fields_bitmap(PARAM *param)
   return 0;
 }
 
+void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
+{
+  delete quick;
+  DBUG_ASSERT (quick==NULL || quick != new_quick);
+  quick= new_quick;
+  if (head && head->reginfo.join_tab)
+    head->reginfo.join_tab->type=
+      (new_quick ? calc_join_type(new_quick->get_type()) : JT_ALL);
+}
 
 /*
   Test if a key can be used in different ranges
@@ -2698,7 +2701,12 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 		      (ulong) const_tables));
 
   const Cost_model_server *const cost_model= thd->cost_model();
-  set_quick(NULL);
+  if (quick)
+  {
+    mysql_mutex_lock(&thd->LOCK_query_plan);
+    set_quick(NULL);
+    mysql_mutex_unlock(&thd->LOCK_query_plan);
+  }
   needed_reg.clear_all();
   if (keys_to_use.is_clear_all())
     DBUG_RETURN(0);
@@ -3000,10 +3008,12 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     /* If we got a read plan, create a quick select from it. */
     if (best_trp)
     {
+      QUICK_SELECT_I *qck;
       mysql_mutex_lock(&thd->LOCK_query_plan);
       records= best_trp->records;
-      if (!(quick= best_trp->make_quick(&param, TRUE)) || quick->init())
-        set_quick(NULL);
+      if (!(qck= best_trp->make_quick(&param, TRUE)) || qck->init())
+        qck= NULL;
+      set_quick(qck);
       mysql_mutex_unlock(&thd->LOCK_query_plan);
     }
 
@@ -6494,7 +6504,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     There are limits on what kinds of const items we can evaluate.
     At this stage a subquery in 'cond' might not be fully transformed yet
     (example: semijoin) thus cannot be evaluated. Another reason is that we
-    may be called by test_if_quick_select (), which holds LOCK_query_plan,
+    may be called by test_quick_select (), which holds LOCK_query_plan,
     thus we must not acquire this Mutex here, thus we can neither prepare nor
     optimize any subquery here.
   */

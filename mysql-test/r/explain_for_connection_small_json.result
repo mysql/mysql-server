@@ -145,14 +145,16 @@ QUERY: SELECT * FROM t1 WHERE key1=1130 AND col1 IS NULL ORDER BY text1
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -26,2 +26,3 @@
+@@ -26,3 +26,4 @@
          "filtered": 80,
+-        "index_condition": "(`test`.`t1`.`key1` <=> 1130)",
++        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
-@@ -42,4 +43,3 @@
+@@ -43,4 +44,3 @@
            "col4"
 -        ],
--        "attached_condition": "((`test`.`t1`.`key1` <=> 1130) and isnull(`test`.`t1`.`col1`))"
+-        "attached_condition": "isnull(`test`.`t1`.`col1`)"
 +        ]
        }
 QUERY: SELECT t1.c2   FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1 
@@ -284,28 +286,32 @@ QUERY: SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -27,2 +27,3 @@
+@@ -27,3 +27,4 @@
          "filtered": 50,
+-        "index_condition": "(`test`.`t1`.`a` <=> 2)",
++        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
-@@ -36,4 +37,3 @@
+@@ -37,4 +38,3 @@
            "c"
 -        ],
--        "attached_condition": "((`test`.`t1`.`a` <=> 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`)))"
+-        "attached_condition": "((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))"
 +        ]
        }
 QUERY: SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -27,2 +27,3 @@
+@@ -27,3 +27,4 @@
          "filtered": 50,
+-        "index_condition": "(`test`.`t1`.`a` <=> 2)",
++        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
-@@ -36,4 +37,3 @@
+@@ -37,4 +38,3 @@
            "c"
 -        ],
--        "attached_condition": "((`test`.`t1`.`a` <=> 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`)))"
+-        "attached_condition": "((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))"
 +        ]
        }
 QUERY: UPDATE t1 SET b = CONCAT(b, ', max(a) in t2: ', (SELECT MAX(a) FROM t2)) WHERE a = 5 

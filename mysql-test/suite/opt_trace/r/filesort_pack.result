@@ -166,8 +166,7 @@ select * from t1 order by c1	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -303,8 +302,7 @@ select * from t1 order by c1	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -440,8 +438,7 @@ select * from t1 order by c1	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -577,8 +574,7 @@ select * from t1 order by c1	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -974,8 +970,7 @@ SELECT * FROM t1 ORDER BY c1	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }

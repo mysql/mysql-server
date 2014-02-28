@@ -111,8 +111,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -274,8 +273,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -443,8 +441,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -600,8 +597,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
           {
             "refine_plan": [
               {
-                "table": "`information_schema`.`innodb_buffer_page`",
-                "access_type": "table_scan"
+                "table": "`information_schema`.`innodb_buffer_page`"
               }
             ] /* refine_plan */
           }
@@ -833,8 +829,7 @@ ORDER BY cc	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ] /* refine_plan */
                 }
@@ -905,8 +900,7 @@ ORDER BY cc	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "index_scan"
+                      "table": "`t1`"
                     }
                   ] /* refine_plan */
                 }
@@ -987,8 +981,7 @@ ORDER BY cc	{
                 {
                   "refine_plan": [
                     {
-                      "table": "``.``",
-                      "access_type": "table_scan"
+                      "table": "``.``"
                     }
                   ] /* refine_plan */
                 }
@@ -1081,8 +1074,7 @@ ORDER BY cc	{
           {
             "refine_plan": [
               {
-                "table": " `tt`",
-                "access_type": "table_scan"
+                "table": " `tt`"
               }
             ] /* refine_plan */
           },

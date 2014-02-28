@@ -81,8 +81,7 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
           {
             "refine_plan": [
               {
-                "table": "`t2`",
-                "access_type": "table_scan"
+                "table": "`t2`"
               }
             ] /* refine_plan */
           }
@@ -269,8 +268,7 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
           {
             "refine_plan": [
               {
-                "table": "`t2`",
-                "access_type": "table_scan"
+                "table": "`t2`"
               }
             ] /* refine_plan */
           }
@@ -1101,8 +1099,7 @@ field4,field5,field6	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t5` `sq3_alias1`",
-                      "access_type": "index_scan"
+                      "table": "`t5` `sq3_alias1`"
                     }
                   ] /* refine_plan */
                 }
@@ -1677,8 +1674,7 @@ field4,field5,field6	{
                 "table": " `alias2`"
               },
               {
-                "table": "`t5` `alias1`",
-                "access_type": "table_scan"
+                "table": "`t5` `alias1`"
               }
             ] /* refine_plan */
           }
@@ -2363,8 +2359,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                                 {
                                   "refine_plan": [
                                     {
-                                      "table": "`t1` `subquery1_t1`",
-                                      "access_type": "table_scan"
+                                      "table": "`t1` `subquery1_t1`"
                                     }
                                   ] /* refine_plan */
                                 }
@@ -2394,8 +2389,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
               {
                 "table": "`t1` `table1`",
                 "pushed_index_condition": "(`table1`.`pk` in (192,18))",
-                "table_condition_attached": "(`table1`.`col_varchar_key` is not null)",
-                "access_type": "range"
+                "table_condition_attached": "(`table1`.`col_varchar_key` is not null)"
               },
               {
                 "table": "`t1` `table2`"
