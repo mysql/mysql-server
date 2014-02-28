@@ -60,6 +60,9 @@ let $master_log_file= query_get_value(SHOW SLAVE STATUS, Master_Log_File, 1);
 let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 let $master_id= query_get_value(SHOW SLAVE STATUS, Master_Server_Id, 1);
 
+--let $save_autoposition= query_get_value(SHOW SLAVE STATUS, Auto_Position, 1)  
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+
 --connection slave
 --disable_query_log
 replace_result $master_log_file MASTER_LOG_FILE;
@@ -287,6 +290,9 @@ eval CHANGE MASTER TO
   MASTER_SSL_CERT= '',
   MASTER_SSL_KEY= '',
   MASTER_SSL_VERIFY_SERVER_CERT= 0;
+
+--replace_result $save_autoposition SAVE_AUTOPOSITION
+eval CHANGE MASTER TO MASTER_AUTO_POSITION= $save_autoposition;
 
 --source include/start_slave.inc
 
