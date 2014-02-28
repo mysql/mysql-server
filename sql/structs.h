@@ -89,7 +89,7 @@ public:
   then the storage engine has not provided a value for it and the rec_per_key
   value for this key part is unknown.
 */
-#define REC_PER_KEY_UNKNOWN -1.0
+#define REC_PER_KEY_UNKNOWN -1.0f
 
 typedef struct st_key {
   /** Tot length of key */
