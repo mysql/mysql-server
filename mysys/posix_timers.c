@@ -211,7 +211,7 @@ my_timer_create(my_timer_t *timer)
 */
 
 static void *
-timer_notify_thread_func(void *arg)
+timer_notify_thread_func(void *arg __attribute__((unused)))
 {
   port_event_t port_event;
   my_timer_t *timer;
