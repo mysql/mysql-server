@@ -69,7 +69,6 @@ static int join_read_key(JOIN_TAB *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
 static int join_read_next(READ_RECORD *info);
-static int test_if_quick_select(JOIN_TAB *tab);
 static int join_read_next_same(READ_RECORD *info);
 static int join_read_prev(READ_RECORD *info);
 static int join_ft_read_first(JOIN_TAB *tab);
@@ -1770,23 +1769,6 @@ int safe_index_read(JOIN_TAB *tab)
 }
 
 
-static int
-test_if_quick_select(JOIN_TAB *tab)
-{
-  mysql_mutex_lock(&tab->join->thd->LOCK_query_plan);
-  tab->select->set_quick(NULL);
-  mysql_mutex_unlock(&tab->join->thd->LOCK_query_plan);
-  const bool ret=
-    tab->select->test_quick_select(tab->join->thd, 
-                                   tab->keys,
-                                   0,          // empty table map
-                                   HA_POS_ERROR, 
-                                   false,      // don't force quick range
-                                   ORDER::ORDER_NOT_RELEVANT);
-  return ret;
-}
-
-
 /**
    Reads content of constant table
    @param tab  table
@@ -2338,7 +2320,7 @@ join_init_quick_read_record(JOIN_TAB *tab)
 
   /* 
     If this join tab was read through a QUICK for the last record
-    combination from earlier tables, test_if_quick_select() will
+    combination from earlier tables, test_quick_select() will
     delete that quick and effectively close the index. Otherwise, we
     need to close the index before the next join iteration starts
     because the handler object might be reused by a different access
@@ -2348,7 +2330,12 @@ join_init_quick_read_record(JOIN_TAB *tab)
       (tab->table->file->inited != handler::NONE))
     tab->table->file->ha_index_or_rnd_end(); 
 
-  if (test_if_quick_select(tab) == -1)
+  if (tab->select->test_quick_select(tab->join->thd, 
+                                     tab->keys,
+                                     0,          // empty table map
+                                     HA_POS_ERROR, 
+                                     false,      // don't force quick range
+                                     ORDER::ORDER_NOT_RELEVANT) == -1)
     return -1;					/* No possible records */
   return join_init_read_record(tab);
 }
@@ -2669,6 +2656,10 @@ join_read_next_same_or_null(READ_RECORD *info)
   Sets the functions for the selected table access method
 
   @param      tab               Table reference to put access method
+
+  @todo join_init_read_record/join_read_(last|first) set
+  tab->read_record.read_record internally. Do the same in other first record
+  reading functions.
 */
 
 void
@@ -2693,36 +2684,37 @@ pick_table_access_method(JOIN_TAB *tab)
     DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
     tab->read_first_record= join_read_linked_first;
     tab->read_record.read_record= join_read_linked_next;
-    tab->read_record.unlock_row= rr_unlock_row;
     return;
   }
 
-  /**
-    Already set to some non-default value in sql_select.cc?
-    TODO: Move these settings into pick_table_access_method() also
-  */
-  if (tab->read_first_record != NULL)
-    return;  
-
+  DBUG_ASSERT(tab->read_first_record == NULL);
+  // Only some access methods support reversed access:
+  DBUG_ASSERT(!tab->reversed_access || tab->type == JT_REF ||
+              tab->type == JT_INDEX_SCAN);
   // Fall through to set default access functions:
   switch (tab->type) 
   {
   case JT_REF:
-    tab->read_first_record= join_read_always_key;
-    tab->read_record.read_record= join_read_next_same;
-    tab->read_record.unlock_row= rr_unlock_row;
+    if (tab->reversed_access)
+    {
+      tab->read_first_record= join_read_last_key;
+      tab->read_record.read_record= join_read_prev_same;
+    }
+    else
+    {
+      tab->read_first_record= join_read_always_key;
+      tab->read_record.read_record= join_read_next_same;
+    }
     break;
 
   case JT_REF_OR_NULL:
     tab->read_first_record= join_read_always_key_or_null;
     tab->read_record.read_record= join_read_next_same_or_null;
-    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_CONST:
     tab->read_first_record= join_read_const;
     tab->read_record.read_record= join_no_more_records;
-    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_EQ_REF:
@@ -2734,18 +2726,27 @@ pick_table_access_method(JOIN_TAB *tab)
   case JT_FT:
     tab->read_first_record= join_ft_read_first;
     tab->read_record.read_record= join_ft_read_next;
-    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_SYSTEM:
     tab->read_first_record= join_read_system;
     tab->read_record.read_record= join_no_more_records;
-    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
+  case JT_INDEX_SCAN:
+    tab->read_first_record= tab->reversed_access ?
+                            join_read_last : join_read_first;
+    break;
+  case JT_ALL:
+  case JT_RANGE:
+  case JT_INDEX_MERGE:
+    tab->read_first_record= (tab->use_quick == QS_DYNAMIC_RANGE) ?
+                            join_init_quick_read_record :
+                            join_init_read_record;
+    break;
   default:
-    tab->read_record.unlock_row= rr_unlock_row;
-    break;  
+    DBUG_ASSERT(0);
+    break;
   }
 }
 

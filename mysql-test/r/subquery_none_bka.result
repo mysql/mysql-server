@@ -7482,7 +7482,7 @@ FROM t1
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	ref	t1_id,t1_id_position	t1_id_position	5	test.t1.id	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ref	t1_id,t1_id_position	t1_id_position	5	test.t1.id	1	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.id' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t2`.`position` from `test`.`t2` where (`test`.`t2`.`t1_id` = `test`.`t1`.`id`) order by `test`.`t2`.`t1_id`,`test`.`t2`.`position` limit 10,1) AS `maxkey` from `test`.`t1` limit 1

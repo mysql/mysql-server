@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -224,7 +224,6 @@ namespace AQP
     DBUG_PRINT("info", ("group_optimized_away:%d",
                         get_join_tab()->join->group_optimized_away));
 
-    DBUG_PRINT("info", ("full_join:%d", get_join_tab()->join->full_join));
     DBUG_PRINT("info", ("need_tmp:%d", get_join_tab()->join->need_tmp));
     DBUG_PRINT("info", ("select_distinct:%d",
                         get_join_tab()->join->select_distinct));
