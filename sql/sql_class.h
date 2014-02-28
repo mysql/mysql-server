@@ -88,6 +88,8 @@ class User_level_lock;
 class user_var_entry;
 typedef struct st_log_info LOG_INFO;
 
+struct st_thd_timer;
+
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
@@ -544,6 +546,8 @@ typedef struct system_variables
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
+
+  ulong max_statement_time;
 } SV;
 
 
@@ -606,6 +610,11 @@ typedef struct system_status_var
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+
+  ulonglong max_statement_time_exceeded;
+  ulonglong max_statement_time_set;
+  ulonglong max_statement_time_set_failed;
+
   /*
     Number of statements sent from the client
   */
@@ -622,6 +631,7 @@ typedef struct system_status_var
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
+
 } STATUS_VAR;
 
 /*
@@ -1903,6 +1913,16 @@ public:
     return m_binlog_filter_state;
   }
 
+#ifdef HAVE_MY_TIMER
+  /** Holds active timer object */
+  struct st_thd_timer_info *timer;
+  /**
+    After resetting(cancelling) timer, current timer object is cached
+    with timer_cache timer to reuse.
+  */
+  struct st_thd_timer_info *timer_cache;
+#endif
+
 private:
   /**
     Indicate if the current statement should be discarded
@@ -2490,6 +2510,7 @@ public:
     KILL_BAD_DATA=1,
     KILL_CONNECTION=ER_SERVER_SHUTDOWN,
     KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILL_TIMEOUT=ER_QUERY_TIMEOUT,
     KILLED_NO_VALUE      /* means neither of the states */
   };
   killed_state volatile killed;

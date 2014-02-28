@@ -7124,6 +7124,12 @@ ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
 ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS
   eng "CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file."
 
+ER_QUERY_TIMEOUT 
+  eng "Query execution was interrupted, max_statement_time exceeded"
+
+ER_NON_RO_SELECT_DISABLE_TIMER
+  eng "Select is not a read only statement, disabling timer"
+
 #
 #  End of 5.7 error messages.
 #

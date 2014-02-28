@@ -685,6 +685,16 @@ innobase_close_connection(
 					which to close the connection */
 
 /*****************************************************************//**
+Cancel any pending lock request associated with the current THD. */
+static
+void
+innobase_kill_connection(
+/*=====================*/
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
+	THD*		thd);		/*!< in: MySQL thread handle for
+					which to close the connection */
+
+/*****************************************************************//**
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended.
 @return 0 */
@@ -1346,7 +1356,7 @@ convert_error_code_to_mysql(
 		return(0);
 
 	case DB_INTERRUPTED:
-		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+                thd_set_kill_status(thd ? thd : current_thd);
 		return(-1);
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
@@ -2792,6 +2802,7 @@ innobase_init(
 	innobase_hton->db_type= DB_TYPE_INNODB;
 	innobase_hton->savepoint_offset = sizeof(trx_named_savept_t);
 	innobase_hton->close_connection = innobase_close_connection;
+	innobase_hton->kill_connection = innobase_kill_connection;
 	innobase_hton->savepoint_set = innobase_savepoint;
 	innobase_hton->savepoint_rollback = innobase_rollback_to_savepoint;
 	innobase_hton->savepoint_rollback_can_release_mdl =
@@ -3846,6 +3857,29 @@ innobase_close_connection(
 	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(0);
+}
+
+/*****************************************************************//**
+Cancel any pending lock request associated with the current THD. */
+static
+void
+innobase_kill_connection(
+/*======================*/
+	handlerton*    hton,   /*!< in:  innobase handlerton */
+	THD*    thd)    /*!< in: handle to the MySQL thread being killed */
+{
+	trx_t*  trx;
+
+	DBUG_ENTER("innobase_kill_connection");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = thd_to_trx(thd);
+	ut_a(trx);
+
+        /* Cancel a pending lock request if there are any */
+        lock_trx_handle_wait(trx);
+
+	DBUG_VOID_RETURN;
 }
 
 /*****************************************************************//**
@@ -11374,7 +11408,7 @@ ha_innobase::check(
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {
-		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		thd_set_kill_status(user_thd);
 	}
 
 	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);

@@ -265,6 +265,7 @@ SET(TESTS
   strings_skip_trailing
   strtoll
   thread_utils
+  my_timer
   )
   
 IF(WIN32)
