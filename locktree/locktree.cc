@@ -412,6 +412,9 @@ int locktree::acquire_lock(bool is_write_request, TXNID txnid,
 
 int locktree::try_acquire_lock(bool is_write_request, TXNID txnid,
         const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn) {
+    // All ranges in the locktree must have left endpoints <= right endpoints.
+    // Range comparisons rely on this fact, so we make a paranoid invariant here.
+    paranoid_invariant(m_cmp->compare(left_key, right_key) <= 0);
     int r = m_mgr->check_current_lock_constraints(big_txn);
     if (r == 0) {
         r = acquire_lock(is_write_request, txnid, left_key, right_key, conflicts);
@@ -551,6 +554,9 @@ void locktree::release_locks(TXNID txnid, const range_buffer *ranges) {
         while (iter.current(&rec)) {
             const DBT *left_key = rec.get_left_key();
             const DBT *right_key = rec.get_right_key();
+            // All ranges in the locktree must have left endpoints <= right endpoints.
+            // Range comparisons rely on this fact, so we make a paranoid invariant here.
+            paranoid_invariant(m_cmp->compare(left_key, right_key) <= 0);
             remove_overlapping_locks_for_txnid(txnid, left_key, right_key);
             iter.next();
         }
