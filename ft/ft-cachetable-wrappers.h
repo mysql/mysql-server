@@ -139,7 +139,7 @@ toku_create_new_ftnode (
     );
 
 int
-toku_pin_ftnode(
+toku_pin_ftnode_for_query(
     FT_HANDLE brt,
     BLOCKNUM blocknum,
     uint32_t fullhash,
