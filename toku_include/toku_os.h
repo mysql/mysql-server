@@ -95,8 +95,8 @@ PATENT RIGHTS GRANT:
 #include <dirent.h>
 #include <sys/time.h>
 
-#include <portability/toku_stdint.h>
-#include <portability/toku_os_types.h>
+#include "toku_stdint.h"
+#include "toku_os_types.h"
 
 // Returns: the current process id
 int toku_os_getpid(void)   __attribute__((__visibility__("default")));
