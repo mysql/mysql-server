@@ -232,15 +232,14 @@ doit (void) {
 
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         brt->ft, 
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->n_children == 2);
     // we expect that this flushes its buffer, that
@@ -255,15 +254,14 @@ doit (void) {
 
     // verify that node_internal's buffer is empty
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         brt->ft, 
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     // check that merge happened
     assert(node->n_children == 1);

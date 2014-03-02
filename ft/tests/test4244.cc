@@ -150,15 +150,14 @@ doit (void) {
     FTNODE node;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, t->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         t->ft, 
         node_internal,
         toku_cachetable_hash(t->ft->cf, node_internal),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->n_children == 1);
     // simply assert that the buffer is less than 50MB,

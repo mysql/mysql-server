@@ -1674,14 +1674,12 @@ ft_init_new_root(FT ft, FTNODE oldroot, FTNODE *newrootp)
     // return to caller
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, ft);
-    toku_pin_ftnode_with_dep_nodes(
+    toku_pin_ftnode(
         ft,
         old_blocknum,
         old_fullhash,
         &bfe,
         PL_WRITE_EXPENSIVE, // may_modify_node
-        0,
-        NULL,
         newrootp,
         true
         );
@@ -2793,7 +2791,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, ft);
             FTNODE newparent, newchild;
-            toku_pin_ftnode_with_dep_nodes(ft, parent_blocknum, parent_fullhash, &bfe, PL_WRITE_CHEAP, 0, nullptr, &newparent, true);
+            toku_pin_ftnode(ft, parent_blocknum, parent_fullhash, &bfe, PL_WRITE_CHEAP, &newparent, true);
             if (newparent->height != parent_height || newparent->n_children != parent_n_children ||
                 childnum >= newparent->n_children || toku_bnc_n_entries(BNC(newparent, childnum))) {
                 // If the height changed or childnum is now off the end, something clearly got split or merged out from under us.
@@ -2845,7 +2843,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, ft);
             FTNODE newparent, newchild;
-            toku_pin_ftnode_with_dep_nodes(ft, parent_blocknum, parent_fullhash, &bfe, PL_WRITE_CHEAP, 0, nullptr, &newparent, true);
+            toku_pin_ftnode(ft, parent_blocknum, parent_fullhash, &bfe, PL_WRITE_CHEAP, &newparent, true);
             if (newparent->height != parent_height || childnum >= newparent->n_children) {
                 // looks like this is the root and it got merged, let's just start over (like in the split case above)
                 toku_unpin_ftnode_read_only(ft, newparent);
@@ -2886,7 +2884,7 @@ static void inject_message_at_this_blocknum(FT ft, CACHEKEY cachekey, uint32_t f
     FTNODE node;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, ft);
-    toku_pin_ftnode_with_dep_nodes(ft, cachekey, fullhash, &bfe, PL_WRITE_CHEAP, 0, NULL, &node, true);
+    toku_pin_ftnode(ft, cachekey, fullhash, &bfe, PL_WRITE_CHEAP, &node, true);
     toku_assert_entire_node_in_memory(node);
     paranoid_invariant(node->fullhash==fullhash);
     ft_verify_flags(ft, node);
@@ -3009,11 +3007,11 @@ static void push_something_in_subtree(
                     if (lock_type == PL_WRITE_CHEAP) {
                         // We intend to take the write lock for message injection
                         toku::context inject_ctx(CTX_MESSAGE_INJECTION);
-                        toku_pin_ftnode_with_dep_nodes(ft, child_blocknum, child_fullhash, &bfe, lock_type, 0, nullptr, &child, true);
+                        toku_pin_ftnode(ft, child_blocknum, child_fullhash, &bfe, lock_type, &child, true);
                     } else {
                         // We're going to keep promoting
                         toku::context promo_ctx(CTX_PROMO);
-                        toku_pin_ftnode_with_dep_nodes(ft, child_blocknum, child_fullhash, &bfe, lock_type, 0, nullptr, &child, true);
+                        toku_pin_ftnode(ft, child_blocknum, child_fullhash, &bfe, lock_type, &child, true);
                     }
                 } else {
                     r = toku_maybe_pin_ftnode_clean(ft, child_blocknum, child_fullhash, lock_type, &child);
@@ -3046,7 +3044,7 @@ static void push_something_in_subtree(
                     FTNODE newparent;
                     struct ftnode_fetch_extra bfe;
                     fill_bfe_for_full_read(&bfe, ft); // should be fully in memory, we just split it
-                    toku_pin_ftnode_with_dep_nodes(ft, subtree_root_blocknum, subtree_root_fullhash, &bfe, PL_READ, 0, nullptr, &newparent, true);
+                    toku_pin_ftnode(ft, subtree_root_blocknum, subtree_root_fullhash, &bfe, PL_READ, &newparent, true);
                     push_something_in_subtree(ft, newparent, -1, msg, flow_deltas, gc_info, depth, loc, true);
                     return;
                 }
@@ -3143,7 +3141,7 @@ void toku_ft_root_put_msg(
     // and jump back to here.
  change_lock_type:
     // get the root node
-    toku_pin_ftnode_with_dep_nodes(ft, root_key, fullhash, &bfe, lock_type, 0, NULL, &node, true);
+    toku_pin_ftnode(ft, root_key, fullhash, &bfe, lock_type, &node, true);
     toku_assert_entire_node_in_memory(node);
     paranoid_invariant(node->fullhash==fullhash);
     ft_verify_flags(ft, node);
@@ -5466,14 +5464,12 @@ try_again:
         uint32_t fullhash;
         CACHEKEY root_key;
         toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
-        toku_pin_ftnode_with_dep_nodes(
+        toku_pin_ftnode(
             ft,
             root_key,
             fullhash,
             &bfe,
             PL_READ, // may_modify_node set to false, because root cannot change during search
-            0,
-            NULL,
             &node,
             true
             );
@@ -6089,14 +6085,12 @@ try_again:
             uint32_t fullhash;
             CACHEKEY root_key;
             toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
-            toku_pin_ftnode_with_dep_nodes(
+            toku_pin_ftnode(
                 brt->ft,
                 root_key,
                 fullhash,
                 &match_bfe,
                 PL_READ, // may_modify_node, cannot change root during keyrange
-                0,
-                NULL,
                 &node,
                 true
                 );
@@ -6308,7 +6302,7 @@ int toku_ft_get_key_after_bytes(FT_HANDLE ft_h, const DBT *start_key, uint64_t s
             uint32_t fullhash;
             CACHEKEY root_key;
             toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
-            toku_pin_ftnode_with_dep_nodes(ft, root_key, fullhash, &bfe, PL_READ, 0, nullptr, &root, true);
+            toku_pin_ftnode(ft, root_key, fullhash, &bfe, PL_READ, &root, true);
         }
         struct unlock_ftnode_extra unlock_extra = {ft_h, root, false};
         struct unlockers unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, (UNLOCKERS) nullptr};
@@ -6366,14 +6360,12 @@ toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const
     uint32_t fullhash = toku_cachetable_hash(brt->ft->cf, blocknum);
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->ft);
-    toku_pin_ftnode_with_dep_nodes(
+    toku_pin_ftnode(
         brt->ft,
         blocknum,
         fullhash,
         &bfe,
         PL_WRITE_EXPENSIVE,
-        0,
-        NULL,
         &node,
         true
         );
@@ -6567,14 +6559,12 @@ static bool is_empty_fast_iter (FT_HANDLE brt, FTNODE node) {
                 fill_bfe_for_full_read(&bfe, brt->ft);
                 // don't need to pass in dependent nodes as we are not
                 // modifying nodes we are pinning
-                toku_pin_ftnode_with_dep_nodes(
+                toku_pin_ftnode(
                     brt->ft,
                     childblocknum,
                     fullhash,
                     &bfe,
                     PL_READ, // may_modify_node set to false, as nodes not modified
-                    0,
-                    NULL,
                     &childnode,
                     true
                     );
@@ -6606,14 +6596,12 @@ bool toku_ft_is_empty_fast (FT_HANDLE brt)
         toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
         struct ftnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, brt->ft);
-        toku_pin_ftnode_with_dep_nodes(
+        toku_pin_ftnode(
             brt->ft,
             root_key,
             fullhash,
             &bfe,
             PL_READ, // may_modify_node set to false, node does not change
-            0,
-            NULL,
             &node,
             true
             );

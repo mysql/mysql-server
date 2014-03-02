@@ -244,15 +244,14 @@ doit (bool after_split) {
     FTNODE node = NULL;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 1);
@@ -262,15 +261,14 @@ doit (bool after_split) {
     assert(checkpoint_callback_called);
 
     // now let's pin the root again and make sure it is has split
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 2);
@@ -301,15 +299,14 @@ doit (bool after_split) {
     // now pin the root, verify that we have a message in there, and that it is clean
     //
     fill_bfe_for_full_read(&bfe, c_ft->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         c_ft->ft, 
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(!node->dirty);
@@ -329,15 +326,14 @@ doit (bool after_split) {
 
     // now let's verify the leaves are what we expect
     if (after_split) {
-        toku_pin_ftnode_with_dep_pairs(
+        toku_pin_ftnode(
             c_ft->ft, 
             left_child,
             toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
             PL_WRITE_EXPENSIVE, 
-            0,
-            NULL,
-            &node
+            &node,
+            true
             );
         assert(node->height == 0);
         assert(!node->dirty);
@@ -345,15 +341,14 @@ doit (bool after_split) {
         assert(BLB_DATA(node, 0)->omt_size() == 1);
         toku_unpin_ftnode(c_ft->ft, node);
 
-        toku_pin_ftnode_with_dep_pairs(
+        toku_pin_ftnode(
             c_ft->ft, 
             right_child,
             toku_cachetable_hash(c_ft->ft->cf, right_child),
             &bfe,
             PL_WRITE_EXPENSIVE, 
-            0,
-            NULL,
-            &node
+            &node,
+            true
             );
         assert(node->height == 0);
         assert(!node->dirty);
@@ -362,15 +357,14 @@ doit (bool after_split) {
         toku_unpin_ftnode(c_ft->ft, node);
     }
     else {
-        toku_pin_ftnode_with_dep_pairs(
+        toku_pin_ftnode(
             c_ft->ft, 
             left_child,
             toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
             PL_WRITE_EXPENSIVE, 
-            0,
-            NULL,
-            &node
+            &node,
+            true
             );
         assert(node->height == 0);
         assert(!node->dirty);

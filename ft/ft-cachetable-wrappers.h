@@ -138,6 +138,7 @@ toku_create_new_ftnode (
     int n_children
     );
 
+// This function returns a pinned ftnode to the caller.
 int
 toku_pin_ftnode_for_query(
     FT_HANDLE brt,
@@ -152,15 +153,20 @@ toku_pin_ftnode_for_query(
     bool* msgs_applied
     );
 
-/**
- * Unfortunately, this function is poorly named
- * as over time, client threads have also started
- * calling this function.
- * This function returns a pinned ftnode to the caller.
- * Unlike toku_pin_ftnode, this function blocks until the node is pinned.
- */
-void
-toku_pin_ftnode_with_dep_nodes(
+// Pins an ftnode without dependent pairs
+void toku_pin_ftnode(
+    FT h,
+    BLOCKNUM blocknum,
+    uint32_t fullhash,
+    FTNODE_FETCH_EXTRA bfe,
+    pair_lock_type lock_type,
+    FTNODE *node_p,
+    bool move_messages
+    );
+
+// Pins an ftnode with dependent pairs
+// Unlike toku_pin_ftnode_for_query, this function blocks until the node is pinned.
+void toku_pin_ftnode_with_dep_nodes(
     FT h,
     BLOCKNUM blocknum,
     uint32_t fullhash,
