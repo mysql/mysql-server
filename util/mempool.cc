@@ -130,15 +130,13 @@ void toku_mempool_init(struct mempool *mp, void *base, size_t free_offset, size_
  */
 void toku_mempool_construct(struct mempool *mp, size_t data_size) {
     if (data_size) {
-        size_t mpsize = data_size + (data_size/4);     // allow 1/4 room for expansion (would be wasted if read-only)
-        mp->base = toku_xmalloc(mpsize);               // allocate buffer for mempool
-        mp->size = mpsize;
-        mp->free_offset = 0;                     // address of first available memory for new data
-        mp->frag_size = 0;                       // all allocated space is now in use
+        mp->base = toku_xmalloc(data_size);
+        mp->size = data_size;
+        mp->free_offset = 0;
+        mp->frag_size = 0;
     }
     else {
         toku_mempool_zero(mp);
-        //        fprintf(stderr, "Empty mempool created (base constructor)\n");
     }
 }
 

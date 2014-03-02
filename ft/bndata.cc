@@ -114,8 +114,8 @@ void bn_data::initialize_from_data(uint32_t num_entries, unsigned char *buf, uin
     }
     KLPAIR *XMALLOC_N(num_entries, array); // create array of pointers to leafentries
     unsigned char *newmem = NULL;
-    // add same wiggle room that toku_mempool_construct would, 25% extra
-    uint32_t allocated_bytes = data_size + data_size/4;
+    // add 25% extra wiggle room
+    uint32_t allocated_bytes = data_size + (data_size / 4);
     CAST_FROM_VOIDP(newmem, toku_xmalloc(allocated_bytes)); 
     unsigned char* curr_src_pos = buf;
     unsigned char* curr_dest_pos = newmem;
