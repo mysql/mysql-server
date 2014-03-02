@@ -297,14 +297,12 @@ toku_get_node_for_verify(
     uint32_t fullhash = toku_cachetable_hash(brt->ft->cf, blocknum);
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->ft);
-    toku_pin_ftnode_with_dep_nodes(
+    toku_pin_ftnode(
         brt->ft,
         blocknum,
         fullhash,
         &bfe,
         PL_WRITE_EXPENSIVE, // may_modify_node
-        0,
-        NULL,
         nodep,
         false
         );

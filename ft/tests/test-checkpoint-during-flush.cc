@@ -230,15 +230,14 @@ doit (bool after_child_pin) {
     FTNODE node = NULL;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 1);
@@ -249,15 +248,14 @@ doit (bool after_child_pin) {
     assert(checkpoint_callback_called);
 
     // now let's pin the root again and make sure it is flushed
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 1);
@@ -286,15 +284,14 @@ doit (bool after_child_pin) {
     // now pin the root, verify that we have a message in there, and that it is clean
     //
     fill_bfe_for_full_read(&bfe, c_ft->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         c_ft->ft, 
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(!node->dirty);
@@ -307,15 +304,14 @@ doit (bool after_child_pin) {
     }
     toku_unpin_ftnode(c_ft->ft, node);
 
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         c_ft->ft, 
         node_leaf,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 0);
     assert(!node->dirty);

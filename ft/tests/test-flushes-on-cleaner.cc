@@ -246,15 +246,14 @@ doit (bool keep_other_bn_in_memory) {
     FTNODE node = NULL;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         brt->ft, 
         node_leaf,
         toku_cachetable_hash(brt->ft->cf, node_leaf),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(!node->dirty);
     assert(node->n_children == 2);
@@ -293,15 +292,14 @@ doit (bool keep_other_bn_in_memory) {
         //
         fill_bfe_for_min_read(&bfe, brt->ft);
     }
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         brt->ft, 
         node_leaf,
         toku_cachetable_hash(brt->ft->cf, node_leaf),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(!node->dirty);
     assert(node->n_children == 2);
@@ -318,15 +316,14 @@ doit (bool keep_other_bn_in_memory) {
     // now let us induce a clean on the internal node
     //    
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         brt->ft, 
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(!node->dirty);
 
@@ -342,15 +339,14 @@ doit (bool keep_other_bn_in_memory) {
 
     // verify that node_internal's buffer is empty
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode(
         brt->ft, 
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     // check that buffers are empty
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);

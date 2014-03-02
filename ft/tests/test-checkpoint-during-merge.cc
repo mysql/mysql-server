@@ -248,7 +248,7 @@ doit (int state) {
     
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode_with_dep_nodes(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
@@ -267,7 +267,7 @@ doit (int state) {
     assert(checkpoint_callback_called);
 
     // now let's pin the root again and make sure it is has merged
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode_with_dep_nodes(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
@@ -307,7 +307,7 @@ doit (int state) {
     // now pin the root, verify that the state is what we expect
     //
     fill_bfe_for_full_read(&bfe, c_ft->ft);
-    toku_pin_ftnode_with_dep_pairs(
+    toku_pin_ftnode_with_dep_nodes(
         c_ft->ft, 
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
@@ -338,7 +338,7 @@ doit (int state) {
 
     // now let's verify the leaves are what we expect
     if (state == flt_flush_before_merge || state == flt_flush_before_pin_second_node_for_merge) {
-        toku_pin_ftnode_with_dep_pairs(
+        toku_pin_ftnode_with_dep_nodes(
             c_ft->ft, 
             left_child,
             toku_cachetable_hash(c_ft->ft->cf, left_child),
@@ -355,7 +355,7 @@ doit (int state) {
         assert(BLB_DATA(node, 0)->omt_size() == 1);
         toku_unpin_ftnode(c_ft->ft, node);
 
-        toku_pin_ftnode_with_dep_pairs(
+        toku_pin_ftnode_with_dep_nodes(
             c_ft->ft, 
             right_child,
             toku_cachetable_hash(c_ft->ft->cf, right_child),
@@ -373,7 +373,7 @@ doit (int state) {
         toku_unpin_ftnode(c_ft->ft, node);
     }
     else if (state == ft_flush_aflter_merge || state == flt_flush_before_unpin_remove) {
-        toku_pin_ftnode_with_dep_pairs(
+        toku_pin_ftnode_with_dep_nodes(
             c_ft->ft, 
             left_child,
             toku_cachetable_hash(c_ft->ft->cf, left_child),

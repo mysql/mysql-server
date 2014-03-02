@@ -496,7 +496,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             toku_calculate_root_offset_pointer(h, &root, &fullhash);
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, h);
-            toku_pin_ftnode_with_dep_nodes(h, root, fullhash, &bfe, PL_WRITE_EXPENSIVE, 0, NULL, &root_node, true);
+            toku_pin_ftnode(h, root, fullhash, &bfe, PL_WRITE_EXPENSIVE, &root_node, true);
             toku_assert_entire_node_in_memory(root_node);
         }
 
