@@ -89,10 +89,10 @@ PATENT RIGHTS GRANT:
 #ident "$Id$"
 
 // Test for #3681: iibench hangs.  The scenario is
-//  * Thread 1 calls root_put_cmd, get_and_pin_root, 1 holds read lock on the root.
+//  * Thread 1 calls root_put_msg, get_and_pin_root, 1 holds read lock on the root.
 //  * Thread 2 calls checkpoint, marks the root for checkpoint.
 //  * Thread 2 calls end_checkpoint, tries to write lock the root, sets want_write, and blocks on the rwlock because there is a reader.
-//  * Thread 1 calls apply_cmd_to_in_memory_leaves, calls get_and_pin_if_in_memory, tries to get a read lock on the root node and blocks on the rwlock because there is a write request on the lock.
+//  * Thread 1 calls apply_msg_to_in_memory_leaves, calls get_and_pin_if_in_memory, tries to get a read lock on the root node and blocks on the rwlock because there is a write request on the lock.
 
 
 #include "checkpoint.h"

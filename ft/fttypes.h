@@ -323,7 +323,7 @@ struct ft_msg {
     XIDS         xids;
     union {
         /* insert or delete */
-        struct ft_cmd_insert_delete {
+        struct ft_msg_insert_delete {
             const DBT *key;   // for insert, delete, upsertdel
             const DBT *val;   // for insert, delete, (and it is the "extra" for upsertdel, upsertdel_broadcast_all)
         } id;

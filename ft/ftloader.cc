@@ -2920,14 +2920,14 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     uint32_t idx = BLB_DATA(leafnode, 0)->omt_size();
     DBT thekey = { .data = key, .size = (uint32_t) keylen }; 
     DBT theval = { .data = val, .size = (uint32_t) vallen };
-    FT_MSG_S cmd = { .type = FT_INSERT,
+    FT_MSG_S msg = { .type = FT_INSERT,
                      .msn = ZERO_MSN,
                      .xids = lbuf->xids,
                      .u = { .id = { &thekey, &theval } } };
     uint64_t workdone=0;
     // there's no mvcc garbage in a bulk-loaded FT, so there's no need to pass useful gc info
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
-    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, &gc_info, &workdone, stats_to_update);
+    toku_ft_bn_apply_msg_once(BLB(leafnode,0), &msg, idx, NULL, &gc_info, &workdone, stats_to_update);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {

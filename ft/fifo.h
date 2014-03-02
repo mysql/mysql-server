@@ -149,9 +149,6 @@ unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memor
 
 unsigned long toku_fifo_memory_footprint(FIFO fifo);  // return how much memory the fifo occupies
 
-//These two are problematic, since I don't want to malloc() the bytevecs, but dequeueing the fifo frees the memory.
-//int toku_fifo_peek_deq (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, uint32_t *type, TXNID *xid);
-//int toku_fifo_peek_deq_cmdstruct (FIFO, FT_MSG, DBT*, DBT*); // fill in the FT_MSG, using the two DBTs for the DBT part.
 void toku_fifo_iterate(FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, void*), void*);
 
 #define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,msnvar,xidsvar,is_freshvar,body) ({ \
@@ -178,7 +175,7 @@ int toku_fifo_iterate_internal_has_more(FIFO fifo, int off);
 int toku_fifo_iterate_internal_next(FIFO fifo, int off);
 struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off);
 size_t toku_fifo_internal_entry_memsize(struct fifo_entry *e) __attribute__((const,nonnull));
-size_t toku_ft_msg_memsize_in_fifo(FT_MSG cmd) __attribute__((const,nonnull));
+size_t toku_ft_msg_memsize_in_fifo(FT_MSG msg) __attribute__((const,nonnull));
 
 DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry);
 struct fifo_entry *toku_fifo_get_entry(FIFO fifo, int off);
