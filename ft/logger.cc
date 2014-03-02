@@ -229,7 +229,7 @@ toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID l
     if (logger->is_open) return EINVAL;
 
     int r;
-    TXNID last_xid_if_clean_shutdown;
+    TXNID last_xid_if_clean_shutdown = TXNID_NONE;
     r = toku_logfilemgr_init(logger->logfilemgr, directory, &last_xid_if_clean_shutdown);
     if ( r!=0 )
         return r;
