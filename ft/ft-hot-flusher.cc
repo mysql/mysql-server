@@ -371,7 +371,7 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
             // Since there are no children to flush, we should abort
             // the HOT call.
             flusher.rightmost_leaf_seen = 1;
-            toku_unpin_ftnode_off_client_thread(brt->ft, root);
+            toku_unpin_ftnode(brt->ft, root);
         }
 
         // Set the highest pivot key seen here, since the parent may

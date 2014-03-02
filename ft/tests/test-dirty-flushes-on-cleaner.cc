@@ -255,7 +255,7 @@ doit (void) {
     assert(node->n_children == 2);
     assert(BP_STATE(node,0) == PT_AVAIL);
     assert(BP_STATE(node,1) == PT_AVAIL);
-    toku_unpin_ftnode_off_client_thread(brt->ft, node);
+    toku_unpin_ftnode(brt->ft, node);
 
     // now do a lookup on one of the keys, this should bring a leaf node up to date 
     DBT k;
@@ -285,7 +285,7 @@ doit (void) {
     assert(node->n_children == 2);
     assert(BP_STATE(node,0) == PT_AVAIL);
     assert(BP_STATE(node,1) == PT_AVAIL);
-    toku_unpin_ftnode_off_client_thread(brt->ft, node);
+    toku_unpin_ftnode(brt->ft, node);
     
     //
     // now let us induce a clean on the internal node
@@ -329,7 +329,7 @@ doit (void) {
         );
     // check that buffers are empty
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);
-    toku_unpin_ftnode_off_client_thread(brt->ft, node);
+    toku_unpin_ftnode(brt->ft, node);
     
     //
     // now run a checkpoint to get everything clean,

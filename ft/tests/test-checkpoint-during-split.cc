@@ -325,7 +325,7 @@ doit (bool after_split) {
         left_child = BP_BLOCKNUM(node,0);
         assert(left_child.b == node_leaf.b);
     }
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
 
     // now let's verify the leaves are what we expect
     if (after_split) {
@@ -343,7 +343,7 @@ doit (bool after_split) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(BLB_DATA(node, 0)->omt_size() == 1);
-        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+        toku_unpin_ftnode(c_ft->ft, node);
 
         toku_pin_ftnode_off_client_thread(
             c_ft->ft, 
@@ -359,7 +359,7 @@ doit (bool after_split) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(BLB_DATA(node, 0)->omt_size() == 1);
-        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+        toku_unpin_ftnode(c_ft->ft, node);
     }
     else {
         toku_pin_ftnode_off_client_thread(
@@ -376,7 +376,7 @@ doit (bool after_split) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(BLB_DATA(node, 0)->omt_size() == 2);
-        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+        toku_unpin_ftnode(c_ft->ft, node);
     }
 
 

@@ -334,7 +334,7 @@ doit (int state) {
     else {
         assert(false);
     }
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
 
     // now let's verify the leaves are what we expect
     if (state == flt_flush_before_merge || state == flt_flush_before_pin_second_node_for_merge) {
@@ -353,7 +353,7 @@ doit (int state) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(BLB_DATA(node, 0)->omt_size() == 1);
-        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+        toku_unpin_ftnode(c_ft->ft, node);
 
         toku_pin_ftnode_off_client_thread(
             c_ft->ft, 
@@ -370,7 +370,7 @@ doit (int state) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(BLB_DATA(node, 0)->omt_size() == 1);
-        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+        toku_unpin_ftnode(c_ft->ft, node);
     }
     else if (state == ft_flush_aflter_merge || state == flt_flush_before_unpin_remove) {
         toku_pin_ftnode_off_client_thread(
@@ -388,7 +388,7 @@ doit (int state) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(BLB_DATA(node, 0)->omt_size() == 2);
-        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+        toku_unpin_ftnode(c_ft->ft, node);
     }
     else {
         assert(false);

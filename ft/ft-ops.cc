@@ -3180,7 +3180,7 @@ void toku_ft_root_put_msg(
             ft_init_new_root(ft, node, &node);
             // Then downgrade back to a read lock, and we can finally
             // do the injection.
-            toku_unpin_ftnode_off_client_thread(ft, node);
+            toku_unpin_ftnode(ft, node);
             lock_type = PL_READ;
             STATUS_INC(FT_PRO_NUM_ROOT_SPLIT, 1);
             goto change_lock_type;
@@ -6430,7 +6430,7 @@ toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const
             }
         }
     }
-    toku_unpin_ftnode_off_client_thread(brt->ft, node);
+    toku_unpin_ftnode(brt->ft, node);
     return result;
 }
 

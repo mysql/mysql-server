@@ -305,7 +305,7 @@ doit (bool after_child_pin) {
     else {
         assert(toku_bnc_nbytesinbuf(BNC(node, 0)) > 0);
     }
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
 
     toku_pin_ftnode_off_client_thread(
         c_ft->ft, 
@@ -326,7 +326,7 @@ doit (bool after_child_pin) {
     else {
         assert(BLB_NBYTESINDATA(node,0) == 0);
     }
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
 
     struct check_pair pair1 = {2, "a", 0, NULL, 0};
     DBT k;

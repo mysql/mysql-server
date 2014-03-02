@@ -164,7 +164,7 @@ doit (void) {
     // simply assert that the buffer is less than 50MB,
     // we inserted 100MB of data in there.
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) < 50*1000*1000);
-    toku_unpin_ftnode_off_client_thread(t->ft, node);
+    toku_unpin_ftnode(t->ft, node);
 
     r = toku_close_ft_handle_nolsn(t, 0);    assert(r==0);
     toku_cachetable_close(&ct);
