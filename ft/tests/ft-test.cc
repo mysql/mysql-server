@@ -806,8 +806,8 @@ static void test_ft_delete_cursor_first(int n) {
     toku_cachetable_close(&ct);
 }
 
-/* test for bug: insert cmd in a nonleaf node, delete removes the
-   insert cmd, but lookup finds the insert cmd
+/* test for bug: insert message in a nonleaf node, delete removes the
+   insert message, but lookup finds the insert message
 
    build a 2 level tree, and expect the last insertion to be
    buffered. then delete and lookup. */

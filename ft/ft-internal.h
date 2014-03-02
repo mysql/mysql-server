@@ -118,7 +118,7 @@ PATENT RIGHTS GRANT:
 #include "bndata.h"
 
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
-enum { FT_CMD_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
+enum { FT_MSG_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
 enum { FT_DEFAULT_FANOUT = 16 };
 enum { FT_DEFAULT_NODE_SIZE = 4 * 1024 * 1024 };
 enum { FT_DEFAULT_BASEMENT_NODE_SIZE = 128 * 1024 };
@@ -708,7 +708,7 @@ void toku_assert_entire_node_in_memory(FTNODE node);
 // append a child node to a parent node
 void toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey);
 
-// append a cmd to a nonleaf node child buffer
+// append a message to a nonleaf node child buffer
 void toku_ft_append_to_child_buffer(ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, int childnum, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
 
 STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
@@ -969,7 +969,7 @@ __attribute__((nonnull))
 void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied, int child_to_read);
 
 __attribute__((const,nonnull))
-size_t toku_ft_msg_memsize_in_fifo(FT_MSG cmd);
+size_t toku_ft_msg_memsize_in_fifo(FT_MSG msg);
 
 int
 toku_ft_search_which_child(
@@ -1026,8 +1026,7 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM, const char *key, int
 int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM, enum ft_msg_type, const char *key, int keylen, const char *val, int vallen);
 void toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t);
 
-// toku_ft_root_put_cmd() accepts non-constant cmd because this is where we set the msn
-void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd, txn_gc_info *gc_info);
+void toku_ft_root_put_msg(FT h, FT_MSG msg, txn_gc_info *gc_info);
 
 void
 toku_get_node_for_verify(
@@ -1196,9 +1195,9 @@ typedef struct {
 void toku_ft_get_status(FT_STATUS);
 
 void
-toku_ft_bn_apply_cmd_once (
+toku_ft_bn_apply_msg_once(
     BASEMENTNODE bn,
-    const FT_MSG cmd,
+    const FT_MSG msg,
     uint32_t idx,
     LEAFENTRY le,
     txn_gc_info *gc_info,
@@ -1207,38 +1206,38 @@ toku_ft_bn_apply_cmd_once (
     );
 
 void
-toku_ft_bn_apply_cmd (
+toku_ft_bn_apply_msg(
     ft_compare_func compare_fun,
     ft_update_func update_fun,
     DESCRIPTOR desc,
     BASEMENTNODE bn,
-    FT_MSG cmd,
+    FT_MSG msg,
     txn_gc_info *gc_info,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
 
 void
-toku_ft_leaf_apply_cmd (
+toku_ft_leaf_apply_msg(
     ft_compare_func compare_fun,
     ft_update_func update_fun,
     DESCRIPTOR desc,
     FTNODE node,
     int target_childnum,
-    FT_MSG cmd,
+    FT_MSG msg,
     txn_gc_info *gc_info,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
 
 void
-toku_ft_node_put_cmd (
+toku_ft_node_put_msg(
     ft_compare_func compare_fun,
     ft_update_func update_fun,
     DESCRIPTOR desc,
     FTNODE node,
     int target_childnum,
-    FT_MSG cmd,
+    FT_MSG msg,
     bool is_fresh,
     txn_gc_info *gc_info,
     size_t flow_deltas[],

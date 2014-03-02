@@ -1286,7 +1286,7 @@ static int peek_at_log (TOKULOGGER logger, char* filename, LSN *first_lsn) {
         if (logger->write_log_files) printf("couldn't open: %s\n", strerror(er));
         return er;
     }
-    enum { SKIP = 12+1+4 }; // read the 12 byte header, the first cmd, and the first len
+    enum { SKIP = 12+1+4 }; // read the 12 byte header, the first message, and the first len
     unsigned char header[SKIP+8];
     int r = read(fd, header, SKIP+8);
     if (r!=SKIP+8) return 0; // cannot determine that it's archivable, so we'll assume no.  If a later-log is archivable is then this one will be too.

@@ -96,7 +96,7 @@ PATENT RIGHTS GRANT:
 #include "fttypes.h"
 #include "ule.h"
 
-// dummymsn needed to simulate msn because messages are injected at a lower level than toku_ft_root_put_cmd()
+// dummymsn needed to simulate msn because messages are injected at a lower level than toku_ft_root_put_msg()
 #define MIN_DUMMYMSN ((MSN) {(uint64_t)1 << 62})
 static MSN dummymsn;      
 static int testsetup_initialized = 0;
@@ -216,19 +216,19 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, const char 
 
     DBT keydbt,valdbt;
     MSN msn = next_dummymsn();
-    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(),
+    FT_MSG_S msg = { FT_INSERT, msn, xids_get_root_xids(),
                      .u = { .id = { toku_fill_dbt(&keydbt, key, keylen),
                                     toku_fill_dbt(&valdbt, val, vallen) } } };
 
     static size_t zero_flow_deltas[] = { 0, 0 };
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
-    toku_ft_node_put_cmd (
+    toku_ft_node_put_msg (
         brt->ft->compare_fun,
         brt->ft->update_fun,
         &brt->ft->cmp_descriptor,
         node,
         -1,
-        &cmd,
+        &msg,
         true,
         &gc_info,
         zero_flow_deltas,
@@ -266,7 +266,7 @@ toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t)
         );
 }
 
-int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_msg_type cmdtype, const char *key, int keylen, const char *val, int vallen) {
+int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_msg_type msgtype, const char *key, int keylen, const char *val, int vallen) {
     void *node_v;
     int r;
 
@@ -298,7 +298,7 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
 
     XIDS xids_0 = xids_get_root_xids();
     MSN msn = next_dummymsn();
-    toku_bnc_insert_msg(BNC(node, childnum), key, keylen, val, vallen, cmdtype, msn, xids_0, true, NULL, testhelper_string_key_cmp);
+    toku_bnc_insert_msg(BNC(node, childnum), key, keylen, val, vallen, msgtype, msn, xids_0, true, NULL, testhelper_string_key_cmp);
     // Hack to get the test working. The problem is that this test
     // is directly queueing something in a FIFO instead of 
     // using brt APIs.
