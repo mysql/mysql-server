@@ -52,7 +52,7 @@ add_subdirectory(portability)
 add_subdirectory(ft)
 add_subdirectory(locktree)
 add_subdirectory(src)
-add_subdirectory(utils)
+add_subdirectory(tools)
 
 ## subdirectories that just install things
 add_subdirectory(include)
