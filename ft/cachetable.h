@@ -344,28 +344,6 @@ void toku_cachetable_put(CACHEFILE cf, CACHEKEY key, uint32_t fullhash,
 // then the required PAIRs are written to disk for checkpoint.
 // KEY PROPERTY OF DEPENDENT PAIRS: They are already locked by the client
 // Returns: 0 if the memory object is in memory, otherwise an error number.
-// Rationale:
-//   begin_batched_pin and end_batched_pin take and release a read lock on the pair list.
-//   Normally, that would be done within this get_and_pin, but we want to pin multiple nodes with a single acquisition of the read lock.
-int toku_cachetable_get_and_pin_with_dep_pairs_batched (
-    CACHEFILE cachefile,
-    CACHEKEY key,
-    uint32_t fullhash,
-    void**value,
-    long *sizep,
-    CACHETABLE_WRITE_CALLBACK write_callback,
-    CACHETABLE_FETCH_CALLBACK fetch_callback,
-    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
-    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    pair_lock_type lock_type,
-    void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
-    uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
-    PAIR* dependent_pairs,
-    enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
-    );
-
-// Effect: call toku_cachetable_get_and_pin_with_dep_pairs_batched once,
-//  wrapped in begin_batched_pin and end_batched_pin calls.
 int toku_cachetable_get_and_pin_with_dep_pairs (
     CACHEFILE cachefile,
     CACHEKEY key,
@@ -382,7 +360,6 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     PAIR* dependent_pairs,
     enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
     );
-
 
 // Get and pin a memory object.
 // Effects: If the memory object is in the cachetable acquire the PAIR lock on it.
@@ -422,10 +399,7 @@ struct unlockers {
 
 // Effect:  If the block is in the cachetable, then return it.
 //   Otherwise call the functions in unlockers, fetch the data (but don't pin it, since we'll just end up pinning it again later), and return TOKUDB_TRY_AGAIN.
-// Rationale:
-//   begin_batched_pin and end_batched_pin take and release a read lock on the pair list.
-//   Normally, that would be done within this get_and_pin, but we want to pin multiple nodes with a single acquisition of the read lock.
-int toku_cachetable_get_and_pin_nonblocking_batched (
+int toku_cachetable_get_and_pin_nonblocking (
     CACHEFILE cf,
     CACHEKEY key,
     uint32_t fullhash,
@@ -435,23 +409,6 @@ int toku_cachetable_get_and_pin_nonblocking_batched (
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    pair_lock_type lock_type,
-    void *read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
-    UNLOCKERS unlockers
-    );
-
-// Effect: call toku_cachetable_get_and_pin_nonblocking_batched once,
-//  wrapped in begin_batched_pin and end_batched_pin calls.
-int toku_cachetable_get_and_pin_nonblocking (
-    CACHEFILE cf,
-    CACHEKEY key,
-    uint32_t fullhash,
-    void**value,
-    long *sizep,
-    CACHETABLE_WRITE_CALLBACK write_callback,
-    CACHETABLE_FETCH_CALLBACK fetch_callback,
-    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
-    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
     pair_lock_type lock_type,
     void *read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     UNLOCKERS unlockers

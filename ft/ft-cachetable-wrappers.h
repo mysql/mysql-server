@@ -138,12 +138,8 @@ toku_create_new_ftnode (
     int n_children
     );
 
-/**
- * Batched version of toku_pin_ftnode, see cachetable batched API for more
- * details.
- */
 int
-toku_pin_ftnode_batched(
+toku_pin_ftnode(
     FT_HANDLE brt,
     BLOCKNUM blocknum,
     uint32_t fullhash,
@@ -194,12 +190,8 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
  */
 int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pair_lock_type lock_type, FTNODE *nodep);
 
-/**
- * Batched version of toku_pin_ftnode_off_client_thread, see cachetable
- * batched API for more details.
- */
 void
-toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
+toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
     FT h,
     BLOCKNUM blocknum,
     uint32_t fullhash,
@@ -211,12 +203,8 @@ toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
     bool move_messages
     );
 
-/**
- * Batched version of toku_pin_ftnode_off_client_thread, see cachetable
- * batched API for more details.
- */
 void
-toku_pin_ftnode_off_client_thread_batched(
+toku_pin_ftnode_off_client_thread(
     FT h,
     BLOCKNUM blocknum,
     uint32_t fullhash,
