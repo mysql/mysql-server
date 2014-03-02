@@ -269,7 +269,7 @@ doit (void) {
     assert(node->n_children == 1);
     // check that buffers are empty
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);
-    toku_unpin_ftnode_off_client_thread(brt->ft, node);
+    toku_unpin_ftnode(brt->ft, node);
 
     //
     // now run a checkpoint to get everything clean,

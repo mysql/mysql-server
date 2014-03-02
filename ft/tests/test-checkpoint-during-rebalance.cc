@@ -345,7 +345,7 @@ doit (int state) {
     left_child = BP_BLOCKNUM(node,0);
     right_child = BP_BLOCKNUM(node,1);
 
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
 
     // now let's verify the leaves are what we expect
     toku_pin_ftnode_off_client_thread(
@@ -362,7 +362,7 @@ doit (int state) {
     assert(!node->dirty);
     assert(node->n_children == 1);
     assert(BLB_DATA(node, 0)->omt_size() == 2);
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
     
     toku_pin_ftnode_off_client_thread(
         c_ft->ft, 
@@ -378,7 +378,7 @@ doit (int state) {
     assert(!node->dirty);
     assert(node->n_children == 1);
     assert(BLB_DATA(node, 0)->omt_size() == 2);
-    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
+    toku_unpin_ftnode(c_ft->ft, node);
 
 
     DBT k;

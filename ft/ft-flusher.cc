@@ -334,7 +334,7 @@ default_merge_child(struct flusher_advice *fa,
     // we are just going to unpin child and
     // let ft_merge_child pin it again
     //
-    toku_unpin_ftnode_off_client_thread(h, child);
+    toku_unpin_ftnode(h, child);
     //
     //
     // it is responsibility of ft_merge_child to unlock parent
@@ -486,8 +486,8 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             default_pick_child_after_split,
             &ctme);
 
-        toku_unpin_ftnode_off_client_thread(h, parent);
-        toku_unpin_ftnode_off_client_thread(h, child);
+        toku_unpin_ftnode(h, parent);
+        toku_unpin_ftnode(h, child);
 
         FTNODE root_node = NULL;
         {
@@ -1082,20 +1082,20 @@ ft_split_child(
     // and possibly continue
     // flushing one of the children
     int picked_child = fa->pick_child_after_split(h, node, childnum, childnum + 1, fa->extra);
-    toku_unpin_ftnode_off_client_thread(h, node);
+    toku_unpin_ftnode(h, node);
     if (picked_child == childnum ||
         (picked_child < 0 && nodea->height > 0 && fa->should_recursively_flush(nodea, fa->extra))) {
-        toku_unpin_ftnode_off_client_thread(h, nodeb);
+        toku_unpin_ftnode(h, nodeb);
         toku_ft_flush_some_child(h, nodea, fa);
     }
     else if (picked_child == childnum + 1 ||
              (picked_child < 0 && nodeb->height > 0 && fa->should_recursively_flush(nodeb, fa->extra))) {
-        toku_unpin_ftnode_off_client_thread(h, nodea);
+        toku_unpin_ftnode(h, nodea);
         toku_ft_flush_some_child(h, nodeb, fa);
     }
     else {
-        toku_unpin_ftnode_off_client_thread(h, nodea);
-        toku_unpin_ftnode_off_client_thread(h, nodeb);
+        toku_unpin_ftnode(h, nodea);
+        toku_unpin_ftnode(h, nodeb);
     }
 }
 
@@ -1525,7 +1525,7 @@ ft_merge_child(
 
         // unlock the parent
         paranoid_invariant(node->dirty);
-        toku_unpin_ftnode_off_client_thread(h, node);
+        toku_unpin_ftnode(h, node);
     }
     else {
         // for test
@@ -1533,14 +1533,14 @@ ft_merge_child(
 
         // unlock the parent
         paranoid_invariant(node->dirty);
-        toku_unpin_ftnode_off_client_thread(h, node);
-        toku_unpin_ftnode_off_client_thread(h, childb);
+        toku_unpin_ftnode(h, node);
+        toku_unpin_ftnode(h, childb);
     }
     if (childa->height > 0 && fa->should_recursively_flush(childa, fa->extra)) {
         toku_ft_flush_some_child(h, childa, fa);
     }
     else {
-        toku_unpin_ftnode_off_client_thread(h, childa);
+        toku_unpin_ftnode(h, childa);
     }
 }
 
@@ -1614,7 +1614,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     // reactive, we can unpin the parent
     //
     if (!may_child_be_reactive) {
-        toku_unpin_ftnode_off_client_thread(ft, parent);
+        toku_unpin_ftnode(ft, parent);
         parent = NULL;
     }
 
@@ -1632,7 +1632,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     // for the root with a fresh one
     enum reactivity child_re = get_node_reactivity(ft, child);
     if (parent && child_re == RE_STABLE) {
-        toku_unpin_ftnode_off_client_thread(ft, parent);
+        toku_unpin_ftnode(ft, parent);
         parent = NULL;
     }
 
@@ -1671,7 +1671,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
         )
     {
         if (parent) {
-            toku_unpin_ftnode_off_client_thread(ft, parent);
+            toku_unpin_ftnode(ft, parent);
             parent = NULL;
         }
         //
@@ -1681,7 +1681,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
             toku_ft_flush_some_child(ft, child, fa);
         }
         else {
-            toku_unpin_ftnode_off_client_thread(ft, child);
+            toku_unpin_ftnode(ft, child);
         }
     }
     else if (child_re == RE_FISSIBLE) {
@@ -1837,7 +1837,7 @@ toku_ftnode_cleaner_callback(
         ct_flusher_advice_init(&fa, &fste, h->h->nodesize);
         toku_ft_flush_some_child(h, node, &fa);
     } else {
-        toku_unpin_ftnode_off_client_thread(h, node);
+        toku_unpin_ftnode(h, node);
     }
     return 0;
 }
@@ -1897,7 +1897,7 @@ static void flush_node_fun(void *fe_v)
             toku_ft_flush_some_child(fe->h, fe->node, &fa);
         }
         else {
-            toku_unpin_ftnode_off_client_thread(fe->h,fe->node);
+            toku_unpin_ftnode(fe->h,fe->node);
         }
     }
     else {

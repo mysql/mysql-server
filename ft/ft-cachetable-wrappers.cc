@@ -374,24 +374,12 @@ cleanup:
     return r;
 }
 
-void
-toku_unpin_ftnode_off_client_thread(FT ft, FTNODE node)
-{
-    int r = toku_cachetable_unpin(
-        ft->cf,
-        node->ct_pair,
-        (enum cachetable_dirty) node->dirty,
-        make_ftnode_pair_attr(node)
-        );
-    assert(r==0);
-}
-
-void
-toku_unpin_ftnode(FT ft, FTNODE node)
-{
-    // printf("%*sUnpin %ld\n", 8-node->height, "", node->thisnodename.b);
-    //VERIFY_NODE(brt,node);
-    toku_unpin_ftnode_off_client_thread(ft, node);
+void toku_unpin_ftnode(FT ft, FTNODE node) {
+    int r = toku_cachetable_unpin(ft->cf,
+                                  node->ct_pair,
+                                  static_cast<enum cachetable_dirty>(node->dirty),
+                                  make_ftnode_pair_attr(node));
+    invariant_zero(r);
 }
 
 void

@@ -179,20 +179,9 @@ toku_pin_ftnode_off_client_thread(
 int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pair_lock_type lock_type, FTNODE *nodep);
 
 /**
- * Effect: Unpin a brt node. Used for
- * nodes that were pinned off client thread.
+ * Effect: Unpin an ftnode.
  */
-void
-toku_unpin_ftnode_off_client_thread(FT h, FTNODE node);
-
-/**
- * Effect: Unpin a brt node.
- * Used for nodes pinned on a client thread
- */
-void
-toku_unpin_ftnode(FT h, FTNODE node);
-
-void
-toku_unpin_ftnode_read_only(FT ft, FTNODE node);
+void toku_unpin_ftnode(FT h, FTNODE node);
+void toku_unpin_ftnode_read_only(FT ft, FTNODE node);
 
 #endif
