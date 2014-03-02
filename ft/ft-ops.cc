@@ -2768,7 +2768,6 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
 // Effect:
 //  If child needs to be split or merged, do that.
 //  parent and child will be unlocked if this happens
-//  also, the batched pin will have ended if this happens
 // Requires: parent and child are read locked
 // Returns:
 //  true if relocking is needed
@@ -2793,7 +2792,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, ft);
             FTNODE newparent, newchild;
-            toku_pin_ftnode_off_client_thread_batched(ft, parent_blocknum, parent_fullhash, &bfe, PL_WRITE_CHEAP, 0, nullptr, &newparent);
+            toku_pin_ftnode_off_client_thread(ft, parent_blocknum, parent_fullhash, &bfe, PL_WRITE_CHEAP, 0, nullptr, &newparent);
             if (newparent->height != parent_height || newparent->n_children != parent_n_children ||
                 childnum >= newparent->n_children || toku_bnc_n_entries(BNC(newparent, childnum))) {
                 // If the height changed or childnum is now off the end, something clearly got split or merged out from under us.
@@ -2807,7 +2806,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             // and split it.
             child_blocknum = BP_BLOCKNUM(newparent, childnum);
             child_fullhash = compute_child_fullhash(ft->cf, newparent, childnum);
-            toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, PL_WRITE_CHEAP, 1, &newparent, &newchild);
+            toku_pin_ftnode_off_client_thread(ft, child_blocknum, child_fullhash, &bfe, PL_WRITE_CHEAP, 1, &newparent, &newchild);
             newre = get_node_reactivity(ft, newchild);
             if (newre == RE_FISSIBLE) {
                 enum split_mode split_mode;
@@ -2845,7 +2844,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, ft);
             FTNODE newparent, newchild;
-            toku_pin_ftnode_off_client_thread_batched(ft, parent_blocknum, parent_fullhash, &bfe, PL_WRITE_CHEAP, 0, nullptr, &newparent);
+            toku_pin_ftnode_off_client_thread(ft, parent_blocknum, parent_fullhash, &bfe, PL_WRITE_CHEAP, 0, nullptr, &newparent);
             if (newparent->height != parent_height || childnum >= newparent->n_children) {
                 // looks like this is the root and it got merged, let's just start over (like in the split case above)
                 toku_unpin_ftnode_read_only(ft, newparent);
@@ -2853,7 +2852,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             }
             child_blocknum = BP_BLOCKNUM(newparent, childnum);
             child_fullhash = compute_child_fullhash(ft->cf, newparent, childnum);
-            toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, PL_READ, 1, &newparent, &newchild);
+            toku_pin_ftnode_off_client_thread(ft, child_blocknum, child_fullhash, &bfe, PL_READ, 1, &newparent, &newchild);
             newre = get_node_reactivity(ft, newchild);
             if (newre == RE_FUSIBLE && newparent->n_children >= 2) {
                 toku_unpin_ftnode_read_only(ft, newchild);
@@ -2886,7 +2885,7 @@ static void inject_message_at_this_blocknum(FT ft, CACHEKEY cachekey, uint32_t f
     FTNODE node;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, ft);
-    toku_pin_ftnode_off_client_thread_batched(ft, cachekey, fullhash, &bfe, PL_WRITE_CHEAP, 0, NULL, &node);
+    toku_pin_ftnode_off_client_thread(ft, cachekey, fullhash, &bfe, PL_WRITE_CHEAP, 0, NULL, &node);
     toku_assert_entire_node_in_memory(node);
     paranoid_invariant(node->fullhash==fullhash);
     ft_verify_flags(ft, node);
@@ -3009,11 +3008,11 @@ static void push_something_in_subtree(
                     if (lock_type == PL_WRITE_CHEAP) {
                         // We intend to take the write lock for message injection
                         toku::context inject_ctx(CTX_MESSAGE_INJECTION);
-                        toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, lock_type, 0, nullptr, &child);
+                        toku_pin_ftnode_off_client_thread(ft, child_blocknum, child_fullhash, &bfe, lock_type, 0, nullptr, &child);
                     } else {
                         // We're going to keep promoting
                         toku::context promo_ctx(CTX_PROMO);
-                        toku_pin_ftnode_off_client_thread_batched(ft, child_blocknum, child_fullhash, &bfe, lock_type, 0, nullptr, &child);
+                        toku_pin_ftnode_off_client_thread(ft, child_blocknum, child_fullhash, &bfe, lock_type, 0, nullptr, &child);
                     }
                 } else {
                     r = toku_maybe_pin_ftnode_clean(ft, child_blocknum, child_fullhash, lock_type, &child);
@@ -3046,7 +3045,7 @@ static void push_something_in_subtree(
                     FTNODE newparent;
                     struct ftnode_fetch_extra bfe;
                     fill_bfe_for_full_read(&bfe, ft); // should be fully in memory, we just split it
-                    toku_pin_ftnode_off_client_thread_batched(ft, subtree_root_blocknum, subtree_root_fullhash, &bfe, PL_READ, 0, nullptr, &newparent);
+                    toku_pin_ftnode_off_client_thread(ft, subtree_root_blocknum, subtree_root_fullhash, &bfe, PL_READ, 0, nullptr, &newparent);
                     push_something_in_subtree(ft, newparent, -1, msg, flow_deltas, gc_info, depth, loc, true);
                     return;
                 }
@@ -3143,7 +3142,7 @@ void toku_ft_root_put_msg(
     // and jump back to here.
  change_lock_type:
     // get the root node
-    toku_pin_ftnode_off_client_thread_batched(ft, root_key, fullhash, &bfe, lock_type, 0, NULL, &node);
+    toku_pin_ftnode_off_client_thread(ft, root_key, fullhash, &bfe, lock_type, 0, NULL, &node);
     toku_assert_entire_node_in_memory(node);
     paranoid_invariant(node->fullhash==fullhash);
     ft_verify_flags(ft, node);
@@ -5173,7 +5172,7 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
         );
     bool msgs_applied = false;
     {
-        int rr = toku_pin_ftnode_batched(brt, childblocknum, fullhash,
+        int rr = toku_pin_ftnode(brt, childblocknum, fullhash,
                                          unlockers,
                                          &next_ancestors, bounds,
                                          &bfe,
@@ -5183,8 +5182,6 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
         if (rr==TOKUDB_TRY_AGAIN) {
             return rr;
         }
-        // We end the batch before applying ancestor messages if we get
-        // all the way to a leaf.
         invariant_zero(rr);
     }
 
@@ -5468,7 +5465,7 @@ try_again:
         uint32_t fullhash;
         CACHEKEY root_key;
         toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
-        toku_pin_ftnode_off_client_thread_batched(
+        toku_pin_ftnode_off_client_thread(
             ft,
             root_key,
             fullhash,
@@ -6011,7 +6008,7 @@ toku_ft_keysrange_internal (FT_HANDLE brt, FTNODE node,
         FTNODE childnode;
         bool msgs_applied = false;
         bool child_may_find_right = may_find_right && left_child_number == right_child_number;
-        r = toku_pin_ftnode_batched(
+        r = toku_pin_ftnode(
             brt,
             childblocknum,
             fullhash,
@@ -6090,7 +6087,7 @@ try_again:
             uint32_t fullhash;
             CACHEKEY root_key;
             toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
-            toku_pin_ftnode_off_client_thread_batched(
+            toku_pin_ftnode_off_client_thread(
                 brt->ft,
                 root_key,
                 fullhash,
@@ -6225,7 +6222,7 @@ static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLO
     uint32_t fullhash = compute_child_fullhash(ft->cf, node, childnum);
     FTNODE child;
     bool msgs_applied = false;
-    r = toku_pin_ftnode_batched(ft_h, childblocknum, fullhash, unlockers, &next_ancestors, bounds, bfe, false, &child, &msgs_applied);
+    r = toku_pin_ftnode(ft_h, childblocknum, fullhash, unlockers, &next_ancestors, bounds, bfe, false, &child, &msgs_applied);
     paranoid_invariant(!msgs_applied);
     if (r == TOKUDB_TRY_AGAIN) {
         return r;
@@ -6308,7 +6305,7 @@ int toku_ft_get_key_after_bytes(FT_HANDLE ft_h, const DBT *start_key, uint64_t s
             uint32_t fullhash;
             CACHEKEY root_key;
             toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
-            toku_pin_ftnode_off_client_thread_batched(ft, root_key, fullhash, &bfe, PL_READ, 0, nullptr, &root);
+            toku_pin_ftnode_off_client_thread(ft, root_key, fullhash, &bfe, PL_READ, 0, nullptr, &root);
         }
         struct unlock_ftnode_extra unlock_extra = {ft_h, root, false};
         struct unlockers unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, (UNLOCKERS) nullptr};
