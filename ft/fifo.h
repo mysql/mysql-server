@@ -110,7 +110,7 @@ struct __attribute__((__packed__)) fifo_entry {
     XIDS_S        xids_s;
 };
 
-// get and set the brt message type for a fifo entry.
+// get and set the ft message type for a fifo entry.
 // it is internally stored as a single unsigned char.
 static inline enum ft_msg_type 
 fifo_entry_get_msg_type(const struct fifo_entry * entry)

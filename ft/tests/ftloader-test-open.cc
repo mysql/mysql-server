@@ -126,12 +126,12 @@ static void test_loader_open(int ndbs) {
     FTLOADER loader;
 
     // open the ft_loader. this runs the extractor.
-    FT_HANDLE brts[ndbs];
+    FT_HANDLE fts[ndbs];
     DB* dbs[ndbs];
     const char *fnames[ndbs];
     ft_compare_func compares[ndbs];
     for (int i = 0; i < ndbs; i++) {
-        brts[i] = NULL;
+        fts[i] = NULL;
         dbs[i] = NULL;
         fnames[i] = "";
         compares[i] = my_compare;
@@ -143,7 +143,7 @@ static void test_loader_open(int ndbs) {
     for (i = 0; ; i++) {
         set_my_malloc_trigger(i+1);
 
-        r = toku_ft_loader_open(&loader, NULL, NULL, NULL, ndbs, brts, dbs, fnames, compares, "", ZERO_LSN, nullptr, true, 0, false);
+        r = toku_ft_loader_open(&loader, NULL, NULL, NULL, ndbs, fts, dbs, fnames, compares, "", ZERO_LSN, nullptr, true, 0, false);
         if (r == 0)
             break;
     }

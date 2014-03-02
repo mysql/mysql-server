@@ -104,7 +104,7 @@ PATENT RIGHTS GRANT:
  */
 static FT_FLUSHER_STATUS_S ft_flusher_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_flusher_status, k, c, t, "brt flusher: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_flusher_status, k, c, t, "ft flusher: " l, inc)
 
 #define STATUS_VALUE(x) ft_flusher_status.status[x].value.num
 void toku_ft_flusher_status_init(void) {
@@ -1343,7 +1343,7 @@ maybe_merge_pinned_nodes(
 //    For nonleaf nodes, we distribute the children evenly.  That may leave one or both of the nodes overfull, but that's OK.
 //  If we distribute, we set *splitk to a malloced pivot key.
 // Parameters:
-//  t			The BRT.
+//  t			The FT.
 //  parent		The parent of the two nodes to be split.
 //  parent_splitk	The pivot key between a and b.	 This is either free()'d or returned in *splitk.
 //  a			The first node to merge.
@@ -1591,7 +1591,6 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     bool may_child_be_reactive = may_node_be_reactive(ft, child);
 
     paranoid_invariant(child->thisnodename.b!=0);
-    //VERIFY_NODE(brt, child);
 
     // only do the following work if there is a flush to perform
     if (toku_bnc_n_entries(BNC(parent, childnum)) > 0 || parent->height == 1) {

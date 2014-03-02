@@ -123,7 +123,7 @@ toku_assert_init(void)
     malloc_stats_f = (malloc_stats_fun_t) dlsym(RTLD_DEFAULT, "malloc_stats");
 }
 
-// Function pointers are zero by default so asserts can be used by brt-layer tests without an environment.
+// Function pointers are zero by default so asserts can be used by ft-layer tests without an environment.
 static int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = 0;
 static void (*toku_maybe_set_env_panic_p)(int code, const char* msg) = 0;
 

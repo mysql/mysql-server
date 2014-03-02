@@ -535,7 +535,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
                                    CACHETABLE cachetable,
                                    generate_row_for_put_func g,
                                    DB *src_db,
-                                   int N, FT_HANDLE brts[/*N*/], DB* dbs[/*N*/],
+                                   int N, FT_HANDLE fts[/*N*/], DB* dbs[/*N*/],
                                    const char *new_fnames_in_env[/*N*/],
                                    ft_compare_func bt_compare_functions[/*N*/],
                                    const char *temp_file_template,
@@ -581,11 +581,11 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 #define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = get_error_errno(); toku_ft_loader_internal_destroy(bl, true); return r; } lval = v; } while (0)
 
     MY_CALLOC_N(N, bl->root_xids_that_created);
-    for (int i=0; i<N; i++) if (brts[i]) bl->root_xids_that_created[i]=brts[i]->ft->h->root_xid_that_created;
+    for (int i=0; i<N; i++) if (fts[i]) bl->root_xids_that_created[i]=fts[i]->ft->h->root_xid_that_created;
     MY_CALLOC_N(N, bl->dbs);
-    for (int i=0; i<N; i++) if (brts[i]) bl->dbs[i]=dbs[i];
+    for (int i=0; i<N; i++) if (fts[i]) bl->dbs[i]=dbs[i];
     MY_CALLOC_N(N, bl->descriptors);
-    for (int i=0; i<N; i++) if (brts[i]) bl->descriptors[i]=&brts[i]->ft->descriptor;
+    for (int i=0; i<N; i++) if (fts[i]) bl->descriptors[i]=&fts[i]->ft->descriptor;
     MY_CALLOC_N(N, bl->new_fnames_in_env);
     for (int i=0; i<N; i++) SET_TO_MY_STRDUP(bl->new_fnames_in_env[i], new_fnames_in_env[i]);
     MY_CALLOC_N(N, bl->extracted_datasizes); // the calloc_n zeroed everything, which is what we want
@@ -642,7 +642,7 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                           CACHETABLE cachetable,
                           generate_row_for_put_func g,
                           DB *src_db,
-                          int N, FT_HANDLE brts[/*N*/], DB* dbs[/*N*/],
+                          int N, FT_HANDLE fts[/*N*/], DB* dbs[/*N*/],
                           const char *new_fnames_in_env[/*N*/],
                           ft_compare_func bt_compare_functions[/*N*/],
                           const char *temp_file_template,
@@ -651,9 +651,9 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                           bool reserve_memory,
                           uint64_t reserve_memory_size,
                           bool compress_intermediates)
-/* Effect: called by DB_ENV->create_loader to create a brt loader.
+/* Effect: called by DB_ENV->create_loader to create an ft loader.
  * Arguments:
- *   blp                  Return the brt loader here.
+ *   blp                  Return the ft loader here.
  *   g                    The function for generating a row
  *   src_db               The source database.  Needed by g.  May be NULL if that's ok with g.
  *   N                    The number of dbs to create.
@@ -666,15 +666,15 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
     int result = 0;
     {
         int r = toku_ft_loader_internal_init(blp, cachetable, g, src_db,
-                                              N, brts, dbs,
-                                              new_fnames_in_env,
-                                              bt_compare_functions,
-                                              temp_file_template,
-                                              load_lsn,
-                                              txn,
-                                              reserve_memory,
-                                              reserve_memory_size,
-                                              compress_intermediates);
+                                             N, fts, dbs,
+                                             new_fnames_in_env,
+                                             bt_compare_functions,
+                                             temp_file_template,
+                                             load_lsn,
+                                             txn,
+                                             reserve_memory,
+                                             reserve_memory_size,
+                                             compress_intermediates);
         if (r!=0) result = r;
     }
     if (result==0) {
@@ -1370,7 +1370,7 @@ static int process_primary_rows (FTLOADER bl, struct rowset *primary_rowset) {
 }
  
 int toku_ft_loader_put (FTLOADER bl, DBT *key, DBT *val)
-/* Effect: Put a key-value pair into the brt loader.  Called by DB_LOADER->put().
+/* Effect: Put a key-value pair into the ft loader.  Called by DB_LOADER->put().
  * Return value: 0 on success, an error number otherwise.
  */
 {
@@ -2672,17 +2672,17 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     return result;
 }
 
-int toku_loader_write_brt_from_q_in_C (FTLOADER                bl,
-                                       const DESCRIPTOR descriptor,
-                                       int                      fd, // write to here
-                                       int                      progress_allocation,
-                                       QUEUE                    q,
-                                       uint64_t                 total_disksize_estimate,
-                                       int                      which_db,
-                                       uint32_t                 target_nodesize,
-                                       uint32_t                 target_basementnodesize,
-                                       enum toku_compression_method target_compression_method,
-                                       uint32_t                 target_fanout)
+int toku_loader_write_ft_from_q_in_C (FTLOADER                bl,
+                                      const DESCRIPTOR descriptor,
+                                      int                      fd, // write to here
+                                      int                      progress_allocation,
+                                      QUEUE                    q,
+                                      uint64_t                 total_disksize_estimate,
+                                      int                      which_db,
+                                      uint32_t                 target_nodesize,
+                                      uint32_t                 target_basementnodesize,
+                                      enum toku_compression_method target_compression_method,
+                                      uint32_t                 target_fanout)
 // This is probably only for testing.
 {
     target_nodesize = target_nodesize == 0 ? default_loader_nodesize : target_nodesize;

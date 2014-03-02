@@ -202,7 +202,7 @@ toku_create_new_ftnode (
 //
 int
 toku_pin_ftnode_for_query(
-    FT_HANDLE brt,
+    FT_HANDLE ft_handle,
     BLOCKNUM blocknum,
     uint32_t fullhash,
     UNLOCKERS unlockers,
@@ -226,12 +226,12 @@ toku_pin_ftnode_for_query(
     }
     
     int r = toku_cachetable_get_and_pin_nonblocking(
-            brt->ft->cf,
+            ft_handle->ft->cf,
             blocknum,
             fullhash,
             &node_v,
             NULL,
-            get_write_callbacks_for_node(brt->ft),
+            get_write_callbacks_for_node(ft_handle->ft),
             toku_ftnode_fetch_callback,
             toku_ftnode_pf_req_callback,
             toku_ftnode_pf_callback,
@@ -245,7 +245,7 @@ toku_pin_ftnode_for_query(
     node = static_cast<FTNODE>(node_v);
     if (apply_ancestor_messages && node->height == 0) {
         needs_ancestors_messages = toku_ft_leaf_needs_ancestors_messages(
-            brt->ft, 
+            ft_handle->ft, 
             node, 
             ancestors, 
             bounds, 
@@ -255,20 +255,20 @@ toku_pin_ftnode_for_query(
         if (needs_ancestors_messages) {
             toku::context apply_messages_ctx(CTX_MESSAGE_APPLICATION);
 
-            toku_unpin_ftnode_read_only(brt->ft, node);
+            toku_unpin_ftnode_read_only(ft_handle->ft, node);
             int rr = toku_cachetable_get_and_pin_nonblocking(
-                    brt->ft->cf,
-                    blocknum,
-                    fullhash,
-                    &node_v,
-                    NULL,
-                    get_write_callbacks_for_node(brt->ft),
-                    toku_ftnode_fetch_callback,
-                    toku_ftnode_pf_req_callback,
-                    toku_ftnode_pf_callback,
-                    PL_WRITE_CHEAP,
-                    bfe, //read_extraargs
-                    unlockers);
+                 ft_handle->ft->cf,
+                 blocknum,
+                 fullhash,
+                 &node_v,
+                 NULL,
+                 get_write_callbacks_for_node(ft_handle->ft),
+                 toku_ftnode_fetch_callback,
+                 toku_ftnode_pf_req_callback,
+                 toku_ftnode_pf_callback,
+                 PL_WRITE_CHEAP,
+                 bfe, //read_extraargs
+                 unlockers);
             if (rr != 0) {
                 assert(rr == TOKUDB_TRY_AGAIN); // Any other error and we should bomb out ASAP.
                 r = TOKUDB_TRY_AGAIN;
@@ -276,7 +276,7 @@ toku_pin_ftnode_for_query(
             }
             node = static_cast<FTNODE>(node_v);
             toku_apply_ancestors_messages_to_node(
-                brt, 
+                ft_handle, 
                 node, 
                 ancestors, 
                 bounds, 

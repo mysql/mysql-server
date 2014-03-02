@@ -101,7 +101,7 @@ PATENT RIGHTS GRANT:
 
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_upgrade_status, k, c, t, "brt upgrade: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_upgrade_status, k, c, t, "ft upgrade: " l, inc)
 
 static void
 status_init(void)
@@ -1412,7 +1412,7 @@ setup_available_ftnode_partition(FTNODE node, int i) {
     }
 }
 
-// Assign the child_to_read member of the bfe from the given brt node
+// Assign the child_to_read member of the bfe from the given ftnode
 // that has been brought into memory.
 static void
 update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
@@ -1447,7 +1447,7 @@ update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
 }
 
 // Using the search parameters in the bfe, this function will
-// initialize all of the given brt node's partitions.
+// initialize all of the given ftnode's partitions.
 static void
 setup_partitions_using_bfe(FTNODE node,
                            struct ftnode_fetch_extra *bfe,
@@ -1792,7 +1792,7 @@ cleanup:
 // also creates MSN's for older messages created in older versions
 // that did not generate MSN's for messages.  These new MSN's are
 // generated from the root downwards, counting backwards from MIN_MSN
-// and persisted in the brt header.
+// and persisted in the ft header.
 static int
 deserialize_and_upgrade_internal_node(FTNODE node,
                                       struct rbuf *rb,
@@ -2050,7 +2050,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
     setup_partitions_using_bfe(node, &temp_bfe, true);
 
     // 11. Deserialize the partition maps, though they are not used in the
-    // newer versions of brt nodes.
+    // newer versions of ftnodes.
     struct sub_block_map part_map[npartitions];
     for (int i = 0; i < npartitions; ++i) {
         sub_block_map_deserialize(&part_map[i], rb);
@@ -2420,7 +2420,7 @@ cleanup:
         // NOTE: Right now, callers higher in the stack will assert on
         // failure, so this is OK for production.  However, if we
         // create tools that use this function to search for errors in
-        // the BRT, then we will leak memory.
+        // the FT, then we will leak memory.
         if (node) {
             toku_free(node);
         }
@@ -2579,7 +2579,7 @@ deserialize_ftnode_from_fd(int fd,
     return r;
 }
 
-// Read brt node from file into struct.  Perform version upgrade if necessary.
+// Read ftnode from file into struct.  Perform version upgrade if necessary.
 int
 toku_deserialize_ftnode_from (int fd,
                                BLOCKNUM blocknum,

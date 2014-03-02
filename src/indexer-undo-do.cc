@@ -581,8 +581,8 @@ indexer_find_prev_xr(DB_INDEXER *UU(indexer), ULEHANDLE ule, uint64_t xrindex, u
     return prev_found;
 }
 
-// inject "delete" message into brt with logging in recovery and rollback logs,
-// and making assocation between txn and brt
+// inject "delete" message into ft with logging in recovery and rollback logs,
+// and making assocation between txn and ft
 static int 
 indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids, TOKUTXN txn) {
     int result = 0;
@@ -630,8 +630,8 @@ indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xi
     return result;
 }
 
-// inject "insert" message into brt with logging in recovery and rollback logs,
-// and making assocation between txn and brt
+// inject "insert" message into ft with logging in recovery and rollback logs,
+// and making assocation between txn and ft
 static int 
 indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids, TOKUTXN txn) {
     int result = 0;
@@ -650,7 +650,7 @@ indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *
 }
 
 // send an insert message into the tree without rollback or recovery logging
-// and without associating the txn and the brt
+// and without associating the txn and the ft
 static int 
 indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids) {
     int result = 0;

@@ -138,8 +138,8 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     error = toku_txn_begin_txn(NULL, NULL, &txn, logger, TXN_SNAPSHOT_NONE, false);
     assert(error == 0);
 
-    FT_HANDLE brt = NULL;
-    error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, test_ft_cursor_keycompare);
+    FT_HANDLE ft = NULL;
+    error = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, test_ft_cursor_keycompare);
     assert(error == 0);
 
     error = toku_txn_commit_txn(txn, true, NULL, NULL);
@@ -158,7 +158,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
         toku_fill_dbt(&key, &k, sizeof k);
         DBT val;
         toku_fill_dbt(&val, &v, sizeof v);
-        toku_ft_insert(brt, &key, &val, txn);
+        toku_ft_insert(ft, &key, &val, txn);
         assert(error == 0);
     }
 
@@ -166,7 +166,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     assert(error == 0);
     toku_txn_close_txn(txn);
 
-    error = toku_close_ft_handle_nolsn(brt, NULL);
+    error = toku_close_ft_handle_nolsn(ft, NULL);
     assert(error == 0);
     
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
@@ -208,8 +208,8 @@ test_provdel(const char *logdir, const char *fname, int n) {
     error = toku_txn_begin_txn(NULL, NULL, &txn, logger, TXN_SNAPSHOT_NONE, false);
     assert(error == 0);
 
-    FT_HANDLE brt = NULL;
-    error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, test_ft_cursor_keycompare);
+    FT_HANDLE ft = NULL;
+    error = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, test_ft_cursor_keycompare);
     assert(error == 0);
 
     error = toku_txn_commit_txn(txn, true, NULL, NULL);
@@ -225,7 +225,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
         int k = toku_htonl(i);
         DBT key;
         toku_fill_dbt(&key, &k, sizeof k);
-        toku_ft_delete(brt, &key, txn);
+        toku_ft_delete(ft, &key, txn);
         assert(error == 0);
     }
 
@@ -234,7 +234,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 
     LE_CURSOR cursor = NULL;
-    error = toku_le_cursor_create(&cursor, brt, cursortxn);
+    error = toku_le_cursor_create(&cursor, ft, cursortxn);
     assert(error == 0);
 
     DBT key;
@@ -267,7 +267,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     assert(error == 0);
     toku_txn_close_txn(txn);
 
-    error = toku_close_ft_handle_nolsn(brt, NULL);
+    error = toku_close_ft_handle_nolsn(ft, NULL);
     assert(error == 0);
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     error = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);

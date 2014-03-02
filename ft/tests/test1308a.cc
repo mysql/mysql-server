@@ -1,6 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-// Test the first case for the bug in #1308 (brt-serialize.c:33 does the cast wrong)
+// Test the first case for the bug in #1308 (ft-serialize.c:33 does the cast wrong)
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:

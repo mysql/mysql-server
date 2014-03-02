@@ -99,7 +99,7 @@ enum ft_layout_version_e {
     FT_LAYOUT_VERSION_7 = 7,   // Diff from 6 to 7:  Add exact-bit to leafentry_estimate #818, add magic to header #22, add per-subdatase flags #333
     FT_LAYOUT_VERSION_8 = 8,   // Diff from 7 to 8:  Use murmur instead of crc32.  We are going to make a simplification and stop supporting version 7 and before.  Current As of Beta 1.0.6
     FT_LAYOUT_VERSION_9 = 9,   // Diff from 8 to 9:  Variable-sized blocks and compression.
-    FT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header, subdb support removed from brt layer
+    FT_LAYOUT_VERSION_10 = 10, // Diff from 9 to 10: Variable number of compressed sub-blocks per block, disk byte order == intel byte order, Subtree estimates instead of just leafentry estimates, translation table, dictionary descriptors, checksum in header, subdb support removed from ft layer
     FT_LAYOUT_VERSION_11 = 11, // Diff from 10 to 11: Nested transaction leafentries (completely redesigned).  FT_CMDs on disk now support XIDS (multiple txnids) instead of exactly one.
     FT_LAYOUT_VERSION_12 = 12, // Diff from 11 to 12: Added FT_CMD 'FT_INSERT_NO_OVERWRITE', compressed block format, num old blocks
     FT_LAYOUT_VERSION_13 = 13, // Diff from 12 to 13: Fixed loader pivot bug, added build_id to every node, timestamps to ft 
@@ -107,8 +107,8 @@ enum ft_layout_version_e {
     FT_LAYOUT_VERSION_15 = 15, // Diff from 14 to 15: basement nodes, last verification time
     FT_LAYOUT_VERSION_16 = 16, // Dr. No:  No subtree estimates, partition layout information represented more transparently. 
                                 // ALERT ALERT ALERT: version 16 never released to customers, internal and beta use only
-    FT_LAYOUT_VERSION_17 = 17, // Dr. No:  Add STAT64INFO_S to brt_header
-    FT_LAYOUT_VERSION_18 = 18, // Dr. No:  Add HOT info to brt_header
+    FT_LAYOUT_VERSION_17 = 17, // Dr. No:  Add STAT64INFO_S to ft header
+    FT_LAYOUT_VERSION_18 = 18, // Dr. No:  Add HOT info to ft header
     FT_LAYOUT_VERSION_19 = 19, // Doofenshmirtz: Add compression method, highest_unused_msn_for_upgrade
     FT_LAYOUT_VERSION_20 = 20, // Deadshot: Add compression method to log_fcreate,
                                // mgr_last_xid after begin checkpoint,

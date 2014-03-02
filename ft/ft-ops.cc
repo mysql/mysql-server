@@ -235,7 +235,7 @@ static const uint32_t this_version = FT_LAYOUT_VERSION;
  */
 static FT_STATUS_S ft_status;
 
-#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_status, k, c, t, "brt: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_status, k, c, t, "ft: " l, inc)
 
 static toku_mutex_t ft_open_close_lock;
 
@@ -731,14 +731,14 @@ toku_bfe_rightmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node)
 }
 
 static int
-ft_cursor_rightmost_child_wanted(FT_CURSOR cursor, FT_HANDLE brt, FTNODE node)
+ft_cursor_rightmost_child_wanted(FT_CURSOR cursor, FT_HANDLE ft_handle, FTNODE node)
 {
     if (cursor->right_is_pos_infty) {
         return node->n_children - 1;
     } else if (cursor->range_lock_right_key.data == nullptr) {
         return -1;
     } else {
-        return toku_ftnode_which_child(node, &cursor->range_lock_right_key, &brt->ft->cmp_descriptor, brt->ft->compare_fun);
+        return toku_ftnode_which_child(node, &cursor->range_lock_right_key, &ft_handle->ft->cmp_descriptor, ft_handle->ft->compare_fun);
     }
 }
 
@@ -1261,7 +1261,7 @@ bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs) {
     FTNODE node = (FTNODE) ftnode_pv;
     struct ftnode_fetch_extra *bfe = (struct ftnode_fetch_extra *) read_extraargs;
     //
-    // The three types of fetches that the brt layer may request are:
+    // The three types of fetches that the ft layer may request are:
     //  - ftnode_fetch_none: no partitions are necessary (example use: stat64)
     //  - ftnode_fetch_subset: some subset is necessary (example use: toku_ft_search)
     //  - ftnode_fetch_all: entire node is necessary (example use: flush, split, merge)
@@ -1803,7 +1803,7 @@ struct setval_extra_s {
  * If new_val == NULL, we send a delete message instead of an insert.
  * This happens here instead of in do_delete() for consistency.
  * setval_fun() is called from handlerton, passing in svextra_v
- * from setval_extra_s input arg to brt->update_fun().
+ * from setval_extra_s input arg to ft->update_fun().
  */
 static void setval_fun (const DBT *new_val, void *svextra_v) {
     struct setval_extra_s *CAST_FROM_VOIDP(svextra, svextra_v);
@@ -1888,7 +1888,7 @@ static int do_update(ft_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn
     struct setval_extra_s setval_extra = {setval_tag, false, 0, bn, msg->msn, msg->xids,
                                           keyp, idx, le_for_update, gc_info,
                                           workdone, stats_to_update};
-    // call handlerton's brt->update_fun(), which passes setval_extra to setval_fun()
+    // call handlerton's ft->update_fun(), which passes setval_extra to setval_fun()
     FAKE_DB(db, desc);
     int r = update_fun(
         &db,
@@ -3218,9 +3218,9 @@ void toku_ft_root_put_msg(
     }
 }
 
-// Effect: Insert the key-val pair into brt.
-void toku_ft_insert (FT_HANDLE brt, DBT *key, DBT *val, TOKUTXN txn) {
-    toku_ft_maybe_insert(brt, key, val, txn, false, ZERO_LSN, true, FT_INSERT);
+// Effect: Insert the key-val pair into ft.
+void toku_ft_insert (FT_HANDLE ft_handle, DBT *key, DBT *val, TOKUTXN txn) {
+    toku_ft_maybe_insert(ft_handle, key, val, txn, false, ZERO_LSN, true, FT_INSERT);
 }
 
 void toku_ft_load_recovery(TOKUTXN txn, FILENUM old_filenum, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn) {
@@ -3291,31 +3291,31 @@ void toku_ft_optimize (FT_HANDLE ft_h) {
     }
 }
 
-void toku_ft_load(FT_HANDLE brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *load_lsn) {
-    FILENUM old_filenum = toku_cachefile_filenum(brt->ft->cf);
+void toku_ft_load(FT_HANDLE ft_handle, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *load_lsn) {
+    FILENUM old_filenum = toku_cachefile_filenum(ft_handle->ft->cf);
     int do_log = 1;
     toku_ft_load_recovery(txn, old_filenum, new_iname, do_fsync, do_log, load_lsn);
 }
 
 // ft actions for logging hot index filenums
-void toku_ft_hot_index(FT_HANDLE brt __attribute__ ((unused)), TOKUTXN txn, FILENUMS filenums, int do_fsync, LSN *lsn) {
+void toku_ft_hot_index(FT_HANDLE ft_handle __attribute__ ((unused)), TOKUTXN txn, FILENUMS filenums, int do_fsync, LSN *lsn) {
     int do_log = 1;
     toku_ft_hot_index_recovery(txn, filenums, do_fsync, do_log, lsn);
 }
 
 void
-toku_ft_log_put (TOKUTXN txn, FT_HANDLE brt, const DBT *key, const DBT *val) {
+toku_ft_log_put (TOKUTXN txn, FT_HANDLE ft_handle, const DBT *key, const DBT *val) {
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         BYTESTRING valbs = {.len=val->size, .data=(char *) val->data};
         TXNID_PAIR xid = toku_txn_get_txnid(txn);
-        toku_log_enq_insert(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(brt->ft->cf), xid, keybs, valbs);
+        toku_log_enq_insert(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(ft_handle->ft->cf), xid, keybs, valbs);
     }
 }
 
 void
-toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32_t num_fts, const DBT *key, const DBT *val) {
+toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *fts, uint32_t num_fts, const DBT *key, const DBT *val) {
     assert(txn);
     assert(num_fts > 0);
     TOKULOGGER logger = toku_txn_logger(txn);
@@ -3323,7 +3323,7 @@ toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32
         FILENUM         fnums[num_fts];
         uint32_t i;
         for (i = 0; i < num_fts; i++) {
-            fnums[i] = toku_cachefile_filenum(brts[i]->ft->cf);
+            fnums[i] = toku_cachefile_filenum(fts[i]->ft->cf);
         }
         FILENUMS filenums = {.num = num_fts, .filenums = fnums};
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
@@ -3467,33 +3467,33 @@ void toku_ft_maybe_update_broadcast(FT_HANDLE ft_h, const DBT *update_function_e
     }
 }
 
-void toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, txn_gc_info *gc_info) {
+void toku_ft_send_insert(FT_HANDLE ft_handle, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, txn_gc_info *gc_info) {
     FT_MSG_S ftmsg = { type, ZERO_MSN, xids, .u = { .id = { key, val } } };
-    toku_ft_root_put_msg(brt->ft, &ftmsg, gc_info);
+    toku_ft_root_put_msg(ft_handle->ft, &ftmsg, gc_info);
 }
 
-void toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids, txn_gc_info *gc_info) {
+void toku_ft_send_commit_any(FT_HANDLE ft_handle, DBT *key, XIDS xids, txn_gc_info *gc_info) {
     DBT val;
     FT_MSG_S ftmsg = { FT_COMMIT_ANY, ZERO_MSN, xids, .u = { .id = { key, toku_init_dbt(&val) } } };
-    toku_ft_root_put_msg(brt->ft, &ftmsg, gc_info);
+    toku_ft_root_put_msg(ft_handle->ft, &ftmsg, gc_info);
 }
 
-void toku_ft_delete(FT_HANDLE brt, DBT *key, TOKUTXN txn) {
-    toku_ft_maybe_delete(brt, key, txn, false, ZERO_LSN, true);
+void toku_ft_delete(FT_HANDLE ft_handle, DBT *key, TOKUTXN txn) {
+    toku_ft_maybe_delete(ft_handle, key, txn, false, ZERO_LSN, true);
 }
 
 void
-toku_ft_log_del(TOKUTXN txn, FT_HANDLE brt, const DBT *key) {
+toku_ft_log_del(TOKUTXN txn, FT_HANDLE ft_handle, const DBT *key) {
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
         TXNID_PAIR xid = toku_txn_get_txnid(txn);
-        toku_log_enq_delete_any(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(brt->ft->cf), xid, keybs);
+        toku_log_enq_delete_any(logger, (LSN*)0, 0, txn, toku_cachefile_filenum(ft_handle->ft->cf), xid, keybs);
     }
 }
 
 void
-toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32_t num_fts, const DBT *key, const DBT *val) {
+toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *fts, uint32_t num_fts, const DBT *key, const DBT *val) {
     assert(txn);
     assert(num_fts > 0);
     TOKULOGGER logger = toku_txn_logger(txn);
@@ -3501,7 +3501,7 @@ toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, uint32
         FILENUM         fnums[num_fts];
         uint32_t i;
         for (i = 0; i < num_fts; i++) {
-            fnums[i] = toku_cachefile_filenum(brts[i]->ft->cf);
+            fnums[i] = toku_cachefile_filenum(fts[i]->ft->cf);
         }
         FILENUMS filenums = {.num = num_fts, .filenums = fnums};
         BYTESTRING keybs = {.len=key->size, .data=(char *) key->data};
@@ -3544,10 +3544,10 @@ void toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, bool oplsn_vali
     }
 }
 
-void toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids, txn_gc_info *gc_info) {
+void toku_ft_send_delete(FT_HANDLE ft_handle, DBT *key, XIDS xids, txn_gc_info *gc_info) {
     DBT val; toku_init_dbt(&val);
     FT_MSG_S ftmsg = { FT_DELETE_ANY, ZERO_MSN, xids, .u = { .id = { key, &val } } };
-    toku_ft_root_put_msg(brt->ft, &ftmsg, gc_info);
+    toku_ft_root_put_msg(ft_handle->ft, &ftmsg, gc_info);
 }
 
 /* ******************** open,close and create  ********************** */
@@ -3558,22 +3558,22 @@ int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *ft_handle_
                    enum toku_compression_method compression_method,
                    CACHETABLE cachetable, TOKUTXN txn,
                    int (*compare_fun)(DB *, const DBT*,const DBT*)) {
-    FT_HANDLE brt;
+    FT_HANDLE ft_handle;
     const int only_create = 0;
 
-    toku_ft_handle_create(&brt);
-    toku_ft_handle_set_nodesize(brt, nodesize);
-    toku_ft_handle_set_basementnodesize(brt, basementnodesize);
-    toku_ft_handle_set_compression_method(brt, compression_method);
-    toku_ft_handle_set_fanout(brt, 16);
-    toku_ft_set_bt_compare(brt, compare_fun);
+    toku_ft_handle_create(&ft_handle);
+    toku_ft_handle_set_nodesize(ft_handle, nodesize);
+    toku_ft_handle_set_basementnodesize(ft_handle, basementnodesize);
+    toku_ft_handle_set_compression_method(ft_handle, compression_method);
+    toku_ft_handle_set_fanout(ft_handle, 16);
+    toku_ft_set_bt_compare(ft_handle, compare_fun);
 
-    int r = toku_ft_handle_open(brt, fname, is_create, only_create, cachetable, txn);
+    int r = toku_ft_handle_open(ft_handle, fname, is_create, only_create, cachetable, txn);
     if (r != 0) {
         return r;
     }
 
-    *ft_handle_p = brt;
+    *ft_handle_p = ft_handle;
     return r;
 }
 
@@ -3591,9 +3591,9 @@ static inline int ft_open_maybe_direct(const char *filename, int oflag, int mode
     }
 }
 
-// open a file for use by the brt
+// open a file for use by the ft
 // Requires:  File does not exist.
-static int ft_create_file(FT_HANDLE UU(brt), const char *fname, int *fdp) {
+static int ft_create_file(FT_HANDLE UU(ft_handle), const char *fname, int *fdp) {
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int r;
     int fd;
@@ -3619,7 +3619,7 @@ static int ft_create_file(FT_HANDLE UU(brt), const char *fname, int *fdp) {
     return r;
 }
 
-// open a file for use by the brt.  if the file does not exist, error
+// open a file for use by the ft.  if the file does not exist, error
 static int ft_open_file(const char *fname, int *fdp) {
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int fd;
@@ -3854,7 +3854,7 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
 
     // important note here,
     // after this point, where we associate the header
-    // with the brt, the function is not allowed to fail
+    // with the ft_handle, the function is not allowed to fail
     // Code that handles failure (located below "exit"),
     // depends on this
     toku_ft_note_ft_handle_open(ft, ft_h);
@@ -3863,7 +3863,7 @@ ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only
         toku_txn_maybe_note_ft(txn, ft);
     }
 
-    //Opening a brt may restore to previous checkpoint.         Truncate if necessary.
+    //Opening an ft may restore to previous checkpoint.         Truncate if necessary.
     {
         int fd = toku_cachefile_get_fd (ft->cf);
         toku_maybe_truncate_file_on_open(ft->blocktable, fd);
@@ -3879,9 +3879,9 @@ exit:
             // we only call toku_ft_note_ft_handle_open
             // when the function succeeds, so if we are here,
             // then that means we have a reference to the header
-            // but we have not linked it to this brt. So,
+            // but we have not linked it to this ft. So,
             // we can simply try to remove the header.
-            // We don't need to unlink this brt from the header
+            // We don't need to unlink this ft from the header
             toku_ft_grab_reflock(ft);
             bool needed = toku_ft_needed_unlocked(ft);
             toku_ft_release_reflock(ft);
@@ -3898,7 +3898,7 @@ exit:
     return r;
 }
 
-// Open a brt for the purpose of recovery, which requires that the brt be open to a pre-determined FILENUM
+// Open an ft for the purpose of recovery, which requires that the ft be open to a pre-determined FILENUM
 // and may require a specific checkpointed version of the file.
 // (dict_id is assigned by the ft_handle_open() function.)
 int
@@ -3910,7 +3910,7 @@ toku_ft_handle_open_recovery(FT_HANDLE t, const char *fname_in_env, int is_creat
     return r;
 }
 
-// Open a brt in normal use.  The FILENUM and dict_id are assigned by the ft_handle_open() function.
+// Open an ft in normal use.  The FILENUM and dict_id are assigned by the ft_handle_open() function.
 // Requires: The multi-operation client lock must be held to prevent a checkpoint from occuring.
 int
 toku_ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn) {
@@ -3945,7 +3945,7 @@ toku_ft_handle_clone(FT_HANDLE *cloned_ft_handle, FT_HANDLE ft_handle, TOKUTXN t
     return r;
 }
 
-// Open a brt in normal use.  The FILENUM and dict_id are assigned by the ft_handle_open() function.
+// Open an ft in normal use.  The FILENUM and dict_id are assigned by the ft_handle_open() function.
 int
 toku_ft_handle_open_with_dict_id(
     FT_HANDLE t,
@@ -3973,8 +3973,8 @@ toku_ft_handle_open_with_dict_id(
 }
 
 DICTIONARY_ID
-toku_ft_get_dictionary_id(FT_HANDLE brt) {
-    FT h = brt->ft;
+toku_ft_get_dictionary_id(FT_HANDLE ft_handle) {
+    FT h = ft_handle->ft;
     DICTIONARY_ID dict_id = h->dict_id;
     return dict_id;
 }
@@ -3989,7 +3989,7 @@ void toku_ft_get_flags(FT_HANDLE ft_handle, unsigned int *flags) {
 }
 
 void toku_ft_get_maximum_advised_key_value_lengths (unsigned int *max_key_len, unsigned int *max_val_len)
-// return the maximum advisable key value lengths.  The brt doesn't enforce these.
+// return the maximum advisable key value lengths.  The ft doesn't enforce these.
 {
     *max_key_len = 32*1024;
     *max_val_len = 32*1024*1024;
@@ -4032,21 +4032,21 @@ void toku_ft_handle_get_basementnodesize(FT_HANDLE ft_handle, unsigned int *base
     }
 }
 
-void toku_ft_set_bt_compare(FT_HANDLE brt, int (*bt_compare)(DB*, const DBT*, const DBT*)) {
-    brt->options.compare_fun = bt_compare;
+void toku_ft_set_bt_compare(FT_HANDLE ft_handle, int (*bt_compare)(DB*, const DBT*, const DBT*)) {
+    ft_handle->options.compare_fun = bt_compare;
 }
 
-void toku_ft_set_redirect_callback(FT_HANDLE brt, on_redirect_callback redir_cb, void* extra) {
-    brt->redirect_callback = redir_cb;
-    brt->redirect_callback_extra = extra;
+void toku_ft_set_redirect_callback(FT_HANDLE ft_handle, on_redirect_callback redir_cb, void* extra) {
+    ft_handle->redirect_callback = redir_cb;
+    ft_handle->redirect_callback_extra = extra;
 }
 
-void toku_ft_set_update(FT_HANDLE brt, ft_update_func update_fun) {
-    brt->options.update_fun = update_fun;
+void toku_ft_set_update(FT_HANDLE ft_handle, ft_update_func update_fun) {
+    ft_handle->options.update_fun = update_fun;
 }
 
-ft_compare_func toku_ft_get_bt_compare (FT_HANDLE brt) {
-    return brt->options.compare_fun;
+ft_compare_func toku_ft_get_bt_compare (FT_HANDLE ft_handle) {
+    return ft_handle->options.compare_fun;
 }
 
 static void
@@ -4088,18 +4088,18 @@ toku_close_ft_handle_nolsn (FT_HANDLE ft_handle, char** UU(error_string)) {
 }
 
 void toku_ft_handle_create(FT_HANDLE *ft_handle_ptr) {
-    FT_HANDLE XMALLOC(brt);
-    memset(brt, 0, sizeof *brt);
-    toku_list_init(&brt->live_ft_handle_link);
-    brt->options.flags = 0;
-    brt->did_set_flags = false;
-    brt->options.nodesize = FT_DEFAULT_NODE_SIZE;
-    brt->options.basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
-    brt->options.compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
-    brt->options.fanout = FT_DEFAULT_FANOUT;
-    brt->options.compare_fun = toku_builtin_compare_fun;
-    brt->options.update_fun = NULL;
-    *ft_handle_ptr = brt;
+    FT_HANDLE XMALLOC(ft_handle);
+    memset(ft_handle, 0, sizeof *ft_handle);
+    toku_list_init(&ft_handle->live_ft_handle_link);
+    ft_handle->options.flags = 0;
+    ft_handle->did_set_flags = false;
+    ft_handle->options.nodesize = FT_DEFAULT_NODE_SIZE;
+    ft_handle->options.basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
+    ft_handle->options.compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
+    ft_handle->options.fanout = FT_DEFAULT_FANOUT;
+    ft_handle->options.compare_fun = toku_builtin_compare_fun;
+    ft_handle->options.update_fun = NULL;
+    *ft_handle_ptr = ft_handle;
 }
 
 /* ************* CURSORS ********************* */
@@ -4163,7 +4163,7 @@ ft_cursor_extract_val(LEAFENTRY le,
 }
 
 int toku_ft_cursor (
-    FT_HANDLE brt,
+    FT_HANDLE ft_handle,
     FT_CURSOR *cursorptr,
     TOKUTXN ttxn,
     bool is_snapshot_read,
@@ -4172,14 +4172,14 @@ int toku_ft_cursor (
 {
     if (is_snapshot_read) {
         invariant(ttxn != NULL);
-        int accepted = does_txn_read_entry(brt->ft->h->root_xid_that_created, ttxn);
+        int accepted = does_txn_read_entry(ft_handle->ft->h->root_xid_that_created, ttxn);
         if (accepted!=TOKUDB_ACCEPT) {
             invariant(accepted==0);
             return TOKUDB_MVCC_DICTIONARY_TOO_NEW;
         }
     }
     FT_CURSOR XCALLOC(cursor);
-    cursor->ft_handle = brt;
+    cursor->ft_handle = ft_handle;
     cursor->prefetching = false;
     toku_init_dbt(&cursor->range_lock_left_key);
     toku_init_dbt(&cursor->range_lock_right_key);
@@ -5051,7 +5051,7 @@ got_a_good_value:
 
 static int
 ft_search_node (
-    FT_HANDLE brt,
+    FT_HANDLE ft_handle,
     FTNODE node,
     ft_search_t *search,
     int child_to_search,
@@ -5086,25 +5086,25 @@ ftnode_pf_callback_and_free_bfe(void *ftnode_pv, void* disk_data, void *read_ext
 }
 
 static void
-ft_node_maybe_prefetch(FT_HANDLE brt, FTNODE node, int childnum, FT_CURSOR ftcursor, bool *doprefetch) {
+ft_node_maybe_prefetch(FT_HANDLE ft_handle, FTNODE node, int childnum, FT_CURSOR ftcursor, bool *doprefetch) {
     // the number of nodes to prefetch
     const int num_nodes_to_prefetch = 1;
 
     // if we want to prefetch in the tree
     // then prefetch the next children if there are any
     if (*doprefetch && ft_cursor_prefetching(ftcursor) && !ftcursor->disable_prefetching) {
-        int rc = ft_cursor_rightmost_child_wanted(ftcursor, brt, node);
+        int rc = ft_cursor_rightmost_child_wanted(ftcursor, ft_handle, node);
         for (int i = childnum + 1; (i <= childnum + num_nodes_to_prefetch) && (i <= rc); i++) {
             BLOCKNUM nextchildblocknum = BP_BLOCKNUM(node, i);
-            uint32_t nextfullhash = compute_child_fullhash(brt->ft->cf, node, i);
+            uint32_t nextfullhash = compute_child_fullhash(ft_handle->ft->cf, node, i);
             struct ftnode_fetch_extra *MALLOC(bfe);
-            fill_bfe_for_prefetch(bfe, brt->ft, ftcursor);
+            fill_bfe_for_prefetch(bfe, ft_handle->ft, ftcursor);
             bool doing_prefetch = false;
             toku_cachefile_prefetch(
-                brt->ft->cf,
+                ft_handle->ft->cf,
                 nextchildblocknum,
                 nextfullhash,
-                get_write_callbacks_for_node(brt->ft),
+                get_write_callbacks_for_node(ft_handle->ft),
                 ftnode_fetch_callback_and_free_bfe,
                 toku_ftnode_pf_req_callback,
                 ftnode_pf_callback_and_free_bfe,
@@ -5130,11 +5130,11 @@ static void
 unlock_ftnode_fun (void *v) {
     struct unlock_ftnode_extra *x = NULL;
     CAST_FROM_VOIDP(x, v);
-    FT_HANDLE brt = x->ft_handle;
+    FT_HANDLE ft_handle = x->ft_handle;
     FTNODE node = x->node;
     // CT lock is held
     int r = toku_cachetable_unpin_ct_prelocked_no_flush(
-        brt->ft->cf,
+        ft_handle->ft->cf,
         node->ct_pair,
         (enum cachetable_dirty) node->dirty,
         x->msgs_applied ? make_ftnode_pair_attr(node) : make_invalid_pair_attr()
@@ -5144,14 +5144,14 @@ unlock_ftnode_fun (void *v) {
 
 /* search in a node's child */
 static int
-ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, bool *doprefetch, FT_CURSOR ftcursor, UNLOCKERS unlockers,
+ft_search_child(FT_HANDLE ft_handle, FTNODE node, int childnum, ft_search_t *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, bool *doprefetch, FT_CURSOR ftcursor, UNLOCKERS unlockers,
                  ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool can_bulk_fetch)
 // Effect: Search in a node's child.  Searches are read-only now (at least as far as the hardcopy is concerned).
 {
     struct ancestors next_ancestors = {node, childnum, ancestors};
 
     BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
-    uint32_t fullhash = compute_child_fullhash(brt->ft->cf, node, childnum);
+    uint32_t fullhash = compute_child_fullhash(ft_handle->ft->cf, node, childnum);
     FTNODE childnode = nullptr;
 
     // If the current node's height is greater than 1, then its child is an internal node.
@@ -5160,7 +5160,7 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_subset_read(
         &bfe,
-        brt->ft,
+        ft_handle->ft,
         search,
         &ftcursor->range_lock_left_key,
         &ftcursor->range_lock_right_key,
@@ -5171,7 +5171,7 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
         );
     bool msgs_applied = false;
     {
-        int rr = toku_pin_ftnode_for_query(brt, childblocknum, fullhash,
+        int rr = toku_pin_ftnode_for_query(ft_handle, childblocknum, fullhash,
                                          unlockers,
                                          &next_ancestors, bounds,
                                          &bfe,
@@ -5184,22 +5184,21 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
         invariant_zero(rr);
     }
 
-    struct unlock_ftnode_extra unlock_extra   = {brt,childnode,msgs_applied};
-    struct unlockers next_unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, unlockers};
-
-    int r = ft_search_node(brt, childnode, search, bfe.child_to_read, getf, getf_v, doprefetch, ftcursor, &next_unlockers, &next_ancestors, bounds, can_bulk_fetch);
+    struct unlock_ftnode_extra unlock_extra = { ft_handle, childnode, msgs_applied };
+    struct unlockers next_unlockers = { true, unlock_ftnode_fun, (void *) &unlock_extra, unlockers };
+    int r = ft_search_node(ft_handle, childnode, search, bfe.child_to_read, getf, getf_v, doprefetch, ftcursor, &next_unlockers, &next_ancestors, bounds, can_bulk_fetch);
     if (r!=TOKUDB_TRY_AGAIN) {
         // maybe prefetch the next child
         if (r == 0 && node->height == 1) {
-            ft_node_maybe_prefetch(brt, node, childnum, ftcursor, doprefetch);
+            ft_node_maybe_prefetch(ft_handle, node, childnum, ftcursor, doprefetch);
         }
 
         assert(next_unlockers.locked);
         if (msgs_applied) {
-            toku_unpin_ftnode(brt->ft, childnode);
+            toku_unpin_ftnode(ft_handle->ft, childnode);
         }
         else {
-            toku_unpin_ftnode_read_only(brt->ft, childnode);
+            toku_unpin_ftnode_read_only(ft_handle->ft, childnode);
         }
     } else {
         // try again.
@@ -5212,10 +5211,10 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
         //  the node was not unpinned, so we unpin it here
         if (next_unlockers.locked) {
             if (msgs_applied) {
-                toku_unpin_ftnode(brt->ft, childnode);
+                toku_unpin_ftnode(ft_handle->ft, childnode);
             }
             else {
-                toku_unpin_ftnode_read_only(brt->ft, childnode);
+                toku_unpin_ftnode_read_only(ft_handle->ft, childnode);
             }
         }
     }
@@ -5309,7 +5308,7 @@ maybe_search_save_bound(
 
 static int
 ft_search_node(
-    FT_HANDLE brt,
+    FT_HANDLE ft_handle,
     FTNODE node,
     ft_search_t *search,
     int child_to_search,
@@ -5334,7 +5333,7 @@ ft_search_node(
     const struct pivot_bounds next_bounds = next_pivot_keys(node, child_to_search, bounds);
     if (node->height > 0) {
         r = ft_search_child(
-            brt,
+            ft_handle,
             node,
             child_to_search,
             search,
@@ -5407,13 +5406,13 @@ ft_search_node(
 }
 
 static int
-toku_ft_search (FT_HANDLE brt, ft_search_t *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, FT_CURSOR ftcursor, bool can_bulk_fetch)
+toku_ft_search (FT_HANDLE ft_handle, ft_search_t *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, FT_CURSOR ftcursor, bool can_bulk_fetch)
 // Effect: Perform a search.  Associate cursor with a leaf if possible.
 // All searches are performed through this function.
 {
     int r;
     uint trycount = 0;     // How many tries did it take to get the result?
-    FT ft = brt->ft;
+    FT ft = ft_handle->ft;
 
     toku::context search_ctx(CTX_SEARCH);
 
@@ -5478,13 +5477,13 @@ try_again:
     uint tree_height = node->height + 1;  // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
 
 
-    struct unlock_ftnode_extra unlock_extra   = {brt,node,false};
+    struct unlock_ftnode_extra unlock_extra   = {ft_handle,node,false};
     struct unlockers                unlockers      = {true, unlock_ftnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
 
     {
         bool doprefetch = false;
         //static int counter = 0;         counter++;
-        r = ft_search_node(brt, node, search, bfe.child_to_read, getf, getf_v, &doprefetch, ftcursor, &unlockers, (ANCESTORS)NULL, &infinite_bounds, can_bulk_fetch);
+        r = ft_search_node(ft_handle, node, search, bfe.child_to_read, getf, getf_v, &doprefetch, ftcursor, &unlockers, (ANCESTORS)NULL, &infinite_bounds, can_bulk_fetch);
         if (r==TOKUDB_TRY_AGAIN) {
             // there are two cases where we get TOKUDB_TRY_AGAIN
             //  case 1 is when some later call to toku_pin_ftnode returned
@@ -5493,7 +5492,7 @@ try_again:
             //  some piece of a node that it needed was not in memory.
             //  In this case, the node was not unpinned, so we unpin it here
             if (unlockers.locked) {
-                toku_unpin_ftnode_read_only(brt->ft, node);
+                toku_unpin_ftnode_read_only(ft_handle->ft, node);
             }
             goto try_again;
         } else {
@@ -5502,7 +5501,7 @@ try_again:
     }
 
     assert(unlockers.locked);
-    toku_unpin_ftnode_read_only(brt->ft, node);
+    toku_unpin_ftnode_read_only(ft_handle->ft, node);
 
 
     //Heaviside function (+direction) queries define only a lower or upper
@@ -5553,9 +5552,9 @@ ft_cursor_search(FT_CURSOR cursor, ft_search_t *search, FT_GET_CALLBACK_FUNCTION
     return r;
 }
 
-static inline int compare_k_x(FT_HANDLE brt, const DBT *k, const DBT *x) {
-    FAKE_DB(db, &brt->ft->cmp_descriptor);
-    return brt->ft->compare_fun(&db, k, x);
+static inline int compare_k_x(FT_HANDLE ft_handle, const DBT *k, const DBT *x) {
+    FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
+    return ft_handle->ft->compare_fun(&db, k, x);
 }
 
 static int
@@ -5565,8 +5564,8 @@ ft_cursor_compare_one(const ft_search_t &search __attribute__((__unused__)), con
 }
 
 static int ft_cursor_compare_set(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(brt, search.context);
-    return compare_k_x(brt, search.k, x) <= 0; /* return min xy: kv <= xy */
+    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
+    return compare_k_x(ft_handle, search.k, x) <= 0; /* return min xy: kv <= xy */
 }
 
 static int
@@ -5628,8 +5627,8 @@ toku_ft_cursor_last(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_
 }
 
 static int ft_cursor_compare_next(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(brt, search.context);
-    return compare_k_x(brt, search.k, x) < 0; /* return min xy: kv < xy */
+    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
+    return compare_k_x(ft_handle, search.k, x) < 0; /* return min xy: kv < xy */
 }
 
 static int
@@ -5736,8 +5735,8 @@ ft_cursor_search_eq_k_x(FT_CURSOR cursor, ft_search_t *search, FT_GET_CALLBACK_F
 }
 
 static int ft_cursor_compare_prev(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(brt, search.context);
-    return compare_k_x(brt, search.k, x) > 0; /* return max xy: kv > xy */
+    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
+    return compare_k_x(ft_handle, search.k, x) > 0; /* return max xy: kv > xy */
 }
 
 int
@@ -5751,8 +5750,8 @@ toku_ft_cursor_prev(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_
 }
 
 static int ft_cursor_compare_set_range(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(brt, search.context);
-    return compare_k_x(brt, search.k, x) <= 0; /* return kv <= xy */
+    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
+    return compare_k_x(ft_handle, search.k, x) <= 0; /* return kv <= xy */
 }
 
 int
@@ -5776,8 +5775,8 @@ toku_ft_cursor_set_range(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION ge
 }
 
 static int ft_cursor_compare_set_range_reverse(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(brt, search.context);
-    return compare_k_x(brt, search.k, x) >= 0; /* return kv >= xy */
+    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
+    return compare_k_x(ft_handle, search.k, x) >= 0; /* return kv >= xy */
 }
 
 int
@@ -5856,12 +5855,12 @@ bool toku_ft_cursor_uninitialized(FT_CURSOR c) {
 /* ********************************* lookup **************************************/
 
 int
-toku_ft_lookup (FT_HANDLE brt, DBT *k, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
+toku_ft_lookup (FT_HANDLE ft_handle, DBT *k, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     int r, rr;
     FT_CURSOR cursor;
 
-    rr = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    rr = toku_ft_cursor(ft_handle, &cursor, NULL, false, false);
     if (rr != 0) return rr;
 
     int op = DB_SET;
@@ -5915,7 +5914,7 @@ keyrange_compare (DBT const &kdbt, const struct keyrange_compare_s &s) {
 }
 
 static void
-keysrange_in_leaf_partition (FT_HANDLE brt, FTNODE node,
+keysrange_in_leaf_partition (FT_HANDLE ft_handle, FTNODE node,
                              DBT* key_left, DBT* key_right,
                              int left_child_number, int right_child_number, uint64_t estimated_num_rows,
                              uint64_t *less, uint64_t* equal_left, uint64_t* middle,
@@ -5932,7 +5931,7 @@ keysrange_in_leaf_partition (FT_HANDLE brt, FTNODE node,
     if (BP_STATE(node, left_child_number) == PT_AVAIL) {
         int r;
         // The partition is in main memory then get an exact count.
-        struct keyrange_compare_s s_left = {brt->ft, key_left};
+        struct keyrange_compare_s s_left = {ft_handle->ft, key_left};
         BASEMENTNODE bn = BLB(node, left_child_number);
         uint32_t idx_left = 0;
         // if key_left is NULL then set r==-1 and idx==0.
@@ -5944,7 +5943,7 @@ keysrange_in_leaf_partition (FT_HANDLE brt, FTNODE node,
         uint32_t idx_right = size;
         r = -1;
         if (single_basement && key_right) {
-            struct keyrange_compare_s s_right = {brt->ft, key_right};
+            struct keyrange_compare_s s_right = {ft_handle->ft, key_right};
             r = bn->data_buffer.find_zero<decltype(s_right), keyrange_compare>(s_right, nullptr, nullptr, nullptr, &idx_right);
         }
         *middle = idx_right - idx_left - *equal_left;
@@ -5969,7 +5968,7 @@ keysrange_in_leaf_partition (FT_HANDLE brt, FTNODE node,
 }
 
 static int
-toku_ft_keysrange_internal (FT_HANDLE brt, FTNODE node,
+toku_ft_keysrange_internal (FT_HANDLE ft_handle, FTNODE node,
                             DBT* key_left, DBT* key_right, bool may_find_right,
                             uint64_t* less, uint64_t* equal_left, uint64_t* middle,
                             uint64_t* equal_right, uint64_t* greater, bool* single_basement_node,
@@ -5981,15 +5980,15 @@ toku_ft_keysrange_internal (FT_HANDLE brt, FTNODE node,
 {
     int r = 0;
     // if KEY is NULL then use the leftmost key.
-    int left_child_number = key_left ? toku_ftnode_which_child (node, key_left, &brt->ft->cmp_descriptor, brt->ft->compare_fun) : 0;
+    int left_child_number = key_left ? toku_ftnode_which_child (node, key_left, &ft_handle->ft->cmp_descriptor, ft_handle->ft->compare_fun) : 0;
     int right_child_number = node->n_children;  // Sentinel that does not equal left_child_number.
     if (may_find_right) {
-        right_child_number = key_right ? toku_ftnode_which_child (node, key_right, &brt->ft->cmp_descriptor, brt->ft->compare_fun) : node->n_children - 1;
+        right_child_number = key_right ? toku_ftnode_which_child (node, key_right, &ft_handle->ft->cmp_descriptor, ft_handle->ft->compare_fun) : node->n_children - 1;
     }
 
     uint64_t rows_per_child = estimated_num_rows / node->n_children;
     if (node->height == 0) {
-        keysrange_in_leaf_partition(brt, node, key_left, key_right, left_child_number, right_child_number,
+        keysrange_in_leaf_partition(ft_handle, node, key_left, key_right, left_child_number, right_child_number,
                                     rows_per_child, less, equal_left, middle, equal_right, greater, single_basement_node);
 
         *less    += rows_per_child * left_child_number;
@@ -6002,12 +6001,12 @@ toku_ft_keysrange_internal (FT_HANDLE brt, FTNODE node,
         // do the child.
         struct ancestors next_ancestors = {node, left_child_number, ancestors};
         BLOCKNUM childblocknum = BP_BLOCKNUM(node, left_child_number);
-        uint32_t fullhash = compute_child_fullhash(brt->ft->cf, node, left_child_number);
+        uint32_t fullhash = compute_child_fullhash(ft_handle->ft->cf, node, left_child_number);
         FTNODE childnode;
         bool msgs_applied = false;
         bool child_may_find_right = may_find_right && left_child_number == right_child_number;
         r = toku_pin_ftnode_for_query(
-            brt,
+            ft_handle,
             childblocknum,
             fullhash,
             unlockers,
@@ -6022,11 +6021,11 @@ toku_ft_keysrange_internal (FT_HANDLE brt, FTNODE node,
         if (r != TOKUDB_TRY_AGAIN) {
             assert_zero(r);
 
-            struct unlock_ftnode_extra unlock_extra   = {brt,childnode,false};
+            struct unlock_ftnode_extra unlock_extra   = {ft_handle,childnode,false};
             struct unlockers next_unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, unlockers};
             const struct pivot_bounds next_bounds = next_pivot_keys(node, left_child_number, bounds);
 
-            r = toku_ft_keysrange_internal(brt, childnode, key_left, key_right, child_may_find_right,
+            r = toku_ft_keysrange_internal(ft_handle, childnode, key_left, key_right, child_may_find_right,
                                            less, equal_left, middle, equal_right, greater, single_basement_node,
                                            rows_per_child, min_bfe, match_bfe, &next_unlockers, &next_ancestors, &next_bounds);
             if (r != TOKUDB_TRY_AGAIN) {
@@ -6040,14 +6039,14 @@ toku_ft_keysrange_internal (FT_HANDLE brt, FTNODE node,
                 }
 
                 assert(unlockers->locked);
-                toku_unpin_ftnode_read_only(brt->ft, childnode);
+                toku_unpin_ftnode_read_only(ft_handle->ft, childnode);
             }
         }
     }
     return r;
 }
 
-void toku_ft_keysrange(FT_HANDLE brt, DBT* key_left, DBT* key_right, uint64_t *less_p, uint64_t* equal_left_p, uint64_t* middle_p, uint64_t* equal_right_p, uint64_t* greater_p, bool* middle_3_exact_p)
+void toku_ft_keysrange(FT_HANDLE ft_handle, DBT* key_left, DBT* key_right, uint64_t *less_p, uint64_t* equal_left_p, uint64_t* middle_p, uint64_t* equal_right_p, uint64_t* greater_p, bool* middle_3_exact_p)
 // Effect: Return an estimate  of the number of keys to the left, the number equal (to left key), number between keys, number equal to right key, and the number to the right of both keys.
 //   The values are an estimate.
 //   If you perform a keyrange on two keys that are in the same basement, equal_less, middle, and equal_right will be exact.
@@ -6061,7 +6060,7 @@ void toku_ft_keysrange(FT_HANDLE brt, DBT* key_left, DBT* key_right, uint64_t *l
         // Simplify internals by only supporting key_right != null when key_left != null
         // If key_right != null and key_left == null, then swap them and fix up numbers.
         uint64_t less = 0, equal_left = 0, middle = 0, equal_right = 0, greater = 0;
-        toku_ft_keysrange(brt, key_right, nullptr, &less, &equal_left, &middle, &equal_right, &greater, middle_3_exact_p);
+        toku_ft_keysrange(ft_handle, key_right, nullptr, &less, &equal_left, &middle, &equal_right, &greater, middle_3_exact_p);
         *less_p = 0;
         *equal_left_p = 0;
         *middle_p = less;
@@ -6074,8 +6073,8 @@ void toku_ft_keysrange(FT_HANDLE brt, DBT* key_left, DBT* key_right, uint64_t *l
     paranoid_invariant(!(!key_left && key_right));
     struct ftnode_fetch_extra min_bfe;
     struct ftnode_fetch_extra match_bfe;
-    fill_bfe_for_min_read(&min_bfe, brt->ft);  // read pivot keys but not message buffers
-    fill_bfe_for_keymatch(&match_bfe, brt->ft, key_left, key_right, false, false);  // read basement node only if both keys in it.
+    fill_bfe_for_min_read(&min_bfe, ft_handle->ft);  // read pivot keys but not message buffers
+    fill_bfe_for_keymatch(&match_bfe, ft_handle->ft, key_left, key_right, false, false);  // read basement node only if both keys in it.
 try_again:
     {
         uint64_t less = 0, equal_left = 0, middle = 0, equal_right = 0, greater = 0;
@@ -6084,9 +6083,9 @@ try_again:
         {
             uint32_t fullhash;
             CACHEKEY root_key;
-            toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
+            toku_calculate_root_offset_pointer(ft_handle->ft, &root_key, &fullhash);
             toku_pin_ftnode(
-                brt->ft,
+                ft_handle->ft,
                 root_key,
                 fullhash,
                 &match_bfe,
@@ -6096,15 +6095,15 @@ try_again:
                 );
         }
 
-        struct unlock_ftnode_extra unlock_extra = {brt,node,false};
+        struct unlock_ftnode_extra unlock_extra = {ft_handle,node,false};
         struct unlockers unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
 
         {
             int r;
-            int64_t numrows = brt->ft->in_memory_stats.numrows;
+            int64_t numrows = ft_handle->ft->in_memory_stats.numrows;
             if (numrows < 0)
                 numrows = 0;  // prevent appearance of a negative number
-            r = toku_ft_keysrange_internal (brt, node, key_left, key_right, true,
+            r = toku_ft_keysrange_internal (ft_handle, node, key_left, key_right, true,
                                             &less, &equal_left, &middle, &equal_right, &greater,
                                             &single_basement_node, numrows,
                                             &min_bfe, &match_bfe, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
@@ -6120,7 +6119,7 @@ try_again:
                 invariant_zero(greater);
                 uint64_t less2 = 0, equal_left2 = 0, middle2 = 0, equal_right2 = 0, greater2 = 0;
                 bool ignore;
-                r = toku_ft_keysrange_internal (brt, node, key_right, nullptr, false,
+                r = toku_ft_keysrange_internal (ft_handle, node, key_right, nullptr, false,
                                                 &less2, &equal_left2, &middle2, &equal_right2, &greater2,
                                                 &ignore, numrows,
                                                 &min_bfe, &match_bfe, &unlockers, (ANCESTORS)nullptr, &infinite_bounds);
@@ -6150,7 +6149,7 @@ try_again:
             }
         }
         assert(unlockers.locked);
-        toku_unpin_ftnode_read_only(brt->ft, node);
+        toku_unpin_ftnode_read_only(ft_handle->ft, node);
         if (!key_right) {
             paranoid_invariant_zero(equal_right);
             paranoid_invariant_zero(greater);
@@ -6330,16 +6329,16 @@ int toku_ft_get_key_after_bytes(FT_HANDLE ft_h, const DBT *start_key, uint64_t s
 }
 
 //Test-only wrapper for the old one-key range function
-void toku_ft_keyrange(FT_HANDLE brt, DBT *key, uint64_t *less,  uint64_t *equal,  uint64_t *greater) {
+void toku_ft_keyrange(FT_HANDLE ft_handle, DBT *key, uint64_t *less,  uint64_t *equal,  uint64_t *greater) {
     uint64_t zero_equal_right, zero_greater;
     bool ignore;
-    toku_ft_keysrange(brt, key, nullptr, less, equal, greater, &zero_equal_right, &zero_greater, &ignore);
+    toku_ft_keysrange(ft_handle, key, nullptr, less, equal, greater, &zero_equal_right, &zero_greater, &ignore);
     invariant_zero(zero_equal_right);
     invariant_zero(zero_greater);
 }
 
-void toku_ft_handle_stat64 (FT_HANDLE brt, TOKUTXN UU(txn), struct ftstat64_s *s) {
-    toku_ft_stat64(brt->ft, s);
+void toku_ft_handle_stat64 (FT_HANDLE ft_handle, TOKUTXN UU(txn), struct ftstat64_s *s) {
+    toku_ft_stat64(ft_handle->ft, s);
 }
 
 void toku_ft_handle_get_fractal_tree_info64(FT_HANDLE ft_h, struct ftinfo64 *s) {
@@ -6352,16 +6351,16 @@ int toku_ft_handle_iterate_fractal_tree_block_map(FT_HANDLE ft_h, int (*iter)(ui
 
 /* ********************* debugging dump ************************ */
 static int
-toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const DBT *lorange, const DBT *hirange) {
+toku_dump_ftnode (FILE *file, FT_HANDLE ft_handle, BLOCKNUM blocknum, int depth, const DBT *lorange, const DBT *hirange) {
     int result=0;
     FTNODE node;
-    toku_get_node_for_verify(blocknum, brt, &node);
-    result=toku_verify_ftnode(brt, brt->ft->h->max_msn_in_ft, brt->ft->h->max_msn_in_ft, false, node, -1, lorange, hirange, NULL, NULL, 0, 1, 0);
-    uint32_t fullhash = toku_cachetable_hash(brt->ft->cf, blocknum);
+    toku_get_node_for_verify(blocknum, ft_handle, &node);
+    result=toku_verify_ftnode(ft_handle, ft_handle->ft->h->max_msn_in_ft, ft_handle->ft->h->max_msn_in_ft, false, node, -1, lorange, hirange, NULL, NULL, 0, 1, 0);
+    uint32_t fullhash = toku_cachetable_hash(ft_handle->ft->cf, blocknum);
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->ft);
+    fill_bfe_for_full_read(&bfe, ft_handle->ft);
     toku_pin_ftnode(
-        brt->ft,
+        ft_handle->ft,
         blocknum,
         fullhash,
         &bfe,
@@ -6416,25 +6415,25 @@ toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const
                     char *CAST_FROM_VOIDP(key, node->childkeys[i-1].data);
                     fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->childkeys[i-1].size, (unsigned)toku_dtoh32(*(int*)key));
                 }
-                toku_dump_ftnode(file, brt, BP_BLOCKNUM(node, i), depth+4,
+                toku_dump_ftnode(file, ft_handle, BP_BLOCKNUM(node, i), depth+4,
                                   (i==0) ? lorange : &node->childkeys[i-1],
                                   (i==node->n_children-1) ? hirange : &node->childkeys[i]);
             }
         }
     }
-    toku_unpin_ftnode(brt->ft, node);
+    toku_unpin_ftnode(ft_handle->ft, node);
     return result;
 }
 
-int toku_dump_ft (FILE *f, FT_HANDLE brt) {
+int toku_dump_ft (FILE *f, FT_HANDLE ft_handle) {
     int r;
-    assert(brt->ft);
-    toku_dump_translation_table(f, brt->ft->blocktable);
+    assert(ft_handle->ft);
+    toku_dump_translation_table(f, ft_handle->ft->blocktable);
     {
         uint32_t fullhash = 0;
         CACHEKEY root_key;
-        toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
-        r = toku_dump_ftnode(f, brt, root_key, 0, 0, 0);
+        toku_calculate_root_offset_pointer(ft_handle->ft, &root_key, &fullhash);
+        r = toku_dump_ftnode(f, ft_handle, root_key, 0, 0, 0);
     }
     return r;
 }
@@ -6529,23 +6528,23 @@ void toku_ft_unlink(FT_HANDLE handle) {
 }
 
 int
-toku_ft_get_fragmentation(FT_HANDLE brt, TOKU_DB_FRAGMENTATION report) {
+toku_ft_get_fragmentation(FT_HANDLE ft_handle, TOKU_DB_FRAGMENTATION report) {
     int r;
 
-    int fd = toku_cachefile_get_fd(brt->ft->cf);
-    toku_ft_lock(brt->ft);
+    int fd = toku_cachefile_get_fd(ft_handle->ft->cf);
+    toku_ft_lock(ft_handle->ft);
 
     int64_t file_size;
     r = toku_os_get_file_size(fd, &file_size);
     if (r==0) {
         report->file_size_bytes = file_size;
-        toku_block_table_get_fragmentation_unlocked(brt->ft->blocktable, report);
+        toku_block_table_get_fragmentation_unlocked(ft_handle->ft->blocktable, report);
     }
-    toku_ft_unlock(brt->ft);
+    toku_ft_unlock(ft_handle->ft);
     return r;
 }
 
-static bool is_empty_fast_iter (FT_HANDLE brt, FTNODE node) {
+static bool is_empty_fast_iter (FT_HANDLE ft_handle, FTNODE node) {
     if (node->height > 0) {
         for (int childnum=0; childnum<node->n_children; childnum++) {
             if (toku_bnc_nbytesinbuf(BNC(node, childnum)) != 0) {
@@ -6554,13 +6553,13 @@ static bool is_empty_fast_iter (FT_HANDLE brt, FTNODE node) {
             FTNODE childnode;
             {
                 BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
-                uint32_t fullhash =  compute_child_fullhash(brt->ft->cf, node, childnum);
+                uint32_t fullhash =  compute_child_fullhash(ft_handle->ft->cf, node, childnum);
                 struct ftnode_fetch_extra bfe;
-                fill_bfe_for_full_read(&bfe, brt->ft);
+                fill_bfe_for_full_read(&bfe, ft_handle->ft);
                 // don't need to pass in dependent nodes as we are not
                 // modifying nodes we are pinning
                 toku_pin_ftnode(
-                    brt->ft,
+                    ft_handle->ft,
                     childblocknum,
                     fullhash,
                     &bfe,
@@ -6569,8 +6568,8 @@ static bool is_empty_fast_iter (FT_HANDLE brt, FTNODE node) {
                     true
                     );
             }
-            int child_is_empty = is_empty_fast_iter(brt, childnode);
-            toku_unpin_ftnode(brt->ft, childnode);
+            int child_is_empty = is_empty_fast_iter(ft_handle, childnode);
+            toku_unpin_ftnode(ft_handle->ft, childnode);
             if (!child_is_empty) return 0;
         }
         return 1;
@@ -6585,7 +6584,7 @@ static bool is_empty_fast_iter (FT_HANDLE brt, FTNODE node) {
     }
 }
 
-bool toku_ft_is_empty_fast (FT_HANDLE brt)
+bool toku_ft_is_empty_fast (FT_HANDLE ft_handle)
 // A fast check to see if the tree is empty.  If there are any messages or leafentries, we consider the tree to be nonempty.  It's possible that those
 // messages and leafentries would all optimize away and that the tree is empty, but we'll say it is nonempty.
 {
@@ -6593,11 +6592,11 @@ bool toku_ft_is_empty_fast (FT_HANDLE brt)
     FTNODE node;
     {
         CACHEKEY root_key;
-        toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
+        toku_calculate_root_offset_pointer(ft_handle->ft, &root_key, &fullhash);
         struct ftnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt->ft);
+        fill_bfe_for_full_read(&bfe, ft_handle->ft);
         toku_pin_ftnode(
-            brt->ft,
+            ft_handle->ft,
             root_key,
             fullhash,
             &bfe,
@@ -6606,8 +6605,8 @@ bool toku_ft_is_empty_fast (FT_HANDLE brt)
             true
             );
     }
-    bool r = is_empty_fast_iter(brt, node);
-    toku_unpin_ftnode(brt->ft, node);
+    bool r = is_empty_fast_iter(ft_handle, node);
+    toku_unpin_ftnode(ft_handle->ft, node);
     return r;
 }
 

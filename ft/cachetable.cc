@@ -370,7 +370,7 @@ toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir) {
 
 // What cachefile goes with particular iname (iname relative to env)?
 // The transaction that is adding the reference might not have a reference
-// to the brt, therefore the cachefile might be closing.
+// to the ft, therefore the cachefile might be closing.
 // If closing, we want to return that it is not there, but must wait till after
 // the close has finished.
 // Once the close has finished, there must not be a cachefile with that name
@@ -380,7 +380,7 @@ int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CAC
 }
 
 // What cachefile goes with particular fd?
-// This function can only be called if the brt is still open, so file must 
+// This function can only be called if the ft is still open, so file must 
 // still be open
 int toku_cachefile_of_filenum (CACHETABLE ct, FILENUM filenum, CACHEFILE *cf) {
     return ct->cf_list.cachefile_of_filenum(filenum, cf);
@@ -642,7 +642,7 @@ static void cachetable_free_pair(PAIR p) {
     cachetable_evictions++;
     PAIR_ATTR new_attr = p->attr;
     // Note that flush_callback is called with write_me false, so the only purpose of this 
-    // call is to tell the brt layer to evict the node (keep_me is false).
+    // call is to tell the ft layer to evict the node (keep_me is false).
     // Also, because we have already removed the PAIR from the cachetable in 
     // cachetable_remove_pair, we cannot pass in p->cachefile and p->cachefile->fd
     // for the first two parameters, as these may be invalid (#5171), so, we

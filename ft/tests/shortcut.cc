@@ -96,7 +96,7 @@ static const char *fname = TOKU_TEST_FILENAME;
 
 static TOKUTXN const null_txn = 0;
 CACHETABLE ct;
-FT_HANDLE brt;
+FT_HANDLE ft;
 FT_CURSOR cursor;
 
 static int test_ft_cursor_keycompare(DB *db __attribute__((unused)), const DBT *a, const DBT *b) {
@@ -109,15 +109,15 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
     unlink(fname);
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);   assert(r==0);
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);               assert(r==0);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);   assert(r==0);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);               assert(r==0);
 
     int i;
     for (i=0; i<1000; i++) {
 	char string[100];
 	snprintf(string, sizeof(string), "%04d", i);
 	DBT key,val;
-	toku_ft_insert(brt, toku_fill_dbt(&key, string, 5), toku_fill_dbt(&val, string, 5), 0);
+	toku_ft_insert(ft, toku_fill_dbt(&key, string, 5), toku_fill_dbt(&val, string, 5), 0);
     }
 
     {
@@ -132,7 +132,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
     // This will invalidate due to the root counter bumping, but the OMT itself will still be valid.
     {
 	DBT key, val;
-	toku_ft_insert(brt, toku_fill_dbt(&key, "d", 2), toku_fill_dbt(&val, "w", 2), 0);
+	toku_ft_insert(ft, toku_fill_dbt(&key, "d", 2), toku_fill_dbt(&val, "w", 2), 0);
     }
 
     {
@@ -141,7 +141,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
     }
 
     toku_ft_cursor_close(cursor);
-    r = toku_close_ft_handle_nolsn(brt, 0);                                                               assert(r==0);
+    r = toku_close_ft_handle_nolsn(ft, 0);                                                               assert(r==0);
     toku_cachetable_close(&ct);
     return 0;
 }

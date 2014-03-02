@@ -476,7 +476,7 @@ needs_recovery (DB_ENV *env) {
 static int toku_env_txn_checkpoint(DB_ENV * env, uint32_t kbyte, uint32_t min, uint32_t flags);
 
 // Instruct db to use the default (built-in) key comparison function
-// by setting the flag bits in the db and brt structs
+// by setting the flag bits in the db and ft structs
 static int
 db_use_builtin_key_cmp(DB *db) {
     HANDLE_PANICKED_DB(db);
@@ -3035,7 +3035,7 @@ env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
 
 // TODO 2216:  Patch out this (dangerous) function when loader is working and 
 //             we don't need to test the low-level redirect anymore.
-// for use by test programs only, just a wrapper around brt call:
+// for use by test programs only, just a wrapper around ft call:
 int
 toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN *dbtxn) {
     int r;
@@ -3043,7 +3043,7 @@ toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN
     DBT iname_dbt;
     char * new_iname_in_env;
 
-    FT_HANDLE brt = db->i->ft_handle;
+    FT_HANDLE ft_handle = db->i->ft_handle;
     TOKUTXN tokutxn = db_txn_struct_i(dbtxn)->tokutxn;
 
     toku_fill_dbt(&dname_dbt, dname_of_new_file, strlen(dname_of_new_file)+1);
@@ -3053,7 +3053,7 @@ toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN
     new_iname_in_env = (char *) iname_dbt.data;
 
     toku_multi_operation_client_lock(); //Must hold MO lock for dictionary_redirect.
-    r = toku_dictionary_redirect(new_iname_in_env, brt, tokutxn);
+    r = toku_dictionary_redirect(new_iname_in_env, ft_handle, tokutxn);
     toku_multi_operation_client_unlock();
 
     toku_free(new_iname_in_env);

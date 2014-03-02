@@ -113,7 +113,7 @@ void toku_ft_release_reflock(FT ft);
 void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
 void toku_ft_free (FT h);
 
-int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header);
+int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_h, CACHEFILE cf, LSN max_acceptable_lsn, FT *header);
 void toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live);
 
 bool toku_ft_needed_unlocked(FT ft);
@@ -125,8 +125,8 @@ void toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn);
 
 FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h);
 
-void toku_ft_note_hot_begin(FT_HANDLE brt);
-void toku_ft_note_hot_complete(FT_HANDLE brt, bool success, MSN msn_at_start_of_hot);
+void toku_ft_note_hot_begin(FT_HANDLE ft_h);
+void toku_ft_note_hot_complete(FT_HANDLE ft_h, bool success, MSN msn_at_start_of_hot);
 
 void
 toku_ft_init(
