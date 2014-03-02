@@ -95,7 +95,8 @@ PATENT RIGHTS GRANT:
 #include <dirent.h>
 #include <sys/time.h>
 
-#include <toku_os_types.h>
+#include <portability/toku_stdint.h>
+#include <portability/toku_os_types.h>
 
 // Returns: the current process id
 int toku_os_getpid(void)   __attribute__((__visibility__("default")));
@@ -147,6 +148,9 @@ int toku_os_get_max_process_data_size(uint64_t *maxdata) __attribute__((__visibi
 int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("default")));
 
 bool toku_os_is_absolute_name(const char* path)  __attribute__((__visibility__("default")));
+
+// Return true if huge pages are enabled. See portability/huge_page_detection.cc for methodology.
+bool toku_os_huge_pages_enabled(void) __attribute__((__visibility__("default")));
 
 // Set whether or not writes assert when ENOSPC is returned or they wait for space
 void toku_set_assert_on_write_enospc(int do_assert) __attribute__((__visibility__("default")));
