@@ -92,9 +92,9 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 
-// create a brt and put n rows into it
-// write the brt to the file
-// verify the rows in the brt
+// create a ft and put n rows into it
+// write the ft to the file
+// verify the rows in the ft
 static void test_sub_block(int n) {
     if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n);
 
@@ -107,14 +107,14 @@ static void test_sub_block(int n) {
 
     int error;
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     int i;
 
     unlink(fname);
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    error = toku_open_ft_handle(fname, true, &brt, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
+    error = toku_open_ft_handle(fname, true, &ft, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
     assert(error == 0);
 
     // insert keys 0, 1, 2, .. (n-1)
@@ -124,20 +124,20 @@ static void test_sub_block(int n) {
 	DBT key, val;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
-        toku_ft_insert(brt, &key, &val, 0);
+        toku_ft_insert(ft, &key, &val, 0);
         assert(error == 0);
     }
 
     // write to the file
-    error = toku_close_ft_handle_nolsn(brt, 0);
+    error = toku_close_ft_handle_nolsn(ft, 0);
     assert(error == 0);
 
-    // verify the brt by walking a cursor through the rows
-    error = toku_open_ft_handle(fname, false, &brt, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
+    // verify the ft by walking a cursor through the rows
+    error = toku_open_ft_handle(fname, false, &ft, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
     assert(error == 0);
 
     FT_CURSOR cursor;
-    error = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    error = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(error == 0);
 
     for (i=0; ; i++) {
@@ -155,7 +155,7 @@ static void test_sub_block(int n) {
 
     toku_ft_cursor_close(cursor);
 
-    error = toku_close_ft_handle_nolsn(brt, 0);
+    error = toku_close_ft_handle_nolsn(ft, 0);
     assert(error == 0);
 
     toku_cachetable_close(&ct);

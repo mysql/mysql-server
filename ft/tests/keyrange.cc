@@ -132,8 +132,8 @@ static void reload (uint64_t limit) {
 
 enum memory_state {
     LEAVE_IN_MEMORY,       // leave the state in main memory
-    CLOSE_AND_RELOAD,      // close the brts and reload them into main memory (that will cause >1 partitio in many leaves.)
-    CLOSE_AND_REOPEN_LEAVE_ON_DISK   // close the brts, reopen them, but leave the state on disk.
+    CLOSE_AND_RELOAD,      // close the fts and reload them into main memory (that will cause >1 partitio in many leaves.)
+    CLOSE_AND_REOPEN_LEAVE_ON_DISK   // close the fts, reopen them, but leave the state on disk.
 };
 
 static void maybe_reopen (enum memory_state ms, uint64_t limit) {

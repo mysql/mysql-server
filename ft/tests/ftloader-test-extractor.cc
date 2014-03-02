@@ -89,7 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-// The purpose of this test is to test the extractor component of the brt loader.  We insert rowsets into the extractor queue and verify temp files 
+// The purpose of this test is to test the extractor component of the ft loader.  We insert rowsets into the extractor queue and verify temp files 
 // after the extractor is finished.
 
 #define DONT_DEPRECATE_MALLOC
@@ -387,12 +387,12 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
 
     // open the ft_loader. this runs the extractor.
     const int N = 1;
-    FT_HANDLE brts[N];
+    FT_HANDLE fts[N];
     DB* dbs[N];
     const char *fnames[N];
     ft_compare_func compares[N];
     for (int i = 0; i < N; i++) {
-        brts[i] = NULL;
+        fts[i] = NULL;
         dbs[i] = NULL;
         fnames[i] = "";
         compares[i] = compare_int;
@@ -402,7 +402,7 @@ static void test_extractor(int nrows, int nrowsets, const char *testdir) {
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     FTLOADER loader;
-    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, temp, ZERO_LSN, nullptr, true, 0, false);
+    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, fts, dbs, fnames, compares, temp, ZERO_LSN, nullptr, true, 0, false);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];

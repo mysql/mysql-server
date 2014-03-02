@@ -165,12 +165,12 @@ static void test_extractor(int nrows, int nrowsets, bool expect_fail, const char
 
     // open the ft_loader. this runs the extractor.
     const int N = 1;
-    FT_HANDLE brts[N];
+    FT_HANDLE fts[N];
     DB* dbs[N];
     const char *fnames[N];
     ft_compare_func compares[N];
     for (int i = 0; i < N; i++) {
-        brts[i] = NULL;
+        fts[i] = NULL;
         dbs[i] = NULL;
         fnames[i] = "";
         compares[i] = compare_int;
@@ -180,7 +180,7 @@ static void test_extractor(int nrows, int nrowsets, bool expect_fail, const char
     sprintf(temp, "%s/%s", testdir, "tempXXXXXX");
 
     FTLOADER loader;
-    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, brts, dbs, fnames, compares, "tempXXXXXX", ZERO_LSN, nullptr, true, 0, false);
+    r = toku_ft_loader_open(&loader, NULL, generate, NULL, N, fts, dbs, fnames, compares, "tempXXXXXX", ZERO_LSN, nullptr, true, 0, false);
     assert(r == 0);
 
     struct rowset *rowset[nrowsets];

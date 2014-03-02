@@ -182,7 +182,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->last_completed_checkpoint_lsn = ZERO_LSN;
     // next_log_file_number is uninitialized
     // n_in_file is uninitialized
-    result->write_block_size = FT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
+    result->write_block_size = FT_DEFAULT_NODE_SIZE; // default logging size is the same as the default ft block size
     toku_logfilemgr_create(&result->logfilemgr);
     *resultp=result;
     ml_init(&result->input_lock);
@@ -280,7 +280,7 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create)
     assert(logger->is_open);
     assert(!logger->rollback_cachefile);
 
-    FT_HANDLE t = NULL;   // Note, there is no DB associated with this BRT.
+    FT_HANDLE t = NULL;   // Note, there is no DB associated with this FT.
     toku_ft_handle_create(&t);
     int r = toku_ft_handle_open(t, toku_product_name_strings.rollback_cachefile, create, create, cachetable, NULL_TXN);
     if (r == 0) {
@@ -308,7 +308,7 @@ void toku_logger_close_rollback(TOKULOGGER logger) {
     CACHEFILE cf = logger->rollback_cachefile;  // stored in logger at rollback cachefile open
     if (cf) {
         FT_HANDLE ft_to_close;
-        {   //Find "brt"
+        {   //Find "ft_to_close"
             logger->rollback_cache.destroy();
             FT CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
             //Verify it is safe to close it.

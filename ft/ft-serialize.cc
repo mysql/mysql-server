@@ -210,7 +210,7 @@ exit:
 
 int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 // Effect: Deserialize the ft header.
-//   We deserialize brt header only once and then share everything with all the brts.
+//   We deserialize ft_header only once and then share everything with all the FTs.
 {
     int r;
     FT ft = NULL;

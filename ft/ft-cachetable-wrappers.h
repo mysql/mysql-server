@@ -141,7 +141,7 @@ toku_create_new_ftnode (
 // This function returns a pinned ftnode to the caller.
 int
 toku_pin_ftnode_for_query(
-    FT_HANDLE brt,
+    FT_HANDLE ft_h,
     BLOCKNUM blocknum,
     uint32_t fullhash,
     UNLOCKERS unlockers,

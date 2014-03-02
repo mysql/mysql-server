@@ -166,18 +166,18 @@ string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 }
 
 static void
-setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_DATA* ndd) {
+setup_dn(enum ftnode_verify_type bft, int fd, FT ft_h, FTNODE *dn, FTNODE_DISK_DATA* ndd) {
     int r;
-    brt_h->compare_fun = string_key_cmp;
+    ft_h->compare_fun = string_key_cmp;
     if (bft == read_all) {
         struct ftnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt_h);
+        fill_bfe_for_full_read(&bfe, ft_h);
         r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
     }
     else if (bft == read_compressed || bft == read_none) {
         struct ftnode_fetch_extra bfe;
-        fill_bfe_for_min_read(&bfe, brt_h);
+        fill_bfe_for_min_read(&bfe, ft_h);
         r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
         // assert all bp's are compressed or on disk.
@@ -187,7 +187,7 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
         // if read_none, get rid of the compressed bp's
         if (bft == read_none) {
             if ((*dn)->height == 0) {
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
                 // assert all bp's are on disk
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     if ((*dn)->height == 0) {
@@ -204,7 +204,7 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
                 // that it is available
                 // then run partial eviction to get it compressed
                 PAIR_ATTR attr;
-                fill_bfe_for_full_read(&bfe, brt_h);
+                fill_bfe_for_full_read(&bfe, ft_h);
                 assert(toku_ftnode_pf_req_callback(*dn, &bfe));
                 r = toku_ftnode_pf_callback(*dn, *ndd, &bfe, fd, &attr);
                 assert(r==0);
@@ -212,21 +212,21 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                 }
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     // assert all bp's are still available, because we touched the clock
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                     // now assert all should be evicted
                     assert(BP_SHOULD_EVICT(*dn, i));
                 }
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_COMPRESSED);
                 }
             }
         }
         // now decompress them
-        fill_bfe_for_full_read(&bfe, brt_h);
+        fill_bfe_for_full_read(&bfe, ft_h);
         assert(toku_ftnode_pf_req_callback(*dn, &bfe));
         PAIR_ATTR attr;
         r = toku_ftnode_pf_callback(*dn, *ndd, &bfe, fd, &attr);
@@ -243,20 +243,20 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
     }
 }
 
-static void write_sn_to_disk(int fd, FT_HANDLE brt, FTNODE sn, FTNODE_DISK_DATA* src_ndd, bool do_clone) {
+static void write_sn_to_disk(int fd, FT_HANDLE ft, FTNODE sn, FTNODE_DISK_DATA* src_ndd, bool do_clone) {
     int r;
     if (do_clone) {
         void* cloned_node_v = NULL;
         PAIR_ATTR attr;
         long clone_size;
-        toku_ftnode_clone_callback(sn, &cloned_node_v, &clone_size, &attr, false, brt->ft);
+        toku_ftnode_clone_callback(sn, &cloned_node_v, &clone_size, &attr, false, ft->ft);
         FTNODE CAST_FROM_VOIDP(cloned_node, cloned_node_v);
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, false, brt->ft, false);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, false, ft->ft, false);
         assert(r==0);        
         toku_ftnode_free(&cloned_node);
     }
     else {
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, true, brt->ft, false);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, true, ft->ft, false);
         assert(r==0);
     }
 }
@@ -297,9 +297,9 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     BLB_MAX_MSN_APPLIED(&sn, 0) = ((MSN) { MIN_MSN.msn + 73 });
     BLB_MAX_MSN_APPLIED(&sn, 1) = POSTSERIALIZE_MSN_ON_DISK;
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -307,33 +307,33 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
-    toku_blocktable_create_new(&brt_h->blocktable);
+    ft->ft = ft_h;
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
 
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
 
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -390,11 +390,11 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -441,9 +441,9 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
         }
     }
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -451,32 +451,32 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
-    toku_blocktable_create_new(&brt_h->blocktable);
+    ft->ft = ft_h;
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
 
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
     
     assert(dn->thisnodename.b==20);
 
@@ -537,11 +537,11 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     }
     toku_free(sn.bp);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -579,9 +579,9 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
         le_add_to_bn(BLB_DATA(&sn, 0), i, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
     }
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -589,33 +589,33 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
 
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -678,11 +678,11 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -727,9 +727,9 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
         le_add_to_bn(BLB_DATA(&sn, 0), i,key, 8, val, val_size);
     }
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -737,33 +737,33 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
 
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -828,11 +828,11 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -876,9 +876,9 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     le_add_to_bn(BLB_DATA(&sn, 3), 0, "b", 2, "bval", 5);
     le_add_to_bn(BLB_DATA(&sn, 5), 0, "x", 2, "xval", 5);
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -886,32 +886,32 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -966,11 +966,11 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -1005,9 +1005,9 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
         set_BLB(&sn, i, toku_create_empty_bn());
     }
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -1015,33 +1015,33 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
 
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -1073,11 +1073,11 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -1131,9 +1131,9 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     xids_destroy(&xids_123);
     xids_destroy(&xids_234);
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -1141,32 +1141,32 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -1197,11 +1197,11 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 

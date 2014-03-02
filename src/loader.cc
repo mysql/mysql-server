@@ -306,15 +306,15 @@ toku_loader_create_loader(DB_ENV *env,
 
         // time to open the big kahuna
         char **XMALLOC_N(N, new_inames_in_env);
-        FT_HANDLE *XMALLOC_N(N, brts);
+        FT_HANDLE *XMALLOC_N(N, fts);
         for (int i=0; i<N; i++) {
-            brts[i] = dbs[i]->i->ft_handle;
+            fts[i] = dbs[i]->i->ft_handle;
         }
         LSN load_lsn;
         rval = locked_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, puts_allowed);
         if ( rval!=0 ) {
             toku_free(new_inames_in_env);
-            toku_free(brts);
+            toku_free(fts);
             goto create_exit;
         }
         TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
@@ -323,7 +323,7 @@ toku_loader_create_loader(DB_ENV *env,
                                  env->i->generate_row_for_put,
                                  src_db,
                                  N,
-                                 brts, dbs,
+                                 fts, dbs,
                                  (const char **)new_inames_in_env,
                                  compare_functions,
                                  loader->i->temp_file_template,
@@ -334,11 +334,11 @@ toku_loader_create_loader(DB_ENV *env,
                                  compress_intermediates);
         if ( rval!=0 ) {
             toku_free(new_inames_in_env);
-            toku_free(brts);
+            toku_free(fts);
             goto create_exit;
         }
         loader->i->inames_in_env = new_inames_in_env;
-        toku_free(brts);
+        toku_free(fts);
 
         if (!puts_allowed) {
             rval = ft_loader_close_and_redirect(loader);

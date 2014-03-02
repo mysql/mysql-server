@@ -198,7 +198,7 @@ typedef struct {
 
 static const STAT64INFO_S ZEROSTATS = {0,0};
 
-/* At the brt layer, a FILENUM uniquely identifies an open file.
+/* At the ft layer, a FILENUM uniquely identifies an open file.
  * At the ydb layer, a DICTIONARY_ID uniquely identifies an open dictionary.
  * With the introduction of the loader (ticket 2216), it is possible for the file that holds
  * an open dictionary to change, so these are now separate and independent unique identifiers.
@@ -329,8 +329,8 @@ struct ft_msg {
         } id;
     } u;
 };
-// Message sent into brt to implement command (insert, delete, etc.)
-// This structure supports nested transactions, and obsoletes ft_msg.
+
+// Message sent into the ft to implement insert, delete, update, etc
 typedef struct ft_msg FT_MSG_S;
 typedef struct ft_msg *FT_MSG;
 

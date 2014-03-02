@@ -154,9 +154,9 @@ struct file_map_tuple {
     struct __toku_db fake_db;
 };
 
-static void file_map_tuple_init(struct file_map_tuple *tuple, FILENUM filenum, FT_HANDLE brt, char *iname) {
+static void file_map_tuple_init(struct file_map_tuple *tuple, FILENUM filenum, FT_HANDLE ft_handle, char *iname) {
     tuple->filenum = filenum;
-    tuple->ft_handle = brt;
+    tuple->ft_handle = ft_handle;
     tuple->iname = iname;
     // use a fake DB for comparisons, using the ft's cmp descriptor
     memset(&tuple->fake_db, 0, sizeof(tuple->fake_db));
@@ -171,7 +171,7 @@ static void file_map_tuple_destroy(struct file_map_tuple *tuple) {
     }
 }
 
-// Map filenum to brt
+// Map filenum to ft_handle
 struct file_map {
     OMT filenums;
 };
@@ -242,9 +242,9 @@ static int file_map_h(OMTVALUE omtv, void *v) {
     return 0;
 }
 
-static int file_map_insert (struct file_map *fmap, FILENUM fnum, FT_HANDLE brt, char *iname) {
+static int file_map_insert (struct file_map *fmap, FILENUM fnum, FT_HANDLE ft_handle, char *iname) {
     struct file_map_tuple *XMALLOC(tuple);
-    file_map_tuple_init(tuple, fnum, brt, iname);
+    file_map_tuple_init(tuple, fnum, ft_handle, iname);
     int r = toku_omt_insert(fmap->filenums, tuple, file_map_h, &fnum, NULL);
     return r;
 }
@@ -350,48 +350,48 @@ static const char *recover_state(RECOVER_ENV renv) {
 static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, bool must_create, int UU(mode), BYTESTRING *bs_iname, FILENUM filenum, uint32_t treeflags,
                                               TOKUTXN txn, uint32_t nodesize, uint32_t basementnodesize, enum toku_compression_method compression_method, LSN max_acceptable_lsn) {
     int r = 0;
-    FT_HANDLE brt = NULL;
+    FT_HANDLE ft_handle = NULL;
     char *iname = fixup_fname(bs_iname);
 
-    toku_ft_handle_create(&brt);
-    toku_ft_set_flags(brt, treeflags);
+    toku_ft_handle_create(&ft_handle);
+    toku_ft_set_flags(ft_handle, treeflags);
 
     if (nodesize != 0) {
-        toku_ft_handle_set_nodesize(brt, nodesize);
+        toku_ft_handle_set_nodesize(ft_handle, nodesize);
     }
 
     if (basementnodesize != 0) {
-        toku_ft_handle_set_basementnodesize(brt, basementnodesize);
+        toku_ft_handle_set_basementnodesize(ft_handle, basementnodesize);
     }
 
     if (compression_method != TOKU_DEFAULT_COMPRESSION_METHOD) {
-        toku_ft_handle_set_compression_method(brt, compression_method);
+        toku_ft_handle_set_compression_method(ft_handle, compression_method);
     }
 
     // set the key compare functions
     if (!(treeflags & TOKU_DB_KEYCMP_BUILTIN) && renv->bt_compare) {
-        toku_ft_set_bt_compare(brt, renv->bt_compare);
+        toku_ft_set_bt_compare(ft_handle, renv->bt_compare);
     }
 
     if (renv->update_function) {
-        toku_ft_set_update(brt, renv->update_function);
+        toku_ft_set_update(ft_handle, renv->update_function);
     }
 
     // TODO mode (FUTURE FEATURE)
     //mode = mode;
 
-    r = toku_ft_handle_open_recovery(brt, iname, must_create, must_create, renv->ct, txn, filenum, max_acceptable_lsn);
+    r = toku_ft_handle_open_recovery(ft_handle, iname, must_create, must_create, renv->ct, txn, filenum, max_acceptable_lsn);
     if (r != 0) {
         //Note:  If ft_handle_open fails, then close_ft will NOT write a header to disk.
         //No need to provide lsn, so use the regular toku_ft_handle_close function
-        toku_ft_handle_close(brt);
+        toku_ft_handle_close(ft_handle);
         toku_free(iname);
         if (r == ENOENT) //Not an error to simply be missing.
             r = 0;
         return r;
     }
 
-    file_map_insert(&renv->fmap, filenum, brt, iname);
+    file_map_insert(&renv->fmap, filenum, ft_handle, iname);
     return 0;
 }
 

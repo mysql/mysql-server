@@ -281,7 +281,7 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
             toku_txn_unlock(txn->parent);
         }
 
-        // Note the open brts, the omts must be merged
+        // Note the open FTs, the omts must be merged
         r = txn->open_fts.iterate<struct tokutxn, note_ft_used_in_txns_parent>(txn);
         assert(r==0);
 

@@ -427,7 +427,7 @@ toku_ft_unlock (FT ft) {
     unlock_for_blocktable(bt);
 }
 
-// Also used only in brt-serialize-test.
+// Also used only in ft-serialize-test.
 void
 toku_block_free(BLOCK_TABLE bt, uint64_t offset) {
     lock_for_blocktable(bt);

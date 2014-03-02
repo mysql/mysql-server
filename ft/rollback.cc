@@ -267,7 +267,7 @@ int find_filenum (const FT &h, const FT &hfind) {
     return 0;
 }
 
-//Notify a transaction that it has touched a brt.
+//Notify a transaction that it has touched an ft.
 void toku_txn_maybe_note_ft (TOKUTXN txn, FT ft) {
     toku_txn_lock(txn);
     FT ftv;

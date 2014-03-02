@@ -313,7 +313,7 @@ c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, 
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_first
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_first
     return r;
 }
 
@@ -364,7 +364,7 @@ c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_last
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_last
     return r;
 }
 
@@ -423,7 +423,7 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_next
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_next
     return r;
 }
 
@@ -481,7 +481,7 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_prev
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_prev
     return r;
 }
 
@@ -518,7 +518,7 @@ c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val
         r = 0;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_current
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_current
     return r;
 }
 
@@ -571,7 +571,7 @@ c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, vo
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_set
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_set
     return r;
 }
 
@@ -627,7 +627,7 @@ c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_set_range
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_set_range
     return r;
 }
 
@@ -683,7 +683,7 @@ c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, b
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_set_range_reverse
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_set_range_reverse
     return r;
 }
 
@@ -876,7 +876,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
         );
     assert(r == 0 || r == TOKUDB_MVCC_DICTIONARY_TOO_NEW);
     if (r == 0) {
-        // Set the is_temporary_cursor boolean inside the brt node so
+        // Set the is_temporary_cursor boolean inside the ftnode so
         // that a query only needing one cursor will not perform
         // unecessary malloc calls.
         if (is_temporary_cursor) {

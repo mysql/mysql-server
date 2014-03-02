@@ -181,9 +181,9 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
         }
     }
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -191,25 +191,25 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    brt_h->compare_fun = long_key_cmp;
-    toku_blocktable_create_new(&brt_h->blocktable);
+    ft_h->compare_fun = long_key_cmp;
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
@@ -217,7 +217,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, &ndd, true, brt->ft, false);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, &ndd, true, ft->ft, false);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;
@@ -225,7 +225,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     printf("serialize leaf:   %0.05lf\n", dt);
 
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h);
+    fill_bfe_for_full_read(&bfe, ft_h);
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd2 = NULL;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd2, &bfe);
@@ -242,11 +242,11 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     toku_ftnode_free(&dn);
     toku_ftnode_free(&sn);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(ndd);
     toku_free(ndd2);
 
@@ -312,9 +312,9 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     xids_destroy(&xids_0);
     xids_destroy(&xids_123);
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -322,25 +322,25 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    brt_h->compare_fun = long_key_cmp;
-    toku_blocktable_create_new(&brt_h->blocktable);
+    ft_h->compare_fun = long_key_cmp;
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
@@ -348,7 +348,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, brt->ft, false);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, ft->ft, false);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;
@@ -356,7 +356,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     printf("serialize nonleaf:   %0.05lf\n", dt);
 
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt_h);
+    fill_bfe_for_full_read(&bfe, ft_h);
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd2 = NULL;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd2, &bfe);
@@ -381,11 +381,11 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(ndd);
     toku_free(ndd2);
 
