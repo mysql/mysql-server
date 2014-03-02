@@ -324,22 +324,7 @@ toku_pin_ftnode_off_client_thread(
     FTNODE_FETCH_EXTRA bfe,
     pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
-    FTNODE *node_p)
-{
-    toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
-            h, blocknum, fullhash, bfe, lock_type, num_dependent_nodes, dependent_nodes, node_p, true);
-}
-
-void
-toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
+    FTNODE *dependent_nodes,
     FTNODE *node_p,
     bool move_messages)
 {
@@ -367,9 +352,9 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
         dependent_pairs,
         dependent_dirty_bits
         );
-    assert(r==0);
+    invariant_zero(r);
     FTNODE node = (FTNODE) node_v;
-    if ((lock_type != PL_READ) && node->height > 0 && move_messages) {
+    if (lock_type != PL_READ && node->height > 0 && move_messages) {
         toku_move_ftnode_messages_to_stale(h, node);
     }
     *node_p = node;

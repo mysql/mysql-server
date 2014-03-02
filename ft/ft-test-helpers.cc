@@ -262,7 +262,8 @@ toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t)
         PL_WRITE_EXPENSIVE,
         0,
         NULL,
-        node
+        node,
+        true
         );
 }
 

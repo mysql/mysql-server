@@ -276,7 +276,8 @@ doit (int state) {
         PL_WRITE_EXPENSIVE, 
         0,
         NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 2);
@@ -294,7 +295,8 @@ doit (int state) {
         PL_WRITE_EXPENSIVE, 
         0,
         NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 2);
