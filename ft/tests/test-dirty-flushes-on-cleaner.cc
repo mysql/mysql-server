@@ -248,7 +248,8 @@ doit (void) {
         PL_WRITE_EXPENSIVE, 
         0,
         NULL,
-        &node
+        &node,
+        true
         );
     assert(node->dirty);
     assert(node->n_children == 2);
@@ -277,7 +278,8 @@ doit (void) {
         PL_WRITE_EXPENSIVE, 
         0,
         NULL,
-        &node
+        &node,
+        true
         );
     assert(node->dirty);
     assert(node->n_children == 2);
@@ -297,7 +299,8 @@ doit (void) {
         PL_WRITE_EXPENSIVE, 
         0,
         NULL,
-        &node
+        &node,
+        true
         );
     assert(node->dirty);
 
@@ -321,7 +324,8 @@ doit (void) {
         PL_WRITE_EXPENSIVE, 
         0,
         NULL,
-        &node
+        &node,
+        true
         );
     // check that buffers are empty
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);

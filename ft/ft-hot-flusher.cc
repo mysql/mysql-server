@@ -339,7 +339,8 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
                                                PL_WRITE_EXPENSIVE, 
                                                0,
                                                NULL,
-                                               &root);
+                                               &root,
+                                               true);
             toku_assert_entire_node_in_memory(root);
         }
 

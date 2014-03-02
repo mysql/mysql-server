@@ -1302,8 +1302,6 @@ void toku_cachetable_pf_pinned_pair(
     pair_unlock(p);
 }
 
-
-// NOW A TEST ONLY FUNCTION!!!
 int toku_cachetable_get_and_pin (
     CACHEFILE cachefile, 
     CACHEKEY key, 

@@ -167,19 +167,7 @@ toku_pin_ftnode_off_client_thread(
     FTNODE_FETCH_EXTRA bfe,
     pair_lock_type lock_type,
     uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
-    FTNODE *node_p
-    );
-
-void
-toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
+    FTNODE *dependent_nodes,
     FTNODE *node_p,
     bool move_messages
     );
@@ -189,31 +177,6 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
  * If the node is already locked, or is pending a checkpoint, the node is not pinned and -1 is returned.
  */
 int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pair_lock_type lock_type, FTNODE *nodep);
-
-void
-toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
-    FTNODE *node_p,
-    bool move_messages
-    );
-
-void
-toku_pin_ftnode_off_client_thread(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
-    FTNODE *node_p
-    );
 
 /**
  * Effect: Unpin a brt node. Used for
