@@ -160,7 +160,7 @@ toku_pin_ftnode(
  * Unlike toku_pin_ftnode, this function blocks until the node is pinned.
  */
 void
-toku_pin_ftnode_off_client_thread(
+toku_pin_ftnode_with_dep_nodes(
     FT h,
     BLOCKNUM blocknum,
     uint32_t fullhash,

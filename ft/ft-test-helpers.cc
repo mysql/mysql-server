@@ -254,7 +254,7 @@ toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t)
 {
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_nodes(
         t->ft, 
         b,
         toku_cachetable_hash(t->ft->cf, b),

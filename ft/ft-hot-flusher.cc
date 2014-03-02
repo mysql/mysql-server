@@ -332,7 +332,7 @@ toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
             toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, brt->ft);
-            toku_pin_ftnode_off_client_thread(brt->ft,
+            toku_pin_ftnode_with_dep_nodes(brt->ft,
                                                (BLOCKNUM) root_key,
                                                fullhash,
                                                &bfe,

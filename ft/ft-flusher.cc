@@ -496,7 +496,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             toku_calculate_root_offset_pointer(h, &root, &fullhash);
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, h);
-            toku_pin_ftnode_off_client_thread(h, root, fullhash, &bfe, PL_WRITE_EXPENSIVE, 0, NULL, &root_node, true);
+            toku_pin_ftnode_with_dep_nodes(h, root, fullhash, &bfe, PL_WRITE_EXPENSIVE, 0, NULL, &root_node, true);
             toku_assert_entire_node_in_memory(root_node);
         }
 
@@ -1426,7 +1426,7 @@ ft_merge_child(
         uint32_t childfullhash = compute_child_fullhash(h->cf, node, childnuma);
         struct ftnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
-        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &node, &childa, true);
+        toku_pin_ftnode_with_dep_nodes(h, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &node, &childa, true);
     }
     // for test
     call_flusher_thread_callback(flt_flush_before_pin_second_node_for_merge);
@@ -1437,7 +1437,7 @@ ft_merge_child(
         uint32_t childfullhash = compute_child_fullhash(h->cf, node, childnumb);
         struct ftnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
-        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnumb), childfullhash, &bfe, PL_WRITE_EXPENSIVE, 2, dep_nodes, &childb, true);
+        toku_pin_ftnode_with_dep_nodes(h, BP_BLOCKNUM(node, childnumb), childfullhash, &bfe, PL_WRITE_EXPENSIVE, 2, dep_nodes, &childb, true);
     }
 
     if (toku_bnc_n_entries(BNC(node,childnuma))>0) {
@@ -1575,7 +1575,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     // Note that we don't read the entire node into memory yet.
     // The idea is let's try to do the minimum work before releasing the parent lock
     fill_bfe_for_min_read(&bfe, ft);
-    toku_pin_ftnode_off_client_thread(ft, targetchild, childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &parent, &child, true);
+    toku_pin_ftnode_with_dep_nodes(ft, targetchild, childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &parent, &child, true);
 
     // for test
     call_flusher_thread_callback(ft_flush_aflter_child_pin);
