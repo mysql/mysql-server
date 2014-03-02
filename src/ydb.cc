@@ -852,6 +852,12 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         goto cleanup;
     }
 
+    if (toku_os_huge_pages_enabled()) {
+        r = toku_ydb_do_error(env, TOKUDB_HUGE_PAGES_ENABLED,
+                              "Huge pages are enabled, disable them before continuing\n");
+        goto cleanup;
+    }
+
     most_recent_env = NULL;
 
     assert(sizeof(time_t) == sizeof(uint64_t));
@@ -2564,8 +2570,8 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     result->i->bt_compare = toku_builtin_compare_fun;
 
     r = toku_logger_create(&result->i->logger);
-    if (r!=0) goto cleanup; // In particular, logger_create can return the huge page error.
-    assert(result->i->logger);
+    invariant_zero(r);
+    invariant_notnull(result->i->logger);
 
     // Create the locktree manager, passing in the create/destroy/escalate callbacks.
     // The extra parameter for escalation is simply a pointer to this environment.
