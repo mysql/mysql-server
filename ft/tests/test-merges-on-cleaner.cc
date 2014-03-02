@@ -232,7 +232,7 @@ doit (void) {
 
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         brt->ft, 
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
@@ -255,7 +255,7 @@ doit (void) {
 
     // verify that node_internal's buffer is empty
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         brt->ft, 
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),

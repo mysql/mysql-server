@@ -150,7 +150,7 @@ doit (void) {
     FTNODE node;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         t->ft, 
         node_internal,
         toku_cachetable_hash(t->ft->cf, node_internal),

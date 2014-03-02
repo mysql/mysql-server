@@ -268,7 +268,7 @@ doit (int state) {
     
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
@@ -287,7 +287,7 @@ doit (int state) {
     assert(checkpoint_callback_called);
 
     // now let's pin the root again and make sure it is has rebalanced
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
@@ -327,7 +327,7 @@ doit (int state) {
     // now pin the root, verify that the state is what we expect
     //
     fill_bfe_for_full_read(&bfe, c_ft->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         c_ft->ft, 
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
@@ -348,7 +348,7 @@ doit (int state) {
     toku_unpin_ftnode(c_ft->ft, node);
 
     // now let's verify the leaves are what we expect
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         c_ft->ft, 
         left_child,
         toku_cachetable_hash(c_ft->ft->cf, left_child),
@@ -364,7 +364,7 @@ doit (int state) {
     assert(BLB_DATA(node, 0)->omt_size() == 2);
     toku_unpin_ftnode(c_ft->ft, node);
     
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         c_ft->ft, 
         right_child,
         toku_cachetable_hash(c_ft->ft->cf, right_child),

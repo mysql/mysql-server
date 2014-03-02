@@ -297,7 +297,7 @@ toku_get_node_for_verify(
     uint32_t fullhash = toku_cachetable_hash(brt->ft->cf, blocknum);
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_nodes(
         brt->ft,
         blocknum,
         fullhash,

@@ -317,7 +317,7 @@ exit:
 }
 
 void
-toku_pin_ftnode_off_client_thread(
+toku_pin_ftnode_with_dep_nodes(
     FT h,
     BLOCKNUM blocknum,
     uint32_t fullhash,

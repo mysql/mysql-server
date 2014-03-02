@@ -169,7 +169,7 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
     FTNODE node = NULL;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         t->ft,
         child_nonleaf_blocknum,
         toku_cachetable_hash(t->ft->cf, child_nonleaf_blocknum),
@@ -186,7 +186,7 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
     toku_unpin_ftnode(t->ft, node);
 
     // now verify the root - keep it pinned so we can flush it below
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         t->ft, 
         root_blocknum,
         toku_cachetable_hash(t->ft->cf, root_blocknum),
@@ -222,7 +222,7 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
 
     // pin the child, verify that oldest referenced xid was
     // propogated from parent to child during the flush
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         t->ft, 
         child_nonleaf_blocknum,
         toku_cachetable_hash(t->ft->cf, child_nonleaf_blocknum),

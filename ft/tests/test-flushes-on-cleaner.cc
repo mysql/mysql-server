@@ -246,7 +246,7 @@ doit (bool keep_other_bn_in_memory) {
     FTNODE node = NULL;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         brt->ft, 
         node_leaf,
         toku_cachetable_hash(brt->ft->cf, node_leaf),
@@ -293,7 +293,7 @@ doit (bool keep_other_bn_in_memory) {
         //
         fill_bfe_for_min_read(&bfe, brt->ft);
     }
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         brt->ft, 
         node_leaf,
         toku_cachetable_hash(brt->ft->cf, node_leaf),
@@ -318,7 +318,7 @@ doit (bool keep_other_bn_in_memory) {
     // now let us induce a clean on the internal node
     //    
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         brt->ft, 
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
@@ -342,7 +342,7 @@ doit (bool keep_other_bn_in_memory) {
 
     // verify that node_internal's buffer is empty
     fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_with_dep_pairs(
         brt->ft, 
         node_internal,
         toku_cachetable_hash(brt->ft->cf, node_internal),
