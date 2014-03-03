@@ -2607,7 +2607,7 @@ serialize_rollback_log_size(ROLLBACK_LOG_NODE log) {
                  +8 //blocknum
                  +8 //previous (blocknum)
                  +8 //resident_bytecount
-                 +8 //memarena_size_needed_to_load
+                 +8 //memarena size
                  +log->rollentry_resident_bytecount;
     return size;
 }
@@ -2628,7 +2628,7 @@ serialize_rollback_log_node_to_buf(ROLLBACK_LOG_NODE log, char *buf, size_t calc
         wbuf_nocrc_BLOCKNUM(&wb, log->previous);
         wbuf_nocrc_ulonglong(&wb, log->rollentry_resident_bytecount);
         //Write down memarena size needed to restore
-        wbuf_nocrc_ulonglong(&wb, memarena_total_size_in_use(log->rollentry_arena));
+        wbuf_nocrc_ulonglong(&wb, toku_memarena_total_size_in_use(log->rollentry_arena));
 
         {
             //Store rollback logs
@@ -2792,8 +2792,8 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, ROLLBACK_LOG_NODE *log_p,
     result->rollentry_resident_bytecount = rbuf_ulonglong(rb);
 
     size_t arena_initial_size = rbuf_ulonglong(rb);
-    result->rollentry_arena = memarena_create_presized(arena_initial_size);
-    if (0) { died1: memarena_close(&result->rollentry_arena); goto died0; }
+    result->rollentry_arena = toku_memarena_create_presized(arena_initial_size);
+    if (0) { died1: toku_memarena_destroy(&result->rollentry_arena); goto died0; }
 
     //Load rollback entries
     lazy_assert(rb->size > 4);

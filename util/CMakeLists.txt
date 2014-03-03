@@ -2,6 +2,7 @@ set(util_srcs
   context
   frwlock
   kibbutz
+  memarena
   mempool
   partitioned_counter
   threadpool

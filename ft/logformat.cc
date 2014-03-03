@@ -806,7 +806,7 @@ generate_rollbacks (void) {
     DO_ROLLBACKS(lt, {
                 fprintf(cf, "  case RT_%s:\n", lt->name);
                 fprintf(cf, "    mem_needed = sizeof(item->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
-                fprintf(cf, "    CAST_FROM_VOIDP(item, malloc_in_memarena(ma, mem_needed));\n");
+                fprintf(cf, "    CAST_FROM_VOIDP(item, toku_memarena_malloc(ma, mem_needed));\n");
                 fprintf(cf, "    item->cmd = cmd;\n");
                 DO_FIELDS(field_type, lt, fprintf(cf, "    rbuf_ma_%s(&rc, ma, &item->u.%s.%s);\n", field_type->type, lt->name, field_type->name));
                 fprintf(cf, "    *itemp = item;\n");
@@ -858,7 +858,7 @@ int main (int argc, const char *const argv[]) {
     fprintf2(cf, pf, "#include <ft/fttypes.h>\n");
     fprintf2(cf, pf, "#include <ft/log-internal.h>\n");
     fprintf(hf, "#include <ft/ft-internal.h>\n");
-    fprintf(hf, "#include <ft/memarena.h>\n");
+    fprintf(hf, "#include <util/memarena.h>\n");
     generate_enum();
     generate_log_struct();
     generate_dispatch();
