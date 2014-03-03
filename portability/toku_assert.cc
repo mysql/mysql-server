@@ -93,6 +93,8 @@ PATENT RIGHTS GRANT:
 #include <toku_portability.h>
 #include "toku_assert.h"
 
+#include <db.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #if defined(HAVE_MALLOC_H)
@@ -138,11 +140,7 @@ void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(
 bool toku_gdb_dump_on_assert = false;
 void (*do_assert_hook)(void) = NULL;
 
-static void toku_do_backtrace_abort(void) __attribute__((noreturn));
-
-static void 
-toku_do_backtrace_abort(void) {
-
+void db_env_do_backtrace(void) {
     // backtrace
 #if !TOKU_WINDOWS
     int n = backtrace(backtrace_pointers, N_POINTERS);
@@ -171,6 +169,11 @@ toku_do_backtrace_abort(void) {
     if (toku_gdb_dump_on_assert) {
         toku_try_gdb_stack_trace(nullptr);
     }
+}
+
+__attribute__((noreturn))
+static void toku_do_backtrace_abort(void) {
+    db_env_do_backtrace();
 
 #if TOKU_WINDOWS
     //Following commented methods will not always end the process (could hang).
