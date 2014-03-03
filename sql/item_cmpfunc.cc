@@ -4892,12 +4892,14 @@ Item_cond::Item_cond(THD *thd, Item_cond *item)
 }
 
 
-void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item, bool real_items)
+void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 {
   List_iterator_fast<Item> li(item->list);
   while (Item *it= li++)
-    list.push_back((real_items ? it->real_item() : it)->
-                   copy_andor_structure(thd, real_items));
+  {
+    DBUG_ASSERT(it->real_item()); // Sanity check (no dangling 'ref')
+    list.push_back(it->copy_andor_structure(thd));
+  }
 }
 
 

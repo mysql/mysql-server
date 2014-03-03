@@ -3596,14 +3596,7 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
           },
           {
             "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from (`t1` left join `t2` on((`t1`.`c1` = `t2`.`c2`))) where <in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`))))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -3613,7 +3606,14 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from `t1` join `t2` where (<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and (`t1`.`c1` = `t2`.`c2`))"
             } /* transformations_to_nested_joins */
-          },
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -5321,6 +5321,14 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t2`.`a` AS `a` from (`t1` left join `t2` on((`t2`.`a` = 500))) where isnull(`t2`.`a`)"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t2`.`a` AS `a` from `t1` left join `t2` on((`t2`.`a` = 500)) where isnull(`t2`.`a`)"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -5329,14 +5337,6 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t2`.`a` AS `a` from `t1` left join `t2` on((`t2`.`a` = 500)) where isnull(`t2`.`a`)"
-            } /* transformations_to_nested_joins */
-          },
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -10734,6 +10734,14 @@ explain select * from v1 where id="b"	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from (`t1`) where ((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where ((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -10742,14 +10750,6 @@ explain select * from v1 where id="b"	{
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where ((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
-            } /* transformations_to_nested_joins */
-          },
           {
             "condition_processing": {
               "condition": "WHERE",

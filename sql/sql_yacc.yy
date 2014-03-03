@@ -11497,7 +11497,7 @@ opt_all:
         ;
 
 opt_where_clause:
-          /* empty */  { Select->where= 0; }
+          /* empty */  { Select->set_where_cond(NULL); }
         | WHERE
           {
             Select->parsing_place= CTX_WHERE;
@@ -11505,7 +11505,7 @@ opt_where_clause:
           expr
           {
             SELECT_LEX *select= Select;
-            select->where= $3;
+            select->set_where_cond($3);
             // Ensure we're resetting parsing context of the right select
             DBUG_ASSERT(Select->parsing_place == CTX_WHERE);
             select->parsing_place= CTX_NONE;
@@ -11523,7 +11523,7 @@ opt_having_clause:
           expr
           {
             SELECT_LEX *sel= Select;
-            sel->having= $3;
+            sel->set_having_cond($3);
             // Ensure we're resetting parsing context of the right select
             DBUG_ASSERT(Select->parsing_place == CTX_HAVING);
             sel->parsing_place= CTX_NONE;
@@ -13096,7 +13096,7 @@ wild_and_where:
           }
         | WHERE expr
           {
-            Select->where= $2;
+            Select->set_where_cond($2);
             if ($2)
               $2->top_level_item();
           }

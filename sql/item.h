@@ -1365,13 +1365,7 @@ public:
   */
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
-  /**
-     @param real_items  True <=> in the copy, replace any Item_ref with its
-     real_item()
-     @todo this argument should be always false and removed in WL#7082.
-  */
-  virtual Item *copy_andor_structure(THD *thd, bool real_items= false)
-  { return real_items ? real_item() : this; }
+  virtual Item *copy_andor_structure(THD *thd) { return this; }
   virtual Item *real_item() { return this; }
   virtual Item *substitutional_item()
   {
@@ -3190,11 +3184,23 @@ public:
   enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
+private:
+  /**
+    'ref' can be set (to non-NULL) in the constructor or afterwards.
+    The second case means that we are doing resolution, possibly pointing
+    'ref' to a non-permanent Item. To not have 'ref' become dangling at the
+    end of execution, and to start clean for the resolution of the next
+    execution, 'ref' must be restored to NULL. rollback_item_tree_changes()
+    does not handle restoration of Item** values, so we need this dedicated
+    Boolean.
+  */
+  const bool chop_ref;
+public:
   Item_ref(Name_resolution_context *context_arg,
            const char *db_arg, const char *table_name_arg,
            const char *field_name_arg)
     :Item_ident(context_arg, db_arg, table_name_arg, field_name_arg),
-     result_field(0), ref(0) {}
+    result_field(0), ref(NULL), chop_ref(!ref) {}
   /*
     This constructor is used in two scenarios:
     A) *item = NULL
@@ -3215,7 +3221,8 @@ public:
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
-    :Item_ident(thd, item), result_field(item->result_field), ref(item->ref) {}
+    :Item_ident(thd, item), result_field(item->result_field), ref(item->ref),
+    chop_ref(!ref) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { 

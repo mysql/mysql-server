@@ -1264,12 +1264,20 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
   table->definer.user.str= table->definer.host.str= 0;
   table->definer.user.length= table->definer.host.length= 0;
 
-  Opt_trace_object trace_wrapper(&thd->opt_trace);
-  Opt_trace_object trace_view(&thd->opt_trace, "view");
-  // When reading I_S.VIEWS, table->alias may be NULL
-  trace_view.add_utf8("database", table->db, table->db_length).
-    add_utf8("view", table->alias ? table->alias : table->table_name).
-    add("in_select#", old_lex->select_lex->select_number);
+  Opt_trace_context * const trace= &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_view(trace, "view");
+  if (trace->is_started())
+  {
+    /*
+      When opening I_S views, or tables used by triggers, some information is
+      not available.
+    */
+    trace_view.add_utf8("database", table->db, table->db_length).
+      add_utf8("view", table->alias ? table->alias : table->table_name);
+    if (table->select_lex)
+      trace_view.add("in_select#", table->select_lex->select_number);
+  }
 
   /*
     TODO: when VIEWs will be stored in cache, table mem_root should
@@ -1735,7 +1743,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       }
 
       /* Store WHERE clause for post-processing in setup_underlying */
-      table->where= view_select->where;
+      table->where= view_select->where_cond();
       /*
         Add subqueries units to SELECT into which we merging current view.
         unit(->next)* chain starts with subqueries that are used by this
