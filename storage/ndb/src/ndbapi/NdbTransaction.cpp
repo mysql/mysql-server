@@ -42,7 +42,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theCallbackFunction(NULL),
   theCallbackObject(NULL),
   theTransArrayIndex(0),
-  theStartTransTime(),
+  theStartTransTime(0),
   theErrorLine(0),
   theErrorOperation(NULL),
   theNdb(aNdb),
