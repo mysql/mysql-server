@@ -138,7 +138,7 @@ void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(
 bool toku_gdb_dump_on_assert = false;
 void (*do_assert_hook)(void) = NULL;
 
-void db_env_do_backtrace(void);  // also declared in db.h for consumers of that API
+void db_env_do_backtrace(void) __attribute__((__visibility__("default")));  // also declared in db.h for consumers of that API
 void db_env_do_backtrace(void) {
     // backtrace
 #if !TOKU_WINDOWS
