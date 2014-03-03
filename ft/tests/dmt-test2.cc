@@ -216,7 +216,7 @@ static void test_builder_fixed(uint32_t len, uint32_t num) {
     vdmt v;
     builder.build(&v);
     invariant(v.value_length_is_fixed());
-    invariant(v.get_fixed_length() == len);
+    invariant(v.get_fixed_length() == len || num == 0);
 
     invariant(v.size() == num);
 
@@ -283,12 +283,10 @@ static void test_builder_variable(uint32_t len, uint32_t len2, uint32_t num) {
     v.destroy();
 }
 
-static void test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(uint32_t len, uint32_t num) {
+static void test_create_from_sorted_memory_of_fixed_sized_elements_and_serialize(uint32_t len, uint32_t num) {
     srandom(random_seed);
-    assert(len > 1);
     assert(len <= MAXLEN);
     assert(num <= MAXNUM);
-    assert(num > 4);
     for (uint32_t i = 0; i < num; i++) {
         for (uint32_t j = 0; j < len-1; j++) {
             data[i][j] = random() % 255 + 1; //This way it doesn't end up being 0 and thought of as NUL
@@ -326,18 +324,20 @@ static void test_create_from_sorted_memory_of_fixed_sized_elements__and__seriali
     v.serialize_values(len*num, &wb);
     invariant(!memcmp(serialized_flat, flat, len*num));
 
-    //Currently converting to dtree treats the entire thing as NOT fixed length.
-    //Optional additional perf here.
-    uint32_t which = (random() % (num-1)) + 1;  // Not last, not first
-    invariant(which > 0 && which < num-1);
-    v.delete_at(which);
+    
+    if (num > 1) {
+        //Currently converting to dtree treats the entire thing as NOT fixed length.
+        //Optional additional perf here.
+        uint32_t which = (random() % (num-1)) + 1;  // Not last, not first
+        invariant(which > 0 && which < num-1);
+        v.delete_at(which);
 
-    memmove(flat + which*len, flat+(which+1)*len, (num-which-1) * len);
-    v.prepare_for_serialize();
-    wbuf_nocrc_init(&wb, serialized_flat, len*(num-1));
-    v.serialize_values(len*(num-1), &wb);
-    invariant(!memcmp(serialized_flat, flat, len*(num-1)));
-
+        memmove(flat + which*len, flat+(which+1)*len, (num-which-1) * len);
+        v.prepare_for_serialize();
+        wbuf_nocrc_init(&wb, serialized_flat, len*(num-1));
+        v.serialize_values(len*(num-1), &wb);
+        invariant(!memcmp(serialized_flat, flat, len*(num-1)));
+    }
 
     toku_free(flat);
     toku_free(serialized_flat);
@@ -361,12 +361,12 @@ test_main(int argc, const char *argv[]) {
     test_builder_variable(5, 8, 100);
     test_builder_variable(5, 10, 100);
 
-    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(4, 0);
-    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(5, 0);
-    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(4, 1);
-    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(5, 1);
-    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(4, 100);
-    test_create_from_sorted_memory_of_fixed_sized_elements__and__serialize(5, 100);
+    test_create_from_sorted_memory_of_fixed_sized_elements_and_serialize(4, 0);
+    test_create_from_sorted_memory_of_fixed_sized_elements_and_serialize(5, 0);
+    test_create_from_sorted_memory_of_fixed_sized_elements_and_serialize(4, 1);
+    test_create_from_sorted_memory_of_fixed_sized_elements_and_serialize(5, 1);
+    test_create_from_sorted_memory_of_fixed_sized_elements_and_serialize(4, 100);
+    test_create_from_sorted_memory_of_fixed_sized_elements_and_serialize(5, 100);
 
     return 0;
 }
