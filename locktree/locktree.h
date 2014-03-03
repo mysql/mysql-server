@@ -92,8 +92,6 @@ PATENT RIGHTS GRANT:
 #ifndef TOKU_LOCKTREE_H
 #define TOKU_LOCKTREE_H
 
-#include <functional>
-
 #include <db.h>
 #include <toku_time.h>
 #include <toku_pthread.h>
@@ -106,6 +104,11 @@ PATENT RIGHTS GRANT:
 #include "txnid_set.h"
 #include "wfg.h"
 #include "range_buffer.h"
+
+#define TOKU_LOCKTREE_ESCALATOR_LAMBDA 0
+#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
+#include <functional>
+#endif
 
 enum {
     LTM_SIZE_CURRENT = 0,
@@ -222,7 +225,11 @@ public:
     public:
         void create(void);
         void destroy(void);
+#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
         void run(manager *mgr, std::function<void (void)> escalate_locktrees_fun);
+#else
+        void run(manager *mgr, void (*escalate_locktrees_fun)(void *extra), void *extra);
+#endif
     private:
         toku_mutex_t m_escalator_mutex;
         toku_cond_t m_escalator_done;
@@ -335,7 +342,7 @@ public:
         void escalate_all_locktrees(void);
 
         // Escalate a set of locktrees
-        void escalate_locktrees(locktree *const *locktrees, int num_locktrees);
+        void escalate_locktrees(locktree **locktrees, int num_locktrees);
 
         // Add time t to the escalator's wait time statistics
         void add_escalator_wait_time(uint64_t t);
