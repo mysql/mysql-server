@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <utility>
 
+class Cost_model_table;
 class Sort_param;
 /*
   Calculate cost of merge sort
@@ -31,6 +32,7 @@ class Sort_param;
     @param num_rows            Total number of rows.
     @param num_keys_per_buffer Number of keys per buffer.
     @param elem_size           Size of each element.
+    @param cost_model          Cost model object that provides cost data.
 
     Calculates cost of merge sort by simulating call to merge_many_buff().
 
@@ -46,7 +48,8 @@ class Sort_param;
 
 double get_merge_many_buffs_cost_fast(ha_rows num_rows,
                                       ha_rows num_keys_per_buffer,
-                                      uint    elem_size);
+                                      uint elem_size,
+                                      const Cost_model_table *cost_model);
 
 
 /**

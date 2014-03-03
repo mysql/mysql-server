@@ -207,7 +207,7 @@ public:
   longlong val_int ();
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool val_bool();
   enum Item_result result_type() const;
@@ -328,7 +328,7 @@ public:
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -687,7 +687,10 @@ private:
   bool unique;
 public:
 
-  // constructor can assign THD because it will be called after JOIN::prepare
+  /*
+    constructor can assign THD because it will be called after
+    SELECT_LEX::prepare
+  */
   subselect_indexsubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
                                  Item *having_arg, bool chk_null,

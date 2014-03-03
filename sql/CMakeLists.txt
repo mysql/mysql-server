@@ -1,5 +1,5 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
-#
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -33,9 +33,26 @@ SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
+SET(GEN_DIGEST_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
+)
+
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
+                            ${GEN_DIGEST_SOURCES}
                             ${CONF_SOURCES}
                             PROPERTIES GENERATED 1)
+
+# Gen_lex_token
+# Make sure sql_yacc.h is generated before compiling gen_lex_token
+ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
+ADD_DEPENDENCIES(gen_lex_token GenServerSource)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
+  COMMAND gen_lex_token > lex_token.h
+  DEPENDS gen_lex_token
+)
+
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION)
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
@@ -85,6 +102,7 @@ SET(SQL_SHARED_SOURCES
   mdl.cc
   my_decimal.cc
   net_serv.cc
+  opt_costmodel.cc
   opt_explain.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
@@ -98,7 +116,8 @@ SET(SQL_SHARED_SOURCES
   protocol.cc
   records.cc
   rpl_handler.cc
-  set_var.cc
+  session_tracker.cc
+  set_var.cc 
   sp.cc
   sp_cache.cc
   sp_head.cc
@@ -123,7 +142,8 @@ SET(SQL_SHARED_SOURCES
   sql_db.cc
   sql_delete.cc
   sql_derived.cc
-  sql_do.cc
+  sql_digest.cc
+  sql_do.cc 
   sql_error.cc
   sql_executor.cc
   sql_get_diagnostics.cc
@@ -167,6 +187,7 @@ SET(SQL_SHARED_SOURCES
   sql_view.cc
   strfunc.cc
   sys_vars.cc
+  sys_vars_resource_mgr.cc
   table.cc
   table_cache.cc
   table_trigger_dispatcher.cc
@@ -187,6 +208,7 @@ SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
+  ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
@@ -238,11 +260,16 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
+IF(HAVE_MY_TIMER)
+  SET(SQL_SOURCE ${SQL_SOURCE} sql_timer.cc)
+ENDIF()
+
 MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
 RECOMPILE_FOR_EMBEDDED)
 
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
+ADD_DEPENDENCIES(sql GenDigestServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysys mysys_ssl dbug strings vio regex binlogevents_static
@@ -286,10 +313,11 @@ ADD_DEPENDENCIES(slave GenError)
 
 ######################### GUnit Lib #################################
 
-SET(SQL_GUNIT_LIB_SOURCE
-  filesort_utils.cc
-  mdl.cc
-  sql_list.cc
+SET(SQL_GUNIT_LIB_SOURCE 
+  filesort_utils.cc 
+  mdl.cc 
+  opt_costmodel.cc
+  sql_list.cc 
   sql_string.cc
   thr_malloc.cc
   )
@@ -437,8 +465,11 @@ ADD_CUSTOM_TARGET(
         DEPENDS ${GEN_SOURCES}
 )
 
-#Need this only for embedded
-SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
+ADD_CUSTOM_TARGET( 
+        GenDigestServerSource
+        DEPENDS ${GEN_DIGEST_SOURCES}
+)
+
 
 IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   ADD_LIBRARY(udf_example MODULE udf_example.cc)

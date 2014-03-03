@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,8 +74,8 @@ void Item_subselect::init(st_select_lex *select_lex,
   if (unit->item)
   {
     /*
-      Item can be changed in JOIN::prepare while engine in JOIN::optimize
-      => we do not copy old_engine here
+      Item can be changed in SELECT_LEX::prepare while engine in
+      JOIN::optimize => we do not copy old_engine here
     */
     engine= unit->item->engine;
     parsing_place= unit->item->parsing_place;
@@ -266,10 +267,10 @@ bool Item_in_subselect::finalize_materialization_transform(JOIN *join)
     anymore.
     Subquery becomes 'not dependent' again, as before IN->EXISTS.
   */
-  if (join->conds)
-    join->conds= remove_in2exists_conds(join->conds);
-  if (join->having)
-    join->having= remove_in2exists_conds(join->having);
+  if (join->where_cond)
+    join->where_cond= remove_in2exists_conds(join->where_cond);
+  if (join->having_cond)
+    join->having_cond= remove_in2exists_conds(join->having_cond);
   DBUG_ASSERT(!in2exists_info->dependent_before);
   join->select_lex->uncacheable&= ~UNCACHEABLE_DEPENDENT;
   /*
@@ -394,13 +395,6 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref)
     if (substitution)
     {
       int ret= 0;
-
-      // did we changed top item of WHERE condition
-      if (unit->outer_select()->where == (*ref))
-	unit->outer_select()->where= substitution; // correct WHERE for PS
-      else if (unit->outer_select()->having == (*ref))
-	unit->outer_select()->having= substitution; // correct HAVING for PS
-
       (*ref)= substitution;
       substitution->item_name= item_name;
       if (have_to_be_excluded)
@@ -493,8 +487,12 @@ bool Item_subselect::walk_body(Item_processor processor, enum_walk walk,
           walk_join_condition(lex->join_list, processor, walk, arg))
         return true;
 
-      item= lex->join ? lex->join->conds : lex->where;
-      if (item && item->walk(processor, walk, arg))
+      // @todo: Roy thinks that we should always use lex->where_cond.
+      Item *const where_cond= (lex->join && lex->join->optimized) ?
+        lex->join->where_cond : lex->where_cond();
+
+      if (where_cond &&
+          where_cond->walk(processor, walk, arg))
         return true;
 
       for (order= lex->group_list.first ; order; order= order->next)
@@ -503,7 +501,8 @@ bool Item_subselect::walk_body(Item_processor processor, enum_walk walk,
           return true;
       }
 
-      if (lex->having && (lex->having)->walk(processor, walk, arg))
+      if (lex->having_cond() &&
+          lex->having_cond()->walk(processor, walk, arg))
         return true;
 
       for (order= lex->order_list.first ; order; order= order->next)
@@ -614,11 +613,11 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
   */
   for (SELECT_LEX *sel= unit->first_select(); sel; sel= sel->next_select())
   {
-    if (sel->where)
-      sel->where->fix_after_pullout(parent_select, removed_select);
+    if (sel->where_cond())
+      sel->where_cond()->fix_after_pullout(parent_select, removed_select);
 
-    if (sel->having)
-      sel->having->fix_after_pullout(parent_select, removed_select);
+    if (sel->having_cond())
+      sel->having_cond()->fix_after_pullout(parent_select, removed_select);
 
     List_iterator<Item> li(sel->item_list);
     Item *item;
@@ -880,7 +879,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       */
       !(select_lex->item_list.head()->type() == FIELD_ITEM ||
 	select_lex->item_list.head()->type() == REF_ITEM) &&
-      !join->conds && !join->having &&
+      !select_lex->where_cond() && !select_lex->having_cond() &&
       /*
         switch off this optimization for prepare statement,
         because we do not rollback this changes
@@ -1063,7 +1062,8 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime,
+                                        my_time_flags_t fuzzydate)
 {
   if (!no_rows && !exec() && !value->null_value)
   {
@@ -1464,7 +1464,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
     Item *subs;
     if (!select_lex->group_list.elements &&
-        !select_lex->having &&
+        !select_lex->having_cond() &&
         !select_lex->with_sum_func &&
         !(select_lex->next_select()) &&
         select_lex->table_list.elements &&
@@ -1548,13 +1548,24 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       upper_item->set_subselect(this);
     /*
       fix fields is already called for  left expression.
-      Note that real_item() should be used instead of
-      original left expression because left_expr can be
-      runtime created Ref item which is deleted at the end
+      Note that real_item() should be used for all the runtime
+      created Ref items instead of original left expression
+      because these items would be deleted at the end
       of the statement. Thus one of 'substitution' arguments
       can be broken in case of PS.
+
+      @todo
+      We use real_item() because we fail to properly rollback left_expr at end
+      of execution.
+      Doing a proper rollback is difficult: the change was registered for the
+      original item which was the left argument of IN. Then this item was
+      copied to left_expr, which is copied below to substitution->args[0]. To
+      do a proper rollback, we would have to restore the content
+      of both copies as well as the original item.
+      If WL#6570 removes the "rolling back" system, all real_item() in this
+      file could be removed.
     */
-    substitution= func->create(left_expr->real_item(), subs);
+    substitution= func->create(left_expr->substitutional_item(), subs);
     DBUG_RETURN(RES_OK);
   }
 
@@ -1672,7 +1683,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
     select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   in2exists_info->added_to_where= false;
 
-  if (join->having || select_lex->with_sum_func ||
+  if (select_lex->having_cond() || select_lex->with_sum_func ||
       select_lex->group_list.elements)
   {
     bool tmp;
@@ -1697,21 +1708,21 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
 
     /*
       AND and comparison functions can't be changed during fix_fields()
-      we can assign select_lex->having here, and pass 0 as last
+      we can assign select_lex->having_cond here, and pass NULL as last
       argument (reference) to fix_fields()
     */
-    select_lex->having= join->having= and_items(join->having, item);
-    if (join->having == item)
+    select_lex->set_having_cond(and_items(select_lex->having_cond(), item));
+    if (select_lex->having_cond() == item)
       item->item_name.set(in_having_cond);
-    select_lex->having->top_level_item();
+    select_lex->having_cond()->top_level_item();
     select_lex->having_fix_field= 1;
     /*
-      we do not check join->having->fixed, because Item_and (from and_items)
+      we do not check having_cond()->fixed, because Item_and (from and_items)
       or comparison function (from func->create) can't be fixed after creation
     */
     Opt_trace_array having_trace(&thd->opt_trace,
                                  "evaluating_constant_having_conditions");
-    tmp= join->having->fix_fields(thd, 0);
+    tmp= select_lex->having_cond()->fix_fields(thd, NULL);
     select_lex->having_fix_field= 0;
     if (tmp)
       DBUG_RETURN(RES_ERROR);
@@ -1744,21 +1755,21 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
           having->set_created_by_in2exists();
         }
 	/*
-	  Item_is_not_null_test can't be changed during fix_fields()
-	  we can assign select_lex->having here, and pass 0 as last
-	  argument (reference) to fix_fields()
+          Item_is_not_null_test can't be changed during fix_fields()
+          we can assign select_lex->having_cond() here, and pass NULL as last
+          argument (reference) to fix_fields()
 	*/
         having->item_name.set(in_having_cond);
-	select_lex->having= join->having= having;
+	select_lex->set_having_cond(having);
 	select_lex->having_fix_field= 1;
         /*
-          we do not check join->having->fixed, because Item_and (from
-          and_items) or comparison function (from func->create) can't be
-          fixed after creation
+          No need to check select_lex->having_cond()->fixed, because Item_and
+          (from and_items) or comparison function (from func->create)
+          can't be fixed after creation.
         */
         Opt_trace_array having_trace(&thd->opt_trace,
                                      "evaluating_constant_having_conditions");
-	tmp= join->having->fix_fields(thd, 0);
+        tmp= select_lex->having_cond()->fix_fields(thd, NULL);
         select_lex->having_fix_field= 0;
         if (tmp)
 	  DBUG_RETURN(RES_ERROR);
@@ -1785,20 +1796,24 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
       item->item_name.set(in_additional_cond);
 
       /*
-	AND can't be changed during fix_fields()
-	we can assign select_lex->having here, and pass 0 as last
-	argument (reference) to fix_fields()
+        AND can't be changed during fix_fields()
+        we can assign select_lex->having_cond() here, and pass NULL as last
+        argument (reference) to fix_fields()
+
+        Note that if select_lex is the fake one of UNION, it does not make
+        much sense to give it a WHERE clause below... we already give one to
+        each member of the UNION.
       */
-      select_lex->where= join->conds= and_items(join->conds, item);
-      select_lex->where->top_level_item();
+      select_lex->set_where_cond(and_items(select_lex->where_cond(), item));
+      select_lex->where_cond()->top_level_item();
       in2exists_info->added_to_where= true;
       /*
-        we do not check join->conds->fixed, because Item_and can't be fixed
-        after creation
+        No need to check select_lex->where_cond()->fixed, because Item_and
+        can't be fixed after creation.
       */
       Opt_trace_array where_trace(&thd->opt_trace,
                                   "evaluating_constant_where_conditions");
-      if (join->conds->fix_fields(thd, 0))
+      if (select_lex->where_cond()->fix_fields(thd, NULL))
 	DBUG_RETURN(RES_ERROR);
     }
     else
@@ -1807,9 +1822,9 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
       if (select_lex->master_unit()->is_union())
       {
 	/*
-	  comparison functions can't be changed during fix_fields()
-	  we can assign select_lex->having here, and pass 0 as last
-	  argument (reference) to fix_fields()
+          comparison functions can't be changed during fix_fields()
+          we can assign select_lex->having_cond() here, and pass NULL as last
+          argument (reference) to fix_fields()
 	*/
         Item_bool_func *new_having=
           func->create(expr,
@@ -1829,16 +1844,16 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
           new_having->set_created_by_in2exists();
         }
         new_having->item_name.set(in_having_cond);
-	select_lex->having= join->having= new_having;
+	select_lex->set_having_cond(new_having);
 	select_lex->having_fix_field= 1;
         
         /*
-          we do not check join->having->fixed, because comparison function
-          (from func->create) can't be fixed after creation
+          No need to check select_lex->having_cond()->fixed, because comparison
+          function (from func->create) can't be fixed after creation.
         */
         Opt_trace_array having_trace(&thd->opt_trace,
                                      "evaluating_constant_having_conditions");
-	tmp= join->having->fix_fields(thd, 0);
+	tmp= select_lex->having_cond()->fix_fields(thd, NULL);
         select_lex->having_fix_field= 0;
         if (tmp)
 	  DBUG_RETURN(RES_ERROR);
@@ -1853,13 +1868,13 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
         /*
           fix_field of substitution item will be done in time of
           substituting.
-          Note that real_item() should be used instead of
-          original left expression because left_expr can be
-          runtime created Ref item which is deleted at the end
+          Note that real_item() should be used for all the runtime
+          created Ref items instead of original left expression
+          because these items would be deleted at the end
           of the statement. Thus one of 'substitution' arguments
           can be broken in case of PS.
-        */
-	substitution= func->create(left_expr->real_item(), orig_item);
+         */
+	substitution= func->create(left_expr->substitutional_item(), orig_item);
 	have_to_be_excluded= 1;
 	if (thd->lex->describe)
 	{
@@ -1872,7 +1887,6 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
       }
     }
   }
-  join->having_for_explain= join->having;
 
   DBUG_RETURN(RES_OK);
 }
@@ -1966,7 +1980,8 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
   THD * const thd= unit->thd;
   Item *having_item= 0;
   uint cols_num= left_expr->cols();
-  bool is_having_used= (join->having || select_lex->with_sum_func ||
+  bool is_having_used= (select_lex->having_cond() ||
+                        select_lex->with_sum_func ||
                         select_lex->group_list.first ||
                         !select_lex->table_list.elements);
 
@@ -2157,34 +2172,33 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
     }
     /*
       AND can't be changed during fix_fields()
-      we can assign select_lex->where here, and pass 0 as last
+      we can assign select_lex->where_cond() here, and pass NULL as last
       argument (reference) to fix_fields()
     */
-    select_lex->where= join->conds= and_items(join->conds, where_item);
-    select_lex->where->top_level_item();
+    select_lex->set_where_cond(and_items(select_lex->where_cond(), where_item));
+    select_lex->where_cond()->top_level_item();
     in2exists_info->added_to_where= true;
     Opt_trace_array where_trace(&thd->opt_trace,
                                 "evaluating_constant_where_conditions");
-    if (join->conds->fix_fields(thd, 0))
+    if (select_lex->where_cond()->fix_fields(thd, NULL))
       DBUG_RETURN(RES_ERROR);
   }
   if (having_item)
   {
     bool res;
-    select_lex->having= join->having= join->having_for_explain=
-      and_items(join->having, having_item);
-    if (having_item == select_lex->having)
+    select_lex->set_having_cond(and_items(select_lex->having_cond(), having_item));
+    if (having_item == select_lex->having_cond())
       having_item->item_name.set(in_having_cond);
-    select_lex->having->top_level_item();
+    select_lex->having_cond()->top_level_item();
     /*
       AND can't be changed during fix_fields()
-      we can assign select_lex->having here, and pass 0 as last
+      we can assign select_lex->having_cond() here, and pass 0 as last
       argument (reference) to fix_fields()
     */
     select_lex->having_fix_field= 1;
     Opt_trace_array having_trace(&thd->opt_trace,
                                  "evaluating_constant_having_conditions");
-    res= join->having->fix_fields(thd, 0);
+    res= select_lex->having_cond()->fix_fields(thd, NULL);
     select_lex->having_fix_field= 0;
     if (res)
     {
@@ -2577,7 +2591,7 @@ subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
 
   @todo
   Re-check what properties of 'join' are needed during prepare, and see if
-  we can avoid creating a JOIN during JOIN::prepare of the outer join.
+  we can avoid creating a JOIN during SELECT_LEX::prepare of the outer join.
 
   @retval 0  if success
   @retval 1  if error
@@ -2595,16 +2609,7 @@ bool subselect_single_select_engine::prepare()
   prepared= 1;
   SELECT_LEX *save_select= thd->lex->current_select();
   thd->lex->set_current_select(select_lex);
-  const bool ret= join->prepare(select_lex->table_list.first,
-                                select_lex->with_wild,
-                                select_lex->where,
-                                select_lex->order_list.elements +
-                                select_lex->group_list.elements,
-                                select_lex->order_list.first,
-                                select_lex->group_list.first,
-                                select_lex->having,
-                                select_lex,
-                                select_lex->master_unit());
+  const bool ret= select_lex->prepare(join);
   thd->lex->set_current_select(save_select);
   return ret;
 }
@@ -3372,8 +3377,8 @@ bool subselect_single_select_engine::no_tables() const
 bool subselect_single_select_engine::may_be_null() const
 {
   return ((no_tables() &&
-           !join->conds &&
-           !join->having &&
+           !select_lex->where_cond() &&
+           !select_lex->having_cond() &&
            !select_lex->select_limit) ? maybe_null : true);
 }
 
@@ -3645,7 +3650,8 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine()
   Cleanup performed after each PS execution.
 
   @detail
-  Called in the end of JOIN::prepare for PS from Item_subselect::cleanup.
+  Called in the end of SELECT_LEX::prepare for PS from
+  Item_subselect::cleanup.
 */
 
 void subselect_hash_sj_engine::cleanup()

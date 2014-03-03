@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -276,7 +276,7 @@ struct SyncDebug {
 		    && latch->m_level != SYNC_LEVEL_VARYING) {
 
 			Latches*	latches = check_order(latch);
-		
+
 			ut_a(latches->empty()
 			     || latch->m_level == SYNC_LEVEL_VARYING
 			     || latch->m_level == SYNC_NO_ORDER_CHECK
@@ -565,8 +565,6 @@ SyncDebug::check_order(const latch_t* latch)
 		/* Fall through */
 
 	case SYNC_MONITOR_MUTEX:
-	case SYNC_MEM_POOL:
-	case SYNC_MEM_HASH:
 	case SYNC_RECV:
 	case SYNC_FTS_BG_THREADS:
 	case SYNC_WORK_QUEUE:
@@ -951,16 +949,6 @@ sync_latch_meta_init()
 		  srv_conc_mutex_key);
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
-#ifdef UNIV_MEM_DEBUG
-	LATCH_ADD(SrvLatches, "mem_hash",
-		  SYNC_MEM_HASH,
-		  mem_hash_mutex_key);
-#endif /* UNIV_MEM_DEBUG */
-
-	LATCH_ADD(SrvLatches, "mem_pool",
-		  SYNC_MEM_POOL,
-		  mem_pool_mutex_key);
-
 	LATCH_ADD(SrvLatches, "page_cleaner",
 		  SYNC_PAGE_CLEANER,
 		  page_cleaner_mutex_key);
@@ -1101,10 +1089,6 @@ sync_latch_meta_init()
 		  SYNC_NO_ORDER_CHECK,
 		  sync_array_mutex_key);
 
-	LATCH_ADD(SrvLatches, "ut_list_mutex",
-		  SYNC_NO_ORDER_CHECK,
-		  ut_list_mutex_key);
-
 	LATCH_ADD(SrvLatches, "thread_mutex",
 		  SYNC_NO_ORDER_CHECK,
 		  thread_mutex_key);
@@ -1144,12 +1128,6 @@ sync_latch_meta_init()
 		  PFS_NOT_INSTRUMENTED);
 
 	// Add the RW locks
-#ifdef UNIV_LOG_ARCHIVE
-	LATCH_ADD(SrvLatches, "archive",
-		  SYNC_NO_ORDER_CHECK,
-		  archive_lock_key);
-#endif /* UNIV_LOG_ARCHIVE */
-
 	LATCH_ADD(SrvLatches, "btr_search",
 		  SYNC_SEARCH_SYS,
 		  btr_search_latch_key);

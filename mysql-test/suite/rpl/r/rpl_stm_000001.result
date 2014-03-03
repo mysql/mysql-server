@@ -59,7 +59,7 @@ kill @id;
 drop table t2;
 drop temporary table if exists t3;
 Got one of the listed errors
-include/wait_for_slave_sql_error.inc [errno=1883]
+include/wait_for_slave_sql_error.inc [errno=1884]
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave.inc
 select count(*) from t1;
@@ -90,5 +90,6 @@ select_priv	user
 Y	blafasel2
 drop table t1;
 delete from mysql.user where user="blafasel2";
+# mysql.user table restored to original values.
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -236,8 +236,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
               {
                 "table": "`t1`",
                 "pushed_index_condition": "((`t1`.`key2` < 5) or (`t1`.`key2` > 1020))",
-                "table_condition_attached": null,
-                "access_type": "range"
+                "table_condition_attached": null
               }
             ] /* refine_plan */
           }
@@ -386,8 +385,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
               {
                 "table": "`t1`",
                 "pushed_index_condition": "((`t1`.`key2` < 5) or (`t1`.`key2` > 1020))",
-                "table_condition_attached": null,
-                "access_type": "range"
+                "table_condition_attached": null
               }
             ] /* refine_plan */
           }
@@ -649,8 +647,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "range"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -870,14 +867,6 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
             } /* clause_processing */
           },
           {
-            "refine_plan": [
-              {
-                "table": "`t2`",
-                "access_type": "range"
-              }
-            ] /* refine_plan */
-          },
-          {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
               "index_order_summary": {
@@ -888,6 +877,13 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
                 "plan_changed": false
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t2`"
+              }
+            ] /* refine_plan */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1102,14 +1098,6 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
             } /* clause_processing */
           },
           {
-            "refine_plan": [
-              {
-                "table": "`t2`",
-                "access_type": "range"
-              }
-            ] /* refine_plan */
-          },
-          {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
               "index_order_summary": {
@@ -1120,6 +1108,13 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
                 "plan_changed": false
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t2`"
+              }
+            ] /* refine_plan */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1421,14 +1416,6 @@ GROUP BY key2	{
             } /* clause_processing */
           },
           {
-            "refine_plan": [
-              {
-                "table": "`t2`",
-                "access_type": "range"
-              }
-            ] /* refine_plan */
-          },
-          {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
               "index_order_summary": {
@@ -1439,6 +1426,13 @@ GROUP BY key2	{
                 "plan_changed": false
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t2`"
+              }
+            ] /* refine_plan */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1966,8 +1960,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "range"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -2130,8 +2123,7 @@ EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2	{
           {
             "refine_plan": [
               {
-                "table": "`t2`",
-                "access_type": "table_scan"
+                "table": "`t2`"
               }
             ] /* refine_plan */
           }
@@ -2355,8 +2347,7 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
               {
                 "table": "`t2`",
                 "pushed_index_condition": "((`t2`.`key1a` = 5) and (`t2`.`key1b` < 10))",
-                "table_condition_attached": null,
-                "access_type": "range"
+                "table_condition_attached": null
               }
             ] /* refine_plan */
           }
@@ -2573,8 +2564,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
               {
                 "table": "`t2`",
                 "pushed_index_condition": "(((`t2`.`key1a` = 5) and (`t2`.`key1b` < 10) and (`t2`.`key1b` > 2)) or ((`t2`.`key1a` = 4) and (`t2`.`key1b` < 7) and (`t2`.`key1b` > 3)))",
-                "table_condition_attached": null,
-                "access_type": "range"
+                "table_condition_attached": null
               }
             ] /* refine_plan */
           }
@@ -2787,8 +2777,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
               {
                 "table": "`t2`",
                 "pushed_index_condition": "((`t2`.`key1b` < 10) and (`t2`.`key1b` > 7) and ((`t2`.`key1a` = 4) or (`t2`.`key1a` = 5)))",
-                "table_condition_attached": null,
-                "access_type": "range"
+                "table_condition_attached": null
               }
             ] /* refine_plan */
           }
@@ -3024,8 +3013,7 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -3304,8 +3292,7 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
               {
                 "table": "`t1`",
                 "pushed_index_condition": "(`t1`.`key2` > 1020)",
-                "table_condition_attached": null,
-                "access_type": "range"
+                "table_condition_attached": null
               },
               {
                 "table": "`t2`"
@@ -3588,8 +3575,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "range"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -3988,12 +3974,10 @@ EXPLAIN SELECT 1 FROM
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     },
                     {
-                      "table": "`t2`",
-                      "access_type": "dynamic_range"
+                      "table": "`t2`"
                     }
                   ] /* refine_plan */
                 }
@@ -4315,12 +4299,10 @@ EXPLAIN SELECT 1 FROM
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     },
                     {
-                      "table": "`t2`",
-                      "access_type": "dynamic_range"
+                      "table": "`t2`"
                     }
                   ] /* refine_plan */
                 }
@@ -4436,7 +4418,7 @@ KEY k2 (i1, i2)
 INSERT INTO t1 VALUES (0,1,'2'),(3,2,'1');
 EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	k1,k2	k2	5	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	range	k1,k2	k2	5	NULL	2	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`i1` > '2') order by `test`.`t1`.`i1`,`test`.`t1`.`i2`
 
@@ -4632,16 +4614,6 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
             } /* clause_processing */
           },
           {
-            "refine_plan": [
-              {
-                "table": "`t1`",
-                "pushed_index_condition": "(`t1`.`i1` > '2')",
-                "table_condition_attached": null,
-                "access_type": "range"
-              }
-            ] /* refine_plan */
-          },
-          {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "ORDER BY",
               "rows_estimation": {
@@ -4713,12 +4685,20 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 "table": "`t1`",
                 "index_provides_order": true,
                 "order_direction": "asc",
-                "disabled_pushed_condition_on_old_index": true,
                 "index": "k2",
                 "plan_changed": true,
                 "access_type": "range"
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`",
+                "pushed_index_condition": "(`t1`.`i1` > '2')",
+                "table_condition_attached": null
+              }
+            ] /* refine_plan */
           }
         ] /* steps */
       } /* join_optimization */
@@ -5050,14 +5030,6 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
             } /* clause_processing */
           },
           {
-            "refine_plan": [
-              {
-                "table": "`t1`",
-                "access_type": "index_scan"
-              }
-            ] /* refine_plan */
-          },
-          {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
               "index_order_summary": {
@@ -5069,6 +5041,13 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 "access_type": "index_scan"
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`"
+              }
+            ] /* refine_plan */
           }
         ] /* steps */
       } /* join_optimization */
@@ -5906,18 +5885,18 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
             ] /* considered_execution_plans */
           },
           {
+            "access_type_changed": {
+              "table": "`t1`",
+              "index": "PRIMARY",
+              "old_type": "ref",
+              "new_type": "range",
+              "cause": "uses_more_keyparts"
+            } /* access_type_changed */
+          },
+          {
             "attaching_conditions_to_tables": {
               "original_condition": "((`t1`.`a` = 1) and (`t1`.`b` < 2))",
               "attached_conditions_computation": [
-                {
-                  "access_type_changed": {
-                    "table": "`t1`",
-                    "index": "PRIMARY",
-                    "old_type": "ref",
-                    "new_type": "range",
-                    "cause": "uses_more_keyparts"
-                  } /* access_type_changed */
-                }
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
@@ -5944,8 +5923,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "range"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -5978,7 +5956,7 @@ KEY k2 (c1, i1)
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1');
 EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	k1,k2	k2	4	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	k1,k2	k2	4	const	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1` = '1') order by `test`.`t1`.`i1`
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -6192,13 +6170,6 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
             } /* clause_processing */
           },
           {
-            "refine_plan": [
-              {
-                "table": "`t1`"
-              }
-            ] /* refine_plan */
-          },
-          {
             "added_back_ref_condition": "((`t1`.`c1` <=> '1'))"
           },
           {
@@ -6213,6 +6184,15 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                 "access_type": "ref"
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t1`",
+                "pushed_index_condition": "(`t1`.`c1` <=> '1')",
+                "table_condition_attached": null
+              }
+            ] /* refine_plan */
           }
         ] /* steps */
       } /* join_optimization */

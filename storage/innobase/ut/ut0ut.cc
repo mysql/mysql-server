@@ -744,15 +744,14 @@ ut_snprintf(
 }
 #endif /* _WIN32 */
 
-/*************************************************************//**
-Convert an error number to a human readable text message. The
-returned string is static and should not be freed or modified.
+/** Convert an error number to a human readable text message.
+The returned string is static and should not be freed or modified.
+@param[in]	num	InnoDB internal error number
 @return string, describing the error */
 
 const char*
 ut_strerr(
-/*======*/
-	dberr_t	num)	/*!< in: error number */
+	dberr_t	num)
 {
 	switch (num) {
 	case DB_SUCCESS:
@@ -877,6 +876,8 @@ ut_strerr(
 		return ("Cannot open a file");
 	case DB_TABLE_CORRUPT:
 		return("Table is corrupted");
+	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
+		return("Too many words in a FTS phrase or proximity search");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

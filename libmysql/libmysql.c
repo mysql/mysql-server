@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1925,7 +1925,7 @@ static void store_param_double(NET *net, MYSQL_BIND *param)
 static void store_param_time(NET *net, MYSQL_BIND *param)
 {
   MYSQL_TIME *tm= (MYSQL_TIME *) param->buffer;
-  char buff[MAX_TIME_REP_LENGTH], *pos;
+  uchar buff[MAX_TIME_REP_LENGTH], *pos;
   uint length;
 
   pos= buff+1;
@@ -1948,7 +1948,7 @@ static void store_param_time(NET *net, MYSQL_BIND *param)
 
 static void net_store_datetime(NET *net, MYSQL_TIME *tm)
 {
-  char buff[MAX_DATETIME_REP_LENGTH], *pos;
+  uchar buff[MAX_DATETIME_REP_LENGTH], *pos;
   uint length;
 
   pos= buff+1;
@@ -3128,7 +3128,7 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
 static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
                                          size_t length)
 {
-  char *buffer= (char *)param->buffer;
+  uchar *buffer= param->buffer;
   char *endptr= value + length;
 
   /*
@@ -3262,7 +3262,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
 static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
                                        longlong value, my_bool is_unsigned)
 {
-  char *buffer= (char *)param->buffer;
+  uchar *buffer= param->buffer;
 
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
@@ -3371,7 +3371,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
                                         double value, my_gcvt_arg_type type)
 {
-  char *buffer= (char *)param->buffer;
+  uchar *buffer= param->buffer;
   double val64 = (value < 0 ? -floor(-value) : floor(value));
 
   switch (param->buffer_type) {

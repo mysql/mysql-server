@@ -57,6 +57,7 @@ select * from mysqltest1.t1;
 call foo2();
 a
 alter procedure foo2 contains sql;
+set timestamp = DEFAULT;
 drop table t1;
 create table t1 (a int) engine=myisam;
 create table t2 like t1;

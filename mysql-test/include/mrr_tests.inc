@@ -591,3 +591,49 @@ eval $query;
 
 DROP TABLE ten, t1, t2, t3, t4, t5;
 
+--echo #
+--echo # Bug 18172819 CRASH ON DSMRR_IMPL::CHOOSE_MRR_IMPL IN SQL/HANDLER.CC 
+--echo #
+
+# Test needs to run with big_tables ON
+set @big_tables_save= @@big_tables;
+set big_tables=ON;
+SELECT @@big_tables;
+
+CREATE TABLE t1 (
+  i1 INTEGER NOT NULL,
+  c1 VARCHAR(1)
+);
+
+INSERT INTO t1 VALUES (1,'a'), (2, NULL);
+
+CREATE TABLE t2 (
+  c1 VARCHAR(1),
+  i1 INTEGER NOT NULL,
+  KEY (c1)
+);
+
+INSERT INTO t2 VALUES ('a', 1), (NULL, 2);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
+let query=
+SELECT *
+FROM
+  ( SELECT * FROM  t1 ) AS d1
+WHERE d1.c1 IN ( SELECT c1 FROM t2 )
+  AND d1.c1 IS NULL
+ORDER BY d1.i1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+# Restore the configuration for big_tables
+set big_tables=@big_tables_save;

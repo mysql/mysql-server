@@ -294,59 +294,6 @@ trx_sys_print_mysql_binlog_offset(void)
 	mtr_commit(&mtr);
 }
 
-/*****************************************************************//**
-Prints to stderr the MySQL master log offset info in the trx system header if
-the magic number shows it valid. */
-
-void
-trx_sys_print_mysql_master_log_pos(void)
-/*====================================*/
-{
-	trx_sysf_t*	sys_header;
-	mtr_t		mtr;
-
-	mtr_start(&mtr);
-
-	sys_header = trx_sysf_get(&mtr);
-
-	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	    != TRX_SYS_MYSQL_LOG_MAGIC_N) {
-
-		mtr_commit(&mtr);
-
-		return;
-	}
-
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"In a MySQL replication slave the last master binlog file"
-		" position %lu %lu, file name %s",
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		+ TRX_SYS_MYSQL_LOG_NAME);
-	/* Copy the master log position info to global variables we can
-	use in ha_innobase.cc to initialize glob_mi to right values */
-
-	ut_memcpy(trx_sys_mysql_master_log_name,
-		  sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		  + TRX_SYS_MYSQL_LOG_NAME,
-		  TRX_SYS_MYSQL_LOG_NAME_LEN);
-
-	trx_sys_mysql_master_log_pos
-		= (((ib_int64_t) mach_read_from_4(
-			    sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
-		+ ((ib_int64_t) mach_read_from_4(
-			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
-	mtr_commit(&mtr);
-}
-
 /****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
 @return slot index or ULINT_UNDEFINED if not found */
