@@ -101,7 +101,9 @@ PATENT RIGHTS GRANT:
 #include <toku_assert.h>
 #include <string.h>
 #include <fcntl.h>
-#include "x1764.h"
+
+#include <util/x1764.h>
+
 #include "ftloader-internal.h"
 #include "ft-internal.h"
 #include "sub_block.h"
@@ -2621,7 +2623,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
             char *XMALLOC_N(desc_size, buf);
             wbuf_init(&wbuf, buf, desc_size);
             toku_serialize_descriptor_contents_to_wbuf(&wbuf, descriptor);
-            uint32_t checksum = x1764_finish(&wbuf.checksum);
+            uint32_t checksum = toku_x1764_finish(&wbuf.checksum);
             wbuf_int(&wbuf, checksum);
             invariant(wbuf.ndone==desc_size);
             r = toku_os_write(out.fd, wbuf.buf, wbuf.ndone);
@@ -2992,7 +2994,7 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
         putbuf_int64(&ttable, out->translation[i].off);
         putbuf_int64(&ttable, out->translation[i].size);
     }
-    unsigned int checksum = x1764_memory(ttable.buf, ttable.off);
+    unsigned int checksum = toku_x1764_memory(ttable.buf, ttable.off);
     putbuf_int32(&ttable, checksum);
     // pad it to 512 zeros
     long long encoded_length = ttable.off;

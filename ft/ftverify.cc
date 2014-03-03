@@ -98,7 +98,6 @@ PATENT RIGHTS GRANT:
 #include "ft-internal.h"
 #include "ft_layout_version.h"
 #include "block_table.h"
-#include "x1764.h"
 #include "rbuf.h"
 #include "sub_block.h"
 

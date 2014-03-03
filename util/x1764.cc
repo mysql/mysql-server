@@ -96,7 +96,7 @@ PATENT RIGHTS GRANT:
 
 #define PRINT 0
 
-uint32_t x1764_memory_simple (const void *buf, int len)
+uint32_t toku_x1764_memory_simple (const void *buf, int len)
 {
     const uint64_t *CAST_FROM_VOIDP(lbuf, buf);
     uint64_t c=0;
@@ -118,7 +118,7 @@ uint32_t x1764_memory_simple (const void *buf, int len)
     return ~((c&0xFFFFFFFF) ^ (c>>32));
 }
 
-uint32_t x1764_memory (const void *vbuf, int len)
+uint32_t toku_x1764_memory (const void *vbuf, int len)
 {
     const uint8_t *CAST_FROM_VOIDP(buf, vbuf);
     int len_4_words = 4*sizeof(uint64_t);
@@ -149,13 +149,13 @@ uint32_t x1764_memory (const void *vbuf, int len)
 }
 
 
-void x1764_init(struct x1764 *l) {
+void toku_x1764_init(struct x1764 *l) {
     l->sum=0;
     l->input=0;
     l->n_input_bytes=0;
 }
 
-void x1764_add (struct x1764 *l, const void *vbuf, int len) {
+void toku_x1764_add (struct x1764 *l, const void *vbuf, int len) {
     if (PRINT) printf("%d: n_input_bytes=%d len=%d\n", __LINE__, l->n_input_bytes, len);
     int n_input_bytes = l->n_input_bytes;
     const unsigned char *CAST_FROM_VOIDP(cbuf, vbuf);
@@ -287,7 +287,7 @@ void x1764_add (struct x1764 *l, const void *vbuf, int len) {
     l->input = input;
     if (PRINT) printf("%d: n_input_bytes=%d\n", __LINE__, l->n_input_bytes);
 }
-uint32_t x1764_finish (struct x1764 *l) {
+uint32_t toku_x1764_finish (struct x1764 *l) {
     if (PRINT) printf("%d: n_input_bytes=%d\n", __LINE__, l->n_input_bytes);
     int len = l->n_input_bytes;
     if (len>0) {

@@ -279,7 +279,7 @@ serialize_node_header(FTNODE node, FTNODE_DISK_DATA ndd, struct wbuf *wbuf) {
         wbuf_nocrc_int(wbuf, BP_SIZE (ndd, i));         // and the size
     }
     // checksum the header
-    uint32_t end_to_end_checksum = x1764_memory(wbuf->buf, wbuf_get_woffset(wbuf));
+    uint32_t end_to_end_checksum = toku_x1764_memory(wbuf->buf, wbuf_get_woffset(wbuf));
     wbuf_nocrc_int(wbuf, end_to_end_checksum);
     invariant(wbuf->ndone == wbuf->size);
 }
@@ -357,7 +357,7 @@ serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
 
         bd->serialize_to_wbuf(&wb);
     }
-    uint32_t end_to_end_checksum = x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
+    uint32_t end_to_end_checksum = toku_x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
     wbuf_nocrc_int(&wb, end_to_end_checksum);
     invariant(wb.ndone == wb.size);
     invariant(sb->uncompressed_size==wb.ndone);
@@ -401,7 +401,7 @@ compress_ftnode_sub_block(struct sub_block *sb, enum toku_compression_method met
     extra[1] = toku_htod32(sb->uncompressed_size);
     // now checksum the entire thing
     sb->compressed_size += 8; // now add the eight bytes that we saved for the sizes
-    sb->xsum = x1764_memory(sb->compressed_ptr,sb->compressed_size);
+    sb->xsum = toku_x1764_memory(sb->compressed_ptr,sb->compressed_size);
 
     //
     // This is the end result for Dr. No and forward. For ftnodes, sb->compressed_ptr contains
@@ -465,7 +465,7 @@ static void serialize_ftnode_info(FTNODE node,
         }
     }
 
-    uint32_t end_to_end_checksum = x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
+    uint32_t end_to_end_checksum = toku_x1764_memory(sb->uncompressed_ptr, wbuf_get_woffset(&wb));
     wbuf_nocrc_int(&wb, end_to_end_checksum);
     invariant(wb.ndone == wb.size);
     invariant(sb->uncompressed_size==wb.ndone);
@@ -1248,7 +1248,7 @@ read_compressed_sub_block(struct rbuf *rb, struct sub_block *sb)
     rbuf_literal_bytes(rb, cp, sb->compressed_size);
     sb->xsum = rbuf_int(rb);
     // let's check the checksum
-    uint32_t actual_xsum = x1764_memory((char *)sb->compressed_ptr-8, 8+sb->compressed_size);
+    uint32_t actual_xsum = toku_x1764_memory((char *)sb->compressed_ptr-8, 8+sb->compressed_size);
     if (sb->xsum != actual_xsum) {
         r = TOKUDB_BAD_CHECKSUM;
     }
@@ -1293,7 +1293,7 @@ verify_ftnode_sub_block (struct sub_block *sb)
     // first verify the checksum
     uint32_t data_size = sb->uncompressed_size - 4; // checksum is 4 bytes at end
     uint32_t stored_xsum = toku_dtoh32(*((uint32_t *)((char *)sb->uncompressed_ptr + data_size)));
-    uint32_t actual_xsum = x1764_memory(sb->uncompressed_ptr, data_size);
+    uint32_t actual_xsum = toku_x1764_memory(sb->uncompressed_ptr, data_size);
     if (stored_xsum != actual_xsum) {
         dump_bad_block((Bytef *) sb->uncompressed_ptr, sb->uncompressed_size);
         r = TOKUDB_BAD_CHECKSUM;
@@ -1656,7 +1656,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
     }
 
     uint32_t checksum;
-    checksum = x1764_memory(rb->buf, rb->ndone);
+    checksum = toku_x1764_memory(rb->buf, rb->ndone);
     uint32_t stored_checksum;
     stored_checksum = rbuf_int(rb);
     if (stored_checksum != checksum) {
@@ -1682,7 +1682,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
     sb_node_info.xsum = rbuf_int(rb);
     // let's check the checksum
     uint32_t actual_xsum;
-    actual_xsum = x1764_memory((char *)sb_node_info.compressed_ptr-8, 8+sb_node_info.compressed_size);
+    actual_xsum = toku_x1764_memory((char *)sb_node_info.compressed_ptr-8, 8+sb_node_info.compressed_size);
     if (sb_node_info.xsum != actual_xsum) {
         r = TOKUDB_BAD_CHECKSUM;
         goto cleanup;
@@ -1953,7 +1953,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     // still have the pointer to the buffer).
     if (version >= FT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
         uint32_t expected_xsum = toku_dtoh32(*(uint32_t*)(rb->buf+rb->size-4)); // 27. checksum
-        uint32_t actual_xsum   = x1764_memory(rb->buf, rb->size-4);
+        uint32_t actual_xsum   = toku_x1764_memory(rb->buf, rb->size-4);
         if (expected_xsum != actual_xsum) {
             fprintf(stderr, "%s:%d: Bad checksum: expected = %" PRIx32 ", actual= %" PRIx32 "\n",
                     __FUNCTION__,
@@ -2093,7 +2093,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
     // Checksum (end to end) is only on version 14
     if (has_end_to_end_checksum) {
         uint32_t expected_xsum = rbuf_int(rb);             // 17. checksum 
-        uint32_t actual_xsum = x1764_memory(rb->buf, rb->size - 4);
+        uint32_t actual_xsum = toku_x1764_memory(rb->buf, rb->size - 4);
         if (expected_xsum != actual_xsum) {
             fprintf(stderr, "%s:%d: Bad checksum: expected = %" PRIx32 ", actual= %" PRIx32 "\n",
                     __FUNCTION__,
@@ -2292,7 +2292,7 @@ deserialize_ftnode_from_rbuf(
     }
     // verify checksum of header stored
     uint32_t checksum;
-    checksum = x1764_memory(rb->buf, rb->ndone);
+    checksum = toku_x1764_memory(rb->buf, rb->ndone);
     uint32_t stored_checksum;
     stored_checksum = rbuf_int(rb);
     if (stored_checksum != checksum) {
@@ -2684,7 +2684,7 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
 
     // compute the header checksum and serialize it
     uint32_t header_length = (char *)ptr - (char *)compressed_buf;
-    uint32_t xsum = x1764_memory(compressed_buf, header_length);
+    uint32_t xsum = toku_x1764_memory(compressed_buf, header_length);
     *ptr = toku_htod32(xsum);
 
     uint32_t padded_len = roundup_to_multiple(512, header_len + compressed_len);
@@ -2856,7 +2856,7 @@ decompress_from_raw_block_into_rbuf(uint8_t *raw_block, size_t raw_block_size, s
     { // verify the header checksum
         uint32_t header_length = node_header_overhead + sub_block_header_size(n_sub_blocks);
         invariant(header_length <= raw_block_size);
-        uint32_t xsum = x1764_memory(raw_block, header_length);
+        uint32_t xsum = toku_x1764_memory(raw_block, header_length);
         uint32_t stored_xsum = toku_dtoh32(*(uint32_t *)(raw_block + header_length));
         if (xsum != stored_xsum) {
             r = TOKUDB_BAD_CHECKSUM;

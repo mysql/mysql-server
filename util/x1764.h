@@ -99,11 +99,11 @@ PATENT RIGHTS GRANT:
 // If any odd bytes numbers are left at the end, they are filled in at the low end.
 
 
-uint32_t x1764_memory (const void *buf, int len);
+uint32_t toku_x1764_memory (const void *buf, int len);
 // Effect: Compute x1764 on the bytes of buf.  Return the 32 bit answer.
 
-uint32_t x1764_memory_simple (const void *buf, int len);
-// Effect: Same as x1764_memory, but not highly optimized (more likely to be correct).  Useful for testing the optimized version.
+uint32_t toku_x1764_memory_simple (const void *buf, int len);
+// Effect: Same as toku_x1764_memory, but not highly optimized (more likely to be correct).  Useful for testing the optimized version.
 
 
 // For incrementally computing an x1764, use the following interfaces.
@@ -113,13 +113,13 @@ struct x1764 {
     int n_input_bytes;
 };
 
-void x1764_init(struct x1764 *l);
+void toku_x1764_init(struct x1764 *l);
 // Effect: Initialize *l.
 
-void x1764_add (struct x1764 *l, const void *vbuf, int len);
+void toku_x1764_add (struct x1764 *l, const void *vbuf, int len);
 // Effect: Add more bytes to *l.
 
-uint32_t x1764_finish (struct x1764 *l);
+uint32_t toku_x1764_finish (struct x1764 *l);
 // Effect: Return the final 32-bit result.
 
 

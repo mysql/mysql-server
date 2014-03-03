@@ -97,6 +97,7 @@ PATENT RIGHTS GRANT:
 #include "cachetable.h"
 #include "checkpoint.h"
 #include "txn_manager.h"
+#include "omt.h"
 
 int tokudb_recovery_trace = 0;                    // turn on recovery tracing, default off.
 
