@@ -110,13 +110,13 @@
   performance gains in frequently executed sections of the code, and the
   other reason to use them is for documentation
 */
-
-#if !defined(__GNUC__) || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
-#define __builtin_expect(x, expected_value) (x)
+#ifdef HAVE_BUILTIN_EXPECT
+#  define likely(x)    __builtin_expect((x),1)
+#  define unlikely(x)  __builtin_expect((x),0)
+#else
+#  define likely(x)    (x)
+#  define unlikely(x)  (x)
 #endif
-
-#define likely(x)	__builtin_expect((x),1)
-#define unlikely(x)	__builtin_expect((x),0)
 
 /* Fix problem with S_ISLNK() on Linux */
 #if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
@@ -225,6 +225,16 @@
 #if defined(HAVE_CRYPT_H)
 #include <crypt.h>
 #endif
+
+/**
+  Cast a member of a structure to the structure that contains it.
+
+  @param  ptr     Pointer to the member.
+  @param  type    Type of the structure that contains the member.
+  @param  member  Name of the member within the structure.
+*/
+#define my_container_of(ptr, type, member)              \
+  ((type *)((char *)ptr - offsetof(type, member)))
 
 /*
   A lot of our programs uses asserts, so better to always include it
@@ -865,21 +875,9 @@ typedef char		my_bool; /* Small bool */
 #define bool In_C_you_should_use_my_bool_instead()
 #endif
 
-/* Provide __func__ macro definition for platforms that miss it. */
-#if __STDC_VERSION__ < 199901L
-#  if __GNUC__ >= 2
-#    define __func__ __FUNCTION__
-#  else
-#    define __func__ "<unknown>"
-#  endif
-#elif defined(_MSC_VER)
-#  if _MSC_VER < 1300
-#    define __func__ "<unknown>"
-#  else
-#    define __func__ __FUNCTION__
-#  endif
-#else
-#  define __func__ "<unknown>"
+/* Provide __func__ macro definition for Visual Studio. */
+#if defined(_MSC_VER)
+#  define __func__ __FUNCTION__
 #endif
 
 #ifndef HAVE_RINT
@@ -949,18 +947,5 @@ enum loglevel {
    WARNING_LEVEL=     1,
    INFORMATION_LEVEL= 2
 };
-
-
-/*
-  Visual Studio before the version 2010 did not have lldiv_t.
-  In Visual Studio 2010, _MSC_VER is defined as 1600.
-*/
-#if defined(_MSC_VER) && (_MSC_VER < 1600)
-typedef struct
-{
-  long long int quot;   /* Quotient.  */
-  long long int rem;    /* Remainder.  */
-} lldiv_t;
-#endif
 
 #endif  // MY_GLOBAL_INCLUDED

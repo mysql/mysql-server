@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,18 +29,10 @@
   @{
 */
 
-#ifdef __GNUC__
-#if __GNUC__ >= 2
-#define SCHED_FUNC __FUNCTION__
-#endif
-#else
-#define SCHED_FUNC "<unknown>"
-#endif
-
-#define LOCK_DATA()       lock_data(SCHED_FUNC, __LINE__)
-#define UNLOCK_DATA()     unlock_data(SCHED_FUNC, __LINE__)
+#define LOCK_DATA()       lock_data(__func__, __LINE__)
+#define UNLOCK_DATA()     unlock_data(__func__, __LINE__)
 #define COND_STATE_WAIT(mythd, abstime, stage) \
-        cond_wait(mythd, abstime, stage, SCHED_FUNC, __FILE__, __LINE__)
+        cond_wait(mythd, abstime, stage, __func__, __FILE__, __LINE__)
 
 extern pthread_attr_t connection_attrib;
 
@@ -310,6 +302,8 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   Event_job_data job_data;
   bool res;
 
+  DBUG_ASSERT(thd->m_digest == NULL);
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
   DBUG_ASSERT(thd->m_statement_psi == NULL);
@@ -349,9 +343,11 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
                           job_data.dbname.str, job_data.name.str);
 end:
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
-    thd->m_statement_psi= NULL;
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->m_statement_psi= NULL;
 #endif
+
+  DBUG_ASSERT(thd->m_digest == NULL);
 
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));

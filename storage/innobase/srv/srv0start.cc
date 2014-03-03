@@ -404,10 +404,12 @@ create_log_files(
 	has been completed and renamed. */
 	sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
 
-	fil_space_t* log_space = fil_space_create(
+	/* Disable the doublewrite buffer for log files, not required */
+
+	fil_space_t*	log_space = fil_space_create(
 		logfilename, SRV_LOG_SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-		FIL_LOG);
+		FIL_TYPE_LOG);
 	ut_a(fil_validate());
 	ut_a(log_space != NULL);
 
@@ -593,9 +595,9 @@ srv_undo_tablespace_open(
 	ulint		space_id)	/*!< in: tablespace id */
 {
 	os_file_t	fh;
-	dberr_t		err	= DB_ERROR;
 	bool		ret;
 	ulint		flags;
+	dberr_t		err	= DB_ERROR;
 
 	if (!srv_file_check_mode(name)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -620,6 +622,12 @@ srv_undo_tablespace_open(
 		os_offset_t	size;
 		fil_space_t*	space;
 
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		if (!srv_use_doublewrite_buf) {
+			fil_fusionio_enable_atomic_write(fh);
+		}
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
+
 		size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t) -1);
 
@@ -638,7 +646,7 @@ srv_undo_tablespace_open(
 		/* Set the compressed page size to 0 (non-compressed) */
 		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
 		space = fil_space_create(
-			name, space_id, flags, FIL_TABLESPACE);
+			name, space_id, flags, FIL_TYPE_TABLESPACE);
 
 		ut_a(fil_validate());
 		ut_a(space);
@@ -1000,7 +1008,8 @@ srv_open_tmp_tablespace(
 			"Could not create the shared %s.", tmp_space->name());
 
 	} else if ((err = tmp_space->open_or_create(
-			&sum_of_new_sizes, NULL, NULL)) != DB_SUCCESS) {
+			    true, &sum_of_new_sizes, NULL, NULL))
+		   != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to create the shared %s", tmp_space->name());
@@ -1227,15 +1236,6 @@ innobase_start_or_create_for_mysql(void)
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"!!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!");
 #endif /* UNIV_LOG_LSN_DEBUG */
-#ifdef UNIV_MEM_DEBUG
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"!!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!");
-#endif
-
-	if (srv_use_sys_malloc) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The InnoDB memory heap is disabled");
-	}
 
 #if defined(COMPILER_HINTS_ENABLED)
 	ib_logf(IB_LOG_LEVEL_INFO,
@@ -1653,9 +1653,8 @@ innobase_start_or_create_for_mysql(void)
 	/* Open or create the data files. */
 	ulint	sum_of_new_sizes;
 
-	err = srv_sys_space.open_or_create(&sum_of_new_sizes,
-					   &min_flushed_lsn,
-					   &max_flushed_lsn);
+	err = srv_sys_space.open_or_create(
+		false, &sum_of_new_sizes, &min_flushed_lsn, &max_flushed_lsn);
 
 	switch (err) {
 	case DB_SUCCESS:
@@ -1813,11 +1812,12 @@ innobase_start_or_create_for_mysql(void)
 
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
-		fil_space_t* log_space = fil_space_create(
+		/* Disable the doublewrite buffer for log files. */
+		fil_space_t*	log_space = fil_space_create(
 			logfilename,
 			SRV_LOG_SPACE_FIRST_ID,
 			fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-			FIL_LOG);
+			FIL_TYPE_LOG);
 
 		ut_a(fil_validate());
 		ut_a(log_space);
@@ -1913,7 +1913,7 @@ files_checked:
 		/* Stamp the LSN to the data files. */
 		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
-		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
 		create_log_files_rename(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
@@ -2082,7 +2082,7 @@ files_checked:
 			/* Stamp the LSN to the data files. */
 			fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
-			fil_flush_file_spaces(FIL_TABLESPACE);
+			fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
 			RECOVERY_CRASH(4);
 
@@ -2543,18 +2543,11 @@ innobase_shutdown_for_mysql(void)
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
 
-	mem_close();
-
 	/* 6. Free the thread management resoruces. */
 	os_thread_free();
 
 	/* 7. Free the synchronisation infrastructure. */
 	sync_check_close();
-
-	/* ut_free_all_mem() frees all allocated memory not freed yet
-	in shutdown, and it will also free the ut_list_mutex, so it
-	should be the last one for all operation */
-	ut_free_all_mem();
 
 	if (dict_foreign_err_file) {
 		fclose(dict_foreign_err_file);

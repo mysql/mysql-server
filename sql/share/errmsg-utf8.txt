@@ -7043,6 +7043,10 @@ ER_OLD_TEMPORALS_UPGRADED
 
 ER_INNODB_FORCED_RECOVERY
   eng "Operation not allowed when innodb_forced_recovery > 0."
+
+ER_AES_INVALID_IV
+  eng "The initialization vector supplied to %s is too short. Must be at least %d bytes long"
+  bg "Инициализационния вектор подаден на %s е прекалено къс. Трябва да е поне %d байта"
 #
 #  End of 5.6 error messages.
 #
@@ -7086,7 +7090,6 @@ ER_REFERENCED_TRG_DOES_NOT_EXIST
 
 ER_EXPLAIN_NOT_SUPPORTED
         eng "EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE"
-
 ER_INVALID_FIELD_SIZE
         eng "Invalid size for column '%-.192s'."
 
@@ -7107,6 +7110,30 @@ ER_NO_FT_MATERIALIZED_SUBQUERY
 
 ER_INNODB_UNDO_LOG_FULL
   eng "Undo Log error: %s"
+
+ER_INVALID_ARGUMENT_FOR_LOGARITHM 2201E
+  eng "Invalid argument for logarithm"
+
+ER_SLAVE_IO_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first."
+
+ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
+  eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0."
+
+ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS
+  eng "CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file."
+
+ER_QUERY_TIMEOUT 
+  eng "Query execution was interrupted, max_statement_time exceeded"
+
+ER_NON_RO_SELECT_DISABLE_TIMER
+  eng "Select is not a read only statement, disabling timer"
+
+ER_DUP_LIST_ENTRY
+        eng "Duplicate entry '%-.192s'."
+
+ER_SQL_MODE_NO_EFFECT
+  eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
 
 #
 #  End of 5.7 error messages.

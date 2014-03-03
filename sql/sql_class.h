@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +48,12 @@
 #include <mysql/psi/mysql_idle.h>
 
 #include <mysql_com_server.h>
+#include "opt_costmodel.h"                      // Cost_model_server
 #include "sql_data_change.h"
+
+#include "sys_vars_resource_mgr.h"
+#include "session_tracker.h"
+
 #include "transaction_info.h"
 
 /**
@@ -87,6 +93,8 @@ class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
 typedef struct st_log_info LOG_INFO;
+
+struct st_thd_timer;
 
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 
@@ -145,6 +153,13 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
 #define MODE_STRICT_TRANS_TABLES        (MODE_NO_BACKSLASH_ESCAPES*2)
 #define MODE_STRICT_ALL_TABLES          (MODE_STRICT_TRANS_TABLES*2)
+/*
+ * NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
+ * removed in 5.7 and their functionality is merged with STRICT MODE.
+ * However, For backward compatibility during upgrade, these modes are kept
+ * but they are not used. Setting these modes in 5.7 will give warning and
+ * have no effect.
+ */
 #define MODE_NO_ZERO_IN_DATE            (MODE_STRICT_ALL_TABLES*2)
 #define MODE_NO_ZERO_DATE               (MODE_NO_ZERO_IN_DATE*2)
 #define MODE_INVALID_DATES              (MODE_NO_ZERO_DATE*2)
@@ -490,6 +505,8 @@ typedef struct system_variables
   ulong tx_isolation;
   ulong updatable_views_with_limit;
   uint max_user_connections;
+  ulong my_aes_mode;
+
   /**
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
@@ -546,6 +563,11 @@ typedef struct system_variables
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
 
+  ulong max_statement_time;
+
+  char *track_sysvars_ptr;
+  my_bool session_track_schema;
+  my_bool session_track_state_change;
 } SV;
 
 
@@ -608,6 +630,11 @@ typedef struct system_status_var
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+
+  ulonglong max_statement_time_exceeded;
+  ulonglong max_statement_time_set;
+  ulonglong max_statement_time_set_failed;
+
   /*
     Number of statements sent from the client
   */
@@ -624,6 +651,7 @@ typedef struct system_status_var
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
+
 } STATUS_VAR;
 
 /*
@@ -865,6 +893,14 @@ public:
   void set_statement(Statement *stmt);
   /* return class type */
   virtual Type type() const;
+#ifdef HAVE_PSI_PS_INTERFACE 
+  virtual PSI_prepared_stmt* get_PS_prepared_stmt()
+  {
+    /* One should never reach here. */
+    DBUG_ASSERT(0);
+    return NULL;
+  }
+#endif
 };
 
 
@@ -1601,6 +1637,14 @@ public:
       JOIN::plan_state
       Tree of SELECT_LEX_UNIT after THD::Query_plan was set till
         THD::Query_plan cleanup
+      JOIN_TAB::select->quick
+    Code that changes objects above should take this mutex.
+    Explain code takes this mutex to block changes to named structures to
+    avoid crashes in following functions:
+      explain_single_table_modification
+      explain_query
+      mysql_explain_other
+    All explain code assumes that this mutex is already taken.
   */
   mysql_mutex_t LOCK_query_plan;
 
@@ -1904,6 +1948,16 @@ public:
   {
     return m_binlog_filter_state;
   }
+
+#ifdef HAVE_MY_TIMER
+  /** Holds active timer object */
+  struct st_thd_timer_info *timer;
+  /**
+    After resetting(cancelling) timer, current timer object is cached
+    with timer_cache timer to reuse.
+  */
+  struct st_thd_timer_info *timer_cache;
+#endif
 
 private:
   /**
@@ -2311,6 +2365,11 @@ public:
   PROFILING  profiling;
 #endif
 
+  /** Current statement digest. */
+  sql_digest_state *m_digest;
+  /** Top level statement digest. */
+  sql_digest_state m_digest_state;
+
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
@@ -2453,6 +2512,8 @@ public:
                           pos_var ? *pos_var : 0));
     DBUG_VOID_RETURN;
   }
+
+  my_off_t get_trans_pos() { return m_trans_end_pos; }
   /**@}*/
 
 
@@ -2485,6 +2546,7 @@ public:
     KILL_BAD_DATA=1,
     KILL_CONNECTION=ER_SERVER_SHUTDOWN,
     KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILL_TIMEOUT=ER_QUERY_TIMEOUT,
     KILLED_NO_VALUE      /* means neither of the states */
   };
   killed_state volatile killed;
@@ -2785,13 +2847,21 @@ public:
   virtual bool notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
+  /**
+    Provide thread specific random seed for MDL_context's PRNG.
+
+    Note that even if two connections will request seed during handling of
+    statements which were started at exactly the same time, and thus will
+    get the same values in PRNG at the start, they will naturally diverge
+    soon, since calls to PRNG in MDL subsystem are affected by many factors
+    making process quite random. OTOH the fact that we use time as a seed
+    gives more randomness and thus better coverage in tests as opposed to
+    using thread_id for the same purpose.
+  */
+  virtual uint get_rand_seed() { return (uint)start_utime; }
+
   // End implementation of MDL_context_owner interface.
 
-  inline sql_mode_t datetime_flags() const
-  {
-    return variables.sql_mode &
-      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
-  }
   inline bool is_strict_mode() const
   {
     return MY_TEST(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
@@ -3081,6 +3151,8 @@ public:
       DBUG_PRINT("info",
                  ("change_item_tree place %p old_value %p new_value %p",
                   place, *place, new_value));
+      if (new_value)
+        new_value->set_runtime_created(); /* Note the change of item tree */
       nocheck_register_item_tree_change(place, *place, mem_root);
     }
     *place= new_value;
@@ -3665,6 +3737,28 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+
+private:
+  /**
+    Optimizer cost model for server operations.
+  */
+  Cost_model_server m_cost_model;
+
+public:
+  /**
+    Initialize the optimizer cost model.
+
+    This function should be called each time a new query is started.
+  */
+  void init_cost_model() { m_cost_model.init(); }
+
+  /**
+    Retrieve the optimizer cost model for this connection.
+  */
+  const Cost_model_server* cost_model() const { return &m_cost_model; }
+
+  Session_tracker session_tracker;
+  Session_sysvar_resource_manager session_sysvar_res_mgr;
 };
 
 
@@ -3884,7 +3978,7 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
-  select_result_interceptor() {}              /* Remove gcc warning */
+  select_result_interceptor() {}  /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_result_set_metadata(List<Item> &fields, uint flag) { return FALSE; }
 };

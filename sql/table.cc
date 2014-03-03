@@ -939,7 +939,6 @@ static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
   uint max_key_length= sk->key_length;
   bool is_unique_key= false;
   KEY_PART_INFO *current_key_part= &sk->key_part[sk->user_defined_key_parts];
-  ulong *current_rec_per_key= &sk->rec_per_key[sk->user_defined_key_parts];
 
   /* 
      For each keypart in the primary key: check if the keypart is
@@ -974,9 +973,10 @@ static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
       *current_key_part= *pk_key_part;
       setup_key_part_field(share, handler_file, pk_n, sk, sk_n,
                            sk->actual_key_parts, usable_parts);
-      *current_rec_per_key++= 0;
       sk->actual_key_parts++;
       sk->unused_key_parts--;
+      sk->rec_per_key[sk->actual_key_parts - 1]= 0;
+      sk->set_records_per_key(sk->actual_key_parts - 1, REC_PER_KEY_UNKNOWN);
       current_key_part++;
       max_key_length+= pk_key_part->length;
       /*
@@ -1019,6 +1019,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
+  float *rec_per_key_float;
   handler *handler_file= 0;
   KEY	*keyinfo;
   KEY_PART_INFO *key_part;
@@ -1140,16 +1141,20 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     total_key_parts= key_parts;
   n_length= keys * sizeof(KEY) + total_key_parts * sizeof(KEY_PART_INFO);
 
-  if (!(keyinfo = (KEY*) alloc_root(&share->mem_root,
-				    n_length + uint2korr(disk_buff+4))))
+  /*
+    Allocate memory for the KEY object, the key part array, and the
+    two rec_per_key arrays.
+  */
+  if (!multi_alloc_root(&share->mem_root, 
+                        &keyinfo, n_length + uint2korr(disk_buff + 4),
+                        &rec_per_key, sizeof(ulong) * total_key_parts,
+                        &rec_per_key_float, sizeof(float) * total_key_parts,
+                        NULL))
     goto err;                                   /* purecov: inspected */
+
   memset(keyinfo, 0, n_length);
   share->key_info= keyinfo;
   key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
-
-  if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
-                                         sizeof(ulong) * total_key_parts)))
-    goto err;
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
@@ -1172,11 +1177,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       strpos+=4;
     }
 
-    keyinfo->key_part=	 key_part;
-    keyinfo->rec_per_key= rec_per_key;
+    keyinfo->key_part= key_part;
+    keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);
+
     for (j=keyinfo->user_defined_key_parts ; j-- ; key_part++)
     {
-      *rec_per_key++=0;
+      *rec_per_key++ = 0;
+      *rec_per_key_float++ = REC_PER_KEY_UNKNOWN;
+
       key_part->fieldnr=	(uint16) (uint2korr(strpos) & FIELD_NR_MASK);
       key_part->offset= (uint) uint2korr(strpos+2)-1;
       key_part->key_type=	(uint) uint2korr(strpos+5);
@@ -1216,6 +1224,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       keyinfo->unused_key_parts= primary_key_parts;
       key_part+= primary_key_parts;
       rec_per_key+= primary_key_parts;
+      rec_per_key_float+= primary_key_parts;
       share->key_parts+= primary_key_parts;
     }
   }
@@ -4631,6 +4640,12 @@ Natural_join_column::Natural_join_column(Item_field *field_param,
 {
   DBUG_ASSERT(tab->table == field_param->field->table);
   table_field= field_param;
+  /*
+    Cache table, to have no resolution problem after natural join nests have
+    been changed to ordinary join nests.
+  */
+  if (tab->cacheable_table)
+    field_param->cached_table= tab;
   view_field= NULL;
   table_ref= tab;
   is_common= FALSE;
@@ -5506,13 +5521,21 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   }
   const uint key_part_count= key_parts->bits_set();
 
-  /* Allocate key parts in the tables' mem_root. */
-  size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count +
-                       sizeof(ulong) * key_part_count;
-  key_buf= (uchar*) alloc_root(&mem_root, key_buf_size);
+  /*
+    Allocate storage for the key part array and the two rec_per_key arrays in
+    the tables' mem_root.
+  */
+  const size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count;
+  ulong *rec_per_key;
+  float *rec_per_key_float;
 
-  if (!key_buf)
-    return TRUE;
+  if(!multi_alloc_root(&mem_root,
+                       &key_buf, key_buf_size,
+                       &rec_per_key, sizeof(ulong) * key_part_count,
+                       &rec_per_key_float, sizeof(float) * key_part_count,
+                       NULL))
+    return true;                                /* purecov: inspected */
+
   memset(key_buf, 0, key_buf_size);
   cur_key->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
   cur_key->usable_key_parts= cur_key->user_defined_key_parts= key_part_count;
@@ -5522,8 +5545,15 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   cur_key->algorithm= HA_KEY_ALG_BTREE;
   cur_key->name= key_name;
   cur_key->actual_flags= cur_key->flags= HA_GENERATED_KEY;
-  cur_key->rec_per_key= (ulong*) (key_buf + sizeof(KEY_PART_INFO) * key_part_count);
+  cur_key->set_rec_per_key_array(rec_per_key, rec_per_key_float);
   cur_key->table= this;
+
+  /* Initialize rec_per_key and rec_per_key_float */
+  for (uint kp= 0; kp < key_part_count; ++kp)
+  {
+    cur_key->rec_per_key[kp]= 0;
+    cur_key->set_records_per_key(kp, REC_PER_KEY_UNKNOWN);
+  }
 
   if (field_count == key_part_count)
     covering_keys.set_bit(s->keys);
@@ -5683,19 +5713,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
 
   /* Reset is_schema_table_processed value(needed for I_S tables */
   schema_table_state= NOT_PROCESSED;
-
-  TABLE_LIST *embedded; /* The table at the current level of nesting. */
-  TABLE_LIST *parent_embedding= this; /* The parent nested table reference. */
-  do
-  {
-    embedded= parent_embedding;
-    if (embedded->prep_join_cond)
-      embedded->
-        set_join_cond(embedded->prep_join_cond->copy_andor_structure(thd));
-    parent_embedding= embedded->embedding;
-  }
-  while (parent_embedding &&
-         parent_embedding->nested_join->join_list.head() == embedded);
 
   mdl_request.ticket= NULL;
 }
@@ -5961,7 +5978,18 @@ int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
   if (uses_materialization())
+  {
+    /*
+      @todo: CostModel: This updates the stats.record value to the
+      estimated number of records. This number is used when estimating 
+      the cost of a table scan for a heap table (ie. it helps producing
+      a reasonable good cost estimate for heap tables). If the materialized
+      table is stored in MyISAM, this number is not used in the cost estimate
+      for table scan. The table scan cost for MyISAM thus always becomes
+      the estimate for an empty table.
+    */
     table->file->stats.records= derived->get_result()->estimated_rowcount;
+  }
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return error;

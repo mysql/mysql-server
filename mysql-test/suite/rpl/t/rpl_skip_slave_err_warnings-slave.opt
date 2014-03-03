@@ -1,0 +1,1 @@
+--no-console --log-warnings=2 --slave-skip-errors=all  --log_error=$MYSQLTEST_VARDIR/tmp/slave.err --slave_transaction_retries=0

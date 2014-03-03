@@ -513,7 +513,7 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   SELECT_LEX_UNIT *unit= lex->unit;
   TABLE_LIST    *tables= select_lex->get_table_list();
   enum enum_ha_read_modes mode= m_read_mode;
-  Item          *cond= select_lex->where;
+  Item          *cond= select_lex->where_cond();
   ha_rows select_limit_cnt, offset_limit_cnt;
   DBUG_ENTER("Sql_cmd_handler_read::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",

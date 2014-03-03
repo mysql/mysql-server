@@ -457,6 +457,16 @@ typedef struct st_print_event_info
 } PRINT_EVENT_INFO;
 #endif
 
+/*
+  A specific to the database-scheduled MTS type.
+*/
+typedef struct st_mts_db_names
+{
+  const char *name[MAX_DBS_IN_EVENT_MTS];
+  int  num;
+} Mts_db_names;
+
+
 /**
   @class Log_event
 
@@ -982,21 +992,29 @@ private:
   */
   Slave_worker *get_slave_worker(Relay_log_info *rli);
 
-  /*
-    The method returns a list of updated by the event databases.
-    Other than in the case of Query-log-event the list is just one item.
+  /**
+     The method fills in pointers to event's database name c-strings
+     to a supplied array.
+     In other than Query-log-event case the returned array contains
+     just one item.
+     @param[out] arg pointer to a struct containing char* array
+                     pointers to be filled in and the number
+                     of filled instances.
+
+     @return     number of the filled intances indicating how many
+                 databases the event accesses.
   */
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
   {
-    List<char> *res= new List<char>;
-    res->push_back(strdup_root(mem_root, get_db()));
-    return res;
+    arg->name[0]= get_db();
+
+    return arg->num= mts_number_dbs();
   }
 
   /*
     Group of events can be marked to force its execution
     in isolation from any other Workers.
-    Typically that is done for a transaction that contains 
+    Typically that is done for a transaction that contains
     a query accessing more than OVER_MAX_DBS_IN_EVENT_MTS databases.
     Factually that's a sequential mode where a Worker remains to
     be the applier.
@@ -1250,17 +1268,21 @@ public:
   const char* get_db() { return db; }
 
   /**
-     Returns a list of updated databases or the default db single item list
-     in case of the number of databases exceeds MAX_DBS_IN_EVENT_MTS.
+     @param[out] arg pointer to a struct containing char* array
+                     pointers be filled in and the number of
+                     filled instances.
+                     In case the number exceeds MAX_DBS_IN_EVENT_MTS,
+                     the overfill is indicated with assigning the number to
+                     OVER_MAX_DBS_IN_EVENT_MTS.
+
+     @return     number of databases in the array or OVER_MAX_DBS_IN_EVENT_MTS.
   */
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  virtual uint8 get_mts_dbs(Mts_db_names* arg)
   {
-    List<char> *res= new (mem_root) List<char>;
     if (mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
     {
       // the empty string db name is special to indicate sequential applying
       mts_accessed_db_names[0][0]= 0;
-      res->push_back((char*) mts_accessed_db_names[0]);
     }
     else
     {
@@ -1277,11 +1299,10 @@ public:
           if (strcmp(db_name, db_filtered))
             db_name= (char*)db_filtered;
         }
-
-        res->push_back(db_name);
+        arg->name[i]= db_name;
       }
     }
-    return res;
+    return arg->num= mts_accessed_dbs;
   }
 
   void attach_temp_tables_worker(THD*, const Relay_log_info *);
@@ -2240,11 +2261,16 @@ public:
 #endif
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual uint8 mts_number_dbs() { return OVER_MAX_DBS_IN_EVENT_MTS; }
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  /**
+     @param[out] arg pointer to a struct containing char* array
+                     pointers be filled in and the number of
+                     filled instances.
+
+     @return     number of databases in the array (must be one).
+  */
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
   {
-    List<char> *res= new List<char>;
-    res->push_back(strdup_root(mem_root, ""));
-    return res;
+    return arg->num= mts_number_dbs();
   }
 #endif
 
@@ -2513,12 +2539,19 @@ public:
   virtual bool write_data_body(IO_CACHE *file);
   virtual const char *get_db() { return m_dbnam.c_str(); }
   virtual uint8 mts_number_dbs()
-  { 
+  {
     return get_flags(TM_REFERRED_FK_DB_F) ? OVER_MAX_DBS_IN_EVENT_MTS : 1;
   }
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  /**
+     @param[out] arg pointer to a struct containing char* array
+                     pointers be filled in and the number of filled instances.
+
+     @return    number of databases in the array: either one or
+                OVER_MAX_DBS_IN_EVENT_MTS, when the Table map event reports
+                foreign keys constraint.
+  */
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
   {
-    List<char> *res= new List<char>;
     const char *db_name= get_db();
 
     if (!rpl_filter->is_rewrite_empty() && !get_flags(TM_REFERRED_FK_DB_F))
@@ -2530,9 +2563,10 @@ public:
         db_name= db_filtered;
     }
 
-    res->push_back(strdup_root(mem_root,
-                               get_flags(TM_REFERRED_FK_DB_F) ? "" : db_name));
-    return res;
+    if (!get_flags(TM_REFERRED_FK_DB_F))
+      arg->name[0]= db_name;
+
+    return arg->num= mts_number_dbs();
   }
 
 #endif

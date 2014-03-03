@@ -96,6 +96,9 @@ public:
   LEX_STRING auth_string;
   bool password_expired;
   bool can_authenticate;
+  MYSQL_TIME password_last_changed;
+  uint password_lifetime;
+  bool use_default_password_lifetime;
 
   ACL_USER *copy(MEM_ROOT *root);
 };

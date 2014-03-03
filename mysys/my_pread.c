@@ -18,7 +18,7 @@
 #include "my_base.h"
 #include <m_string.h>
 #include <errno.h>
-#if defined (HAVE_PREAD) && !defined(_WIN32)
+#if !defined (_WIN32)
 #include <unistd.h>
 #endif
 
@@ -50,32 +50,18 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
 {
   size_t readbytes;
   int error= 0;
-#if !defined (HAVE_PREAD) && !defined (_WIN32)
-  int save_errno;
-#endif
   DBUG_ENTER("my_pread");
   DBUG_PRINT("my",("fd: %d  Seek: %llu  Buffer: %p  Count: %lu  MyFlags: %d",
              Filedes, (ulonglong)offset, Buffer, (ulong)Count, MyFlags));
   for (;;)
   {
     errno= 0;    /* Linux, Windows don't reset this on EOF/success */
-#if !defined (HAVE_PREAD) && !defined (_WIN32)
-    mysql_mutex_lock(&my_file_info[Filedes].mutex);
-    readbytes= (uint) -1;
-    error= (lseek(Filedes, offset, MY_SEEK_SET) == (my_off_t) -1 ||
-           (readbytes= read(Filedes, Buffer, Count)) != Count);
-    save_errno= errno;
-    mysql_mutex_unlock(&my_file_info[Filedes].mutex);
-    if (error)
-      errno= save_errno;
-#else
 #if defined(_WIN32)
     readbytes= my_win_pread(Filedes, Buffer, Count, offset);
-#else 
+#else
     readbytes= pread(Filedes, Buffer, Count, offset);
 #endif
     error= (readbytes != Count);
-#endif
     if(error)
     {
       my_errno= errno ? errno : -1;
@@ -159,16 +145,7 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
   for (;;)
   {
     errno= 0;
-#if !defined (HAVE_PREAD) && !defined (_WIN32)
-    int error;
-    writtenbytes= (size_t) -1;
-    mysql_mutex_lock(&my_file_info[Filedes].mutex);
-    error= (lseek(Filedes, offset, MY_SEEK_SET) != (my_off_t) -1 &&
-            (writtenbytes= write(Filedes, Buffer, Count)) == Count);
-    mysql_mutex_unlock(&my_file_info[Filedes].mutex);
-    if (error)
-      break;
-#elif defined (_WIN32)
+#if defined (_WIN32)
     writtenbytes= my_win_pwrite(Filedes, Buffer, Count, offset);
 #else
     writtenbytes= pwrite(Filedes, Buffer, Count, offset);

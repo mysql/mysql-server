@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,9 +47,7 @@
   end of dispatch_command().
 */
 
-bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
-                  SQL_I_List<ORDER> *order_list, ha_rows limit,
-                  ulonglong options)
+bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
 {
   myf           error_flags= MYF(0);            /**< Flag for fatal errors */
   bool          will_batch;
@@ -67,10 +65,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   bool          need_sort= false;
   bool          err= true;
 
-  ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
-                           order_list->first : NULL);
   uint usable_index= MAX_KEY;
-  SELECT_LEX   *select_lex= thd->lex->select_lex;
+  SELECT_LEX *select_lex= thd->lex->select_lex;
+  TABLE_LIST *const table_list= select_lex->get_table_list();
+  ORDER *order= select_lex->order_list.first;
   THD::killed_state killed_status= THD::NOT_KILLED;
   THD::enum_binlog_query_type query_type= THD::ROW_QUERY_TYPE;
   DBUG_ENTER("mysql_delete");
@@ -97,7 +95,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
   table->map= 1;
 
-  if (mysql_prepare_delete(thd, table_list, delete_table_ref, &conds))
+  if (mysql_prepare_delete(thd, delete_table_ref))
+    DBUG_RETURN(TRUE);
+
+  Item *conds;
+  if (select_lex->get_optimizable_conditions(thd, &conds, NULL))
     DBUG_RETURN(TRUE);
 
   /* check ORDER BY even if it can be ignored */
@@ -111,8 +113,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     tables.table = table;
     tables.alias = table_list->alias;
 
-      if (select_lex->setup_ref_array(thd, order_list->elements) ||
-	  setup_order(thd, select_lex->ref_pointer_array, &tables,
+    DBUG_ASSERT(!select_lex->group_list.elements);
+    if (select_lex->setup_ref_array(thd) ||
+        setup_order(thd, select_lex->ref_pointer_array, &tables,
                     fields, all_fields, order))
     {
       free_underlaid_joins(thd, thd->lex->select_lex);
@@ -122,7 +125,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
-    Non delete tables are pruned in JOIN::prepare,
+    Non delete tables are pruned in SELECT_LEX::prepare,
     only the delete table needs this.
   */
   if (prune_partitions(thd, table, conds))
@@ -253,6 +256,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       conds->update_used_tables();
     }
   }
+
+  // Initialize the cost model that will be used for this table
+  table->init_cost_model(thd->cost_model());
 
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -442,6 +448,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
         select && select->quick && select->quick->index != MAX_KEY)
       read_removal= table->check_read_removal(select->quick->index);
 
+    const bool save_abort_on_warning= thd->abort_on_warning;
+    thd->abort_on_warning= thd->is_strict_mode();
     while (!(error=info.read_record(&info)) && !thd->killed &&
            ! thd->is_error())
     {
@@ -501,6 +509,8 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       else
         break;
     }
+    thd->abort_on_warning= save_abort_on_warning;
+
     killed_status= thd->killed;
     if (killed_status != THD::NOT_KILLED || thd->is_error())
       error= 1;					// Aborted
@@ -600,20 +610,18 @@ exit_without_my_ok:
   Prepare items in DELETE statement
 
   @param thd        - thread handler
-  @param table_list - global/local table list
   @param delete_table_ref - The base table to be deleted from
-  @param conds      - conditions
 
   @return false if success, true if error
 */
 
-bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list,
-                          const TABLE_LIST *delete_table_ref, Item **conds)
+bool mysql_prepare_delete(THD *thd, const TABLE_LIST *delete_table_ref)
 {
   DBUG_ENTER("mysql_prepare_delete");
 
   List<Item> all_fields;
   SELECT_LEX *const select_lex= thd->lex->select_lex;
+  TABLE_LIST *const table_list= select_lex->get_table_list();
 
   thd->lex->allow_sum_func= 0;
   if (setup_tables_and_check_access(thd, &select_lex->context,
@@ -622,7 +630,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list,
                                     &select_lex->leaf_tables, false,
                                     DELETE_ACL, SELECT_ACL))
     DBUG_RETURN(true);
-  if (setup_conds(thd, table_list, select_lex->leaf_tables, conds))
+  if (select_lex->setup_conds(thd))
     DBUG_RETURN(true);
   if (setup_ftfuncs(select_lex))
     DBUG_RETURN(true);                       /* purecov: inspected */
@@ -644,8 +652,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list,
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
     DBUG_RETURN(true);                       /* purecov: inspected */
 
-  Item *fake_conds= NULL;
-  select_lex->fix_prepare_information(thd, conds, &fake_conds);
+  select_lex->fix_prepare_information(thd);
 
   DBUG_RETURN(false);
 }
@@ -683,7 +690,7 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
   SELECT_LEX *const select= lex->select_lex;
 
   /*
-    setup_tables() need for VIEWs. JOIN::prepare() will not do it second
+    setup_tables() need for VIEWs. SELECT_LEX::prepare() will not do it second
     time.
 
     lex->query_tables also point on local list of DELETE SELECT_LEX
@@ -770,6 +777,13 @@ multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("multi_delete::prepare");
   unit= u;
   do_delete= true;
+  /* Don't use KEYREAD optimization on this table */
+  for (TABLE_LIST *walk= delete_tables; walk; walk= walk->next_local)
+    if (walk->correspondent_table)
+    {
+      TABLE_LIST *ref= walk->correspondent_table->updatable_base_table();
+      ref->table->no_keyread= true;
+    }
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
   DBUG_RETURN(0);
 }
@@ -815,8 +829,6 @@ multi_delete::initialize_tables(JOIN *join)
       continue;
 
     // We are going to delete from this table
-    // Don't use KEYREAD optimization on this table
-    table->no_keyread= 1;
     // Don't use record cache
     table->no_cache= 1;
     table->covering_keys.clear_all();

@@ -143,43 +143,6 @@ ENDIF()
 SET(HOSTNAME "hostname")
 SET(MYSQLD_USER "mysql")
 
-# Required for mysqlbug until autotools are deprecated, once done remove these
-# and expand default cmake variables
-SET(CC ${CMAKE_C_COMPILER})
-SET(CXX ${CMAKE_CXX_COMPILER})
-SET(SAVE_CC ${CMAKE_C_COMPILER})
-SET(SAVE_CXX ${CMAKE_CXX_COMPILER})
-SET(SAVE_CFLAGS ${CFLAGS})
-SET(SAVE_CXXFLAGS ${CXXFLAGS})
-# XXX no cmake equivalent for this, just make one up
-SET(CONFIGURE_LINE "Built using CMake")
-
-# Also required for mysqlbug, autoconf only supports --version so for now we
-# just explicitly require GNU
-IF(CMAKE_COMPILER_IS_GNUCC)
-  EXECUTE_PROCESS(
-    COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1} --version
-    COMMAND sed 1q
-    OUTPUT_VARIABLE CC_VERSION)
-ELSE()
-  SET(CC_VERSION "")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  EXECUTE_PROCESS(
-    COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} --version
-    COMMAND sed 1q
-    OUTPUT_VARIABLE CXX_VERSION)
-ELSE()
-  SET(CXX_VERSION "")
-ENDIF()
-
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlbug.sh
-  ${CMAKE_CURRENT_BINARY_DIR}/mysqlbug ESCAPE_QUOTES @ONLY)
-INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/mysqlbug
-  DESTINATION ${INSTALL_BINDIR}
-  COMPONENT Server
-  )
-
 ENDIF(UNIX)
 
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
@@ -229,6 +192,11 @@ SET(pkgincludedir ${prefix}/${INSTALL_INCLUDEDIR})
 SET(pkglibdir ${prefix}/${INSTALL_LIBDIR})
 SET(pkgplugindir ${prefix}/${INSTALL_PLUGINDIR})
 SET(localstatedir ${MYSQL_DATADIR})
+
+SET(RPATH_OPTION "")
+IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+  SET(RPATH_OPTION "-R$pkglibdir")
+ENDIF()
 
 # some scripts use  @TARGET_LINUX@
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -301,8 +269,7 @@ IF(WIN32)
   SET(PLIN_FILES mysql_config)
   # Input files with .sh extension
 
-  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow
-    mysqlhotcopy)
+  SET(SH_FILES mysqld_multi mysqldumpslow mysqlhotcopy)
 
   FOREACH(file ${PLIN_FILES})
     IF(NOT ${file}_COMPONENT)
@@ -325,15 +292,8 @@ ELSE()
   # On Unix, most of the files end up in the bin directory
   SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
-    msql2mysql
     mysql_config
-    mysql_fix_extensions
-    mysql_setpermission
     mysql_zap
-    mysqlaccess
-    mysqlaccess.conf
-    mysql_convert_table_format
-    mysql_find_rows
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi
