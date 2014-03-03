@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <memory.h>
 
-#include "memarena.h"
+#include <util/memarena.h>
 
 struct memarena {
     char *buf;
@@ -103,7 +103,7 @@ struct memarena {
     int n_other_bufs;
 };
 
-MEMARENA memarena_create_presized (size_t initial_size) {
+MEMARENA toku_memarena_create_presized (size_t initial_size) {
     MEMARENA XMALLOC(result);
     result->buf_size = initial_size;
     result->buf_used = 0;
@@ -115,11 +115,11 @@ MEMARENA memarena_create_presized (size_t initial_size) {
     return result;
 }
 
-MEMARENA memarena_create (void) {
-    return memarena_create_presized(1024);
+MEMARENA toku_memarena_create (void) {
+    return toku_memarena_create_presized(1024);
 }
 
-void memarena_clear (MEMARENA ma) {
+void toku_memarena_clear (MEMARENA ma) {
     // Free the other bufs.
     int i;
     for (i=0; i<ma->n_other_bufs; i++) {
@@ -143,7 +143,7 @@ round_to_page (size_t size) {
     return result;
 }
 
-void* malloc_in_memarena (MEMARENA ma, size_t size) {
+void* toku_memarena_malloc (MEMARENA ma, size_t size) {
     if (ma->buf_size < ma->buf_used + size) {
         // The existing block isn't big enough.
         // Add the block to the vector of blocks.
@@ -172,13 +172,13 @@ void* malloc_in_memarena (MEMARENA ma, size_t size) {
     return result;
 }
 
-void *memarena_memdup (MEMARENA ma, const void *v, size_t len) {
-    void *r=malloc_in_memarena(ma, len);
+void *toku_memarena_memdup (MEMARENA ma, const void *v, size_t len) {
+    void *r=toku_memarena_malloc(ma, len);
     memcpy(r,v,len);
     return r;
 }
 
-void memarena_close(MEMARENA *map) {
+void toku_memarena_destroy(MEMARENA *map) {
     MEMARENA ma=*map;
     if (ma->buf) {
         toku_free(ma->buf);
@@ -200,7 +200,7 @@ void memarena_close(MEMARENA *map) {
 #include <crtdbg.h>
 #endif
 
-void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
+void toku_memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     int i;
     char **other_bufs = dest->other_bufs;
     static int move_counter = 0;
@@ -241,21 +241,21 @@ void memarena_move_buffers(MEMARENA dest, MEMARENA source) {
 }
 
 size_t
-memarena_total_memory_size (MEMARENA m)
+toku_memarena_total_memory_size (MEMARENA m)
 {
-    return (memarena_total_size_in_use(m) +
+    return (toku_memarena_total_size_in_use(m) +
             sizeof(*m) +
             m->n_other_bufs * sizeof(*m->other_bufs));
 }
 
 size_t
-memarena_total_size_in_use (MEMARENA m)
+toku_memarena_total_size_in_use (MEMARENA m)
 {
     return m->size_of_other_bufs + m->buf_used;
 }
 
 size_t
-memarena_total_footprint (MEMARENA m)
+toku_memarena_total_footprint (MEMARENA m)
 {
     return m->footprint_of_other_bufs + toku_memory_footprint(m->buf, m->buf_used) +
             sizeof(*m) +

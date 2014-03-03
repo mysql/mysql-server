@@ -52,7 +52,6 @@ set(FT_SOURCES
   logfilemgr
   logger
   log_upgrade
-  memarena
   minicron
   omt
   pqueue

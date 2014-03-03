@@ -102,33 +102,35 @@ PATENT RIGHTS GRANT:
  *  A memarena (as currently implemented) is not suitable for interprocess memory sharing.  No reason it couldn't be made to work though.
  */
 
-#include "fttypes.h"
+struct memarena;
 
-MEMARENA memarena_create_presized (size_t initial_size);
+typedef struct memarena *MEMARENA;
+
+MEMARENA toku_memarena_create_presized (size_t initial_size);
 // Effect: Create a memarena with initial size.  In case of ENOMEM, aborts.
 
-MEMARENA memarena_create (void);
+MEMARENA toku_memarena_create (void);
 // Effect: Create a memarena with default initial size.  In case of ENOMEM, aborts.
 
-void memarena_clear (MEMARENA ma);
+void toku_memarena_clear (MEMARENA ma);
 // Effect: Reset the internal state so that the allocated memory can be used again.
 
-void* malloc_in_memarena (MEMARENA ma, size_t size);
+void* toku_memarena_malloc (MEMARENA ma, size_t size);
 // Effect: Allocate some memory.  The returned value remains valid until the memarena is cleared or closed.
 //  In case of ENOMEM, aborts.
 
-void *memarena_memdup (MEMARENA ma, const void *v, size_t len);
+void *toku_memarena_memdup (MEMARENA ma, const void *v, size_t len);
 
-void memarena_close(MEMARENA *ma);
+void toku_memarena_destroy(MEMARENA *ma);
 
-void memarena_move_buffers(MEMARENA dest, MEMARENA source);
+void toku_memarena_move_buffers(MEMARENA dest, MEMARENA source);
 // Effect: Move all the memory from SOURCE into DEST.  When SOURCE is closed the memory won't be freed.  When DEST is closed, the memory will be freed.  (Unless DEST moves its memory to another memarena...)
 
-size_t memarena_total_memory_size (MEMARENA);
+size_t toku_memarena_total_memory_size (MEMARENA);
 // Effect: Calculate the amount of memory used by a memory arena.
 
-size_t memarena_total_size_in_use (MEMARENA);
+size_t toku_memarena_total_size_in_use (MEMARENA);
 
-size_t memarena_total_footprint (MEMARENA);
+size_t toku_memarena_total_footprint (MEMARENA);
 
 #endif
