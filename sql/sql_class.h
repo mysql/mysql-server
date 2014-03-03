@@ -3151,7 +3151,8 @@ public:
       DBUG_PRINT("info",
                  ("change_item_tree place %p old_value %p new_value %p",
                   place, *place, new_value));
-      new_value->set_runtime_created(); /* Note the change of item tree */
+      if (new_value)
+        new_value->set_runtime_created(); /* Note the change of item tree */
       nocheck_register_item_tree_change(place, *place, mem_root);
     }
     *place= new_value;
