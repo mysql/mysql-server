@@ -663,6 +663,52 @@ typedef struct st_join_table : public Sql_alloc
   void add_prefix_tables(table_map tables)
   { prefix_tables_map|= tables; added_tables_map|= tables; }
 
+  /// Sets the pointer to the join condition of TABLE_LIST
+  void init_join_cond_ref(TABLE_LIST *tl)
+  {
+    m_join_cond_ref= tl->optim_join_cond_ref();
+  }
+
+  /// @returns join condition
+  Item *join_cond() const
+  {
+    return *m_join_cond_ref;
+  }
+
+  /**
+     Sets join condition
+     @note this also changes TABLE_LIST::m_join_cond.
+  */
+  void set_join_cond(Item *cond)
+  {
+    *m_join_cond_ref= cond;
+  }
+
+  /// @returns combined condition after attaching where and join condition
+  Item *condition() const
+  {
+    return m_condition;
+  }
+  /// Set the combined condition for a table (may be performed several times)
+  void set_condition(Item *to, uint line)
+  {
+    DBUG_PRINT("info", 
+               ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
+                m_condition, to, line, this));
+    m_condition= to;
+    quick_order_tested.clear_all();
+  }
+
+  /// Set table condition, for JOIN_TAB as well as for SELECT object
+  Item *set_jt_and_sel_condition(Item *new_cond, uint line)
+  {
+    Item *tmp_cond= m_condition;
+    set_condition(new_cond, line);
+    if (select)
+      select->cond= new_cond;
+    return tmp_cond;
+  }
+
   /// Return true if join_tab should perform a FirstMatch action
   bool do_firstmatch() const { return firstmatch_return; }
 
@@ -679,11 +725,21 @@ typedef struct st_join_table : public Sql_alloc
   POSITION      *position;      /**< points into best_positions array        */
   Key_use       *keyuse;        /**< pointer to first used key               */
   SQL_SELECT    *select;
+  QUICK_SELECT_I *quick;
 private:
   Item          *m_condition;   /**< condition for this join_tab             */
+  /**
+     Pointer to the associated join condition:
+     - if this is a table with position==NULL (e.g. internal sort/group
+     temporary table), pointer is NULL
+     - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
+     Thus, TABLE_LIST::m_join_cond and *JOIN_TAB::m_join_cond_ref are the same
+     thing (changing one changes the other; thus, optimizations made on the
+     second are reflected in SELECT_LEX::print_table_array() which uses the
+     first).
+  */
+  Item          **m_join_cond_ref;
 public:
-  QUICK_SELECT_I *quick;
-  Item         **on_expr_ref;   /**< pointer to the associated on expression */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression*/
   st_join_table *first_inner;   /**< first inner table for including outerjoin*/
   bool           found;         /**< true after all matches or null complement*/
@@ -965,27 +1021,6 @@ public:
   {
     return first_inner && first_inner == this;
   }
-  Item *condition() const
-  {
-    return m_condition;
-  }
-  void set_condition(Item *to, uint line)
-  {
-    DBUG_PRINT("info", 
-               ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
-                m_condition, to, line, this));
-    m_condition= to;
-    quick_order_tested.clear_all();
-  }
-
-  Item *set_jt_and_sel_condition(Item *new_cond, uint line)
-  {
-    Item *tmp_cond= m_condition;
-    set_condition(new_cond, line);
-    if (select)
-      select->cond= new_cond;
-    return tmp_cond;
-  }
 
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const
@@ -1034,9 +1069,9 @@ st_join_table::st_join_table()
     position(NULL),
     keyuse(NULL),
     select(NULL),
-    m_condition(NULL),
     quick(NULL),
-    on_expr_ref(NULL),
+    m_condition(NULL),
+    m_join_cond_ref(NULL),
     cond_equal(NULL),
     first_inner(NULL),
     found(false),
@@ -1461,18 +1496,14 @@ bool error_if_full_join(JOIN *join);
 bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option);
 bool mysql_prepare_and_optimize_select(THD *thd,
-                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
-                  Item *conds, SQL_I_List<ORDER> *order,
-                  SQL_I_List<ORDER> *group,
-                  Item *having, ulonglong select_type, 
-                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  List<Item> &list,
+                  ulonglong select_type,
+                  select_result *result,
                   SELECT_LEX *select_lex, bool *free_join);
 bool mysql_select(THD *thd,
-                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
-                  Item *conds, SQL_I_List<ORDER> *order,
-                  SQL_I_List<ORDER> *group,
-                  Item *having, ulonglong select_type, 
-                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  List<Item> &list,
+                  ulonglong select_type,
+                  select_result *result,
                   SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 

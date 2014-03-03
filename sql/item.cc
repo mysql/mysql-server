@@ -5078,7 +5078,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
               after the original field has been fixed and this is done in the
               fix_inner_refs() function.
             */
-            ;
             if (!(rf= new Item_outer_ref(context, this)))
               return -1;
             thd->change_item_tree(reference, rf);
@@ -7064,7 +7063,7 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
                    const char *field_name_arg,
                    bool alias_name_used_arg)
   :Item_ident(context_arg, NullS, table_name_arg, field_name_arg),
-   result_field(0), ref(item)
+   result_field(0), ref(item), chop_ref(!ref)
 {
   alias_name_used= alias_name_used_arg;
   /*
@@ -7401,6 +7400,8 @@ void Item_ref::cleanup()
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   result_field= 0;
+  if (chop_ref)
+    ref= NULL;
   DBUG_VOID_RETURN;
 }
 
