@@ -1859,7 +1859,7 @@ public:
   Stop_event() : Binary_log_event(STOP_EVENT)
   {
   }
-  // buf is advanced to point to the event data rather than header like earlier.
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   Stop_event(const char* buf,
              const Format_description_event *description_event)
   : Binary_log_event(&buf, description_event->binlog_version,
@@ -2029,7 +2029,7 @@ public:
 class Ignorable_event: public Binary_log_event
 {
 public:
-  // buf is advanced to point to the event data rather than header like earlier.
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   Ignorable_event(const char *buf, const Format_description_event *descr_event)
   :Binary_log_event(&buf, descr_event->binlog_version,
                     descr_event->server_version)
@@ -2676,7 +2676,7 @@ public:
   : Binary_log_event(UNKNOWN_EVENT)
   {
   }
-  // buf is advanced to point to the event data rather than header like earlier.
+  //buf is advanced in Binary_log_event constructor to point to beginning of post-header
   Unknown_event(const char* buf,
                 const Format_description_event *description_event)
   : Binary_log_event(&buf,

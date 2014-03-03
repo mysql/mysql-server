@@ -1105,7 +1105,6 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   ptr_buffer+= ENCODED_GNO_LENGTH;
     /* fetch the commit timestamp */
   /*Old masters will not have this part, so we should prevent segfaulting */
-  //assert(buffer < common_header_len);
   if (static_cast<unsigned int>(ptr_buffer - (buffer - common_header_len)) < event_len &&
       *ptr_buffer == G_COMMIT_TS)
   {
