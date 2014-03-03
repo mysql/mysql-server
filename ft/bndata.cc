@@ -457,7 +457,6 @@ void bn_data::get_space_for_overwrite(
     paranoid_invariant(klp!=nullptr);
     // Key never changes.
     paranoid_invariant(keylen_from_klpair_len(klpair_len) == keylen);
-    paranoid_invariant(!memcmp(klp->key, keyp, keylen));
 
     size_t new_le_offset = toku_mempool_get_offset_from_pointer_and_base(&this->m_buffer_mempool, new_le);
     paranoid_invariant(new_le_offset <= UINT32_MAX - new_size);  // Not using > 4GB
