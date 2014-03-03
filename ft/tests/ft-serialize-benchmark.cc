@@ -282,7 +282,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy, int ser_runs, int de
     toku_blocktable_destroy(&ft_h->blocktable);
     toku_free(ft_h->h);
     toku_free(ft_h);
-    toku_free(ft_h);
 
     r = close(fd); assert(r != -1);
 }
