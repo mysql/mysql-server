@@ -90,10 +90,103 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-#include "dmt-wrapper.h"
 #include <util/dmt.h>
 
-typedef DMTVALUE TESTVALUE;
+typedef void *DMTVALUE;
+
+class dmtvalue_writer {
+public:
+    size_t get_size(void) const {
+        return sizeof(DMTVALUE);
+    }
+    void write_to(DMTVALUE *const dest) const {
+        *dest = value;
+    }
+
+    dmtvalue_writer(DMTVALUE _value)
+        : value(_value) {
+    }
+    dmtvalue_writer(const uint32_t size UU(), DMTVALUE *const src)
+        : value(*src) {
+        paranoid_invariant(size == sizeof(DMTVALUE));
+    }
+private:
+    const DMTVALUE value;
+};
+
+typedef toku::dmt<DMTVALUE, DMTVALUE, dmtvalue_writer> *DMT;
+
+static int dmt_insert_at(DMT dmt, DMTVALUE value, uint32_t index) {
+    dmtvalue_writer functor(value);
+    return dmt->insert_at(functor, index);
+}
+
+static DMT dmt_create_from_sorted_array(DMTVALUE *values, uint32_t numvalues) {
+    DMT XMALLOC(dmt);
+    dmt->create();
+    for (uint32_t i = 0; i < numvalues; i++) {
+        dmt_insert_at(dmt, values[i], i);
+    }
+    return dmt;
+}
+
+struct heftor {
+    int (*h)(DMTVALUE, void *v);
+    void *v;
+};
+
+int call_heftor(const uint32_t size, const DMTVALUE &v, const heftor &htor);
+int call_heftor(const uint32_t size, const DMTVALUE &v, const heftor &htor) {
+    invariant(size == sizeof(DMTVALUE));
+    return htor.h(const_cast<DMTVALUE>(v), htor.v);
+}
+
+static int dmt_insert(DMT dmt, DMTVALUE value, int(*h)(DMTVALUE, void*v), void *v, uint32_t *index) {
+    struct heftor htor = { .h = h, .v = v };
+    dmtvalue_writer functor(value);
+    return dmt->insert<heftor, call_heftor>(functor, htor, index);
+}
+
+static int dmt_find_zero(DMT V, int (*h)(DMTVALUE, void*extra), void*extra, DMTVALUE *value, uint32_t *index) {
+    struct heftor htor = { .h = h, .v = extra };
+    uint32_t ignore;
+    return V->find_zero<heftor, call_heftor>(htor, &ignore, value, index);
+}
+
+static int dmt_find(DMT V, int (*h)(DMTVALUE, void*extra), void*extra, int direction, DMTVALUE *value, uint32_t *index) {
+    struct heftor htor = { .h = h, .v = extra };
+    uint32_t ignore;
+    return V->find<heftor, call_heftor>(htor, direction, &ignore, value, index);
+}
+
+static int dmt_split_at(DMT dmt, DMT *newdmtp, uint32_t index) {
+    if (index > dmt->size()) { return EINVAL; }
+    DMT XMALLOC(newdmt);
+    newdmt->create();
+    int r;
+
+    for (uint32_t i = index; i < dmt->size(); i++) {
+        DMTVALUE v;
+        r = dmt->fetch(i, nullptr, &v);
+        invariant_zero(r);
+        r = dmt_insert_at(newdmt, v, i-index);
+        invariant_zero(r);
+    }
+    if (dmt->size() > 0) {
+        for (uint32_t i = dmt->size(); i > index; i--) {
+            r = dmt->delete_at(i - 1);
+            invariant_zero(r);
+        }
+    }
+    r = 0;
+
+    if (r != 0) {
+        toku_free(newdmt);
+    } else {
+        *newdmtp = newdmt;
+    }
+    return r;
+}
 
 static void
 parse_args (int argc, const char *argv[]) {
@@ -133,7 +226,6 @@ enum close_when_done {
     KEEP_WHEN_DONE
 };
 enum create_type {
-    STEAL_ARRAY,
     BATCH_INSERT,
     INSERT_AT,
     INSERT_AT_ALMOST_RANDOM,
@@ -141,18 +233,18 @@ enum create_type {
 
 /* Globals */
 DMT global_dmt;
-TESTVALUE*       values = NULL;
-struct value*   nums   = NULL;
+DMTVALUE*       values = nullptr;
+struct value*   nums   = nullptr;
 uint32_t       length;
 
 static void
 cleanup_globals (void) {
     assert(values);
     toku_free(values);
-    values = NULL;
+    values = nullptr;
     assert(nums);
     toku_free(nums);
-    nums = NULL;
+    nums = nullptr;
 }
 
 const unsigned int random_seed = 0xFEADACBA;
@@ -178,7 +270,7 @@ init_identity_values (unsigned int seed, uint32_t num_elements) {
 
     for (i = 0; i < length; i++) {
         nums[i].number   = i;
-        values[i]        = (TESTVALUE)&nums[i];
+        values[i]        = (DMTVALUE)&nums[i];
     }
 }
 
@@ -193,7 +285,7 @@ init_distinct_sorted_values (unsigned int seed, uint32_t num_elements) {
     for (i = 0; i < length; i++) {
         number          += (uint32_t)(random() % 32) + 1;
         nums[i].number   = number;
-        values[i]        = (TESTVALUE)&nums[i];
+        values[i]        = (DMTVALUE)&nums[i];
     }
 }
 
@@ -229,25 +321,22 @@ static void
 test_close (enum close_when_done do_close) {
     if (do_close == KEEP_WHEN_DONE) return;
     assert(do_close == CLOSE_WHEN_DONE);
-    toku_dmt_destroy(&global_dmt);
-    assert(global_dmt==NULL);
+    global_dmt->destroy();
+    toku_free(global_dmt);
+    global_dmt = nullptr;
 }
 
 static void
 test_create (enum close_when_done do_close) {
-    int r;
-    global_dmt = NULL;
-
-    r = toku_dmt_create(&global_dmt);
-    CKERR(r);
-    assert(global_dmt!=NULL);
+    XMALLOC(global_dmt);
+    global_dmt->create();
     test_close(do_close);
 }
 
 static void
 test_create_size (enum close_when_done do_close) {
     test_create(KEEP_WHEN_DONE);
-    assert(toku_dmt_size(global_dmt) == 0);
+    assert(global_dmt->size() == 0);
     test_close(do_close);
 }
 
@@ -258,24 +347,24 @@ test_create_insert_at_almost_random (enum close_when_done do_close) {
     uint32_t size = 0;
 
     test_create(KEEP_WHEN_DONE);
-    r = toku_dmt_insert_at(global_dmt, values[0], toku_dmt_size(global_dmt)+1);
+    r = dmt_insert_at(global_dmt, values[0], global_dmt->size()+1);
     CKERR2(r, EINVAL);
-    r = toku_dmt_insert_at(global_dmt, values[0], toku_dmt_size(global_dmt)+2);
+    r = dmt_insert_at(global_dmt, values[0], global_dmt->size()+2);
     CKERR2(r, EINVAL);
     for (i = 0; i < length/2; i++) {
-        assert(size==toku_dmt_size(global_dmt));
-        r = toku_dmt_insert_at(global_dmt, values[i], i);
+        assert(size==global_dmt->size());
+        r = dmt_insert_at(global_dmt, values[i], i);
         CKERR(r);
-        assert(++size==toku_dmt_size(global_dmt));
-        r = toku_dmt_insert_at(global_dmt, values[length-1-i], i+1);
+        assert(++size==global_dmt->size());
+        r = dmt_insert_at(global_dmt, values[length-1-i], i+1);
         CKERR(r);
-        assert(++size==toku_dmt_size(global_dmt));
+        assert(++size==global_dmt->size());
     }
-    r = toku_dmt_insert_at(global_dmt, values[0], toku_dmt_size(global_dmt)+1);
+    r = dmt_insert_at(global_dmt, values[0], global_dmt->size()+1);
     CKERR2(r, EINVAL);
-    r = toku_dmt_insert_at(global_dmt, values[0], toku_dmt_size(global_dmt)+2);
+    r = dmt_insert_at(global_dmt, values[0], global_dmt->size()+2);
     CKERR2(r, EINVAL);
-    assert(size==toku_dmt_size(global_dmt));
+    assert(size==global_dmt->size());
     test_close(do_close);
 }
 
@@ -286,39 +375,30 @@ test_create_insert_at_sequential (enum close_when_done do_close) {
     uint32_t size = 0;
 
     test_create(KEEP_WHEN_DONE);
-    r = toku_dmt_insert_at(global_dmt, values[0], toku_dmt_size(global_dmt)+1);
+    r = dmt_insert_at(global_dmt, values[0], global_dmt->size()+1);
     CKERR2(r, EINVAL);
-    r = toku_dmt_insert_at(global_dmt, values[0], toku_dmt_size(global_dmt)+2);
+    r = dmt_insert_at(global_dmt, values[0], global_dmt->size()+2);
     CKERR2(r, EINVAL);
     for (i = 0; i < length; i++) {
-        assert(size==toku_dmt_size(global_dmt));
-        r = toku_dmt_insert_at(global_dmt, values[i], i);
+        assert(size==global_dmt->size());
+        r = dmt_insert_at(global_dmt, values[i], i);
         CKERR(r);
-        assert(++size==toku_dmt_size(global_dmt));
+        assert(++size==global_dmt->size());
     }
-    r = toku_dmt_insert_at(global_dmt, values[0], toku_dmt_size(global_dmt)+1);
+    r = dmt_insert_at(global_dmt, values[0], global_dmt->size()+1);
     CKERR2(r, EINVAL);
-    r = toku_dmt_insert_at(global_dmt, values[0], toku_dmt_size(global_dmt)+2);
+    r = dmt_insert_at(global_dmt, values[0], global_dmt->size()+2);
     CKERR2(r, EINVAL);
-    assert(size==toku_dmt_size(global_dmt));
+    assert(size==global_dmt->size());
     test_close(do_close);
 }
 
 static void
 test_create_from_sorted_array (enum create_type create_choice, enum close_when_done do_close) {
-    int r;
-    global_dmt = NULL;
+    global_dmt = nullptr;
 
     if (create_choice == BATCH_INSERT) {
-        r = toku_dmt_create_from_sorted_array(&global_dmt, values, length);
-        CKERR(r);
-    }
-    else if (create_choice == STEAL_ARRAY) {
-        TESTVALUE* MALLOC_N(length, values_copy);
-        memcpy(values_copy, values, length*sizeof(*values));
-        r = toku_dmt_create_steal_sorted_array(&global_dmt, &values_copy, length, length);
-        CKERR(r);
-        assert(values_copy==NULL);
+        global_dmt = dmt_create_from_sorted_array(values, length);
     }
     else if (create_choice == INSERT_AT) {
         test_create_insert_at_sequential(KEEP_WHEN_DONE);
@@ -326,33 +406,35 @@ test_create_from_sorted_array (enum create_type create_choice, enum close_when_d
     else if (create_choice == INSERT_AT_ALMOST_RANDOM) {
         test_create_insert_at_almost_random(KEEP_WHEN_DONE);
     }
-    else assert(false);
+    else {
+        assert(false);
+    }
 
-    assert(global_dmt!=NULL);
+    assert(global_dmt!=nullptr);
     test_close(do_close);
 }
 
 static void
 test_create_from_sorted_array_size (enum create_type create_choice, enum close_when_done do_close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
-    assert(toku_dmt_size(global_dmt)==length);
+    assert(global_dmt->size()==length);
     test_close(do_close);
 }    
 
 static void
-test_fetch_verify (DMT dmtree, TESTVALUE* val, uint32_t len ) {
+test_fetch_verify (DMT dmtree, DMTVALUE* val, uint32_t len ) {
     uint32_t i;
     int r;
-    TESTVALUE v = (TESTVALUE)&i;
-    TESTVALUE oldv = v;
+    DMTVALUE v = (DMTVALUE)&i;
+    DMTVALUE oldv = v;
 
-    assert(len == toku_dmt_size(dmtree));
+    assert(len == dmtree->size());
     for (i = 0; i < len; i++) {
         assert(oldv!=val[i]);
-        v = NULL;
-        r = toku_dmt_fetch(dmtree, i, &v);
+        v = nullptr;
+        r = dmtree->fetch(i, nullptr, &v);
         CKERR(r);
-        assert(v != NULL);
+        assert(v != nullptr);
         assert(v != oldv);
         assert(v == val[i]);
         assert(V(v)->number == V(val[i])->number);
@@ -361,7 +443,7 @@ test_fetch_verify (DMT dmtree, TESTVALUE* val, uint32_t len ) {
 
     for (i = len; i < len*2; i++) {
         v = oldv;
-        r = toku_dmt_fetch(dmtree, i, &v);
+        r = dmtree->fetch(i, nullptr, &v);
         CKERR2(r, EINVAL);
         assert(v == oldv);
     }
@@ -378,23 +460,38 @@ test_create_fetch_verify (enum create_type create_choice, enum close_when_done d
 static int iterate_helper_error_return = 1;
 
 static int
-iterate_helper (TESTVALUE v, uint32_t idx, void* extra) {
-    if (extra == NULL) return iterate_helper_error_return;
-    TESTVALUE* vals = (TESTVALUE *)extra;
-    assert(v != NULL);
+iterate_helper (DMTVALUE v, uint32_t idx, void* extra) {
+    if (extra == nullptr) return iterate_helper_error_return;
+    DMTVALUE* vals = (DMTVALUE *)extra;
+    assert(v != nullptr);
     assert(v == vals[idx]);
     assert(V(v)->number == V(vals[idx])->number);
     return 0;
 }
+struct functor {
+    int (*f)(DMTVALUE, uint32_t, void *);
+    void *v;
+};
+
+int call_functor(const uint32_t size, const DMTVALUE &v, uint32_t idx, functor *const ftor);
+int call_functor(const uint32_t size, const DMTVALUE &v, uint32_t idx, functor *const ftor) {
+    invariant(size == sizeof(DMTVALUE));
+    return ftor->f(const_cast<DMTVALUE>(v), idx, ftor->v);
+}
+
+static int dmt_iterate(DMT dmt, int (*f)(DMTVALUE, uint32_t, void*), void*v) {
+    struct functor ftor = { .f = f, .v = v };
+    return dmt->iterate<functor, call_functor>(&ftor);
+}
 
 static void
-test_iterate_verify (DMT dmtree, TESTVALUE* vals, uint32_t len) {
+test_iterate_verify (DMT dmtree, DMTVALUE* vals, uint32_t len) {
     int r;
     iterate_helper_error_return = 0;
-    r = toku_dmt_iterate(dmtree, iterate_helper, (void*)vals);
+    r = dmt_iterate(dmtree, iterate_helper, (void*)vals);
     CKERR(r);
     iterate_helper_error_return = 0xFEEDABBA;
-    r = toku_dmt_iterate(dmtree, iterate_helper, NULL);
+    r = dmt_iterate(dmtree, iterate_helper, nullptr);
     if (!len) {
         CKERR2(r, 0);
     }
@@ -431,19 +528,26 @@ permute_array (uint32_t* arr, uint32_t len) {
     }
 }
 
+static int
+dmt_set_at (DMT dmt, DMTVALUE value, uint32_t index) {
+    int r = dmt->delete_at(index);
+    if (r!=0) return r;
+    return dmt_insert_at(dmt, value, index);
+}
+
 static void
 test_create_set_at (enum create_type create_choice, enum close_when_done do_close) {
     uint32_t i = 0;
 
-    struct value*   old_nums   = NULL;
+    struct value*   old_nums   = nullptr;
     MALLOC_N(length, old_nums);
     assert(nums);
 
-    uint32_t* perm = NULL;
+    uint32_t* perm = nullptr;
     MALLOC_N(length, perm);
     assert(perm);
 
-    TESTVALUE* old_values = NULL;
+    DMTVALUE* old_values = nullptr;
     MALLOC_N(length, old_values);
     assert(old_values);
     
@@ -459,22 +563,22 @@ test_create_set_at (enum create_type create_choice, enum close_when_done do_clos
     }
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
     int r;
-    r = toku_dmt_set_at (global_dmt, values[0], length);
+    r = dmt_set_at (global_dmt, values[0], length);
     CKERR2(r,EINVAL);    
-    r = toku_dmt_set_at (global_dmt, values[0], length+1);
+    r = dmt_set_at (global_dmt, values[0], length+1);
     CKERR2(r,EINVAL);    
     for (i = 0; i < length; i++) {
         uint32_t choice = perm[i];
         values[choice] = &nums[choice];
         nums[choice].number = (uint32_t)random();
-        r = toku_dmt_set_at (global_dmt, values[choice], choice);
+        r = dmt_set_at (global_dmt, values[choice], choice);
         CKERR(r);
         test_iterate_verify(global_dmt, values, length);
         test_fetch_verify(global_dmt, values, length);
     }
-    r = toku_dmt_set_at (global_dmt, values[0], length);
+    r = dmt_set_at (global_dmt, values[0], length);
     CKERR2(r,EINVAL);    
-    r = toku_dmt_set_at (global_dmt, values[0], length+1);
+    r = dmt_set_at (global_dmt, values[0], length+1);
     CKERR2(r,EINVAL);    
 
     toku_free(perm);
@@ -485,8 +589,8 @@ test_create_set_at (enum create_type create_choice, enum close_when_done do_clos
 }
 
 static int
-insert_helper (TESTVALUE value, void* extra_insert) {
-    TESTVALUE to_insert = (DMTVALUE)extra_insert;
+insert_helper (DMTVALUE value, void* extra_insert) {
+    DMTVALUE to_insert = (DMTVALUE)extra_insert;
     assert(to_insert);
 
     if (V(value)->number < V(to_insert)->number) return -1;
@@ -498,7 +602,7 @@ static void
 test_create_insert (enum close_when_done do_close) {
     uint32_t i = 0;
 
-    uint32_t* perm = NULL;
+    uint32_t* perm = nullptr;
     MALLOC_N(length, perm);
     assert(perm);
 
@@ -510,11 +614,11 @@ test_create_insert (enum close_when_done do_close) {
     length = 0;
     while (length < size) {
         uint32_t choice = perm[length];
-        TESTVALUE to_insert = &nums[choice];
+        DMTVALUE to_insert = &nums[choice];
         uint32_t idx = UINT32_MAX;
 
-        assert(length==toku_dmt_size(global_dmt));
-        r = toku_dmt_insert(global_dmt, to_insert, insert_helper, to_insert, &idx);
+        assert(length==global_dmt->size());
+        r = dmt_insert(global_dmt, to_insert, insert_helper, to_insert, &idx);
         CKERR(r);
         assert(idx <= length);
         if (idx > 0) {
@@ -524,7 +628,7 @@ test_create_insert (enum close_when_done do_close) {
             assert(V(to_insert)->number < V(values[idx])->number);
         }
         length++;
-        assert(length==toku_dmt_size(global_dmt));
+        assert(length==global_dmt->size());
         /* Make room */
         for (i = length-1; i > idx; i--) {
             values[i] = values[i-1];
@@ -534,11 +638,11 @@ test_create_insert (enum close_when_done do_close) {
         test_iterate_verify(global_dmt, values, length);
 
         idx = UINT32_MAX;
-        r = toku_dmt_insert(global_dmt, to_insert, insert_helper, to_insert, &idx);
+        r = dmt_insert(global_dmt, to_insert, insert_helper, to_insert, &idx);
         CKERR2(r, DB_KEYEXIST);
         assert(idx < length);
         assert(V(values[idx])->number == V(to_insert)->number);
-        assert(length==toku_dmt_size(global_dmt));
+        assert(length==global_dmt->size());
 
         test_iterate_verify(global_dmt, values, length);
         test_fetch_verify(global_dmt, values, length);
@@ -555,16 +659,16 @@ test_create_delete_at (enum create_type create_choice, enum close_when_done do_c
     int r = ENOSYS;
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
 
-    assert(length == toku_dmt_size(global_dmt));
-    r = toku_dmt_delete_at(global_dmt, length);
+    assert(length == global_dmt->size());
+    r = global_dmt->delete_at(length);
     CKERR2(r,EINVAL);
-    assert(length == toku_dmt_size(global_dmt));
-    r = toku_dmt_delete_at(global_dmt, length+1);
+    assert(length == global_dmt->size());
+    r = global_dmt->delete_at(length+1);
     CKERR2(r,EINVAL);
     while (length > 0) {
-        assert(length == toku_dmt_size(global_dmt));
+        assert(length == global_dmt->size());
         uint32_t index_to_delete = random()%length;
-        r = toku_dmt_delete_at(global_dmt, index_to_delete);
+        r = global_dmt->delete_at(index_to_delete);
         CKERR(r);
         for (i = index_to_delete+1; i < length; i++) {
             values[i-1] = values[i];
@@ -574,38 +678,65 @@ test_create_delete_at (enum create_type create_choice, enum close_when_done do_c
         test_iterate_verify(global_dmt, values, length);
     }
     assert(length == 0);
-    assert(length == toku_dmt_size(global_dmt));
-    r = toku_dmt_delete_at(global_dmt, length);
+    assert(length == global_dmt->size());
+    r = global_dmt->delete_at(length);
     CKERR2(r, EINVAL);
-    assert(length == toku_dmt_size(global_dmt));
-    r = toku_dmt_delete_at(global_dmt, length+1);
+    assert(length == global_dmt->size());
+    r = global_dmt->delete_at(length+1);
     CKERR2(r, EINVAL);
     test_close(do_close);
+}
+
+static int dmt_merge(DMT leftdmt, DMT rightdmt, DMT *newdmtp) {
+    DMT XMALLOC(newdmt);
+    newdmt->create();
+    int r;
+    for (uint32_t i = 0; i < leftdmt->size(); i++) {
+        DMTVALUE v;
+        r = leftdmt->fetch(i, nullptr, &v);
+        invariant_zero(r);
+        r = newdmt->insert_at(v, i);
+        invariant_zero(r);
+    }
+    uint32_t offset = leftdmt->size();
+    for (uint32_t i = 0; i < rightdmt->size(); i++) {
+        DMTVALUE v;
+        r = rightdmt->fetch(i, nullptr, &v);
+        invariant_zero(r);
+        r = newdmt->insert_at(v, i+offset);
+        invariant_zero(r);
+    }
+    leftdmt->destroy();
+    rightdmt->destroy();
+    toku_free(leftdmt);
+    toku_free(rightdmt);
+    *newdmtp = newdmt;
+    return 0;
 }
 
 static void
 test_split_merge (enum create_type create_choice, enum close_when_done do_close) {
     int r = ENOSYS;
     uint32_t i = 0;
-    DMT left_split = NULL;
-    DMT right_split = NULL;
+    DMT left_split = nullptr;
+    DMT right_split = nullptr;
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
 
     for (i = 0; i <= length; i++) {
-        r = toku_dmt_split_at(global_dmt, &right_split, length+1);
+        r = dmt_split_at(global_dmt, &right_split, length+1);
         CKERR2(r,EINVAL);
-        r = toku_dmt_split_at(global_dmt, &right_split, length+2);
+        r = dmt_split_at(global_dmt, &right_split, length+2);
         CKERR2(r,EINVAL);
 
         //
         // test successful split
         //
-        r = toku_dmt_split_at(global_dmt, &right_split, i);
+        r = dmt_split_at(global_dmt, &right_split, i);
         CKERR(r);
         left_split = global_dmt;
-        global_dmt = NULL;
-        assert(toku_dmt_size(left_split) == i);
-        assert(toku_dmt_size(right_split) == length - i);
+        global_dmt = nullptr;
+        assert(left_split->size() == i);
+        assert(right_split->size() == length - i);
         test_fetch_verify(left_split, values, i);
         test_iterate_verify(left_split, values, i);
         test_fetch_verify(right_split, &values[i], length - i);
@@ -613,31 +744,31 @@ test_split_merge (enum create_type create_choice, enum close_when_done do_close)
         //
         // verify that new global_dmt's cannot do bad splits
         //
-        r = toku_dmt_split_at(left_split, &global_dmt, i+1);
+        r = dmt_split_at(left_split, &global_dmt, i+1);
         CKERR2(r,EINVAL);
-        assert(toku_dmt_size(left_split) == i);
-        assert(toku_dmt_size(right_split) == length - i);
-        r = toku_dmt_split_at(left_split, &global_dmt, i+2);
+        assert(left_split->size() == i);
+        assert(right_split->size() == length - i);
+        r = dmt_split_at(left_split, &global_dmt, i+2);
         CKERR2(r,EINVAL);
-        assert(toku_dmt_size(left_split) == i);
-        assert(toku_dmt_size(right_split) == length - i);
-        r = toku_dmt_split_at(right_split, &global_dmt, length - i + 1);
+        assert(left_split->size() == i);
+        assert(right_split->size() == length - i);
+        r = dmt_split_at(right_split, &global_dmt, length - i + 1);
         CKERR2(r,EINVAL);
-        assert(toku_dmt_size(left_split) == i);
-        assert(toku_dmt_size(right_split) == length - i);
-        r = toku_dmt_split_at(right_split, &global_dmt, length - i + 1);
+        assert(left_split->size() == i);
+        assert(right_split->size() == length - i);
+        r = dmt_split_at(right_split, &global_dmt, length - i + 1);
         CKERR2(r,EINVAL);
-        assert(toku_dmt_size(left_split) == i);
-        assert(toku_dmt_size(right_split) == length - i);
+        assert(left_split->size() == i);
+        assert(right_split->size() == length - i);
 
         //
         // test merge
         //
-        r = toku_dmt_merge(left_split,right_split,&global_dmt);
+        r = dmt_merge(left_split,right_split,&global_dmt);
         CKERR(r);
-        left_split = NULL;
-        right_split = NULL;
-        assert(toku_dmt_size(global_dmt) == length);
+        left_split = nullptr;
+        right_split = nullptr;
+        assert(global_dmt->size() == length);
         test_fetch_verify(global_dmt, values, length);
         test_iterate_verify(global_dmt, values, length);
     }
@@ -694,7 +825,7 @@ typedef struct {
 
 static int
 test_heaviside (DMTVALUE v_dmt, void* x) {
-    TESTVALUE v = (DMTVALUE) v_dmt;
+    DMTVALUE v = (DMTVALUE) v_dmt;
     h_extra* extra = (h_extra*)x;
     assert(v && x);
     assert(extra->first_zero <= extra->first_pos);
@@ -717,19 +848,19 @@ test_find_dir (int dir, void* extra, int (*h)(DMTVALUE, void*),
 	       uint32_t number_expect, bool UU(cursor_valid)) {
     uint32_t idx     = UINT32_MAX;
     uint32_t old_idx = idx;
-    TESTVALUE dmt_val;
+    DMTVALUE dmt_val;
     int r;
 
-    dmt_val = NULL;
+    dmt_val = nullptr;
 
-    /* Verify we can pass NULL value. */
-    dmt_val = NULL;
+    /* Verify we can pass nullptr value. */
+    dmt_val = nullptr;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_dmt_find_zero(global_dmt, h, extra,      NULL, &idx);
+        r = dmt_find_zero(global_dmt, h, extra,      nullptr, &idx);
     }
     else {
-        r = toku_dmt_find(     global_dmt, h, extra, dir, NULL, &idx);
+        r = dmt_find(     global_dmt, h, extra, dir, nullptr, &idx);
     }
     CKERR2(r, r_expect);
     if (idx_will_change) {
@@ -738,38 +869,38 @@ test_find_dir (int dir, void* extra, int (*h)(DMTVALUE, void*),
     else {
         assert(idx == old_idx);
     }
-    assert(dmt_val == NULL);
+    assert(dmt_val == nullptr);
     
-    /* Verify we can pass NULL idx. */
-    dmt_val  = NULL;
+    /* Verify we can pass nullptr idx. */
+    dmt_val  = nullptr;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_dmt_find_zero(global_dmt, h, extra,      &dmt_val, 0);
+        r = dmt_find_zero(global_dmt, h, extra,      &dmt_val, 0);
     }
     else {
-        r = toku_dmt_find(     global_dmt, h, extra, dir, &dmt_val, 0);
+        r = dmt_find(     global_dmt, h, extra, dir, &dmt_val, 0);
     }
     CKERR2(r, r_expect);
     assert(idx == old_idx);
     if (r == DB_NOTFOUND) {
-        assert(dmt_val == NULL);
+        assert(dmt_val == nullptr);
     }
     else {
         assert(V(dmt_val)->number == number_expect);
     }
 
-    /* Verify we can pass NULL both. */
-    dmt_val  = NULL;
+    /* Verify we can pass nullptr both. */
+    dmt_val  = nullptr;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_dmt_find_zero(global_dmt, h, extra,      NULL, 0);
+        r = dmt_find_zero(global_dmt, h, extra,      nullptr, 0);
     }
     else {
-        r = toku_dmt_find(     global_dmt, h, extra, dir, NULL, 0);
+        r = dmt_find(     global_dmt, h, extra, dir, nullptr, 0);
     }
     CKERR2(r, r_expect);
     assert(idx == old_idx);
-    assert(dmt_val == NULL);
+    assert(dmt_val == nullptr);
 }
 
 static void
@@ -860,30 +991,29 @@ test_clone(uint32_t nelts)
 // zero, also tests that you still get a valid DMT back and that the way
 // to deallocate it still works.
 {
-    DMT src = NULL, dest = NULL;
-    int r;
+    DMT src = nullptr, dest = nullptr;
+    int r = 0;
 
-    r = toku_dmt_create(&src);
-    assert_zero(r);
+    XMALLOC(src);
+    src->create();
     for (long i = 0; i < nelts; ++i) {
-        r = toku_dmt_insert_at(src, (DMTVALUE) i, i);
+        r = dmt_insert_at(src, (DMTVALUE) i, i);
         assert_zero(r);
     }
 
-    r = toku_dmt_clone_noptr(&dest, src);
-    assert_zero(r);
-    assert(dest != NULL);
-    assert(toku_dmt_size(dest) == nelts);
+    XMALLOC(dest);
+    dest->clone(*src);
+    assert(dest->size() == nelts);
     for (long i = 0; i < nelts; ++i) {
         DMTVALUE v;
         long l;
-        r = toku_dmt_fetch(dest, i, &v);
+        r = dest->fetch(i, nullptr, &v);
         assert_zero(r);
         l = (long) v;
         assert(l == i);
     }
-    toku_dmt_destroy(&dest);
-    toku_dmt_destroy(&src);
+    dest->destroy();
+    src->destroy();
 }
 
 int
@@ -893,7 +1023,6 @@ test_main(int argc, const char *argv[]) {
     test_create(      CLOSE_WHEN_DONE);
     test_create_size( CLOSE_WHEN_DONE);
     runtests_create_choice(BATCH_INSERT);
-    runtests_create_choice(STEAL_ARRAY);
     runtests_create_choice(INSERT_AT);
     runtests_create_choice(INSERT_AT_ALMOST_RANDOM);
     test_clone(0);
