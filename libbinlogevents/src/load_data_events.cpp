@@ -82,7 +82,7 @@ Execute_load_query_event(const char* buf,
       dup_handling > LOAD_DUP_REPLACE)
     return;
 
-  memcpy(&file_id, buf + ELQ_FILE_ID_OFFSET, sizeof(file_id));
+  memcpy(&file_id, buf + ELQ_FILE_ID_OFFSET, 4);
   file_id= le32toh(file_id);
 }
 
@@ -335,7 +335,7 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
       deleted by EXEC_LOAD_EVENT or DELETE_FILE_EVENT.
     */
     memcpy(&file_id, buf + header_len + load_header_len + CF_FILE_ID_OFFSET,
-           sizeof(file_id));
+           4);
     file_id= le32toh(file_id);
 
    /**
@@ -434,7 +434,7 @@ Append_block_event::Append_block_event(const char* buf, unsigned int len,
   if (len < total_header_len)
     return;
 
-  memcpy(&file_id, buf + AB_FILE_ID_OFFSET, sizeof(file_id));
+  memcpy(&file_id, buf + AB_FILE_ID_OFFSET, 4);
   file_id= le32toh(file_id);
 
   block= (unsigned char*)buf + append_block_header_len;
