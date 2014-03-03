@@ -1185,7 +1185,7 @@ void dmt<dmtdata_t, dmtdataout_t, dmtwriter_t>::builder::append(const dmtwriter_
     paranoid_invariant(this->temp_valid);
     //NOTE: Always use d.a.num_values for size because we have not yet created root.
     if (this->temp.values_same_size && (this->temp.d.a.num_values == 0 || value.get_size() == this->temp.value_length)) {
-        this->temp.insert_at_array_end<false>(value);
+        temp.insert_at_array_end<false>(value);
         return;
     }
     if (this->temp.is_array) {

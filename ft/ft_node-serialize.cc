@@ -315,9 +315,9 @@ serialize_nonleaf_childinfo(NONLEAF_CHILDINFO bnc, struct wbuf *wb)
     FIFO_ITERATE(
         bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh,
         {
-            paranoid_invariant((int)type>=0 && type<256);
-            wbuf_nocrc_char(wb, (unsigned char)type);
-            wbuf_nocrc_char(wb, (unsigned char)is_fresh);
+            paranoid_invariant((int) type >= 0 && (int) type < 256);
+            wbuf_nocrc_char(wb, (unsigned char) type);
+            wbuf_nocrc_char(wb, (unsigned char) is_fresh);
             wbuf_MSN(wb, msn);
             wbuf_nocrc_xids(wb, xids);
             wbuf_nocrc_bytes(wb, key, keylen);
