@@ -472,10 +472,6 @@ enum Log_event_type
   PREVIOUS_GTIDS_LOG_EVENT= 35,
 
   /**
-    A user defined event
-  */
-  USER_DEFINED_EVENT= 36,
-  /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
   */
@@ -861,7 +857,7 @@ public:
      is not to be handled, it does not exist in binlogs, it does not have a
      format).
   */
-  static const int LOG_EVENT_TYPES= (ENUM_END_EVENT - 2);
+  static const int LOG_EVENT_TYPES= (ENUM_END_EVENT - 1);
 
   /**
     The lengths for the fixed data part of each event.
@@ -1808,7 +1804,6 @@ class Start_event_v3: public Binary_log_event
 class Format_description_event: public virtual Start_event_v3
 {
 public:
-  uint32_t created_ts;
   /**
    The size of the fixed header which _all_ events have
    (for binlogs written by this version, this is equal to

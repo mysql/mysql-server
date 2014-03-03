@@ -464,8 +464,8 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        Gtid_event::POST_HEADER_LENGTH,         /*ANONYMOUS_GTID_EVENT*/
        IGNORABLE_HEADER_LEN
     };
-    post_header_len= (uint8_t*)bapi_malloc(number_of_event_types * sizeof(uint8_t)
-                                           + BINLOG_CHECKSUM_ALG_DESC_LEN);
+    post_header_len=  new uint8_t [number_of_event_types * sizeof(uint8_t) +
+                                   BINLOG_CHECKSUM_ALG_DESC_LEN];
 
     if (post_header_len)
     {
@@ -525,8 +525,8 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       RAND_HEADER_LEN,
       USER_VAR_HEADER_LEN
     };
-    post_header_len= (uint8_t*)bapi_malloc(number_of_event_types * sizeof(uint8_t)
-                                           + BINLOG_CHECKSUM_ALG_DESC_LEN);
+    post_header_len= new uint8_t [number_of_event_types * sizeof(uint8_t) +
+                                  BINLOG_CHECKSUM_ALG_DESC_LEN];
     if (post_header_len)
     {
       memcpy(post_header_len, server_event_header_length_ver_1_3, number_of_event_types);
@@ -638,13 +638,14 @@ Format_description_event(const char* buf, unsigned int event_len,
     return; /* sanity check */
   number_of_event_types=
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
-   post_header_len= (uint8_t*) bapi_memdup((unsigned char*)buf +
-                                           ST_COMMON_HEADER_LEN_OFFSET + 1,
-                                           number_of_event_types *
-                                           sizeof(*post_header_len));
+
+  post_header_len=  new uint8_t [number_of_event_types * sizeof(*post_header_len)];
+  memcpy(post_header_len, buf + ST_COMMON_HEADER_LEN_OFFSET + 1,
+         number_of_event_types * sizeof(*post_header_len));
+
   calc_server_version_split();
   if ((ver_calc= get_product_version()) >= checksum_version_product)
-{
+  {
     /* the last bytes are the checksum alg desc and value (or value's room) */
     number_of_event_types -= BINLOG_CHECKSUM_ALG_DESC_LEN;
     /*
@@ -732,7 +733,7 @@ Format_description_event(const char* buf, unsigned int event_len,
     {
       //TODO: modify the below comment
       /* this makes is_valid() return false. */
-      bapi_free(post_header_len);
+      delete[] post_header_len;
       post_header_len= NULL;
       return;
     }
@@ -771,7 +772,7 @@ Format_description_event(const char* buf, unsigned int event_len,
 Format_description_event::~Format_description_event()
 {
   if(post_header_len)
-    bapi_free((void*)post_header_len);
+    delete[] post_header_len;
 }
 
 /********************************************************************
