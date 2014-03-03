@@ -213,7 +213,7 @@ test_le_offsets (void) {
 static void
 test_ule_packs_to_nothing (ULE ule) {
     LEAFENTRY le;
-    int r = le_pack(ule, NULL, 0, NULL, 0, 0, &le);
+    int r = le_pack(ule, NULL, 0, NULL, 0, 0, &le, nullptr);
     assert(r==0);
     assert(le==NULL);
 }
@@ -319,7 +319,7 @@ test_le_pack_committed (void) {
 
         size_t memsize;
         LEAFENTRY le;
-        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, &le);
+        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, &le, nullptr);
         assert(r==0);
         assert(le!=NULL);
         memsize = le_memsize_from_ule(&ule);
@@ -329,7 +329,7 @@ test_le_pack_committed (void) {
         verify_ule_equal(&ule, &tmp_ule);
         LEAFENTRY tmp_le;
         size_t    tmp_memsize;
-        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, &tmp_le);
+        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, &tmp_le, nullptr);
         tmp_memsize = le_memsize_from_ule(&tmp_ule);
         assert(r==0);
         assert(tmp_memsize == memsize);
@@ -377,7 +377,7 @@ test_le_pack_uncommitted (uint8_t committed_type, uint8_t prov_type, int num_pla
 
         size_t memsize;
         LEAFENTRY le;
-        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, &le);
+        int r = le_pack(&ule, nullptr, 0, nullptr, 0, 0, &le, nullptr);
         assert(r==0);
         assert(le!=NULL);
         memsize = le_memsize_from_ule(&ule);
@@ -387,7 +387,7 @@ test_le_pack_uncommitted (uint8_t committed_type, uint8_t prov_type, int num_pla
         verify_ule_equal(&ule, &tmp_ule);
         LEAFENTRY tmp_le;
         size_t    tmp_memsize;
-        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, &tmp_le);
+        r = le_pack(&tmp_ule, nullptr, 0, nullptr, 0, 0, &tmp_le, nullptr);
         tmp_memsize = le_memsize_from_ule(&tmp_ule);
         assert(r==0);
         assert(tmp_memsize == memsize);
@@ -448,7 +448,7 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
     LEAFENTRY le_expected;
     LEAFENTRY le_result;
 
-    r = le_pack(ule_initial, nullptr, 0, nullptr, 0, 0, &le_initial);
+    r = le_pack(ule_initial, nullptr, 0, nullptr, 0, 0, &le_initial, nullptr);
     CKERR(r);
 
     size_t result_memsize = 0;
@@ -467,7 +467,7 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
     }
 
     size_t expected_memsize = 0;
-    r = le_pack(ule_expected, nullptr, 0, nullptr, 0, 0, &le_expected);
+    r = le_pack(ule_expected, nullptr, 0, nullptr, 0, 0, &le_expected, nullptr);
     CKERR(r);
     if (le_expected) {
         expected_memsize = leafentry_memsize(le_expected);
@@ -749,7 +749,7 @@ test_le_apply_messages(void) {
 
 static bool ule_worth_running_garbage_collection(ULE ule, TXNID oldest_referenced_xid_known) {
     LEAFENTRY le;
-    int r = le_pack(ule, nullptr, 0, nullptr, 0, 0, &le); CKERR(r);
+    int r = le_pack(ule, nullptr, 0, nullptr, 0, 0, &le, nullptr); CKERR(r);
     invariant_notnull(le);
     txn_gc_info gc_info(nullptr, oldest_referenced_xid_known, oldest_referenced_xid_known, true);
     bool worth_running = toku_le_worth_running_garbage_collection(le, &gc_info);

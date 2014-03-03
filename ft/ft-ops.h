@@ -358,4 +358,6 @@ extern bool garbage_collection_debug;
 void toku_ft_set_direct_io(bool direct_io_on);
 void toku_ft_set_compress_buffers_before_eviction(bool compress_buffers);
 
+void toku_note_deserialized_basement_node(bool fixed_key_size);
+
 #endif
