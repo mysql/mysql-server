@@ -90,5 +90,6 @@ select_priv	user
 Y	blafasel2
 drop table t1;
 delete from mysql.user where user="blafasel2";
+# mysql.user table restored to original values.
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
