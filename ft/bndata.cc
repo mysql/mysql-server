@@ -230,11 +230,9 @@ static int move_it (const KLPAIR &klpair, const uint32_t idx, struct omt_compres
 // Compress things, and grow the mempool if needed.
 void bn_data::omt_compress_kvspace(size_t added_size, void **maybe_free) {
     uint32_t total_size_needed = toku_mempool_get_used_space(&m_buffer_mempool) + added_size;
-    // set the new mempool size to be twice of the space we actually need.
-    // On top of the 25% that is padded within toku_mempool_construct (which we
-    // should consider getting rid of), that should be good enough.
     struct mempool new_kvspace;
-    toku_mempool_construct(&new_kvspace, 2*total_size_needed);
+    // set the new mempool size to be twice of the space we actually need.
+    toku_mempool_construct(&new_kvspace, total_size_needed * 2);
     uint32_t numvals = omt_size();
     KLPAIR *XMALLOC_N(numvals, newvals);
     struct omt_compressor_state oc = { &new_kvspace, newvals };
@@ -323,6 +321,12 @@ void bn_data::get_space_for_insert(
     }
 }
 
+// Construct the given mempool with some extra slack space.
+static void mempool_construct_with_slack(struct mempool *mp, size_t data_size) {
+    size_t mp_size = data_size + (data_size / 4); // 25% extra space
+    toku_mempool_construct(mp, mp_size);
+}
+
 void bn_data::move_leafentries_to(
      BN_DATA dest_bd,
      uint32_t lbi, //lower bound inclusive
@@ -337,7 +341,7 @@ void bn_data::move_leafentries_to(
     size_t mpsize = toku_mempool_get_used_space(&m_buffer_mempool);   // overkill, but safe
     struct mempool *dest_mp = &dest_bd->m_buffer_mempool;
     struct mempool *src_mp  = &m_buffer_mempool;
-    toku_mempool_construct(dest_mp, mpsize);
+    mempool_construct_with_slack(dest_mp, mpsize);
 
     uint32_t i = 0;
     for (i = lbi; i < ube; i++) {
@@ -387,7 +391,7 @@ void bn_data::replace_contents_with_clone_of_sorted_array(
     size_t mempool_size
     ) 
 {
-    toku_mempool_construct(&m_buffer_mempool, mempool_size);
+    mempool_construct_with_slack(&m_buffer_mempool, mempool_size);
     KLPAIR *XMALLOC_N(num_les, le_array);
     for (uint32_t idx = 0; idx < num_les; idx++) {
         KLPAIR new_kl = (KLPAIR)toku_mempool_malloc(
