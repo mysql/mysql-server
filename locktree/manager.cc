@@ -304,11 +304,6 @@ void locktree::manager::release_lt(locktree *lt) {
 }
 
 // test-only version of lock escalation
-#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
-void locktree::manager::run_escalation(void) {
-    m_escalator.run(this, [this] () -> void { escalate_all_locktrees(); });
-}
-#else
 static void manager_run_escalation_fun(void *extra) {
     locktree::manager *thismanager = (locktree::manager *) extra;
     thismanager->escalate_all_locktrees();
@@ -317,14 +312,12 @@ static void manager_run_escalation_fun(void *extra) {
 void locktree::manager::run_escalation(void) {
     m_escalator.run(this, manager_run_escalation_fun, this);
 }
-#endif
 
 void locktree::manager::run_escalation_for_test(void) {
     run_escalation();
 }
 
 void locktree::manager::escalate_all_locktrees(void) {
-    if (0) fprintf(stderr, "%d %s:%u\n", toku_os_gettid(), __PRETTY_FUNCTION__, __LINE__);
     uint64_t t0 = toku_current_time_microsec();
 
     // get all locktrees
@@ -459,7 +452,6 @@ void locktree::manager::add_escalator_wait_time(uint64_t t) {
 }
 
 void locktree::manager::escalate_locktrees(locktree **locktrees, int num_locktrees) {
-    if (0) fprintf(stderr, "%d %s:%u %d\n", toku_os_gettid(), __PRETTY_FUNCTION__, __LINE__, num_locktrees);
     // there are too many row locks in the system and we need to tidy up.
     //
     // a simple implementation of escalation does not attempt
@@ -481,7 +473,6 @@ void locktree::manager::escalate_locktrees(locktree **locktrees, int num_locktre
     toku_mutex_unlock(&m_escalation_mutex);
 }
 
-#if !TOKU_LOCKTREE_ESCALATOR_LAMBDA
 struct escalate_args {
     locktree::manager *mgr;
     locktree **locktrees;
@@ -492,7 +483,6 @@ static void manager_escalate_locktrees(void *extra) {
     escalate_args *args = (escalate_args *) extra;
     args->mgr->escalate_locktrees(args->locktrees, args->num_locktrees);
 }
-#endif
 
 void locktree::manager::escalate_lock_trees_for_txn(TXNID txnid UU(), locktree *lt UU()) {
     // get lock trees for txnid
@@ -503,12 +493,8 @@ void locktree::manager::escalate_lock_trees_for_txn(TXNID txnid UU(), locktree *
     // escalate these lock trees
     locktree::escalator this_escalator;
     this_escalator.create();
-#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
-    this_escalator.run(this, [this,locktrees,num_locktrees] () -> void { escalate_locktrees(locktrees, num_locktrees); });
-#else
     escalate_args args = { this, locktrees, num_locktrees };
     this_escalator.run(this, manager_escalate_locktrees, &args);
-#endif
     this_escalator.destroy();
 }
 
@@ -524,22 +510,14 @@ void locktree::escalator::destroy(void) {
     toku_mutex_destroy(&m_escalator_mutex);
 }
 
-#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
-void locktree::escalator::run(locktree::manager *mgr, std::function<void (void)> escalate_locktrees_fun) {
-#else
-    void locktree::escalator::run(locktree::manager *mgr, void (*escalate_locktrees_fun)(void *extra), void *extra) {
-#endif
+void locktree::escalator::run(locktree::manager *mgr, void (*escalate_locktrees_fun)(void *extra), void *extra) {
     uint64_t t0 = toku_current_time_microsec();
     toku_mutex_lock(&m_escalator_mutex);
     if (!m_escalator_running) {
         // run escalation on this thread
         m_escalator_running = true;
         toku_mutex_unlock(&m_escalator_mutex);
-#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
-        escalate_locktrees_fun();
-#else
         escalate_locktrees_fun(extra);
-#endif
         toku_mutex_lock(&m_escalator_mutex);
         m_escalator_running = false;
         toku_cond_broadcast(&m_escalator_done);
