@@ -94,18 +94,16 @@ PATENT RIGHTS GRANT:
 
 #include <toku_portability.h>
 #include <errno.h>
-
 #include <db.h>
+
 #include "fttypes.h"
 #include "memory.h"
-#include "x1764.h"
-
-struct roll_entry;
-
 #include "logger.h"
 #include "rollback.h"
 #include "recover.h"
 #include "txn.h"
+
+struct roll_entry;
 
 static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
     target->len = val.len;
@@ -117,6 +115,7 @@ static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
 }
 static inline void toku_free_TXNID(TXNID txnid __attribute__((__unused__))) {}
 static inline void toku_free_TXNID_PAIR(TXNID_PAIR txnid __attribute__((__unused__))) {}
+
 static inline void toku_free_LSN(LSN lsn __attribute__((__unused__))) {}
 static inline void toku_free_uint64_t(uint64_t u __attribute__((__unused__))) {}
 static inline void toku_free_uint32_t(uint32_t u __attribute__((__unused__))) {}

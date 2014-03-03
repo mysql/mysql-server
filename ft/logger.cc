@@ -933,7 +933,7 @@ int toku_fread_uint8_t (FILE *f, uint8_t *v, struct x1764 *mm, uint32_t *len) {
     int vi=fgetc(f);
     if (vi==EOF) return -1;
     uint8_t vc=(uint8_t)vi;
-    x1764_add(mm, &vc, 1);
+    toku_x1764_add(mm, &vc, 1);
     (*len)++;
     *v = vc;
     return 0;

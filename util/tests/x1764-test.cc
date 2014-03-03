@@ -88,17 +88,17 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-
-
 #include "test.h"
+#include <util/x1764.h>
+
 static void
 test0 (void) {
-    uint32_t c = x1764_memory("", 0);
+    uint32_t c = toku_x1764_memory("", 0);
     assert(c==~(0U));
     struct x1764 cs;
-    x1764_init(&cs);
-    x1764_add(&cs, "", 0);
-    c = x1764_finish(&cs);
+    toku_x1764_init(&cs);
+    toku_x1764_add(&cs, "", 0);
+    c = toku_x1764_finish(&cs);
     assert(c==~(0U));
 }
 
@@ -110,7 +110,7 @@ test1 (void) {
     for (i=0; i<=8; i++) {
 	uint64_t expect64 = (i==8) ? v : v&((1LL<<(8*i))-1);
 	uint32_t expect = expect64 ^ (expect64>>32);
-	c = x1764_memory(&v, i);
+	c = toku_x1764_memory(&v, i);
 	//printf("i=%d c=%08x expect=%08x\n", i, c, expect);
 	assert(c==~expect);
     }
@@ -127,33 +127,33 @@ test2 (void) {
 	int j;
 	for (j=i; j<=N; j++) {
 	    // checksum from i (inclusive to j (exclusive)
-	    uint32_t c = x1764_memory(&v[i], j-i);
+	    uint32_t c = toku_x1764_memory(&v[i], j-i);
 	    // Now compute the checksum incrementally with various strides.
 	    int stride;
 	    for (stride=1; stride<=j-i; stride++) {
 		int k;
 		struct x1764 s;
-		x1764_init(&s);
+		toku_x1764_init(&s);
 		for (k=i; k+stride<=j; k+=stride) {
-		    x1764_add(&s, &v[k], stride);
+		    toku_x1764_add(&s, &v[k], stride);
 		}
-		x1764_add(&s, &v[k], j-k);
-		uint32_t c2 = x1764_finish(&s);
+		toku_x1764_add(&s, &v[k], j-k);
+		uint32_t c2 = toku_x1764_finish(&s);
 		assert(c2==c);
 	    }
 	    // Now use some random strides.
 	    {
 		int k=i;
 		struct x1764 s;
-		x1764_init(&s);
+		toku_x1764_init(&s);
 		while (1) {
 		    stride=random()%16;
 		    if (k+stride>j) break;
-		    x1764_add(&s, &v[k], stride);
+		    toku_x1764_add(&s, &v[k], stride);
 		    k+=stride;
 		}
-		x1764_add(&s, &v[k], j-k);
-		uint32_t c2 = x1764_finish(&s);
+		toku_x1764_add(&s, &v[k], j-k);
+		uint32_t c2 = toku_x1764_finish(&s);
 		assert(c2==c);
 	    }
 	}
@@ -170,8 +170,8 @@ test3 (void)
     for (int off=0; off<32; off++) {
 	if (verbose) {printf("."); fflush(stdout);}
 	for (int len=0; len+off<datalen; len++) {
-	    uint32_t reference_sum = x1764_memory_simple(data+off, len);
-	    uint32_t fast_sum      = x1764_memory       (data+off, len);
+	    uint32_t reference_sum = toku_x1764_memory_simple(data+off, len);
+	    uint32_t fast_sum      = toku_x1764_memory       (data+off, len);
 	    assert(reference_sum==fast_sum);
 	}
     }

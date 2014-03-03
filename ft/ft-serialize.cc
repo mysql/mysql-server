@@ -132,7 +132,7 @@ toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF 
     toku_serialize_descriptor_contents_to_wbuf(&w, desc);
     {
         //Add checksum
-        uint32_t checksum = x1764_finish(&w.checksum);
+        uint32_t checksum = toku_x1764_finish(&w.checksum);
         wbuf_int(&w, checksum);
     }
     lazy_assert(w.ndone==w.size);
@@ -185,7 +185,7 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
             }
             {
                 // check the checksum
-                uint32_t x1764 = x1764_memory(dbuf, size-4);
+                uint32_t x1764 = toku_x1764_memory(dbuf, size-4);
                 //printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, block_translation_address_on_disk, offset, block_translation_size_on_disk);
                 uint32_t stored_x1764 = toku_dtoh32(*(int*)(dbuf + size-4));
                 if (x1764 != stored_x1764) {
@@ -624,7 +624,7 @@ int deserialize_ft_from_fd_into_rbuf(int fd,
 
     //Verify checksum (FT_LAYOUT_VERSION_13 or later, when checksum function changed)
     uint32_t calculated_x1764;
-    calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
+    calculated_x1764 = toku_x1764_memory(rb->buf, rb->size-4);
     uint32_t stored_x1764;
     stored_x1764 = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
     if (calculated_x1764 != stored_x1764) {
@@ -804,7 +804,7 @@ void toku_serialize_ft_to_wbuf (
     wbuf_char(wbuf, (unsigned char) h->compression_method);
     wbuf_MSN(wbuf, h->highest_unused_msn_for_upgrade);
     wbuf_MSN(wbuf, h->max_msn_in_ft);
-    uint32_t checksum = x1764_finish(&wbuf->checksum);
+    uint32_t checksum = toku_x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);
 }

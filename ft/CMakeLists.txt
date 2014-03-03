@@ -69,7 +69,6 @@ set(FT_SOURCES
   txn_child_manager
   txn_manager
   ule
-  x1764
   xids
   ybt
   "${CMAKE_CURRENT_BINARY_DIR}/log_code"

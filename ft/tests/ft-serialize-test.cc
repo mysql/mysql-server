@@ -147,13 +147,6 @@ class test_key_le_pair {
     }
 };
 
-struct check_leafentries_struct {
-    int nelts;
-    LEAFENTRY *elts;
-    int i;
-    int (*cmp)(OMTVALUE, void *);
-};
-
 enum ftnode_verify_type {
     read_all=1,
     read_compressed,

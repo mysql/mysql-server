@@ -432,7 +432,7 @@ verify_block(unsigned char *cp, uint64_t file_offset, uint64_t size) {
         printf("header length too big: %u\n", header_length);
         return;
     }
-    uint32_t header_xsum = x1764_memory(cp, header_length);
+    uint32_t header_xsum = toku_x1764_memory(cp, header_length);
     uint32_t expected_xsum = toku_dtoh32(get_unaligned_uint32(&cp[header_length]));
     if (header_xsum != expected_xsum) {
         printf("header checksum failed: %u %u\n", header_xsum, expected_xsum);
@@ -450,7 +450,7 @@ verify_block(unsigned char *cp, uint64_t file_offset, uint64_t size) {
     // verify the sub block header
     uint32_t offset = header_length + 4;
     for (uint32_t i = 0 ; i < n_sub_blocks; i++) {
-        uint32_t xsum = x1764_memory(cp + offset, sub_block[i].compressed_size);
+        uint32_t xsum = toku_x1764_memory(cp + offset, sub_block[i].compressed_size);
         printf("%u: %u %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size, sub_block[i].xsum);
         if (xsum != sub_block[i].xsum)
             printf(" fail %u offset %" PRIu64, xsum, file_offset + offset);
