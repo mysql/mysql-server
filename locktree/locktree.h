@@ -105,11 +105,6 @@ PATENT RIGHTS GRANT:
 #include "wfg.h"
 #include "range_buffer.h"
 
-#define TOKU_LOCKTREE_ESCALATOR_LAMBDA 0
-#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
-#include <functional>
-#endif
-
 enum {
     LTM_SIZE_CURRENT = 0,
     LTM_SIZE_LIMIT,
