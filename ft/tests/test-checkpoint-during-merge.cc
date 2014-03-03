@@ -352,7 +352,7 @@ doit (int state) {
         assert(node->height == 0);
         assert(!node->dirty);
         assert(node->n_children == 1);
-        assert(BLB_DATA(node, 0)->omt_size() == 1);
+        assert(BLB_DATA(node, 0)->num_klpairs() == 1);
         toku_unpin_ftnode(c_ft->ft, node);
 
         toku_pin_ftnode_with_dep_nodes(
@@ -369,7 +369,7 @@ doit (int state) {
         assert(node->height == 0);
         assert(!node->dirty);
         assert(node->n_children == 1);
-        assert(BLB_DATA(node, 0)->omt_size() == 1);
+        assert(BLB_DATA(node, 0)->num_klpairs() == 1);
         toku_unpin_ftnode(c_ft->ft, node);
     }
     else if (state == ft_flush_aflter_merge || state == flt_flush_before_unpin_remove) {
@@ -387,7 +387,7 @@ doit (int state) {
         assert(node->height == 0);
         assert(!node->dirty);
         assert(node->n_children == 1);
-        assert(BLB_DATA(node, 0)->omt_size() == 2);
+        assert(BLB_DATA(node, 0)->num_klpairs() == 2);
         toku_unpin_ftnode(c_ft->ft, node);
     }
     else {
