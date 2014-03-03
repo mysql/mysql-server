@@ -1,6 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ident "$Id$"
+
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -86,49 +86,90 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2009-2013 Tokutek Inc.  All rights reserved."
+#ident "$Id$"
 
-#if !defined(TOKU_OS_TYPES_H)
-#define TOKU_OS_TYPES_H
+#include "test.h"
+#include <vector>
+#include <db.h>
+#include "toku_time.h"
 
-#include <stdbool.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+static void open_dbs(DB_ENV *env, int max_dbs) {
+    std::vector<DB *> dbs;
 
-typedef int toku_os_handle_t;
+    uint64_t t_start = toku_current_time_microsec();
+    // open db's
+    {
+        uint64_t t0 = toku_current_time_microsec();
+        for (int i = 1; i <= max_dbs; i++) {
+            int r;
+            DB *db = NULL;
+            r = db_create(&db, env, 0);
+            assert(r == 0);
+            char db_name[32];
+            sprintf(db_name, "db%d", i);
+            r = db->open(db, NULL, db_name, NULL, DB_BTREE, DB_CREATE, 0666);
+            assert(r == 0);
+            dbs.push_back(db);
+            if ((i % 100) == 0) {
+                uint64_t t = toku_current_time_microsec();
+                fprintf(stderr, "open %d %" PRIu64 "\n", i, t - t0);
+                t0 = t;
+            }
+        }
+    }
+    uint64_t t_end = toku_current_time_microsec();
+    fprintf(stderr, "%" PRIu64 "\n", t_end - t_start);
 
-struct fileid {
-    dev_t st_dev; /* device and inode are enough to uniquely identify a file in unix. */
-    ino_t st_ino;
-};
-
-static inline int toku_fileid_cmp(const struct fileid &a, const struct fileid &b) {
-    if (a.st_dev < b.st_dev) {
-        return -1;
-    } else if (a.st_dev > b.st_dev) {
-        return +1;
-    } else {
-        if (a.st_ino < b.st_ino) {
-            return -1;
-        } else if (a.st_ino > b.st_ino) {
-            return +1;
-        } else {
-            return 0;
+    // close db's
+    {
+        uint64_t t0 = toku_current_time_microsec();
+        int i = 1;
+        for (std::vector<DB *>::iterator dbi = dbs.begin(); dbi != dbs.end(); dbi++, i++) {
+            DB *db = *dbi;
+            int r = db->close(db, 0);
+            assert(r == 0);
+            if ((i % 100) == 0) {
+                uint64_t t = toku_current_time_microsec();
+                printf("close %d %" PRIu64 "\n", i, t - t0);
+                t0 = t;
+            }
         }
     }
 }
 
-__attribute__((const, nonnull, warn_unused_result))
-static inline bool toku_fileids_are_equal(struct fileid *a, struct fileid *b) {
-    return toku_fileid_cmp(*a, *b) == 0;
+int test_main (int argc, char * const argv[]) {
+    int r;
+    int max_dbs = 1;
+
+    // parse_args(argc, argv);
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-v") == 0) {
+            verbose++;
+            continue;
+        }
+        if (strcmp(argv[i], "-q") == 0) {
+            if (verbose > 0) verbose--;
+            continue;
+        }
+        max_dbs = atoi(argv[i]);
+        continue;
+    }
+
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
+
+    DB_ENV *env = NULL;
+    r = db_env_create(&env, 0);
+    assert(r == 0);
+    env->set_errfile(env, stderr);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK+DB_INIT_MPOOL+DB_INIT_TXN+DB_INIT_LOG + DB_CREATE + DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
+    assert(r == 0);
+
+    open_dbs(env, max_dbs);
+
+    r = env->close(env, 0);
+    assert(r == 0);
+
+    return 0;
 }
-
-typedef struct stat toku_struct_stat;
-
-// windows compat
-#if !defined(O_BINARY)
-#define O_BINARY 0
-#endif
-
-
-#endif
