@@ -7642,8 +7642,42 @@ CALL p1();
 1
 1
 DROP PROCEDURE p1;
+prepare s from 'select 1 from `v1` join `t1` on `v1`.`a`
+where (select 1 from `t1` where `v1`.`a`)';
+execute s;
+1
+1
+execute s;
+1
+1
+prepare s from 'select 1 from `v1` join `t1` on `v1`.`a`';
+execute s;
+1
+1
+execute s;
+1
+1
+prepare s from 'select 1 from `v1` join `t1` on `v1`.`a` join t1 as t2
+on v1.a';
+execute s;
+1
+1
+execute s;
+1
+1
+create view v2 as select 0 as a from t1;
+prepare s from 'select 1 from `v2` join `t1` on `v2`.`a` join v1 on `v1`.`a`';
+execute s;
+1
+execute s;
+1
+prepare s from 'select 1 from `v2` join `t1` on `v2`.`a`, v1 where `v1`.`a`';
+execute s;
+1
+execute s;
+1
 DROP TABLE t1;
-DROP VIEW v1;
+DROP VIEW v1,v2;
 #
 # WL#2111: Add non-reserved ROW_COUNT keyword.
 #

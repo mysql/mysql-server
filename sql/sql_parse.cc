@@ -2058,11 +2058,12 @@ mysql_execute_command(THD *thd)
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= lex->select_lex;
   /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table= select_lex->table_list.first;
+  TABLE_LIST *const first_table= select_lex->get_table_list();
   /* list of all tables in query */
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *const unit= lex->unit;
+  DBUG_ASSERT(select_lex->master_unit() == unit);
 #ifdef HAVE_REPLICATION
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
@@ -2890,9 +2891,9 @@ end_with_restore_list:
     create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
 
+    DBUG_ASSERT(!select_lex->order_list.elements);
     res= mysql_alter_table(thd, first_table->db, first_table->table_name,
-                           &create_info, first_table, &alter_info,
-                           0, (ORDER*) 0);
+                           &create_info, first_table, &alter_info);
     break;
   }
 #ifdef HAVE_REPLICATION
@@ -3079,12 +3080,8 @@ end_with_restore_list:
     {
       if (!all_tables->multitable_view)
       {
-        res= mysql_update(thd, all_tables,
-                          select_lex->item_list,
+        res= mysql_update(thd, select_lex->item_list,
                           lex->value_list,
-                          select_lex->where,
-                          select_lex->order_list.elements,
-                          select_lex->order_list.first,
                           unit->select_limit_cnt,
                           lex->duplicates, lex->ignore,
                           &found, &updated);
@@ -3155,14 +3152,12 @@ end_with_restore_list:
     {
       multi_update *result_obj;
       MYSQL_MULTI_UPDATE_START(const_cast<char*>(thd->query().str));
-      res= mysql_multi_update(thd, all_tables,
+      res= mysql_multi_update(thd,
                               &select_lex->item_list,
                               &lex->value_list,
-                              select_lex->where,
                               select_lex->options,
                               lex->duplicates,
                               lex->ignore,
-                              unit,
                               select_lex,
                               &result_obj);
       if (result_obj)
@@ -3332,9 +3327,7 @@ end_with_restore_list:
     unit->set_limit(select_lex);
 
     MYSQL_DELETE_START(const_cast<char*>(thd->query().str));
-    res = mysql_delete(thd, all_tables, select_lex->where,
-                       &select_lex->order_list,
-                       unit->select_limit_cnt, select_lex->options);
+    res = mysql_delete(thd, unit->select_limit_cnt, select_lex->options);
     MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
     break;
   }
@@ -3369,20 +3362,18 @@ end_with_restore_list:
         (del_result= new multi_delete(aux_tables, del_table_count)))
     {
       if (lex->describe)
-        res= explain_query(thd, thd->lex->unit, del_result) || thd->is_error();
+        res= explain_query(thd, unit, del_result) || thd->is_error();
       else
       {
+        DBUG_ASSERT(select_lex->having_cond() == NULL &&
+                    !select_lex->order_list.elements &&
+                    !select_lex->group_list.elements);
         res= mysql_select(thd,
-                          select_lex->get_table_list(),
-                          select_lex->with_wild,
                           select_lex->item_list,
-                          select_lex->where,
-                          (SQL_I_List<ORDER> *)NULL, (SQL_I_List<ORDER> *)NULL,
-                          (Item *)NULL,
                           (select_lex->options | thd->variables.option_bits |
                           SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                           OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
-                          del_result, unit, select_lex);
+                          del_result, select_lex);
         res|= thd->is_error();
         if (res)
           del_result->abort_result_set();
@@ -6021,6 +6012,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
+    b->set_optim_join_cond((Item*)1); // m_optim_join_cond is not ready
     if (!b->join_cond())
       b->set_join_cond(expr);
     else

@@ -3641,14 +3641,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) order by `tmp`.`f1`,`t1`.`f0` limit 30"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -3657,7 +3650,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
               ],
               "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where (`t1`.`f2` = `tmp`.`f2`) order by `tmp`.`f1`,`t1`.`f0` limit 30"
             }
-          },
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -3921,14 +3921,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -3937,7 +3930,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               ],
               "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where (`t1`.`f2` = `tmp`.`f2`) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
             }
-          },
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -4206,14 +4206,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -4222,7 +4215,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               ],
               "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where (`t1`.`f2` = `tmp`.`f2`) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
             }
-          },
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -4519,14 +4519,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) where (`t1`.`f2` > 20) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -4535,7 +4528,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               ],
               "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where ((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`)) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
             }
-          },
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -5480,6 +5480,15 @@ LIMIT 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from (`v1` join `v2` on((`v1`.`f1` = `v2`.`f1`))) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from `v1` join `v2` where (`v1`.`f1` = `v2`.`f1`) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
+            }
           }
         ]
       }
@@ -5660,15 +5669,6 @@ LIMIT 30	{
                   ]
                 }
               ]
-            }
-          },
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "JOIN_condition_to_WHERE",
-                "parenthesis_removal"
-              ],
-              "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from `v1` join `v2` where (`v1`.`f1` = `v2`.`f1`) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
             }
           },
           {
@@ -7256,6 +7256,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from (`t1` left join (/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30) `d1` on((`t1`.`f1` = `d1`.`f1`))) order by `d1`.`f2` desc limit 30"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from `t1` left join (/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30) `d1` on((`t1`.`f1` = `d1`.`f1`)) order by `d1`.`f2` desc limit 30"
+            }
           }
         ]
       }
@@ -7346,14 +7354,6 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   ]
                 }
               ]
-            }
-          },
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ],
-              "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from `t1` left join (/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30) `d1` on((`t1`.`f1` = `d1`.`f1`)) order by `d1`.`f2` desc limit 30"
             }
           },
           {

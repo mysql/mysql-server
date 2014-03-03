@@ -710,7 +710,7 @@ bool Explain_no_table::shallow_explain()
   return (fmt->begin_context(CTX_MESSAGE) ||
           Explain::shallow_explain() ||
           (can_walk_clauses() &&
-           mark_subqueries(select_lex->where, fmt->entry())) ||
+           mark_subqueries(select_lex->where_cond(), fmt->entry())) ||
           fmt->end_context(CTX_MESSAGE));
 }
 
@@ -1745,7 +1745,7 @@ bool Explain_table::shallow_explain()
 
   if (Explain::shallow_explain() ||
       (can_walk_clauses() &&
-       mark_subqueries(select_lex->where, fmt->entry())))
+       mark_subqueries(select_lex->where_cond(), fmt->entry())))
     return true;
 
   if (fmt->end_context(CTX_JOIN_TAB))
@@ -1927,7 +1927,7 @@ bool explain_single_table_modification(THD *ethd,
 
     For queries with top-level JOIN the caller provides pre-allocated
     select_send object. Then that JOIN object prepares the select_send
-    object calling result->prepare() in JOIN::prepare(),
+    object calling result->prepare() in SELECT_LEX::prepare(),
     result->initalize_tables() in JOIN::optimize() and result->prepare2()
     in JOIN::exec().
     However without the presence of the top-level JOIN we have to

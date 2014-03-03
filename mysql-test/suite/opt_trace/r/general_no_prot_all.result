@@ -1381,14 +1381,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
           },
           {
             "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where (`t5`.`c` + 1) in (/* select#2 */ select (`t6`.`d` + 1) from `t6` where isnull(`t6`.`d`))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformation": {
               "select#": 2,
@@ -1406,7 +1399,14 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` semi join (`t6`) where (1 and isnull(`t6`.`d`) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))"
             } /* transformations_to_nested_joins */
-          },
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -3680,14 +3680,7 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
           },
           {
             "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from (`t1` left join `t2` on((`t1`.`c1` = `t2`.`c2`))) where `t2`.`c2` in (/* select#2 */ select `t2`.`c2` from `t2` where (`t2`.`c2` = 1))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformation": {
               "select#": 2,
@@ -3708,7 +3701,14 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from `t1` semi join (`t2`) join `t2` where (1 and (`t2`.`c2` = 1) and (`t2`.`c2` = `t2`.`c2`) and (`t1`.`c1` = `t2`.`c2`))"
             } /* transformations_to_nested_joins */
-          },
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -5069,50 +5069,7 @@ trace
           },
           {
             "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` where (`t3`.`a`,`t3`.`a`,`t3`.`b`) in (/* select#2 */ select `t1`.`a`,`t2`.`a`,`t4`.`a` from `t1` join `t2` join `t4`)"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    }
-  ] /* steps */
-}
-execute stmt;
-a	b
-select trace from information_schema.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "join_preparation": {
-              "select#": 2,
-              "steps": [
-                {
-                  "expanded_query": "/* select#2 */ select `t1`.`a`,`t2`.`a`,`t4`.`a` from `t1` join `t2` join `t4`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
-                }
-              ] /* steps */
-            } /* join_preparation */
           },
-          {
-            "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` where (`t3`.`a`,`t3`.`a`,`t3`.`b`) in (/* select#2 */ select `t1`.`a`,`t2`.`a`,`t4`.`a` from `t1` join `t2` join `t4`)"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
           {
             "transformation": {
               "select#": 2,
@@ -5130,7 +5087,32 @@ trace
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` semi join (`t1` join `t2` join `t4`) where (1 and (`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))"
             } /* transformations_to_nested_joins */
-          },
+          }
+        ] /* steps */
+      } /* join_preparation */
+    }
+  ] /* steps */
+}
+execute stmt;
+a	b
+select trace from information_schema.OPTIMIZER_TRACE;
+trace
+{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` semi join (`t1` join `t2` join `t4`) where (1 and (`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -6114,6 +6096,14 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t2`.`a` AS `a` from (`t1` left join `t2` on((`t2`.`a` = 500))) where isnull(`t2`.`a`)"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t2`.`a` AS `a` from `t1` left join `t2` on((`t2`.`a` = 500)) where isnull(`t2`.`a`)"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -6122,14 +6112,6 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t2`.`a` AS `a` from `t1` left join `t2` on((`t2`.`a` = 500)) where isnull(`t2`.`a`)"
-            } /* transformations_to_nested_joins */
-          },
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -7899,14 +7881,7 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
           },
           {
             "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where `t6`.`d` in (/* select#2 */ select `f1`() from `t2` where (`t2`.`s` = 'c'))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformation": {
               "select#": 2,
@@ -7924,7 +7899,14 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` semi join (`t2`) where (1 and (`t2`.`s` = 'c') and (`t6`.`d` = `f1`()))"
             } /* transformations_to_nested_joins */
-          },
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -8757,14 +8739,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where `t6`.`d` in (/* select#2 */ select `f1`() from `t2` where (`t2`.`s` = arg@0))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformation": {
               "select#": 2,
@@ -8782,7 +8757,14 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` semi join (`t2`) where (1 and (`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))"
             } /* transformations_to_nested_joins */
-          },
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -10560,14 +10542,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where `t6`.`d` in (/* select#2 */ select `f1`() from `t2` where (`t2`.`s` = arg@0))"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformation": {
               "select#": 2,
@@ -10585,7 +10560,14 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` semi join (`t2`) where (1 and (`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))"
             } /* transformations_to_nested_joins */
-          },
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -11156,6 +11138,14 @@ explain select * from v1 where id="b"	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from (`t1`) where ((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where ((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -11164,14 +11154,6 @@ explain select * from v1 where id="b"	{
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where ((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
-            } /* transformations_to_nested_joins */
-          },
           {
             "condition_processing": {
               "condition": "WHERE",
