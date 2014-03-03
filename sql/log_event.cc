@@ -3769,8 +3769,6 @@ bool Query_log_event::write(IO_CACHE* file)
 Query_log_event::Query_log_event()
 : Query_event(), Log_event(header(), footer())
 {
-  if (query != 0)
-    is_valid= true;
 }
 
 
@@ -11091,8 +11089,7 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
                                       (m_colcnt * 2), MYF(MY_WME));
   memset(m_field_metadata, 0, (m_colcnt * 2));
 
-  if (m_null_bits != NULL &&
-            m_field_metadata != NULL && m_coltype != NULL)
+  if (m_null_bits != NULL && m_field_metadata != NULL && m_coltype != NULL)
     is_valid= true;
   /*
     Create an array for the field metadata and store it.
@@ -11146,8 +11143,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 #endif
 {
   DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");
-  if (m_null_bits != NULL &&
-            m_field_metadata != NULL && m_coltype != NULL)
+  if (m_null_bits != NULL && m_field_metadata != NULL && m_coltype != NULL)
     is_valid= true;
   DBUG_ASSERT(header()->type_code == TABLE_MAP_EVENT);
   DBUG_VOID_RETURN;
@@ -12740,8 +12736,8 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
     set->encode(buffer);
     register_temp_buf((char *)buffer);
   }
-  this->buf= buffer;
-  // if buf == NULL, is_valid will return false
+  buf= buffer;
+  // if buf is empty, is_valid will be false
   if(buf != 0)
     is_valid= true;
   DBUG_VOID_RETURN;

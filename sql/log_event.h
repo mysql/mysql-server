@@ -2768,6 +2768,10 @@ protected:
   uint32    m_bitbuf[128/(sizeof(uint32)*8)];
   uint32    m_bitbuf_ai[128/(sizeof(uint32)*8)];
 
+  /*
+   is_valid depends on the value of m_rows_buf, so while changing the value
+   of m_rows_buf check if is_valid also needs to be modified
+  */
   uchar    *m_rows_buf;		/* The rows in packed format */
   uchar    *m_rows_cur;		/* One-after the end of the data */
   uchar    *m_rows_end;		/* One-after the end of the allocated space */
