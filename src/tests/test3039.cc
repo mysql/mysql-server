@@ -112,11 +112,7 @@ static DB_ENV *env = NULL;
 static DB *db;
 
 // BDB cannot handle big transactions  by default (runs out of locks).
-#ifdef TOKUDB
 #define N_PER_XACTION 10000
-#else
-#define N_PER_XACTION 1000
-#endif
 
 static void create_db (uint64_t N) {
     n_rows = N;
@@ -124,9 +120,7 @@ static void create_db (uint64_t N) {
     toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     { int r = db_env_create(&env, 0);                                          CKERR(r); }
     env->set_errfile(env, stderr);
-#ifdef TOKUDB
     env->set_redzone(env, 0);
-#endif
     { int r = env->set_cachesize(env, 0, 400*4096, 1);                        CKERR(r); }
     { int r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r); }
     DB_TXN *txn;

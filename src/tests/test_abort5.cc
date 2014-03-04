@@ -231,7 +231,6 @@ verify_and_tear_down(int close_first) {
     int r;
     {
         char *filename;
-#if USE_TDB
         {
             DBT dname;
             DBT iname;
@@ -243,9 +242,6 @@ verify_and_tear_down(int close_first) {
             CAST_FROM_VOIDP(filename, iname.data);
             assert(filename);
         }
-#else
-        filename = toku_xstrdup("foo.db");
-#endif
 	toku_struct_stat statbuf;
         char fullfile[TOKU_PATH_MAX+1];
 	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, filename), &statbuf);

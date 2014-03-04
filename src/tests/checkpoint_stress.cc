@@ -272,10 +272,7 @@ random_acts(void * d) {
 	}
     }
 
-
-#if IS_TDB && !TOKU_WINDOWS
     return intothevoid;
-#endif
 }
 
 uint64_t max_windows_cachesize = 256 << 20;

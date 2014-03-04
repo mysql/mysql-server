@@ -91,7 +91,6 @@ PATENT RIGHTS GRANT:
 // for all i: T(i) reads 0, gets a read lock on 0
 // for all i: T(i) writes 0, enters a deadlock
 // tokudb detects deadlock on the fly
-// bdb detects deadlock on the fly or uses a deadlock detector
 // --poll runs the  deadlock detector until all the txns are resolved
 
 #include "test.h"
@@ -201,18 +200,6 @@ static void update_deadlock(DB_ENV *db_env, DB *db, int do_txn, int nrows, int n
     }
 #endif
 
-#if defined(USE_BDB)
-    // check for deadlocks
-    if (poll_deadlock) {
-        while (n_txns > 0) {
-            sleep(10);
-            int rejected = 0;
-            r = db_env->lock_detect(db_env, 0, DB_LOCK_YOUNGEST, &rejected); assert(r == 0);
-            printf("%s rejected %d\n", __FUNCTION__, rejected);
-        }
-    }
-#endif
-
     // cleanup
     for (int i = 0; i < ntxns; i++) {
         void *ret = NULL;
@@ -274,14 +261,7 @@ int test_main(int argc, char * const argv[]) {
     if (!do_txn)
         db_env_open_flags &= ~(DB_INIT_TXN | DB_INIT_LOG);
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
-#if defined(TOKUDB)
     r = db_env->set_lock_timeout(db_env, 30 * 1000, nullptr); assert(r == 0);
-#endif
-#if defined(USE_BDB)
-    if (!poll_deadlock) {
-        r = db_env->set_lk_detect(db_env, DB_LOCK_YOUNGEST); assert(r == 0);
-    }
-#endif
 
     // create the db
     DB *db = NULL;

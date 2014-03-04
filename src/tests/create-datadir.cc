@@ -114,13 +114,9 @@ static void run_test (void) {
 
     r = db_create(&db, env, 0);                                                          CKERR(r);
     r = db->open(db, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);
-#if USE_TDB
         CKERR(r); //Success, so need a new handle
     r = db->close(db, 0);                                                                CKERR(r);
     r = db_create(&db, env, 0);                                                          CKERR(r);
-#else
-        assert(r != 0);
-#endif
     char path[TOKU_PATH_MAX+1];
     r = toku_os_mkdir(toku_path_join(path, 2, TOKU_TEST_FILENAME, "bdir"), 0777); assert(r == 0);
     r = db->open(db, NULL, "bdir/b.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); CKERR(r);
@@ -136,13 +132,6 @@ static void run_test (void) {
     r = db_create(&db, env, 0);                                                          CKERR(r);
     r = db->open(db, NULL, "c.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);      CKERR(r);
     r = db->close(db, 0);                                                                CKERR(r);
-
-#if 0
-    // test fname with absolute path
-    r = db_create(&db, env, 0);                                                          CKERR(r);
-    r = db->open(db, NULL, "/tmp/d.db", NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666); CKERR(r);
-    r = db->close(db, 0);                                                                CKERR(r);
-#endif
 
     r = env->close(env, 0);                                                              CKERR(r);
 }

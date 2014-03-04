@@ -175,11 +175,7 @@ setup (void) {
 
     r=db_env_create(&env, 0); CKERR(r);
     
-#ifndef TOKUDB
-    r=env->set_lk_max_objects(env, N); CKERR(r);
-#else
     r=env->set_redzone(env, 0);        CKERR(r);
-#endif
     env->set_errfile(env, stderr);
     r=env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);

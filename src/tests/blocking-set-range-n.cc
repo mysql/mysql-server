@@ -117,7 +117,6 @@ struct my_callback_context {
     DBT val;
 };
 
-#if TOKUDB
 static int blocking_set_range_callback(DBT const *a UU(), DBT const *b UU(), void *e UU()) {
     DBT const *found_key = a;
     DBT const *found_val = b;
@@ -126,7 +125,6 @@ static int blocking_set_range_callback(DBT const *a UU(), DBT const *b UU(), voi
     copy_dbt(&context->val, found_val);
     return 0;
 }
-#endif
 
 static void blocking_set_range(DB_ENV *db_env, DB *db, uint64_t nrows, long sleeptime, uint64_t the_key) {
     int r;
@@ -144,11 +142,7 @@ static void blocking_set_range(DB_ENV *db_env, DB *db, uint64_t nrows, long slee
 
         uint64_t k = htonl(the_key);
         DBT key = { .data = &k, .size = sizeof k };
-#if TOKUDB
         r = cursor->c_getf_set_range(cursor, DB_RMW, &key, blocking_set_range_callback, &context); assert(r == DB_NOTFOUND);
-#else
-        r = cursor->c_get(cursor, &key, &context.val, DB_SET_RANGE + DB_RMW); assert(r == DB_NOTFOUND);
-#endif
         usleep(sleeptime);
 
         r = cursor->c_close(cursor); assert(r == 0);
@@ -241,9 +235,7 @@ int test_main(int argc, char * const argv[]) {
         r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
     }
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
-#if TOKUDB
     r = db_env->set_lock_timeout(db_env, 30 * 1000, nullptr); assert(r == 0);
-#endif
 
     // create the db
     DB *db = NULL;

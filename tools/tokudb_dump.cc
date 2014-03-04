@@ -368,15 +368,6 @@ int create_init_env()
    //However, do we need to use DB_INIT_LOG to join a logging environment?
    //REMOVE_BITS(flags, DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN);
    SET_BITS(flags, DB_CREATE | DB_PRIVATE);
-#if defined(USE_BDB) && USE_BDB==1
-   {
-       int r;
-       r = dbenv->set_lk_max_objects(dbenv, 100000);
-       assert(r==0);
-       r = dbenv->set_lk_max_locks(dbenv, 100000);
-       assert(r==0);
-   }
-#endif
 
    retval = dbenv->open(dbenv, g.homedir, flags, 0);
    if (retval) {

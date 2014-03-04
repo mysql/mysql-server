@@ -746,7 +746,6 @@ c_set_check_interrupt_callback(DBC* dbc, bool (*interrupt_callback)(void*), void
 
 int
 toku_c_get(DBC* c, DBT* key, DBT* val, uint32_t flag) {
-    //This function exists for legacy (test compatibility) purposes/parity with bdb.
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
