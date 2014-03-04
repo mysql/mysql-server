@@ -97,8 +97,6 @@ PATENT RIGHTS GRANT:
 #include <ft/fttypes.h>
 #include <ft/ft-ops.h>
 #include <ft/minicron.h>
-// TODO: remove vanilla omt in favor of templated one
-#include <ft/omt.h>
 
 #include <util/growable_array.h>
 #include <util/omt.h>
@@ -157,9 +155,8 @@ struct __toku_db_env_internal {
 
     DB *directory;                                      // Maps dnames to inames
     DB *persistent_environment;                         // Stores environment settings, can be used for upgrade
-    // TODO: toku::omt<DB *>
-    OMT open_dbs_by_dname;                              // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
-    OMT open_dbs_by_dict_id;                            // Stores open db handles, sorted by dictionary id and then by numerical value of pointer to the db (arbitrarily assigned memory location)
+    toku::omt<DB *> *open_dbs_by_dname;                              // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
+    toku::omt<DB *> *open_dbs_by_dict_id;                            // Stores open db handles, sorted by dictionary id and then by numerical value of pointer to the db (arbitrarily assigned memory location)
     toku_pthread_rwlock_t open_dbs_rwlock;              // rwlock that protects the OMT of open dbs.
 
     char *real_data_dir;                                // data dir used when the env is opened (relative to cwd, or absolute with leading /)

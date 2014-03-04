@@ -90,10 +90,7 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-#include "omt.h"
 #include <util/omt.h>
-
-typedef OMTVALUE TESTVALUE;
 
 static void
 parse_args (int argc, const char *argv[]) {
@@ -140,19 +137,73 @@ enum create_type {
 };
 
 /* Globals */
-OMT global_omt;
-TESTVALUE*       values = NULL;
-struct value*   nums   = NULL;
-uint32_t       length;
+typedef void *OMTVALUE;
+toku::omt<OMTVALUE> *global_omt;
+OMTVALUE*       global_values = NULL;
+struct value*   global_nums   = NULL;
+uint32_t       global_length;
 
 static void
 cleanup_globals (void) {
-    assert(values);
-    toku_free(values);
-    values = NULL;
-    assert(nums);
-    toku_free(nums);
-    nums = NULL;
+    assert(global_values);
+    toku_free(global_values);
+    global_values = NULL;
+    assert(global_nums);
+    toku_free(global_nums);
+    global_nums = NULL;
+}
+
+/* Some test wrappers */
+struct functor {
+    int (*f)(OMTVALUE, uint32_t, void *);
+    void *v;
+};
+int call_functor(const OMTVALUE &v, uint32_t idx, functor *const ftor);
+int call_functor(const OMTVALUE &v, uint32_t idx, functor *const ftor) {
+    return ftor->f(const_cast<OMTVALUE>(v), idx, ftor->v);
+}
+static int omt_iterate(toku::omt<void *> *omt, int (*f)(OMTVALUE, uint32_t, void*), void*v) {
+    struct functor ftor = { .f = f, .v = v };
+    return omt->iterate<functor, call_functor>(&ftor);
+}
+
+struct heftor {
+    int (*h)(OMTVALUE, void *v);
+    void *v;
+};
+int call_heftor(const OMTVALUE &v, const heftor &htor);
+int call_heftor(const OMTVALUE &v, const heftor &htor) {
+    return htor.h(const_cast<OMTVALUE>(v), htor.v);
+}
+static int omt_insert(toku::omt<void *> *omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, uint32_t *index) {
+    struct heftor htor = { .h = h, .v = v };
+    return omt->insert<heftor, call_heftor>(value, htor, index);
+}
+static int omt_find_zero(toku::omt<void *> *V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, uint32_t *index) {
+    struct heftor htor = { .h = h, .v = extra };
+    return V->find_zero<heftor, call_heftor>(htor, value, index);
+}
+static int omt_find(toku::omt<void *> *V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, uint32_t *index) {
+    struct heftor htor = { .h = h, .v = extra };
+    return V->find<heftor, call_heftor>(htor, direction, value, index);
+}
+static int omt_split_at(toku::omt<void *> *omt, toku::omt<void *> **newomtp, uint32_t index) {
+    toku::omt<void *> *XMALLOC(newomt);
+    int r = omt->split_at(newomt, index);
+    if (r != 0) {
+        toku_free(newomt);
+    } else {
+        *newomtp = newomt;
+    }
+    return r;
+}
+static int omt_merge(toku::omt<void *> *leftomt, toku::omt<void *> *rightomt, toku::omt<void *> **newomtp) {
+    toku::omt<void *> *XMALLOC(newomt);
+    newomt->merge(leftomt, rightomt);
+    toku_free(leftomt);
+    toku_free(rightomt);
+    *newomtp = newomt;
+    return 0;
 }
 
 const unsigned int random_seed = 0xFEADACBA;
@@ -163,11 +214,9 @@ init_init_values (unsigned int seed, uint32_t num_elements) {
 
     cleanup_globals();
 
-    MALLOC_N(num_elements, values);
-    assert(values);
-    MALLOC_N(num_elements, nums);
-    assert(nums);
-    length = num_elements;
+    XMALLOC_N(num_elements, global_values);
+    XMALLOC_N(num_elements, global_nums);
+    global_length = num_elements;
 }
 
 static void
@@ -176,9 +225,9 @@ init_identity_values (unsigned int seed, uint32_t num_elements) {
 
     init_init_values(seed, num_elements);
 
-    for (i = 0; i < length; i++) {
-        nums[i].number   = i;
-        values[i]        = (TESTVALUE)&nums[i];
+    for (i = 0; i < global_length; i++) {
+        global_nums[i].number   = i;
+        global_values[i]        = (OMTVALUE)&global_nums[i];
     }
 }
 
@@ -190,10 +239,10 @@ init_distinct_sorted_values (unsigned int seed, uint32_t num_elements) {
 
     uint32_t number = 0;
 
-    for (i = 0; i < length; i++) {
+    for (i = 0; i < global_length; i++) {
         number          += (uint32_t)(random() % 32) + 1;
-        nums[i].number   = number;
-        values[i]        = (TESTVALUE)&nums[i];
+        global_nums[i].number   = number;
+        global_values[i]        = (OMTVALUE)&global_nums[i];
     }
 }
 
@@ -205,49 +254,45 @@ init_distinct_random_values (unsigned int seed, uint32_t num_elements) {
     uint32_t   choice;
     uint32_t   choices;
     struct value temp;
-    for (i = 0; i < length - 1; i++) {
-        choices = length - i;
+    for (i = 0; i < global_length - 1; i++) {
+        choices = global_length - i;
         choice  = random() % choices;
         if (choice != i) {
-            temp         = nums[i];
-            nums[i]      = nums[choice];
-            nums[choice] = temp;
+            temp         = global_nums[i];
+            global_nums[i]      = global_nums[choice];
+            global_nums[choice] = temp;
         }
     }
 }
 
 static void
 init_globals (void) {
-    MALLOC_N(1, values);
-    assert(values);
-    MALLOC_N(1, nums);
-    assert(nums);
-    length = 1;
+    XMALLOC_N(1, global_values);
+    XMALLOC_N(1, global_nums);
+    global_length = 1;
 }
 
 static void
 test_close (enum close_when_done do_close) {
-    if (do_close == KEEP_WHEN_DONE) return;
+    if (do_close == KEEP_WHEN_DONE) {
+        return;
+    }
     assert(do_close == CLOSE_WHEN_DONE);
-    toku_omt_destroy(&global_omt);
-    assert(global_omt==NULL);
+    global_omt->destroy();
+    toku_free(global_omt);
 }
 
 static void
 test_create (enum close_when_done do_close) {
-    int r;
-    global_omt = NULL;
-
-    r = toku_omt_create(&global_omt);
-    CKERR(r);
-    assert(global_omt!=NULL);
+    XMALLOC(global_omt);
+    global_omt->create();
     test_close(do_close);
 }
 
 static void
 test_create_size (enum close_when_done do_close) {
     test_create(KEEP_WHEN_DONE);
-    assert(toku_omt_size(global_omt) == 0);
+    assert(global_omt->size() == 0);
     test_close(do_close);
 }
 
@@ -258,24 +303,24 @@ test_create_insert_at_almost_random (enum close_when_done do_close) {
     uint32_t size = 0;
 
     test_create(KEEP_WHEN_DONE);
-    r = toku_omt_insert_at(global_omt, values[0], toku_omt_size(global_omt)+1);
+    r = global_omt->insert_at(global_values[0], global_omt->size()+1);
     CKERR2(r, EINVAL);
-    r = toku_omt_insert_at(global_omt, values[0], toku_omt_size(global_omt)+2);
+    r = global_omt->insert_at(global_values[0], global_omt->size()+2);
     CKERR2(r, EINVAL);
-    for (i = 0; i < length/2; i++) {
-        assert(size==toku_omt_size(global_omt));
-        r = toku_omt_insert_at(global_omt, values[i], i);
+    for (i = 0; i < global_length/2; i++) {
+        assert(size==global_omt->size());
+        r = global_omt->insert_at(global_values[i], i);
         CKERR(r);
-        assert(++size==toku_omt_size(global_omt));
-        r = toku_omt_insert_at(global_omt, values[length-1-i], i+1);
+        assert(++size==global_omt->size());
+        r = global_omt->insert_at(global_values[global_length-1-i], i+1);
         CKERR(r);
-        assert(++size==toku_omt_size(global_omt));
+        assert(++size==global_omt->size());
     }
-    r = toku_omt_insert_at(global_omt, values[0], toku_omt_size(global_omt)+1);
+    r = global_omt->insert_at(global_values[0], global_omt->size()+1);
     CKERR2(r, EINVAL);
-    r = toku_omt_insert_at(global_omt, values[0], toku_omt_size(global_omt)+2);
+    r = global_omt->insert_at(global_values[0], global_omt->size()+2);
     CKERR2(r, EINVAL);
-    assert(size==toku_omt_size(global_omt));
+    assert(size==global_omt->size());
     test_close(do_close);
 }
 
@@ -286,38 +331,37 @@ test_create_insert_at_sequential (enum close_when_done do_close) {
     uint32_t size = 0;
 
     test_create(KEEP_WHEN_DONE);
-    r = toku_omt_insert_at(global_omt, values[0], toku_omt_size(global_omt)+1);
+    r = global_omt->insert_at(global_values[0], global_omt->size()+1);
     CKERR2(r, EINVAL);
-    r = toku_omt_insert_at(global_omt, values[0], toku_omt_size(global_omt)+2);
+    r = global_omt->insert_at(global_values[0], global_omt->size()+2);
     CKERR2(r, EINVAL);
-    for (i = 0; i < length; i++) {
-        assert(size==toku_omt_size(global_omt));
-        r = toku_omt_insert_at(global_omt, values[i], i);
+    for (i = 0; i < global_length; i++) {
+        assert(size==global_omt->size());
+        r = global_omt->insert_at(global_values[i], i);
         CKERR(r);
-        assert(++size==toku_omt_size(global_omt));
+        assert(++size==global_omt->size());
     }
-    r = toku_omt_insert_at(global_omt, values[0], toku_omt_size(global_omt)+1);
+    r = global_omt->insert_at(global_values[0], global_omt->size()+1);
     CKERR2(r, EINVAL);
-    r = toku_omt_insert_at(global_omt, values[0], toku_omt_size(global_omt)+2);
+    r = global_omt->insert_at(global_values[0], global_omt->size()+2);
     CKERR2(r, EINVAL);
-    assert(size==toku_omt_size(global_omt));
+    assert(size==global_omt->size());
     test_close(do_close);
 }
 
 static void
 test_create_from_sorted_array (enum create_type create_choice, enum close_when_done do_close) {
-    int r;
     global_omt = NULL;
 
     if (create_choice == BATCH_INSERT) {
-        r = toku_omt_create_from_sorted_array(&global_omt, values, length);
-        CKERR(r);
+        XMALLOC(global_omt);
+        global_omt->create_from_sorted_array(global_values, global_length);
     }
     else if (create_choice == STEAL_ARRAY) {
-        TESTVALUE* MALLOC_N(length, values_copy);
-        memcpy(values_copy, values, length*sizeof(*values));
-        r = toku_omt_create_steal_sorted_array(&global_omt, &values_copy, length, length);
-        CKERR(r);
+        XMALLOC(global_omt);
+        OMTVALUE* XMALLOC_N(global_length, values_copy);
+        memcpy(values_copy, global_values, global_length*sizeof(*global_values));
+        global_omt->create_steal_sorted_array(&values_copy, global_length, global_length);
         assert(values_copy==NULL);
     }
     else if (create_choice == INSERT_AT) {
@@ -326,7 +370,9 @@ test_create_from_sorted_array (enum create_type create_choice, enum close_when_d
     else if (create_choice == INSERT_AT_ALMOST_RANDOM) {
         test_create_insert_at_almost_random(KEEP_WHEN_DONE);
     }
-    else assert(false);
+    else {
+        assert(false);
+    }
 
     assert(global_omt!=NULL);
     test_close(do_close);
@@ -335,22 +381,22 @@ test_create_from_sorted_array (enum create_type create_choice, enum close_when_d
 static void
 test_create_from_sorted_array_size (enum create_type create_choice, enum close_when_done do_close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
-    assert(toku_omt_size(global_omt)==length);
+    assert(global_omt->size()==global_length);
     test_close(do_close);
 }    
 
 static void
-test_fetch_verify (OMT omtree, TESTVALUE* val, uint32_t len ) {
+test_fetch_verify (toku::omt<void *> *omtree, OMTVALUE* val, uint32_t len ) {
     uint32_t i;
     int r;
-    TESTVALUE v = (TESTVALUE)&i;
-    TESTVALUE oldv = v;
+    OMTVALUE v = (OMTVALUE)&i;
+    OMTVALUE oldv = v;
 
-    assert(len == toku_omt_size(omtree));
+    assert(len == omtree->size());
     for (i = 0; i < len; i++) {
         assert(oldv!=val[i]);
         v = NULL;
-        r = toku_omt_fetch(omtree, i, &v);
+        r = omtree->fetch(i, &v);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
@@ -361,7 +407,7 @@ test_fetch_verify (OMT omtree, TESTVALUE* val, uint32_t len ) {
 
     for (i = len; i < len*2; i++) {
         v = oldv;
-        r = toku_omt_fetch(omtree, i, &v);
+        r = omtree->fetch(i, &v);
         CKERR2(r, EINVAL);
         assert(v == oldv);
     }
@@ -371,16 +417,16 @@ test_fetch_verify (OMT omtree, TESTVALUE* val, uint32_t len ) {
 static void
 test_create_fetch_verify (enum create_type create_choice, enum close_when_done do_close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
-    test_fetch_verify(global_omt, values, length);
+    test_fetch_verify(global_omt, global_values, global_length);
     test_close(do_close);
 }
 
 static int iterate_helper_error_return = 1;
 
 static int
-iterate_helper (TESTVALUE v, uint32_t idx, void* extra) {
+iterate_helper (OMTVALUE v, uint32_t idx, void* extra) {
     if (extra == NULL) return iterate_helper_error_return;
-    TESTVALUE* vals = (TESTVALUE *)extra;
+    OMTVALUE* vals = (OMTVALUE *)extra;
     assert(v != NULL);
     assert(v == vals[idx]);
     assert(V(v)->number == V(vals[idx])->number);
@@ -388,13 +434,13 @@ iterate_helper (TESTVALUE v, uint32_t idx, void* extra) {
 }
 
 static void
-test_iterate_verify (OMT omtree, TESTVALUE* vals, uint32_t len) {
+test_iterate_verify (toku::omt<void *> *omtree, OMTVALUE* vals, uint32_t len) {
     int r;
     iterate_helper_error_return = 0;
-    r = toku_omt_iterate(omtree, iterate_helper, (void*)vals);
+    r = omt_iterate(omtree, iterate_helper, (void*)vals);
     CKERR(r);
     iterate_helper_error_return = 0xFEEDABBA;
-    r = toku_omt_iterate(omtree, iterate_helper, NULL);
+    r = omt_iterate(omtree, iterate_helper, NULL);
     if (!len) {
         CKERR2(r, 0);
     }
@@ -406,7 +452,7 @@ test_iterate_verify (OMT omtree, TESTVALUE* vals, uint32_t len) {
 static void
 test_create_iterate_verify (enum create_type create_choice, enum close_when_done do_close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
-    test_iterate_verify(global_omt, values, length);
+    test_iterate_verify(global_omt, global_values, global_length);
     test_close(do_close);
 }
 
@@ -436,45 +482,42 @@ test_create_set_at (enum create_type create_choice, enum close_when_done do_clos
     uint32_t i = 0;
 
     struct value*   old_nums   = NULL;
-    MALLOC_N(length, old_nums);
-    assert(nums);
+    XMALLOC_N(global_length, old_nums);
 
     uint32_t* perm = NULL;
-    MALLOC_N(length, perm);
-    assert(perm);
+    XMALLOC_N(global_length, perm);
 
-    TESTVALUE* old_values = NULL;
-    MALLOC_N(length, old_values);
-    assert(old_values);
+    OMTVALUE* old_values = NULL;
+    XMALLOC_N(global_length, old_values);
     
-    permute_array(perm, length);
+    permute_array(perm, global_length);
 
     //
-    // These are going to be the new values
+    // These are going to be the new global_values
     //
-    for (i = 0; i < length; i++) {
-        old_nums[i] = nums[i];
+    for (i = 0; i < global_length; i++) {
+        old_nums[i] = global_nums[i];
         old_values[i] = &old_nums[i];        
-        values[i] = &old_nums[i];
+        global_values[i] = &old_nums[i];
     }
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
     int r;
-    r = toku_omt_set_at (global_omt, values[0], length);
+    r = global_omt->set_at(global_values[0], global_length);
     CKERR2(r,EINVAL);    
-    r = toku_omt_set_at (global_omt, values[0], length+1);
+    r = global_omt->set_at(global_values[0], global_length+1);
     CKERR2(r,EINVAL);    
-    for (i = 0; i < length; i++) {
+    for (i = 0; i < global_length; i++) {
         uint32_t choice = perm[i];
-        values[choice] = &nums[choice];
-        nums[choice].number = (uint32_t)random();
-        r = toku_omt_set_at (global_omt, values[choice], choice);
+        global_values[choice] = &global_nums[choice];
+        global_nums[choice].number = (uint32_t)random();
+        r = global_omt->set_at(global_values[choice], choice);
         CKERR(r);
-        test_iterate_verify(global_omt, values, length);
-        test_fetch_verify(global_omt, values, length);
+        test_iterate_verify(global_omt, global_values, global_length);
+        test_fetch_verify(global_omt, global_values, global_length);
     }
-    r = toku_omt_set_at (global_omt, values[0], length);
+    r = global_omt->set_at(global_values[0], global_length);
     CKERR2(r,EINVAL);    
-    r = toku_omt_set_at (global_omt, values[0], length+1);
+    r = global_omt->set_at(global_values[0], global_length+1);
     CKERR2(r,EINVAL);    
 
     toku_free(perm);
@@ -485,8 +528,8 @@ test_create_set_at (enum create_type create_choice, enum close_when_done do_clos
 }
 
 static int
-insert_helper (TESTVALUE value, void* extra_insert) {
-    TESTVALUE to_insert = (OMTVALUE)extra_insert;
+insert_helper (OMTVALUE value, void* extra_insert) {
+    OMTVALUE to_insert = (OMTVALUE)extra_insert;
     assert(to_insert);
 
     if (V(value)->number < V(to_insert)->number) return -1;
@@ -499,49 +542,48 @@ test_create_insert (enum close_when_done do_close) {
     uint32_t i = 0;
 
     uint32_t* perm = NULL;
-    MALLOC_N(length, perm);
-    assert(perm);
+    XMALLOC_N(global_length, perm);
 
-    permute_array(perm, length);
+    permute_array(perm, global_length);
 
     test_create(KEEP_WHEN_DONE);
     int r;
-    uint32_t size = length;
-    length = 0;
-    while (length < size) {
-        uint32_t choice = perm[length];
-        TESTVALUE to_insert = &nums[choice];
+    uint32_t size = global_length;
+    global_length = 0;
+    while (global_length < size) {
+        uint32_t choice = perm[global_length];
+        OMTVALUE to_insert = &global_nums[choice];
         uint32_t idx = UINT32_MAX;
 
-        assert(length==toku_omt_size(global_omt));
-        r = toku_omt_insert(global_omt, to_insert, insert_helper, to_insert, &idx);
+        assert(global_length==global_omt->size());
+        r = omt_insert(global_omt, to_insert, insert_helper, to_insert, &idx);
         CKERR(r);
-        assert(idx <= length);
+        assert(idx <= global_length);
         if (idx > 0) {
-            assert(V(to_insert)->number > V(values[idx-1])->number);
+            assert(V(to_insert)->number > V(global_values[idx-1])->number);
         }
-        if (idx < length) {
-            assert(V(to_insert)->number < V(values[idx])->number);
+        if (idx < global_length) {
+            assert(V(to_insert)->number < V(global_values[idx])->number);
         }
-        length++;
-        assert(length==toku_omt_size(global_omt));
+        global_length++;
+        assert(global_length==global_omt->size());
         /* Make room */
-        for (i = length-1; i > idx; i--) {
-            values[i] = values[i-1];
+        for (i = global_length-1; i > idx; i--) {
+            global_values[i] = global_values[i-1];
         }
-        values[idx] = to_insert;
-        test_fetch_verify(global_omt, values, length);
-        test_iterate_verify(global_omt, values, length);
+        global_values[idx] = to_insert;
+        test_fetch_verify(global_omt, global_values, global_length);
+        test_iterate_verify(global_omt, global_values, global_length);
 
         idx = UINT32_MAX;
-        r = toku_omt_insert(global_omt, to_insert, insert_helper, to_insert, &idx);
+        r = omt_insert(global_omt, to_insert, insert_helper, to_insert, &idx);
         CKERR2(r, DB_KEYEXIST);
-        assert(idx < length);
-        assert(V(values[idx])->number == V(to_insert)->number);
-        assert(length==toku_omt_size(global_omt));
+        assert(idx < global_length);
+        assert(V(global_values[idx])->number == V(to_insert)->number);
+        assert(global_length==global_omt->size());
 
-        test_iterate_verify(global_omt, values, length);
-        test_fetch_verify(global_omt, values, length);
+        test_iterate_verify(global_omt, global_values, global_length);
+        test_fetch_verify(global_omt, global_values, global_length);
     }
 
     toku_free(perm);
@@ -555,30 +597,30 @@ test_create_delete_at (enum create_type create_choice, enum close_when_done do_c
     int r = ENOSYS;
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
 
-    assert(length == toku_omt_size(global_omt));
-    r = toku_omt_delete_at(global_omt, length);
+    assert(global_length == global_omt->size());
+    r = global_omt->delete_at(global_length);
     CKERR2(r,EINVAL);
-    assert(length == toku_omt_size(global_omt));
-    r = toku_omt_delete_at(global_omt, length+1);
+    assert(global_length == global_omt->size());
+    r = global_omt->delete_at(global_length+1);
     CKERR2(r,EINVAL);
-    while (length > 0) {
-        assert(length == toku_omt_size(global_omt));
-        uint32_t index_to_delete = random()%length;
-        r = toku_omt_delete_at(global_omt, index_to_delete);
+    while (global_length > 0) {
+        assert(global_length == global_omt->size());
+        uint32_t index_to_delete = random()%global_length;
+        r = global_omt->delete_at(index_to_delete);
         CKERR(r);
-        for (i = index_to_delete+1; i < length; i++) {
-            values[i-1] = values[i];
+        for (i = index_to_delete+1; i < global_length; i++) {
+            global_values[i-1] = global_values[i];
         }
-        length--;
-        test_fetch_verify(global_omt, values, length);
-        test_iterate_verify(global_omt, values, length);
+        global_length--;
+        test_fetch_verify(global_omt, global_values, global_length);
+        test_iterate_verify(global_omt, global_values, global_length);
     }
-    assert(length == 0);
-    assert(length == toku_omt_size(global_omt));
-    r = toku_omt_delete_at(global_omt, length);
+    assert(global_length == 0);
+    assert(global_length == global_omt->size());
+    r = global_omt->delete_at(global_length);
     CKERR2(r, EINVAL);
-    assert(length == toku_omt_size(global_omt));
-    r = toku_omt_delete_at(global_omt, length+1);
+    assert(global_length == global_omt->size());
+    r = global_omt->delete_at(global_length+1);
     CKERR2(r, EINVAL);
     test_close(do_close);
 }
@@ -587,59 +629,59 @@ static void
 test_split_merge (enum create_type create_choice, enum close_when_done do_close) {
     int r = ENOSYS;
     uint32_t i = 0;
-    OMT left_split = NULL;
-    OMT right_split = NULL;
+    toku::omt<void *> *left_split = NULL;
+    toku::omt<void *> *right_split = NULL;
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
 
-    for (i = 0; i <= length; i++) {
-        r = toku_omt_split_at(global_omt, &right_split, length+1);
+    for (i = 0; i <= global_length; i++) {
+        r = omt_split_at(global_omt, &right_split, global_length+1);
         CKERR2(r,EINVAL);
-        r = toku_omt_split_at(global_omt, &right_split, length+2);
+        r = omt_split_at(global_omt, &right_split, global_length+2);
         CKERR2(r,EINVAL);
 
         //
         // test successful split
         //
-        r = toku_omt_split_at(global_omt, &right_split, i);
+        r = omt_split_at(global_omt, &right_split, i);
         CKERR(r);
         left_split = global_omt;
         global_omt = NULL;
-        assert(toku_omt_size(left_split) == i);
-        assert(toku_omt_size(right_split) == length - i);
-        test_fetch_verify(left_split, values, i);
-        test_iterate_verify(left_split, values, i);
-        test_fetch_verify(right_split, &values[i], length - i);
-        test_iterate_verify(right_split, &values[i], length - i);
+        assert(left_split->size() == i);
+        assert(right_split->size() == global_length - i);
+        test_fetch_verify(left_split, global_values, i);
+        test_iterate_verify(left_split, global_values, i);
+        test_fetch_verify(right_split, &global_values[i], global_length - i);
+        test_iterate_verify(right_split, &global_values[i], global_length - i);
         //
         // verify that new global_omt's cannot do bad splits
         //
-        r = toku_omt_split_at(left_split, &global_omt, i+1);
+        r = omt_split_at(left_split, &global_omt, i+1);
         CKERR2(r,EINVAL);
-        assert(toku_omt_size(left_split) == i);
-        assert(toku_omt_size(right_split) == length - i);
-        r = toku_omt_split_at(left_split, &global_omt, i+2);
+        assert(left_split->size() == i);
+        assert(right_split->size() == global_length - i);
+        r = omt_split_at(left_split, &global_omt, i+2);
         CKERR2(r,EINVAL);
-        assert(toku_omt_size(left_split) == i);
-        assert(toku_omt_size(right_split) == length - i);
-        r = toku_omt_split_at(right_split, &global_omt, length - i + 1);
+        assert(left_split->size() == i);
+        assert(right_split->size() == global_length - i);
+        r = omt_split_at(right_split, &global_omt, global_length - i + 1);
         CKERR2(r,EINVAL);
-        assert(toku_omt_size(left_split) == i);
-        assert(toku_omt_size(right_split) == length - i);
-        r = toku_omt_split_at(right_split, &global_omt, length - i + 1);
+        assert(left_split->size() == i);
+        assert(right_split->size() == global_length - i);
+        r = omt_split_at(right_split, &global_omt, global_length - i + 1);
         CKERR2(r,EINVAL);
-        assert(toku_omt_size(left_split) == i);
-        assert(toku_omt_size(right_split) == length - i);
+        assert(left_split->size() == i);
+        assert(right_split->size() == global_length - i);
 
         //
         // test merge
         //
-        r = toku_omt_merge(left_split,right_split,&global_omt);
+        r = omt_merge(left_split,right_split,&global_omt);
         CKERR(r);
         left_split = NULL;
         right_split = NULL;
-        assert(toku_omt_size(global_omt) == length);
-        test_fetch_verify(global_omt, values, length);
-        test_iterate_verify(global_omt, values, length);
+        assert(global_omt->size() == global_length);
+        test_fetch_verify(global_omt, global_values, global_length);
+        test_iterate_verify(global_omt, global_values, global_length);
     }
     test_close(do_close);
 }
@@ -694,7 +736,7 @@ typedef struct {
 
 static int
 test_heaviside (OMTVALUE v_omt, void* x) {
-    TESTVALUE v = (OMTVALUE) v_omt;
+    OMTVALUE v = (OMTVALUE) v_omt;
     h_extra* extra = (h_extra*)x;
     assert(v && x);
     assert(extra->first_zero <= extra->first_pos);
@@ -717,7 +759,7 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
 	       uint32_t number_expect, bool UU(cursor_valid)) {
     uint32_t idx     = UINT32_MAX;
     uint32_t old_idx = idx;
-    TESTVALUE omt_val;
+    OMTVALUE omt_val;
     int r;
 
     omt_val = NULL;
@@ -726,10 +768,10 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
     omt_val = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(global_omt, h, extra,      NULL, &idx);
+        r = omt_find_zero(global_omt, h, extra,      NULL, &idx);
     }
     else {
-        r = toku_omt_find(     global_omt, h, extra, dir, NULL, &idx);
+        r = omt_find(     global_omt, h, extra, dir, NULL, &idx);
     }
     CKERR2(r, r_expect);
     if (idx_will_change) {
@@ -744,10 +786,10 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
     omt_val  = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(global_omt, h, extra,      &omt_val, 0);
+        r = omt_find_zero(global_omt, h, extra,      &omt_val, 0);
     }
     else {
-        r = toku_omt_find(     global_omt, h, extra, dir, &omt_val, 0);
+        r = omt_find(     global_omt, h, extra, dir, &omt_val, 0);
     }
     CKERR2(r, r_expect);
     assert(idx == old_idx);
@@ -762,10 +804,10 @@ test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
     omt_val  = NULL;
     idx      = old_idx;
     if (dir == 0) {
-        r = toku_omt_find_zero(global_omt, h, extra,      NULL, 0);
+        r = omt_find_zero(global_omt, h, extra,      NULL, 0);
     }
     else {
-        r = toku_omt_find(     global_omt, h, extra, dir, NULL, 0);
+        r = omt_find(     global_omt, h, extra, dir, NULL, 0);
     }
     CKERR2(r, r_expect);
     assert(idx == old_idx);
@@ -782,10 +824,10 @@ test_find (enum create_type create_choice, enum close_when_done do_close) {
     -...-
         A
 */
-    heavy_extra(&extra, length, length);
-    test_find_dir(-1, &extra, test_heaviside, 0,           true,  length-1, length-1, true);
+    heavy_extra(&extra, global_length, global_length);
+    test_find_dir(-1, &extra, test_heaviside, 0,           true,  global_length-1, global_length-1, true);
     test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, false, 0,        0,        false);
-    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, true,  length,   length,   false);
+    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, true,  global_length,   global_length,   false);
 
 
 /*
@@ -801,7 +843,7 @@ test_find (enum create_type create_choice, enum close_when_done do_close) {
     0...0
     C
 */
-    heavy_extra(&extra, 0, length);
+    heavy_extra(&extra, 0, global_length);
     test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, false, 0, 0, false);
     test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, false, 0, 0, false);
     test_find_dir(0,  &extra, test_heaviside, 0,           true,  0, 0, true);
@@ -810,37 +852,37 @@ test_find (enum create_type create_choice, enum close_when_done do_close) {
     -...-0...0
         AC
 */
-    heavy_extra(&extra, length/2, length);
-    test_find_dir(-1, &extra, test_heaviside, 0,           true,  length/2-1, length/2-1, true);
+    heavy_extra(&extra, global_length/2, global_length);
+    test_find_dir(-1, &extra, test_heaviside, 0,           true,  global_length/2-1, global_length/2-1, true);
     test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, false, 0,          0,          false);
-    test_find_dir(0,  &extra, test_heaviside, 0,           true,  length/2,   length/2,   true);
+    test_find_dir(0,  &extra, test_heaviside, 0,           true,  global_length/2,   global_length/2,   true);
 
 /*
     0...0+...+
     C    B
 */
-    heavy_extra(&extra, 0, length/2);
+    heavy_extra(&extra, 0, global_length/2);
     test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, false, 0,        0,        false);
-    test_find_dir(+1, &extra, test_heaviside, 0,           true,  length/2, length/2, true);
+    test_find_dir(+1, &extra, test_heaviside, 0,           true,  global_length/2, global_length/2, true);
     test_find_dir(0,  &extra, test_heaviside, 0,           true,  0,        0,        true);
 
 /*
     -...-+...+
         AB
 */
-    heavy_extra(&extra, length/2, length/2);
-    test_find_dir(-1, &extra, test_heaviside, 0,           true, length/2-1, length/2-1, true);
-    test_find_dir(+1, &extra, test_heaviside, 0,           true, length/2,   length/2,   true);
-    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, true, length/2,   length/2,   false);
+    heavy_extra(&extra, global_length/2, global_length/2);
+    test_find_dir(-1, &extra, test_heaviside, 0,           true, global_length/2-1, global_length/2-1, true);
+    test_find_dir(+1, &extra, test_heaviside, 0,           true, global_length/2,   global_length/2,   true);
+    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, true, global_length/2,   global_length/2,   false);
 
 /*
     -...-0...0+...+
         AC    B
 */    
-    heavy_extra(&extra, length/3, 2*length/3);
-    test_find_dir(-1, &extra, test_heaviside, 0, true,   length/3-1,   length/3-1, true);
-    test_find_dir(+1, &extra, test_heaviside, 0, true, 2*length/3,   2*length/3,   true);
-    test_find_dir(0,  &extra, test_heaviside, 0, true,   length/3,     length/3,   true);
+    heavy_extra(&extra, global_length/3, 2*global_length/3);
+    test_find_dir(-1, &extra, test_heaviside, 0, true,   global_length/3-1,   global_length/3-1, true);
+    test_find_dir(+1, &extra, test_heaviside, 0, true, 2*global_length/3,   2*global_length/3,   true);
+    test_find_dir(0,  &extra, test_heaviside, 0, true,   global_length/3,     global_length/3,   true);
 
     /* Cleanup */
     test_close(do_close);
@@ -857,33 +899,35 @@ runtests_create_choice (enum create_type create_choice) {
 static void
 test_clone(uint32_t nelts)
 // Test that each clone operation gives the right data back.  If nelts is
-// zero, also tests that you still get a valid OMT back and that the way
+// zero, also tests that you still get a valid omt back and that the way
 // to deallocate it still works.
 {
-    OMT src = NULL, dest = NULL;
+    toku::omt<void *> *src = NULL, *dest = NULL;
     int r;
 
-    r = toku_omt_create(&src);
-    assert_zero(r);
+    XMALLOC(src);
+    src->create();
     for (long i = 0; i < nelts; ++i) {
-        r = toku_omt_insert_at(src, (OMTVALUE) i, i);
+        r = src->insert_at((OMTVALUE) i, i);
         assert_zero(r);
     }
 
-    r = toku_omt_clone_noptr(&dest, src);
-    assert_zero(r);
+    XMALLOC(dest);
+    dest->clone(*src);
     assert(dest != NULL);
-    assert(toku_omt_size(dest) == nelts);
+    assert(dest->size() == nelts);
     for (long i = 0; i < nelts; ++i) {
         OMTVALUE v;
         long l;
-        r = toku_omt_fetch(dest, i, &v);
+        r = dest->fetch(i, &v);
         assert_zero(r);
         l = (long) v;
         assert(l == i);
     }
-    toku_omt_destroy(&dest);
-    toku_omt_destroy(&src);
+    dest->destroy();
+    toku_free(dest);
+    src->destroy();
+    toku_free(src);
 }
 
 int

@@ -1137,7 +1137,7 @@ env_close(DB_ENV * env, uint32_t flags) {
         goto panic_and_quit_early;
     }
     if (env->i->open_dbs_by_dname) { //Verify that there are no open dbs.
-        if (toku_omt_size(env->i->open_dbs_by_dname) > 0) {
+        if (env->i->open_dbs_by_dname->size() > 0) {
             err_msg = "Cannot close environment due to open DBs\n";
             r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
             goto panic_and_quit_early;
@@ -1213,10 +1213,14 @@ env_close(DB_ENV * env, uint32_t flags) {
         toku_free(env->i->real_log_dir);
     if (env->i->real_tmp_dir)
         toku_free(env->i->real_tmp_dir);
-    if (env->i->open_dbs_by_dname)
-        toku_omt_destroy(&env->i->open_dbs_by_dname);
-    if (env->i->open_dbs_by_dict_id)
-        toku_omt_destroy(&env->i->open_dbs_by_dict_id);
+    if (env->i->open_dbs_by_dname) {
+        env->i->open_dbs_by_dname->destroy();
+        toku_free(env->i->open_dbs_by_dname);
+    }
+    if (env->i->open_dbs_by_dict_id) {
+        env->i->open_dbs_by_dict_id->destroy();
+        toku_free(env->i->open_dbs_by_dict_id);
+    }
     if (env->i->dir)
         toku_free(env->i->dir);
     toku_pthread_rwlock_destroy(&env->i->open_dbs_rwlock);
@@ -2298,10 +2302,8 @@ struct ltm_iterate_requests_callback_extra {
 };
 
 static int
-find_db_by_dict_id(OMTVALUE v, void *dict_id_v) {
-    DB *db = (DB *) v;
+find_db_by_dict_id(DB *const &db, const DICTIONARY_ID &dict_id_find) {
     DICTIONARY_ID dict_id = db->i->dict_id;
-    DICTIONARY_ID dict_id_find = *(DICTIONARY_ID *) dict_id_v;
     if (dict_id.dictid < dict_id_find.dictid) {
         return -1;
     } else if (dict_id.dictid > dict_id_find.dictid) {
@@ -2313,10 +2315,9 @@ find_db_by_dict_id(OMTVALUE v, void *dict_id_v) {
 
 static DB *
 locked_get_db_by_dict_id(DB_ENV *env, DICTIONARY_ID dict_id) {
-    OMTVALUE dbv;
-    int r = toku_omt_find_zero(env->i->open_dbs_by_dict_id, find_db_by_dict_id,
-                               (void *) &dict_id, &dbv, nullptr);
-    return r == 0 ? (DB *) dbv : nullptr;
+    DB *db;
+    int r = env->i->open_dbs_by_dict_id->find_zero<DICTIONARY_ID, find_db_by_dict_id>(dict_id, &db, nullptr);
+    return r == 0 ? db : nullptr;
 }
 
 static int ltm_iterate_requests_callback(DICTIONARY_ID dict_id, TXNID txnid,
@@ -2578,10 +2579,10 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     // The escalate callback will need it to translate txnids to DB_TXNs
     result->i->ltm.create(toku_db_lt_on_create_callback, toku_db_lt_on_destroy_callback, toku_db_txn_escalate_callback, result);
 
-    r = toku_omt_create(&result->i->open_dbs_by_dname);
-    assert_zero(r);
-    r = toku_omt_create(&result->i->open_dbs_by_dict_id);
-    assert_zero(r);
+    XMALLOC(result->i->open_dbs_by_dname);
+    result->i->open_dbs_by_dname->create();
+    XMALLOC(result->i->open_dbs_by_dict_id);
+    result->i->open_dbs_by_dict_id->create();
     toku_pthread_rwlock_init(&result->i->open_dbs_rwlock, NULL);
 
     *envp = result;
@@ -2607,9 +2608,7 @@ DB_ENV_CREATE_FUN (DB_ENV ** envp, uint32_t flags) {
 // return <0 if v is earlier in omt than dbv
 // return >0 if v is later in omt than dbv
 static int
-find_db_by_db_dname(OMTVALUE v, void *dbv) {
-    DB *db = (DB *) v;            // DB* that is stored in the omt
-    DB *dbfind = (DB *) dbv;      // extra, to be compared to v
+find_db_by_db_dname(DB *const &db, DB *const &dbfind) {
     int cmp;
     const char *dname     = db->i->dname;
     const char *dnamefind = dbfind->i->dname;
@@ -2621,9 +2620,7 @@ find_db_by_db_dname(OMTVALUE v, void *dbv) {
 }
 
 static int
-find_db_by_db_dict_id(OMTVALUE v, void *dbv) {
-    DB *db = (DB *) v;
-    DB *dbfind = (DB *) dbv;
+find_db_by_db_dict_id(DB *const &db, DB *const &dbfind) {
     DICTIONARY_ID dict_id = db->i->dict_id;
     DICTIONARY_ID dict_id_find = dbfind->i->dict_id;
     if (dict_id.dictid < dict_id_find.dictid) {
@@ -2646,20 +2643,18 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     assert(db->i->dname); // internal (non-user) dictionary has no dname
 
     int r;
-    OMTVALUE v;
     uint32_t idx;
-    r = toku_omt_find_zero(env->i->open_dbs_by_dname, find_db_by_db_dname,
-                           db, &v, &idx);
+
+    r = env->i->open_dbs_by_dname->find_zero<DB *, find_db_by_db_dname>(db, nullptr, &idx);
     assert(r == DB_NOTFOUND);
-    r = toku_omt_insert_at(env->i->open_dbs_by_dname, db, idx);
+    r = env->i->open_dbs_by_dname->insert_at(db, idx);
     assert_zero(r);
-    r = toku_omt_find_zero(env->i->open_dbs_by_dict_id, find_db_by_db_dict_id,
-                           db, &v, &idx);
+    r = env->i->open_dbs_by_dict_id->find_zero<DB *, find_db_by_db_dict_id>(db, nullptr, &idx);
     assert(r == DB_NOTFOUND);
-    r = toku_omt_insert_at(env->i->open_dbs_by_dict_id, db, idx);
+    r = env->i->open_dbs_by_dict_id->insert_at(db, idx);
     assert_zero(r);
 
-    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = toku_omt_size(env->i->open_dbs_by_dname);
+    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = env->i->open_dbs_by_dname->size();
     STATUS_VALUE(YDB_LAYER_NUM_DB_OPEN)++;
     if (STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) > STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS)) {
         STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS) = STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS);
@@ -2672,58 +2667,44 @@ void
 env_note_db_closed(DB_ENV *env, DB *db) {
     toku_pthread_rwlock_wrlock(&env->i->open_dbs_rwlock);
     assert(db->i->dname); // internal (non-user) dictionary has no dname
-    assert(toku_omt_size(env->i->open_dbs_by_dname) > 0);
-    assert(toku_omt_size(env->i->open_dbs_by_dict_id) > 0);
+    assert(env->i->open_dbs_by_dname->size() > 0);
+    assert(env->i->open_dbs_by_dict_id->size() > 0);
 
     int r;
-    OMTVALUE v;
     uint32_t idx;
-    r = toku_omt_find_zero(env->i->open_dbs_by_dname, find_db_by_db_dname,
-                           db, &v, &idx);
+
+    r = env->i->open_dbs_by_dname->find_zero<DB *, find_db_by_db_dname>(db, nullptr, &idx);
     assert_zero(r);
-    r = toku_omt_delete_at(env->i->open_dbs_by_dname, idx);
+    r = env->i->open_dbs_by_dname->delete_at(idx);
     assert_zero(r);
-    r = toku_omt_find_zero(env->i->open_dbs_by_dict_id, find_db_by_db_dict_id,
-                           db, &v, &idx);
+    r = env->i->open_dbs_by_dict_id->find_zero<DB *, find_db_by_db_dict_id>(db, nullptr, &idx);
     assert_zero(r);
-    r = toku_omt_delete_at(env->i->open_dbs_by_dict_id, idx);
+    r = env->i->open_dbs_by_dict_id->delete_at(idx);
     assert_zero(r);
 
     STATUS_VALUE(YDB_LAYER_NUM_DB_CLOSE)++;
-    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = toku_omt_size(env->i->open_dbs_by_dname);
+    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = env->i->open_dbs_by_dname->size();
     toku_pthread_rwlock_wrunlock(&env->i->open_dbs_rwlock);
 }
 
 static int
-find_open_db_by_dname (OMTVALUE v, void *dnamev) {
-    DB *db = (DB *) v;            // DB* that is stored in the omt
-    int cmp;
-    const char *dname     = db->i->dname;
-    const char *dnamefind = (char *) dnamev;
-    cmp = strcmp(dname, dnamefind);
-    return cmp;
+find_open_db_by_dname(DB *const &db, const char *const &dnamefind) {
+    return strcmp(db->i->dname, dnamefind);
 }
 
 // return true if there is any db open with the given dname
 static bool
 env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
-    int r;
-    bool rval;
-    OMTVALUE dbv;
-    uint32_t idx;
+    DB *db;
     toku_pthread_rwlock_rdlock(&env->i->open_dbs_rwlock);
-    r = toku_omt_find_zero(env->i->open_dbs_by_dname, find_open_db_by_dname, (void*)dname, &dbv, &idx);
-    if (r==0) {
-        DB *db = (DB *) dbv;
-        assert(strcmp(dname, db->i->dname) == 0);
-        rval = true;
-    }
-    else {
-        assert(r==DB_NOTFOUND);
-        rval = false;
+    int r = env->i->open_dbs_by_dname->find_zero<const char *, find_open_db_by_dname>(dname, &db, nullptr);
+    if (r == 0) {
+        invariant(strcmp(dname, db->i->dname) == 0);
+    } else {
+        invariant(r == DB_NOTFOUND);
     }
     toku_pthread_rwlock_rdunlock(&env->i->open_dbs_rwlock);
-    return rval;
+    return r == 0 ? true : false;
 }
 
 //We do not (yet?) support deleting subdbs by deleting the enclosing 'fname'

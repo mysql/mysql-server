@@ -53,7 +53,6 @@ set(FT_SOURCES
   logger
   log_upgrade
   minicron
-  omt
   pqueue
   queue
   quicklz
