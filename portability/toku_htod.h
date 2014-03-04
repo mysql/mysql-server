@@ -87,56 +87,87 @@ PATENT RIGHTS GRANT:
 */
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-#ifndef TOKU_RACE_TOOLS_H
-#define TOKU_RACE_TOOLS_H
 
-#include "toku_config.h"
 
-#if defined(__linux__) && USE_VALGRIND
-
-# include <valgrind/helgrind.h>
-# include <valgrind/drd.h>
-
-# define TOKU_ANNOTATE_NEW_MEMORY(p, size) ANNOTATE_NEW_MEMORY(p, size)
-# define TOKU_VALGRIND_HG_ENABLE_CHECKING(p, size) VALGRIND_HG_ENABLE_CHECKING(p, size)
-# define TOKU_VALGRIND_HG_DISABLE_CHECKING(p, size) VALGRIND_HG_DISABLE_CHECKING(p, size)
-# define TOKU_DRD_IGNORE_VAR(v) DRD_IGNORE_VAR(v)
-# define TOKU_DRD_STOP_IGNORING_VAR(v) DRD_STOP_IGNORING_VAR(v)
-
-/*
- * How to make helgrind happy about tree rotations and new mutex orderings:
+/* Purpose of this file is to provide definitions of 
+ * Host to Disk byte transposition functions, an abstraction of
+ * htod32()/dtoh32() and htod16()/dtoh16() functions.
  *
- * // Tell helgrind that we unlocked it so that the next call doesn't get a "destroyed a locked mutex" error.
- * // Tell helgrind that we destroyed the mutex.
- * VALGRIND_HG_MUTEX_UNLOCK_PRE(&locka);
- * VALGRIND_HG_MUTEX_DESTROY_PRE(&locka);
+ * These htod/dtoh functions will only perform the transposition
+ * if the disk and host are defined to be in opposite endian-ness.
+ * If we define the disk to be in host order, then no byte 
+ * transposition is performed.  (We might do this to save the 
+ * the time used for byte transposition.) 
+ * 
+ * This abstraction layer allows us to define the disk to be in
+ * any byte order with a single compile-time switch (in htod.c).
  *
- * // And recreate it.  It would be better to simply be able to say that the order on these two can now be reversed, because this code forgets all the ordering information for this mutex.
- * // Then tell helgrind that we have locked it again.
- * VALGRIND_HG_MUTEX_INIT_POST(&locka, 0);
- * VALGRIND_HG_MUTEX_LOCK_POST(&locka);
- *
- * When the ordering of two locks changes, we don't need tell Helgrind about do both locks.  Just one is good enough.
+ * NOTE: THIS FILE DOES NOT CURRENTLY SUPPORT A BIG-ENDIAN
+ *       HOST AND A LITTLE-ENDIAN DISK.
  */
 
-# define TOKU_VALGRIND_RESET_MUTEX_ORDERING_INFO(mutex)  \
-    VALGRIND_HG_MUTEX_UNLOCK_PRE(mutex); \
-    VALGRIND_HG_MUTEX_DESTROY_PRE(mutex); \
-    VALGRIND_HG_MUTEX_INIT_POST(mutex, 0); \
-    VALGRIND_HG_MUTEX_LOCK_POST(mutex);
+#ifndef _TOKU_HTOD_H
+#define _TOKU_HTOD_H
 
-#else // !defined(__linux__) || !USE_VALGRIND
+#include <portability/toku_config.h>
 
-# define NVALGRIND 1
-# define TOKU_ANNOTATE_NEW_MEMORY(p, size) ((void) 0)
-# define TOKU_VALGRIND_HG_ENABLE_CHECKING(p, size) ((void) 0)
-# define TOKU_VALGRIND_HG_DISABLE_CHECKING(p, size) ((void) 0)
-# define TOKU_DRD_IGNORE_VAR(v)
-# define TOKU_DRD_STOP_IGNORING_VAR(v)
-# define TOKU_VALGRIND_RESET_MUTEX_ORDERING_INFO(mutex)
-# define RUNNING_ON_VALGRIND (0U)
+#if defined(HAVE_ENDIAN_H)
+# include <endian.h>
+#elif defined(HAVE_MACHINE_ENDIAN_H)
+# include <machine/endian.h>
+# define __BYTE_ORDER __DARWIN_BYTE_ORDER
+# define __LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
+# define __BIG_ENDIAN __DARWIN_BIG_ENDIAN
+#endif
+#if !defined(__BYTE_ORDER) || \
+    !defined(__LITTLE_ENDIAN) || \
+    !defined(__BIG_ENDIAN)
+#error Standard endianness things not all defined
+#endif
+
+
+static const int64_t toku_byte_order_host = 0x0102030405060708LL;
+
+#define NETWORK_BYTE_ORDER  (__BIG_ENDIAN)
+#define INTEL_BYTE_ORDER    (__LITTLE_ENDIAN)
+#define HOST_BYTE_ORDER     (__BYTE_ORDER)
+
+//DISK_BYTE_ORDER is the byte ordering for integers written to disk.
+//If DISK_BYTE_ORDER is the same as HOST_BYTE_ORDER no conversions are necessary.
+//Otherwise some structures require conversion to HOST_BYTE_ORDER on loading from disk (HOST_BYTE_ORDER in memory), and
+//others require conversion to HOST_BYTE_ORDER on every access/mutate (DISK_BYTE_ORDER in memory).
+#define DISK_BYTE_ORDER     (INTEL_BYTE_ORDER)
+
+#if HOST_BYTE_ORDER!=INTEL_BYTE_ORDER
+//Even though the functions are noops if DISK==HOST, we do not have the logic to test whether the file was moved from another BYTE_ORDER machine.
+#error Only intel byte order supported so far.
+#endif
+
+#if DISK_BYTE_ORDER == HOST_BYTE_ORDER
+static inline uint64_t
+toku_dtoh64(uint64_t i) {
+    return i;
+}
+
+static inline uint64_t
+toku_htod64(uint64_t i) {
+    return i;
+}
+
+static inline uint32_t
+toku_dtoh32(uint32_t i) {
+    return i;
+}
+
+static inline uint32_t
+toku_htod32(uint32_t i) {
+    return i;
+}
+#else
+#error Not supported
+#endif
+
+
 
 #endif
 
-#endif // TOKU_RACE_TOOLS_H
