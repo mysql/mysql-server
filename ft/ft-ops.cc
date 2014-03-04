@@ -4438,7 +4438,7 @@ int iterate_do_bn_apply_msg(const int32_t &offset, const uint32_t UU(idx), struc
  * found.  The pivot_bounds are the lower bound exclusive and upper bound
  * inclusive, because they come from pivot keys in the tree.  We want OMT
  * indices, which must have the lower bound be inclusive and the upper
- * bound exclusive.  We will get these by telling toku_omt_find to look
+ * bound exclusive.  We will get these by telling omt::find to look
  * for something strictly bigger than each of our pivot bounds.
  *
  * Outputs the OMT indices in lbi (lower bound inclusive) and ube (upper
@@ -4511,7 +4511,7 @@ find_bounds_within_message_tree(
         // Again, we use an msn of MAX_MSN and a direction of +1 to get
         // the first thing bigger than the upper_bound_inclusive key.
         // This is therefore the smallest thing we don't want to apply,
-        // and toku_omt_iterate_on_range will not examine it.
+        // and omt::iterate_on_range will not examine it.
         struct toku_fifo_entry_key_msn_heaviside_extra ube_extra;
         ZERO_STRUCT(ube_extra);
         ube_extra.desc = desc;

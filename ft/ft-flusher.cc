@@ -743,8 +743,6 @@ exit:
     return;
 }
 
-// TODO: (Zardosht) possibly get rid of this function and use toku_omt_split_at in
-// ftleaf_split
 static void
 move_leafentries(
     BASEMENTNODE dest_bn,
