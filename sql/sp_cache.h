@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ void sp_cache_insert(sp_cache **cp, sp_head *sp);
 sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name);
 void sp_cache_invalidate();
 void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp);
-ulong sp_cache_version();
+int64 sp_cache_version();
 void sp_cache_enforce_limit(sp_cache *cp, ulong upper_limit_for_elements);
 
 #endif /* _SP_CACHE_H_ */
