@@ -92,7 +92,7 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <db.h>
 
-#include <toku_include/memory.h>
+#include <portability/memory.h>
 
 namespace toku {
 

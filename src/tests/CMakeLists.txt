@@ -400,7 +400,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       set_property(TARGET ${base}.bdb APPEND PROPERTY
         COMPILE_DEFINITIONS "USE_BDB;IS_TDB=0;TOKU_ALLOW_DEPRECATED")
       set_target_properties(${base}.bdb PROPERTIES
-        INCLUDE_DIRECTORIES "${BDB_INCLUDE_DIR};${CMAKE_CURRENT_BINARY_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../portability;${CMAKE_CURRENT_SOURCE_DIR}/../..")
+        INCLUDE_DIRECTORIES "${BDB_INCLUDE_DIR};${CMAKE_CURRENT_SOURCE_DIR}/../../portability;${CMAKE_CURRENT_SOURCE_DIR}/../..")
       target_link_libraries(${base}.bdb ${LIBTOKUPORTABILITY} ${BDB_LIBRARIES})
       add_space_separated_property(TARGET ${base}.bdb COMPILE_FLAGS -fvisibility=hidden)
     endforeach(bin)

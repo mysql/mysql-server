@@ -93,8 +93,8 @@ PATENT RIGHTS GRANT:
 #include <stdio.h>
 #include <string.h>
 
-#include <toku_include/toku_assert.h>
-#include <toku_include/toku_os.h>
+#include <portability/toku_assert.h>
+#include <portability/toku_os.h>
 
 static bool check_huge_pages_config_file(const char *fname)
 // Effect: Return true if huge pages are there.  If so, print diagnostics.

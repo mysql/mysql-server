@@ -89,14 +89,16 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "toku_config.h"
-#include <memory.h>
+#include <portability/toku_config.h>
 #include <portability/toku_atomic.h>
-#include "test.h"
+
+#include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+
+#include "test.h"
 
 int verbose = 0;
 
