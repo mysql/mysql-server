@@ -2372,9 +2372,9 @@ files_checked:
 	}
 
 	if (srv_print_verbose_log) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"%s started; log sequence number " LSN_PF "",
-			INNODB_VERSION_STR, srv_start_lsn);
+		ib::info() << INNODB_VERSION_STR
+			<< " started; log sequence number "
+			<< srv_start_lsn;
 	}
 
 	if (srv_force_recovery > 0) {
