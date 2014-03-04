@@ -3647,9 +3647,9 @@ static bool
 check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
                                  sp_head *sp)
 {
-  ulong spc_version= sp_cache_version();
+  int64 spc_version= sp_cache_version();
   /* sp is NULL if there is no such routine. */
-  ulong version= sp ? sp->sp_cache_version() : spc_version;
+  int64 version= sp ? sp->sp_cache_version() : spc_version;
   /*
     If the version in the parse tree is stale,
     or the version in the cache is stale and sp is not used,
