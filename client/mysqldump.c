@@ -3991,7 +3991,13 @@ static int dump_tablespaces(char* ts_where)
   char *ubs;
   char *endsemi;
   DBUG_ENTER("dump_tablespaces");
-
+  
+  /*
+    Try to turn off semi-join optimization (if that fails, this is a
+    pre-optimizer_switch server, and the old query plan is ok for us.
+  */
+  mysql_query(mysql, "set optimizer_switch='semijoin=off'");
+ 
   init_dynamic_string_checked(&sqlbuf,
                       "SELECT LOGFILE_GROUP_NAME,"
                       " FILE_NAME,"
@@ -4151,6 +4157,8 @@ static int dump_tablespaces(char* ts_where)
 
   mysql_free_result(tableres);
   dynstr_free(&sqlbuf);
+  mysql_query(mysql, "set optimizer_switch=default");
+
   DBUG_RETURN(0);
 }
 
