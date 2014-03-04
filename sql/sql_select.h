@@ -226,7 +226,7 @@ public:
     cost of using ref access once multiplied by estimated number of
     partial rows from tables earlier in the join sequence.
     read_cost does NOT include cost of processing rows on the
-    server side (ROW_EVALUATE_COST).
+    server side (row_evaluate_cost).
 
     Example: If the cost of ref access on this index is 5, and the
     estimated number of partial rows from earlier tables is 10,
@@ -383,15 +383,11 @@ enum join_type { /*
                  */
                  JT_REF,
                  /*
-                   Full table scan or range scan.
-                   If select->quick != NULL, it is range access.
-                   Otherwise it is table scan.
+                   Full table scan.
                  */
                  JT_ALL,
                  /*
-                   Range scan. Note that range scan is not indicated
-                   by JT_RANGE but by "JT_ALL + select->quick" except
-                   when printing EXPLAIN output. @see calc_join_type()
+                   Range scan.
                  */
                  JT_RANGE,
                  /*
@@ -421,6 +417,9 @@ enum join_type { /*
                    produce unions and intersections
                  */
                  JT_INDEX_MERGE};
+
+/// @returns join type according to quick select type used
+join_type calc_join_type(int quick_type);
 
 class JOIN;
 
@@ -500,7 +499,7 @@ typedef struct st_position : public Sql_alloc
     earlier in the join sequence.
 
     read_cost does NOT include cost of processing rows within the
-    executor (ROW_EVALUATE_COST).
+    executor (row_evaluate_cost).
   */
   double read_cost;
   JOIN_TAB *table;
@@ -664,6 +663,52 @@ typedef struct st_join_table : public Sql_alloc
   void add_prefix_tables(table_map tables)
   { prefix_tables_map|= tables; added_tables_map|= tables; }
 
+  /// Sets the pointer to the join condition of TABLE_LIST
+  void init_join_cond_ref(TABLE_LIST *tl)
+  {
+    m_join_cond_ref= tl->optim_join_cond_ref();
+  }
+
+  /// @returns join condition
+  Item *join_cond() const
+  {
+    return *m_join_cond_ref;
+  }
+
+  /**
+     Sets join condition
+     @note this also changes TABLE_LIST::m_join_cond.
+  */
+  void set_join_cond(Item *cond)
+  {
+    *m_join_cond_ref= cond;
+  }
+
+  /// @returns combined condition after attaching where and join condition
+  Item *condition() const
+  {
+    return m_condition;
+  }
+  /// Set the combined condition for a table (may be performed several times)
+  void set_condition(Item *to, uint line)
+  {
+    DBUG_PRINT("info", 
+               ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
+                m_condition, to, line, this));
+    m_condition= to;
+    quick_order_tested.clear_all();
+  }
+
+  /// Set table condition, for JOIN_TAB as well as for SELECT object
+  Item *set_jt_and_sel_condition(Item *new_cond, uint line)
+  {
+    Item *tmp_cond= m_condition;
+    set_condition(new_cond, line);
+    if (select)
+      select->cond= new_cond;
+    return tmp_cond;
+  }
+
   /// Return true if join_tab should perform a FirstMatch action
   bool do_firstmatch() const { return firstmatch_return; }
 
@@ -680,11 +725,21 @@ typedef struct st_join_table : public Sql_alloc
   POSITION      *position;      /**< points into best_positions array        */
   Key_use       *keyuse;        /**< pointer to first used key               */
   SQL_SELECT    *select;
+  QUICK_SELECT_I *quick;
 private:
   Item          *m_condition;   /**< condition for this join_tab             */
+  /**
+     Pointer to the associated join condition:
+     - if this is a table with position==NULL (e.g. internal sort/group
+     temporary table), pointer is NULL
+     - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
+     Thus, TABLE_LIST::m_join_cond and *JOIN_TAB::m_join_cond_ref are the same
+     thing (changing one changes the other; thus, optimizations made on the
+     second are reflected in SELECT_LEX::print_table_array() which uses the
+     first).
+  */
+  Item          **m_join_cond_ref;
 public:
-  QUICK_SELECT_I *quick;
-  Item         **on_expr_ref;   /**< pointer to the associated on expression */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression*/
   st_join_table *first_inner;   /**< first inner table for including outerjoin*/
   bool           found;         /**< true after all matches or null complement*/
@@ -694,14 +749,6 @@ public:
   st_join_table *last_inner;    /**< last table table for embedding outer join*/
   st_join_table *first_upper;  /**< first inner table for embedding outer join*/
   st_join_table *first_unmatched; /**< used for optimization purposes only   */
-  /* 
-    The value of m_condition before we've attempted to do Index Condition
-    Pushdown. We may need to restore everything back if we first choose one
-    index but then reconsider (see test_if_skip_sort_order() for such
-    scenarios).
-    NULL means no index condition pushdown was performed.
-  */
-  Item          *pre_idx_push_cond;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
   Extra_tag     info;
@@ -910,6 +957,12 @@ public:
   /** TRUE <=> only index is going to be read for this table */
   bool use_keyread;
 
+  /** Flags from SE's MRR implementation, to be used by JOIN_CACHE */
+  uint join_cache_flags;
+
+  /** TRUE <=> AM will scan backward */
+  bool reversed_access;
+
   /** Clean up associated table after query execution, including resources */
   void cleanup();
 
@@ -968,27 +1021,6 @@ public:
   {
     return first_inner && first_inner == this;
   }
-  Item *condition() const
-  {
-    return m_condition;
-  }
-  void set_condition(Item *to, uint line)
-  {
-    DBUG_PRINT("info", 
-               ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
-                m_condition, to, line, this));
-    m_condition= to;
-    quick_order_tested.clear_all();
-  }
-
-  Item *set_jt_and_sel_condition(Item *new_cond, uint line)
-  {
-    Item *tmp_cond= m_condition;
-    set_condition(new_cond, line);
-    if (select)
-      select->cond= new_cond;
-    return tmp_cond;
-  }
 
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const
@@ -1024,6 +1056,11 @@ public:
   bool use_order() const; ///< Use ordering provided by chosen index?
   bool sort_table();
   bool remove_duplicates();
+  /**
+    A helper function that allocates appropriate join cache object and
+    sets next_select function of previous tab.
+  */
+  void init_join_cache();
 } JOIN_TAB;
 
 inline
@@ -1032,9 +1069,9 @@ st_join_table::st_join_table()
     position(NULL),
     keyuse(NULL),
     select(NULL),
-    m_condition(NULL),
     quick(NULL),
-    on_expr_ref(NULL),
+    m_condition(NULL),
+    m_join_cond_ref(NULL),
     cond_equal(NULL),
     first_inner(NULL),
     found(false),
@@ -1043,7 +1080,6 @@ st_join_table::st_join_table()
     last_inner(NULL),
     first_upper(NULL),
     first_unmatched(NULL),
-    pre_idx_push_cond(NULL),
     info(ET_none),
     packed_info(0),
     materialize_table(NULL),
@@ -1111,7 +1147,9 @@ st_join_table::st_join_table()
     send_records(0),
     having(NULL),
     distinct(false),
-    use_keyread(false)
+    use_keyread(false),
+    join_cache_flags(0),
+    reversed_access(false)
 {
   /**
     @todo Add constructor to READ_RECORD.
@@ -1458,18 +1496,14 @@ bool error_if_full_join(JOIN *join);
 bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option);
 bool mysql_prepare_and_optimize_select(THD *thd,
-                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
-                  Item *conds, SQL_I_List<ORDER> *order,
-                  SQL_I_List<ORDER> *group,
-                  Item *having, ulonglong select_type, 
-                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  List<Item> &list,
+                  ulonglong select_type,
+                  select_result *result,
                   SELECT_LEX *select_lex, bool *free_join);
 bool mysql_select(THD *thd,
-                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
-                  Item *conds, SQL_I_List<ORDER> *order,
-                  SQL_I_List<ORDER> *group,
-                  Item *having, ulonglong select_type, 
-                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  List<Item> &list,
+                  ulonglong select_type,
+                  select_result *result,
                   SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 
@@ -1489,10 +1523,6 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
                                Item **const_item= NULL);
 bool test_if_subpart(ORDER *a,ORDER *b);
 void calc_group_buffer(JOIN *join,ORDER *group);
-bool
-test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
-                        const bool no_changes, const key_map *map,
-                        const char *clause_type);
 bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
 bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                         table_map used_tables);
@@ -1509,5 +1539,33 @@ uint actual_key_flags(KEY *key_info);
 
 int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
                          uint *used_key_parts= NULL);
+bool test_if_cheaper_ordering(const JOIN_TAB *tab,
+                              ORDER *order, TABLE *table,
+                              key_map usable_keys, int key,
+                              ha_rows select_limit,
+                              int *new_key, int *new_key_direction,
+                              ha_rows *new_select_limit,
+                              uint *new_used_key_parts= NULL,
+                              uint *saved_best_key_parts= NULL);
+/**
+  Calculate properties of ref key: key length, number of used key parts,
+  dependency map, possibility of null.
+
+  @param keyuse               Array of keys to consider
+  @param tab                  join_tab to calculate ref parameters for
+  @param key                  number of the key to use
+  @param used_tables          tables read prior to this table
+  @param [out] chosen_keyuses when given, this function will fill array with
+                              chosen keyuses
+  @param [out] length_out     calculated length of the ref
+  @param [out] keyparts_out   calculated number of used keyparts
+  @param [out] dep_map        when given, calculated dependency map
+  @param [out] maybe_null     when given, calculated maybe_null property
+*/
+
+void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
+                              table_map used_tables,Key_use **chosen_keyuses,
+                              uint *length_out, uint *keyparts_out,
+                              table_map *dep_map, bool *maybe_null);
 
 #endif /* SQL_SELECT_INCLUDED */

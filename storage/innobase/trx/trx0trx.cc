@@ -169,13 +169,10 @@ struct TrxFactory {
 
 		trx->dict_operation_lock_mode = 0;
 
-		trx->xid = reinterpret_cast<XID*>(
-			ut_zalloc(sizeof(*trx->xid)));
+		trx->xid = new (std::nothrow) xid_t();
 
 		trx->detailed_error = reinterpret_cast<char*>(
 			ut_zalloc(MAX_DETAILED_ERROR_LEN));
-
-		trx->xid->formatID = -1;
 
 		trx->lock.lock_heap = mem_heap_create_typed(
 			1024, MEM_HEAP_FOR_LOCK_HEAP);
@@ -224,7 +221,7 @@ struct TrxFactory {
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-		ut_free(trx->xid);
+		delete trx->xid;
 		ut_free(trx->detailed_error);
 
 		mutex_free(&trx->mutex);
@@ -2773,15 +2770,11 @@ trx_get_trx_by_xid_low(
 
 		if (trx->is_recovered
 		    && trx_state_eq(trx, TRX_STATE_PREPARED)
-		    && xid->gtrid_length == trx->xid->gtrid_length
-		    && xid->bqual_length == trx->xid->bqual_length
-		    && memcmp(xid->data, trx->xid->data,
-			      xid->gtrid_length + xid->bqual_length) == 0) {
+		    && xid->eq(trx->xid)) {
 
 			/* Invalidate the XID, so that subsequent calls
 			will not find it. */
-			memset(trx->xid, 0, sizeof(*trx->xid));
-			trx->xid->formatID = -1;
+			trx->xid->reset();
 			break;
 		}
 	}

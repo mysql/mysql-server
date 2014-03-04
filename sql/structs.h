@@ -89,7 +89,7 @@ public:
   then the storage engine has not provided a value for it and the rec_per_key
   value for this key part is unknown.
 */
-#define REC_PER_KEY_UNKNOWN -1.0
+#define REC_PER_KEY_UNKNOWN -1.0f
 
 typedef struct st_key {
   /** Tot length of key */
@@ -283,12 +283,23 @@ extern const char *show_comp_option_name[];
 
 typedef int *(*update_var)(THD *, struct st_mysql_show_var *);
 
+/*
+  This structure holds the specifications relating to
+  ALTER user ... PASSWORD EXPIRE ...
+*/
+typedef struct st_lex_alter {
+  bool update_password_expired_column;
+  bool use_default_password_lifetime;
+  uint16 expire_after_days;
+} LEX_ALTER;
+
 typedef struct	st_lex_user {
   LEX_STRING user, host, password, plugin, auth;
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
   bool uses_identified_by_password_clause;
+  LEX_ALTER alter_status;
 } LEX_USER;
 
 /*

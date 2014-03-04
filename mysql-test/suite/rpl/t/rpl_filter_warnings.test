@@ -49,6 +49,4 @@ DROP TABLE t2;
 --let GREP_PATTERN=Slave SQL thread ignored the query because of replicate
 --source extra/rpl_tests/grep_pattern.inc
 
---remove_file $GREP_FILE
-
 --source include/rpl_end.inc

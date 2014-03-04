@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -208,8 +208,6 @@ enum latch_level_t {
 
 	SYNC_MONITOR_MUTEX,
 
-	SYNC_MEM_POOL,
-	SYNC_MEM_HASH,
 	SYNC_ANY_LATCH,
 
 	SYNC_DOUBLEWRITE,
@@ -343,7 +341,9 @@ struct btrsea_sync_check : public sync_check_functor_t {
 	virtual bool operator()(const latch_t& latch)
 	{
 		// FIXME: This condition doesn't look right
-		if (!m_has_search_latch || latch.m_level != SYNC_SEARCH_SYS) {
+		if (!m_has_search_latch
+		    || (latch.m_level != SYNC_SEARCH_SYS
+			&& latch.m_level != SYNC_FTS_CACHE)) {
 			m_result = true;
 			return(m_result);
 		}

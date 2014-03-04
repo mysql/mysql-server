@@ -687,7 +687,10 @@ private:
   bool unique;
 public:
 
-  // constructor can assign THD because it will be called after JOIN::prepare
+  /*
+    constructor can assign THD because it will be called after
+    SELECT_LEX::prepare
+  */
   subselect_indexsubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
                                  Item *having_arg, bool chk_null,
