@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 #ifndef TOKU_TIME_H
 #define TOKU_TIME_H
 
-#include <portability/toku_config.h>
+#include <toku_config.h>
 #include <time.h>
 #include <sys/time.h>
 #include <stdint.h>
