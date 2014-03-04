@@ -1217,6 +1217,7 @@ bool is_network_error(uint errorno)
       errorno == ER_CON_COUNT_ERROR ||
       errorno == ER_CONNECTION_KILLED ||
       errorno == ER_NEW_ABORTING_CONNECTION ||
+      errorno == ER_NET_READ_INTERRUPTED ||
       errorno == ER_SERVER_SHUTDOWN)
     return TRUE;
 
