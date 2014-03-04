@@ -575,7 +575,6 @@ static void print_db_txn_struct (void) {
     STRUCT_SETUP(DB_TXN, parent,      "DB_TXN *%s");
     const char *extra[] = {
 	"int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
-	"struct toku_list open_txns",
 	"int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *)",
@@ -651,7 +650,6 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
            "    char data[DB_GID_SIZE];\n"
            "} TOKU_XA_XID;\n");
 
-   //Typedef toku_off_t
     printf("#ifndef TOKU_OFF_T_DEFINED\n"
            "#define TOKU_OFF_T_DEFINED\n"
            "typedef int64_t toku_off_t;\n"
@@ -670,7 +668,10 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("typedef uint32_t db_recno_t;\n");
     printf("typedef int(*YDB_CALLBACK_FUNCTION)(DBT const*, DBT const*, void*);\n");
 
-    printf("#include <tdb-internal.h>\n");
+    printf("struct simple_dbt {\n");
+    printf("    uint32_t len;\n");
+    printf("    void     *data;\n");
+    printf("};\n");
     
     //stat64
     printf("typedef struct __toku_db_btree_stat64 {\n");

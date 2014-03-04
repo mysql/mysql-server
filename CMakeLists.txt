@@ -27,7 +27,6 @@ if (USE_VALGRIND AND NOT VALGRIND_INCLUDE_DIR MATCHES NOTFOUND)
     )
 endif()
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/toku_include
   ${CMAKE_CURRENT_SOURCE_DIR}/portability
   ${CMAKE_CURRENT_SOURCE_DIR}  ## so you can include <ft/ft-ops.h> from inside src/
@@ -55,7 +54,6 @@ add_subdirectory(src)
 add_subdirectory(tools)
 
 ## subdirectories that just install things
-add_subdirectory(include)
 add_subdirectory(toku_include)
 add_subdirectory(examples)
 
