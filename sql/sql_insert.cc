@@ -1277,8 +1277,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(true);
     }
-    Item *fake_conds= NULL;
-    select_lex->fix_prepare_information(thd, &fake_conds, &fake_conds);
+    select_lex->fix_prepare_information(thd);
     select_lex->first_execution= false;
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
@@ -1767,7 +1766,7 @@ bool mysql_insert_select_prepare(THD *thd)
                            &insert_table_ref, lex->field_list, 0,
                            lex->update_list, lex->value_list,
                            lex->duplicates,
-                           &select_lex->where, true, false, false))
+                           select_lex->where_cond_ref(), true, false, false))
     DBUG_RETURN(TRUE);
 
   /*
@@ -1829,12 +1828,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table_list->next_local= NULL;
     context->resolve_in_table_list_only(table_list);
 
-    lex->select_lex->no_wrap_view_item= true;
-    res= res || setup_fields(thd, Ref_ptr_array(),
-                             *update.get_changed_columns(),
-                             MARK_COLUMNS_WRITE, 0, 0);
-
-    lex->select_lex->no_wrap_view_item= false;
+    res= res || setup_fields_with_no_wrap(thd, Ref_ptr_array(),
+                                          *update.get_changed_columns(),
+                                          MARK_COLUMNS_WRITE, 0, 0);
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate
       functions 

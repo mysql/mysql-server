@@ -406,4 +406,6 @@ DROP TABLE aes_cbc;
 # INT_MAX - 9 (terminating 0 + rounding). Should not crash
 SELECT RANDOM_BYTES(2147483647 - 9);
 ERROR 22003: length value is out of range in 'random_bytes'
+#
 # End of 5.7 tests
+#

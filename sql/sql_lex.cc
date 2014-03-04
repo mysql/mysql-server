@@ -468,6 +468,7 @@ void LEX::reset()
   exchange= NULL;
   is_set_password_sql= false;
   mark_broken(false);
+  max_statement_time= 0;
 }
 
 
@@ -488,6 +489,8 @@ bool lex_start(THD *thd)
 
   lex->thd= thd;
   lex->reset();
+  // Initialize the cost model to be used for this query
+  thd->init_cost_model();
 
   const bool status= lex->new_top_level_query();
 
@@ -2119,10 +2122,8 @@ st_select_lex::st_select_lex
   resolve_place(RESOLVE_NONE),
   resolve_nest(NULL),
   db(NULL),
-  where(where),
-  having(having),
-  prep_where(NULL),
-  prep_having(NULL),
+  m_where_cond(where),
+  m_having_cond(having),
   cond_value(Item::COND_UNDEF),
   having_value(Item::COND_UNDEF),
   parent_lex(NULL),
@@ -2169,7 +2170,7 @@ st_select_lex::st_select_lex
   subquery_in_having(false),
   first_execution(true),
   first_natural_join_processing(true),
-  first_cond_optimization(true),
+  sj_pullout_done(false),
   no_wrap_view_item(false),
   exclude_from_table_unique_test(false),
   non_agg_fields(),
@@ -2181,7 +2182,8 @@ st_select_lex::st_select_lex
   m_agg_func_used(false),
   current_index_hint_type(INDEX_HINT_IGNORE),
   current_index_hint_clause(0),
-  index_hints(NULL)
+  index_hints(NULL),
+  sj_candidates(NULL)
 {
 }
 
@@ -2537,8 +2539,10 @@ bool st_select_lex::inc_in_sum_expr()
 }
 
 
-bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
+bool st_select_lex::setup_ref_array(THD *thd)
 {
+  uint order_group_num= order_list.elements + group_list.elements;
+
   // find_order_in_list() may need some extra space, so multiply by two.
   order_group_num*= 2;
 
@@ -2746,10 +2750,15 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
     else
       str->append(STRING_WITH_LEN(" join "));
     curr->print(thd, str, query_type);          // Print table
-    if (curr->join_cond())                      // Print join condition
+
+    // Print join condition
+    Item *const cond= (curr->select_lex->join &&
+                       curr->select_lex->join->optimized) ?
+      curr->optim_join_cond() : curr->join_cond();
+    if (cond)
     {
       str->append(STRING_WITH_LEN(" on("));
-      curr->join_cond()->print(str, query_type);
+      cond->print(str, query_type);
       str->append(')');
     }
   }
@@ -3035,7 +3044,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
     /* go through join tree */
     print_join(thd, str, &top_join_list, query_type);
   }
-  else if (where)
+  else if (m_where_cond)
   {
     /*
       "SELECT 1 FROM DUAL WHERE 2" should not be printed as 
@@ -3045,9 +3054,9 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   }
 
   // Where
-  Item *cur_where= where;
-  if (join)
-    cur_where= join->conds;
+  Item *const cur_where= (join && join->optimized) ?
+                         join->where_cond : m_where_cond;
+
   if (cur_where || cond_value != Item::COND_UNDEF)
   {
     str->append(STRING_WITH_LEN(" where "));
@@ -3076,9 +3085,8 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   }
 
   // having
-  Item *cur_having= having;
-  if (join)
-    cur_having= join->having_for_explain;
+  Item *const cur_having= (join && join->optimized) ?
+    join->having_for_explain : m_having_cond;
 
   if (cur_having || having_value != Item::COND_UNDEF)
   {
@@ -3281,7 +3289,7 @@ bool LEX::can_be_merged()
 
   return selects_allow_merge &&
          select_lex->group_list.elements == 0 &&
-         select_lex->having == NULL &&
+         select_lex->having_cond() == NULL &&
          !select_lex->with_sum_func &&
          select_lex->table_list.elements >= 1 &&
          !(select_lex->options & SELECT_DISTINCT) &&
@@ -3942,111 +3950,41 @@ bool LEX::table_or_sp_used()
 }
 
 
-/*
-  Do end-of-prepare fixup for list of tables and their merge-VIEWed tables
-
-  SYNOPSIS
-    fix_prepare_info_in_table_list()
-      thd  Thread handle
-      tbl  List of tables to process
-
-  DESCRIPTION
-    Perform end-end-of prepare fixup for list of tables, if any of the tables
-    is a merge-algorithm VIEW, recursively fix up its underlying tables as
-    well.
-
-*/
-
-static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
+void
+st_select_lex::fix_prepare_information_for_order(THD *thd,
+                                                 SQL_I_List<ORDER> *list,
+                                                 Group_list_ptrs **list_ptrs)
 {
-  for (; tbl; tbl= tbl->next_local)
+  Group_list_ptrs *p= *list_ptrs;
+  if (!p)
   {
-    if (tbl->join_cond())
-    {
-      tbl->prep_join_cond= tbl->join_cond();
-      tbl->set_join_cond(tbl->join_cond()->copy_andor_structure(thd));
-    }
-    fix_prepare_info_in_table_list(thd, tbl->merge_underlying_list);
+    void *mem= thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
+    *list_ptrs= p= new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
   }
+  p->reserve(list->elements);
+  for (ORDER *order= list->first; order; order= order->next)
+    p->push_back(order);
 }
 
 
 /*
-  Save WHERE/HAVING/ON clauses and replace them with disposable copies
+  Saves the chain of ORDER::next in group_list and order_list, in
+  case the list is modified by remove_const().
 
-  SYNOPSIS
-    st_select_lex::fix_prepare_information
-      thd          thread handler
-      conds        in/out pointer to WHERE condition to be met at execution
-      having_conds in/out pointer to HAVING condition to be met at execution
-  
-  DESCRIPTION
-    The passed WHERE and HAVING are to be saved for the future executions.
-    This function saves it, and returns a copy which can be thrashed during
-    this execution of the statement. By saving/thrashing here we mean only
-    AND/OR trees.
-    We also save the chain of ORDER::next in group_list and order_list, in
-    case the list is modified by remove_const().
-    The function also calls fix_prepare_info_in_table_list that saves all
-    ON expressions.    
+  @param thd          thread handler
 */
 
-void st_select_lex::fix_prepare_information(THD *thd, Item **conds, 
-                                            Item **having_conds)
+void st_select_lex::fix_prepare_information(THD *thd)
 {
-  if (!thd->stmt_arena->is_conventional() && first_execution)
-  {
-    first_execution= 0;
-    if (group_list.first)
-    {
-      if (!group_list_ptrs)
-      {
-        void *mem= thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
-        group_list_ptrs= new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
-      }
-      group_list_ptrs->reserve(group_list.elements);
-      for (ORDER *order= group_list.first; order; order= order->next)
-      {
-        group_list_ptrs->push_back(order);
-      }
-    }
-    if (order_list.first)
-    {
-      if (!order_list_ptrs)
-      {
-        void *mem= thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
-        order_list_ptrs= new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
-      }
-      order_list_ptrs->reserve(order_list.elements);
-      for (ORDER *order= order_list.first; order; order= order->next)
-      {
-        order_list_ptrs->push_back(order);
-      }
-    }
-    if (*conds)
-    {
-      /*
-        In "WHERE outer_field", *conds may be an Item_outer_ref allocated in
-        the execution memroot.
-        @todo change this line in WL#7082. Currently, when we execute a SP,
-        containing "SELECT (SELECT ... WHERE t1.col) FROM t1",
-        resolution may make *conds equal to an Item_outer_ref, then below
-        *conds becomes Item_field, which then goes straight on to execution,
-        undoing the effects of putting Item_outer_ref in the first place...
-        With a PS the problem is not as severe, as after the code below we
-        don't go to execution: a next execution will do a new name resolution
-        which will create Item_outer_ref again.
-      */
-      prep_where= (*conds)->real_item();
-      *conds= where= prep_where->copy_andor_structure(thd);
-    }
-    if (*having_conds)
-    {
-      prep_having= *having_conds;
-      *having_conds= having= prep_having->copy_andor_structure(thd);
-    }
-    fix_prepare_info_in_table_list(thd, table_list.first);
-  }
+  if (!first_execution)
+    return;
+  first_execution= false;
+  if (thd->stmt_arena->is_conventional())
+    return;
+  if (group_list.first)
+    fix_prepare_information_for_order(thd, &group_list, &group_list_ptrs);
+  if (order_list.first)
+    fix_prepare_information_for_order(thd, &order_list, &order_list_ptrs);
 }
 
 
@@ -4300,6 +4238,79 @@ void st_select_lex::set_join(JOIN *join_arg)
   mysql_mutex_lock(&master_unit()->thd->LOCK_query_plan);
   join= join_arg;
   mysql_mutex_unlock(&master_unit()->thd->LOCK_query_plan);
+}
+
+
+/**
+   Helper function which handles the "ON conditions" part of
+   SELECT_LEX::get_optimizable_conditions().
+   @returns true if OOM
+*/
+static bool get_optimizable_join_conditions(THD *thd,
+                                            List<TABLE_LIST> &join_list)
+{
+  TABLE_LIST *table;
+  List_iterator<TABLE_LIST> li(join_list);
+  while((table= li++))
+  {
+    NESTED_JOIN *const nested_join= table->nested_join;
+    if (nested_join &&
+        get_optimizable_join_conditions(thd, nested_join->join_list))
+      return true;
+    Item *const jc= table->join_cond();
+    if (jc && !thd->stmt_arena->is_conventional())
+    {
+      table->set_optim_join_cond(jc->copy_andor_structure(thd));
+      if (!table->optim_join_cond())
+        return true;
+    }
+    else
+      table->set_optim_join_cond(jc);
+  }
+  return false;
+}
+
+
+/**
+   Returns disposable copies of WHERE/HAVING/ON conditions.
+
+   This function returns a copy which can be thrashed during
+   this execution of the statement. Only AND/OR items are trashable!
+   If in conventional execution, no copy is created, the permanent clauses are
+   returned instead, as trashing them is no problem.
+
+   @param      thd        thread handle
+   @param[out] new_where  copy of WHERE
+   @param[out] new_having copy of HAVING (if passed pointer is not NULL)
+
+   Copies of join (ON) conditions are placed in TABLE_LIST::m_optim_join_cond.
+
+   @returns true if OOM
+*/
+bool SELECT_LEX::get_optimizable_conditions(THD *thd,
+                                            Item **new_where,
+                                            Item **new_having)
+{
+  if (m_where_cond && !thd->stmt_arena->is_conventional())
+  {
+    *new_where= m_where_cond->copy_andor_structure(thd);
+    if (!*new_where)
+      return true;
+  }
+  else
+    *new_where= m_where_cond;
+  if (new_having)
+  {
+    if (m_having_cond && !thd->stmt_arena->is_conventional())
+    {
+      *new_having= m_having_cond->copy_andor_structure(thd);
+      if (!*new_having)
+        return true;
+    }
+    else
+      *new_having= m_having_cond;
+  }
+  return get_optimizable_join_conditions(thd, top_join_list);
 }
 
 

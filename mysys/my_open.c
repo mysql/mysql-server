@@ -93,9 +93,6 @@ int my_close(File fd, myf MyFlags)
   if ((uint) fd < my_file_limit && my_file_info[fd].type != UNOPEN)
   {
     my_free(my_file_info[fd].name);
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-    mysql_mutex_destroy(&my_file_info[fd].mutex);
-#endif
     my_file_info[fd].type = UNOPEN;
   }
   my_file_opened--;
@@ -130,7 +127,7 @@ File my_register_filename(File fd, const char *FileName, enum file_type
   {
     if ((uint) fd >= my_file_limit)
     {
-#if !defined(HAVE_PREAD) 
+#if defined(_WIN32)
       my_errno= EMFILE;
 #else
       thread_safe_increment(my_file_opened,&THR_LOCK_open);
@@ -147,10 +144,6 @@ File my_register_filename(File fd, const char *FileName, enum file_type
         my_file_opened++;
         my_file_total_opened++;
         my_file_info[fd].type = type_of_file;
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-        mysql_mutex_init(key_my_file_info_mutex, &my_file_info[fd].mutex,
-                         MY_MUTEX_INIT_FAST);
-#endif
         mysql_mutex_unlock(&THR_LOCK_open);
         DBUG_PRINT("exit",("fd: %d",fd));
         DBUG_RETURN(fd);

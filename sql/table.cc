@@ -4640,6 +4640,12 @@ Natural_join_column::Natural_join_column(Item_field *field_param,
 {
   DBUG_ASSERT(tab->table == field_param->field->table);
   table_field= field_param;
+  /*
+    Cache table, to have no resolution problem after natural join nests have
+    been changed to ordinary join nests.
+  */
+  if (tab->cacheable_table)
+    field_param->cached_table= tab;
   view_field= NULL;
   table_ref= tab;
   is_common= FALSE;
@@ -5708,19 +5714,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   /* Reset is_schema_table_processed value(needed for I_S tables */
   schema_table_state= NOT_PROCESSED;
 
-  TABLE_LIST *embedded; /* The table at the current level of nesting. */
-  TABLE_LIST *parent_embedding= this; /* The parent nested table reference. */
-  do
-  {
-    embedded= parent_embedding;
-    if (embedded->prep_join_cond)
-      embedded->
-        set_join_cond(embedded->prep_join_cond->copy_andor_structure(thd));
-    parent_embedding= embedded->embedding;
-  }
-  while (parent_embedding &&
-         parent_embedding->nested_join->join_list.head() == embedded);
-
   mdl_request.ticket= NULL;
 }
 
@@ -5985,7 +5978,18 @@ int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
   if (uses_materialization())
+  {
+    /*
+      @todo: CostModel: This updates the stats.record value to the
+      estimated number of records. This number is used when estimating 
+      the cost of a table scan for a heap table (ie. it helps producing
+      a reasonable good cost estimate for heap tables). If the materialized
+      table is stored in MyISAM, this number is not used in the cost estimate
+      for table scan. The table scan cost for MyISAM thus always becomes
+      the estimate for an empty table.
+    */
     table->file->stats.records= derived->get_result()->estimated_rowcount;
+  }
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return error;

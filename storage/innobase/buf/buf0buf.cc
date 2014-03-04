@@ -2983,12 +2983,12 @@ got_block:
 
 		rw_lock_x_unlock(hash_lock);
 		buf_pool->n_pend_unzip++;
+		mutex_exit(&buf_pool->zip_mutex);
 		buf_pool_mutex_exit(buf_pool);
 
 		access_time = buf_page_is_accessed(&block->page);
 
 		buf_page_mutex_exit(block);
-		mutex_exit(&buf_pool->zip_mutex);
 
 		buf_page_free_descriptor(bpage);
 
