@@ -28,3 +28,4 @@ extern uint *my_aes_opmode_key_sizes;
 
 void my_aes_create_key(const unsigned char *key, uint key_length,
                        uint8 *rkey, enum my_aes_opmode opmode);
+

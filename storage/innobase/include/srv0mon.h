@@ -126,7 +126,6 @@ enum monitor_id_t {
 	MONITOR_TABLE_OPEN,
 	MONITOR_TABLE_CLOSE,
 	MONITOR_TABLE_REFERENCE,
-	MONITOR_OVLD_META_MEM_POOL,
 
 	/* Lock manager related counters */
 	MONITOR_MODULE_LOCK,

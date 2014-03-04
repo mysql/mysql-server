@@ -101,7 +101,8 @@
 #include "sql_rewrite.h"
 #include "sql_analyse.h"
 #include "table_cache.h" // table_cache_manager
-#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql_timer.h"   // thd_timer_set, thd_timer_reset
+#include "sp_rcontext.h"
 
 #include <algorithm>
 using std::max;
@@ -911,6 +912,101 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
   /* Assuming that only temporary tables are modified. */
   DBUG_RETURN(FALSE);
 }
+
+
+#ifdef HAVE_MY_TIMER
+/**
+  Check whether max statement time is applicable to statement or not.
+
+
+  @param  thd   Thread (session) context.
+
+  @return true  if max statement time is applicable to statement
+  @return false otherwise.
+*/
+static inline bool is_timer_applicable_to_statement(THD *thd)
+{
+  bool timer_value_is_set= (thd->lex->max_statement_time ||
+                            thd->variables.max_statement_time);
+
+  /**
+    Following conditions are checked,
+      - is SELECT statement.
+      - timer support is implemented and it is initialized.
+      - statement is not made by the slave threads.
+      - timer is not set for statement
+      - timer out value of is set
+      - SELECT statement is not from any stored programs.
+  */
+  return (thd->lex->sql_command == SQLCOM_SELECT &&
+          (have_statement_timeout == SHOW_OPTION_YES) &&
+          !thd->slave_thread &&
+          !thd->timer && timer_value_is_set &&
+          !thd->sp_runtime_ctx);
+}
+
+
+/**
+  Get the maximum execution time for a statement.
+
+  @return Length of time in milliseconds.
+
+  @remark A zero timeout means that no timeout should be
+          applied to this particular statement.
+
+*/
+static inline ulong get_max_statement_time(THD *thd)
+{
+  return (thd->lex->max_statement_time ? thd->lex->max_statement_time :
+                                        thd->variables.max_statement_time);
+}
+
+
+/**
+  Set the time until the currently running statement is aborted.
+
+  @param  thd   Thread (session) context.
+
+  @return true if the timer was armed.
+*/
+static inline bool set_statement_timer(THD *thd)
+{
+  ulong max_statement_time= get_max_statement_time(thd);
+
+  /**
+    whether timer can be set for the statement or not should be checked before
+    calling set_statement_timer function.
+  */
+  DBUG_ASSERT(is_timer_applicable_to_statement(thd) == true);
+  DBUG_ASSERT(thd->timer == NULL);
+
+  thd->timer= thd_timer_set(thd, thd->timer_cache, max_statement_time);
+  thd->timer_cache= NULL;
+
+  if (thd->timer)
+    thd->status_var.max_statement_time_set++;
+  else
+    thd->status_var.max_statement_time_set_failed++;
+
+  return thd->timer;
+}
+
+
+/**
+  Deactivate the timer associated with the statement that was executed.
+
+  @param  thd   Thread (session) context.
+*/
+
+void reset_statement_timer(THD *thd)
+{
+  DBUG_ASSERT(thd->timer);
+  /* Cache the timer object if it can be reused. */
+  thd->timer_cache= thd_timer_reset(thd->timer);
+  thd->timer= NULL;
+}
+#endif
+
 
 /**
   Perform one connection-level (COM_XXXX) command.
@@ -1962,11 +2058,12 @@ mysql_execute_command(THD *thd)
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= lex->select_lex;
   /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table= select_lex->table_list.first;
+  TABLE_LIST *const first_table= select_lex->get_table_list();
   /* list of all tables in query */
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *const unit= lex->unit;
+  DBUG_ASSERT(select_lex->master_unit() == unit);
 #ifdef HAVE_REPLICATION
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
@@ -2747,7 +2844,14 @@ case SQLCOM_PREPARE:
                                 &create_info, &alter_info);
       }
       if (!res)
+      {
+        /* in case of create temp tables if @@session_track_state_change is
+           ON then send session state notification in OK packet */
+        if(create_info.options & HA_LEX_CREATE_TMP_TABLE &&
+           thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
         my_ok(thd);
+      }
     }
 
 end_with_restore_list:
@@ -2787,9 +2891,9 @@ end_with_restore_list:
     create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
 
+    DBUG_ASSERT(!select_lex->order_list.elements);
     res= mysql_alter_table(thd, first_table->db, first_table->table_name,
-                           &create_info, first_table, &alter_info,
-                           0, (ORDER*) 0);
+                           &create_info, first_table, &alter_info);
     break;
   }
 #ifdef HAVE_REPLICATION
@@ -2976,12 +3080,8 @@ end_with_restore_list:
     {
       if (!all_tables->multitable_view)
       {
-        res= mysql_update(thd, all_tables,
-                          select_lex->item_list,
+        res= mysql_update(thd, select_lex->item_list,
                           lex->value_list,
-                          select_lex->where,
-                          select_lex->order_list.elements,
-                          select_lex->order_list.first,
                           unit->select_limit_cnt,
                           lex->duplicates, lex->ignore,
                           &found, &updated);
@@ -3052,14 +3152,12 @@ end_with_restore_list:
     {
       multi_update *result_obj;
       MYSQL_MULTI_UPDATE_START(const_cast<char*>(thd->query().str));
-      res= mysql_multi_update(thd, all_tables,
+      res= mysql_multi_update(thd,
                               &select_lex->item_list,
                               &lex->value_list,
-                              select_lex->where,
                               select_lex->options,
                               lex->duplicates,
                               lex->ignore,
-                              unit,
                               select_lex,
                               &result_obj);
       if (result_obj)
@@ -3229,9 +3327,7 @@ end_with_restore_list:
     unit->set_limit(select_lex);
 
     MYSQL_DELETE_START(const_cast<char*>(thd->query().str));
-    res = mysql_delete(thd, all_tables, select_lex->where,
-                       &select_lex->order_list,
-                       unit->select_limit_cnt, select_lex->options);
+    res = mysql_delete(thd, unit->select_limit_cnt, select_lex->options);
     MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
     break;
   }
@@ -3266,20 +3362,18 @@ end_with_restore_list:
         (del_result= new multi_delete(aux_tables, del_table_count)))
     {
       if (lex->describe)
-        res= explain_query(thd, thd->lex->unit, del_result) || thd->is_error();
+        res= explain_query(thd, unit, del_result) || thd->is_error();
       else
       {
+        DBUG_ASSERT(select_lex->having_cond() == NULL &&
+                    !select_lex->order_list.elements &&
+                    !select_lex->group_list.elements);
         res= mysql_select(thd,
-                          select_lex->get_table_list(),
-                          select_lex->with_wild,
                           select_lex->item_list,
-                          select_lex->where,
-                          (SQL_I_List<ORDER> *)NULL, (SQL_I_List<ORDER> *)NULL,
-                          (Item *)NULL,
                           (select_lex->options | thd->variables.option_bits |
                           SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                           OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
-                          del_result, unit, select_lex);
+                          del_result, select_lex);
         res|= thd->is_error();
         if (res)
           del_result->abort_result_set();
@@ -3305,6 +3399,13 @@ end_with_restore_list:
     /* DDL and binlog write order are protected by metadata locks. */
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
 			lex->drop_temporary);
+    /* when dropping temporary tables if @@session_track_state_change is ON then
+       send the boolean tracker in the OK packet */
+    if(!res && lex->drop_temporary)
+    {
+      if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
+    }
   }
   break;
   case SQLCOM_SHOW_PROCESSLIST:
@@ -4606,7 +4707,9 @@ finish:
       trans_commit_stmt(thd);
       thd->get_stmt_da()->set_overwrite_status(false);
     }
-    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+    if (thd->killed == THD::KILL_QUERY ||
+        thd->killed == THD::KILL_TIMEOUT ||
+        thd->killed == THD::KILL_BAD_DATA)
     {
       thd->killed= THD::NOT_KILLED;
       thd->mysys_var->abort= 0;
@@ -4700,7 +4803,11 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 {
   LEX	*lex= thd->lex;
   select_result *result= lex->result;
+#ifdef HAVE_MY_TIMER
+  bool statement_timer_armed= false;
+#endif
   bool res;
+
   /* assign global limit variable if limit is not given */
   {
     SELECT_LEX *param= lex->unit->global_parameters();
@@ -4708,6 +4815,13 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
+
+#ifdef HAVE_MY_TIMER
+  //check if timer is applicable to statement, if applicable then set timer.
+  if (is_timer_applicable_to_statement(thd))
+    statement_timer_armed= set_statement_timer(thd);
+#endif
+
   if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
   {
     if (lex->describe)
@@ -4738,6 +4852,12 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         delete save_result;
     }
   }
+
+#ifdef HAVE_MY_TIMER
+  if (statement_timer_armed && thd->timer)
+    reset_statement_timer(thd);
+#endif
+
   return res;
 }
 
@@ -5892,6 +6012,7 @@ void add_join_on(TABLE_LIST *b, Item *expr)
 {
   if (expr)
   {
+    b->set_optim_join_cond((Item*)1); // m_optim_join_cond is not ready
     if (!b->join_cond())
       b->set_join_cond(expr);
     else
@@ -5948,31 +6069,6 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
   lex->prev_join_using= using_fields;
 }
 
-/**
-  Callback function used by kill_one_thread to find thd based
-  on the thread id.
-
-  @note It acquires LOCK_thd_data mutex when it finds matching thd.
-  It is the responsibility of the caller to release this mutex.
-*/
-class Find_thd_with_id: public Find_THD_Impl
-{
-public:
-  Find_thd_with_id(ulong value): m_id(value) {}
-  virtual bool operator()(THD *thd)
-  {
-    if (thd->get_command() == COM_DAEMON)
-      return false;
-    if (thd->thread_id == m_id)
-    {
-      mysql_mutex_lock(&thd->LOCK_thd_data);
-      return true;
-    }
-    return false;
-  }
-private:
-  ulong m_id;
-};
 
 /**
   kill on thread.
@@ -6364,6 +6460,9 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->uses_identified_by_clause= false;
   definer->uses_authentication_string_clause= false;
   definer->uses_identified_by_password_clause= false;
+  definer->alter_status.update_password_expired_column= false;
+  definer->alter_status.use_default_password_lifetime= true;
+  definer->alter_status.expire_after_days= 0;
 }
 
 
@@ -6421,6 +6520,9 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
   definer->uses_identified_by_clause= false;
   definer->uses_identified_by_password_clause= false;
   definer->uses_identified_with_clause= false;
+  definer->alter_status.update_password_expired_column= false;
+  definer->alter_status.use_default_password_lifetime= true;
+  definer->alter_status.expire_after_days= 0;
   return definer;
 }
 
@@ -6462,6 +6564,12 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
       default_definer->plugin.length= user->plugin.length;
       default_definer->auth.str= user->auth.str;
       default_definer->auth.length= user->auth.length;
+      default_definer->alter_status.update_password_expired_column=
+        user->alter_status.update_password_expired_column;
+      default_definer->alter_status.use_default_password_lifetime=
+	user->alter_status.use_default_password_lifetime;
+      default_definer->alter_status.expire_after_days=
+        user->alter_status.expire_after_days;
       return default_definer;
     }
   }

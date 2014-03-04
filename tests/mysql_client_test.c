@@ -6066,6 +6066,10 @@ static void bind_date_conv(uint row_count, my_bool preserveFractions)
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
   mysql_stmt_close(stmt);
+
+  /* set the timestamp back to default */
+  rc= mysql_query(mysql, "SET timestamp=DEFAULT");
+  myquery(rc);
 }
 
 
@@ -19635,6 +19639,122 @@ static void test_wl6791()
   mysql_close(l_mysql);
 }
 
+#define QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE \
+  rc= mysql_query(mysql, "SELECT STATEMENT_NAME, SQL_TEXT, COUNT_REPREPARE," \
+  " COUNT_EXECUTE, OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME" \
+  " from performance_schema.prepared_statements_instances where" \
+  " sql_text like \"%ps_t1%\""); \
+  myquery(rc); \
+  result= mysql_store_result(mysql); \
+  mytest(result); \
+  (void) my_process_result_set(result); \
+  mysql_free_result(result); 
+
+static void test_wl5768()
+{
+  MYSQL_RES  *result;
+  MYSQL_STMT *stmt, *sp_stmt;
+  MYSQL_BIND bind[1];
+  long       int_data;
+  int        rc;
+
+  myheader("test_wl5768");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS ps_t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE ps_t1(Id INT)");
+  myquery(rc);
+
+  // Prepare an insert statement.
+  stmt= mysql_simple_prepare(mysql, "INSERT INTO ps_t1 VALUES(?)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  // Query P_S table.
+  QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE;
+
+  memset(bind, 0, sizeof (bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (long *) &int_data;
+  bind[0].length= 0;
+  bind[0].is_null= 0;
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+  
+  // Set the data to be inserted.
+  int_data= 25;
+  
+  // Execute the prepared statement.
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  // Query P_S table.
+  QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE;
+ 
+  // execute the prepared statement for 3 more times to check COUNT_EXECUTE 
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  int_data= 74;
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  int_data= 123;
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  // Query P_S table.
+  QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE;
+
+  // Deallocate/Close the prepared statement.
+  mysql_stmt_close(stmt);
+ 
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS proc");
+  myquery(rc);
+
+  // Check the instrumentation of the statement prepared in a stored procedure
+  rc= mysql_query(mysql, "CREATE PROCEDURE proc(IN a INT)"
+                         "BEGIN" 
+                         "  SET @stmt = CONCAT('UPDATE ps_t1 SET Id = ? WHERE Id > 100');"
+                         "  PREPARE st FROM @stmt;"
+                         "  EXECUTE st USING @a;"
+                         "  DEALLOCATE PREPARE st;"
+                         "END;");
+  myquery(rc);
+  
+  sp_stmt= mysql_simple_prepare(mysql, "CALL proc(?)");
+  check_stmt(sp_stmt);
+  verify_param_count(sp_stmt, 1);
+  
+  memset(bind, 0, sizeof (bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (long *) &int_data;
+  bind[0].length= 0;
+  bind[0].is_null= 0;
+  rc= mysql_stmt_bind_param(sp_stmt, bind);
+  check_execute(sp_stmt, rc);
+
+  int_data= 100;
+
+  // Execute the prepared statement.
+  rc= mysql_stmt_execute(sp_stmt);
+  check_execute(sp_stmt, rc);
+
+  // Query P_S table.
+  QUERY_PREPARED_STATEMENTS_INSTANCES_TABLE;
+  
+  // Deallocate/Close the prepared statement.
+  mysql_stmt_close(sp_stmt);
+  
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS proc");
+  myquery(rc);
+ 
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS ps_t1");
+  myquery(rc);
+}
 
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
@@ -19908,6 +20028,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl5928", test_wl5928 },
   { "test_wl6797", test_wl6797 },
   { "test_wl6791", test_wl6791 },
+  { "test_wl5768", test_wl5768 },
   { 0, 0 }
 };
 

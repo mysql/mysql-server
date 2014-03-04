@@ -247,7 +247,7 @@ public:
   // Enable or disable keys.
   enum_enable_or_disable        keys_onoff;
   // List of partitions.
-  List<char>                    partition_names;
+  List<String>                  partition_names;
   // Number of partitions.
   uint                          num_parts;
   // Type of ALTER TABLE algorithm.

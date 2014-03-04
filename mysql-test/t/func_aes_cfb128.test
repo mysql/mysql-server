@@ -15,4 +15,6 @@ source include/func_aes_block.inc;
 
 SET SESSION block_encryption_mode=default;
 
+--echo #
 --echo # End of 5.7 tests
+--echo #

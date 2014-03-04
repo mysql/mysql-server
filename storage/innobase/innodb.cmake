@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -85,7 +85,6 @@ IF(WITH_INNODB_EXTRA_DEBUG)
   SET(EXTRA_DEBUG_FLAGS "${EXTRA_DEBUG_FLAGS} -DUNIV_AHI_DEBUG")
   SET(EXTRA_DEBUG_FLAGS "${EXTRA_DEBUG_FLAGS} -DUNIV_DDL_DEBUG")
   SET(EXTRA_DEBUG_FLAGS "${EXTRA_DEBUG_FLAGS} -DUNIV_DEBUG_FILE_ACCESSES")
-  SET(EXTRA_DEBUG_FLAGS "${EXTRA_DEBUG_FLAGS} -DUNIV_MEM_DEBUG")
   SET(EXTRA_DEBUG_FLAGS "${EXTRA_DEBUG_FLAGS} -DUNIV_ZIP_DEBUG")
 
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${EXTRA_DEBUG_FLAGS}")
@@ -346,7 +345,7 @@ ENDIF()
 
 # Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
 # due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
-IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.cc mem/mem0pool.cc
-				    PROPERTIES COMPILE_FLAGS -Od)
+# This was a bug found in VS2005.  Assume there is no problem starting with VS2010
+IF (MSVC AND MSVC_VERSION LESS 1600 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.cc PROPERTIES COMPILE_FLAGS -Od)
 ENDIF()

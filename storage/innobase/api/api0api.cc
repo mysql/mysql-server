@@ -348,7 +348,7 @@ ib_read_tuple(
 			*len = offset_size;
 		}
 		ptr = *rec_buf;
-	}  else {
+	} else {
 		/* Make a copy of the rec. */
 		ptr = mem_heap_alloc(tuple->heap, offset_size);
 	}

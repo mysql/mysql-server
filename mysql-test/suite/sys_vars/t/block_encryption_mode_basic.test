@@ -220,3 +220,6 @@ SELECT @@session.block_encryption_mode;
 #          END OF block_encryption_mode TESTS     #
 ###################################################
 
+--echo #
+--echo # End of 5.7 tests
+--echo #

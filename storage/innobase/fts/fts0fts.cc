@@ -4475,7 +4475,7 @@ fts_sync(
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
-	}  else {
+	} else {
 		fts_sync_rollback(sync);
 	}
 

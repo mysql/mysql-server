@@ -2064,9 +2064,10 @@ private:
 #endif
 
 #ifdef VM_TRACE
-#include <my_attribute.h>
   void printState(const char* fmt, ...)
-    ATTRIBUTE_FORMAT(printf, 2, 3);
+#ifdef __GNUC__
+    __attribute__((format(printf, 2, 3)));
+#endif
 #endif
 };
 

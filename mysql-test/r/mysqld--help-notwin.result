@@ -140,6 +140,8 @@ The following options may be given as the first argument:
  --default-authentication-plugin=name 
  The default authentication plugin used by the server to
  hash the password.
+ --default-password-lifetime=# 
+ The number of days after which the password will expire.
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-time-zone=name 
@@ -643,6 +645,9 @@ The following options may be given as the first argument:
  --performance-schema-max-mutex-instances=# 
  Maximum number of instrumented MUTEX objects. Use 0 to
  disable, -1 for automated sizing.
+ --performance-schema-max-prepared-statements-instances=# 
+ Maximum number of instrumented prepared statements. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-max-program-instances=# 
  Maximum number of instrumented programs. Use 0 to
  disable, -1 for automated sizing.
@@ -846,6 +851,13 @@ The following options may be given as the first argument:
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --server-id-bits=#  Set number of significant bits in server-id
+ --session-track-schema 
+ Track changes to the 'default schema'.
+ (Defaults to on; use --skip-session-track-schema to disable.)
+ --session-track-state-change 
+ Track changes to the 'session state'.
+ --session-track-system-variables=name 
+ Track changes in registered system variables.
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
@@ -1063,6 +1075,7 @@ console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
 default-authentication-plugin mysql_native_password
+default-password-lifetime 360
 default-storage-engine InnoDB
 default-time-zone (No default value)
 default-tmp-storage-engine InnoDB
@@ -1226,6 +1239,7 @@ performance-schema-max-memory-classes 250
 performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
+performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances 5000
 performance-schema-max-rwlock-classes 40
 performance-schema-max-rwlock-instances -1
@@ -1275,6 +1289,9 @@ secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
+session-track-schema TRUE
+session-track-state-change FALSE
+session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
