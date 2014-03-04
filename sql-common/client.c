@@ -4565,7 +4565,6 @@ static void mysql_close_free(MYSQL *mysql)
   mysql->user= NULL;
   mysql->passwd= NULL;
   mysql->db= NULL;
-  mysql->extension= NULL;
 }
 
 
@@ -4663,6 +4662,7 @@ void STDCALL mysql_close(MYSQL *mysql)
     }
     if (mysql->extension)
       mysql_extension_free(mysql->extension);
+    mysql->extension= NULL;
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
