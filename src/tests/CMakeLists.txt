@@ -269,6 +269,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_db_descriptor
       test_db_descriptor_named_db
       test_db_txn_locks_read_uncommitted
+      test_equal_keys_with_different_bytes
       test_get_max_row_size
       test_insert_many_gc
       test_iterate_live_transactions

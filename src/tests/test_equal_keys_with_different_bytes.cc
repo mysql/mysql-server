@@ -98,7 +98,7 @@ static int compare_strings_case_insensitive(DB *db, const DBT *a, const DBT *b) 
                       reinterpret_cast<char *>(b->data));
 }
 
-static void test_equal_keys_with_unequal_bytes(void) {
+static void test_equal_keys_with_different_bytes(void) {
     int r;
 
     DB_ENV *env;
@@ -143,7 +143,7 @@ test_main(int argc, char *const argv[]) {
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
     int r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
-    test_equal_keys_with_unequal_bytes();
+    test_equal_keys_with_different_bytes();
 
     return 0;
 }
