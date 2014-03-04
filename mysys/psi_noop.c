@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -691,6 +691,34 @@ static void set_socket_thread_owner_noop(PSI_socket *socket NNN)
   return;
 }
 
+static PSI_prepared_stmt*
+create_prepare_stmt_noop(void *identity NNN, uint stmt_id NNN,
+                         PSI_statement_locker *locker NNN, 
+                         const char *stmt_name NNN, size_t stmt_name_length NNN,
+                         const char *name NNN, size_t length NNN)
+{
+  return NULL;
+}
+
+static void
+execute_prepare_stmt_noop(PSI_statement_locker *locker NNN,
+                        PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
+void
+destroy_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
+void
+reprepare_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
 static struct PSI_digest_locker*
 digest_start_noop(PSI_statement_locker *locker NNN)
 {
@@ -916,6 +944,10 @@ static PSI PSI_noop=
   set_socket_state_noop,
   set_socket_info_noop,
   set_socket_thread_owner_noop,
+  create_prepare_stmt_noop,
+  destroy_prepared_stmt_noop,
+  reprepare_prepared_stmt_noop,
+  execute_prepare_stmt_noop,
   digest_start_noop,
   digest_end_noop,
   set_thread_connect_attrs_noop,

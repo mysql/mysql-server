@@ -280,6 +280,11 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
 #define _lf_hash_put_pins(PINS)     _lf_pinbox_put_pins(PINS)
 #define lf_hash_put_pins(PINS)       lf_pinbox_put_pins(PINS)
 #define lf_hash_search_unpin(PINS)   lf_unpin((PINS), 2)
+
+typedef int lf_hash_match_func(const uchar *el);
+void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
+                           lf_hash_match_func *match, uint rand_val);
+
 /*
   cleanup
 */

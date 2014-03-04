@@ -117,10 +117,6 @@ support cross-platform development and expose comonly used SQL names. */
 /* We only try to do explicit inlining of functions with gcc and
 Sun Studio */
 
-#ifdef HAVE_PREAD
-# define HAVE_PWRITE
-#endif
-
 #ifdef HAVE_STDINT_H
 # define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
 # include <stdint.h>

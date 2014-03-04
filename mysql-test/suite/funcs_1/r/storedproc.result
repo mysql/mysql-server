@@ -21730,10 +21730,11 @@ DROP PROCEDURE IF EXISTS sp4;
 set @@sql_mode = 'ansi, error_for_division_by_zero';
 ERROR 42000: Variable 'sql_mode' can't be set to the value of ' error_for_division_by_zero'
 set @@sql_mode = 'ansi,error_for_division_by_zero';
-ERROR 42000: Variable 'sql_mode' can't be set to the value of 'error_for_division_by_zero'
+Warnings:
+Warning	1910	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	
+sql_mode	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
 CREATE PROCEDURE sp4()
 BEGIN
 declare a int;
@@ -21746,7 +21747,7 @@ show warnings;
 END//
 show CREATE PROCEDURE sp4;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sp4		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp4`()
+sp4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI	CREATE DEFINER="root"@"localhost" PROCEDURE "sp4"()
 BEGIN
 declare a int;
 declare b int;

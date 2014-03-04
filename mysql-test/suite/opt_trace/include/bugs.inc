@@ -106,10 +106,8 @@ WHERE  ( alias2.col_varchar_key IN (
 );
 
 eval CREATE TABLE where_subselect_19379 $query;
---disable_ps_protocol # because of BUG#12595688
 eval SELECT * FROM where_subselect_19379 WHERE (field1, field2) NOT IN
 ($query); 
---enable_ps_protocol
 
 select * from information_schema.OPTIMIZER_TRACE;
 

@@ -20,6 +20,7 @@
 #include "sql_executor.h"
 #include "sql_base.h"
 #include "opt_trace.h"
+#include "opt_costmodel.h"
 #include "debug_sync.h"
 #include "filesort.h"   // filesort_free_buffers
 
@@ -528,7 +529,9 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     if (param->group_length >= MAX_BLOB_WIDTH)
       using_unique_constraint= true;
     if (group)
+    {
       distinct=0;				// Can't use distinct
+    }
   }
 
   field_count=param->field_count+param->func_count+param->sum_func_count;
@@ -836,6 +839,9 @@ update_hidden:
     delete table->file;
     goto err;
   }
+
+  // Initialize cost model for this table
+  table->init_cost_model(thd->cost_model());
 
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
