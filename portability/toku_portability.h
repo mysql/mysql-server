@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 #ifndef TOKU_PORTABILITY_H
 #define TOKU_PORTABILITY_H
 
-#include <portability/toku_config.h>
+#include "toku_config.h"
 
 // Tokutek portability layer
 
