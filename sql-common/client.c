@@ -678,8 +678,16 @@ void free_state_change_info(MYSQL_EXTENSION *ext)
     {
       /*
         Since nodes were multi-alloced, we don't need to free the data
-        separately.
+        separately. But the str member in data needs to be freed.
       */
+      LIST *tmp_list= info->info_list[i].head_node;
+      while (tmp_list)
+      {
+	LEX_STRING *tmp= (LEX_STRING *)(tmp_list)->data;
+	if (tmp->str)
+	  my_free(tmp->str);
+	tmp_list= tmp_list->next;
+      }
       list_free(info->info_list[i].head_node, (uint) 0);
     }
   }
@@ -4653,6 +4661,8 @@ void STDCALL mysql_close(MYSQL *mysql)
       simple_command(mysql,COM_QUIT,(uchar*) 0,0,1);
       end_server(mysql);			/* Sets mysql->net.vio= 0 */
     }
+    if (mysql->extension)
+      mysql_extension_free(mysql->extension);
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");
@@ -4660,9 +4670,6 @@ void STDCALL mysql_close(MYSQL *mysql)
     if (mysql->thd)
       (*mysql->methods->free_embedded_thd)(mysql);
 #endif
-    if (mysql->extension)
-      mysql_extension_free(mysql->extension);
-    mysql->extension= NULL;
     if (mysql->free_me)
       my_free(mysql);
   }
