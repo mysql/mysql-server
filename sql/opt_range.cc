@@ -1630,6 +1630,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
   in_ror_merged_scan= 1;
+  mrr_flags|= HA_MRR_SORTED;
   if (reuse_handler)
   {
     DBUG_PRINT("info", ("Reusing handler %p", file));
@@ -1638,6 +1639,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
       DBUG_RETURN(1);
     }
     head->column_bitmaps_set(&column_bitmap, &column_bitmap);
+    file->extra(HA_EXTRA_SECONDARY_SORT_ROWID);
     goto end;
   }
 
@@ -1676,6 +1678,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
   free_file= TRUE;
   last_rowid= file->ref;
+  file->extra(HA_EXTRA_SECONDARY_SORT_ROWID);
 
 end:
   /*
