@@ -963,7 +963,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
   Currently there are 157 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 157
+%expect 161
 
 /*
    Comments for TOKENS.
@@ -1289,6 +1289,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  MATCH                         /* SQL-2003-R */
 %token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
+%token  MAX_STATEMENT_TIME_SYM
 %token  MAX_ROWS
 %token  MAX_SIZE_SYM
 %token  MAX_SYM                       /* SQL-2003-N */
@@ -9044,6 +9045,26 @@ select_option:
               Lex->select_lex->sql_cache= SELECT_LEX::SQL_CACHE;
             }
           }
+        | MAX_STATEMENT_TIME_SYM EQ real_ulong_num
+          {
+            /**
+              MAX_STATEMENT_TIME is applicable to SELECT query and that too
+              only for the TOP LEVEL SELECT statement.
+              MAX_STATEMENT_TIME is not appliable to SELECTs of stored routines.
+            */
+            if (Lex->sphead ||
+                Lex->current_select() != Lex->select_lex   ||
+                (Lex->sql_command == SQLCOM_CREATE_TABLE   ||
+                 Lex->sql_command == SQLCOM_CREATE_VIEW    ||
+                 Lex->sql_command == SQLCOM_REPLACE_SELECT ||
+                 Lex->sql_command == SQLCOM_INSERT_SELECT))
+            {
+              my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "MAX_STATEMENT_TIME");
+              MYSQL_YYABORT;
+            }
+
+            Lex->max_statement_time= $3;
+          }
         ;
 
 opt_select_lock_type:
@@ -11476,7 +11497,7 @@ opt_all:
         ;
 
 opt_where_clause:
-          /* empty */  { Select->where= 0; }
+          /* empty */  { Select->set_where_cond(NULL); }
         | WHERE
           {
             Select->parsing_place= CTX_WHERE;
@@ -11484,7 +11505,7 @@ opt_where_clause:
           expr
           {
             SELECT_LEX *select= Select;
-            select->where= $3;
+            select->set_where_cond($3);
             // Ensure we're resetting parsing context of the right select
             DBUG_ASSERT(Select->parsing_place == CTX_WHERE);
             select->parsing_place= CTX_NONE;
@@ -11502,7 +11523,7 @@ opt_having_clause:
           expr
           {
             SELECT_LEX *sel= Select;
-            sel->having= $3;
+            sel->set_having_cond($3);
             // Ensure we're resetting parsing context of the right select
             DBUG_ASSERT(Select->parsing_place == CTX_HAVING);
             sel->parsing_place= CTX_NONE;
@@ -13075,7 +13096,7 @@ wild_and_where:
           }
         | WHERE expr
           {
-            Select->where= $2;
+            Select->set_where_cond($2);
             if ($2)
               $2->top_level_item();
           }
@@ -14603,6 +14624,7 @@ keyword_sp:
         | MASTER_AUTO_POSITION_SYM {}
         | MAX_CONNECTIONS_PER_HOUR {}
         | MAX_QUERIES_PER_HOUR     {}
+        | MAX_STATEMENT_TIME_SYM   {}
         | MAX_SIZE_SYM             {}
         | MAX_UPDATES_PER_HOUR     {}
         | MAX_USER_CONNECTIONS_SYM {}

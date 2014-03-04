@@ -220,7 +220,7 @@ template <class T> bool valid_buffer_range(T jump,
 */ 
 #define CONTEXT_ANALYSIS_ONLY_PREPARE 1
 /*
-  Special JOIN::prepare mode: changing of query is prohibited.
+  Special SELECT_LEX::prepare mode: changing of query is prohibited.
   When creating a view, we need to just check its syntax omitting
   any optimizations: afterwards definition of the view will be
   reconstructed by means of ::print() methods and written to

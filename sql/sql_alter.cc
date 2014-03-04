@@ -304,11 +304,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   thd->enable_slow_log= opt_log_slow_admin_statements;
 
   result= mysql_alter_table(thd, select_lex->db, lex->name.str,
-                            &create_info,
-                            first_table,
-                            &alter_info,
-                            select_lex->order_list.elements,
-                            select_lex->order_list.first);
+                            &create_info, first_table, &alter_info);
 
   DBUG_RETURN(result);
 }

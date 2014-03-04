@@ -205,7 +205,7 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #define DEBUG_SYNC_C_IF_THD(thd, _sync_point_name_)
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-#ifdef HAVE_LARGE_PAGES
+#ifdef HAVE_LINUX_LARGE_PAGES
 extern uint my_get_large_page_size(void);
 extern uchar * my_large_malloc(PSI_memory_key key, size_t size, myf my_flags);
 extern void my_large_free(uchar *ptr);
@@ -213,7 +213,7 @@ extern void my_large_free(uchar *ptr);
 #define my_get_large_page_size() (0)
 #define my_large_malloc(A,B,C) my_malloc((A),(B),(C))
 #define my_large_free(A) my_free((A))
-#endif /* HAVE_LARGE_PAGES */
+#endif /* HAVE_LINUX_LARGE_PAGES */
 
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
@@ -237,7 +237,7 @@ extern ulong my_thread_stack_size;
 extern void (*proc_info_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
                               const char *, const char *, const unsigned int);
 
-#ifdef HAVE_LARGE_PAGES
+#ifdef HAVE_LINUX_LARGE_PAGES
 extern my_bool my_use_large_pages;
 extern uint    my_large_page_size;
 #endif
@@ -309,9 +309,6 @@ struct st_my_file_info
   int    oflag;     /* open flags, e.g O_APPEND */
 #endif
   enum   file_type	type;
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-  mysql_mutex_t mutex;
-#endif
 };
 
 extern struct st_my_file_info *my_file_info;
