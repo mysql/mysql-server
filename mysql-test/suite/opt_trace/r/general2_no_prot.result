@@ -390,8 +390,7 @@ TRACE
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "index_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -440,6 +439,14 @@ TRACE
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `t1`.`i` AS `i`,`t2`.`i` AS `i`,`t3`.`i` AS `i` from (`t1` left join (`t2` left join `t3` on((`t3`.`i` = `t2`.`i`))) on((`t2`.`i` = `t1`.`i`))) where isnull(`t3`.`i`)"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `t1`.`i` AS `i`,`t2`.`i` AS `i`,`t3`.`i` AS `i` from `t1` left join (`t2` left join `t3` on((`t3`.`i` = `t2`.`i`))) on((`t2`.`i` = `t1`.`i`)) where isnull(`t3`.`i`)"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -448,14 +455,6 @@ TRACE
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t1`.`i` AS `i`,`t2`.`i` AS `i`,`t3`.`i` AS `i` from `t1` left join (`t2` left join `t3` on((`t3`.`i` = `t2`.`i`))) on((`t2`.`i` = `t1`.`i`)) where isnull(`t3`.`i`)"
-            } /* transformations_to_nested_joins */
-          },
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -624,16 +623,13 @@ TRACE
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               },
               {
-                "table": "`t2`",
-                "access_type": "table_scan"
+                "table": "`t2`"
               },
               {
-                "table": "`t3`",
-                "access_type": "table_scan"
+                "table": "`t3`"
               }
             ] /* refine_plan */
           }
@@ -720,14 +716,7 @@ TRACE
           },
           {
             "expanded_query": "/* select#1 */ select `t1`.`f2` AS `f2` from (`t1` straight_join (`t2` join `t3` on((`t3`.`f2` = `t2`.`f2`))) on((`t3`.`f2` = `t2`.`f2`))) having (not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`))))))) order by `t1`.`f2`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -736,7 +725,14 @@ TRACE
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select `t1`.`f2` AS `f2` from `t1` join `t2` join `t3` where ((`t3`.`f2` = `t2`.`f2`) and (`t3`.`f2` = `t2`.`f2`)) having (not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`))))))) order by `t1`.`f2`"
             } /* transformations_to_nested_joins */
-          },
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -961,16 +957,13 @@ TRACE
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               },
               {
-                "table": "`t3`",
-                "access_type": "table_scan"
+                "table": "`t3`"
               },
               {
-                "table": "`t2`",
-                "access_type": "table_scan"
+                "table": "`t2`"
               }
             ] /* refine_plan */
           }
@@ -1076,8 +1069,7 @@ TRACE
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -1280,8 +1272,7 @@ TRACE
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ] /* refine_plan */
                 }
@@ -1348,8 +1339,7 @@ TRACE
           {
             "refine_plan": [
               {
-                "table": " `teeone`",
-                "access_type": "table_scan"
+                "table": " `teeone`"
               }
             ] /* refine_plan */
           }
@@ -1755,8 +1745,7 @@ SET @a=(select count(a) from t1 where a>0)	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ] /* refine_plan */
                 }
@@ -1879,8 +1868,7 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ] /* refine_plan */
                 }
@@ -2033,8 +2021,7 @@ call p1((select a from t1 limit 1))	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ] /* refine_plan */
                 }
@@ -2184,8 +2171,7 @@ select concat(concat(_latin1'->',f1),_latin1'<-') from t1	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -2343,6 +2329,14 @@ table3.col_varchar_10_utf8_key	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `table2`.`col_int_key` AS `col_int_key` from ((`t3` `table1` left join `t1` `table2` on((`table1`.`col_int_key` < `table2`.`col_int_key`))) left join `t2` `table3` on((convert(`table2`.`col_varchar_10_latin1_key` using utf8) >= `table3`.`col_varchar_10_utf8_key`)))"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select `table2`.`col_int_key` AS `col_int_key` from `t3` `table1` left join `t1` `table2` on((`table1`.`col_int_key` < `table2`.`col_int_key`)) left join `t2` `table3` on((convert(`table2`.`col_varchar_10_latin1_key` using utf8) >= `table3`.`col_varchar_10_utf8_key`))"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -2351,14 +2345,6 @@ table3.col_varchar_10_utf8_key	{
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `table2`.`col_int_key` AS `col_int_key` from `t3` `table1` left join `t1` `table2` on((`table1`.`col_int_key` < `table2`.`col_int_key`)) left join `t2` `table3` on((convert(`table2`.`col_varchar_10_latin1_key` using utf8) >= `table3`.`col_varchar_10_utf8_key`))"
-            } /* transformations_to_nested_joins */
-          },
           {
             "table_dependencies": [
               {
@@ -2556,12 +2542,10 @@ table3.col_varchar_10_utf8_key	{
           {
             "refine_plan": [
               {
-                "table": "`t3` `table1`",
-                "access_type": "table_scan"
+                "table": "`t3` `table1`"
               },
               {
-                "table": "`t2` `table3`",
-                "access_type": "index_scan"
+                "table": "`t2` `table3`"
               }
             ] /* refine_plan */
           }
@@ -2640,6 +2624,16 @@ from t0 where a in
           },
           {
             "expanded_query": "/* select#1 */ select `t0`.`a` AS `a` from `t0` where <in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "outer_join_to_inner_join",
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -2651,25 +2645,25 @@ from t0 where a in
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))",
+              "original_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -2724,13 +2718,13 @@ from t0 where a in
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))",
+              "original_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t0`",
-                  "attached": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+                  "attached": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -2738,8 +2732,7 @@ from t0 where a in
           {
             "refine_plan": [
               {
-                "table": "`t0`",
-                "access_type": "table_scan"
+                "table": "`t0`"
               }
             ] /* refine_plan */
           }
@@ -2750,16 +2743,6 @@ from t0 where a in
       "join_optimization": {
         "select#": 2,
         "steps": [
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "outer_join_to_inner_join",
-                "JOIN_condition_to_WHERE",
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))"
-            } /* transformations_to_nested_joins */
-          },
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -3304,8 +3287,7 @@ from t0 where a in
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "index_scan"
+                "table": "`t1`"
               },
               {
                 "table": "`t2`"
@@ -3367,6 +3349,15 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from ((`t1` join `t2` on((`t1`.`OBJECTID` = `t2`.`ID`))) join `t3` on((`t1`.`OBJECTID` = `t3`.`ID`))) group by `t2`.`PARID` order by `DATA` desc"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from `t1` join `t2` join `t3` where ((`t1`.`OBJECTID` = `t3`.`ID`) and (`t1`.`OBJECTID` = `t2`.`ID`)) group by `t2`.`PARID` order by `DATA` desc"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -3376,7 +3367,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from ((`t1` join `t2` on((`t1`.`OBJECTID` = `t2`.`ID`))) join `t3` on((`t1`.`OBJECTID` = `t3`.`ID`))) group by `t2`.`PARID` order by `DATA` desc) `tmp`"
+            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from `t1` join `t2` join `t3` where ((`t1`.`OBJECTID` = `t3`.`ID`) and (`t1`.`OBJECTID` = `t2`.`ID`)) group by `t2`.`PARID` order by `DATA` desc) `tmp`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3389,15 +3380,6 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
             "join_optimization": {
               "select#": 2,
               "steps": [
-                {
-                  "transformations_to_nested_joins": {
-                    "transformations": [
-                      "JOIN_condition_to_WHERE",
-                      "parenthesis_removal"
-                    ] /* transformations */,
-                    "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`t3`.`DATA`) AS `DATA` from `t1` join `t2` join `t3` where ((`t1`.`OBJECTID` = `t3`.`ID`) and (`t1`.`OBJECTID` = `t2`.`ID`)) group by `t2`.`PARID` order by `DATA` desc"
-                  } /* transformations_to_nested_joins */
-                },
                 {
                   "condition_processing": {
                     "condition": "WHERE",
@@ -3715,8 +3697,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
           {
             "refine_plan": [
               {
-                "table": " `tmp`",
-                "access_type": "table_scan"
+                "table": " `tmp`"
               }
             ] /* refine_plan */
           }
@@ -3859,6 +3840,14 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
         "steps": [
           {
             "expanded_query": "/* select#1 */ select replace(`t3`.`_field_140`,'\\r','^M') AS `replace(t3._field_140, \"\\r\",\"^M\")`,`t3`.`t3_id` AS `t3_id`,min(`t3`.`_field_131`) AS `min(t3._field_131)`,min(`t3`.`_field_135`) AS `min(t3._field_135)`,min(`t3`.`_field_139`) AS `min(t3._field_139)`,min(`t3`.`_field_137`) AS `min(t3._field_137)`,min(`link_alias_142`.`_field_165`) AS `min(link_alias_142._field_165)`,min(`link_alias_133`.`_field_72`) AS `min(link_alias_133._field_72)`,min(`t3`.`_field_145`) AS `min(t3._field_145)`,min(`link_alias_148`.`_field_156`) AS `min(link_alias_148._field_156)`,replace(min(`t3`.`_field_140`),'\\r','^M') AS `replace(min(t3._field_140), \"\\r\",\"^M\")`,`t3`.`t3_id` AS `t3_id` from ((((((`t3` left join `t4` on((`t4`.`seq_0_id` = `t3`.`t3_id`))) left join `t7` `link_alias_142` on((`t4`.`seq_1_id` = `link_alias_142`.`t7_id`))) left join `t6` on((`t6`.`seq_0_id` = `t3`.`t3_id`))) left join `t1` `link_alias_133` on((`t6`.`seq_1_id` = `link_alias_133`.`t1_id`))) left join `t2` on((`t2`.`seq_0_id` = `t3`.`t3_id`))) left join `t5` `link_alias_148` on((`t2`.`seq_1_id` = `link_alias_148`.`t5_id`))) where (`t3`.`t3_id` = 1) group by `t3`.`t3_id` order by `link_alias_142`.`_field_166`,`t3`.`_field_139`,`link_alias_133`.`_field_72`,`t3`.`_field_135`,`link_alias_148`.`_field_156`"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ] /* transformations */,
+              "expanded_query": "/* select#1 */ select replace(`t3`.`_field_140`,'\\r','^M') AS `replace(t3._field_140, \"\\r\",\"^M\")`,`t3`.`t3_id` AS `t3_id`,min(`t3`.`_field_131`) AS `min(t3._field_131)`,min(`t3`.`_field_135`) AS `min(t3._field_135)`,min(`t3`.`_field_139`) AS `min(t3._field_139)`,min(`t3`.`_field_137`) AS `min(t3._field_137)`,min(`link_alias_142`.`_field_165`) AS `min(link_alias_142._field_165)`,min(`link_alias_133`.`_field_72`) AS `min(link_alias_133._field_72)`,min(`t3`.`_field_145`) AS `min(t3._field_145)`,min(`link_alias_148`.`_field_156`) AS `min(link_alias_148._field_156)`,replace(min(`t3`.`_field_140`),'\\r','^M') AS `replace(min(t3._field_140), \"\\r\",\"^M\")`,`t3`.`t3_id` AS `t3_id` from `t3` left join `t4` on((`t4`.`seq_0_id` = `t3`.`t3_id`)) left join `t7` `link_alias_142` on((`t4`.`seq_1_id` = `link_alias_142`.`t7_id`)) left join `t6` on((`t6`.`seq_0_id` = `t3`.`t3_id`)) left join `t1` `link_alias_133` on((`t6`.`seq_1_id` = `link_alias_133`.`t1_id`)) left join `t2` on((`t2`.`seq_0_id` = `t3`.`t3_id`)) left join `t5` `link_alias_148` on((`t2`.`seq_1_id` = `link_alias_148`.`t5_id`)) where (`t3`.`t3_id` = 1) group by `t3`.`t3_id` order by `link_alias_142`.`_field_166`,`t3`.`_field_139`,`link_alias_133`.`_field_72`,`t3`.`_field_135`,`link_alias_148`.`_field_156`"
+            } /* transformations_to_nested_joins */
           }
         ] /* steps */
       } /* join_preparation */
@@ -3867,14 +3856,6 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#1 */ select replace(`t3`.`_field_140`,'\\r','^M') AS `replace(t3._field_140, \"\\r\",\"^M\")`,`t3`.`t3_id` AS `t3_id`,min(`t3`.`_field_131`) AS `min(t3._field_131)`,min(`t3`.`_field_135`) AS `min(t3._field_135)`,min(`t3`.`_field_139`) AS `min(t3._field_139)`,min(`t3`.`_field_137`) AS `min(t3._field_137)`,min(`link_alias_142`.`_field_165`) AS `min(link_alias_142._field_165)`,min(`link_alias_133`.`_field_72`) AS `min(link_alias_133._field_72)`,min(`t3`.`_field_145`) AS `min(t3._field_145)`,min(`link_alias_148`.`_field_156`) AS `min(link_alias_148._field_156)`,replace(min(`t3`.`_field_140`),'\\r','^M') AS `replace(min(t3._field_140), \"\\r\",\"^M\")`,`t3`.`t3_id` AS `t3_id` from `t3` left join `t4` on((`t4`.`seq_0_id` = `t3`.`t3_id`)) left join `t7` `link_alias_142` on((`t4`.`seq_1_id` = `link_alias_142`.`t7_id`)) left join `t6` on((`t6`.`seq_0_id` = `t3`.`t3_id`)) left join `t1` `link_alias_133` on((`t6`.`seq_1_id` = `link_alias_133`.`t1_id`)) left join `t2` on((`t2`.`seq_0_id` = `t3`.`t3_id`)) left join `t5` `link_alias_148` on((`t2`.`seq_1_id` = `link_alias_148`.`t5_id`)) where (`t3`.`t3_id` = 1) group by `t3`.`t3_id` order by `link_alias_142`.`_field_166`,`t3`.`_field_139`,`link_alias_133`.`_field_72`,`t3`.`_field_135`,`link_alias_148`.`_field_156`"
-            } /* transformations_to_nested_joins */
-          },
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -4616,14 +4597,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select sum(`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`alias2`.`pk` AS `field2` from (`t1` `alias1` straight_join `t2` `alias2` on((`alias2`.`pk` = `alias1`.`col_int_key`))) where `alias1`.`pk` group by `field2` order by `alias1`.`col_int_key`,`alias2`.`pk`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -4632,7 +4606,14 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               ] /* transformations */,
               "expanded_query": "/* select#1 */ select sum(`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`alias2`.`pk` AS `field2` from `t1` `alias1` straight_join `t2` `alias2` where (`alias1`.`pk` and (`alias2`.`pk` = `alias1`.`col_int_key`)) group by `field2` order by `alias1`.`col_int_key`,`alias2`.`pk`"
             } /* transformations_to_nested_joins */
-          },
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -4824,8 +4805,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
           {
             "refine_plan": [
               {
-                "table": "`t1` `alias1`",
-                "access_type": "table_scan"
+                "table": "`t1` `alias1`"
               },
               {
                 "table": "`t2` `alias2`"
@@ -5144,12 +5124,10 @@ select * from t1,mysqltest2.t2	{
           {
             "refine_plan": [
               {
-                "table": "`mysqltest2`.`t2`",
-                "access_type": "table_scan"
+                "table": "`mysqltest2`.`t2`"
               },
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }

@@ -72,6 +72,9 @@ call foo2();
 # check that this is allowed (it's not for functions):
 alter procedure foo2 contains sql;
 
+# Change the timestamp back to current
+set timestamp = DEFAULT;
+
 # SP with definer's right
 
 drop table t1;

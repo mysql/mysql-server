@@ -43,7 +43,8 @@ SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
 
 # Gen_lex_token
 # Make sure sql_yacc.h is generated before compiling gen_lex_token
-ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h)
+ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
+ADD_DEPENDENCIES(gen_lex_token GenServerSource)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
@@ -100,6 +101,7 @@ SET(SQL_SHARED_SOURCES
   mdl.cc
   my_decimal.cc
   net_serv.cc
+  opt_costmodel.cc
   opt_explain.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
@@ -113,6 +115,7 @@ SET(SQL_SHARED_SOURCES
   protocol.cc
   records.cc
   rpl_handler.cc
+  session_tracker.cc
   set_var.cc 
   sp.cc
   sp_cache.cc
@@ -183,6 +186,7 @@ SET(SQL_SHARED_SOURCES
   sql_view.cc
   strfunc.cc
   sys_vars.cc
+  sys_vars_resource_mgr.cc
   table.cc
   table_cache.cc
   table_trigger_dispatcher.cc
@@ -255,6 +259,10 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
+IF(HAVE_MY_TIMER)
+  SET(SQL_SOURCE ${SQL_SOURCE} sql_timer.cc)
+ENDIF()
+
 MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
 RECOMPILE_FOR_EMBEDDED)
 
@@ -304,6 +312,7 @@ ADD_DEPENDENCIES(slave GenError)
 SET(SQL_GUNIT_LIB_SOURCE 
   filesort_utils.cc 
   mdl.cc 
+  opt_costmodel.cc
   sql_list.cc 
   sql_string.cc
   thr_malloc.cc
@@ -457,8 +466,6 @@ ADD_CUSTOM_TARGET(
         DEPENDS ${GEN_DIGEST_SOURCES}
 )
 
-#Need this only for embedded
-SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   ADD_LIBRARY(udf_example MODULE udf_example.cc)

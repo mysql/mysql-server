@@ -126,6 +126,13 @@ struct PSI_socket;
 typedef struct PSI_socket PSI_socket;
 
 /**
+  Interface for an instrumented prepared statement.
+  This is an opaque structure.
+*/
+struct PSI_prepared_stmt;
+typedef struct PSI_prepared_stmt PSI_prepared_stmt;
+
+/**
   Interface for an instrumented table operation.
   This is an opaque structure.
 */
@@ -261,6 +268,14 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 #define DISABLE_PSI_TRANSACTION
 #endif
 
+#ifndef DISABLE_PSI_SP
+#define DISABLE_PSI_SP
+#endif
+
+#ifndef DISABLE_PSI_PS
+#define DISABLE_PSI_PS
+#endif
+
 #endif
 
 /**
@@ -365,6 +380,17 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 */
 #ifndef DISABLE_PSI_SP
 #define HAVE_PSI_SP_INTERFACE
+#endif
+
+/**
+  @def DISABLE_PSI_PS
+  Compiling option to disable the prepared statement instrumentation.
+  @sa DISABLE_PSI_MUTEX
+*/
+#ifndef DISABLE_PSI_STATEMENT
+#ifndef DISABLE_PSI_PS
+#define HAVE_PSI_PS_INTERFACE
+#endif
 #endif
 
 /**
@@ -1119,6 +1145,8 @@ struct PSI_statement_locker_state_v1
 {
   /** Discarded flag. */
   my_bool m_discarded;
+  /** In prepare flag. */
+  my_bool m_in_prepare;
   /** Metric, no index used flag. */
   uchar m_no_index_used;
   /** Metric, no good index used flag. */
@@ -1170,6 +1198,7 @@ struct PSI_statement_locker_state_v1
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
   PSI_sp_share *m_parent_sp_share;
+  PSI_prepared_stmt *m_parent_prepared_stmt;
 };
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 
@@ -2200,6 +2229,37 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
 /**
+  Get a prepare statement.
+  @param locker a statement locker for the running thread.
+*/
+typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
+  (void *identity, uint stmt_id, PSI_statement_locker *locker,
+   const char *stmt_name, size_t stmt_name_length,
+   const char *name, size_t length);
+
+/**
+  destroy a prepare statement.
+  @param prepared_stmt prepared statement.
+*/
+typedef void (*destroy_prepared_stmt_v1_t)
+  (PSI_prepared_stmt *prepared_stmt);
+
+/**
+  repreare a prepare statement.
+  @param prepared_stmt prepared statement.
+*/
+typedef void (*reprepare_prepared_stmt_v1_t)
+  (PSI_prepared_stmt *prepared_stmt);
+
+/**
+  Record a prepare statement instrumentation execute event.
+  @param locker a statement locker for the running thread.
+  @param prepared_stmt prepared statement.
+*/
+typedef void (*execute_prepared_stmt_v1_t)
+  (PSI_statement_locker *locker, PSI_prepared_stmt* prepared_stmt);
+
+/**
   Get a digest locker for the current statement.
   @param locker a statement locker for the running thread
 */
@@ -2497,6 +2557,14 @@ struct PSI_v1
   set_socket_info_v1_t set_socket_info;
   /** @sa set_socket_thread_owner_v1_t. */
   set_socket_thread_owner_v1_t set_socket_thread_owner;
+  /** @sa create_prepared_stmt_v1_t. */
+  create_prepared_stmt_v1_t create_prepared_stmt;
+  /** @sa destroy_prepared_stmt_v1_t. */
+  destroy_prepared_stmt_v1_t destroy_prepared_stmt;
+  /** @sa reprepare_prepared_stmt_v1_t. */
+  reprepare_prepared_stmt_v1_t reprepare_prepared_stmt;
+  /** @sa execute_prepared_stmt_v1_t. */
+  execute_prepared_stmt_v1_t execute_prepared_stmt;
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;
   /** @sa digest_end_v1_t. */

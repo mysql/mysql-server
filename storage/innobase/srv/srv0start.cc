@@ -1236,15 +1236,6 @@ innobase_start_or_create_for_mysql(void)
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"!!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!");
 #endif /* UNIV_LOG_LSN_DEBUG */
-#ifdef UNIV_MEM_DEBUG
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"!!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!");
-#endif
-
-	if (srv_use_sys_malloc) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The InnoDB memory heap is disabled");
-	}
 
 #if defined(COMPILER_HINTS_ENABLED)
 	ib_logf(IB_LOG_LEVEL_INFO,
@@ -2552,18 +2543,11 @@ innobase_shutdown_for_mysql(void)
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
 
-	mem_close();
-
 	/* 6. Free the thread management resoruces. */
 	os_thread_free();
 
 	/* 7. Free the synchronisation infrastructure. */
 	sync_check_close();
-
-	/* ut_free_all_mem() frees all allocated memory not freed yet
-	in shutdown, and it will also free the ut_list_mutex, so it
-	should be the last one for all operation */
-	ut_free_all_mem();
 
 	if (dict_foreign_err_file) {
 		fclose(dict_foreign_err_file);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,10 +123,25 @@ private:
   static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
   static const uint MYSQL_XID_GTRID_LEN= MYSQL_XID_OFFSET + sizeof(my_xid);
 
+  /**
+    -1 means that the XID is null
+  */
   long formatID;
+
+  /**
+    value from 1 through 64
+  */
   long gtrid_length;
+
+  /**
+    value from 1 through 64
+  */
   long bqual_length;
-  char data[XIDDATASIZE];  // not \0-terminated !
+
+  /**
+    distributed trx identifier. not \0-terminated.
+  */
+  char data[XIDDATASIZE];
 
 public:
   xid_t()
@@ -134,6 +149,55 @@ public:
     gtrid_length(0),
     bqual_length(0)
   {
+    memset(data, 0, XIDDATASIZE);
+  }
+
+  long get_format_id() const
+  {
+    return formatID;
+  }
+
+  void set_format_id(long v)
+  {
+    formatID= v;
+  }
+
+  long get_gtrid_length() const
+  {
+    return gtrid_length;
+  }
+
+  void set_gtrid_length(long v)
+  {
+    gtrid_length= v;
+  }
+
+  long get_bqual_length() const
+  {
+    return bqual_length;
+  }
+
+  void set_bqual_length(long v)
+  {
+    bqual_length= v;
+  }
+
+  const char* get_data() const
+  {
+    return data;
+  }
+
+  void set_data(const void* v, long l)
+  {
+    DBUG_ASSERT(l <= XIDDATASIZE);
+    memcpy(data, v, l);
+  }
+
+  void reset()
+  {
+    formatID= -1;
+    gtrid_length= 0;
+    bqual_length= 0;
     memset(data, 0, XIDDATASIZE);
   }
 
@@ -184,7 +248,6 @@ public:
   char* xid_to_str(char *buf) const;
 #endif
 
-private:
   bool eq(const xid_t *xid) const
   {
     return xid->gtrid_length == gtrid_length &&
@@ -192,6 +255,7 @@ private:
       !memcmp(xid->data, data, gtrid_length + bqual_length);
   }
 
+private:
   void set(const xid_t *xid)
   {
     memcpy(this, xid, sizeof(xid->formatID) + xid->key_length());

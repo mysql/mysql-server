@@ -187,8 +187,8 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
-int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
-	       List<Item> *sum_func_list, uint wild_num);
+int setup_wild(THD *thd, List<Item> &fields,
+               List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
@@ -239,8 +239,6 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
-int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-		Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,

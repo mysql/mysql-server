@@ -1,0 +1,53 @@
+# Displaying default value
+SELECT COUNT(@@GLOBAL.have_statement_timeout);
+COUNT(@@GLOBAL.have_statement_timeout)
+1
+1 Expected
+# Check if Value can set
+SET @@GLOBAL.have_statement_timeout=1;
+ERROR HY000: Variable 'have_statement_timeout' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.have_statement_timeout);
+COUNT(@@GLOBAL.have_statement_timeout)
+1
+1 Expected
+# Check if the value in GLOBAL Table matches value in variable
+SELECT @@GLOBAL.have_statement_timeout = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='have_statement_timeout';
+@@GLOBAL.have_statement_timeout = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.have_statement_timeout);
+COUNT(@@GLOBAL.have_statement_timeout)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='have_statement_timeout';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+# Check if accessing variable with and without GLOBAL point to same variable
+SELECT @@have_statement_timeout = @@GLOBAL.have_statement_timeout;
+@@have_statement_timeout = @@GLOBAL.have_statement_timeout
+1
+1 Expected
+# Check if have_statement_timeout can be accessed with and without @@ sign
+SELECT COUNT(@@have_statement_timeout);
+COUNT(@@have_statement_timeout)
+1
+1 Expected
+SELECT COUNT(@@local.have_statement_timeout);
+ERROR HY000: Variable 'have_statement_timeout' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.have_statement_timeout);
+ERROR HY000: Variable 'have_statement_timeout' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.have_statement_timeout);
+COUNT(@@GLOBAL.have_statement_timeout)
+1
+1 Expected
+SELECT have_statement_timeout = @@SESSION.have_statement_timeout;
+ERROR 42S22: Unknown column 'have_statement_timeout' in 'field list'
+Expected error 'Readonly variable'

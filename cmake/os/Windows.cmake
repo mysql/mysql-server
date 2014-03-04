@@ -34,7 +34,11 @@ INCLUDE(${CMAKE_BINARY_DIR}/win/configure.data OPTIONAL)
 # a VC solution.
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
- 
+
+# We require at least Visual Studio 2010 (aka 10.0) which has version nr 1600.
+IF(MSVC_VERSION LESS 1600)
+  MESSAGE(FATAL_ERROR "Visual Studio 2010 or newer is required!")
+ENDIF()
 
 # OS display name (version_compile_os etc).
 # Used by the test suite to ignore bugs on some platforms, 

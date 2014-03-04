@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,52 +30,37 @@ Created 5/30/1994 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "os0event.h"
 # include "ut0mutex.h"
-
-/** The total amount of memory currently allocated from the operating
-system with os_mem_alloc_large() or malloc().  Does not count malloc()
-if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
-extern ulint	ut_total_allocated_memory;
-
-/** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
-extern SysMutex	ut_list_mutex;
 #endif /* !UNIV_HOTBACKUP */
 
 /** Wrapper for memcpy(3).  Copy memory area when the source and
 target are not overlapping.
-* @param dest in: copy to
-* @param sour in: copy from
-* @param n in: number of bytes to copy
-* @return dest */
+@param[in,out]	dest	copy to
+@param[in]	src	copy from
+@param[in]	n	number of bytes to copy
+@return dest */
 UNIV_INLINE
 void*
-ut_memcpy(void* dest, const void* sour, ulint n);
+ut_memcpy(void* dest, const void* src, ulint n);
 
 /** Wrapper for memmove(3).  Copy memory area when the source and
 target are overlapping.
-* @param dest in: copy to
-* @param sour in: copy from
-* @param n in: number of bytes to copy
-* @return dest */
+@param[in,out]	dest	Move to
+@param[in]	src	Move from
+@param[in]	n	number of bytes to move
+@return dest */
 UNIV_INLINE
 void*
 ut_memmove(void* dest, const void* sour, ulint n);
 
 /** Wrapper for memcmp(3).  Compare memory areas.
-* @param str1 in: first memory block to compare
-* @param str2 in: second memory block to compare
-* @param n in: number of bytes to compare
-* @return negative, 0, or positive if str1 is smaller, equal,
+@param[in]	str1	first memory block to compare
+@param[in]	str2	second memory block to compare
+@param[in]	n	number of bytes to compare
+@return negative, 0, or positive if str1 is smaller, equal,
 		or greater than str2, respectively. */
 UNIV_INLINE
 int
 ut_memcmp(const void* str1, const void* str2, ulint n);
-
-/**********************************************************************//**
-Initializes the mem block list at database startup. */
-
-void
-ut_mem_init(void);
-/*=============*/
 
 /** Allocate memory.
 @param[in]	n number of bytes to allocate
@@ -95,73 +80,44 @@ ut_zalloc(
 	ulint	n)
 	__attribute__((malloc));
 
-/**********************************************************************//**
-Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
-a nop. */
+/** Free a memory block allocated with ut_malloc.
+Freeing a NULL pointer is a no-op.
+@param[in,out]	mem	memory block, can be NULL */
 
 void
-ut_free(
-/*====*/
-	void* ptr);  /*!< in, own: memory block, can be NULL */
+ut_free(void* ptr);
+
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Implements realloc. This is needed by /pars/lexyy.cc. Otherwise, you should not
-use this function because the allocation functions in mem0mem.h are the
-recommended ones in InnoDB.
-
-man realloc in Linux, 2004:
-
-       realloc()  changes the size of the memory block pointed to
-       by ptr to size bytes.  The contents will be  unchanged  to
-       the minimum of the old and new sizes; newly allocated mem­
-       ory will be uninitialized.  If ptr is NULL,  the	 call  is
-       equivalent  to malloc(size); if size is equal to zero, the
-       call is equivalent to free(ptr).	 Unless ptr is	NULL,  it
-       must  have  been	 returned by an earlier call to malloc(),
-       calloc() or realloc().
-
-RETURN VALUE
-       realloc() returns a pointer to the newly allocated memory,
-       which is suitably aligned for any kind of variable and may
-       be different from ptr, or NULL if the  request  fails.  If
-       size  was equal to 0, either NULL or a pointer suitable to
-       be passed to free() is returned.	 If realloc()  fails  the
-       original	 block	is  left  untouched  - it is not freed or
-       moved.
+/** Wrapper for realloc().
+@param[in,out]	ptr	Pointer to old block or NULL
+@param[in]	size	Desired size
 @return own: pointer to new mem block or NULL */
 
 void*
 ut_realloc(
-/*=======*/
-	void*	ptr,	/*!< in: pointer to old block or NULL */
-	ulint	size);	/*!< in: desired size */
-/**********************************************************************//**
-Frees in shutdown all allocated memory not freed yet. */
-
-void
-ut_free_all_mem(void);
-/*=================*/
+	void*	ptr,
+	ulint	size);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Wrapper for strcpy(3).  Copy a NUL-terminated string.
-* @param dest in: copy to
-* @param sour in: copy from
-* @return dest */
+@param[in,out]	dest	Destination to copy to
+@param[in]	src	Source to copy from
+@return dest */
 UNIV_INLINE
 char*
-ut_strcpy(char* dest, const char* sour);
+ut_strcpy(char* dest, const char* src);
 
 /** Wrapper for strlen(3).  Determine the length of a NUL-terminated string.
-* @param str in: string
-* @return length of the string in bytes, excluding the terminating NUL */
+@param[in]	str	string
+@return length of the string in bytes, excluding the terminating NUL */
 UNIV_INLINE
 ulint
 ut_strlen(const char* str);
 
 /** Wrapper for strcmp(3).  Compare NUL-terminated strings.
-* @param str1 in: first string to compare
-* @param str2 in: second string to compare
-* @return negative, 0, or positive if str1 is smaller, equal,
+@param[in]	str1	first string to compare
+@param[in]	str2	second string to compare
+@return negative, 0, or positive if str1 is smaller, equal,
 		or greater than str2, respectively. */
 UNIV_INLINE
 int

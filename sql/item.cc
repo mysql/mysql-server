@@ -549,7 +549,8 @@ Item::save_str_value_in_field(Field *field, String *result)
 Item::Item():
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
-  collation(&my_charset_bin, DERIVATION_COERCIBLE), with_subselect(false),
+  collation(&my_charset_bin, DERIVATION_COERCIBLE),
+  runtime_item(false), with_subselect(false),
   with_stored_program(false), tables_locked_cache(false)
 {
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
@@ -598,6 +599,7 @@ Item::Item(THD *thd, Item *item):
   fixed(item->fixed),
   collation(item->collation),
   cmp_context(item->cmp_context),
+  runtime_item(false),
   with_subselect(item->has_subquery()),
   with_stored_program(item->with_stored_program),
   tables_locked_cache(item->tables_locked_cache)
@@ -5076,7 +5078,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
               after the original field has been fixed and this is done in the
               fix_inner_refs() function.
             */
-            ;
             if (!(rf= new Item_outer_ref(context, this)))
               return -1;
             thd->change_item_tree(reference, rf);
@@ -7062,7 +7063,7 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
                    const char *field_name_arg,
                    bool alias_name_used_arg)
   :Item_ident(context_arg, NullS, table_name_arg, field_name_arg),
-   result_field(0), ref(item)
+   result_field(0), ref(item), chop_ref(!ref)
 {
   alias_name_used= alias_name_used_arg;
   /*
@@ -7399,6 +7400,8 @@ void Item_ref::cleanup()
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   result_field= 0;
+  if (chop_ref)
+    ref= NULL;
   DBUG_VOID_RETURN;
 }
 

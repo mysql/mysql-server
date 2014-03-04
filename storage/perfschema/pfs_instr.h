@@ -124,8 +124,6 @@ struct PFS_ALIGNED PFS_cond : public PFS_instr
   const void *m_identity;
   /** Condition class. */
   PFS_cond_class *m_class;
-  /** Instrument wait statistics. */
-  PFS_single_stat m_wait_stat;
   /** Condition instance usage statistics. */
   PFS_cond_stat m_cond_stat;
 };
@@ -337,16 +335,6 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
 
   /** Thread instrumentation flag. */
   bool m_enabled;
-  /**
-    Thread instrumentation flag, for disconnect.
-    This flag is derived, and set to true if
-    at any time during the thread life time,
-    the following 3 conditions hold:
-    - consumer 'global_instrumentation' is enabled
-    - consumer 'thread_instrumentation' is enabled
-    - this thread m_enabled flag is true
-  */
-  bool m_aggregate_on_disconnect;
   /** Current wait event in the event stack. */
   PFS_events_waits *m_events_waits_current;
   /** Event ID counter */
