@@ -1412,8 +1412,6 @@ int ndbcluster_find_all_files(THD *thd)
 
   dict= ndb->getDictionary();
 
-  LINT_INIT(unhandled);
-  LINT_INIT(skipped);
   do
   {
     NdbDictionary::Dictionary::List list;
