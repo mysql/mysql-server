@@ -184,8 +184,10 @@ public:
 
 	/** Open a data file in read-write mode during start-up so that
 	doublewrite pages can be restored and then it can be validated.
+	@param[in]	read_only_mode	if true, then readonly mode checks
+					are enforced.
 	@return DB_SUCCESS or error code */
-	virtual dberr_t open_read_write()
+	virtual dberr_t open_read_write(bool read_only_mode)
 		__attribute__((warn_unused_result));
 
 	/** Close a data file.
@@ -339,14 +341,18 @@ private:
 	}
 
 	/** Create/open a data file.
+	@param[in]	read_only_mode	if true, then readonly mode checks
+					are enforced.
 	@return DB_SUCCESS or error code */
-	dberr_t open_or_create()
+	dberr_t open_or_create(bool read_only_mode)
 		__attribute__((warn_unused_result));
 
 	/** Reads a few significant fields from the first page of the
 	datafile, which must already be open.
+	@param[in]	read_only_mode	if true, then readonly mode checks
+					are enforced.
 	@return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
-	dberr_t read_first_page()
+	dberr_t read_first_page(bool read_first_page)
 		__attribute__((warn_unused_result));
 
 	/** Free the first page from memory when it is no longer needed. */
@@ -485,8 +491,10 @@ public:
 	/** Opens a handle to the file linked to in an InnoDB Symbolic Link
 	file in read-write mode so that it can be restored from doublewrite
 	and validated.
+	@param[in]	read_only_mode	if true, then readonly mode checks
+					are enforced.
 	@return DB_SUCCESS or error code */
-	dberr_t open_read_write()
+	dberr_t open_read_write(bool read_only_mode)
 		__attribute__((warn_unused_result));
 
 	/******************************************************************

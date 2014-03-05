@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -355,6 +355,13 @@ dict_table_add_system_columns(
 	mem_heap_t*	heap)	/*!< in: temporary heap */
 	__attribute__((nonnull));
 #ifndef UNIV_HOTBACKUP
+/**********************************************************************//**
+Mark if table has big rows.
+@param[in,out]	table	table handler */
+void
+dict_table_set_big_rows(
+	dict_table_t*	table)
+	__attribute__((nonnull));
 /**********************************************************************//**
 Adds a table object to the dictionary cache. */
 
@@ -721,6 +728,16 @@ dict_index_is_clust(
 /*================*/
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, pure, warn_unused_result));
+
+/** Check if index is auto-generated clustered index.
+@param[in]	index	index
+
+@return true if index is auto-generated clustered index. */
+UNIV_INLINE
+bool
+dict_index_is_auto_gen_clust(
+	const dict_index_t*	index);
+
 /********************************************************************//**
 Check whether the index is unique.
 @return nonzero for unique index, zero for other indexes */
@@ -771,7 +788,9 @@ dict_table_get_n_user_cols(
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
-Gets the number of system columns in a table in the dictionary cache.
+Gets the number of system columns in a table.
+For intrinsic table on ROW_ID column is added for all other
+tables TRX_ID and ROLL_PTR are all also appeneded.
 @return number of system (e.g., ROW_ID) columns of a table */
 UNIV_INLINE
 ulint
@@ -840,10 +859,11 @@ dict_table_get_sys_col(
 	ulint			sys)	/*!< in: DATA_ROW_ID, ... */
 	__attribute__((nonnull, warn_unused_result));
 #else /* UNIV_DEBUG */
-#define dict_table_get_nth_col(table, pos) \
+#define dict_table_get_nth_col(table, pos)	\
 ((table)->cols + (pos))
-#define dict_table_get_sys_col(table, sys) \
-((table)->cols + (table)->n_cols + (sys) - DATA_N_SYS_COLS)
+#define dict_table_get_sys_col(table, sys)	\
+((table)->cols + (table)->n_cols + (sys)	\
+ - (dict_table_get_n_sys_cols(table)))
 #endif /* UNIV_DEBUG */
 /********************************************************************//**
 Gets the given system column number of a table.
@@ -1024,6 +1044,9 @@ dict_make_room_in_cache(
 /*====================*/
 	ulint		max_tables,	/*!< in: max tables allowed in cache */
 	ulint		pct_check);	/*!< in: max percent to check */
+
+#define BIG_ROW_SIZE	1024 
+
 /**********************************************************************//**
 Adds an index to the dictionary cache.
 @return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
@@ -1524,6 +1547,17 @@ dict_table_move_from_lru_to_non_lru(
 	dict_table_t*	table)	/*!< in: table to move from LRU to non-LRU */
 	__attribute__((nonnull));
 /**********************************************************************//**
+Looks for an index with the given id given a table instance.
+@param[in]	table	table instance
+@param[in]	id	index id
+@return index or NULL */
+
+dict_index_t*
+dict_table_find_index_on_id(
+	const dict_table_t*	table,
+	index_id_t		id)
+	__attribute__((nonnull));
+/**********************************************************************//**
 Move to the most recently used segment of the LRU list. */
 
 void
@@ -1763,6 +1797,24 @@ dict_table_is_temporary(
 	const dict_table_t*	table)	/*!< in: table to check */
 	__attribute__((nonnull, pure, warn_unused_result));
 
+/** Check whether the table is intrinsic.
+An intrinsic table is a special kind of temporary table that
+is invisible to the end user.  It is created internally by the MySQL server
+layer or other module connected to InnoDB in order to gather and use data
+as part of a larger task.  Since access to it must be as fast as possible,
+it does not need UNDO semantics, system fields DB_TRX_ID & DB_ROLL_PTR,
+doublewrite, checksum, insert buffer, use of the shared data dictionary,
+locking, or even a transaction.  In short, these are not ACID tables at all,
+just temporary
+
+@param[in]	table	table to check
+@return true if intrinsic table flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_intrinsic(
+	const dict_table_t*	table)
+	__attribute__((nonnull, pure, warn_unused_result));
+
 /********************************************************************//**
 Turn-off redo-logging if temporary table. */
 UNIV_INLINE
@@ -1771,6 +1823,16 @@ dict_disable_redo_if_temporary(
 /*===========================*/
 	const dict_table_t*	table,	/*!< in: table to check */
 	mtr_t*			mtr)	/*!< out: mini-transaction */
+	__attribute__((nonnull));
+
+/********************************************************************//**
+Get table localized row-id and increment the row-id counter for next use.
+@param[in,out]	table	table handler
+@return next table local row-id. */
+UNIV_INLINE
+row_id_t
+dict_table_get_table_localized_row_id(
+	dict_table_t*		table)
 	__attribute__((nonnull));
 
 #ifndef UNIV_HOTBACKUP

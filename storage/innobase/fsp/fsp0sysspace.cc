@@ -374,7 +374,7 @@ dberr_t
 SysTablespace::set_size(
 	Datafile&	file)
 {
-	ut_a(!srv_read_only_mode);
+	ut_a(!srv_read_only_mode || m_ignore_read_only);
 
 	/* We created the data file and now write it full of zeros */
 
@@ -413,7 +413,7 @@ SysTablespace::create_file(
 	dberr_t	err = DB_SUCCESS;
 
 	ut_a(!file.m_exists);
-	ut_a(!srv_read_only_mode);
+	ut_a(!srv_read_only_mode || m_ignore_read_only);
 
 	switch (file.m_type) {
 	case SRV_NEW_RAW:
@@ -431,7 +431,8 @@ SysTablespace::create_file(
 		/* Fall through. */
 
 	case SRV_NOT_RAW:
-		err = file.open_or_create();
+		err = file.open_or_create(
+			m_ignore_read_only ? false : srv_read_only_mode);
 		break;
 	}
 
@@ -464,7 +465,7 @@ SysTablespace::open_file(
 	case SRV_OLD_RAW:
 		srv_start_raw_disk_in_use = TRUE;
 
-		if (srv_read_only_mode) {
+		if (srv_read_only_mode && !m_ignore_read_only) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Can't open a raw device '%s' when"
 				" --innodb-read-only is set",
@@ -476,7 +477,8 @@ SysTablespace::open_file(
 		/* Fall through */
 
 	case SRV_NOT_RAW:
-		err = file.open_or_create();
+		err = file.open_or_create(
+			m_ignore_read_only ? false : srv_read_only_mode);
 
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -513,13 +515,17 @@ SysTablespace::read_lsn_and_check_flags()
 		ut_a(it->m_exists);
 
 		if (it->m_handle == OS_FILE_CLOSED) {
-			err = it->open_or_create();
+			err = it->open_or_create(
+				m_ignore_read_only ?
+				false : srv_read_only_mode);
 			if (err != DB_SUCCESS) {
 				return(err);
 			}
 		}
 
-		err = it->read_first_page();
+		err = it->read_first_page(
+			m_ignore_read_only ?
+			false : srv_read_only_mode);
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
@@ -589,7 +595,9 @@ SysTablespace::check_file_status(
 
 	memset(&stat, 0x0, sizeof(stat));
 
-	dberr_t	err = os_file_get_status(file.m_filepath, &stat, true);
+	dberr_t	err = os_file_get_status(
+		file.m_filepath, &stat, true,
+		m_ignore_read_only ? false : srv_read_only_mode);
 
 	reason = FILE_STATUS_VOID;
 	/* File exists but we can't read the rw-permission settings. */
@@ -615,7 +623,8 @@ SysTablespace::check_file_status(
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"The %s data file '%s' must be %s",
 					name(), file.name(),
-					!srv_read_only_mode
+					(!srv_read_only_mode
+					 || m_ignore_read_only)
 					? "writable" : "readable");
 
 				err = DB_ERROR;
@@ -657,7 +666,7 @@ SysTablespace::file_not_found(
 {
 	file.m_exists = false;
 
-	if (srv_read_only_mode) {
+	if (srv_read_only_mode && !m_ignore_read_only) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Can't create file '%s' when"
@@ -788,7 +797,9 @@ SysTablespace::check_file_spec(
 			if (reason_if_failed == FILE_STATUS_READ_WRITE_ERROR) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"The %s data file '%s' must be %s",
-					name(), it->name(), !srv_read_only_mode
+					name(), it->name(),
+					(!srv_read_only_mode
+					 || m_ignore_read_only)
 					? "writable" : "readable");
 			}
 

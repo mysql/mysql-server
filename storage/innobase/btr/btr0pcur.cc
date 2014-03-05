@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -124,7 +124,8 @@ btr_pcur_store_position(
 	offs = page_offset(rec);
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX)
+	      || dict_table_is_intrinsic(index->table));
 
 	if (page_is_empty(page)) {
 		/* It must be an empty index tree; NOTE that in this case
@@ -169,6 +170,10 @@ btr_pcur_store_position(
 		&cursor->old_rec_buf, &cursor->buf_size);
 
 	cursor->block_when_stored = block;
+
+	/* Function try to check if block is S/X latch.
+	Block acquired for intrinsic table are not S/X latch and so
+	special handling in DEBUG mode. */
 	cursor->modify_clock = buf_block_get_modify_clock(block);
 }
 
@@ -261,10 +266,13 @@ btr_pcur_restore_position_func(
 	ut_a(cursor->old_rec);
 	ut_a(cursor->old_n_fields);
 
-	if (latch_mode == BTR_SEARCH_LEAF
-	    || latch_mode == BTR_MODIFY_LEAF
-	    || latch_mode == BTR_SEARCH_PREV
-	    || latch_mode == BTR_MODIFY_PREV) {
+	/* Optimistic latching involves S/X latch not required for
+	intrinsic table instead we would prefer to search fresh. */
+	if ((latch_mode == BTR_SEARCH_LEAF
+	     || latch_mode == BTR_MODIFY_LEAF
+	     || latch_mode == BTR_SEARCH_PREV
+	     || latch_mode == BTR_MODIFY_PREV)
+            && !dict_table_is_intrinsic(cursor->btr_cur.index->table)) {
 		/* Try optimistic restoration. */
 
 		if (btr_cur_optimistic_latch_leaves(
@@ -408,6 +416,7 @@ btr_pcur_move_to_next_page(
 	buf_block_t*	next_block;
 	page_t*		next_page;
 	ulint		mode;
+	dict_table_t*	table = btr_pcur_get_btr_cur(cursor)->index->table; 
 
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -429,6 +438,12 @@ btr_pcur_move_to_next_page(
 		mode = BTR_MODIFY_LEAF;
 	}
 
+	/* For intrinsic tables we avoid taking any latches as table is
+	accessed by only one thread at any given time. */
+	if (dict_table_is_intrinsic(table)) {
+		mode = BTR_NO_LATCHES;
+	}
+
 	buf_block_t*	block = btr_pcur_get_block(cursor);
 
 	next_block = btr_block_get(
@@ -444,8 +459,7 @@ btr_pcur_move_to_next_page(
 #endif /* UNIV_BTR_DEBUG */
 	next_block->check_index_page_at_flush = TRUE;
 
-	btr_leaf_page_release(btr_pcur_get_block(cursor),
-			      mode, mtr);
+	btr_leaf_page_release(btr_pcur_get_block(cursor), mode, mtr);
 
 	page_cur_set_before_first(next_block, btr_pcur_get_page_cur(cursor));
 

@@ -862,6 +862,7 @@ row_upd_build_difference_binary(
 
 	/* This function is used only for a clustered index */
 	ut_a(dict_index_is_clust(index));
+	ut_ad(!dict_table_is_intrinsic(index->table));
 
 	update = upd_create(dtuple_get_n_fields(entry), heap);
 
@@ -1533,7 +1534,7 @@ row_upd_eval_new_vals(
 
 /***********************************************************//**
 Stores to the heap the row on which the node->pcur is positioned. */
-static
+
 void
 row_upd_store_row(
 /*==============*/
@@ -1614,7 +1615,7 @@ row_upd_sec_index_entry(
 	ulint			flags = 0;
 	enum row_search_result	search_result;
 
-	ut_ad(trx->id != 0);
+	ut_ad(trx->id != 0 || dict_table_is_intrinsic(node->table));
 
 	index = node->index;
 
@@ -1640,6 +1641,10 @@ row_upd_sec_index_entry(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+
+		if (dict_table_is_intrinsic(index->table)) {
+			flags |= BTR_NO_UNDO_LOG_FLAG;
+		}
 	}
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
@@ -1959,7 +1964,10 @@ row_upd_clust_rec_by_insert(
 				      index, heap);
 	ut_ad(dtuple_get_info_bits(entry) == 0);
 
-	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
+	if (!dict_table_is_intrinsic(index->table)) {
+		row_upd_index_entry_sys_field(
+			entry, index, DATA_TRX_ID, trx->id);
+	}
 
 	switch (node->state) {
 	default:
@@ -2114,6 +2122,10 @@ row_upd_clust_rec(
 	dict_disable_redo_if_temporary(index->table, mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+
+		if (dict_table_is_intrinsic(index->table)) {
+			flags |= BTR_NO_UNDO_LOG_FLAG;
+		}
 	}
 
 	/* NOTE: this transaction has an s-lock or x-lock on the record and
@@ -2296,6 +2308,10 @@ row_upd_clust_step(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+
+		if (dict_table_is_intrinsic(index->table)) {
+			flags |= BTR_NO_UNDO_LOG_FLAG;
+		}
 	}
 
 	/* If the restoration does not succeed, then the same
@@ -2460,7 +2476,7 @@ to this node, we assume that we have a persistent cursor which was on a
 record, and the position of the cursor is stored in the cursor.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+
 dberr_t
 row_upd(
 /*====*/

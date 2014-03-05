@@ -289,9 +289,13 @@ dict_build_tablespace(
 	ulint		space = 0;
 	bool		use_file_per_table;
 
-	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 
-	dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
+	if (!dict_table_is_intrinsic(table)) {
+		dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
+	} else {
+		table->id = ULINT_UNDEFINED;
+	}
 
 	trx->table_id = table->id;
 
@@ -679,7 +683,7 @@ dict_build_index_def(
 	dict_index_t*		index,	/*!< in/out: index */
 	trx_t*			trx)	/*!< in/out: InnoDB transaction handle */
 {
-	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 
 	if (trx->table_id == 0) {
 		/* Record only the first table id. */
@@ -689,7 +693,18 @@ dict_build_index_def(
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || dict_index_is_clust(index));
 
-	dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+	if (!dict_table_is_intrinsic(table)) {
+		dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
+	} else {
+		/* Index are re-loaded in process of creation using id.
+		If same-id is used for all indexes only first index will always
+		be retrieved when expected is iterative return of all indexes*/
+		if (UT_LIST_GET_LEN(table->indexes) > 0) {
+			index->id = UT_LIST_GET_LAST(table->indexes)->id + 1;
+		} else {
+			index->id = 1;
+		}
+	}
 
 	/* Inherit the space id from the table; we store all indexes of a
 	table in the same tablespace */
@@ -805,8 +820,8 @@ dict_create_index_tree_in_mem(
 	mtr_t		mtr;
 	ulint		page_no = FIL_NULL;
 
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(dict_table_is_temporary(index->table));
+	ut_ad(mutex_own(&dict_sys->mutex)
+	      || dict_table_is_intrinsic(index->table));
 
 	if (index->type == DICT_FTS) {
 		/* FTS index does not need an index tree */
@@ -942,7 +957,8 @@ dict_drop_index_tree_in_mem(
 {
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(mutex_own(&dict_sys->mutex)
+	     || dict_table_is_intrinsic(index->table));
 
 	mtr_start(&mtr);
 
@@ -1079,8 +1095,8 @@ dict_truncate_index_tree_in_mem(
 	bool		truncate;
 	ulint		space = index->space;
 
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(dict_table_is_temporary(index->table));
+	ut_ad(mutex_own(&dict_sys->mutex)
+	      || dict_table_is_intrinsic(index->table));
 
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);

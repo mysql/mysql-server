@@ -99,7 +99,7 @@ buf_dblwr_get(
 /********************************************************************//**
 Flush a batch of writes to the datafiles that have already been
 written to the dblwr buffer on disk. */
-UNIV_INLINE
+
 void
 buf_dblwr_sync_datafiles()
 /*======================*/
@@ -514,8 +514,9 @@ buf_dblwr_process(void)
 			       0, page_size.physical(), read_buf, NULL);
 
 			/* Check if the page is corrupt */
-
-			if (buf_page_is_corrupted(true, read_buf, page_size)) {
+			if (buf_page_is_corrupted(
+				true, read_buf, page_size,
+				fsp_is_checksum_disabled(space_id))) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Database page corruption or a failed"
 					" file read of"
@@ -524,8 +525,10 @@ buf_dblwr_process(void)
 					" doublewrite buffer.",
 					space_id, page_no);
 
-				if (buf_page_is_corrupted(true, page,
-							  page_size)) {
+				if (buf_page_is_corrupted(
+					true, page, page_size,
+					fsp_is_checksum_disabled(space_id))) {
+
 					ib_logf(IB_LOG_LEVEL_ERROR,
 						"Dump of the page:");
 					buf_page_print(
@@ -548,8 +551,9 @@ buf_dblwr_process(void)
 				}
 			} else if (buf_page_is_zeroes(read_buf, page_size)
 				   && !buf_page_is_zeroes(page, page_size)
-				   && !buf_page_is_corrupted(true, page,
-							     page_size)) {
+				   && !buf_page_is_corrupted(
+					true, page, page_size,
+					fsp_is_checksum_disabled(space_id))) {
 
 				/* Database page contained only zeroes, while
 				a valid copy is available in dblwr buffer. */
@@ -616,9 +620,13 @@ buf_dblwr_update(
 	const buf_page_t*	bpage,	/*!< in: buffer block descriptor */
 	buf_flush_t		flush_type)/*!< in: flush type */
 {
-	if (!srv_use_doublewrite_buf || buf_dblwr == NULL) {
+	if (!srv_use_doublewrite_buf
+	    || buf_dblwr == NULL
+	    || fsp_is_system_temporary(bpage->id.space())) {
 		return;
 	}
+
+	ut_ad(!srv_read_only_mode);
 
 	switch (flush_type) {
 	case BUF_FLUSH_LIST:
@@ -804,11 +812,14 @@ buf_dblwr_flush_buffered_writes(void)
 	ulint		first_free;
 	ulint		len;
 
-	if (!srv_use_doublewrite_buf || buf_dblwr == NULL) {
+	if (!srv_use_doublewrite_buf
+	    || buf_dblwr == NULL) {
 		/* Sync the writes to the disk. */
 		buf_dblwr_sync_datafiles();
 		return;
 	}
+
+	ut_ad(!srv_read_only_mode);
 
 try_again:
 	mutex_enter(&buf_dblwr->mutex);
@@ -818,6 +829,12 @@ try_again:
 	control returns. */
 
 	if (buf_dblwr->first_free == 0) {
+
+		/* Wake possible simulated aio thread as there could be
+		system temporary tablespace pages active for flushing.
+		Note: system temporary tablespace pages are not scheduled
+		for doublewrite. */
+		os_aio_simulated_wake_handler_threads();
 
 		mutex_exit(&buf_dblwr->mutex);
 

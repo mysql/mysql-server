@@ -164,25 +164,30 @@ row_ins_alloc_sys_fields(
 
 	node->row_id_buf = ptr;
 
-	/* 3. Allocate buffer for trx id */
+	/* 2. Allocate buffer for trx id */
 
 	col = dict_table_get_sys_col(table, DATA_TRX_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_TRX_ID_LEN));
+	ptr = static_cast<byte*>(mem_heap_zalloc(
+			heap, DATA_TRX_ID_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_TRX_ID_LEN);
 
 	node->trx_id_buf = ptr;
 
-	/* 4. Allocate buffer for roll ptr */
+	if (!dict_table_is_intrinsic(table)) {
 
-	col = dict_table_get_sys_col(table, DATA_ROLL_PTR);
+		/* 3. Allocate buffer for roll ptr */
 
-	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_ROLL_PTR_LEN));
+		col = dict_table_get_sys_col(table, DATA_ROLL_PTR);
 
-	dfield_set_data(dfield, ptr, DATA_ROLL_PTR_LEN);
+		dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
+		ptr = static_cast<byte*>(mem_heap_zalloc(
+			heap, DATA_ROLL_PTR_LEN));
+
+		dfield_set_data(dfield, ptr, DATA_ROLL_PTR_LEN);
+	}
 }
 
 /*********************************************************************//**
@@ -1865,7 +1870,7 @@ row_ins_dupl_error_with_rec(
 	/* In a unique secondary index we allow equal key values if they
 	contain SQL NULLs */
 
-	if (!dict_index_is_clust(index)) {
+	if (!dict_index_is_clust(index) && !index->nulls_equal) {
 
 		for (i = 0; i < n_unique; i++) {
 			if (dfield_is_null(dtuple_get_nth_field(entry, i))) {
@@ -1916,11 +1921,13 @@ row_ins_scan_sec_index_for_duplicate(
 	n_unique first fields is NULL, a unique key violation cannot occur,
 	since we define NULL != NULL in this case */
 
-	for (ulint i = 0; i < n_unique; i++) {
-		if (UNIV_SQL_NULL == dfield_get_len(
-			    dtuple_get_nth_field(entry, i))) {
+	if (!index->nulls_equal) {
+		for (ulint i = 0; i < n_unique; i++) {
+			if (UNIV_SQL_NULL == dfield_get_len(
+					dtuple_get_nth_field(entry, i))) {
 
-			DBUG_RETURN(DB_SUCCESS);
+				DBUG_RETURN(DB_SUCCESS);
+			}
 		}
 	}
 
@@ -1997,7 +2004,7 @@ row_ins_scan_sec_index_for_duplicate(
 
 		cmp = cmp_dtuple_rec(entry, rec, offsets);
 
-		if (cmp == 0) {
+		if (cmp == 0 && !index->allow_duplicates) {
 			if (row_ins_dupl_error_with_rec(rec, entry,
 							index, offsets)) {
 				err = DB_DUPLICATE_KEY;
@@ -2020,7 +2027,7 @@ row_ins_scan_sec_index_for_duplicate(
 				goto end_scan;
 			}
 		} else {
-			ut_a(cmp < 0);
+			ut_a(cmp < 0 || index->allow_duplicates);
 			goto end_scan;
 		}
 	} while (btr_pcur_move_to_next(&pcur, mtr));
@@ -2324,11 +2331,13 @@ row_ins_clust_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint*		offsets		= NULL;
 	dberr_t		err;
 	big_rec_t*	big_rec		= NULL;
 	mtr_t		mtr;
 	mem_heap_t*	offsets_heap	= NULL;
+	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*          offsets         = offsets_;
+	rec_offs_init(offsets_);
 
 	DBUG_ENTER("row_ins_clust_index_entry_low");
 
@@ -2347,6 +2356,10 @@ row_ins_clust_index_entry_low(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+
+		if (dict_table_is_intrinsic(index->table)) {
+			flags |= BTR_NO_UNDO_LOG_FLAG;
+		}
 	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
@@ -2360,8 +2373,15 @@ row_ins_clust_index_entry_low(
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
 
-	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE, mode,
-				    &cursor, 0, __FILE__, __LINE__, &mtr);
+	if (dict_table_is_intrinsic(index->table)) {
+		btr_cur_search_to_nth_level_with_no_latch(
+			index, 0, entry, PAGE_CUR_LE, &cursor,
+			__FILE__, __LINE__, &mtr);
+	} else {
+		btr_cur_search_to_nth_level(
+			index, 0, entry, PAGE_CUR_LE, mode, &cursor,
+			0, __FILE__, __LINE__, &mtr);
+	}
 
 #ifdef UNIV_DEBUG
 	{
@@ -2412,7 +2432,11 @@ err_exit:
 		}
 	}
 
-	if (row_ins_must_modify_rec(&cursor)) {
+	/* Modifying existing entry is avoided for intrinsic table considering
+	the frequency and if something fails rollback is not possible given that
+	there is no UNDO log. */
+	if (!dict_table_is_intrinsic(index->table)
+	    && row_ins_must_modify_rec(&cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
@@ -2521,7 +2545,7 @@ err_exit:
 			}
 		}
 
-		if (UNIV_LIKELY_NULL(big_rec)) {
+		if (big_rec) {
 			mtr_commit(&mtr);
 
 			/* Online table rebuild could read (and
@@ -2548,6 +2572,153 @@ err_exit:
 			mtr_commit(&mtr);
 		}
 	}
+
+func_exit:
+	if (offsets_heap) {
+		mem_heap_free(offsets_heap);
+	}
+
+	DBUG_RETURN(err);
+}
+
+/***************************************************************//**
+Tried to insert an entry into clustered index.
+This is a specialized function meant for direct insertion to
+auto-generated clustered index based on cached position from
+last successful insert.
+
+@param[in]	flags	undo logging and locking flags
+@param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
+			depending on whether we wish optimistic or
+			pessimistic descent down the index tree
+@param[in/out]	index	clustered index
+@param[in/out]	entry	index entry to insert
+@param[in]	thr	query thread
+
+@return error code */
+
+dberr_t
+row_ins_sorted_clust_index_entry(
+	ulint		flags,
+	ulint		mode,
+	dict_index_t*	index,
+	ulint		n_uniq,
+	dtuple_t*	entry,
+	ulint		n_ext,
+	que_thr_t*	thr)
+{
+	btr_cur_t	cursor;
+	dberr_t		err;
+	big_rec_t*	big_rec		= NULL;
+	mtr_t*		mtr;
+	mem_heap_t*	offsets_heap	= NULL;
+	bool		commit_mtr	= false;
+	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*          offsets         = offsets_;
+	rec_offs_init(offsets_);
+
+	DBUG_ENTER("row_ins_sorted_clust_index_entry");
+
+	ut_ad(index->last_ins_cur != NULL);
+	ut_ad(dict_index_is_clust(index)
+	      && dict_table_is_intrinsic(index->table)
+	      && dict_index_is_auto_gen_clust(index));
+
+	cursor.thr = thr;
+	mtr = &index->last_ins_cur->mtr;
+
+	/* Search for position if tree needs to be split or if last position
+	is not cached. */
+	if (mode == BTR_MODIFY_TREE
+	    || index->last_ins_cur->rec == NULL
+	    || index->last_ins_cur->disable_caching) {
+
+		/* Commit the previous mtr. */
+		index->last_ins_cur->release();
+
+		mtr_start(mtr);
+
+		commit_mtr = (mode == BTR_MODIFY_TREE) ? true : false;
+
+		btr_cur_search_to_nth_level_with_no_latch(
+			index, 0, entry, PAGE_CUR_LE, &cursor,
+			__FILE__, __LINE__, mtr);
+		ut_ad(cursor.page_cur.block != NULL);
+		ut_ad(cursor.page_cur.block->made_dirty_with_no_latch);
+	} else {
+		cursor.index = index;
+
+		cursor.page_cur.index = index;
+	
+		cursor.page_cur.rec = index->last_ins_cur->rec;
+
+		cursor.page_cur.block = index->last_ins_cur->block;
+	}
+
+	/* Disable REDO logging as lifetime of temp-tables is limited to
+	server or connection lifetime and so REDO information is not needed
+	on restart for recovery.
+	Disable locking as temp-tables are not shared across connection. */
+	dict_disable_redo_if_temporary(index->table, mtr);
+	flags |= BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
+
+	rec_t*	insert_rec;
+
+	if (mode != BTR_MODIFY_TREE) {
+
+		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
+
+		err = btr_cur_optimistic_insert(
+			flags, &cursor, &offsets, &offsets_heap, entry,
+			&insert_rec, &big_rec, n_ext, thr, mtr);
+		if (err != DB_SUCCESS) {
+			goto err_exit;
+		}
+
+	} else {
+		if (buf_LRU_buf_pool_running_out()) {
+			err = DB_LOCK_TABLE_FULL;
+			goto err_exit;
+		}
+
+		err = btr_cur_optimistic_insert(
+			flags, &cursor, &offsets, &offsets_heap, entry,
+			&insert_rec, &big_rec, n_ext, thr, mtr);
+
+		if (err == DB_FAIL) {
+			err = btr_cur_pessimistic_insert(
+				flags, &cursor, &offsets, &offsets_heap, entry,
+				&insert_rec, &big_rec, n_ext, thr, mtr);
+		}
+	}
+
+	if (big_rec) {
+		/* If index involves big-record optimization is turned-off. */
+		index->last_ins_cur->release();
+		index->last_ins_cur->disable_caching = true;
+
+		err = row_ins_index_entry_big_rec(
+			entry, big_rec, offsets, &offsets_heap, index,
+			thr_get_trx(thr)->mysql_thd, __FILE__, __LINE__);
+
+		dtuple_convert_back_big_rec(index, entry, big_rec);
+
+	} else if (err == DB_SUCCESS ) {
+		if (!commit_mtr && !index->last_ins_cur->disable_caching) {
+
+			index->last_ins_cur->rec = insert_rec;
+
+			index->last_ins_cur->block = cursor.page_cur.block;
+
+		} else {
+			index->last_ins_cur->release();
+		}
+	}
+
+	goto func_exit;
+
+err_exit:
+	index->last_ins_cur->release();
 
 func_exit:
 	if (offsets_heap) {
@@ -2632,13 +2803,16 @@ row_ins_sec_index_entry_low(
 	dberr_t		err		= DB_SUCCESS;
 	ulint		n_unique;
 	mtr_t		mtr;
-	ulint*		offsets	= NULL;
+	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*          offsets         = offsets_;
+	rec_offs_init(offsets_);
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
 
 	cursor.thr = thr;
-	ut_ad(thr_get_trx(thr)->id != 0);
+	ut_ad(thr_get_trx(thr)->id != 0
+	      || dict_table_is_intrinsic(index->table));
 
 	mtr_start(&mtr);
 
@@ -2649,6 +2823,10 @@ row_ins_sec_index_entry_low(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+
+		if (dict_table_is_intrinsic(index->table)) {
+			flags |= BTR_NO_UNDO_LOG_FLAG;
+		}
 	}
 
 	/* Disable insert buffering for temp-table indexes */
@@ -2686,9 +2864,15 @@ row_ins_sec_index_entry_low(
 		search_mode |= BTR_IGNORE_SEC_UNIQUE;
 	}
 
-	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    search_mode,
-				    &cursor, 0, __FILE__, __LINE__, &mtr);
+	if (dict_table_is_intrinsic(index->table)) {
+		btr_cur_search_to_nth_level_with_no_latch(
+			index, 0, entry, PAGE_CUR_LE, &cursor,
+			__FILE__, __LINE__, &mtr);
+	} else {
+		btr_cur_search_to_nth_level(
+			index, 0, entry, PAGE_CUR_LE, search_mode, &cursor,
+			0, __FILE__, __LINE__, &mtr);
+	}
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
 		/* The insert was buffered during the search: we are done */
@@ -2760,11 +2944,17 @@ row_ins_sec_index_entry_low(
 		prevent any insertion of a duplicate by another
 		transaction. Let us now reposition the cursor and
 		continue the insertion. */
-
-		btr_cur_search_to_nth_level(
-			index, 0, entry, PAGE_CUR_LE,
-			search_mode & ~(BTR_INSERT | BTR_IGNORE_SEC_UNIQUE),
-			&cursor, 0, __FILE__, __LINE__, &mtr);
+		if (dict_table_is_intrinsic(index->table)) {
+			btr_cur_search_to_nth_level_with_no_latch(
+				index, 0, entry, PAGE_CUR_LE, &cursor,
+				__FILE__, __LINE__, &mtr);
+		} else {
+			btr_cur_search_to_nth_level(
+				index, 0, entry, PAGE_CUR_LE,
+				(search_mode
+				 & ~(BTR_INSERT | BTR_IGNORE_SEC_UNIQUE)),
+				&cursor, 0, __FILE__, __LINE__, &mtr);
+		}
 	}
 
 	if (dict_index_is_unique(index)
@@ -2804,7 +2994,8 @@ row_ins_sec_index_entry_low(
 
 	ut_ad(thr_get_trx(thr)->error_state == DB_SUCCESS);
 
-	if (row_ins_must_modify_rec(&cursor)) {
+	if (!dict_table_is_intrinsic(index->table)
+	    && row_ins_must_modify_rec(&cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
@@ -2948,10 +3139,19 @@ row_ins_clust_index_entry(
 
 	/* Try first optimistic descent to the B-tree */
 
-	log_free_check();
+	if (!dict_table_is_intrinsic(index->table)) {
+		log_free_check();
+	}
 
-	err = row_ins_clust_index_entry_low(
-		0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
+	if (dict_table_is_intrinsic(index->table)
+	    && dict_index_is_auto_gen_clust(index)) {
+		err = row_ins_sorted_clust_index_entry(
+			0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
+	} else {
+		err = row_ins_clust_index_entry_low(
+			0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
+	}
+
 
 	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
 			    "after_row_ins_clust_index_entry_leaf");
@@ -2963,10 +3163,22 @@ row_ins_clust_index_entry(
 
 	/* Try then pessimistic descent to the B-tree */
 
-	log_free_check();
+	if (!dict_table_is_intrinsic(index->table)) {
+		log_free_check();
+	} else {
+		index->last_sel_cur->invalid = true;
+	}
 
-	DBUG_RETURN(row_ins_clust_index_entry_low(
-		       0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr));
+	if (dict_table_is_intrinsic(index->table)
+	    && dict_index_is_auto_gen_clust(index)) {
+		err = row_ins_sorted_clust_index_entry(
+			0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr);
+	} else {
+		err = row_ins_clust_index_entry_low(
+			0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr);
+	}
+
+	DBUG_RETURN(err);
 }
 
 /***************************************************************//**
@@ -3000,14 +3212,17 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	ut_ad(thr_get_trx(thr)->id != 0);
+	ut_ad(thr_get_trx(thr)->id != 0
+	      || dict_table_is_intrinsic(index->table));
 
 	offsets_heap = mem_heap_create(1024);
 	heap = mem_heap_create(1024);
 
 	/* Try first optimistic descent to the B-tree */
 
-	log_free_check();
+	if (!dict_table_is_intrinsic(index->table)) {
+		log_free_check();
+	}
 
 	err = row_ins_sec_index_entry_low(
 		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, 0, thr);
@@ -3016,7 +3231,11 @@ row_ins_sec_index_entry(
 
 		/* Try then pessimistic descent to the B-tree */
 
-		log_free_check();
+		if (!dict_table_is_intrinsic(index->table)) {
+			log_free_check();
+		} else {
+			index->last_sel_cur->invalid = true;
+		}
 
 		err = row_ins_sec_index_entry_low(
 			0, BTR_MODIFY_TREE, index,
@@ -3057,14 +3276,16 @@ row_ins_index_entry(
 
 /***********************************************************//**
 Sets the values of the dtuple fields in entry from the values of appropriate
-columns in row. */
-static __attribute__((nonnull))
+columns in row.
+@param[in]	index	index handler
+@param[out]	entry	index entry to make
+@param[in]	row	row */
+
 void
 row_ins_index_entry_set_vals(
-/*=========================*/
-	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to make */
-	const dtuple_t*	row)	/*!< in: row */
+	const dict_index_t*	index,
+	dtuple_t*		entry,
+	const dtuple_t*		row)
 {
 	ulint	n_fields;
 	ulint	i;
@@ -3387,7 +3608,10 @@ row_ins_step(
 	table during the search operation, and there is no need to set
 	it again here. But we must write trx->id to node->trx_id_buf. */
 
-	trx_write_trx_id(node->trx_id_buf, trx->id);
+	if (!dict_table_is_intrinsic(node->table)) {
+		memset(node->trx_id_buf, 0, DATA_TRX_ID_LEN);
+		trx_write_trx_id(node->trx_id_buf, trx->id);
+	}
 
 	if (node->state == INS_NODE_SET_IX_LOCK) {
 

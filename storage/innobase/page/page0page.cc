@@ -760,7 +760,9 @@ page_copy_rec_list_end(
 
 	/* Update the lock table and possible hash index */
 
-	lock_move_rec_list_end(new_block, block, rec);
+	if (!dict_table_is_intrinsic(index->table)) {
+		lock_move_rec_list_end(new_block, block, rec);
+	}
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 
@@ -891,7 +893,9 @@ zip_reorganize:
 
 	/* Update the lock table and possible hash index */
 
-	lock_move_rec_list_start(new_block, block, rec, ret);
+	if (!dict_table_is_intrinsic(index->table)) {
+		lock_move_rec_list_start(new_block, block, rec, ret);
+	}
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 

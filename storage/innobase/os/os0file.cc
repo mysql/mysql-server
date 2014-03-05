@@ -695,8 +695,6 @@ os_file_lock(
 {
 	struct flock lk;
 
-	ut_ad(!srv_read_only_mode);
-
 	lk.l_type = F_WRLCK;
 	lk.l_whence = SEEK_SET;
 	lk.l_start = lk.l_len = 0;
@@ -1093,6 +1091,9 @@ os_file_create_simple_func(
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	bool*		success)/*!< out: true if succeed, false if error */
 {
 	os_file_t	file;
@@ -1111,7 +1112,7 @@ os_file_create_simple_func(
 
 		create_flag = OPEN_EXISTING;
 
-	} else if (srv_read_only_mode) {
+	} else if (read_only_mode) {
 
 		create_flag = OPEN_EXISTING;
 
@@ -1121,7 +1122,7 @@ os_file_create_simple_func(
 
 	} else if (create_mode == OS_FILE_CREATE_PATH) {
 
-		ut_a(!srv_read_only_mode);
+		ut_a(!read_only_mode);
 
 		/* Create subdirs along the path if needed  */
 		*success = os_file_create_subdirs_if_needed(name);
@@ -1147,7 +1148,7 @@ os_file_create_simple_func(
 
 	if (access_type == OS_FILE_READ_ONLY) {
 		access = GENERIC_READ;
-	} else if (srv_read_only_mode) {
+	} else if (read_only_mode) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Read only mode set. Unable to"
@@ -1197,13 +1198,13 @@ os_file_create_simple_func(
 
 		if (access_type == OS_FILE_READ_ONLY) {
 			create_flag = O_RDONLY;
-		} else if (srv_read_only_mode) {
+		} else if (read_only_mode) {
 			create_flag = O_RDONLY;
 		} else {
 			create_flag = O_RDWR;
 		}
 
-	} else if (srv_read_only_mode) {
+	} else if (read_only_mode) {
 
 		create_flag = O_RDONLY;
 
@@ -1254,7 +1255,7 @@ os_file_create_simple_func(
 	} while (retry);
 
 #ifdef USE_FILE_LOCK
-	if (!srv_read_only_mode
+	if (!read_only_mode
 	    && *success
 	    && access_type == OS_FILE_READ_WRITE
 	    && os_file_lock(file, name)) {
@@ -1287,6 +1288,9 @@ os_file_create_simple_no_error_handling_func(
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	bool*		success)/*!< out: true if succeed, false if error */
 {
 	os_file_t	file;
@@ -1305,7 +1309,7 @@ os_file_create_simple_no_error_handling_func(
 
 	if (create_mode == OS_FILE_OPEN) {
 		create_flag = OPEN_EXISTING;
-	} else if (srv_read_only_mode) {
+	} else if (read_only_mode) {
 		create_flag = OPEN_EXISTING;
 	} else if (create_mode == OS_FILE_CREATE) {
 		create_flag = CREATE_NEW;
@@ -1320,13 +1324,13 @@ os_file_create_simple_no_error_handling_func(
 
 	if (access_type == OS_FILE_READ_ONLY) {
 		access = GENERIC_READ;
-	} else if (srv_read_only_mode) {
+	} else if (read_only_mode) {
 		access = GENERIC_READ;
 	} else if (access_type == OS_FILE_READ_WRITE) {
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
 
-		ut_a(!srv_read_only_mode);
+		ut_a(!read_only_mode);
 
 		access = GENERIC_READ;
 
@@ -1365,7 +1369,7 @@ os_file_create_simple_no_error_handling_func(
 
 			create_flag = O_RDONLY;
 
-		} else if (srv_read_only_mode) {
+		} else if (read_only_mode) {
 
 			create_flag = O_RDONLY;
 
@@ -1377,7 +1381,7 @@ os_file_create_simple_no_error_handling_func(
 			create_flag = O_RDWR;
 		}
 
-	} else if (srv_read_only_mode) {
+	} else if (read_only_mode) {
 
 		create_flag = O_RDONLY;
 
@@ -1398,7 +1402,7 @@ os_file_create_simple_no_error_handling_func(
 	*success = (file != -1);
 
 #ifdef USE_FILE_LOCK
-	if (!srv_read_only_mode
+	if (!read_only_mode
 	    && *success
 	    && access_type == OS_FILE_READ_WRITE
 	    && os_file_lock(file, name)) {
@@ -1494,6 +1498,9 @@ os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	bool*		success)/*!< out: true if succeed, false if error */
 {
 	os_file_t	file;
@@ -1534,7 +1541,7 @@ os_file_create_func(
 
 	if (create_mode == OS_FILE_OPEN_RAW) {
 
-		ut_a(!srv_read_only_mode);
+		ut_a(!read_only_mode);
 
 		create_flag = OPEN_EXISTING;
 
@@ -1549,7 +1556,7 @@ os_file_create_func(
 
 		create_flag = OPEN_EXISTING;
 
-	} else if (srv_read_only_mode) {
+	} else if (read_only_mode) {
 
 		create_flag = OPEN_EXISTING;
 
@@ -1613,7 +1620,7 @@ os_file_create_func(
 #endif /* UNIV_HOTBACKUP */
 	DWORD	access = GENERIC_READ;
 
-	if (!srv_read_only_mode) {
+	if (!read_only_mode) {
 		access |= GENERIC_WRITE;
 	}
 
@@ -1627,7 +1634,7 @@ os_file_create_func(
 			const char*	operation;
 
 			operation = (create_mode == OS_FILE_CREATE
-				     && !srv_read_only_mode)
+				     && !read_only_mode)
 				? "create" : "open";
 
 			*success = false;
@@ -1663,9 +1670,9 @@ os_file_create_func(
 
 		mode_str = "OPEN";
 
-		create_flag = srv_read_only_mode ? O_RDONLY : O_RDWR;
+		create_flag = read_only_mode ? O_RDONLY : O_RDWR;
 
-	} else if (srv_read_only_mode) {
+	} else if (read_only_mode) {
 
 		mode_str = "OPEN";
 
@@ -1699,7 +1706,7 @@ os_file_create_func(
 	O_SYNC because the datasync options seemed to corrupt files in 2001
 	in both Linux and Solaris */
 
-	if (!srv_read_only_mode
+	if (!read_only_mode
 	    && type == OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
 
@@ -1714,7 +1721,7 @@ os_file_create_func(
 			const char*	operation;
 
 			operation = (create_mode == OS_FILE_CREATE
-				     && !srv_read_only_mode)
+				     && !read_only_mode)
 				? "create" : "open";
 
 			*success = false;
@@ -1734,7 +1741,7 @@ os_file_create_func(
 
 	/* We disable OS caching (O_DIRECT) only on data files */
 
-	if (!srv_read_only_mode
+	if (!read_only_mode
 	    && *success
 	    && (type != OS_LOG_FILE && type != OS_DATA_TEMP_FILE)
 	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
@@ -1744,14 +1751,14 @@ os_file_create_func(
 	}
 
 #ifdef USE_FILE_LOCK
-	if (!srv_read_only_mode
+	if (!read_only_mode
 	    && *success
 	    && create_mode != OS_FILE_OPEN_RAW
 	    && os_file_lock(file, name)) {
 
 		if (create_mode == OS_FILE_OPEN_RETRY) {
 
-			ut_a(!srv_read_only_mode);
+			ut_a(!read_only_mode);
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Retrying to lock the first data file");
@@ -2478,7 +2485,6 @@ os_file_pwrite(
 	ssize_t		written_bytes;
 
 	ut_ad(n);
-	ut_ad(!srv_read_only_mode);
 
 	/* If off_t is > 4 bytes in size, then we assume we can pass a
 	64-bit address */
@@ -2837,8 +2843,6 @@ os_file_write_func(
 	os_offset_t	offset,	/*!< in: file offset where to write */
 	ulint		n)	/*!< in: number of bytes to write */
 {
-	ut_ad(!srv_read_only_mode);
-
 #ifdef _WIN32
 	BOOL		ret;
 	DWORD		len;
@@ -3103,8 +3107,10 @@ os_file_get_status(
 	const char*	path,		/*!< in:	pathname of the file */
 	os_file_stat_t* stat_info,	/*!< information of a file in a
 					directory */
-	bool		check_rw_perm)	/*!< in: for testing whether the
+	bool		check_rw_perm,	/*!< in: for testing whether the
 					file can be opened in RW mode */
+	bool		read_only_mode)	/*!< in: if true, read only mode
+					checks are enforced. */
 {
 	int		ret;
 
@@ -3131,7 +3137,7 @@ os_file_get_status(
 
 		DWORD	access = GENERIC_READ;
 
-		if (!srv_read_only_mode) {
+		if (!read_only_mode) {
 			access |= GENERIC_WRITE;
 		}
 
@@ -3197,13 +3203,12 @@ os_file_get_status(
 		stat_info->type = OS_FILE_TYPE_UNKNOWN;
 	}
 
-
 	if (check_rw_perm && (stat_info->type == OS_FILE_TYPE_FILE
 			      || stat_info->type == OS_FILE_TYPE_BLOCK)) {
 		int	fh;
 		int	access;
 
-		access = !srv_read_only_mode ? O_RDWR : O_RDONLY;
+		access = !read_only_mode ? O_RDWR : O_RDONLY;
 
 		fh = ::open(path, access, os_innodb_umask);
 
@@ -3814,24 +3819,8 @@ os_aio_init(
 
 	srv_reset_io_thread_op_info();
 
-	os_aio_read_array = os_aio_array_create(
-		n_read_segs * n_per_seg, n_read_segs);
-
-	if (os_aio_read_array == NULL) {
-		return(false);
-	}
-
-	ulint	start = (srv_read_only_mode) ? 0 : 2;
-	ulint	n_segs = n_read_segs + start;
-
-	/* 0 is the ibuf segment and 1 is the insert buffer segment. */
-	for (ulint i = start; i < n_segs; ++i) {
-		ut_a(i < SRV_MAX_N_IO_THREADS);
-		srv_io_thread_function[i] = "read thread";
-	}
-
-	ulint	n_segments = n_read_segs;
-
+	/* Initialize ibuf and log aio segment. */
+	ulint	n_segments = 0;
 	if (!srv_read_only_mode) {
 
 		os_aio_log_array = os_aio_array_create(n_per_seg, 1);
@@ -3853,26 +3842,41 @@ os_aio_init(
 		++n_segments;
 
 		srv_io_thread_function[0] = "insert buffer thread";
-
-		os_aio_write_array = os_aio_array_create(
-			n_write_segs * n_per_seg, n_write_segs);
-
-		if (os_aio_write_array == NULL) {
-			return(false);
-		}
-
-		n_segments += n_write_segs;
-
-		for (ulint i = start + n_read_segs; i < n_segments; ++i) {
-			ut_a(i < SRV_MAX_N_IO_THREADS);
-			srv_io_thread_function[i] = "write thread";
-		}
-
-		ut_ad(n_segments >= 4);
-	} else {
-		ut_ad(n_segments > 0);
 	}
 
+	/* Initialize read aio segment. */
+	os_aio_read_array = os_aio_array_create(
+		n_read_segs * n_per_seg, n_read_segs);
+
+	if (os_aio_read_array == NULL) {
+		return(false);
+	}
+
+	for (ulint i = n_segments; i < (n_read_segs + n_segments); ++i) {
+		ut_a(i < SRV_MAX_N_IO_THREADS);
+		srv_io_thread_function[i] = "read thread";
+	}
+
+	n_segments += n_read_segs;
+
+	/* Initialize write aio segment. */
+	os_aio_write_array = os_aio_array_create(
+		n_write_segs * n_per_seg, n_write_segs);
+
+	if (os_aio_write_array == NULL) {
+		return(false);
+	}
+
+	for (ulint i = n_segments; i < (n_write_segs + n_segments); ++i) {
+		ut_a(i < SRV_MAX_N_IO_THREADS);
+		srv_io_thread_function[i] = "write thread";
+	}
+
+	n_segments += n_write_segs;
+
+	ut_ad(n_segments >= (srv_read_only_mode ? 2 : 4));
+
+	/* Initialize AIO sync array. */
 	os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
 
 	if (os_aio_sync_array == NULL) {
@@ -3893,7 +3897,6 @@ os_aio_init(
 	os_last_printout = ut_time();
 
 	return(true);
-
 }
 
 /***********************************************************************
@@ -4012,7 +4015,6 @@ void
 os_aio_wait_until_no_pending_writes(void)
 /*=====================================*/
 {
-	ut_ad(!srv_read_only_mode);
 	os_event_wait(os_aio_write_array->is_empty);
 }
 
@@ -4029,6 +4031,7 @@ os_aio_get_segment_no_from_slot(
 {
 	ulint	segment;
 	ulint	seg_len;
+	ulint	n_extra_segs = srv_read_only_mode ? 0 : 2;
 
 	if (array == os_aio_ibuf_array) {
 		ut_ad(!srv_read_only_mode);
@@ -4044,16 +4047,15 @@ os_aio_get_segment_no_from_slot(
 		seg_len = os_aio_read_array->n_slots
 			/ os_aio_read_array->n_segments;
 
-		segment = (srv_read_only_mode ? 0 : 2) + slot->pos / seg_len;
+		segment = n_extra_segs + slot->pos / seg_len;
 	} else {
-		ut_ad(!srv_read_only_mode);
 		ut_a(array == os_aio_write_array);
 
 		seg_len = os_aio_write_array->n_slots
 			/ os_aio_write_array->n_segments;
 
-		segment = os_aio_read_array->n_segments + 2
-			+ slot->pos / seg_len;
+		segment = os_aio_read_array->n_segments
+			  + n_extra_segs + slot->pos / seg_len;
 	}
 
 	return(segment);
@@ -4069,30 +4071,30 @@ os_aio_get_array_and_local_segment(
 	os_aio_array_t** array,		/*!< out: aio wait array */
 	ulint		 global_segment)/*!< in: global segment number */
 {
-	ulint		segment;
+	ulint	segment;
+	ulint	n_extra_segs = (srv_read_only_mode) ? 0 : 2;
 
 	ut_a(global_segment < os_aio_n_segments);
 
-	if (srv_read_only_mode) {
+	if (!srv_read_only_mode && global_segment < n_extra_segs) {
+		if (global_segment == IO_IBUF_SEGMENT) {
+			*array = os_aio_ibuf_array;
+			segment = 0;
+
+		} else if (global_segment == IO_LOG_SEGMENT) {
+			*array = os_aio_log_array;
+			segment = 0;
+		}
+	} else if (global_segment <
+			os_aio_read_array->n_segments + n_extra_segs) {
 		*array = os_aio_read_array;
 
-		return(global_segment);
-	} else if (global_segment == IO_IBUF_SEGMENT) {
-		*array = os_aio_ibuf_array;
-		segment = 0;
-
-	} else if (global_segment == IO_LOG_SEGMENT) {
-		*array = os_aio_log_array;
-		segment = 0;
-
-	} else if (global_segment < os_aio_read_array->n_segments + 2) {
-		*array = os_aio_read_array;
-
-		segment = global_segment - 2;
+		segment = global_segment - (n_extra_segs);
 	} else {
 		*array = os_aio_write_array;
 
-		segment = global_segment - (os_aio_read_array->n_segments + 2);
+		segment = global_segment -
+				(os_aio_read_array->n_segments + n_extra_segs);
 	}
 
 	return(segment);
@@ -4478,6 +4480,9 @@ os_aio_func(
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
@@ -4534,7 +4539,7 @@ os_aio_func(
 			return(os_file_read_func(file, buf, offset, n));
 		}
 
-		ut_ad(!srv_read_only_mode);
+		ut_ad(!read_only_mode);
 		ut_a(type == OS_FILE_WRITE);
 
 		return(os_file_write_func(name, file, buf, offset, n));
@@ -4546,7 +4551,7 @@ try_again:
 		if (type == OS_FILE_READ) {
 			array = os_aio_read_array;
 		} else {
-			ut_ad(!srv_read_only_mode);
+			ut_ad(!read_only_mode);
 			array = os_aio_write_array;
 		}
 		break;
@@ -4557,14 +4562,14 @@ try_again:
 
 		wake_later = FALSE;
 
-		if (srv_read_only_mode) {
+		if (read_only_mode) {
 			array = os_aio_read_array;
 		} else {
 			array = os_aio_ibuf_array;
 		}
 		break;
 	case OS_AIO_LOG:
-		if (srv_read_only_mode) {
+		if (read_only_mode) {
 			array = os_aio_read_array;
 		} else {
 			array = os_aio_log_array;
@@ -4605,7 +4610,7 @@ try_again:
 			}
 		}
 	} else if (type == OS_FILE_WRITE) {
-		ut_ad(!srv_read_only_mode);
+		ut_ad(!read_only_mode);
 		if (srv_use_native_aio) {
 			os_n_file_writes++;
 #ifdef WIN_ASYNC_IO
@@ -5377,7 +5382,6 @@ consecutive_loop:
 
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (aio_slot->type == OS_FILE_WRITE) {
-		ut_ad(!srv_read_only_mode);
 		ret = os_file_write(
 			aio_slot->name, aio_slot->file, combined_buf,
 			aio_slot->offset, total_len);
@@ -5718,6 +5722,7 @@ os_aio_all_slots_free(void)
 	os_aio_array_t*	array;
 	ulint		n_res	= 0;
 
+	/* Read Array */
 	array = os_aio_read_array;
 
 	mutex_enter(&array->mutex);
@@ -5726,17 +5731,19 @@ os_aio_all_slots_free(void)
 
 	mutex_exit(&array->mutex);
 
+	/* Write Array */
+	ut_a(os_aio_write_array == 0);
+
+	array = os_aio_write_array;
+
+	mutex_enter(&array->mutex);
+
+	n_res += array->n_reserved;
+
+	mutex_exit(&array->mutex);
+
+	/* IBuf and Log Array */
 	if (!srv_read_only_mode) {
-		ut_a(os_aio_write_array == 0);
-
-		array = os_aio_write_array;
-
-		mutex_enter(&array->mutex);
-
-		n_res += array->n_reserved;
-
-		mutex_exit(&array->mutex);
-
 		ut_a(os_aio_ibuf_array == 0);
 
 		array = os_aio_ibuf_array;
@@ -5746,17 +5753,17 @@ os_aio_all_slots_free(void)
 		n_res += array->n_reserved;
 
 		mutex_exit(&array->mutex);
+
+		ut_a(os_aio_log_array == 0);
+
+		array = os_aio_log_array;
+
+		mutex_enter(&array->mutex);
+
+		n_res += array->n_reserved;
+
+		mutex_exit(&array->mutex);
 	}
-
-	ut_a(os_aio_log_array == 0);
-
-	array = os_aio_log_array;
-
-	mutex_enter(&array->mutex);
-
-	n_res += array->n_reserved;
-
-	mutex_exit(&array->mutex);
 
 	array = os_aio_sync_array;
 

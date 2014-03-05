@@ -1909,7 +1909,9 @@ recv_apply_log_recs_for_backup(void)
 
 			buf_flush_init_for_writing(
 				block->frame, buf_block_get_page_zip(block),
-				mach_read_from_8(block->frame + FIL_PAGE_LSN));
+				mach_read_from_8(block->frame + FIL_PAGE_LSN),
+				fsp_is_checksum_disabled(
+					block->page.id.space()));
 
 			if (page_size.is_compressed()) {
 				error = fil_io(OS_FILE_WRITE, true, page_id,
@@ -3145,7 +3147,7 @@ recv_reset_log_files_for_backup(
 		log_file = os_file_create_simple(innodb_log_file_key,
 						 name, OS_FILE_CREATE,
 						 OS_FILE_READ_WRITE,
-						 &success);
+						 srv_read_only_mode, &success);
 		if (!success) {
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"Cannot create %s. Check that"
@@ -3179,7 +3181,8 @@ recv_reset_log_files_for_backup(
 
 	log_file = os_file_create_simple(innodb_log_file_key,
 					 name, OS_FILE_OPEN,
-					 OS_FILE_READ_WRITE, &success);
+					 OS_FILE_READ_WRITE,
+					 srv_read_only_mode, &success);
 	if (!success) {
 		ib_logf(IB_LOG_LEVEL_FATAL, "Cannot open %s.", name);
 	}
