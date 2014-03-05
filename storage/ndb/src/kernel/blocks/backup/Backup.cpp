@@ -1274,9 +1274,6 @@ Backup::checkNodeFail(Signal* signal,
 #endif
 
     Uint32 gsn, len, pos;
-    LINT_INIT(gsn);
-    LINT_INIT(len);
-    LINT_INIT(pos);
     ptr.p->nodes.bitANDC(mask);
     switch(ptr.p->masterData.gsn){
     case GSN_DEFINE_BACKUP_REQ:
@@ -2545,7 +2542,6 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
       BackupFilePtr filePtr LINT_SET_PTR;
       ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
       Uint32 * dst;
-      LINT_INIT(dst);
       ndbrequire(filePtr.p->operation.dataBuffer.getWritePtr(&dst, 1));
       * dst = 0;
       filePtr.p->operation.dataBuffer.updateWritePtr(1);
@@ -2558,7 +2554,6 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
       const Uint32 gcpSz = sizeof(BackupFormat::CtlFile::GCPEntry) >> 2;
 
       Uint32 * dst;
-      LINT_INIT(dst);
       ndbrequire(filePtr.p->operation.dataBuffer.getWritePtr(&dst, gcpSz));
 
       BackupFormat::CtlFile::GCPEntry * gcp = 
