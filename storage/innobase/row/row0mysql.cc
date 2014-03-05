@@ -2124,18 +2124,38 @@ row_del_upd_for_mysql_using_cursor(
 	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-		if (dict_index_is_clust(index)
-		    || node->is_delete
-		    || ordering_change) {
+		/* If it is clustered index then any update will affect it. */
+		if (dict_index_is_clust(index)) {
 			update_index.push_back(true);
-		} else if(row_upd_changes_ord_field_binary(
+			continue;
+		}
+
+		/* If it is delete operation then remove entry from all
+		indexes. */
+		if (node->is_delete) {
+			update_index.push_back(true);
+			continue;
+		}
+
+		/* If it is update and there is no ordering change expected then
+		don't update secondary indexes. Ordering change is evaluated
+		to true if UPDATE is on secondary index. */
+		if (!node->is_delete && !ordering_change) {
+			update_index.push_back(false);
+			continue;
+		}
+
+		/* Check if this specific secondary index needs to be updated.*/
+		if (ordering_change
+		    && row_upd_changes_ord_field_binary(
 				index, node->update,
 				que_fork_get_first_thr(prebuilt->upd_graph),
 				node->row, node->ext)) {
 			update_index.push_back(true);
-		} else {
-			update_index.push_back(false);
+			continue;
 		}
+
+		update_index.push_back(false);
 	}
 
 	/* Step-2: Execute DELETE operation. */
