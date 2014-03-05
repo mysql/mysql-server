@@ -684,11 +684,58 @@ drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;
 create temporary table t1 (
 a int, b int, c int,
 primary key pk(a), index sk(b), index sk2(c)) engine=innodb;
-insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
 update t1 set c = 4 where c = 2;
 update t1 set b = 6 where b = 2;
 update t1 set a = 100 where a = 1;
 update t1 set a = 3 where a = 2;
 ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+select * from t1;
+a	b	c
+2	6	4
+3	3	3
+100	1	1
+begin;
+insert into t1 values (4, 4, 4), (5, 5, 5);
+rollback;
+select * from t1;
+a	b	c
+2	6	4
+3	3	3
+4	4	4
+5	5	5
+100	1	1
+insert into t1 values (6, 6, 6), (7, 7, 7), (100, 100, 100);
+ERROR 23000: Duplicate entry '100' for key 'PRIMARY'
+select * from t1;
+a	b	c
+2	6	4
+3	3	3
+4	4	4
+5	5	5
+6	6	6
+7	7	7
+100	1	1
+insert into t1 values (8, 8, 8), (100, 100, 100)
+on duplicate key update c = 100 + c;
+select * from t1;
+a	b	c
+2	6	4
+3	3	3
+4	4	4
+5	5	5
+6	6	6
+7	7	7
+8	8	8
+100	1	101
+delete from t1;
+insert into t1 values (8, 8, 8), (100, 100, 100)
+on duplicate key update c = 100 + c;
+insert into t1 values (8, 8, 8), (100, 100, 100)
+on duplicate key update c = 100 + c;
+select * from t1;
+a	b	c
+8	8	108
+100	100	200
 drop table t1;
 set session innodb_create_intrinsic = 0;
