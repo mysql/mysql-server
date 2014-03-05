@@ -447,13 +447,10 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   double increase;
   double best_incr = DBL_MAX;
   double perimeter;
-  double best_perimeter;
-  uchar *best_key;
+  double best_perimeter= 0.0;
+  uchar *best_key= NULL;
   uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   uchar *last = rt_PAGE_END(page_buf);
-
-  LINT_INIT(best_perimeter);
-  LINT_INIT(best_key);
 
   for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
   {
@@ -478,9 +475,9 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 			     uint key_length, uchar *page_buf, uint nod_flag)
 {
   double increase;
-  double UNINIT_VAR(best_incr);
+  double best_incr= 0.0;
   double area;
-  double UNINIT_VAR(best_area);
+  double best_area= 0.0;
   uchar *best_key= NULL;
   uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   uchar *last = rt_PAGE_END(page_buf);

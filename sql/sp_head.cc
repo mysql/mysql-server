@@ -1063,7 +1063,7 @@ err_with_cleanup:
 bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                                Field *return_value_fld)
 {
-  ulonglong binlog_save_options;
+  ulonglong binlog_save_options= 0;
   bool need_binlog_call= FALSE;
   uint arg_no;
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
@@ -1077,7 +1077,6 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 
-  LINT_INIT(binlog_save_options);
   // Resetting THD::where to its default value
   thd->where= THD::DEFAULT_WHERE;
   /*

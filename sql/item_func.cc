@@ -2796,7 +2796,7 @@ void Item_func_min_max::fix_length_and_dec()
 
 uint Item_func_min_max::cmp_datetimes(longlong *value)
 {
-  longlong UNINIT_VAR(min_max);
+  longlong min_max= 0;
   uint min_max_idx= 0;
 
   for (uint i=0; i < arg_count ; i++)
@@ -2828,7 +2828,7 @@ uint Item_func_min_max::cmp_datetimes(longlong *value)
 
 uint Item_func_min_max::cmp_times(longlong *value)
 {
-  longlong UNINIT_VAR(min_max);
+  longlong min_max= 0;
   uint min_max_idx= 0;
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2920,7 +2920,7 @@ String *Item_func_min_max::val_str(String *str)
   }
   case STRING_RESULT:
   {
-    String *UNINIT_VAR(res);
+    String *res= NULL;
     for (uint i=0; i < arg_count ; i++)
     {
       if (i == 0)
@@ -3091,7 +3091,7 @@ mysql> select least('11', '2'), least('11', '2')+0, concat(least(11,2));
 my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buf, *tmp, *UNINIT_VAR(res);
+  my_decimal tmp_buf, *tmp, *res= NULL;
 
   if (compare_as_dates)
   {
@@ -6266,7 +6266,7 @@ void Item_func_match::init_search(bool no_order)
 bool Item_func_match::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  Item *UNINIT_VAR(item);                        // Safe as arg_count is > 1
+  Item *item= NULL;                        // Safe as arg_count is > 1
 
   maybe_null=1;
   join_key=0;

@@ -5284,7 +5284,7 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
 int ha_partition::common_index_read(uchar *buf, bool have_start_key)
 {
   int error;
-  uint UNINIT_VAR(key_len); /* used if have_start_key==TRUE */
+  uint key_len= 0; /* used if have_start_key==TRUE */
   m_reverse_order= false;
   DBUG_ENTER("ha_partition::common_index_read");
 

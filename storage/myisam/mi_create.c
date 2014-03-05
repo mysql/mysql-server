@@ -35,7 +35,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	      MI_CREATE_INFO *ci,uint flags)
 {
   uint i,j;
-  File UNINIT_VAR(dfile), UNINIT_VAR(file);
+  File dfile= 0, file= 0;
   int errpos,save_errno, create_mode= O_RDWR | O_TRUNC;
   myf create_flag;
   uint fields,length,max_key_length,packed,pointer,real_length_diff,

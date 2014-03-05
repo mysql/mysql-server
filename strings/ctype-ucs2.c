@@ -1280,7 +1280,7 @@ my_strnncoll_utf16(const CHARSET_INFO *cs,
                    my_bool t_is_prefix)
 {
   int s_res, t_res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -1344,7 +1344,7 @@ my_strnncollsp_utf16(const CHARSET_INFO *cs,
                      my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen, *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
@@ -1512,7 +1512,7 @@ my_strnncoll_utf16_bin(const CHARSET_INFO *cs,
                        my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
 
@@ -1545,7 +1545,7 @@ my_strnncollsp_utf16_bin(const CHARSET_INFO *cs,
                          my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen, *te= t + tlen;
 
   DBUG_ASSERT((slen % 2) == 0);
@@ -2098,7 +2098,7 @@ my_strnncoll_utf32(const CHARSET_INFO *cs,
                    const uchar *t, size_t tlen,
                    my_bool t_is_prefix)
 {
-  my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -2163,7 +2163,7 @@ my_strnncollsp_utf32(const CHARSET_INFO *cs,
                      my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen, *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
@@ -2640,7 +2640,7 @@ my_strnncoll_utf32_bin(const CHARSET_INFO *cs,
                        const uchar *t, size_t tlen,
                        my_bool t_is_prefix)
 {
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
 
@@ -3089,7 +3089,7 @@ static int my_strnncoll_ucs2(const CHARSET_INFO *cs,
                              my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -3274,7 +3274,7 @@ int my_strnncoll_ucs2_bin(const CHARSET_INFO *cs,
                           my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
 
