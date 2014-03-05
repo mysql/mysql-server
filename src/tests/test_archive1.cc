@@ -135,14 +135,7 @@ test_main (int argc, char *const argv[]) {
 	CKERR(r);
         //this test no longer produces a list with any entries for TDB
         //   - txn_checkpoint trims unused logfiles
-#if IS_TDB
         assert(list == 0);
-#else
-        assert(list);
-	assert(list[0]);
-	if (verbose) printf("file[0]=%s\n", list[0]);
-   	toku_free(list);
-#endif
     }
 
     r=db->close(db, 0); CKERR(r);

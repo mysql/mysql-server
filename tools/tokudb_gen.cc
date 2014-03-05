@@ -98,9 +98,7 @@ PATENT RIGHTS GRANT:
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
-#if IS_TDB
 #include <src/ydb.h>
-#endif
 
 #include "tokudb_common.h"
 

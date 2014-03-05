@@ -156,11 +156,7 @@ static void t_b(DB_ENV *db_env, DB *db, struct test_seq *seq) {
     DBT key = { .data = &k, .size = sizeof k };
     DBT val = { .data = &k, .size = sizeof k };
     r = db->put(db, txn_b, &key, &val, 0); 
-#if USE_BDB
-    assert(r == DB_LOCK_DEADLOCK);
-#else
     assert(r == DB_LOCK_NOTGRANTED);
-#endif
     r = txn_b->abort(txn_b); assert(r == 0);
 }
 
@@ -212,31 +208,12 @@ int test_main(int argc, char * const argv[]) {
         r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
     }
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
-#if USE_BDB
-    db_timeout_t t;
-    r = db_env->get_timeout(db_env, &t, DB_SET_LOCK_TIMEOUT); assert(r == 0);
-    if (verbose) printf("lock %d\n", t);
-    r = db_env->get_timeout(db_env, &t, DB_SET_TXN_TIMEOUT); assert(r == 0);
-    if (verbose) printf("txn %d\n", t);
-
-    r = db_env->set_timeout(db_env, 5000000, DB_SET_LOCK_TIMEOUT); assert(r == 0);
-    r = db_env->set_timeout(db_env, 5000000, DB_SET_TXN_TIMEOUT); assert(r == 0);
-
-    r = db_env->get_timeout(db_env, &t, DB_SET_LOCK_TIMEOUT); assert(r == 0);
-    if (verbose) printf("lock %d\n", t);
-    r = db_env->get_timeout(db_env, &t, DB_SET_TXN_TIMEOUT); assert(r == 0);
-    if (verbose) printf("txn %d\n", t);
-
-    r = db_env->set_lk_detect(db_env, DB_LOCK_EXPIRE); assert(r == 0);
-#endif
-#if USE_TDB
     uint64_t lock_timeout_msec;
     r = db_env->get_lock_timeout(db_env, &lock_timeout_msec); assert(r == 0);
     if (verbose) printf("lock timeout: %" PRIu64 "\n", lock_timeout_msec);
     r = db_env->set_lock_timeout(db_env, 5000, nullptr); assert(r == 0);
     r = db_env->get_lock_timeout(db_env, &lock_timeout_msec); assert(r == 0);
     if (verbose) printf("lock timeout: %" PRIu64 "\n", lock_timeout_msec);
-#endif
 
     // create the db
     DB *db = NULL;

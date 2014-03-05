@@ -121,13 +121,8 @@ test_main(int argc, char *const argv[]) {
     r = dbenv->open(dbenv, TOKU_TEST_FILENAME, DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL, 0);
     CKERR(r);
 
-#ifdef USE_TDB
-    // According to the BDB man page, you may not call set_tmp_dir after doing the open.
-    // Some versions of BDB don't actually check this or complain
     r = dbenv->set_tmp_dir(dbenv, ".");
     assert(r == EINVAL);
-#endif
-    
 
     r = dbenv->close(dbenv, 0);
     assert(r == 0);

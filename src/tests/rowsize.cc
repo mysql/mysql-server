@@ -102,9 +102,7 @@ static void setup_env (void) {
     {int r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                                            CKERR(r); }
     {int r = db_env_create(&env, 0);                                                                                                    CKERR(r); }
     //env->set_errfile(env, stderr);
-#ifdef TOKUDB
     CKERR(env->set_redzone(env, 0));
-#endif
     { int r = env->open(env, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r); }
     { int r = db_create(&db, env, 0);                                                                                                   CKERR(r); }
     { int r = db->open(db, NULL, "foo.db", 0, DB_BTREE, DB_CREATE | DB_AUTO_COMMIT, S_IRWXU+S_IRWXG+S_IRWXO);                           CKERR(r); }
@@ -119,14 +117,11 @@ static void put (const char *keystring, int size, bool should_work) {
     DBT k, v;
     dbt_init(&k, keystring, 1+strlen(keystring));
     dbt_init(&v, toku_xcalloc(size, 1), size);
-#ifdef USE_BDB
-#define DB_YES_OVERWRITE 0
-#endif
     static DB_TXN *txn = NULL;
     { int r = env->txn_begin(env, 0, &txn, 0); CKERR(r); }
     {
 	int r = db->put(db, NULL, &k, &v, 0);
-	if (!IS_TDB || should_work) {
+	if (should_work) {
 	    CKERR(r);
 	} else {
 	    assert(r!=0);

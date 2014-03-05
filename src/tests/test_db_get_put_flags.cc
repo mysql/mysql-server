@@ -136,9 +136,7 @@ setup (uint32_t flags) {
     toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     /* Open/create primary */
     r = db_env_create(&dbenv, 0); assert(r == 0);
-#ifdef USE_TDB
     r = dbenv->set_redzone(dbenv, 0);                              CKERR(r);
-#endif
     r = dbenv->open(dbenv, TOKU_TEST_FILENAME, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
     dbp->set_errfile(dbp,0); // Turn off those annoying errors
@@ -181,13 +179,6 @@ get_bad_flags (DB* db, uint32_t flags, int r_expect, int keyint, int dataint) {
     assert(*(int*)key.data == keyint);
     assert(*(int*)data.data == dataint);
 }
-
-#ifdef USE_TDB
-#define EINVAL_FOR_TDB_OK_FOR_BDB EINVAL
-#else
-#define EINVAL_FOR_TDB_OK_FOR_BDB 0
-#endif
-
 
 PUT_TEST put_tests[] = {
     {0,                 DB_NODUPDATA,    EINVAL, 0, 0},  //r_expect must change to 0, once implemented.

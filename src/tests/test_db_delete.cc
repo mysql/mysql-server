@@ -136,9 +136,7 @@ test_db_delete (int n, int dup_mode) {
     /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
-#ifdef TOKUDB
     r = env->set_redzone(env, 0); assert(r == 0);
-#endif
     r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
@@ -179,16 +177,7 @@ test_db_delete (int n, int dup_mode) {
     }
 
     expect_db_del(db, htonl(n), 0, DB_NOTFOUND);
-#if defined(USE_TDB)
     expect_db_del(db, htonl(n), DB_DELETE_ANY, 0);
-#endif
-#if defined(USE_BDB) && defined(DB_DELETE_ANY)
- #if DB_DELETE_ANY == 0
-    expect_db_del(db, htonl(n), DB_DELETE_ANY, DB_NOTFOUND);
- #else
-    expect_db_del(db, htonl(n), DB_DELETE_ANY, EINVAL);
- #endif
-#endif
 
     r = db->close(db, 0); assert(r == 0);
     r = env->close(env, 0); assert(r == 0);
@@ -208,9 +197,7 @@ test_db_get_datasize0 (void) {
     /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
-#ifdef TOKUDB
     r = env->set_redzone(env, 0); assert(r == 0);
-#endif
     r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;

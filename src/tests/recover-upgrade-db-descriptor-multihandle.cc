@@ -105,8 +105,6 @@ const char *namea="a.db";
 int verified = 0;
 uint32_t forced_version = 2;
 
-#if USE_TDB
-
 static int my_compare(DB *UU(db), const DBT *a, const DBT *b) {
     assert(db);
     assert(db->cmp_descriptor);
@@ -121,18 +119,14 @@ static int my_compare(DB *UU(db), const DBT *a, const DBT *b) {
     return memcmp(a->data, b->data, a->size);
 }   
 
-#endif
-
 static void
 change_descriptor(DB* db, int which, DB_ENV* env) {
-#if USE_TDB
     DBT descriptor;
     size_t len = strlen(descriptor_contents[which])+1;
     dbt_init(&descriptor, descriptor_contents[which], len);
     IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
             { int chk_r = db->change_descriptor(db, txn_desc, &descriptor, DB_UPDATE_CMP_DESCRIPTOR); CKERR(chk_r); }
     });
-#endif
 }
 
 static void
@@ -146,9 +140,7 @@ do_x1_shutdown (bool do_commit, bool do_abort) {
     DB *dba, *dbb;
     r = db_env_create(&env, 0);                                                         CKERR(r);
     r = env->set_data_dir(env, "data");                                                 CKERR(r);
-#if USE_TDB
     r = env->set_default_bt_compare(env, my_compare);                                   CKERR(r);
-#endif
     r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     r = db_create(&dba, env, 0);                                                        CKERR(r);
@@ -194,9 +186,7 @@ do_x1_recover (bool did_commit) {
     r = toku_os_mkdir(datadir, S_IRWXU+S_IRWXG+S_IRWXO);                                    CKERR(r);
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->set_data_dir(env, "data");                                                     CKERR(r);
-#if USE_TDB
     r = env->set_default_bt_compare(env, my_compare);                                       CKERR(r);
-#endif
     r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
     r = db_create(&dba, env, 0);                                                            CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);

@@ -147,9 +147,7 @@ int test_main(int argc, char * const argv[]) {
 
     // try to starve the checkpoint
     { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
-#ifdef USE_TDB
     { int chk_r = env->set_redzone(env, 0); CKERR(chk_r); }
-#endif
     {
 	const int size = 10+strlen(env_dir);
 	char cmd[size];

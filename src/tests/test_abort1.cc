@@ -113,20 +113,6 @@ test_db_open_aborts (void) {
     r=db_env_create(&env, 0); assert(r==0);
     r=env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
-#if 0
-    {
-	DB_TXN *tid;
-	r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
-	r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
-	r=tid->abort(tid);        assert(r==0);
-    }
-    {
-	toku_struct_stat buf;
-	r=toku_stat(ENVDIR "/foo.db", &buf);
-	assert(r!=0);
-	assert(errno==ENOENT);
-    }
-#endif
     {
 	DB_TXN *tid;
 	r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
@@ -142,7 +128,6 @@ test_db_open_aborts (void) {
 	r=tid->abort(tid);        assert(r==0);
     }
     {
-#if USE_TDB
         {
             DBT dname;
             DBT iname;
@@ -152,7 +137,6 @@ test_db_open_aborts (void) {
             r = env->get_iname(env, &dname, &iname);
             CKERR2(r, DB_NOTFOUND);
         }
-#endif
         toku_struct_stat statbuf;
         char filename[TOKU_PATH_MAX+1];
         r = toku_stat(toku_path_join(filename, 2, TOKU_TEST_FILENAME, "foo.db"), &statbuf);
@@ -209,7 +193,6 @@ test_db_put_aborts (void) {
     // The database should exist
     {
         char *filename;
-#if USE_TDB
         {
             DBT dname;
             DBT iname;
@@ -221,9 +204,6 @@ test_db_put_aborts (void) {
             CAST_FROM_VOIDP(filename, iname.data);
             assert(filename);
         }
-#else
-        filename = toku_xstrdup("foo.db");
-#endif
 	toku_struct_stat statbuf;
         char fullfile[TOKU_PATH_MAX+1];
 	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, filename), &statbuf);
