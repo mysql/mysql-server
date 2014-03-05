@@ -418,11 +418,11 @@ dict_table_close(
 					indexes after an aborted online
 					index creation */
 {
-	if (!dict_locked) {
+	if (!dict_locked && !dict_table_is_intrinsic(table)) {
 		mutex_enter(&dict_sys->mutex);
 	}
 
-	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 	ut_a(table->n_ref_count > 0);
 
 	--table->n_ref_count;
@@ -440,6 +440,12 @@ dict_table_close(
 	}
 
 	MONITOR_DEC(MONITOR_TABLE_REFERENCE);
+
+	/* Intrinsic table is not added to dictionary table list
+	so skip the next section that try to do that. */
+	if (dict_table_is_intrinsic(table)) {
+		return;
+	}
 
 	ut_ad(dict_lru_validate());
 
@@ -989,19 +995,27 @@ dict_table_add_system_columns(
 	mem_heap_t*	heap)	/*!< in: temporary heap */
 {
 	ut_ad(table);
-	ut_ad(table->n_def == table->n_cols - DATA_N_SYS_COLS);
+	ut_ad(table->n_def ==
+	      (table->n_cols - dict_table_get_n_sys_cols(table)));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(!table->cached);
 
 	/* NOTE: the system columns MUST be added in the following order
 	(so that they can be indexed by the numerical value of DATA_ROW_ID,
 	etc.) and as the last columns of the table memory object.
-	The clustered index will not always physically contain all
-	system columns. */
+	The clustered index will not always physically contain all system
+	columns.
+	Intrinsic table don't need DB_ROLL_PTR as
+	UNDO logging is turned off for these tables. */
 
 	dict_mem_table_add_col(table, heap, "DB_ROW_ID", DATA_SYS,
 			       DATA_ROW_ID | DATA_NOT_NULL,
 			       DATA_ROW_ID_LEN);
+
+#if (DATA_ITT_N_SYS_COLS != 2)
+#error "DATA_ITT_N_SYS_COLS != 2"
+#endif
+
 #if DATA_ROW_ID != 0
 #error "DATA_ROW_ID != 0"
 #endif
@@ -1011,52 +1025,33 @@ dict_table_add_system_columns(
 #if DATA_TRX_ID != 1
 #error "DATA_TRX_ID != 1"
 #endif
-	dict_mem_table_add_col(table, heap, "DB_ROLL_PTR", DATA_SYS,
-			       DATA_ROLL_PTR | DATA_NOT_NULL,
-			       DATA_ROLL_PTR_LEN);
+
+	if (!dict_table_is_intrinsic(table)) {
+		dict_mem_table_add_col(table, heap, "DB_ROLL_PTR", DATA_SYS,
+				       DATA_ROLL_PTR | DATA_NOT_NULL,
+				       DATA_ROLL_PTR_LEN);
 #if DATA_ROLL_PTR != 2
 #error "DATA_ROLL_PTR != 2"
 #endif
 
-	/* This check reminds that if a new system column is added to
-	the program, it should be dealt with here */
+		/* This check reminds that if a new system column is added to
+		the program, it should be dealt with here */
 #if DATA_N_SYS_COLS != 3
 #error "DATA_N_SYS_COLS != 3"
 #endif
+	}
 }
 
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
-Adds a table object to the dictionary cache. */
-
+Mark if table has big rows.
+@param[in,out]	table	table handler */
 void
-dict_table_add_to_cache(
-/*====================*/
-	dict_table_t*	table,		/*!< in: table */
-	ibool		can_be_evicted,	/*!< in: TRUE if can be evicted */
-	mem_heap_t*	heap)		/*!< in: temporary heap */
+dict_table_set_big_rows(
+	dict_table_t*	table)
 {
-	ulint	fold;
-	ulint	id_fold;
-	ulint	i;
-	ulint	row_len;
-
-	ut_ad(dict_lru_validate());
-
-	/* The lower limit for what we consider a "big" row */
-#define BIG_ROW_SIZE 1024
-
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-
-	dict_table_add_system_columns(table, heap);
-
-	table->cached = TRUE;
-
-	fold = ut_fold_string(table->name);
-	id_fold = ut_fold_ull(table->id);
-
-	row_len = 0;
-	for (i = 0; i < table->n_def; i++) {
+	ulint	row_len = 0;
+	for (ulint i = 0; i < table->n_def; i++) {
 		ulint	col_len = dict_col_get_max_size(
 			dict_table_get_nth_col(table, i));
 
@@ -1072,6 +1067,32 @@ dict_table_add_to_cache(
 	}
 
 	table->big_rows = row_len >= BIG_ROW_SIZE;
+}
+
+/**********************************************************************//**
+Adds a table object to the dictionary cache. */
+
+void
+dict_table_add_to_cache(
+/*====================*/
+	dict_table_t*	table,		/*!< in: table */
+	ibool		can_be_evicted,	/*!< in: TRUE if can be evicted */
+	mem_heap_t*	heap)		/*!< in: temporary heap */
+{
+	ulint	fold;
+	ulint	id_fold;
+
+	ut_ad(dict_lru_validate());
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	dict_table_add_system_columns(table, heap);
+
+	table->cached = TRUE;
+
+	fold = ut_fold_string(table->name);
+	id_fold = ut_fold_ull(table->id);
+
+	dict_table_set_big_rows(table);
 
 	/* Look for a table with the same name: error if such exists */
 	{
@@ -1274,13 +1295,14 @@ dict_table_move_from_lru_to_non_lru(
 
 /**********************************************************************//**
 Looks for an index with the given id given a table instance.
+@param[in]	table	table instance
+@param[in]	id	index id
 @return index or NULL */
-static
+
 dict_index_t*
 dict_table_find_index_on_id(
-/*========================*/
-	const dict_table_t*	table,	/*!< in: table instance */
-	index_id_t		id)	/*!< in: index id */
+	const dict_table_t*	table,
+	index_id_t		id)
 {
 	dict_index_t*	index;
 
@@ -2315,7 +2337,7 @@ dict_index_add_to_cache(
 	ulint		i;
 
 	ut_ad(index);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
 	ut_ad(index->n_def == index->n_fields);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(!dict_index_is_online_ddl(index));
@@ -2346,6 +2368,10 @@ dict_index_add_to_cache(
 
 	new_index->n_fields = new_index->n_def;
 	new_index->trx_id = index->trx_id;
+	new_index->allow_duplicates = index->allow_duplicates;
+	new_index->nulls_equal = index->nulls_equal;
+	new_index->disable_ahi = index->disable_ahi;
+	new_index->auto_gen_clust_index = index->auto_gen_clust_index;
 
 	if (strict && dict_index_too_big_for_tree(table, new_index)) {
 too_big:
@@ -2474,7 +2500,39 @@ undo_size_ok:
 		       dict_index_is_ibuf(index)
 		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
 
-	dict_sys->size += mem_heap_get_size(new_index->heap);
+	/* Intrinsic table are not added to dictionary cache instead are
+	cached to session specific thread cache. */
+	if (!dict_table_is_intrinsic(table)) {
+		dict_sys->size += mem_heap_get_size(new_index->heap);
+	}
+
+	/* Check if key part of the index is unique. */
+	if (dict_table_is_intrinsic(table)) {
+
+		new_index->rec_cache.fixed_len_key = true;
+		for (i = 0; i < new_index->n_uniq; i++) {
+
+			const dict_field_t*	field
+				= dict_index_get_nth_field(new_index, i);
+
+			if (!field->fixed_len) {
+				new_index->rec_cache.fixed_len_key = false;
+				break;
+			}
+		}
+
+		new_index->rec_cache.key_has_null_cols = false;
+		for (i = 0; i < new_index->n_uniq; i++) {
+
+			const dict_field_t*	field
+				= dict_index_get_nth_field(new_index, i);
+
+			if (!(field->col->prtype & DATA_NOT_NULL)) {
+				new_index->rec_cache.key_has_null_cols = true;
+				break;
+			}
+		}
+	}
 
 	dict_mem_index_free(index);
 
@@ -2599,7 +2657,7 @@ dict_index_find_cols(
 
 	ut_ad(table && index);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
 
 	for (i = 0; i < index->n_fields; i++) {
 		ulint		j;
@@ -2805,7 +2863,7 @@ dict_index_build_internal_clust(
 
 	ut_ad(table && index);
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Create a new index object with certainly enough fields */
@@ -2864,14 +2922,10 @@ dict_index_build_internal_clust(
 			trx_id_pos++;
 		}
 
-		dict_index_add_col(new_index, table,
-				   dict_table_get_sys_col(table, DATA_TRX_ID),
-				   0);
+		dict_index_add_col(
+			new_index, table,
+			dict_table_get_sys_col(table, DATA_TRX_ID), 0);
 
-		dict_index_add_col(new_index, table,
-				   dict_table_get_sys_col(table,
-							  DATA_ROLL_PTR),
-				   0);
 
 		for (i = 0; i < trx_id_pos; i++) {
 
@@ -2885,8 +2939,9 @@ dict_index_build_internal_clust(
 				break;
 			}
 
-			if (dict_index_get_nth_field(new_index, i)->prefix_len
-			    > 0) {
+			dict_field_t* field = dict_index_get_nth_field(
+				new_index, i);
+			if (field->prefix_len > 0) {
 				new_index->trx_id_offset = 0;
 
 				break;
@@ -2908,6 +2963,16 @@ dict_index_build_internal_clust(
 			}
 		}
 
+		/* UNDO logging is turned-off for intrinsic table and so
+		DATA_ROLL_PTR system columns are not added as default system
+		columns to such tables. */
+		if (!dict_table_is_intrinsic(table)) {
+
+			dict_index_add_col(
+				new_index, table,
+				dict_table_get_sys_col(table, DATA_ROLL_PTR),
+				0);
+		}
 	}
 
 	/* Remember the table columns already contained in new_index */
@@ -2930,7 +2995,8 @@ dict_index_build_internal_clust(
 
 	/* Add to new_index non-system columns of table not yet included
 	there */
-	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
+	ulint n_sys_cols = dict_table_get_n_sys_cols(table);
+	for (i = 0; i + n_sys_cols < (ulint) table->n_cols; i++) {
 
 		dict_col_t*	col = dict_table_get_nth_col(table, i);
 		ut_ad(col->mtype != DATA_SYS);
@@ -2970,7 +3036,7 @@ dict_index_build_internal_non_clust(
 
 	ut_ad(table && index);
 	ut_ad(!dict_index_is_clust(index));
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&(dict_sys->mutex)) || dict_table_is_intrinsic(table));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* The clustered index should be the first in the list of indexes */
@@ -5859,15 +5925,14 @@ dict_table_schema_check(
 		return(DB_TABLE_NOT_FOUND);
 	}
 
-	if ((ulint) table->n_def - DATA_N_SYS_COLS != req_schema->n_cols) {
-		/* the table has a different number of columns than
-		required */
-
+	ulint n_sys_cols = dict_table_get_n_sys_cols(table);
+	if ((ulint) table->n_def - n_sys_cols != req_schema->n_cols) {
+		/* the table has a different number of columns than required */
 		ut_snprintf(errstr, errstr_sz,
-			    "%s has %d columns but should have %lu.",
+			    "%s has %lu columns but should have %lu.",
 			    ut_format_name(req_schema->table_name,
 					   TRUE, buf, sizeof(buf)),
-			    table->n_def - DATA_N_SYS_COLS,
+			    table->n_def - n_sys_cols,
 			    req_schema->n_cols);
 
 		return(DB_ERROR);

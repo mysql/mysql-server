@@ -60,9 +60,10 @@ Datafile::shutdown()
 }
 
 /** Create/open a data file.
+@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
 @return DB_SUCCESS or error code */
 dberr_t
-Datafile::open_or_create()
+Datafile::open_or_create(bool read_only_mode)
 {
 	bool success;
 	ut_a(m_filepath != NULL);
@@ -70,7 +71,7 @@ Datafile::open_or_create()
 
 	m_handle = os_file_create(
 		innodb_data_file_key, m_filepath, m_open_flags,
-		OS_FILE_NORMAL, OS_DATA_FILE, &success);
+		OS_FILE_NORMAL, OS_DATA_FILE, read_only_mode, &success);
 
 	if (!success) {
 		m_last_os_error = os_file_get_last_error(true);
@@ -102,7 +103,7 @@ Datafile::open_read_only()
 	set_open_flags(OS_FILE_OPEN);
 	m_handle = os_file_create_simple_no_error_handling(
 		innodb_data_file_key, m_filepath, m_open_flags,
-		OS_FILE_READ_ONLY, &success);
+		OS_FILE_READ_ONLY, true, &success);
 
 	if (!success) {
 		m_last_os_error = os_file_get_last_error(true);
@@ -121,9 +122,10 @@ Datafile::open_read_only()
 
 /** Open a data file in read-write mode during start-up so that
 doublewrite pages can be restored and then it can be validated.*
+@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
 @return DB_SUCCESS or error code */
 dberr_t
-Datafile::open_read_write()
+Datafile::open_read_write(bool read_only_mode)
 {
 	bool	success = false;
 	ut_ad(m_handle == OS_FILE_CLOSED);
@@ -137,7 +139,7 @@ Datafile::open_read_write()
 	set_open_flags(OS_FILE_OPEN);
 	m_handle = os_file_create_simple_no_error_handling(
 		innodb_data_file_key, m_filepath, m_open_flags,
-		OS_FILE_READ_WRITE, &success);
+		OS_FILE_READ_WRITE, read_only_mode, &success);
 
 	if (!success) {
 		m_last_os_error = os_file_get_last_error(true);
@@ -232,12 +234,13 @@ Datafile::free_filepath()
 
 /** Reads a few significant fields from the first page of the first
 datafile.  The Datafile must already be open.
+@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
 @return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
 dberr_t
-Datafile::read_first_page()
+Datafile::read_first_page(bool read_only_mode)
 {
 	if (m_handle == OS_FILE_CLOSED) {
-		dberr_t err = open_or_create();
+		dberr_t err = open_or_create(read_only_mode);
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
@@ -353,7 +356,7 @@ Datafile::validate_for_recovery()
 		page 0 from doublewrite and read the space ID from a survey
 		of the first few pages. */
 		close();
-		err = open_read_write();
+		err = open_read_write(srv_read_only_mode);
 		if (err != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Datafile '%s' could not be opened in"
@@ -397,7 +400,8 @@ Datafile::validate_first_page()
 	char* prev_name;
 	char* prev_filepath;
 
-	if ((m_first_page == NULL)  && (read_first_page() != DB_SUCCESS)) {
+	if ((m_first_page == NULL)
+	    && (read_first_page(srv_read_only_mode) != DB_SUCCESS)) {
 		error_txt = "Cannot read first page";
 	} else {
 		ut_ad(m_first_page_buf);
@@ -445,7 +449,9 @@ Datafile::validate_first_page()
 	} else if (m_space_id == ULINT_UNDEFINED) {
 		/* The space_id can be most anything, except -1. */
 		error_txt = "A bad Space ID was found";
-	} else if (buf_page_is_corrupted(false, m_first_page, page_size)) {
+	} else if (buf_page_is_corrupted(
+			false, m_first_page, page_size,
+			fsp_is_checksum_disabled(m_space_id))) {
 		/* Look for checksum and other corruptions. */
 		error_txt = "Checksum mismatch";
 	}
@@ -543,15 +549,15 @@ Datafile::find_space_id()
 			equal to univ_page_size.physical(). */
 			if (page_size == univ_page_size.physical()) {
 				noncompressed_ok = !buf_page_is_corrupted(
-					false, page, univ_page_size);
+					false, page, univ_page_size, false);
 			}
 
 			const page_size_t	compr_page_size(
 				page_size, univ_page_size.logical(), true);
 			bool			compressed_ok;
 
-			compressed_ok = !buf_page_is_corrupted(false, page,
-							       compr_page_size);
+			compressed_ok = !buf_page_is_corrupted(
+				false, page, compr_page_size, false);
 
 			if (noncompressed_ok || compressed_ok) {
 
@@ -686,10 +692,11 @@ RemoteDatafile::open_read_only()
 
 /** Opens a handle to the file linked to in an InnoDB Symbolic Link file
 in read-write mode so that it can be restored from doublewrite and validated.
+@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
 @return DB_SUCCESS if remote linked tablespace file is found and opened. */
 
 dberr_t
-RemoteDatafile::open_read_write()
+RemoteDatafile::open_read_write(bool read_only_mode)
 {
 	if (m_filepath == NULL) {
 		read_link_file(name(), &m_link_filepath, &m_filepath);
@@ -700,7 +707,7 @@ RemoteDatafile::open_read_write()
 		}
 	}
 
-	dberr_t err = Datafile::open_read_write();
+	dberr_t err = Datafile::open_read_write(read_only_mode);
 
 	if (err != DB_SUCCESS) {
 		/* The following call prints an error message */
@@ -767,7 +774,8 @@ RemoteDatafile::create_link_file(
 
 	file = os_file_create_simple_no_error_handling(
 		innodb_data_file_key, link_filepath,
-		OS_FILE_CREATE, OS_FILE_READ_WRITE, &success);
+		OS_FILE_CREATE, OS_FILE_READ_WRITE,
+		srv_read_only_mode, &success);
 
 	if (!success) {
 		/* The following call will print an error message */

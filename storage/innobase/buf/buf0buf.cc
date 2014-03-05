@@ -38,7 +38,6 @@ Created 11/5/1995 Heikki Tuuri
 #ifdef UNIV_NONINL
 #include "buf0buf.ic"
 #endif
-
 #ifdef UNIV_INNOCHECKSUM
 #include "string.h"
 #include "mach0data.h"
@@ -60,12 +59,14 @@ Created 11/5/1995 Heikki Tuuri
 #include "dict0dict.h"
 #include "log0recv.h"
 #include "srv0mon.h"
+#include "fsp0sysspace.h"
 #endif /* !UNIV_INNOCHECKSUM */
 #include "page0zip.h"
 #include "buf0checksum.h"
 #include "sync0sync.h"
 
 #include <new>
+
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -481,6 +482,7 @@ buf_page_is_zeroes(
 the LSN
 @param[in]	read_buf	database page
 @param[in]	page_size	page size
+@param[in]	skip_checksum	if true, skip checksum
 @param[in]	page_no		page number of given read_buf
 @param[in]	strict_check	true if strict-check option is enabled
 @param[in]	is_log_enabled	true if log option is enabled
@@ -490,7 +492,8 @@ ibool
 buf_page_is_corrupted(
 	bool			check_lsn,
 	const byte*		read_buf,
-	const page_size_t&	page_size
+	const page_size_t&	page_size,
+	bool			skip_checksum
 #ifdef UNIV_INNOCHECKSUM
 	,uintmax_t		page_no,
 	bool			strict_check,
@@ -549,7 +552,8 @@ buf_page_is_corrupted(
 
 	/* Check whether the checksum fields have correct values */
 
-	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE) {
+	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE
+	    || skip_checksum) {
 		return(FALSE);
 	}
 
@@ -1099,6 +1103,7 @@ buf_block_init(
 
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
+	block->made_dirty_with_no_latch = false;
 
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
@@ -2328,6 +2333,7 @@ buf_block_init_low(
 {
 	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
+	block->made_dirty_with_no_latch = false;
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;
@@ -2670,6 +2676,9 @@ BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH, or BUF_GET_IF_IN_POOL_OR_WATCH
 @param[in]	file		file name
 @param[in]	line		line where called
 @param[in]	mtr		mini-transaction
+@param[in]	dirty_with_no_latch
+				mark page as dirty even if page
+				is being pinned without any latch
 @return pointer to the block or NULL */
 buf_block_t*
 buf_page_get_gen(
@@ -2680,7 +2689,8 @@ buf_page_get_gen(
 	ulint			mode,
 	const char*		file,
 	ulint			line,
-	mtr_t*			mtr)
+	mtr_t*			mtr,
+	bool			dirty_with_no_latch)
 {
 	buf_block_t*	block;
 	unsigned	access_time;
@@ -3138,10 +3148,13 @@ got_block:
 
 #ifdef UNIV_SYNC_DEBUG
 	/* We have already buffer fixed the page, and we are committed to
-	returning this page to the caller. Register for debugging. */
-	{
+	returning this page to the caller. Register for debugging.
+	Avoid debug latching if page/block belongs to system temporary
+	tablespace (Not much needed for table with single threaded access.). */
+	if (!fsp_is_system_temporary(page_id.space())) {
 		ibool	ret;
-		ret = rw_lock_s_lock_nowait(&fix_block->debug_latch, file, line);
+		ret = rw_lock_s_lock_nowait(
+			&fix_block->debug_latch, file, line);
 		ut_a(ret);
 	}
 #endif /* UNIV_SYNC_DEBUG */
@@ -3178,6 +3191,13 @@ got_block:
 	and block->lock. */
 	buf_wait_for_read(fix_block);
 #endif /* PAGE_ATOMIC_REF_COUNT */
+
+	/* Set if only if it is not set because same block can be 
+	part of multiple mtr and if latter mtr try to reset it to false
+	then former one will too loose the setting too. */
+	if (dirty_with_no_latch) {
+		fix_block->made_dirty_with_no_latch = dirty_with_no_latch;
+	}
 
 	mtr_memo_type_t	fix_type;
 
@@ -4314,8 +4334,9 @@ buf_page_io_complete(
 
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
-
-		if (buf_page_is_corrupted(true, frame, bpage->size)) {
+		if (buf_page_is_corrupted(true, frame, bpage->size,
+					  fsp_is_checksum_disabled(
+						bpage->id.space()))) {
 
 			/* Not a real corruption if it was triggered by
 			error injection */

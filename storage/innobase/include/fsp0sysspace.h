@@ -206,7 +206,7 @@ private:
 	/** Set the size of the file.
 	@param[in,out]	file	data file object
 	@return DB_SUCCESS or error code */
-	static dberr_t set_size(Datafile& file);
+	dberr_t set_size(Datafile& file);
 
 	/** Convert a numeric string that optionally ends in G or M, to a
 	number containing megabytes.

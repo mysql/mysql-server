@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,9 @@ pfs_os_file_create_simple_func(
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -59,7 +62,7 @@ pfs_os_file_create_simple_func(
 				     name, src_file, src_line);
 
 	file = os_file_create_simple_func(name, create_mode,
-					  access_type, success);
+			access_type, read_only_mode, success);
 
 	/* Regsiter the returning "file" value with the system */
 	register_pfs_file_open_end(locker, file);
@@ -87,6 +90,9 @@ pfs_os_file_create_simple_no_error_handling_func(
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -103,7 +109,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 				     name, src_file, src_line);
 
 	file = os_file_create_simple_no_error_handling_func(
-		name, create_mode, access_type, success);
+		name, create_mode, access_type, read_only_mode, success);
 
 	register_pfs_file_open_end(locker, file);
 
@@ -133,6 +139,9 @@ pfs_os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -148,7 +157,8 @@ pfs_os_file_create_func(
 					: PSI_FILE_OPEN),
 				     name, src_file, src_line);
 
-	file = os_file_create_func(name, create_mode, purpose, type, success);
+	file = os_file_create_func(
+		name, create_mode, purpose, type, read_only_mode, success);
 
 	register_pfs_file_open_end(locker, file);
 
@@ -202,6 +212,9 @@ pfs_os_aio_func(
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
@@ -225,7 +238,7 @@ pfs_os_aio_func(
 				   src_file, src_line);
 
 	result = os_aio_func(type, mode, name, file, buf, offset,
-			     n, message1, message2);
+			     n, read_only_mode, message1, message2);
 
 	register_pfs_file_io_end(locker, n);
 

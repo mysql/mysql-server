@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -270,6 +270,19 @@ dict_index_is_clust(
 
 	return(index->type & DICT_CLUSTERED);
 }
+
+/** Check if index is auto-generated clustered index.
+@param[in]	index	index
+
+@return true if index is auto-generated clustered index. */
+UNIV_INLINE
+bool
+dict_index_is_auto_gen_clust(
+	const dict_index_t*	index)
+{
+	return(index->auto_gen_clust_index);
+} 
+
 /********************************************************************//**
 Check whether the index is unique.
 @return nonzero for unique index, zero for other indexes */
@@ -347,11 +360,13 @@ dict_table_get_n_user_cols(
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(table->n_cols - DATA_N_SYS_COLS);
+	return(table->n_cols - dict_table_get_n_sys_cols(table));
 }
 
 /********************************************************************//**
-Gets the number of system columns in a table in the dictionary cache.
+Gets the number of system columns in a table.
+For intrinsic table on ROW_ID column is added for all other
+tables TRX_ID and ROLL_PTR are all also appeneded.
 @return number of system (e.g., ROW_ID) columns of a table */
 UNIV_INLINE
 ulint
@@ -361,9 +376,9 @@ dict_table_get_n_sys_cols(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-	ut_ad(table->cached);
 
-	return(DATA_N_SYS_COLS);
+	return(dict_table_is_intrinsic(table)
+	       ? DATA_ITT_N_SYS_COLS : DATA_N_SYS_COLS);
 }
 
 /********************************************************************//**
@@ -463,11 +478,12 @@ dict_table_get_sys_col(
 	dict_col_t*	col;
 
 	ut_ad(table);
-	ut_ad(sys < DATA_N_SYS_COLS);
+	ut_ad(sys < dict_table_get_n_sys_cols(table));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	col = dict_table_get_nth_col(table, table->n_cols
-				     - DATA_N_SYS_COLS + sys);
+				     - dict_table_get_n_sys_cols(table)
+				     + sys);
 	ut_ad(col->mtype == DATA_SYS);
 	ut_ad(col->prtype == (sys | DATA_NOT_NULL));
 
@@ -486,10 +502,10 @@ dict_table_get_sys_col_no(
 	ulint			sys)	/*!< in: DATA_ROW_ID, ... */
 {
 	ut_ad(table);
-	ut_ad(sys < DATA_N_SYS_COLS);
+	ut_ad(sys < dict_table_get_n_sys_cols(table));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(table->n_cols - DATA_N_SYS_COLS + sys);
+	return(table->n_cols - dict_table_get_n_sys_cols(table) + sys);
 }
 
 /********************************************************************//**
@@ -1418,6 +1434,26 @@ dict_table_is_temporary(
 	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY));
 }
 
+/** Check whether the table is intrinsic.
+An intrinsic table is a special kind of temporary table that
+is invisible to the end user.  It can be created internally by InnoDB, the MySQL
+server layer or other modules connected to InnoDB in order to gather and use
+data as part of a larger task.  Since access to it must be as fast as possible,
+it does not need UNDO semantics, system fields DB_TRX_ID & DB_ROLL_PTR,
+doublewrite, checksum, insert buffer, use of the shared data dictionary,
+locking, or even a transaction.  In short, these are not ACID tables at all,
+just temporary data stored and manipulated during a larger process.
+
+@param[in]	table	table to check
+@return true if intrinsic table flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_intrinsic(
+	const dict_table_t*	table)
+{
+	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_INTRINSIC));
+}
+
 /********************************************************************//**
 Turn-off redo-logging if temporary table. */
 UNIV_INLINE
@@ -1448,13 +1484,12 @@ dict_table_use_file_per_table(
 Get index by first field of the index
 @return index which is having first field matches
 with the field present in field_index position of table */
-UNIV_INLINE
 dict_index_t*
 dict_table_get_index_on_first_col(
 /*==============================*/
-        const dict_table_t*     table,          /*!< in: table */
-        ulint                   col_index)      /*!< in: position of column
-                                                in table */
+        const dict_table_t*     table,		/*!< in: table */
+        ulint                   col_index)	/*!< in: position of column
+						in table */
 {
 	ut_ad(col_index < table->n_cols);
 
@@ -1471,5 +1506,28 @@ dict_table_get_index_on_first_col(
 	return(0);
 }
 
+/********************************************************************//**
+Get table localized row-id and increment the row-id counter for next use.
+@param[in,out]	table	table handler
+@return next table local row-id. */
+UNIV_INLINE
+row_id_t
+dict_table_get_table_localized_row_id(
+	dict_table_t*		table)
+{
+	return(++table->localized_row_id);
+}
+
+/********************************************************************//**
+Get table localized trx-id and increment the trx-id counter for next use.
+@param[in,out]	table	table handler
+@return next table local trx-id. */
+UNIV_INLINE
+trx_id_t
+dict_table_get_table_localized_trx_id(
+	dict_table_t*		table)
+{
+	return(++table->localized_trx_id);
+}
 #endif /* !UNIV_HOTBACKUP */
 

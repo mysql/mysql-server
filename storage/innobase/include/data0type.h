@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -156,6 +156,10 @@ be less than 256 */
 #define DATA_ROLL_PTR_LEN 7
 
 #define	DATA_N_SYS_COLS 3	/* number of system columns defined above */
+
+#define	DATA_ITT_N_SYS_COLS	2
+				/* number of system columns for intrinsic
+				temporary table */
 
 #define DATA_FTS_DOC_ID	3	/* Used as FTS DOC ID column */
 

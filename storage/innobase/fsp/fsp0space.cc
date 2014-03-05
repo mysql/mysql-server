@@ -132,9 +132,13 @@ Tablespace::open_or_create(bool is_temp)
 	for (files_t::iterator it = begin; it != end; ++it) {
 
 		if (it->m_exists) {
-			err = it->open_or_create();
+			err = it->open_or_create(
+				m_ignore_read_only
+				? false : srv_read_only_mode);
 		} else {
-			err = it->open_or_create();
+			err = it->open_or_create(
+				m_ignore_read_only
+				? false : srv_read_only_mode);
 
 			/* Set the correct open flags now that we have
 			successfully created the file. */

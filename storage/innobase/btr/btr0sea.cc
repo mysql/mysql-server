@@ -1046,7 +1046,7 @@ btr_search_drop_page_hash_index(
 	/* Do a dirty check on block->index, return if the block is
 	not in the adaptive hash index. This is to avoid acquiring
 	shared btr_search_latch for performance consideration. */
-	if (!block->index) {
+	if (!block->index || block->index->disable_ahi) {
 		return;
 	}
 
@@ -1272,6 +1272,10 @@ btr_search_build_page_hash_index(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
+	if (index->disable_ahi) {
+		return;
+	}
+
 	ut_ad(index);
 	ut_a(!dict_index_is_ibuf(index));
 
@@ -1447,6 +1451,13 @@ btr_search_move_or_delete_hash_entries(
 					from this page */
 	dict_index_t*	index)		/*!< in: record descriptor */
 {
+	/* AHI is disabled for intrinsic table as it depends on index-id
+	which is dynamically assigned in case on intrinsic table indexes */
+	if (index->disable_ahi) {
+		ut_ad(dict_table_is_intrinsic(index->table));
+		return;
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
 	ut_ad(rw_lock_own(&(new_block->lock), RW_LOCK_X));
@@ -1508,6 +1519,10 @@ btr_search_update_hash_on_delete(
 	mem_heap_t*	heap		= NULL;
 	rec_offs_init(offsets_);
 
+	if (cursor->index->disable_ahi) {
+		return;
+	}
+
 	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1567,6 +1582,10 @@ btr_search_update_hash_node_on_insert(
 	buf_block_t*	block;
 	dict_index_t*	index;
 	rec_t*		rec;
+
+	if (cursor->index->disable_ahi) {
+		return;
+	}
 
 	rec = btr_cur_get_rec(cursor);
 
@@ -1644,6 +1663,10 @@ btr_search_update_hash_on_insert(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
+	if (cursor->index->disable_ahi) {
+		return;
+	}
+
 	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1663,6 +1686,7 @@ btr_search_update_hash_on_insert(
 
 	rec = btr_cur_get_rec(cursor);
 
+	ut_a(!index->disable_ahi);
 	ut_a(index == cursor->index);
 	ut_a(!dict_index_is_ibuf(index));
 

@@ -204,7 +204,7 @@ trx_rseg_mem_create(
 	rseg->page_size.copy_from(page_size);
 	rseg->page_no = page_no;
 
-	if (space == srv_tmp_space.space_id()) {
+	if (fsp_is_system_temporary(space)) {
 		mutex_create("noredo_rseg", &rseg->mutex);
 	} else {
 		mutex_create("redo_rseg", &rseg->mutex);
@@ -399,7 +399,7 @@ trx_rseg_create(
 	}
 
 	slot_no = trx_sysf_rseg_find_free(
-		&mtr, (space == srv_tmp_space.space_id()), nth_free_slot);
+		&mtr, (fsp_is_system_temporary(space)), nth_free_slot);
 
 	if (slot_no != ULINT_UNDEFINED) {
 		ulint		id;
