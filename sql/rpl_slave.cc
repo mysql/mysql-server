@@ -317,9 +317,10 @@ void unlock_slave_threads(Master_info* mi)
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+
 static PSI_memory_key key_memory_rli_mts_coor;
 
-#ifdef HAVE_PSI_INTERFACE
 static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slave_worker;
 
 static PSI_thread_info all_slave_threads[]=
