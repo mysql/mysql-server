@@ -10,6 +10,7 @@
 # 2. Basic DML operation on intrinsic table.
 # 3. Run different types of queries on intrinsic table.
 # 4. Multiple key DML
+# 5. Large column (blob/text) column DML
 #
 ################################################################################
 
@@ -119,6 +120,35 @@ insert into t1 values (8, 8, 8), (100, 100, 100)
 	on duplicate key update c = 100 + c;
 select * from t1;
 #
+drop table t1;
+
+#-----------------------------------------------------------------------------
+#
+# 5. Large column (blob/text) column DML
+#
+use test;
+create temporary table t1
+        (keyc int, c1 blob, c2 char(100),
+         primary key(keyc), index sk(c1(10)), index sk2(c2)) engine = innodb;
+delimiter |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+	DECLARE i INT DEFAULT 1;
+	while (i <= 20) DO
+		insert into t1 values (i, repeat('a', 10000), 'b');
+		SET i = i + 1;
+	END WHILE;
+END|
+delimiter ;|
+#
+begin; call populate_t1(); commit; select count(*) from t1;
+--error ER_ILLEGAL_HA
+truncate t1;
+delete from t1 where keyc < 10; select count(*) from t1;
+update t1 set c1 = 'aefafdf' where keyc < 15; select count(*) from t1;
+update t1 set c2 = '141434' where keyc < 20; select count(*) from t1;
+delete from t1; select count(*) from t1;
+drop procedure populate_t1;
 drop table t1;
 
 #-----------------------------------------------------------------------------
