@@ -17181,7 +17181,6 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   const char *errmsg;
   Ndb *ndb;
   DBUG_ENTER("ndbcluster_alter_tablespace");
-  LINT_INIT(errmsg);
 
   ndb= check_ndb_in_thd(thd);
   if (ndb == NULL)
@@ -17486,7 +17485,6 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
   NDBDICT *dict;
   int err;
   DBUG_ENTER("ha_ndbcluster::get_no_parts");
-  LINT_INIT(err);
 
   set_dbname(name);
   set_tabname(name);
