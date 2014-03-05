@@ -108,9 +108,6 @@ PATENT RIGHTS GRANT:
 //
 //Linux:
 //  abort() and both assert(false) cause FILE buffers to be flushed and written to disk: Unacceptable
-//Windows:
-//  None of them cause file buffers to be flushed/written to disk, however
-//  abort(), assert(false) <assert.h>, null dereference, and divide by 0 cause popups requiring user intervention during tests: Unacceptable
 //
 //kill -SIGKILL $pid is annoying (and so far untested)
 //
@@ -118,11 +115,7 @@ PATENT RIGHTS GRANT:
 //I'm choosing raise(SIGABRT), followed by divide by 0, followed by null dereference, followed by all the others just in case one gets caught.
 static void __attribute__((unused, noreturn))
 toku_hard_crash_on_purpose(void) {
-#if TOKU_WINDOWS
-    TerminateProcess(GetCurrentProcess(), 137);
-#else
     raise(SIGKILL); //Does not flush buffers on linux; cannot be caught.
-#endif
     {
         int zero = 0;
         int infinity = 1/zero;

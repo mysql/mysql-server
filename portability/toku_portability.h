@@ -101,82 +101,21 @@ PATENT RIGHTS GRANT:
 #  define constexpr_static_assert(a, b) static_assert(a, b)
 #endif
 
-#if defined(_MSC_VER) || (defined(__INTEL_COMPILER) && defined(__ICL))
-
-#define TOKU_WINDOWS 1
-#define DEV_NULL_FILE "NUL"
-
-# if defined(_WIN64)
-#  define TOKU_WINDOWS_32 0
-#  define TOKU_WINDOWS_64 1
-# else
-#  define TOKU_WINDOWS_32 1
-#  define TOKU_WINDOWS_64 2
+#if defined(_MSC_VER)
+#  error "Windows is not supported."
 #endif
 
-#else
-
-#define TOKU_WINDOWS 0
-#define TOKU_WINDOWS_32 0
-#define TOKU_WINDOWS_64 0
 #define DEV_NULL_FILE "/dev/null"
 
-#endif
+// HACK Poison these mcaros so no one uses them
+#define TOKU_WINDOWS ,
+#define TOKU_WINDOWS_32 ,
+#define TOKU_WINDOWS_64 ,
 
 // include here, before they get deprecated
 #include <toku_atomic.h>
 
-#if TOKU_WINDOWS
-// Windows
-
-#define DO_GCC_PRAGMA(x)      /* Nothing */
-
-#if defined(__ICL)
-#define __attribute__(x)      /* Nothing */
-#endif
-
-#include <malloc.h>
-#include "toku_stdint.h"
-
-#ifndef TOKU_OFF_T_DEFINED
-#define TOKU_OFF_T_DEFINED
-typedef int64_t toku_off_t;
-#endif
-
-#include <direct.h>
-#include <sys/types.h>
-#include "unistd.h"
-#include "misc.h"
-#include "toku_pthread.h"
-
-#define UNUSED_WARNING(a) a=a /* To make up for missing attributes */
-
-#define cast_to_typeof(v)
-
-#elif defined(__INTEL_COMPILER)
-
-#define DO_GCC_PRAGMA(x)      /* Nothing */
-
-#if defined(__ICC)
-// Intel linux
-
-#include <alloca.h>
-#include <toku_stdint.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <stdio.h>
-
-#define static_assert(foo, bar)
-#endif 
-
-#if defined(__cplusplus)
-# define cast_to_typeof(v) (decltype(v))
-#else
-# define cast_to_typeof(v) (__typeof__(v))
-#endif
-
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 // GCC linux
 
 #define DO_GCC_PRAGMA(x) _Pragma (#x)
@@ -187,12 +126,15 @@ typedef int64_t toku_off_t;
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <stdio.h>
+
 #if __FreeBSD__
 #include <stdarg.h>
 #endif
+
 #if defined(HAVE_ALLOCA_H)
 # include <alloca.h>
 #endif
+
 #if defined(__cplusplus)
 # include <type_traits>
 #endif
@@ -203,10 +145,8 @@ typedef int64_t toku_off_t;
 # define cast_to_typeof(v) (__typeof__(v))
 #endif
 
-#else
-
-#error Not ICC and not GNUC.  What compiler?
-
+#else // __GNUC__ was not defined, so...
+#  error "Must use a GNUC-compatible compiler."
 #endif
 
 // Define some constants for Yama in case the build-machine's software is too old.
@@ -265,10 +205,8 @@ extern "C" {
 #    ifndef DONT_DEPRECATE_ERRNO
 #       pragma deprecated (errno)
 #    endif
-#    ifndef TOKU_WINDOWS_ALLOW_DEPRECATED
-#       pragma poison   dup2
-#       pragma poison   _dup2
-#    endif
+#    pragma poison   dup2
+#    pragma poison   _dup2
 #   else
 int      creat(const char *pathname, mode_t mode)   __attribute__((__deprecated__));
 int      fstat(int fd, struct stat *buf)            __attribute__((__deprecated__));
@@ -279,8 +217,7 @@ int syscall(int __sysno, ...)             __attribute__((__deprecated__));
 #    else
 long int syscall(long int __sysno, ...)             __attribute__((__deprecated__));
 #    endif
-// Sadly, dlmalloc needs sysconf, and on linux this causes trouble with -combine.  So let the warnings show up under windows only.
-// long int sysconf(int)                   __attribute__((__deprecated__));
+ long int sysconf(int)                   __attribute__((__deprecated__));
 int      mkdir(const char *pathname, mode_t mode)   __attribute__((__deprecated__));
 int      dup2(int fd, int fd2)                      __attribute__((__deprecated__));
 int      _dup2(int fd, int fd2)                     __attribute__((__deprecated__));

@@ -172,13 +172,6 @@ int toku_fsync_dir_by_name_without_accounting(const char *dir_name);
 // Return 0 on success, otherwise an error number
 int toku_get_filesystem_sizes(const char *path, uint64_t *avail_size, uint64_t *free_size, uint64_t *total_size);
 
-#if TOKU_WINDOWS
-#include <sys/types.h>
-#include <sys/stat.h>
-//Test if st_mode (from stat) is a directory
-#define S_ISDIR(bitvector)  (((bitvector)&_S_IFDIR)!=0)
-#endif
-
 // Portable linux 'stat'
 int toku_stat(const char *name, toku_struct_stat *statbuf) __attribute__((__visibility__("default")));
 // Portable linux 'fstat'

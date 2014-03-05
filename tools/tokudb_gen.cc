@@ -255,11 +255,6 @@ static int test_main (int argc, char *const argv[]) {
             }
             sort_delimiter[0] = (char)temp;
             sort_delimiter[1] = '\0';
-#if TOKU_WINDOWS
-            if (!strcmp(sort_delimiter, "\n")) {
-                strcpy(sort_delimiter, "\r\n");
-            }
-#endif
             break;
          }
          case ('V'): {

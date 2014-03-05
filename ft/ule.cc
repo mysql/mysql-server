@@ -2261,9 +2261,6 @@ cleanup:
     return r;
 }
 
-#if TOKU_WINDOWS
-#pragma pack(push, 1)
-#endif
 // This is an on-disk format.  static_asserts verify everything is packed and aligned correctly.
 struct __attribute__ ((__packed__)) leafentry_13 {
     struct leafentry_committed_13 {
@@ -2291,9 +2288,6 @@ struct __attribute__ ((__packed__)) leafentry_13 {
 };
 static_assert(18 == sizeof(leafentry_13), "wrong size");
 static_assert(9 == __builtin_offsetof(leafentry_13, u), "wrong offset");
-#if TOKU_WINDOWS
-#pragma pack(pop)
-#endif
 
 //Requires:
 //  Leafentry that ule represents should not be destroyed (is not just all deletes)
