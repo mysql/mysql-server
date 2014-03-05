@@ -220,11 +220,7 @@ public:
     public:
         void create(void);
         void destroy(void);
-#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
-        void run(manager *mgr, std::function<void (void)> escalate_locktrees_fun);
-#else
         void run(manager *mgr, void (*escalate_locktrees_fun)(void *extra), void *extra);
-#endif
     private:
         toku_mutex_t m_escalator_mutex;
         toku_cond_t m_escalator_done;
