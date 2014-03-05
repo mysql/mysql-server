@@ -2733,13 +2733,12 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   ulong want_access;
   uint counter,index;
   int  error = 0;
-  ACL_USER *acl_user;
+  ACL_USER *acl_user= NULL;
   ACL_DB *acl_db;
   char buff[1024];
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_show_grants");
 
-  LINT_INIT(acl_user);
   if (!initialized)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");

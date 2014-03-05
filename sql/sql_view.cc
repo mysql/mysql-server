@@ -1180,7 +1180,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
   TABLE_LIST *top_view= table->top_table();
   bool parse_status= true;
   bool result= true, view_is_mergeable;
-  TABLE_LIST *UNINIT_VAR(view_main_select_tables);
+  TABLE_LIST *view_main_select_tables= NULL;
 
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
