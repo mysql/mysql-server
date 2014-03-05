@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -84,19 +84,20 @@ dict_mem_table_create(
 
 	table->heap = heap;
 
+	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
+
 	table->flags = (unsigned int) flags;
 	table->flags2 = (unsigned int) flags2;
 	table->name = static_cast<char*>(ut_malloc(strlen(name) + 1));
 	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
-	table->n_cols = (unsigned int) (n_cols + DATA_N_SYS_COLS);
+	table->n_cols = (unsigned int) (n_cols +
+			dict_table_get_n_sys_cols(table));
 
 	table->cols = static_cast<dict_col_t*>(
 		mem_heap_alloc(heap,
-			       (n_cols + DATA_N_SYS_COLS)
-			       * sizeof(dict_col_t)));
-
-	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
+			       (n_cols + dict_table_get_n_sys_cols(table))
+				* sizeof(dict_col_t)));
 
 	table->stats_latch = new rw_lock_t;
 	rw_lock_create(dict_table_stats_key, table->stats_latch,
@@ -109,6 +110,8 @@ dict_mem_table_create(
 	mutex_create("autoinc", &table->autoinc_mutex);
 
 	table->autoinc = 0;
+	table->localized_row_id = 0;
+	table->localized_trx_id = 0;
 
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */

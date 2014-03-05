@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -144,29 +144,39 @@ MySQL. This function opens a cursor, and also implements fetch next
 and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
+
+@param[out]	buf		buffer for the fetched row in MySQL format
+@param[in]	mode		search mode PAGE_CUR_L
+@param[in,out]	prebuilt	prebuilt struct for the table handler;
+				this contains the info to search_tuple,
+				index; if search tuple contains 0 field then
+				we position the cursor at start or the end of
+				index, depending on 'mode'
+@param[in] 	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+				Note: if this is != 0, then prebuilt must has a
+				pcur with stored position! In opening of a
+				cursor 'direction' should be 0.
+@param[in]	ins_sel_stmt	if true, then this statement is
+				insert .... select statement. For normal table
+				this can be detected by checking out locked
+				tables using trx->mysql_n_tables_locked > 0
+				condition. For intrinsic table
+				external_lock is not invoked and so condition
+				above will not stand valid instead this is
+				traced using alternative condition
+				at caller level.
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
-DB_LOCK_TABLE_FULL, or DB_TOO_BIG_RECORD */
+DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
 
 dberr_t
 row_search_for_mysql(
-/*=================*/
-	byte*		buf,		/*!< in/out: buffer for the fetched
-					row in the MySQL format */
-	ulint		mode,		/*!< in: search mode PAGE_CUR_L, ... */
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct for the
-					table handle; this contains the info
-					of search_tuple, index; if search
-					tuple contains 0 fields then we
-					position the cursor at the start or
-					the end of the index, depending on
-					'mode' */
-	ulint		match_mode,	/*!< in: 0 or ROW_SEL_EXACT or
-					ROW_SEL_EXACT_PREFIX */
-	ulint		direction)	/*!< in: 0 or ROW_SEL_NEXT or
-					ROW_SEL_PREV; NOTE: if this is != 0,
-					then prebuilt must have a pcur
-					with stored position! In opening of a
-					cursor 'direction' should be 0. */
+	byte*		buf,
+	ulint		mode,
+	row_prebuilt_t*	prebuilt,
+	ulint		match_mode,
+	ulint		direction,
+	bool		use_ahi)
 	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Checks if MySQL at the moment is allowed for this table to retrieve a

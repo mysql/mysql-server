@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "dict0stats.h"
+#include <string>
+#include <map>
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
@@ -52,6 +54,74 @@ typedef struct st_innobase_share {
 						InnoDB */
 } INNOBASE_SHARE;
 
+/** InnoDB private data that is cached in THD */
+typedef std::map<std::string, dict_table_t*>    table_cache_t;
+class innodb_private_t {
+
+public:
+	trx_t*		trx;            /*!< transaction handler. */
+	table_cache_t*	open_tables;    /*!< handler of tables that are
+					created or open but not added to
+					InnoDB dictionary as they are
+					session specific.
+					Currently, limited to intrinsic
+					temporary tables only. */
+
+public:
+	/** Constructor */
+	innodb_private_t()
+		: trx(),
+		  open_tables()
+	{
+		open_tables = new table_cache_t();
+	}
+
+	/** Destructor */
+	~innodb_private_t()
+	{
+		open_tables->clear();
+		delete open_tables;
+
+		trx = NULL;
+		open_tables = NULL;
+	}
+
+	/** Cache table handler.
+	@param[in]	table_name	name of the table
+	@param[in,out]	table		table handler to register */
+	void register_table_handler(
+		const char*	table_name,
+		dict_table_t*	table)
+	{
+		ut_ad(lookup_table_handler(table_name) == NULL);
+		(*open_tables).insert(std::pair<std::string, dict_table_t*>(
+			table_name, table));
+	}
+
+	/** Lookup for table handler given table_name.
+	@param[in]	table_name	name of the table to lookup */
+	dict_table_t* lookup_table_handler(
+		const char*	table_name)
+	{
+		table_cache_t::iterator it = (*open_tables).find(table_name);
+		return((it == (*open_tables).end()) ? NULL : it->second);
+	}
+
+	/** Remove table handler entry.
+	@param[in]	table_name	name of the table to remove */
+	void unregister_table_handler(
+		const char*	table_name)
+	{
+		(*open_tables).erase(table_name);
+	}
+
+	/** Count of register table handler.
+	@return number of register table handlers */
+	uint count_register_table_handler()
+	{
+		return((*open_tables).size());
+	}
+};
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
 struct row_prebuilt_t;
@@ -132,6 +202,7 @@ class ha_innobase: public handler
 	int write_row(uchar * buf);
 	int update_row(const uchar * old_data, uchar * new_data);
 	int delete_row(const uchar * buf);
+	int delete_all_rows();
 	bool was_semi_consistent_read();
 	void try_semi_consistent_read(bool yes);
 	void unlock_row();
@@ -161,6 +232,8 @@ class ha_innobase: public handler
 
 	void position(const uchar *record);
 	int info(uint);
+	int enable_indexes(uint mode);
+	int disable_indexes(uint mode);
 	int analyze(THD* thd,HA_CHECK_OPT* check_opt);
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 	int discard_or_import_tablespace(my_bool discard);

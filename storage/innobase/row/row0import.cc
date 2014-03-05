@@ -2021,7 +2021,9 @@ PageConverter::validate(
 	the file. Flag as corrupt if it doesn't. Disable the check
 	for LSN in buf_page_is_corrupted() */
 
-	if (buf_page_is_corrupted(false, page, get_page_size())
+	if (buf_page_is_corrupted(
+		false, page, get_page_size(),
+		fsp_is_checksum_disabled(block->page.id.space()))
 	    || (page_get_page_no(page) != offset / m_page_size.physical()
 		&& page_get_page_no(page) != 0)) {
 
@@ -2094,7 +2096,9 @@ PageConverter::operator() (
 				!is_compressed_table()
 				? block->frame : block->page.zip.data,
 				!is_compressed_table() ? 0 : m_page_zip_ptr,
-				m_current_lsn);
+				m_current_lsn,
+				fsp_is_checksum_disabled(
+					block->page.id.space()));
 		} else {
 			/* Calculate and update the checksum of non-btree
 			pages for compressed tables explicitly here. */

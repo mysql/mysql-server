@@ -4524,7 +4524,7 @@ ibuf_merge_or_delete_for_page(
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
 	    || trx_sys_hdr_page(page_id)
-	    || page_id.space() == srv_tmp_space.space_id()) {
+	    || fsp_is_system_temporary(page_id.space())) {
 		return;
 	}
 

@@ -34,6 +34,7 @@ Created 12/18/1995 Heikki Tuuri
 #include "fut0lst.h"
 #include "ut0byte.h"
 #include "page0types.h"
+#include "fsp0space.h"
 
 #endif /* !UNIV_INNOCHECKSUM */
 #include "fsp0types.h"
@@ -563,19 +564,6 @@ fseg_print(
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_BTR_PRINT */
 
-/********************************************************************//**
-Validate and return the tablespace flags, which are stored in the
-tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
-ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
-COMPRESSED and DYNAMIC, use a file format > Antelope so they should
-have a file format number plus the DICT_TF_COMPACT bit set.
-@return true if check ok */
-UNIV_INLINE
-bool
-fsp_flags_is_valid(
-/*===============*/
-	ulint	flags)		/*!< in: tablespace flags */
-	__attribute__((warn_unused_result, const));
 /********************************************************************//**
 Determine if the tablespace is compressed from dict_table_t::flags.
 @return TRUE if compressed, FALSE if not compressed */

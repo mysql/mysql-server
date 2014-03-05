@@ -100,6 +100,32 @@ row_ins_clust_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread or NULL */
 	__attribute__((nonnull, warn_unused_result));
 /***************************************************************//**
+Tried to insert an entry into clustered index.
+This is a specialized function meant for direct insertion to
+auto-generated clustered index based on cached position from
+last successful insert.
+
+@param[in]	flags	undo logging and locking flags
+@param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
+			depending on whether we wish optimistic or
+			pessimistic descent down the index tree
+@param[in/out]	index	clustered index
+@param[in/out]	entry	index entry to insert
+@param[in]	thr	query thread
+
+@return error code */
+
+dberr_t
+row_ins_sorted_clust_index_entry(
+	ulint		flags,
+	ulint		mode,
+	dict_index_t*	index,
+	ulint		n_uniq,
+	dtuple_t*	entry,
+	ulint		n_ext,
+	que_thr_t*	thr)
+	__attribute__((nonnull, warn_unused_result));
+/***************************************************************//**
 Tries to insert an entry into a secondary index. If a record with exactly the
 same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
@@ -124,6 +150,18 @@ row_ins_sec_index_entry_low(
 				row_log_table_apply(), or 0 */
 	que_thr_t*	thr)	/*!< in: query thread */
 	__attribute__((nonnull, warn_unused_result));
+/***********************************************************//**
+Sets the values of the dtuple fields in entry from the values of appropriate
+columns in row.
+@param[in]	index	index handler
+@param[out]	entry	index entry to make
+@param[in]	row	row */
+
+void
+row_ins_index_entry_set_vals(
+	const dict_index_t*	index,
+	dtuple_t*		entry,
+	const dtuple_t*		row);
 /***************************************************************//**
 Tries to insert the externally stored fields (off-page columns)
 of a clustered index entry.

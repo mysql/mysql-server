@@ -259,14 +259,14 @@ row_lock_table_for_mysql(
 	__attribute__((nonnull(1)));
 /*********************************************************************//**
 Does an insert for MySQL.
-@return error code or DB_SUCCESS */
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@return error code or DB_SUCCESS*/
 
 dberr_t
 row_insert_for_mysql(
-/*=================*/
-	byte*		mysql_rec,	/*!< in: row in the MySQL format */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
+	const byte*	mysql_rec,
+	row_prebuilt_t*	prebuilt)
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Builds a dummy query graph used in selects. */
@@ -298,16 +298,25 @@ row_table_got_default_clust_index(
 	const dict_table_t*	table);	/*!< in: table */
 /*********************************************************************//**
 Does an update or delete of a row for MySQL.
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
 
 dberr_t
 row_update_for_mysql(
-/*=================*/
-	byte*		mysql_rec,	/*!< in: the row to be updated, in
-					the MySQL format */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
+	const byte*	mysql_rec,
+	row_prebuilt_t*	prebuilt)
 	__attribute__((nonnull, warn_unused_result));
+
+/** Delete all rows for the given table by freeing/truncating indexes.
+@param[in/out]	table	table handler
+@return error code or DB_SUCCESS */
+
+dberr_t
+row_delete_all_rows(
+	dict_table_t*	table)
+	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
 session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
@@ -415,12 +424,13 @@ row_create_index_for_mysql(
 	dict_index_t*	index,		/*!< in, own: index definition
 					(will be freed) */
 	trx_t*		trx,		/*!< in: transaction handle */
-	const ulint*	field_lengths)	/*!< in: if not NULL, must contain
+	const ulint*	field_lengths,	/*!< in: if not NULL, must contain
 					dict_index_get_n_fields(index)
 					actual field lengths for the
 					index columns, which are
 					then checked for not being too
 					large. */
+	dict_table_t*	handler)	/* ! in/out: table handler. */
 	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Scans a table create SQL string and adds to the data dictionary
@@ -503,10 +513,11 @@ row_drop_table_for_mysql(
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: dictionary transaction handle */
 	bool		drop_db,/*!< in: true=dropping whole database */
-	bool		nonatomic = true)
+	bool		nonatomic = true,
 				/*!< in: whether it is permitted
 				to release and reacquire dict_operation_lock */
-	__attribute__((nonnull));
+	dict_table_t*	handler = NULL);
+				/*!< in/out: table handler. */
 /*********************************************************************//**
 Drop all temporary tables during crash recovery. */
 
@@ -892,6 +903,8 @@ struct SysIndexCallback {
 	@param pcur persistent cursor. */
 	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw() = 0;
 };
+
+
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -84,10 +84,11 @@ dict_hdr_get_new_id(
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
-	if (table) {	
+	if (table) {
 		dict_disable_redo_if_temporary(table, &mtr);
 	} else if (disable_redo) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		mtr_set_log_mode(&mtr,
+			(srv_read_only_mode ? MTR_LOG_NONE : MTR_LOG_NO_REDO));
 	}
 
 	/* Server started and let's say space-id = x
