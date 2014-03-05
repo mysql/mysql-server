@@ -89,12 +89,33 @@ drop table t1;
 create temporary table t1 (
 	a int, b int, c int,
 	primary key pk(a), index sk(b), index sk2(c)) engine=innodb;
-insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
 update t1 set c = 4 where c = 2;
 update t1 set b = 6 where b = 2;
 update t1 set a = 100 where a = 1;
 --error ER_DUP_ENTRY
 update t1 set a = 3 where a = 2;
+#
+select * from t1;
+begin;
+insert into t1 values (4, 4, 4), (5, 5, 5);
+rollback;
+select * from t1;
+--error ER_DUP_ENTRY
+insert into t1 values (6, 6, 6), (7, 7, 7), (100, 100, 100);
+select * from t1;
+#
+insert into t1 values (8, 8, 8), (100, 100, 100)
+	on duplicate key update c = 100 + c;
+select * from t1;
+#
+delete from t1;
+insert into t1 values (8, 8, 8), (100, 100, 100)
+	on duplicate key update c = 100 + c;
+insert into t1 values (8, 8, 8), (100, 100, 100)
+	on duplicate key update c = 100 + c;
+select * from t1;
+#
 drop table t1;
 
 #-----------------------------------------------------------------------------
