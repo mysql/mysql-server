@@ -4564,10 +4564,10 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
   if (!(error=index_next(buf)))
   {
     my_ptrdiff_t ptrdiff= buf - table->record[0];
-    uchar *UNINIT_VAR(save_record_0);
-    KEY *UNINIT_VAR(key_info);
-    KEY_PART_INFO *UNINIT_VAR(key_part);
-    KEY_PART_INFO *UNINIT_VAR(key_part_end);
+    uchar *save_record_0= NULL;
+    KEY *key_info= NULL;
+    KEY_PART_INFO *key_part= NULL;
+    KEY_PART_INFO *key_part_end= NULL;
 
     /*
       key_cmp_if_same() compares table->record[0] against 'key'.

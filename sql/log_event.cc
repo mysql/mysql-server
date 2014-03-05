@@ -7254,8 +7254,7 @@ bool Intvar_log_event::write(IO_CACHE* file)
 void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   char llbuff[22];
-  const char *msg;
-  LINT_INIT(msg);
+  const char *msg= NULL;
   IO_CACHE *const head= &print_event_info->head_cache;
 
   if (!print_event_info->short_form)
@@ -12786,7 +12785,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
 
   TABLE *table= m_table;  // pointer to event's table
   int error;
-  int UNINIT_VAR(keynum);
+  int keynum= 0;
   auto_afree_ptr<char> key(NULL);
 
   prepare_record(table, &m_cols,
