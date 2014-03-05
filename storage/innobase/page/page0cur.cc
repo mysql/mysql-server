@@ -1354,6 +1354,10 @@ use_heap:
 	to true failing which no flush would be done. */
 	byte*	log_ptr = mlog_open(mtr, 0);
 	ut_ad(log_ptr == NULL);
+	if (log_ptr != NULL) {
+		/* To keep complier happy. */
+		mlog_close(mtr, log_ptr);
+	}
 
 	return(insert_rec);
 }
