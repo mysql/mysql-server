@@ -108,13 +108,9 @@ static volatile int n_flush, n_write_me, n_keep_me, n_fetch;
 static void
 sleep_random (void)
 {
-#if TOKU_WINDOWS
-    usleep(random() % 1000); //Will turn out to be almost always 1ms.
-#else
     toku_timespec_t req = {.tv_sec  = 0,
 			   .tv_nsec = random()%1000000}; //Max just under 1ms
     nanosleep(&req, NULL);
-#endif
 }
 
 int expect_value = 42; // initially 42, later 43

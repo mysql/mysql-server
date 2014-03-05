@@ -101,16 +101,11 @@ PATENT RIGHTS GRANT:
 # include <sys/malloc.h>
 #endif
 #include <dlfcn.h>
-#if !TOKU_WINDOWS
 #include <execinfo.h>
-#endif
 
-
-#if !TOKU_WINDOWS
-#define N_POINTERS 1000
 // These are statically allocated so that the backtrace can run without any calls to malloc()
+#define N_POINTERS 1000
 static void *backtrace_pointers[N_POINTERS];
-#endif
 
 static uint64_t engine_status_num_rows = 0;
 
@@ -141,11 +136,9 @@ void (*do_assert_hook)(void) = NULL;
 extern "C" void db_env_do_backtrace(void) __attribute__((__visibility__("default")));  // also declared in db.h for consumers of that API
 extern "C" void db_env_do_backtrace(void) {
     // backtrace
-#if !TOKU_WINDOWS
     int n = backtrace(backtrace_pointers, N_POINTERS);
     fprintf(stderr, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert); fflush(stderr);
     backtrace_symbols_fd(backtrace_pointers, n, fileno(stderr));
-#endif
 
     fflush(stderr);
     
@@ -173,23 +166,6 @@ extern "C" void db_env_do_backtrace(void) {
 __attribute__((noreturn))
 static void toku_do_backtrace_abort(void) {
     db_env_do_backtrace();
-
-#if TOKU_WINDOWS
-    //Following commented methods will not always end the process (could hang).
-    //They could be unacceptable for other reasons as well (popups,
-    //flush buffers before quitting, etc)
-    //  abort()
-    //  assert(false) (assert.h assert)
-    //  raise(SIGABRT)
-    //  divide by 0
-    //  null dereference
-    //  _exit
-    //  exit
-    //  ExitProcess
-    TerminateProcess(GetCurrentProcess(), 134); //Only way found so far to unconditionally
-    //Terminate the process
-#endif
-
     abort();
 }
 

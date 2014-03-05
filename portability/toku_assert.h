@@ -134,14 +134,14 @@ void toku_do_assert_expected_fail(uintptr_t/*expr*/, uintptr_t /*expected*/, con
 
 extern void (*do_assert_hook)(void); // Set this to a function you want called after printing the assertion failure message but before calling abort().  By default this is NULL.
 
-#if defined(GCOV) || TOKU_WINDOWS
+#ifdef assert
+#  undef assert
+#endif
+#if defined(GCOV)
 #define assert(expr)      toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno())
 #define assert_zero(expr) toku_do_assert((expr) == 0, #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno())
 #define assert_equals(expr, expected) toku_do_assert((expr) == (expected), (expected), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno())
 #else
-#ifdef assert
-#  undef assert // some compilers do not like multiple definitions of a single macro - so undef the existing assert def here
-#endif
 #define assert(expr)      ((expr)      ? (void)0 : toku_do_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
 #define assert_zero(expr) ((expr) == 0 ? (void)0 : toku_do_assert_zero_fail((uintptr_t)(expr), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
 #define assert_equals(expr, expected) ((expr) == (expected) ? (void)0 : toku_do_assert_expected_fail((uintptr_t)(expr), (uintptr_t)(expected), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))

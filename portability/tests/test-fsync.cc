@@ -221,7 +221,6 @@ time_fsyncs_many_files(int N, int bytes, int fds[/*N*/]) {
     }
 }
 
-#if !TOKU_WINDOWS
 //sync() does not appear to have an analogue on windows.
 static void
 time_sync_fsyncs_many_files(int N, int bytes, int fds[/*N*/]) {
@@ -277,7 +276,6 @@ time_sync_fsyncs_many_files(int N, int bytes, int fds[/*N*/]) {
         fflush(stdout);
     }
 }
-#endif
 
 int test_main(int argc, char *const argv[]) {
     int i;
@@ -320,9 +318,7 @@ int test_main(int argc, char *const argv[]) {
 
     time_many_fsyncs_one_file(N, bytes, fds);
     time_fsyncs_many_files(N, bytes, fds);
-#if !TOKU_WINDOWS
     time_sync_fsyncs_many_files(N, bytes, fds);
-#endif
 
     return 0;
 }

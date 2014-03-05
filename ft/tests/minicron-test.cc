@@ -115,8 +115,8 @@ __attribute__((__noreturn__))
 never_run (void *a) {
     assert(a==0);
     assert(0);
-#if TOKU_WINDOWS || defined(GCOV)
-    return 0; //ICC ignores the noreturn attribute.
+#if defined(GCOV)
+    return 0;
 #endif
 }
 

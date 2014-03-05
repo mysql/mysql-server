@@ -195,30 +195,12 @@ void toku_memarena_destroy(MEMARENA *map) {
     *map = 0;
 }
 
-#if TOKU_WINDOWS_32
-#include <windows.h>
-#include <crtdbg.h>
-#endif
-
 void toku_memarena_move_buffers(MEMARENA dest, MEMARENA source) {
     int i;
     char **other_bufs = dest->other_bufs;
     static int move_counter = 0;
     move_counter++;
     REALLOC_N(dest->n_other_bufs + source->n_other_bufs + 1, other_bufs);
-#if TOKU_WINDOWS_32
-    if (other_bufs == 0) {
-        char **new_other_bufs;
-        printf("_CrtCheckMemory:%d\n", _CrtCheckMemory());
-        printf("Z: move_counter:%d dest:%p %p %d source:%p %p %d errno:%d\n",
-               move_counter,
-               dest, dest->other_bufs, dest->n_other_bufs,
-               source, source->other_bufs, source->n_other_bufs,
-               errno);
-        new_other_bufs = toku_malloc((dest->n_other_bufs + source->n_other_bufs + 1)*sizeof (char **));
-         printf("new_other_bufs=%p errno=%d\n", new_other_bufs, errno);
-    }
-#endif
 
     dest  ->size_of_other_bufs += source->size_of_other_bufs + source->buf_size;
     dest  ->footprint_of_other_bufs += source->footprint_of_other_bufs + toku_memory_footprint(source->buf, source->buf_used);

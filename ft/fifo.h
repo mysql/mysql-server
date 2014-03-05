@@ -97,10 +97,6 @@ PATENT RIGHTS GRANT:
 
 
 // If the fifo_entry is unpacked, the compiler aligns the xids array and we waste a lot of space
-#if TOKU_WINDOWS
-#pragma pack(push, 1)
-#endif
-
 struct __attribute__((__packed__)) fifo_entry {
     unsigned int keylen;
     unsigned int vallen;
@@ -127,10 +123,6 @@ fifo_entry_set_msg_type(struct fifo_entry * entry,
     unsigned char type = (unsigned char) msg_type;
     entry->type = type;
 }
-
-#if TOKU_WINDOWS
-#pragma pack(pop)
-#endif
 
 typedef struct fifo *FIFO;
 
