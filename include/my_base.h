@@ -204,7 +204,9 @@ enum ha_extra_function {
     Prepare table for export
     (e.g. quiesce the table and write table metadata).
   */
-  HA_EXTRA_EXPORT
+  HA_EXTRA_EXPORT,
+  /** Do secondary sort by handler::ref (rowid) after key sort. */
+  HA_EXTRA_SECONDARY_SORT_ROWID
 };
 
 /* Compatible option, to be deleted in 6.0 */
