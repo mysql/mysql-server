@@ -39,6 +39,7 @@ Completed by Sunny Bains and Marko Makela
 #include "row0ftsort.h"
 #include "row0import.h"
 #include "handler0alter.h"
+#include "btr0bulk.h"
 #include "fsp0sysspace.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
@@ -2379,6 +2380,140 @@ err_exit:
 	DBUG_RETURN(error);
 }
 
+/********************************************************************//**
+Read sorted file containing index data tuples and insert these data
+tuples to the index
+@return DB_SUCCESS or error number */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+row_merge_bulk_insert_index_tuples(
+/*==========================*/
+	trx_id_t		trx_id, /*!< in: transaction identifier */
+	dict_index_t*		index,	/*!< in: index */
+	const dict_table_t*	old_table,/*!< in: old table */
+	int			fd,	/*!< in: file descriptor */
+	row_merge_block_t*	block)	/*!< in/out: file buffer */
+{
+	const byte*		b;
+	mem_heap_t*		heap;
+	mem_heap_t*		tuple_heap;
+	dberr_t			error = DB_SUCCESS;
+	ulint			foffs = 0;
+	ulint*			offsets;
+	mrec_buf_t*		buf;
+	btr_bulk_t		btr_bulk;
+	DBUG_ENTER("row_merge_bulk_insert_index_tuples");
+
+	ut_ad(!srv_read_only_mode);
+	ut_ad(!(index->type & DICT_FTS));
+	ut_ad(trx_id);
+
+	tuple_heap = mem_heap_create(1000);
+
+	{
+		ulint i	= 1 + REC_OFFS_HEADER_SIZE
+			+ dict_index_get_n_fields(index);
+		heap = mem_heap_create(sizeof *buf + i * sizeof *offsets);
+		offsets = static_cast<ulint*>(
+			mem_heap_alloc(heap, i * sizeof *offsets));
+		offsets[0] = i;
+		offsets[1] = dict_index_get_n_fields(index);
+	}
+
+	b = block;
+
+	if (!row_merge_read(fd, foffs, block)) {
+		error = DB_CORRUPTION;
+	} else {
+		buf = static_cast<mrec_buf_t*>(
+			mem_heap_alloc(heap, sizeof *buf));
+
+		/* Init btr bulk load. */
+		btr_bulk_load_init(&btr_bulk, index, trx_id);
+
+		for (;;) {
+			const mrec_t*	mrec;
+			dtuple_t*	dtuple;
+			ulint		n_ext;
+			mtr_t		mtr;
+
+			b = row_merge_read_rec(block, buf, b, index,
+					       fd, &foffs, &mrec, offsets);
+			if (UNIV_UNLIKELY(!b)) {
+				/* End of list, or I/O error */
+				if (mrec) {
+					error = DB_CORRUPTION;
+				}
+				break;
+			}
+
+			dict_index_t*	old_index
+				= dict_table_get_first_index(old_table);
+
+			if (dict_index_is_clust(index)
+			    && dict_index_is_online_ddl(old_index)) {
+				error = row_log_table_get_error(old_index);
+				if (error != DB_SUCCESS) {
+					break;
+				}
+			}
+
+			dtuple = row_rec_to_index_entry_low(
+				mrec, index, offsets, &n_ext, tuple_heap);
+
+			if (!n_ext) {
+				/* There are no externally stored columns. */
+			} else {
+				ut_ad(dict_index_is_clust(index));
+				/* Off-page columns can be fetched safely
+				when concurrent modifications to the table
+				are disabled. (Purge can process delete-marked
+				records, but row_merge_read_clustered_index()
+				would have skipped them.)
+
+				When concurrent modifications are enabled,
+				row_merge_read_clustered_index() will
+				only see rows from transactions that were
+				committed before the ALTER TABLE started
+				(REPEATABLE READ).
+
+				Any modifications after the
+				row_merge_read_clustered_index() scan
+				will go through row_log_table_apply().
+				Any modifications to off-page columns
+				will be tracked by
+				row_log_table_blob_alloc() and
+				row_log_table_blob_free(). */
+				row_merge_copy_blobs(
+					mrec, offsets,
+					dict_table_page_size(old_table),
+					dtuple, tuple_heap);
+			}
+
+			ut_ad(dtuple_validate(dtuple));
+
+			error = btr_bulk_load_insert(&btr_bulk, dtuple);
+
+			if (error != DB_SUCCESS) {
+				btr_bulk_load_deinit(&btr_bulk, false);
+				goto err_exit;
+			}
+
+			mem_heap_empty(tuple_heap);
+		}
+
+		btr_bulk_load_deinit(&btr_bulk, true);
+		/* Validate index. */
+		ut_ad(btr_validate_index(index, NULL, false));
+	}
+
+err_exit:
+	mem_heap_free(tuple_heap);
+	mem_heap_free(heap);
+
+	DBUG_RETURN(error);
+}
+
 /*********************************************************************//**
 Sets an exclusive lock on a table, for the duration of creating indexes.
 @return error code or DB_SUCCESS */
@@ -3369,6 +3504,8 @@ row_merge_build_indexes(
 	fts_psort_t*		merge_info = NULL;
 	ib_int64_t		sig_count = 0;
 	bool			fts_psort_initiated = false;
+	ulint			start_time_ms;
+	ulint			diff_time;
 	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
@@ -3445,7 +3582,7 @@ row_merge_build_indexes(
 
 	/* Read clustered index of the table and create files for
 	secondary index entries for merge sort */
-
+	start_time_ms = ut_time_ms();
 	error = row_merge_read_clustered_index(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
@@ -3456,6 +3593,12 @@ row_merge_build_indexes(
 
 		goto func_exit;
 	}
+
+	diff_time = ut_time_ms() - start_time_ms;
+	DBUG_EXECUTE_IF("row_merge_build_index_measure",
+		ib_logf(IB_LOG_LEVEL_INFO, "index read cluster time\t : %ld",
+			diff_time);
+	);
 
 	DEBUG_SYNC_C("row_merge_after_scan");
 
@@ -3535,14 +3678,40 @@ wait_again:
 			row_merge_dup_t	dup = {
 				sort_idx, table, col_map, 0};
 
+			start_time_ms = ut_time_ms();
+
 			error = row_merge_sort(
 				trx, &dup, &merge_files[i],
 				block, &tmpfd);
 
+			diff_time = ut_time_ms() - start_time_ms;
+			DBUG_EXECUTE_IF("row_merge_build_index_measure",
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"index merge sort time\t : %ld",
+					diff_time);
+			);
+
 			if (error == DB_SUCCESS) {
-				error = row_merge_insert_index_tuples(
-					trx->id, sort_idx, old_table,
-					merge_files[i].fd, block);
+				start_time_ms = ut_time_ms();
+
+				/* Fixme: need a threshhold to use bulk load. */
+				if (merge_files[i].n_rec > 0
+				    && innobase_enable_bulk_load) {
+					error = row_merge_bulk_insert_index_tuples(
+						trx->id, sort_idx, old_table,
+						merge_files[i].fd, block);
+				} else {
+					error = row_merge_insert_index_tuples(
+						trx->id, sort_idx, old_table,
+						merge_files[i].fd, block);
+				}
+
+				diff_time = ut_time_ms() - start_time_ms;
+				DBUG_EXECUTE_IF("row_merge_build_index_measure",
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"index build time\t\t : %ld",
+						diff_time);
+				);
 			}
 		}
 

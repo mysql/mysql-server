@@ -452,7 +452,6 @@ page_cur_open_on_rnd_user_rec(
 
 /***********************************************************//**
 Writes the log record of a record insert on a page. */
-static
 void
 page_cur_insert_rec_write_log(
 /*==========================*/
@@ -1512,7 +1511,6 @@ use_heap:
 Writes a log record of copying a record list end to a new created page.
 @return 4-byte field where to write the log data length, or NULL if
 logging is disabled */
-UNIV_INLINE
 byte*
 page_copy_rec_list_to_created_page_write_log(
 /*=========================================*/
