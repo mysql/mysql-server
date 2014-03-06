@@ -816,7 +816,7 @@ fi
 
 %changelog
 * Thu Mar 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.37-2
-- Resolve confict issues during upgrade
+- Resolve conflict issues during upgrade
 
 * Mon Feb 10 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.37-1
 - Add support for el7 (with systemd enabled)
