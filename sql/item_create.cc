@@ -5652,7 +5652,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  const char *c_len, const char *c_dec,
                  const CHARSET_INFO *cs)
 {
-  Item *UNINIT_VAR(res);
+  Item *res= NULL;
 
   switch (cast_type) {
   case ITEM_CAST_BINARY:

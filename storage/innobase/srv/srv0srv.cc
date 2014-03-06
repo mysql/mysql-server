@@ -502,11 +502,6 @@ struct srv_sys_t{
 						activity */
 };
 
-#ifndef HAVE_ATOMIC_BUILTINS
-/** Mutex protecting some server global variables. */
-ib_mutex_t	server_mutex;
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 static srv_sys_t*	srv_sys	= NULL;
 
 /** Event to signal the monitor thread. */
@@ -840,10 +835,6 @@ srv_init(void)
 	ulint	n_sys_threads = 0;
 	ulint	srv_sys_sz = sizeof(*srv_sys);
 
-#ifndef HAVE_ATOMIC_BUILTINS
-	mutex_create("server", &server_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 	mutex_create("srv_innodb_monitor", &srv_innodb_monitor_mutex);
 
 	if (!srv_read_only_mode) {
@@ -899,8 +890,9 @@ srv_init(void)
 	/* Create dummy indexes for infimum and supremum records */
 
 	dict_ind_init();
-
+#ifndef HAVE_ATOMIC_BUILTINS
 	srv_conc_init();
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* Initialize some INFORMATION SCHEMA internal structures */
 	trx_i_s_cache_init(trx_i_s_cache);
@@ -915,12 +907,6 @@ void
 srv_free(void)
 /*==========*/
 {
-	srv_conc_free();
-
-#ifndef HAVE_ATOMIC_BUILTINS
-	mutex_free(&server_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 	mutex_free(&srv_innodb_monitor_mutex);
 	mutex_free(&page_zip_stat_per_index_mutex);
 

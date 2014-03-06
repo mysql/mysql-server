@@ -844,12 +844,11 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
 MYSQL_RES * STDCALL
 mysql_list_processes(MYSQL *mysql)
 {
-  MYSQL_DATA *fields;
+  MYSQL_DATA *fields= NULL;
   uint field_count;
   uchar *pos;
   DBUG_ENTER("mysql_list_processes");
 
-  LINT_INIT(fields);
   if (simple_command(mysql,COM_PROCESS_INFO,0,0,0))
     DBUG_RETURN(0);
   free_old_query(mysql);
@@ -1185,7 +1184,7 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 {
   char *to;
   my_bool use_mb_flag=use_mb(mysql->charset);
-  char *UNINIT_VAR(end);
+  char *end= NULL;
   if (use_mb_flag)
     for (end=name; *end ; end++) ;
 

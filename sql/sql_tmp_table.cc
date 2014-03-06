@@ -104,8 +104,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                          bool modify_item)
 {
   bool maybe_null= item->maybe_null;
-  Field *new_field;
-  LINT_INIT(new_field);
+  Field *new_field= NULL;
 
   switch (item->result_type()) {
   case REAL_RESULT:

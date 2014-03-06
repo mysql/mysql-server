@@ -38,11 +38,9 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
 ENDIF()
 
-# Turn on Werror (warning => error) when using GCC/G++ and maintainer mode.
-IF(CMAKE_COMPILER_IS_GNUCC AND MYSQL_MAINTAINER_MODE)
+# Turn on Werror (warning => error) when using maintainer mode.
+IF(MYSQL_MAINTAINER_MODE)
   SET(MY_C_WARNING_FLAGS "${MY_C_WARNING_FLAGS} -Werror")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCXX AND MYSQL_MAINTAINER_MODE)
   SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Werror")
 ENDIF()
 
