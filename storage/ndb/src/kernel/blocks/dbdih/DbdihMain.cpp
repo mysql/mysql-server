@@ -8116,7 +8116,6 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
   jam();
   const Uint32 fragCount = connectPtr.p->m_alter.m_totalfragments;
   ReplicaRecordPtr replicaPtr;
-  LINT_INIT(replicaPtr.p);
   replicaPtr.i = RNIL;
   FragmentstorePtr fragPtr;
   for(; fragId<fragCount; fragId++){
@@ -15292,7 +15291,6 @@ Dbdih::findBestLogNode(CreateReplicaRecord* createReplica,
 {
   ConstPtr<ReplicaRecord> fblFoundReplicaPtr;
   ConstPtr<ReplicaRecord> fblReplicaPtr;
-  LINT_INIT(fblFoundReplicaPtr.p);
   
   /* --------------------------------------------------------------------- */
   /*       WE START WITH ZERO AS FOUND TO ENSURE THAT FIRST HIT WILL BE    */

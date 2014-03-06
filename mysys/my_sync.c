@@ -110,10 +110,6 @@ int my_sync(File fd, myf my_flags)
   DBUG_RETURN(res);
 } /* my_sync */
 
-
-static const char cur_dir_name[]= {FN_CURLIB, 0};
-
-
 /*
   Force directory information to disk.
 
@@ -127,6 +123,8 @@ static const char cur_dir_name[]= {FN_CURLIB, 0};
 */
 
 #ifdef NEED_EXPLICIT_SYNC_DIR
+
+static const char cur_dir_name[]= {FN_CURLIB, 0};
 
 int my_sync_dir(const char *dir_name, myf my_flags)
 {
