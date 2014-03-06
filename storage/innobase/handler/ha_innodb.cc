@@ -3968,10 +3968,11 @@ innobase_kill_connection(
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	trx = thd_to_trx(thd);
-	ut_a(trx);
 
-        /* Cancel a pending lock request if there are any */
-        lock_trx_handle_wait(trx);
+	if (trx) {
+		/* Cancel a pending lock request if there are any */
+		lock_trx_handle_wait(trx);
+	}
 
 	DBUG_VOID_RETURN;
 }
