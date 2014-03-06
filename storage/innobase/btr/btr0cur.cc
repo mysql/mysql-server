@@ -4675,8 +4675,7 @@ btr_cur_pessimistic_delete(
 	      || (flags & BTR_CREATE_FLAG));
 	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
 					MTR_MEMO_X_LOCK
-					| MTR_MEMO_SX_LOCK)
-	      || dict_table_is_intrinsic(cursor->index->table));
+					| MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
 	if (!has_reserved_extents) {
@@ -4793,8 +4792,7 @@ return_after_reservations:
 
 	if (!srv_read_only_mode
 	    && page_is_leaf(page)
-	    && !dict_index_is_online_ddl(index)
-	    && !dict_table_is_intrinsic(index->table)) {
+	    && !dict_index_is_online_ddl(index)) {
 
 		mtr_memo_release(mtr, dict_index_get_lock(index),
 				 MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK);

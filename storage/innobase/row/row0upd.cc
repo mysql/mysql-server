@@ -1615,7 +1615,7 @@ row_upd_sec_index_entry(
 	ulint			flags = 0;
 	enum row_search_result	search_result;
 
-	ut_ad(trx->id != 0 || dict_table_is_intrinsic(node->table));
+	ut_ad(trx->id != 0);
 
 	index = node->index;
 
@@ -1964,10 +1964,7 @@ row_upd_clust_rec_by_insert(
 				      index, heap);
 	ut_ad(dtuple_get_info_bits(entry) == 0);
 
-	if (!dict_table_is_intrinsic(index->table)) {
-		row_upd_index_entry_sys_field(
-			entry, index, DATA_TRX_ID, trx->id);
-	}
+	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
 	switch (node->state) {
 	default:

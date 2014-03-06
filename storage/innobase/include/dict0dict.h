@@ -1835,6 +1835,16 @@ dict_table_get_table_localized_row_id(
 	dict_table_t*		table)
 	__attribute__((nonnull));
 
+/********************************************************************//**
+Get table localized trx-id and increment the trx-id counter for next use.
+@param[in,out]	table	table handler
+@return next table local trx-id. */
+UNIV_INLINE
+trx_id_t
+dict_table_get_table_localized_trx_id(
+	dict_table_t*		table)
+	__attribute__((nonnull));
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 This function should be called whenever a page is successfully
