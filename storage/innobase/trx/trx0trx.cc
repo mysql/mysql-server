@@ -1619,23 +1619,27 @@ trx_flush_log_if_needed_low(
 	lsn_t	lsn)	/*!< in: lsn up to which logs are to be
 			flushed. */
 {
+#ifdef _WIN32
+	bool	flush = true;
+#else
+	bool	flush = srv_unix_file_flush_method != SRV_UNIX_NOSYNC;
+#endif /* _WIN32 */
+
 	switch (srv_flush_log_at_trx_commit) {
-	case 0:
-		/* Do nothing */
-		break;
-	case 1:
-		/* Write the log and optionally flush it to disk */
-		log_write_up_to(
-			lsn, srv_unix_file_flush_method != SRV_UNIX_NOSYNC);
-		break;
 	case 2:
 		/* Write the log but do not flush it to disk */
-		log_write_up_to(lsn, false);
-
-		break;
-	default:
-		ut_error;
+		flush = false;
+		/* fall through */
+	case 1:
+		/* Write the log and optionally flush it to disk */
+		log_write_up_to(lsn, flush);
+		return;
+	case 0:
+		/* Do nothing */
+		return;
 	}
+
+	ut_error;
 }
 
 /**********************************************************************//**

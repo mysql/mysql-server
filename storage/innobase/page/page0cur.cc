@@ -808,10 +808,10 @@ page_cur_parse_insert_rec(
 
 	if (page_is_comp(page)) {
 		rec_set_info_and_status_bits(buf + origin_offset,
-				     info_and_status_bits);
+					     info_and_status_bits);
 	} else {
 		rec_set_info_bits_old(buf + origin_offset,
-							info_and_status_bits);
+				      info_and_status_bits);
 	}
 
 	page_cur_position(cursor_rec, block, &cursor);
