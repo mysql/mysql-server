@@ -169,8 +169,7 @@ row_ins_alloc_sys_fields(
 	col = dict_table_get_sys_col(table, DATA_TRX_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = static_cast<byte*>(mem_heap_zalloc(
-			heap, DATA_TRX_ID_LEN));
+	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_TRX_ID_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_TRX_ID_LEN);
 

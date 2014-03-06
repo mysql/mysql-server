@@ -1274,7 +1274,6 @@ row_explicit_rollback(
 	mtr_t*			mtr)
 {
 	btr_cur_t	cursor;
-	ulint		mode = BTR_MODIFY_LEAF;
 	ulint		flags =
 		BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -1284,9 +1283,9 @@ row_explicit_rollback(
 
 	rec_offs_init(offsets_);
 
-	btr_cur_search_to_nth_level(
-		index, 0, entry, PAGE_CUR_LE, mode,
-		&cursor, 0, __FILE__, __LINE__, mtr);
+	btr_cur_search_to_nth_level_with_no_latch(
+		index, 0, entry, PAGE_CUR_LE,
+		&cursor, __FILE__, __LINE__, mtr);
 
 	offsets = rec_get_offsets(
 		btr_cur_get_rec(&cursor), index, offsets_,
@@ -1935,8 +1934,7 @@ row_delete_for_mysql_using_cursor(
 				TRUE);
 
 			/* Void call just to set mtr modification flag
-			to true failing which block is not scheduled for
-			flush. */
+			to true failing which block is not scheduled for flush*/
 			byte* log_ptr = mlog_open(&mtr, 0);
 			ut_ad(log_ptr == NULL);
 			if (log_ptr != NULL) {
@@ -1973,6 +1971,16 @@ row_delete_for_mysql_using_cursor(
 					buf_block_get_page_zip(
 						btr_cur_get_block(btr_cur)),
 					FALSE);
+
+				/* Void call just to set mtr modification flag
+				to true failing which block is not scheduled for
+				flush. */
+				byte* log_ptr = mlog_open(&mtr, 0);
+				ut_ad(log_ptr == NULL);
+				if (log_ptr != NULL) {
+					/* To keep complier happy. */
+					mlog_close(&mtr, log_ptr);
+				}
 			}
 		}
 	}
@@ -2005,7 +2013,7 @@ row_update_for_mysql_using_cursor(
 	mem_heap_t*	heap = mem_heap_create(1000);
 	dtuple_t*	entry;
 
-	if (row_table_got_default_clust_index(table)) {
+	if (dict_index_is_auto_gen_clust(dict_table_get_first_index(table))) {
 		/* Update the row_id column. */
 		row_id_t	row_id =
 			dict_table_get_table_localized_row_id(node->table);
@@ -2072,7 +2080,7 @@ row_update_for_mysql_using_cursor(
 		mtr_commit(&mtr);
 
 
-		/* Rollback half-way delete to few of the indexes. */
+		/* Rollback DELETE action. */
 		row_delete_for_mysql_using_cursor(
 			node, delete_entries, true, update_index);
 	}
@@ -2952,7 +2960,7 @@ row_create_index_for_mysql(
 					index columns, which are
 					then checked for not being too
 					large. */
-	dict_table_t*	handler)	/* ! in/out: table handler. */
+	dict_table_t*	handler)	/*!< in/out: table handler. */
 {
 	ind_node_t*	node;
 	mem_heap_t*	heap;

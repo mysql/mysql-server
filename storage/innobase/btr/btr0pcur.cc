@@ -171,9 +171,7 @@ btr_pcur_store_position(
 
 	cursor->block_when_stored = block;
 
-	/* Function try to check if block is S/X latch.
-	Block acquired for intrinsic table are not S/X latch and so
-	special handling in DEBUG mode. */
+	/* Function try to check if block is S/X latch. */
 	cursor->modify_clock = buf_block_get_modify_clock(block);
 }
 
