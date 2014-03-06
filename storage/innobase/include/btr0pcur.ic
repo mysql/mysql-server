@@ -440,7 +440,7 @@ btr_pcur_open_low(
 		/* Use by delete path so set the make dirty to true. */
 		btr_cur_search_to_nth_level_with_no_latch(
 			index, level, tuple, mode, btr_cursor,
-			file, line, mtr, true);
+			file, line, mtr);
 	} else {
 		btr_cur_search_to_nth_level(
 			index, level, tuple, mode, latch_mode,

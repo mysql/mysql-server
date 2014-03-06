@@ -2377,6 +2377,8 @@ row_ins_clust_index_entry_low(
 		btr_cur_search_to_nth_level_with_no_latch(
 			index, 0, entry, PAGE_CUR_LE, &cursor,
 			__FILE__, __LINE__, &mtr);
+		ut_ad(cursor.page_cur.block != NULL);
+		ut_ad(cursor.page_cur.block->made_dirty_with_no_latch);
 	} else {
 		btr_cur_search_to_nth_level(
 			index, 0, entry, PAGE_CUR_LE, mode, &cursor,
@@ -2867,6 +2869,8 @@ row_ins_sec_index_entry_low(
 		btr_cur_search_to_nth_level_with_no_latch(
 			index, 0, entry, PAGE_CUR_LE, &cursor,
 			__FILE__, __LINE__, &mtr);
+		ut_ad(cursor.page_cur.block != NULL);
+		ut_ad(cursor.page_cur.block->made_dirty_with_no_latch);
 	} else {
 		btr_cur_search_to_nth_level(
 			index, 0, entry, PAGE_CUR_LE, search_mode, &cursor,
@@ -2947,6 +2951,8 @@ row_ins_sec_index_entry_low(
 			btr_cur_search_to_nth_level_with_no_latch(
 				index, 0, entry, PAGE_CUR_LE, &cursor,
 				__FILE__, __LINE__, &mtr);
+			ut_ad(cursor.page_cur.block != NULL);
+			ut_ad(cursor.page_cur.block->made_dirty_with_no_latch);
 		} else {
 			btr_cur_search_to_nth_level(
 				index, 0, entry, PAGE_CUR_LE,
