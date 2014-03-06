@@ -6285,7 +6285,7 @@ ha_innobase::innobase_lock_autoinc(void)
 {
 	dberr_t		error = DB_SUCCESS;
 
-	ut_ad(!srv_read_only_mode);
+	ut_ad(!srv_read_only_mode || dict_table_is_intrinsic(prebuilt->table));
 
 	switch (innobase_autoinc_lock_mode) {
 	case AUTOINC_NO_LOCKING:
@@ -10042,13 +10042,13 @@ ha_innobase::truncate()
 
 	DBUG_ENTER("ha_innobase::truncate");
 
-	if (srv_read_only_mode) {
-		DBUG_RETURN(HA_ERR_TABLE_READONLY);
-	}
-
 	/* Truncate of intrinsic table is not allowed truncate for now. */
 	if (dict_table_is_intrinsic(prebuilt->table)) {
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
+	if (srv_read_only_mode) {
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
 	/* Get the transaction associated with the current thd, or create one
@@ -12428,6 +12428,11 @@ ha_innobase::external_lock(
 	DBUG_PRINT("enter",("lock_type: %d", lock_type));
 
 	update_thd(thd);
+
+	ut_ad(prebuilt->table);
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		DBUG_RETURN(0);
+	}
 
 	/* Statement based binlogging does not work in isolation level
 	READ UNCOMMITTED and READ COMMITTED since the necessary
