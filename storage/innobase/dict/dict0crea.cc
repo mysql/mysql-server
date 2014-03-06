@@ -294,6 +294,9 @@ dict_build_tablespace(
 	if (!dict_table_is_intrinsic(table)) {
 		dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
 	} else {
+		/* There is no significance of this table->id (if table is
+		intrinsic) so assign it default instead of something meaningful
+		to avoid confusion.*/
 		table->id = ULINT_UNDEFINED;
 	}
 
