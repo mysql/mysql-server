@@ -225,13 +225,6 @@ a
 2
 3
 4
-set @old_sort_buffer_size = @@sort_buffer_size;
-set @@sort_buffer_size = 32804;
-select distinct b from t3 group by a having count(*) > 1;
-b
-select distinct b from t3 group by a;
-b
-set @@sort_buffer_size = @old_sort_buffer_size;
 select distinct t4.a,e from t4, t1 order by t4.b;
 a	e
 1	5
@@ -320,19 +313,20 @@ armscii8	armscii8_general_ci	ARMSCII-8 Armenian	1
 ascii	ascii_general_ci	US ASCII	1
 big5	big5_chinese_ci	Big5 Traditional Chinese	2
 update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
+update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
 select count(distinct a) from t1;
 count(distinct a)
 4
 select b, group_concat(a) from t1;
 b	group_concat(a)
-a	9,2,3,3,4
+b	2,3,3,4,9
 select * from t1;
 a	b
-9	a
 2	b
 3	c
 3	c
 4	c
+9	a
 select b, count(a), sum(a), avg(a), std(a), min(a),
 max(a), bit_and(a), bit_or(a) from t1 group by b;
 b	count(a)	sum(a)	avg(a)	std(a)	min(a)	max(a)	bit_and(a)	bit_or(a)
@@ -353,23 +347,6 @@ select 1 union distinct select 1 union all select 1;
 select alias1.`col_int_key` AS field1 from (t8 as alias1) where (5) in
 (select 7 union select 1) order by alias1.`col_varchar_key` asc;
 field1
-select count(table2.col_date_key) as field1 from
-(t10 as table1 inner join
-((t10 as table2 right join
-t9 as table3 on
-((table3.pk = table2.pk) or
-(table3.pk = table2.col_int_key))))
-on ((table3.pk < table2.col_int_nokey)))
-order by field1 ASC;
-field1
-2200
-select distinct table1.col_varchar_1024_utf8_key as field1
-from t11 as table1 left join t11 as table2 on
-table1.col_varchar_1024_utf8 = table2.col_varchar_1024_latin1_key
-order by field1;
-field1
-YTLDF
-yvuwdllyhymuwyypoiuyeqbnaanbursgddnqhyvxnnpadsjiqdkajofferjfslatroorycttbiuhlubvmoikwwnalqyewgthdmfvsedatazrflwenzeiwdxtheqppbmqfydsawvanehgvfvbsqxzkqzhtjkybvikmpexipoddmoulsnzfchusfgkdazecevrpuakfioamyyqyribcnydfxmmzsxcpkydyczmeajaebsaskneaqwxjbpjptiwgiizoxfygnbjojpifpzldsdhrukdbwpzribxgafunywmmcfpjugozduylotsugqocbadhcnxjqlugncbebwsbobhxgghyyphxfqqnpliazusgjswynfotwdonpbkllfdbuoqceirksegypasuuxnrjumrkaryhkgkbdfgoqbdmrdrmpvwitqzswgossxltimkbtrxitnmigcxgfaqmrnv
 select t from t12 group by c;
 t
 NULL
@@ -378,20 +355,6 @@ NULL
 a
 hello
 HELLO MY
-select count(outr.col_varchar_nokey) AS x
-from t13 as outr2 left join
-(select * from t13) as outr
-on (outr2.col_time_key > outr.col_date_key) 
-where outr.pk in
-(select innr.col_int_nokey AS y from
-(select * from t14) as innr2 left join
-(select * from t14) AS innr
-ON (innr2.col_int_nokey = innr.col_int_key) 
-where innr.col_varchar_nokey > innr.col_varchar_key
-or not outr.pk > 9)
-or outr.col_varchar_key is null;
-x
-102
 drop function func1;
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;
 create temporary table t1 (
@@ -489,4 +452,543 @@ count(*)
 0
 drop procedure populate_t1;
 drop table t1;
+"Restarting in read only mode"
+set session innodb_create_intrinsic = 1;
+create temporary table t1 (i int, j int, primary key pk(i)) engine = innodb;
+create temporary table t2 (i int, j int, primary key pk(i)) engine = innodb;
+create temporary table t3 (i int, j int, primary key pk(i)) engine = innodb;
+create temporary table t4 (i int, j int, primary key pk(i)) engine = innodb;
+drop table t1,t2,t3,t4;
+create temporary table t1 (i int, j int, primary key pk(i)) engine = innodb;
+drop table t1;
+use test;
+create temporary table t1
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc)) engine = innodb;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 2000) DO
+insert into t1 values (i, 'a', 'b');
+SET i = i + 1;
+END WHILE;
+END|
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+truncate t1;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+delete from t1 where keyc < 1000;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+1001
+update t1 set c1 = 'aefafdf' where keyc < 1500;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+1001
+update t1 set c2 = '141434' where keyc < 2000;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+1001
+delete from t1;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+0
+alter table t1 add index sk(c1);
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+truncate t1;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+delete from t1 where keyc < 1000;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+1001
+update t1 set c1 = 'aefafdf' where keyc < 1500;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+1001
+update t1 set c2 = '141434' where keyc < 2000;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+1001
+alter table t1 add column (t char(10));
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select * from t1 limit 5;
+keyc	c1	c2	t
+1000	aefafdf	141434	NULL
+1001	aefafdf	141434	NULL
+1002	aefafdf	141434	NULL
+1003	aefafdf	141434	NULL
+1004	aefafdf	141434	NULL
+delete from t1;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+0
+drop procedure populate_t1;
+drop table t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Note	1305	FUNCTION test.func1 does not exist
+Warnings:
+Note	1051	Unknown table 'test.t3'
+Warnings:
+Note	1051	Unknown table 'test.t4'
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Note	1051	Unknown table 'test.t5'
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Note	1051	Unknown table 'test.t6'
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Note	1051	Unknown table 'test.t7'
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Note	1051	Unknown table 'test.t8'
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Note	1051	Unknown table 'test.t9'
+Note	1051	Unknown table 'test.t10'
+Warnings:
+Warning	1831	Duplicate index 'col_varchar_key' defined on the table 'test.t9'. This is deprecated and will be disallowed in a future release.
+Warnings:
+Warning	1831	Duplicate index 'col_varchar_key' defined on the table 'test.t10'. This is deprecated and will be disallowed in a future release.
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
+test.t7	analyze	status	OK
+test.t8	analyze	status	OK
+test.t9	analyze	status	OK
+test.t10	analyze	status	OK
+test.t11	analyze	status	OK
+test.t12	analyze	status	OK
+test.t13	analyze	status	OK
+test.t14	analyze	status	OK
+select sql_buffer_result * from t1;
+a	b
+1	a
+2	b
+3	c
+3	c
+4	c
+select sql_buffer_result * from t2;
+a	b
+2	d
+3	e
+4	f
+4	f
+5	e
+select * from t1 left join t2 on t1.b = t2.b order by t1.a;
+a	b	a	b
+1	a	NULL	NULL
+2	b	NULL	NULL
+3	c	NULL	NULL
+3	c	NULL	NULL
+4	c	NULL	NULL
+select * from t1 order by func1(a);
+a	b
+1	a
+2	b
+3	c
+3	c
+4	c
+select a from t1 group by b order by sum(a);
+a
+1
+2
+3
+select a from t7 group by b order by sum(a);
+a
+1
+2
+3
+select sql_big_result distinct * from t1, t2;
+a	b	a	b
+1	a	2	d
+2	b	2	d
+3	c	2	d
+4	c	2	d
+1	a	3	e
+2	b	3	e
+3	c	3	e
+4	c	3	e
+1	a	4	f
+2	b	4	f
+3	c	4	f
+4	c	4	f
+1	a	5	e
+2	b	5	e
+3	c	5	e
+4	c	5	e
+select sql_big_result t1.b from t1, t2 group by t1.b;
+b
+a
+b
+c
+select sql_big_result distinct t1.a from t1, t2 group by t1.b;
+a
+1
+2
+3
+select t1.* from t1 inner join t2 on t1.a = t2.a order by t2.a;
+a	b
+2	b
+3	c
+3	c
+4	c
+4	c
+select t1.* from t1, t2 where t1.a = t2.a order by t1.a;
+a	b
+2	b
+3	c
+3	c
+4	c
+4	c
+select t1.* from t1 inner join t2 where t1.a = t2.a group by t1.a;
+a	b
+2	b
+3	c
+4	c
+select t1.* from t1 inner join t2 where t1.a = t2.a group by t2.a;
+a	b
+2	b
+3	c
+4	c
+select a from t1 group by a order by a;
+a
+1
+2
+3
+4
+select b from t1 group by b order by a;
+b
+a
+b
+c
+select distinct t1.a from t1, t2 where  t1.b = t2.b;
+a
+select distinct a from t1 group by b,a;
+a
+1
+2
+3
+4
+select distinct t4.a,e from t4, t1 order by t4.b;
+a	e
+1	5
+set big_tables = 1;
+select * from t1 union all select * from t2;
+a	b
+1	a
+2	b
+3	c
+3	c
+4	c
+2	d
+3	e
+4	f
+4	f
+5	e
+select * from t1 union select * from t2 order by b;
+a	b
+1	a
+2	b
+3	c
+4	c
+2	d
+3	e
+5	e
+4	f
+select tt.* from (select * from t1) as tt;
+a	b
+1	a
+2	b
+3	c
+3	c
+4	c
+select b from (select b from t5 where b > 5) tt;
+b
+7
+8
+select * from (select b from t1) as t1, (select b from t2) as t2;
+b	b
+a	d
+b	d
+c	d
+c	d
+c	d
+a	e
+b	e
+c	e
+c	e
+c	e
+a	f
+b	f
+c	f
+c	f
+c	f
+a	f
+b	f
+c	f
+c	f
+c	f
+a	e
+b	e
+c	e
+c	e
+c	e
+select * from t1, (select * from t6) as t where t.a =5;
+a	b	a	b	c	d
+select * from t1 where t1.a in (select a from t2) ;
+a	b
+2	b
+3	c
+3	c
+4	c
+set optimizer_switch='materialization=off';
+set optimizer_switch='firstmatch=off';
+set optimizer_switch='loosescan=off';
+select * from t1 where t1.a in (select a from t2) ;
+a	b
+2	b
+3	c
+3	c
+4	c
+set optimizer_switch=default;
+select * from information_schema.character_sets order by 1 limit 3;
+CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
+armscii8	armscii8_general_ci	ARMSCII-8 Armenian	1
+ascii	ascii_general_ci	US ASCII	1
+big5	big5_chinese_ci	Big5 Traditional Chinese	2
+update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
+select count(distinct a) from t1;
+count(distinct a)
+4
+select b, group_concat(a) from t1;
+b	group_concat(a)
+b	2,3,3,4,9
+select * from t1;
+a	b
+2	b
+3	c
+3	c
+4	c
+9	a
+select b, count(a), sum(a), avg(a), std(a), min(a),
+max(a), bit_and(a), bit_or(a) from t1 group by b;
+b	count(a)	sum(a)	avg(a)	std(a)	min(a)	max(a)	bit_and(a)	bit_or(a)
+a	1	9	9.0000	0	9	9	9	9
+b	1	2	2.0000	0	2	2	2	2
+c	3	10	3.3333	0.4714045207910316	3	4	0	7
+select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_storage_engine';
+VARIABLE_NAME	VARIABLE_VALUE
+select * from information_schema.character_sets order by 1 limit 3;
+CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
+armscii8	armscii8_general_ci	ARMSCII-8 Armenian	1
+ascii	ascii_general_ci	US ASCII	1
+big5	big5_chinese_ci	Big5 Traditional Chinese	2
+select 1 union distinct select 1 union all select 1;
+1
+1
+1
+select alias1.`col_int_key` AS field1 from (t8 as alias1) where (5) in
+(select 7 union select 1) order by alias1.`col_varchar_key` asc;
+field1
+select t from t12 group by c;
+t
+NULL
+
+1
+a
+hello
+HELLO MY
+drop function func1;
+drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;
+create temporary table t1 (
+a int, b int, c int,
+primary key pk(a), index sk(b), index sk2(c)) engine=innodb;
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+update t1 set c = 4 where c = 2;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+update t1 set b = 6 where b = 2;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+update t1 set a = 100 where a = 1;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+update t1 set a = 3 where a = 2;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+select * from t1;
+a	b	c
+2	6	4
+3	3	3
+100	1	1
+begin;
+insert into t1 values (4, 4, 4), (5, 5, 5);
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+rollback;
+select * from t1;
+a	b	c
+2	6	4
+3	3	3
+4	4	4
+5	5	5
+100	1	1
+insert into t1 values (6, 6, 6), (7, 7, 7), (100, 100, 100);
+ERROR 23000: Duplicate entry '100' for key 'PRIMARY'
+select * from t1;
+a	b	c
+2	6	4
+3	3	3
+4	4	4
+5	5	5
+6	6	6
+7	7	7
+100	1	1
+insert into t1 values (8, 8, 8), (100, 100, 100)
+on duplicate key update c = 100 + c;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select * from t1;
+a	b	c
+2	6	4
+3	3	3
+4	4	4
+5	5	5
+6	6	6
+7	7	7
+8	8	8
+100	1	101
+delete from t1;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+insert into t1 values (8, 8, 8), (100, 100, 100)
+on duplicate key update c = 100 + c;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+insert into t1 values (8, 8, 8), (100, 100, 100)
+on duplicate key update c = 100 + c;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select * from t1;
+a	b	c
+8	8	108
+100	100	200
+drop table t1;
+use test;
+create temporary table t1
+(keyc int, c1 blob, c2 char(100),
+primary key(keyc), index sk(c1(10)), index sk2(c2)) engine = innodb;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 20) DO
+insert into t1 values (i, repeat('a', 10000), 'b');
+SET i = i + 1;
+END WHILE;
+END|
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+20
+truncate t1;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+delete from t1 where keyc < 10;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+11
+update t1 set c1 = 'aefafdf' where keyc < 15;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+11
+update t1 set c2 = '141434' where keyc < 20;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+11
+delete from t1;
+Warnings:
+Warning	1836	InnoDB: Running in read-only mode
+select count(*) from t1;
+count(*)
+0
+drop procedure populate_t1;
+drop table t1;
+"Restarting Server in normal mode"
 set session innodb_create_intrinsic = 0;

@@ -103,14 +103,14 @@ select distinct a from t1 group by b,a;
 
 #
 # remove_dup_with_compare
-set @old_sort_buffer_size = @@sort_buffer_size;
-set @@sort_buffer_size = 32804;
 if (!`select @@innodb_create_intrinsic`) { 
+	set @old_sort_buffer_size = @@sort_buffer_size;
+	set @@sort_buffer_size = 32804;
 	explain format = json select distinct b from t3 group by a having count(*) > 1;
+	select distinct b from t3 group by a having count(*) > 1;
+	select distinct b from t3 group by a;
+	set @@sort_buffer_size = @old_sort_buffer_size;
 }
-select distinct b from t3 group by a having count(*) > 1;
-select distinct b from t3 group by a;
-set @@sort_buffer_size = @old_sort_buffer_size;
 
 #
 # special case for distinct
@@ -189,12 +189,15 @@ select * from information_schema.character_sets order by 1 limit 3;
 
 #
 # muti-update
+if (`select @@innodb_create_intrinsic`) {
+	update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
+}
 if (!`select @@innodb_read_only`)
 {
 	if (!`select @@innodb_create_intrinsic`) { 
 		explain format = json update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
 	}
-update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
+	update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
 }
 
 #
@@ -239,21 +242,25 @@ select alias1.`col_int_key` AS field1 from (t8 as alias1) where (5) in
 #
 # Exercises select from multiple non-temporary tables that result in
 # insert .... select kind of semantics on intrinsic temporary table.
-select count(table2.col_date_key) as field1 from
-	(t10 as table1 inner join
-		((t10 as table2 right join
-			t9 as table3 on
-				((table3.pk = table2.pk) or
-				 (table3.pk = table2.col_int_key))))
-			on ((table3.pk < table2.col_int_nokey)))
-	order by field1 ASC;
+if (!`select @@innodb_create_intrinsic`) { 
+	select count(table2.col_date_key) as field1 from
+		(t10 as table1 inner join
+		 ((t10 as table2 right join
+		   t9 as table3 on
+		   ((table3.pk = table2.pk) or
+		    (table3.pk = table2.col_int_key))))
+		 on ((table3.pk < table2.col_int_nokey)))
+		order by field1 ASC;
+}
 
 #
 # trying to create index on blob column
-select distinct table1.col_varchar_1024_utf8_key as field1
-	from t11 as table1 left join t11 as table2 on
-	table1.col_varchar_1024_utf8 = table2.col_varchar_1024_latin1_key
-	order by field1;
+if (!`select @@innodb_create_intrinsic`) { 
+	select distinct table1.col_varchar_1024_utf8_key as field1
+		from t11 as table1 left join t11 as table2 on
+		table1.col_varchar_1024_utf8 = table2.col_varchar_1024_latin1_key
+		order by field1;
+}
 
 #
 # nulls_equal use-case
@@ -261,16 +268,18 @@ select t from t12 group by c;
 
 #
 # complex queries resulting in multiple intrinsic temporary tables 
-select count(outr.col_varchar_nokey) AS x
-	from t13 as outr2 left join
+if (!`select @@innodb_create_intrinsic`) { 
+	select count(outr.col_varchar_nokey) AS x
+		from t13 as outr2 left join
 		(select * from t13) as outr
-			on (outr2.col_time_key > outr.col_date_key) 
-	where outr.pk in
+		on (outr2.col_time_key > outr.col_date_key) 
+		where outr.pk in
 		(select innr.col_int_nokey AS y from
-		(select * from t14) as innr2 left join
-		(select * from t14) AS innr
-			ON (innr2.col_int_nokey = innr.col_int_key) 
-		where innr.col_varchar_nokey > innr.col_varchar_key
-		or not outr.pk > 9)
-	or outr.col_varchar_key is null;
+		 (select * from t14) as innr2 left join
+		 (select * from t14) AS innr
+		 ON (innr2.col_int_nokey = innr.col_int_key) 
+		 where innr.col_varchar_nokey > innr.col_varchar_key
+		 or not outr.pk > 9)
+		or outr.col_varchar_key is null;
+}
 
