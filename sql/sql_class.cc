@@ -4055,7 +4055,7 @@ extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen)
   mysql_mutex_lock(&thd->LOCK_thd_query);
   LEX_CSTRING query_string= thd->query();
   size_t len= MY_MIN(buflen - 1, query_string.length);
-  my_stpncpy(buf, query_string.str, len);
+  strncpy(buf, query_string.str, len);
   buf[len]= '\0';
   mysql_mutex_unlock(&thd->LOCK_thd_query);
   return len;
