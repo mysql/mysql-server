@@ -4902,7 +4902,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
     thd->set_time(&when);
-    thd->set_query_and_id(query_arg, q_len_arg, next_query_id());
+    thd->set_query(query_arg, q_len_arg);
+    thd->set_query_id(next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     attach_temp_tables_worker(thd, rli);
     DBUG_PRINT("query",("%s", thd->query().str));
@@ -4961,7 +4962,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             Note, there is a small flaw here. For a very short time frame
             if the new charset is different from the old charset and
             if another thread executes "SHOW PROCESSLIST" after
-            the above thd->set_query_and_id() and before this thd->set_query(),
+            the above thd->set_query() and before this thd->set_query(),
             and if the current query has some non-ASCII characters,
             the another thread may see some '?' marks in the PROCESSLIST
             result. This should be acceptable now. This is a reminder
