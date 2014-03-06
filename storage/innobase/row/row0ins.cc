@@ -3590,6 +3590,7 @@ row_ins_step(
 	node = static_cast<ins_node_t*>(thr->run_node);
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_INSERT);
+	ut_ad(!dict_table_is_intrinsic(node->table));
 
 	parent = que_node_get_parent(node);
 	sel_node = node->select;
@@ -3608,10 +3609,8 @@ row_ins_step(
 	table during the search operation, and there is no need to set
 	it again here. But we must write trx->id to node->trx_id_buf. */
 
-	if (!dict_table_is_intrinsic(node->table)) {
-		memset(node->trx_id_buf, 0, DATA_TRX_ID_LEN);
-		trx_write_trx_id(node->trx_id_buf, trx->id);
-	}
+	memset(node->trx_id_buf, 0, DATA_TRX_ID_LEN);
+	trx_write_trx_id(node->trx_id_buf, trx->id);
 
 	if (node->state == INS_NODE_SET_IX_LOCK) {
 
