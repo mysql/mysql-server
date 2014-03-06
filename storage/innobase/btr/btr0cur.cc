@@ -1512,8 +1512,8 @@ func_exit:
 }
 
 /** Searches an index tree and positions a tree cursor on a given level.
-This function will avoid placing latches the travesal path and so
-should be used only for cases where-in latching is not needed.
+This function will avoid latching the traversal path and so should be
+used only for cases where-in latching is not needed.
 
 @param[in/out]	index	index
 @param[in]	level	the tree level of search
@@ -3494,6 +3494,7 @@ btr_cur_optimistic_update(
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(btr_page_get_index_id(page) == index->id);
+	ut_ad(!dict_table_is_intrinsic(index->table));
 
 	*offsets = rec_get_offsets(rec, index, *offsets,
 				   ULINT_UNDEFINED, heap);
@@ -3642,8 +3643,7 @@ any_extern:
 
 	page_cur_move_to_prev(page_cursor);
 
-	if (!(flags & BTR_KEEP_SYS_FLAG)
-	    && !dict_table_is_intrinsic(index->table)) {
+	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -3784,8 +3784,7 @@ btr_cur_pessimistic_update(
 
 	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
 					MTR_MEMO_X_LOCK |
-					MTR_MEMO_SX_LOCK)
-	      || dict_table_is_intrinsic(cursor->index->table));
+					MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
@@ -3873,8 +3872,7 @@ btr_cur_pessimistic_update(
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, entry_heap);
-	if (!(flags & BTR_KEEP_SYS_FLAG)
-	    && !dict_table_is_intrinsic(index->table)) {
+	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -3892,8 +3890,7 @@ btr_cur_pessimistic_update(
 
 		ut_ad(big_rec_vec == NULL);
 		ut_ad(dict_index_is_clust(index));
-		ut_ad(thr_get_trx(thr)->in_rollback
-		      || dict_table_is_intrinsic(index->table));
+		ut_ad(thr_get_trx(thr)->in_rollback);
 
 		btr_rec_free_updated_extern_fields(
 			index, rec, page_zip, *offsets, update, true, mtr);
@@ -3995,8 +3992,7 @@ btr_cur_pessimistic_update(
 		if (!srv_read_only_mode
 		    && !big_rec_vec
 		    && page_is_leaf(page)
-		    && !dict_index_is_online_ddl(index)
-		    && !dict_table_is_intrinsic(index->table)) {
+		    && !dict_index_is_online_ddl(index)) {
 
 			mtr_memo_release(mtr, dict_index_get_lock(index),
 					 MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK);

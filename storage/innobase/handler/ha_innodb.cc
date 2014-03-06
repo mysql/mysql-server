@@ -1336,10 +1336,11 @@ bool
 thd_is_ins_sel_stmt(THD* user_thd)
 {
 	/* If the session involves use of intrinsic table
-	and it is trying to fetch the result from some other tables
-	it indicates "insert .... select" statement. For normal table
-	this is verifed using the locked tables count but for intrinsic
-	table as external_lock is not invoked this count is not updated.
+	and it is trying to fetch the result from non-temporary tables
+	it indicates "insert .... select" statement. For non-temporary
+	table this is verifed using the locked tables count but for
+	intrinsic table as external_lock is not invoked this count is
+	not updated.
 
 	Why is this needed ?
 	Use of AHI is blocked if statement is insert .... select statement. */

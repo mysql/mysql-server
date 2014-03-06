@@ -1268,11 +1268,10 @@ btr_page_reorganize_low(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	if (!recovery) {
-		if (!dict_table_is_intrinsic(index->table)) {
-			/* Update the record lock bitmaps */
-			lock_move_reorganize_page(block, temp_block);
-		}
+	/* No locks are acquried for intrinsic tables. */
+	if (!recovery && !dict_table_is_intrinsic(index->table)) {
+		/* Update the record lock bitmaps */
+		lock_move_reorganize_page(block, temp_block);
 	}
 #endif /* !UNIV_HOTBACKUP */
 

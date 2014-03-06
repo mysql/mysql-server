@@ -1038,17 +1038,17 @@ btr_search_drop_page_hash_index(
 	ulint*			offsets;
 	btr_search_t*		info;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
-
 	/* Do a dirty check on block->index, return if the block is
 	not in the adaptive hash index. This is to avoid acquiring
 	shared btr_search_latch for performance consideration. */
 	if (!block->index || block->index->disable_ahi) {
 		return;
 	}
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
+#endif /* UNIV_SYNC_DEBUG */
 
 retry:
 	rw_lock_s_lock(&btr_search_latch);
@@ -1457,6 +1457,8 @@ btr_search_move_or_delete_hash_entries(
 		ut_ad(dict_table_is_intrinsic(index->table));
 		return;
 	}
+
+	ut_ad(!dict_table_is_intrinsic(index->table));
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
