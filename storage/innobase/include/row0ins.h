@@ -100,10 +100,9 @@ row_ins_clust_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread or NULL */
 	__attribute__((nonnull, warn_unused_result));
 /***************************************************************//**
-Tried to insert an entry into clustered index.
 This is a specialized function meant for direct insertion to
 auto-generated clustered index based on cached position from
-last successful insert.
+last successful insert. To be used when data is sorted.
 
 @param[in]	flags	undo logging and locking flags
 @param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
