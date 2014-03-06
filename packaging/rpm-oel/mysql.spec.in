@@ -857,7 +857,7 @@ fi
 
 %changelog
 * Thu Mar 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.17-2
-- Resolve confict issues during upgrade
+- Resolve conflict issues during upgrade
 
 * Fri Feb 07 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.17-1
 - 5.6.17
