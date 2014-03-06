@@ -376,11 +376,6 @@ extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
 
-#ifndef HAVE_ATOMIC_BUILTINS
-/** Mutex protecting some server global variables. */
-extern ib_mutex_t	server_mutex;
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 #define SRV_MAX_N_IO_THREADS	130
 
 /* Array of English strings describing the current state of an
