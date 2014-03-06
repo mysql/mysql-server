@@ -3,9 +3,10 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-# # There are result differences when run with query cache
-# For now skip the test if query cache is ON
+# This test can't be run with query cache ON. It heavily
+# relies on the exact way in which statements are executed.
 --source include/have_query_cache_disabled.inc
+
 # 
 #
 # Important note:
