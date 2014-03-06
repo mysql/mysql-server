@@ -1314,7 +1314,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       THD_STAGE_INFO(thd, stage_starting);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
-      thd->set_query_and_id(beginning_of_next_stmt, length, next_query_id());
+      thd->set_query(beginning_of_next_stmt, length);
+      thd->set_query_id(next_query_id());
       /*
         Count each statement from the client.
       */
