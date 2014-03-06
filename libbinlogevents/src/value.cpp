@@ -25,7 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <stdlib.h>
 #include <cstring>
 #include <sstream>
-#include <stdint.h>
 #include <string.h>
 
 using namespace binary_log;
