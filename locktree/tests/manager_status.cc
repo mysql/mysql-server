@@ -112,8 +112,7 @@ static void assert_status(LTM_STATUS ltm_status, const char *keyname, uint64_t v
 }
 
 void manager_unit_test::test_status(void) {
-
-    locktree::manager mgr;
+    locktree_manager mgr;
     mgr.create(nullptr, nullptr, nullptr, nullptr);
 
     LTM_STATUS_S status;

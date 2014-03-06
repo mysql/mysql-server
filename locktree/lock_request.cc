@@ -338,7 +338,7 @@ int lock_request::retry(void) {
 }
 
 void lock_request::retry_all_lock_requests(locktree *lt) {
-    locktree::lt_lock_request_info *info = lt->get_lock_request_info();
+    lt_lock_request_info *info = lt->get_lock_request_info();
 
     // if a thread reads this bit to be true, then it should go ahead and
     // take the locktree mutex and retry lock requests. we use this bit

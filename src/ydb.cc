@@ -2348,7 +2348,7 @@ env_iterate_pending_lock_requests(DB_ENV *env,
         return EINVAL;
     }
 
-    toku::locktree::manager *mgr = &env->i->ltm;
+    toku::locktree_manager *mgr = &env->i->ltm;
     ltm_iterate_requests_callback_extra e(env, callback, extra);
     return mgr->iterate_pending_lock_requests(ltm_iterate_requests_callback, &e);
 }

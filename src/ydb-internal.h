@@ -150,7 +150,7 @@ struct __toku_db_env_internal {
     unsigned long cachetable_size;
     CACHETABLE cachetable;
     TOKULOGGER logger;
-    toku::locktree::manager ltm;
+    toku::locktree_manager ltm;
     lock_timeout_callback lock_wait_timeout_callback;   // Called when a lock request times out waiting for a lock.
 
     DB *directory;                                      // Maps dnames to inames
@@ -189,7 +189,7 @@ struct __toku_db_env_internal {
 
 // test-only environment function for running lock escalation
 static inline void toku_env_run_lock_escalation_for_test(DB_ENV *env) {
-    toku::locktree::manager *mgr = &env->i->ltm;
+    toku::locktree_manager *mgr = &env->i->ltm;
     mgr->run_escalation_for_test();
 }
 
