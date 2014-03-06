@@ -106,7 +106,9 @@ inline const void* bapi_memdup(const void* source, size_t len)
   allocating methods from the mysys library, my_malloc is called. Otherwise,
   the standard malloc() is called from the function.
 
-  @param  Size of the memory to be allocated.
+  @param size         Size of the memory to be allocated.
+  @param key_to_int   A mapping from the PSI_memory_key to an enum
+  @param flags        flags to pass to MySQL server my_malloc functions
   @return Void pointer to the allocated chunk of memory
 */
 inline void * bapi_malloc(size_t size, enum PSI_memory_key_to_int key_to_int=

@@ -2109,7 +2109,7 @@ private:
            B_l:A_B_E  Log_event
                 \         /
                  \       /
-             <<v>>\     /
+           <<vir>>\     /
                    \   /
            Append_block_log_event
   B_l: Namespace Binary_log
@@ -2613,7 +2613,7 @@ private:
                |
          Rows_event  Log_event
                 \       /
-	    <<v>>\     /
+          <<vir>>\     /
                   \   /
               Rows_log_event
   @endinternal

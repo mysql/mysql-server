@@ -22,10 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "transitional_methods.h"
 #include <cassert>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <stdint.h>
-#include <string.h>
 
 const unsigned char checksum_version_split[3]= {5, 6, 1};
 const unsigned long checksum_version_product=
@@ -278,8 +275,8 @@ Log_event_header(const char* buf, uint16_t binlog_version)
                            checksum alg
   @param   alg             checksum algorithm used for the binary log
 
-  @retval  TRUE            if test fails
-  @retval  FALSE           as success
+  @retval  true            if test fails
+  @retval  false           as success
 */
 bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
                                            unsigned long event_len,
@@ -565,9 +562,9 @@ unsigned long Format_description_event::get_product_version() const
    This method checks the MySQL version to determine whether checksums may be
    present in the events contained in the bainry log.
 
-   @retval TRUE  if the event's version is earlier than one that introduced
+   @retval true  if the event's version is earlier than one that introduced
                  the replication event checksum.
-   @retval FALSE otherwise.
+   @retval false otherwise.
 */
 bool Format_description_event::is_version_before_checksum() const
 {
