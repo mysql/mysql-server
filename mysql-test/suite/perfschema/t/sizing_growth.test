@@ -2,6 +2,11 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+
+# # There are result differences when run with query cache
+# For now skip the test if query cache is ON
+--source include/have_query_cache_disabled.inc
+# 
 #
 # Important note:
 # this test is extremely sensitive to how threads are running inside the server,

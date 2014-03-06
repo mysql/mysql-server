@@ -6758,7 +6758,7 @@ bool Item_null::send(Protocol *protocol, String *packet)
 
 bool Item::send(Protocol *protocol, String *buffer)
 {
-  bool UNINIT_VAR(result);                       // Will be set if null_value == 0
+  bool result= false;                       // Will be set if null_value == 0
   enum_field_types f_type;
 
   switch ((f_type=field_type())) {

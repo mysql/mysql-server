@@ -6467,14 +6467,12 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   List_iterator_fast<Natural_join_column>
     field_it(*(table_ref->join_columns));
   Natural_join_column *nj_col, *curr_nj_col;
-  Field *found_field;
+  Field *found_field= NULL;
   DBUG_ENTER("find_field_in_natural_join");
   DBUG_PRINT("enter", ("field name: '%s', ref 0x%lx",
 		       name, (ulong) ref));
   DBUG_ASSERT(table_ref->is_natural_join && table_ref->join_columns);
   DBUG_ASSERT(*actual_table == NULL);
-
-  LINT_INIT(found_field);
 
   for (nj_col= NULL, curr_nj_col= field_it++; curr_nj_col; 
        curr_nj_col= field_it++)

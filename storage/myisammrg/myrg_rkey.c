@@ -39,9 +39,9 @@
 int myrg_rkey(MYRG_INFO *info,uchar *buf,int inx, const uchar *key,
             key_part_map keypart_map, enum ha_rkey_function search_flag)
 {
-  uchar *UNINIT_VAR(key_buff);
-  uint UNINIT_VAR(pack_key_length);
-  uint16 UNINIT_VAR(last_used_keyseg);
+  uchar *key_buff= NULL;
+  uint pack_key_length= 0;
+  uint16 last_used_keyseg= 0;
   MYRG_TABLE *table;
   MI_INFO *mi;
   int err;

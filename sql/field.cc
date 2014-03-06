@@ -2123,16 +2123,16 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
     Pointers used when digits move from the left of the '.' to the
     right of the '.' (explained below)
   */
-  const uchar *UNINIT_VAR(int_digits_tail_from);
+  const uchar *int_digits_tail_from= NULL;
   /* Number of 0 that need to be added at the left of the '.' (1E3: 3 zeros) */
-  uint UNINIT_VAR(int_digits_added_zeros);
+  uint int_digits_added_zeros= 0;
   /*
     Pointer used when digits move from the right of the '.' to the left
     of the '.'
   */
-  const uchar *UNINIT_VAR(frac_digits_head_end);
+  const uchar *frac_digits_head_end= NULL;
   /* Number of 0 that need to be added at the right of the '.' (for 1E-3) */
-  uint UNINIT_VAR(frac_digits_added_zeros);
+  uint frac_digits_added_zeros= 0;
   uchar *pos,*tmp_left_pos,*tmp_right_pos;
   /* Pointers that are used as limits (begin and end of the field buffer) */
   uchar *left_wall,*right_wall;
@@ -10292,8 +10292,8 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  TYPELIB *interval,
 		  const char *field_name)
 {
-  uchar *UNINIT_VAR(bit_ptr);
-  uchar UNINIT_VAR(bit_offset);
+  uchar *bit_ptr= NULL;
+  uchar bit_offset= 0;
   if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
   {
     bit_ptr= null_pos;

@@ -554,8 +554,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
   int result= 0;
   uint idx;
   uint elements;
-  const char *user;
-  const char *host;
+  const char *user= NULL;
+  const char *host= NULL;
   ACL_USER *acl_user= NULL;
   ACL_DB *acl_db= NULL;
   ACL_PROXY_USER *acl_proxy_user= NULL;
@@ -569,9 +569,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
-
-  LINT_INIT(user);
-  LINT_INIT(host);
 
   mysql_mutex_assert_owner(&acl_cache->lock);
 

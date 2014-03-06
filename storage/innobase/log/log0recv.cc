@@ -123,9 +123,6 @@ static ulint	recv_previous_parsed_rec_offset;
 /** The 'multi' flag of the previous parsed redo log record */
 static ulint	recv_previous_parsed_rec_is_multi;
 
-/** Maximum page number encountered in the redo log */
-ulint	recv_max_parsed_page_no;
-
 /** This many frames must be left free in the buffer pool when we scan
 the log and store the scanned log records in the buffer pool: we will
 use these free frames to read in pages when we start applying the
@@ -267,8 +264,6 @@ recv_sys_var_init(void)
 
 	recv_previous_parsed_rec_is_multi = 0;
 
-	recv_max_parsed_page_no	= 0;
-
 	recv_n_pool_free_frames	= 256;
 
 	recv_max_page_lsn = 0;
@@ -399,10 +394,9 @@ recv_sys_empty_hash(void)
 
 	if (recv_sys->n_addrs != 0) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"%lu pages with log records were left unprocessed!"
-			" Maximum page number with log records on it is %lu",
-			(ulong) recv_sys->n_addrs,
-			(ulong) recv_max_parsed_page_no);
+			ULINTPF
+			" pages with log records were left unprocessed!",
+			recv_sys->n_addrs);
 	}
 
 	hash_table_free(recv_sys->addr_hash);
@@ -2006,10 +2000,6 @@ recv_parse_log_rec(
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
 		return(0);
-	}
-
-	if (*page_no > recv_max_parsed_page_no) {
-		recv_max_parsed_page_no = *page_no;
 	}
 
 	return(new_ptr - ptr);
