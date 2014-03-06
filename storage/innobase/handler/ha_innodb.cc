@@ -7309,12 +7309,8 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		if (srv_stats.n_rows_read.is_fast()) {
-			srv_stats.n_rows_read.inc();
-		} else {
-			srv_stats.n_rows_read.add(
-				thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
-		}
+		srv_stats.n_rows_read.add(
+			thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -7576,12 +7572,8 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		if (srv_stats.n_rows_read.is_fast()) {
-			srv_stats.n_rows_read.inc();
-		} else {
-			srv_stats.n_rows_read.add(
-				thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
-		}
+		srv_stats.n_rows_read.add(
+			thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
