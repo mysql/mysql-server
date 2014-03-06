@@ -87,6 +87,12 @@ dict_hdr_get_new_id(
 	if (table) {
 		dict_disable_redo_if_temporary(table, &mtr);
 	} else if (disable_redo) {
+		/* In non-read-only mode we need to ensure that space-id header
+		page is written to disk else if page is removed from buffer
+		cache and re-loaded it would assign temporary tablespace id
+		to another tablespace.
+		This is not a case with read-only mode as there is no new object
+		that is created except temporary tablespace. */
 		mtr_set_log_mode(&mtr,
 			(srv_read_only_mode ? MTR_LOG_NONE : MTR_LOG_NO_REDO));
 	}
