@@ -82,7 +82,9 @@ drop table t1;
 #
 # 3. Run different types of queries on intrinsic table.
 #
+--disable_query_log
 --source suite/innodb/include/create_workload_itt.inc
+--enable_query_log
 --source suite/innodb/include/query_workload_itt.inc
 --source suite/innodb/include/drop_workload_itt.inc
 
