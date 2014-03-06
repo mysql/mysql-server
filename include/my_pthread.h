@@ -346,7 +346,6 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
                         const struct timespec *abstime,
                         const char *file, uint line);
 void safe_mutex_global_init(void);
-void safe_mutex_end(FILE *file);
 
 	/* Wrappers if safe mutex is actually used */
 #ifdef SAFE_MUTEX
