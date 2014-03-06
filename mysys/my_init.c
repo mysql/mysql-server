@@ -199,14 +199,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 
   my_thread_end();
   my_thread_global_end();
-#if defined(SAFE_MUTEX)
-  /*
-    Check on destroying of mutexes. A few may be left that will get cleaned
-    up by C++ destructors
-  */
-  safe_mutex_end((infoflag & (MY_GIVE_INFO | MY_CHECK_ERROR)) ? stderr :
-                 (FILE *) 0);
-#endif /* defined(SAFE_MUTEX) */
 
 #ifdef _WIN32
   if (have_tcpip)
