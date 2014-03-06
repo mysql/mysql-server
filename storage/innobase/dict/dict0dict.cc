@@ -4786,7 +4786,7 @@ dict_foreign_parse_drop_constraints(
 	*constraints_to_drop = static_cast<const char**>(
 		mem_heap_alloc(heap, 1000 * sizeof(char*)));
 
-	ptr = innobase_get_stmt(trx->mysql_thd, &len);
+	ptr = innobase_get_stmt_unsafe(trx->mysql_thd, &len);
 
 	str = dict_strip_comments(ptr, len);
 

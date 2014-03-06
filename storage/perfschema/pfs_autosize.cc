@@ -37,7 +37,7 @@ static const ulong fixed_file_instances= 200;
 static const ulong fixed_socket_instances= 10;
 static const ulong fixed_thread_instances= 50;
 
-static const ulong mutex_per_connection= 3;
+static const ulong mutex_per_connection= 5;
 static const ulong rwlock_per_connection= 1;
 static const ulong cond_per_connection= 2;
 static const ulong file_per_connection= 0;
