@@ -3530,6 +3530,9 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   { 
     conds->update_used_tables();
     conds= remove_eq_conds(join->thd, conds, &join->cond_value);
+    if (conds && conds->type() == Item::COND_ITEM &&
+        ((Item_cond*) conds)->functype() == Item_func::COND_AND_FUNC)
+      join->cond_equal= &((Item_cond_and*) conds)->cond_equal;
     join->select_lex->where= conds;
     if (join->cond_value == Item::COND_FALSE)
     {
@@ -13228,7 +13231,10 @@ optimize_cond(JOIN *join, COND *conds,
       Remove all and-levels where CONST item != CONST item
     */
     DBUG_EXECUTE("where",print_where(conds,"after const change", QT_ORDINARY););
-    conds= remove_eq_conds(thd, conds, cond_value) ;
+    conds= remove_eq_conds(thd, conds, cond_value);
+    if (conds && conds->type() == Item::COND_ITEM &&
+        ((Item_cond*) conds)->functype() == Item_func::COND_AND_FUNC)
+      join->cond_equal= &((Item_cond_and*) conds)->cond_equal;
     DBUG_EXECUTE("info",print_where(conds,"after remove", QT_ORDINARY););
   }
   DBUG_RETURN(conds);
