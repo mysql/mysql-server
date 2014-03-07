@@ -2441,10 +2441,6 @@ class Ndb_schema_event_handler {
                 uint32 table_id, uint32 table_version)
   {
     DBUG_ENTER("ack_schema_op");
-    if (!ndb_schema_share)
-    {
-      DBUG_RETURN(0);
-    }
 
     const NdbError *ndb_error= 0;
     Ndb *ndb= check_ndb_in_thd(m_thd);
