@@ -722,7 +722,7 @@ static void
 executeCallback(int result, NdbConnection* NdbObject, void* aObject)
 {
   NdbConnection **array_ref = (NdbConnection**)aObject;
-  assert(NdbObject == *array_ref);
+  require(NdbObject == *array_ref);
   *array_ref = NULL;
   if (result == -1 && failed < 100)
   {
@@ -921,7 +921,7 @@ defineNdbRecordOperation(char *record,
     abort();
   }
     
-  assert(op != 0);
+  require(op != 0);
 }
 
 static void setAttrNames()
@@ -1114,7 +1114,7 @@ createTables(Ndb* pMyNdb){
 	  pDict->createRecord(pTab, spec.getBase(), 
 			      spec.size(),
 			      sizeof(NdbDictionary::RecordSpecification));
-      assert(g_record[i]);
+      require(g_record[i]);
     }
   }
   return 0;
@@ -1502,7 +1502,7 @@ insert_list(KEY_LIST_HEADER *list_header,
 static KEY_OPERATION*
 get_first_free(KEY_LIST_HEADER *list_header)
 {
-  assert(list_header->first_in_list);
+  require(list_header->first_in_list);
   KEY_OPERATION *key_op = list_header->first_in_list;
   list_header->first_in_list = key_op->next_key_op;
   list_header->num_in_list--;

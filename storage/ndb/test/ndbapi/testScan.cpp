@@ -1586,7 +1586,7 @@ int runScanReadIndexWithBounds(NDBT_Context* ctx, NDBT_Step* step){
             << ", read " << rows << endl;
 #ifdef BUG_14388257_FIXED
       trans->close();
-      assert(false);
+      require(false);
       return NDBT_FAILED;
 #endif
     }

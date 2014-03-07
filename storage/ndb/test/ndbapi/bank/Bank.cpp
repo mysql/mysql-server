@@ -1050,7 +1050,7 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
 	withdrawalSum += amount;
 	balance -= amount;
       } else {	  
-	assert(transType == Deposit);
+	require(transType == Deposit);
 	depositCount++;
 	depositSum += amount;
 	balance += amount;
@@ -1277,7 +1277,7 @@ int Bank::performValidateGL(Uint64 glTime){
 	    }	  
 
       } else {
-	assert(purged == 1);
+	require(purged == 1);
 	// If purged == 1 then there should be NO transactions with 
 	// TIME == glTime and ACCOUNT_TYPE == account_type
 	

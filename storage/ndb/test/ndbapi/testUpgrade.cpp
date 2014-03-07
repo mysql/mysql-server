@@ -1020,7 +1020,7 @@ runBug14702377(NDBT_Context* ctx, NDBT_Step* step)
 
   while (1)
   {
-    assert(table_list.size() == 1);
+    require(table_list.size() == 1);
     const char* tabname = table_list[0].c_str();
     const NdbDictionary::Table* tab = 0;
     CHK2((tab = pDict->getTable(tabname)) != 0,
@@ -1051,7 +1051,7 @@ runBug14702377(NDBT_Context* ctx, NDBT_Step* step)
       for (int id = 0; id <= 0; id++)
       {
         const NdbDictionary::Column* c = tab->getColumn(id);
-        assert(c != 0 && c->getPrimaryKey() &&
+        require(c != 0 && c->getPrimaryKey() &&
                c->getType() == NdbDictionary::Column::Unsigned);
         Uint32 val = myRandom48(records);
         if (!exist)
@@ -1064,7 +1064,7 @@ runBug14702377(NDBT_Context* ctx, NDBT_Step* step)
       for (int id = 0; id < nval; id++)
       {
         const NdbDictionary::Column* c = tab->getColumn(id);
-        assert(c != 0 && (id == 0 || !c->getPrimaryKey()));
+        require(c != 0 && (id == 0 || !c->getPrimaryKey()));
         CHK2(pOp->getValue(id) != 0, pOp->getNdbError());
       }
       CHK2(result == NDBT_OK, "failed");

@@ -784,7 +784,7 @@ void* RuntimeCallContext(void* lpParam)
 
             if(g_bReport)
             {
-              assert(lMillisecForThisTrans>=0 && lMillisecForThisTrans<c_nMaxMillisecForAllTrans);
+              require(lMillisecForThisTrans>=0 && lMillisecForThisTrans<c_nMaxMillisecForAllTrans);
               InterlockedIncrement(g_plCountMillisecForTrans+lMillisecForThisTrans);
             }
 
@@ -816,7 +816,7 @@ void* RuntimeCallContext(void* lpParam)
 
         if(g_bReport)
         {
-          assert(lMillisecForThisCall>=0 && lMillisecForThisCall<c_nMaxMillisecForAllCall);
+          require(lMillisecForThisCall>=0 && lMillisecForThisCall<c_nMaxMillisecForAllCall);
           InterlockedIncrement(g_plCountMillisecForCall+lMillisecForThisCall);
         }
 

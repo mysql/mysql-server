@@ -16,7 +16,6 @@
 */
 
 #include <new>
-#include <assert.h>
 #include <mysql.h>
 #include <mysqld_error.h>
 
@@ -34,12 +33,6 @@
  - Add another table type (e.g. with CHAR() fields.)
 */
 
-#ifdef NDEBUG
-// Some asserts have side effects, and there is no other error handling anyway.
-#define ASSERT_ALWAYS(cond) if(!(cond)){abort();}
-#else
-#define ASSERT_ALWAYS assert
-#endif
 /* Query-related error codes. Used for negative testing. */
 #define QRY_REQ_ARG_IS_NULL 4800
 #define QRY_TOO_FEW_KEY_VALUES 4801
@@ -156,7 +149,7 @@ namespace SPJSanityTest{
 
     NdbConstOperand* makeConstOperand(NdbQueryBuilder& builder, 
                                       int fieldNo) const {
-      ASSERT_ALWAYS(fieldNo<size);
+      require(fieldNo<size);
       //return builder.constValue(m_values[fieldNo]);
       return builder.constValue(m_values[fieldNo].getValue());
     }
@@ -207,8 +200,8 @@ namespace SPJSanityTest{
     GenericKey<FieldType> getForeignKey(int keyNo) const;
 
     void makeLessThanCond(NdbScanFilter& scanFilter){
-      //ASSERT_ALWAYS(scanFilter.lt(0, m_values[0].getValue())==0); 
-      ASSERT_ALWAYS(scanFilter.cmp(NdbScanFilter::COND_LT, 0, m_values, m_values[0].getSize())==0); 
+      //require(scanFilter.lt(0, m_values[0].getValue())==0); 
+      require(scanFilter.cmp(NdbScanFilter::COND_LT, 0, m_values, m_values[0].getSize())==0); 
     }
 
     /** Get the row column number that corresponds to the n'th column 
@@ -236,7 +229,7 @@ namespace SPJSanityTest{
 
   template <typename FieldType>
   GenericKey<FieldType> GenericRow<FieldType>::getForeignKey(int keyNo) const {
-    ASSERT_ALWAYS(keyNo<=1);
+    require(keyNo<=1);
     GenericKey<FieldType> key;
     for(int i = 0; i<GenericKey<FieldType>::size; i++){
       key.m_values[i] = m_values[getForeignKeyColNo(keyNo,i)];    
@@ -251,8 +244,8 @@ namespace SPJSanityTest{
 
   template <typename FieldType>
   int GenericRow<FieldType>::getForeignKeyColNo(int keyNo, int keyCol){
-    ASSERT_ALWAYS(keyNo<GenericRow<FieldType>::size-GenericKey<FieldType>::size);
-    ASSERT_ALWAYS(keyCol<GenericKey<FieldType>::size);
+    require(keyNo<GenericRow<FieldType>::size-GenericKey<FieldType>::size);
+    require(keyCol<GenericKey<FieldType>::size);
     return size-GenericKey<FieldType>::size-keyNo+keyCol;
   }
 
@@ -311,7 +304,7 @@ namespace SPJSanityTest{
     static const char* names[] = {
       "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"
     };
-    ASSERT_ALWAYS(static_cast<unsigned int>(colNo)< sizeof names/sizeof names[0]);
+    require(static_cast<unsigned int>(colNo)< sizeof names/sizeof names[0]);
     return names[colNo];
   };
   
@@ -552,7 +545,7 @@ namespace SPJSanityTest{
     m_tableSize(-1),
     m_ndbRecord(NULL)
   {
-    ASSERT_ALWAYS(m_builder != NULL);
+    require(m_builder != NULL);
   }
 
   void Query::build(const NdbDictionary::Table& tab, int tableSize){
@@ -564,7 +557,7 @@ namespace SPJSanityTest{
 
   void Query::submit(NdbTransaction& transaction){
     m_query = transaction.createQuery(m_queryDef);
-    ASSERT_ALWAYS(m_query!=NULL);
+    require(m_query!=NULL);
     submitOperation(*m_root);
   }
 
@@ -596,7 +589,7 @@ namespace SPJSanityTest{
                                   const NdbDictionary::Table& tab){
     m_operationId = m_query.allocOperationId();
     buildThis(builder, tab);
-    ASSERT_ALWAYS(builder.getNdbError().code==0);
+    require(builder.getNdbError().code==0);
     for(Uint32 i = 0; i<m_children.size(); i++){
       m_children[i]->build(builder, tab);
     }
@@ -622,14 +615,14 @@ namespace SPJSanityTest{
         ndbout << text << " operationId=" << m_operationId
                << " expected NULL but got." << *actual
                << endl;
-        ASSERT_ALWAYS(false);
+        require(false);
       }
     }else{
       if(actual==NULL){
         ndbout << text << " operationId=" << m_operationId
                << " expected: " << *expected
                << " but got NULL." << endl;
-        ASSERT_ALWAYS(false);
+        require(false);
       }else{
         ndbout << text << " operationId=" << m_operationId
                << " expected: " << *expected;
@@ -637,7 +630,7 @@ namespace SPJSanityTest{
           ndbout << " and got it." << endl;
         }else{
           ndbout << " but got: " << *actual;
-          ASSERT_ALWAYS(false);
+          require(false);
         }
       }
     }
@@ -661,16 +654,16 @@ namespace SPJSanityTest{
       }
     }else{
       // Negative testing
-      ASSERT_ALWAYS(builder.linkedValue(m_parent->m_operationDef, 
+      require(builder.linkedValue(m_parent->m_operationDef, 
                                         "unknown_col") == NULL);
-      ASSERT_ALWAYS(builder.getNdbError().code == QRY_UNKNOWN_COLUMN);
+      require(builder.getNdbError().code == QRY_UNKNOWN_COLUMN);
 
       for(int i = 0; i<Key::size; i++){
         keyOperands[i] = 
           builder.linkedValue(m_parent->m_operationDef, 
                               colName(Row::getForeignKeyColNo(
                                         m_childNo, i)));
-        ASSERT_ALWAYS(keyOperands[i]!=NULL);
+        require(keyOperands[i]!=NULL);
         /*Row::makeLinkedKey(builder, keyOperands, 
                          Operation::m_parent->m_operationDef, 
                          Operation::m_childNo);*/
@@ -679,24 +672,24 @@ namespace SPJSanityTest{
     // Negative testing
     keyOperands[Key::size] = keyOperands[0];
     keyOperands[Key::size+1] = NULL;
-    ASSERT_ALWAYS(builder.readTuple(&tab, keyOperands)== NULL);
-    ASSERT_ALWAYS(builder.getNdbError().code == QRY_TOO_MANY_KEY_VALUES);
+    require(builder.readTuple(&tab, keyOperands)== NULL);
+    require(builder.getNdbError().code == QRY_TOO_MANY_KEY_VALUES);
     resetError(builder.getNdbError());
 
     keyOperands[Key::size] = NULL;
     m_operationDef = builder.readTuple(&tab, keyOperands);
-    ASSERT_ALWAYS(m_operationDef != NULL);
+    require(m_operationDef != NULL);
 
     // Negative testing
     keyOperands[Key::size-1] = builder.constValue(0x1fff1fff);
-    ASSERT_ALWAYS(keyOperands[Key::size-1] != NULL);
-    ASSERT_ALWAYS(builder.readTuple(&tab, keyOperands) == NULL);
-    ASSERT_ALWAYS(builder.getNdbError().code == QRY_OPERAND_HAS_WRONG_TYPE);
+    require(keyOperands[Key::size-1] != NULL);
+    require(builder.readTuple(&tab, keyOperands) == NULL);
+    require(builder.getNdbError().code == QRY_OPERAND_HAS_WRONG_TYPE);
 
     // Negative testing
     keyOperands[Key::size-1] = NULL;
-    ASSERT_ALWAYS(builder.readTuple(&tab, keyOperands) == NULL);
-    ASSERT_ALWAYS(builder.getNdbError().code == QRY_TOO_FEW_KEY_VALUES);
+    require(builder.readTuple(&tab, keyOperands) == NULL);
+    require(builder.getNdbError().code == QRY_TOO_FEW_KEY_VALUES);
     resetError(builder.getNdbError());
   }
 
@@ -704,25 +697,25 @@ namespace SPJSanityTest{
     NdbQueryOperation* queryOp 
       = m_query.getOperation(m_operationId);
     // Negative testing
-    ASSERT_ALWAYS(queryOp->setResultRowRef(NULL, 
+    require(queryOp->setResultRowRef(NULL, 
                                            m_resultCharPtr,
                                            NULL) == -1);
-    ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
-                  QRY_REQ_ARG_IS_NULL);
-    ASSERT_ALWAYS(queryOp->setOrdering(NdbQueryOptions::ScanOrdering_ascending)
-                  == -1);
-    ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
-                  QRY_WRONG_OPERATION_TYPE);
+    require(queryOp->getQuery().getNdbError().code == 
+            QRY_REQ_ARG_IS_NULL);
+    require(
+      queryOp->setOrdering(NdbQueryOptions::ScanOrdering_ascending) == -1);
+    require(
+      queryOp->getQuery().getNdbError().code == QRY_WRONG_OPERATION_TYPE);
 
-    ASSERT_ALWAYS(queryOp->setResultRowRef(m_query.getNdbRecord(), 
-                                           m_resultCharPtr,
-                                           NULL) == 0);
+    require(queryOp->setResultRowRef(m_query.getNdbRecord(), 
+                                     m_resultCharPtr,
+                                     NULL) == 0);
     // Negative testing
-    ASSERT_ALWAYS(queryOp->setResultRowRef(m_query.getNdbRecord(), 
-                                           m_resultCharPtr,
-                                           NULL) == -1);
-    ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
-                  QRY_RESULT_ROW_ALREADY_DEFINED);
+    require(queryOp->setResultRowRef(m_query.getNdbRecord(), 
+                                     m_resultCharPtr,
+                                     NULL) == -1);
+    require(queryOp->getQuery().getNdbError().code == 
+            QRY_RESULT_ROW_ALREADY_DEFINED);
   }
 
   void LookupOperation::verifyOwnRow(){
@@ -777,7 +770,7 @@ namespace SPJSanityTest{
     sprintf(fullName, "%s$unique", m_indexName);
     const NdbDictionary::Index* const index
       = dict->getIndex(fullName, tab.getName());
-    ASSERT_ALWAYS(index!=NULL);
+    require(index!=NULL);
 
     NdbQueryOperand* keyOperands[Key::size+1];
     if(m_parent==NULL){
@@ -791,7 +784,7 @@ namespace SPJSanityTest{
           builder.linkedValue(m_parent->m_operationDef,
                               colName(Row::getForeignKeyColNo(
                                         m_childNo, i)));
-        ASSERT_ALWAYS(keyOperands[i]!=NULL);
+        require(keyOperands[i]!=NULL);
       }
       /*Row::makeLinkedKey(builder, keyOperands, 
                          Operation::m_parent->m_operationDef, 
@@ -803,9 +796,9 @@ namespace SPJSanityTest{
     // Negative testing
     const NdbDictionary::Index* const orderedIndex
       = dict->getIndex(m_indexName, tab.getName());
-    ASSERT_ALWAYS(orderedIndex != NULL);
-    ASSERT_ALWAYS(builder.readTuple(orderedIndex, &tab, keyOperands) == NULL);
-    ASSERT_ALWAYS(builder.getNdbError().code == QRY_WRONG_INDEX_TYPE);
+    require(orderedIndex != NULL);
+    require(builder.readTuple(orderedIndex, &tab, keyOperands) == NULL);
+    require(builder.getNdbError().code == QRY_WRONG_INDEX_TYPE);
     resetError(builder.getNdbError());
   }
 
@@ -877,10 +870,10 @@ namespace SPJSanityTest{
     if(m_lessThanRow!=-1){
       NdbInterpretedCode code(queryOp->getQueryOperationDef().getTable());
       NdbScanFilter filter(&code);
-      ASSERT_ALWAYS(filter.begin()==0);
+      require(filter.begin()==0);
       Row(m_lessThanRow).makeLessThanCond(filter);
-      ASSERT_ALWAYS(filter.end()==0);
-      ASSERT_ALWAYS(queryOp->setInterpretedCode(code)==0);
+      require(filter.end()==0);
+      require(queryOp->setInterpretedCode(code)==0);
     }
   }
 
@@ -898,7 +891,7 @@ namespace SPJSanityTest{
           ndbout << "Root table scan operation: " 
                  << *m_resultPtr
                  << "appeared twice." << endl;
-          ASSERT_ALWAYS(false);
+          require(false);
         }
         m_rowFound[i] = true;
       }
@@ -906,7 +899,7 @@ namespace SPJSanityTest{
     if(!found){
       ndbout << "Root table scan operation. Unexpected row: " 
              << *m_resultPtr << endl;
-      ASSERT_ALWAYS(false);
+      require(false);
     }else{
       ndbout << "Root table scan operation. Got row: " 
              << *m_resultPtr
@@ -937,12 +930,12 @@ namespace SPJSanityTest{
       = m_query.getDictionary();
     const NdbDictionary::Index* const index
       = dict->getIndex(m_indexName, tab.getName());
-    ASSERT_ALWAYS(index!=NULL);
+    require(index!=NULL);
 
     const NdbQueryOperand* low[Key::size+1];
     const NdbQueryOperand* high[Key::size+1];
     // Code below assume that we use primary key index.
-    ASSERT_ALWAYS(strcmp(m_indexName, "PRIMARY")==0);
+    require(strcmp(m_indexName, "PRIMARY")==0);
     /* Tables are alway sorted on all columns. Using these bounds,
      we therefore get m_upperBoundRowNo - m_lowerBoundRowNo +1 rows.*/
     const Key& lowKey = *new Key(Row(m_lowerBoundRowNo).getPrimaryKey());
@@ -961,7 +954,7 @@ namespace SPJSanityTest{
     const NdbQueryIndexScanOperationDef* opDef 
       = builder.scanIndex(index, &tab, &bound, &options);
     m_operationDef = opDef;
-    ASSERT_ALWAYS(m_operationDef!=NULL);
+    require(m_operationDef!=NULL);
     m_rowFound = new bool[m_query.getTableSize()];
     for(int i = 0; i<m_query.getTableSize(); i++){
       m_rowFound[i] = false;
@@ -977,14 +970,14 @@ namespace SPJSanityTest{
 
     // Negative testing.
     if (m_ordering != NdbQueryOptions::ScanOrdering_unordered){
-      ASSERT_ALWAYS(queryOp
-                    ->setOrdering(NdbQueryOptions::ScanOrdering_ascending) != 0);
-      ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
-                    QRY_SCAN_ORDER_ALREADY_SET);
+      require(
+        queryOp->setOrdering(NdbQueryOptions::ScanOrdering_ascending) != 0);
+      require(
+        queryOp->getQuery().getNdbError().code == QRY_SCAN_ORDER_ALREADY_SET);
 
-      ASSERT_ALWAYS(queryOp->setParallelism(1) != 0);
-      ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
-                    QRY_SEQUENTIAL_SCAN_SORTED);
+      require(queryOp->setParallelism(1) != 0);
+      require(
+        queryOp->getQuery().getNdbError().code == QRY_SEQUENTIAL_SCAN_SORTED);
     }
   }
 
@@ -998,7 +991,7 @@ namespace SPJSanityTest{
           ndbout << "Root index scan operation: " 
                  << *m_resultPtr
                  << "appeared twice." << endl;
-          ASSERT_ALWAYS(false);
+          require(false);
         }
         m_rowFound[i] = true;
       }
@@ -1006,7 +999,7 @@ namespace SPJSanityTest{
     if(!found){
       ndbout << "Root index scan operation. Unexpected row: " 
              << *m_resultPtr << endl;
-      ASSERT_ALWAYS(false);
+      require(false);
     }else{
       if(m_hasPreviousRow){
         switch(m_ordering){
@@ -1015,7 +1008,7 @@ namespace SPJSanityTest{
             ndbout << "Error in result ordering. Did not expect row "
                    <<  *m_resultPtr
                    << " now." << endl;
-            ASSERT_ALWAYS(false);
+            require(false);
           }
           break;
         case NdbQueryOptions::ScanOrdering_descending:
@@ -1023,13 +1016,13 @@ namespace SPJSanityTest{
             ndbout << "Error in result ordering. Did not expect row "
                    <<  *m_resultPtr
                    << " now." << endl;
-            ASSERT_ALWAYS(false);
+            require(false);
           }
           break;
         case NdbQueryOptions::ScanOrdering_unordered:
           break;
         default:
-          ASSERT_ALWAYS(false);
+          require(false);
         }
       }
       m_hasPreviousRow = true;
@@ -1092,17 +1085,17 @@ namespace SPJSanityTest{
     makeTable(mysql, tabName, tabSize);
     NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
     const NdbDictionary::Table* const tab = dict->getTable(tabName);    
-    ASSERT_ALWAYS(tab!=NULL);
+    require(tab!=NULL);
     // Build generic query definition.
     query.build(*tab, tabSize);
     NdbTransaction* trans = ndb.startTransaction();
-    ASSERT_ALWAYS(trans!=NULL);
+    require(trans!=NULL);
     // instantiate query within transaction.
     query.submit(*trans);
-    ASSERT_ALWAYS(trans->execute(NoCommit)==0);
+    require(trans->execute(NoCommit)==0);
     // Verify each row and total number of rows.
     for(int i = 0; i<rowCount; i++){
-      ASSERT_ALWAYS(query.nextResult() ==  NdbQuery::NextResult_gotRow);
+      require(query.nextResult() ==  NdbQuery::NextResult_gotRow);
       query.verifyRow();
       if(false && i>3){ 
         // Enable to test close of incomplete scan.
@@ -1111,7 +1104,7 @@ namespace SPJSanityTest{
         return;
       }
     }
-    ASSERT_ALWAYS(query.nextResult() ==  NdbQuery::NextResult_scanComplete);
+    require(query.nextResult() ==  NdbQuery::NextResult_scanComplete);
     ndb.closeTransaction(trans);
   }
 
@@ -1216,7 +1209,7 @@ int main(int argc, char* argv[]){
 
   NDB_INIT(argv[0]);
   MYSQL mysql;
-  ASSERT_ALWAYS(mysql_init(&mysql));
+  require(mysql_init(&mysql));
   if(!mysql_real_connect(&mysql, host, "root", "", "",
                          port, NULL, 0)){
     printMySQLError(mysql, "mysql_real_connect() failed:");
