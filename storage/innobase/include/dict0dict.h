@@ -1045,7 +1045,7 @@ dict_make_room_in_cache(
 	ulint		max_tables,	/*!< in: max tables allowed in cache */
 	ulint		pct_check);	/*!< in: max percent to check */
 
-#define BIG_ROW_SIZE	1024 
+#define BIG_ROW_SIZE	1024
 
 /**********************************************************************//**
 Adds an index to the dictionary cache.
