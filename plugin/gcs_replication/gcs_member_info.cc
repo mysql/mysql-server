@@ -18,7 +18,7 @@
 #include "gcs_message.h"
 
 // TODO: work it around
-#include "my_byteorder.h"
+#include "my_global.h"
 
 namespace GCS
 {

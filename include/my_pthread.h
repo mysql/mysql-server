@@ -43,11 +43,6 @@ typedef struct { int dummy; } pthread_condattr_t;
 
 /* Implementation of posix conditions */
 
-typedef struct st_pthread_link {
-  DWORD thread_id;
-  struct st_pthread_link *next;
-} pthread_link;
-
 /**
   Implementation of Windows condition variables.
   We use native conditions as they are available on Vista and later.
@@ -351,7 +346,6 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
                         const struct timespec *abstime,
                         const char *file, uint line);
 void safe_mutex_global_init(void);
-void safe_mutex_end(FILE *file);
 
 	/* Wrappers if safe mutex is actually used */
 #ifdef SAFE_MUTEX
@@ -638,26 +632,6 @@ extern uint my_thread_end_wait_time;
 
 #if defined(_WIN32)
 #define my_winerr my_thread_var->thr_winerr
-#endif
-
-/*
-  thread_safe_xxx functions are for critical statistic or counters.
-  The implementation is guaranteed to be thread safe, on all platforms.
-  Note that the calling code should *not* assume the counter is protected
-  by the mutex given, as the implementation of these helpers may change
-  to use my_atomic operations instead.
-*/
-
-#ifndef thread_safe_increment
-#ifdef _WIN32
-#define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
-#define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
-#else
-#define thread_safe_increment(V,L) \
-        (mysql_mutex_lock((L)), (V)++, mysql_mutex_unlock((L)))
-#define thread_safe_decrement(V,L) \
-        (mysql_mutex_lock((L)), (V)--, mysql_mutex_unlock((L)))
-#endif
 #endif
 
 #ifdef  __cplusplus

@@ -569,7 +569,7 @@ row_upd_write_sys_vals_to_log(
 	trx_write_roll_ptr(log_ptr, roll_ptr);
 	log_ptr += DATA_ROLL_PTR_LEN;
 
-	log_ptr += mach_ull_write_compressed(log_ptr, trx_id);
+	log_ptr += mach_u64_write_compressed(log_ptr, trx_id);
 
 	return(log_ptr);
 }
@@ -582,13 +582,13 @@ Parses the log data of system field values.
 byte*
 row_upd_parse_sys_vals(
 /*===================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	ulint*		pos,	/*!< out: TRX_ID position in record */
 	trx_id_t*	trx_id,	/*!< out: trx id */
 	roll_ptr_t*	roll_ptr)/*!< out: roll ptr */
 {
-	ptr = mach_parse_compressed(ptr, end_ptr, pos);
+	*pos = mach_parse_compressed(&ptr, end_ptr);
 
 	if (ptr == NULL) {
 
@@ -603,9 +603,9 @@ row_upd_parse_sys_vals(
 	*roll_ptr = trx_read_roll_ptr(ptr);
 	ptr += DATA_ROLL_PTR_LEN;
 
-	ptr = mach_ull_parse_compressed(ptr, end_ptr, trx_id);
+	*trx_id = mach_u64_parse_compressed(&ptr, end_ptr);
 
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -690,8 +690,8 @@ Parses the log data written by row_upd_index_write_log.
 byte*
 row_upd_index_parse(
 /*================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	mem_heap_t*	heap,	/*!< in: memory heap where update vector is
 				built */
 	upd_t**		update_out)/*!< out: update vector */
@@ -711,7 +711,7 @@ row_upd_index_parse(
 
 	info_bits = mach_read_from_1(ptr);
 	ptr++;
-	ptr = mach_parse_compressed(ptr, end_ptr, &n_fields);
+	n_fields = mach_parse_compressed(&ptr, end_ptr);
 
 	if (ptr == NULL) {
 
@@ -726,7 +726,7 @@ row_upd_index_parse(
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
 
-		ptr = mach_parse_compressed(ptr, end_ptr, &field_no);
+		field_no = mach_parse_compressed(&ptr, end_ptr);
 
 		if (ptr == NULL) {
 
@@ -735,7 +735,7 @@ row_upd_index_parse(
 
 		upd_field->field_no = field_no;
 
-		ptr = mach_parse_compressed(ptr, end_ptr, &len);
+		len = mach_parse_compressed(&ptr, end_ptr);
 
 		if (ptr == NULL) {
 
@@ -759,7 +759,7 @@ row_upd_index_parse(
 
 	*update_out = update;
 
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1830,27 +1830,27 @@ row_upd_sec_step(
 	row_upd_clust_rec_by_insert_inherit_func(rec,offsets,entry,update)
 #else /* UNIV_DEBUG */
 # define row_upd_clust_rec_by_insert_inherit(rec,offsets,entry,update)	\
-	row_upd_clust_rec_by_insert_inherit_func(entry,update)
+	row_upd_clust_rec_by_insert_inherit_func(rec,entry,update)
 #endif /* UNIV_DEBUG */
 /*******************************************************************//**
 Mark non-updated off-page columns inherited when the primary key is
 updated. We must mark them as inherited in entry, so that they are not
 freed in a rollback. A limited version of this function used to be
 called btr_cur_mark_dtuple_inherited_extern().
-@return TRUE if any columns were inherited */
-static __attribute__((warn_unused_result))
-ibool
+@return whether any columns were inherited */
+static
+bool
 row_upd_clust_rec_by_insert_inherit_func(
 /*=====================================*/
-#ifdef UNIV_DEBUG
 	const rec_t*	rec,	/*!< in: old record, or NULL */
+#ifdef UNIV_DEBUG
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec), or NULL */
 #endif /* UNIV_DEBUG */
 	dtuple_t*	entry,	/*!< in/out: updated entry to be
 				inserted into the clustered index */
 	const upd_t*	update)	/*!< in: update vector */
 {
-	ibool	inherit	= FALSE;
+	bool	inherit	= false;
 	ulint	i;
 
 	ut_ad(!rec == !offsets);
@@ -1898,15 +1898,19 @@ row_upd_clust_rec_by_insert_inherit_func(
 		data += len - BTR_EXTERN_FIELD_REF_SIZE;
 		/* The pointer must not be zero. */
 		ut_a(memcmp(data, field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
-		/* The BLOB must be owned. */
-		ut_a(!(data[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
 
+		/* The BLOB must be owned, unless we are resuming from
+		a lock wait and we already had disowned the BLOB. */
+		ut_a(rec == NULL
+		     || !(data[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
+		data[BTR_EXTERN_LEN] &= ~BTR_EXTERN_OWNER_FLAG;
 		data[BTR_EXTERN_LEN] |= BTR_EXTERN_INHERITED_FLAG;
 		/* The BTR_EXTERN_INHERITED_FLAG only matters in
-		rollback. Purge will always free the extern fields of
-		a delete-marked row. */
+		rollback of a fresh insert (insert_undo log).
+		Purge (operating on update_undo log) will always free
+		the extern fields of a delete-marked row. */
 
-		inherit = TRUE;
+		inherit = true;
 	}
 
 	return(inherit);
@@ -1938,7 +1942,6 @@ row_upd_clust_rec_by_insert(
 	dict_table_t*	table;
 	dtuple_t*	entry;
 	dberr_t		err;
-	ibool		change_ownership	= FALSE;
 	rec_t*		rec;
 	ulint*		offsets			= NULL;
 
@@ -1954,24 +1957,18 @@ row_upd_clust_rec_by_insert(
 
 	entry = row_build_index_entry(node->upd_row, node->upd_ext,
 				      index, heap);
+	ut_ad(dtuple_get_info_bits(entry) == 0);
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
 	switch (node->state) {
 	default:
 		ut_error;
-	case UPD_NODE_INSERT_BLOB:
-		/* A lock wait occurred in row_ins_clust_index_entry() in
-		the previous invocation of this function. Mark the
-		off-page columns in the entry inherited. */
-
-		change_ownership = row_upd_clust_rec_by_insert_inherit(
-			NULL, NULL, entry, node->update);
-		ut_a(change_ownership);
-		/* fall through */
 	case UPD_NODE_INSERT_CLUSTERED:
 		/* A lock wait occurred in row_ins_clust_index_entry() in
 		the previous invocation of this function. */
+		row_upd_clust_rec_by_insert_inherit(
+			NULL, NULL, entry, node->update);
 		break;
 	case UPD_NODE_UPDATE_CLUSTERED:
 		/* This is the first invocation of the function where
@@ -1998,17 +1995,16 @@ err_exit:
 		old record and owned by the new entry. */
 
 		if (rec_offs_any_extern(offsets)) {
-			change_ownership = row_upd_clust_rec_by_insert_inherit(
-				rec, offsets, entry, node->update);
-
-			if (change_ownership) {
+			if (row_upd_clust_rec_by_insert_inherit(
+				    rec, offsets, entry, node->update)) {
 				/* The blobs are disowned here, expecting the
 				insert down below to inherit them.  But if the
 				insert fails, then this disown will be undone
 				when the operation is rolled back. */
 				btr_cur_disown_inherited_fields(
 					btr_cur_get_page_zip(btr_cur),
-					rec, index, offsets, node->update, mtr);
+					rec, index, offsets, node->update,
+					mtr);
 			}
 		}
 
@@ -2030,9 +2026,7 @@ err_exit:
 	err = row_ins_clust_index_entry(
 		index, entry, thr,
 		node->upd_ext ? node->upd_ext->n_ext : 0);
-	node->state = change_ownership
-		? UPD_NODE_INSERT_BLOB
-		: UPD_NODE_INSERT_CLUSTERED;
+	node->state = UPD_NODE_INSERT_CLUSTERED;
 
 	mem_heap_free(heap);
 
@@ -2502,7 +2496,6 @@ row_upd(
 	switch (node->state) {
 	case UPD_NODE_UPDATE_CLUSTERED:
 	case UPD_NODE_INSERT_CLUSTERED:
-	case UPD_NODE_INSERT_BLOB:
 		log_free_check();
 		err = row_upd_clust_step(node, thr);
 

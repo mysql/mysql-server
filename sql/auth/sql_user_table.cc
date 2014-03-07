@@ -28,6 +28,8 @@
 #include "sql_user_table.h"
 #include "sql_authentication.h"
 
+#include "tztime.h"
+#include "sql_time.h"
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -338,7 +340,8 @@ void get_grantor(THD *thd, char *grantor)
   @param new_password_len Length of new password hash
   @param password_field The password field to use 
   @param password_expired Password expiration flag
-
+  @param builtin_plugin Plugin is MySQL server managed
+  @param alter_status LEX structure holding ALTER command details
 
 */
 
@@ -347,7 +350,9 @@ update_user_table(THD *thd, TABLE *table,
                   const char *host, const char *user,
                   const char *new_password, uint new_password_len,
                   enum mysql_user_table_field password_field,
-                  bool password_expired)
+                  bool password_expired,
+		  bool builtin_plugin,
+		  LEX_ALTER *alter_status)
 {
   char user_key[MAX_KEY_LENGTH];
   int error;
@@ -397,12 +402,50 @@ update_user_table(THD *thd, TABLE *table,
     }
   }
 
-  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
+  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED
+      && (!alter_status || alter_status->update_password_expired_column))
   {
-    /* update password_expired if present */
+    /* update password_expired if present and if that 
+       column is to be updated */
     table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store(password_expired ?
                                                            "Y" : "N", 1,
                                                            system_charset_info);
+  }
+
+  /*
+    If we have have updated the password we also update the
+    password last changed field
+  */
+  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED &&
+      !password_expired && builtin_plugin)
+  {
+    /*
+      Calculate time stamp up to seconds elapsed
+      from 1 Jan 1970 00:00:00.
+    */
+    struct timeval password_change_timestamp= thd->query_start_timeval_trunc(0);
+
+    table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->store_timestamp
+      (&password_change_timestamp);
+    table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->set_notnull();
+  }
+
+  /*
+    If password_expired column is not to be updated and only
+    password_lifetime is to be updated
+  */
+  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LIFETIME &&
+      builtin_plugin && (alter_status &&
+      !alter_status->update_password_expired_column))
+  {
+    if (!alter_status->use_default_password_lifetime)
+    {
+      table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->
+        store((longlong) alter_status->expire_after_days, TRUE);
+      table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->set_notnull();
+    }
+    else
+      table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->set_null();
   }
 
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
@@ -429,6 +472,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
+  struct timeval password_change_timestamp= {0, 0};
   DBUG_ENTER("replace_user_table");
 
   mysql_mutex_assert_owner(&acl_cache->lock);
@@ -811,6 +855,24 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N", 1,
                                                              system_charset_info);
     }
+
+    /*
+       if we have a password supplied and plugin is built in we update
+       the password last changed field
+    */
+    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED &&
+        builtin_plugin && (update_password || !old_row_exists))
+    {
+      /*
+        Calculate time stamp up to seconds elapsed
+        from 1 Jan 1970 00:00:00.
+      */
+      password_change_timestamp= thd->query_start_timeval_trunc(0);
+
+      table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->store_timestamp
+	(&password_change_timestamp);
+      table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->set_notnull();
+    }
   }
 
   if (old_row_exists)
@@ -847,6 +909,17 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 end:
   if (!error)
   {
+    /*
+       Convert the time when the password was changed from timeval
+       structure to MYSQL_TIME format, to store it in cache.
+    */
+    MYSQL_TIME password_change_time;
+
+    if (builtin_plugin && (update_password || !old_row_exists))
+      thd->variables.time_zone->gmt_sec_to_TIME(&password_change_time,
+        (my_time_t)password_change_timestamp.tv_sec);
+    else
+      password_change_time.time_type= MYSQL_TIMESTAMP_ERROR;
     acl_cache->clear(1);			// Clear privilege cache
     if (old_row_exists)
       acl_update_user(combo->user.str, combo->host.str,
@@ -858,7 +931,8 @@ end:
 		      &lex->mqh,
 		      rights,
 		      &combo->plugin,
-		      &combo->auth);
+		      &combo->auth,
+                      password_change_time);
     else
       acl_insert_user(combo->user.str, combo->host.str, password, password_len,
 		      lex->ssl_type,
@@ -868,7 +942,8 @@ end:
 		      &lex->mqh,
 		      rights,
 		      &combo->plugin,
-		      &combo->auth);
+		      &combo->auth,
+                      password_change_time);
   }
   DBUG_RETURN(error);
 }

@@ -116,6 +116,7 @@
 #include "opt_trace.h"
 #include "filesort.h"         // filesort_free_buffers
 #include "sql_optimizer.h"    // is_indexed_agg_distinct,field_time_cmp_date
+#include "opt_costmodel.h"
 #include "uniques.h"
 
 using std::min;
@@ -771,11 +772,19 @@ public:
       estimate for range access on this index is too pessimistic.
   */
   enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
-  SEL_TREE(enum Type type_arg) :type(type_arg) {}
-  SEL_TREE() :type(KEY)
+
+  SEL_TREE(enum Type type_arg) :type(type_arg), n_ror_scans(0) {}
+  SEL_TREE() :type(KEY), n_ror_scans(0)
   {
     memset(keys, 0, sizeof(keys));
   }
+  /**
+    Constructor that performs deep-copy of the SEL_ARG trees in
+    'keys[]' and the index merge alternatives in 'merges'.
+
+    @param arg     The SEL_TREE to copy
+    @param param   Parameters for range analysis
+  */
   SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param);
   /*
     Possible ways to read rows using a single index because the
@@ -1119,6 +1128,7 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree)
 
 int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tree)
 {
+  DBUG_ENTER("SEL_IMERGE::or_sel_tree_with_checks");
   for (SEL_TREE** tree = trees;
        tree != trees_next;
        tree++)
@@ -1127,17 +1137,18 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tr
     {
       *tree = tree_or(param, *tree, new_tree);
       if (!*tree)
-        return 1;
+        DBUG_RETURN(1);
       if (((*tree)->type == SEL_TREE::MAYBE) ||
           ((*tree)->type == SEL_TREE::ALWAYS))
-        return 1;
+        DBUG_RETURN(1);
       /* SEL_TREE::IMPOSSIBLE is impossible here */
-      return 0;
+      DBUG_RETURN(0);
     }
   }
 
   /* New tree cannot be combined with any of existing trees. */
-  return or_sel_tree(param, new_tree);
+  const int ret= or_sel_tree(param, new_tree);
+  DBUG_RETURN(ret);
 }
 
 
@@ -1164,17 +1175,21 @@ int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, SEL_IMERGE* im
 }
 
 
-SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
+SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param):
+  Sql_alloc(), n_ror_scans(0)
 {
   keys_map= arg->keys_map;
   type= arg->type;
   for (uint idx= 0; idx < MAX_KEY; idx++)
   {
-    if ((keys[idx]= arg->keys[idx]))
+    if (arg->keys[idx])
     {
+      keys[idx]= arg->keys[idx]->clone_tree(param);
       keys[idx]->use_count++;
       keys[idx]->increment_use_count(1);
     }
+    else 
+      keys[idx]= NULL;
   }
 
   List_iterator<SEL_IMERGE> it(arg->merges);
@@ -1188,6 +1203,14 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
     }
     merges.push_back (merge);
   }
+
+  /*
+    SEL_TREEs are only created by get_mm_tree() (and functions called
+    by get_mm_tree()). Index intersection is checked after
+    get_mm_tree() has constructed all ranges. In other words, there
+    should not be any ROR scans to copy when this ctor is called.
+  */
+  DBUG_ASSERT(n_ror_scans == 0);
 }
 
 
@@ -1365,9 +1388,9 @@ SQL_SELECT::SQL_SELECT() :
 }
 
 
-void SQL_SELECT::cleanup()
+SQL_SELECT::~SQL_SELECT()
 {
-  set_quick(NULL);
+  delete quick;
   if (free_cond)
   {
     free_cond=0;
@@ -1376,12 +1399,6 @@ void SQL_SELECT::cleanup()
   }
   close_cached_file(&file);
   traced_before= false;
-}
-
-
-SQL_SELECT::~SQL_SELECT()
-{
-  cleanup();
 }
 
 #undef index					// Fix for Unixware 7
@@ -1613,6 +1630,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
   in_ror_merged_scan= 1;
+  mrr_flags|= HA_MRR_SORTED;
   if (reuse_handler)
   {
     DBUG_PRINT("info", ("Reusing handler %p", file));
@@ -1621,6 +1639,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
       DBUG_RETURN(1);
     }
     head->column_bitmaps_set(&column_bitmap, &column_bitmap);
+    file->extra(HA_EXTRA_SECONDARY_SORT_ROWID);
     goto end;
   }
 
@@ -1659,6 +1678,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
   free_file= TRUE;
   last_rowid= file->ref;
+  file->extra(HA_EXTRA_SECONDARY_SORT_ROWID);
 
 end:
   /*
@@ -2593,6 +2613,15 @@ static int fill_used_fields_bitmap(PARAM *param)
   return 0;
 }
 
+void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
+{
+  delete quick;
+  DBUG_ASSERT (quick==NULL || quick != new_quick);
+  quick= new_quick;
+  if (head && head->reginfo.join_tab)
+    head->reginfo.join_tab->type=
+      (new_quick ? calc_join_type(new_quick->get_type()) : JT_ALL);
+}
 
 /*
   Test if a key can be used in different ranges
@@ -2674,21 +2703,29 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 		      (ulong) keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
 
-  set_quick(NULL);
+  const Cost_model_server *const cost_model= thd->cost_model();
+  if (quick)
+  {
+    mysql_mutex_lock(&thd->LOCK_query_plan);
+    set_quick(NULL);
+    mysql_mutex_unlock(&thd->LOCK_query_plan);
+  }
   needed_reg.clear_all();
   if (keys_to_use.is_clear_all())
     DBUG_RETURN(0);
   records= head->file->stats.records;
   if (!records)
     records++;					/* purecov: inspected */
-  scan_time= records * ROW_EVALUATE_COST + 1;
+  scan_time= cost_model->row_evaluate_cost(records) + 1;
   const Cost_estimate table_scan_time= head->file->table_scan_cost();
   read_time= table_scan_time.total_cost() + scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
-    read_time= (double) records + scan_time + 1; // Force to use index
-  else if (read_time <= 2.0 && !force_quick_range)
+    read_time= head->cost_model()->io_block_read_cost(records) +
+               scan_time + 1; // Force to use index
+  else if (read_time <= head->cost_model()->io_block_read_cost(2.0) &&
+           !force_quick_range)
     DBUG_RETURN(0);				/* No need for quick select */
 
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -2808,7 +2845,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       const Cost_estimate index_read_time= 
         param.table->file->index_scan_cost(key_for_use, 1, records);
       const double key_read_time= index_read_time.total_cost() +
-                                  records * ROW_EVALUATE_COST;
+                                  cost_model->row_evaluate_cost(records);
 
       bool chosen= false;
       if (key_read_time < read_time)
@@ -2943,8 +2980,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         {
           /* Try creating index_merge/ROR-union scan. */
           SEL_IMERGE *imerge;
-          TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
-          LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
+          TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp= NULL;
           List_iterator_fast<SEL_IMERGE> it(tree->merges);
           Opt_trace_array trace_idx_merge(trace,
                                           "analyzing_index_merge_union",
@@ -2974,10 +3010,12 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     /* If we got a read plan, create a quick select from it. */
     if (best_trp)
     {
+      QUICK_SELECT_I *qck;
       mysql_mutex_lock(&thd->LOCK_query_plan);
       records= best_trp->records;
-      if (!(quick= best_trp->make_quick(&param, TRUE)) || quick->init())
-        set_quick(NULL);
+      if (!(qck= best_trp->make_quick(&param, TRUE)) || qck->init())
+        qck= NULL;
+      set_quick(qck);
       mysql_mutex_unlock(&thd->LOCK_query_plan);
     }
 
@@ -4352,8 +4390,9 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num)
 
       The total cost of reading all needed blocks in one "sweep" is:
 
-      E(n_busy_blocks)*
-       (DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*n_blocks/E(n_busy_blocks)).
+        E(n_busy_blocks) * disk_seek_cost(n_blocks/E(n_busy_blocks))
+
+      This cost estimate is calculated in get_sweep_read_cost().
 
     3. Cost of Unique use is calculated in Unique::get_use_cost function.
 
@@ -4388,6 +4427,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   double roru_index_costs;
   ha_rows roru_total_records;
   double roru_intersect_part= 1.0;
+  const Cost_model_table *const cost_model= param->table->cost_model();
+
   DBUG_ENTER("get_best_disjunct_quick");
   DBUG_PRINT("info", ("Full table scan cost: %g", read_time));
 
@@ -4484,10 +4525,11 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   if (cpk_scan)
   {
     /*
-      Add one ROWID comparison for each row retrieved on non-CPK scan.  (it
-      is done in QUICK_RANGE_SELECT::row_in_ranges)
-     */
-    const double rid_comp_cost= non_cpk_scan_records * ROWID_COMPARE_COST;
+      Add one rowid/key comparison for each row retrieved on non-CPK
+      scan. (it is done in QUICK_RANGE_SELECT::row_in_ranges)
+    */
+    const double rid_comp_cost=
+      cost_model->key_compare_cost(non_cpk_scan_records);
     imerge_cost+= rid_comp_cost;
     trace_best_disjunct.add("cost_of_mapping_rowid_in_non_clustered_pk_scan",
                             rid_comp_cost);
@@ -4537,7 +4579,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       Unique::get_use_cost(param->imerge_cost_buff,
                            (uint)non_cpk_scan_records,
                            param->table->file->ref_length,
-                           param->thd->variables.sortbuff_size);
+                           param->thd->variables.sortbuff_size,
+                           cost_model);
 
     trace_best_disjunct.add("cost_duplicate_removal", dup_removal_cost);
     imerge_cost += dup_removal_cost;
@@ -4604,7 +4647,7 @@ skip_to_ror_scan:
         param->table->file->read_cost(param->real_keynr[(*cur_child)->key_idx],
                                       1, (*cur_child)->records);
       cost= read_cost.total_cost() +
-            rows2double((*cur_child)->records) * ROW_EVALUATE_COST;
+            cost_model->row_evaluate_cost(rows2double((*cur_child)->records));
     }
     else
       cost= read_time;
@@ -4652,9 +4695,9 @@ skip_to_ror_scan:
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
     roru_total_cost= roru_index_costs +
-                     rows2double(roru_total_records) *
-                     log((double)n_child_scans) * ROWID_COMPARE_COST / M_LN2 +
-                     sweep_cost.total_cost();
+      cost_model->key_compare_cost(rows2double(roru_total_records) *
+                                   log((double)n_child_scans) / M_LN2) +
+      sweep_cost.total_cost();
   }
 
   trace_best_disjunct.add("index_roworder_union_cost", roru_total_cost).
@@ -5210,12 +5253,13 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   if (is_cpk_scan)
   {
     /*
-      CPK scan is used to filter out rows. We apply filtering for 
-      each record of every scan. Assuming ROWID_COMPARE_COST
-      per check this gives us:
+      CPK scan is used to filter out rows. We apply filtering for each
+      record of every scan. For each record we assume that one key
+      compare is done:
     */
+    const Cost_model_table *const cost_model= info->param->table->cost_model();
     const double idx_cost= 
-      rows2double(info->index_records) * ROWID_COMPARE_COST;
+      cost_model->key_compare_cost(rows2double(info->index_records));
     info->index_scan_costs+= idx_cost;
     trace_costs->add("index_scan_cost", idx_cost);
   }
@@ -5574,12 +5618,10 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 {
   uint idx;
   SEL_ARG **key,**end, **key_to_read= NULL;
-  ha_rows UNINIT_VAR(best_records);              /* protected by key_to_read */
-  uint    best_mrr_flags, best_buf_size;
+  ha_rows best_records= 0;              /* protected by key_to_read */
+  uint    best_mrr_flags= 0, best_buf_size= 0;
   TRP_RANGE* read_plan= NULL;
   DBUG_ENTER("get_key_scans_params");
-  LINT_INIT(best_mrr_flags); /* protected by key_to_read */
-  LINT_INIT(best_buf_size); /* protected by key_to_read */
   Opt_trace_context * const trace= &param->thd->opt_trace;
   /*
     Note that there may be trees that have type SEL_TREE::KEY but contain no
@@ -6462,7 +6504,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     There are limits on what kinds of const items we can evaluate.
     At this stage a subquery in 'cond' might not be fully transformed yet
     (example: semijoin) thus cannot be evaluated. Another reason is that we
-    may be called by test_if_quick_select (), which holds LOCK_query_plan,
+    may be called by test_quick_select (), which holds LOCK_query_plan,
     thus we must not acquire this Mutex here, thus we can neither prepare nor
     optimize any subquery here.
   */
@@ -6851,7 +6893,8 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
     /*
       We cannot evaluate the value yet (i.e. required tables are not yet
       locked.)
-      This is the case of prune_partitions() called during JOIN::prepare().
+      This is the case of prune_partitions() called during
+      SELECT_LEX::prepare().
     */
     return true;
   }
@@ -8609,7 +8652,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b)
 SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
-  SEL_ARG *element,**UNINIT_VAR(par),*UNINIT_VAR(last_element);
+  SEL_ARG *element, **par= NULL, *last_element= NULL;
 
   for (element= this; element != &null_element ; )
   {
@@ -11967,7 +12010,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         cause= "no_nongroup_keypart_predicate";
         goto next_index;
       }
-      else if (first_non_group_part && join->conds)
+      else if (first_non_group_part && join->where_cond)
       {
         /*
           If there is no MIN/MAX function in the query, but some index
@@ -11986,8 +12029,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         key_part_range[1]= last_part;
 
         /* Check if cur_part is referenced in the WHERE clause. */
-        if (join->conds->walk(&Item::find_item_in_field_list_processor, 0,
-                              (uchar*) key_part_range))
+        if (join->where_cond->walk(&Item::find_item_in_field_list_processor,
+                                   Item::WALK_POSTFIX,
+                                   (uchar*) key_part_range))
         {
           cause= "keypart_reference_from_where_clause";
           goto next_index;
@@ -12088,8 +12132,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
     DBUG_RETURN(NULL);
 
   /* Check (SA3) for the where clause. */
-  if (join->conds && min_max_arg_item &&
-      !check_group_min_max_predicates(join->conds, min_max_arg_item,
+  if (join->where_cond && min_max_arg_item &&
+      !check_group_min_max_predicates(join->where_cond, min_max_arg_item,
                                       (index_info->flags & HA_SPATIAL) ?
                                       Field::itMBR : Field::itRAW))
   {
@@ -12606,7 +12650,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
                           /* formed by a key infix. */
   double p_overlap; /* Probability that a sub-group overlaps two blocks. */
   double quick_prefix_selectivity;
-  double io_cost;
+  double io_blocks;       // Number of blocks to read from table
   DBUG_ENTER("cost_group_min_max");
 
   table_records= table->file->stats.records;
@@ -12645,13 +12689,19 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
       p_overlap= (blocks_per_group * (keys_per_subgroup - 1)) / keys_per_group;
       p_overlap= min(p_overlap, 1.0);
     }
-    io_cost= min<double>(num_groups * (1 + p_overlap), num_blocks);
+    io_blocks= min<double>(num_groups * (1 + p_overlap), num_blocks);
   }
   else
-    io_cost= (keys_per_group > keys_per_block) ?
-             (have_min && have_max) ? (double) (num_groups + 1) :
-                                      (double) num_groups :
-             (double) num_blocks;
+    io_blocks= (keys_per_group > keys_per_block) ?
+               (have_min && have_max) ? (double) (num_groups + 1) :
+                                        (double) num_groups :
+               (double) num_blocks;
+
+  /*
+    Estimate IO cost.
+  */
+  const Cost_model_table *const cost_model= table->cost_model();
+  const double io_cost= cost_model->io_block_read_cost(io_blocks);
 
   /*
     CPU cost must be comparable to that of an index scan as computed
@@ -12666,11 +12716,12 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
              b-tree the number of comparisons will be larger.
        TODO: This cost should be provided by the storage engine.
   */
-  const double tree_traversal_cost= 
+  const double tree_traversal_cost= cost_model->key_compare_cost(
     ceil(log(static_cast<double>(table_records))/
-         log(static_cast<double>(keys_per_block))) * ROWID_COMPARE_COST; 
+         log(static_cast<double>(keys_per_block))));
 
-  const double cpu_cost= num_groups * (tree_traversal_cost + ROW_EVALUATE_COST);
+  const double cpu_cost= num_groups * (tree_traversal_cost +
+                                       cost_model->row_evaluate_cost(1.0));
 
   *read_cost= io_cost + cpu_cost;
   *records= num_groups;
@@ -14347,6 +14398,75 @@ static inline void print_tree(String *out,
                  ("sel_tree: %p, type=%d, %s->keys[%u(%u)]: %s",
                   tree->keys[i], tree->keys[i]->type, tree_name, i, 
                   real_key_nr, range_result.ptr()));
+  }
+}
+
+void
+QUICK_RANGE_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "range").
+    add_utf8("index", head->key_info[index].name);
+}
+
+void
+QUICK_INDEX_MERGE_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "index_merge_union");
+  {
+    Opt_trace_array idx_trace(trace, "indexes");
+
+    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+    QUICK_RANGE_SELECT *quick;
+    while ((quick= it++))
+      idx_trace.add_utf8(quick->head->key_info[quick->index].name);
+
+    if (pk_quick_select)
+      idx_trace.add_utf8(pk_quick_select->head->
+                         key_info[pk_quick_select->index].name);
+
+  }
+}
+
+void
+QUICK_ROR_INTERSECT_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "index_roworder_intersect");
+  {
+    Opt_trace_array idx_trace(trace, "indexes");
+
+    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+    QUICK_RANGE_SELECT *quick;
+    while ((quick= it++))
+      idx_trace.add_utf8(quick->head->key_info[quick->index].name);
+
+    if (cpk_quick)
+      idx_trace.add_utf8(cpk_quick->head->key_info[cpk_quick->index].name);
+  }
+}
+
+void
+QUICK_GROUP_MIN_MAX_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "index_group").
+    add_utf8("index", index_info->name);
+}
+
+void
+QUICK_ROR_UNION_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "index_roworder_union");
+  {
+    Opt_trace_array idx_trace(trace, "indexes");
+
+    List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
+    QUICK_SELECT_I *quick;
+    while ((quick= it++))
+      idx_trace.add_utf8("index", quick->head->key_info[quick->index].name);
   }
 }
 

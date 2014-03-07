@@ -63,8 +63,10 @@
 #include "mysqld.h"
 #include "connection_handler_manager.h"   // Connection_handler_manager
 #include "mysqld_thd_manager.h"           // Global_THD_manager
+#include "sql_timer.h"                          // thd_timer_destroy
 
 #include <mysql/psi/mysql_statement.h>
+#include "mysql/psi/mysql_ps.h"
 
 using std::min;
 using std::max;
@@ -742,7 +744,7 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
     values doesn't have to very accurate and the memory it points to is static,
     but we need to attempt a snapshot on the pointer values to avoid using NULL
     values. The pointer to thd->query however, doesn't point to static memory
-    and has to be protected by LOCK_thd_data or risk pointing to
+    and has to be protected by LOCK_thd_query or risk pointing to
     uninitialized memory.
   */
   const char *proc_info= thd->proc_info;
@@ -777,7 +779,7 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
     str.append(proc_info);
   }
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
+  mysql_mutex_lock(&thd->LOCK_thd_query);
 
   if (thd->query().str)
   {
@@ -789,7 +791,7 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
     str.append(thd->query().str, len);
   }
 
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  mysql_mutex_unlock(&thd->LOCK_thd_query);
 
   if (str.c_ptr_safe() == buffer)
     return buffer;
@@ -885,6 +887,7 @@ THD::THD(bool enable_plugins)
    m_trans_end_pos(0),
    table_map_for_update(0),
    m_examined_row_count(0),
+   m_digest(NULL),
    m_statement_psi(NULL),
    m_transaction_psi(NULL),
    m_idle_psi(NULL),
@@ -978,6 +981,7 @@ THD::THD(bool enable_plugins)
   get_transaction()->m_flags.enabled= true;
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
@@ -1030,6 +1034,9 @@ THD::THD(bool enable_plugins)
 
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
+
+  timer= NULL;
+  timer_cache= NULL;
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
@@ -1381,6 +1388,10 @@ void THD::init(void)
   debug_sync_init_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
+  /* Initialize session_tracker and create all tracker objects */
+  session_tracker.init(this->charset());
+  session_tracker.enable(this);
+
   owned_gtid.sidno= 0;
   owned_gtid.gno= 0;
   owned_sid.clear();
@@ -1483,6 +1494,7 @@ void THD::cleanup(void)
   DBUG_ASSERT(cleanup_done == 0);
 
   killed= KILL_CONNECTION;
+  session_tracker.deinit();
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
   if (transaction.xid_state.has_state(XA_STATE::XA_PREPARED))
   {
@@ -1538,6 +1550,10 @@ void THD::cleanup(void)
   if (tc_log)
     tc_log->commit(this, true);
 
+  /*
+    Debug sync system must be closed after tc_log->commit(), because
+    DEBUG_SYNC is used in commit code.
+  */
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_end_thread(this);
@@ -1577,6 +1593,8 @@ void THD::release_resources()
   DBUG_ASSERT(!query_plan.get_plan());
   mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_query);
+  mysql_mutex_unlock(&LOCK_thd_query);
 
   stmt_map.reset();                     /* close all prepared statements */
   if (!cleanup_done)
@@ -1587,6 +1605,13 @@ void THD::release_resources()
   mysql_audit_release(this);
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
+
+#ifdef HAVE_MY_TIMER
+  DBUG_ASSERT(timer == NULL);
+
+  if (timer_cache)
+    thd_timer_destroy(timer_cache);
+#endif
 
 #ifndef EMBEDDED_LIBRARY
   if (rli_fake)
@@ -1618,6 +1643,8 @@ THD::~THD()
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_query);
+  mysql_mutex_unlock(&LOCK_thd_query);
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -1626,6 +1653,7 @@ THD::~THD()
   get_transaction()->free_memory(MYF(0));
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
+  mysql_mutex_destroy(&LOCK_thd_query);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif
@@ -1747,7 +1775,7 @@ void THD::awake(THD::killed_state state_to_set)
     killed= state_to_set;
   }
 
-  if (state_to_set != THD::KILL_QUERY)
+  if (state_to_set != THD::KILL_QUERY && state_to_set != THD::KILL_TIMEOUT)
   {
     if (this != current_thd)
     {
@@ -1788,6 +1816,14 @@ void THD::awake(THD::killed_state state_to_set)
       MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                      post_kill_notification, (this));
   }
+
+  /* Interrupt target waiting inside a storage engine. */
+  if (state_to_set != THD::NOT_KILLED)
+    ha_kill_connection(this);
+
+  if (state_to_set == THD::KILL_TIMEOUT)
+    status_var.max_statement_time_exceeded++;
+
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
@@ -2813,18 +2849,28 @@ bool select_export::send_data(List<Item> &items)
            escape_char != -1)
       {
         char *pos, *start, *end;
+        bool escape_4_bytes= false;
+        int in_escapable_4_bytes= 0;
         const CHARSET_INFO *res_charset= res->charset();
         const CHARSET_INFO *character_set_client=
           thd->variables.character_set_client;
-        bool check_second_byte= (res_charset == &my_charset_bin) &&
-                                 character_set_client->
-                                 escape_with_backslash_is_dangerous;
+        bool check_following_byte= (res_charset == &my_charset_bin) &&
+                                    character_set_client->
+                                    escape_with_backslash_is_dangerous;
+        /*
+          The judgement of mbmaxlenlen == 2 is for gb18030 only.
+          Since there are several charsets with mbmaxlen == 4,
+          so we have to use mbmaxlenlen == 2 here, which is only true
+          for gb18030 currently.
+        */
         DBUG_ASSERT(character_set_client->mbmaxlen == 2 ||
+                    my_mbmaxlenlen(character_set_client) == 2 ||
                     !character_set_client->escape_with_backslash_is_dangerous);
 	for (start=pos=(char*) res->ptr(),end=pos+used_length ;
 	     pos != end ;
 	     pos++)
 	{
+          bool need_escape= false;
 	  if (use_mb(res_charset))
 	  {
 	    int l;
@@ -2837,41 +2883,112 @@ bool select_export::send_data(List<Item> &items)
 
           /*
             Special case when dumping BINARY/VARBINARY/BLOB values
-            for the clients with character sets big5, cp932, gbk and sjis,
-            which can have the escape character (0x5C "\" by default)
-            as the second byte of a multi-byte sequence.
-            
+            for the clients with character sets big5, cp932, gbk, sjis
+            and gb18030, which can have the escape character
+            (0x5C "\" by default) as the second byte of a multi-byte sequence.
+
+            The escape character had better be single-byte character,
+            non-ASCII characters are not prohibited, but not fully supported.
+
             If
             - pos[0] is a valid multi-byte head (e.g 0xEE) and
             - pos[1] is 0x00, which will be escaped as "\0",
-            
+
             then we'll get "0xEE + 0x5C + 0x30" in the output file.
-            
+
             If this file is later loaded using this sequence of commands:
-            
+
             mysql> create table t1 (a varchar(128)) character set big5;
             mysql> LOAD DATA INFILE 'dump.txt' INTO TABLE t1;
-            
+
             then 0x5C will be misinterpreted as the second byte
             of a multi-byte character "0xEE + 0x5C", instead of
             escape character for 0x00.
-            
+
             To avoid this confusion, we'll escape the multi-byte
             head character too, so the sequence "0xEE + 0x00" will be
             dumped as "0x5C + 0xEE + 0x5C + 0x30".
-            
+
             Note, in the condition below we only check if
             mbcharlen is equal to 2, because there are no
             character sets with mbmaxlen longer than 2
             and with escape_with_backslash_is_dangerous set.
             DBUG_ASSERT before the loop makes that sure.
+
+            But gb18030 is an exception. First of all, 2-byte codes
+            would be affected by the issue above without doubt.
+            Then, 4-byte gb18030 codes would be affected as well.
+
+            Supposing the input is GB+81358130, and the
+            field_term_char is set to '5', escape char is 0x5C by default.
+            When we come to the first byte 0x81, if we don't escape it but
+            escape the second byte 0x35 as it's the field_term_char,
+            we would get 0x81 0x5C 0x35 0x81 0x30 for the gb18030 character.
+            That would be the same issue as mentioned above.
+
+            Also, if we just escape the leading 2 bytes, we would get
+            0x5C 0x81 0x5C 0x35 0x81 0x30 in this case.
+            The reader of this sequence would assume that 0x81 0x30
+            is the starting of a new gb18030 character, which would
+            result in further confusion.
+
+            Once we find any byte of the 4-byte gb18030 character should
+            be escaped, we have to escape all the 4 bytes.
+            So for GB+81358130, we will get:
+            0x5C 0x81 0x5C 0x35 0x5C 0x81 0x30
+
+            The byte 0x30 shouldn't be escaped(no matter it's the second
+            or fourth byte in the sequence), since '\0' would be treated
+            as 0x00, which is not what we expect. And 0x30 would be treated as
+            an ASCII char when we read it, which is correct.
           */
 
-          if ((NEED_ESCAPING(*pos) ||
-               (check_second_byte &&
-                my_mbcharlen(character_set_client, (uchar) *pos) == 2 &&
-                pos + 1 < end &&
-                NEED_ESCAPING(pos[1]))) &&
+          DBUG_ASSERT(in_escapable_4_bytes >= 0);
+          if (in_escapable_4_bytes > 0)
+          {
+            DBUG_ASSERT(check_following_byte);
+            /* We should escape or not escape all the 4 bytes. */
+            need_escape= escape_4_bytes;
+          }
+          else if (NEED_ESCAPING(*pos))
+          {
+            need_escape= true;
+            if (my_mbmaxlenlen(character_set_client) == 2 &&
+                my_mbcharlen_ptr(character_set_client, pos, end) == 4)
+            {
+              in_escapable_4_bytes= 4;
+              escape_4_bytes= true;
+            }
+          }
+          else if (check_following_byte)
+          {
+             int len= my_mbcharlen_ptr(character_set_client, pos, end);
+             if (len == 2 && pos + 1 < end && NEED_ESCAPING(pos[1]))
+               need_escape= true;
+             else if (len == 4 && my_mbmaxlenlen(character_set_client) == 2 &&
+                      pos + 3 < end)
+             {
+               in_escapable_4_bytes= 4;
+               escape_4_bytes= (NEED_ESCAPING(pos[1]) ||
+                                NEED_ESCAPING(pos[2]) ||
+                                NEED_ESCAPING(pos[3]));
+               need_escape= escape_4_bytes;
+             }
+          }
+          /* Mark how many coming bytes should be escaped, only for gb18030 */
+          if (in_escapable_4_bytes > 0)
+          {
+            in_escapable_4_bytes--;
+            /*
+             Note that '0' (0x30) in the middle of a 4-byte sequence
+             can't be escaped. Please read more details from above comments.
+             2-byte codes won't be affected by this issue.
+            */
+            if (pos[0] == 0x30)
+              need_escape= false;
+          }
+
+          if (need_escape &&
               /*
                Don't escape field_term_char by doubling - doubling is only
                valid for ENCLOSED BY characters:
@@ -2890,6 +3007,10 @@ bool select_export::send_data(List<Item> &items)
 	    start=pos+1;
 	  }
 	}
+
+        /* Assert that no escape mode is active here */
+        DBUG_ASSERT(in_escapable_4_bytes == 0);
+
 	if (my_b_write(&cache,(uchar*) start,(uint) (pos-start)))
 	  goto err;
       }
@@ -3285,7 +3406,7 @@ void Statement::set_statement(Statement *stmt)
   id=             stmt->id;
   mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
-  set_query_inner(stmt->query());
+  set_query(stmt->query());
 }
 
 
@@ -3487,6 +3608,13 @@ void Statement_map::reset()
   /* Must be first, hash_free will reset st_hash.records */
   if (st_hash.records > 0)
   {
+#ifdef HAVE_PSI_PS_INTERFACE
+    for (uint i=0 ; i < st_hash.records ; i++)
+    {
+      Statement *stmt= (Statement *)my_hash_element(&st_hash, i);
+      MYSQL_DESTROY_PS(stmt->get_PS_prepared_stmt());
+    }
+#endif
     mysql_mutex_lock(&LOCK_prepared_stmt_count);
     DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
     prepared_stmt_count-= st_hash.records;
@@ -3849,6 +3977,16 @@ extern "C" int thd_killed(const MYSQL_THD thd)
 }
 
 /**
+  Set the killed status of the current statement.
+
+  @param thd  user thread connection handle
+*/
+extern "C" void thd_set_kill_status(const MYSQL_THD thd)
+{
+  thd->send_kill_message();
+}
+
+/**
   Return the thread id of a user thread
   @param thd user thread
   @return thread id
@@ -3886,12 +4024,41 @@ extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
 /**
   Get the current query string for the thread.
 
-  @param The MySQL internal thread pointer
+  @param thd   The MySQL internal thread pointer
+
   @return query string and length. May be non-null-terminated.
+
+  @note This function is not thread safe and should only be called
+        from the thread owning thd. @see thd_query_safe().
 */
-extern "C" LEX_CSTRING thd_query_string (MYSQL_THD thd)
+extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd)
 {
+  DBUG_ASSERT(current_thd == thd);
   return thd->query();
+}
+
+/**
+  Get the current query string for the thread.
+
+  @param thd     The MySQL internal thread pointer
+  @param buf     Buffer where the query string will be copied
+  @param buflen  Length of the buffer
+
+  @return Length of the query
+
+  @note This function is thread safe as the query string is
+        accessed under mutex protection and the string is copied
+        into the provided buffer. @see thd_query_unsafe().
+*/
+extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen)
+{
+  mysql_mutex_lock(&thd->LOCK_thd_query);
+  LEX_CSTRING query_string= thd->query();
+  size_t len= MY_MIN(buflen - 1, query_string.length);
+  strncpy(buf, query_string.str, len);
+  buf[len]= '\0';
+  mysql_mutex_unlock(&thd->LOCK_thd_query);
+  return len;
 }
 
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
@@ -4319,49 +4486,15 @@ void THD::set_command(enum enum_server_command command)
 void THD::set_query(const LEX_CSTRING& query_arg)
 {
   DBUG_ASSERT(this == current_thd);
-  mysql_mutex_lock(&LOCK_thd_data);
-  Statement::set_query_inner(query_arg);
-  mysql_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_query);
+  Statement::set_query(query_arg);
+  mysql_mutex_unlock(&LOCK_thd_query);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_thread_info)(query_arg.str, query_arg.length);
 #endif
 }
 
-/** Assign a new value to thd->query and thd->query_id.  */
-
-void THD::set_query_and_id(const char *query_arg,
-                           size_t query_length_arg,
-                           query_id_t new_query_id)
-{
-  DBUG_ASSERT(this == current_thd);
-  LEX_CSTRING tmp= { query_arg, query_length_arg };
-  mysql_mutex_lock(&LOCK_thd_data);
-  Statement::set_query_inner(tmp);
-  query_id= new_query_id;
-  mysql_mutex_unlock(&LOCK_thd_data);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
-#endif
-}
-
-/** Assign a new value to thd->query_id.  */
-
-void THD::set_query_id(query_id_t new_query_id)
-{
-  mysql_mutex_lock(&LOCK_thd_data);
-  query_id= new_query_id;
-  mysql_mutex_unlock(&LOCK_thd_data);
-}
-
-/** Assign a new value to thd->mysys_var.  */
-void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
-{
-  mysql_mutex_lock(&LOCK_thd_data);
-  mysys_var= new_mysys_var;
-  mysql_mutex_unlock(&LOCK_thd_data);
-}
 
 /**
   Leave explicit LOCK TABLES or prelocked mode and restore value of

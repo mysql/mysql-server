@@ -51,7 +51,23 @@ master_user = 'root',
 master_ssl = 0,
 master_ssl_ca = '',
 master_ssl_cert = '',
-master_ssl_key = '';
+master_ssl_key = '',
+master_ssl_crl='',
+master_ssl_crlpath='';
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_SSL= 1, MASTER_SSL_CRL='MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', MASTER_SSL_CRLPATH='MYSQL_TEST_DIR/std_data/crldir';
+include/start_slave.inc
+include/stop_slave.inc
+CHANGE MASTER TO
+master_user = 'root',
+master_ssl = 0,
+master_ssl_ca = '',
+master_ssl_cert = '',
+master_ssl_key = '',
+master_ssl_crl='',
+master_ssl_crlpath='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

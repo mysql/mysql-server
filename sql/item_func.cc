@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -260,19 +260,18 @@ void Item_func::fix_after_pullout(st_select_lex *parent_select,
 }
 
 
-bool Item_func::walk(Item_processor processor, bool walk_subquery,
-                     uchar *argument)
+bool Item_func::walk(Item_processor processor, enum_walk walk, uchar *argument)
 {
-  if (arg_count)
+  if ((walk & WALK_PREFIX) && (this->*processor)(argument))
+    return true;
+
+  Item **arg, **arg_end;
+  for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
   {
-    Item **arg,**arg_end;
-    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
-    {
-      if ((*arg)->walk(processor, walk_subquery, argument))
-	return 1;
-    }
+    if ((*arg)->walk(processor, walk, argument))
+      return true;
   }
-  return (this->*processor)(argument);
+  return (walk & WALK_POSTFIX) && (this->*processor)(argument);
 }
 
 void Item_func::traverse_cond(Cond_traverser traverser,
@@ -731,10 +730,20 @@ bool Item_func::count_string_result_length(enum_field_types field_type,
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
-  if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+  if (thd->is_strict_mode())
     push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
                  ER(ER_DIVISION_BY_ZERO));
   null_value= 1;
+}
+
+
+void Item_func::signal_invalid_argument_for_log()
+{
+  THD *thd= current_thd;
+  push_warning(thd, Sql_condition::SL_WARNING,
+               ER_INVALID_ARGUMENT_FOR_LOGARITHM,
+               ER(ER_INVALID_ARGUMENT_FOR_LOGARITHM));
+  null_value= TRUE;
 }
 
 
@@ -1066,7 +1075,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   switch (field_type())
@@ -2055,11 +2064,12 @@ double Item_func_ln::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log(value);
 }
+
 
 /** 
   Extended but so slower LOG function.
@@ -2075,7 +2085,7 @@ double Item_func_log::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   if (arg_count == 2)
@@ -2085,7 +2095,7 @@ double Item_func_log::val_real()
       return 0.0;
     if (value2 <= 0.0 || value == 1.0)
     {
-      signal_divide_by_null();
+      signal_invalid_argument_for_log();
       return 0.0;
     }
     return log(value2) / log(value);
@@ -2102,7 +2112,7 @@ double Item_func_log2::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log(value) / M_LN2;
@@ -2116,7 +2126,7 @@ double Item_func_log10::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log10(value);
@@ -2786,7 +2796,7 @@ void Item_func_min_max::fix_length_and_dec()
 
 uint Item_func_min_max::cmp_datetimes(longlong *value)
 {
-  longlong UNINIT_VAR(min_max);
+  longlong min_max= 0;
   uint min_max_idx= 0;
 
   for (uint i=0; i < arg_count ; i++)
@@ -2818,7 +2828,7 @@ uint Item_func_min_max::cmp_datetimes(longlong *value)
 
 uint Item_func_min_max::cmp_times(longlong *value)
 {
-  longlong UNINIT_VAR(min_max);
+  longlong min_max= 0;
   uint min_max_idx= 0;
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2910,7 +2920,7 @@ String *Item_func_min_max::val_str(String *str)
   }
   case STRING_RESULT:
   {
-    String *UNINIT_VAR(res);
+    String *res= NULL;
     for (uint i=0; i < arg_count ; i++)
     {
       if (i == 0)
@@ -2942,7 +2952,7 @@ String *Item_func_min_max::val_str(String *str)
 }
 
 
-bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_min_max::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   if (compare_as_dates)
@@ -3081,7 +3091,7 @@ mysql> select least('11', '2'), least('11', '2')+0, concat(least(11,2));
 my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buf, *tmp, *UNINIT_VAR(res);
+  my_decimal tmp_buf, *tmp, *res= NULL;
 
   if (compare_as_dates)
   {
@@ -6256,7 +6266,7 @@ void Item_func_match::init_search(bool no_order)
 bool Item_func_match::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  Item *UNINIT_VAR(item);                        // Safe as arg_count is > 1
+  Item *item= NULL;                        // Safe as arg_count is > 1
 
   maybe_null=1;
   join_key=0;

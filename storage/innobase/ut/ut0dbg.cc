@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -67,66 +67,3 @@ ut_dbg_assertion_failed(
 	fflush(stdout);
 	abort();
 }
-
-#ifdef UNIV_COMPILE_TEST_FUNCS
-
-#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H) && defined(HAVE_UNISTD_H)
-
-#ifndef timersub
-#define timersub(a, b, r)						\
-	do {								\
-		(r)->tv_sec = (a)->tv_sec - (b)->tv_sec;		\
-		(r)->tv_usec = (a)->tv_usec - (b)->tv_usec;		\
-		if ((r)->tv_usec < 0) {					\
-			(r)->tv_sec--;					\
-			(r)->tv_usec += 1000000;			\
-		}							\
-	} while (0)
-#endif /* timersub */
-
-/*******************************************************************//**
-Resets a speedo (records the current time in it). */
-
-void
-speedo_reset(
-/*=========*/
-	speedo_t*	speedo)	/*!< out: speedo */
-{
-	gettimeofday(&speedo->tv, NULL);
-
-	getrusage(RUSAGE_SELF, &speedo->ru);
-}
-
-/*******************************************************************//**
-Shows the time elapsed and usage statistics since the last reset of a
-speedo. */
-
-void
-speedo_show(
-/*========*/
-	const speedo_t*	speedo)	/*!< in: speedo */
-{
-	struct rusage	ru_now;
-	struct timeval	tv_now;
-	struct timeval	tv_diff;
-
-	getrusage(RUSAGE_SELF, &ru_now);
-
-	gettimeofday(&tv_now, NULL);
-
-#define PRINT_TIMEVAL(prefix, tvp)		\
-	fprintf(stderr, "%s% 5ld.%06ld sec\n",	\
-		prefix, (tvp)->tv_sec, (tvp)->tv_usec)
-
-	timersub(&tv_now, &speedo->tv, &tv_diff);
-	PRINT_TIMEVAL("real", &tv_diff);
-
-	timersub(&ru_now.ru_utime, &speedo->ru.ru_utime, &tv_diff);
-	PRINT_TIMEVAL("user", &tv_diff);
-
-	timersub(&ru_now.ru_stime, &speedo->ru.ru_stime, &tv_diff);
-	PRINT_TIMEVAL("sys ", &tv_diff);
-}
-#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_RESOURCE_H */
-
-#endif /* UNIV_COMPILE_TEST_FUNCS */

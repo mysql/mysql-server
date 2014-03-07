@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,6 +82,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
    rli_fake(is_rli_fake),
+   gtid_retrieved_initialized(false),
    is_group_master_log_pos_invalid(false),
    log_space_total(0), ignore_log_space_limit(0),
    sql_force_rotate_relay(false),
@@ -1139,6 +1140,13 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   group_master_log_name[0]= 0;
   group_master_log_pos= 0;
 
+  /*
+    Following the the relay log purge, the master_log_pos will be in sync
+    with relay_log_pos, so the flag should be cleared. Refer bug#11766010.
+  */
+
+  is_group_master_log_pos_invalid= false;
+
   if (!inited)
   {
     DBUG_PRINT("info", ("inited == 0"));
@@ -1830,7 +1838,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       last_retrieved_gtid_event if relay_log_recovery=1 (retrieved set will
       be cleared off in that case).
     */
-    if (!current_thd &&
+    if (!gtid_retrieved_initialized &&
         relay_log.init_gtid_sets(&gtid_set, NULL,
                                  is_relay_log_recovery ? NULL : get_last_retrieved_gtid(),
                                  opt_slave_sql_verify_checksum,
@@ -1839,6 +1847,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       sql_print_error("Failed in init_gtid_sets() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
     }
+    gtid_retrieved_initialized= true;
 #ifndef DBUG_OFF
     global_sid_lock->wrlock();
     gtid_set.dbug_print("set of GTIDs in relay log after initialization");
@@ -1854,6 +1863,10 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
+
+    mysql_mutex_t *log_lock= relay_log.get_log_lock();
+    mysql_mutex_lock(log_lock);
+
     if (relay_log.open_binlog(ln, 0,
                               (max_relay_log_size ? max_relay_log_size :
                                max_binlog_size), true,
@@ -1861,9 +1874,13 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                               true/*need_sid_lock=true*/,
                               mi->get_mi_description_event()))
     {
+      mysql_mutex_unlock(log_lock);
       sql_print_error("Failed in open_log() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
     }
+
+    mysql_mutex_unlock(log_lock);
+
   }
 
    /*

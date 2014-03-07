@@ -32,17 +32,7 @@
 #include "pfs_host.h"
 #include "pfs_user.h"
 #include "pfs_program.h"
-
-#ifdef MY_ATOMIC_MODE_DUMMY
-/*
-  The performance schema can can not function with MY_ATOMIC_MODE_DUMMY,
-  a fully functional implementation of MY_ATOMIC should be used instead.
-  If the build fails with this error message:
-  - either use a different ./configure --with-atomic-ops option
-  - or do not build with the performance schema.
-*/
-#error "The performance schema needs a functional MY_ATOMIC implementation."
-#endif
+#include "pfs_prepared_stmt.h"
 
 handlerton *pfs_hton= NULL;
 
@@ -174,6 +164,8 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &program_lost, SHOW_LONG},
   {"Performance_schema_nested_statement_lost",
     (char*) &nested_statement_lost, SHOW_LONG},
+  {"Performance_schema_prepared_statements_lost",
+    (char*) &prepared_stmt_lost, SHOW_LONG},
   {"Performance_schema_metadata_lock_lost",
     (char*) &metadata_lock_lost, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}

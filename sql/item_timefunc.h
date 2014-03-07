@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,8 +65,8 @@ public:
   }
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -86,20 +86,19 @@ public:
   }
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
-  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return false; }
 
   bool intro_version(uchar *int_arg)
   {
-    using std::max;
     int *input_version= (int*)int_arg;
     /* This function was introduced in 5.5 */
-    int output_version= max(*input_version, 50500);
+    int output_version= std::max(*input_version, 50500);
     *input_version= output_version;
     return 0;
   }
 
   /* Only meaningful with date part and optional time part */
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -117,8 +116,8 @@ public:
     fix_char_length(2); /* 1..31 */
     maybe_null=1; 
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -143,7 +142,7 @@ public:
     str->set(nr, collation.collation);
     return str;
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -158,8 +157,8 @@ public:
     fix_char_length(2);
     maybe_null= 1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -174,8 +173,8 @@ public:
   const char *func_name() const { return "monthname"; }
   String *val_str(String *str);
   void fix_length_and_dec();
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return true; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -193,8 +192,8 @@ public:
     fix_char_length(3);
     maybe_null= 1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -212,8 +211,8 @@ public:
     fix_char_length(2); /* 0..23 */
     maybe_null=1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();
   }
@@ -231,8 +230,8 @@ public:
     fix_char_length(2); /* 0..59 */
     maybe_null=1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();
   }
@@ -250,8 +249,8 @@ public:
      fix_char_length(1); /* 1..4 */
      maybe_null=1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -269,8 +268,8 @@ public:
     fix_char_length(2); /* 0..59 */
     maybe_null=1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();
   }
@@ -301,8 +300,8 @@ public:
     fix_char_length(6); /* YYYYWW */
     maybe_null=1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -322,8 +321,8 @@ public:
     fix_char_length(4); /* 9999 */
     maybe_null=1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -347,7 +346,7 @@ public:
     str->set(val_int(), &my_charset_bin);
     return null_value ? 0 : str;
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -365,8 +364,8 @@ public:
     fix_char_length(1);
     maybe_null= 1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_date_args();
   }
@@ -384,7 +383,7 @@ class Item_func_dayname :public Item_func_weekday
   Item_func_dayname(Item *a) :Item_func_weekday(a,0) {}
   const char *func_name() const { return "dayname"; }
   String *val_str(String *str);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -394,7 +393,7 @@ class Item_func_dayname :public Item_func_weekday
   }
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec();
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) { return true; }
 };
 
 
@@ -417,7 +416,7 @@ public:
   double val_real();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *decimal_value);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_numeric(ltime, fuzzydate);
   }
@@ -440,13 +439,13 @@ public:
   const char *func_name() const { return "unix_timestamp"; }
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) { return false; }
   /*
     UNIX_TIMESTAMP() depends on the current timezone
     (and thus may not be used as a partitioning function)
     when its argument is NOT of the TIMESTAMP type.
   */
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_timestamp_args();
   }
@@ -470,8 +469,8 @@ public:
     maybe_null= TRUE;
     fix_char_length(10);
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();
   }
@@ -533,7 +532,7 @@ protected:
     @retval     false       On success.
     @retval     true        On error.
   */
-  virtual bool val_datetime(MYSQL_TIME *ltime, uint fuzzy_date)= 0; 
+  virtual bool val_datetime(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)= 0;
 
 public:
   Item_temporal_hybrid_func(Item *a, Item *b) :Item_str_func(a, b),
@@ -572,7 +571,7 @@ public:
   {
     return val_str_from_val_str_ascii(str, &ascii_buf);
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
 };
 
@@ -625,7 +624,7 @@ public:
   // All date functions must implement get_date()
   // to avoid use of generic Item::get_date()
   // which converts to string and then parses the string as DATE.
-  virtual bool get_date(MYSQL_TIME *res, uint fuzzy_date)= 0;
+  virtual bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date)= 0;
 };
 
 
@@ -670,7 +669,7 @@ public:
   // All datetime functions must implement get_date()
   // to avoid use of generic Item::get_date()
   // which converts to string and then parses the string as DATETIME.
-  virtual bool get_date(MYSQL_TIME *res, uint fuzzy_date)= 0;
+  virtual bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date)= 0;
 };
 
 
@@ -700,7 +699,7 @@ public:
     return val_int_from_time();
   }
   longlong val_time_temporal();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date)
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date)
   {
     return get_date_from_time(res);
   }
@@ -875,7 +874,7 @@ public:
     DBUG_ASSERT(fixed);
     return cached_time.val_packed();
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
     DBUG_ASSERT(fixed);
     return cached_time.get_date(ltime, fuzzy_date);
@@ -889,10 +888,7 @@ public:
   {
     fix_length_and_dec_and_charset_datetime(MAX_DATE_WIDTH, 0);
   }
-  bool check_partition_func_processor(uchar *int_arg)
-  {
-    return FALSE;
-  }
+  bool check_partition_func_processor(uchar *arg) { return false; }
   bool basic_const_item() const { return true; }
   bool const_item() const { return true; }
   table_map used_tables() const { return (table_map) 0L; }
@@ -946,10 +942,7 @@ public:
   {
     fix_length_and_dec_and_charset_datetime(MAX_TIME_WIDTH, decimals);
   }
-  bool check_partition_func_processor(uchar *int_arg)
-  {
-    return FALSE;
-  }
+  bool check_partition_func_processor(uchar *arg) { return false; }
   bool basic_const_item() const { return true; }
   bool const_item() const { return true; }
   table_map used_tables() const { return (table_map) 0L; }
@@ -989,7 +982,7 @@ public:
     DBUG_ASSERT(fixed);
     return cached_time.val_packed();
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
     DBUG_ASSERT(fixed);
     return cached_time.get_date(ltime, fuzzy_date);
@@ -1003,10 +996,7 @@ public:
   {
     fix_length_and_dec_and_charset_datetime(MAX_DATETIME_WIDTH, decimals);
   }
-  bool check_partition_func_processor(uchar *int_arg)
-  {
-    return FALSE;
-  }
+  bool check_partition_func_processor(uchar *arg) { return false; }
   bool basic_const_item() const { return true; }
   bool const_item() const { return true; }
   table_map used_tables() const { return (table_map) 0L; }
@@ -1088,7 +1078,7 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_packed();
   }
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date)
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date)
   {
     DBUG_ASSERT(fixed == 1);
     return cached_time.get_time(res);
@@ -1141,7 +1131,7 @@ public:
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_packed();
   }
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date)
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date)
   {
     DBUG_ASSERT(fixed == 1);
     return cached_time.get_time(res);
@@ -1195,7 +1185,7 @@ public:
   bool const_item() const { return 0; }
   const char *func_name() const { return "sysdate"; }
   void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
   /**
     This function is non-deterministic and hence depends on the 'RAND' pseudo-table.
 
@@ -1210,9 +1200,9 @@ class Item_func_from_days :public Item_date_func
 public:
   Item_func_from_days(Item *a) :Item_date_func(a) {}
   const char *func_name() const { return "from_days"; }
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return has_date_args() || has_time_args();
   }
@@ -1243,7 +1233,7 @@ class Item_func_from_unixtime :public Item_datetime_func
   Item_func_from_unixtime(Item *a) :Item_datetime_func(a) {}
   const char *func_name() const { return "from_unixtime"; }
   void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
 };
 
 
@@ -1276,7 +1266,7 @@ class Item_func_convert_tz :public Item_datetime_func
     Item_datetime_func(a, b, c), from_tz_cached(0), to_tz_cached(0) {}
   const char *func_name() const { return "convert_tz"; }
   void fix_length_and_dec();
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
   void cleanup();
 };
 
@@ -1300,10 +1290,10 @@ public:
 class Item_date_add_interval :public Item_temporal_hybrid_func
 {
   String value;
-  bool get_date_internal(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date_internal(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
   bool get_time_internal(MYSQL_TIME *res);
 protected:
-  bool val_datetime(MYSQL_TIME *ltime, uint fuzzy_date);
+  bool val_datetime(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date);
 
 public:
   const interval_type int_type; // keep it public
@@ -1331,8 +1321,8 @@ class Item_extract :public Item_int_func
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
   virtual void print(String *str, enum_query_type query_type);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     switch (int_type) {
     case INTERVAL_YEAR:
@@ -1377,7 +1367,7 @@ public:
   Item_date_typecast(Item *a) :Item_date_func(a) { maybe_null= 1; }
   void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_date"; }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date);
   const char *cast_type() const { return "date"; }
 };
 
@@ -1434,7 +1424,7 @@ public:
                                             args[0]->datetime_precision():
                                             decimals);
   }
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
 };
 
 
@@ -1443,7 +1433,7 @@ class Item_func_makedate :public Item_date_func
 public:
   Item_func_makedate(Item *a, Item *b) :Item_date_func(a, b) { maybe_null= 1; }
   const char *func_name() const { return "makedate"; }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date);
 };
 
 
@@ -1451,7 +1441,7 @@ class Item_func_add_time :public Item_temporal_hybrid_func
 {
   const bool is_date;
   int sign;
-  bool val_datetime(MYSQL_TIME *time, uint fuzzy_date);
+  bool val_datetime(MYSQL_TIME *time, my_time_flags_t fuzzy_date);
 public:
   Item_func_add_time(Item *a, Item *b, bool type_arg, bool neg_arg)
     :Item_temporal_hybrid_func(a, b), is_date(type_arg)
@@ -1505,8 +1495,8 @@ public:
   { 
     maybe_null=1;
   }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool check_valid_arguments_processor(uchar *int_arg)
+  bool check_partition_func_processor(uchar *arg) { return false; }
+  bool check_valid_arguments_processor(uchar *arg)
   {
     return !has_time_args();
   }
@@ -1559,7 +1549,7 @@ class Item_func_str_to_date :public Item_temporal_hybrid_func
   bool const_item;
   void fix_from_format(const char *format, uint length);
 protected:
-  bool val_datetime(MYSQL_TIME *ltime, uint fuzzy_date);
+  bool val_datetime(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date);
 public:
   Item_func_str_to_date(Item *a, Item *b)
     :Item_temporal_hybrid_func(a, b), const_item(false)
@@ -1574,7 +1564,7 @@ class Item_func_last_day :public Item_date_func
 public:
   Item_func_last_day(Item *a) :Item_date_func(a) { maybe_null= 1; }
   const char *func_name() const { return "last_day"; }
-  bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date);
 };
 
 

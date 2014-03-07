@@ -295,6 +295,7 @@ SHOW CREATE TABLE t1;
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 DROP PROCEDURE dynamic_proc;
+DEALLOCATE PREPARE stmt1;
 DROP TABLE t1;
 
 --echo #

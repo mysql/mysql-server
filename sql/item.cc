@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -394,9 +394,9 @@ longlong Item::val_time_temporal()
 longlong Item::val_date_temporal()
 {
   MYSQL_TIME ltime;
- longlong flags=  (TIME_FUZZY_DATE | MODE_INVALID_DATES |
-                   (current_thd->variables.sql_mode &
-                   (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE)));
+  my_time_flags_t flags= TIME_FUZZY_DATE | TIME_INVALID_DATES;
+  if (current_thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE;
   if ((null_value= get_date(&ltime, flags)))
     return 0;
   return TIME_to_longlong_datetime_packed(&ltime);
@@ -549,7 +549,8 @@ Item::save_str_value_in_field(Field *field, String *result)
 Item::Item():
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
-  collation(&my_charset_bin, DERIVATION_COERCIBLE), with_subselect(false),
+  collation(&my_charset_bin, DERIVATION_COERCIBLE),
+  runtime_item(false), with_subselect(false),
   with_stored_program(false), tables_locked_cache(false)
 {
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
@@ -598,6 +599,7 @@ Item::Item(THD *thd, Item *item):
   fixed(item->fixed),
   collation(item->collation),
   cmp_context(item->cmp_context),
+  runtime_item(false),
   with_subselect(item->has_subquery()),
   with_stored_program(item->with_stored_program),
   tables_locked_cache(item->tables_locked_cache)
@@ -1229,7 +1231,7 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 }
 
 
-bool Item::get_date_from_string(MYSQL_TIME *ltime, uint flags)
+bool Item::get_date_from_string(MYSQL_TIME *ltime, my_time_flags_t flags)
 {
   char buff[MAX_DATE_STRING_REP_LENGTH];
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;
@@ -1242,7 +1244,7 @@ bool Item::get_date_from_string(MYSQL_TIME *ltime, uint flags)
 }
 
 
-bool Item::get_date_from_real(MYSQL_TIME *ltime, uint flags)
+bool Item::get_date_from_real(MYSQL_TIME *ltime, my_time_flags_t flags)
 {
   double value= val_real();
   if (null_value)
@@ -1255,7 +1257,7 @@ bool Item::get_date_from_real(MYSQL_TIME *ltime, uint flags)
 }
 
 
-bool Item::get_date_from_decimal(MYSQL_TIME *ltime, uint flags)
+bool Item::get_date_from_decimal(MYSQL_TIME *ltime, my_time_flags_t flags)
 {
   my_decimal buf, *decimal= val_decimal(&buf);
   if (null_value)
@@ -1267,7 +1269,7 @@ bool Item::get_date_from_decimal(MYSQL_TIME *ltime, uint flags)
 }
 
 
-bool Item::get_date_from_int(MYSQL_TIME *ltime, uint flags)
+bool Item::get_date_from_int(MYSQL_TIME *ltime, my_time_flags_t flags)
 {
   longlong value= val_int();
   if (null_value)
@@ -1292,7 +1294,7 @@ bool Item::get_date_from_time(MYSQL_TIME *ltime)
 }
 
 
-bool Item::get_date_from_numeric(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item::get_date_from_numeric(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   switch (result_type())
   {
@@ -1315,7 +1317,8 @@ bool Item::get_date_from_numeric(MYSQL_TIME *ltime, uint fuzzydate)
   As a extra convenience the time structure is reset on error!
 */
 
-bool Item::get_date_from_non_temporal(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item::get_date_from_non_temporal(MYSQL_TIME *ltime,
+                                      my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(!is_temporal());
   switch (result_type())
@@ -1498,7 +1501,8 @@ Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   enum_check_fields tmp= thd->count_cuted_fields;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   sql_mode_t sql_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
+  thd->variables.sql_mode&= ~((MODE_STRICT_ALL_TABLES |
+                               MODE_STRICT_TRANS_TABLES));
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
   const type_conversion_status res= save_in_field(field, no_conversions);
@@ -1619,7 +1623,7 @@ my_decimal *Item_sp_variable::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_sp_variable::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_sp_variable::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed);
   Item *it= this_item();
@@ -1792,7 +1796,7 @@ my_decimal *Item_name_const::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_name_const::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_name_const::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed);
   return (null_value= value_item->get_date(ltime, fuzzydate));
@@ -2729,7 +2733,7 @@ String *Item_field::str_result(String *str)
   return result_field->val_str(str,&str_value);
 }
 
-bool Item_field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item_field::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   if ((null_value=field->is_null()) || field->get_date(ltime,fuzzydate))
   {
@@ -2739,7 +2743,7 @@ bool Item_field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   return 0;
 }
 
-bool Item_field::get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item_field::get_date_result(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   if ((null_value=result_field->is_null()) ||
       result_field->get_date(ltime,fuzzydate))
@@ -3731,7 +3735,7 @@ bool Item_param::get_time(MYSQL_TIME *res)
 }
 
 
-bool Item_param::get_date(MYSQL_TIME *res, uint fuzzydate)
+bool Item_param::get_date(MYSQL_TIME *res, my_time_flags_t fuzzydate)
 {
   if (state == TIME_VALUE)
   {
@@ -4337,7 +4341,7 @@ my_decimal *Item_copy_string::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_copy_string::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_copy_string::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   return get_date_from_string(ltime, fuzzydate);
 }
@@ -4584,8 +4588,9 @@ String* Item_ref_null_helper::val_str(String* s)
 }
 
 
-bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime, uint fuzzydate)
-{  
+bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime,
+                                    my_time_flags_t fuzzydate)
+{
   return (owner->was_null|= null_value= (*ref)->get_date(ltime, fuzzydate));
 }
 
@@ -5073,7 +5078,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
               after the original field has been fixed and this is done in the
               fix_inner_refs() function.
             */
-            ;
             if (!(rf= new Item_outer_ref(context, this)))
               return -1;
             thd->change_item_tree(reference, rf);
@@ -6754,7 +6758,7 @@ bool Item_null::send(Protocol *protocol, String *packet)
 
 bool Item::send(Protocol *protocol, String *buffer)
 {
-  bool UNINIT_VAR(result);                       // Will be set if null_value == 0
+  bool result= false;                       // Will be set if null_value == 0
   enum_field_types f_type;
 
   switch ((f_type=field_type())) {
@@ -7059,7 +7063,7 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
                    const char *field_name_arg,
                    bool alias_name_used_arg)
   :Item_ident(context_arg, NullS, table_name_arg, field_name_arg),
-   result_field(0), ref(item)
+   result_field(0), ref(item), chop_ref(!ref)
 {
   alias_name_used= alias_name_used_arg;
   /*
@@ -7396,6 +7400,8 @@ void Item_ref::cleanup()
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   result_field= 0;
+  if (chop_ref)
+    ref= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -7663,7 +7669,7 @@ bool Item_ref::is_null()
 }
 
 
-bool Item_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item_ref::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
 }
@@ -7812,7 +7818,7 @@ bool Item_direct_ref::is_null()
 }
 
 
-bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+bool Item_direct_ref::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   bool tmp= (*ref)->get_date(ltime, fuzzydate);
   null_value= (*ref)->null_value;
@@ -8570,12 +8576,11 @@ void Item_cache::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-bool Item_cache::walk (Item_processor processor, bool walk_subquery,
-                     uchar *argument)
+bool Item_cache::walk(Item_processor processor, enum_walk walk, uchar *arg)
 {
-  if (example && example->walk(processor, walk_subquery, argument))
-    return 1;
-  return (this->*processor)(argument);
+  return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+         (example && example->walk(processor, walk, arg)) ||
+         ((walk & WALK_POSTFIX) && (this->*processor)(arg));
 }
 
 bool  Item_cache_int::cache_value()
@@ -8749,7 +8754,7 @@ my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
 }
 
 
-bool Item_cache_datetime::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_cache_datetime::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   if ((value_cached || str_value_cached) && null_value)
     return true;

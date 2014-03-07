@@ -18,14 +18,14 @@
 #include "gcs_stdlib_and_types.h"
 
 // TODO: to work around
-#include "my_byteorder.h"
+#include "my_global.h"
 
 namespace GCS
 {
 
 Message::Message(const uchar* data_arg, size_t len_arg)
 {
-  assert(uint4korr((uint32*) &(((Message_header*) data_arg)->msg_size)) == len_arg);
+  assert(uint4korr((uchar*) &(((Message_header*) data_arg)->msg_size)) == len_arg);
 
   mbuf.append(data_arg, len_arg);
   data= mbuf.data();

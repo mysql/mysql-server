@@ -748,6 +748,8 @@ struct handlerton
      this storage engine was accessed in this connection
    */
    int  (*close_connection)(handlerton *hton, THD *thd);
+   /* Terminate connection/statement notification. */
+   void (*kill_connection)(handlerton *hton, THD *thd);
    /*
      sv points to an uninitialized storage area of requested size
      (see savepoint_offset description)
@@ -1148,6 +1150,12 @@ public:
   static const HA_ALTER_FLAGS RENAME_INDEX               = 1L << 29;
 
   /**
+    Recreate the table for ALTER TABLE FORCE, ALTER TABLE ENGINE
+    and OPTIMIZE TABLE operations.
+  */
+  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1L << 30;
+
+  /**
     Create options (like MAX_ROWS) for the new version of table.
 
     @note The referenced instance of HA_CREATE_INFO object was already
@@ -1528,10 +1536,6 @@ private:
   double mem_cost;                              ///< memory used (bytes)
   
 public:
-
-  /// The cost of one I/O operation
-  static double IO_BLOCK_READ_COST() { return  1.0; } 
-
   Cost_estimate() :
     io_cost(0),
     cpu_cost(0),
@@ -2095,24 +2099,13 @@ public:
   /**
     Cost estimate for doing a complete table scan.
 
-    This function returns a Cost_estimate object. The function should be
-    implemented in a way that allows the compiler to use "return value
-    optimization" to avoid creating the temporary object for the return value
-    and use of the copy constructor.
-
     @note For this version it is recommended that storage engines continue
     to override scan_time() instead of this function.
 
     @returns the estimated cost
   */
 
-  virtual Cost_estimate table_scan_cost()
-  {
-    const double io_cost= scan_time() * Cost_estimate::IO_BLOCK_READ_COST();
-    Cost_estimate cost;
-    cost.add_io(io_cost);
-    return cost;
-  }
+  virtual Cost_estimate table_scan_cost();
 
   /**
     Cost estimate for reading a number of ranges from an index.
@@ -2120,11 +2113,6 @@ public:
     The cost estimate will only include the cost of reading data that
     is contained in the index. If the records need to be read, use
     read_cost() instead.
-
-    This function returns a Cost_estimate object. The function should be
-    implemented in a way that allows the compiler to use "return value
-    optimization" to avoid creating the temporary object for the return value
-    and use of the copy constructor.
 
     @note The ranges parameter is currently ignored and is not taken
     into account in the cost estimate.
@@ -2139,26 +2127,12 @@ public:
     @returns the estimated cost
   */
   
-  virtual Cost_estimate index_scan_cost(uint index, double ranges, double rows)
-  {
-    DBUG_ASSERT(ranges >= 0.0);
-    DBUG_ASSERT(rows >= 0.0);
-    const double io_cost= index_only_read_time(index, rows) *
-                          Cost_estimate::IO_BLOCK_READ_COST();
-    Cost_estimate cost;
-    cost.add_io(io_cost);
-    return cost;
-  }
+  virtual Cost_estimate index_scan_cost(uint index, double ranges, double rows);
 
   /**
     Cost estimate for reading a set of ranges from the table using an index
     to access it.
 
-    This function returns a Cost_estimate object. The function should be
-    implemented in a way that allows the compiler to use "return value
-    optimization" to avoid creating the temporary object for the return value
-    and use of the copy constructor.
- 
     @note For this version it is recommended that storage engines continue
     to override read_time() instead of this function.
 
@@ -2169,17 +2143,7 @@ public:
     @returns the estimated cost
   */
 
-  virtual Cost_estimate read_cost(uint index, double ranges, double rows)
-  {
-    DBUG_ASSERT(ranges >= 0.0);
-    DBUG_ASSERT(rows >= 0.0);
-    const double io_cost= read_time(index, static_cast<uint>(ranges),
-                                    static_cast<ha_rows>(rows)) *
-                          Cost_estimate::IO_BLOCK_READ_COST();
-    Cost_estimate cost;
-    cost.add_io(io_cost);
-    return cost;
-  }
+  virtual Cost_estimate read_cost(uint index, double ranges, double rows);
   
   /**
     Return an estimate on the amount of memory the storage engine will
@@ -2610,28 +2574,23 @@ public:
 
   uint max_record_length() const
   {
-    using std::min;
-    return min(HA_MAX_REC_LENGTH, max_supported_record_length());
+    return std::min(HA_MAX_REC_LENGTH, max_supported_record_length());
   }
   uint max_keys() const
   {
-    using std::min;
-    return min<uint>(MAX_KEY, max_supported_keys());
+    return std::min<uint>(MAX_KEY, max_supported_keys());
   }
   uint max_key_parts() const
   {
-    using std::min;
-    return min(MAX_REF_PARTS, max_supported_key_parts());
+    return std::min(MAX_REF_PARTS, max_supported_key_parts());
   }
   uint max_key_length() const
   {
-    using std::min;
-    return min(MAX_KEY_LENGTH, max_supported_key_length());
+    return std::min(MAX_KEY_LENGTH, max_supported_key_length());
   }
   uint max_key_part_length() const
   {
-    using std::min;
-    return min(MAX_KEY_LENGTH, max_supported_key_part_length());
+    return std::min(MAX_KEY_LENGTH, max_supported_key_part_length());
   }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
@@ -3358,9 +3317,19 @@ class DsMrr_impl
 public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
-  DsMrr_impl()
-    : h2(NULL) {};
-  ~DsMrr_impl() { DBUG_ASSERT(h2 == NULL); }
+  DsMrr_impl() : h2(NULL) {}
+
+  ~DsMrr_impl()
+  {
+    /*
+      If ha_reset() has not been called then the h2 dialog might still
+      exist. This must be closed and deleted (this is the case for
+      internally created temporary tables).
+    */
+    if (h2)
+      reset();
+    DBUG_ASSERT(h2 == NULL);
+  }
   
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
@@ -3385,11 +3354,25 @@ private:
 
   bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
 public:
+  /**
+    Initialize the DsMrr_impl object.
+
+    This object is used for both doing default MRR scans and DS-MRR scans.
+    This function just initializes the object. To do a DS-MRR scan,
+    this must also be initialized by calling dsmrr_init().
+
+    @param h_arg     pointer to the handler that owns this object
+    @param table_arg pointer to the TABLE that owns the handler
+  */
+
   void init(handler *h_arg, TABLE *table_arg)
   {
+    DBUG_ASSERT(h_arg != NULL);
+    DBUG_ASSERT(table_arg != NULL);
     h= h_arg; 
     table= table_arg;
   }
+
   int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
@@ -3473,6 +3456,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin);
 TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
+void ha_kill_connection(THD *thd);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,

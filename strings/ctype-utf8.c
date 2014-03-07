@@ -5117,14 +5117,13 @@ my_strnxfrm_unicode(const CHARSET_INFO *cs,
                     uchar *dst, size_t dstlen, uint nweights,
                     const uchar *src, size_t srclen, uint flags)
 {
-  my_wc_t wc;
+  my_wc_t wc= 0;
   int res;
   uchar *dst0= dst;
   uchar *de= dst + dstlen;
   const uchar *se= src + srclen;
   const MY_UNICASE_INFO *uni_plane= (cs->state & MY_CS_BINSORT) ?
                                      NULL : cs->caseinfo;
-  LINT_INIT(wc);
   DBUG_ASSERT(src);
 
   for (; dst < de && nweights; nweights--)
@@ -5161,12 +5160,11 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
                              uchar *dst, size_t dstlen, uint nweights,
                              const uchar *src, size_t srclen, uint flags)
 {
-  my_wc_t wc;
+  my_wc_t wc= 0;
   uchar *dst0= dst;
   uchar *de= dst + dstlen;
   const uchar *se = src + srclen;
 
-  LINT_INIT(wc);
   DBUG_ASSERT(src);
   DBUG_ASSERT(cs->state & MY_CS_BINSORT);
 
@@ -5621,7 +5619,7 @@ static int my_strnncoll_utf8(const CHARSET_INFO *cs,
                              my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc), t_wc;
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -5689,7 +5687,7 @@ static int my_strnncollsp_utf8(const CHARSET_INFO *cs,
                                my_bool diff_if_only_endspace_difference)
 {
   int s_res, t_res, res;
-  my_wc_t UNINIT_VAR(s_wc),t_wc;
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s+slen, *te= t+tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
@@ -6063,6 +6061,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -6097,6 +6096,7 @@ CHARSET_INFO my_charset_utf8_tolower_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -6131,6 +6131,7 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci=
   1,                                            /* casedn_multiply  */
   1,                                            /* mbminlen         */
   3,                                            /* mbmaxlen         */
+  1,                                            /* mbmaxlenlen      */
   0,                                            /* min_sort_char    */
   0xFFFF,                                       /* max_sort_char    */
   ' ',                                          /* pad char         */
@@ -6166,6 +6167,7 @@ CHARSET_INFO my_charset_utf8_bin=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -6348,6 +6350,7 @@ CHARSET_INFO my_charset_utf8_general_cs=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -7651,6 +7654,7 @@ CHARSET_INFO my_charset_filename=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     5,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -8618,6 +8622,7 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen     */
   4,                  /* mbmaxlen     */
+  1,                  /* mbmaxlenlen  */
   0,                  /* min_sort_char */
   0xFFFF,             /* max_sort_char */
   ' ',                /* pad char      */
@@ -8653,6 +8658,7 @@ CHARSET_INFO my_charset_utf8mb4_bin=
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen     */
   4,                  /* mbmaxlen     */
+  1,                  /* mbmaxlenlen  */
   0,                  /* min_sort_char */
   0xFFFF,             /* max_sort_char */
   ' ',                /* pad char      */

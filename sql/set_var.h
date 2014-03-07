@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,6 +331,7 @@ extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
+extern SHOW_COMP_OPTION have_statement_timeout;
 
 /*
   Prototypes for helper functions
@@ -338,7 +339,11 @@ extern SHOW_COMP_OPTION have_compress;
 
 SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type);
 
+void lock_plugin_mutex();
+void unlock_plugin_mutex();
 sys_var *find_sys_var(THD *thd, const char *str, uint length=0);
+sys_var *find_sys_var_ex(THD *thd, const char *str, uint length=0,
+                         bool throw_error= false, bool locked= false);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);

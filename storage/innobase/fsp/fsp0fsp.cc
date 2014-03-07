@@ -584,6 +584,42 @@ fsp_init_file_page_low(
 }
 
 #ifndef UNIV_HOTBACKUP
+# ifdef UNIV_DEBUG
+/** Assert that the mini-transaction is compatible with
+updating an allocation bitmap page.
+@param[in]	id	tablespace identifier
+@param[in]	mtr	mini-transaction */
+static
+void
+fsp_space_modify_check(
+	ulint		id,
+	const mtr_t*	mtr)
+{
+	switch (mtr->get_log_mode()) {
+	case MTR_LOG_SHORT_INSERTS:
+	case MTR_LOG_NONE:
+		/* These modes are only allowed within a non-bitmap page
+		when there is a higher-level redo log record written. */
+		break;
+	case MTR_LOG_NO_REDO:
+		ut_ad(id == srv_tmp_space.space_id()
+		      || srv_is_tablespace_truncated(id)
+		      || fil_space_get_flags(id) == ULINT_UNDEFINED
+		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY);
+		return;
+	case MTR_LOG_ALL:
+		/* We must not write redo log for the shared temporary
+		tablespace. */
+		ut_ad(id != srv_tmp_space.space_id());
+		/* If we write redo log, the tablespace must exist. */
+		ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
+		return;
+	}
+
+	ut_ad(0);
+}
+# endif /* UNIV_DEBUG */
+
 /***********************************************************//**
 Inits a file page whose prior contents should be ignored. */
 static
@@ -595,6 +631,7 @@ fsp_init_file_page(
 {
 	fsp_init_file_page_low(block);
 
+	ut_d(fsp_space_modify_check(block->page.id.space(), mtr));
 	mlog_write_initial_log_record(buf_block_get_frame(block),
 				      MLOG_INIT_FILE_PAGE, mtr);
 }
@@ -715,15 +752,13 @@ fsp_header_init(
 	flst_init(header + FSP_SEG_INODES_FREE, mtr);
 
 	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
+
+	fsp_fill_free_list(!is_system_tablespace(space), space, header, mtr);
+
 	if (space == srv_sys_space.space_id()) {
-		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
 			   0, univ_page_size, DICT_IBUF_ID_MIN + space,
 			   dict_ind_redundant, NULL, mtr);
-	} else if (space == srv_tmp_space.space_id()) {
-		fsp_fill_free_list(FALSE, space, header, mtr);
-	} else {
-		fsp_fill_free_list(TRUE, space, header, mtr);
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -800,6 +835,7 @@ fsp_header_inc_size(
 	ut_ad(mtr);
 
 	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
+	ut_d(fsp_space_modify_check(space, mtr));
 
 	header = fsp_get_space_header(space, page_size_t(flags), mtr);
 
@@ -855,6 +891,7 @@ fsp_try_extend_data_file_with_pages(
 	ulint	size;
 
 	ut_a(!is_system_tablespace(space));
+	ut_d(fsp_space_modify_check(space, mtr));
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 
@@ -895,6 +932,8 @@ fsp_try_extend_data_file(
 	const char* OUT_OF_SPACE_MSG =
 		"ran out of space. Please add another file or use"
 		" 'autoextend' for the last file in setting";
+
+	ut_d(fsp_space_modify_check(space, mtr));
 
 	*actual_increase = 0;
 
@@ -1043,10 +1082,10 @@ fsp_fill_free_list(
 	ulint	frag_n_used;
 	ulint	actual_increase;
 	ulint	i;
-	mtr_t	ibuf_mtr;
 
 	ut_ad(header && mtr);
 	ut_ad(page_offset(header) == FSP_HEADER_OFFSET);
+	ut_d(fsp_space_modify_check(space, mtr));
 
 	/* Check if we can fill free list from above the free list limit */
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
@@ -1117,11 +1156,15 @@ fsp_fill_free_list(
 			Note: Insert-Buffering is disabled for tables that
 			reside in the temp-tablespace. */
 			if (space != srv_tmp_space.space_id()) {
+				mtr_t	ibuf_mtr;
+
 				mtr_start(&ibuf_mtr);
 
 				/* Avoid logging while truncate table
 				fix-up is active. */
-				if (srv_is_tablespace_truncated(space)) {
+				if (srv_is_tablespace_truncated(space)
+				    || fil_space_get_type(space)
+				    == FIL_TYPE_TEMPORARY) {
 					mtr_set_log_mode(
 						&ibuf_mtr, MTR_LOG_NO_REDO);
 				}
@@ -1361,6 +1404,7 @@ fsp_alloc_free_page(
 	ut_ad(mtr);
 	ut_ad(init_mtr);
 
+	ut_d(fsp_space_modify_check(space, mtr));
 	header = fsp_get_space_header(space, page_size, mtr);
 
 	/* Get the hinted descriptor */
@@ -1462,6 +1506,7 @@ fsp_free_page(
 	ulint		frag_n_used;
 
 	ut_ad(mtr);
+	ut_d(fsp_space_modify_check(page_id.space(), mtr));
 
 	/* fprintf(stderr, "Freeing page %lu in space %lu\n", page, space); */
 
@@ -1800,6 +1845,8 @@ fsp_free_seg_inode(
 	page_t*		page;
 	fsp_header_t*	space_header;
 
+	ut_d(fsp_space_modify_check(space, mtr));
+
 	page = page_align(inode);
 
 	space_header = fsp_get_space_header(space, page_size, mtr);
@@ -2044,6 +2091,7 @@ fseg_create_general(
 	ut_ad(mtr);
 	ut_ad(byte_offset + FSEG_HEADER_SIZE
 	      <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
+	ut_d(fsp_space_modify_check(space, mtr));
 
 	latch = fil_space_get_latch(space, &flags);
 
@@ -2258,6 +2306,7 @@ fseg_fill_free_list(
 
 	ut_ad(inode && mtr);
 	ut_ad(!((page_offset(inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
+	ut_d(fsp_space_modify_check(space, mtr));
 
 	reserved = fseg_n_reserved_pages_low(inode, &used, mtr);
 
@@ -2325,6 +2374,7 @@ fseg_alloc_free_extent(
 
 	ut_ad(!((page_offset(inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
 	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
+	ut_d(fsp_space_modify_check(space, mtr));
 
 	if (flst_get_len(inode + FSEG_FREE, mtr) > 0) {
 		/* Segment free list is not empty, allocate from it */
@@ -2413,6 +2463,7 @@ fseg_alloc_free_page_low(
 	seg_id = mach_read_from_8(seg_inode + FSEG_ID);
 
 	ut_ad(seg_id);
+	ut_d(fsp_space_modify_check(space, mtr));
 
 	reserved = fseg_n_reserved_pages_low(seg_inode, &used, mtr);
 
@@ -2880,7 +2931,7 @@ tablespace. Only free extents are taken into account and we also subtract
 the safety margin required by the above function fsp_reserve_free_extents.
 @return available space in kB */
 
-ullint
+uintmax_t
 fsp_get_available_space_in_free_extents(
 /*====================================*/
 	ulint	space)	/*!< in: space id */
@@ -2920,7 +2971,7 @@ fsp_get_available_space_in_free_extents(
 
 		mutex_exit(&dict_sys->mutex);
 
-		return(ULLINT_UNDEFINED);
+		return(UINTMAX_MAX);
 	}
 
 	mtr_start(&mtr);
@@ -2944,7 +2995,7 @@ fsp_get_available_space_in_free_extents(
 
 		mtr_commit(&mtr);
 
-		return(ULLINT_UNDEFINED);
+		return(UINTMAX_MAX);
 	}
 
 	/* From here on even if the user has dropped the tablespace, the
@@ -2995,8 +3046,8 @@ fsp_get_available_space_in_free_extents(
 		return(0);
 	}
 
-	return((ullint) (n_free - reserve)
-	       * FSP_EXTENT_SIZE * (page_size.physical() / 1024));
+	return(static_cast<uintmax_t>(n_free - reserve) * FSP_EXTENT_SIZE
+	       * (page_size.physical() / 1024));
 }
 
 /********************************************************************//**
@@ -3081,6 +3132,7 @@ fseg_free_page_low(
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
 	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
+	ut_d(fsp_space_modify_check(page_id.space(), mtr));
 
 	/* Drop search system page hash index if the page is found in
 	the pool and is hashed */
@@ -3142,11 +3194,11 @@ crash:
 		putc('\n', stderr);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"InnoDB is trying to free space " UINT32PF " page "
-			UINT32PF ", which does not belong to segment %llu "
-			"but belongs to segment %llu.\n",
+			"InnoDB is trying to free space " UINT32PF " page"
+			" " UINT32PF ", which does not belong to segment"
+			" " IB_ID_FMT " but belongs to segment " IB_ID_FMT ".",
 			page_id.space(), page_id.page_no(),
-			(ullint) descr_id, (ullint) seg_id);
+			descr_id, seg_id);
 
 		goto crash;
 	}
@@ -3288,6 +3340,7 @@ fseg_free_extent(
 	ut_a(!memcmp(descr + XDES_ID, seg_inode + FSEG_ID, 8));
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
+	ut_d(fsp_space_modify_check(space, mtr));
 
 	first_page_in_extent = page - (page % FSP_EXTENT_SIZE);
 
@@ -3715,10 +3768,11 @@ fseg_print_low(
 	n_full = flst_get_len(inode + FSEG_FULL, mtr);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"SEGMENT id %llu space %lu; page %lu; res %lu used %lu;"
+		"SEGMENT id " IB_ID_FMT
+		" space %lu; page %lu; res %lu used %lu;"
 		" full ext %lu; fragm pages %lu; free extents %lu;"
 		" not full extents %lu: pages %lu",
-		(ullint) seg_id,
+		seg_id,
 		(ulong) space, (ulong) page_no,
 		(ulong) reserved, (ulong) used, (ulong) n_full,
 		(ulong) n_frag, (ulong) n_free, (ulong) n_not_full,

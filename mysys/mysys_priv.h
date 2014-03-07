@@ -26,10 +26,6 @@
 
 C_MODE_START
 
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-extern PSI_mutex_key key_my_file_info_mutex;
-#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
-
 extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
@@ -53,9 +49,9 @@ extern mysql_mutex_t THR_LOCK_charset;
 #include <mysql/psi/mysql_file.h>
 
 #ifdef HAVE_PSI_INTERFACE
-#ifdef HUGETLB_USE_PROC_MEMINFO
+#ifdef HAVE_LINUX_LARGE_PAGES
 extern PSI_file_key key_file_proc_meminfo;
-#endif /* HUGETLB_USE_PROC_MEMINFO */
+#endif /* HAVE_LINUX_LARGE_PAGES */
 extern PSI_file_key key_file_charset;
 
 C_MODE_END

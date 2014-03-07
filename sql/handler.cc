@@ -42,6 +42,7 @@
 #include <mysql/psi/mysql_transaction.h>
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "sql_trigger.h"        // TRG_EXT, TRN_EXT
+#include "opt_costmodel.h"
 #include <my_bit.h>
 #include <list>
 #include <map>
@@ -633,6 +634,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT,  "FTS query exceeds result cache limit");
   SETMSG(HA_ERR_TEMP_FILE_WRITE_FAILURE,	ER_DEFAULT(ER_TEMP_FILE_WRITE_FAILURE));
   SETMSG(HA_ERR_INNODB_FORCED_RECOVERY,	ER_DEFAULT(ER_INNODB_FORCED_RECOVERY));
+  SETMSG(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE,  "Too many words in a FTS phrase or proximity search");
   SETMSG(HA_ERR_TABLE_CORRUPT,		ER_DEFAULT(ER_TABLE_CORRUPT));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -934,6 +936,26 @@ void ha_close_connection(THD* thd)
 {
   plugin_foreach(thd, closecon_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
 }
+
+
+static my_bool kill_handlerton(THD *thd, plugin_ref plugin, void *)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->state == SHOW_OPTION_YES && hton->kill_connection)
+  {
+    if (thd_get_ha_data(thd, hton))
+      hton->kill_connection(hton, thd);
+  }
+
+  return FALSE;
+}
+
+void ha_kill_connection(THD *thd)
+{
+  plugin_foreach(thd, kill_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
+}
+
 
 /* ========================================================================
  ======================= TRANSACTIONS ===================================*/
@@ -4618,10 +4640,10 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
   if (!(error=index_next(buf)))
   {
     my_ptrdiff_t ptrdiff= buf - table->record[0];
-    uchar *UNINIT_VAR(save_record_0);
-    KEY *UNINIT_VAR(key_info);
-    KEY_PART_INFO *UNINIT_VAR(key_part);
-    KEY_PART_INFO *UNINIT_VAR(key_part_end);
+    uchar *save_record_0= NULL;
+    KEY *key_info= NULL;
+    KEY_PART_INFO *key_part= NULL;
+    KEY_PART_INFO *key_part_end= NULL;
 
     /*
       key_cmp_if_same() compares table->record[0] against 'key'.
@@ -5503,6 +5525,63 @@ double handler::index_only_read_time(uint keynr, double records)
 }
 
 
+Cost_estimate handler::table_scan_cost()
+{
+  /*
+    This function returns a Cost_estimate object. The function should be
+    implemented in a way that allows the compiler to use "return value
+    optimization" to avoid creating the temporary object for the return value
+    and use of the copy constructor.
+  */
+
+  const double io_cost= scan_time() * table->cost_model()->io_block_read_cost();
+  Cost_estimate cost;
+  cost.add_io(io_cost);
+  return cost;
+}
+
+  
+Cost_estimate handler::index_scan_cost(uint index, double ranges, double rows)
+{
+  /*
+    This function returns a Cost_estimate object. The function should be
+    implemented in a way that allows the compiler to use "return value
+    optimization" to avoid creating the temporary object for the return value
+    and use of the copy constructor.
+  */
+
+  DBUG_ASSERT(ranges >= 0.0);
+  DBUG_ASSERT(rows >= 0.0);
+
+  const double io_cost= index_only_read_time(index, rows) *
+                        table->cost_model()->io_block_read_cost();
+  Cost_estimate cost;
+  cost.add_io(io_cost);
+  return cost;
+}
+
+
+Cost_estimate handler::read_cost(uint index, double ranges, double rows)
+{
+  /*
+    This function returns a Cost_estimate object. The function should be
+    implemented in a way that allows the compiler to use "return value
+    optimization" to avoid creating the temporary object for the return value
+    and use of the copy constructor.
+  */
+
+  DBUG_ASSERT(ranges >= 0.0);
+  DBUG_ASSERT(rows >= 0.0);
+
+  const double io_cost= read_time(index, static_cast<uint>(ranges),
+                                  static_cast<ha_rows>(rows)) *
+                        table->cost_model()->io_block_read_cost();
+  Cost_estimate cost;
+  cost.add_io(io_cost);
+  return cost;
+}
+  
+
 /**
   Check if key has partially-covered columns
 
@@ -5652,6 +5731,8 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   
   if (total_rows != HA_POS_ERROR)
   {
+    const Cost_model_table *const cost_model= table->cost_model();
+
     /* The following calculation is the same as in multi_range_read_info(): */
     *flags|= HA_MRR_USE_DEFAULT_IMPL;
     *flags|= HA_MRR_SUPPORT_SORTED;
@@ -5661,7 +5742,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       *cost= index_scan_cost(keyno, n_ranges, total_rows);
     else
       *cost= read_cost(keyno, n_ranges, total_rows);
-    cost->add_cpu(total_rows * ROW_EVALUATE_COST + 0.01);
+    cost->add_cpu(cost_model->row_evaluate_cost(total_rows) + 0.01);
   }
   return total_rows;
 }
@@ -6492,7 +6573,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
     Add CPU cost for processing records (see
     @handler::multi_range_read_info_const()).
   */
-  cost->add_cpu(rows * ROW_EVALUATE_COST);
+  cost->add_cpu(table->cost_model()->row_evaluate_cost(rows));
   return FALSE;
 }
 
@@ -6520,19 +6601,36 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
   {
     get_sweep_read_cost(table, nrows, FALSE, cost);
 
+    /*
+      @todo CostModel: For the old version of the cost model the
+      following code should be used. For the new version of the cost
+      model Cost_model::key_compare_cost() should be used.  When
+      removing support for the old cost model this code should be
+      removed. The reason for this is that we should get rid of the
+      ROWID_COMPARE_SORT_COST and use key_compare_cost() instead. For
+      the current value returned by key_compare_cost() this would
+      overestimate the cost for sorting.
+    */
+
     /* 
       Constant for the cost of doing one key compare operation in the
-      sort operation. We should have used the existing
-      ROWID_COMPARE_COST constant here but this would make the cost
+      sort operation. We should have used the value returned by
+      key_compare_cost() here but this would make the cost
       estimate of sorting very high for queries accessing many
       records. Until this constant is adjusted we introduce a constant
       that is more realistic. @todo: Replace this with
-      ROWID_COMPARE_COST when this have been given a realistic value.
+      key_compare_cost() when this has been given a realistic value.
     */
     const double ROWID_COMPARE_SORT_COST = 0.01;
 
     /* Add cost of qsort call: n * log2(n) * cost(rowid_comparison) */
+    
+    // For the old version of the cost model this cost calculations should
+    // be used....
     const double cpu_sort= nrows * log2(nrows) * ROWID_COMPARE_SORT_COST;
+    // .... For the new cost model something like this should be used...
+    // cpu_sort= nrows * log2(nrows) *
+    //           table->cost_model()->rowid_compare_cost();
     cost->add_cpu(cpu_sort);
   }
 }
@@ -6572,7 +6670,8 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
 
     1 = half_rotation_cost + move_cost * 1/3 * typical_data_file_length
 
-  We define half_rotation_cost as DISK_SEEK_BASE_COST=0.9.
+  We define half_rotation_cost as disk_seek_base_cost() (see
+  Cost_model_server::disk_seek_base_cost()).
 
   @param table             Table to be accessed
   @param nrows             Number of rows to retrieve
@@ -6589,6 +6688,8 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   DBUG_ASSERT(cost->is_zero());
   if(nrows > 0)
   {
+    const Cost_model_table *const cost_model= table->cost_model();
+
     double n_blocks=
       ceil(ulonglong2double(table->file->stats.data_file_length) / IO_SIZE);
     if (n_blocks < 1.0)                         // When data_file_length is 0
@@ -6601,12 +6702,11 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
     DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
                        busy_blocks));
     if (interrupted)
-      cost->add_io(busy_blocks * Cost_estimate::IO_BLOCK_READ_COST());
+      cost->add_io(busy_blocks * cost_model->io_block_read_cost());
     else
       /* Assume reading is done in one 'sweep' */
       cost->add_io(busy_blocks * 
-                   (DISK_SEEK_BASE_COST +
-                    DISK_SEEK_PROP_COST * n_blocks / busy_blocks));
+                   cost_model->disk_seek_cost(n_blocks / busy_blocks));
   }
   DBUG_PRINT("info",("returning cost=%g", cost->total_cost()));
   DBUG_VOID_RETURN;

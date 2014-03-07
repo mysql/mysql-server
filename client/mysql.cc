@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1323,9 +1323,9 @@ int main(int argc,char *argv[])
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
-  sprintf((char*) glob_buffer.ptr(),
-	  "Your MySQL connection id is %lu\nServer version: %s\n",
-	  mysql_thread_id(&mysql), server_version_string(&mysql));
+  snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
+	   "Your MySQL connection id is %lu\nServer version: %s\n",
+	   mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
   put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
@@ -3345,8 +3345,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
       char last_char= 0;
 
       int num_name= 0, num_cat= 0;
-      LINT_INIT(num_name);
-      LINT_INIT(num_cat);
 
       if (num_fields == 2)
       {
@@ -3486,7 +3484,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
 
   /* Remove garbage for nicer messages */
-  LINT_INIT(buff[0]);
+  buff[0]= 0;
   remove_cntrl(*buffer);
 
   if (buffer->is_empty())
@@ -5039,8 +5037,7 @@ com_status(String *buffer __attribute__((unused)),
   const char *status_str;
   char buff[40];
   ulonglong id;
-  MYSQL_RES *result;
-  LINT_INIT(result);
+  MYSQL_RES *result= NULL;
 
   if (mysql_real_query_for_lazy(
         C_STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
@@ -5658,8 +5655,7 @@ static void init_username()
   my_free(full_username);
   my_free(part_username);
 
-  MYSQL_RES *result;
-  LINT_INIT(result);
+  MYSQL_RES *result= NULL;
   if (!mysql_query(&mysql,"select USER()") &&
       (result=mysql_use_result(&mysql)))
   {

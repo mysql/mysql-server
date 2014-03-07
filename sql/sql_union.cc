@@ -124,15 +124,10 @@ bool mysql_union_prepare_and_optimize(THD *thd, LEX *lex,
       thd->lex->set_current_select(first);
       unit->set_limit(unit->global_parameters());
       if (mysql_prepare_and_optimize_select(thd,
-                        first->table_list.first,
-                        first->with_wild, first->item_list,
-                        first->where,
-                        &first->order_list,
-                        &first->group_list,
-                        first->having,
+                        first->item_list,
                         (first->options | thd->variables.option_bits |
                            union_options),
-                        result, unit, first, &free_join))
+                        result, first, &free_join))
         return true;
       thd->lex->set_current_select(select_save);
       unit->optimized= true;
@@ -441,7 +436,8 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg,
        order;
        order=order->next)
   {
-    (*order->item)->walk(&Item::change_context_processor, 0,
+    (*order->item)->walk(&Item::change_context_processor,
+                         Item::WALK_POSTFIX,
                          (uchar*) &fake_select_lex->context);
   }
   if (!fake_select_lex->join)
@@ -479,7 +475,7 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg,
     /*
       We need to add up n_sum_items in order to make the correct
       allocation in setup_ref_array().
-      Don't add more sum_items if we have already done JOIN::prepare
+      Don't add more sum_items if we have already done SELECT_LEX::prepare
       for this (with a different join object)
     */
     if (fake_select_lex->ref_pointer_array.is_null())
@@ -560,7 +556,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
   for (;sl; sl= sl->next_select())
   {
-    bool can_skip_order_by;
     sl->options|=  SELECT_NO_UNLOCK;
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
 			 sl->options | thd_arg->variables.option_bits | additional_options,
@@ -577,19 +572,10 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
     thd_arg->lex->set_current_select(sl);
 
-    can_skip_order_by= is_union_select && !(sl->braces && sl->explicit_limit);
+    if (is_union_select && !(sl->braces && sl->explicit_limit))
+      sl->order_list.empty();      // Can skip ORDER BY
 
-    saved_error= join->prepare(sl->table_list.first,
-                               sl->with_wild,
-                               sl->where,
-                               (can_skip_order_by ? 0 :
-                                sl->order_list.elements) +
-                               sl->group_list.elements,
-                               can_skip_order_by ?
-                               NULL : sl->order_list.first,
-                               sl->group_list.first,
-                               sl->having,
-                               sl, this);
+    saved_error= sl->prepare(join);
     /* There are no * in the statement anymore (for PS) */
     sl->with_wild= 0;
 
@@ -699,17 +685,12 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
         thd_arg->lex->set_current_select(fake_select_lex);
         /* Validate the global parameters of this union */
         init_prepare_fake_select_lex(thd, false);
-
-	saved_error= fake_select_lex->join->
-	  prepare(fake_select_lex->table_list.first, // tables_init
-                  0,                                 // wild_num
-                  0,                                 // conds_init
-                  fake_select_lex->order_list.elements, // og_num
-                  fake_select_lex->order_list.first,    // order
-                  NULL,                                // group_init
-                  NULL,                                // having_init
-                  fake_select_lex,                     // select_lex_arg
-                  this);                               // unit_arg
+        fake_select_lex->set_where_cond(NULL);
+        fake_select_lex->set_having_cond(NULL);
+        DBUG_ASSERT(fake_select_lex->with_wild == 0 &&
+                    fake_select_lex->master_unit() == this &&
+                    !fake_select_lex->group_list.elements);
+	saved_error= fake_select_lex->prepare(fake_select_lex->join);
 	fake_select_lex->table_list.empty();
       }
     }
@@ -817,13 +798,20 @@ bool st_select_lex_unit::optimize()
     if (!join->optimized || !join->tables)
     {
       bool dummy= false;
+      /*
+        IN(SELECT UNION SELECT)->EXISTS injects an equality in
+        fake_select_lex->where_cond, which is meaningless.
+      */
+      fake_select_lex->set_where_cond(NULL);
+      fake_select_lex->set_having_cond(NULL);
+      DBUG_ASSERT(fake_select_lex->with_wild == 0 &&
+                  fake_select_lex->master_unit() == this &&
+                  !fake_select_lex->group_list.elements &&
+                  fake_select_lex->get_table_list() == &result_table_list);
       saved_error= mysql_prepare_and_optimize_select(thd,
-                            &result_table_list,
-                            0, item_list, NULL,
-                            &fake_select_lex->order_list,
-                            NULL, NULL,
+                            item_list,
                             fake_select_lex->options | SELECT_NO_UNLOCK,
-                            result, this, fake_select_lex, &dummy);
+                            result, fake_select_lex, &dummy);
     }
   }
   if (!saved_error)

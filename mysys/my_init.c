@@ -199,14 +199,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 
   my_thread_end();
   my_thread_global_end();
-#if defined(SAFE_MUTEX)
-  /*
-    Check on destroying of mutexes. A few may be left that will get cleaned
-    up by C++ destructors
-  */
-  safe_mutex_end((infoflag & (MY_GIVE_INFO | MY_CHECK_ERROR)) ? stderr :
-                 (FILE *) 0);
-#endif /* defined(SAFE_MUTEX) */
 
 #ifdef _WIN32
   if (have_tcpip)
@@ -358,17 +350,8 @@ static void my_win_init(void)
   DBUG_ENTER("my_win_init");
 
 #if defined(_MSC_VER)
-#if _MSC_VER < 1300
-  /*
-    Clear the OS system variable TZ and avoid the 100% CPU usage
-    Only for old versions of Visual C++
-  */
-  _putenv("TZ=");
-#endif
-#if _MSC_VER >= 1400
   /* this is required to make crt functions return -1 appropriately */
   _set_invalid_parameter_handler(my_parameter_handler);
-#endif
 #endif
 
 #ifdef __MSVC_RUNTIME_CHECKS
@@ -457,10 +440,6 @@ PSI_stage_info stage_waiting_for_table_level_lock=
 
 #ifdef HAVE_PSI_INTERFACE
 
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-PSI_mutex_key key_my_file_info_mutex;
-#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
-
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
@@ -471,9 +450,6 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-  { &key_my_file_info_mutex, "st_my_file_info:mutex", 0},
-#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
   { &key_BITMAP_mutex, "BITMAP::mutex", 0},
   { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
   { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},
@@ -506,16 +482,16 @@ static PSI_cond_info all_mysys_conds[]=
   { &key_THR_COND_threads, "THR_COND_threads", 0}
 };
 
-#ifdef HUGETLB_USE_PROC_MEMINFO
+#ifdef HAVE_LINUX_LARGE_PAGES
 PSI_file_key key_file_proc_meminfo;
-#endif /* HUGETLB_USE_PROC_MEMINFO */
+#endif /* HAVE_LINUX_LARGE_PAGES */
 PSI_file_key key_file_charset, key_file_cnf;
 
 static PSI_file_info all_mysys_files[]=
 {
-#ifdef HUGETLB_USE_PROC_MEMINFO
+#ifdef HAVE_LINUX_LARGE_PAGES
   { &key_file_proc_meminfo, "proc_meminfo", 0},
-#endif /* HUGETLB_USE_PROC_MEMINFO */
+#endif /* HAVE_LINUX_LARGE_PAGES */
   { &key_file_charset, "charset", 0},
   { &key_file_cnf, "cnf", 0}
 };

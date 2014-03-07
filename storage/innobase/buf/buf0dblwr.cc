@@ -113,7 +113,7 @@ buf_dblwr_sync_datafiles()
 	os_aio_wait_until_no_pending_writes();
 
 	/* Now we flush the data to disk (for example, with fsync) */
-	fil_flush_file_spaces(FIL_TABLESPACE);
+	fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 }
 
 /****************************************************************//**
@@ -349,10 +349,12 @@ we already have a doublewrite buffer created in the data files. If we are
 upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
 recovery, this function loads the pages from double write buffer into memory. */
+
 void
 buf_dblwr_init_or_load_pages(
-/*==========================*/
-	bool load_corrupt_pages)
+/*=========================*/
+	os_file_t	file,
+	const char*	path)
 {
 	byte*		buf;
 	byte*		read_buf;
@@ -375,10 +377,8 @@ buf_dblwr_init_or_load_pages(
 
 	/* Read the trx sys header to check if we are using the doublewrite
 	buffer */
-
-	fil_io(OS_FILE_READ, true,
-	       page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
-	       0, univ_page_size.physical(), read_buf, NULL);
+        os_file_read(file, read_buf, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE,
+		     UNIV_PAGE_SIZE);
 
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
 
@@ -413,16 +413,13 @@ buf_dblwr_init_or_load_pages(
 	}
 
 	/* Read the pages from the doublewrite buffer to memory */
+        os_file_read(file, buf, block1 * UNIV_PAGE_SIZE,
+		     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
-	fil_io(OS_FILE_READ, true,
-	       page_id_t(TRX_SYS_SPACE, block1), univ_page_size,
-	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * univ_page_size.physical(),
-	       buf, NULL);
-
-	fil_io(OS_FILE_READ, true,
-	       page_id_t(TRX_SYS_SPACE, block2), univ_page_size,
-	       0, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * univ_page_size.physical(),
-	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE, NULL);
+        os_file_read(file,
+		     buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
+		     block2 * UNIV_PAGE_SIZE,
+		     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
 	/* Check if any of these pages is half-written in data files, in the
 	intended position */
@@ -430,10 +427,8 @@ buf_dblwr_init_or_load_pages(
 	page = buf;
 
 	for (i = 0; i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 2; i++) {
-
-		ulint source_page_no;
-
 		if (reset_space_ids) {
+			ulint source_page_no;
 
 			space_id = 0;
 			mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
@@ -449,12 +444,11 @@ buf_dblwr_init_or_load_pages(
 					+ i - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
 			}
 
-			fil_io(OS_FILE_WRITE, true,
-			       page_id_t(space_id, source_page_no),
-			       univ_page_size, 0, univ_page_size.physical(),
-			       page, NULL);
+			os_file_write(path, file, page,
+				      source_page_no * UNIV_PAGE_SIZE,
+				      UNIV_PAGE_SIZE);
 
-		} else if (load_corrupt_pages) {
+		} else {
 
 			recv_dblwr.add(page);
 		}
@@ -462,56 +456,51 @@ buf_dblwr_init_or_load_pages(
 		page += univ_page_size.physical();
 	}
 
-	fil_flush_file_spaces(FIL_TABLESPACE);
+	if (reset_space_ids) {
+		os_file_flush(file);
+	}
 
 	ut_free(unaligned_read_buf);
 }
 
-/****************************************************************//**
-Process the double write buffer pages. */
+/** Process and remove the double write buffer pages for all tablespaces. */
+
 void
-buf_dblwr_process()
-/*===============*/
+buf_dblwr_process(void)
 {
-	ulint		space_id;
-	ulint		page_no;
-	ulint		page_no_dblwr = 0;
-	byte*		page;
+	ulint		page_no_dblwr	= 0;
 	byte*		read_buf;
 	byte*		unaligned_read_buf;
-	recv_dblwr_t&	recv_dblwr = recv_sys->dblwr;
+	recv_dblwr_t&	recv_dblwr	= recv_sys->dblwr;
 
 	unaligned_read_buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 
 	read_buf = static_cast<byte*>(
 		ut_align(unaligned_read_buf, UNIV_PAGE_SIZE));
 
-	for (std::list<byte*>::iterator i = recv_dblwr.pages.begin();
+	for (recv_dblwr_t::list::iterator i = recv_dblwr.pages.begin();
 	     i != recv_dblwr.pages.end();
 	     ++i, ++page_no_dblwr) {
 
-		page = *i;
-		page_no  = mach_read_from_4(page + FIL_PAGE_OFFSET);
-		space_id = mach_read_from_4(page + FIL_PAGE_SPACE_ID);
+		const byte*	page		= *i;
+		ulint		page_no		= page_get_page_no(page);
+		ulint		space_id	= page_get_space_id(page);
 
 		if (!fil_tablespace_exists_in_mem(space_id)) {
 			/* Maybe we have dropped the single-table tablespace
 			and this page once belonged to it: do nothing */
-
 		} else if (!fil_check_adress_in_tablespace(space_id,
 							   page_no)) {
-
 			/* Do not report the warning if the tablespace is
 			truncated as it's reasonable */
 			if (!srv_is_tablespace_truncated(space_id)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"A page in the doublewrite buffer is "
-					"not within space bounds; space id %lu"
-					" page number %lu, page %lu in "
-					"doublewrite buf.", (ulong) space_id,
-					(ulong) page_no, page_no_dblwr);
+					"Page " ULINTPF
+					" in the doublewrite buffer is"
+					" not within space bounds:"
+					" page " ULINTPF ":" ULINTPF,
+					page_no_dblwr, space_id, page_no);
 			}
-
 		} else {
 			bool			found;
 			const page_size_t	page_size(
@@ -527,13 +516,13 @@ buf_dblwr_process()
 			/* Check if the page is corrupt */
 
 			if (buf_page_is_corrupted(true, read_buf, page_size)) {
-
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Database page corruption or a failed"
-					" file read of space %lu page %lu."
+					" file read of"
+					" page " ULINTPF ":" ULINTPF "."
 					" Trying to recover it from the"
 					" doublewrite buffer.",
-					(ulong) space_id, (ulong) page_no);
+					space_id, page_no);
 
 				if (buf_page_is_corrupted(true, page,
 							  page_size)) {
@@ -557,25 +546,37 @@ buf_dblwr_process()
 						" database with"
 						" innodb_force_recovery=6");
 				}
+			} else if (buf_page_is_zeroes(read_buf, page_size)
+				   && !buf_page_is_zeroes(page, page_size)
+				   && !buf_page_is_corrupted(true, page,
+							     page_size)) {
 
-				/* Write the good page from the
-				doublewrite buffer to the intended
-				position */
+				/* Database page contained only zeroes, while
+				a valid copy is available in dblwr buffer. */
 
-				fil_io(OS_FILE_WRITE, true,
-				       page_id_t(space_id, page_no), page_size,
-				       0, page_size.physical(), page, NULL);
-
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Recovered the page from"
-					" the doublewrite buffer.");
+			} else {
+				continue;
 			}
+
+			/* Write the good page from the doublewrite
+			buffer to the intended position. */
+
+			fil_io(OS_FILE_WRITE, true,
+			       page_id_t(space_id, page_no), page_size,
+			       0, page_size.physical(),
+			       const_cast<byte*>(page), NULL);
+
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Recovered page " ULINTPF ":" ULINTPF
+				" from the doublewrite buffer.",
+				space_id, page_no);
 		}
 	}
 
-	fil_flush_file_spaces(FIL_TABLESPACE);
-	ut_free(unaligned_read_buf);
 	recv_dblwr.pages.clear();
+
+	fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+	ut_free(unaligned_read_buf);
 }
 
 /****************************************************************//**
@@ -634,7 +635,7 @@ buf_dblwr_update(
 			mutex_exit(&buf_dblwr->mutex);
 			/* This will finish the batch. Sync data files
 			to the disk. */
-			fil_flush_file_spaces(FIL_TABLESPACE);
+			fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 			mutex_enter(&buf_dblwr->mutex);
 
 			/* We can now reuse the doublewrite memory buffer: */

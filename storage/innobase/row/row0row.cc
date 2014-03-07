@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1036,7 +1036,8 @@ row_raw_format(
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
-#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) && defined(HAVE_RESOURCE_H)
+
+#ifdef HAVE_UT_CHRONO_T
 
 void
 test_row_raw_format_int()
@@ -1044,7 +1045,6 @@ test_row_raw_format_int()
 	ulint	ret;
 	char	buf[128];
 	ibool	format_in_hex;
-	speedo_t speedo;
 	ulint	i;
 
 #define CALL_AND_TEST(data, data_len, prtype, buf, buf_size,\
@@ -1228,7 +1228,7 @@ test_row_raw_format_int()
 
 	/* speed test */
 
-	speedo_reset(&speedo);
+	ut_chrono_t	ch(__func__);
 
 	for (i = 0; i < 1000000; i++) {
 		row_raw_format_int("\x23", 1,
@@ -1245,10 +1245,8 @@ test_row_raw_format_int()
 				   DATA_UNSIGNED, buf, sizeof(buf),
 				   &format_in_hex);
 	}
-
-	speedo_show(&speedo);
 }
 
-#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_RESOURCE_H */
+#endif /* HAVE_UT_CHRONO_T */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */

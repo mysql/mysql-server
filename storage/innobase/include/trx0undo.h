@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -269,24 +269,21 @@ trx_undo_truncate_end_func(
 	trx_undo_truncate_end_func(undo,limit)
 #endif /* UNIV_DEBUG */
 
-/***********************************************************************//**
-Truncates an undo log from the start. This function is used during a purge
-operation. */
+/** Truncate the head of an undo log.
+NOTE that only whole pages are freed; the header page is not
+freed, but emptied, if all the records there are below the limit.
+@param[in,out]	rseg		rollback segment
+@param[in]	hdr_page_no	header page number
+@param[in]	hdr_offset	header offset on the page
+@param[in]	limit		first undo number to preserve
+(everything below the limit will be truncated) */
 
 void
 trx_undo_truncate_start(
-/*====================*/
-	trx_rseg_t*	rseg,		/*!< in: rollback segment */
-	ulint		space,		/*!< in: space id of the log */
-	ulint		hdr_page_no,	/*!< in: header page number */
-	ulint		hdr_offset,	/*!< in: header offset on the page */
-	undo_no_t	limit);		/*!< in: all undo pages with
-					undo numbers < this value
-					should be truncated; NOTE that
-					the function only frees whole
-					pages; the header page is not
-					freed, but emptied, if all the
-					records there are < limit */
+	trx_rseg_t*	rseg,
+	ulint		hdr_page_no,
+	ulint		hdr_offset,
+	undo_no_t	limit);
 /********************************************************************//**
 Initializes the undo log lists for a rollback segment memory copy.
 This function is only called when the database is started or a new
@@ -352,15 +349,16 @@ trx_undo_update_cleanup(
 	ulint		n_added_logs,	/*!< in: number of logs added */
 	mtr_t*		mtr);		/*!< in: mtr */
 
-/******************************************************************//**
-Frees or caches an insert undo log after a transaction commit or rollback.
+/** Frees an insert undo log after a transaction commit or rollback.
 Knowledge of inserts is not needed after a commit or rollback, therefore
-the data can be discarded. */
+the data can be discarded.
+@param[in,out]	undo_ptr	undo log to clean up
+@param[in]	noredo		whether the undo tablespace is redo logged */
 
 void
 trx_undo_insert_cleanup(
-/*====================*/
-	trx_undo_ptr_t*	undo_ptr);	/*!< in: undo log to cleanup. */
+	trx_undo_ptr_t*	undo_ptr,
+	bool		noredo);
 
 /********************************************************************//**
 At shutdown, frees the undo logs of a PREPARED transaction. */
@@ -378,22 +376,25 @@ Parses the redo log entry of an undo log page initialization.
 byte*
 trx_undo_parse_page_init(
 /*=====================*/
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr);	/*!< in: mtr or NULL */
-/***********************************************************//**
-Parses the redo log entry of an undo log page header create or reuse.
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
+	page_t*		page,	/*!< in: page or NULL */
+	mtr_t*		mtr);	/*!< in: mtr or NULL */
+/** Parse the redo log entry of an undo log page header create or reuse.
+@param[in]	type	MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE
+@param[in]	ptr	redo log record
+@param[in]	end_ptr	end of log buffer
+@param[in,out]	page	page frame or NULL
+@param[in,out]	mtr	mini-transaction or NULL
 @return end of log record or NULL */
 
 byte*
 trx_undo_parse_page_header(
-/*=======================*/
-	ulint	type,	/*!< in: MLOG_UNDO_HDR_CREATE or MLOG_UNDO_HDR_REUSE */
-	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr,/*!< in: buffer end */
-	page_t*	page,	/*!< in: page or NULL */
-	mtr_t*	mtr);	/*!< in: mtr or NULL */
+	mlog_id_t	type,
+	const byte*	ptr,
+	const byte*	end_ptr,
+	page_t*		page,
+	mtr_t*		mtr);
 /***********************************************************//**
 Parses the redo log entry of an undo log page header discard.
 @return end of log record or NULL */

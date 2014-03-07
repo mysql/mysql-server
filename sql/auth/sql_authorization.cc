@@ -279,7 +279,8 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   }
   thd->lex->query_tables_own_last= save_query_tables_own_last;
 
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && !select_lex->where)
+  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
+      !select_lex->where_cond())
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
@@ -2732,13 +2733,12 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   ulong want_access;
   uint counter,index;
   int  error = 0;
-  ACL_USER *acl_user;
+  ACL_USER *acl_user= NULL;
   ACL_DB *acl_db;
   char buff[1024];
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_show_grants");
 
-  LINT_INIT(acl_user);
   if (!initialized)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
@@ -2807,26 +2807,35 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append (STRING_WITH_LEN("'@'"));
     global.append(lex_user->host.str,lex_user->host.length,
                   system_charset_info);
-    global.append ('\'');
+    global.append ('\'');    
 #if defined(HAVE_OPENSSL)
-    if (acl_user->plugin.str == sha256_password_plugin_name.str)
+    if (acl_user->plugin.str == sha256_password_plugin_name.str &&
+        acl_user->auth_string.length > 0)
     {
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append((const char *) &acl_user->auth_string.str[0]);
-      global.append('\'');
+      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
+      if ((thd->security_ctx->master_access & SUPER_ACL) == SUPER_ACL)
+      {
+        global.append(" \'");
+        global.append((const char *) &acl_user->auth_string.str[0]);
+        global.append('\'');
+      }
     }
     else
 #endif /* HAVE_OPENSSL */
     if (acl_user->salt_len)
     {
+      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
       char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
       if (acl_user->salt_len == SCRAMBLE_LENGTH)
         make_password_from_salt(passwd_buff, acl_user->salt);
       else
         make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append(passwd_buff);
-      global.append('\'');
+      if ((thd->security_ctx->master_access & SUPER_ACL) == SUPER_ACL)
+      {
+        global.append(" \'");
+        global.append(passwd_buff);
+        global.append('\'');
+      }
     }
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)

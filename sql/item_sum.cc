@@ -479,19 +479,18 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
 }
 
 
-bool Item_sum::walk (Item_processor processor, bool walk_subquery,
-                     uchar *argument)
+bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
 {
-  if (arg_count)
+  if ((walk & WALK_PREFIX) && (this->*processor)(argument))
+    return true;
+
+  Item **arg,**arg_end;
+  for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
   {
-    Item **arg,**arg_end;
-    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
-    {
-      if ((*arg)->walk(processor, walk_subquery, argument))
-	return 1;
-    }
+    if ((*arg)->walk(processor, walk, argument))
+      return true;
   }
-  return (this->*processor)(argument);
+  return (walk & WALK_POSTFIX) && (this->*processor)(argument);
 }
 
 
@@ -2018,7 +2017,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
 }
 
 
-bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   if (null_value)

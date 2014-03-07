@@ -74,7 +74,6 @@ SET(INNOBASE_SOURCES
 	log/log0recv.cc
 	mach/mach0data.cc
 	mem/mem0mem.cc
-	mem/mem0pool.cc
 	mtr/mtr0log.cc
 	mtr/mtr0mtr.cc
 	os/os0file.cc

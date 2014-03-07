@@ -897,19 +897,8 @@ row_prebuilt_free(
 	row_prebuilt_t*	prebuilt,	/*!< in, own: prebuilt struct */
 	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
 {
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
-	    || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to free a corrupt table handle."
-			" magic_n %lu, magic_n2 %lu, table name %s",
-			(ulong) prebuilt->magic_n,
-			(ulong) prebuilt->magic_n2,
-			ut_get_name(NULL, TRUE, prebuilt->table->name).c_str());
-
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
 	prebuilt->magic_n2 = ROW_PREBUILT_FREED;
@@ -944,30 +933,17 @@ row_prebuilt_free(
 		byte*	ptr = base;
 
 		for (ulint i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
-			byte*	row;
-			ulint	magic1;
-			ulint	magic2;
-
-			magic1 = mach_read_from_4(ptr);
+			ulint	magic1 = mach_read_from_4(ptr);
+			ut_a(magic1 == ROW_PREBUILT_FETCH_MAGIC_N);
 			ptr += 4;
 
-			row = ptr;
+			byte*	row = ptr;
+			ut_a(row == prebuilt->fetch_cache[i]);
 			ptr += prebuilt->mysql_row_len;
 
-			magic2 = mach_read_from_4(ptr);
+			ulint	magic2 = mach_read_from_4(ptr);
+			ut_a(magic2 == ROW_PREBUILT_FETCH_MAGIC_N);
 			ptr += 4;
-
-			if (ROW_PREBUILT_FETCH_MAGIC_N != magic1
-			    || row != prebuilt->fetch_cache[i]
-			    || ROW_PREBUILT_FETCH_MAGIC_N != magic2) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Trying to free a corrupt"
-					" fetch buffer.");
-				mem_analyze_corruption(base);
-				ib_logf(IB_LOG_LEVEL_FATAL,
-					"Memory Corruption");
-			}
 		}
 
 		ut_free(base);
@@ -989,24 +965,9 @@ row_update_prebuilt_trx(
 					in MySQL handle */
 	trx_t*		trx)		/*!< in: transaction handle */
 {
-	if (trx->magic_n != TRX_MAGIC_N) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to use a corrupt trx handle. Magic n %lu",
-			(ulong) trx->magic_n);
-		mem_analyze_corruption(trx);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
-
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to use a corrupt table handle."
-			" Magic n %lu, table name: %s;",
-			(ulong) prebuilt->magic_n,
-			ut_get_name(trx, TRUE, prebuilt->table->name).c_str());
-
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
+	ut_a(trx->magic_n == TRX_MAGIC_N);
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
 	prebuilt->trx = trx;
 
@@ -1162,11 +1123,9 @@ row_lock_table_autoinc_for_mysql(
 	dberr_t			err;
 	ibool			was_lock_wait;
 
-	ut_ad(trx);
-
 	/* If we already hold an AUTOINC lock on the table then do nothing.
-        Note: We peek at the value of the current owner without acquiring
-	the lock mutex. **/
+	Note: We peek at the value of the current owner without acquiring
+	the lock mutex. */
 	if (trx == table->autoinc_trx) {
 
 		return(DB_SUCCESS);
@@ -1238,8 +1197,6 @@ row_lock_table_for_mysql(
 	que_thr_t*	thr;
 	dberr_t		err;
 	ibool		was_lock_wait;
-
-	ut_ad(trx);
 
 	trx->op_info = "setting table lock";
 
@@ -1319,6 +1276,8 @@ row_insert_for_mysql(
 	dict_table_t*	table		= prebuilt->table;
 
 	ut_ad(trx);
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1335,16 +1294,6 @@ row_insert_for_mysql(
 			prebuilt->table->name);
 
 		return(DB_TABLESPACE_NOT_FOUND);
-
-	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to free a corrupt table handle."
-			" Magic n %lu, table name %s;",
-			(ulong) prebuilt->magic_n,
-			ut_get_name(trx, TRUE,prebuilt->table->name).c_str());
-
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 
 	} else if (srv_sys_space.created_new_raw()) {
 		ib_logf(IB_LOG_LEVEL_ERROR,"%s",
@@ -1365,8 +1314,8 @@ row_insert_for_mysql(
 	if (dict_table_is_corrupted(table)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Table %s is corrupt.", table->name);
-                return(DB_TABLE_CORRUPT);
-        }
+		return(DB_TABLE_CORRUPT);
+	}
 
 	trx->op_info = "inserting";
 
@@ -1418,10 +1367,13 @@ error_exit:
 			goto run_again;
 		}
 
+		node->duplicate = NULL;
 		trx->op_info = "";
 
 		return(err);
 	}
+
+	node->duplicate = NULL;
 
 	if (dict_table_has_fts_index(table)) {
 		doc_id_t	doc_id;
@@ -1735,7 +1687,9 @@ row_update_for_mysql(
 
 	DBUG_ENTER("row_update_for_mysql");
 
-	ut_ad(prebuilt && trx);
+	ut_ad(trx);
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 	UT_NOT_USED(mysql_rec);
 
 	if (prebuilt->table->ibd_file_missing) {
@@ -1747,17 +1701,6 @@ row_update_for_mysql(
 			" TABLESPACE? %s",
 			prebuilt->table->name, TROUBLESHOOTING_MSG);
 		DBUG_RETURN(DB_ERROR);
-	}
-
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to free a corrupt table handle."
-			" Magic n %lu, table name %s;",
-			(ulong) prebuilt->magic_n,
-			ut_get_name(trx, TRUE, prebuilt->table->name).c_str());
-
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 	if (srv_sys_space.created_new_raw()) {
@@ -2245,12 +2188,8 @@ row_mysql_unlock_data_dictionary(
 }
 
 /*********************************************************************//**
-Creates a table for MySQL. If the name of the table ends in
-one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
-"innodb_table_monitor", then this will also start the printing of monitor
-output by the master thread. If the table name ends in "innodb_mem_validate",
-InnoDB will try to invoke mem_validate(). On failure the transaction will
-be rolled back and the 'table' object will be freed.
+Creates a table for MySQL. On failure the transaction will be rolled back
+and the 'table' object will be freed.
 @return error code or DB_SUCCESS */
 
 dberr_t
@@ -3276,10 +3215,7 @@ run_again:
 }
 
 /*********************************************************************//**
-Drops a table for MySQL.  If the name of the dropped table ends in
-one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
-"innodb_table_monitor", then this will also stop the printing of monitor
-output by the master thread.  If the data dictionary was not already locked
+Drops a table for MySQL.  If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
 @return error code or DB_SUCCESS */

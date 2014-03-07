@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2727,7 +2727,8 @@ static int find_uniq_filename(char *name)
   file_info= dir_info->dir_entry;
   for (i= dir_info->number_off_files ; i-- ; file_info++)
   {
-    if (memcmp(file_info->name, start, length) == 0 &&
+    if (strlen(file_info->name) > length &&
+        memcmp(file_info->name, start, length) == 0 &&
 	is_number(file_info->name+length, &number,0))
     {
       set_if_bigger(max_found,(ulong) number);
@@ -3465,6 +3466,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
   DBUG_PRINT("enter",("name: %s", log_name));
+
+  mysql_mutex_assert_owner(get_log_lock());
 
   if (init_and_set_log_file_name(log_name, new_name))
   {
@@ -6507,10 +6510,12 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   if (using_heuristic_recover())
   {
     /* generate a new binlog to mask a corrupted one */
+    mysql_mutex_lock(&LOCK_log);
     open_binlog(opt_name, 0, max_binlog_size, false,
                 true/*need_lock_index=true*/,
                 true/*need_sid_lock=true*/,
                 NULL);
+    mysql_mutex_lock(&LOCK_log);
     cleanup();
     return 1;
   }
@@ -7415,6 +7420,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   if (flush_error == 0 && total_bytes > 0)
     flush_error= flush_cache_to_file(&flush_end_pos);
 
+  bool update_binlog_end_pos_after_sync= (get_sync_period() == 1);
+
   /*
     If the flush finished successfully, we can call the after_flush
     hook. Being invoked here, we have the guarantee that the hook is
@@ -7432,13 +7439,15 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       flush_error= ER_ERROR_ON_WRITE;
     }
 
-    update_binlog_end_pos();
+    if (!update_binlog_end_pos_after_sync)
+      update_binlog_end_pos();
     DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
 
   /*
     Stage #2: Syncing binary log file to disk
   */
+
   if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log, &LOCK_sync))
   {
     DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
@@ -7448,8 +7457,19 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   THD *final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
   if (flush_error == 0 && total_bytes > 0)
   {
+    DEBUG_SYNC(thd, "before_sync_binlog_file");
     std::pair<bool, bool> result= sync_binlog_file(false);
     flush_error= result.first;
+  }
+
+  if (update_binlog_end_pos_after_sync)
+  {
+    THD *tmp_thd= final_queue;
+
+    while (tmp_thd->next_to_commit != NULL)
+      tmp_thd= tmp_thd->next_to_commit;
+
+    update_binlog_end_pos(tmp_thd->get_trans_pos());
   }
 
   /*
@@ -7521,7 +7541,6 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       need the mutex. Otherwise causes various deadlocks.
     */
 
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
     DEBUG_SYNC(thd, "ready_to_do_rotation");
     bool check_purge= false;
     mysql_mutex_lock(&LOCK_log);

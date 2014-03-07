@@ -404,11 +404,14 @@ create_log_files(
 	has been completed and renamed. */
 	sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
 
-	fil_space_t* log_space = fil_space_create(
+	/* Disable the doublewrite buffer for log files, not required */
+
+	fil_space_t*	log_space = fil_space_create(
 		logfilename, SRV_LOG_SPACE_FIRST_ID,
 		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-		FIL_LOG);
+		FIL_TYPE_LOG);
 	ut_a(fil_validate());
+	ut_a(log_space != NULL);
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
@@ -592,9 +595,9 @@ srv_undo_tablespace_open(
 	ulint		space_id)	/*!< in: tablespace id */
 {
 	os_file_t	fh;
-	dberr_t		err	= DB_ERROR;
 	bool		ret;
 	ulint		flags;
+	dberr_t		err	= DB_ERROR;
 
 	if (!srv_file_check_mode(name)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -619,6 +622,12 @@ srv_undo_tablespace_open(
 		os_offset_t	size;
 		fil_space_t*	space;
 
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		if (!srv_use_doublewrite_buf) {
+			fil_fusionio_enable_atomic_write(fh);
+		}
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
+
 		size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t) -1);
 
@@ -637,7 +646,7 @@ srv_undo_tablespace_open(
 		/* Set the compressed page size to 0 (non-compressed) */
 		flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
 		space = fil_space_create(
-			name, space_id, flags, FIL_TABLESPACE);
+			name, space_id, flags, FIL_TYPE_TABLESPACE);
 
 		ut_a(fil_validate());
 		ut_a(space);
@@ -963,6 +972,8 @@ srv_open_tmp_tablespace(
 		return(DB_SUCCESS);
 	}
 
+	ulint	sum_of_new_sizes;
+
 	/* Will try to remove if there is existing file left-over by last
 	unclean shutdown */
 	tmp_space->set_sanity_check_status(true);
@@ -996,7 +1007,9 @@ srv_open_tmp_tablespace(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not create the shared %s.", tmp_space->name());
 
-	} else if ((err = tmp_space->open_or_create()) != DB_SUCCESS) {
+	} else if ((err = tmp_space->open_or_create(
+			    true, &sum_of_new_sizes, NULL, NULL))
+		   != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to create the shared %s", tmp_space->name());
@@ -1006,10 +1019,11 @@ srv_open_tmp_tablespace(
 		mtr_t	mtr;
 		ulint	size = tmp_space->get_sum_of_sizes();
 
-		ut_a(tmp_space->space_id() == temp_space_id
-		     && temp_space_id != ULINT_UNDEFINED);
+		ut_a(temp_space_id != ULINT_UNDEFINED);
+		ut_a(tmp_space->space_id() == temp_space_id);
 
 		mtr_start(&mtr);
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 		fsp_header_init(tmp_space->space_id(), size, &mtr);
 
@@ -1222,15 +1236,6 @@ innobase_start_or_create_for_mysql(void)
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"!!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!");
 #endif /* UNIV_LOG_LSN_DEBUG */
-#ifdef UNIV_MEM_DEBUG
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"!!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!");
-#endif
-
-	if (srv_use_sys_malloc) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The InnoDB memory heap is disabled");
-	}
 
 #if defined(COMPILER_HINTS_ENABLED)
 	ib_logf(IB_LOG_LEVEL_INFO,
@@ -1269,11 +1274,6 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_start_has_been_called = TRUE;
-
-#ifdef UNIV_DEBUG
-	log_do_write = TRUE;
-#endif /* UNIV_DEBUG */
-	/*	yydebug = TRUE; */
 
 	srv_is_being_started = true;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
@@ -1318,11 +1318,8 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
-
-		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
-
-		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 #ifndef _WIN32
+		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
@@ -1341,6 +1338,7 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "nosync")) {
 		srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
 #else
+		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
 		srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
 		srv_use_native_aio = FALSE;
@@ -1583,6 +1581,8 @@ innobase_start_or_create_for_mysql(void)
 	fsp_init();
 	log_init();
 
+	recv_sys_create();
+	recv_sys_init(buf_pool_get_curr_size());
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
@@ -1646,9 +1646,8 @@ innobase_start_or_create_for_mysql(void)
 	/* Open or create the data files. */
 	ulint	sum_of_new_sizes;
 
-	err = srv_sys_space.open_or_create(&sum_of_new_sizes,
-					   &min_flushed_lsn,
-					   &max_flushed_lsn);
+	err = srv_sys_space.open_or_create(
+		false, &sum_of_new_sizes, &min_flushed_lsn, &max_flushed_lsn);
 
 	switch (err) {
 	case DB_SUCCESS:
@@ -1806,11 +1805,12 @@ innobase_start_or_create_for_mysql(void)
 
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
-		fil_space_t* log_space = fil_space_create(
+		/* Disable the doublewrite buffer for log files. */
+		fil_space_t*	log_space = fil_space_create(
 			logfilename,
 			SRV_LOG_SPACE_FIRST_ID,
 			fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-			FIL_LOG);
+			FIL_TYPE_LOG);
 
 		ut_a(fil_validate());
 		ut_a(log_space);
@@ -1906,7 +1906,7 @@ files_checked:
 		/* Stamp the LSN to the data files. */
 		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
-		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
 		create_log_files_rename(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
@@ -2075,7 +2075,7 @@ files_checked:
 			/* Stamp the LSN to the data files. */
 			fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
 
-			fil_flush_file_spaces(FIL_TABLESPACE);
+			fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
 			RECOVERY_CRASH(4);
 
@@ -2138,17 +2138,13 @@ files_checked:
 		log_buffer_flush_to_disk();
 	}
 
+	/* Open temp-tablespace and keep it open until shutdown. */
+
 	err = srv_open_tmp_tablespace(&srv_tmp_space);
 
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
 	}
-
-	/* Open temp-tablespace and keep it open until shutdown. */
-	fil_open_log_and_system_tablespace_files();
-
-	/* fprintf(stderr, "Max allowed record size %lu\n",
-	page_get_free_space_of_empty() / 2); */
 
 	/* Create the doublewrite buffer to a new tablespace */
 	if (buf_dblwr == NULL && !buf_dblwr_create()) {
@@ -2369,9 +2365,9 @@ files_checked:
 	}
 
 	if (srv_print_verbose_log) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"%s started; log sequence number " LSN_PF "",
-			INNODB_VERSION_STR, srv_start_lsn);
+		ib::info() << INNODB_VERSION_STR
+			<< " started; log sequence number "
+			<< srv_start_lsn;
 	}
 
 	if (srv_force_recovery > 0) {
@@ -2539,19 +2535,15 @@ innobase_shutdown_for_mysql(void)
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
-
-	mem_close();
+#ifndef HAVE_ATOMIC_BUILTINS
+	srv_conc_free();
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* 6. Free the thread management resoruces. */
 	os_thread_free();
 
 	/* 7. Free the synchronisation infrastructure. */
 	sync_check_close();
-
-	/* ut_free_all_mem() frees all allocated memory not freed yet
-	in shutdown, and it will also free the ut_list_mutex, so it
-	should be the last one for all operation */
-	ut_free_all_mem();
 
 	if (dict_foreign_err_file) {
 		fclose(dict_foreign_err_file);

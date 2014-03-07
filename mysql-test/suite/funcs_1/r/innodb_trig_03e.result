@@ -139,7 +139,7 @@ current_user
 test_yesprivs@localhost
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT USAGE ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT USAGE ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD
 GRANT SELECT, UPDATE, TRIGGER ON `priv_db`.* TO 'test_yesprivs'@'localhost'
 drop trigger trg1_2;
 ERROR 42000: TRIGGER command denied to user 'test_yesprivs'@'localhost' for table 't1'
@@ -387,7 +387,7 @@ current_user
 test_yesprivs@localhost
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
-GRANT USAGE ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT USAGE ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD
 GRANT SELECT, INSERT, UPDATE, TRIGGER ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 drop trigger trg1_2;
 select current_user;
@@ -1269,7 +1269,7 @@ current_user
 test_yesprivs@localhost
 show grants;
 Grants for test_yesprivs@localhost
-GRANT USAGE ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
+GRANT USAGE ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD
 GRANT TRIGGER ON `priv_db`.* TO 'test_yesprivs'@'localhost' WITH GRANT OPTION
 GRANT SELECT, INSERT, UPDATE, TRIGGER ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
 create definer=not_ex_user@localhost trigger trg1_3

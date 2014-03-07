@@ -2829,7 +2829,7 @@ btr_cur_update_in_place_log(
 		trx_write_roll_ptr(log_ptr, 0);
 		log_ptr += DATA_ROLL_PTR_LEN;
 		/* TRX_ID */
-		log_ptr += mach_ull_write_compressed(log_ptr, 0);
+		log_ptr += mach_u64_write_compressed(log_ptr, 0);
 	}
 
 	mach_write_to_2(log_ptr, page_offset(rec));
@@ -4943,12 +4943,12 @@ btr_estimate_number_of_different_key_vals(
 	ib_uint64_t*	n_diff;
 	ib_uint64_t*	n_not_null;
 	ibool		stats_null_not_equal;
-	ullint		n_sample_pages; /* number of pages to sample */
+	uintmax_t	n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
 	ulint		i;
 	ulint		j;
-	ullint		add_on;
+	uintmax_t	add_on;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint*		offsets_rec	= NULL;
@@ -6034,7 +6034,7 @@ btr_free_externally_stored_field(
 	ulint		i,		/*!< in: field number of field_ref;
 					ignored if rec == NULL */
 	bool		rollback,	/*!< in: performing rollback? */
-	mtr_t*		local_mtr __attribute__((unused))) /*!< in: mtr
+	mtr_t*		local_mtr)	/*!< in: mtr
 					containing the latch to data an an
 					X-latch to the index tree */
 {
@@ -6083,7 +6083,9 @@ btr_free_externally_stored_field(
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
-		dict_disable_redo_if_temporary(index->table, &mtr);
+		ut_ad(!dict_table_is_temporary(index->table)
+		      || local_mtr->get_log_mode() == MTR_LOG_NO_REDO);
+		mtr.set_log_mode(local_mtr->get_log_mode());
 
 		const page_t*	p = page_align(field_ref);
 

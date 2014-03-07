@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,9 +28,9 @@ Created 12/7/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "mtr0types.h"
+#include "dyn0buf.h"
 
 // Forward declaration
-struct mtr_t;
 struct dict_index_t;
 
 #ifndef UNIV_HOTBACKUP
@@ -192,8 +192,8 @@ Parses an initial log record written by mlog_write_initial_log_record.
 byte*
 mlog_parse_initial_log_record(
 /*==========================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	mlog_id_t*	type,	/*!< out: log record type: MLOG_1BYTE, ... */
 	ulint*		space,	/*!< out: space id */
 	ulint*		page_no);/*!< out: page number */
@@ -205,8 +205,8 @@ byte*
 mlog_parse_nbytes(
 /*==============*/
 	mlog_id_t	type,	/*!< in: log record type: MLOG_1BYTE, ... */
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	byte*		page,	/*!< in: page where to apply the log record,
 				or NULL */
 	void*		page_zip);/*!< in/out: compressed page, or NULL */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2422,16 +2422,31 @@ static void update_func_double(THD *thd, struct st_mysql_sys_var *var,
 /****************************************************************************
   System Variables support
 ****************************************************************************/
+/*
+  This function is not thread safe as the pointer returned at the end of
+  the function is outside mutex.
+*/
 
+void lock_plugin_mutex()
+{
+  mysql_mutex_lock(&LOCK_plugin);
+}
 
-sys_var *find_sys_var(THD *thd, const char *str, uint length)
+void unlock_plugin_mutex()
+{
+  mysql_mutex_unlock(&LOCK_plugin);
+}
+
+sys_var *find_sys_var_ex(THD *thd, const char *str, uint length,
+                         bool throw_error, bool locked)
 {
   sys_var *var;
   sys_var_pluginvar *pi= NULL;
   plugin_ref plugin;
-  DBUG_ENTER("find_sys_var");
+  DBUG_ENTER("find_sys_var_ex");
 
-  mysql_mutex_lock(&LOCK_plugin);
+  if (!locked)
+    mysql_mutex_lock(&LOCK_plugin);
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   if ((var= intern_find_sys_var(str, length)) &&
       (pi= var->cast_pluginvar()))
@@ -2450,11 +2465,18 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
   }
   else
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
-  mysql_mutex_unlock(&LOCK_plugin);
+  if (!locked)
+    mysql_mutex_unlock(&LOCK_plugin);
 
-  if (!var)
+  if (!throw_error && !var)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
   DBUG_RETURN(var);
+}
+
+
+sys_var *find_sys_var(THD *thd, const char *str, uint length)
+{
+  return find_sys_var_ex(thd, str, length, false, false);
 }
 
 
@@ -2813,6 +2835,12 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
     intern_plugin_unlock(NULL, old_temp_table_plugin);
     mysql_mutex_unlock(&LOCK_plugin);
   }
+
+  /* Initialize all Sys_var_charptr variables here. */
+
+  // @@session.session_track_system_variables
+  thd->session_sysvar_res_mgr.init(&thd->variables.track_sysvars_ptr, thd->charset());
+
   DBUG_VOID_RETURN;
 }
 
@@ -2838,8 +2866,10 @@ static void unlock_variables(THD *thd, struct system_variables *vars)
 static void cleanup_variables(THD *thd, struct system_variables *vars)
 {
   if (thd)
+  {
     plugin_var_memalloc_free(&thd->variables);
-
+    thd->session_sysvar_res_mgr.deinit();
+  }
   DBUG_ASSERT(vars->table_plugin == NULL);
   DBUG_ASSERT(vars->temp_table_plugin == NULL);
 

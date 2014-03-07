@@ -532,6 +532,25 @@ SysTablespace::read_lsn_and_check_flags()
 
 			set_flags(it->m_flags);
 
+			buf_dblwr_init_or_load_pages(
+				it->handle(), it->filepath());
+
+			/* Check the contents of the first page of the
+			first datafile */
+			for (int retry = 0; retry < 2; ++retry) {
+				err = it->validate_first_page();
+				if (err != DB_SUCCESS && retry == 0) {
+					if (it->restore_from_doublewrite(0)
+					    == DB_SUCCESS) {
+						continue;
+					}
+				}
+				if (err != DB_SUCCESS) {
+					it->close();
+					return(err);
+				}
+			}
+
 			/* Make sure the tablespace space ID matches the
 			space ID on the first page of the first datafile. */
 			if (space_id() != it->m_space_id) {
@@ -545,13 +564,6 @@ SysTablespace::read_lsn_and_check_flags()
 				return(err);
 			}
 
-			/* Check the contents of the first page of the
-			first datafile */
-			err = it->validate_first_page();
-			if (err != DB_SUCCESS) {
-				it->close();
-				return(err);
-			}
 		}
 
 		it->close();
@@ -689,7 +701,7 @@ SysTablespace::file_not_found(
 }
 
 /** Note that the data file was found.
-@param[in/out]	file	data file object */
+@param[in,out]	file	data file object */
 
 void
 SysTablespace::file_found(
@@ -801,12 +813,15 @@ SysTablespace::check_file_spec(
 }
 
 /** Opens or Creates the data files if they do not exist.
+@param[in]  is_temp		Whether this is a temporary tablespace
 @param[out] sum_new_sizes	Sum of sizes of the new files added.
 @param[out] min_lsn		Minimum flushed LSN among all datafiles.
 @param[out] max_lsn		Maximum flushed LSN among all datafiles.
 @return DB_SUCCESS or error code */
+
 dberr_t
 SysTablespace::open_or_create(
+	bool	is_temp,
 	ulint*	sum_new_sizes,
 	lsn_t*	min_lsn,
 	lsn_t*	max_lsn)
@@ -824,7 +839,7 @@ SysTablespace::open_or_create(
 	files_t::iterator	end = m_files.end();
 
 	ut_ad(begin->order() == 0);
-	bool create_new_db = begin->m_exists;
+	bool	create_new_db = begin->m_exists;
 
 	for (files_t::iterator it = begin; it != end; ++it) {
 
@@ -847,9 +862,27 @@ SysTablespace::open_or_create(
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
+
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		/* Note: This should really be per node and not per
+		tablespace because a tablespace can contain multiple
+		files (nodes). The implication is that all files of
+		the tablespace should be on the same medium. */
+
+		if (fil_fusionio_enable_atomic_write(it->m_handle)) {
+
+			if (srv_use_doublewrite_buf) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"FusionIO atomic IO enabled, disabling"
+					" the double write buffer");
+
+				srv_use_doublewrite_buf = false;
+			}
+		}
+#endif /* !NO_FALLOCATE && UNIV_LINUX*/
 	}
 
-	if (create_new_db) {
+	if (create_new_db && min_lsn != NULL && max_lsn != NULL) {
 		/* Validate the header page in the first datafile
 		and read LSNs fom the others. */
 		err = read_lsn_and_check_flags();
@@ -876,8 +909,8 @@ SysTablespace::open_or_create(
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
 			space = fil_space_create(
-				it->m_filepath, space_id(), flags,
-				FIL_TABLESPACE);
+				it->m_filepath, space_id(), flags, is_temp
+				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 
 		ut_a(fil_validate());
