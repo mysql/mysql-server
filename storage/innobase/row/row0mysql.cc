@@ -4784,30 +4784,37 @@ func_exit:
 			}
 		}
 
+		ut_ad(ret == DB_SUCCESS);
+
 		if (cmp > 0) {
 			ret = DB_INDEX_CORRUPT;
-			fputs("InnoDB: index records in a wrong order in ",
-			      stderr);
-not_ok:
-			dict_index_name_print(stderr,
-					      prebuilt->trx, index);
-			fputs("\n"
-			      "InnoDB: prev record ", stderr);
-			dtuple_print(stderr, prev_entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print_new(stderr, rec, offsets);
-			putc('\n', stderr);
-			/* Continue reading */
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Index records in a wrong order in"
+				" index %s of table %s",
+				ut_get_name(prebuilt->trx, FALSE,
+					    index->name).c_str(),
+				ut_get_name(prebuilt->trx, TRUE,
+					    index->table_name).c_str());
 		} else if (dict_index_is_unique(index)
 			   && !contains_null
 			   && matched_fields
 			   >= dict_index_get_n_ordering_defined_by_user(
 				   index)) {
 
-			fputs("InnoDB: duplicate key in ", stderr);
 			ret = DB_DUPLICATE_KEY;
-			goto not_ok;
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Duplicate key in index %s of table %s",
+				ut_get_name(prebuilt->trx, FALSE,
+					    index->name).c_str(),
+				ut_get_name(prebuilt->trx, TRUE,
+					    index->table_name).c_str());
+		}
+
+		if (ret != DB_SUCCESS) {
+			ib_logf(IB_LOG_LEVEL_ERROR, "Prev record %s",
+				rec_printer(prev_entry).c_str());
+			ib_logf(IB_LOG_LEVEL_ERROR, "Record %s",
+				rec_printer(rec, offsets).c_str());
 		}
 	}
 

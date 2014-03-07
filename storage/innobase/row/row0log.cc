@@ -1438,8 +1438,7 @@ row_log_table_apply_insert_low(
 
 	DBUG_PRINT("ib_alter_table",
 		   ("insert table " IB_ID_FMT "(index " IB_ID_FMT "): %s",
-		    index->table->id, index->id,
-		    rec_printer(row).str().c_str()));
+		    index->table->id, index->id, rec_printer(row).c_str()));
 
 	static const ulint	flags
 		= (BTR_CREATE_FLAG
@@ -1558,8 +1557,7 @@ row_log_table_apply_delete_low(
 	DBUG_PRINT("ib_alter_table",
 		   ("delete table " IB_ID_FMT "(index " IB_ID_FMT "): %s",
 		    index->table->id, index->id,
-		    rec_printer(btr_pcur_get_rec(pcur),
-				offsets).str().c_str()));
+		    rec_printer(btr_pcur_get_rec(pcur), offsets).c_str()));
 
 	if (dict_table_get_next_index(index)) {
 		/* Build a row template for purging secondary index entries. */
@@ -2022,8 +2020,8 @@ func_exit_committed:
 			   ("update table " IB_ID_FMT
 			    "(index " IB_ID_FMT "): %s to %s",
 			    index->table->id, index->id,
-			    rec_printer(old_row).str().c_str(),
-			    rec_printer(row).str().c_str()));
+			    rec_printer(old_row).c_str(),
+			    rec_printer(row).c_str()));
 	} else {
 		old_row = NULL;
 		old_ext = NULL;
@@ -2934,7 +2932,7 @@ row_log_apply_op_low(
 		    op == ROW_OP_INSERT ? "insert" : "delete",
 		    has_index_lock ? "locked" : "unlocked",
 		    index->id, trx_id,
-		    rec_printer(entry).str().c_str()));
+		    rec_printer(entry).c_str()));
 
 	mtr_start(&mtr);
 
