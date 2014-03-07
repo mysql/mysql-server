@@ -1089,7 +1089,7 @@ int runBug18385(NDBT_Context* ctx, NDBT_Step* step){
       if ((nodes[cnt] = restarter.getDbNodeId(i)) != node2)
 	cnt++;
     
-    assert(cnt == nodeCount - 1);
+    require(cnt == nodeCount - 1);
     
     CHECK(restarter.startNodes(nodes, cnt) == 0);
     CHECK(restarter.waitNodesStarted(nodes, cnt, 300) == 0);

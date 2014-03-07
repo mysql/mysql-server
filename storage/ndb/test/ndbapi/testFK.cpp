@@ -687,7 +687,7 @@ createFK(NdbDictionary::Dictionary * dict,
   {
     const NdbDictionary::Index * idx = dict->getIndex(childIdx->getName(),
                                                       pChild->getName());
-    assert(idx != 0);
+    require(idx != 0);
     childIdx = idx;
   }
 

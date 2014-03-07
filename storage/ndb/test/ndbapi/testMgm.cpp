@@ -736,8 +736,8 @@ get_nodeid_of_type(NdbMgmd& mgmd, ndb_mgm_node_type type, int *nodeId)
   int noOfNodes = cs->no_of_nodes;
   int randomnode = myRandom48(noOfNodes);
   ndb_mgm_node_state *ns = cs->node_states + randomnode;
-  assert((Uint32)ns->node_type == (Uint32)type);
-  assert(ns->node_id != 0);
+  require((Uint32)ns->node_type == (Uint32)type);
+  require(ns->node_id != 0);
 
   *nodeId = ns->node_id;
   g_info << "Got node id " << *nodeId << " of type " << type << endl;
@@ -1199,8 +1199,8 @@ check_get_nodeid_nodeid1(NdbMgmd& mgmd)
       break;
     }
   }
-  assert(nodeId);
-  assert(nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
+  require(nodeId);
+  require(nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
 
   Properties args, reply;
   args.put("nodeid",nodeId);
@@ -1234,11 +1234,12 @@ check_get_nodeid_wrong_nodetype(NdbMgmd& mgmd)
       break;
     }
   }
-  assert(nodeId && nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
+  require(nodeId);
+  require(nodeType != (Uint32)NDB_MGM_NODE_TYPE_UNKNOWN);
 
   nodeType = (nodeType + 1) / NDB_MGM_NODE_TYPE_MAX;
-  assert((int)nodeType >= (int)NDB_MGM_NODE_TYPE_MIN &&
-         (int)nodeType <= (int)NDB_MGM_NODE_TYPE_MAX);
+  require((int)nodeType >= (int)NDB_MGM_NODE_TYPE_MIN &&
+          (int)nodeType <= (int)NDB_MGM_NODE_TYPE_MAX);
 
   Properties args, reply;
   args.put("nodeid",nodeId);
@@ -2542,7 +2543,7 @@ check_set_ports(NdbMgmd& mgmd)
     Vector<BaseString> port_pairs;
     original_values.split(port_pairs, "\n");
     // Remove last empty line
-    assert(port_pairs[port_pairs.size()-1] == "");
+    require(port_pairs[port_pairs.size()-1] == "");
     port_pairs.erase(port_pairs.size()-1);
 
     // Generate new portnumbers
@@ -2599,7 +2600,7 @@ check_set_ports(NdbMgmd& mgmd)
     Vector<BaseString> port_pairs;
     original_values.split(port_pairs, "\n");
     // Remove last empty line
-    assert(port_pairs[port_pairs.size()-1] == "");
+    require(port_pairs[port_pairs.size()-1] == "");
     port_pairs.erase(port_pairs.size()-1);
 
     Properties args;
@@ -2733,7 +2734,7 @@ get_logfilter(NdbMgmd& mgmd,
     return false;
   }
 
-  assert(value);
+  require(value);
   *value = severity_struct.value;
 
   return true;

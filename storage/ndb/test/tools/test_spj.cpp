@@ -17,7 +17,6 @@
 
 #include <stdio.h>
 #include <time.h>
-#include <assert.h>
 #include <mysqld_error.h>
 
 #include <ndb_global.h>
