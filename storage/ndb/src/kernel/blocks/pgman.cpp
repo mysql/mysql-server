@@ -2206,7 +2206,7 @@ Page_cache_client::update_lsn(Local_key key, Uint64 lsn)
   D("update_lsn" << V(file_no) << V(page_no) << V(lsn));
 
   bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
-  assert(found);
+  require(found);
 
   m_pgman->update_lsn(m_jamBuf, entry_ptr, m_block, lsn);
 }
@@ -2225,8 +2225,7 @@ Page_cache_client::drop_page(Local_key key, Uint32 page_id)
   D("drop_page" << V(file_no) << V(page_no));
 
   bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
-  assert(found);
-  assert(entry_ptr.p->m_real_page_i == page_id);
+  require(found && entry_ptr.p->m_real_page_i == page_id);
 
   return m_pgman->drop_page(entry_ptr);
 }

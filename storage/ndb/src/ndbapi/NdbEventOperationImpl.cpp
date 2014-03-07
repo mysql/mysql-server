@@ -522,7 +522,7 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
      */
     blob_op->m_data_item = data;
     int r = blob_op->receive_event();
-    assert(r > 0);
+    require(r > 0);
     // XXX should be: no = blob->theBlobEventPartValue
     Uint32 no = blob_op->get_blob_part_no(hasDist);
 
@@ -3132,10 +3132,13 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
 
       Uint32 bytesize = c->m_attrSize * c->m_arraySize;
       Uint32 lb, len;
-      assert(sz < max_size);
+      require(sz < max_size);
       bool ok = NdbSqlUtil::get_var_length(c->m_type, &pk_data[sz],
                                            bytesize, lb, len);
-      assert(ok);
+      if (!ok)
+      {
+        DBUG_RETURN_EVENT(-1);
+      }
 
       AttributeHeader ah(i, lb + len);
       pk_ah[n] = ah.m_value;
@@ -3143,7 +3146,7 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
       n++;
     }
     assert(n == mainTable->m_noOfKeys);
-    assert(sz <= max_size);
+    require(sz <= max_size);
     pk_size = sz;
   } else {
     /*
@@ -3630,11 +3633,11 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3])
 
     Uint32 i = ah.getAttributeId();
     const NdbColumnImpl* col = tab->getColumn(i);
-    assert(col != 0);
+    require(col != 0);
 
     Uint32 lb, len;
     bool ok = NdbSqlUtil::get_var_length(col->m_type, dptr, bytesize, lb, len);
-    assert(ok);
+    require(ok);
 
     CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
     (*cs->coll->hash_sort)(cs, dptr + lb, len, &nr1, &nr2);
@@ -3683,7 +3686,7 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3
     bool ok1 = NdbSqlUtil::get_var_length(col->m_type, dptr1, bytesize1, lb1, len1);
     Uint32 lb2, len2;
     bool ok2 = NdbSqlUtil::get_var_length(col->m_type, dptr2, bytesize2, lb2, len2);
-    assert(ok1 && ok2 && lb1 == lb2);
+    require(ok1 && ok2 && lb1 == lb2);
 
     CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
     int res = (cs->coll->strnncollsp)(cs, dptr1 + lb1, len1, dptr2 + lb2, len2, false);

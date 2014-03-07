@@ -367,7 +367,7 @@ waitClusterStatus(const char* _addr,
     for (unsigned n = 0; n < ndbNodes.size(); n++) {
       ndb_mgm_node_state* ndbNode = &ndbNodes[n];
 
-      assert(ndbNode != NULL);
+      require(ndbNode != NULL);
 
       g_info << "Node " << ndbNode->node_id << ": "
 	     << ndb_mgm_get_node_status_string(ndbNode->node_status)<< endl;

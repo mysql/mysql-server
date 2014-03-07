@@ -2648,7 +2648,9 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
         const char* buf = theSetBuf + theInlineSize;
         Uint32 bytes = theGetSetBytes - theInlineSize;
         assert(thePos == theInlineSize);
+#ifndef NDEBUG
         Uint32 savePendingBlobWriteBytes = theNdbCon->pendingBlobWriteBytes;
+#endif
         if (writeDataPrivate(buf, bytes) == -1)
           DBUG_RETURN(-1);
         /* Assert that we didn't execute inline there */

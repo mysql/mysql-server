@@ -105,7 +105,7 @@ static int g_valcount = 0;
 static const char*
 newstr(const char* s)
 {
-  assert(s != 0);
+  require(s != 0);
   char* s2 = new char [strlen(s) + 1];
   strcpy(s2, s);
   return s2;
@@ -156,7 +156,7 @@ scanblobstart(const Blob& b)
 
   do
   {
-    assert(g_scantx == 0);
+    require(g_scantx == 0);
     g_scantx = g_ndb->startTransaction();
     CHK2(g_scantx != 0, g_ndb->getNdbError());
 
@@ -227,8 +227,8 @@ checkorphan(const Blob&b, int& res)
     for (int i = 0; i < g_pkcount; i++)
     {
       Val& v = g_vallist[i];
-      assert(v.ra != 0);
-      assert(v.ra->isNULL() == 0);
+      require(v.ra != 0);
+      require(v.ra->isNULL() == 0);
       const char* data = v.ra->aRef();
       CHK2(op->equal(v.colname, data) == 0, op->getNdbError());
     }
@@ -236,10 +236,10 @@ checkorphan(const Blob&b, int& res)
 
     // read something to be safe
     NdbRecAttr* ra0 = op->getValue(g_vallist[0].colname);
-    assert(ra0 != 0);
+    require(ra0 != 0);
 
     // not sure about the rules
-    assert(tx->getNdbError().code == 0);
+    require(tx->getNdbError().code == 0);
     tx->execute(Commit);
     if (tx->getNdbError().code == 626)
     {
@@ -393,7 +393,7 @@ getobjs()
         p.colname = newstr(colname);
       }
     }
-    assert(g_pkcount != 0 && g_pkcount == g_tab->getNoOfPrimaryKeys());
+    require(g_pkcount != 0 && g_pkcount == g_tab->getNoOfPrimaryKeys());
 
     g_valcount = g_pkcount + 1;
     g_vallist = new Val [g_valcount];
