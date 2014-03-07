@@ -1672,7 +1672,6 @@ int ndbcluster_log_schema_op(THD *thd,
   char quoted_table2[2 + 2 * FN_REFLEN + 1];
   size_t id_length= 0;
   const char *type_str;
-  int also_internal= 0;
   uint32 log_type= (uint32)type;
   switch (type)
   {
@@ -1694,7 +1693,6 @@ int ndbcluster_log_schema_op(THD *thd,
     break;
   case SOT_RENAME_TABLE_PREPARE:
     type_str= "rename table prepare";
-    also_internal= 1;
     break;
   case SOT_RENAME_TABLE:
     /* redo the rename table query as is may contain several tables */
@@ -1721,15 +1719,12 @@ int ndbcluster_log_schema_op(THD *thd,
     break;
   case SOT_ALTER_TABLE_COMMIT:
     type_str= "alter table";
-    also_internal= 1;
     break;
   case SOT_ONLINE_ALTER_TABLE_PREPARE:
     type_str= "online alter table prepare";
-    also_internal= 1;
     break;
   case SOT_ONLINE_ALTER_TABLE_COMMIT:
     type_str= "online alter table commit";
-    also_internal= 1;
     break;
   case SOT_DROP_DB:
     type_str= "drop db";
@@ -1783,34 +1778,15 @@ int ndbcluster_log_schema_op(THD *thd,
   const uint32 node_id= g_ndb_cluster_connection->node_id();
   Uint64 epoch= 0;
   {
-    int i;
-    int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
-
     /* begin protect ndb_schema_share */
     pthread_mutex_lock(&ndb_schema_share_mutex);
     if (ndb_schema_share == 0)
     {
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       ndb_free_schema_object(&ndb_schema_object);
-      DBUG_RETURN(0);    
+      DBUG_RETURN(0);
     }
-    pthread_mutex_lock(&ndb_schema_share->mutex);
-    for (i= 0; i < no_storage_nodes; i++)
-    {
-      bitmap_union(&ndb_schema_object->slock_bitmap,
-                   &ndb_schema_share->subscriber_bitmap[i]);
-    }
-    pthread_mutex_unlock(&ndb_schema_share->mutex);
     pthread_mutex_unlock(&ndb_schema_share_mutex);
-    /* end protect ndb_schema_share */
-
-    if (also_internal)
-      bitmap_set_bit(&ndb_schema_object->slock_bitmap, node_id);
-    else
-      bitmap_clear_bit(&ndb_schema_object->slock_bitmap, node_id);
-
-    DBUG_DUMP("schema_subscribers", (uchar*)&ndb_schema_object->slock,
-              no_bytes_in_map(&ndb_schema_object->slock_bitmap));
   }
 
   Ndb *ndb= thd_ndb->ndb;
