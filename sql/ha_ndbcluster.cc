@@ -13443,21 +13443,6 @@ NDB_SHARE::create(const char* key, size_t key_length,
   share->new_op= 0;
   share->event_data= 0;
 
-  {
-    // Create array of bitmap for keeping track of subscribed nodes
-    // NOTE! Only the NDB_SHARE for ndb_schema really needs this
-    int no_nodes= g_ndb_cluster_connection->no_db_nodes();
-    share->subscriber_bitmap= (MY_BITMAP*)
-      alloc_root(&share->mem_root, no_nodes * sizeof(MY_BITMAP));
-    for (int i= 0; i < no_nodes; i++)
-    {
-      bitmap_init(&share->subscriber_bitmap[i],
-                  (Uint32*)alloc_root(&share->mem_root, max_ndb_nodes/8),
-                  max_ndb_nodes, FALSE);
-      bitmap_clear_all(&share->subscriber_bitmap[i]);
-    }
-  }
-
   if (ndbcluster_binlog_init_share(current_thd, share, table))
   {
     DBUG_PRINT("error", ("get_share: %s could not init share", key));

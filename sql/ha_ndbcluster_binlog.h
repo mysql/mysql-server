@@ -29,8 +29,6 @@ typedef NdbDictionary::Event  NDBEVENT;
 
 #define NDB_INVALID_SCHEMA_OBJECT 241
 
-const uint max_ndb_nodes= 256; /* multiple of 32 */
-
 static const char *ha_ndb_ext=".ndb";
 
 #ifdef HAVE_NDB_BINLOG
