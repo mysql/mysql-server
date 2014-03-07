@@ -1717,8 +1717,9 @@ rec_validate(
 
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Record field " ULINTPF " len " ULINTPF,
-				i, len);
+				"Record field %lu len %lu",
+				(ulong) i,
+				(ulong) len);
 			return(FALSE);
 		}
 
@@ -1750,13 +1751,14 @@ rec_validate(
 	return(TRUE);
 }
 
-/** Prints an old-style physical record.
-@param[in,out]	o	output stream
-@param[in]	rec	physical record */
+/***************************************************************//**
+Prints an old-style physical record. */
+
 void
 rec_print_old(
-	std::ostream&	o,
-	const rec_t*	rec)
+/*==========*/
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec)	/*!< in: physical record */
 {
 	const byte*	data;
 	ulint		len;
@@ -1767,49 +1769,51 @@ rec_print_old(
 
 	n = rec_get_n_fields_old(rec);
 
-	o << "PHYSICAL RECORD: n_fields " << n << "; "
-		<< (rec_get_1byte_offs_flag(rec) ? 1 : 2)
-		<< "-byte offsets; info bits "
-		<< rec_get_info_bits(rec, FALSE) << std::endl;
+	fprintf(file, "PHYSICAL RECORD: n_fields %lu;"
+		" %u-byte offsets; info bits %lu\n",
+		(ulong) n,
+		rec_get_1byte_offs_flag(rec) ? 1 : 2,
+		(ulong) rec_get_info_bits(rec, FALSE));
 
 	for (i = 0; i < n; i++) {
 
 		data = rec_get_nth_field_old(rec, i, &len);
 
-		o << " " << i << ":";
+		fprintf(file, " %lu:", (ulong) i);
 
 		if (len != UNIV_SQL_NULL) {
 			if (len <= 30) {
 
-				ut_print_buf(o, data, len);
+				ut_print_buf(file, data, len);
 			} else {
-				ut_print_buf(o, data, 30);
+				ut_print_buf(file, data, 30);
 
-				o << " (total " << len << " bytes)";
-
+				fprintf(file, " (total %lu bytes)",
+					(ulong) len);
 			}
 		} else {
-			o << " SQL NULL, size "
-				<< rec_get_nth_field_size(rec, i);
-                }
+			fprintf(file, " SQL NULL, size %lu ",
+				rec_get_nth_field_size(rec, i));
+		}
 
-		o << ";" << std::endl;
+		putc(';', file);
+		putc('\n', file);
 	}
 
 	rec_validate_old(rec);
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Out stream a physical record in ROW_FORMAT=COMPACT.
-Ignores the record header.
-@param[in,out]	o	output stream
-@param[in]	rec	physical record
-@param[in]	offsets	array returned by rec_get_offsets() */
+/***************************************************************//**
+Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
+record header. */
+
 void
 rec_print_comp(
-	std::ostream&	o,
-	const rec_t*	rec,
-	const ulint*	offsets)
+/*===========*/
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec,	/*!< in: physical record */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ulint	i;
 
@@ -1819,80 +1823,82 @@ rec_print_comp(
 
 		data = rec_get_nth_field(rec, offsets, i, &len);
 
-		o << " " << i << ":";
+		fprintf(file, " %lu:", (ulong) i);
 
 		if (len != UNIV_SQL_NULL) {
 			if (len <= 30) {
 
-				ut_print_buf(o, data, len);
+				ut_print_buf(file, data, len);
 			} else if (rec_offs_nth_extern(offsets, i)) {
-				ut_print_buf(o, data, 30);
-				o << " (total " << len << " bytes, external)";
-
-				ut_print_buf(o, data + len
+				ut_print_buf(file, data, 30);
+				fprintf(file, " (total %lu bytes, external)",
+					(ulong) len);
+				ut_print_buf(file, data + len
 					     - BTR_EXTERN_FIELD_REF_SIZE,
 					     BTR_EXTERN_FIELD_REF_SIZE);
 			} else {
-				ut_print_buf(o, data, 30);
+				ut_print_buf(file, data, 30);
 
-				o << " (total " << len << " bytes)";
+				fprintf(file, " (total %lu bytes)",
+					(ulong) len);
 			}
 		} else {
-			o << " SQL NULL";
+			fputs(" SQL NULL", file);
 		}
-		o << ";" << std::endl;
+		putc(';', file);
+		putc('\n', file);
 	}
 }
 
-/** Out stream a physical record.
-@param[in/out]	o		output stream
-@param[in]	rec		physical record
-@param[in]	offsets		array returned by rec_get_offsets() */
+/***************************************************************//**
+Prints a physical record. */
+
 void
 rec_print_new(
-	std::ostream&	o,
-	const rec_t*	rec,
-	const ulint*	offsets)
+/*==========*/
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec,	/*!< in: physical record */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec);
 	ut_ad(offsets);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
 	if (!rec_offs_comp(offsets)) {
-		rec_print_old(o, rec);
+		rec_print_old(file, rec);
 		return;
 	}
 
-	o << "PHYSICAL RECORD: n_fields " << rec_offs_n_fields(offsets)
-		<< "; compact format; info bits "
-		<< rec_get_info_bits(rec, TRUE) << std::endl;
+	fprintf(file, "PHYSICAL RECORD: n_fields %lu;"
+		" compact format; info bits %lu\n",
+		(ulong) rec_offs_n_fields(offsets),
+		(ulong) rec_get_info_bits(rec, TRUE));
 
-	rec_print_comp(o, rec, offsets);
+	rec_print_comp(file, rec, offsets);
 	rec_validate(rec, offsets);
 }
 
-/** Out stream the physical record.
-param[in,out]	o	output stream
-param[in]	rec	physical record
-param[in]	index	record descriptor */
+/***************************************************************//**
+Prints a physical record. */
 
 void
 rec_print(
-	std::ostream&		o,
-	const rec_t*		rec,
-	const dict_index_t*	index)
+/*======*/
+	FILE*			file,	/*!< in: file where to print */
+	const rec_t*		rec,	/*!< in: physical record */
+	const dict_index_t*	index)	/*!< in: record descriptor */
 {
 	ut_ad(index);
 
 	if (!dict_table_is_comp(index->table)) {
-		rec_print_old(o, rec);
+		rec_print_old(file, rec);
 		return;
 	} else {
 		mem_heap_t*	heap	= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		rec_offs_init(offsets_);
 
-		rec_print_new(o, rec,
+		rec_print_new(file, rec,
 			      rec_get_offsets(rec, index, offsets_,
 					      ULINT_UNDEFINED, &heap));
 		if (UNIV_LIKELY_NULL(heap)) {
@@ -1901,6 +1907,7 @@ rec_print(
 	}
 }
 
+# ifndef DBUG_OFF
 /***************************************************************//**
 Prints a physical record. */
 
@@ -1917,8 +1924,8 @@ rec_print(
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
-	o << (comp ? "COMPACT RECORD" : "RECORD") << "(info_bits=" << info
-		<< ", " << n << " fields): {";
+	o << (comp ? "COMPACT RECORD" : "RECORD")
+	  << "(info_bits=" << info << ", " << n << " fields): {";
 
 	for (ulint i = 0; i < n; i++) {
 		const byte*	data;
@@ -1939,8 +1946,9 @@ rec_print(
 			ulint	local_len = len - BTR_EXTERN_FIELD_REF_SIZE;
 			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-			o << '[' << local_len << '+'
-				<< BTR_EXTERN_FIELD_REF_SIZE << ']';
+			o << '['
+			  << local_len
+			  << '+' << BTR_EXTERN_FIELD_REF_SIZE << ']';
 			ut_print_buf(o, data, local_len);
 			ut_print_buf_hex(o, data + local_len,
 					 BTR_EXTERN_FIELD_REF_SIZE);
@@ -1952,6 +1960,7 @@ rec_print(
 
 	o << "}";
 }
+# endif /* !DBUG_OFF */
 # ifdef UNIV_DEBUG
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
