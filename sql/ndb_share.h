@@ -83,7 +83,6 @@ struct NDB_SHARE {
   class Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   class NdbEventOperation *op;
   char *old_names; // for rename table
-  MY_BITMAP *subscriber_bitmap;
   class NdbEventOperation *new_op;
 
   static NDB_SHARE* create(const char* key, size_t key_length,
