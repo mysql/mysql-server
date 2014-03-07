@@ -143,9 +143,8 @@ dtuple_check_typed_no_assert(
 			"Index entry has %lu fields",
 			(ulong) dtuple_get_n_fields(tuple));
 dump:
-		fputs("InnoDB: Tuple contents: ", stderr);
-		dtuple_print(stderr, tuple);
-		putc('\n', stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR, "Tuple contents: %s",
+			rec_printer(tuple).c_str());
 
 		return(FALSE);
 	}
@@ -515,12 +514,10 @@ dtuple_print(
 	ut_ad(dtuple_validate(tuple));
 }
 
-#ifndef DBUG_OFF
 /** Print the contents of a tuple.
-@param o output stream
-@param field array of data fields
-@param n number of data fields */
-
+@param[in,out]	o	output stream
+@param[in]	field	array of data fields
+@param[in]	n	number of data fields */
 void
 dfield_print(
 	std::ostream&	o,
@@ -574,7 +571,6 @@ dtuple_print(
 
 	o << "}";
 }
-#endif /* DBUG_OFF */
 
 /**************************************************************//**
 Moves parts of long fields in entry to the big record vector so that
@@ -621,11 +617,8 @@ dtuple_convert_big_rec(
 
 	if (UNIV_UNLIKELY(size > 1000000000)) {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Tuple size very big: %lu",
-			(ulong) size);
-		fputs("InnoDB: Tuple contents: ", stderr);
-		dtuple_print(stderr, entry);
-		putc('\n', stderr);
+			"Tuple size very big: " ULINTPF ". Tuple contents: %s",
+			size, rec_printer(entry).c_str());
 	}
 
 	heap = mem_heap_create(size + dtuple_get_n_fields(entry)

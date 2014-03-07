@@ -810,26 +810,24 @@ row_ins_foreign_report_err(
 
 	row_ins_foreign_trx_print(trx);
 
-	fputs("Foreign key constraint fails for table ", ef);
-	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
-	fputs(":\n", ef);
+	fprintf(ef, "Foreign key constraint fails for table %s:\n",
+		ut_get_name(trx, TRUE, foreign->foreign_table_name).c_str());
+
 	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
 							TRUE);
-	putc('\n', ef);
-	fputs(errstr, ef);
-	fputs(" in parent table, in index ", ef);
-	ut_print_name(ef, trx, FALSE, foreign->referenced_index->name);
+	fprintf(ef, "\n%s in parent table, in index %s",
+		errstr, ut_get_name(trx, FALSE,
+				    foreign->referenced_index->name).c_str());
+
 	if (entry) {
-		fputs(" tuple:\n", ef);
-		dtuple_print(ef, entry);
+		fprintf(ef, " tuple:\n%s", rec_printer(entry).c_str());
 	}
-	fputs("\nBut in child table ", ef);
-	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
-	fputs(", in index ", ef);
-	ut_print_name(ef, trx, FALSE, foreign->foreign_index->name);
+	fprintf(ef, "\nBut in child table %s, in index %s",
+		ut_get_name(trx, TRUE, foreign->foreign_table_name).c_str(),
+		ut_get_name(trx, FALSE, foreign->foreign_index->name).c_str());
 	if (rec) {
-		fputs(", there is a record:\n", ef);
-		rec_print(ef, rec, foreign->foreign_index);
+		fprintf(ef, ", there is a record:\n%s",
+		rec_printer(rec, foreign->foreign_index).c_str());
 	} else {
 		fputs(", the record is not available\n", ef);
 	}
@@ -864,24 +862,24 @@ row_ins_foreign_report_add_err(
 
 	row_ins_foreign_trx_print(trx);
 
-	fputs("Foreign key constraint fails for table ", ef);
-	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
-	fputs(":\n", ef);
+	fprintf(ef, "Foreign key constraint fails for table %s:\n",
+		ut_get_name(trx, TRUE, foreign->foreign_table_name).c_str());
+
 	dict_print_info_on_foreign_key_in_create_format(ef, trx, foreign,
 							TRUE);
-	fputs("\nTrying to add in child table, in index ", ef);
-	ut_print_name(ef, trx, FALSE, foreign->foreign_index->name);
+	fprintf(ef, "\nTrying to add in child table, in index %s",
+		ut_get_name(trx, FALSE, foreign->foreign_index->name).c_str());
 	if (entry) {
-		fputs(" tuple:\n", ef);
+		fprintf(ef, " tuple:\n%s",
+			rec_printer(entry).c_str());
 		/* TODO: DB_TRX_ID and DB_ROLL_PTR may be uninitialized.
 		It would be better to only display the user columns. */
-		dtuple_print(ef, entry);
 	}
-	fputs("\nBut in parent table ", ef);
-	ut_print_name(ef, trx, TRUE, foreign->referenced_table_name);
-	fputs(", in index ", ef);
-	ut_print_name(ef, trx, FALSE, foreign->referenced_index->name);
-	fputs(",\nthe closest match we can find is record:\n", ef);
+	fprintf(ef, "\nBut in parent table %s, in index %s,"
+		"\nthe closest match we can find is record:\n",
+		ut_get_name(trx, TRUE, foreign->referenced_table_name).c_str(),
+		ut_get_name(trx, FALSE, foreign->referenced_index->name).c_str());
+
 	if (rec && page_rec_is_supremum(rec)) {
 		/* If the cursor ended on a supremum record, it is better
 		to report the previous record in the error message, so that
@@ -890,7 +888,8 @@ row_ins_foreign_report_add_err(
 	}
 
 	if (rec) {
-		rec_print(ef, rec, foreign->referenced_index);
+		fprintf(ef, "%s",
+			rec_printer(rec, foreign->referenced_index).c_str());
 	}
 	putc('\n', ef);
 
@@ -1108,14 +1107,11 @@ row_ins_foreign_check_on_constraint(
 				ut_get_name(trx, TRUE,
 					    index->table_name).c_str());
 
-			fputs("InnoDB: record ", stderr);
-			rec_print(stderr, rec, index);
-			fputs("\n"
-			      "InnoDB: clustered record ", stderr);
-			rec_print(stderr, clust_rec, clust_index);
-			fputs("\n"
-			      "InnoDB: Submit a detailed bug report to"
-			      " http://bugs.mysql.com\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "Record %s",
+				rec_printer(rec, index).c_str());
+			ib_logf(IB_LOG_LEVEL_ERROR, "Clustered record %s",
+				rec_printer(clust_rec, clust_index).c_str());
+			ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
 			ut_ad(0);
 			err = DB_SUCCESS;
 
@@ -1490,22 +1486,22 @@ run_again:
 
 			row_ins_foreign_trx_print(trx);
 
-			fputs("Foreign key constraint fails for table ", ef);
-			ut_print_name(ef, trx, TRUE,
-				      foreign->foreign_table_name);
-			fputs(":\n", ef);
+			fprintf(ef,
+				"Foreign key constraint fails for table %s:\n",
+				ut_get_name(trx, TRUE,
+					    foreign->foreign_table_name).c_str());
+
 			dict_print_info_on_foreign_key_in_create_format(
 				ef, trx, foreign, TRUE);
-			fputs("\nTrying to add to index ", ef);
-			ut_print_name(ef, trx, FALSE,
-				      foreign->foreign_index->name);
-			fputs(" tuple:\n", ef);
-			dtuple_print(ef, entry);
-			fputs("\nBut the parent table ", ef);
-			ut_print_name(ef, trx, TRUE,
-				      foreign->referenced_table_name);
-			fputs("\nor its .ibd file does"
-			      " not currently exist!\n", ef);
+			fprintf(ef, "\nTrying to add to index %s tuple:\n%s"
+				"\nBut the parent table %s\nor its .ibd file"
+				" does not currently exist!\n",
+				ut_get_name(trx, FALSE,
+					foreign->foreign_index->name).c_str(),
+				rec_printer(entry).c_str(),
+				ut_get_name(trx, TRUE,
+					foreign->referenced_table_name).c_str());
+
 			mutex_exit(&dict_foreign_err_mutex);
 
 			err = DB_NO_REFERENCED_ROW;

@@ -2554,19 +2554,16 @@ row_sel_store_row_id_to_prebuilt(
 
 	if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Row id field is wrong length %lu in index %s of"
-			" table %s, Field number %lu, record:",
-			(ulong) len,
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Row id field is wrong length " ULINTPF " in index %s"
+			" of table %s, field number " ULINTPF ", record: %s",
+			len,
 			ut_get_name(
 				prebuilt->trx, FALSE, index->name).c_str(),
 			ut_get_name(
 				prebuilt->trx, TRUE, index->table_name).c_str(),
-			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
-
-		rec_print_new(stderr, index_rec, offsets);
-		putc('\n', stderr);
-		ut_error;
+			dict_index_get_sys_col_pos(index, DATA_ROW_ID),
+			rec_printer(index_rec, offsets).c_str());
 	}
 
 	ut_memcpy(prebuilt->row_id, data, len);
@@ -3102,16 +3099,14 @@ row_sel_get_clust_rec_for_mysql(
 				ut_get_name(trx, TRUE,
 					    sec_index->table_name).c_str());
 
-			fputs("InnoDB: sec index record ", stderr);
-			rec_print(stderr, rec, sec_index);
-			fputs("\n"
-			      "InnoDB: clust index record ", stderr);
-			rec_print(stderr, clust_rec, clust_index);
-			putc('\n', stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "Sec index record %s",
+				rec_printer(rec, sec_index).c_str());
+
+			ib_logf(IB_LOG_LEVEL_ERROR, "Clust index record %s",
+				rec_printer(clust_rec, clust_index).c_str());
+
 			trx_print(stderr, trx, 600);
-			fputs("\n"
-			      "InnoDB: Submit a detailed bug report"
-			      " to http://bugs.mysql.com\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
 			ut_ad(0);
 		}
 

@@ -1733,20 +1733,19 @@ row_upd_sec_index_entry(
 			break;
 		}
 
-		fputs("InnoDB: error in sec index entry update in\n"
-		      "InnoDB: ", stderr);
-		dict_index_name_print(stderr, trx, index);
-		fputs("\n"
-		      "InnoDB: tuple ", stderr);
-		dtuple_print(stderr, entry);
-		fputs("\n"
-		      "InnoDB: record ", stderr);
-		rec_print(stderr, rec, index);
-		putc('\n', stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"In sec index entry update in index %s of table %s",
+			ut_get_name(trx, FALSE, index->name).c_str(),
+			ut_get_name(trx, TRUE, index->table_name).c_str());
+
+		ib_logf(IB_LOG_LEVEL_ERROR, "Tuple %s",
+			rec_printer(entry).c_str());
+
+		ib_logf(IB_LOG_LEVEL_ERROR, "Record %s",
+			rec_printer(rec, index).c_str());
+
 		trx_print(stderr, trx, 0);
-		fputs("\n"
-		      "InnoDB: Submit a detailed bug report"
-		      " to http://bugs.mysql.com\n", stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
 		ut_ad(0);
 		break;
 	case ROW_FOUND:
