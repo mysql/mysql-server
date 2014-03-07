@@ -3751,8 +3751,8 @@ public:
 
     case NDBEVENT::TE_CLUSTER_FAILURE:
       if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: cluster failure for %s at epoch %u/%u.",
-                              ndb_schema_share->key,
+        sql_print_information("NDB Schema dist: cluster failure "
+                              "at epoch %u/%u.",
                               (uint)(pOp->getGCI() >> 32),
                               (uint)(pOp->getGCI()));
       // fall through
