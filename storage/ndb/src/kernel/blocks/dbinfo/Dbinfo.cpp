@@ -382,8 +382,7 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
   ndbrequire(conf.cursor_sz == Ndbinfo::ScanCursor::Length);
 
   // Validate tableId
-  const Uint32 tableId= conf.tableId;
-  ndbassert(tableId < (Uint32)Ndbinfo::getNumTables());
+  ndbassert(conf.tableId < (Uint32)Ndbinfo::getNumTables());
 
   const Uint32 resultRef = conf.resultRef;
 

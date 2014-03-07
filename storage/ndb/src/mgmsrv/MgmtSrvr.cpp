@@ -1843,7 +1843,7 @@ bool MgmtSrvr::is_any_node_starting()
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = getNodeInfo(nodeId);
-    if((node.m_state.startLevel == NodeState::SL_STARTING))
+    if (node.m_state.startLevel == NodeState::SL_STARTING)
       return true; // At least one node was starting
   }
   return false; // No node was starting
@@ -1856,7 +1856,7 @@ bool MgmtSrvr::is_cluster_single_user()
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = getNodeInfo(nodeId);
-    if((node.m_state.startLevel == NodeState::SL_SINGLEUSER))
+    if (node.m_state.startLevel == NodeState::SL_SINGLEUSER)
       return true; // Cluster is in single user modes
   }
   return false; // Cluster is not in single user mode
@@ -4527,7 +4527,9 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
                          Vector<SimpleSignal>& events)
 {
   int nodes_counter[MAX_NDB_NODES];
+#ifndef NDEBUG
   NdbNodeBitmask save = nodes;
+#endif
   SignalSender ss(theFacade);
   ss.lock();
 

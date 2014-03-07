@@ -491,9 +491,8 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
   NdbEventOperationImpl* blob_op = blob->theBlobEventOp;
   const bool hasDist = (blob->theStripeSize != 0);
 
-  EventBufData* main_data = m_data_item;
-  DBUG_PRINT_EVENT("info", ("main_data=%p", main_data));
-  assert(main_data != NULL);
+  DBUG_PRINT_EVENT("info", ("m_data_item=%p", m_data_item));
+  assert(m_data_item != NULL);
 
   // search for blob parts list head
   EventBufData* head;

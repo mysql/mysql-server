@@ -1836,7 +1836,6 @@ Dblqh::sendAddAttrReq(Signal* signal)
         getSection(defValSection, addfragptr.p->defValSectionI);
 
         SectionReader defValueReader(defValSection, getSectionSegmentPool());
-        Uint32 defSectionWords = defValueReader.getSize();
 
         ndbrequire(defValueReader.step(addfragptr.p->defValNextPos));
 
@@ -1847,7 +1846,6 @@ Dblqh::sendAddAttrReq(Signal* signal)
         Uint32 defValueLen = ah.getByteSize();
         Uint32 defValueWords = ((defValueLen +3)/4) + 1;
         Uint32 *dst = &signal->theData[startIndex];
-        ndbassert(defSectionWords >= (addfragptr.p->defValNextPos + defValueWords));
         ndbrequire(defValueReader.getWords(dst, defValueWords));
         addfragptr.p->defValNextPos += defValueWords;
         sectionLen = defValueWords;

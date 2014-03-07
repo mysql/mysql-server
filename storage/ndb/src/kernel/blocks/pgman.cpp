@@ -1947,7 +1947,7 @@ Pgman::map_file_no(Uint32 file_no, Uint32 fd)
   m_file_map.first(it);
   m_file_map.next(it, file_no);
 
-  assert(*it.data == ((1u << 31) | file_no));
+  ndbassert(*it.data == ((1u << 31) | file_no));
   *it.data = fd;
   D("map_file_no:" << V(file_no) << V(fd));
 }

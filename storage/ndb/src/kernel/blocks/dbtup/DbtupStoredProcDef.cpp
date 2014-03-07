@@ -52,7 +52,9 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
    * It can be done here since seize/release always succeeds.
    * The count is only used under -DERROR_INSERT via DUMP.
    */
+#if defined VM_TRACE || defined ERROR_INSERT
   BlockReference apiBlockref = signal->theData[5];
+#endif
   switch (requestInfo) {
   case ZSCAN_PROCEDURE:
   {

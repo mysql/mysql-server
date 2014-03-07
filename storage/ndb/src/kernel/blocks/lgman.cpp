@@ -1206,7 +1206,9 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
 {
   Uint32 pages= (((bytes + 3) >> 2) + File_formats::NDB_PAGE_SIZE_WORDS - 1)
     / File_formats::NDB_PAGE_SIZE_WORDS;
+#if defined VM_TRACE || defined ERROR_INSERT
   Uint32 requested= pages;
+#endif
   {
     Page_map map(m_data_buffer_pool, ptr.p->m_buffer_pages);
     while(pages)

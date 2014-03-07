@@ -920,7 +920,9 @@ public:
     DLList<ActiveMutex> m_activeMutexes;
     
     BlockReference reference() const;
-    void progError(int line, int err_code, const char* extra = 0);
+    void progError(int line,
+                   int err_code,
+                   const char* extra = 0) ATTRIBUTE_NORETURN;
   };
   
   friend class MutexManager;

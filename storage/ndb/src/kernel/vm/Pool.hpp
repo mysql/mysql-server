@@ -133,7 +133,10 @@ struct Ptr
 
   static Ptr get(T* _p, Uint32 _i) { Ptr x; x.p = _p; x.i = _i; return x; }
   inline bool isNull() const { return i == RNIL; }
-  inline void setNull() { i = RNIL; }
+  inline void setNull()
+  {
+    i = RNIL;
+  }
 };
 
 template <typename T>
@@ -144,7 +147,10 @@ struct ConstPtr
 
   static ConstPtr get(T const* _p, Uint32 _i) { ConstPtr x; x.p = _p; x.i = _i; return x; }
   inline bool isNull() const { return i == RNIL; }
-  inline void setNull() { i = RNIL; }
+  inline void setNull()
+  {
+    i = RNIL;
+  }
 };
 
 #ifdef XX_DOCUMENTATION_XX
