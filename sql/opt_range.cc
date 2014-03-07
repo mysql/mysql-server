@@ -14401,6 +14401,75 @@ static inline void print_tree(String *out,
   }
 }
 
+void
+QUICK_RANGE_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "range").
+    add_utf8("index", head->key_info[index].name);
+}
+
+void
+QUICK_INDEX_MERGE_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "index_merge_union");
+  {
+    Opt_trace_array idx_trace(trace, "indexes");
+
+    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+    QUICK_RANGE_SELECT *quick;
+    while ((quick= it++))
+      idx_trace.add_utf8(quick->head->key_info[quick->index].name);
+
+    if (pk_quick_select)
+      idx_trace.add_utf8(pk_quick_select->head->
+                         key_info[pk_quick_select->index].name);
+
+  }
+}
+
+void
+QUICK_ROR_INTERSECT_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "index_roworder_intersect");
+  {
+    Opt_trace_array idx_trace(trace, "indexes");
+
+    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+    QUICK_RANGE_SELECT *quick;
+    while ((quick= it++))
+      idx_trace.add_utf8(quick->head->key_info[quick->index].name);
+
+    if (cpk_quick)
+      idx_trace.add_utf8(cpk_quick->head->key_info[cpk_quick->index].name);
+  }
+}
+
+void
+QUICK_GROUP_MIN_MAX_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "index_group").
+    add_utf8("index", index_info->name);
+}
+
+void
+QUICK_ROR_UNION_SELECT::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_description");
+  range_trace.add_alnum("type", "index_roworder_union");
+  {
+    Opt_trace_array idx_trace(trace, "indexes");
+
+    List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
+    QUICK_SELECT_I *quick;
+    while ((quick= it++))
+      idx_trace.add_utf8("index", quick->head->key_info[quick->index].name);
+  }
+}
+
 /*****************************************************************************
 ** Print a quick range for debugging
 ** TODO:

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -53,14 +53,6 @@ struct log_t;
 /** Redo log group */
 struct log_group_t;
 
-#ifdef UNIV_DEBUG
-/** Flag: write to log file? */
-extern	ibool	log_do_write;
-#else /* UNIV_DEBUG */
-/** Write to log */
-# define log_do_write TRUE
-#endif /* UNIV_DEBUG */
-/* @} */
 /** Maximum number of log groups in log_group_t::checkpoint_buf */
 #define LOG_MAX_N_GROUPS	32
 
@@ -501,6 +493,7 @@ log_block_init(
 /*===========*/
 	byte*	log_block,	/*!< in: pointer to the log buffer */
 	lsn_t	lsn);		/*!< in: lsn within the log block */
+#ifdef UNIV_HOTBACKUP
 /************************************************************//**
 Initializes a log block in the log buffer in the old, < 3.23.52 format, where
 there was no checksum yet. */
@@ -510,6 +503,7 @@ log_block_init_in_old_format(
 /*=========================*/
 	byte*	log_block,	/*!< in: pointer to the log buffer */
 	lsn_t	lsn);		/*!< in: lsn within the log block */
+#endif /* UNIV_HOTBACKUP */
 /************************************************************//**
 Converts a lsn to a log block number.
 @return log block number, it is > 0 and <= 1G */
@@ -874,18 +868,13 @@ struct log_t{
 } while (0)
 
 /** Test if log sys mutex is owned. */
-#define log_mutex_own()					\
-	mutex_own(&log_sys->mutex)
+#define log_mutex_own() mutex_own(&log_sys->mutex)
 
 /** Acquire the log sys mutex. */
-#define log_mutex_enter() do {				\
-	mutex_enter(&log_sys->mutex);			\
-} while (0)
+#define log_mutex_enter() mutex_enter(&log_sys->mutex)
 
 /** Release the log sys mutex. */
-# define log_mutex_exit() do {				\
-	mutex_exit(&log_sys->mutex);			\
-} while (0)
+#define log_mutex_exit() mutex_exit(&log_sys->mutex)
 
 #ifndef UNIV_NONINL
 #include "log0log.ic"

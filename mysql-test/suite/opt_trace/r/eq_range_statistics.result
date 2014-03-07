@@ -198,6 +198,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "a"
+                      } /* range_description */,
                       "rows": 5,
                       "cost": 3.0178,
                       "chosen": true
@@ -389,6 +393,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "a"
+                      } /* range_description */,
                       "rows": 4,
                       "cost": 2.6158,
                       "chosen": true
@@ -589,6 +597,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                     },
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "a"
+                      } /* range_description */,
                       "rows": 3,
                       "cost": 2.2139,
                       "chosen": false
@@ -798,6 +810,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                     },
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "a"
+                      } /* range_description */,
                       "rows": 3,
                       "cost": 2.2139,
                       "chosen": false
@@ -1006,6 +1022,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                     },
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "a"
+                      } /* range_description */,
                       "rows": 3,
                       "cost": 2.2139,
                       "chosen": false
@@ -1197,6 +1217,10 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "a"
+                      } /* range_description */,
                       "rows": 1,
                       "cost": 1.41,
                       "chosen": true
@@ -1393,6 +1417,10 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                     },
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "a"
+                      } /* range_description */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }

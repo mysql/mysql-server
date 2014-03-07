@@ -1553,6 +1553,10 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                           },
                           {
                             "access_type": "range",
+                            "range_description": {
+                              "type": "range",
+                              "index": "d"
+                            } /* range_description */,
                             "chosen": false,
                             "cause": "heuristic_index_cheaper"
                           }
@@ -1585,6 +1589,10 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     },
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "d"
+                      } /* range_description */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
@@ -1905,6 +1913,10 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     },
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "d"
+                      } /* range_description */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
@@ -1946,6 +1958,10 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                           },
                           {
                             "access_type": "range",
+                            "range_description": {
+                              "type": "range",
+                              "index": "d"
+                            } /* range_description */,
                             "chosen": false,
                             "cause": "heuristic_index_cheaper"
                           }
@@ -5276,7 +5292,7 @@ trace
                         "best_access_path": {
                           "considered_access_paths": [
                             {
-                              "access_type": "ref",
+                              "access_type": "eq_ref",
                               "index": "PRIMARY",
                               "rows": 1,
                               "cost": 1.2,
@@ -5315,7 +5331,7 @@ trace
                     "best_access_path": {
                       "considered_access_paths": [
                         {
-                          "access_type": "ref",
+                          "access_type": "eq_ref",
                           "index": "PRIMARY",
                           "rows": 1,
                           "cost": 1.2,
@@ -5400,7 +5416,7 @@ trace
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "access_type": "ref",
+                      "access_type": "eq_ref",
                       "index": "PRIMARY",
                       "rows": 1,
                       "cost": 1.2,
@@ -5764,7 +5780,7 @@ trace
                         "best_access_path": {
                           "considered_access_paths": [
                             {
-                              "access_type": "ref",
+                              "access_type": "eq_ref",
                               "index": "PRIMARY",
                               "rows": 1,
                               "cost": 1.2,
@@ -5803,7 +5819,7 @@ trace
                     "best_access_path": {
                       "considered_access_paths": [
                         {
-                          "access_type": "ref",
+                          "access_type": "eq_ref",
                           "index": "PRIMARY",
                           "rows": 1,
                           "cost": 1.2,
@@ -5888,7 +5904,7 @@ trace
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "access_type": "ref",
+                      "access_type": "eq_ref",
                       "index": "PRIMARY",
                       "rows": 1,
                       "cost": 1.2,
@@ -7202,6 +7218,10 @@ insert into t6 select * from t6 where d>7	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "d"
+                      } /* range_description */,
                       "rows": 2,
                       "cost": 1.8333,
                       "chosen": true
@@ -7399,6 +7419,10 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "d"
+                      } /* range_description */,
                       "rows": 1,
                       "cost": 2.41,
                       "chosen": true
@@ -7601,6 +7625,10 @@ delete t6 from t5, t6 where d>7000	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_description": {
+                        "type": "range",
+                        "index": "d"
+                      } /* range_description */,
                       "rows": 1,
                       "cost": 1.41,
                       "chosen": true

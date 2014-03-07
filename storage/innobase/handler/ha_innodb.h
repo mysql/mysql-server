@@ -444,7 +444,8 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 #error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
 #endif
 
-LEX_CSTRING thd_query_string(MYSQL_THD thd);
+LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
+size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
 
 extern "C" {
 

@@ -220,7 +220,7 @@ select @file_per_share <= 3;
 1
 select @mutex_per_con;
 @mutex_per_con
-4
+5
 select @rwlock_per_con;
 @rwlock_per_con
 1
@@ -246,7 +246,7 @@ select if(
 (@rwlock_per_share <= 4)
 AND (@cond_per_share = 0)
 AND (@file_per_share <= 3)
-AND (@mutex_per_con = 4)
+AND (@mutex_per_con = 5)
 AND (@rwlock_per_con = 1)
 AND (@cond_per_con = 2)
 AND (@file_per_con = 0)

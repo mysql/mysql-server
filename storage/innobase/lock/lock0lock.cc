@@ -626,15 +626,13 @@ lock_report_trx_id_insanity(
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
 	trx_id_t	max_trx_id)	/*!< in: trx_sys_get_max_trx_id() */
 {
-	ib_logf(IB_LOG_LEVEL_ERROR, "Transaction id associated with record");
-	rec_print_new(stderr, rec, offsets);
-	fputs("InnoDB: in ", stderr);
-	dict_index_name_print(stderr, NULL, index);
-	fprintf(stderr, "\n"
-		"InnoDB: is " TRX_ID_FMT " which is higher than the"
-		" global trx id counter " TRX_ID_FMT "!\n"
-		"InnoDB: The table is corrupt. You have to do"
-		" dump + drop + reimport.\n",
+	ib_logf(IB_LOG_LEVEL_ERROR, "Transaction id associated with record"
+		" %s in index %s of table %s is " TRX_ID_FMT " which is higher"
+		" than the global trx id counter " TRX_ID_FMT ". The table is"
+		" corrupt. You have to do dump + drop + reimport.",
+		rec_printer(rec, offsets).c_str(),
+		ut_get_name(NULL, FALSE, index->name).c_str(),
+		ut_get_name(NULL, TRUE, index->table_name).c_str(),
 		trx_id, max_trx_id);
 }
 
@@ -4247,7 +4245,7 @@ lock_rec_unlock(
 	lock_mutex_exit();
 	trx_mutex_exit(trx);
 
-	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
+	stmt = innobase_get_stmt_unsafe(trx->mysql_thd, &stmt_len);
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"Unlock row could not find a %lu mode lock on the record",
 		(ulong) lock_mode);
@@ -4749,8 +4747,7 @@ lock_rec_print(
 				rec, lock->index, offsets,
 				ULINT_UNDEFINED, &heap);
 
-			putc(' ', file);
-			rec_print_new(file, rec, offsets);
+			fprintf(file, " %s", rec_printer(rec, offsets).c_str());
 		}
 
 		putc('\n', file);
