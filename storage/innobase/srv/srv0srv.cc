@@ -215,8 +215,11 @@ a heavier load on the I/O sub system. */
 ulong	srv_insert_buffer_batch_size = 20;
 
 char*	srv_file_flush_method_str = NULL;
-ulint	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
-ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+#ifndef _WIN32
+enum srv_unix_flush_t	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
+#else
+enum srv_win_flush_t	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+#endif /* _WIN32 */
 
 ulint	srv_max_n_open_files	  = 300;
 
@@ -2142,6 +2145,9 @@ DECLARE_THREAD(srv_master_thread)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	my_thread_init();
+	DBUG_ENTER("srv_master_thread");
+
 	srv_slot_t*	slot;
 	ulint		old_activity_count = srv_get_activity_count();
 	ib_time_t	last_print_time;
@@ -2202,13 +2208,13 @@ suspend_thread:
 
 	os_event_wait(slot->event);
 
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		os_thread_exit(NULL);
+	if (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+		goto loop;
 	}
 
-	goto loop;
-
-	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
+	my_thread_end();
+	os_thread_exit(NULL);
+	DBUG_RETURN(0);
 }
 
 /*********************************************************************//**

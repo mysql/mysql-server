@@ -3951,11 +3951,15 @@ ibuf_insert_to_index_page_low(
 		" page free %lu, dtuple size %lu",
 		(ulong) page_get_max_insert_size(page, 1),
 		(ulong) rec_get_converted_size(index, entry, 0));
-	fputs("InnoDB: Cannot insert index record ", stderr);
-	dtuple_print(stderr, entry);
-	fputs("\nInnoDB: The table where this index record belongs\n"
-	      "InnoDB: is now probably corrupt. Please run CHECK TABLE on\n"
-	      "InnoDB: that table.\n", stderr);
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"Cannot insert index record %s into table %s, index %s",
+		rec_printer(entry).c_str(),
+		ut_get_name(NULL, FALSE, index->name).c_str(),
+		ut_get_name(NULL, TRUE, index->table_name).c_str());
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"The table of this record %s is now probably"
+		" corrupt. Please run CHECK TABLE %s",
+		index->table_name, index->table_name);
 
 	bitmap_page = ibuf_bitmap_get_map_page(block->page.id,
 					       block->page.size, mtr);
@@ -4030,7 +4034,9 @@ ibuf_insert_to_index_page(
 dump:
 		buf_page_print(page, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
 
-		dtuple_print(stderr, entry);
+		ib_logf(IB_LOG_LEVEL_WARN, "Record %s",
+			rec_printer(entry).c_str());
+
 		ut_ad(0);
 
 		ib_logf(IB_LOG_LEVEL_WARN,
@@ -4202,13 +4208,13 @@ ibuf_set_del_mark(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to find a record to delete-mark");
-		fputs("InnoDB: tuple ", stderr);
-		dtuple_print(stderr, entry);
-		fputs("\n"
-		      "InnoDB: record ", stderr);
-		rec_print(stderr, page_cur_get_rec(&page_cur), index);
+		ib_logf(IB_LOG_LEVEL_ERROR, "Tuple %s",
+			rec_printer(entry).c_str());
+		ib_logf(IB_LOG_LEVEL_ERROR, "Record %s",
+			rec_printer(page_cur_get_rec(&page_cur),
+				    index).c_str());
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"space " UINT32PF " page_no " UINT32PF
+			"Space " UINT32PF " page_no " UINT32PF
 			" (" ULINTPF " records, index id " UINT64PF ").",
 			block->page.id.space(),
 			block->page.id.page_no(),
@@ -4263,20 +4269,21 @@ ibuf_delete(
 			/* Refuse to purge the last record or a
 			record that has not been marked for deletion. */
 			ib_logf(IB_LOG_LEVEL_ERROR, "Unable to purge a record");
-			fputs("InnoDB: tuple ", stderr);
-			dtuple_print(stderr, entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print_new(stderr, rec, offsets);
-			fprintf(stderr, "\nspace " UINT32PF " offset " UINT32PF
-				" (%u records, index id %llu)\n"
-				"InnoDB: Submit a detailed bug report"
-				" to http://bugs.mysql.com\n",
+			ib_logf(IB_LOG_LEVEL_ERROR, "Tuple %s",
+				rec_printer(entry).c_str());
+
+			ib_logf(IB_LOG_LEVEL_ERROR, "Record %s",
+				rec_printer(rec, offsets).c_str());
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Space " UINT32PF " offset " UINT32PF
+				" (%u records, index id " IB_ID_FMT ")",
 				block->page.id.space(),
 				block->page.id.page_no(),
 				(unsigned) page_get_n_recs(page),
-				(ulonglong) btr_page_get_index_id(page));
+				btr_page_get_index_id(page));
 
+			ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
 			ut_ad(0);
 			return;
 		}
@@ -4342,18 +4349,18 @@ ibuf_restore_pos(
 		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 	} else {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"ibuf cursor restoration fails!."
+			"ibuf cursor restoration fails!"
 			" ibuf record inserted to page %lu:%lu",
 			(ulong) space, (ulong) page_no);
-
-		ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
-
-		rec_print_old(stderr, btr_pcur_get_rec(pcur));
-		rec_print_old(stderr, pcur->old_rec);
-		dtuple_print(stderr, search_tuple);
-
-		rec_print_old(stderr,
-			      page_rec_get_next(btr_pcur_get_rec(pcur)));
+		ib_logf(IB_LOG_LEVEL_ERROR, "Cur Record %s",
+			rec_printer(btr_pcur_get_rec(pcur)).c_str());
+		ib_logf(IB_LOG_LEVEL_ERROR, "Old Record %s",
+			rec_printer(pcur->old_rec).c_str());
+		ib_logf(IB_LOG_LEVEL_ERROR, "Tuple %s",
+			rec_printer(search_tuple).c_str());
+		ib_logf(IB_LOG_LEVEL_ERROR, "Next Record %s",
+			rec_printer(page_rec_get_next(
+					btr_pcur_get_rec(pcur))).c_str());
 
 		ib_logf(IB_LOG_LEVEL_FATAL, "Failed to restore ibuf position.");
 	}
@@ -4710,9 +4717,10 @@ loop:
 		}
 
 		if (corruption_noticed) {
-			fputs("InnoDB: Discarding record\n ", stderr);
-			rec_print_old(stderr, rec);
-			fputs("\nInnoDB: from the insert buffer!\n\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Discarding record %s from the"
+				" insert buffer!",
+				rec_printer(rec).c_str());
 		} else if (block != NULL && !rec_get_deleted_flag(rec, 0)) {
 			/* Now we have at pcur a record which should be
 			applied on the index page; NOTE that the call below

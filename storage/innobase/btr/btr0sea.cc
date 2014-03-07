@@ -1910,29 +1910,28 @@ btr_search_validate(void)
 				ok = FALSE;
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error in an adaptive hash"
-					" index pointer to page %lu,"
-					" ptr mem address %p, index id"
-					" " IB_ID_FMT ", node fold %lu,"
-					" rec fold %lu",
-					(ulong) page_get_page_no(page),
-					node->data,
-					page_index_id,
-					(ulong) node->fold,
-					(ulong) rec_fold(node->data,
-							 offsets,
-							 block->curr_n_fields,
-							 page_index_id));
+					"Error in an adaptive hash index"
+					" pointer to page " ULINTPF ", ptr mem"
+					" address %p, index id " IB_ID_FMT ","
+					" node fold " ULINTPF ","
+					" rec fold " ULINTPF,
+					page_get_page_no(page),
+					node->data, page_index_id,
+					node->fold,
+					rec_fold(node->data, offsets,
+						 block->curr_n_fields,
+						 page_index_id));
 
-				fputs("InnoDB: Record ", stderr);
-				rec_print_new(stderr, node->data, offsets);
-				fprintf(stderr, "\nInnoDB: on that page."
-					" Page mem address %p, is hashed %p,"
-					" n fields %lu\n"
-					"InnoDB: side %lu\n",
-					(void*) page, (void*) block->index,
-					(ulong) block->curr_n_fields,
-					(ulong) block->curr_left_side);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Record %s, on that page. Page mem"
+					" address %p, is hashed %p,"
+					" n fields %u, side %u",
+					rec_printer(node->data,
+						    offsets).c_str(),
+					static_cast<const void*>(page),
+					static_cast<const void*>(block->index),
+					block->curr_n_fields,
+					block->curr_left_side);
 
 				if (n_page_dumps < 20) {
 					buf_page_print(
