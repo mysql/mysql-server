@@ -2749,7 +2749,7 @@ fail_err:
 
 		if (dict_table_is_intrinsic(index->table)) {
 
-			index->rec_cache.rec_size = rec_size; 
+			index->rec_cache.rec_size = rec_size;
 
 			*rec = page_cur_tuple_inline_insert(
 				page_cursor, entry, index, n_ext, mtr);

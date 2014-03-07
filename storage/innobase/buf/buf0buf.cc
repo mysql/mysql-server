@@ -3192,7 +3192,7 @@ got_block:
 	buf_wait_for_read(fix_block);
 #endif /* PAGE_ATOMIC_REF_COUNT */
 
-	/* Set if only if it is not set because same block can be 
+	/* Set if only if it is not set because same block can be
 	part of multiple mtr and if latter mtr try to reset it to false
 	then former one will too loose the setting too. */
 	if (dirty_with_no_latch) {

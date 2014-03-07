@@ -286,7 +286,7 @@ btr_leaf_page_release(
 	ut_ad(!mtr_memo_contains(mtr, block, MTR_MEMO_MODIFY));
 
 	ulint mode;
-	switch (latch_mode) { 
+	switch (latch_mode) {
 		case BTR_SEARCH_LEAF:
 			mode = MTR_MEMO_PAGE_S_FIX;
 			break;

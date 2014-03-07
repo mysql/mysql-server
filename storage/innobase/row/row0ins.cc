@@ -2645,7 +2645,7 @@ row_ins_sorted_clust_index_entry(
 		cursor.index = index;
 
 		cursor.page_cur.index = index;
-	
+
 		cursor.page_cur.rec = index->last_ins_cur->rec;
 
 		cursor.page_cur.block = index->last_ins_cur->block;

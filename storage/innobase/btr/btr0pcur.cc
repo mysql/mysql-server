@@ -414,7 +414,7 @@ btr_pcur_move_to_next_page(
 	buf_block_t*	next_block;
 	page_t*		next_page;
 	ulint		mode;
-	dict_table_t*	table = btr_pcur_get_btr_cur(cursor)->index->table; 
+	dict_table_t*	table = btr_pcur_get_btr_cur(cursor)->index->table;
 
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);

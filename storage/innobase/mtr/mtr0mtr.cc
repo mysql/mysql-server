@@ -651,10 +651,10 @@ mtr_t::Command::execute()
 {
 	ut_ad(m_impl->m_log_mode != MTR_LOG_NONE);
 
-	/* If redo logging is turned off then avoid invoking write api */ 
+	/* If redo logging is turned off then avoid invoking write api */
 	if (m_impl->m_log_mode == MTR_LOG_NO_REDO) {
 		log_mutex_enter();
-		m_start_lsn = m_end_lsn = log_sys->lsn; 
+		m_start_lsn = m_end_lsn = log_sys->lsn;
 	} else {
 		write();
 	}

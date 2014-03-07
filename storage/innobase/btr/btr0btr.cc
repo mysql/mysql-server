@@ -2301,7 +2301,7 @@ func_start:
 	page_zip = buf_block_get_page_zip(block);
 
 	ut_ad(mtr_is_block_fix(
-		mtr, block, MTR_MEMO_PAGE_X_FIX, cursor->index->table)); 
+		mtr, block, MTR_MEMO_PAGE_X_FIX, cursor->index->table));
 	ut_ad(!page_is_empty(page));
 
 	page_no = block->page.id.page_no();
@@ -3344,7 +3344,7 @@ btr_discard_only_page_on_level(
 		father = btr_cur_get_block(&cursor);
 
 		if (!dict_table_is_intrinsic(index->table)) {
-			lock_update_discard(	
+			lock_update_discard(
 				father, PAGE_HEAP_NO_SUPREMUM, block);
 		}
 

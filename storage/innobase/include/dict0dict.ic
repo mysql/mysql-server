@@ -281,7 +281,7 @@ dict_index_is_auto_gen_clust(
 	const dict_index_t*	index)
 {
 	return(index->auto_gen_clust_index);
-} 
+}
 
 /********************************************************************//**
 Check whether the index is unique.

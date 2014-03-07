@@ -1348,7 +1348,7 @@ row_insert_for_mysql_using_cursor(
 
 	trx_id_t	trx_id =
 			dict_table_get_table_localized_trx_id(prebuilt->table);
-	trx_write_trx_id(node->trx_id_buf, trx_id);	
+	trx_write_trx_id(node->trx_id_buf, trx_id);
 
 	/* Step-4: Iterate over all the indexes and insert entries. */
 	ulint	inserted_upto = 1;

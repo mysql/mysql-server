@@ -413,7 +413,7 @@ page_cur_search_with_match(
 			offsets = populate_offsets(
 				mid_rec, tuple,
 				const_cast<dict_index_t*>(index),
-				offsets, &heap); 
+				offsets, &heap);
 		} else {
 			offsets = rec_get_offsets(
 				mid_rec, index, offsets,
@@ -476,7 +476,7 @@ up_slot_match:
 			offsets = populate_offsets(
 				mid_rec, tuple,
 				const_cast<dict_index_t*>(index),
-				offsets, &heap); 
+				offsets, &heap);
 		} else {
 			offsets = rec_get_offsets(
 				mid_rec, index, offsets,
