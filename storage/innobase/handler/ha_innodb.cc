@@ -6447,6 +6447,7 @@ ha_innobase::write_row(
 	table with algorithm = copy. Intermediate commit ease pressure on
 	recovery if server crashes while ALTER is active. */
 	sql_command = thd_sql_command(user_thd);
+
 	if ((sql_command == SQLCOM_ALTER_TABLE
 	     || sql_command == SQLCOM_OPTIMIZE
 	     || sql_command == SQLCOM_CREATE_INDEX
@@ -6964,7 +6965,7 @@ ha_innobase::update_row(
 {
 	upd_t*		uvect;
 	dberr_t		error;
-	trx_t*		trx = NULL; 
+	trx_t*		trx = NULL;
 
 	/* For intrinsic tables case even if create of table fails Optimizer
 	will continue to insert rows to the table ignoring create failure. */
@@ -7158,7 +7159,7 @@ ha_innobase::delete_all_rows()
 	if (error == DB_SUCCESS) {
 		dict_stats_update(prebuilt->table, DICT_STATS_EMPTY_TABLE);
 	}
-	
+
 	DBUG_RETURN(convert_error_code_to_mysql(
 			    error, prebuilt->table->flags, user_thd));
 }
@@ -8909,7 +8910,7 @@ create_clustered_index_when_no_primary(
 		with normal tables. */
 		index->disable_ahi = true;
 	}
-	
+
 	error = row_create_index_for_mysql(index, trx, NULL, handler);
 
 	return(convert_error_code_to_mysql(error, flags, NULL));

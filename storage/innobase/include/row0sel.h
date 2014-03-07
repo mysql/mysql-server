@@ -152,7 +152,7 @@ position and fetch next or fetch prev must not be tried to the cursor!
 				index; if search tuple contains 0 field then
 				we position the cursor at start or the end of
 				index, depending on 'mode'
-@param[in] 	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
 @param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a

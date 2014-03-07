@@ -50,7 +50,7 @@ mtr_t::memo_push(void* object, mtr_memo_type_t type)
 	} else if (type == MTR_MEMO_BUF_FIX && !m_impl.m_made_dirty) {
 		if (reinterpret_cast<const buf_block_t*>(
 			object)->made_dirty_with_no_latch) {
-			m_impl.m_made_dirty = true;	
+			m_impl.m_made_dirty = true;
 		}
 	}
 
