@@ -70,7 +70,7 @@ drop table t1;
 # 3. Run different types of queries on intrinsic table.
 #
 --disable_query_log
-let $wl6737_temp = temporary;
+let $wl7682_temp = temporary;
 --source suite/innodb/include/create_workload_itt.inc
 --enable_query_log
 --source suite/innodb/include/query_workload_itt.inc

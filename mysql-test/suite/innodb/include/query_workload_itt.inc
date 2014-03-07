@@ -1,5 +1,5 @@
 #
-# WL#6737: Integrating InnoDB temporary tables with MySQL Optimizer.
+# WL#7682: Integrating InnoDB temporary tables with MySQL Optimizer.
 #
 
 # use sql_buffer_result
