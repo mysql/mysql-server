@@ -54,7 +54,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
                                          bool create_if_not_exists)
 {
   NDB_SCHEMA_OBJECT *ndb_schema_object;
-  uint length= (uint) strlen(key);
+  size_t length= strlen(key);
   DBUG_ENTER("ndb_get_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
