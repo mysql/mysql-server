@@ -1,0 +1,142 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+#
+# Bug #56680 InnoDB may return wrong results from a case-insensitive index
+#
+-- source include/have_innodb.inc
+
+-- disable_query_log
+SET @tx_isolation_orig = @@tx_isolation;
+SET @innodb_file_per_table_orig = @@innodb_file_per_table;
+SET @innodb_file_format_orig = @@innodb_file_format;
+# The flag innodb_change_buffering_debug is only available in debug builds.
+# It instructs InnoDB to try to evict pages from the buffer pool when
+# change buffering is possible, so that the change buffer will be used
+# whenever possible.
+-- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
+SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
+-- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL innodb_change_buffering_debug = 1;
+-- enable_query_log
+SET GLOBAL tx_isolation='REPEATABLE-READ';
+SET GLOBAL innodb_file_format=Barracuda;
+SET GLOBAL innodb_file_per_table=on;
+
+CREATE TABLE bug56680(
+       a INT AUTO_INCREMENT PRIMARY KEY,
+       b CHAR(1),
+       c INT,
+       INDEX(b))
+ENGINE=InnoDB STATS_PERSISTENT=0;
+
+INSERT INTO bug56680 VALUES(0,'x',1);
+BEGIN;
+SELECT b FROM bug56680;
+
+connect (con1,localhost,root,,);
+connection con1;
+BEGIN;
+UPDATE bug56680 SET b='X';
+
+connection default;
+# This should return the last committed value 'x', but would return 'X'
+# due to a bug in row_search_for_mysql().
+SELECT b FROM bug56680;
+# This would always return the last committed value 'x'.
+SELECT * FROM bug56680;
+
+connection con1;
+ROLLBACK;
+disconnect con1;
+
+connection default;
+
+SELECT b FROM bug56680;
+
+# For the rest of this test, use the READ UNCOMMITTED isolation level
+# to see what exists in the secondary index.
+SET GLOBAL tx_isolation='READ-UNCOMMITTED';
+
+# Create enough rows for the table, so that the insert buffer will be
+# used for modifying the secondary index page. There must be multiple
+# index pages, because changes to the root page are never buffered.
+
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+INSERT INTO bug56680 SELECT 0,b,c FROM bug56680;
+
+BEGIN;
+SELECT b FROM bug56680 LIMIT 2;
+
+connect (con1,localhost,root,,);
+connection con1;
+BEGIN;
+DELETE FROM bug56680 WHERE a=1;
+# This should be buffered, if innodb_change_buffering_debug = 1 is in effect.
+INSERT INTO bug56680 VALUES(1,'X',1);
+
+# This should force an insert buffer merge, and return 'X' in the first row.
+SELECT b FROM bug56680 LIMIT 3;
+
+connection default;
+SELECT b FROM bug56680 LIMIT 2;
+CHECK TABLE bug56680;
+
+connection con1;
+ROLLBACK;
+SELECT b FROM bug56680 LIMIT 2;
+CHECK TABLE bug56680;
+
+connection default;
+disconnect con1;
+
+SELECT b FROM bug56680 LIMIT 2;
+
+CREATE TABLE bug56680_2(
+       a INT AUTO_INCREMENT PRIMARY KEY,
+       b VARCHAR(2) CHARSET latin1 COLLATE latin1_german2_ci,
+       c INT,
+       INDEX(b))
+ENGINE=InnoDB STATS_PERSISTENT=0;
+
+INSERT INTO bug56680_2 SELECT 0,_latin1 0xdf,c FROM bug56680;
+
+BEGIN;
+SELECT HEX(b) FROM bug56680_2 LIMIT 2;
+DELETE FROM bug56680_2 WHERE a=1;
+# This should be buffered, if innodb_change_buffering_debug = 1 is in effect.
+INSERT INTO bug56680_2 VALUES(1,'SS',1);
+
+# This should force an insert buffer merge, and return 'SS' in the first row.
+SELECT HEX(b) FROM bug56680_2 LIMIT 3;
+CHECK TABLE bug56680_2;
+
+# Test this with compressed tables.
+ALTER TABLE bug56680_2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+
+SELECT HEX(b) FROM bug56680_2 LIMIT 2;
+DELETE FROM bug56680_2 WHERE a=1;
+# This should be buffered, if innodb_change_buffering_debug = 1 is in effect.
+INSERT INTO bug56680_2 VALUES(1,_latin1 0xdf,1);
+
+# This should force an insert buffer merge, and return 0xdf in the first row.
+SELECT HEX(b) FROM bug56680_2 LIMIT 3;
+CHECK TABLE bug56680_2;
+
+DROP TABLE bug56680_2;
+DROP TABLE bug56680;
+
+-- disable_query_log
+SET GLOBAL tx_isolation = @tx_isolation_orig;
+SET GLOBAL innodb_file_per_table = @innodb_file_per_table_orig;
+SET GLOBAL innodb_file_format = @innodb_file_format_orig;
+-- error 0, ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL innodb_change_buffering_debug = @innodb_change_buffering_debug_orig;

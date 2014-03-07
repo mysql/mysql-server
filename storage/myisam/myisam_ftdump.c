@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,11 +115,7 @@ int main(int argc,char *argv[])
     if (subkeys >= 0)
       ft_floatXget(weight, info->lastkey+keylen+1);
 
-#ifdef HAVE_SNPRINTF
     snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
-#else
-    sprintf(buf,"%.*s",(int) keylen,info->lastkey+1);
-#endif
     my_casedn_str(default_charset_info,buf);
     total++;
     lengths[keylen]++;
@@ -137,16 +133,16 @@ int main(int argc,char *argv[])
           if (maxlen<keylen2)
           {
             maxlen=keylen2;
-            strmov(buf_maxlen, buf2);
+            my_stpcpy(buf_maxlen, buf2);
           }
           if (max_doc_cnt < doc_cnt)
           {
             max_doc_cnt=doc_cnt;
-            strmov(buf_min_gws, buf2);
+            my_stpcpy(buf_min_gws, buf2);
             min_gws=gws;
           }
         }
-        strmov(buf2, buf);
+        my_stpcpy(buf2, buf);
         keylen2=keylen;
         doc_cnt=0;
       }
@@ -175,12 +171,12 @@ int main(int argc,char *argv[])
       if (maxlen<keylen2)
       {
         maxlen=keylen2;
-        strmov(buf_maxlen, buf2);
+        my_stpcpy(buf_maxlen, buf2);
       }
       if (max_doc_cnt < doc_cnt)
       {
         max_doc_cnt=doc_cnt;
-        strmov(buf_min_gws, buf2);
+        my_stpcpy(buf_min_gws, buf2);
         min_gws=gws;
       }
     }

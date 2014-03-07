@@ -1,2 +1,4 @@
+--source include/have_myisam.inc
+
 let $engine_type=myisam;
 source extra/rpl_tests/rpl_charset.test;

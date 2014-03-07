@@ -22,6 +22,9 @@
 #                                                                             #
 ###############################################################################
 
+# diagnostics can't be prepared
+--disable_ps_protocol
+
 --echo '#---------------------BS_STVARS_005_01----------------------#'
 ####################################################################
 #   Displaying default value                                       #
@@ -94,4 +97,4 @@ SELECT COUNT(@@GLOBAL.error_count);
 SELECT COUNT(error_count = @@GLOBAL.error_count);
 --echo Expected error 'Readonly variable'
 
-
+--enable_ps_protocol

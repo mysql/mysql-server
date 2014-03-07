@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Test of like
 #
@@ -17,7 +22,7 @@ select * from t1 where a like "test%";
 select * from t1 where a like "te_t";
 
 #
-# The following will test the Turbo Boyer-Moore code
+# The following will test the Boyer-Moore code
 #
 select * from t1 where a like "%a%";
 select * from t1 where a like "%abcd%";
@@ -133,3 +138,17 @@ DROP TABLE t1, t2;
 SELECT '' LIKE '1' ESCAPE COUNT(1);
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug #18114294	 CRASH IN ITEM_FUNC_LIKE::BM_MATCHES
+--echo #
+
+select 0x0000000001020003F03F40408484040ADDE40 like 0x256F3B38312A7725;
+select 0x003c8793403032 like '%-112%';
+select 0x903f645a8c507dd79178 like '%-128%';
+select 0xac14aa84f000d276d66ed9 like '%-107%';
+select 0xf0be117400d02a20b8e049da3e74 like '%-123%';
+select 0x961838f6fc3c7f9ec17b5d900410d8aa like '%-113%';
+select 0x6a8473fc1c64ce4f2684c05a400c5e7ca4a01a like '%emailin%';
+select 0x00b25278956e0044683dfc180cd886aeff2f5bc3fc18 like '%-122%';
+select 0xbc24421ce6194ab5c260e80af647ae58fdbfca18a19dc8411424 like '%-106%';

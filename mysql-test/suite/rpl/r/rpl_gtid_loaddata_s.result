@@ -1,0 +1,21 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+reset master;
+create table test.t1(a int, b int, unique(b));
+load data infile '../../std_data/rpl_loaddata.dat' into table test.t1;
+include/sync_slave_sql_with_master.inc
+select count(*) from test.t1;
+count(*)
+2
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Query	#	#	COMMIT
+drop table test.t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

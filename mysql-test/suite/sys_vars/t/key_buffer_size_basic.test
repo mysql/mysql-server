@@ -59,6 +59,8 @@ SELECT @@global.key_buffer_size = @start_value;
 #        Change the value of key_buffer_size to a valid value          #
 ########################################################################
 
+SET @@global.key_buffer_size = 4096;
+SELECT @@global.key_buffer_size;
 SET @@global.key_buffer_size = 65535;
 SELECT @@global.key_buffer_size;
 
@@ -74,27 +76,25 @@ SELECT @@global.key_buffer_size;
 --Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 SET @@global.key_buffer_size = 4;
 SELECT @@global.key_buffer_size;
+
 --Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 SET @@global.key_buffer_size = -1024;
 SELECT @@global.key_buffer_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = 10000.01;
-SELECT @@global.key_buffer_size IN (429380390912,4294963200);
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = ' ';
-SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = " ";
-SELECT @@global.key_buffer_size IN (429380390912,4294963200);
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = ON;
-SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = 'test';
-SELECT @@global.key_buffer_size IN (429380390912,4294963200);
 
 --echo '#-------------------FN_DYNVARS_055_05----------------------------#'
 ###########################################################################
@@ -135,7 +135,7 @@ SET @@global.key_buffer_size = FALSE;
 
 SELECT @@key_buffer_size = @@global.key_buffer_size;
 
---echo '#---------------------FN_DYNVARS_055_09----------------------#'
+--echo '#---------------------FN_DYNVARS_055_9----------------------#'
 ##########################################################################
 #   Check if key_buffer_size can be accessed with and without @@ sign    #
 ##########################################################################

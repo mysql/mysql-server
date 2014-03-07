@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "rt_index.h"
 #include "sql_table.h"                          // tablename_to_filename
 #include "sql_class.h"                          // THD
+#include "log.h"
 
 #include <algorithm>
 
@@ -231,7 +232,8 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   TABLE_SHARE *share= table_arg->s;
   uint options= share->db_options_in_use;
   DBUG_ENTER("table2myisam");
-  if (!(my_multi_malloc(MYF(MY_WME),
+  if (!(my_multi_malloc(PSI_INSTRUMENT_ME,
+                        MYF(MY_WME),
           recinfo_out, (share->fields * 2 + 2) * sizeof(MI_COLUMNDEF),
           keydef_out, share->keys * sizeof(MI_KEYDEF),
           &keyseg,
@@ -464,8 +466,8 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
     {
        DBUG_PRINT("error", ("Key %d has different definition", i));
        DBUG_PRINT("error", ("t1_fulltext= %d, t2_fulltext=%d",
-                            test(t1_keyinfo[i].flag & HA_FULLTEXT),
-                            test(t2_keyinfo[i].flag & HA_FULLTEXT)));
+                            MY_TEST(t1_keyinfo[i].flag & HA_FULLTEXT),
+                            MY_TEST(t2_keyinfo[i].flag & HA_FULLTEXT)));
        DBUG_RETURN(1);
     }
     if (t1_keyinfo[i].flag & HA_SPATIAL && t2_keyinfo[i].flag & HA_SPATIAL)
@@ -475,8 +477,8 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
     {
        DBUG_PRINT("error", ("Key %d has different definition", i));
        DBUG_PRINT("error", ("t1_spatial= %d, t2_spatial=%d",
-                            test(t1_keyinfo[i].flag & HA_SPATIAL),
-                            test(t2_keyinfo[i].flag & HA_SPATIAL)));
+                            MY_TEST(t1_keyinfo[i].flag & HA_SPATIAL),
+                            MY_TEST(t2_keyinfo[i].flag & HA_SPATIAL)));
        DBUG_RETURN(1);
     }
     if ((!mysql_40_compat &&
@@ -1042,7 +1044,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   param.thd= thd;
   param.tmpdir= &mysql_tmpdir_list;
   param.out_flag= 0;
-  strmov(fixed_name,file->filename);
+  my_stpcpy(fixed_name,file->filename);
 
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);
@@ -1067,7 +1069,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 			share->state.key_map);
     uint testflag=param.testflag;
 #ifdef HAVE_MMAP
-    bool remap= test(share->file_map);
+    bool remap= MY_TEST(share->file_map);
     /*
       mi_repair*() functions family use file I/O even if memory
       mapping is available.
@@ -1563,10 +1565,6 @@ bool ha_myisam::check_and_repair(THD *thd)
     check_opt.flags|=T_QUICK;
   sql_print_warning("Checking table:   '%s'",table->s->path.str);
 
-  const CSET_STRING query_backup= thd->query_string;
-  thd->set_query(table->s->table_name.str,
-                 (uint) table->s->table_name.length, system_charset_info);
-
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
     sql_print_warning("Recovering table: '%s'",table->s->path.str);
@@ -1578,7 +1576,6 @@ bool ha_myisam::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error=1;
   }
-  thd->set_query(query_backup);
   DBUG_RETURN(error);
 }
 
@@ -1609,7 +1606,7 @@ ICP_RESULT index_cond_func_myisam(void *arg)
   if (h->end_range && h->compare_key_icp(h->end_range) > 0)
     return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
 
-  return (ICP_RESULT) test(h->pushed_idx_cond->val_int());
+  return (ICP_RESULT) MY_TEST(h->pushed_idx_cond->val_int());
 }
 
 C_MODE_END
@@ -2114,8 +2111,7 @@ int ha_myisam::ft_read(uchar *buf)
   if (!ft_handler)
     return -1;
 
-  thread_safe_increment_rwlock(table->in_use->status_var.ha_read_next_count,
-                               &LOCK_status); // why ?
+  ha_statistic_increment(&SSV::ha_read_next_count);
 
   error=ft_handler->please->read_next(ft_handler,(char*) buf);
 
@@ -2293,7 +2289,6 @@ mysql_declare_plugin(myisam)
 mysql_declare_plugin_end;
 
 
-#ifdef HAVE_QUERY_CACHE
 /**
   @brief Register a named table with a call back function to the query cache.
 
@@ -2385,4 +2380,3 @@ my_bool ha_myisam::register_query_cache_table(THD *thd, char *table_name,
   /* It is ok to try to cache current statement. */
   DBUG_RETURN(TRUE);
 }
-#endif

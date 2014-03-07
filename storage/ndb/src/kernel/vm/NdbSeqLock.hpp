@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +11,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef NDB_SEQLOCK_HPP
 #define NDB_SEQLOCK_HPP
 
 #include <ndb_types.h>
 #include "mt-asm.h"
+
+#define JAM_FILE_ID 251
+
 
 #if defined (NDB_HAVE_RMB) && defined(NDB_HAVE_WMB)
 struct NdbSeqLock
@@ -91,5 +94,8 @@ struct NdbSeqLock
 };
 
 #endif
+
+
+#undef JAM_FILE_ID
 
 #endif

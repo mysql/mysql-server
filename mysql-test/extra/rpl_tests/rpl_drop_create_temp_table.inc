@@ -1,5 +1,6 @@
 --source include/have_innodb.inc
 --disable_abort_on_error
+--source include/have_myisam.inc
 
 if (`SELECT HEX(@commands) = HEX('configure')`)
 {
@@ -187,10 +188,9 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
 }
 
 #
-# Drops tables and synchronizes master and slave. Note that temporary
-# tables are not explitcily dropped as they will be dropped while
-# closing the connection.
+# Drops tables and synchronizes master and slave.
 #
+
 if (`SELECT HEX(@commands) = HEX('clean')`)
 {
   connection master;
@@ -207,10 +207,15 @@ if (`SELECT HEX(@commands) = HEX('clean')`)
 
   DROP TABLE IF EXISTS nt_error_2;
 
+  DROP TEMPORARY TABLE IF EXISTS tt_tmp_xx_1;
+  DROP TEMPORARY TABLE IF EXISTS nt_tmp_xx_1;
+
   --let $n= $tot_table
   while ($n)
   { 
     --eval DROP TABLE IF EXISTS nt_$n
+    --eval DROP TEMPORARY TABLE IF EXISTS tt_tmp_$n
+    --eval DROP TEMPORARY TABLE IF EXISTS nt_tmp_$n
     --dec $n
   }
 

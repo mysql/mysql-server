@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,5 +55,12 @@ class Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb= false);
 /* Print thd's list of warnings to error log */
 void
 thd_print_warning_list(THD* thd, const char* prefix);
+
+/*
+  Determine if THD is applying binlog. ie. either marked as
+  slave thread or being in "pseudo slave mode"
+*/
+bool
+applying_binlog(const THD* thd);
 
 #endif

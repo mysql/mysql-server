@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,7 @@ Created 12/29/1997 Heikki Tuuri
 
 /*****************************************************************//**
 Evaluates a function node. */
-UNIV_INTERN
+
 void
 eval_func(
 /*======*/
@@ -41,8 +41,8 @@ NOTE that this memory must be explicitly freed when the query graph is
 freed. If the node already has allocated buffer, that buffer is freed
 here. NOTE that this is the only function where dynamic memory should be
 allocated for a query node val field.
-@return	pointer to allocated buffer */
-UNIV_INTERN
+@return pointer to allocated buffer */
+
 byte*
 eval_node_alloc_val_buf(
 /*====================*/
@@ -54,7 +54,7 @@ eval_node_alloc_val_buf(
 
 /*****************************************************************//**
 Allocates a new buffer if needed.
-@return	pointer to buffer */
+@return pointer to buffer */
 UNIV_INLINE
 byte*
 eval_node_ensure_val_buf(
@@ -145,7 +145,7 @@ eval_node_set_int_val(
 
 /*****************************************************************//**
 Gets an integer non-SQL null value from an expression node.
-@return	integer value */
+@return integer value */
 UNIV_INLINE
 lint
 eval_node_get_int_val(
@@ -165,7 +165,7 @@ eval_node_get_int_val(
 
 /*****************************************************************//**
 Gets a iboolean value from a query node.
-@return	iboolean value */
+@return iboolean value */
 UNIV_INLINE
 ibool
 eval_node_get_ibool_val(

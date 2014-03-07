@@ -3,6 +3,18 @@ SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
 150000
 150000 Expected
 SET @@GLOBAL.innodb_adaptive_max_sleep_delay=100;
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=0;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+@@GLOBAL.innodb_adaptive_max_sleep_delay
+0
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=100000;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+@@GLOBAL.innodb_adaptive_max_sleep_delay
+100000
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=1000000;
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+@@GLOBAL.innodb_adaptive_max_sleep_delay
+1000000
 SET @@GLOBAL.innodb_adaptive_max_sleep_delay=1000001;
 Warnings:
 Warning	1292	Truncated incorrect innodb_adaptive_max_sleep_delay value: '1000001'
@@ -10,9 +22,23 @@ SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
 @@GLOBAL.innodb_adaptive_max_sleep_delay
 1000000
 1000000 Expected
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=4294967295;
+Warnings:
+Warning	1292	Truncated incorrect innodb_adaptive_max_sleep_delay value: '4294967295'
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+@@GLOBAL.innodb_adaptive_max_sleep_delay
+1000000
+1000000 Expected
 SET @@GLOBAL.innodb_adaptive_max_sleep_delay=-1;
 Warnings:
 Warning	1292	Truncated incorrect innodb_adaptive_max_sleep_delay value: '-1'
+SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
+@@GLOBAL.innodb_adaptive_max_sleep_delay
+0
+0 Expected
+SET @@GLOBAL.innodb_adaptive_max_sleep_delay=-1024;
+Warnings:
+Warning	1292	Truncated incorrect innodb_adaptive_max_sleep_delay value: '-1024'
 SELECT @@GLOBAL.innodb_adaptive_max_sleep_delay;
 @@GLOBAL.innodb_adaptive_max_sleep_delay
 0

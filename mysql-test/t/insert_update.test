@@ -1,3 +1,4 @@
+
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
@@ -204,7 +205,7 @@ SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
 CREATE TABLE `t1` (
   `id` int(11) PRIMARY KEY auto_increment,
   `f1` varchar(10) NOT NULL UNIQUE
-);
+)engine=myisam;
 INSERT IGNORE INTO t1 (f1) VALUES ("test1")
 	ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id);
 INSERT IGNORE INTO t1 (f1) VALUES ("test1")

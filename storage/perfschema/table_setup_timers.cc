@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
 
-#define COUNT_SETUP_TIMERS 4
+#define COUNT_SETUP_TIMERS 5
 
 static row_setup_timers all_setup_timers_data[COUNT_SETUP_TIMERS]=
 {
@@ -43,6 +43,10 @@ static row_setup_timers all_setup_timers_data[COUNT_SETUP_TIMERS]=
   {
     { C_STRING_WITH_LEN("statement") },
     &statement_timer
+  },
+  {
+    { C_STRING_WITH_LEN("transaction") },
+    &transaction_timer
   }
 };
 
@@ -72,11 +76,10 @@ table_setup_timers::m_share=
 {
   { C_STRING_WITH_LEN("setup_timers") },
   &pfs_updatable_acl,
-  &table_setup_timers::create,
+  table_setup_timers::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  COUNT_SETUP_TIMERS,
+  table_setup_timers::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -86,6 +89,12 @@ table_setup_timers::m_share=
 PFS_engine_table* table_setup_timers::create(void)
 {
   return new table_setup_timers();
+}
+
+ha_rows
+table_setup_timers::get_row_count(void)
+{
+  return COUNT_SETUP_TIMERS;
 }
 
 table_setup_timers::table_setup_timers()

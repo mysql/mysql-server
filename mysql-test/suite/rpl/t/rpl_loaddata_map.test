@@ -54,13 +54,15 @@ eval load data infile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
 select count(*) from t2 /* 5 000 */;
 
 # the binlog will show fragmented Append_block events
+--let $mask_binlog_commit_events= 1
 source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
 
 
 --echo ==== Verify results on slave ====
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select count(*) from t2 /* 5 000 */;
 
 
@@ -69,6 +71,6 @@ select count(*) from t2 /* 5 000 */;
 --echo [on master]
 connection master;
 drop table t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 remove_file $MYSQLTEST_VARDIR/tmp/bug30435_5k.txt;
 --source include/rpl_end.inc

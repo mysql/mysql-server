@@ -64,8 +64,10 @@ a	rel
 7	1
 alter table t1 add key m (message);
 explain SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	message	message	0	NULL	1	Using where; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	message	message	0	const	1	100.00	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`message` AS `message` from `test`.`t1` where (match `test`.`t1`.`message` against ('steve')) order by `test`.`t1`.`message`
 SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message desc;
 message
 steve is cool
@@ -126,7 +128,7 @@ group by
 a.text, b.id, b.betreff
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42000: Incorrect usage/placement of 'MATCH()'
+ERROR 42000: Table 'b' from one of the SELECTs cannot be used in field list
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -142,7 +144,7 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42000: Incorrect usage/placement of 'MATCH()'
+ERROR 42000: Table 'b' from one of the SELECTs cannot be used in field list
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -158,7 +160,7 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(betreff) against ('+abc' in boolean mode) desc;
-ERROR 42000: Incorrect usage/placement of 'MATCH()'
+text	id	betreff
 (select b.id, b.betreff from t3 b) union 
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc' in boolean mode) desc;

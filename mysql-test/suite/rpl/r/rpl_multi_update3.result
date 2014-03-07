@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 
@@ -34,6 +34,7 @@ SELECT * FROM t2 ORDER BY a;
 a	b
 1	6
 2	6
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	0
@@ -69,6 +70,7 @@ WHERE   b2 = 'baz')
 AND a.a3 IS NULL 
 AND a.a4 = 'foo' 
 AND a.a5 = 'bar';
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 a1	a2	a3	a4	a5
 No	1	NULL	foo	bar
@@ -118,6 +120,7 @@ FROM    t3
 WHERE   y = 34 
 ) 
 WHERE       b.x = 23;
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 i	j	x	y	z
 1	2	23	24	71
@@ -178,6 +181,7 @@ idpro	price	nbprice
 1	1.0000	3
 2	1.0000	2
 3	2.0000	1
+include/sync_slave_sql_with_master.inc
 select "-- SLAVE AFTER JOIN --" as "";
 
 -- SLAVE AFTER JOIN --

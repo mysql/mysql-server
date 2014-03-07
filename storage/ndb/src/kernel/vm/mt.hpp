@@ -1,5 +1,4 @@
-/* Copyright (C) 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,13 +11,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef ndb_mt_hpp
 #define ndb_mt_hpp
 
 #include <kernel_types.h>
 #include <TransporterDefinitions.hpp>
+
+#define JAM_FILE_ID 275
+
 
 Uint32 mt_get_instance_count(Uint32 block);
 
@@ -117,5 +119,8 @@ mt_get_trp_receive_handle(unsigned instance);
  */
 Uint32
 mt_get_recv_thread_idx(NodeId nodeId);
+
+
+#undef JAM_FILE_ID
 
 #endif

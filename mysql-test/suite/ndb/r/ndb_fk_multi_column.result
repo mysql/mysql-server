@@ -1,0 +1,44 @@
+create table parent (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b),
+unique(b,c) using hash,
+index(c,a)) engine = ndb;
+create table child (
+a int not null,
+b int not null,
+c int not null,
+primary key (b,a),
+unique(c,b) using hash,
+index(c,a)) engine = ndb;
+insert into parent values (1,2,3);
+alter table child add constraint fkname foreign key (c,a) references parent(a,b) on delete restrict on update restrict;
+insert into child values (2,1,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (1,1,1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (2,1,1);
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+delete from child;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (b,a) references parent(a,b) on delete restrict on update restrict;
+insert into child values (1,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (2,3,1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (2,1,1);
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+delete from child;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (c,b) references parent(a,b) on delete restrict on update restrict;
+insert into child values (1,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (2,3,1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (2,2,1);
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+drop table child, parent;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,9 @@ public:
   virtual bool init(Uint32 tableCompabilityMask) { return true;}
   virtual bool object(Uint32 tableType, const void*) { return true;}
   virtual bool table(const TableS &){return true;}
+  virtual bool fk(Uint32 tableType, const void*) { return true;}
   virtual bool endOfTables() { return true; }
+  virtual bool endOfTablesFK() { return true; }
   virtual void tuple(const TupleS &, Uint32 fragId){}
   virtual void tuple_free(){}
   virtual void endOfTuples(){}

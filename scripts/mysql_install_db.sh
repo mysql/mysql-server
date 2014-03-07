@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -393,7 +393,7 @@ fi
 # Configure mysqld command line
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
-  --basedir=$basedir --datadir=$ldata --log-warnings=0 \
+  --basedir=$basedir --datadir=$ldata --log_error_verbosity=1 \
   --loose-skip-ndbcluster $args --max_allowed_packet=8M \
   --default-storage-engine=myisam \
   --net_buffer_length=16K"
@@ -426,8 +426,8 @@ else
   echo "describes problems on your OS.  Another information source are the"
   echo "MySQL email archives available at http://lists.mysql.com/."
   echo
-  echo "Please check all of the above before mailing us!  And remember, if"
-  echo "you do mail us, you MUST use the $scriptdir/mysqlbug script!"
+  echo "Please check all of the above before submitting a bug report"
+  echo "at http://bugs.mysql.com/"
   echo
   exit 1
 fi
@@ -478,7 +478,7 @@ then
   fi
 
   echo
-  echo "Please report any problems with the $scriptdir/mysqlbug script!"
+  echo "Please report any problems at http://bugs.mysql.com/"
   echo
 fi
 

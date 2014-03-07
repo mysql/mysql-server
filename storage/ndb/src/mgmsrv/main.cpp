@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,15 +36,18 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+#if defined VM_TRACE || defined ERROR_INSERT
+extern int g_errorInsert;
+#endif
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 
 // copied from mysql.cc to get readline
 extern "C" {
-#if defined( __WIN__)
+#if defined(_WIN32)
 #include <conio.h>
 #elif !defined(__NETWARE__)
-#include <readline/readline.h>
+#include <readline.h>
 extern "C" int add_history(const char *command); /* From readline directory */
 #define HAVE_READLINE
 #endif
@@ -155,6 +158,12 @@ static struct my_option my_long_options[] =
     "Nodes that will not be waited for during start",
     (uchar**) &opt_nowait_nodes, (uchar**) &opt_nowait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#if defined VM_TRACE || defined ERROR_INSERT
+  { "error-insert", NDB_OPT_NOSHORT,
+    "Start with error insert variable set",
+    (uchar**) &g_errorInsert, (uchar**) &g_errorInsert, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

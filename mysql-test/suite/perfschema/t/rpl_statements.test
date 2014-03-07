@@ -1,0 +1,338 @@
+#
+# Check statement instrumentation of replicated statements
+#
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source ../include/no_protocol.inc
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+#==============================================================
+# Execute a variety of dml and ddl statements on the master.
+# Verify that the corresponding statement events are generated
+# on the slave.
+#
+# 1. Setup test files on master
+# 2. Replicate test files to slave
+# 3. Perform dml and ddl statements on master
+# 4. Copy statement events on master into a temporary table
+# 4. Replicate to slave
+# 5. Compare statement events on slave to those from the master
+# 6. Disable statement/abstract/relay_log on slave
+# 7. Update some tables on the master then replicate
+# 8. Verify that the updates were replicated but no statement
+#    events were recorded
+#==============================================================
+
+#
+# UTILITY QUERIES
+#
+let $get_thread_id=
+  select thread_id into @my_thread_id
+  from performance_schema.threads
+  where processlist_id = connection_id();
+
+let $disable_instruments=
+  update performance_schema.setup_instruments
+  set enabled='no', timed='no'
+  where name like '%statement/%';
+
+let $enable_instruments= ../include
+  update performance_schema.setup_instruments
+  set enabled='yes', timed='yes'
+  where name like '%statement/%';
+
+let $column_list=
+  thread_id, event_id, rpad(event_name, 28, ' ') event_name, rpad(current_schema, 10, ' ') current_schema, rpad(digest_text, 72, ' ') digest_text, sql_text;
+
+# Define instrument name for enable/disable instruments
+let $pfs_instrument='%statement/%';
+
+--echo
+--echo #
+--echo # STEP 1 - CREATE AND REPLICATE TEST TABLES
+--echo #
+
+connection master;
+
+--echo
+--echo **************
+--echo *** MASTER ***
+--echo **************
+--echo
+--echo *** Create test tables
+--echo
+
+show variables like '%binlog_format%';
+
+--disable_warnings
+drop table if exists test.marker;
+--enable_warnings
+
+eval $get_thread_id;
+
+create table test.marker(s1 int) engine=innodb;
+
+sync_slave_with_master;
+
+--echo **************
+--echo *** SLAVE  ***
+--echo **************
+--echo
+--echo *** Clear statement events
+--source ../include/rpl_statements_truncate.inc
+
+--echo
+--echo #
+--echo # STEP 2 - REPLICATE ONE ROW ON MASTER TO GET REPLICATION THREAD ID ON SLAVE
+--echo #
+
+connection master;
+
+--echo **************
+--echo *** MASTER ***
+--echo **************
+--echo
+insert into test.marker values (0);
+--echo
+
+sync_slave_with_master;
+
+--echo **************
+--echo *** SLAVE  ***
+--echo **************
+--echo
+--echo *** Verify row, get replication thread id, clear statement events
+--echo
+
+# TODO: Get slave thread id from threads using thread/sql/slave_sql event name
+
+select thread_id into @slave_thread_id from performance_schema.events_statements_history
+  where sql_text like '%marker%';
+let $slave_thread_id= `select @slave_thread_id`;
+
+--echo *** Verify row inserted on master was replicated
+select count(*) = 1 as 'Expect 1' from test.marker;
+
+--echo *** Clear statement events
+--source ../include/rpl_statements_truncate.inc
+
+--echo
+--echo #
+--echo # STEP 3 - PERFORM DML STATEMENTS ON MASTER
+--echo #
+
+connection master;
+
+--echo **************
+--echo *** MASTER ***
+--echo **************
+--echo
+show variables like '%binlog_format%';
+
+--echo *** Clear statement events
+--source ../include/rpl_statements_truncate.inc
+
+--echo
+--echo *** Create/drop table, create/drop database
+--echo
+create database marker1_db;
+create database marker2_db;
+create table marker1_db.table1 (s1 int) engine=innodb;
+create table marker2_db.table1 (s1 int) engine=innodb;
+create table marker2_db.table2 (s1 int) engine=innodb;
+
+--echo
+--echo *** Transaction
+start transaction;
+insert into marker1_db.table1 values (1), (2), (3);
+insert into marker2_db.table1 values (1), (2), (3);
+commit;
+
+--echo
+--echo *** Alter
+alter table marker1_db.table1 add column (s2 varchar(32));
+
+--echo
+--echo *** Insert, Update
+start transaction;
+insert into marker1_db.table1 values (4, 'four'), (5, 'five'), (6, 'six');
+update marker1_db.table1 set s1 = s1 + 1;
+commit;
+
+--echo
+--echo *** Rollback
+start transaction;
+insert into marker1_db.table1 values (7, 'seven'), (8, 'eight'), (9, 'nine');
+rollback;
+
+--echo
+--echo *** Autocommit, Delete, Drop
+delete from marker1_db.table1 where s1 > 4;
+drop table marker2_db.table1;
+drop database marker2_db;
+
+--source ../include/disable_instruments.inc
+
+--echo
+--echo *** Examine statements events that will be compared on the slave
+--echo
+
+--replace_column 1 [THREAD_ID] 2 [EVENT_ID]
+
+eval select $column_list from performance_schema.events_statements_history_long
+  where sql_text like '%marker%' order by event_id;
+
+--echo
+--echo #
+--echo # STEP 4 - REPLICATE STATEMENT EVENTS ON MASTER TO SLAVE
+--echo #
+--echo
+--echo *** Store statement events in holding table, then replicate
+--echo
+
+--source ../include/disable_instruments.inc
+
+--echo #
+--echo # Create table to hold statement events for later comparison on the slave
+--echo #
+
+create table test.master_events_statements_history_long as
+  (select thread_id, event_id, event_name, sql_text, digest, digest_text, current_schema, rows_affected
+     from performance_schema.events_statements_history_long
+     where (thread_id=@my_thread_id and digest_text like '%marker%'));
+
+--source ../include/enable_instruments.inc
+
+--echo
+--echo #
+--echo # STEP 5 - VERIFY DML AND DDL STATEMENT EVENTS ON SLAVE
+--echo #
+
+sync_slave_with_master;
+
+--echo **************
+--echo *** SLAVE  ***
+--echo **************
+
+--source ../include/disable_instruments.inc
+
+--echo
+--echo *** List statement events from master
+--echo
+--replace_column 1 [THREAD_ID] 2 [EVENT_ID]
+eval select $column_list from master_events_statements_history_long order by event_id;
+
+--echo
+--echo *** List statement events on slave
+--echo
+
+--replace_column 1 [THREAD_ID] 2 [EVENT_ID]
+
+eval select $column_list from performance_schema.events_statements_history_long
+  where thread_id = @slave_thread_id and sql_text like '%marker%' order by event_id;
+
+--echo
+--echo *** Compare master and slave events
+--echo
+
+# Note: The statement digest provides a more robust comparison than the
+# event name. However, in some cases, e.g. DROP TABLE, the server generates
+# its own version of the statement which includes additional quotes and a
+# comment. A digest comparison is therefore impractical for server-generated
+# statements, so we use both methods to ensure coverage.
+
+--echo 
+--echo *** Event name comparison - expect 0 mismatches
+--echo 
+
+select thread_id, event_id, event_name, digest_text, sql_text from performance_schema.events_statements_history_long t1
+  where t1.thread_id = @slave_thread_id and
+    sql_text like '%marker%' and
+    not exists (select * from master_events_statements_history_long t2 where t2.event_name = t1.event_name);
+
+--echo 
+--echo *** Statement digest comparison - expect 1 mismatch for DROP TABLE
+--echo 
+
+--replace_column 1 [THREAD_ID] 2 [EVENT_ID] 4 [DIGEST]
+
+select thread_id, event_id, event_name, digest, digest_text, sql_text from performance_schema.events_statements_history_long t1
+  where t1.thread_id = @slave_thread_id and
+    sql_text like '%marker%' and
+    not exists (select * from master_events_statements_history_long t2 where t2.digest = t1.digest);
+
+--echo
+--echo #
+--echo # STEP 6 - DISABLE REPLICATED STATEMENT EVENTS ON SLAVE
+--echo #
+--source ../include/rpl_statements_truncate.inc
+--source ../include/enable_instruments.inc
+
+update performance_schema.setup_instruments set enabled='no', timed='no'
+  where name like '%statement/abstract/relay_log%';
+
+select * from performance_schema.setup_instruments where name like '%statement/abstract/relay_log%';
+
+--echo
+--echo #
+--echo # STEP 7 - UPDATE TABLES ON MASTER, REPLICATE
+--echo #
+
+connection master;
+
+--echo **************
+--echo *** MASTER ***
+--echo **************
+--echo
+--echo *** Clear statement events
+--source ../include/rpl_statements_truncate.inc
+
+--echo *** Update some tables, then replicate
+--echo
+
+insert into marker1_db.table1 values (999, '999'), (998, '998'), (997, '997');
+
+--echo
+--echo #
+--echo # STEP 8 - VERIFY TABLE UPDATES FROM MASTER, EXPECT NO STATEMENT EVENTS ON SLAVE
+--echo #
+
+sync_slave_with_master;
+
+--echo **************
+--echo *** SLAVE  ***
+--echo **************
+--echo
+--echo *** Confirm rows were replicated
+--echo
+
+select * from marker1_db.table1 where s1 > 900 order by s1;
+
+--echo
+--echo *** Confirm that are no statements events from the replication thread
+--echo
+
+select * from performance_schema.events_statements_history_long
+  where thread_id = @slave_thread_id;
+
+--source ../include/enable_instruments.inc
+
+--echo
+--echo #
+--echo # STEP 9 - CLEAN UP
+--echo #
+--echo
+--disable_query_log
+--disable_warnings
+
+connection master;
+drop table test.marker;
+drop table test.master_events_statements_history_long;
+drop database marker1_db;
+
+sync_slave_with_master;
+
+--enable_warnings
+--enable_query_log
+--source include/rpl_end.inc

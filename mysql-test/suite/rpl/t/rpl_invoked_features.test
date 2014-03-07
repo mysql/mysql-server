@@ -7,6 +7,7 @@
 
 --source include/master-slave.inc
 --source include/have_innodb.inc
+--source include/have_myisam.inc
 --source include/not_gtid_enabled.inc
 
 disable_query_log;
@@ -192,10 +193,10 @@ SET GLOBAL EVENT_SCHEDULER = on;
 # Wait while events will executed
 ALTER EVENT e1 ENABLE;
 let $wait_condition= SELECT COUNT(*) = 1 FROM t1 WHERE t1.a = 10;
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 ALTER EVENT e11 ENABLE;
 let $wait_condition= SELECT COUNT(*) = 1 FROM t11 WHERE t11.a = 10;
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 SET GLOBAL EVENT_SCHEDULER = off;
 
 # Check original objects
@@ -228,7 +229,8 @@ SELECT COUNT(*) FROM t13;
 SELECT a,b FROM t13 ORDER BY a;
 SELECT a,b FROM v11 ORDER BY a;
 
---sync_slave_with_master slave
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
 
 # Check replicated objects
 --echo
@@ -276,7 +278,8 @@ UPDATE t13 SET c='';
 ALTER TABLE t3 ORDER BY a;
 ALTER TABLE t13 ORDER BY a;
 
---sync_slave_with_master slave
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
 
 # Compare a data from master and slave
 --echo
@@ -306,7 +309,8 @@ DROP FUNCTION IF EXISTS f2;
 DROP EVENT IF EXISTS e1;
 DROP EVENT IF EXISTS e11;
 
---sync_slave_with_master slave
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
 
 # End 5.1 test case
 --source include/rpl_end.inc

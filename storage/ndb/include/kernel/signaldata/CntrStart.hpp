@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define CNTR_START_HPP
 
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 191
+
 
 /**
  * 
@@ -111,5 +114,8 @@ struct CntrWaitRep
     ,ZWAITPOINT_4_2_TO = 9 // We are forced to TO (during SR)
   };
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

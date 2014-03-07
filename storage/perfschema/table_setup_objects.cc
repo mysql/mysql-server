@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("OBJECT_TYPE") },
-    { C_STRING_WITH_LEN("enum(\'TABLE\')") },
+    { C_STRING_WITH_LEN("enum(\'EVENT\',\'FUNCTION\',\'PROCEDURE\',\'TABLE\',\'TRIGGER\'") },
     { NULL, 0}
   },
   {
@@ -72,7 +72,6 @@ table_setup_objects::m_share=
   table_setup_objects::write_row,
   table_setup_objects::delete_all_rows,
   table_setup_objects::get_row_count,
-  1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -86,6 +85,7 @@ int update_derived_flags()
     return HA_ERR_OUT_OF_MEM;
 
   update_table_share_derived_flags(thread);
+  update_program_share_derived_flags(thread);
   update_table_derived_flags();
   return 0;
 }
@@ -138,7 +138,9 @@ int table_setup_objects::write_row(TABLE *table, unsigned char *buf,
   }
 
   /* Reject illegal enum values in OBJECT_TYPE */
-  if (object_type != OBJECT_TYPE_TABLE)
+  if (object_type < FIRST_OBJECT_TYPE ||
+      object_type > LAST_OBJECT_TYPE  ||
+      object_type == OBJECT_TYPE_TEMPORARY_TABLE)
     return HA_ERR_NO_REFERENCED_ROW;
 
   /* Reject illegal enum values in ENABLED */
@@ -222,7 +224,7 @@ int table_setup_objects::rnd_pos(const void *pos)
 
 void table_setup_objects::make_row(PFS_setup_object *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
 
   m_row_exists= false;
 

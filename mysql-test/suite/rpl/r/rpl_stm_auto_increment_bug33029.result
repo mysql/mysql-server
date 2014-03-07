@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 DROP TABLE IF EXISTS t1, t2;
@@ -9,6 +9,7 @@ DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP TRIGGER IF EXISTS tr1;
 DROP FUNCTION IF EXISTS f1;
+include/sync_slave_sql_with_master.inc
 CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY);
 CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY);
 CREATE PROCEDURE p1()
@@ -113,6 +114,7 @@ id
 10
 SELECT * FROM t2;
 id
+include/sync_slave_sql_with_master.inc
 # Result on slave
 SELECT * FROM t1;
 id
@@ -177,6 +179,7 @@ id
 17
 18
 19
+include/sync_slave_sql_with_master.inc
 # Result on slave
 SELECT * FROM t1;
 id
@@ -209,4 +212,5 @@ DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS tr1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

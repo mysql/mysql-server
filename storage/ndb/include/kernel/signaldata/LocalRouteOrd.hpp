@@ -1,6 +1,5 @@
 /*
-   Copyright 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include "SignalData.hpp"
 
+#define JAM_FILE_ID 50
+
+
 struct LocalRouteOrd
 {
   STATIC_CONST( StaticLen = 3 );
@@ -30,5 +32,8 @@ struct LocalRouteOrd
   Uint32 prio;// Final prio
   Uint32 path[1];
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,3 +1,11 @@
+# This tests GIS functionality with Myisam engine
+# These tests are also exists in Innodb
+# All tests are required to run with Myisam.
+# Hence MTR starts mysqld with MyISAM as default
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 -- source include/have_geometry.inc
 
 #

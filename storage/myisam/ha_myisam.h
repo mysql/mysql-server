@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,9 +61,17 @@ class ha_myisam: public handler
 
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
-            0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-            HA_READ_ORDER | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
+    if (table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT)
+      return 0;
+
+    ulong flags= HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
+                 HA_READ_ORDER | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN;
+
+    // @todo: Check if spatial indexes really have all these properties
+    if (table_share->key_info[inx].flags & HA_SPATIAL)
+      flags|= HA_KEY_SCAN_NOT_ROR;
+
+    return flags;
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
   uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
@@ -139,13 +147,11 @@ class ha_myisam: public handler
   int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
   int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
-#ifdef HAVE_QUERY_CACHE
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
                                      qc_engine_callback
                                      *engine_callback,
                                      ulonglong *engine_data);
-#endif
   MI_INFO *file_ptr(void)
   {
     return file;

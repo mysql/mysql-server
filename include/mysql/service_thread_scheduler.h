@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,41 +22,61 @@
 extern "C" {
 #endif
 
-struct scheduler_functions;
+struct Connection_handler_functions;
+struct THD_event_functions;
 
 extern struct my_thread_scheduler_service {
-  int (*set)(struct scheduler_functions *scheduler);
-  int (*reset)();
+  int (*connection_handler_set)(struct Connection_handler_functions *,
+                                struct THD_event_functions *);
+  int (*connection_handler_reset)();
 } *my_thread_scheduler_service;
+
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
-#define my_thread_scheduler_set(F) my_thread_scheduler_service->set((F))
-#define my_thread_scheduler_reset() my_thread_scheduler_service->reset()
+#define my_connection_handler_set(F, M) \
+  my_thread_scheduler_service->connection_handler_set((F), (M))
+#define my_connection_handler_reset() \
+  my_thread_scheduler_service->connection_handler_reset()
 
 #else
 
 /**
-  Set the thread scheduler to use for the server.
+   Instantiates Plugin_connection_handler based on the supplied
+   Conection_handler_functions and sets it as the current
+   connection handler.
 
-  @param scheduler Pointer to scheduler callbacks to use.
-  @retval 0 Scheduler installed correctly.
-  @retval 1 Invalid value (NULL) used for scheduler.
+   Also sets the THD_event_functions functions which will
+   be called by the server when e.g. begining a wait.
+
+   Remembers the existing connection handler so that it can be restored later.
+
+   @param chf  struct with functions to be called when e.g. handling
+               new clients.
+   @param tef  struct with functions to be called when events
+               (e.g. lock wait) happens.
+
+   @note Both pointers (i.e. not the structs themselves) will be copied,
+         so the structs must not disappear.
+
+   @note We don't support dynamically loading more than one connection handler.
+
+   @retval 1  failure
+   @retval 0  success
 */
-int my_thread_scheduler_set(struct scheduler_functions *scheduler);
+int my_connection_handler_set(struct Connection_handler_functions *chf,
+                              struct THD_event_functions *tef);
 
 /**
-  Restore the previous thread scheduler.
+   Destroys the current connection handler and restores the previous.
+   Should only be called after calling my_connection_handler_set().
 
-  @note If no thread scheduler was installed previously with
-  thd_set_thread_scheduler, this function will report an error.
-
-  @retval 0 Scheduler installed correctly.
-  @retval 1 No scheduler installed.
+   @retval 1  failure
+   @retval 0  success
 */
-int my_thread_scheduler_reset();
+int my_connection_handler_reset();
 
-#endif
+#endif /* MYSQL_DYNAMIC_PLUGIN */
 
 #ifdef __cplusplus
 }

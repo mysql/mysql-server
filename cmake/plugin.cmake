@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,12 +20,17 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # MYSQL_ADD_PLUGIN(plugin_name source1...sourceN
 # [STORAGE_ENGINE]
 # [MANDATORY|DEFAULT]
-# [STATIC_ONLY|DYNAMIC_ONLY]
+# [STATIC_ONLY|MODULE_ONLY]
 # [MODULE_OUTPUT_NAME module_name]
 # [STATIC_OUTPUT_NAME static_name]
+# [NOT_FOR_EMBEDDED]
 # [RECOMPILE_FOR_EMBEDDED]
 # [LINK_LIBRARIES lib1...libN]
 # [DEPENDENCIES target1...targetN]
+
+# MANDATORY   : not actually a plugin, always builtin
+# DEFAULT     : builtin as static by default
+# MODULE_ONLY : build only as shared library
 
 # Append collections files for the plugin to the common files
 # Make sure we don't copy twice if running cmake again
@@ -47,13 +52,14 @@ ENDMACRO()
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
-    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;RECOMPILE_FOR_EMBEDDED"
+    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;NOT_FOR_EMBEDDED;RECOMPILE_FOR_EMBEDDED"
     ${ARGN}
   )
   
   # Add common include directories
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
                     ${CMAKE_SOURCE_DIR}/sql
+                    ${CMAKE_SOURCE_DIR}/sql/auth
                     ${CMAKE_SOURCE_DIR}/regex
                     ${SSL_INCLUDE_DIRS}
                     ${ZLIB_INCLUDE_DIR})
@@ -118,7 +124,7 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET_TARGET_PROPERTIES(${target} PROPERTIES COMPILE_DEFINITONS "MYSQL_SERVER")
     DTRACE_INSTRUMENT(${target})
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
-    IF(WITH_EMBEDDED_SERVER)
+    IF(WITH_EMBEDDED_SERVER AND NOT ARG_NOT_FOR_EMBEDDED)
       # Embedded library should contain PIC code and be linkable
       # to shared libraries (on systems that need PIC)
       IF(ARG_RECOMPILE_FOR_EMBEDDED OR NOT _SKIP_PIC)
@@ -142,6 +148,12 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
       ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
+    # Update mysqld dependencies (embedded)
+    IF(NOT ARG_NOT_FOR_EMBEDDED)
+      SET (MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS ${MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS} 
+        ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
+    ENDIF()
+
     IF(ARG_MANDATORY)
       SET(${with_var} ON CACHE INTERNAL "Link ${plugin} statically to the server" 
        FORCE)
@@ -150,15 +162,27 @@ MACRO(MYSQL_ADD_PLUGIN)
        FORCE)
     ENDIF()
 
+    SET(THIS_PLUGIN_REFERENCE " builtin_${target}_plugin,")
+    IF(ARG_NOT_FOR_EMBEDDED)
+      SET(THIS_PLUGIN_REFERENCE "
+#ifndef EMBEDDED_LIBRARY
+  ${THIS_PLUGIN_REFERENCE}
+#endif
+")
+    ENDIF()
+    SET(PLUGINS_IN_THIS_SCOPE
+      "${PLUGINS_IN_THIS_SCOPE}${THIS_PLUGIN_REFERENCE}")
+
     IF(ARG_MANDATORY)
       SET (mysql_mandatory_plugins  
-        "${mysql_mandatory_plugins} builtin_${target}_plugin," 
-      PARENT_SCOPE)
+        "${mysql_mandatory_plugins} ${PLUGINS_IN_THIS_SCOPE}" 
+        PARENT_SCOPE)
     ELSE()
       SET (mysql_optional_plugins  
-        "${mysql_optional_plugins} builtin_${target}_plugin,"
-      PARENT_SCOPE)
+        "${mysql_optional_plugins} ${PLUGINS_IN_THIS_SCOPE}"
+        PARENT_SCOPE)
     ENDIF()
+
   ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)
     IF(NOT ARG_MODULE_OUTPUT_NAME)
       IF(ARG_STORAGE_ENGINE)
@@ -174,6 +198,15 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     TARGET_LINK_LIBRARIES (${target} mysqlservices)
+
+    GET_TARGET_PROPERTY(LINK_FLAGS ${target} LINK_FLAGS)
+    IF(NOT LINK_FLAGS)
+      # Avoid LINK_FLAGS-NOTFOUND
+      SET(LINK_FLAGS)
+    ENDIF()
+    SET_TARGET_PROPERTIES(${target} PROPERTIES
+      LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${LINK_FLAGS} "
+    )
 
     # Plugin uses symbols defined in mysqld executable.
     # Some operating systems like Windows and OSX and are pretty strict about 
@@ -223,7 +256,7 @@ ENDMACRO()
 
 
 # Add all CMake projects under storage  and plugin 
-# subdirectories, configure sql_builtins.cc
+# subdirectories, configure sql_builtin.cc
 MACRO(CONFIGURE_PLUGINS)
   FILE(GLOB dirs_storage ${CMAKE_SOURCE_DIR}/storage/*)
   FILE(GLOB dirs_plugin ${CMAKE_SOURCE_DIR}/plugin/*)

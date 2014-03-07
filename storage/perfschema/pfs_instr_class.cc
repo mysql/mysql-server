@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "pfs_events_waits.h"
 #include "pfs_setup_object.h"
 #include "pfs_atomic.h"
+#include "pfs_program.h"
 #include "mysql/psi/mysql_thread.h"
 #include "lf.h"
 
@@ -48,11 +49,9 @@
 my_bool pfs_enabled= TRUE;
 
 /**
-  PFS_INSTRUMENT option settings array and associated state variable to
-  serialize access during shutdown.
+  PFS_INSTRUMENT option settings array
  */
-DYNAMIC_ARRAY pfs_instr_config_array;
-int pfs_instr_config_state= PFS_INSTR_CONFIG_NOT_INITIALIZED;
+Pfs_instr_config_array *pfs_instr_config_array= NULL;
 
 static void configure_instr_class(PFS_instr_class *entry);
 
@@ -68,12 +67,12 @@ static void init_instr_class(PFS_instr_class *klass,
   - the performance schema initialization
   - a plugin initialization
 */
-static volatile uint32 mutex_class_dirty_count= 0;
-static volatile uint32 mutex_class_allocated_count= 0;
-static volatile uint32 rwlock_class_dirty_count= 0;
-static volatile uint32 rwlock_class_allocated_count= 0;
-static volatile uint32 cond_class_dirty_count= 0;
-static volatile uint32 cond_class_allocated_count= 0;
+static uint32 mutex_class_dirty_count= 0;
+static uint32 mutex_class_allocated_count= 0;
+static uint32 rwlock_class_dirty_count= 0;
+static uint32 rwlock_class_allocated_count= 0;
+static uint32 cond_class_dirty_count= 0;
+static uint32 cond_class_allocated_count= 0;
 
 /** Size of the mutex class array. @sa mutex_class_array */
 ulong mutex_class_max= 0;
@@ -111,6 +110,17 @@ ulong table_share_lost= 0;
 ulong socket_class_max= 0;
 /** Number of socket class lost. @sa socket_class_array */
 ulong socket_class_lost= 0;
+/** Size of the memory class array. @sa memory_class_array */
+ulong memory_class_max= 0;
+/** Number of memory class lost. @sa memory_class_array */
+ulong memory_class_lost= 0;
+
+/**
+  Number of transaction classes. Although there is only one transaction class,
+  this is used for sizing by other event classes.
+  @sa global_transaction_class
+*/
+ulong transaction_class_max= 0;
 
 PFS_mutex_class *mutex_class_array= NULL;
 PFS_rwlock_class *rwlock_class_array= NULL;
@@ -122,8 +132,8 @@ PFS_cond_class *cond_class_array= NULL;
   - the performance schema initialization
   - a plugin initialization
 */
-static volatile uint32 thread_class_dirty_count= 0;
-static volatile uint32 thread_class_allocated_count= 0;
+static uint32 thread_class_dirty_count= 0;
+static uint32 thread_class_allocated_count= 0;
 
 static PFS_thread_class *thread_class_array= NULL;
 
@@ -138,24 +148,31 @@ PFS_table_share *table_share_array= NULL;
 PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
 PFS_ALIGNED PFS_table_lock_stat global_table_lock_stat;
+PFS_ALIGNED PFS_single_stat global_metadata_stat;
+PFS_ALIGNED PFS_transaction_stat global_transaction_stat;
 PFS_ALIGNED PFS_instr_class global_table_io_class;
 PFS_ALIGNED PFS_instr_class global_table_lock_class;
 PFS_ALIGNED PFS_instr_class global_idle_class;
+PFS_ALIGNED PFS_instr_class global_metadata_class;
+PFS_ALIGNED PFS_transaction_class global_transaction_class;
 
 /** Class-timer map */
 enum_timer_name *class_timers[] =
-{&wait_timer,      /* PFS_CLASS_NONE */
- &wait_timer,      /* PFS_CLASS_MUTEX */
- &wait_timer,      /* PFS_CLASS_RWLOCK */
- &wait_timer,      /* PFS_CLASS_COND */
- &wait_timer,      /* PFS_CLASS_FILE */
- &wait_timer,      /* PFS_CLASS_TABLE */
- &stage_timer,     /* PFS_CLASS_STAGE */
- &statement_timer, /* PFS_CLASS_STATEMENT */
- &wait_timer,      /* PFS_CLASS_SOCKET */
- &wait_timer,      /* PFS_CLASS_TABLE_IO */
- &wait_timer,      /* PFS_CLASS_TABLE_LOCK */
- &idle_timer       /* PFS_CLASS_IDLE */
+{&wait_timer,        /* PFS_CLASS_NONE */
+ &wait_timer,        /* PFS_CLASS_MUTEX */
+ &wait_timer,        /* PFS_CLASS_RWLOCK */
+ &wait_timer,        /* PFS_CLASS_COND */
+ &wait_timer,        /* PFS_CLASS_FILE */
+ &wait_timer,        /* PFS_CLASS_TABLE */
+ &stage_timer,       /* PFS_CLASS_STAGE */
+ &statement_timer,   /* PFS_CLASS_STATEMENT */
+ &transaction_timer, /* PFS_CLASS_TRANSACTION */
+ &wait_timer,        /* PFS_CLASS_SOCKET */
+ &wait_timer,        /* PFS_CLASS_TABLE_IO */
+ &wait_timer,        /* PFS_CLASS_TABLE_LOCK */
+ &idle_timer,        /* PFS_CLASS_IDLE */
+ &wait_timer,        /* PFS_CLASS_METADATA */
+ &wait_timer         /* PFS_CLASS_MEMORY */
 };
 
 /**
@@ -172,25 +189,30 @@ LF_HASH table_share_hash;
 /** True if table_share_hash is initialized. */
 static bool table_share_hash_inited= false;
 
-static volatile uint32 file_class_dirty_count= 0;
-static volatile uint32 file_class_allocated_count= 0;
+static uint32 file_class_dirty_count= 0;
+static uint32 file_class_allocated_count= 0;
 
 PFS_file_class *file_class_array= NULL;
 
-static volatile uint32 stage_class_dirty_count= 0;
-static volatile uint32 stage_class_allocated_count= 0;
+static uint32 stage_class_dirty_count= 0;
+static uint32 stage_class_allocated_count= 0;
 
 static PFS_stage_class *stage_class_array= NULL;
 
-static volatile uint32 statement_class_dirty_count= 0;
-static volatile uint32 statement_class_allocated_count= 0;
+static uint32 statement_class_dirty_count= 0;
+static uint32 statement_class_allocated_count= 0;
 
 static PFS_statement_class *statement_class_array= NULL;
 
-static volatile uint32 socket_class_dirty_count= 0;
-static volatile uint32 socket_class_allocated_count= 0;
+static uint32 socket_class_dirty_count= 0;
+static uint32 socket_class_allocated_count= 0;
 
 static PFS_socket_class *socket_class_array= NULL;
+
+static uint32 memory_class_dirty_count= 0;
+static uint32 memory_class_allocated_count= 0;
+
+static PFS_memory_class *memory_class_array= NULL;
 
 uint mutex_class_start= 0;
 uint rwlock_class_start= 0;
@@ -201,7 +223,8 @@ uint socket_class_start= 0;
 
 void init_event_name_sizing(const PFS_global_param *param)
 {
-  mutex_class_start= 3; /* global table io, table lock, idle */
+  /* global table io, table lock, idle, metadata */
+  mutex_class_start= COUNT_GLOBAL_EVENT_INDEX;
   rwlock_class_start= mutex_class_start + param->m_mutex_class_sizing;
   cond_class_start= rwlock_class_start + param->m_rwlock_class_sizing;
   file_class_start= cond_class_start + param->m_cond_class_sizing;
@@ -222,12 +245,29 @@ void register_global_classes()
                    0, PFS_CLASS_TABLE_LOCK);
   global_table_lock_class.m_event_name_index= GLOBAL_TABLE_LOCK_EVENT_INDEX;
   configure_instr_class(&global_table_lock_class);
-  
+
   /* Idle class */
   init_instr_class(&global_idle_class, "idle", 4,
                    0, PFS_CLASS_IDLE);
   global_idle_class.m_event_name_index= GLOBAL_IDLE_EVENT_INDEX;
   configure_instr_class(&global_idle_class);
+
+  /* Metadata class */
+  init_instr_class(&global_metadata_class, "wait/lock/metadata/sql/mdl", 26,
+                   0, PFS_CLASS_METADATA);
+  global_metadata_class.m_event_name_index= GLOBAL_METADATA_EVENT_INDEX;
+  global_metadata_class.m_enabled= false; /* Disabled by default */
+  global_metadata_class.m_timed= false;
+  configure_instr_class(&global_metadata_class);
+
+  /* Transaction class */
+  init_instr_class(&global_transaction_class, "transaction", 11,
+                   0, PFS_CLASS_TRANSACTION);
+  global_transaction_class.m_event_name_index= GLOBAL_TRANSACTION_INDEX;
+  global_transaction_class.m_enabled= false; /* Disabled by default */
+  global_transaction_class.m_timed= false;
+  configure_instr_class(&global_transaction_class);
+  transaction_class_max= 1; /* used for sizing by other event classes */
 }
 
 /**
@@ -603,6 +643,40 @@ void cleanup_socket_class(void)
   socket_class_max= 0;
 }
 
+/**
+  Initialize the memory class buffer.
+  @param memory_class_sizing            max number of memory class
+  @return 0 on success
+*/
+int init_memory_class(uint memory_class_sizing)
+{
+  int result= 0;
+  memory_class_dirty_count= memory_class_allocated_count= 0;
+  memory_class_max= memory_class_sizing;
+  memory_class_lost= 0;
+
+  if (memory_class_max > 0)
+  {
+    memory_class_array= PFS_MALLOC_ARRAY(memory_class_max, PFS_memory_class,
+                                         MYF(MY_ZEROFILL));
+    if (unlikely(memory_class_array == NULL))
+      return 1;
+  }
+  else
+    memory_class_array= NULL;
+
+  return result;
+}
+
+/** Cleanup the memory class buffers. */
+void cleanup_memory_class(void)
+{
+  pfs_free(memory_class_array);
+  memory_class_array= NULL;
+  memory_class_dirty_count= memory_class_allocated_count= 0;
+  memory_class_max= 0;
+}
+
 static void init_instr_class(PFS_instr_class *klass,
                              const char *name,
                              uint name_length,
@@ -627,10 +701,13 @@ static void configure_instr_class(PFS_instr_class *entry)
 {
   uint match_length= 0; /* length of matching pattern */
 
-  for (uint i= 0; i < pfs_instr_config_array.elements; i++)
+  // May be NULL in unit tests
+  if (pfs_instr_config_array == NULL)
+    return;
+  Pfs_instr_config_array::iterator it= pfs_instr_config_array->begin();
+  for ( ; it != pfs_instr_config_array->end(); it++)
   {
-    PFS_instr_config* e;
-    get_dynamic(&pfs_instr_config_array, (uchar*)&e, i);
+    PFS_instr_config* e= *it;
 
     /**
       Compare class name to all configuration entries. In case of multiple
@@ -970,6 +1047,7 @@ PFS_file_key register_file_class(const char *name, uint name_length,
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     PFS_atomic::add_u32(&file_class_allocated_count, 1);
+
     return (index + 1);
   }
 
@@ -980,11 +1058,14 @@ PFS_file_key register_file_class(const char *name, uint name_length,
 /**
   Register a stage instrumentation metadata.
   @param name                         the instrumented name
+  @param prefix_length                length in bytes of the name prefix
   @param name_length                  length in bytes of name
   @param flags                        the instrumentation flags
   @return a stage instrumentation key
 */
-PFS_stage_key register_stage_class(const char *name, uint name_length,
+PFS_stage_key register_stage_class(const char *name,
+                                   uint prefix_length,
+                                   uint name_length,
                                    int flags)
 {
   /* See comments in register_mutex_class */
@@ -1000,6 +1081,7 @@ PFS_stage_key register_stage_class(const char *name, uint name_length,
   {
     entry= &stage_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
+    entry->m_prefix_length= prefix_length;
     entry->m_event_name_index= index;
     entry->m_enabled= false; /* disabled by default */
     entry->m_timed= false;
@@ -1148,6 +1230,57 @@ PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe)
   SANITIZE_ARRAY_BODY(PFS_socket_class, socket_class_array, socket_class_max, unsafe);
 }
 
+/**
+  Register a memory instrumentation metadata.
+  @param name                         the instrumented name
+  @param name_length                  length in bytes of name
+  @param flags                        the instrumentation flags
+  @return a memory instrumentation key
+*/
+PFS_memory_key register_memory_class(const char *name, uint name_length,
+                                     int flags)
+{
+  /* See comments in register_mutex_class */
+  uint32 index;
+  PFS_memory_class *entry;
+
+  REGISTER_CLASS_BODY_PART(index, memory_class_array, memory_class_max,
+                           name, name_length)
+
+  index= PFS_atomic::add_u32(&memory_class_dirty_count, 1);
+
+  if (index < memory_class_max)
+  {
+    entry= &memory_class_array[index];
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_MEMORY);
+    entry->m_event_name_index= index;
+    entry->m_enabled= false; /* disabled by default */
+    /* Set user-defined configuration options for this instrument */
+    configure_instr_class(entry);
+    entry->m_timed= false; /* unused anyway */
+    PFS_atomic::add_u32(&memory_class_allocated_count, 1);
+    return (index + 1);
+  }
+
+  memory_class_lost++;
+  return 0;
+}
+
+/**
+  Find a memory instrumentation class by key.
+  @param key                          the instrument key
+  @return the instrument class, or NULL
+*/
+PFS_memory_class *find_memory_class(PFS_memory_key key)
+{
+  FIND_CLASS_BODY(key, memory_class_allocated_count, memory_class_array);
+}
+
+PFS_memory_class *sanitize_memory_class(PFS_memory_class *unsafe)
+{
+  SANITIZE_ARRAY_BODY(PFS_memory_class, memory_class_array, memory_class_max, unsafe);
+}
+
 PFS_instr_class *find_table_class(uint index)
 {
   if (index == 1)
@@ -1175,6 +1308,34 @@ PFS_instr_class *find_idle_class(uint index)
 PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe)
 {
   if (likely(& global_idle_class == unsafe))
+    return unsafe;
+  return NULL;
+}
+
+PFS_instr_class *find_metadata_class(uint index)
+{
+  if (index == 1)
+    return & global_metadata_class;
+  return NULL;
+}
+
+PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe)
+{
+  if (likely(& global_metadata_class == unsafe))
+    return unsafe;
+  return NULL;
+}
+
+PFS_transaction_class *find_transaction_class(uint index)
+{
+  if (index == 1)
+    return &global_transaction_class;
+  return NULL;
+}
+
+PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe)
+{
+  if (likely(&global_transaction_class == unsafe))
     return unsafe;
   return NULL;
 }
@@ -1222,6 +1383,7 @@ static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
   return 0;
 }
 
+
 /**
   Find or create a table share instrumentation.
   @param thread                       the executing instrumented thread
@@ -1233,6 +1395,8 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
                                             const TABLE_SHARE *share)
 {
+  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
+
   /* See comments in register_mutex_class */
   PFS_table_share_key key;
 
@@ -1257,10 +1421,10 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   const uint retry_max= 3;
   bool enabled= true;
   bool timed= true;
-  static uint PFS_ALIGNED table_share_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_table_share *pfs;
+  pfs_dirty_state dirty_state;
 
 search:
   entry= reinterpret_cast<PFS_table_share**>
@@ -1300,50 +1464,47 @@ search:
   while (++attempts <= table_share_max)
   {
     /* See create_mutex() */
-    index= PFS_atomic::add_u32(& table_share_monotonic_index, 1) % table_share_max;
+    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % table_share_max;
     pfs= table_share_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      pfs->m_key= key;
+      pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
+      pfs->m_schema_name_length= schema_name_length;
+      pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
+      pfs->m_table_name_length= table_name_length;
+      pfs->m_enabled= enabled;
+      pfs->m_timed= timed;
+      pfs->init_refcount();
+      pfs->m_table_stat.fast_reset();
+      set_keys(pfs, share);
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&table_share_hash, pins, &pfs);
+      if (likely(res == 0))
       {
-        pfs->m_key= key;
-        pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
-        pfs->m_schema_name_length= schema_name_length;
-        pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
-        pfs->m_table_name_length= table_name_length;
-        pfs->m_enabled= enabled;
-        pfs->m_timed= timed;
-        pfs->init_refcount();
-        pfs->m_table_stat.fast_reset();
-        set_keys(pfs, share);
-
-        int res;
-        res= lf_hash_insert(&table_share_hash, pins, &pfs);
-        if (likely(res == 0))
-        {
-          pfs->m_lock.dirty_to_allocated();
-          return pfs;
-        }
-
-        pfs->m_lock.dirty_to_free();
-
-        if (res > 0)
-        {
-          /* Duplicate insert by another thread */
-          if (++retry_count > retry_max)
-          {
-            /* Avoid infinite loops */
-            table_share_lost++;
-            return NULL;
-          }
-          goto search;
-        }
-
-        /* OOM in lf_hash_insert */
-        table_share_lost++;
-        return NULL;
+        return pfs;
       }
+
+      pfs->m_lock.allocated_to_free();
+
+      if (res > 0)
+      {
+        /* Duplicate insert by another thread */
+        if (++retry_count > retry_max)
+        {
+          /* Avoid infinite loops */
+          table_share_lost++;
+          return NULL;
+        }
+        goto search;
+      }
+
+      /* OOM in lf_hash_insert */
+      table_share_lost++;
+      return NULL;
     }
   }
 
@@ -1437,6 +1598,7 @@ void reset_events_waits_by_class()
   global_idle_stat.reset();
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
+  global_metadata_stat.reset();
 }
 
 /** Reset the io statistics per file class. */
@@ -1468,6 +1630,18 @@ void update_table_share_derived_flags(PFS_thread *thread)
   {
     if (pfs->m_lock.is_populated())
       pfs->refresh_setup_object_flags(thread);
+  }
+}
+
+void update_program_share_derived_flags(PFS_thread *thread)
+{
+  PFS_program *pfs= program_array;
+  PFS_program *pfs_last= program_array + program_max;
+
+  for (; pfs < pfs_last ; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->referesh_setup_object_flags(thread);
   }
 }
 

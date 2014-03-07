@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,8 @@ public:
     cur_embedding_map(0), emb_sjm_nest(sjm_nest),
     excluded_tables((sjm_nest ?
                      (join->all_table_map & ~sjm_nest->sj_inner_tables) : 0) |
-                    (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT))
+                    (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
+    test_all_ref_keys(false)
   {}
   ~Optimize_table_order()
   {}
@@ -90,14 +91,41 @@ private:
   */
   const table_map excluded_tables;
 
-  void best_access_path(JOIN_TAB *s, table_map remaining_tables, uint idx, 
-                        bool disable_jbuf, double record_count,
-                        POSITION *pos, POSITION *loose_scan_pos);
+  /**
+     If true, find_best_ref() must go through all keys, no shortcutting
+     allowed.
+  */
+  bool test_all_ref_keys;
+
+  inline Key_use* find_best_ref(const JOIN_TAB  *tab,
+                                const table_map remaining_tables,
+                                const uint idx,
+                                const double prefix_rowcount,
+                                bool *found_condition,
+                                table_map *ref_depends_map,
+                                uint *used_key_parts);
+  inline double calculate_scan_cost(const JOIN_TAB *tab,
+                                    const uint idx,
+                                    const Key_use *best_ref,
+                                    const double prefix_rowcount,
+                                    const bool found_condition,
+                                    const bool disable_jbuf,
+                                    ha_rows *fanout,
+                                    Opt_trace_object *trace_access_scan);
+  void best_access_path(JOIN_TAB *tab,
+                        const table_map remaining_tables,
+                        const uint idx, 
+                        bool disable_jbuf,
+                        const double prefix_rowcount,
+                        POSITION *pos);
+  bool semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *s,
+                                                      table_map remaining_tables,
+                                                      uint      idx,
+                                                      POSITION *loose_scan_pos);
   bool check_interleaving_with_nj(JOIN_TAB *next_tab);
   void advance_sj_state(table_map remaining_tables,
                         const JOIN_TAB *tab, uint idx,
-                        double *current_rowcount, double *current_cost,
-                        POSITION *loose_scan_pos);
+                        double *current_rowcount, double *current_cost);
   void backout_nj_state(const table_map remaining_tables,
                         const JOIN_TAB *tab);
   void optimize_straight_join(table_map join_tables);

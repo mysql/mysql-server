@@ -20,8 +20,9 @@
 # privileges.
 --source include/not_embedded.inc
 
-let $engine_type       = MEMORY;
-let $other_engine_type = MyISAM;
+--source include/have_innodb.inc
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
 
 let $is_table = USER_PRIVILEGES;
 
@@ -105,7 +106,9 @@ let $my_select2= SELECT * FROM mysql.user
 WHERE user LIKE 'testuser%' ORDER BY host, user;
 let $my_show= SHOW GRANTS;
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 
@@ -113,7 +116,9 @@ eval $my_select2;
 --echo # Add GRANT OPTION db_datadict.* to testuser1;
 GRANT UPDATE ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 
@@ -121,7 +126,9 @@ eval $my_select2;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser1, localhost, testuser1, , db_datadict);
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 eval $my_show;
@@ -135,7 +142,9 @@ GRANT SELECT ON *.* TO 'testuser1'@'localhost';
 --echo #
 --echo # Here <SELECT NO> is shown correctly for testuser1;
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 
@@ -143,7 +152,9 @@ GRANT SELECT ON *.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 --echo #
 --echo # Here <SELECT YES> is shown correctly for testuser1;
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 
@@ -151,7 +162,9 @@ eval $my_select2;
 # check that this appears
 connection testuser1;
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 eval $my_show;
@@ -160,7 +173,9 @@ eval $my_show;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser2, localhost, testuser2, , db_datadict);
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 --error ER_TABLEACCESS_DENIED_ERROR
 eval $my_select2;
 --horizontal_results
@@ -170,7 +185,9 @@ eval $my_show;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser3, localhost, testuser3, , test);
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 --error ER_TABLEACCESS_DENIED_ERROR
 eval $my_select2;
 --horizontal_results
@@ -182,7 +199,9 @@ eval $my_show;
 connection default;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'testuser1'@'localhost';
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 
@@ -190,7 +209,9 @@ eval $my_select2;
 # check for changes
 connection testuser1;
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 --error ER_TABLEACCESS_DENIED_ERROR
 eval $my_select2;
 --horizontal_results
@@ -200,7 +221,9 @@ eval $my_show;
 --error ER_TABLEACCESS_DENIED_ERROR
 CREATE TABLE db_datadict.tb_55 ( c1 TEXT );
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 --error ER_TABLEACCESS_DENIED_ERROR
 eval $my_select2;
 --horizontal_results
@@ -216,14 +239,18 @@ connection default;
 GRANT ALL ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 GRANT SELECT ON mysql.user TO 'testuser1'@'localhost';
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 
 --echo # Switch to connection testuser1
 connection testuser1;
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 eval $my_show;
@@ -235,7 +262,9 @@ CREATE TABLE db_datadict.tb_56 ( c1 TEXT );
 # using 'USE' lets the server read the privileges new, so now the CREATE works
 USE db_datadict;
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 eval $my_show;
@@ -250,7 +279,9 @@ ENGINE = $other_engine_type;
 connection default;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'testuser1'@'localhost';
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select2;
 --horizontal_results
 
@@ -258,7 +289,9 @@ eval $my_select2;
 # check for changes
 connection testuser1;
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select1;
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 --error ER_TABLEACCESS_DENIED_ERROR
 eval $my_select2;
 --horizontal_results
@@ -306,6 +339,7 @@ let $my_select = SELECT * FROM information_schema.user_privileges
 WHERE grantee = '''testuser1''@''localhost''';
 let $my_show = SHOW GRANTS FOR 'testuser1'@'localhost';
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select;
 --horizontal_results
 --error ER_NONEXISTING_GRANT
@@ -314,16 +348,19 @@ eval $my_show;
 DROP   USER 'testuser1'@'localhost';
 CREATE USER 'testuser1'@'localhost';
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select;
 --horizontal_results
 eval $my_show;
 GRANT SELECT, FILE ON *.* TO 'testuser1'@'localhost';
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select;
 --horizontal_results
 eval $my_show;
 DROP USER   'testuser1'@'localhost';
 --vertical_results
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
 eval $my_select;
 --horizontal_results
 --error ER_NONEXISTING_GRANT

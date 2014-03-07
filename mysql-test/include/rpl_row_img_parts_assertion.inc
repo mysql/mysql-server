@@ -50,7 +50,7 @@ if (`SELECT LENGTH("$row_img_expected") = 0`)
 
 -- let $binlog= query_get_value(SHOW MASTER STATUS, File, 1)
 -- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v --start-pos=$row_img_pos $MYSQLD_DATADIR/$binlog > $TMP_FILE
+-- exec $MYSQL_BINLOG -v --start-position=$row_img_pos $MYSQLD_DATADIR/$binlog > $TMP_FILE
 
 -- let IMG_EXPECTED=$row_img_expected
 -- let IMG_BINLOG_FILE= $TMP_FILE

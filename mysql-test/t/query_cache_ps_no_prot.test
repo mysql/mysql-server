@@ -1,3 +1,4 @@
+
 #################### t/query_cache_ps_no_prot.test #####################
 #
 # Test grants with query cache to be run when mysqltest was started

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "records.h"          // init_read_record, end_read_record
 #include <my_pthread.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "log.h"
 
 #ifdef HAVE_DLOPEN
 extern "C"
@@ -61,22 +62,22 @@ static char *init_syms(udf_func *tmp, char *nm)
   if (!((tmp->func= (Udf_func_any) dlsym(tmp->dlhandle, tmp->name.str))))
     return tmp->name.str;
 
-  end=strmov(nm,tmp->name.str);
+  end=my_stpcpy(nm,tmp->name.str);
 
   if (tmp->type == UDFTYPE_AGGREGATE)
   {
-    (void)strmov(end, "_clear");
+    (void)my_stpcpy(end, "_clear");
     if (!((tmp->func_clear= (Udf_func_clear) dlsym(tmp->dlhandle, nm))))
       return nm;
-    (void)strmov(end, "_add");
+    (void)my_stpcpy(end, "_add");
     if (!((tmp->func_add= (Udf_func_add) dlsym(tmp->dlhandle, nm))))
       return nm;
   }
 
-  (void) strmov(end,"_deinit");
+  (void) my_stpcpy(end,"_deinit");
   tmp->func_deinit= (Udf_func_deinit) dlsym(tmp->dlhandle, nm);
 
-  (void) strmov(end,"_init");
+  (void) my_stpcpy(end,"_init");
   tmp->func_init= (Udf_func_init) dlsym(tmp->dlhandle, nm);
 
   /*
@@ -101,12 +102,19 @@ extern "C" uchar* get_hash_key(const uchar *buff, size_t *length,
   return (uchar*) udf->name.str;
 }
 
+static PSI_memory_key key_memory_udf_mem;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_key key_rwlock_THR_LOCK_udf;
 
 static PSI_rwlock_info all_udf_rwlocks[]=
 {
   { &key_rwlock_THR_LOCK_udf, "THR_LOCK_udf", PSI_FLAG_GLOBAL}
+};
+
+static PSI_memory_info all_udf_memory[]=
+{
+  { &key_memory_udf_mem, "udf_mem", PSI_FLAG_GLOBAL}
 };
 
 static void init_udf_psi_keys(void)
@@ -116,6 +124,9 @@ static void init_udf_psi_keys(void)
 
   count= array_elements(all_udf_rwlocks);
   mysql_rwlock_register(category, all_udf_rwlocks, count);
+
+  count= array_elements(all_udf_memory);
+  mysql_memory_register(category, all_udf_memory, count);
 }
 #endif
 
@@ -143,7 +154,7 @@ void udf_init()
 
   mysql_rwlock_init(key_rwlock_THR_LOCK_udf, &THR_LOCK_udf);
 
-  init_sql_alloc(&mem, UDF_ALLOC_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_udf_mem, &mem, UDF_ALLOC_BLOCK_SIZE, 0);
   THD *new_thd = new THD;
   if (!new_thd ||
       my_hash_init(&udf_hash,system_charset_info,32,0,0,get_hash_key, NULL, 0))
@@ -248,8 +259,6 @@ void udf_init()
 end:
   close_mysql_tables(new_thd);
   delete new_thd;
-  /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
   DBUG_VOID_RETURN;
 }
 
@@ -513,7 +522,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
   table->field[1]->store((longlong) u_d->returns, TRUE);
-  table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), system_charset_info);
+  table->field[2]->store(u_d->dl, strlen(u_d->dl), system_charset_info);
   if (table->s->fields >= 4)			// If not old func format
     table->field[3]->store((longlong) u_d->type, TRUE);
   error = table->file->ha_write_row(table->record[0]);
@@ -529,7 +538,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   mysql_rwlock_unlock(&THR_LOCK_udf);
 
   /* Binlog the create function. */
-  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  if (write_bin_log(thd, true, thd->query().str, thd->query().length))
   {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -621,7 +630,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     Binlog the drop function. Keep the table open and locked
     while binlogging, to avoid binlog inconsistency.
   */
-  if (!write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  if (!write_bin_log(thd, true, thd->query().str, thd->query().length))
     error= 0;
 exit:
   /* Restore the state of binlog format */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -22,6 +22,9 @@
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include <algorithm>
+
+PSI_memory_key key_memory_Gtid_set_to_string;
+PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 
 using std::min;
 using std::max;
@@ -88,7 +91,7 @@ Gtid_set::~Gtid_set()
   while (chunk != NULL)
   {
     Interval_chunk *next_chunk= chunk->next;
-    free(chunk);
+    my_free(chunk);
     chunk= next_chunk;
 #ifndef DBUG_OFF
     n_chunks--;
@@ -185,7 +188,8 @@ enum_return_status Gtid_set::create_new_chunk(int size)
   // we only add size-1 elements to the size of the struct.
   assert_free_intervals_locked();
   Interval_chunk *new_chunk=
-    (Interval_chunk *)my_malloc(sizeof(Interval_chunk) +
+    (Interval_chunk *)my_malloc(key_memory_Gtid_set_Interval_chunk,
+                                sizeof(Interval_chunk) +
                                 sizeof(Interval) * (size - 1),
                                 MYF(MY_WME));
   if (new_chunk == NULL)
@@ -759,7 +763,8 @@ int Gtid_set::to_string(char **buf_arg, const Gtid_set::String_format *sf_arg) c
 {
   DBUG_ENTER("Gtid_set::to_string");
   int len= get_string_length(sf_arg);
-  *buf_arg= (char *)my_malloc(len + 1, MYF(MY_WME));
+  *buf_arg= (char *)my_malloc(key_memory_Gtid_set_to_string,
+                              len + 1, MYF(MY_WME));
   if (*buf_arg == NULL)
     DBUG_RETURN(-1);
   to_string(*buf_arg, sf_arg);
@@ -843,26 +848,13 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
 static int get_string_length(rpl_gno gno)
 {
   DBUG_ASSERT(gno >= 1 && gno < MAX_GNO);
-  rpl_gno cmp, cmp2;
-  int len= 1;
-  if (gno >= 10000000000000000LL)
-    len+= 16, cmp= 10000000000000000LL;
-  else
+  rpl_gno tmp_gno= gno;
+  int len= 0;
+  do
   {
-    if (gno >= 100000000LL)
-      len += 8, cmp = 100000000LL;
-    else
-      cmp= 1;
-    cmp2= cmp * 10000LL;
-    if (gno >= cmp2)
-      len += 4, cmp = cmp2;
-  }
-  cmp2= cmp * 100LL;
-  if (gno >= cmp2)
-    len += 2, cmp = cmp2;
-  cmp2= cmp * 10LL;
-  if (gno >= cmp2)
+    tmp_gno /= 10;
     len++;
+  } while (tmp_gno != 0);
 #ifndef DBUG_OFF
   char buf[22];
   DBUG_ASSERT(snprintf(buf, 22, "%lld", gno) == len);
@@ -1312,7 +1304,9 @@ void Gtid_set::encode(uchar *buf) const
 }
 
 
-enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t length)
+enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
+                                               size_t length,
+                                               size_t *actual_length)
 {
   DBUG_ENTER("Gtid_set::add_gtid_encoding(const uchar *, size_t)");
   if (sid_lock != NULL)
@@ -1384,11 +1378,19 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t leng
       PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, start, end, &lock));
     }
   }
-  if (pos != length)
+  DBUG_ASSERT(pos <= length);
+  if (actual_length == NULL)
   {
-    DBUG_PRINT("error", ("(pos=%lu) != (length=%lu)", (ulong) pos, (ulong) length));
-    goto report_error;
+    if (pos != length)
+    {
+      DBUG_PRINT("error", ("(pos=%lu) != (length=%lu)", (ulong) pos,
+                 (ulong) length));
+      goto report_error;
+    }
   }
+  else
+    *actual_length= pos;
+
   RETURN_OK;
 
 report_error:

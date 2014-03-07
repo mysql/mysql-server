@@ -2646,24 +2646,27 @@ create procedure bug7743 ( searchstring char(28) )
 begin
 declare var mediumint(8) unsigned;
 select a into var from t4 where b = 2 and c = binary searchstring limit 1;
+show warnings;
 select var;
 end|
 call bug7743("oneword")|
+Level	Code	Message
 var
 1
 call bug7743("OneWord")|
+Level	Code	Message
+Warning	1329	No data - zero rows fetched, selected, or processed
 var
 NULL
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 call bug7743("anotherword")|
+Level	Code	Message
 var
 2
 call bug7743("AnotherWord")|
+Level	Code	Message
+Warning	1329	No data - zero rows fetched, selected, or processed
 var
 NULL
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug7743|
 drop table t4|
 delete from t3|
@@ -2909,20 +2912,20 @@ call avg ()|
 drop procedure avg|
 drop procedure if exists bug6129|
 set @old_mode= @@sql_mode;
-set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
+set @@sql_mode= "STRICT_ALL_TABLES";
 create procedure bug6129()
 select @@sql_mode|
 call bug6129()|
 @@sql_mode
-ERROR_FOR_DIVISION_BY_ZERO
-set @@sql_mode= "NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO"|
+STRICT_ALL_TABLES
+set @@sql_mode= "STRICT_ALL_TABLES"|
 call bug6129()|
 @@sql_mode
-ERROR_FOR_DIVISION_BY_ZERO
-set @@sql_mode= "NO_ZERO_IN_DATE"|
+STRICT_ALL_TABLES
+set @@sql_mode= "STRICT_ALL_TABLES"|
 call bug6129()|
 @@sql_mode
-ERROR_FOR_DIVISION_BY_ZERO
+STRICT_ALL_TABLES
 set @@sql_mode=@old_mode;
 drop procedure bug6129|
 drop procedure if exists bug9856|
@@ -4577,14 +4580,11 @@ Before NOT FOUND condition is triggered
 2
 After NOT FOUND condtition is triggered
 xid	xdone
-1	1
+1	0
 call bug15231_3()|
 Result
 Missed it (correct)
 Level	Code	Message
-Warning	1366	Incorrect decimal value: 'zap' for column 'x' at row 1
-Result
-Caught it (correct)
 call bug15231_5()|
 Result
 Missed it (correct)
@@ -6190,7 +6190,6 @@ create procedure mysqltest_db1.sp_bug28551() begin end;
 call mysqltest_db1.sp_bug28551();
 show warnings;
 Level	Code	Message
-Note	1008	Can't drop database 'mysqltest_db1'; database doesn't exist
 drop database mysqltest_db1;
 drop database if exists mysqltest_db1;
 drop table if exists test.t1;
@@ -6354,26 +6353,40 @@ CREATE TABLE t1 (c1 INT, INDEX(c1));
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 CREATE VIEW v1 AS SELECT c1 FROM t1;
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = 1)
 EXPLAIN SELECT * FROM t1 WHERE c1=f1();
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f1`())
 EXPLAIN SELECT * FROM v1 WHERE c1=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = 1)
 EXPLAIN SELECT * FROM v1 WHERE c1=f1();
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f1`())
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(10);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	c1	c1	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f2`(10))
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	c1	5	NULL	5	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f2`(`test`.`t1`.`c1`))
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(rand());
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	c1	5	NULL	5	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f2`(rand()))
 DROP VIEW v1;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
@@ -6872,6 +6885,10 @@ DROP FUNCTION f1;
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
+Warnings:
+Warning	1910	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1910	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1910	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
@@ -7065,15 +7082,12 @@ CREATE PROCEDURE p1(a CHAR)
 BEGIN
 SELECT 1;
 SELECT CAST('10 ' as UNSIGNED INTEGER);
-SELECT 1;
 END|
 CALL p1('data truncated parameter');
 1
 1
 CAST('10 ' as UNSIGNED INTEGER)
 10
-1
-1
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 Warning	1292	Truncated incorrect INTEGER value: '10 '
@@ -7092,15 +7106,12 @@ CREATE PROCEDURE p4()
 BEGIN
 SELECT 1;
 SELECT CAST('10 ' as UNSIGNED INTEGER);
-SELECT 2;
 END|
 CALL p1();
 1
 1
 CAST('10 ' as UNSIGNED INTEGER)
 10
-2
-2
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '10 '
 DROP PROCEDURE p1;
@@ -7631,8 +7642,42 @@ CALL p1();
 1
 1
 DROP PROCEDURE p1;
+prepare s from 'select 1 from `v1` join `t1` on `v1`.`a`
+where (select 1 from `t1` where `v1`.`a`)';
+execute s;
+1
+1
+execute s;
+1
+1
+prepare s from 'select 1 from `v1` join `t1` on `v1`.`a`';
+execute s;
+1
+1
+execute s;
+1
+1
+prepare s from 'select 1 from `v1` join `t1` on `v1`.`a` join t1 as t2
+on v1.a';
+execute s;
+1
+1
+execute s;
+1
+1
+create view v2 as select 0 as a from t1;
+prepare s from 'select 1 from `v2` join `t1` on `v2`.`a` join v1 on `v1`.`a`';
+execute s;
+1
+execute s;
+1
+prepare s from 'select 1 from `v2` join `t1` on `v2`.`a`, v1 where `v1`.`a`';
+execute s;
+1
+execute s;
+1
 DROP TABLE t1;
-DROP VIEW v1;
+DROP VIEW v1,v2;
 #
 # WL#2111: Add non-reserved ROW_COUNT keyword.
 #

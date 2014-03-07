@@ -32,4 +32,3 @@ select name from mysql.event where db='performance_schema';
 
 update mysql.event set db='test' where name='user_event';
 drop event test.user_event;
-

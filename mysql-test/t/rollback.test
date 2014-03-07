@@ -1,3 +1,8 @@
+# This is a MyISAM only test and hance should retain force_myisam_default.
+# It tests that rollback does not work for MyISAM
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 #
 # This test should fail as MyISAM doesn't have rollback
 #
@@ -13,13 +18,12 @@ begin work;
 insert into t1 values (4);
 insert into t1 values (5);
 rollback;
-select @@warning_count;
-select @@error_count;
 show warnings;
 show errors;
+select @@warning_count,@@error_count;
 select * from t1;
-select @@warning_count;
 show warnings;
+select @@warning_count;
 drop table t1;
 
 # End of 4.1 tests

@@ -1,3 +1,4 @@
+
 # ==== Purpose ====
 #
 # Test if statements used temporary tables are binlogged correctly

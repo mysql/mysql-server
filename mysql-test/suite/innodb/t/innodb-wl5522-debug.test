@@ -15,6 +15,11 @@
 
 -- source include/have_innodb.inc
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .*innodb-troubleshooting-datadict.html for how to resolve the issue.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
+--enable_query_log
+
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $pathfix=/: '.*test_wl5522.*t1.ibd'/: 'test_wl5522\\t1.ibd'/;
@@ -651,7 +656,7 @@ SET SESSION debug="+d,ib_import_OOM_1";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_1";
@@ -683,7 +688,7 @@ SET SESSION debug="+d,ib_import_OOM_2";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_2";
@@ -715,7 +720,7 @@ SET SESSION debug="+d,ib_import_OOM_4";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_4";
@@ -747,7 +752,7 @@ SET SESSION debug="+d,ib_import_OOM_5";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_5";
@@ -778,7 +783,7 @@ SET SESSION debug="+d,ib_import_OOM_6";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_6";
@@ -808,7 +813,7 @@ SET SESSION debug="+d,ib_import_OOM_7";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_7";
@@ -838,7 +843,7 @@ SET SESSION debug="+d,ib_import_OOM_8";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_8";
@@ -868,7 +873,7 @@ SET SESSION debug="+d,ib_import_OOM_9";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_9";
@@ -898,7 +903,7 @@ SET SESSION debug="+d,ib_import_OOM_10";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_OUT_OF_RESOURCES 
+--error ER_OUT_OF_RESOURCES
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 SET SESSION debug="-d,ib_import_OOM_10";
@@ -1470,7 +1475,7 @@ call mtr.add_suppression("'Resource temporarily unavailable'");
 call mtr.add_suppression("Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Table '.*' tablespace is set as discarded.");
+call mtr.add_suppression("InnoDB: Table .* tablespace is set as discarded.");
 call mtr.add_suppression("InnoDB: Tablespace '.*' exists in the cache.*");
 call mtr.add_suppression("InnoDB: Freeing existing tablespace '.*' entry from the cache with id.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
@@ -1481,9 +1486,12 @@ call mtr.add_suppression("Error in page .* of index \"GEN_CLUST_INDEX\" of table
 call mtr.add_suppression("Page is marked as free");
 call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
 call mtr.add_suppression("but tablespace with that id or name does not exist");
-call mtr.add_suppression("Failed to find tablespace for table '\"test_wl5522\".\"t1\"' in the cache");
+call mtr.add_suppression("Failed to find tablespace for table \"test_wl5522\".\"t1\" in the cache");
 call mtr.add_suppression("Could not find a valid tablespace file for 'test_wl5522.*t1'");
 call mtr.add_suppression("while reading index meta-data, expected to read 44 bytes but read only 0 bytes");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table \"test_wl5522\"\.\"t1\" because the .ibd file is missing.");
 --enable_query_log
 
 #cleanup

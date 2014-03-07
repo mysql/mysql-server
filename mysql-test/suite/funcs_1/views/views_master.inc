@@ -6,6 +6,9 @@
 #    2. Cleanup of test
 # 2007-11-15 hhunger WL#4084: Review and fix all disabled tests ...
 
+--replace_result $engine_type <storage_engine>
+eval SET SESSION default_storage_engine = $engine_type;
+
 let $message= ! Attention: The file with the expected results is not
               |            thoroughly checked.
               !            The server return codes are correct, but
@@ -309,7 +312,7 @@ DROP TABLE IF EXISTS t1, t2 ;
 DROP VIEW  IF EXISTS v1 ;
 DROP VIEW  IF EXISTS v2 ;
 --enable_warnings
-CREATE TABLE t1 ( f1 DATE, f2 BLOB, f3 DOUBLE );
+CREATE TABLE t1 ( f1 DATE, f2 VARCHAR(30), f3 DOUBLE );
 CREATE VIEW  v1 AS SELECT f1, f2, f3 FROM t1;
 ALTER  TABLE t1 ADD PRIMARY KEY(f1);
 --error ER_WRONG_OBJECT

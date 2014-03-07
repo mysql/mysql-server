@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -184,8 +184,8 @@ void JOIN_CACHE::calc_record_fields()
   for ( ; tab < join_tab ; tab++)
   {	    
     calc_used_field_length(join->thd, tab);
-    flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
-    flag_fields+= test(tab->table->maybe_null);
+    flag_fields+= MY_TEST(tab->used_null_fields || tab->used_uneven_bit_fields);
+    flag_fields+= MY_TEST(tab->table->maybe_null);
     fields+= tab->used_fields;
     blobs+= tab->used_blobs;
 
@@ -436,7 +436,7 @@ void JOIN_CACHE::set_constants()
   */
   uint len= length + fields*sizeof(uint)+blobs*sizeof(uchar *) +
             (prev_cache ? prev_cache->get_size_of_rec_offset() : 0) +
-            sizeof(ulong);
+            sizeof(ulong) + aux_buffer_min_size();
   buff_size= max<size_t>(join->thd->variables.join_buff_size, 2*len);
   size_of_rec_ofs= offset_size(buff_size);
   size_of_rec_len= blobs ? size_of_rec_ofs : offset_size(len); 
@@ -465,7 +465,13 @@ void JOIN_CACHE::set_constants()
 */
 bool JOIN_CACHE::alloc_buffer()
 {
-  buff= (uchar*) my_malloc(buff_size, MYF(0));
+  DBUG_EXECUTE_IF("jb_alloc_fail",
+                   buff= NULL;
+                   DBUG_SET("-d,jb_alloc_fail");
+                   return true;
+                  );
+  buff= (uchar*) my_malloc(key_memory_JOIN_CACHE,
+                           buff_size, MYF(0));
   return buff == NULL;
 }
 
@@ -579,8 +585,9 @@ int JOIN_CACHE_BKA::init()
         Item *ref_item= ref->items[i]; 
         if (!(tab->table->map & ref_item->used_tables()))
 	  continue;
-	 ref_item->walk(&Item::add_field_to_set_processor, 1,
-                        (uchar *) tab->table);
+	 ref_item->walk(&Item::add_field_to_set_processor,
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      (uchar *) tab->table);
       }
       if ((key_args= bitmap_bits_set(&tab->table->tmp_set)))
       {
@@ -743,6 +750,7 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
     - it is a partial key
     - definition of the argument field does not coincide with the
       definition of the corresponding key component
+    - the argument field has different byte ordering from the target table
     - some of the key components are nullable
   */  
   for (i=0; i < ref->key_parts; i++)
@@ -755,6 +763,11 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
       return FALSE;
     if (!key_part->field->eq_def(((Item_field *) item)->field))
       return FALSE;
+    if (((Item_field *) item)->field->table->s->db_low_byte_first !=
+        table->s->db_low_byte_first)
+    {
+      return FALSE;
+    }
     if (key_part->field->maybe_null())
     {
       return FALSE;
@@ -842,8 +855,31 @@ uint JOIN_CACHE_BKA::aux_buffer_incr()
   set_if_bigger(rec_per_key, 1);
   if (records == 1)
     incr=  ref->key_length + tab->file->ref_length;
+  /*
+    When adding a new record to the join buffer this can match
+    multiple keys in this table. We use rec_per_key as estimate for
+    the number of records that will match and reserve space in the
+    DS-MRR sort buffer for this many record references.
+  */
   incr+= tab->file->stats.mrr_length_per_rec * rec_per_key;
   return incr; 
+}
+
+
+/**
+  Calculate the minimume size for the MRR buffer.
+
+  @return The minumum size that must be allocated for the MRR buffer
+*/
+
+uint JOIN_CACHE_BKA::aux_buffer_min_size() const
+{
+  /*
+    For DS-MRR to work, the sort buffer must have space to store the
+    reference (or primary key) for at least one record.
+  */
+  DBUG_ASSERT(join_tab->table->file->stats.mrr_length_per_rec > 0);
+  return join_tab->table->file->stats.mrr_length_per_rec;
 }
 
 
@@ -1328,7 +1364,7 @@ void JOIN_CACHE::get_record_by_pos(uchar *rec_ptr)
 bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
 {
   if (with_match_flag)
-    return test(*rec_ptr);
+    return MY_TEST(*rec_ptr);
   if (prev_cache)
   {
     uchar *prev_rec_ptr= prev_cache->get_rec_ref(rec_ptr);
@@ -1571,7 +1607,7 @@ bool JOIN_CACHE::skip_record_if_match()
   if (prev_cache)
     offset+= prev_cache->get_size_of_rec_offset();
   /* Check whether the match flag is on */
-  if (test(*(pos+offset)))
+  if (MY_TEST(*(pos+offset)))
   {
     pos+= size_of_rec_len + get_rec_length(pos);
     return TRUE;
@@ -1864,7 +1900,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
         reset_cache(false);
 
         /* Read each record from the join buffer and look for matches */
-        for (cnt= records - test(skip_last) ; cnt; cnt--)
+        for (cnt= records - MY_TEST(skip_last) ; cnt; cnt--)
         { 
           /* 
             If only the first match is needed and it has been already found for
@@ -2109,7 +2145,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   if (!records)
     DBUG_RETURN(NESTED_LOOP_OK);
   
-  cnt= records - (is_key_access() ? 0 : test(skip_last));
+  cnt= records - (is_key_access() ? 0 : MY_TEST(skip_last));
 
   /* This function may be called only for inner tables of outer joins */ 
   DBUG_ASSERT(join_tab->first_inner);
@@ -2942,11 +2978,11 @@ uint JOIN_CACHE_BKA_UNIQUE::get_hash_idx(uchar* key, uint key_len)
 {
   ulong nr= 1;
   ulong nr2= 4;
-  uchar *pos= key;
+  uchar *position= key;
   uchar *end= key+key_len;
-  for (; pos < end ; pos++)
+  for (; position < end ; position++)
   {
-    nr^= (ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
+    nr^= (ulong) ((((uint) nr & 63)+nr2)*((uint) *position))+ (nr << 8);
     nr2+= 3;
   }
   return nr % hash_entries;

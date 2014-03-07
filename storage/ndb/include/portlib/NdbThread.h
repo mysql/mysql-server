@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ typedef enum NDB_THREAD_PRIO_ENUM {
 typedef enum NDB_THREAD_TLS_ENUM {
   NDB_THREAD_TLS_JAM,           /* Jam buffer pointer. */
   NDB_THREAD_TLS_THREAD,        /* Thread self pointer. */
+  NDB_THREAD_TLS_NDB_THREAD,    /* NDB thread pointer */
   NDB_THREAD_TLS_MAX
 } NDB_THREAD_TLS;
 
@@ -119,15 +120,18 @@ int NdbThread_GetTid(struct NdbThread*);
 int NdbThread_SetScheduler(struct NdbThread*, my_bool rt_prio, my_bool high_prio);
 
 /**
- * Lock Thread to CPU
+ * Lock/Unlock Thread to CPU
  */
 int NdbThread_LockCPU(struct NdbThread*, Uint32 cpu);
+int NdbThread_UnlockCPU(struct NdbThread*);
 
 /**
  * Fetch and set thread-local storage entry.
  */
 void *NdbThread_GetTlsKey(NDB_THREAD_TLS key);
 void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value);
+/* Get my own NdbThread pointer */
+struct NdbThread *NdbThread_GetNdbThread();
 
 /**
  * Set properties for NDB_THREAD_PRIO_HIGH

@@ -1,0 +1,64 @@
+--source include/have_ndb.inc
+--source suite/ndb_memcache/include/have_memcache.inc
+
+# Basic data type tests for 
+# CREATE TABLE tt023 (mkey int not null primary key, sval timestamp);
+# CREATE TABLE tt024 (mkey int not null primary key, sval timestamp(4));
+# CREATE TABLE tt025 (mkey int not null primary key, sval datetime);
+# CREATE TABLE tt026 (mkey int not null primary key, sval datetime(3));
+# CREATE TABLE tt027 (mkey int not null primary key, sval date);
+# CREATE TABLE tt028 (mkey int not null primary key, sval time);
+# CREATE TABLE tt029 (mkey int not null primary key, sval time(2));
+
+--source suite/ndb_memcache/include/datatypes_tables.inc
+--perl
+
+use strict;
+use lib "lib";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache::Binary->new();
+my $r = $mc->connect("localhost",$port);
+
+# Store values  
+$mc->set("tt023:1", 157795200)                   || die;  # Jan 1 1975 timestamp
+$mc->set("tt024:1", 157795200.1234)              || die;  # Jan 1 1975
+$mc->set("tt025:1", "1975-01-01 01:02:03")       || die;  # datetime
+$mc->set("tt026:1", "1975-01-01 01:02:03.123")   || die;  # datetime(3)
+$mc->set("tt027:1", "1975-02-02")                || die;  # date
+
+$mc->set("tt028:1", "03:00")                     || die;  # time - 3 min.
+$mc->set("tt028:2", "+03:15")                    || die;  # explicit +
+$mc->set("tt028:3", "-03:30")                    || die;  # negative time
+
+$mc->set("tt029:1", "03:00.05")                  || die;  # fractional seconds
+$mc->set("tt029:2", "+03:15.10")                 || die;  # explicit +
+$mc->set("tt029:3", "-03:30.15")                 || die;  # negative 
+
+# Retrieve values  
+print "tt023:1  timestamp(0) " . $mc->get("tt023:1") . "\n";
+print "tt024:1  timestmap(4) " . $mc->get("tt024:1") . "\n";
+print "tt025:1  datetime(0)  " . $mc->get("tt025:1") . "\n";
+print "tt026:1  datetime(3)  " . $mc->get("tt026:1") . "\n";
+print "tt027:1  date         " . $mc->get("tt027:1") . "\n";
+
+print "tt028:1  time         " . $mc->get("tt028:1") . "\n";
+print "tt028:2  time         " . $mc->get("tt028:2") . "\n";
+print "tt028:3  time         " . $mc->get("tt028:3") . "\n";
+
+print "tt029:1  time(2)      " . $mc->get("tt029:1") . "\n";
+print "tt029:2  time(2)      " . $mc->get("tt029:2") . "\n";
+print "tt029:3  time(2)      " . $mc->get("tt029:3") . "\n";
+
+EOF
+
+SELECT mkey, unix_timestamp(sval) FROM tt023 order by mkey;
+SELECT mkey, unix_timestamp(sval) FROM tt024 order by mkey;
+SELECT * FROM tt025 order by mkey;
+SELECT * FROM tt026 order by mkey;
+SELECT * FROM tt027 order by mkey;
+SELECT * FROM tt028 order by mkey;
+SELECT * FROM tt029 order by mkey;
+

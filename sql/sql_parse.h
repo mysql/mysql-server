@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,8 @@
 #define SQL_PARSE_INCLUDED
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_acl.h"                            /* GLOBAL_ACLS */
+#include "auth_common.h"                        /* GLOBAL_ACLS */
+#include "mysqld_thd_manager.h"                 /* Global_THD_manager */
 
 class Comp_creator;
 class Item;
@@ -37,18 +38,9 @@ extern "C" int test_if_data_home_dir(const char *dir);
 
 bool stmt_causes_implicit_commit(const THD *thd, uint mask);
 
-bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
-                     TABLE_LIST *first_table);
-bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
-bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
 int mysql_multi_update_prepare(THD *thd);
 int mysql_multi_delete_prepare(THD *thd, uint *table_count);
 bool mysql_insert_select_prepare(THD *thd);
-bool update_precheck(THD *thd, TABLE_LIST *tables);
-bool delete_precheck(THD *thd, TABLE_LIST *tables);
-bool insert_precheck(THD *thd, TABLE_LIST *tables);
-bool create_table_precheck(THD *thd, TABLE_LIST *tables,
-                           TABLE_LIST *create_table);
 
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
@@ -82,30 +74,22 @@ const CHARSET_INFO* merge_charset_and_collation(const CHARSET_INFO *cs,
 bool check_host_name(LEX_STRING *str);
 bool check_identifier_name(LEX_STRING *str, uint max_char_length,
                            uint err_code, const char *param_for_err_msg);
-bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
+bool mysql_test_parse_for_slave(THD *thd);
 bool is_update_query(enum enum_sql_command command);
 bool is_explainable_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
-bool alloc_query(THD *thd, const char *packet, uint packet_length);
-void mysql_init_select(LEX *lex);
-void mysql_parse(THD *thd, char *rawbuf, uint length,
-                 Parser_state *parser_state);
+bool alloc_query(THD *thd, const char *packet, size_t packet_length);
+void mysql_parse(THD *thd, Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
-bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
-pthread_handler_t handle_bootstrap(void *arg);
 int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
-void do_handle_bootstrap(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
-		      char* packet, uint packet_length);
-void log_slow_statement(THD *thd);
-bool log_slow_applicable(THD *thd);
-void log_slow_do(THD *thd);
+		      char* packet, size_t packet_length);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
@@ -135,11 +119,15 @@ bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 
 /* Variables */
 
-extern const char* any_db;
 extern uint sql_command_flags[];
 extern uint server_command_flags[];
 extern const LEX_STRING command_name[];
 extern uint server_command_flags[];
+
+#ifdef HAVE_MY_TIMER
+// Statement timeout function(s)
+extern void reset_statement_timer(THD *thd);
+#endif
 
 /* Inline functions */
 inline bool check_identifier_name(LEX_STRING *str, uint err_code)
@@ -152,56 +140,7 @@ inline bool check_identifier_name(LEX_STRING *str)
   return check_identifier_name(str, NAME_CHAR_LEN, 0, "");
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
-bool check_single_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables, bool no_errors);
-bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
-			  bool is_proc, bool no_errors);
-bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
-bool check_some_routine_access(THD *thd, const char *db, const char *name, bool is_proc);
-bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
-                  GRANT_INTERNAL_INFO *grant_internal_info,
-                  bool dont_check_global_grants, bool no_errors);
-bool check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
-                        bool any_combination_of_privileges_will_do,
-                        uint number,
-                        bool no_errors);
-#else
-inline bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables)
-{ return false; }
-inline bool check_single_table_access(THD *thd, ulong privilege,
-			   TABLE_LIST *tables, bool no_errors)
-{ return false; }
-inline bool check_routine_access(THD *thd,ulong want_access,char *db,
-                                 char *name, bool is_proc, bool no_errors)
-{ return false; }
-inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
-{
-  table->grant.privilege= want_access;
-  return false;
-}
-inline bool check_some_routine_access(THD *thd, const char *db,
-                                      const char *name, bool is_proc)
-{ return false; }
-inline bool check_access(THD *, ulong, const char *, ulong *save_priv,
-                         GRANT_INTERNAL_INFO *, bool, bool)
-{
-  if (save_priv)
-    *save_priv= GLOBAL_ACLS;
-  return false;
-}
-inline bool
-check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
-                   bool any_combination_of_privileges_will_do,
-                   uint number,
-                   bool no_errors)
-{ return false; }
-#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
-
 /* These were under the INNODB_COMPATIBILITY_HOOKS */
-
-bool check_global_access(THD *thd, ulong want_access);
 
 inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 {
@@ -210,5 +149,29 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 
 extern "C" bool sqlcom_can_generate_row_events(const THD *thd);
 
+/**
+  Callback function used by kill_one_thread and timer_notify functions
+  to find "thd" based on the thread id.
 
+  @note It acquires LOCK_thd_data mutex when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_thd_with_id: public Find_THD_Impl
+{
+public:
+  Find_thd_with_id(ulong value): m_id(value) {}
+  virtual bool operator()(THD *thd)
+  {
+    if (thd->get_command() == COM_DAEMON)
+      return false;
+    if (thd->thread_id == m_id)
+    {
+      mysql_mutex_lock(&thd->LOCK_thd_data);
+      return true;
+    }
+    return false;
+  }
+private:
+  ulong m_id;
+};
 #endif /* SQL_PARSE_INCLUDED */

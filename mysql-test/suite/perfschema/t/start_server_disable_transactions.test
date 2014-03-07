@@ -1,0 +1,28 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--source ../include/start_server_common.inc
+
+# Expect no enabled statements instruments
+select * from performance_schema.setup_instruments
+  where name in ('transaction') and enabled='YES';
+
+# Expect no statement statistics collected
+
+select * from performance_schema.events_transactions_summary_global_by_event_name
+  where count_star > 0;
+
+select * from performance_schema.events_transactions_summary_by_thread_by_event_name
+  where count_star > 0;
+
+select * from performance_schema.events_transactions_summary_by_user_by_event_name
+  where count_star > 0;
+
+select * from performance_schema.events_transactions_summary_by_host_by_event_name
+  where count_star > 0;
+
+select * from performance_schema.events_transactions_summary_by_account_by_event_name
+  where count_star > 0;
+

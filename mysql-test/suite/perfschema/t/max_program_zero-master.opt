@@ -1,0 +1,3 @@
+--loose-performance_schema_max_program_instances=0
+--loose-performance_schema_max_statement_stack=1
+--thread_stack=655360

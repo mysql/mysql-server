@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,9 @@
 
 #include <assert.h>
 #include "Bitmask.hpp"
+
+#define JAM_FILE_ID 261
+
 
 template<typename Int> class LHBits
 {
@@ -129,6 +132,7 @@ private:
   LHLevelRH&  operator=(LHLevelRH const&); // Not to be implemented
 public:
   LHBits16 reduce(LHBits32 hash_value) const;
+  LHBits16 reduceForSplit(LHBits32 hash_value) const;
   Uint8 getNeededValidBits(Uint8 bits) const;
   LHBits32 enlarge(LHBits16 reduced_hash_value, Uint32 bucket_number) const;
 };
@@ -436,9 +440,30 @@ inline LHBits16 LHLevelRH::reduce(LHBits32 hash_value) const
   return LHBits16(hv);
 }
 
+inline LHBits16 LHLevelRH::reduceForSplit(LHBits32 hash_value) const
+{
+  // As reduce() with an extra bit shifted out to compansate for a
+  // coming expand().
+  // But we do it on the LHBits32-value so we do not shift out
+  // one bit from the resulting LHBits16-value needlessly.
+  assert(!isEmpty());
+
+  if (!hash_value.valid_bits(maxp()))
+    return LHBits16();
+
+  Uint32 addr = hash_value.get_bits(maxp());
+  LHBits32 hv(hash_value);
+
+  // An extra shift out compared with reduce()
+  hv.shift_out(hashcheckbit() + 1);
+  if (addr < p())
+    hv.shift_out();
+  return LHBits16(hv);
+}
+
 inline Uint8 LHLevelRH::getNeededValidBits(Uint8 bits) const
 {
-  Uint8 const usable_bits_in_hash_value = 4 * sizeof(LHBits32) - 1; // == 31
+  Uint8 const usable_bits_in_hash_value = 8 * sizeof(LHBits32) - 1; // == 31
   return MIN(bits, usable_bits_in_hash_value - hashcheckbit());
 }
 
@@ -452,5 +477,8 @@ inline LHBits32 LHLevelRH::enlarge(LHBits16 reduced_hash_value, Uint32 bucket_nu
   hv.shift_in(addr_bits, bucket_number);
   return hv;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /****************************************************************************
  Add all options from files named "group".cnf from the default_directories
@@ -43,14 +43,16 @@
 #include "m_ctype.h"
 #include <my_dir.h>
 #include <my_aes.h>
-#ifdef __WIN__
+#ifdef _WIN32
 #include <winbase.h>
 #endif
+
 
 C_MODE_START
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_file_key key_file_cnf;
 #endif
+PSI_memory_key key_memory_defaults;
 C_MODE_END
 
 /**
@@ -107,7 +109,6 @@ static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
 
 static char my_login_file[FN_REFLEN];
-static char my_key[LOGIN_KEY_LEN];
 
 static my_bool defaults_already_read= FALSE;
 
@@ -123,7 +124,7 @@ static my_bool is_login_file= FALSE;
 #define DEFAULT_DIRS_SIZE (MAX_DEFAULT_DIRS + 1)  /* Terminate with NULL */
 static const char **default_directories = NULL;
 
-#ifdef __WIN__
+#ifdef _WIN32
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
 #define NEWLINE "\r\n"
 #else
@@ -131,8 +132,10 @@ static const char *f_extensions[]= { ".cnf", 0 };
 #define NEWLINE "\n"
 #endif
 
+extern "C" {
 static int handle_default_option(void *in_ctx, const char *group_name,
                                  const char *option);
+}
 
 /*
    This structure defines the context that we pass to callback
@@ -155,7 +158,6 @@ static int search_default_file_with_ext(Process_option_func func,
 					const char *dir, const char *ext,
 					const char *config_file, int recursion_level);
 static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
-static int check_file_permissions(const char *file_name);
 
 
 /**
@@ -395,8 +397,9 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       goto err;
     if (error > 0)
     {
-      fprintf(stderr, "Could not open required defaults file: %s\n",
-              my_defaults_file);
+      my_message_local(ERROR_LEVEL,
+                       "Could not open required defaults file: %s",
+                       my_defaults_file);
       goto err;
     }
   }
@@ -416,8 +419,9 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 	  goto err;				/* Fatal error */
         if (error > 0)
         {
-          fprintf(stderr, "Could not open required defaults file: %s\n",
-                  my_defaults_extra_file);
+          my_message_local(ERROR_LEVEL,
+                           "Could not open required defaults file: %s",
+                           my_defaults_extra_file);
           goto err;
         }
       }
@@ -427,7 +431,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   DBUG_RETURN(0);
 
 err:
-  fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
+  my_message_local(ERROR_LEVEL,
+                   "Fatal error in defaults handling. Program aborted!");
   DBUG_RETURN(1);
 }
 
@@ -470,7 +475,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
       return 1;
     if (insert_dynamic(ctx->args, &tmp))
       return 1;
-    strmov(tmp, option);
+    my_stpcpy(tmp, option);
   }
 
   return 0;
@@ -631,7 +636,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   uint args_sep= my_getopt_use_args_separator ? 1 : 0;
   DBUG_ENTER("load_defaults");
 
-  init_alloc_root(&alloc,512,0);
+  init_alloc_root(key_memory_defaults, &alloc,512,0);
   if ((dirs= init_default_directories(&alloc)) == NULL)
     goto err;
   /*
@@ -739,7 +744,8 @@ int my_load_defaults(const char *conf_file, const char **groups,
   DBUG_RETURN(0);
 
  err:
-  fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
+  my_message_local(ERROR_LEVEL,
+                   "Fatal error in defaults handling. Program aborted!");
   exit(1);
   return 0;					/* Keep compiler happy */
 }
@@ -816,9 +822,9 @@ static char *get_argument(const char *keyword, size_t kwlen,
   /* Print error msg if there is nothing after !include* directive */
   if (end <= ptr)
   {
-    fprintf(stderr,
-	    "error: Wrong '!%s' directive in config file: %s at line %d\n",
-	    keyword, name, line);
+    my_message_local(ERROR_LEVEL,
+                     "Wrong '!%s' directive in config file %s at line %d!",
+                     keyword, name, line);
     return 0;
   }
   return ptr;
@@ -877,7 +883,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   }
   else
   {
-    strmov(name,config_file);
+    my_stpcpy(name,config_file);
   }
   fn_format(name,name,"","",4);
 
@@ -916,10 +922,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
              end--)
         {}
         end[0]= 0;
-        fprintf(stderr,
-                "Warning: skipping '%s' directive as maximum include"
-                "recursion level was reached in file %s at line %d\n",
-                ptr, name, line);
+        my_message_local(WARNING_LEVEL,
+                         "skipping '%s' directive as maximum include"
+                         "recursion level was reached in file %s at line %d!",
+                         ptr, name, line);
         continue;
       }
 
@@ -983,10 +989,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       found_group=1;
       if (!(end=(char *) strchr(++ptr,']')))
       {
-	fprintf(stderr,
-		"error: Wrong group definition in config file: %s at line %d\n",
-		name,line);
-	goto err;
+        my_message_local(ERROR_LEVEL,
+                         "Wrong group definition in config file %s at line %d!",
+                         name,line);
+        goto err;
       }
       /* Remove end space */
       for ( ; my_isspace(&my_charset_latin1, end[-1]); end --)
@@ -1003,13 +1009,13 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     }
     if (!found_group)
     {
-      fprintf(stderr,
-	      "error: Found option without preceding group in config file: %s at line: %d\n",
-	      name,line);
+      my_message_local(ERROR_LEVEL,
+                       "Found option without preceding group in config file"
+                       " %s at line %d!", name,line);
       goto err;
     }
-    
-   
+
+
     end= remove_end_comment(ptr);
     if ((value= strchr(ptr, '=')))
       end= value;				/* Option without argument */
@@ -1018,7 +1024,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 
     if (!value)
     {
-      strmake(strmov(option,"--"),ptr, (size_t) (end-ptr));
+      strmake(my_stpcpy(option,"--"),ptr, (size_t) (end-ptr));
       if (opt_handler(handler_ctx, curr_gr, option))
         goto err;
     }
@@ -1048,7 +1054,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 	value++;
 	value_end--;
       }
-      ptr=strnmov(strmov(option,"--"),ptr,(size_t) (end-ptr));
+      ptr=my_stpnmov(my_stpcpy(option,"--"),ptr,(size_t) (end-ptr));
       *ptr++= '=';
 
       for ( ; value != value_end; value++)
@@ -1145,6 +1151,7 @@ static char *remove_end_comment(char *ptr)
 static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
 {
   uchar cipher[4096], len_buf[MAX_CIPHER_STORE_LEN];
+  static unsigned char my_key[LOGIN_KEY_LEN];
   int length= 0, cipher_len= 0;
 
   if (is_login_file)
@@ -1153,7 +1160,7 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
     {
       /* Move past unused bytes. */
       mysql_file_fseek(file, 4, SEEK_SET, MYF(MY_WME));
-      if (mysql_file_fread(file, (uchar *) my_key, LOGIN_KEY_LEN,
+      if (mysql_file_fread(file, my_key, LOGIN_KEY_LEN,
                            MYF(MY_WME)) != LOGIN_KEY_LEN)
         return 0;
     }
@@ -1169,8 +1176,8 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
       return 0;
 
     mysql_file_fread(file, cipher, cipher_len, MYF(MY_WME));
-    if ((length= my_aes_decrypt((const char *) cipher, cipher_len, str,
-                                my_key, LOGIN_KEY_LEN)) < 0)
+    if ((length= my_aes_decrypt(cipher, cipher_len, (unsigned char *) str,
+                                my_key, LOGIN_KEY_LEN, my_aes_128_ecb, NULL)) < 0)
     {
       /* Attempt to decrypt failed. */
       return 0;
@@ -1203,7 +1210,7 @@ void my_print_default_files(const char *conf_file)
   {
     const char **dirs;
     MEM_ROOT alloc;
-    init_alloc_root(&alloc,512,0);
+    init_alloc_root(key_memory_defaults, &alloc, 512, 0);
 
     if ((dirs= init_default_directories(&alloc)) == NULL)
     {
@@ -1293,7 +1300,7 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
 }
 
 
-#ifdef __WIN__
+#ifdef _WIN32
 /*
   This wrapper for GetSystemWindowsDirectory() will dynamically bind to the
   function if it is available, emulate it on NT4 Terminal Server by stripping
@@ -1358,7 +1365,7 @@ static const char *my_get_module_parent(char *buf, size_t size)
 
   return buf;
 }
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 
 static const char **init_default_directories(MEM_ROOT *alloc)
@@ -1372,7 +1379,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
     return NULL;
   memset(dirs, 0, DEFAULT_DIRS_SIZE * sizeof(char *));
 
-#ifdef __WIN__
+#ifdef _WIN32
 
   {
     char fname_buffer[FN_REFLEN];
@@ -1406,7 +1413,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   /* Placeholder for --defaults-extra-file=<path> */
   errors += add_directory(alloc, "", dirs);
 
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   errors += add_directory(alloc, "~/", dirs);
 #endif
 
@@ -1460,9 +1467,9 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
            1 - Failed to stat.
            2 - Success.
 */
-static int check_file_permissions(const char *file_name)
+int check_file_permissions(const char *file_name)
 {
-#if !defined(__WIN__)
+#if !defined(_WIN32)
   MY_STAT stat_info;
 
   if (!my_stat(file_name,&stat_info,MYF(0)))
@@ -1474,8 +1481,8 @@ static int check_file_permissions(const char *file_name)
   if (is_login_file && (stat_info.st_mode & (S_IXUSR | S_IRWXG | S_IRWXO))
       && (stat_info.st_mode & S_IFMT) == S_IFREG)
   {
-    fprintf(stderr, "Warning: %s should be readable/writable only by "
-            "current user.\n", file_name);
+    my_message_local(WARNING_LEVEL, "%s should be readable/writable only by "
+            "current user.", file_name);
     return 0;
   }
   /*
@@ -1487,8 +1494,8 @@ static int check_file_permissions(const char *file_name)
            (stat_info.st_mode & S_IFMT) == S_IFREG)
 
   {
-    fprintf(stderr, "Warning: World-writable config file '%s' is ignored\n",
-            file_name);
+    my_message_local(WARNING_LEVEL,
+                     "World-writable config file '%s' is ignored.", file_name);
     return 0;
   }
 #endif

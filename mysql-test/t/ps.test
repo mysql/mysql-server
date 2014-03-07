@@ -1,3 +1,4 @@
+
 -- source include/not_embedded.inc
 -- source include/have_log_bin.inc
 
@@ -362,7 +363,7 @@ deallocate prepare stmt;
 # statements): check that the query plan changes whenever we change
 # placeholder value.
 #
-create table t1 (a int, b int);
+create table t1 (a int, b int) engine = myisam;
 insert into t1 (a, b) values (1,1), (1,2), (2,1), (2,2);
 prepare stmt from
 "explain select * from t1 where t1.a=2 and t1.a=t1.b and t1.b > 1 + ?";
@@ -625,7 +626,7 @@ execute stmt using @a;
 select t2.id from t2, t1 where (t1.id=1 and t2.t1_id=t1.id);
 
 deallocate prepare stmt;
-drop table t1, t2;
+drop table t2, t1;
 
 #
 # Bug#11060 "Server crashes on calling stored procedure with INSERT SELECT
@@ -1437,7 +1438,7 @@ drop table t1;
 # Bug#19308 "REPAIR/OPTIMIZE/ANALYZE supported in SP but not in PS".
 # Add test coverage for the added commands.
 #
-create table t1 (a int);
+create table t1 (a int) engine=myisam;
 create table t2 like t1;
 create table t3 like t2;
 prepare stmt from "repair table t1";
@@ -1797,24 +1798,17 @@ set @@character_set_server= @old_character_set_server;
 drop tables if exists t1;
 create table t1 (id int primary key auto_increment, value varchar(10));
 insert into t1 (id, value) values (1, 'FIRST'), (2, 'SECOND'), (3, 'THIRD');
-# Let us prepare INSERT ... SELECT ... ON DUPLICATE KEY UPDATE statement
+# Prepare INSERT ... SELECT ... ON DUPLICATE KEY UPDATE statement
 # which in its ON DUPLICATE KEY clause erroneously tries to assign value
-# to a column which is mentioned only in SELECT part.
-prepare stmt from "insert into t1 (id, value) select * from (select 4 as i, 'FOURTH' as v) as y on duplicate key update v = 'DUP'";
-# Both first and second attempts to execute it should fail
---error ER_BAD_FIELD_ERROR 
-execute stmt;
+# to a column which is mentioned only in SELECT part. This is now caught
+# during preparation.
 --error ER_BAD_FIELD_ERROR
-execute stmt;
-deallocate prepare stmt;
+prepare stmt from "insert into t1 (id, value) select * from (select 4 as i, 'FOURTH' as v) as y on duplicate key update v = 'DUP'";
+#
 # And now the same test for more complex case which is more close
 # to the one that was reported originally.
-prepare stmt from "insert into t1 (id, value) select * from (select 4 as id, 'FOURTH' as value) as y on duplicate key update y.value = 'DUP'";
---error ER_BAD_FIELD_ERROR 
-execute stmt;
 --error ER_BAD_FIELD_ERROR
-execute stmt;
-deallocate prepare stmt;
+prepare stmt from "insert into t1 (id, value) select * from (select 4 as id, 'FOURTH' as value) as y on duplicate key update y.value = 'DUP'";
 drop tables t1;
 
 #
@@ -2341,9 +2335,10 @@ deallocate prepare abc;
 create procedure proc_1() start slave;
 drop procedure proc_1;
 delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin start slave; return 1; end|
 delimiter ;|
-drop function func_1;
+
 prepare abc from "start slave";
 deallocate prepare abc;
 
@@ -2351,9 +2346,10 @@ deallocate prepare abc;
 create procedure proc_1() stop slave;
 drop procedure proc_1;
 delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin stop slave; return 1; end|
 delimiter ;|
-drop function func_1;
+
 prepare abc from "stop slave";
 deallocate prepare abc;
 
@@ -2816,8 +2812,10 @@ delimiter |;
 --error ER_SP_NO_RETSET
 create function func_1() returns int begin show errors; return 1; end|
 delimiter ;|
+# WL#5928: prepare of diagnostics statements fails now, cos the standard says it should.
+--error ER_UNSUPPORTED_PS
 prepare abc from "show errors";
-deallocate prepare abc;
+# deallocate prepare abc;
 
 --disable_warnings
 drop table if exists t1;
@@ -2835,14 +2833,9 @@ delimiter |;
 --error ER_SP_NO_RETSET
 create function func_1() returns int begin show warnings; return 1; end|
 delimiter ;|
+# WL#5928: prepare of diagnostics statements fails now, cos the standard says it should.
+--error ER_UNSUPPORTED_PS
 prepare abc from "show warnings";
-drop table if exists t1;
-execute abc;
-drop table if exists t2;
-execute abc;
-drop table if exists t1, t2;
-execute abc;
-deallocate prepare abc;
 
 #
 # Bug#22684: The Functions ENCODE, DECODE and FORMAT are not real functions
@@ -3486,37 +3479,38 @@ DEALLOCATE PREPARE stmt;
 
 DROP TABLE t1, t2;
 
-###########################################################################
-
-
 --echo #
---echo # Bug#12661349 assert in protocol::end_statement
+--echo # Bug#16820562: Bad column names are not rejected at 'prepare'
 --echo #
 
---echo # Note: This test case should be run with --ps-protocol
+--echo Resolver errors should be given at prepare time in insert select
 
---disable_warnings ONCE
-DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INTEGER);
+CREATE TABLE t2 (b INTEGER);
 
-CREATE TABLE t1 (col1 INT);
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1 VALUES(1) ON DUPLICATE KEY UPDATE absent=2";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1 VALUES(1) ON DUPLICATE KEY UPDATE a=absent";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1 SELECT 1 ON DUPLICATE KEY UPDATE absent=2";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1 SELECT 1 ON DUPLICATE KEY UPDATE a=absent";
 
---echo # Connection con1
-connect(con1, localhost, root);
-let $con1_id= `SELECT CONNECTION_ID()`;
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1(absent) VALUES(1) ON DUPLICATE KEY UPDATE a=1";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "INSERT INTO t1(absent) SELECT 1 ON DUPLICATE KEY UPDATE a=1";
 
---echo # Connection default
-connection default;
---replace_result $con1_id <con1_id>
-eval KILL QUERY $con1_id;
+--echo Resolver errors should be given at prepare time in multi-table update
 
---echo # Connection con1
-connection con1;
-# Here the server asserts when running with "--ps-protocol"
---error ER_QUERY_INTERRUPTED
-SELECT * FROM t1;
-disconnect con1;
---source include/wait_until_disconnected.inc
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "UPDATE t1 JOIN t2 ON t1.a=t2.b SET t1.a=absent";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "UPDATE t1 JOIN t2 ON t1.a=t2.b SET t1.a=t1.absent";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "UPDATE t1 JOIN t2 ON t1.a=t2.b SET t1.a=t2.absent";
+--error ER_BAD_FIELD_ERROR
+PREPARE s FROM "UPDATE t1 JOIN t2 ON t1.a=t2.b SET t1.a=absent.absent";
 
---echo # Connection default
-connection default;
-DROP TABLE t1;
+DROP TABLE t1, t2;

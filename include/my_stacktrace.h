@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #if defined (__x86_64__) || defined (__i386__)
 #define HAVE_STACKTRACE 1
 #endif
-#elif defined(__WIN__) || defined(HAVE_PRINTSTACK)
+#elif defined(_WIN32) || defined(HAVE_PRINTSTACK)
 #define HAVE_STACKTRACE 1
 #endif
 
@@ -31,11 +31,8 @@
 #define HAVE_STACKTRACE 1
 #endif
 
-#define HAVE_WRITE_CORE
-
 #if HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS && \
-    HAVE_CXXABI_H && HAVE_ABI_CXA_DEMANGLE && \
-    HAVE_WEAK_SYMBOL
+    HAVE_CXXABI_H && HAVE_ABI_CXA_DEMANGLE
 #define BACKTRACE_DEMANGLE 1
 #endif
 
@@ -44,19 +41,17 @@ C_MODE_START
 #if defined(HAVE_STACKTRACE) || defined(HAVE_BACKTRACE)
 void my_init_stacktrace();
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack);
-void my_safe_print_str(const char* val, int max_len);
+void my_safe_puts_stderr(const char* val, int max_len);
 void my_write_core(int sig);
 #if BACKTRACE_DEMANGLE
 char *my_demangle(const char *mangled_name, int *status);
 #endif
-#ifdef __WIN__
+#ifdef _WIN32
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 #endif
 #endif
 
-#ifdef HAVE_WRITE_CORE
 void my_write_core(int sig);
-#endif
 
 
 
@@ -100,7 +95,7 @@ char *my_safe_utoa(int base, ulonglong val, char *buf);
   Implemented with simplicity, and async-signal-safety in mind.
 */
 size_t my_safe_snprintf(char* to, size_t n, const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 3, 4);
+  __attribute__((format(printf, 3, 4)));
 
 /**
   A (very) limited version of snprintf, which writes the result to STDERR.
@@ -110,7 +105,7 @@ size_t my_safe_snprintf(char* to, size_t n, const char* fmt, ...)
   which should suffice for our signal handling routines.
 */
 size_t my_safe_printf_stderr(const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 
 /**
   Writes up to count bytes from buffer to STDERR.

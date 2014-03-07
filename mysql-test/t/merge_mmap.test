@@ -3,6 +3,7 @@
 #
 
 # MERGE tables require MyISAM tables
+--source include/have_myisam.inc
 --let $default=`SELECT @@global.default_storage_engine`
 SET GLOBAL default_storage_engine = MyISAM;
 SET SESSION default_storage_engine = MyISAM;

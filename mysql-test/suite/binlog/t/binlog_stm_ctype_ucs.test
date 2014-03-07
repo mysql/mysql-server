@@ -2,5 +2,6 @@
 # For both statement and row based bin logs 9/19/2005 [jbm]
 
 -- source include/have_binlog_format_mixed_or_statement.inc
+--source include/not_gtid_enabled.inc
 -- source extra/binlog_tests/ctype_ucs_binlog.test
 

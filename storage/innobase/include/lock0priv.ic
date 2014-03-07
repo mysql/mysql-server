@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ methods but they are used only in that file. */
 
 /*********************************************************************//**
 Gets the type of a lock.
-@return	LOCK_TABLE or LOCK_REC */
+@return LOCK_TABLE or LOCK_REC */
 UNIV_INLINE
 ulint
 lock_get_type_low(
@@ -49,7 +49,7 @@ lock_get_type_low(
 /*********************************************************************//**
 Checks if some transaction has an implicit x-lock on a record in a clustered
 index.
-@return	transaction id of the transaction which has the x-lock, or 0 */
+@return transaction id of the transaction which has the x-lock, or 0 */
 UNIV_INLINE
 trx_id_t
 lock_clust_rec_some_has_impl(

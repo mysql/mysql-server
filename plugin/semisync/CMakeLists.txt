@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,11 @@
 
 SET(SEMISYNC_MASTER_SOURCES  
  semisync.cc semisync_master.cc semisync_master_plugin.cc
- semisync.h semisync_master.h)
+ semisync.h semisync_master.h semisync_master_ack_receiver.cc)
+
+IF(SSL_DEFINES)
+ ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
 
 MYSQL_ADD_PLUGIN(semisync_master ${SEMISYNC_MASTER_SOURCES}  
   MODULE_ONLY MODULE_OUTPUT_NAME "semisync_master")
@@ -24,4 +28,3 @@ SET(SEMISYNC_SLAVE_SOURCES  semisync.cc semisync_slave.cc
   semisync_slave_plugin.cc semisync.h semisync_slave.h )
 MYSQL_ADD_PLUGIN(semisync_slave ${SEMISYNC_SLAVE_SOURCES} 
   MODULE_ONLY MODULE_OUTPUT_NAME "semisync_slave")
-

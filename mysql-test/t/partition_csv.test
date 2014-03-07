@@ -8,7 +8,8 @@
 #
 
 --source include/have_partition.inc
---source include/have_csv.inc
+# This test needs MyISAM for subtests for Bug#27816 and Bug#40281
+--source include/have_myisam.inc
 
 call mtr.add_suppression("Failed to write to mysql.general_log");
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,12 +43,21 @@ Rpl_info_file::Rpl_info_file(const int nparam,
   DBUG_VOID_RETURN;
 }
 
+Rpl_info_file::~Rpl_info_file()
+{
+  DBUG_ENTER("Rpl_info_file::~Rpl_info_file");
+
+  do_end_info();
+
+  DBUG_VOID_RETURN;
+}
+
 int Rpl_info_file::do_init_info(uint instance)
 {
   DBUG_ENTER("Rpl_info_file::do_init_info(uint)");
 
   char fname_local[FN_REFLEN];
-  char *pos= strmov(fname_local, pattern_fname);
+  char *pos= my_stpcpy(fname_local, pattern_fname);
   if (name_indexed)
     sprintf(pos, "%u", instance);
 
@@ -172,7 +181,7 @@ enum_return_check Rpl_info_file::do_check_info(uint instance)
 
   for (i= 1; i <= instance && last_check == REPOSITORY_EXISTS; i++)
   {
-    pos= strmov(fname_local, pattern_fname);
+    pos= my_stpcpy(fname_local, pattern_fname);
     if (name_indexed)
       sprintf(pos, "%u", i);
     fn_format(fname_local, fname_local, mysql_data_home, "", 4 + 32);
@@ -222,7 +231,7 @@ bool Rpl_info_file::do_count_info(const int nparam,
 
   for (i= 1; last_check == REPOSITORY_EXISTS; i++)
   {
-    pos= strmov(fname_local, param_pattern);
+    pos= my_stpcpy(fname_local, param_pattern);
     if (indexed)
     {  
       sprintf(pos, "%u", i);
@@ -314,7 +323,7 @@ int Rpl_info_file::do_reset_info(const int nparam,
 
   for (i= 1; last_check == REPOSITORY_EXISTS; i++)
   {
-    pos= strmov(fname_local, param_pattern);
+    pos= my_stpcpy(fname_local, param_pattern);
     if (indexed)
     {  
       sprintf(pos, "%u", i);
@@ -639,7 +648,8 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
           (decimal size + space) - 1 + `\n' + '\0'
     */
     size_t max_size= (1 + num_items) * (sizeof(long) * 3 + 1) + 1;
-    if (! (buf_act= (char*) my_malloc(max_size, MYF(MY_WME))))
+    if (! (buf_act= (char*) my_malloc(key_memory_Rpl_info_file_buffer,
+                                      max_size, MYF(MY_WME))))
       DBUG_RETURN(TRUE);
     *buffer_act= buf_act;
     memcpy(buf_act, buf, read_size);

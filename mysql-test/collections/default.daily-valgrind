@@ -1,0 +1,15 @@
+# Valgrind run of non default suites
+# Default suites are covered through per push  
+
+perl mysql-test-run.pl --force --timer --testcase-timeout=60  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug-big  --vardir=var-funcs2-debug-big --suite=funcs_2
+perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=stress-debug --vardir=var-stress-debug  --suite=stress
+perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=jp-debug --vardir=var-jp-debug --suite=jp
+perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist-debug  --vardir=var-nist-debug --suite=nist
+
+
+#Engine independent tests
+perl mysql-test-run.pl --timer --force  --testcase-timeout=60 --debug-server --parallel=auto  --comment=eits-tests-myisam-engine-debug-big --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-myisam-engine-debug-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam  --skip-test-list=collections/disabled-daily.list
+perl mysql-test-run.pl --timer --force  --testcase-timeout=60 --debug-server --parallel=auto --comment=eits-tests-innodb-engine-debug-big --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-innodb-engine-debug-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --mysqld=--innodb --skip-test-list=collections/disabled-daily.list
+
+#Memcached tests
+perl mysql-test-run.pl --timer --force --debug-server --comment=memcached-debug --vardir=var-debug-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached  --skip-test-list=collections/disabled-daily.list

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define __REQUEST_TRACKER_HPP
 
 #include "SafeCounter.hpp"
+
+#define JAM_FILE_ID 328
+
 
 class RequestTracker {
 public:
@@ -57,5 +59,8 @@ private:
   SafeCounterHandle m_sc;
   Uint8 m_nRefs;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif // __REQUEST_TRACKER_HPP

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1407,6 +1407,11 @@ NdbOperation::handleOperationOptions (const OperationType type,
   if (opts->optionsPresent & OperationOptions::OO_DEFERRED_CONSTAINTS)
   {
     op->m_flags |= OF_DEFERRED_CONSTRAINTS;
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_DISABLE_FK)
+  {
+    op->m_flags |= OF_DISABLE_FK;
   }
 
   return 0;

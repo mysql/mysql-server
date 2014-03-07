@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,5 +33,5 @@ TARGET_LINK_LIBRARIES(ndb_mgm
                mysys
                strings)
 IF(UNIX)
-  TARGET_LINK_LIBRARIES(ndb_mgm ${READLINE_LIBRARY})
+  TARGET_LINK_LIBRARIES(ndb_mgm ${EDITLINE_LIBRARY})
 ENDIF(UNIX)

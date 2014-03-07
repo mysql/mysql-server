@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@
 #define READ_BOOTSTRAP_ERROR       2
 #define READ_BOOTSTRAP_QUERY_SIZE  3
 
-typedef void *fgets_input_t;
+typedef struct st_mysql_file *fgets_input_t;
 typedef char * (*fgets_fn_t)(char *, size_t, fgets_input_t, int *error);
 
 int read_bootstrap_query(char *query, int *query_length,

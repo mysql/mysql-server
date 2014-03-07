@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,10 @@
 #include "VMSignal.hpp"
 #include <NdbOut.hpp>
 #include "TransporterCallbackKernel.hpp"
+#include <DebuggerNames.hpp>
+
+#define JAM_FILE_ID 226
+
 
 /**
  * The instance
@@ -73,8 +77,6 @@ const char *lookupConnectionError(Uint32 err)
     i++;
   return connectionError[i].text;
 }
-
-#include <DebuggerNames.hpp>
 
 #ifndef NDBD_MULTITHREADED
 extern TransporterRegistry globalTransporterRegistry; // Forward declaration
@@ -133,7 +135,7 @@ void mt_init_receiver_cache(){}
 void mt_set_section_chunk_size(){}
 #endif
 
-void
+bool
 TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
                                                Uint8 prio,
                                                Uint32 * const theData,
@@ -198,7 +200,7 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
                 header, theData, secPtrI);
 
 #endif
-    return;
+    return false;
   }
   
   /**
@@ -234,6 +236,7 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
     sendprioa(m_thr_no /* self */,
               header, theData, NULL);
 #endif
+  return false;
 }
 
 NdbOut & 
@@ -519,3 +522,9 @@ mt_get_trp_receive_handle(unsigned instance)
   return &myTransporterCallback;
 }
 #endif
+
+/** 
+ * #undef is needed since this file is included by TransporterCallback_nonmt.cpp
+ * and TransporterCallback_mt.cpp
+ */
+#undef JAM_FILE_ID

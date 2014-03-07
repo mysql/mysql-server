@@ -1,3 +1,5 @@
+# Test needs myisam for some myisam specific testcases
+--source include/have_myisam.inc
 #
 # Some special cases with empty tables
 #

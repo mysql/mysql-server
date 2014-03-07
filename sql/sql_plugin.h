@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -161,6 +161,7 @@ extern void plugin_thdvar_init(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_cleanup(THD *thd);
 extern SHOW_COMP_OPTION plugin_status(const char *name, size_t len, int type);
 extern bool check_valid_path(const char *path, size_t length);
+extern void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock);
 
 typedef my_bool (plugin_foreach_func)(THD *thd,
                                       plugin_ref plugin,
@@ -168,4 +169,9 @@ typedef my_bool (plugin_foreach_func)(THD *thd,
 #define plugin_foreach(A,B,C,D) plugin_foreach_with_mask(A,B,C,PLUGIN_IS_READY,D)
 extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
                                      int type, uint state_mask, void *arg);
+
+/* interface to randomly access plugin data */
+struct st_plugin_int *plugin_find_by_type(LEX_STRING *plugin, int type);
+int lock_plugin_data();
+int unlock_plugin_data();
 #endif

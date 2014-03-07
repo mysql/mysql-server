@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -20229,17 +20229,25 @@ static void my_hash_sort_uca(const CHARSET_INFO *cs,
 {
   int   s_res;
   my_uca_scanner scanner;
-  
+  ulong tmp1;
+  ulong tmp2;
+
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
   scanner_handler->init(&scanner, cs, &cs->uca->level[0], s, slen);
-  
+
+  tmp1= *n1;
+  tmp2= *n2;
+
   while ((s_res= scanner_handler->next(&scanner)) >0)
   {
-    n1[0]^= (((n1[0] & 63)+n2[0])*(s_res >> 8))+ (n1[0] << 8);
-    n2[0]+=3;
-    n1[0]^= (((n1[0] & 63)+n2[0])*(s_res & 0xFF))+ (n1[0] << 8);
-    n2[0]+=3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (s_res >> 8))+ (tmp1 << 8);
+    tmp2+=3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (s_res & 0xFF))+ (tmp1 << 8);
+    tmp2+=3;
   }
+
+  *n1= tmp1;
+  *n2= tmp2;
 }
 
 
@@ -20658,6 +20666,7 @@ lex_cmp(MY_COLL_LEXEM *lexem, const char *pattern, size_t patternlen)
     errstr               sting to write error to
     errsize              errstr size
     txt                  error message
+    col_name             collation name
   USAGE
   
   RETURN VALUES
@@ -20666,14 +20675,15 @@ lex_cmp(MY_COLL_LEXEM *lexem, const char *pattern, size_t patternlen)
 
 static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem,
                                       char *errstr, size_t errsize,
-                                      const char *txt)
+                                      const char *txt, const char *col_name)
 {
   char tail[30];
   size_t len= lexem->end - lexem->prev;
   strmake (tail, lexem->prev, (size_t) MY_MIN(len, sizeof(tail)-1));
   errstr[errsize-1]= '\0';
   my_snprintf(errstr, errsize - 1,
-              "%s at '%s'", txt[0] ? txt : "Syntax error", tail);
+              "%s at '%s' for COLLATION : %s", txt[0] ? txt : "Syntax error",
+              tail, col_name);
 }
 
 
@@ -21659,6 +21669,7 @@ my_coll_parser_exec(MY_COLL_RULE_PARSER *p)
   @param rules           Collation rule list to load to.
   @param str             A string with collation customization.
   @param str_end         End of the string.
+  @param col_name        Collation name
 
   @return
   @retval                0 on success
@@ -21667,7 +21678,7 @@ my_coll_parser_exec(MY_COLL_RULE_PARSER *p)
 
 static int
 my_coll_rule_parse(MY_COLL_RULES *rules,
-                   const char *str, const char *str_end)
+                   const char *str, const char *str_end, const char *col_name)
 {
   MY_COLL_RULE_PARSER p;
 
@@ -21678,7 +21689,7 @@ my_coll_rule_parse(MY_COLL_RULES *rules,
     my_coll_lexem_print_error(my_coll_parser_curr(&p),
                               rules->loader->error,
                               sizeof(rules->loader->error) - 1,
-                              p.errstr);
+                              p.errstr, col_name);
     return 1;
   }
   return 0;
@@ -22030,7 +22041,8 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
   /* Parse ICU Collation Customization expression */
   if ((rc= my_coll_rule_parse(&rules,
                               cs->tailoring,
-                              cs->tailoring + strlen(cs->tailoring))))
+                              cs->tailoring + strlen(cs->tailoring),
+                              cs->name)))
     goto ex;
 
   if (rules.version == 520)           /* Unicode-5.2.0 requested */
@@ -22196,6 +22208,7 @@ CHARSET_INFO my_charset_ucs2_unicode_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22229,6 +22242,7 @@ CHARSET_INFO my_charset_ucs2_icelandic_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22262,6 +22276,7 @@ CHARSET_INFO my_charset_ucs2_latvian_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22295,6 +22310,7 @@ CHARSET_INFO my_charset_ucs2_romanian_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22328,6 +22344,7 @@ CHARSET_INFO my_charset_ucs2_slovenian_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22361,6 +22378,7 @@ CHARSET_INFO my_charset_ucs2_polish_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22394,6 +22412,7 @@ CHARSET_INFO my_charset_ucs2_estonian_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22427,6 +22446,7 @@ CHARSET_INFO my_charset_ucs2_spanish_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22460,6 +22480,7 @@ CHARSET_INFO my_charset_ucs2_swedish_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22493,6 +22514,7 @@ CHARSET_INFO my_charset_ucs2_turkish_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22526,6 +22548,7 @@ CHARSET_INFO my_charset_ucs2_czech_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22560,6 +22583,7 @@ CHARSET_INFO my_charset_ucs2_danish_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22593,6 +22617,7 @@ CHARSET_INFO my_charset_ucs2_lithuanian_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22626,6 +22651,7 @@ CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22659,6 +22685,7 @@ CHARSET_INFO my_charset_ucs2_spanish2_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22693,6 +22720,7 @@ CHARSET_INFO my_charset_ucs2_roman_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22727,6 +22755,7 @@ CHARSET_INFO my_charset_ucs2_persian_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22761,6 +22790,7 @@ CHARSET_INFO my_charset_ucs2_esperanto_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22795,6 +22825,7 @@ CHARSET_INFO my_charset_ucs2_hungarian_uca_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -22829,6 +22860,7 @@ CHARSET_INFO my_charset_ucs2_sinhala_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     2,                   /* mbmaxlen     */
+    1,			 /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -22863,6 +22895,7 @@ CHARSET_INFO my_charset_ucs2_german2_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     2,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -22897,6 +22930,7 @@ CHARSET_INFO my_charset_ucs2_croatian_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     2,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -22931,6 +22965,7 @@ CHARSET_INFO my_charset_ucs2_unicode_520_ci=
     1,                  /* casedn_multiply  */
     2,                  /* mbminlen     */
     2,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -22965,6 +23000,7 @@ CHARSET_INFO my_charset_ucs2_vietnamese_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     2,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23001,7 +23037,7 @@ MY_COLLATION_HANDLER my_collation_any_uca_handler =
   expressions. Note, there is no need to mark byte 255  as a
   letter, it is illegal byte in UTF8.
 */
-static uchar ctype_utf8[] = {
+static const uchar ctype_utf8[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
@@ -23048,6 +23084,7 @@ CHARSET_INFO my_charset_utf8_unicode_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23082,6 +23119,7 @@ CHARSET_INFO my_charset_utf8_icelandic_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23115,6 +23153,7 @@ CHARSET_INFO my_charset_utf8_latvian_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23148,6 +23187,7 @@ CHARSET_INFO my_charset_utf8_romanian_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23181,6 +23221,7 @@ CHARSET_INFO my_charset_utf8_slovenian_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23214,6 +23255,7 @@ CHARSET_INFO my_charset_utf8_polish_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23247,6 +23289,7 @@ CHARSET_INFO my_charset_utf8_estonian_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23280,6 +23323,7 @@ CHARSET_INFO my_charset_utf8_spanish_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23313,6 +23357,7 @@ CHARSET_INFO my_charset_utf8_swedish_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23346,6 +23391,7 @@ CHARSET_INFO my_charset_utf8_turkish_uca_ci=
     2,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23379,6 +23425,7 @@ CHARSET_INFO my_charset_utf8_czech_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23413,6 +23460,7 @@ CHARSET_INFO my_charset_utf8_danish_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23446,6 +23494,7 @@ CHARSET_INFO my_charset_utf8_lithuanian_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23479,6 +23528,7 @@ CHARSET_INFO my_charset_utf8_slovak_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23512,6 +23562,7 @@ CHARSET_INFO my_charset_utf8_spanish2_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23545,6 +23596,7 @@ CHARSET_INFO my_charset_utf8_roman_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23578,6 +23630,7 @@ CHARSET_INFO my_charset_utf8_persian_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23611,6 +23664,7 @@ CHARSET_INFO my_charset_utf8_esperanto_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23644,6 +23698,7 @@ CHARSET_INFO my_charset_utf8_hungarian_uca_ci=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -23677,6 +23732,7 @@ CHARSET_INFO my_charset_utf8_sinhala_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     3,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23711,6 +23767,7 @@ CHARSET_INFO my_charset_utf8_german2_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     3,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23745,6 +23802,7 @@ CHARSET_INFO my_charset_utf8_croatian_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     3,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23779,6 +23837,7 @@ CHARSET_INFO my_charset_utf8_unicode_520_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     3,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23813,6 +23872,7 @@ CHARSET_INFO my_charset_utf8_vietnamese_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     3,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23856,6 +23916,7 @@ CHARSET_INFO my_charset_utf8mb4_unicode_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23890,6 +23951,7 @@ CHARSET_INFO my_charset_utf8mb4_icelandic_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23923,6 +23985,7 @@ CHARSET_INFO my_charset_utf8mb4_latvian_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23956,6 +24019,7 @@ CHARSET_INFO my_charset_utf8mb4_romanian_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -23989,6 +24053,7 @@ CHARSET_INFO my_charset_utf8mb4_slovenian_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24022,6 +24087,7 @@ CHARSET_INFO my_charset_utf8mb4_polish_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24055,6 +24121,7 @@ CHARSET_INFO my_charset_utf8mb4_estonian_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24088,6 +24155,7 @@ CHARSET_INFO my_charset_utf8mb4_spanish_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24121,6 +24189,7 @@ CHARSET_INFO my_charset_utf8mb4_swedish_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24154,6 +24223,7 @@ CHARSET_INFO my_charset_utf8mb4_turkish_uca_ci=
     2,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24187,6 +24257,7 @@ CHARSET_INFO my_charset_utf8mb4_czech_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24221,6 +24292,7 @@ CHARSET_INFO my_charset_utf8mb4_danish_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24254,6 +24326,7 @@ CHARSET_INFO my_charset_utf8mb4_lithuanian_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24287,6 +24360,7 @@ CHARSET_INFO my_charset_utf8mb4_slovak_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24320,6 +24394,7 @@ CHARSET_INFO my_charset_utf8mb4_spanish2_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24353,6 +24428,7 @@ CHARSET_INFO my_charset_utf8mb4_roman_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24386,6 +24462,7 @@ CHARSET_INFO my_charset_utf8mb4_persian_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24419,6 +24496,7 @@ CHARSET_INFO my_charset_utf8mb4_esperanto_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24452,6 +24530,7 @@ CHARSET_INFO my_charset_utf8mb4_hungarian_uca_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24485,6 +24564,7 @@ CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen      */
     4,                  /* mbmaxlen      */
+    1,			/* mbmaxlenlen   */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -24518,6 +24598,7 @@ CHARSET_INFO my_charset_utf8mb4_german2_uca_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen      */
     4,                  /* mbmaxlen      */
+    1,			/* mbmaxlenlen   */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -24551,6 +24632,7 @@ CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen      */
     4,                  /* mbmaxlen      */
+    1,			/* mbmaxlenlen   */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -24584,6 +24666,7 @@ CHARSET_INFO my_charset_utf8mb4_unicode_520_ci=
     1,                   /* casedn_multiply  */
     1,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,			 /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0x10FFFF,            /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24618,6 +24701,7 @@ CHARSET_INFO my_charset_utf8mb4_vietnamese_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen      */
     4,                  /* mbmaxlen      */
+    1,			/* mbmaxlenlen   */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -24676,6 +24760,7 @@ CHARSET_INFO my_charset_utf32_unicode_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24710,6 +24795,7 @@ CHARSET_INFO my_charset_utf32_icelandic_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24743,6 +24829,7 @@ CHARSET_INFO my_charset_utf32_latvian_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24776,6 +24863,7 @@ CHARSET_INFO my_charset_utf32_romanian_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24809,6 +24897,7 @@ CHARSET_INFO my_charset_utf32_slovenian_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24842,6 +24931,7 @@ CHARSET_INFO my_charset_utf32_polish_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24875,6 +24965,7 @@ CHARSET_INFO my_charset_utf32_estonian_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24908,6 +24999,7 @@ CHARSET_INFO my_charset_utf32_spanish_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24941,6 +25033,7 @@ CHARSET_INFO my_charset_utf32_swedish_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -24974,6 +25067,7 @@ CHARSET_INFO my_charset_utf32_turkish_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25007,6 +25101,7 @@ CHARSET_INFO my_charset_utf32_czech_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25041,6 +25136,7 @@ CHARSET_INFO my_charset_utf32_danish_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25074,6 +25170,7 @@ CHARSET_INFO my_charset_utf32_lithuanian_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25107,6 +25204,7 @@ CHARSET_INFO my_charset_utf32_slovak_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25140,6 +25238,7 @@ CHARSET_INFO my_charset_utf32_spanish2_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25173,6 +25272,7 @@ CHARSET_INFO my_charset_utf32_roman_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25206,6 +25306,7 @@ CHARSET_INFO my_charset_utf32_persian_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25239,6 +25340,7 @@ CHARSET_INFO my_charset_utf32_esperanto_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25272,6 +25374,7 @@ CHARSET_INFO my_charset_utf32_hungarian_uca_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25305,6 +25408,7 @@ CHARSET_INFO my_charset_utf32_sinhala_uca_ci=
     1,                  /* casedn_multiply  */
     4,                  /* mbminlen     */
     4,                  /* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -25338,6 +25442,7 @@ CHARSET_INFO my_charset_utf32_german2_uca_ci=
     1,                  /* casedn_multiply  */
     4,                  /* mbminlen     */
     4,                  /* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -25371,6 +25476,7 @@ CHARSET_INFO my_charset_utf32_croatian_uca_ci=
     1,                  /* casedn_multiply  */
     4,                  /* mbminlen     */
     4,                  /* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -25404,6 +25510,7 @@ CHARSET_INFO my_charset_utf32_unicode_520_ci=
     1,                   /* casedn_multiply  */
     4,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0x10FFFF,            /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25438,6 +25545,7 @@ CHARSET_INFO my_charset_utf32_vietnamese_ci=
     1,                  /* casedn_multiply  */
     4,                  /* mbminlen     */
     4,                  /* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -25497,6 +25605,7 @@ CHARSET_INFO my_charset_utf16_unicode_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25531,6 +25640,7 @@ CHARSET_INFO my_charset_utf16_icelandic_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25564,6 +25674,7 @@ CHARSET_INFO my_charset_utf16_latvian_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25597,6 +25708,7 @@ CHARSET_INFO my_charset_utf16_romanian_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25630,6 +25742,7 @@ CHARSET_INFO my_charset_utf16_slovenian_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25663,6 +25776,7 @@ CHARSET_INFO my_charset_utf16_polish_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25696,6 +25810,7 @@ CHARSET_INFO my_charset_utf16_estonian_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25729,6 +25844,7 @@ CHARSET_INFO my_charset_utf16_spanish_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25762,6 +25878,7 @@ CHARSET_INFO my_charset_utf16_swedish_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25795,6 +25912,7 @@ CHARSET_INFO my_charset_utf16_turkish_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25828,6 +25946,7 @@ CHARSET_INFO my_charset_utf16_czech_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25862,6 +25981,7 @@ CHARSET_INFO my_charset_utf16_danish_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25895,6 +26015,7 @@ CHARSET_INFO my_charset_utf16_lithuanian_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25928,6 +26049,7 @@ CHARSET_INFO my_charset_utf16_slovak_uca_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
     ' ',                 /* pad char      */
@@ -25961,6 +26083,7 @@ CHARSET_INFO my_charset_utf16_spanish2_uca_ci=
     1,                  /* casedn_multiply  */
     2,                  /* mbminlen      */
     4,                  /* mbmaxlen      */
+    1,			/* mbmaxlenlen   */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -25994,6 +26117,7 @@ CHARSET_INFO my_charset_utf16_roman_uca_ci=
     1,                  /* casedn_multiply  */
     2,                  /* mbminlen      */
     4,                  /* mbmaxlen      */
+    1,			/* mbmaxlenlen   */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -26027,6 +26151,7 @@ CHARSET_INFO my_charset_utf16_persian_uca_ci=
     1,                  /* casedn_multiply  */
     2,                  /* mbminlen      */
     4,                  /* mbmaxlen      */
+    1,			/* mbmaxlenlen   */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -26060,6 +26185,7 @@ CHARSET_INFO my_charset_utf16_esperanto_uca_ci=
     1,                  /* casedn_multiply  */
     2,                  /* mbminlen      */
     4,                  /* mbmaxlen      */
+    1,			/* mbmaxlenlen   */
     9,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -26093,6 +26219,7 @@ CHARSET_INFO my_charset_utf16_hungarian_uca_ci=
     1,                 /* casedn_multiply  */
     2,                 /* mbminlen      */
     4,                 /* mbmaxlen      */
+    1,                 /* mbmaxlenlen   */
     9,                 /* min_sort_char */
     0xFFFF,            /* max_sort_char */
     ' ',               /* pad char      */
@@ -26126,6 +26253,7 @@ CHARSET_INFO my_charset_utf16_sinhala_uca_ci=
     1,                 /* casedn_multiply  */
     2,                 /* mbminlen     */
     4,                 /* mbmaxlen     */
+    1,                 /* mbmaxlenlen  */
     9,                 /* min_sort_char */
     0xFFFF,            /* max_sort_char */
     ' ',               /* pad char      */
@@ -26159,6 +26287,7 @@ CHARSET_INFO my_charset_utf16_german2_uca_ci=
     1,                 /* casedn_multiply  */
     2,                 /* mbminlen     */
     4,                 /* mbmaxlen     */
+    1,                 /* mbmaxlenlen  */
     9,                 /* min_sort_char */
     0xFFFF,            /* max_sort_char */
     ' ',               /* pad char      */
@@ -26193,6 +26322,7 @@ CHARSET_INFO my_charset_utf16_croatian_uca_ci=
     1,                 /* casedn_multiply  */
     2,                 /* mbminlen     */
     4,                 /* mbmaxlen     */
+    1,                 /* mbmaxlenlen  */
     9,                 /* min_sort_char */
     0xFFFF,            /* max_sort_char */
     ' ',               /* pad char      */
@@ -26227,9 +26357,10 @@ CHARSET_INFO my_charset_utf16_unicode_520_ci=
     1,                   /* casedn_multiply  */
     2,                   /* mbminlen     */
     4,                   /* mbmaxlen     */
+    1,                   /* mbmaxlenlen  */
     9,                   /* min_sort_char */
     0x10FFFF,            /* max_sort_char */
-    ' ',                 /* pad char      */
+    0x20,                /* pad char      */
     0,                   /* escape_with_backslash_is_dangerous */
     1,                   /* levels_for_compare */
     1,                   /* levels_for_order   */
@@ -26261,6 +26392,7 @@ CHARSET_INFO my_charset_utf16_vietnamese_ci=
     1,                 /* casedn_multiply  */
     2,                 /* mbminlen     */
     4,                 /* mbmaxlen     */
+    1,                 /* mbmaxlenlen  */
     9,                 /* min_sort_char */
     0xFFFF,            /* max_sort_char */
     ' ',               /* pad char      */
@@ -26274,6 +26406,59 @@ CHARSET_INFO my_charset_utf16_vietnamese_ci=
 
 #endif /* HAVE_CHARSET_utf16 */
 
+#ifdef HAVE_CHARSET_gb18030
 
+MY_COLLATION_HANDLER my_collation_gb18030_uca_handler =
+{
+    my_coll_init_uca,   /* init */
+    my_strnncoll_any_uca,
+    my_strnncollsp_any_uca,
+    my_strnxfrm_any_uca,
+    my_strnxfrmlen_simple,
+    my_like_range_mb,
+    my_wildcmp_uca,
+    NULL,
+    my_instr_mb,
+    my_hash_sort_any_uca,
+    my_propagate_complex
+};
+
+extern MY_CHARSET_HANDLER my_charset_gb18030_uca_handler;
+
+CHARSET_INFO my_charset_gb18030_unicode_520_ci=
+{
+    250, 0, 0,         /* number        */
+    MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_NONASCII, /* state         */
+    "gb18030",         /* cs name       */
+    "gb18030_unicode_520_ci",/* name        */
+    "",                /* comment       */
+    "",                /* tailoring     */
+    NULL,              /* ctype         */
+    NULL,              /* lower         */
+    NULL,              /* UPPER         */
+    NULL,              /* sort order    */
+    &my_uca_v520,      /* uca           */
+    NULL,              /* tab_to_uni    */
+    NULL,              /* tab_from_uni  */
+    &my_unicase_unicode520,/* caseinfo     */
+    NULL,              /* state_map     */
+    NULL,              /* ident_map     */
+    8,                 /* strxfrm_multiply */
+    1,                 /* caseup_multiply  */
+    1,                 /* casedn_multiply  */
+    1,                 /* mbminlen      */
+    4,                 /* mbmaxlen      */
+    2,                 /* mbmaxlenlen   */
+    0,                 /* min_sort_char */
+    0xE3329A35,        /* max_sort_char */
+    ' ',               /* pad char      */
+    0,                 /* escape_with_backslash_is_dangerous */
+    1,                 /* levels_for_compare */
+    1,                 /* levels_for_order   */
+    &my_charset_gb18030_uca_handler,
+    &my_collation_gb18030_uca_handler
+};
+
+#endif /* HAVE_CHARSET_gb18030 */
 
 #endif /* HAVE_UCA_COLLATIONS */

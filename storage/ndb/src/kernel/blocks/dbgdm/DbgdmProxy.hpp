@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
 #ifndef NDB_DBGDM_PROXY_HPP
@@ -24,6 +24,9 @@
 #include <signaldata/PrepDropTab.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTab.hpp>
+
+#define JAM_FILE_ID 337
+
 
 /**
  * The Global Dictionary Manager (GDB):
@@ -164,5 +167,8 @@ protected:
   void execALTER_TAB_REF(Signal*);
   void sendALTER_TAB_CONF(Signal*, Uint32 ssId);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif // NDB_DBGDM_PROXY_HPP

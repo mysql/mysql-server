@@ -1,43 +1,45 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Deadlock found");
 **** On Master ****
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 SHOW STATUS LIKE 'Slave_retried_transactions';
 Variable_name	Value
 Slave_retried_transactions	0
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 UPDATE t1 SET a = 5, b = 47 WHERE a = 1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 a	b
-5	47
 2	2
 3	3
 4	4
+5	47
 **** On Master ****
 UPDATE t1 SET a = 5, b = 5 WHERE a = 1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 a	b
-5	5
 2	2
 3	3
 4	4
+5	5
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
 Variable_name	Value
 Slave_retried_transactions	0
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 a	b
-5	47
 2	2
 3	3
 4	4
+5	47
 include/check_slave_is_running.inc
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1");
 **** On Master ****

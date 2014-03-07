@@ -1,3 +1,4 @@
+
 #
 # binlog_off.test purpose is to verify that the --skip-log-bin flag
 # works correctly

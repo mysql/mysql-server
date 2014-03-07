@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,16 +60,27 @@ public:
   int build_do_table_hash();
   int build_ignore_table_hash();
 
+  int add_string_list(I_List<i_string> *list, const char* spec);
+  int add_string_pair_list(I_List<i_string_pair> *list, char* key, char *val);
   int add_do_table_array(const char* table_spec);
   int add_ignore_table_array(const char* table_spec);
 
   int add_wild_do_table(const char* table_spec);
   int add_wild_ignore_table(const char* table_spec);
 
-  void add_do_db(const char* db_spec);
-  void add_ignore_db(const char* db_spec);
+  int set_do_db(List<Item> *list);
+  int set_ignore_db(List<Item> *list);
+  int set_do_table(List<Item> *list);
+  int set_ignore_table(List<Item> *list);
+  int set_wild_do_table(List<Item> *list);
+  int set_wild_ignore_table(List<Item> *list);
+  int set_db_rewrite(List<Item> *list);
+  typedef int (Rpl_filter::*Add_filter)(char const*);
+  int parse_filter_list(List<Item> *item_list, Add_filter func);
+  int add_do_db(const char* db_spec);
+  int add_ignore_db(const char* db_spec);
 
-  void add_db_rewrite(const char* from_db, const char* to_db);
+  int add_db_rewrite(const char* from_db, const char* to_db);
 
   /* Getters - to get information about current rules */
 
@@ -80,9 +91,13 @@ public:
   void get_wild_ignore_table(String* str);
 
   const char* get_rewrite_db(const char* db, size_t *new_len);
+  void get_rewrite_db(String *str);
 
   I_List<i_string>* get_do_db();
   I_List<i_string>* get_ignore_db();
+  void free_string_list(I_List<i_string> *l);
+  void free_string_pair_list(I_List<i_string_pair> *l);
+
 
 private:
   bool table_rules_on;
@@ -128,6 +143,45 @@ private:
   I_List<i_string> ignore_db;
 
   I_List<i_string_pair> rewrite_db;
+};
+
+
+/** Sql_cmd_change_repl_filter represents the command CHANGE REPLICATION
+ * FILTER.
+ */
+class Sql_cmd_change_repl_filter : public Sql_cmd
+{
+public:
+  /** Constructor.  */
+  Sql_cmd_change_repl_filter():
+    do_db_list(NULL), ignore_db_list(NULL),
+    do_table_list(NULL), ignore_table_list(NULL),
+    wild_do_table_list(NULL), wild_ignore_table_list(NULL),
+    rewrite_db_pair_list(NULL)
+  {}
+
+  ~Sql_cmd_change_repl_filter()
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_CHANGE_REPLICATION_FILTER;
+  }
+  bool execute(THD *thd);
+
+  void set_filter_value(List<Item>* item_list, options_mysqld filter_type);
+  bool change_rpl_filter(THD* thd);
+
+private:
+
+  List<Item> *do_db_list;
+  List<Item> *ignore_db_list;
+  List<Item> *do_table_list;
+  List<Item> *ignore_table_list;
+  List<Item> *wild_do_table_list;
+  List<Item> *wild_ignore_table_list;
+  List<Item> *rewrite_db_pair_list;
+
 };
 
 extern Rpl_filter *rpl_filter;

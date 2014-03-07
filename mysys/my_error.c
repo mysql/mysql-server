@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,10 +29,13 @@
 /*
   WARNING!
   my_error family functions have to be used according following rules:
-  - if message have not parameters use my_message(ER_CODE, ER(ER_CODE), MYF(N))
-  - if message registered use my_error(ER_CODE, MYF(N), ...).
-  - With some special text of errror message use:
-  my_printf_error(ER_CODE, format, MYF(N), ...)
+  - if message has no parameters, use my_message(ER_CODE, ER(ER_CODE), MYF(N))
+  - if message has parameters and is registered: my_error(ER_CODE, MYF(N), ...)
+  - for free-form messages use my_printf_error(ER_CODE, format, MYF(N), ...)
+
+  These three send their messages using error_handler_hook, which normally
+  means we'll send them to the client if we have one, or to error-log / stderr
+  otherwise.
 */
 
 /*
@@ -92,7 +95,7 @@ char *my_strerror(char *buf, size_t len, int nr)
       this choice is not advertised, use the default (POSIX/XSI).  Testing
       for __GNUC__ is not sufficient to determine whether this choice exists.
     */
-#if defined(__WIN__)
+#if defined(_WIN32)
     strerror_s(buf, len, nr);
     if (my_winerr != 0)
     {
@@ -300,7 +303,8 @@ int my_error_register(const char** (*get_errmsgs) (), int first, int last)
   struct my_err_head **search_meh_pp;
 
   /* Allocate a new header structure. */
-  if (! (meh_p= (struct my_err_head*) my_malloc(sizeof(struct my_err_head),
+  if (! (meh_p= (struct my_err_head*) my_malloc(key_memory_my_err_head,
+                                                sizeof(struct my_err_head),
                                                 MYF(MY_WME))))
     return 1;
   meh_p->get_errmsgs= get_errmsgs;
@@ -405,4 +409,69 @@ void my_error_unregister_all(void)
   my_errmsgs_globerrs.meh_next= NULL;  /* Freed in first iteration above. */
 
   my_errmsgs_list= &my_errmsgs_globerrs;
+}
+
+/**
+  Issue a message locally (i.e. on the same host the program is
+  running on, don't transmit to a client).
+
+  This is the default value for local_message_hook, and therefore
+  the default printer for my_message_local(). mysys users should
+  not call this directly, but go through my_message_local() instead.
+
+  This printer prepends an Error/Warning/Note label to the string,
+  then prints it to stderr using my_message_stderr().
+  Since my_message_stderr() appends a '\n', the format string
+  should not end in a newline.
+
+  @param ll      log level: (ERROR|WARNING|INFORMATION)_LEVEL
+                 the printer may use these to filter for verbosity
+  @param format  a format string a la printf. Should not end in '\n'
+  @param args    parameters to go with that format string
+*/
+void my_message_local_stderr(enum loglevel ll,
+                             const char *format, va_list args)
+{
+  char   buff[1024];
+  size_t len;
+
+  DBUG_ENTER("my_message_local_stderr");
+
+  len= my_snprintf(buff, sizeof(buff), "[%s] ",
+                   (ll == ERROR_LEVEL ? "ERROR" : ll == WARNING_LEVEL ?
+                    "Warning" : "Note"));
+  my_vsnprintf(buff + len, sizeof(buff) - len, format, args);
+
+  my_message_stderr(0, buff, MYF(0));
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Issue a message locally (i.e. on the same host the program is
+  running on, don't transmit to a client).
+
+  This goes through local_message_hook, i.e. by default, it calls
+  my_message_local_stderr() which prepends an Error/Warning/Note
+  label to the string, then prints it to stderr.  More advanced
+  programs can use their own printers; mysqld for instance uses
+  its own error log facilities which prepend an ISO 8601 / RFC 3339
+  compliant timestamp etc.
+
+  @param ll      log level: (ERROR|WARNING|INFORMATION)_LEVEL
+                 the printer may use these to filter for verbosity
+  @param format  a format string a la printf. Should not end in '\n'.
+  @param ...     parameters to go with that format string
+*/
+
+void my_message_local(enum loglevel ll, const char *format, ...)
+{
+  va_list args;
+  DBUG_ENTER("local_print_error");
+
+  va_start(args, format);
+  (*local_message_hook)(ll, format, args);
+  va_end(args);
+
+  DBUG_VOID_RETURN;
 }

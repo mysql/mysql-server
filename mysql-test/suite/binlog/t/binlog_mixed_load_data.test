@@ -1,9 +1,11 @@
+
 #
 # Bug #34283  mysqlbinlog leaves tmpfile after termination
 # if binlog contains load data infile, so in mixed mode we
 # go to row-based for avoiding the problem.
 #
 
+--source include/have_myisam.inc
 --source include/have_binlog_format_mixed.inc
 --source include/have_log_bin.inc
 

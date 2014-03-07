@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,12 +159,12 @@ int main(int argc, char *argv[])
         break;
 
       case READ_BOOTSTRAP_QUERY_SIZE:
-        die("Failed to read the boostrap input file. Query size exceeded %d bytes.\n"
+        die("Failed to read the bootstrap input file. Query size exceeded %d bytes.\n"
             "Last query: '%s'.\n", MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
         break;
     
       default:
-        die("Failed to read the boostrap input file. Unknown error.\n");
+        die("Failed to read the bootstrap input file. Unknown error.\n");
         break;
       }
     }

@@ -1,0 +1,38 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+#######################################################################
+# SHOW SLAVE STATUS NONBLOCKING is not allowed within a function.
+CREATE FUNCTION func1(arg TEXT) RETURNS TEXT
+BEGIN
+SHOW SLAVE STATUS NONBLOCKING;
+RETURN arg;
+END|
+ERROR 0A000: Not allowed to return a result set from a function
+#######################################################################
+# Testing if a user without REPLICATION CLIENT and SUPER privilege can
+# execute SHOW SLAVE STATUS NONBLOCKING.
+CREATE USER mysqltest_1@localhost;
+SHOW GRANTS FOR mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+SHOW SLAVE STATUS NONBLOCKING;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, REPLICATION CLIENT privilege(s) for this operation
+DROP USER 'mysqltest_1'@'localhost';
+#######################################################################
+# Testing if a user with REPLICATION CLIENT privilege can execute
+# SHOW SLAVE STATUS NONBLOCKING.
+CREATE USER mysqltest_2@localhost;
+GRANT REPLICATION CLIENT ON *.* TO 'mysqltest_2'@'localhost';
+SHOW GRANTS FOR mysqltest_2@localhost;
+Grants for mysqltest_2@localhost
+GRANT REPLICATION CLIENT ON *.* TO 'mysqltest_2'@'localhost'
+SHOW SLAVE STATUS NONBLOCKING;
+DROP USER 'mysqltest_2'@'localhost';
+#######################################################################
+# Stress test that executes nearly in parallel SSS NONBLOCKING and STOP
+# SLAVE.
+include/rpl_end.inc

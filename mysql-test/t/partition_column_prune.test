@@ -11,6 +11,7 @@ create table t1 (a char, b char, c char)
 partition by range columns(a,b,c)
 ( partition p0 values less than ('a','b','c'));
 insert into t1 values ('a', NULL, 'd');
+analyze table t1;
 explain partitions select * from t1 where a = 'a' AND c = 'd';
 select * from t1 where a = 'a' AND c = 'd';
 drop table t1;
@@ -40,6 +41,7 @@ create table t2 (a int not null) partition by range(a) (
 insert into t2 values (5),(15),(25),(35),(45),(55),(65);
 insert into t2 values (5),(15),(25),(35),(45),(55),(65);
 
+analyze table t1;
 explain partitions select * from t1 where a > 35 and a < 45;
 explain partitions select * from t2 where a > 35 and a < 45;
 
@@ -64,6 +66,7 @@ insert into t1 values (2,5), (2,15), (2,25),
   (4,5), (4,15), (4,25), (6,5), (6,15), (6,25);
 insert into t1 select * from t1;
 
+analyze table t1;
 explain partitions select * from t1 where a=2;
 explain partitions select * from t1 where a=4;
 explain partitions select * from t1 where a=2 and b < 22;

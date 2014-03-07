@@ -1,3 +1,4 @@
+
 # Tests that variables work correctly (setting and showing).  This
 # test is like the main.variables test, but for variables not
 # available in embedded mode.

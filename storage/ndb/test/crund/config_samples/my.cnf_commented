@@ -1,0 +1,184 @@
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+# my.cnf -- MySQL Server configuration file (options case-sensitive)
+
+# memo: server variables (system/status, session/global)
+# mysql> show [session|global] status [like '%pattern%' | where expr];
+# mysql> show [session|global] variables [like '%pattern%' | where expr];
+# mysql> select @@{session|global}.xxx, ...
+# mysql> set [session|global] xxx=default, @@{session|global}.xxx=DEFAULT, ...
+# set boolean options/variables=1|0 (on|off ignored for cmd/cnf options)
+
+#
+# options for mysql clients
+#
+[client]
+
+#port=3306
+#socket=.../mysql.sock
+
+#
+# cluster-specific options
+#
+[mysql_cluster]
+
+# connectstring to management server (mandatory, here or per command line)
+# - option: --ndb-connectstring
+# - variable: n/a
+# - format: [nodeid=node_id, ]host_name[:port_number][,...]
+# - default: localhost:1186
+ndb-connectstring=127.0.0.1
+#ndb-connectstring=127.0.0.1:1187
+
+#
+# mysql server options
+#
+[mysqld]
+
+# unique server identity for replication
+# - option: server-id
+# - variable: server_id (system, global, changeable)
+# - default: 0 (disables all connections to master or from slaves)
+#server-id=1
+
+# server's port specs (here or per command line)
+# - option: --port or -P
+# - variable: port (system, global, constant)
+# - default: 3306
+#port=3306
+# socket spec for local connections (here or per command line)
+# - option: --socket
+# - variable: socket (global, constant)
+# - default: /tmp/mysql.sock
+#socket=.../ndblog/mysql.sock
+
+# the data directory (here or per command line)
+# - option: --datadir
+# - variable: datadir (system, global, constant)
+#datadir=.../ndblog
+
+# verbosity
+# - option: -v -v -v, --verbose
+# - variable: n/a
+#verbose
+
+# enable binary logging
+# - options: --log-bin, --log-bin-index
+# - variable: log_bin (system, global, constant)
+# - default: log-bin = <host_name>-bin.<6-digit-suffix>
+# - default: log-bin-index = <host_name>-bin.index
+# - default: <data directory> unless absolute path given
+#log-bin=mysql-bin.log
+#log-bin-index=mysql-bin.index
+# set the binary logging format (might be redundant for cluster tables)
+# - option: --binlog-format
+# - variable: binlog_format (system, global+session, changeable)
+# - default: STATEMENT (ROW, STATEMENT, MIXED)
+#binlog-format=ROW
+# turn on/off binary logging
+# - variable: sql_log_bin (system, session, changeable)
+# - default: 1
+
+#
+# generic replication slave options and variables
+#
+
+# do not start the slave threads when the server starts
+# - option: --skip-slave-start
+# - variable: n/a
+skip-slave-start
+
+# basename for the relay log (and relay log index file)
+# - options: --relay-log, --relay-log-index
+# - variables: relay_log, relay_log_index (system global, constant)
+# - default: relay-log = <host_name>-relay-bin.<6-digit-suffix>
+# - default: relay-log-index = <host_name>-relay-bin.index
+# - default: <data directory> unless absolute path given
+#relay-log=mysql-relay-bin
+#relay-log-index=mysql-relay-bin.index
+
+# log updates from master to the slave's own binary log
+# - option: --log-slave-updates (requires log-bin)
+# - variable: log_slave_updates (system, global, constant)
+#log-slave-updates
+
+# do not skip events having its own server ID (for replaying binlog)
+# - option: --replicate-same-server-id (cannot be used with log-slave-updates)
+# - variable: n/a
+# - default: 0 (to prevent infinite loops caused by circular replication)
+#replicate-same-server-id
+
+# attempts to connect to the master before giving up
+# - option: --master-retry-count
+# - variable: n/a
+# - default: 86400 (0 means "infinite", i.e. slave attempts to connect forever)
+#master-retry-count=1
+
+# relax replication type enforcements
+# - option: --slave-type-conversions
+# - variable: slave-type-conversions (system, global, constant)
+# - default: none of (one or more) ALL_LOSSY, ALL_NON_LOSSY
+#slave-type-conversions=ALL_NON_LOSSY
+
+#
+# mysqld cluster settings
+#
+
+# enable batched operations on MySQL Cluster replication slaves
+# - option: --slave-allow-batching (or slave_allow_batching)
+# - variable: slave_allow_batching (system, global, changeable)
+# - default: 0
+#slave-allow-batching
+
+# set the size in bytes that is used for NDB transaction batches
+# - option: --ndb-batch-size (or ndb_batch_size)
+# - variable: ndb_batch_size (system, global, constant)
+# - default: 32768 (0 .. 31536000)
+#ndb-batch-size=0
+#ndb-batch-size=1000
+#ndb-batch-size=1000000
+
+# recommended performance settings
+# option: --ndb-use-exact-count
+# variable: ndb_use_exact_count (system, global+session, changeable)
+ndb-use-exact-count=0
+# option: --ndb-index-stat-enable (or ndb_index_stat_enable)
+# variable: n/a
+ndb-index-stat-enable=0
+# option: --ndb-force-send (or ndb_force_send)
+# variable: n/a
+ndb-force-send=1
+# option: --engine-condition-pushdown
+# variable: engine_condition_pushdown (system, global+session, changeable)
+engine-condition-pushdown=1
+
+# enable NDB storage engine (mandatory, here or per command line)
+# option: --ndbcluster
+# variable: have_ndbcluster (system, global, constant)
+ndbcluster
+
+#
+# other options
+#
+
+# sql modes, transaction isolation levels (cluster: only read committed)
+# - options: -a, --ansi, --sql-mode, --transaction-isolation
+# - variables: tx_isolation, sql_mode (system, global+session, changeable)
+# - mysql> set [global|session] transaction isolation level
+#          {read uncommitted|read committed|repeatable read|serializable};
+# - mysql> set [global|session] tx_isolation=
+#          'read-uncommitted|read-committed|repeatable-read|serializable';
+# - mysql> set [global|session] sql_mode='ansi|traditional|...';

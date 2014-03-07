@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -20,12 +20,14 @@ abandoned
 abandoning
 abandonment
 abandons
+include/sync_slave_sql_with_master.inc
 stop slave;
 set password for root@"localhost" = password('foo');
 start slave;
 set password for root@"localhost" = password('');
 create table t3(n int);
 insert into t3 values(1),(2);
+include/sync_slave_sql_with_master.inc
 select * from t3;
 n
 1
@@ -34,11 +36,13 @@ select sum(length(word)) from t1;
 sum(length(word))
 1022
 drop table t1,t3;
+include/sync_slave_sql_with_master.inc
 create table t1 (n int) engine=myisam;
+include/sync_slave_sql_with_master.inc
 reset master;
 stop slave;
 reset slave;
-# Asserted this: We should have generated greater than 16 KB relay log
+include/assert.inc [We should have generated greater than 16 KB relay log]
 lock tables t1 read;
 start slave;
 include/sync_slave_io_with_master.inc
@@ -53,8 +57,9 @@ select (@id := id) - id from t2;
 0
 kill @id;
 drop table t2;
+drop temporary table if exists t3;
 Got one of the listed errors
-include/wait_for_slave_sql_error.inc [errno=1862]
+include/wait_for_slave_sql_error.inc [errno=1884]
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave.inc
 select count(*) from t1;
@@ -76,6 +81,7 @@ update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 select_priv	user
 Y	blafasel2
+include/sync_slave_sql_with_master.inc
 select n from t1;
 n
 3456
@@ -84,4 +90,6 @@ select_priv	user
 Y	blafasel2
 drop table t1;
 delete from mysql.user where user="blafasel2";
+# mysql.user table restored to original values.
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

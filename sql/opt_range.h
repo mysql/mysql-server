@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,11 +29,13 @@
 */
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"                            /* Item */
+#include "prealloced_array.h"
 
 #include <algorithm>
 
 class JOIN;
 class Item_sum;
+class Opt_trace_context;
 
 typedef struct st_key_part {
   uint16           key,part;
@@ -80,9 +82,8 @@ class QUICK_RANGE :public Sql_alloc {
   */
   void make_min_endpoint(key_range *kr, uint prefix_length, 
                          key_part_map keypart_map) {
-    using std::min;
     make_min_endpoint(kr);
-    kr->length= min(kr->length, prefix_length);
+    kr->length= std::min(kr->length, prefix_length);
     kr->keypart_map&= keypart_map;
   }
   
@@ -119,9 +120,8 @@ class QUICK_RANGE :public Sql_alloc {
   */
   void make_max_endpoint(key_range *kr, uint prefix_length, 
                          key_part_map keypart_map) {
-    using std::min;
     make_max_endpoint(kr);
-    kr->length= min(kr->length, prefix_length);
+    kr->length= std::min(kr->length, prefix_length);
     kr->keypart_map&= keypart_map;
   }
 
@@ -279,15 +279,14 @@ public:
   virtual bool clustered_pk_range() { return false; }
   
   /*
-    Request that this quick select produces sorted output if 'sort==true'.
+    Request that this quick select produces sorted output.
     Not all quick selects can provide sorted output, the caller is responsible 
     for calling this function only for those quick selects that can.
-    Caller is allowed to later cancel its sorted request by setting 
-    'sort==false'. However, the implementation is allowed to provide sorted 
-    output even in this case if benificial, or required by implementation 
+    The implementation is also allowed to provide sorted output even if it
+    was not requested if benificial, or required by implementation 
     internals.
   */
-  virtual void need_sorted_output(bool sort) = 0;
+  virtual void need_sorted_output() = 0;
   enum {
     QS_TYPE_RANGE = 0,
     QS_TYPE_INDEX_MERGE = 1,
@@ -373,6 +372,8 @@ public:
   */
   virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
   virtual void set_handler(handler *file_arg) {}
+
+  virtual void trace_quick_description(Opt_trace_context *trace)= 0;
 };
 
 
@@ -381,15 +382,17 @@ class PARAM;
 class SEL_ARG;
 
 
+typedef Prealloced_array<QUICK_RANGE*, 16> Quick_ranges;
+
 /*
   MRR range sequence, array<QUICK_RANGE> implementation: sequence traversal
   context.
 */
 typedef struct st_quick_range_seq_ctx
 {
-  QUICK_RANGE **first;
-  QUICK_RANGE **cur;
-  QUICK_RANGE **last;
+  Quick_ranges::const_iterator first;
+  Quick_ranges::const_iterator cur;
+  Quick_ranges::const_iterator last;
 } QUICK_RANGE_SEQ_CTX;
 
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags);
@@ -398,7 +401,7 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
 
 /*
   Quick select that does a range scan on a single key. The records are
-  returned in key order if ::need_sorted_output(true) has been called.
+  returned in key order if ::need_sorted_output() has been called.
 */
 class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {
@@ -406,6 +409,8 @@ protected:
   handler *file;
   /* Members to deal with case when this quick select is a ROR-merged scan */
   bool in_ror_merged_scan;
+
+  // TODO: pre-allocate space to avoid malloc/free for small number of columns.
   MY_BITMAP column_bitmap;
 
   friend class TRP_ROR_INTERSECT;
@@ -431,7 +436,7 @@ protected:
   friend class QUICK_ROR_INTERSECT_SELECT;
   friend class QUICK_GROUP_MIN_MAX_SELECT;
 
-  DYNAMIC_ARRAY ranges;     /* ordered array of range ptrs */
+  Quick_ranges ranges;     /* ordered array of range ptrs */
   bool free_file;   /* TRUE <=> this->file is "owned" by this quick select */
 
   /* Range pointers to be used when not using MRR interface */
@@ -462,7 +467,7 @@ public:
                      MEM_ROOT *parent_alloc, bool *create_error);
   ~QUICK_RANGE_SELECT();
   
-  void need_sorted_output(bool sort);
+  void need_sorted_output();
   int init();
   int reset(void);
   int get_next();
@@ -485,6 +490,8 @@ public:
   void set_handler(handler *file_arg) { file= file_arg; }
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
+
+  virtual void trace_quick_description(Opt_trace_context *trace);
 };
 
 
@@ -568,7 +575,7 @@ public:
   ~QUICK_INDEX_MERGE_SELECT();
 
   int  init();
-  void need_sorted_output(bool sort) { DBUG_ASSERT(!sort); /* Can't do it */ }
+  void need_sorted_output() { DBUG_ASSERT(false); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() const { return false; }
@@ -597,7 +604,7 @@ public:
   THD *thd;
   int read_keys_and_merge();
 
-  bool clustered_pk_range() { return test(pk_quick_select); }
+  bool clustered_pk_range() { return MY_TEST(pk_quick_select); }
 
   virtual bool is_valid()
   {
@@ -617,6 +624,9 @@ public:
 
   /* used to get rows collected in Unique */
   READ_RECORD read_record;
+
+  void trace_quick_description(Opt_trace_context *trace);
+
 };
 
 
@@ -647,7 +657,7 @@ public:
   ~QUICK_ROR_INTERSECT_SELECT();
 
   int  init();
-  void need_sorted_output(bool sort) { DBUG_ASSERT(!sort); /* Can't do it */ }
+  void need_sorted_output() { DBUG_ASSERT(false); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() const { return false; }
@@ -685,6 +695,8 @@ public:
     return valid;
   }
 
+  void trace_quick_description(Opt_trace_context *trace);
+
   /*
     Merged quick select that uses Clustered PK, if there is one. This quick
     select is not used for row retrieval, it is used for row retrieval.
@@ -719,7 +731,7 @@ public:
   ~QUICK_ROR_UNION_SELECT();
 
   int  init();
-  void need_sorted_output(bool sort) { DBUG_ASSERT(!sort); /* Can't do it */ }
+  void need_sorted_output() { DBUG_ASSERT(false); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() const { return false; }
@@ -752,6 +764,8 @@ public:
     }
     return valid;
   }
+
+  void trace_quick_description(Opt_trace_context *trace);
 
   QUEUE queue;    /* Priority queue for merge operation */
   MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
@@ -819,7 +833,7 @@ private:
   uint min_max_arg_len;  /* The length of the MIN/MAX argument field */
   uchar *key_infix;       /* Infix of constants from equality predicates. */
   uint key_infix_len;
-  DYNAMIC_ARRAY min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
+  Quick_ranges min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
   uint real_prefix_len; /* Length of key prefix extended with key_infix. */
   uint real_key_parts;  /* A number of keyparts in the above value.      */
   List<Item_sum> *min_functions;
@@ -861,7 +875,7 @@ public:
   void adjust_prefix_ranges();
   bool alloc_buffers();
   int init();
-  void need_sorted_output(bool sort) { /* always do it */ }
+  void need_sorted_output() { /* always do it */ }
   int reset();
   int get_next();
   bool reverse_sorted() const { return false; }
@@ -878,6 +892,9 @@ public:
     if (is_index_scan)
       str->append(STRING_WITH_LEN("scanning"));
   }
+
+  void trace_quick_description(Opt_trace_context *trace);
+
 };
 
 
@@ -903,17 +920,24 @@ private:
 };
 
 
+/**
+  This class represents a single-table access method for a range scan
+  with all relevant cost information and the object quick is used for
+  data access. The function test_quick_select() runs the range
+  optimizer, chooses the best range scan access method, stores the
+  cost information for the chosen method and constructs a "quick
+  select" object that represents it.
+*/
 class SQL_SELECT :public Sql_alloc {
  public:
-  QUICK_SELECT_I *quick;	// If quick-select used
-  Item		*cond;		// where condition
-  Item		*icp_cond;	// conditions pushed to index
+  QUICK_SELECT_I *quick;	///< Non-NULL if quick-select used.
+  Item		*cond;		///< Where condition.
+  Item		*icp_cond;	///< Conditions pushed to index.
   TABLE	*head;
-  IO_CACHE file;		// Positions to used records
-  ha_rows records;		// Records in use if read from file
-  double read_time;		// Time to read rows
-  key_map quick_keys;		// Possible quick keys
-  key_map needed_reg;		// Possible quick keys after prev tables.
+  IO_CACHE file;		///< Positions to used records.
+  ha_rows records;		///< Records in use if read from file.
+  double read_time;		///< Time to read rows.
+  key_map needed_reg;		///< Possible quick keys after prev tables.
   table_map const_tables,read_tables;
   bool	free_cond;
 
@@ -930,8 +954,7 @@ class SQL_SELECT :public Sql_alloc {
 
   SQL_SELECT();
   ~SQL_SELECT();
-  void cleanup();
-  void set_quick(QUICK_SELECT_I *new_quick) { delete quick; quick= new_quick; }
+  void set_quick(QUICK_SELECT_I *new_quick);
   bool check_quick(THD *thd, bool force_quick_range, ha_rows limit)
   {
     key_map tmp(key_map::ALL_BITS);
@@ -955,7 +978,12 @@ public:
   FT_SELECT(THD *thd, TABLE *table, uint key, bool *error) :
       QUICK_RANGE_SELECT (thd, table, key, 1, NULL, error) { (void) init(); }
   ~FT_SELECT() { file->ft_end(); }
-  int init() { return file->ft_init(); }
+  int init()
+  {
+    // No estimation is done for FTS, return 1 for compatibility.
+    records= 1;
+    return file->ft_init();
+  }
   int reset() { return 0; }
   int get_next() { return file->ft_read(record); }
   int get_type() { return QS_TYPE_FULLTEXT; }

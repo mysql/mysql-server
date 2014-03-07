@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 #
@@ -13,11 +13,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ./stop_mysqld.sh
 
 # need some extra time
-#for ((i=0; i<1; i++)) ; do echo "." ; sleep 1; done
+#for ((i=0; i<1; i++)) ; do printf "." ; sleep 1 ; done
 
 ./stop_ndb.sh

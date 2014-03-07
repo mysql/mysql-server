@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,25 +22,30 @@
 #include "sp_head.h"      // sp_head
 #include "sp.h"           // sp_get_item_value
 #include "sp_rcontext.h"  // sp_rcontext
-#include "sql_acl.h"      // SELECT_ACL
+#include "auth_common.h"  // SELECT_ACL
 #include "sql_base.h"     // open_temporary_tables
 #include "sql_parse.h"    // check_table_access
 #include "sql_prepare.h"  // reinit_stmt_before_use
 #include "transaction.h"  // trans_commit_stmt
+#include "prealloced_array.h"
 
 #include <algorithm>
+#include <functional>
 
-///////////////////////////////////////////////////////////////////////////
-// Static function implementation.
-///////////////////////////////////////////////////////////////////////////
+#include "trigger.h"                  // Trigger
+#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 
 
-static int cmp_splocal_locations(Item_splocal * const *a,
-                                 Item_splocal * const *b)
+class Cmp_splocal_locations :
+  public std::binary_function<const Item_splocal*, const Item_splocal*, bool>
 {
-  return (int)((*a)->pos_in_query - (*b)->pos_in_query);
-}
-
+public:
+  bool operator()(const Item_splocal *a, const Item_splocal *b)
+  {
+    DBUG_ASSERT(a->pos_in_query != b->pos_in_query);
+    return a->pos_in_query < b->pos_in_query;
+  }
+};
 
 /*
   StoredRoutinesBinlogging
@@ -137,10 +142,8 @@ static int cmp_splocal_locations(Item_splocal * const *a,
 */
 static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 {
-  Dynamic_array<Item_splocal*> sp_vars_uses;
-  char *pbuf, *cur, buffer[512];
-  String qbuf(buffer, sizeof(buffer), &my_charset_bin);
-  int prev_pos, res, buf_len;
+  // Stack-local array, does not need instrumentation.
+  Prealloced_array<Item_splocal*, 16> sp_vars_uses(PSI_NOT_INSTRUMENTED);
 
   /* Find all instances of Item_splocal used in this statement */
   for (Item *item= instr->free_list; item; item= item->next)
@@ -149,27 +152,30 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     {
       Item_splocal *item_spl= (Item_splocal*)item;
       if (item_spl->pos_in_query)
-        sp_vars_uses.append(item_spl);
+        sp_vars_uses.push_back(item_spl);
     }
   }
 
-  if (!sp_vars_uses.elements())
+  if (sp_vars_uses.empty())
     return false;
 
   /* Sort SP var refs by their occurrences in the query */
-  sp_vars_uses.sort(cmp_splocal_locations);
+  std::sort(sp_vars_uses.begin(), sp_vars_uses.end(), Cmp_splocal_locations());
 
   /*
     Construct a statement string where SP local var refs are replaced
     with "NAME_CONST(name, value)"
   */
+  char buffer[512];
+  String qbuf(buffer, sizeof(buffer), &my_charset_bin);
   qbuf.length(0);
-  cur= query_str->str;
-  prev_pos= res= 0;
+  char *cur= query_str->str;
+  int prev_pos= 0;
+  int res= 0;
   thd->query_name_consts= 0;
 
-  for (Item_splocal **splocal= sp_vars_uses.front(); 
-       splocal <= sp_vars_uses.back(); splocal++)
+  for (Item_splocal **splocal= sp_vars_uses.begin(); 
+       splocal != sp_vars_uses.end(); splocal++)
   {
     Item *val;
 
@@ -218,25 +224,11 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
       qbuf.append(cur + prev_pos, query_str->length - prev_pos))
     return true;
 
-  /*
-    Allocate additional space at the end of the new query string for the
-    query_cache_send_result_to_client function.
-
-    The query buffer layout is:
-       buffer :==
-            <statement>   The input statement(s)
-            '\0'          Terminating null char
-            <length>      Length of following current database name (size_t)
-            <db_name>     Name of current database
-            <flags>       Flags struct
-  */
-  buf_len= qbuf.length() + 1 + sizeof(size_t) + thd->db_length + 
-           QUERY_CACHE_FLAGS_SIZE + 1;
-  if ((pbuf= (char *) alloc_root(thd->mem_root, buf_len)))
+  char *pbuf;
+  if ((pbuf= static_cast<char*>(thd->alloc(qbuf.length() + 1))))
   {
     memcpy(pbuf, qbuf.ptr(), qbuf.length());
     pbuf[qbuf.length()]= 0;
-    memcpy(pbuf+qbuf.length()+1, (char *) &thd->db_length, sizeof(size_t));
   }
   else
     return true;
@@ -271,8 +263,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   */
 
   unsigned int parent_unsafe_rollback_flags=
-    thd->transaction.stmt.get_unsafe_rollback_flags();
-  thd->transaction.stmt.reset_unsafe_rollback_flags();
+    thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
+  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   /* Check pre-conditions. */
 
@@ -358,7 +350,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
       key read.
     */
 
-    m_lex->unit.cleanup();
+    m_lex->unit->cleanup(true);
 
     /* Here we also commit or rollback the current statement. */
 
@@ -372,10 +364,18 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     close_thread_tables(thd);
     thd_proc_info(thd, 0);
 
-    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
-      thd->mdl_context.release_transactional_locks();
-    else if (! thd->in_sub_stmt)
-      thd->mdl_context.release_statement_locks();
+    if (! thd->in_sub_stmt)
+    {
+      if (thd->transaction_rollback_request)
+      {
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      }
+      else if (! thd->in_multi_stmt_transaction_mode())
+        thd->mdl_context.release_transactional_locks();
+      else
+        thd->mdl_context.release_statement_locks();
+    }
   }
   else
   {
@@ -420,7 +420,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     what is needed from the substatement gained
   */
 
-  thd->transaction.stmt.add_unsafe_rollback_flags(parent_unsafe_rollback_flags);
+  thd->get_transaction()->add_unsafe_rollback_flags(
+    Transaction_ctx::STMT,
+    parent_unsafe_rollback_flags);
 
   /* Restore original lex. */
 
@@ -443,6 +445,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 {
   String sql_query;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   sql_query.set_charset(system_charset_info);
 
@@ -458,6 +461,26 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     return NULL;
   }
 
+  // Cleanup current THD from previously held objects before new parsing.
+  cleanup_before_parsing(thd);
+
+  // Cleanup and re-init the lex mem_root for re-parse.
+  free_root(&m_lex_mem_root, MYF(0));
+  init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_lex_mem_root,
+                 MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+
+  /*
+    Switch mem-roots. We store the new LEX and its Items in the
+    m_lex_mem_root since it is freed before reparse triggered due to
+    invalidation. This avoids the memory leak in case re-parse is
+    initiated. Also set the statement query arena to the lex mem_root.
+  */
+  MEM_ROOT *execution_mem_root= thd->mem_root;
+  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->state);
+
+  thd->mem_root= &m_lex_mem_root;
+  thd->stmt_arena->set_query_arena(&parse_arena);
+
   // Prepare parser state. It can be done just before parse_sql(), do it here
   // only to simplify exit in case of failure (out-of-memory error).
 
@@ -465,17 +488,6 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 
   if (parser_state.init(thd, sql_query.c_ptr(), sql_query.length()))
     return NULL;
-
-  // Cleanup current THD from previously held objects before new parsing.
-
-  cleanup_before_parsing(thd);
-
-  // Switch mem-roots. We need to store new LEX and its Items in the persistent
-  // SP-memory (memory which is not freed between executions).
-
-  MEM_ROOT *execution_mem_root= thd->mem_root;
-
-  thd->mem_root= thd->sp_runtime_ctx->sp->get_persistent_mem_root();
 
   // Switch THD::free_list. It's used to remember the newly created set of Items
   // during parsing. We should clean those items after each execution.
@@ -496,8 +508,10 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 
   // Parse the just constructed SELECT-statement.
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   bool parsing_failed= parse_sql(thd, &parser_state, NULL);
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   if (!parsing_failed)
@@ -515,17 +529,15 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
         execution.
       */
 
-      Table_triggers_list *ttl= sp->m_trg_list;
-      int event= sp->m_trg_chistics.event;
-      int action_time= sp->m_trg_chistics.action_time;
-      GRANT_INFO *grant_table= &ttl->subject_table_grants[event][action_time];
+      Trigger *t= sp->m_trg_list->find_trigger(thd->lex->sphead->m_name);
 
-      for (Item_trigger_field *trg_field= sp->m_trg_table_fields.first;
-           trg_field;
-           trg_field= trg_field->next_trg_field)
-      {
-        trg_field->setup_field(thd, ttl->trigger_table, grant_table);
-      }
+      DBUG_ASSERT(t);
+
+      if (!t)
+        return NULL; // Don't take chances in production.
+
+      sp->setup_trigger_fields(thd, sp->m_trg_list->get_trigger_field_support(),
+                               t->get_subject_table_grant(), false);
     }
 
     // Call after-parsing callback.
@@ -681,15 +693,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd)
     Destroy items in the instruction's free list before re-parsing the
     statement query string (and thus, creating new items).
   */
-  Item *p= free_list;
-  while (p)
-  {
-    Item *next= p->next;
-    p->delete_self();
-    p= next;
-  }
-
-  free_list= NULL;
+  free_items();
 
   // Remove previously stored trigger-field items.
   sp_head *sp= thd->sp_runtime_ctx->sp;
@@ -718,6 +722,10 @@ void sp_lex_instr::get_query(String *sql_query) const
 // sp_instr_stmt implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_stmt::psi_info=                                    
+{ 0, "stmt", 0};
+#endif
 
 bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
@@ -726,7 +734,9 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   DBUG_PRINT("info", ("query: '%.*s'", (int) m_query.length, m_query.str));
 
-  const CSET_STRING query_backup= thd->query_string;
+  MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, m_query.str, m_query.length);
+
+  const LEX_CSTRING query_backup= thd->query();
 
 #if defined(ENABLED_PROFILING)
   /* This SP-instr is profilable and will be captured. */
@@ -780,10 +790,10 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     queries with SP vars can't be cached)
   */
   if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF)==0))
-    general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+    query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
+                                   thd->query().length);
 
-  if (query_cache_send_result_to_client(thd, thd->query(),
-                                        thd->query_length()) <= 0)
+  if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     rc= validate_lex_and_execute_core(thd, nextp, false);
 
@@ -795,7 +805,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
       thd->protocol->end_statement();
     }
 
-    query_cache_end_of_result(thd);
+    query_cache.end_of_result(thd);
 
     if (!rc && unlikely(log_slow_applicable(thd)))
     {
@@ -825,9 +835,6 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   thd->set_query(query_backup);
   thd->query_name_consts= 0;
-
-  if (!thd->is_error())
-    thd->get_stmt_da()->reset_diagnostics_area();
 
   return rc || thd->is_error();
 }
@@ -859,13 +866,13 @@ void sp_instr_stmt::print(String *str)
   }
   if (m_query.length > SP_STMT_PRINT_MAXLEN)
     str->qs_append(STRING_WITH_LEN("...")); /* Indicate truncated string */
-  str->qs_append('"');
+  str->qs_append(STRING_WITH_LEN("\""));
 }
 
 
 bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 {
-  MYSQL_QUERY_EXEC_START(thd->query(),
+  MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
                          &thd->security_ctx->priv_user[0],
@@ -876,7 +883,6 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   thd->lex->sphead= thd->sp_runtime_ctx->sp;
 
   PSI_statement_locker *statement_psi_saved= thd->m_statement_psi;
-  thd->m_statement_psi= NULL;
 
   bool rc= mysql_execute_command(thd);
 
@@ -896,6 +902,10 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 // sp_instr_set implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_set::psi_info=                                     
+{ 0, "set", 0};
+#endif
 
 bool sp_instr_set::exec_core(THD *thd, uint *nextp)
 {
@@ -943,6 +953,10 @@ void sp_instr_set::print(String *str)
 // sp_instr_set_trigger_field implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_set_trigger_field::psi_info=                       
+{ 0, "set_trigger_field", 0};
+#endif
 
 bool sp_instr_set_trigger_field::exec_core(THD *thd, uint *nextp)
 {
@@ -963,15 +977,15 @@ void sp_instr_set_trigger_field::print(String *str)
 
 bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
 {
-  DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+  DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
 
-  m_value_item= thd->lex->select_lex.item_list.head();
+  m_value_item= thd->lex->select_lex->item_list.head();
 
   DBUG_ASSERT(!m_trigger_field);
 
   m_trigger_field=
     new (thd->mem_root) Item_trigger_field(thd->lex->current_context(),
-                                           Item_trigger_field::NEW_ROW,
+                                           TRG_NEW_ROW,
                                            m_trigger_field_name.str,
                                            UPDATE_ACL,
                                            false);
@@ -992,6 +1006,10 @@ void sp_instr_set_trigger_field::cleanup_before_parsing(THD *thd)
 // sp_instr_jump implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_jump::psi_info=                                    
+{ 0, "jump", 0};
+#endif
 
 void sp_instr_jump::print(String *str)
 {
@@ -1047,6 +1065,10 @@ void sp_instr_jump::opt_move(uint dst, List<sp_branch_instr> *bp)
 // sp_instr_jump_if_not class implementation
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_jump_if_not::psi_info=                             
+{ 0, "jump_if_not", 0};
+#endif
 
 bool sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 {
@@ -1139,6 +1161,10 @@ void sp_lex_branch_instr::opt_move(uint dst, List<sp_branch_instr> *bp)
 // sp_instr_jump_case_when implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_jump_case_when::psi_info=                          
+{ 0, "jump_case_when", 0};
+#endif
 
 bool sp_instr_jump_case_when::exec_core(THD *thd, uint *nextp)
 {
@@ -1196,9 +1222,9 @@ bool sp_instr_jump_case_when::build_expr_items(THD *thd)
 
   if (!m_expr_item)
   {
-    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
 
-    m_expr_item= thd->lex->select_lex.item_list.head();
+    m_expr_item= thd->lex->select_lex->item_list.head();
   }
 
   // Setup main expression item (m_expr_item).
@@ -1216,17 +1242,13 @@ bool sp_instr_jump_case_when::build_expr_items(THD *thd)
 // sp_instr_freturn implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_freturn::psi_info=                                 
+{ 0, "freturn", 0};
+#endif
 
 bool sp_instr_freturn::exec_core(THD *thd, uint *nextp)
 {
-  /*
-    RETURN is a "procedure statement" (in terms of the SQL standard).
-    That means, Diagnostics Area should be clean before its execution.
-  */
-
-  Diagnostics_area *da= thd->get_stmt_da();
-  da->reset_condition_info(da->statement_id());
-
   /*
     Change <next instruction pointer>, so that this will be the last
     instruction in the stored function.
@@ -1262,6 +1284,10 @@ void sp_instr_freturn::print(String *str)
 // sp_instr_hpush_jump implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_hpush_jump::psi_info=                              
+{ 0, "hpush_jump", 0};
+#endif
 
 bool sp_instr_hpush_jump::execute(THD *thd, uint *nextp)
 {
@@ -1282,17 +1308,7 @@ void sp_instr_hpush_jump::print(String *str)
   str->qs_append(' ');
   str->qs_append(m_frame);
 
-  switch (m_handler->type) {
-  case sp_handler::EXIT:
-    str->qs_append(STRING_WITH_LEN(" EXIT"));
-    break;
-  case sp_handler::CONTINUE:
-    str->qs_append(STRING_WITH_LEN(" CONTINUE"));
-    break;
-  default:
-    // The handler type must be either CONTINUE or EXIT.
-    DBUG_ASSERT(0);
-  }
+  m_handler->print(str);
 }
 
 
@@ -1334,6 +1350,10 @@ uint sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
 // sp_instr_hpop implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_hpop::psi_info=                                    
+{ 0, "hpop", 0};
+#endif
 
 bool sp_instr_hpop::execute(THD *thd, uint *nextp)
 {
@@ -1347,6 +1367,10 @@ bool sp_instr_hpop::execute(THD *thd, uint *nextp)
 // sp_instr_hreturn implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_hreturn::psi_info=                                 
+{ 0, "hreturn", 0};
+#endif
 
 bool sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
@@ -1415,6 +1439,10 @@ uint sp_instr_hreturn::opt_mark(sp_head *sp, List<sp_instr> *leads)
 // sp_instr_cpush implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_cpush::psi_info=                                   
+{ 0, "cpush", 0};
+#endif
 
 bool sp_instr_cpush::execute(THD *thd, uint *nextp)
 {
@@ -1464,6 +1492,10 @@ void sp_instr_cpush::print(String *str)
 // sp_instr_cpop implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_cpop::psi_info=                                    
+{ 0, "cpop", 0};
+#endif
 
 bool sp_instr_cpop::execute(THD *thd, uint *nextp)
 {
@@ -1488,9 +1520,16 @@ void sp_instr_cpop::print(String *str)
 // sp_instr_copen implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_copen::psi_info=                                   
+{ 0, "copen", 0};
+#endif
 
 bool sp_instr_copen::execute(THD *thd, uint *nextp)
 {
+  // Manipulating a CURSOR with an expression should clear DA.
+  clear_da(thd);
+
   *nextp= get_ip() + 1;
 
   // Get the cursor pointer.
@@ -1556,9 +1595,16 @@ void sp_instr_copen::print(String *str)
 // sp_instr_cclose implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_cclose::psi_info=                                  
+{ 0, "cclose", 0};
+#endif
 
 bool sp_instr_cclose::execute(THD *thd, uint *nextp)
 {
+  // Manipulating a CURSOR with an expression should clear DA.
+  clear_da(thd);
+
   *nextp= get_ip() + 1;
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
@@ -1592,9 +1638,16 @@ void sp_instr_cclose::print(String *str)
 // sp_instr_cfetch implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_cfetch::psi_info=                                  
+{ 0, "cfetch", 0};
+#endif
 
 bool sp_instr_cfetch::execute(THD *thd, uint *nextp)
 {
+  // Manipulating a CURSOR with an expression should clear DA.
+  clear_da(thd);
+
   *nextp= get_ip() + 1;
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
@@ -1639,6 +1692,10 @@ void sp_instr_cfetch::print(String *str)
 // sp_instr_error implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_error::psi_info=                                   
+{ 0, "error", 0};
+#endif
 
 void sp_instr_error::print(String *str)
 {
@@ -1654,6 +1711,10 @@ void sp_instr_error::print(String *str)
 // sp_instr_set_case_expr implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sp_instr_set_case_expr::psi_info=                           
+{ 0, "set_case_expr", 0};
+#endif
 
 bool sp_instr_set_case_expr::exec_core(THD *thd, uint *nextp)
 {

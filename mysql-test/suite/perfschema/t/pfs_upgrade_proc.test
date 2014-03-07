@@ -32,4 +32,3 @@ select name from mysql.proc where db='performance_schema';
 
 update mysql.proc set db='test' where name='user_proc';
 drop procedure test.user_proc;
-

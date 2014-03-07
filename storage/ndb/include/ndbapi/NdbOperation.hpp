@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -806,6 +806,12 @@ public:
    * @note A method also exists without the error parameter.
    * 
    * @param ErrorCode   An error code given by the application programmer.
+   *                    If not supplied, defaults to 899. Applications should 
+   *                    use error code 626 or any code in the [6000-6999] 
+   *                    range.  Error code 899 is supported for backwards 
+   *                    compatibility, but 626 is recommmended instead. For 
+   *                    other codes, the behavior is undefined and may change 
+   *                    at any time without prior notice.
    * @return            -1 if unsuccessful.
    */
   int   interpret_exit_nok(Uint32 ErrorCode);
@@ -1050,7 +1056,8 @@ public:
                  OO_LOCKHANDLE   = 0x80,
                  OO_QUEUABLE     = 0x100,
                  OO_NOT_QUEUABLE = 0x200,
-                 OO_DEFERRED_CONSTAINTS = 0x400
+                 OO_DEFERRED_CONSTAINTS = 0x400,
+                 OO_DISABLE_FK   = 0x800
     };
 
     /* An operation-specific abort option.
@@ -1092,6 +1099,11 @@ public:
    */
   const NdbLockHandle* getLockHandle() const;
   const NdbLockHandle* getLockHandle();
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  // XXX until NdbRecord is used in ndb_restore
+  void set_disable_fk() { m_flags |= OF_DISABLE_FK; }
+#endif
 
 protected:
 /******************************************************************************
@@ -1450,7 +1462,8 @@ protected:
     */
     OF_USE_ANY_VALUE = 0x2,
     OF_QUEUEABLE = 0x4,
-    OF_DEFERRED_CONSTRAINTS = 0x8
+    OF_DEFERRED_CONSTRAINTS = 0x8,
+    OF_DISABLE_FK = 0x10
   };
   Uint8  m_flags;
 

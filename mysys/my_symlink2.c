@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,7 +141,7 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
     DBUG_RETURN(my_rename(from, to, MyFlags));
 
   /* Change filename that symlink pointed to */
-  strmov(tmp_name, to);
+  my_stpcpy(tmp_name, to);
   fn_same(tmp_name,link_name,1);		/* Copy dir */
   name_is_different= strcmp(link_name, tmp_name);
   if (name_is_different && !access(tmp_name, F_OK))

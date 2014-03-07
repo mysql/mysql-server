@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +45,6 @@ public:
   const char * getText() const;
 
   SignalCounter& operator=(const NdbNodeBitmask & bitmask);
-  SignalCounter& operator=(const NodeReceiverGroup& rg);
 
   /**
    * When sending to same node
@@ -160,15 +158,6 @@ SignalCounter&
 SignalCounter::operator=(const NdbNodeBitmask & bitmask){
   m_nodes = bitmask;
   m_count = bitmask.count();
-  return * this;
-}
-
-inline
-SignalCounter&
-SignalCounter::operator=(const NodeReceiverGroup & rg){
-  assert(rg.m_nodes.find(65) == NodeBitmask::NotFound);
-  memcpy(&m_nodes, &rg.m_nodes, sizeof(m_nodes));
-  m_count = m_nodes.count();
   return * this;
 }
 

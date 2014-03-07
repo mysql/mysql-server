@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#define CHECK_VERSION "2.5.0"
+#define CHECK_VERSION "2.5.1"
 
 #include "client_priv.h"
 #include "my_default.h"
@@ -30,6 +30,10 @@
 #define EX_USAGE 1
 #define EX_MYSQLERR 2
 
+/* ALTER instead of repair. */
+#define MAX_ALTER_STR_SIZE 128 * 1024
+#define KEY_PARTITIONING_CHANGED_STR "KEY () partitioning changed"
+
 static MYSQL mysql_connection, *sock = 0;
 static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_compress = 0, opt_databases = 0, opt_fast = 0,
@@ -37,7 +41,7 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
                tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
                opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_write_binlog= 1;
+               opt_write_binlog= 1, opt_secure_auth=TRUE;
 static uint verbose = 0, opt_mysql_port=0;
 static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
@@ -45,8 +49,9 @@ static char *opt_password = 0, *current_user = 0,
 	    *default_charset= 0, *current_host= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
-DYNAMIC_ARRAY tables4repair, tables4rebuild;
-#ifdef HAVE_SMEM
+static char *opt_skip_database;
+DYNAMIC_ARRAY tables4repair, tables4rebuild, alter_table_cmds;
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -139,12 +144,15 @@ static struct my_option my_long_options[] =
    "when commands should not be sent to replication slaves.",
    &opt_write_binlog, &opt_write_binlog, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given, it's solicited on the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -168,13 +176,16 @@ static struct my_option my_long_options[] =
   {"repair", 'r',
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"silent", 's', "Print only error messages.", &opt_silent,
    &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip_database", 0, "Don't process the database specified as argument", 
+   &opt_skip_database, &opt_skip_database, 0, GET_STR, REQUIRED_ARG, 
+   0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -292,7 +303,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       char *start = argument;
       my_free(opt_password);
-      opt_password = my_strdup(argument, MYF(MY_FAE));
+      opt_password = my_strdup(PSI_NOT_INSTRUMENTED,
+                               argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1] = 0;                             /* Cut length of argument */
@@ -309,7 +321,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_upgrade= 1;
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
@@ -397,6 +409,7 @@ static int get_options(int *argc, char ***argv)
 	   my_progname);
     return 1;
   }
+
   if (*argc < 1 && !opt_alldbs)
   {
     printf("You forgot to give the arguments! Please see %s --help\n",
@@ -468,7 +481,8 @@ static int process_selected_tables(char *db, char **table_names, int tables)
       tot_length+= fixed_name_length(*(table_names + i)) + 2;
 
     if (!(table_names_comma_sep = (char *)
-	  my_malloc((sizeof(char) * tot_length) + 4, MYF(MY_WME))))
+	  my_malloc(PSI_NOT_INSTRUMENTED,
+                    (sizeof(char) * tot_length) + 4, MYF(MY_WME))))
       return 1;
 
     for (end = table_names_comma_sep + 1; tables > 0;
@@ -497,8 +511,6 @@ static uint fixed_name_length(const char *name)
   {
     if (*p == '`')
       extra_length++;
-    else if (*p == '.')
-      extra_length+= 2;
   }
   return (uint) ((p - name) + extra_length);
 }
@@ -510,11 +522,6 @@ static char *fix_table_name(char *dest, char *src)
   for (; *src; src++)
   {
     switch (*src) {
-    case '.':            /* add backticks around '.' */
-      *dest++= '`';
-      *dest++= '.';
-      *dest++= '`';
-      break;
     case '`':            /* escape backtick character */
       *dest++= '`';
       /* fall through */
@@ -529,11 +536,10 @@ static char *fix_table_name(char *dest, char *src)
 
 static int process_all_tables_in_db(char *database)
 {
-  MYSQL_RES *res;
+  MYSQL_RES *res= NULL;
   MYSQL_ROW row;
   uint num_columns;
 
-  LINT_INIT(res);
   if (use_db(database))
     return 1;
   if ((mysql_query(sock, "SHOW /*!50002 FULL*/ TABLES") &&
@@ -562,7 +568,8 @@ static int process_all_tables_in_db(char *database)
       tot_length+= fixed_name_length(row[0]) + 2;
     mysql_data_seek(res, 0);
 
-    if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+4, MYF(MY_WME))))
+    if (!(tables=(char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                    sizeof(char)*tot_length+4, MYF(MY_WME))))
     {
       mysql_free_result(res);
       return 1;
@@ -596,6 +603,17 @@ static int process_all_tables_in_db(char *database)
 } /* process_all_tables_in_db */
 
 
+static int run_query(const char *query)
+{
+  if (mysql_query(sock, query))
+  {
+    fprintf(stderr, "Failed to %s\n", query);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    return 1;
+  }
+  return 0;
+}
+
 
 static int fix_table_storage_name(const char *name)
 {
@@ -604,12 +622,7 @@ static int fix_table_storage_name(const char *name)
   if (strncmp(name, "#mysql50#", 9))
     return 1;
   sprintf(qbuf, "RENAME TABLE `%s` TO `%s`", name, name + 9);
-  if (mysql_query(sock, qbuf))
-  {
-    fprintf(stderr, "Failed to %s\n", qbuf);
-    fprintf(stderr, "Error: %s\n", mysql_error(sock));
-    rc= 1;
-  }
+  rc= run_query(qbuf);
   if (verbose)
     printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
   return rc;
@@ -622,12 +635,7 @@ static int fix_database_storage_name(const char *name)
   if (strncmp(name, "#mysql50#", 9))
     return 1;
   sprintf(qbuf, "ALTER DATABASE `%s` UPGRADE DATA DIRECTORY NAME", name);
-  if (mysql_query(sock, qbuf))
-  {
-    fprintf(stderr, "Failed to %s\n", qbuf);
-    fprintf(stderr, "Error: %s\n", mysql_error(sock));
-    rc= 1;
-  }
+  rc= run_query(qbuf);
   if (verbose)
     printf("%-50s %s\n", name, rc ? "FAILED" : "OK");
   return rc;
@@ -637,11 +645,12 @@ static int rebuild_table(char *name)
 {
   char *query, *ptr;
   int rc= 0;
-  query= (char*)my_malloc(sizeof(char) * (12 + fixed_name_length(name) + 6 + 1),
+  query= (char*)my_malloc(PSI_NOT_INSTRUMENTED,
+                          sizeof(char) * (12 + fixed_name_length(name) + 6 + 1),
                           MYF(MY_WME));
   if (!query)
     return 1;
-  ptr= strmov(query, "ALTER TABLE ");
+  ptr= my_stpcpy(query, "ALTER TABLE ");
   ptr= fix_table_name(ptr, name);
   ptr= strxmov(ptr, " FORCE", NullS);
   if (mysql_real_query(sock, query, (uint)(ptr - query)))
@@ -656,6 +665,10 @@ static int rebuild_table(char *name)
 
 static int process_one_db(char *database)
 {
+  if (opt_skip_database && opt_alldbs &&
+      !strcmp(database, opt_skip_database))
+    return 0;
+
   if (what_to_do == DO_UPGRADE)
   {
     int rc= 0;
@@ -690,13 +703,7 @@ static int use_db(char *database)
 static int disable_binlog()
 {
   const char *stmt= "SET SQL_LOG_BIN=0";
-  if (mysql_query(sock, stmt))
-  {
-    fprintf(stderr, "Failed to %s\n", stmt);
-    fprintf(stderr, "Error: %s\n", mysql_error(sock));
-    return 1;
-  }
-  return 0;
+  return run_query(stmt);
 }
 
 static int handle_request_for_tables(char *tables, uint length)
@@ -710,18 +717,18 @@ static int handle_request_for_tables(char *tables, uint length)
   switch (what_to_do) {
   case DO_CHECK:
     op = "CHECK";
-    if (opt_quick)              end = strmov(end, " QUICK");
-    if (opt_fast)               end = strmov(end, " FAST");
-    if (opt_medium_check)       end = strmov(end, " MEDIUM"); /* Default */
-    if (opt_extended)           end = strmov(end, " EXTENDED");
-    if (opt_check_only_changed) end = strmov(end, " CHANGED");
-    if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
+    if (opt_quick)              end = my_stpcpy(end, " QUICK");
+    if (opt_fast)               end = my_stpcpy(end, " FAST");
+    if (opt_medium_check)       end = my_stpcpy(end, " MEDIUM"); /* Default */
+    if (opt_extended)           end = my_stpcpy(end, " EXTENDED");
+    if (opt_check_only_changed) end = my_stpcpy(end, " CHANGED");
+    if (opt_upgrade)            end = my_stpcpy(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
     op= (opt_write_binlog) ? "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG";
-    if (opt_quick)              end = strmov(end, " QUICK");
-    if (opt_extended)           end = strmov(end, " EXTENDED");
-    if (opt_frm)                end = strmov(end, " USE_FRM");
+    if (opt_quick)              end = my_stpcpy(end, " QUICK");
+    if (opt_extended)           end = my_stpcpy(end, " EXTENDED");
+    if (opt_frm)                end = my_stpcpy(end, " USE_FRM");
     break;
   case DO_ANALYZE:
     op= (opt_write_binlog) ? "ANALYZE" : "ANALYZE NO_WRITE_TO_BINLOG";
@@ -733,7 +740,8 @@ static int handle_request_for_tables(char *tables, uint length)
     return fix_table_storage_name(tables);
   }
 
-  if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
+  if (!(query =(char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                  (sizeof(char)*(length+110)), MYF(MY_WME))))
     return 1;
   if (opt_all_in_1)
   {
@@ -744,7 +752,7 @@ static int handle_request_for_tables(char *tables, uint length)
   {
     char *ptr;
 
-    ptr= strmov(strmov(query, op), " TABLE ");
+    ptr= my_stpcpy(my_stpcpy(query, op), " TABLE ");
     ptr= fix_table_name(ptr, tables);
     ptr= strxmov(ptr, " ", options, NullS);
     query_length= (uint) (ptr - query);
@@ -765,13 +773,19 @@ static void print_result()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  char prev[NAME_LEN*2+2];
+  char prev[NAME_LEN*3+2];
+  char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
+  char *db_name;
+  uint length_of_db;
   my_bool found_error=0, table_rebuild=0;
 
   res = mysql_use_result(sock);
+  db_name= sock->db;
+  length_of_db= strlen(db_name);
 
   prev[0] = '\0';
+  prev_alter[0]= 0;
   for (i = 0; (row = mysql_fetch_row(res)); i++)
   {
     int changed = strcmp(prev, row[0]);
@@ -788,12 +802,25 @@ static void print_result()
 	  strcmp(row[3],"OK"))
       {
         if (table_rebuild)
-          insert_dynamic(&tables4rebuild, prev);
-        else
-          insert_dynamic(&tables4repair, prev);
+        {
+          if (prev_alter[0])
+            insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
+          else
+	  {
+	    char *table_name= prev + (length_of_db+1);
+            insert_dynamic(&tables4rebuild, (uchar*) table_name);
+	  }
+	}
+         else
+         {
+	   char *table_name= prev + (length_of_db+1);
+           insert_dynamic(&tables4repair, (uchar*) table_name);
+         }
+
       }
       found_error=0;
       table_rebuild=0;
+      prev_alter[0]= 0;
       if (opt_silent)
 	continue;
     }
@@ -802,25 +829,55 @@ static void print_result()
     else if (!status && changed)
     {
       printf("%s\n%-9s: %s", row[0], row[2], row[3]);
-      if (strcmp(row[2],"note"))
+      if (opt_auto_repair && strcmp(row[2],"note"))
       {
-	found_error=1;
-        if (opt_auto_repair && strstr(row[3], "ALTER TABLE") != NULL)
+        const char *alter_txt= strstr(row[3], "ALTER TABLE");
+        found_error=1;
+        if (alter_txt)
+        {
           table_rebuild=1;
+          if (!strncmp(row[3], KEY_PARTITIONING_CHANGED_STR,
+                       strlen(KEY_PARTITIONING_CHANGED_STR)) &&
+              strstr(alter_txt, "PARTITION BY"))
+          {
+            if (strlen(alter_txt) >= MAX_ALTER_STR_SIZE)
+            {
+              printf("Error: Alter command too long (>= %d),"
+                     " please do \"%s\" or dump/reload to fix it!\n",
+                     MAX_ALTER_STR_SIZE,
+                     alter_txt);
+              table_rebuild= 0;
+              prev_alter[0]= 0;
+            }
+            else
+              strcpy(prev_alter, alter_txt);
+          }
+        }
       }
     }
     else
       printf("%-9s: %s", row[2], row[3]);
-    strmov(prev, row[0]);
+    my_stpcpy(prev, row[0]);
     putchar('\n');
   }
   /* add the last table to be repaired to the list */
   if (found_error && opt_auto_repair && what_to_do != DO_REPAIR)
   {
     if (table_rebuild)
-      insert_dynamic(&tables4rebuild, prev);
+    {
+      if (prev_alter[0])
+        insert_dynamic(&alter_table_cmds, (uchar*) prev_alter);
+      else
+      {
+        char *table_name= prev + (length_of_db+1);
+        insert_dynamic(&tables4rebuild, (uchar*) table_name);
+      }
+    }
     else
-      insert_dynamic(&tables4repair, prev);
+    {
+      char *table_name= prev + (length_of_db+1);
+      insert_dynamic(&tables4repair, (uchar*) table_name);
+    }
   }
   mysql_free_result(res);
 }
@@ -836,20 +893,14 @@ static int dbConnect(char *host, char *user, char *passwd)
   mysql_init(&mysql_connection);
   if (opt_compress)
     mysql_options(&mysql_connection, MYSQL_OPT_COMPRESS, NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-#endif
+  SSL_SET_OPTIONS(&mysql_connection);
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection, MYSQL_OPT_BIND, opt_bind_addr);
-#ifdef HAVE_SMEM
+  if (!opt_secure_auth)
+    mysql_options(&mysql_connection, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -929,7 +980,8 @@ int main(int argc, char **argv)
 
   if (opt_auto_repair &&
       (my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64) ||
-       my_init_dynamic_array(&tables4rebuild, sizeof(char)*(NAME_LEN*2+2),16,64)))
+       my_init_dynamic_array(&tables4rebuild, sizeof(char)*(NAME_LEN*2+2),16,64) ||
+       my_init_dynamic_array(&alter_table_cmds, MAX_ALTER_STR_SIZE, 0, 1)))
   {
     first_error = 1;
     goto end;
@@ -957,6 +1009,8 @@ int main(int argc, char **argv)
     }
     for (i = 0; i < tables4rebuild.elements ; i++)
       rebuild_table((char*) dynamic_array_ptr(&tables4rebuild, i));
+    for (i = 0; i < alter_table_cmds.elements ; i++)
+      run_query((char*) dynamic_array_ptr(&alter_table_cmds, i));
   }
  end:
   dbDisconnect(current_host);
@@ -966,7 +1020,7 @@ int main(int argc, char **argv)
     delete_dynamic(&tables4rebuild);
   }
   my_free(opt_password);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   my_end(my_end_arg);

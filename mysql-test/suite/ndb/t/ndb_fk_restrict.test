@@ -1,0 +1,335 @@
+-- source include/have_ndb.inc
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+###
+### PK vs PK
+###
+create table parent (
+  a int primary key auto_increment,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table child (
+  a int primary key auto_increment,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+alter table child add constraint fkname foreign key (a) references parent(a) on delete restrict on update restrict;
+
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+
+--error 1452
+insert into child values (2,2,2);
+
+begin;
+--error 1451
+delete from parent;
+rollback;
+
+delete from child;
+delete from parent;
+
+begin;
+--error 1452
+insert into child values (2,2,2);
+rollback;
+
+delete from child;
+delete from parent;
+
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+###
+### PK vs UK
+###
+alter table child add constraint fkname foreign key (b) references parent(a) on delete restrict on update restrict;
+
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+
+--error 1452
+insert into child values (2,2,2);
+
+--error 1452
+update child set b = 2 where a = 1;
+
+begin;
+--error 1451
+delete from parent;
+rollback;
+
+delete from child;
+delete from parent;
+
+begin;
+--error 1452
+insert into child values (2,2,2);
+rollback;
+
+delete from child;
+delete from parent;
+
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+###
+### UK vs PK
+###
+alter table child add constraint fkname foreign key (a) references parent(b) on delete restrict on update restrict;
+
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+
+--error 1452
+insert into child values (2,2,2);
+
+--error 1451
+update parent set b = 2 where a = 1;
+
+begin;
+--error 1451
+delete from parent;
+rollback;
+
+delete from child;
+delete from parent;
+
+begin;
+--error 1452
+insert into child values (2,2,2);
+rollback;
+
+delete from child;
+delete from parent;
+
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+###
+### UK vs UK
+###
+alter table child add constraint fkname foreign key (b) references parent(b) on delete restrict on update restrict;
+
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+
+--error 1452
+update child set b = 2 where a = 1;
+
+--error 1452
+insert into child values (2,2,2);
+
+--error 1451
+update parent set b = 2 where a = 1;
+
+begin;
+--error 1451
+delete from parent;
+rollback;
+
+delete from child;
+delete from parent;
+
+begin;
+--error 1452
+insert into child values (2,2,2);
+rollback;
+
+delete from child;
+delete from parent;
+
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+###
+### PK vs OI
+###
+alter table child add constraint fkname foreign key (c) references parent(a) on delete restrict on update restrict;
+
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+
+--error 1452
+update child set c = 2 where a = 1;
+
+--error 1452
+insert into child values (2,2,2);
+
+begin;
+--error 1451
+delete from parent;
+rollback;
+
+delete from child;
+delete from parent;
+
+begin;
+--error 1452
+insert into child values (2,2,2);
+rollback;
+
+delete from child;
+delete from parent;
+
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+###
+### UK vs OI
+###
+alter table child add constraint fkname foreign key (c) references parent(b) on delete restrict on update restrict;
+
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+
+--error 1452
+update child set c = 2 where a = 1;
+
+--error 1452
+insert into child values (2,2,2);
+
+--error 1451
+update parent set b = 2 where a = 1;
+
+begin;
+--error 1451
+delete from parent;
+rollback;
+
+delete from child;
+delete from parent;
+
+begin;
+--error 1452
+insert into child values (2,2,2);
+rollback;
+
+delete from child;
+delete from parent;
+
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+drop table parent, child;

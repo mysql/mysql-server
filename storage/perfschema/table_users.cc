@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "pfs_account.h"
 #include "pfs_user.h"
 #include "pfs_visitor.h"
+#include "pfs_memory.h"
 
 THR_LOCK table_users::m_table_lock;
 
@@ -52,11 +53,10 @@ table_users::m_share=
 {
   { C_STRING_WITH_LEN("users") },
   &pfs_truncatable_acl,
-  &table_users::create,
+  table_users::create,
   NULL, /* write_row */
   table_users::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  cursor_by_user::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -80,6 +80,9 @@ table_users::delete_all_rows(void)
   reset_events_statements_by_thread();
   reset_events_statements_by_account();
   reset_events_statements_by_user();
+  reset_memory_by_thread();
+  reset_memory_by_account();
+  reset_memory_by_user();
   purge_all_account();
   purge_all_user();
   return 0;
@@ -92,7 +95,7 @@ table_users::table_users()
 
 void table_users::make_row(PFS_user *pfs)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
 
   m_row_exists= false;
   pfs->m_lock.begin_optimistic_lock(&lock);

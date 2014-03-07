@@ -20,7 +20,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (3, "row4"), (4, "row4");
 
 CREATE USER 'testuser1'@'localhost';
---connect(user1,localhost,testuser1,,test,$MASTER_MYPORT1)
+--connect(user1,127.0.0.1,testuser1,,test,$MASTER_MYPORT)
 
 #####################################################
 # SET PASSWORD
@@ -167,7 +167,7 @@ let $chk= SELECT COUNT(Column_priv) FROM mysql.columns_priv
 #
 
 --connection server2
-let $cmd= CREATE USER testuser2@localhost IDENTIFIED BY PASSWORD 'pass4';
+let $cmd= CREATE USER testuser2@localhost IDENTIFIED BY 'pass4';
 let $chk= SELECT COUNT(*)=1 FROM mysql.user
           WHERE Host='localhost' AND User='testuser2';
 --source ndb_dist_priv_check.inc

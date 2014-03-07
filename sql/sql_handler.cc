@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,7 +168,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   TABLE_LIST    *hash_tables = NULL;
   char          *db, *name, *alias;
   uint          dblen, namelen, aliaslen;
-  TABLE_LIST    *tables= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
+  TABLE_LIST    *tables= thd->lex->select_lex->get_table_list();
   DBUG_ENTER("Sql_cmd_handler_open::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
                       tables->db, tables->table_name, tables->alias));
@@ -223,7 +223,8 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   dblen= strlen(tables->db) + 1;
   namelen= strlen(tables->table_name) + 1;
   aliaslen= strlen(tables->alias) + 1;
-  if (!(my_multi_malloc(MYF(MY_WME),
+  if (!(my_multi_malloc(key_memory_THD_handler_tables_hash,
+                        MYF(MY_WME),
                         &hash_tables, (uint) sizeof(*hash_tables),
                         &db, (uint) dblen,
                         &name, (uint) namelen,
@@ -246,8 +247,9 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     right from the start as open_tables() can't handle properly
     back-off for such locks.
   */
-  hash_tables->mdl_request.init(MDL_key::TABLE, db, name, MDL_SHARED,
-                                MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&hash_tables->mdl_request,
+                   MDL_key::TABLE, db, name, MDL_SHARED,
+                   MDL_TRANSACTION);
   /* for now HANDLER can be used only for real TABLES */
   hash_tables->required_type= FRMTYPE_TABLE;
 
@@ -340,7 +342,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
       If called for re-open, no need to rollback either,
       it will be done at statement end.
     */
-    DBUG_ASSERT(thd->transaction.stmt.is_empty());
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
     close_thread_tables(thd);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
     thd->set_open_tables(backup_open_tables);
@@ -392,7 +394,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
 
 bool Sql_cmd_handler_close::execute(THD *thd)
 {
-  TABLE_LIST    *tables= (TABLE_LIST*) thd->lex->select_lex.table_list.first;
+  TABLE_LIST    *tables= thd->lex->select_lex->get_table_list();
   TABLE_LIST    *hash_tables;
   DBUG_ENTER("Sql_cmd_handler_close::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
@@ -503,15 +505,15 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   String	buffer(buff, sizeof(buff), system_charset_info);
   int           error, keyno= -1;
   uint          num_rows;
-  uchar		*UNINIT_VAR(key);
-  uint		UNINIT_VAR(key_len);
+  uchar		*key= NULL;
+  uint		key_len= 0;
   Sql_handler_lock_error_handler sql_handler_lock_error;
   LEX           *lex= thd->lex;
-  SELECT_LEX    *select_lex= &lex->select_lex;
-  SELECT_LEX_UNIT *unit= &lex->unit;
-  TABLE_LIST    *tables= select_lex->table_list.first;
+  SELECT_LEX    *select_lex= lex->select_lex;
+  SELECT_LEX_UNIT *unit= lex->unit;
+  TABLE_LIST    *tables= select_lex->get_table_list();
   enum enum_ha_read_modes mode= m_read_mode;
-  Item          *cond= select_lex->where;
+  Item          *cond= select_lex->where_cond();
   ha_rows select_limit_cnt, offset_limit_cnt;
   DBUG_ENTER("Sql_cmd_handler_read::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
@@ -524,10 +526,9 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  if (tables && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
+  if (tables &&
+      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
   {
-    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(true);
   }
 
@@ -583,6 +584,13 @@ retry:
     goto err0;
   }
 
+  /*
+     Table->map should be set before we call fix_fields.
+     And we consider that handle statement operate on table number 0.
+  */
+  table->tablenr= 0;
+  table->map= (table_map)1 << table->tablenr;
+
   /* save open_tables state */
   backup_open_tables= thd->open_tables;
   /* Always a one-element list, see mysql_ha_open(). */
@@ -616,7 +624,10 @@ retry:
     /*
       Always close statement transaction explicitly,
       so that the engine doesn't have to count locks.
+      There should be no need to perform transaction
+      rollback due to deadlock.
     */
+    DBUG_ASSERT(! thd->transaction_rollback_request);
     trans_rollback_stmt(thd);
     mysql_ha_close_table(thd, hash_tables);
     goto retry;
@@ -855,10 +866,15 @@ static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables)
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
     for (tables= first; tables; tables= tables->next_local)
     {
-      if ((! *tables->db ||
-          ! my_strcasecmp(&my_charset_latin1, hash_tables->db, tables->db)) &&
-          ! my_strcasecmp(&my_charset_latin1, hash_tables->table_name,
-                          tables->table_name))
+      if (tables->is_anonymous_derived_table())
+        continue;
+      if ((! *tables->get_db_name() ||
+          ! my_strcasecmp(&my_charset_latin1,
+                          hash_tables->get_db_name(),
+                          tables->get_db_name())) &&
+          ! my_strcasecmp(&my_charset_latin1,
+                          hash_tables->get_table_name(),
+                          tables->get_table_name()))
         break;
     }
     if (tables)

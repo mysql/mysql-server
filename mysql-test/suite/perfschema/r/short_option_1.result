@@ -23,4 +23,4 @@ Variable_name	Value
 new	ON
 show variables like 'log_warnings';
 Variable_name	Value
-log_warnings	3
+log_warnings	2

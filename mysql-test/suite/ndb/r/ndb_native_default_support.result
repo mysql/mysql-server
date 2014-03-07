@@ -479,8 +479,8 @@ i	j	f	d
 *************************************************************
 * Test that online alter of default values fails
 *************************************************************
-ALTER ONLINE TABLE t2 MODIFY COLUMN j INT DEFAULT 888;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t2 MODIFY COLUMN j INT DEFAULT 888'
+ALTER TABLE t2 algorithm=inplace, MODIFY COLUMN j INT DEFAULT 888;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 DROP TABLE IF EXISTS t2;
 **************************************************************
 * Test not null-after-defaults example that failed previously
@@ -1290,7 +1290,7 @@ DROP TABLE variant;
 Create schema manually with differences for ndb_restore to 
 deal with.  See the backup (or above) for the original schema.
 - J changed from Int -> Bigint, and default changed from 6 to 6006
-requires --promote-attribute AND default ignoring
+requires --promote-attributes AND default ignoring
 - ch default changed from 'aaa' to 'aaaAAA', requires default ignoring
 - vch missing in DB schema, requires --exclude-missing-columns
 - timestamp_c default changed from CURRENT_TIMESTAMP to a const default (native)

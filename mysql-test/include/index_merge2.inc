@@ -16,6 +16,7 @@
 #
 
 --echo #---------------- Index merge test 2 -------------------------------------------
+--echo # (Start of test file: index_merge2.inc)
 
 eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
@@ -47,7 +48,7 @@ analyze table t1;
 -- enable_result_log
 -- enable_query_log
 
-# No primary key
+--echo # No primary key
 explain select * from t1 where key1 < 5 or key2 > 197;
 
 select * from t1 where key1 < 5 or key2 > 197;
@@ -55,8 +56,8 @@ select * from t1 where key1 < 5 or key2 > 197;
 explain select * from t1 where key1 < 3 or key2 > 195;
 select * from t1 where key1 < 3 or key2 > 195;
 
-# Primary key as case-sensitive string with \0s.
-# also make primary key be longer then max. index length of MyISAM.
+--echo # Primary key as case-sensitive string with \0s.
+--echo # also make primary key be longer then max. index length of MyISAM.
 alter table t1 add str1 char (255) not null,
                 add zeroval int not null default 0,
                 add str2 char (255) not null,
@@ -79,7 +80,7 @@ select * from t1 where key1 < 5 or key2 > 197;
 explain select * from t1 where key1 < 3 or key2 > 195;
 select * from t1 where key1 < 3 or key2 > 195;
 
-# Test for BUG#5401
+--echo # Test for BUG#5401
 drop table t1;
 create table t1 (
   pk    integer not null auto_increment primary key,
@@ -109,7 +110,7 @@ explain select pk from t1 where key1 = 1 and key2 = 1;
 select pk from t1 where key2 = 1 and key1 = 1;
 select pk from t1 ignore index(key1,key2) where key2 = 1 and key1 = 1;
 
-# More tests for BUG#5401.
+--echo # More tests for BUG#5401.
 drop table t1;
 create table t1 (
   pk int primary key auto_increment,
@@ -149,7 +150,7 @@ analyze table t2;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 #
 }
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
@@ -159,7 +160,7 @@ select count(*) from t1 where
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 #
 }
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
@@ -169,7 +170,7 @@ select count(*) from t1 where
 
 drop table t1,t2;
 
-# Test for BUG#8441
+--echo # Test for BUG#8441
 create table t1 (
   id1 int,
   id2 date ,
@@ -180,7 +181,7 @@ insert into t1 values(1,'20040101'), (2,'20040102');
 select * from t1  where id1 = 1  and id2= '20040101';
 drop table t1;
 
-# Test for BUG#12720
+--echo # Test for BUG#12720
 --disable_warnings
 drop view if exists v1;
 --enable_warnings
@@ -297,8 +298,8 @@ select t_vers,t_rele,t_cust,filler1 from t1 where t_vers = '7.6'
 
 drop table t1;
 
-# BUG#19021: Crash in index_merge/ROR-intersection optimizer under
-# specific circumstances.
+--echo # BUG#19021: Crash in index_merge/ROR-intersection optimizer under
+--echo # specific circumstances.
 create table t1 (
   pk int(11) not null auto_increment,
   a int(11) not null default '0',
@@ -348,7 +349,7 @@ SELECT COUNT(*) FROM t1 WHERE b = 0 AND a = 0 AND c = 13286427 AND
 
 drop table t1;
 
-# BUG#21277: Index Merge/sort_union: wrong query results
+--echo # BUG#21277: Index Merge/sort_union: wrong query results
 create table t1
 (
   key1 int not null, 
@@ -379,7 +380,7 @@ analyze table t1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 #
 }
 # to test the bug, the following must use "sort_union":
 explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);

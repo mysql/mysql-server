@@ -1,0 +1,17 @@
+# Run all default suites with big-test option 
+perl mysql-test-run.pl --timer --big-test --debug-server --force --parallel=auto --comment=all_default_valgrind --vardir=var-all_default_valgrind --experimental=collections/default.experimental 
+
+
+# Run all non default suites with big-test
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=stress-debug-big --vardir=var-stress-debug-big  --suite=stress
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=jp-debug-big --vardir=var-jp-debug-big --suite=jp
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist-debug-big  --vardir=var-nist-debug-big --suite=nist
+
+
+#Engine independent tests
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto  --comment=eits-tests-myisam-engine-debug-big --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-myisam-engine-debug-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam  --skip-test-list=collections/disabled-weekly.list
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=eits-tests-innodb-engine-debug-big --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-innodb-engine-debug-big --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --mysqld=--innodb --skip-test-list=collections/disabled-weekly.list
+
+#Memcached tests
+perl mysql-test-run.pl --timer --force --big-test --debug-server --comment=memcached-debug --vardir=var-debug-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached  --skip-test-list=collections/disabled-weekly.list

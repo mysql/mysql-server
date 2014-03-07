@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,17 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
   const Uint32 reqInfo  = sig->requestInfo;
   const Uint32 attrLen = sig->attrLen;
 
+  fprintf(output, " Operation: %s\n", 
+	  LqhKeyReq::getOperation(reqInfo) == ZREAD    ? "Read" :
+	  LqhKeyReq::getOperation(reqInfo) == ZREAD_EX ? "Read-Ex" :
+	  LqhKeyReq::getOperation(reqInfo) == ZUPDATE  ? "Update" :
+	  LqhKeyReq::getOperation(reqInfo) == ZINSERT  ? "Insert" :
+	  LqhKeyReq::getOperation(reqInfo) == ZDELETE  ? "Delete" :
+	  LqhKeyReq::getOperation(reqInfo) == ZWRITE   ? "Write"  :
+          LqhKeyReq::getOperation(reqInfo) == ZUNLOCK  ? "Unlock" :
+          LqhKeyReq::getOperation(reqInfo) == ZREFRESH ? "Refresh" :
+	  "Unknown");
+
   fprintf(output,
           " Op: %d Lock: %d Flags: ",
           LqhKeyReq::getOperation(reqInfo),
@@ -70,6 +81,9 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
 
   fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
   
+   if(LqhKeyReq::getDisableFkConstraints(reqInfo))
+     fprintf(output, "Disable FK constraints");
+
   fprintf(output,
           " AttrLen: %d (%d in this) KeyLen: %d TableId: %d SchemaVer: %d\n",
           LqhKeyReq::getAttrLen(attrLen),

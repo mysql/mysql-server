@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include "ndb_limits.h"
+
+#define JAM_FILE_ID 134
+
 
 class ScanFragReq {
   /**
@@ -540,5 +543,8 @@ ScanFragNextReq::setCorrFactorFlag(Uint32 & ri)
 {
   ri |= (1 << SFN_CORR_SHIFT);
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

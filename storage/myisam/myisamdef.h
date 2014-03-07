@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -297,7 +297,7 @@ struct st_myisam_info {
 
   index_cond_func_t index_cond_func;   /* Index condition function */
   void *index_cond_func_arg;           /* parameter for the func */
-#ifdef __WIN__
+#ifdef _WIN32
   my_bool owned_by_merge;                       /* This MyISAM table is part of a merge union */
 #endif
   THR_LOCK_DATA lock;
@@ -463,12 +463,6 @@ typedef struct st_mi_sort_param
 #define mi_unique_store(A,B)    mi_int4store((A),(B))
 
 extern mysql_mutex_t THR_LOCK_myisam;
-
-#if defined(DONT_USE_RW_LOCKS)
-#define mysql_rwlock_wrlock(A) {}
-#define mysql_rwlock_rdlock(A) {}
-#define mysql_rwlock_unlock(A) {}
-#endif
 
 	/* Some extern variables */
 
@@ -806,4 +800,29 @@ extern PSI_thread_key mi_key_thread_find_all_keys;
 void init_myisam_psi_keys();
 C_MODE_END
 #endif /* HAVE_PSI_INTERFACE */
+
+C_MODE_START
+
+extern PSI_memory_key mi_key_memory_MYISAM_SHARE;
+extern PSI_memory_key mi_key_memory_MI_INFO;
+extern PSI_memory_key mi_key_memory_MI_INFO_ft1_to_ft2;
+extern PSI_memory_key mi_key_memory_MI_INFO_bulk_insert;
+extern PSI_memory_key mi_key_memory_record_buffer;
+extern PSI_memory_key mi_key_memory_FTB;
+extern PSI_memory_key mi_key_memory_FT_INFO;
+extern PSI_memory_key mi_key_memory_FTPARSER_PARAM;
+extern PSI_memory_key mi_key_memory_ft_memroot;
+extern PSI_memory_key mi_key_memory_ft_stopwords;
+extern PSI_memory_key mi_key_memory_MI_SORT_PARAM;
+extern PSI_memory_key mi_key_memory_MI_SORT_PARAM_wordroot;
+extern PSI_memory_key mi_key_memory_SORT_FT_BUF;
+extern PSI_memory_key mi_key_memory_SORT_KEY_BLOCKS;
+extern PSI_memory_key mi_key_memory_filecopy;
+extern PSI_memory_key mi_key_memory_SORT_INFO_buffer;
+extern PSI_memory_key mi_key_memory_MI_DECODE_TREE;
+extern PSI_memory_key mi_key_memory_MYISAM_SHARE_decode_tables;
+extern PSI_memory_key mi_key_memory_preload_buffer;
+extern PSI_memory_key mi_key_memory_stPageList_pages;
+
+C_MODE_END
 

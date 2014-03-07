@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -328,7 +328,7 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
 #endif                                    /* IPTOS_THROUGHPUT */
   if (!r)
   {
-#ifdef __WIN__
+#ifdef _WIN32
     BOOL nodelay= 1;
 #else
     int nodelay = 1;
@@ -400,12 +400,12 @@ vio_was_timeout(Vio *vio)
 }
 
 
-int vio_close(Vio * vio)
+int vio_shutdown(Vio * vio)
 {
   int r=0;
-  DBUG_ENTER("vio_close");
+  DBUG_ENTER("vio_shutdown");
 
- if (vio->type != VIO_CLOSED)
+ if (vio->inactive == FALSE)
   {
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
@@ -422,7 +422,7 @@ int vio_close(Vio * vio)
     DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
-  vio->type= VIO_CLOSED;
+  vio->inactive= TRUE;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }
@@ -605,7 +605,7 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
 
     /* Initialize ip_buffer and port. */
 
-    strmov(ip_buffer, "127.0.0.1");
+    my_stpcpy(ip_buffer, "127.0.0.1");
     *port= 0;
   }
   else
@@ -735,7 +735,9 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
+#ifndef DBUG_OFF
   short revents= 0;
+#endif
   struct pollfd pfd;
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
@@ -753,12 +755,16 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   {
   case VIO_IO_EVENT_READ:
     pfd.events= MY_POLL_SET_IN;
+#ifndef DBUG_OFF
     revents= MY_POLL_SET_IN | MY_POLL_SET_ERR | POLLRDHUP;
+#endif
     break;
   case VIO_IO_EVENT_WRITE:
   case VIO_IO_EVENT_CONNECT:
     pfd.events= MY_POLL_SET_OUT;
+#ifndef DBUG_OFF
     revents= MY_POLL_SET_OUT | MY_POLL_SET_ERR;
+#endif
     break;
   }
 
@@ -796,10 +802,15 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
   struct timeval tm;
-  my_socket fd= mysql_socket_getfd(vio->mysql_socket);
+  my_socket fd;
   fd_set readfds, writefds, exceptfds;
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("vio_io_wait");
+
+  fd= mysql_socket_getfd(vio->mysql_socket);
+
+  if (fd == INVALID_SOCKET)
+    DBUG_RETURN(-1);
 
   /* Convert the timeout, in milliseconds, to seconds and microseconds. */
   if (timeout >= 0)
@@ -854,16 +865,16 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   switch (event)
   {
   case VIO_IO_EVENT_READ:
-    ret= test(FD_ISSET(fd, &readfds));
+    ret= MY_TEST(FD_ISSET(fd, &readfds));
     break;
   case VIO_IO_EVENT_WRITE:
   case VIO_IO_EVENT_CONNECT:
-    ret= test(FD_ISSET(fd, &writefds));
+    ret= MY_TEST(FD_ISSET(fd, &writefds));
     break;
   }
 
   /* Error conditions pending? */
-  ret|= test(FD_ISSET(fd, &exceptfds));
+  ret|= MY_TEST(FD_ISSET(fd, &exceptfds));
 
   /* Not a timeout, ensure that a condition was met. */
   DBUG_ASSERT(ret);
@@ -946,7 +957,7 @@ vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
 #else
       errno= error;
 #endif
-      ret= test(error);
+      ret= MY_TEST(error);
     }
   }
 
@@ -957,7 +968,7 @@ vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
       DBUG_RETURN(TRUE);
   }
 
-  DBUG_RETURN(test(ret));
+  DBUG_RETURN(MY_TEST(ret));
 }
 
 

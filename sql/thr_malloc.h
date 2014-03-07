@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,15 @@
 #define THR_MALLOC_INCLUDED
 
 #include "my_global.h"                          // uint, size_t
+#include "my_pthread.h"
+#include "mysql/psi/psi.h"
 
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mem_root MEM_ROOT;
 
-void init_sql_alloc(MEM_ROOT *root, uint block_size, uint pre_alloc_size);
+void init_sql_alloc(PSI_memory_key key,
+                    MEM_ROOT *root, uint block_size, uint pre_alloc_size);
+
 void *sql_alloc(size_t);
 void *sql_calloc(size_t);
 char *sql_strdup(const char *str);

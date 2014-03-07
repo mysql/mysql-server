@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,13 +26,13 @@ TEST(Mysys, Malloc)
 {
   void *p;
 
-  p= my_malloc(0, MYF(0));
+  p= my_malloc(PSI_NOT_INSTRUMENTED, 0, MYF(0));
   EXPECT_TRUE(p != NULL) << "Zero-sized block allocation.";
 
-  p= my_realloc(p, 32, MYF(0));
+  p= my_realloc(PSI_NOT_INSTRUMENTED, p, 32, MYF(0));
   EXPECT_TRUE(p != NULL) << "Reallocated zero-sized block.";
 
-  p= my_realloc(p, 16, MYF(0));
+  p= my_realloc(PSI_NOT_INSTRUMENTED, p, 16, MYF(0));
   EXPECT_TRUE(p != NULL) << "Trimmed block.";
 
   my_free(p);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@
 #include "sql_class.h"
 #include "sql_table.h"
 #include "mdl.h"
+#include "log.h"
+#include "table_trigger_dispatcher.h"
+#include "sql_trigger.h"
 
 static const char *ndb_ext=".ndb";
 
@@ -35,11 +38,14 @@ bool Ndb_local_schema::Base::mdl_try_lock(void) const
   MDL_request schema_request;
   MDL_request mdl_request;
 
-  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_STATEMENT);
-  schema_request.init(MDL_key::SCHEMA, m_db, "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_TRANSACTION);
-  mdl_request.init(MDL_key::TABLE, m_db, m_name, MDL_EXCLUSIVE,
+  MDL_REQUEST_INIT(&global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_STATEMENT);
+  MDL_REQUEST_INIT(&schema_request,
+                   MDL_key::SCHEMA, m_db, "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TABLE, m_db, m_name, MDL_EXCLUSIVE,
                    MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
@@ -243,12 +249,10 @@ Ndb_local_schema::Table::remove_table(void) const
   {
     // Copy to buffers since 'drop_all_triggers' want char*
     char db_name_buf[FN_REFLEN + 1], table_name_buf[FN_REFLEN + 1];
-    strmov(db_name_buf, m_db);
-    strmov(table_name_buf, m_name);
+    my_stpcpy(db_name_buf, m_db);
+    my_stpcpy(table_name_buf, m_name);
 
-    if (Table_triggers_list::drop_all_triggers(m_thd,
-                                               db_name_buf,
-                                               table_name_buf))
+    if (drop_all_triggers(m_thd, db_name_buf, table_name_buf))
     {
       log_warning("Failed to drop all triggers");
     }
@@ -267,15 +271,15 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
   {
     if (!have_mdl_lock())
     {
-      // change_table_name requires an EXLUSIVE mdl lock
+      // change_trigger_table_name() requires an EXLUSIVE mdl lock
       // so if the mdl lock was not aquired, skip this part
       log_warning("Can't rename triggers, no mdl lock");
     }
     else
     {
-      if (Table_triggers_list::change_table_name(m_thd,
-                                                 m_db, m_name, m_name,
-                                                 new_db, new_name))
+      if (change_trigger_table_name(m_thd,
+                                    m_db, m_name, m_name,
+                                    new_db, new_name))
       {
         log_warning("Failed to rename all triggers");
       }

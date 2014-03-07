@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,8 +70,6 @@ FT_INFO *ft_init_search(uint flags, void *info, uint keynr,
 
 const char *ft_stopword_file= 0;
 const char *ft_precompiled_stopwords[]= {
-
-#ifdef COMPILE_STOPWORDS_IN
 
 /* This particular stopword list was taken from SMART distribution
    ftp://ftp.cs.cornell.edu/pub/smart/smart.11.0.tar.Z
@@ -621,8 +619,6 @@ const char *ft_precompiled_stopwords[]= {
   "yourself",
   "yourselves",
   "zero",
-#endif
-
   NULL };
 
 static int ft_default_parser_parse(MYSQL_FTPARSER_PARAM *param)

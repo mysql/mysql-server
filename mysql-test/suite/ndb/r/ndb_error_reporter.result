@@ -1,0 +1,229 @@
+#######################################################
+Running ndb_error_reporter help  
+#######################################################
+This program creates an archive from data node and management node files.
+
+Usage:
+	ndb_error_reporter config.ini [username] [--fs] [--connection-timeout=#] [--skip-nodegroup=#] [--dry-scp] [--help]
+
+	username is a user that you can use to ssh into
+	  all of your nodes with.
+
+	--fs means include the filesystems in the report
+	 WARNING: This may require a lot of disk space.
+	          Only use this option when asked to.
+
+	--connection-timeout is the timeout in seconds
+	  to connect to a node
+
+	--skip-nodegroup allows you to skip all the nodes
+	  belonging to a specific nodegroup
+
+	--dry-scp allows running the script for testing without
+	  scp from the remote hosts
+
+	--help prints this message and exits
+
+#######################################################
+Running ndb_error_reporter with nonexistent config file
+#######################################################
+Cannot open configuration file.
+
+Usage:
+	ndb_error_reporter config.ini [username] [--fs] [--connection-timeout=#] [--skip-nodegroup=#] [--dry-scp] [--help]
+
+	username is a user that you can use to ssh into
+	  all of your nodes with.
+
+	--fs means include the filesystems in the report
+	 WARNING: This may require a lot of disk space.
+	          Only use this option when asked to.
+
+	--connection-timeout is the timeout in seconds
+	  to connect to a node
+
+	--skip-nodegroup allows you to skip all the nodes
+	  belonging to a specific nodegroup
+
+	--dry-scp allows running the script for testing without
+	  scp from the remote hosts
+
+	--help prints this message and exits
+
+#######################################################
+Running ndb_error_reporter with missing config filename
+#######################################################
+Usage:
+	ndb_error_reporter config.ini [username] [--fs] [--connection-timeout=#] [--skip-nodegroup=#] [--dry-scp] [--help]
+
+	username is a user that you can use to ssh into
+	  all of your nodes with.
+
+	--fs means include the filesystems in the report
+	 WARNING: This may require a lot of disk space.
+	          Only use this option when asked to.
+
+	--connection-timeout is the timeout in seconds
+	  to connect to a node
+
+	--skip-nodegroup allows you to skip all the nodes
+	  belonging to a specific nodegroup
+
+	--dry-scp allows running the script for testing without
+	  scp from the remote hosts
+
+	--help prints this message and exits
+
+#######################################################
+Running ndb_error_reporter with username
+#######################################################
+
+
+ Copying data from node 2
+
+scp  -p  mysql@10.255.255.1:./ndb_2* ndb_error_report_x/
+
+
+ Copying data from node 4
+
+scp  -p  mysql@10.255.255.1:./ndb_4* ndb_error_report_x/
+
+
+ Copying data from node 1
+
+scp  -p  mysql@10.255.255.1:ndb_1* ndb_error_report_x/
+
+
+ Copying configuration file...
+
+
+
+
+Please attach ndb_error_report_x.tar.bz2 to your error report
+
+#######################################################
+Running ndb_error_reporter with filesystem
+#######################################################
+
+
+ Copying data from node 2 with filesystem
+
+scp  -p  -r  10.255.255.1:./ndb_2* ndb_error_report_x/
+
+
+ Copying data from node 4 with filesystem
+
+scp  -p  -r  10.255.255.1:./ndb_4* ndb_error_report_x/
+
+
+ Copying data from node 1 with filesystem
+
+scp  -p  -r  10.255.255.1:ndb_1* ndb_error_report_x/
+
+
+ Copying configuration file...
+
+
+
+
+Please attach ndb_error_report_x.tar.bz2 to your error report
+
+#######################################################
+Running ndb_error_reporter with connection timeout
+#######################################################
+
+
+ Copying data from node 2
+
+scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_2* ndb_error_report_x/
+
+
+ Copying data from node 4
+
+scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_4* ndb_error_report_x/
+
+
+ Copying data from node 1
+
+scp  -p  -o ConnectTimeout=1  10.255.255.1:ndb_1* ndb_error_report_x/
+
+
+ Copying configuration file...
+
+
+
+
+Please attach ndb_error_report_x.tar.bz2 to your error report
+
+#######################################################
+Running ndb_error_reporter to skip one data node
+#######################################################
+
+
+ Node 2 belongs to nodegroup 65536: skipping.
+
+ Copying data from node 4
+
+scp  -p  10.255.255.1:./ndb_4* ndb_error_report_x/
+
+
+ Copying data from node 1
+
+scp  -p  10.255.255.1:ndb_1* ndb_error_report_x/
+
+
+ Copying configuration file...
+
+
+
+
+Please attach ndb_error_report_x.tar.bz2 to your error report
+
+#######################################################
+Running ndb_error_reporter to skip both data nodes
+#######################################################
+
+
+ Node 2 belongs to nodegroup 65536: skipping.
+
+ Node 4 belongs to nodegroup 0: skipping.
+
+ Copying data from node 1
+
+scp  -p  10.255.255.1:ndb_1* ndb_error_report_x/
+
+
+ Copying configuration file...
+
+
+
+
+Please attach ndb_error_report_x.tar.bz2 to your error report
+
+#######################################################
+Running ndb_error_reporter with all options used
+#######################################################
+
+
+ Copying data from node 2 with filesystem
+
+scp  -p  -o ConnectTimeout=1  -r  mysql@10.255.255.1:./ndb_2* ndb_error_report_x/
+
+
+ Node 4 belongs to nodegroup 0: skipping.
+
+ Copying data from node 1 with filesystem
+
+scp  -p  -o ConnectTimeout=1  -r  mysql@10.255.255.1:ndb_1* ndb_error_report_x/
+
+
+ Copying configuration file...
+
+
+
+
+Please attach ndb_error_report_x.tar.bz2 to your error report
+
+#######################################################
+Cleaning up ndb_error_report_YYYYMMDDHHMMSS.tar.bz2 
+#######################################################

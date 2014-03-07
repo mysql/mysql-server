@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 
 #include "sql_class.h"                    // select_result_interceptor
 #include "sp_pcontext.h"                  // sp_condition_value
+#include "sql_array.h"
+#include "prealloced_array.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_rcontext declaration.
@@ -79,7 +81,7 @@ private:
 private:
   /// This is an auxillary class to store entering instruction pointer for an
   /// SQL-handler.
-  class sp_handler_entry : public Sql_alloc
+  class sp_handler_entry
   {
   public:
     /// Handler definition (from parsing context).
@@ -122,15 +124,13 @@ public:
     ///
     /// @param _sql_condition SQL-condition, triggered handler activation.
     /// @param _continue_ip   Continue instruction pointer.
-    /// @param _statement_id  Statement ID of the current Diagnostics Area.
     Handler_call_frame(const sp_handler *_handler,
                        Sql_condition *_sql_condition,
-                       uint _continue_ip,
-                       ulonglong statement_id)
+                       uint _continue_ip)
      :handler(_handler),
       sql_condition(_sql_condition),
       continue_ip(_continue_ip),
-      handler_da(statement_id, false)
+      handler_da(false)
     { }
  };
 
@@ -190,8 +190,8 @@ public:
   /// Get the Handler_call_frame representing the currently active handler.
   Handler_call_frame *current_handler_frame() const
   {
-    return m_activated_handlers.elements() ?
-      (*m_activated_handlers.back()) : NULL;
+    return m_activated_handlers.size() ?
+      m_activated_handlers.back() : NULL;
   }
 
   /// Handle current SQL condition (if any).
@@ -226,11 +226,11 @@ public:
   void exit_handler(THD *thd,
                     sp_pcontext *target_scope);
 
-  /// @return the continue instruction pointer if the last activated CONTINUE
+  /// @return the continue instruction pointer of the last activated CONTINUE
   /// handler. This function must not be called for the EXIT handlers.
   uint get_last_handler_continue_ip() const
   {
-    uint ip= (*m_activated_handlers.back())->continue_ip;
+    uint ip= m_activated_handlers.back()->continue_ip;
     DBUG_ASSERT(ip != 0);
 
     return ip;
@@ -364,10 +364,10 @@ private:
   bool m_in_sub_stmt;
 
   /// Stack of visible handlers.
-  Dynamic_array<sp_handler_entry *> m_visible_handlers;
+  Prealloced_array<sp_handler_entry *, 16> m_visible_handlers;
 
   /// Stack of caught SQL conditions.
-  Dynamic_array<Handler_call_frame *> m_activated_handlers;
+  Prealloced_array<Handler_call_frame *, 16> m_activated_handlers;
 
   /// Stack of cursors.
   Bounds_checked_array<sp_cursor *> m_cstack;
@@ -388,7 +388,7 @@ typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /* A mediator between stored procedures and server side cursors */
 
-class sp_cursor : public Sql_alloc
+class sp_cursor
 {
 private:
   /// An interceptor of cursor result set used to implement
@@ -421,7 +421,7 @@ public:
   bool close(THD *thd);
 
   bool is_open() const
-  { return test(m_server_side_cursor); }
+  { return MY_TEST(m_server_side_cursor); }
 
   bool fetch(THD *thd, List<sp_variable> *vars);
 
@@ -436,6 +436,6 @@ private:
 
 private:
   void destroy();
-}; // class sp_cursor : public Sql_alloc
+}; // class sp_cursor
 
 #endif /* _SP_RCONTEXT_H_ */

@@ -4,6 +4,9 @@ call mtr.add_suppression('MYSQL_BIN_LOG::open failed to sync the index file');
 call mtr.add_suppression('Turning logging off for the whole duration of the MySQL server process.');
 call mtr.add_suppression('Could not open .*');
 call mtr.add_suppression('MYSQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
+call mtr.add_suppression("The server was unable to create a new log file. "
+                         "An incident event has been written to the binary "
+                         "log which will stop the slaves.");
 RESET MASTER;
 flush logs;
 flush logs;
@@ -27,6 +30,7 @@ flush logs;
 flush logs;
 *** must be a warning master-bin.000001 was not found ***
 Warnings:
+Warning	1868	file master-bin.000004 was not purged because it is the active log file.
 Warning	1612	Being purged log master-bin.000001 was not found
 *** must show one record, of the active binlog, left in the index file after PURGE ***
 show binary logs;

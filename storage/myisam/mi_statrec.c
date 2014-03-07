@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -233,7 +233,6 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
     }
     else
     {						/* We don't nead new info */
-#ifndef UNSAFE_LOCKING
       if ((! cache_read || share->base.reclength > cache_length) &&
 	  share->tot_locks == 0)
       {						/* record not in cache */
@@ -242,9 +241,6 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
 	  DBUG_RETURN(my_errno);
 	locked=1;
       }
-#else
-      info->tmp_lock_type=F_RDLCK;
-#endif
     }
   }
   if (filepos >= info->state->data_file_length)

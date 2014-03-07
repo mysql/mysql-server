@@ -1330,18 +1330,18 @@ CREATE TABLE t4 (
 INSERT INTO t4 VALUES (1,'x');
 
 let $query=
-SELECT OUTR.pk, OUTR.col_varchar_nokey, OUTR2.col_varchar_nokey
-FROM t2 AS OUTR2
-  JOIN t4 AS OUTR
-  ON (OUTR2.col_varchar_nokey > OUTR.col_varchar_nokey)
+SELECT outr.pk, outr.col_varchar_nokey, outr2.col_varchar_nokey
+FROM t2 AS outr2
+  JOIN t4 AS outr
+  ON (outr2.col_varchar_nokey > outr.col_varchar_nokey)
 WHERE
-  OUTR.col_varchar_nokey IN (
-    SELECT INNR.col_varchar_nokey
-    FROM t3 AS INNR2
-      LEFT JOIN t1 AS INNR
-      ON (INNR2.col_int_key >= INNR.pk)
+  outr.col_varchar_nokey IN (
+    SELECT innr.col_varchar_nokey
+    FROM t3 AS innr2
+      LEFT JOIN t1 AS innr
+      ON (innr2.col_int_key >= innr.pk)
   )
-  XOR OUTR.pk < 6
+  XOR outr.pk < 6
 ;
 
 eval EXPLAIN $query;

@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -215,6 +215,20 @@ public:
     }
     return 1;
   }
+  inline bool push_front(void *info, MEM_ROOT *mem_root)
+  {
+    list_node *node=new (mem_root) list_node(info, first);
+    if (node)
+    {
+      if (last == &first)
+        last= &node->next;
+      first=node;
+      elements++;
+      return false;
+    }
+    return true;
+  }
+
   void remove(list_node **prev)
   {
     list_node *node=(*prev)->next;
@@ -375,6 +389,19 @@ protected:
     if (last == &(node->next))
       last= &new_node->next;
   }
+  bool after(void *info,list_node *node, MEM_ROOT *mem_root)
+  {
+    list_node *new_node=new (mem_root) list_node(info,node->next);
+    if (!new_node)
+      return true; // OOM
+
+    node->next=new_node;
+    elements++;
+    if (last == &(node->next))
+      last= &new_node->next;
+
+    return false;
+  }
 };
 
 class base_list_iterator
@@ -455,6 +482,15 @@ public:
     current=current->next;
     el= &current->next;
   }
+  bool after(void *a, MEM_ROOT *mem_root)
+  {
+    if (list->after(a, current, mem_root))
+      return true;
+
+    current=current->next;
+    el= &current->next;
+    return false;
+  }
   inline void **ref(void)			// Get reference pointer
   {
     return &current->info;
@@ -462,6 +498,21 @@ public:
   inline bool is_last(void)
   {
     return el == &list->last_ref()->next;
+  }
+  inline bool is_before_first() const
+  {
+    return current == NULL;
+  }
+  bool prepend(void *a, MEM_ROOT *mem_root)
+  {
+    if (list->push_front(a, mem_root))
+      return true;
+
+    el= &list->first;
+    prev=el;
+    el= &(*el)->next;
+
+    return false;
   }
   friend class error_list_iterator;
 };
@@ -482,6 +533,10 @@ public:
   inline bool push_back(T *a, MEM_ROOT *mem_root)
   { return base_list::push_back((void *) a, mem_root); }
   inline bool push_front(T *a) { return base_list::push_front((void *) a); }
+  inline bool push_front(T *a, MEM_ROOT *mem_root)
+  {
+    return base_list::push_front((void *) a, mem_root);
+  }
   inline T* head() {return (T*) base_list::head(); }
   inline T** head_ref() {return (T**) base_list::head_ref(); }
   inline T* pop()  {return (T*) base_list::pop(); }
@@ -515,6 +570,10 @@ public:
   inline void rewind(void)  { base_list_iterator::rewind(); }
   inline void remove()      { base_list_iterator::remove(); }
   inline void after(T *a)   { base_list_iterator::after(a); }
+  inline bool after(T *a, MEM_ROOT *mem_root)
+  {
+    return base_list_iterator::after(a, mem_root);
+  }
   inline T** ref(void)	    { return (T**) base_list_iterator::ref(); }
 };
 

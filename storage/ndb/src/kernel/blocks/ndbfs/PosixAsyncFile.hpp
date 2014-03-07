@@ -1,6 +1,5 @@
 /* 
-   Copyright (C) 2007 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +25,9 @@
  */
 
 #include <ndbzio.h>
+
+#define JAM_FILE_ID 397
+
 
 /**
  * PREAD/PWRITE is needed to use file != thread
@@ -109,5 +111,8 @@ private:
   };
 #endif
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,15 +25,16 @@ Created 12/9/2009 Jimmy Yang
 *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
-#include "os0file.h"
+#include "buf0buf.h"
+#include "dict0mem.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
 #include "mach0data.h"
+#include "os0file.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
-#include "buf0buf.h"
-#include "trx0sys.h"
 #include "trx0rseg.h"
-#include "lock0lock.h"
-#include "ibuf0ibuf.h"
+#include "trx0sys.h"
 #ifdef UNIV_NONINL
 #include "srv0mon.ic"
 #endif
@@ -41,8 +42,8 @@ Created 12/9/2009 Jimmy Yang
 /* Macro to standardize the counter names for counters in the
 "monitor_buf_page" module as they have very structured defines */
 #define	MONITOR_BUF_PAGE(name, description, code, op, op_code)	\
-	{"buffer_page_"op"_"name, "buffer_page_io",		\
-	 "Number of "description" Pages "op,			\
+	{"buffer_page_" op "_" name, "buffer_page_io",		\
+	 "Number of " description " Pages " op,			\
 	 MONITOR_GROUP_MODULE, MONITOR_DEFAULT_START,		\
 	 MONITOR_##code##_##op_code}
 
@@ -87,13 +88,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Table reference counter",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_TABLE_REFERENCE},
-
-	{"metadata_mem_pool_size", "metadata",
-	 "Size of a memory pool InnoDB uses to store data dictionary"
-	 " and internal data structures in bytes",
-	 static_cast<monitor_type_t>(
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT),
-	 MONITOR_DEFAULT_START, MONITOR_OVLD_META_MEM_POOL},
 
 	/* ========== Counters for Lock Module ========== */
 	{"module_lock", "lock", "Lock Module",
@@ -387,7 +381,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_FLUSH_SYNC_WAITS},
 
-
 	/* Cumulative counter for flush batches for adaptive flushing  */
 	{"buffer_flush_adaptive_total_pages", "buffer",
 	 "Total pages flushed as part of adaptive flushing",
@@ -453,20 +446,36 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_LRU_BATCH_SCANNED_PER_CALL},
 
 	/* Cumulative counter for LRU batch pages flushed */
-	{"buffer_LRU_batch_total_pages", "buffer",
+	{"buffer_LRU_batch_flush_total_pages", "buffer",
 	 "Total pages flushed as part of LRU batches",
-	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_COUNT,
-	 MONITOR_LRU_BATCH_TOTAL_PAGE},
+	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_FLUSH_COUNT,
+	 MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE},
 
-	{"buffer_LRU_batches", "buffer",
+	{"buffer_LRU_batches_flush", "buffer",
 	 "Number of LRU batches",
-	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_TOTAL_PAGE,
-	 MONITOR_LRU_BATCH_COUNT},
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_FLUSH_COUNT},
 
-	{"buffer_LRU_batch_pages", "buffer",
+	{"buffer_LRU_batch_flush_pages", "buffer",
 	 "Pages queued as an LRU batch",
-	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_TOTAL_PAGE,
-	 MONITOR_LRU_BATCH_PAGES},
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_FLUSH_PAGES},
+
+	/* Cumulative counter for LRU batch pages flushed */
+	{"buffer_LRU_batch_evict_total_pages", "buffer",
+	 "Total pages evicted as part of LRU batches",
+	 MONITOR_SET_OWNER, MONITOR_LRU_BATCH_EVICT_COUNT,
+	 MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE},
+
+	{"buffer_LRU_batches_evict", "buffer",
+	 "Number of LRU batches",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_EVICT_COUNT},
+
+	{"buffer_LRU_batch_evict_pages", "buffer",
+	 "Pages queued as an LRU batch",
+	 MONITOR_SET_MEMBER, MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE,
+	 MONITOR_LRU_BATCH_EVICT_PAGES},
 
 	/* Cumulative counter for single page LRU scans */
 	{"buffer_LRU_single_flush_scanned", "buffer",
@@ -675,16 +684,16 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_TRX},
 
-	{"trx_rw_commits", "transaction", "Number of read-write transactions "
-	  "committed",
+	{"trx_rw_commits", "transaction",
+	 "Number of read-write transactions  committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_RW_COMMIT},
 
-	{"trx_ro_commits", "transaction", "Number of read-only transactions "
-	  "committed",
+	{"trx_ro_commits", "transaction",
+	 "Number of read-only transactions committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_RO_COMMIT},
 
-	{"trx_nl_ro_commits", "transaction", "Number of non-locking "
-	 "auto-commit read-only transactions committed",
+	{"trx_nl_ro_commits", "transaction",
+	 "Number of non-locking auto-commit read-only transactions committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_NL_RO_COMMIT},
 
 	{"trx_commits_insert_update", "transaction",
@@ -744,7 +753,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_N_DEL_ROW_PURGE},
 
 	{"purge_upd_exist_or_extern_records", "purge",
-	 "Number of purges on updates of existing records and "
+	 "Number of purges on updates of existing records and"
 	 " updates on delete marked record with externally stored field",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_N_UPD_EXIST_EXTERN},
@@ -821,9 +830,9 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_MAX_AGE_SYNC},
 
-	{"log_pending_log_writes", "recovery", "Pending log writes",
+	{"log_pending_log_flushes", "recovery", "Pending log flushes",
 	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_PENDING_LOG_WRITE},
+	 MONITOR_DEFAULT_START, MONITOR_PENDING_LOG_FLUSH},
 
 	{"log_pending_checkpoint_writes", "recovery", "Pending checkpoints",
 	 MONITOR_NONE,
@@ -850,6 +859,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 static_cast<monitor_type_t>(
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
+
+	{"log_padded", "recovery",
+	 "Bytes of log padded for log write ahead",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_PADDED},
 
 	/* ========== Counters for Page Compression ========== */
 	{"module_compress", "compression", "Page Compression Info",
@@ -880,13 +895,33 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_INDEX},
 
-	{"index_splits", "index", "Number of index splits",
+	{"index_page_splits", "index", "Number of index page splits",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_INDEX_SPLIT},
 
-	{"index_merges", "index", "Number of index merges",
+	{"index_page_merge_attempts", "index",
+	 "Number of index page merge attempts",
 	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_INDEX_MERGE},
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_MERGE_ATTEMPTS},
+
+	{"index_page_merge_successful", "index",
+	 "Number of successful index page merges",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_MERGE_SUCCESSFUL},
+
+	{"index_page_reorg_attempts", "index",
+	 "Number of index page reorganization attempts",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_REORG_ATTEMPTS},
+
+	{"index_page_reorg_successful", "index",
+	 "Number of successful index page reorganizations",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_REORG_SUCCESSFUL},
+
+	{"index_page_discards", "index", "Number of index pages discarded",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_INDEX_DISCARD},
 
 	/* ========== Counters for Adaptive Hash Index ========== */
 	{"module_adaptive_hash", "adaptive_hash_index", "Adpative Hash Index",
@@ -1092,6 +1127,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_WAITS},
 
+	{"innodb_rwlock_sx_spin_waits", "server",
+	 "Number of rwlock spin waits due to sx latch request",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS},
+
 	{"innodb_rwlock_s_spin_rounds", "server",
 	 "Number of rwlock spin loop rounds due to shared latch request",
 	 static_cast<monitor_type_t>(
@@ -1103,6 +1144,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 static_cast<monitor_type_t>(
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS},
+
+	{"innodb_rwlock_sx_spin_rounds", "server",
+	 "Number of rwlock spin loop rounds due to sx latch request",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS},
 
 	{"innodb_rwlock_s_os_waits", "server",
 	 "Number of OS waits due to shared latch request",
@@ -1116,14 +1163,19 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_OS_WAITS},
 
+	{"innodb_rwlock_sx_os_waits", "server",
+	 "Number of OS waits due to sx latch request",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_OS_WAITS},
+
 	/* ========== Counters for DML operations ========== */
 	{"module_dml", "dml", "Statistics for DMLs",
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_DML_STATS},
 
 	{"dml_reads", "dml", "Number of rows read",
-	 static_cast<monitor_type_t>(
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 static_cast<monitor_type_t>(MONITOR_EXISTING),
 	 MONITOR_DEFAULT_START, MONITOR_OLVD_ROW_READ},
 
 	{"dml_inserts", "dml", "Number of rows inserted",
@@ -1195,11 +1247,11 @@ static monitor_info_t	innodb_counter_info[] =
 };
 
 /* The "innodb_counter_value" array stores actual counter values */
-UNIV_INTERN monitor_value_t	innodb_counter_value[NUM_MONITOR];
+monitor_value_t	innodb_counter_value[NUM_MONITOR];
 
 /* monitor_set_tbl is used to record and determine whether a monitor
 has been turned on/off. */
-UNIV_INTERN ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
+ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 						- 1) / NUM_BITS_ULINT];
 
 #ifndef HAVE_ATOMIC_BUILTINS_64
@@ -1207,21 +1259,18 @@ UNIV_INTERN ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 built-in operations for atomic memory access */
 ib_mutex_t	monitor_mutex;
 
-/** Key to register monitor_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	monitor_mutex_key;
-
 /****************************************************************//**
 Initialize the monitor subsystem. */
-UNIV_INTERN
+
 void
 srv_mon_create(void)
 /*================*/
 {
-	mutex_create(monitor_mutex_key, &monitor_mutex, SYNC_ANY_LATCH);
+	mutex_create("monitor", &monitor_mutex);
 }
 /****************************************************************//**
 Close the monitor subsystem. */
-UNIV_INTERN
+
 void
 srv_mon_free(void)
 /*==============*/
@@ -1233,9 +1282,9 @@ srv_mon_free(void)
 /****************************************************************//**
 Get a monitor's "monitor_info" by its monitor id (index into the
 innodb_counter_info array.
-@return	Point to corresponding monitor_info_t, or NULL if no such
+@return Point to corresponding monitor_info_t, or NULL if no such
 monitor */
-UNIV_INTERN
+
 monitor_info_t*
 srv_mon_get_info(
 /*=============*/
@@ -1252,9 +1301,9 @@ srv_mon_get_info(
 /****************************************************************//**
 Get monitor's name by its monitor id (indexing into the
 innodb_counter_info array.
-@return	corresponding monitor name, or NULL if no such
+@return corresponding monitor name, or NULL if no such
 monitor */
-UNIV_INTERN
+
 const char*
 srv_mon_get_name(
 /*=============*/
@@ -1272,7 +1321,7 @@ srv_mon_get_name(
 Turn on/off, reset monitor counters in a module. If module_id
 is MONITOR_ALL_COUNTER then turn on all monitor counters.
 turned on because it has already been turned on. */
-UNIV_INTERN
+
 void
 srv_mon_set_module_control(
 /*=======================*/
@@ -1333,7 +1382,8 @@ srv_mon_set_module_control(
 		should be aware some counters are already on before
 		turn them on again (which could reset counter value) */
 		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
-			fprintf(stderr, "Monitor '%s' is already enabled.\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Monitor '%s' is already enabled.",
 				srv_mon_get_name((monitor_id_t) ix));
 			continue;
 		}
@@ -1409,7 +1459,7 @@ corresponding monitors are turned on/off/reset, and do appropriate
 mathematics to deduct the actual value. Please also refer to
 srv_export_innodb_status() for related global counters used by
 the existing status variables.*/
-UNIV_INTERN
+
 void
 srv_mon_process_existing_counter(
 /*=============================*/
@@ -1434,10 +1484,6 @@ srv_mon_process_existing_counter(
 
 	/* Get the value from corresponding global variable */
 	switch (monitor_id) {
-	case MONITOR_OVLD_META_MEM_POOL:
-		value = srv_mem_pool_size;
-		break;
-
 	/* export_vars.innodb_buffer_pool_reads. Num Reads from
 	disk (page not in buffer) */
 	case MONITOR_OVLD_BUF_POOL_READS:
@@ -1596,6 +1642,10 @@ srv_mon_process_existing_counter(
 		value = srv_stats.log_writes;
 		break;
 
+	case MONITOR_OVLD_LOG_PADDED:
+		value = srv_stats.log_padded;
+		break;
+
 	/* innodb_dblwr_writes */
 	case MONITOR_OVLD_SRV_DBLWR_WRITES:
 		value = srv_stats.dblwr_writes;
@@ -1616,7 +1666,11 @@ srv_mon_process_existing_counter(
 		break;
 
 	case MONITOR_OVLD_RWLOCK_X_SPIN_WAITS:
-		value = rw_lock_stats.rw_x_os_wait_count;
+		value = rw_lock_stats.rw_x_spin_wait_count;
+		break;
+
+	case MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS:
+		value = rw_lock_stats.rw_sx_spin_wait_count;
 		break;
 
 	case MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS:
@@ -1627,12 +1681,20 @@ srv_mon_process_existing_counter(
 		value = rw_lock_stats.rw_x_spin_round_count;
 		break;
 
+	case MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS:
+		value = rw_lock_stats.rw_sx_spin_round_count;
+		break;
+
 	case MONITOR_OVLD_RWLOCK_S_OS_WAITS:
 		value = rw_lock_stats.rw_s_os_wait_count;
 		break;
 
 	case MONITOR_OVLD_RWLOCK_X_OS_WAITS:
 		value = rw_lock_stats.rw_x_os_wait_count;
+		break;
+
+	case MONITOR_OVLD_RWLOCK_SX_OS_WAITS:
+		value = rw_lock_stats.rw_sx_os_wait_count;
 		break;
 
 	case MONITOR_OVLD_BUFFER_POOL_SIZE:
@@ -1838,7 +1900,7 @@ srv_mon_process_existing_counter(
 /*************************************************************//**
 Reset a monitor, create a new base line with the current monitor
 value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
-UNIV_INTERN
+
 void
 srv_mon_reset(
 /*==========*/
@@ -1886,7 +1948,7 @@ srv_mon_reset(
 
 /*************************************************************//**
 Turn on monitor counters that are marked as default ON. */
-UNIV_INTERN
+
 void
 srv_mon_default_on(void)
 /*====================*/

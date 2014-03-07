@@ -61,6 +61,8 @@ SELECT @@global.key_cache_block_size = 1024;
 #        Change the value of key_cache_block_size to a valid value            #
 ############################################################################### 
 
+SET @@global.key_cache_block_size = 512;
+SELECT @@global.key_cache_block_size;
 SET @@global.key_cache_block_size = 1024;
 SELECT @@global.key_cache_block_size;
 SET @@global.key_cache_block_size = 16384;

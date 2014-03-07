@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,9 +20,7 @@
 
 #include <SimulatedBlock.hpp>
 
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <KeyTable.hpp>
 #include <DLHashTable.hpp>
 #include <NodeBitmask.hpp>
@@ -31,8 +28,10 @@
 #include <signaldata/GetTabInfo.hpp>
 
 #include <WOPool.hpp>
-#include <SLFifoList.hpp>
 #include <SafeMutex.hpp>
+
+#define JAM_FILE_ID 339
+
 
 class Lgman : public SimulatedBlock
 {
@@ -403,5 +402,8 @@ private:
   Uint32* get_log_buffer(Uint32 sz);
 };
 
+
+
+#undef JAM_FILE_ID
 
 #endif

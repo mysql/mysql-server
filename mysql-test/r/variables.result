@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+set @my_log_error_verbosity       =@@global.log_error_verbosity;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
 Warnings:
@@ -33,7 +34,6 @@ set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
-set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
 set @my_join_buffer_size          =@@global.join_buffer_size;
 set @`test`=1;
@@ -82,10 +82,11 @@ select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 @t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
 5	5	1	4
 explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@`t1`) AS `@t1`,(@`t2`) AS `@t2`,(@`t3`) AS `@t3`
 select @t5;
 @t5
 1.23456
@@ -157,17 +158,19 @@ select last_insert_id(345);
 last_insert_id(345)
 345
 explain extended select last_insert_id(345);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select last_insert_id(345) AS `last_insert_id(345)`
 select @@IDENTITY,last_insert_id(), @@identity;
 @@IDENTITY	last_insert_id()	@@identity
 345	345	345
 explain extended select @@IDENTITY,last_insert_id(), @@identity;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select @@IDENTITY AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,@@identity AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 set global concurrent_insert=2;
@@ -593,7 +596,6 @@ set sql_select_limit=default;
 set sql_warnings=1;
 set global table_open_cache=100;
 set default_storage_engine=myisam;
-set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 Warnings:
@@ -601,6 +603,8 @@ Warning	1292	Truncated incorrect tmp_table_size value: '100'
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set global log_warnings=1;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
 set global max_allowed_packet        =@my_max_allowed_packet;
 select @@session.insert_id;
 @@session.insert_id
@@ -707,6 +711,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT @@global.local.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
 set @tstlw = @@log_warnings;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
 show global variables like 'log_warnings';
 Variable_name	Value
 log_warnings	1
@@ -714,6 +720,8 @@ select * from information_schema.global_variables where variable_name like 'log_
 VARIABLE_NAME	VARIABLE_VALUE
 LOG_WARNINGS	1
 set global log_warnings = 0;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
 show global variables like 'log_warnings';
 Variable_name	Value
 log_warnings	0
@@ -721,13 +729,18 @@ select * from information_schema.global_variables where variable_name like 'log_
 VARIABLE_NAME	VARIABLE_VALUE
 LOG_WARNINGS	0
 set global log_warnings = 42;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+Warning	1292	Truncated incorrect log_warnings value: '42'
 show global variables like 'log_warnings';
 Variable_name	Value
-log_warnings	42
+log_warnings	2
 select * from information_schema.global_variables where variable_name like 'log_warnings';
 VARIABLE_NAME	VARIABLE_VALUE
-LOG_WARNINGS	42
+LOG_WARNINGS	2
 set global log_warnings = @tstlw;
+Warnings:
+Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
 show global variables like 'log_warnings';
 Variable_name	Value
 log_warnings	1
@@ -1090,9 +1103,9 @@ set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
-set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
 set global join_buffer_size          =@my_join_buffer_size;
+set global log_error_verbosity       =@my_log_error_verbosity;
 show global variables where Variable_name='table_definition_cache';
 Variable_name	Value
 table_definition_cache	#
@@ -1799,3 +1812,26 @@ End of 5.5 tests
 #
 SET @@sql_mode= 4294967296;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+#
+# Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
+#
+show variables like 'log_slow%';
+Variable_name	Value
+log_slow_admin_statements	OFF
+log_slow_slave_statements	OFF
+set global log_slow_admin_statements = on;
+show global variables like 'log_slow_admin_statements';
+Variable_name	Value
+log_slow_admin_statements	ON
+select * from information_schema.global_variables where variable_name like 'log_slow_admin_statements';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_ADMIN_STATEMENTS	ON
+set global log_slow_slave_statements = on;
+show global variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+select * from information_schema.global_variables where variable_name like 'log_slow_slave_statements';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_SLAVE_STATEMENTS	ON
+set global log_slow_admin_statements = default;
+set global log_slow_slave_statements = default;

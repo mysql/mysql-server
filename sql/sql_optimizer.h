@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,9 @@
 
 #include "opt_explain_format.h"
 
+class Cost_model_server;
+
+
 typedef struct st_sargable_param
 {
   Field *field;              /* field against which to check sargability */
@@ -50,9 +53,21 @@ class JOIN :public Sql_alloc
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
 public:
-  JOIN_TAB *join_tab,**best_ref;
+  /**
+    Optimal query execution plan. Initialized with a tentative plan in
+    JOIN::make_join_plan() and later replaced with the optimal plan in
+    get_best_combination().
+  */
+  JOIN_TAB *join_tab;
+
+  /**
+    Array of plan operators representing the current (partial) best
+    plan. The array is allocated in JOIN::make_join_plan() and is valid only
+    inside this function. Initially (*best_ref[i]) == join_tab[i].
+    The optimizer reorders best_ref.
+  */
+  JOIN_TAB **best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
-  TABLE    **table;
   /*
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by
@@ -94,7 +109,7 @@ public:
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
   bool     sort_and_group; 
-  bool     first_record,full_join, no_field_update;
+  bool     first_record, no_field_update;
   bool     group;            ///< If query contains GROUP BY clause
   bool     do_send_rows;
   table_map all_table_map;   ///< Set of tables contained in query
@@ -129,7 +144,11 @@ public:
   */
   ha_rows  min_ft_matches;
 
-  /* Finally picked QEP. This is result of join optimization */
+  /**
+    This is the result of join optimization.
+
+    @note This is a scratch array, not used after get_best_combination().
+  */
   POSITION *best_positions;
 
 /******* Join optimization state members start *******/
@@ -152,6 +171,8 @@ public:
     The estimated row count of the plan with best read time (see above).
   */
   ha_rows  best_rowcount;
+  /// Expected cost of filesort.
+  double   sort_cost;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   THD	   *thd;
@@ -160,7 +181,7 @@ public:
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
   ulonglong  select_options;
   select_result *result;
-  TMP_TABLE_PARAM tmp_table_param;
+  Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
   /// unit structure (with global parameters) for this select
   SELECT_LEX_UNIT *unit;
@@ -216,9 +237,11 @@ public:
   /** Is set if we have a GROUP BY and we have ORDER BY on a constant. */
   bool          skip_sort_order;
 
-  bool need_tmp, hidden_group_fields;
+  bool need_tmp;
+  int hidden_group_field_count;
 
-  Key_use_array keyuse;
+  // Used and updated by JOIN::make_join_plan() and optimize_keyuse()
+  Key_use_array keyuse_array;
 
   List<Item> all_fields; ///< to store all expressions used in query
   ///Above list changed to use temporary table
@@ -322,27 +345,47 @@ public:
   Explain_format_flags explain_flags;
 
   /** 
-    JOIN::having is initially equal to select_lex->having, but may
+    JOIN::having_cond is initially equal to select_lex->having_cond, but may
     later be changed by optimizations performed by JOIN.
-    The relationship between the JOIN::having condition and the
+    The relationship between the JOIN::having_cond condition and the
     associated variable select_lex->having_value is so that
     having_value can be:
      - COND_UNDEF if a having clause was not specified in the query or
        if it has not been optimized yet
      - COND_TRUE if the having clause is always true, in which case
-       JOIN::having is set to NULL.
+       JOIN::having_cond is set to NULL.
      - COND_FALSE if the having clause is impossible, in which case
-       JOIN::having is set to NULL
+       JOIN::having_cond is set to NULL
      - COND_OK otherwise, meaning that the having clause needs to be
        further evaluated
-    All of the above also applies to the conds/select_lex->cond_value
+    All of the above also applies to the where_cond/select_lex->cond_value
     pair.
   */
-  Item       *conds;                      ///< The where clause item tree
-  Item       *having;                     ///< The having clause item tree
+  /**
+    Optimized WHERE clause item tree (valid for one single execution).
+    Used in JOIN execution if no tables. Otherwise, attached in pieces to
+    JOIN_TABs and then not used in JOIN execution.
+    Printed by EXPLAIN EXTENDED.
+    Initialized by SELECT_LEX::get_optimizable_conditions().
+  */
+  Item       *where_cond;
+  /**
+    Optimized HAVING clause item tree (valid for one single execution).
+    Used in JOIN execution, as last "row filtering" step. With one exception:
+    may be pushed to the JOIN_TABs of temporary tables used in DISTINCT /
+    GROUP BY (see JOIN::make_tmp_tables_info()); in that case having_cond is
+    set to NULL, but is first saved to having_for_explain so that EXPLAIN
+    EXTENDED can still print it.
+    Initialized by SELECT_LEX::get_optimizable_conditions().
+  */
+  Item       *having_cond;
   Item       *having_for_explain;    ///< Saved optimized HAVING for EXPLAIN
-  TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
-  List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
+  /**
+    Pointer set to select_lex->get_table_list() at the start of
+    optimization. May be changed (to NULL) only if opt_sum_query() optimizes
+    tables away.
+  */
+  TABLE_LIST *tables_list;
   COND_EQUAL *cond_equal;
   /*
     Join tab to return to. Points to an element of join->join_tab array, or to
@@ -384,9 +427,6 @@ public:
   */
   bool allow_outer_refs;
 
-  // true: No need to run DTORs on pointers.
-  Mem_root_array<Item_exists_subselect*, true> sj_subselects;
-
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
   List<Semijoin_mat_exec> sjm_exec_list;
@@ -399,9 +439,8 @@ public:
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
-    : keyuse(thd_arg->mem_root),
-      fields_list(fields_arg),
-      sj_subselects(thd_arg->mem_root)
+    : keyuse_array(thd_arg->mem_root),
+      fields_list(fields_arg)
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
@@ -415,7 +454,6 @@ public:
     const_tables= 0;
     tmp_tables= 0;
     const_table_map= 0;
-    join_list= 0;
     implicit_grouping= FALSE;
     sort_and_group= 0;
     first_record= 0;
@@ -427,19 +465,25 @@ public:
     examined_rows= 0;
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
-    having= having_for_explain= 0;
+    /*
+      Those four members are meaningless before JOIN::optimize(), so force a
+      crash if they are used before that.
+    */
+    where_cond= having_cond= having_for_explain= (Item*)1;
+    tables_list= (TABLE_LIST*)1;
+
     select_options= select_options_arg;
     result= result_arg;
     lock= thd_arg->lock;
     select_lex= 0; //for safety
-    select_distinct= test(select_options & SELECT_DISTINCT);
+    select_distinct= MY_TEST(select_options & SELECT_DISTINCT);
     no_order= 0;
     simple_order= 0;
     simple_group= 0;
     ordered_index_usage= ordered_index_void;
     skip_sort_order= 0;
     need_tmp= 0;
-    hidden_group_fields= 0; /*safety*/
+    hidden_group_field_count= 0; /*safety*/
     error= 0;
     return_tab= 0;
     ref_ptrs.reset();
@@ -449,14 +493,15 @@ public:
     items3.reset();
     zero_result_cause= 0;
     optimized= child_subquery_can_materialize= false;
+    executed= false;
     cond_equal= 0;
     group_optimized_away= 0;
 
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
       fields_list= fields_arg;
-    keyuse.clear();
-    tmp_table_param.init();
+    keyuse_array.clear();
+    tmp_table_param= Temp_table_param();
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;
 
@@ -466,6 +511,8 @@ public:
     first_select= sub_select;
     set_group_rpa= false;
     group_sent= 0;
+    plan_state= NO_PLAN;
+    sort_cost= 0.0;
   }
 
   /// True if plan is const, ie it will return zero or one rows.
@@ -477,19 +524,13 @@ public:
   */
   bool plan_is_single_table() { return primary_tables - const_tables == 1; }
 
-  int prepare(TABLE_LIST *tables, uint wind_num,
-	      Item *conds, uint og_num, ORDER *order, ORDER *group,
-              Item *having,
-              SELECT_LEX *select, SELECT_LEX_UNIT *unit);
   int optimize();
   void reset();
   void exec();
-  bool prepare_result(List<Item> **columns_list);
-  void explain();
+  bool prepare_result();
   bool destroy();
   void restore_tmp();
   bool alloc_func_list();
-  bool flatten_subqueries();
   bool make_sum_func_list(List<Item> &all_fields,
                           List<Item> &send_fields,
                           bool before_group_by, bool recompute= FALSE);
@@ -538,7 +579,7 @@ public:
 			  Item_sum ***func);
   int rollup_send_data(uint idx);
   int rollup_write_data(uint idx, TABLE *table);
-  void remove_subq_pushed_predicates(Item **where);
+  void remove_subq_pushed_predicates();
   /**
     Release memory and, if possible, the open tables held by this execution
     plan (and nested plans). It's used to release some tables before
@@ -568,12 +609,7 @@ public:
 	    group_list == NULL && !group_optimized_away &&
             select_lex->having_value != Item::COND_FALSE);
   }
-  bool change_result(select_result *result);
-  bool is_top_level_join() const
-  {
-    return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
-                                        select_lex == unit->fake_select_lex));
-  }
+  bool change_result(select_result *new_result, select_result *old_result);
   bool cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();
@@ -582,22 +618,36 @@ public:
   bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
+  void mark_const_table(JOIN_TAB *table, Key_use *key);
+  /// State of execution plan. Currently used only for EXPLAIN
+  enum enum_plan_state
+  {
+    NO_PLAN,      ///< No plan is ready yet
+    ZERO_RESULT,  ///< Zero result cause is set
+    NO_TABLES,    ///< Plan has no tables
+    PLAN_READY    ///< Plan is ready
+  };
+  /// See enum_plan_state
+  enum_plan_state get_plan_state() const { return plan_state; }
+  bool is_executed() const { return executed; }
+
+  /**
+    Retrieve the cost model object to be used for this join.
+
+    @return Cost model object for the join
+  */
+
+  const Cost_model_server* cost_model() const
+  {
+    DBUG_ASSERT(thd != NULL);
+    return thd->cost_model();
+  }
 
 private:
-  /**
-    Execute current query. To be called from @c JOIN::exec.
+  bool executed;                          ///< Set by exec(), reset by reset()
 
-    If current query is a dependent subquery, this execution is performed on a
-    temporary copy of the original JOIN object in order to be able to restore
-    the original content for re-execution and EXPLAIN. (@note Subqueries may
-    be executed as part of EXPLAIN.) In such cases, execution data that may be
-    reused for later executions will be copied to the original 
-    @c JOIN object (@c parent).
-
-    @param parent Original @c JOIN object when current object is a temporary 
-                  copy. @c NULL, otherwise
-  */
-  void execute(JOIN *parent);
+  /// Final execution plan state. Currently used only for EXPLAIN
+  enum_plan_state plan_state;
   /**
     Send current query result set to the client. To be called from JOIN::execute
 
@@ -669,44 +719,155 @@ private:
   */
   void replace_item_field(const char* field_name, Item* new_item);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  bool prune_table_partitions();
+#endif
+public:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
   */
   bool implicit_grouping; 
-
+private:
   void set_prefix_tables();
   void cleanup_item_list(List<Item> &items) const;
+  void set_semijoin_embedding();
+  bool make_join_plan();
+  bool init_planner_arrays();
+  bool propagate_dependencies();
+  bool extract_const_tables();
+  bool extract_func_dependent_tables();
+  void update_sargable_from_const(SARGABLE_PARAM *sargables);
+  bool estimate_rowcount();
+  void optimize_keyuse();
   void set_semijoin_info();
-  bool set_access_methods();
+  /**
+   An utility function - apply heuristics and optimize access methods to tables.
+   @note Side effect - this function could set 'Impossible WHERE' zero
+   result.
+  */
+  void adjust_access_methods();
+  void update_depend_map();
+  void update_depend_map(ORDER *order);
+  /**
+    Fill in outer join related info for the execution plan structure.
+
+      For each outer join operation left after simplification of the
+      original query the function set up the following pointers in the linear
+      structure join->join_tab representing the selected execution plan.
+      The first inner table t0 for the operation is set to refer to the last
+      inner table tk through the field t0->last_inner.
+      Any inner table ti for the operation are set to refer to the first
+      inner table ti->first_inner.
+      The first inner table t0 for the operation is set to refer to the
+      first inner table of the embedding outer join operation, if there is any,
+      through the field t0->first_upper.
+      The on expression for the outer join operation is attached to the
+      corresponding first inner table through the field t0->on_expr_ref.
+      Here ti are structures of the JOIN_TAB type.
+
+    EXAMPLE. For the query: 
+    @code
+          SELECT * FROM t1
+                        LEFT JOIN
+                        (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
+                        ON (t1.a=t2.a AND t1.b=t3.b)
+            WHERE t1.c > 5,
+    @endcode
+
+      given the execution plan with the table order t1,t2,t3,t4
+      is selected, the following references will be set;
+      t4->last_inner=[t4], t4->first_inner=[t4], t4->first_upper=[t2]
+      t2->last_inner=[t4], t2->first_inner=t3->first_inner=[t2],
+      on expression (t1.a=t2.a AND t1.b=t3.b) will be attached to 
+      *t2->on_expr_ref, while t3.a=t4.a will be attached to *t4->on_expr_ref.
+
+    @note
+      The function assumes that the simplification procedure has been
+      already applied to the join query (see simplify_joins).
+      This function can be called only after the execution plan
+      has been chosen.
+  */
+  void make_outerjoin_info();
+
+  /**
+    Initialize ref access for all tables that use it.
+
+    @return False if success, True if error
+
+    @note We cannot setup fields used for ref access before we have sorted
+          the items within multiple equalities according to the final order of
+          the tables involved in the join operation. Currently, this occurs in
+          @see substitute_for_best_equal_field().
+  */
+  bool init_ref_access();
   bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
                                 const POSITION *inner_pos,
                                 POSITION *sjm_pos);
   bool make_tmp_tables_info();
+  void set_plan_state(enum_plan_state plan_state_arg);
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
+  ORDER *remove_const(ORDER *first_order, Item *cond,
+                      bool change_list, bool *simple_order,
+                      const char *clause_type);
+  /**
+    Recount temp table field types recursively.
+  */
+  void recount_field_types();
 
-  /// RAII class to ease the call of LEX::mark_broken() if error
-  class Prepare_error_tracker
-  {
-public:
-    Prepare_error_tracker(THD *thd_arg) : thd(thd_arg) {}
-    ~Prepare_error_tracker()
-    {
-      if (unlikely(thd->is_error()))
-        thd->lex->mark_broken();
-    }
-private:
-    THD *const thd;
-  };
+  /**
+    Check whether this is a subquery that can be evaluated by index look-ups.
+    If so, change subquery engine to subselect_indexsubquery_engine.
 
+    @retval  1   engine was changed
+    @retval  0   engine wasn't changed
+    @retval -1   OOM
+  */
+  int replace_index_subquery();
+
+  /**
+    Optimize DISTINCT, GROUP BY, ORDER BY clauses
+
+    @retval false ok
+    @retval true  an error occured
+  */
+  bool optimize_distinct_group_order();
+
+  /**
+    Test if an index could be used to replace filesort for ORDER BY/GROUP BY
+
+    @details
+      Investigate whether we may use an ordered index as part of either
+      DISTINCT, GROUP BY or ORDER BY execution. An ordered index may be
+      used for only the first of any of these terms to be executed. This
+      is reflected in the order which we check for test_if_skip_sort_order()
+      below. However we do not check for DISTINCT here, as it would have
+      been transformed to a GROUP BY at this stage if it is a candidate for 
+      ordered index optimization.
+      If a decision was made to use an ordered index, the availability
+      if such an access path is stored in 'ordered_index_usage' for later
+      use by 'execute' or 'explain'
+  */
+  void test_skip_sort();
 };
 
+/// RAII class to ease the call of LEX::mark_broken() if error.
+class Prepare_error_tracker
+{
+public:
+  Prepare_error_tracker(THD *thd_arg) : thd(thd_arg) {}
+  ~Prepare_error_tracker()
+  {
+    if (unlikely(thd->is_error()))
+      thd->lex->mark_broken();
+  }
+private:
+  THD *const thd;
+};
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok);
-void update_depend_map(JOIN *join);
-void reset_nj_counters(List<TABLE_LIST> *join_list);
 Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
 Item *optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal,
                     List<TABLE_LIST> *join_list,

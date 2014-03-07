@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -93,6 +93,7 @@ use My::Find;
 use My::SysInfo;
 use My::CoreDump;
 use mtr_cases;
+use mtr_cases_from_list;
 use mtr_report;
 use mtr_match;
 use mtr_unique;
@@ -163,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,perfschema,funcs_1,opt_trace,parts";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,perfschema,funcs_1,opt_trace,parts,auth_sec";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -181,12 +182,15 @@ our @opt_combinations;
 our @opt_extra_mysqld_opt;
 our @opt_mysqld_envs;
 
+our @opt_extra_bootstrap_opt;
+
 my $opt_stress;
 
 my $opt_compress;
 my $opt_ssl;
 my $opt_skip_ssl;
 my @opt_skip_test_list;
+my $opt_do_test_list= "";
 our $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
@@ -359,6 +363,11 @@ sub main {
     gcov_prepare($basedir);
   }
 
+  # New: collect suites and test cases from test list (file containing suite.testcase on each line)
+  #      and put suites to $opt_suites and test case to @opt_cases.
+  if ($opt_do_test_list ne "") {
+      	collect_test_cases_from_list(\$opt_suites, \@opt_cases, $opt_do_test_list,\$opt_ctest);
+  }
   if (!$opt_suites) {
     $opt_suites= $DEFAULT_SUITES;
   }
@@ -420,7 +429,6 @@ sub main {
     );
   mtr_error("Could not create testcase server port: $!") unless $server;
   my $server_port = $server->sockport();
-  mtr_report("Using server port $server_port");
 
   if ($opt_resfile) {
     resfile_init("$opt_vardir/mtr-results.txt");
@@ -478,7 +486,7 @@ sub main {
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
 
-  if (!IS_WINDOWS) {
+  if (!IS_WINDOWS) { 
     # Wait for children to exit
     foreach my $pid (keys %children)
     {
@@ -492,7 +500,7 @@ sub main {
     }
   }
 
-  if ( not defined @$completed ) {
+  if ( not $completed ) {
     mtr_error("Test suite aborted");
   }
 
@@ -626,6 +634,10 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
 	      rename($worker_savedir, $savedir);
+              #look for the test.log file and put in savedir
+	      my $logf= "$result->{shortname}" . ".log";
+              my $logfilepath= dirname($worker_savedir); 
+              move($logfilepath . "/" . $logf, $savedir);
 	      # Move any core files from e.g. mysqltest
 	      foreach my $coref (glob("core*"), glob("*.dmp"))
 	      {
@@ -646,7 +658,7 @@ sub run_test_server ($$$) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 
-			   My::CoreDump->show($core_file, $exe_mysqld);
+			   My::CoreDump->show($core_file, $exe_mysqld, $opt_parallel);
 
 			   if ($num_saved_cores >= $opt_max_save_core) {
 			     mtr_report(" - deleting it, already saved",
@@ -702,9 +714,11 @@ sub run_test_server ($$$) {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
               #saving the log file as filename.failed in case of retry
-              my $worker_logdir= $result->{savedir};
-              my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
-              rename $log_file_name,$log_file_name.".failed";
+              if ( $result->is_failed() ) {
+                my $worker_logdir= $result->{savedir};
+                my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
+                rename $log_file_name,$log_file_name.".failed";
+              }
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -990,6 +1004,7 @@ sub print_global_resfile {
   resfile_global("parallel", $opt_parallel);
   resfile_global("check-testcases", $opt_check_testcases ? 1 : 0);
   resfile_global("mysqld", \@opt_extra_mysqld_opt);
+  resfile_global("bootstrap", \@opt_extra_bootstrap_opt);
   resfile_global("debug", $opt_debug ? 1 : 0);
   resfile_global("gcov", $opt_gcov ? 1 : 0);
   resfile_global("gprof", $opt_gprof ? 1 : 0);
@@ -1080,6 +1095,9 @@ sub command_line_setup {
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
              'mysqld-env=s'             => \@opt_mysqld_envs,
+
+             # Extra options used when bootstrapping mysqld
+             'bootstrap=s'                 => \@opt_extra_bootstrap_opt,
 
              # Run test on running server
              'extern=s'                  => \%opts_extern, # Append to hash
@@ -1176,7 +1194,8 @@ sub command_line_setup {
              'help|h'                   => \$opt_usage,
 	     # list-options is internal, not listed in help
 	     'list-options'             => \$opt_list_options,
-             'skip-test-list=s'         => \@opt_skip_test_list
+             'skip-test-list=s'         => \@opt_skip_test_list,
+             'do-test-list=s'           => \$opt_do_test_list
            );
 
   GetOptions(%options) or usage("Can't read options");
@@ -2057,7 +2076,17 @@ sub executable_setup () {
   }
   else
   {
-    $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+    if ( defined $ENV{'MYSQL_TEST'} )
+    {
+      $exe_mysqltest=$ENV{'MYSQL_TEST'};
+      print "===========================================================\n";
+      print "WARNING:The mysqltest binary is fetched from $exe_mysqltest\n";
+      print "===========================================================\n";
+    }
+    else
+    {
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+    }
   }
 
 }
@@ -2213,7 +2242,7 @@ sub read_plugin_defs($)
     mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
 
     # If running debug server, plugins will be in 'debug' subdirectory
-    $plug_file= "debug/$plug_file" if $running_debug;
+    $plug_file= "debug/$plug_file" if $running_debug && !$source_dist;
 
     my ($plugin)= find_plugin($plug_file, $plug_loc);
 
@@ -2319,18 +2348,6 @@ sub environment_setup {
 				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
-  # The environment variable used for shared libs on AIX
-  $ENV{'SHLIB_PATH'}= join(":", @ld_library_paths,
-                           $ENV{'SHLIB_PATH'} ?
-                           split(':', $ENV{'SHLIB_PATH'}) : ());
-  mtr_debug("SHLIB_PATH: $ENV{'SHLIB_PATH'}");
-
-  # The environment variable used for shared libs on hp-ux
-  $ENV{'LIBPATH'}= join(":", @ld_library_paths,
-                        $ENV{'LIBPATH'} ?
-                        split(':', $ENV{'LIBPATH'}) : ());
-  mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
-
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
 
@@ -2428,23 +2445,24 @@ sub environment_setup {
   # ----------------------------------------------------
   # mysql clients
   # ----------------------------------------------------
-  $ENV{'MYSQL_CHECK'}=              client_arguments("mysqlcheck");
-  $ENV{'MYSQL_DUMP'}=               mysqldump_arguments(".1");
-  $ENV{'MYSQL_DUMP_SLAVE'}=         mysqldump_arguments(".2");
-  $ENV{'MYSQL_SLAP'}=               mysqlslap_arguments();
-  $ENV{'MYSQL_IMPORT'}=             client_arguments("mysqlimport");
-  $ENV{'MYSQL_SHOW'}=               client_arguments("mysqlshow");
-  $ENV{'MYSQL_CONFIG_EDITOR'}=      client_arguments_no_grp_suffix("mysql_config_editor");
-  $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
-  $ENV{'MYSQL'}=                    client_arguments("mysql");
-  $ENV{'MYSQL_SLAVE'}=              client_arguments("mysql", ".2");
-  $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
-  $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
-  $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
-  $ENV{'EXE_MYSQL'}=                $exe_mysql;
-  $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
-  $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
-  $ENV{'PATH_CONFIG_FILE'}=         $path_config_file;
+  $ENV{'MYSQL_CHECK'}=                 client_arguments("mysqlcheck");
+  $ENV{'MYSQL_DUMP'}=                  mysqldump_arguments(".1");
+  $ENV{'MYSQL_DUMP_SLAVE'}=            mysqldump_arguments(".2");
+  $ENV{'MYSQL_SLAP'}=                  mysqlslap_arguments();
+  $ENV{'MYSQL_IMPORT'}=                client_arguments("mysqlimport");
+  $ENV{'MYSQL_SHOW'}=                  client_arguments("mysqlshow");
+  $ENV{'MYSQL_CONFIG_EDITOR'}=         client_arguments_no_grp_suffix("mysql_config_editor");
+  $ENV{'MYSQL_BINLOG'}=                client_arguments("mysqlbinlog");
+  $ENV{'MYSQL'}=                       client_arguments("mysql");
+  $ENV{'MYSQL_SLAVE'}=                 client_arguments("mysql", ".2");
+  $ENV{'MYSQL_UPGRADE'}=               client_arguments("mysql_upgrade");
+  $ENV{'MYSQL_SECURE_INSTALLATION'}=   "$path_client_bindir/mysql_secure_installation";
+  $ENV{'MYSQLADMIN'}=                  native_path($exe_mysqladmin);
+  $ENV{'MYSQL_CLIENT_TEST'}=           mysql_client_test_arguments();
+  $ENV{'EXE_MYSQL'}=                   $exe_mysql;
+  $ENV{'MYSQL_PLUGIN'}=                $exe_mysql_plugin;
+  $ENV{'MYSQL_EMBEDDED'}=              $exe_mysql_embedded;
+  $ENV{'PATH_CONFIG_FILE'}=            $path_config_file;
 
   my $exe_mysqld= find_mysqld($basedir);
   $ENV{'MYSQLD'}= $exe_mysqld;
@@ -2483,6 +2501,15 @@ sub environment_setup {
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
+  # Setup env so childs can execute innochecksum
+  # ----------------------------------------------------
+  my $exe_innochecksum=
+    mtr_exe_exists(vs_config_dirs('extra', 'innochecksum'),
+                   "$path_client_bindir/innochecksum",
+                   "$basedir/extra/innochecksum");
+  $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
+
+  # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
   # ----------------------------------------------------
   $ENV{'MYISAMCHK'}= native_path(mtr_exe_exists(
@@ -2508,6 +2535,17 @@ sub environment_setup {
   {
     $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy;
   }
+  # ----------------------------------------------------
+  # mysqld_safe
+  # ----------------------------------------------------
+  my $mysqld_safe=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqld_safe") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqld_safe");
+  if ($mysqld_safe)
+  {
+    $ENV{'MYSQLD_SAFE'}= $mysqld_safe;
+  }
+
 
   # ----------------------------------------------------
   # perror
@@ -3498,13 +3536,20 @@ sub mysql_install_db {
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
-  mtr_add_arg($args, "--loose-skip-falcon");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--innodb-log-file-size=5M");
   mtr_add_arg($args, "--core-file");
   # over writing innodb_autoextend_increment to 8 for reducing the ibdata1 file size 
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
+  # over writing the buffer size to 16M for certain tests to pass       
+  mtr_add_arg($args, "--innodb_buffer_pool_size=16M");
+
+  if ( $opt_embedded_server )
+  {
+    # Do not create performance_schema tables for embedded
+    mtr_add_arg($args, "--loose-performance_schema=OFF");
+  }
 
   if ( $opt_debug )
   {
@@ -3525,16 +3570,25 @@ sub mysql_install_db {
   # need to be given to the bootstrap process as well as the
   # server process.
   foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
-    if ($extra_opt =~ /--innodb/) {
+    (my $temp_extra_opt=$extra_opt) =~ s/_/-/g;
+    if ($temp_extra_opt =~ /--innodb-page-size/ || 
+        $temp_extra_opt =~ /--innodb-log-file-size/) {
+      mtr_add_arg($args, $extra_opt);
+    }
+  # Plugin arguments need to be given to the bootstrap 
+  # process as well as the server process.
+    if ($extra_opt =~ /--default-authentication-plugin/) {
       mtr_add_arg($args, $extra_opt);
     }
   }
 
-  # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
-  # configure --disable-grant-options), mysqld will not recognize the
-  # --bootstrap or --skip-grant-tables options.  The user can set
-  # MYSQLD_BOOTSTRAP to the full path to a mysqld which does accept
-  # --bootstrap, to accommodate this.
+  # Arguments to bootstrap process.
+  foreach my $extra_opt ( @opt_extra_bootstrap_opt ) {
+      mtr_add_arg($args, $extra_opt);
+  }
+ 
+  # The user can set MYSQLD_BOOTSTRAP to the full path to a mysqld
+  # to run a different mysqld during --bootstrap.
   my $exe_mysqld_bootstrap =
     $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($install_basedir);
 
@@ -3566,52 +3620,41 @@ sub mysql_install_db {
   my $path_sql= my_find_file($install_basedir,
 			     ["mysql", "sql/share", "share/mysql",
 			      "share", "scripts"],
-			     "mysql_system_tables.sql",
+			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
-  if (-f $path_sql )
+  if (-f $path_sql && -f "include/mtr_system_tables_data.sql" &&
+      -f "include/mtr_test_data_timezone.sql")
   {
-    my $sql_dir= dirname($path_sql);
-    # Use the mysql database for system tables
-    mtr_tofile($bootstrap_sql_file, "use mysql;\n");
-
     # Add the offical mysql system tables
     # for a production system
-    mtr_appendfile_to_file("$sql_dir/mysql_system_tables.sql",
-			   $bootstrap_sql_file);
+    mtr_tofile($bootstrap_sql_file, "use mysql;\n");
+    mtr_appendfile_to_file($path_sql,
+	                         $bootstrap_sql_file);
+
+
 
     # Add the mysql system tables initial data
-    # for a production system
-    mtr_appendfile_to_file("$sql_dir/mysql_system_tables_data.sql",
-			   $bootstrap_sql_file);
+    # for the test system. This should in most cases be the same as the
+    # for the production system, but will for historial reasons contain 
+    # more inital root accounts.
+    mtr_appendfile_to_file("include/mtr_system_tables_data.sql",
+		                       $bootstrap_sql_file);
 
     # Add test data for timezone - this is just a subset, on a real
     # system these tables will be populated either by mysql_tzinfo_to_sql
     # or by downloading the timezone table package from our website
-    mtr_appendfile_to_file("$sql_dir/mysql_test_data_timezone.sql",
-			   $bootstrap_sql_file);
-
-    # Fill help tables, just an empty file when running from bk repo
-    # but will be replaced by a real fill_help_tables.sql when
-    # building the source dist
-    mtr_appendfile_to_file("$sql_dir/fill_help_tables.sql",
-			   $bootstrap_sql_file);
-
+    mtr_appendfile_to_file("include/mtr_test_data_timezone.sql",
+                           $bootstrap_sql_file);
   }
   else
   {
-    # Install db from init_db.sql that exist in early 5.1 and 5.0
-    # versions of MySQL
-    my $init_file= "$install_basedir/mysql-test/lib/init_db.sql";
-    mtr_report(" - from '$init_file'");
-    my $text= mtr_grab_file($init_file) or
-      mtr_error("Can't open '$init_file': $!");
-
-    mtr_tofile($bootstrap_sql_file,
-	       sql_to_bootstrap($text));
+    mtr_error("Error: The system table definition '".
+              "include/mtr_system_tables_data.sql' could not be found".
+              "in working directory.");
   }
 
-  # Remove anonymous users
+  # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';\n");
 
@@ -4387,6 +4430,15 @@ sub run_testcase ($) {
 	unlink($path_current_testlog);
       }
 
+      # Remove testcase .log file produce in var/log/ to save space since
+      # relevant part of logfile has already been appended to master log
+      {
+	my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
+	if (-e $log_file_name && ($tinfo->{'result'} ne 'MTR_RES_FAILED')) {
+	  unlink($log_file_name);
+	}
+      }
+
       return ($res == 62) ? 0 : $res;
 
     }
@@ -4584,7 +4636,7 @@ sub extract_warning_lines ($$) {
       {
 	# Remove initial timestamp and look for consecutive identical lines
 	my $line_pat= $line;
-	$line_pat =~ s/^[0-9: ]*//;
+	$line_pat =~ s/^[0-9:\-\+\.TZ ]*//;
 	if ($line_pat eq $last_pat) {
 	  $num_rep++;
 	} else {
@@ -5326,13 +5378,18 @@ sub stop_all_servers () {
 }
 
 
+sub is_slave {
+  my ($server) = @_;
+  # There isn't really anything in a configuration which tells if
+  # a mysqld is master or slave. Best guess is to treat all which haven't
+  # got '#!use-slave-opt' as masters.
+  # At least be consistent
+  return $server->option('#!use-slave-opt');
+}
+
 # Find out if server should be restarted for this test
 sub server_need_restart {
-  my ($tinfo, $server)= @_;
-
-  # Mark the tinfo so slaves will restart if server restarts
-  # This assumes master will be considered first.
-  my $is_master= $server->option("#!run-master-sh");
+  my ($tinfo, $server, $master_restarted)= @_;
 
   if ( using_extern() )
   {
@@ -5342,34 +5399,29 @@ sub server_need_restart {
 
   if ( $tinfo->{'force_restart'} ) {
     mtr_verbose_restart($server, "forced in .opt file");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $opt_force_restart ) {
     mtr_verbose_restart($server, "forced restart turned on");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $tinfo->{template_path} ne $current_config_name)
   {
     mtr_verbose_restart($server, "using different config file");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $tinfo->{'master_sh'}  || $tinfo->{'slave_sh'} )
   {
     mtr_verbose_restart($server, "sh script to run");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( ! started($server) )
   {
     mtr_verbose_restart($server, "not started");
-    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
@@ -5382,7 +5434,6 @@ sub server_need_restart {
     if ( timezone($started_tinfo) ne timezone($tinfo) )
     {
       mtr_verbose_restart($server, "different timezone");
-      $tinfo->{master_restart}= 1 if $is_master;
       return 1;
     }
   }
@@ -5407,7 +5458,6 @@ sub server_need_restart {
 	mtr_verbose_restart($server, "running with different options '" .
 			    join(" ", @{$extra_opts}) . "' != '" .
 			    join(" ", @{$started_opts}) . "'" );
-	$tinfo->{master_restart}= 1 if $is_master;
 	return 1;
       }
 
@@ -5424,18 +5474,19 @@ sub server_need_restart {
 	mtr_verbose("Restart: running with different options '" .
 		    join(" ", @{$extra_opts}) . "' != '" .
 		    join(" ", @{$started_opts}) . "'" );
-	$tinfo->{master_restart}= 1 if $is_master;
 	return 1;
       }
 
       # Remember the dynamically set options
       $server->{'started_opts'}= $extra_opts;
     }
-  }
 
-  if ($server->option("#!use-slave-opt") && $tinfo->{master_restart}) {
-    mtr_verbose_restart($server, "master will be restarted");
-    return 1;
+    if (is_slave($server) && $master_restarted)
+    {
+      # At least one master restarted and this is a slave, restart
+      mtr_verbose_restart($server, " master restarted");
+      return 1;
+    }
   }
 
   # Default, no restart
@@ -5445,7 +5496,55 @@ sub server_need_restart {
 
 sub servers_need_restart($) {
   my ($tinfo)= @_;
-  return grep { server_need_restart($tinfo, $_); } all_servers();
+
+  my @restart_servers;
+
+  # Build list of master and slave mysqlds to be able to restart
+  # all slaves whenever a master restarts.
+  my @masters;
+  my @slaves;
+  foreach my $server (mysqlds())
+  {
+    if (is_slave($server))
+    {
+      push(@slaves, $server);
+    }
+    else
+    {
+      push(@masters, $server);
+    }
+  }
+
+  # Check masters
+  my $master_restarted = 0;
+  foreach my $master (@masters)
+  {
+    if (server_need_restart($tinfo, $master, $master_restarted))
+    {
+      $master_restarted = 1;
+      push(@restart_servers, $master);
+    }
+  }
+
+  # Check slaves
+  foreach my $slave (@slaves)
+  {
+    if (server_need_restart($tinfo, $slave, $master_restarted))
+    {
+      push(@restart_servers, $slave);
+    }
+  }
+
+  # Check if any remaining servers need restart
+  foreach my $server (ndb_mgmds(), ndbds(), memcacheds())
+  {
+    if (server_need_restart($tinfo, $server, $master_restarted))
+    {
+      push(@restart_servers, $server);
+    }
+  }
+
+  return @restart_servers;
 }
 
 
@@ -5784,6 +5883,7 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
   mtr_add_arg($args, "--verbose");
+  mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
 
   if ( $mode eq "before" )
   {
@@ -6323,7 +6423,7 @@ sub run_ctest() {
   # Now, run ctest and collect output
   $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
   my $ctest_out= `ctest $ctest_vs 2>&1`;
-  if ($? == $no_ctest && $opt_ctest == -1 && ! defined $ENV{PB2WORKDIR}) {
+  if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;
   }
@@ -6458,6 +6558,10 @@ Options to control what test suites or cases to run
   enable-disabled       Run also tests marked as disabled
   print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
+  do-test-list=FILE     Run the tests listed in FILE. Each line in the file
+                        is an entry and should be formatted as:
+                        <SUITE>.<TESTNAME> or <SUITE> <TESTNAME>.
+                        "#" as first character marks a comment.
   skip-test-list=FILE   Skip the tests listed in FILE. Each line in the file
                         is an entry and should be formatted as: 
                         <TESTNAME> : <COMMENT>

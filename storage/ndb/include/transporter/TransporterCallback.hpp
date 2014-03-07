@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,8 +45,10 @@ public:
    *
    * The method may either execute the signal immediately (NDB API), or
    * queue it for later execution (kernel).
+   *
+   * @returns true if no more signals should be delivered
    */
-  virtual void deliver_signal(SignalHeader * const header,
+  virtual bool deliver_signal(SignalHeader * const header,
                               Uint8 prio,
                               Uint32 * const signalData,
                               LinearSectionPtr ptr[3]) = 0;

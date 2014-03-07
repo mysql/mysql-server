@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -20,9 +20,7 @@
 
 #if defined(HAVE_YASSL) || defined(HAVE_OPENSSL)
 
-#  ifdef HAVE_STDDEF_H
-#    include <stddef.h>
-#  endif
+#include <stddef.h>
 
 #  ifndef HAVE_YASSL
 #    include <openssl/sha.h>

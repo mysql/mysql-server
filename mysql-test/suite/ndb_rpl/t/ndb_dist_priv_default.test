@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Test the behaviour of all SQL commands affected
 # by having MySQL privilege tables stored in the default
@@ -19,8 +24,8 @@
 # i.e leave as is.
 
 # Create all connections to _same_ server
---connect(server1,localhost,root,,test,$MASTER_MYPORT1)
---connect(server2,localhost,root,,test,$MASTER_MYPORT1)
+--connect(server1,127.0.0.1,root,,test,$MASTER_MYPORT)
+--connect(server2,127.0.0.1,root,,test,$MASTER_MYPORT)
 
 # Run the common test script
 --source ndb_dist_priv_common.inc

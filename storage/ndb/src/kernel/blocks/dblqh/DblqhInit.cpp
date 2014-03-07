@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include "Dblqh.hpp"
 #include <ndb_limits.h>
 #include "DblqhCommon.hpp"
+
+#define JAM_FILE_ID 452
+
 
 #define DEBUG(x) { ndbout << "LQH::" << x << endl; }
 
@@ -99,6 +102,14 @@ void Dblqh::initData()
   c_lcpFragWatchdog.block = this;
   c_lcpFragWatchdog.reset();
   c_lcpFragWatchdog.thread_active = false;
+
+  c_keyOverloads           = 0;
+  c_keyOverloadsTcNode     = 0;
+  c_keyOverloadsReaderApi  = 0;
+  c_keyOverloadsPeerNode   = 0;
+  c_keyOverloadsSubscriber = 0;
+  c_scanSlowDowns          = 0;
+
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 

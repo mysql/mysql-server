@@ -1,0 +1,353 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" 
+    "http://www.w3.org/TR/html4/strict.dtd">
+<!--
+Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+-->
+<html dir="ltr">
+    <head>
+        <title>MySQL Cluster configuration protocol test</title>
+        <link rel="stylesheet" type="text/css" 
+                href="dojo/dijit/themes/claro/claro.css"/>
+
+        <style type="text/css">
+            html, body { 
+                font-family:helvetica,arial,sans-serif; 
+            }
+            table {
+                background: #f5f5f5;
+                table-layout:fixed;
+                border:2px solid #000;
+                word-wrap:break-word;
+            }
+        </style>
+
+        <script src="dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
+        <script>
+
+// Widgets required in html page
+dojo.require("dijit.form.TextBox");
+dojo.require("dijit.form.CheckBox");
+dojo.require("dijit.form.SimpleTextarea");
+dojo.require("dijit.form.Button");
+
+// Generate a test message based on editable properties
+function generateTestMsg(cmd) {
+
+    var defaultKeybased = dijit.byId("keybased").get("value");
+    var defaultUser = dijit.byId("user").get("value");
+    var defaultPwd = dijit.byId("pwd").get("value");
+    var defaultHostName = dijit.byId("host").get("value");
+    var defaultFilePath = dijit.byId("dataDir").get("value");
+    var defaultInstallDir = dijit.byId("installDir").get("value");
+
+    var testMsg = {
+        hostInfoReq: {
+            head: {
+                seq: 0,
+                cmd: "hostInfoReq"
+            },
+            body: {
+                ssh: {
+                },
+                hostName: defaultHostName
+            }
+        },
+        createFileReq: {
+            head: {
+                seq: 1,
+                cmd: "createFileReq",
+            },
+            body: {
+                ssh: {
+                },
+                file: {
+                    hostName: defaultHostName,
+                    path: defaultFilePath,
+                    name: "config.ini",
+                    autoComplete: false
+                },
+                contentString:
+                        "[NDB_MGMD]\n" +
+                        "NodeId=49\n" +
+                        "HostName=" + defaultHostName + "\n" +
+                        "DataDir=" + defaultFilePath + "\n" +
+                        "PortNumber=41508\n" +
+                        "\n" +
+                        "[NDBD]\n" +
+                        "NodeId=1\n" +
+                        "HostName=" + defaultHostName + "\n" +
+                        "DataDir=" + defaultFilePath + "\n" +
+                        "NoOfReplicas=1\n" +
+                        "\n" +
+                        "[MYSQLD]\n" +
+                        "NodeId=51\n" +
+                        "HostName=" + defaultHostName + "\n"
+            }
+        },
+        startClusterReq: {
+            head: {
+                seq: 2,
+                cmd: "startClusterReq",
+            },
+            body: {
+                ssh: {
+                },
+                pgroups: [
+                    {
+                        plist: [                
+                            {
+                                file: {
+                                    hostName: defaultHostName,
+                                    path: defaultInstallDir,
+                                    name: "ndb_mgmd",
+                                    autoComplete: true
+                                },
+                                procCtrl: {
+                                    hup: false,
+                                    getStd: false,
+                                    waitForCompletion: true
+                                },
+                                params: {
+                                    sep: " ",
+                                    param: [
+                                        {
+                                            name: "--no-defaults" },
+                                        {
+                                            name: "--ndb-nodeid",
+                                            val: 49
+                                        },
+                                        {
+                                            name: "--config-dir",
+                                            val: defaultFilePath
+                                        },
+                                        {
+                                            name: "--config-file",
+                                            val: defaultFilePath + "/config.ini"
+                                        }
+                                    ]
+                                }
+                            }
+                        ], 
+                        syncPolicy: {
+                            type: "wait",
+                            length: 15.0
+                        }
+                    }
+                ]
+            }
+        }
+    };
+
+    for (var i in testMsg) {
+        if (defaultKeybased) {
+            testMsg[i].body.ssh.keyBased = true;
+        } else {
+            testMsg[i].body.ssh.user = defaultUser;
+            testMsg[i].body.ssh.pwd = defaultPwd;
+        }
+    }
+
+    // View in html tag
+    dijit.byId(cmd + "-req").set("value", dojo.toJson(testMsg[cmd], true));
+}
+
+// Send message (converted into json string) by http post
+function do_post(msg) {
+
+    // Return deferred from xhrPost
+    return dojo.xhrPost({
+        url: "/testjsoncmd",
+        headers: { "Content-Type": "application/json" },
+        postData: msg,
+        handleAs: "json"
+    });
+}
+
+// Fetch a test message from editable widget, send it and wait for reply
+function sendTestMsg(cmd) {
+
+    // Clear reply and result fields
+    dojo.byId(cmd + "-rep").innerHTML = "...sending...";
+    dojo.byId(cmd + "-res").innerHTML = "...sending...";
+
+    // Get message from widget
+    var msg = dijit.byId(cmd + "-req").get("value");
+
+    // Call dopost, provide callbacks for deferred
+    do_post(msg).then(
+        // Create closures to remember request cmd
+        (function(req) {
+            return function(reply) {
+                if (reply.head.cmd == req) {
+                    dojo.byId(reply.head.cmd + "-rep").innerHTML =
+                            "<pre style='overflow: auto, height: 100px'>" +
+                            dojo.toJson(reply, true, "a") + "</pre>";
+                }
+
+                // Check if reply is OK
+                if (reply.head.cmd == req && 
+                        (!reply.stat || reply.stat.errMsg == "OK")) {
+                    dojo.byId(reply.head.cmd + "-res").innerHTML = 
+                            "<b><font color='green'>OK</font></b>";
+                } else {
+                    dojo.byId(reply.head.cmd + "-res").innerHTML = 
+                            "<b><font color='red'>Not OK</font></b>";
+                }
+            }
+        })(cmd),
+        (function (req) {
+            return function (error) {
+                dojo.byId(reply.head.cmd + "-rep").innerHTML = "";
+                dojo.byId(reply.head.cmd + "-res").innerHTML = 
+                        "<b><font color='red'>" + error + "</font></b>";
+            }
+        })(cmd)
+    );
+}
+
+// Initialize when dojo has loaded
+dojo.ready(function () {
+    // A little less indentation
+    dojo.toJsonIndentStr = "  ";
+
+    // Pre-generate messages
+    generateTestMsg("hostInfoReq");
+    generateTestMsg("createFileReq");
+    generateTestMsg("startClusterReq");
+});
+
+        </script>
+    </head>
+    <body class="claro">
+        <!-- Property table -->
+        <table border="1 px solid gray" cellspacing="0" width="50%">
+        <tr><th width="150px">Property</th><th>Editable value</th></tr>
+        <tr>
+            <td>SSH key based</td>
+            <td><div id="keybased" data-dojo-type="dijit.form.CheckBox" 
+                    data-dojo-props="value: 'true'"
+                    style=""></div>
+            </td>
+        </tr>
+        <tr>
+            <td>SSH user</td>
+            <td><div id="user" data-dojo-type="dijit.form.TextBox" 
+                    data-dojo-props="value: ''"
+                    style="width: 100%"></div>
+            </td>
+        </tr>
+        <tr>
+            <td>SSH pwd</td>
+            <td><div id="pwd" data-dojo-type="dijit.form.TextBox" 
+                    data-dojo-props="value: ''"
+                    style="width: 100%" type='password'></div>
+            </td>
+        </tr>
+        <tr>
+            <td>Host</td>
+            <td><div id="host" data-dojo-type="dijit.form.TextBox" 
+                    data-dojo-props="value: ''"
+                    style="width: 100%"></div>
+            </td>
+        </tr>
+        <tr>
+            <td>DataDir</td>
+            <td><div id="dataDir" data-dojo-type="dijit.form.TextBox" 
+                    data-dojo-props=
+                            "value: ''" 
+                    style="width: 100%"></div>
+            </td>
+        </tr>
+        <tr>
+            <td>InstallDir</td>
+            <td><div id="installDir" data-dojo-type="dijit.form.TextBox" 
+                    data-dojo-props=
+                            "value: ''"
+                    style="width: 100%"></div>
+            </td>
+        </tr>
+        </table>
+        <br>
+
+        <!-- Message/reply/status table -->
+        <table border="1px solid gray" cellspacing="0" width="100%">
+        <tr>
+            <th width="150px">Generate message</th>
+            <th>Editable message</th>
+            <th>Reply</th>
+            <th width="80px">Status</th>
+        </tr>
+        <tr valign="top">
+            <td>
+                <div data-dojo-type="dijit.form.Button"
+                    onClick="generateTestMsg('hostInfoReq')">
+                        hostInfoReq</div>
+                </p>
+            </td>
+            <td>
+                <div data-dojo-type="dijit.form.SimpleTextarea" 
+                    data-dojo-props="rows: 9"
+                    style="width: 98%"
+                    id="hostInfoReq-req"></div>
+                <div data-dojo-type="dijit.form.Button"
+                    onClick="sendTestMsg('hostInfoReq')">Send message</div>
+            </td>
+            <td><div style="height: 200px; overflow: auto; background: #fff" 
+                    id="hostInfoReq-rep"></div></td>
+            <td><div id="hostInfoReq-res"></div></td>
+        </tr>
+        <tr valign="top">
+            <td>
+                <div data-dojo-type="dijit.form.Button"
+                    onClick="generateTestMsg('createFileReq')">
+                        createFileReq</div>
+                </p>
+            </td>
+            <td>
+                <div data-dojo-type="dijit.form.SimpleTextarea" 
+                    data-dojo-props="rows: 9"
+                    style="width: 98%"
+                    id="createFileReq-req"></div>
+                <div data-dojo-type="dijit.form.Button"
+                    onClick="sendTestMsg('createFileReq')">Send message</div>
+            </td>
+            <td><div style="height: 200px; overflow: auto; background: #fff" 
+                    id="createFileReq-rep"></div></td>
+            <td><div id="createFileReq-res"></div></td>
+        </tr>
+        <tr valign="top">
+            <td>
+                <div data-dojo-type="dijit.form.Button"
+                    onClick="generateTestMsg('startClusterReq')">
+                        startClusterReq</div>
+                </p>
+            </td>
+            <td>
+                <div data-dojo-type="dijit.form.SimpleTextarea" 
+                    data-dojo-props="rows: 9"
+                    style="width: 98%"
+                    id="startClusterReq-req"></div>
+                <div data-dojo-type="dijit.form.Button"
+                    onClick="sendTestMsg('startClusterReq')">Send message</div>
+            </td>
+            <td><div style="height: 200px; overflow: auto; background: #fff" 
+                    id="startClusterReq-rep"></div></td>
+            <td><div id="startClusterReq-res"></div></td>
+        </tr>
+        </table>
+    </body>
+</html>
+

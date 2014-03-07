@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,12 +19,19 @@
 #include <string.h>
 
 bool pfs_initialized= false;
+size_t pfs_allocated_memory_size= 0;
+size_t pfs_allocated_memory_count= 0;
 
 bool stub_alloc_always_fails= true;
 int stub_alloc_fails_after_count= 0;
 
 void *pfs_malloc(size_t size, myf)
 {
+  /*
+    Catch non initialized sizing parameter in the unit tests.
+  */
+  DBUG_ASSERT(size <= 100*1024*1024);
+
   if (stub_alloc_always_fails)
     return NULL;
 

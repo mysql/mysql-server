@@ -1,3 +1,4 @@
+
 # Test case(s) in this file contain(s) GRANT/REVOKE statements, which are not
 # supported in embedded server. So, this test should not be run on embedded
 # server.
@@ -93,6 +94,7 @@ SELECT trigger_name, definer FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_n
 
 --echo
 
+--replace_column 17 #
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS ORDER BY trigger_name;
 
 # Clean up
@@ -184,6 +186,7 @@ FLUSH TABLE t2;
 CREATE TRIGGER tr16 AFTER UPDATE ON t1 FOR EACH ROW INSERT INTO t1 VALUES (1);
 --error ER_PARSE_ERROR
 CREATE TRIGGER tr22 BEFORE INSERT ON t2 FOR EACH ROW DELETE FROM non_existing_table;
+--replace_column 6 #
 SHOW TRIGGERS;
 --error ER_PARSE_ERROR
 INSERT INTO t1 VALUES (1);
@@ -196,6 +199,7 @@ UPDATE t1 SET a = 1 WHERE a = 1;
 SELECT * FROM t1;
 --error ER_PARSE_ERROR
 RENAME TABLE t1 TO t1_2;
+--replace_column 6 #
 SHOW TRIGGERS;
 
 DROP TRIGGER tr11;
@@ -204,6 +208,7 @@ DROP TRIGGER tr13;
 DROP TRIGGER tr14;
 DROP TRIGGER tr15;
 
+--replace_column 6 #
 SHOW TRIGGERS;
 
 --echo # Make sure there is no trigger file left.

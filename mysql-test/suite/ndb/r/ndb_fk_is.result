@@ -1,0 +1,232 @@
+# engine=innodb
+create table product (
+category int not null,
+id int not null,
+price decimal,
+primary key(category, id))
+engine=innodb;
+create table customer (
+id int not null,
+primary key (id))
+engine=innodb;
+create table product_order (
+no int not null auto_increment,
+product_category int not null,
+product_id int not null,
+customer_id int not null,
+primary key(no),
+index (product_category, product_id),
+foreign key fk1 (product_category, product_id) references product(category, id)
+on update restrict on delete cascade,
+index (customer_id),
+foreign key fk2 (customer_id) references customer(id))
+engine=innodb;
+create table emp (
+id int primary key auto_increment,
+manager int,
+key (manager),
+foreign key fk1 (manager) references emp (id))
+engine=innodb;
+select *
+from information_schema.table_constraints
+where table_schema = 'test'
+order by table_name, constraint_type, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+def	test	PRIMARY	test	customer	PRIMARY KEY
+def	test	emp_ibfk_1	test	emp	FOREIGN KEY
+def	test	PRIMARY	test	emp	PRIMARY KEY
+def	test	PRIMARY	test	product	PRIMARY KEY
+def	test	product_order_ibfk_1	test	product_order	FOREIGN KEY
+def	test	product_order_ibfk_2	test	product_order	FOREIGN KEY
+def	test	PRIMARY	test	product_order	PRIMARY KEY
+COL	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_COL
+customer.id	1	NULL	
+emp.id	1	NULL	
+emp.manager	1	1	emp.id
+product.category	1	NULL	
+product.id	2	NULL	
+product_order.customer_id	1	1	customer.id
+product_order.no	1	NULL	
+product_order.product_category	1	1	product.category
+product_order.product_id	2	2	product.id
+drop table product_order, customer, product, emp;
+create database mydb1;
+create database mydb2;
+create table mydb1.t1 (
+a1 int not null,
+b1 int not null,
+primary key using hash (a1),
+unique key xb1 (b1)
+) engine=innodb;
+create table mydb2.t2 (
+a2 int not null,
+b2 int not null,
+primary key using hash (a2),
+unique key xb2 (b2)
+) engine=innodb;
+alter table mydb1.t1
+add constraint fk_b1a1 foreign key (b1) references mydb1.t1 (a1),
+add constraint fk_b1b2 foreign key (b1) references mydb2.t2 (b2);
+alter table mydb2.t2
+add constraint fk_b2a2 foreign key (b2) references mydb2.t2 (a2),
+add constraint fk_b2b1 foreign key (b2) references mydb1.t1 (b1);
+select *
+from information_schema.referential_constraints
+order by constraint_schema, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	mydb1	fk_b1a1	def	mydb1	PRIMARY	NONE	RESTRICT	RESTRICT	t1	t1
+def	mydb1	fk_b1b2	def	mydb2	xb2	NONE	RESTRICT	RESTRICT	t1	t2
+def	mydb2	fk_b2a2	def	mydb2	PRIMARY	NONE	RESTRICT	RESTRICT	t2	t2
+def	mydb2	fk_b2b1	def	mydb1	xb1	NONE	RESTRICT	RESTRICT	t2	t1
+select *
+from information_schema.table_constraints
+where table_schema like 'mydb%'
+order by table_name, constraint_type, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+def	mydb1	fk_b1a1	mydb1	t1	FOREIGN KEY
+def	mydb1	fk_b1b2	mydb1	t1	FOREIGN KEY
+def	mydb1	PRIMARY	mydb1	t1	PRIMARY KEY
+def	mydb1	xb1	mydb1	t1	UNIQUE
+def	mydb2	fk_b2a2	mydb2	t2	FOREIGN KEY
+def	mydb2	fk_b2b1	mydb2	t2	FOREIGN KEY
+def	mydb2	PRIMARY	mydb2	t2	PRIMARY KEY
+def	mydb2	xb2	mydb2	t2	UNIQUE
+select *
+from information_schema.key_column_usage
+where table_schema like 'mydb%'
+order by constraint_schema, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+def	mydb1	fk_b1a1	def	mydb1	t1	b1	1	1	mydb1	t1	a1
+def	mydb1	fk_b1b2	def	mydb1	t1	b1	1	1	mydb2	t2	b2
+def	mydb1	PRIMARY	def	mydb1	t1	a1	1	NULL	NULL	NULL	NULL
+def	mydb1	xb1	def	mydb1	t1	b1	1	NULL	NULL	NULL	NULL
+def	mydb2	fk_b2a2	def	mydb2	t2	b2	1	1	mydb2	t2	a2
+def	mydb2	fk_b2b1	def	mydb2	t2	b2	1	1	mydb1	t1	b1
+def	mydb2	PRIMARY	def	mydb2	t2	a2	1	NULL	NULL	NULL	NULL
+def	mydb2	xb2	def	mydb2	t2	b2	1	NULL	NULL	NULL	NULL
+alter table mydb1.t1
+drop foreign key fk_b1a1,
+drop foreign key fk_b1b2;
+alter table mydb2.t2
+drop foreign key fk_b2a2,
+drop foreign key fk_b2b1;
+drop table mydb1.t1;
+drop table mydb2.t2;
+drop database mydb1;
+drop database mydb2;
+# engine=ndb
+create table product (
+category int not null,
+id int not null,
+price decimal,
+primary key(category, id))
+engine=ndb;
+create table customer (
+id int not null,
+primary key (id))
+engine=ndb;
+create table product_order (
+no int not null auto_increment,
+product_category int not null,
+product_id int not null,
+customer_id int not null,
+primary key(no),
+index (product_category, product_id),
+foreign key fk1 (product_category, product_id) references product(category, id)
+on update restrict on delete cascade,
+index (customer_id),
+foreign key fk2 (customer_id) references customer(id))
+engine=ndb;
+create table emp (
+id int primary key auto_increment,
+manager int,
+key (manager),
+foreign key fk1 (manager) references emp (id))
+engine=ndb;
+select *
+from information_schema.table_constraints
+where table_schema = 'test'
+order by table_name, constraint_type, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+def	test	PRIMARY	test	customer	PRIMARY KEY
+def	test	fk1	test	emp	FOREIGN KEY
+def	test	PRIMARY	test	emp	PRIMARY KEY
+def	test	PRIMARY	test	product	PRIMARY KEY
+def	test	fk1	test	product_order	FOREIGN KEY
+def	test	fk2	test	product_order	FOREIGN KEY
+def	test	PRIMARY	test	product_order	PRIMARY KEY
+COL	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_COL
+customer.id	1	NULL	
+emp.id	1	NULL	
+emp.manager	1	1	emp.id
+product.category	1	NULL	
+product.id	2	NULL	
+product_order.customer_id	1	1	customer.id
+product_order.no	1	NULL	
+product_order.product_category	1	1	product.category
+product_order.product_id	2	2	product.id
+drop table product_order, customer, product, emp;
+create database mydb1;
+create database mydb2;
+create table mydb1.t1 (
+a1 int not null,
+b1 int not null,
+primary key using hash (a1),
+unique key xb1 (b1)
+) engine=ndb;
+create table mydb2.t2 (
+a2 int not null,
+b2 int not null,
+primary key using hash (a2),
+unique key xb2 (b2)
+) engine=ndb;
+alter table mydb1.t1
+add constraint fk_b1a1 foreign key (b1) references mydb1.t1 (a1),
+add constraint fk_b1b2 foreign key (b1) references mydb2.t2 (b2);
+alter table mydb2.t2
+add constraint fk_b2a2 foreign key (b2) references mydb2.t2 (a2),
+add constraint fk_b2b1 foreign key (b2) references mydb1.t1 (b1);
+select *
+from information_schema.referential_constraints
+order by constraint_schema, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
+def	mydb1	fk_b1a1	def	mydb1	PRIMARY	NONE	NO ACTION	NO ACTION	t1	t1
+def	mydb1	fk_b1b2	def	mydb2	xb2$unique	NONE	NO ACTION	NO ACTION	t1	t2
+def	mydb2	fk_b2a2	def	mydb2	PRIMARY	NONE	NO ACTION	NO ACTION	t2	t2
+def	mydb2	fk_b2b1	def	mydb1	xb1$unique	NONE	NO ACTION	NO ACTION	t2	t1
+select *
+from information_schema.table_constraints
+where table_schema like 'mydb%'
+order by table_name, constraint_type, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+def	mydb1	fk_b1a1	mydb1	t1	FOREIGN KEY
+def	mydb1	fk_b1b2	mydb1	t1	FOREIGN KEY
+def	mydb1	PRIMARY	mydb1	t1	PRIMARY KEY
+def	mydb1	xb1	mydb1	t1	UNIQUE
+def	mydb2	fk_b2a2	mydb2	t2	FOREIGN KEY
+def	mydb2	fk_b2b1	mydb2	t2	FOREIGN KEY
+def	mydb2	PRIMARY	mydb2	t2	PRIMARY KEY
+def	mydb2	xb2	mydb2	t2	UNIQUE
+select *
+from information_schema.key_column_usage
+where table_schema like 'mydb%'
+order by constraint_schema, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+def	mydb1	fk_b1a1	def	mydb1	t1	b1	1	1	mydb1	t1	a1
+def	mydb1	fk_b1b2	def	mydb1	t1	b1	1	1	mydb2	t2	b2
+def	mydb1	PRIMARY	def	mydb1	t1	a1	1	NULL	NULL	NULL	NULL
+def	mydb1	xb1	def	mydb1	t1	b1	1	NULL	NULL	NULL	NULL
+def	mydb2	fk_b2a2	def	mydb2	t2	b2	1	1	mydb2	t2	a2
+def	mydb2	fk_b2b1	def	mydb2	t2	b2	1	1	mydb1	t1	b1
+def	mydb2	PRIMARY	def	mydb2	t2	a2	1	NULL	NULL	NULL	NULL
+def	mydb2	xb2	def	mydb2	t2	b2	1	NULL	NULL	NULL	NULL
+alter table mydb1.t1
+drop foreign key fk_b1a1,
+drop foreign key fk_b1b2;
+alter table mydb2.t2
+drop foreign key fk_b2a2,
+drop foreign key fk_b2b1;
+drop table mydb1.t1;
+drop table mydb2.t2;
+drop database mydb1;
+drop database mydb2;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ static char *add_load_option(char *ptr,const char *object,
 
 static my_bool	verbose=0,lock_tables=0,ignore_errors=0,opt_delete=0,
 		replace=0,silent=0,ignore=0,opt_compress=0,
-                opt_low_priority= 0, tty_password= 0;
+                opt_low_priority= 0, tty_password= 0, opt_secure_auth= 1;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static uint opt_use_threads=0, opt_local_file=0, my_end_arg= 0;
 static char	*opt_password=0, *current_user=0,
@@ -62,7 +62,7 @@ static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static longlong opt_ignore_lines= -1;
 #include <sslopt-vars.h>
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 
@@ -141,7 +141,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -161,7 +161,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replace", 'r', "If duplicate unique key was found, replace old row.",
    &replace, &replace, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol.",
+    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -227,7 +230,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       char *start=argument;
       my_free(opt_password);
-      opt_password=my_strdup(argument,MYF(MY_FAE));
+      opt_password=my_strdup(PSI_NOT_INSTRUMENTED,
+                             argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1]=0;				/* Cut length of argument */
@@ -236,7 +240,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       tty_password= 1;
     break;
-#ifdef __WIN__
+#ifdef _WIN32
   case 'W':
     opt_protocol = MYSQL_PROTOCOL_PIPE;
     opt_local_file=1;
@@ -306,7 +310,7 @@ static int write_to_table(char *filename, MYSQL *mysql)
 
   fn_format(tablename, filename, "", "", 1 | 2); /* removes path & ext. */
   if (!opt_local_file)
-    strmov(hard_path,filename);
+    my_stpcpy(hard_path,filename);
   else
     my_load_path(hard_path, filename, NULL); /* filename includes the path */
 
@@ -314,11 +318,7 @@ static int write_to_table(char *filename, MYSQL *mysql)
   {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
-#ifdef HAVE_SNPRINTF
     snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
-#else
-    sprintf(sql_statement, "DELETE FROM %s", tablename);
-#endif
     if (mysql_query(mysql, sql_statement))
     {
       db_error_with_table(mysql, tablename);
@@ -342,10 +342,10 @@ static int write_to_table(char *filename, MYSQL *mysql)
 	  opt_local_file ? "LOCAL" : "", escaped_name);
   end= strend(sql_statement);
   if (replace)
-    end= strmov(end, " REPLACE");
+    end= my_stpcpy(end, " REPLACE");
   if (ignore)
-    end= strmov(end, " IGNORE");
-  end= strmov(end, " INTO TABLE `");
+    end= my_stpcpy(end, " IGNORE");
+  end= my_stpcpy(end, " INTO TABLE `");
   /* Turn any ` into `` in table name. */
   for (pos= tablename; *pos; pos++)
   {
@@ -353,10 +353,10 @@ static int write_to_table(char *filename, MYSQL *mysql)
       *end++= '`';
     *end++= *pos;
   }
-  end= strmov(end, "`");
+  end= my_stpcpy(end, "`");
 
   if (fields_terminated || enclosed || opt_enclosed || escaped)
-      end= strmov(end, " FIELDS");
+      end= my_stpcpy(end, " FIELDS");
   end= add_load_option(end, fields_terminated, " TERMINATED BY");
   end= add_load_option(end, enclosed, " ENCLOSED BY");
   end= add_load_option(end, opt_enclosed,
@@ -364,10 +364,10 @@ static int write_to_table(char *filename, MYSQL *mysql)
   end= add_load_option(end, escaped, " ESCAPED BY");
   end= add_load_option(end, lines_terminated, " LINES TERMINATED BY");
   if (opt_ignore_lines >= 0)
-    end= strmov(longlong10_to_str(opt_ignore_lines, 
-				  strmov(end, " IGNORE "),10), " LINES");
+    end= my_stpcpy(longlong10_to_str(opt_ignore_lines, 
+				  my_stpcpy(end, " IGNORE "),10), " LINES");
   if (opt_columns)
-    end= strmov(strmov(strmov(end, " ("), opt_columns), ")");
+    end= my_stpcpy(my_stpcpy(my_stpcpy(end, " ("), opt_columns), ")");
   *end= '\0';
 
   if (mysql_query(mysql, sql_statement))
@@ -403,7 +403,7 @@ static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename)
     dynstr_append(&query, tablename);
     dynstr_append(&query, " WRITE,");
   }
-  if (mysql_real_query(mysql, query.str, query.length-1))
+  if (mysql_real_query(mysql, query.str, (ulong)(query.length-1)))
     db_error(mysql); /* We shall countinue here, if --force was given */
 }
 
@@ -423,22 +423,14 @@ static MYSQL *db_connect(char *host, char *database,
   if (opt_local_file)
     mysql_options(mysql,MYSQL_OPT_LOCAL_INFILE,
 		  (char*) &opt_local_file);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*)&opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(mysql);
   if (opt_protocol)
     mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(mysql,MYSQL_OPT_BIND,opt_bind_addr);
-#ifdef HAVE_SMEM
+  if (!opt_secure_auth)
+    mysql_options(mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -700,7 +692,7 @@ int main(int argc, char **argv)
     db_disconnect(current_host, mysql);
   }
   my_free(opt_password);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(argv_to_free);

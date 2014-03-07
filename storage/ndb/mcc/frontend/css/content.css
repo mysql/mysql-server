@@ -1,0 +1,490 @@
+/*
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+*/
+
+/******************************************************************************
+ ***                                                                        ***
+ ***        Style sheet settings for configuration of MySQL CLuster         ***
+ ***                                                                        ***
+ ******************************************************************************/
+
+body { 
+	font-family: Helvetica, Verdana, sans-serif;
+	font-size: 70%;
+	line-height: 1.5em;
+	text-align: left;
+	margin: 0;
+	margin-left: auto;
+	margin-right: auto;
+	padding: 0;
+	background: url(../img/content-bg.png);
+	background-repeat: repeat-x;
+	background-color: #f9fbfc;
+	color: #000000;
+}
+
+#aboutDialog {
+    width: 450px;
+    height: 130px;
+    text-align: center;
+}
+
+/************************** Title, various html styles ************************/
+
+a, a:link, a:visited {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+img {
+	border: 0;
+}
+
+h1 {
+	font-size: 1.5em;
+	font-weight: bold;
+}
+
+#title {
+    position:absolute;
+    top: 7px;
+    padding-left: 11px;
+}
+
+.title img {
+  vertical-align:middle;
+}
+
+.title span {
+  vertical-align:middle;
+  padding-left: 5px;
+  padding-right: 5px;
+  font-size: 12px;
+}
+
+#title-right {
+  position:absolute;
+  top: 5px;
+  right:5px;
+}
+
+/************************ Panels  surrounding main pane ***********************/
+
+#panel-main-left {
+  position:absolute;
+  top: 0px;
+  left:0px;
+  height:100%;
+  width: 11px;
+  background: url(../img/content-panel-main-left.png);
+}
+
+#panel-main-right {
+  position:absolute;
+  top: 0px;
+  right:0px;
+  height:100%;
+  width: 11px;
+  background: url(../img/content-panel-main-right.png);
+}
+
+#panel-main-bottom {
+  position:absolute;
+  bottom: 0px;
+  height: 12px;
+  left: 0px;
+  right: 0px;
+  background: url(../img/content-panel-main-bottom.png);
+}
+
+#panel-main-img-bottom {
+  position:absolute;
+  left: 0px;
+  bottom: 0px;
+}
+
+/*************************** Top level menu ***********************************/
+
+#menu {
+  position:absolute;
+  top: 38px;
+}
+
+#menu-right {
+  position:absolute;
+  top: 37px;
+  right:5px;
+}
+
+.menu {
+  font-size: 12px;
+  float: left;
+  margin-left: 10px;
+}
+
+.menu img {
+  vertical-align:middle;
+}
+
+.menu span {
+  vertical-align:middle;
+  font-weight: 700;
+  color: #ffffff;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+/******* Top level container and title, position and scale correctly **********/
+
+#content-main {
+  display: block;
+  position:absolute;
+  width: auto;
+  top: 64px;
+  left: 20px;
+  right: 20px;
+  bottom: 60px;
+}
+
+#content-main-tab-buttons {
+  position:absolute;
+  bottom: 25px;
+  right: 25px;
+  background-color: #f9fbfc;
+}
+
+#content-main-tab-container {
+  border-bottom-style: solid;
+  border-width: 1px;
+  border-color: #adb6c7;
+}
+
+/********** Tab container style: Make it look like a breadcrumb trail *********/
+
+.dijitTabContainer {
+  width: 100%;
+  height: 100%;
+}
+.dijitTabContainerTop-tabs .dijitTab .dijitTabContent {
+    background: transparent!important;
+    border: none!important;
+}
+.dijitTabContainerTop-tabs .dijitTab .tabLabel {
+    padding-left: 4px;
+    color: #adb6c7;
+    font-size: 14px;
+    font-weight: bold;
+}
+.dijitTabContainerTop-tabs .dijitTabHover .tabLabel {
+  padding-left: 4px!important; 
+}
+.dijitTabContainerTop-tabs .dijitTabCheckedHover .tabLabel {
+  padding-left: 4px!important; 
+}
+.dijitTabContainerTop-tabs .dijitTabChecked .tabLabel {
+  color: #074260;
+}
+.claro .dijitTabContainerTop-dijitContentPane {
+  background-color: #f9fbfc!important;
+  padding: 8px!important;
+}
+.claro .dijitTabPaneWrapperNested {
+  margin: 4px;
+}
+
+.claro .dijitTabContainerTabListNested .dijitTabHover .dijitTabContent {
+  padding: 4px!important;
+}
+.claro .dijitTabContainerTabListNested .dijitTabActive .dijitTabContent {
+  padding: 4px!important;
+}
+.claro .dijitTabContainerTabListNested .dijitTabHover .tabLabel {
+  text-decoration: none;
+}
+
+/****************** Contents within the top level container *******************/
+
+.content-tab-title {
+  color: #074260;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+h2 {
+  color: #074260;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 0;
+  margin: 0;
+}
+
+.content-tab-sub-title {
+  font-size: 11px;
+}
+
+.content-tab-top-panel {
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.content-tab-center-panel {
+  border-style: solid;
+  border-width: 1px;
+  border-color: #adb6c7;
+  margin-left: 10%;
+  margin-right: 10%;
+  margin-top: 15px;
+  margin-bottom: 20px;
+  padding: 0!important;
+}
+
+.content-tab-bottom-panel {
+  height: 28px;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.content-block-header {
+  font-size: 12px;
+  padding-top: 30px;
+  padding-bottom: 5px;
+}
+
+.content-block-img {
+  width: 65px;
+  text-align: right;
+  vertical-align: top;
+  padding-right: 12px;
+}
+
+.content-block-info {
+  font-size: 11px;
+  color: #838383;
+  padding-bottom: 10px;
+}
+
+.content-block-data {
+  font-size: 12px;
+}
+
+.content-block-data-subtitle td {
+  font-size: 11px;
+  color: #838383;
+  padding-left: 18px;
+}
+
+.content-block-panel {
+  width: 540px;
+  height: 350px;
+  border-radius: 6px; 
+  -moz-border-radius: 6px; 
+  -webkit-border-radius: 6px; 
+  border: 1px solid #c2c7d3;
+  background-color: #ffffff;
+  box-shadow: 0px 3px 5px rgba(0, 0, 0, 0.60);
+  -moz-box-shadow: 0px 3px 5px rgba(0, 0, 0, 0.60);
+  -webkit-box-shadow: 0px 3px 5px rgba(0, 0, 0, 0.60);
+  padding: 5px;
+}
+
+.content-block-panel-center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 35px;
+}
+
+.content-grid-header {
+  border: none!important;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 15px!important;
+  padding: 0!important;
+}
+
+.content-tree-panel {
+  border-style: solid;
+  border-width: 1px;
+  border-color: #adb6c7;
+  height: 100%;
+  width: 240px;
+  padding: 0!important;
+  margin: 0!important; 
+}
+
+.content-tree-details-panel {
+  border-style: solid;
+  border-width: 1px;
+  border-color: #adb6c7;
+  height: 100%;
+  padding: 0!important;
+  margin: 0!important; 
+}
+
+/*************************** Individual widgets *******************************/
+
+#clusterDetails {
+  margin-left: 15px;
+  margin-bottom: 20px;
+}
+
+#sshDetails {
+  margin-left: 15px;
+  margin-bottom: 20px;
+}
+
+#configDetails {
+  line-height: 1.4em;
+}
+
+#startupDetails {
+  line-height: 1.4em;
+}
+
+#configWizardProgressBar {
+    width: 300px;
+}
+
+/******************* Button without background or border **********************/
+
+.menuButton .dijitButtonNode {
+    margin: 4px;
+    padding: 3px;
+    border: none;
+    color: #074260;
+    font-size: 12px;    
+    font-weight: 700;    
+    background: transparent;
+}
+
+.menuIconButton .dijitButtonNode {
+    margin: 4px;
+    padding: 3px;
+    border: none;
+    color: #d0d0d0;
+    font-size: 12px;    
+    background: transparent;
+}
+
+.menuIconButton .dijitButtonNode .dijitArrowButtonInner {
+    background: transparent;
+    width: 0px;
+}
+
+.iconButton .dijitButtonNode {
+    border: none;
+    background: transparent;
+}
+
+/************************** Tooltip question mark *****************************/
+
+.helpIcon {
+    color: #074260;
+}
+
+/****************************** Various icons *********************************/
+
+.deployIcon {
+    background-image: url('../img/deploy.gif');
+    width: 11px;
+    height: 11px;
+} 
+.startIcon {
+    background-image: url('../img/start.gif');
+    width: 11px;
+    height: 11px;
+} 
+.stopIcon {
+    background-image: url('../img/stop.gif');
+    width: 11px;
+    height: 11px;
+} 
+.leftIcon {
+    background-image: url('../img/left.gif');
+    width: 11px;
+    height: 11px;
+} 
+.rightIcon {
+    background-image: url('../img/right.gif');
+    width: 11px;
+    height: 11px;
+} 
+.lastIcon {
+    background-image: url('../img/last.gif');
+    width: 11px;
+    height: 11px;
+} 
+.dijitIconAdd {
+    background-image: url('../dojo/dijit/themes/claro/images/dnd.png');
+    width: 16px;
+    height: 16px;
+} 
+.settingsIcon {
+    background-image: url('../img/settings.gif');
+    width: 18px;
+    height: 18px;
+} 
+.arrowIcon {
+    background-image: url('../img/tab-separator.png');
+    width: 11px;
+    height: 17px;
+} 
+.newClusterIcon {
+    background-image: url('../img/icon_new_cluster.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 60px;
+    height: 40px;
+} 
+.continueClusterIcon {
+    background-image: url('../img/icon_continue_cluster.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 60px;
+    height: 40px;
+} 
+.anyHostIcon {
+    background-image: url('../img/anyhost.gif');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 14px;
+    height: 14px;
+} 
+.greenLight {
+    background-image: url('../img/greenlight.gif');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 14px;
+    height: 14px;
+} 
+.yellowLight {
+    background-image: url('../img/yellowlight.gif');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 14px;
+    height: 14px;
+} 
+.redLight {
+    background-image: url('../img/redlight.gif');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 14px;
+    height: 14px;
+} 
+

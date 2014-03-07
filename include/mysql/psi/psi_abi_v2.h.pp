@@ -1,7 +1,21 @@
 #include "mysql/psi/psi.h"
+#include "psi_base.h"
+#include "psi_memory.h"
+#include "psi_base.h"
+typedef unsigned int PSI_memory_key;
+struct PSI_memory_info_v2
+{
+  int placeholder;
+};
+typedef struct PSI_memory_info_v2 PSI_memory_info;
 C_MODE_START
+struct MDL_key;
+typedef struct MDL_key MDL_key;
+typedef int opaque_mdl_type;
+typedef int opaque_mdl_duration;
+typedef int opaque_mdl_status;
 struct TABLE_SHARE;
-struct OPAQUE_LEX_YYSTYPE;
+struct sql_digest_storage;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;
@@ -18,14 +32,24 @@ struct PSI_file;
 typedef struct PSI_file PSI_file;
 struct PSI_socket;
 typedef struct PSI_socket PSI_socket;
+struct PSI_prepared_stmt;
+typedef struct PSI_prepared_stmt PSI_prepared_stmt;
 struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;
 struct PSI_statement_locker;
 typedef struct PSI_statement_locker PSI_statement_locker;
+struct PSI_transaction_locker;
+typedef struct PSI_transaction_locker PSI_transaction_locker;
 struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;
 typedef struct PSI_digest_locker PSI_digest_locker;
+struct PSI_sp_share;
+typedef struct PSI_sp_share PSI_sp_share;
+struct PSI_sp_locker;
+typedef struct PSI_sp_locker PSI_sp_locker;
+struct PSI_metadata_lock;
+typedef struct PSI_metadata_lock PSI_metadata_lock;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
@@ -41,6 +65,8 @@ struct PSI_file_locker;
 typedef struct PSI_file_locker PSI_file_locker;
 struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
+struct PSI_metadata_locker;
+typedef struct PSI_metadata_locker PSI_metadata_locker;
 enum PSI_mutex_operation
 {
   PSI_MUTEX_LOCK= 0,
@@ -161,6 +187,10 @@ struct PSI_statement_info_v2
 {
   int placeholder;
 };
+struct PSI_transaction_info_v2
+{
+  int placeholder;
+};
 struct PSI_idle_locker_state_v2
 {
   int placeholder;
@@ -189,7 +219,15 @@ struct PSI_statement_locker_state_v2
 {
   int placeholder;
 };
+struct PSI_transaction_locker_state_v2
+{
+  int placeholder;
+};
 struct PSI_socket_locker_state_v2
+{
+  int placeholder;
+};
+struct PSI_metadata_locker_state_v2
 {
   int placeholder;
 };
@@ -201,6 +239,7 @@ typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
 typedef struct PSI_stage_info_v2 PSI_stage_info;
 typedef struct PSI_statement_info_v2 PSI_statement_info;
+typedef struct PSI_transaction_info_v2 PSI_transaction_info;
 typedef struct PSI_socket_info_v2 PSI_socket_info;
 typedef struct PSI_idle_locker_state_v2 PSI_idle_locker_state;
 typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
@@ -209,6 +248,9 @@ typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v2 PSI_statement_locker_state;
+typedef struct PSI_transaction_locker_state_v2 PSI_transaction_locker_state;
 typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
+typedef struct PSI_sp_locker_state_v2 PSI_sp_locker_state;
+typedef struct PSI_metadata_locker_state_v2 PSI_metadata_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END

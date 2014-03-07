@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ public:
   static void cleanup();
 
   /** Atomic load. */
-  static inline int32 load_32(volatile int32 *ptr)
+  static inline int32 load_32(int32 *ptr)
   {
     int32 result;
     rdlock(ptr);
@@ -43,7 +43,7 @@ public:
   }
 
   /** Atomic load. */
-  static inline int64 load_64(volatile int64 *ptr)
+  static inline int64 load_64(int64 *ptr)
   {
     int64 result;
     rdlock(ptr);
@@ -53,7 +53,7 @@ public:
   }
 
   /** Atomic load. */
-  static inline uint32 load_u32(volatile uint32 *ptr)
+  static inline uint32 load_u32(uint32 *ptr)
   {
     uint32 result;
     rdlock(ptr);
@@ -63,7 +63,7 @@ public:
   }
 
   /** Atomic load. */
-  static inline uint64 load_u64(volatile uint64 *ptr)
+  static inline uint64 load_u64(uint64 *ptr)
   {
     uint64 result;
     rdlock(ptr);
@@ -73,7 +73,7 @@ public:
   }
 
   /** Atomic store. */
-  static inline void store_32(volatile int32 *ptr, int32 value)
+  static inline void store_32(int32 *ptr, int32 value)
   {
     wrlock(ptr);
     my_atomic_store32(ptr, value);
@@ -81,7 +81,7 @@ public:
   }
 
   /** Atomic store. */
-  static inline void store_64(volatile int64 *ptr, int64 value)
+  static inline void store_64(int64 *ptr, int64 value)
   {
     wrlock(ptr);
     my_atomic_store64(ptr, value);
@@ -89,7 +89,7 @@ public:
   }
 
   /** Atomic store. */
-  static inline void store_u32(volatile uint32 *ptr, uint32 value)
+  static inline void store_u32(uint32 *ptr, uint32 value)
   {
     wrlock(ptr);
     my_atomic_store32((int32*) ptr, (int32) value);
@@ -97,7 +97,7 @@ public:
   }
 
   /** Atomic store. */
-  static inline void store_u64(volatile uint64 *ptr, uint64 value)
+  static inline void store_u64(uint64 *ptr, uint64 value)
   {
     wrlock(ptr);
     my_atomic_store64((int64*) ptr, (int64) value);
@@ -105,7 +105,7 @@ public:
   }
 
   /** Atomic add. */
-  static inline int32 add_32(volatile int32 *ptr, int32 value)
+  static inline int32 add_32(int32 *ptr, int32 value)
   {
     int32 result;
     wrlock(ptr);
@@ -115,7 +115,7 @@ public:
   }
 
   /** Atomic add. */
-  static inline int64 add_64(volatile int64 *ptr, int64 value)
+  static inline int64 add_64(int64 *ptr, int64 value)
   {
     int64 result;
     wrlock(ptr);
@@ -125,7 +125,7 @@ public:
   }
 
   /** Atomic add. */
-  static inline uint32 add_u32(volatile uint32 *ptr, uint32 value)
+  static inline uint32 add_u32(uint32 *ptr, uint32 value)
   {
     uint32 result;
     wrlock(ptr);
@@ -135,7 +135,7 @@ public:
   }
 
   /** Atomic add. */
-  static inline uint64 add_u64(volatile uint64 *ptr, uint64 value)
+  static inline uint64 add_u64(uint64 *ptr, uint64 value)
   {
     uint64 result;
     wrlock(ptr);
@@ -145,7 +145,7 @@ public:
   }
 
   /** Atomic compare and swap. */
-  static inline bool cas_32(volatile int32 *ptr, int32 *old_value,
+  static inline bool cas_32(int32 *ptr, int32 *old_value,
                             int32 new_value)
   {
     bool result;
@@ -156,7 +156,7 @@ public:
   }
 
   /** Atomic compare and swap. */
-  static inline bool cas_64(volatile int64 *ptr, int64 *old_value,
+  static inline bool cas_64(int64 *ptr, int64 *old_value,
                             int64 new_value)
   {
     bool result;
@@ -167,7 +167,7 @@ public:
   }
 
   /** Atomic compare and swap. */
-  static inline bool cas_u32(volatile uint32 *ptr, uint32 *old_value,
+  static inline bool cas_u32(uint32 *ptr, uint32 *old_value,
                              uint32 new_value)
   {
     bool result;
@@ -179,7 +179,7 @@ public:
   }
 
   /** Atomic compare and swap. */
-  static inline bool cas_u64(volatile uint64 *ptr, uint64 *old_value,
+  static inline bool cas_u64(uint64 *ptr, uint64 *old_value,
                              uint64 new_value)
   {
     bool result;
@@ -197,7 +197,7 @@ private:
     Helper used only with non native atomic implementations.
     @sa MY_ATOMIC_MODE_RWLOCKS
   */
-  static inline my_atomic_rwlock_t *get_rwlock(volatile void *ptr)
+  static inline my_atomic_rwlock_t *get_rwlock(void *ptr)
   {
     /*
       Divide an address by 8 to remove alignment,
@@ -212,7 +212,7 @@ private:
     Helper used only with non native atomic implementations.
     @sa MY_ATOMIC_MODE_RWLOCKS
   */
-  static inline void rdlock(volatile void *ptr)
+  static inline void rdlock(void *ptr)
   {
     my_atomic_rwlock_rdlock(get_rwlock(ptr));
   }
@@ -221,7 +221,7 @@ private:
     Helper used only with non native atomic implementations.
     @sa MY_ATOMIC_MODE_RWLOCKS
   */
-  static inline void wrlock(volatile void *ptr)
+  static inline void wrlock(void *ptr)
   {
     my_atomic_rwlock_wrlock(get_rwlock(ptr));
   }
@@ -230,7 +230,7 @@ private:
     Helper used only with non native atomic implementations.
     @sa MY_ATOMIC_MODE_RWLOCKS
   */
-  static inline void rdunlock(volatile void *ptr)
+  static inline void rdunlock(void *ptr)
   {
     my_atomic_rwlock_rdunlock(get_rwlock(ptr));
   }
@@ -239,7 +239,7 @@ private:
     Helper used only with non native atomic implementations.
     @sa MY_ATOMIC_MODE_RWLOCKS
   */
-  static inline void wrunlock(volatile void *ptr)
+  static inline void wrunlock(void *ptr)
   {
     my_atomic_rwlock_wrunlock(get_rwlock(ptr));
   }

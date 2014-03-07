@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
     name		Name of file
 
   DESCRIPTION
-    The extension is defined as everything after the first extension character
+    The extension is defined as everything after the last extension character
     (normally '.') after the directory name.
 
   RETURN VALUES
@@ -49,6 +49,6 @@ char *fn_ext(const char *name)
   if (!(gpos= strrchr(name, FN_LIBCHAR)))
     gpos= name;
 #endif
-  pos=strchr(gpos,FN_EXTCHAR);
+  pos=strrchr(gpos,FN_EXTCHAR);
   DBUG_RETURN((char*) (pos ? pos : strend(gpos)));
 } /* fn_ext */

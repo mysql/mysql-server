@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -383,6 +383,7 @@ Ndb::computeHash(Uint32 *retval,
   const NdbColumnImpl* const * cols = impl->m_columns.getBase();
   Uint32 len;
   char* pos;
+  void* malloced_buf = NULL;
 
   Uint32 colcnt = impl->m_columns.size();
   Uint32 parts = impl->m_noOfDistributionKeys;
@@ -449,8 +450,18 @@ Ndb::computeHash(Uint32 *retval,
     sumlen += len;
 
   }
-  
-  if (buf)
+
+  if (!buf)
+  {
+    bufLen = sumlen;
+    bufLen += sizeof(Uint64); /* add space for potential alignment */
+    buf = malloc(bufLen);
+    if (unlikely(buf == 0))
+      return 4000;
+    malloced_buf = buf; /* Remember to free */
+    assert(bufLen > sumlen);
+  }
+
   {
     /* Get 64-bit aligned ptr required for hashing */
     assert(bufLen != 0);
@@ -463,15 +474,7 @@ Ndb::computeHash(Uint32 *retval,
     if (unlikely(sumlen > bufLen))
       goto ebuftosmall;
   }
-  else
-  {
-    buf = malloc(sumlen);
-    if (unlikely(buf == 0))
-      goto enomem;
-    bufLen = 0;
-    assert((UintPtr(buf) & 7) == 0);
-  }
-  
+
   pos = (char*)buf;
   for (Uint32 i = 0; i<parts; i++)
   {
@@ -527,8 +530,8 @@ Ndb::computeHash(Uint32 *retval,
     * retval = values[1];
   }
   
-  if (bufLen == 0)
-    free(buf);
+  if (malloced_buf)
+    free(malloced_buf);
   
   return 0;
   
@@ -548,16 +551,13 @@ ebuftosmall:
   return 4278;
 
 emalformedstring:
-  if (bufLen == 0)
-    free(buf);
+  if (malloced_buf)
+    free(malloced_buf);
   
   return 4279;
   
 emalformedkey:
   return 4280;
-
-enomem:
-  return 4000;
 }
 
 int
@@ -568,6 +568,7 @@ Ndb::computeHash(Uint32 *retval,
 {
   Uint32 len;
   char* pos = NULL;
+  void* malloced_buf = NULL;
 
   Uint32 parts = keyRec->distkey_index_length;
 
@@ -579,7 +580,20 @@ Ndb::computeHash(Uint32 *retval,
     goto euserdeftable;
   }
 
-  if (buf)
+  if (!buf)
+  {
+    /* We malloc buf here.  Don't have a handy 'Max distr key size'
+     * variable, so let's use the key length, which must include
+     * the Distr key.
+     */
+    bufLen = keyRec->m_keyLenInWords << 2;
+    bufLen += sizeof(Uint64); /* add space for potential alignment */
+    buf = malloc(bufLen);
+    if (unlikely(buf == 0))
+      return 4000;
+    malloced_buf = buf; /* Remember to free */
+  }
+
   {
     /* Get 64-bit aligned address as required for hashing */
     assert(bufLen != 0);
@@ -589,19 +603,7 @@ Ndb::computeHash(Uint32 *retval,
     buf = (void*)use;
     bufLen -= Uint32(use - org);
   }
-  else
-  {
-    /* We malloc buf here.  Don't have a handy 'Max distr key size'
-     * variable, so let's use the key length, which must include
-     * the Distr key.
-     */
-    buf= malloc(keyRec->m_keyLenInWords << 2);
-    if (unlikely(buf == 0))
-      goto enomem;
-    bufLen= 0; /* So we remember to deallocate */
-    assert((UintPtr(buf) & 7) == 0);
-  }
-  
+
   pos= (char*) buf;
 
   for (Uint32 i = 0; i < parts; i++)
@@ -689,21 +691,19 @@ Ndb::computeHash(Uint32 *retval,
   {
     * retval = values[1];
   }
-  
-  if (bufLen == 0)
-    free(buf);
+
+  if (malloced_buf)
+    free(malloced_buf);
 
   return 0;
 
 euserdeftable:
   return 4544;
 
-enomem:
-  return 4000;
   
 emalformedstring:
-  if (bufLen == 0)
-    free(buf);
+  if (malloced_buf)
+    free(malloced_buf);
 
   return 4279;
 }

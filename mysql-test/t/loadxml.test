@@ -1,3 +1,4 @@
+
 #
 # Tests for "LOAD XML" - a contributed patch from Erik Wetterberg.
 #
@@ -103,7 +104,7 @@ create table t1 (
   id int(11) not null,
   text text,
   primary key (id)
-) engine=MyISAM default charset=latin1;
+) default charset=latin1;
 load xml infile '../../std_data/loadxml2.dat' into table t1;
 select * from t1;
 drop table t1;

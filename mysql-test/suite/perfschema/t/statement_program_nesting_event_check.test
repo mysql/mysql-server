@@ -1,0 +1,44 @@
+#-------------------------------------------------------------
+# Tests for PERFORMANCE_SCHEMA stored programs instrumentation  
+#-------------------------------------------------------------
+
+# Test to check the values populated in NESTING_EVENT_TYPE 
+# columns of events_statements_current/history/history_long PS tables. 
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--echo #----------------------------
+--echo # Non-nested Stored programs.
+--echo #----------------------------
+--source suite/perfschema/include/program_setup.inc
+--source suite/perfschema/include/program_execution.inc
+
+SELECT EVENT_NAME, SQL_TEXT, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
+       FROM performance_schema.events_statements_history_long 
+       WHERE CURRENT_SCHEMA='stored_programs' AND
+       (SQL_TEXT not like '%count(*) = 1%' OR SQL_TEXT IS NULL)
+       ORDER BY OBJECT_NAME,NESTING_EVENT_LEVEL,SQL_TEXT;
+
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+# Clean-up
+--source suite/perfschema/include/program_cleanup.inc
+
+--echo #------------------------
+--echo # Nested stored programs.
+--echo #------------------------
+--source suite/perfschema/include/program_nested_setup.inc
+--source suite/perfschema/include/program_nested_execution.inc
+
+SELECT EVENT_NAME, SQL_TEXT, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
+       FROM performance_schema.events_statements_history_long 
+       WHERE CURRENT_SCHEMA='nested_sp' 
+       ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT, EVENT_NAME;
+
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+# Clean-up
+--source suite/perfschema/include/program_nested_cleanup.inc

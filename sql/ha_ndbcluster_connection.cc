@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2000-2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +16,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include <ndbapi/NdbApi.hpp>
 #include <portlib/NdbTick.h>
 #include "ha_ndbcluster_connection.h"
@@ -45,7 +42,8 @@ ndbcluster_connect(int (*connect_callback)(void),
                    uint connection_pool_size,
                    bool optimized_node_select,
                    const char* connect_string,
-                   uint force_nodeid)
+                   uint force_nodeid,
+                   uint recv_thread_activation_threshold)
 {
   NDB_TICKS end_time;
 
@@ -77,6 +75,8 @@ ndbcluster_connect(int (*connect_callback)(void),
     g_ndb_cluster_connection->set_name(buf);
   }
   g_ndb_cluster_connection->set_optimized_node_selection(optimized_node_select);
+  g_ndb_cluster_connection->set_recv_thread_activation_threshold(
+                                      recv_thread_activation_threshold);
 
   // Create a Ndb object to open the connection  to NDB
   if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
@@ -111,7 +111,8 @@ ndbcluster_connect(int (*connect_callback)(void),
   {
     g_pool_alloc= connection_pool_size;
     g_pool= (Ndb_cluster_connection**)
-      my_malloc(g_pool_alloc * sizeof(Ndb_cluster_connection*),
+      my_malloc(PSI_INSTRUMENT_ME,
+                g_pool_alloc * sizeof(Ndb_cluster_connection*),
                 MYF(MY_WME | MY_ZEROFILL));
     pthread_mutex_init(&g_pool_mutex,
                        MY_MUTEX_INIT_FAST);
@@ -135,6 +136,7 @@ ndbcluster_connect(int (*connect_callback)(void),
         g_pool[i]->set_name(buf);
       }
       g_pool[i]->set_optimized_node_selection(optimized_node_select);
+      g_pool[i]->set_recv_thread_activation_threshold(recv_thread_activation_threshold);
     }
   }
 
@@ -289,6 +291,48 @@ int ndb_has_node_id(uint id)
   return 0;
 }
 
+int ndb_set_recv_thread_activation_threshold(Uint32 threshold)
+{
+  for (uint i= 0; i < g_pool_alloc; i++)
+  {
+    g_pool[i]->set_recv_thread_activation_threshold(threshold);
+  }
+  return 0;
+}
+
+int
+ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
+                        Uint32 cpuid_array_size)
+{
+  Uint32 num_cpu_needed = g_pool_alloc;
+
+  if (cpuid_array_size == 0)
+  {
+    for (Uint32 i = 0; i < g_pool_alloc; i++)
+    {
+      g_pool[i]->unset_recv_thread_cpu(0);
+    }
+    return 0;
+  }
+
+  if (cpuid_array_size < num_cpu_needed)
+  {
+    /* Ignore cpu masks that is too short */
+    sql_print_information(
+      "Ignored receive thread CPU mask, mask too short,"
+      " %u CPUs needed in mask, only %u CPUs provided",
+      num_cpu_needed, cpuid_array_size);
+    return 0;
+  }
+  for (Uint32 i = 0; i < g_pool_alloc; i++)
+  {
+    g_pool[i]->set_recv_thread_cpu(&cpuid_array[i],
+                                   (Uint32)1,
+                                   0);
+  }
+  return 0;
+}
+
 void ndb_get_connection_stats(Uint64* statsArr)
 {
   Uint64 connectionStats[ Ndb::NumClientStatistics ];
@@ -419,5 +463,3 @@ struct st_mysql_plugin i_s_ndb_transid_mysql_connection_map_plugin =
   NULL,
   0
 };
-
-#endif /* WITH_NDBCLUSTER_STORAGE_ENGINE */

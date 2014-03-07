@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,9 +23,7 @@
 
 #include <NodeBitmask.hpp>
 
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLCFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <KeyTable.hpp>
 #include <DataBuffer.hpp>
 #include <SignalCounter.hpp>
@@ -35,6 +33,9 @@
 #include <signaldata/UtilSequence.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <ndbapi/NdbDictionary.hpp>
+
+#define JAM_FILE_ID 469
+
 
 class Suma : public SimulatedBlock {
   BLOCK_DEFINES(Suma);
@@ -675,6 +676,9 @@ private:
 
   struct Page_chunk
   {
+    STATIC_CONST( CHUNK_PAGE_SIZE = 32768 );
+    STATIC_CONST( PAGES_PER_CHUNK = 16 );
+
     Uint32 m_page_id;
     Uint32 m_size;
     Uint32 m_free;
@@ -713,5 +717,8 @@ private:
 
   void sendScanSubTableData(Signal* signal, Ptr<SyncRecord>, Uint32);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

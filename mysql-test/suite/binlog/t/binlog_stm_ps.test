@@ -1,3 +1,4 @@
+
 # This test is to verify replication with PS
 
 -- source include/not_embedded.inc
@@ -26,5 +27,7 @@ prepare s from "insert into t1 values (?)";
 set @a=99; execute s using @a;
 prepare s from "insert into t1 select 100 limit ?";
 set @a=100; execute s using @a;
+--let $mask_binlog_commit_events= 1
 source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
 drop table t1;

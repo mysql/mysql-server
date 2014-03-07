@@ -1,0 +1,30 @@
+-- source include/have_ndb.inc
+
+# Testing SET DEFAULT
+# Notewhorty is that Innodb fails already at the CREATE towns which is probably better
+# than just ignoreing the SET DEFAULT clause.
+
+create table counties (
+  county varchar(30) not null primary key,
+  country varchar(30)
+) engine=ndb;
+
+insert into counties values ('Berkshire','England'),('Shropshire','England'),
+  ('Oxfordshire','England'),('Buckinghamshire','England'),('Somewhere','Earth');
+
+create table towns (
+  town varchar(30) not null primary key,
+  county varchar(30) default "Somewhere",
+  index county_county_index (county),
+  constraint county_town foreign key (county)
+  references counties(county) on delete set default on update restrict
+) engine=ndb;
+
+insert into towns values ('Maidenhead','Berkshire'),('Reading','Berkshire'),
+  ('Shrewsbury','Shropshire'),('Oxford','Oxfordshire');
+
+--error ER_ROW_IS_REFERENCED_2
+delete from counties where county='Shropshire';
+show warnings;
+
+drop table towns, counties;

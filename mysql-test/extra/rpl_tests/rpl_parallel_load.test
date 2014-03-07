@@ -5,6 +5,7 @@
 #
 # load volume parameter
 #
+--source include/have_myisam.inc
 
 # The value of iteration is chosen to be rather low to satisfy
 # slow PB environments that are not just Win.
@@ -47,7 +48,7 @@ while($i)
 --enable_query_log
 
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 
 --disable_query_log
@@ -184,7 +185,7 @@ start slave sql_thread;
 
 let $wait_timeout= 600;
 let $wait_condition= SELECT count(*)+sleep(1) = 5 FROM test0.benchmark;
-source include/wait_condition.inc;
+source include/wait_condition_or_abort.inc;
 
 # cleanup for files that could not be removed in the end of previous invocation.
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -227,7 +228,7 @@ while($i)
   }
   --disable_query_log
 
-  sync_slave_with_master;
+  --source include/sync_slave_sql_with_master.inc
 
 
   let $diff_tables=master:test$i1.tm_nk, slave:test$i1.tm_nk;
@@ -266,4 +267,4 @@ while($i)
 --enable_result_log
 --enable_query_log
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc

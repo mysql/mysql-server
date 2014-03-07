@@ -1,3 +1,11 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
+# Store the time of password_last_changed column from mysql.user table
+# to restore it back later.
+let $date_to_restore=`SELECT password_last_changed from mysql.user where host='localhost'`;
 # Grant tests not performed with embedded server
 -- source include/not_embedded.inc
 
@@ -24,6 +32,10 @@ delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
 
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "granting/revoking privileges in databases.");
+call mtr.add_suppression("Did not write failed .* into binary log while "
+                         "revoking all_privileges from a list of users.");
 
 grant all privileges on `my\_1`.* to mysqltest_1@localhost with grant option;
 grant create user on *.* to mysqltest_1@localhost;
@@ -405,7 +417,7 @@ drop database mysqltest_1;
 # But anonymous users can't change their password
 connect (n5,localhost,test,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection n5;
---error ER_PASSWORD_NO_MATCH
+--error ER_PASSWORD_ANONYMOUS_USER
 set password = password("changed");
 disconnect n5;
 connection default;
@@ -1028,6 +1040,9 @@ DROP USER mysqltest_u3@localhost;
 DROP USER mysqltest_u4@localhost;
 DROP USER mysqltest_u5@localhost;
 
+--disable_query_log ONCE
+--eval UPDATE mysql.user SET password_last_changed = '$date_to_restore'
+--echo # mysql.user table restored to original values.
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

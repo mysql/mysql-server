@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 # Check that the variable with given name is defined
 #
 MACRO(NDB_REQUIRE_VARIABLE variable_name)
-  MESSAGE(STATUS "Checking variable ${variable_name} required by NDB")
-  IF(NOT DEFINED "${variable_name}")
+  #MESSAGE(STATUS "Checking variable ${variable_name} required by NDB")
+  IF(NOT "${variable_name}")
     MESSAGE(FATAL_ERROR "The variable ${variable_name} is required "
                          "to build NDB")
   ENDIF()

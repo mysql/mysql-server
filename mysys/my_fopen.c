@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include "mysys_priv.h"
 #include "my_static.h"
@@ -42,6 +42,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
 {
   FILE *fd;
   char type[5];
+  char *dup_filename= NULL;
   DBUG_ENTER("my_fopen");
   DBUG_PRINT("my",("Name: '%s'  flags: %d  MyFlags: %d",
 		   filename, flags, MyFlags));
@@ -64,13 +65,16 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
     int filedesc= my_fileno(fd);
     if ((uint)filedesc >= my_file_limit)
     {
-      thread_safe_increment(my_stream_opened,&THR_LOCK_open);
+      mysql_mutex_lock(&THR_LOCK_open);
+      my_stream_opened++;
+      mysql_mutex_unlock(&THR_LOCK_open);
       DBUG_RETURN(fd);				/* safeguard */
     }
-    mysql_mutex_lock(&THR_LOCK_open);
-    if ((my_file_info[filedesc].name= (char*)
-	 my_strdup(filename,MyFlags)))
+    dup_filename= my_strdup(key_memory_my_file_info, filename, MyFlags);
+    if (dup_filename != NULL)
     {
+      mysql_mutex_lock(&THR_LOCK_open);
+      my_file_info[filedesc].name= dup_filename;
       my_stream_opened++;
       my_file_total_opened++;
       my_file_info[filedesc].type= STREAM_BY_FOPEN;
@@ -78,7 +82,6 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
       DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
       DBUG_RETURN(fd);
     }
-    mysql_mutex_unlock(&THR_LOCK_open);
     (void) my_fclose(fd,MyFlags);
     my_errno=ENOMEM;
   }
@@ -302,7 +305,8 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
       }
       else
       {
-        my_file_info[Filedes].name=  my_strdup(name,MyFlags);
+        my_file_info[Filedes].name= my_strdup(key_memory_my_file_info,
+                                              name,MyFlags);
       }
       my_file_info[Filedes].type = STREAM_BY_FDOPEN;
     }

@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,17 +20,18 @@
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
-%define mysql_old_vendor        MySQL AB
-%define mysql_vendor_2          Sun Microsystems, Inc.
-%define mysql_vendor            Oracle and/or its affiliates
+%global mysql_old_vendor        MySQL AB
+%global mysql_vendor_2          Sun Microsystems, Inc.
+%global mysql_vendor            Oracle and/or its affiliates
 
-%define mysql_version   @VERSION@
+%global mysql_version   @VERSION@
 
-%define mysqld_user     mysql
-%define mysqld_group    mysql
-%define mysqldatadir    /var/lib/mysql
+%global mysqld_user     mysql
+%global mysqld_group    mysql
+%global mysqldatadir    /var/lib/mysql
 
-%define release         1
+%global release         1  
+
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -126,13 +127,13 @@
     %if "%oelver" == "4"
       %define distro_description        Oracle Enterprise Linux 4
       %define distro_releasetag         oel4
-      %define distro_buildreq           gcc-c++ gperf ncurses-devel perl time zlib-devel
+      %define distro_buildreq           gcc-c++ gperf ncurses-devel perl time zlib-devel cmake libaio-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils net-tools
     %else
       %if "%oelver" == "5"
         %define distro_description      Oracle Enterprise Linux 5
         %define distro_releasetag       oel5
-        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel
+        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel cmake libaio-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Enterprise Linux %{oelver} is unsupported}
@@ -144,7 +145,7 @@
       %if "%elver" == "6"
         %define distro_description      Oracle Linux 6
         %define distro_releasetag       el6
-        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel
+        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Linux %{elver} is unsupported}
@@ -155,19 +156,19 @@
         %if "%rhelver" == "4"
           %define distro_description      Red Hat Enterprise Linux 4
           %define distro_releasetag       rhel4
-          %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel
+          %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel cmake libaio-devel
           %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
         %else
           %if "%rhelver" == "5"
             %define distro_description    Red Hat Enterprise Linux 5
             %define distro_releasetag     rhel5
-            %define distro_buildreq       gcc-c++ gperf ncurses-devel perl time zlib-devel
+            %define distro_buildreq       gcc-c++ gperf ncurses-devel perl time zlib-devel cmake libaio-devel
             %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
           %else
             %if "%rhelver" == "6"
               %define distro_description    Red Hat Enterprise Linux 6
               %define distro_releasetag     rhel6
-              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel
+              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel
               %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
             %else
               %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
@@ -180,13 +181,13 @@
           %if "%susever" == "10"
             %define distro_description    SUSE Linux Enterprise Server 10
             %define distro_releasetag     sles10
-            %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client zlib-devel
+            %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client zlib-devel cmake libaio-devel
             %define distro_requires       aaa_base coreutils grep procps pwdutils
           %else
             %if "%susever" == "11"
               %define distro_description  SUSE Linux Enterprise Server 11
               %define distro_releasetag   sles11
-              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel
+              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel cmake libaio-devel
               %define distro_requires     aaa_base coreutils grep procps pwdutils
             %else
               %{error:SuSE %{susever} is unsupported}
@@ -226,7 +227,7 @@
 # Configuration based upon above user input, not to be set directly
 ##############################################################################
 
-%if %{commercial}
+%if 0%{?commercial}
 %define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
@@ -247,9 +248,8 @@ Distribution:   %{distro_description}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{license_type} license as shown in the Description field.
 Source:         http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
-Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
+Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com> 
 Vendor:         %{mysql_vendor}
-Provides:       msqlormysql MySQL-server mysql
 BuildRequires:  %{distro_buildreq}
 
 # Regression tests may take a long time, override the default to skip them 
@@ -283,12 +283,20 @@ documentation and the manual for more information.
 ##############################################################################
 
 %package -n MySQL-server%{product_suffix}
-Summary:	MySQL: a very fast and reliable SQL database server
-Group:		Applications/Databases
-Requires:	%{distro_requires}
-Provides:	msqlormysql MySQL MySQL-server
-Conflicts:	mysql mysql-server mysql-advanced mysql-server-advanced
-Obsoletes:	MySQL-server-community MySQL-server-advanced
+Summary:        MySQL: a very fast and reliable SQL database server
+Group:          Applications/Databases
+Requires:       %{distro_requires}
+%if 0%{?commercial}
+Obsoletes:      MySQL-server
+%else
+Obsoletes:      MySQL-server-advanced
+%endif
+Obsoletes:      mysql-server < %{version}-%{release}
+Obsoletes:      mysql-server-advanced
+Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
+Obsoletes:      MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
+Provides:       mysql-server = %{version}-%{release}
+Provides:       mysql-server%{?_isa} = %{version}-%{release}
 
 %description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -316,11 +324,19 @@ package "MySQL-client%{product_suffix}" as well!
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-client%{product_suffix}
-Summary:	MySQL - Client
-Group:		Applications/Databases
-Provides:	MySQL-client
-Conflicts:	mysql mysql-advanced
-Obsoletes:	MySQL-client-community MySQL-client-advanced
+Summary:        MySQL - Client
+Group:          Applications/Databases
+%if 0%{?commercial}
+Obsoletes:      MySQL-client
+%else
+Obsoletes:      MySQL-client-advanced
+%endif
+Obsoletes:      mysql < %{version}-%{release}
+Obsoletes:      mysql-advanced < %{version}-%{release}
+Obsoletes:      MySQL-client-classic MySQL-client-community MySQL-client-enterprise
+Obsoletes:      MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
+Provides:       mysql = %{version}-%{release} 
+Provides:       mysql%{?_isa} = %{version}-%{release}
 
 %description -n MySQL-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
@@ -329,13 +345,22 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-test%{product_suffix}
-Summary:	MySQL - Test suite
-Group:		Applications/Databases
-Requires:	MySQL-client perl
-Provides:	MySQL-test
-Conflicts:	mysql-test mysql-test-advanced
-Obsoletes:	MySQL-test-community MySQL-test-advanced
-AutoReqProv:	no
+Summary:        MySQL - Test suite
+Group:          Applications/Databases
+%if 0%{?commercial}
+Requires:       MySQL-client-advanced perl
+Obsoletes:      MySQL-test
+%else
+Requires:       MySQL-client perl
+Obsoletes:      MySQL-test-advanced
+%endif
+Obsoletes:      mysql-test < %{version}-%{release}
+Obsoletes:      mysql-test-advanced
+Obsoletes:      MySQL-test-classic MySQL-test-community MySQL-test-enterprise
+Obsoletes:      MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
+Provides:       mysql-test = %{version}-%{release}
+Provides:       mysql-test%{?_isa} = %{version}-%{release}
+AutoReqProv:    no
 
 %description -n MySQL-test%{product_suffix}
 This package contains the MySQL regression test suite.
@@ -344,11 +369,19 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-devel%{product_suffix}
-Summary:	MySQL - Development header files and libraries
-Group:		Applications/Databases
-Provides:	MySQL-devel
-Conflicts:	mysql-devel mysql-embedded-devel mysql-devel-advanced mysql-embedded-devel-advanced
-Obsoletes:	MySQL-devel-community MySQL-devel-advanced
+Summary:        MySQL - Development header files and libraries
+Group:          Applications/Databases
+%if 0%{?commercial}
+Obsoletes:      MySQL-devel
+%else
+Obsoletes:      MySQL-devel-advanced
+%endif
+Obsoletes:      mysql-devel < %{version}-%{release}
+Obsoletes:      mysql-embedded-devel mysql-devel-advanced mysql-embedded-devel-advanced
+Obsoletes:      MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
+Obsoletes:      MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
+Provides:       mysql-devel = %{version}-%{release}
+Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 
 %description -n MySQL-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -358,11 +391,18 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-shared%{product_suffix}
-Summary:	MySQL - Shared libraries
-Group:		Applications/Databases
-Provides:	MySQL-shared
-Conflicts:	mysql-libs mysql-libs-advanced
-Obsoletes:	MySQL-shared-community MySQL-shared-advanced
+Summary:        MySQL - Shared libraries
+Group:          Applications/Databases
+%if 0%{?commercial}
+Obsoletes:      MySQL-shared
+%else
+Obsoletes:      MySQL-shared-advanced
+%endif
+Obsoletes:      MySQL-shared-standard MySQL-shared-pro
+Obsoletes:      MySQL-shared-pro-cert MySQL-shared-pro-gpl
+Obsoletes:      MySQL-shared-pro-gpl-cert
+Obsoletes:      MySQL-shared-classic MySQL-shared-community MySQL-shared-enterprise
+Obsoletes:      MySQL-shared-advanced-gpl MySQL-shared-enterprise-gpl
 
 %description -n MySQL-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -370,12 +410,22 @@ and applications need to dynamically load and use MySQL.
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-embedded%{product_suffix}
-Summary:	MySQL - Embedded library
-Group:		Applications/Databases
-Requires:	MySQL-devel
-Provides:	MySQL-embedded
-Conflicts:	mysql-embedded mysql-embedded-advanced
-Obsoletes:	MySQL-embedded-community MySQL-embedded-advanced
+Summary:        MySQL - Embedded library
+Group:          Applications/Databases
+%if 0%{?commercial}
+Requires:       MySQL-devel-advanced
+Obsoletes:      MySQL-embedded
+%else
+Requires:       MySQL-devel
+Obsoletes:      MySQL-embedded-advanced
+%endif
+Obsoletes:      mysql-embedded < %{version}-%{release}
+Obsoletes:      mysql-embedded-advanced
+Obsoletes:      MySQL-embedded-pro
+Obsoletes:      MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
+Obsoletes:      MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
+Provides:       mysql-embedded = %{version}-%{release}
+Provides:       mysql-emdedded%{?_isa} = %{version}-%{release}
 
 %description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -550,6 +600,13 @@ install -m 644 "%{malloc_lib_source}" \
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+rm -f $RBR%{_mandir}/man1/mysql_convert_table_format.1*
+rm -f $RBR%{_mandir}/man1/mysql_fix_extensions.1*
+rm -f $RBR%{_mandir}/man1/mysql_setpermission.1*
+rm -f $RBR%{_mandir}/man1/msql2mysql.1*
+rm -f $RBR%{_mandir}/man1/mysql_find_rows.1*
+rm -f $RBR%{_mandir}/man1/mysqlaccess.1*
+rm -rf $RBR%{_mandir}/man1/mysqlbug.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -574,7 +631,7 @@ then
 fi
 if [ -z "$PID_FILE_PATT" ]
 then
-  PID_FILE_PATT="$mysql_datadir/*.pid"
+  PID_FILE_PATT=$(find $mysql_datadir -name '*.pid' ! -name mysqld_safe.pid -print)
 fi
 
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
@@ -656,7 +713,12 @@ fi
 
 # We assume that if there is exactly one ".pid" file,
 # it contains the valid PID of a running MySQL server.
-NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | wc -l`
+if [ -z "$PID_FILE_PATT" ]; then
+    NR_PID_FILES=0
+else
+    NR_PID_FILES=$(echo "$PID_FILE_PATT" | wc -l)
+fi
+
 case $NR_PID_FILES in
 	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
 	1 ) SERVER_TO_START='true' ;;
@@ -692,16 +754,19 @@ NEW_VERSION=%{mysql_version}-%{release}
 # Check for the existence of subdirectory "mysql/", the database of system
 # tables like "mysql.user".
 if [ -d $mysql_datadir/mysql ] ; then
-	echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
-	echo "'pre' step running at `date`"          >> $STATUS_FILE
-	echo                                         >> $STATUS_FILE
-	echo "ERR file(s):"                          >> $STATUS_FILE
-	ls -ltr $mysql_datadir/*.err                 >> $STATUS_FILE
-	echo                                         >> $STATUS_FILE
-	echo "Latest 'Version' line in latest file:" >> $STATUS_FILE
-	grep '^Version' `ls -tr $mysql_datadir/*.err | tail -1` | \
-		tail -1                              >> $STATUS_FILE
-	echo                                         >> $STATUS_FILE
+        echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
+        echo "'pre' step running at `date`"          >> $STATUS_FILE
+        echo                                         >> $STATUS_FILE
+        fcount=`ls -ltr $mysql_datadir/*.err 2>/dev/null | wc -l`
+        if [ $fcount -gt 0 ] ; then
+             echo "ERR file(s):"                          >> $STATUS_FILE
+             ls -ltr $mysql_datadir/*.err                 >> $STATUS_FILE
+             echo                                         >> $STATUS_FILE
+             echo "Latest 'Version' line in latest file:" >> $STATUS_FILE
+             grep '^Version' `ls -tr $mysql_datadir/*.err | tail -1` | \
+                tail -1                              >> $STATUS_FILE
+             echo                                         >> $STATUS_FILE
+        fi
 
 	if [ -n "$SERVER_TO_START" ] ; then
 		# There is only one PID file, race possibility ignored
@@ -805,7 +870,7 @@ if ! grep '^MySQL RPM upgrade' $STATUS_FILE >/dev/null 2>&1 ; then
 	# Fix bug#45415: no "mysql_install_db" on an upgrade
 	# Do this as a negative to err towards more "install" runs
 	# rather than to miss one.
-	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user} --random-passwords
+	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
 	# Attention: Now 'root' is the only database user,
 	# its password is a random value found in ~/.mysql_secret,
@@ -1001,7 +1066,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc release/Docs/INFO_BIN*
 %doc release/support-files/my-default.cnf
 
+%if 0%{?commercial}
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
+%endif
 
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
@@ -1009,8 +1076,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisampack.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_convert_table_format.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_extensions.1*
 %doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
@@ -1018,7 +1083,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_install_db.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_secure_installation.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_setpermission.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
@@ -1026,7 +1090,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
@@ -1040,16 +1103,12 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
-%attr(755, root, root) %{_bindir}/mysql_convert_table_format
-%attr(755, root, root) %{_bindir}/mysql_fix_extensions
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
-%attr(755, root, root) %{_bindir}/mysql_setpermission
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/mysql_zap
-%attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysqld_multi
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysqldumpslow
@@ -1078,13 +1137,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %files -n MySQL-client%{product_suffix}
 
 %defattr(-, root, root, 0755)
-%attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
-%attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_waitpid
-%attr(755, root, root) %{_bindir}/mysqlaccess
 # XXX: This should be moved to %{_sysconfdir}
-%attr(644, root, root) %{_bindir}/mysqlaccess.conf
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
 %attr(755, root, root) %{_bindir}/mysqlcheck
@@ -1094,11 +1149,8 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
-%doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_find_rows.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_waitpid.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqladmin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbinlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlcheck.1*
@@ -1160,6 +1212,21 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Oct 30 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Removed non gpl file docs/mysql.info from community packages
+
+* Thu Sep 12 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Added logic to ignore mysqld_safe.pid file created by mysqld_safe script
+
+* Mon Sep 09 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated logic to get the correct count of PID files
+
+* Fri Aug 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Added provides lowercase mysql tags  
+
+* Wed Jun 26 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Cleaned up spec file to resolve rpm dependencies.
+
 * Mon Nov 05 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Allow to override the default to use the bundled yaSSL by an option like

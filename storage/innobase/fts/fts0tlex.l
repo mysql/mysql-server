@@ -30,6 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Required for reentrant parser */
 #define YY_DECL int fts_tlexer(YYSTYPE* val, yyscan_t yyscanner)
+#define exit(A)   ut_error
 
 %}
 
@@ -62,7 +63,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 	return(FTS_TERM);
 }
-
+.	;
 \n
 
 %%

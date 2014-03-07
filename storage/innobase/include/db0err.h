@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Created 5/24/1996 Heikki Tuuri
 #ifndef db0err_h
 #define db0err_h
 
+/* Do not include univ.i because univ.i includes this. */
 
 enum dberr_t {
 	DB_SUCCESS_LOCKED_REC = 9,	/*!< like DB_SUCCESS, but a new
@@ -124,6 +125,13 @@ enum dberr_t {
 					during online index creation */
 
 	DB_IO_ERROR,			/*!< Generic IO error */
+	DB_IDENTIFIER_TOO_LONG,		/*!< Identifier name too long */
+	DB_FTS_EXCEED_RESULT_CACHE_LIMIT,	/*!< FTS query memory
+					exceeds result cache limit */
+	DB_TEMP_FILE_WRITE_FAILURE,	/*!< Temp file write failure */
+	DB_CANNOT_OPEN_FILE,		/*!< Cannot open a file */
+	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
+					/*< Too many words in a phrase */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
@@ -138,7 +146,7 @@ enum dberr_t {
 					foreign key dropped */
 
 
-        /* The following are API only error codes. */
+	/* The following are API only error codes. */
 	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed
 					because the types mismatch */
 
@@ -147,8 +155,11 @@ enum dberr_t {
 					and if it's not then that API function
 					will return this error code */
 
-	DB_NOT_FOUND			/*!< Generic error code for "Not found"
+	DB_NOT_FOUND,			/*!< Generic error code for "Not found"
 					type of errors */
+
+	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */
+	DB_TABLE_CORRUPT		/*!< Table/clustered index is corrupted */
 };
 
 #endif

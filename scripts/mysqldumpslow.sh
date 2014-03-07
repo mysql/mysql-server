@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -58,7 +58,7 @@ unless (@ARGV) {
     warn "basedir=$basedir\n" if $opt{v};
 
     my $datadir = ($defaults =~ m/--datadir=(.*)/)[0];
-    my $slowlog = ($defaults =~ m/--log-slow-queries=(.*)/)[0];
+    my $slowlog = ($defaults =~ m/--slow-query-log-file=(.*)/)[0];
     if (!$datadir or $opt{i}) {
 	# determine the datadir from the instances section of /etc/my.cnf, if any
 	my $instances  = `my_print_defaults instances`;

@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: .*");
 [on slave]
@@ -12,6 +12,7 @@ SET @@global.slave_exec_mode = 'STRICT';
 [on master]
 CREATE TABLE t1(a INT PRIMARY KEY);
 [on slave]
+include/sync_slave_sql_with_master.inc
 ==== Test: SQL thread sees 'INSERT' of existing key ====
 ---- Prepare slave so that it will get duplicate key error ----
 INSERT INTO t1 VALUES (1);
@@ -24,8 +25,9 @@ a
 [on slave]
 ---- Wait until slave stops with an error ----
 include/wait_for_slave_sql_error.inc [errno=1062]
-Last_SQL_Error (expected "duplicate key" error)
-Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY; the event's master log master-bin.000001, end_log_pos END_LOG_POS
+SELECT "1062" as 'Last_SQL_Errno';
+Last_SQL_Errno
+1062
 call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SELECT * FROM t1;
@@ -46,6 +48,7 @@ a
 DELETE FROM t1;
 INSERT INTO t1 VALUES (1);
 [on slave]
+include/sync_slave_sql_with_master.inc
 DELETE FROM t1 WHERE a = 1;
 ---- On master, remove the row that does not exist on slave ----
 [on master]
@@ -56,8 +59,9 @@ a
 ---- Wait until slave stops with an error ----
 call mtr.add_suppression("Slave SQL.*Can.t find record in .t1., Error_code: 1032");
 include/wait_for_slave_sql_error.inc [errno=1032]
-Last_SQL_Error (expected "duplicate key" error)
-Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_KEY_NOT_FOUND; the event's master log master-bin.000001, end_log_pos END_LOG_POS
+SELECT "1032" as 'Last_SQL_Errno';
+Last_SQL_Errno
+1032
 SELECT * FROM t1;
 a
 ---- Resolve the conflict on the slave and restart SQL thread ----
@@ -72,6 +76,7 @@ a
 [on master]
 DROP TABLE t1;
 [on slave]
+include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 ######## Run with slave_exec_mode=IDEMPOTENT ########
 set @@global.slave_exec_mode= 'IDEMPOTENT';
@@ -79,6 +84,7 @@ set @@global.slave_exec_mode= 'IDEMPOTENT';
 [on master]
 CREATE TABLE t1(a INT PRIMARY KEY);
 [on slave]
+include/sync_slave_sql_with_master.inc
 ==== Test: SQL thread sees 'INSERT' of existing key ====
 ---- Prepare slave so that it will get duplicate key error ----
 INSERT INTO t1 VALUES (1);
@@ -100,6 +106,7 @@ a
 DELETE FROM t1;
 INSERT INTO t1 VALUES (1);
 [on slave]
+include/sync_slave_sql_with_master.inc
 DELETE FROM t1 WHERE a = 1;
 ---- On master, remove the row that does not exist on slave ----
 [on master]
@@ -115,5 +122,6 @@ a
 [on master]
 DROP TABLE t1;
 [on slave]
+include/sync_slave_sql_with_master.inc
 SET @@global.slave_exec_mode= @old_slave_exec_mode;
 include/rpl_end.inc

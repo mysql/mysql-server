@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef TABLE_OBJECTS_SUMMARY_GLOBAL_BY_TYPE_H
 #define TABLE_OBJECTS_SUMMARY_GLOBAL_BY_TYPE_H
@@ -25,6 +25,7 @@
 #include "pfs_engine_table.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+#include "pfs_program.h"
 #include "table_helper.h"
 
 /**
@@ -38,16 +39,9 @@
 */
 struct row_os_global_by_type
 {
-  /** Column OBJECT_TYPE. */
-  enum_object_type m_object_type;
-  /** Column SCHEMA_NAME. */
-  char m_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
-  /** Column OBJECT_NAME. */
-  char m_object_name[NAME_LEN];
-  /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  /** Column OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME. */
+  PFS_object_row m_object;
+
   /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */
   PFS_stat_row m_stat;
 };
@@ -89,6 +83,7 @@ public:
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
   static int delete_all_rows();
+  static ha_rows get_row_count();
 
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
@@ -107,7 +102,8 @@ public:
   {}
 
 protected:
-  void make_row(PFS_table_share *table_share);
+  void make_table_row(PFS_table_share *table_share);
+  void make_program_row(PFS_program *pfs_program);
 
 private:
   /** Table share lock. */

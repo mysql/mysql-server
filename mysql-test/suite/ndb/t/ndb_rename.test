@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -24,6 +29,12 @@ INSERT INTO t1 VALUES (0,0,0,"zero"),(1,1,1,"one"),(2,2,2,"two");
 SELECT * FROM t1 WHERE attr1 = 1;
 alter table t1 rename t2;
 SELECT * FROM t2 WHERE attr1 = 1;
+
+#
+# Bug #16021021 ALTER ... RENAME FAILS TO RENAME ON PARTICIPANT MYSQLD
+#
+--error ER_NOT_SUPPORTED_YET
+alter table t2 rename t1, add attr4 int;
 
 create database ndbtest;
 alter table t2 rename ndbtest.t2;

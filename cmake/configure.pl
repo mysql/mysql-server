@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -220,7 +220,7 @@ foreach my $option (@ARGV)
   }
   if ($option =~ /with-comment=/)
   {
-    $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 
+    $cmakeargs = $cmakeargs." \"-DCOMPILATION_COMMENT=".substr($option,13)."\""; 
     next;
   }
   if ($option =~ /mysql-maintainer-mode/)
@@ -229,15 +229,15 @@ foreach my $option (@ARGV)
                  ($option =~ /enable/ ? "1" : "0");
     next;
   }
-  if ($option =~ /with-comment=/)
-  {
-    $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 
-    next;
-  }
   if ($option =~ /with-gcov/)
   {
       $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
       next;
+  }
+  if ($option =~ /with-max-indexes=/)
+  {
+    $cmakeargs = $cmakeargs." -DMAX_INDEXES=".substr($option, 17); 
+    next;
   }
   if ($option =~ /with-client-ldflags/)
   {

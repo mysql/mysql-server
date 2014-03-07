@@ -1,3 +1,10 @@
+# Test for query cache feature of Myisam
+# This particular testcase is only runs with Myisam
+# Hence MTR starts mysqld with MyISAM as default
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 # Test query cache with many tables
 
 --source include/have_query_cache.inc

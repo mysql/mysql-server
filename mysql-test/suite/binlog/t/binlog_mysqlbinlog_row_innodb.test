@@ -9,6 +9,8 @@
 # See there for more informaton.
 #
 
+--source include/not_gtid_enabled.inc
+
 --source include/have_innodb.inc
 --source include/have_innodb_16k.inc
 let $engine_type=InnoDB;

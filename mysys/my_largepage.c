@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,8 @@
 
 #include "mysys_priv.h"
 
-#ifdef HAVE_LARGE_PAGES
-
-#ifdef HAVE_SYS_IPC_H
 #include <sys/ipc.h>
-#endif
-
-#ifdef HAVE_SYS_SHM_H
 #include <sys/shm.h>
-#endif
 
 static uint my_get_large_page_size_int(void);
 static uchar* my_large_malloc_int(size_t size, myf my_flags);
@@ -35,9 +28,9 @@ uint my_get_large_page_size(void)
 {
   uint size;
   DBUG_ENTER("my_get_large_page_size");
-  
+
   if (!(size = my_get_large_page_size_int()))
-    fprintf(stderr, "Warning: Failed to determine large page size\n");
+    my_message_local(WARNING_LEVEL, "Failed to determine large page size"); /* purecov: inspected */
 
   DBUG_RETURN(size);
 }
@@ -45,29 +38,29 @@ uint my_get_large_page_size(void)
 /*
   General large pages allocator.
   Tries to allocate memory from large pages pool and falls back to
-  my_malloc_lock() in case of failure
+  my_malloc() in case of failure
 */
 
-uchar* my_large_malloc(size_t size, myf my_flags)
+uchar* my_large_malloc(PSI_memory_key key, size_t size, myf my_flags)
 {
   uchar* ptr;
   DBUG_ENTER("my_large_malloc");
-  
+
   if (my_use_large_pages && my_large_page_size)
   {
     if ((ptr = my_large_malloc_int(size, my_flags)) != NULL)
         DBUG_RETURN(ptr);
     if (my_flags & MY_WME)
-      fprintf(stderr, "Warning: Using conventional memory pool\n");
+      my_message_local(WARNING_LEVEL, "Using conventional memory pool"); /* purecov: inspected */
   }
-      
-  DBUG_RETURN(my_malloc_lock(size, my_flags));
+
+  DBUG_RETURN(my_malloc(key, size, my_flags));
 }
 
 /*
   General large pages deallocator.
   Tries to deallocate memory as if it was from large pages pool and falls back
-  to my_free_lock() in case of failure
+  to my_free() in case of failure
  */
 
 void my_large_free(uchar* ptr)
@@ -76,16 +69,15 @@ void my_large_free(uchar* ptr)
   
   /*
     my_large_free_int() can only fail if ptr was not allocated with
-    my_large_malloc_int(), i.e. my_malloc_lock() was used so we should free it
-    with my_free_lock()
+    my_large_malloc_int(), i.e. my_malloc() was used so we should free it
+    with my_free()
   */
   if (!my_use_large_pages || !my_large_page_size || !my_large_free_int(ptr))
-    my_free_lock(ptr);
+    my_free(ptr);
 
   DBUG_VOID_RETURN;
 }
 
-#ifdef HUGETLB_USE_PROC_MEMINFO
 /* Linux-specific function to determine the size of large pages */
 
 uint my_get_large_page_size_int(void)
@@ -108,9 +100,7 @@ uint my_get_large_page_size_int(void)
 finish:
   DBUG_RETURN(size * 1024);
 }
-#endif /* HUGETLB_USE_PROC_MEMINFO */
 
-#if HAVE_DECL_SHM_HUGETLB
 /* Linux-specific large pages allocator  */
     
 uchar* my_large_malloc_int(size_t size, myf my_flags)
@@ -127,10 +117,11 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
   if (shmid < 0)
   {
     if (my_flags & MY_WME)
-      fprintf(stderr,
-              "Warning: Failed to allocate %lu bytes from HugeTLB memory."
-              " errno %d\n", (ulong) size, errno);
-
+      /* purecov: begin inspected */
+      my_message_local(WARNING_LEVEL,
+                       "Failed to allocate %lu bytes from HugeTLB memory."
+                       " errno %d", (ulong) size, errno);
+      /* purecov: end */
     DBUG_RETURN(NULL);
   }
 
@@ -138,8 +129,10 @@ uchar* my_large_malloc_int(size_t size, myf my_flags)
   if (ptr == (uchar *) -1)
   {
     if (my_flags& MY_WME)
-      fprintf(stderr, "Warning: Failed to attach shared memory segment,"
-              " errno %d\n", errno);
+      /* purecov: begin inspected */
+      my_message_local(WARNING_LEVEL, "Failed to attach shared memory segment,"
+                       " errno %d", errno);
+      /* purecov: end */
     shmctl(shmid, IPC_RMID, &buf);
 
     DBUG_RETURN(NULL);
@@ -161,6 +154,3 @@ my_bool my_large_free_int(uchar *ptr)
   DBUG_ENTER("my_large_free_int");
   DBUG_RETURN(shmdt(ptr) == 0);
 }
-#endif /* HAVE_DECL_SHM_HUGETLB */
-
-#endif /* HAVE_LARGE_PAGES */

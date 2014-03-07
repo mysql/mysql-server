@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,8 +31,6 @@
 #define FT_MAX_WORD_LEN_FOR_SORT 31
 
 #define FTPARSER_MEMROOT_ALLOC_SIZE 65536
-
-#define COMPILE_STOPWORDS_IN
 
 /* Interested readers may consult SMART
    (ftp://ftp.cs.cornell.edu/pub/smart/smart.11.0.tar.Z)

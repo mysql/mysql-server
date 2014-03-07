@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
 
-#include "sql_acl.h"                            /* struct ACL_* */
+#include "auth_common.h"                            /* struct ACL_* */
 /**
   @file storage/perfschema/pfs_engine_table.h
   Performance schema tables (declarations).
@@ -81,11 +81,23 @@ public:
   {}
 
   /**
+    Helper, assign a value to a long field.
+    @param f the field to set
+    @param value the value to assign
+  */
+  static void set_field_long(Field *f, long value);
+  /**
     Helper, assign a value to a ulong field.
     @param f the field to set
     @param value the value to assign
   */
   static void set_field_ulong(Field *f, ulong value);
+  /**
+    Helper, assign a value to a longlong field.
+    @param f the field to set
+    @param value the value to assign
+  */
+  static void set_field_longlong(Field *f, longlong value);
   /**
     Helper, assign a value to a ulonglong field.
     @param f the field to set
@@ -233,13 +245,6 @@ struct PFS_engine_table_share
   pfs_delete_all_rows_t m_delete_all_rows;
   /** Get rows count function. */
   pfs_get_row_count_t m_get_row_count;
-  /**
-    Number or records.
-    This number does not need to be precise,
-    it is used by the optimizer to decide if the table
-    has 0, 1, or many records.
-  */
-  ha_rows m_records;
   /** Length of the m_pos position structure. */
   uint m_ref_length;
   /** The lock, stored on behalf of the SQL layer. */

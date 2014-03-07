@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -121,7 +121,7 @@ static handler *myisammrg_create_handler(handlerton *hton,
 ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg), file(0), is_cloned(0)
 {
-  init_sql_alloc(&children_mem_root,
+  init_sql_alloc(rg_key_memory_children, &children_mem_root,
                  FN_REFLEN + ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
 }
 
@@ -650,9 +650,9 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     from a different share than last time it was used with this MERGE
     table.
   */
-  DBUG_PRINT("myrg", ("table_def_version last: %lu  current: %lu",
-                      (ulong) mrg_child_def->get_child_def_version(),
-                      (ulong) child->s->get_table_def_version()));
+  DBUG_PRINT("myrg", ("table_def_version last: %llu  current: %llu",
+                      mrg_child_def->get_child_def_version(),
+                      child->s->get_table_def_version()));
   if (mrg_child_def->get_child_def_version() != child->s->get_table_def_version())
     param->need_compat_check= TRUE;
 
@@ -824,7 +824,7 @@ int ha_myisammrg::attach_children(void)
     goto err;
   }
   DBUG_PRINT("myrg", ("calling myrg_extrafunc"));
-  myrg_extrafunc(file, query_cache_invalidate_by_MyISAM_filename_ref);
+  myrg_extrafunc(file, &query_cache_invalidate_by_MyISAM_filename);
   if (!(test_if_locked == HA_OPEN_WAIT_IF_LOCKED ||
 	test_if_locked == HA_OPEN_ABORT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_NO_WAIT_LOCK,0);
@@ -905,7 +905,7 @@ int ha_myisammrg::attach_children(void)
         break;
     }
   }
-#if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
+#if SIZEOF_OFF_T == 4
   /* Merge table has more than 2G rows */
   if (table->s->crashed)
   {
@@ -1251,12 +1251,12 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 int ha_myisammrg::truncate()
 {
   int err= 0;
-  MYRG_TABLE *table;
+  MYRG_TABLE *my_table;
   DBUG_ENTER("ha_myisammrg::truncate");
 
-  for (table= file->open_tables; table != file->end_table; table++)
+  for (my_table= file->open_tables; my_table != file->end_table; my_table++)
   {
-    if ((err= mi_delete_all_rows(table->table)))
+    if ((err= mi_delete_all_rows(my_table->table)))
       break;
   }
 
@@ -1275,7 +1275,7 @@ int ha_myisammrg::info(uint flag)
   */
   stats.records = (ha_rows) mrg_info.records;
   stats.deleted = (ha_rows) mrg_info.deleted;
-#if !defined(BIG_TABLES) || SIZEOF_OFF_T == 4
+#if SIZEOF_OFF_T == 4
   if ((mrg_info.records >= (ulonglong) 1 << 32) ||
       (mrg_info.deleted >= (ulonglong) 1 << 32))
     table->s->crashed= 1;
@@ -1324,16 +1324,6 @@ int ha_myisammrg::info(uint flag)
   {
     if (table->s->key_parts && mrg_info.rec_per_key)
     {
-#ifdef HAVE_purify
-      /*
-        valgrind may be unhappy about it, because optimizer may access values
-        between file->keys and table->key_parts, that will be uninitialized.
-        It's safe though, because even if opimizer will decide to use a key
-        with such a number, it'll be an error later anyway.
-      */
-      memset(table->key_info[0].rec_per_key, 0,
-             sizeof(table->key_info[0].rec_per_key[0]) * table->s->key_parts);
-#endif
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) mrg_info.rec_per_key,
              sizeof(table->key_info[0].rec_per_key[0]) *

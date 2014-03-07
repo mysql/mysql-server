@@ -67,8 +67,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -478,7 +478,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -507,8 +507,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -918,7 +918,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -955,8 +955,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -1373,7 +1373,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -1408,8 +1408,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -1822,7 +1822,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -1855,8 +1855,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -2271,7 +2271,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -2308,8 +2308,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -2729,7 +2729,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -2766,8 +2766,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -3189,7 +3189,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -3222,8 +3222,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -3637,7 +3637,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -3667,8 +3667,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -4078,7 +4078,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -4107,8 +4107,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -4518,7 +4518,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -4555,8 +4555,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -4973,7 +4973,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -5008,8 +5008,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -5422,7 +5422,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -5455,8 +5455,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -5871,7 +5871,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -5908,8 +5908,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -6329,7 +6329,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -6366,8 +6366,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -6789,7 +6789,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -6822,8 +6822,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -7237,7 +7237,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -7694,7 +7694,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -8150,7 +8150,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -8621,7 +8621,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -9086,7 +9086,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -9551,7 +9551,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -10025,7 +10025,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -10501,7 +10501,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -10965,7 +10965,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -10999,8 +10999,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -11410,7 +11410,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -11439,8 +11439,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -11850,7 +11850,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -11887,8 +11887,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -12305,7 +12305,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -12340,8 +12340,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -12754,7 +12754,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -12787,8 +12787,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -13201,7 +13201,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -13238,8 +13238,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -13659,7 +13659,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -13696,8 +13696,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -14119,7 +14119,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -14152,8 +14152,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -14567,7 +14567,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -14597,8 +14597,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -15008,7 +15008,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -15037,8 +15037,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -15448,7 +15448,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -15485,8 +15485,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -15903,7 +15903,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -15938,8 +15938,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -16352,7 +16352,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -16385,8 +16385,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -16799,7 +16799,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -16836,8 +16836,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -17257,7 +17257,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -17294,8 +17294,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -17717,7 +17717,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -17750,8 +17750,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -18165,7 +18165,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -18623,7 +18623,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -19079,7 +19079,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -19550,7 +19550,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -20015,7 +20015,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -20478,7 +20478,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -20952,7 +20952,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -21428,7 +21428,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -21892,7 +21892,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -22349,7 +22349,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -22805,7 +22805,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -23276,7 +23276,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -23741,7 +23741,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -24204,7 +24204,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -24678,7 +24678,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -25154,7 +25154,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -25618,7 +25618,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -25649,8 +25649,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -26060,7 +26060,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -26089,8 +26089,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -26500,7 +26500,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -26537,8 +26537,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -26955,7 +26955,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -26990,8 +26990,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -27404,7 +27404,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -27437,8 +27437,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -27851,7 +27851,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -27888,8 +27888,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -28309,7 +28309,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -28346,8 +28346,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -28769,7 +28769,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -28802,8 +28802,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -29217,7 +29217,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -29247,8 +29247,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -29658,7 +29658,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -29687,8 +29687,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -30098,7 +30098,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -30135,8 +30135,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -30553,7 +30553,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -30588,8 +30588,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -31002,7 +31002,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -31035,8 +31035,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -31449,7 +31449,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -31486,8 +31486,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -31907,7 +31907,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -31944,8 +31944,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -32367,7 +32367,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -32400,8 +32400,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) NOT NULL DEFAULT '0',
-  `f_int2` int(11) NOT NULL DEFAULT '0',
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -32815,7 +32815,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -33272,7 +33272,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -33728,7 +33728,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -34199,7 +34199,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -34664,7 +34664,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -35127,7 +35127,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -35601,7 +35601,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -36077,7 +36077,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -36541,7 +36541,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	

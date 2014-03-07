@@ -1,3 +1,10 @@
+# Test for per-partition key cache
+# Tests are run with MyISAM since this feature
+# is not supported by the default storage engine innodb
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 # Test of key cache with partitions
 --source include/have_partition.inc
 

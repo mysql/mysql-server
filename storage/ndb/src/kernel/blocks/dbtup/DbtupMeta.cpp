@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@
 #include <signaldata/AttrInfo.hpp>
 
 #include <EventLogger.hpp>
+
+#define JAM_FILE_ID 424
+
 extern EventLogger * g_eventLogger;
 
 void
@@ -926,10 +929,12 @@ void Dbtup::getFragmentrec(FragrecordPtr& regFragPtr,
                            Uint32 fragId,
                            Tablerec* const regTabPtr)
 {
+  EmulatedJamBuffer* const jamBuf = getThrJamBuf();
+
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr->fragid); i++) {
-    jam();
+    thrjam(jamBuf);
     if (regTabPtr->fragid[i] == fragId) {
-      jam();
+      thrjam(jamBuf);
       regFragPtr.i= regTabPtr->fragrec[i];
       ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
       return;
@@ -2084,7 +2089,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
 	  list(c_extent_pool, alloc_info.m_free_extents[0]);
 	Ptr<Extent_info> ext_ptr;
 	c_extent_pool.getPtr(ext_ptr, alloc_info.m_curr_extent_info_ptr_i);
-	list.add(ext_ptr);
+        list.addFirst(ext_ptr);
 	alloc_info.m_curr_extent_info_ptr_i= RNIL;
       }
       
@@ -2206,8 +2211,7 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
     for(pos= 0; pos<MAX_FREE_LIST; pos++)
     {
       ndbrequire(alloc_info.m_page_requests[pos].isEmpty());
-      LocalDLList<Page> list(* cheat_pool, alloc_info.m_dirty_pages[pos]);
-      list.remove();
+      alloc_info.m_dirty_pages[pos].init(); // Clear dirty page list head
     }
   }
   
@@ -2432,10 +2436,7 @@ done:
     ndbassert(fragPtr.p->free_var_page_array[i].isEmpty());
   }
   
-  {
-    LocalDLFifoList<Page> tmp(c_page_pool, fragPtr.p->thFreeFirst);
-    tmp.remove();
-  }
+  fragPtr.p->thFreeFirst.init(); // Clear free list head
   
   /**
    * Finish

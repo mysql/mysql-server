@@ -4,7 +4,6 @@ name	status
 metadata_table_handles_opened	disabled
 metadata_table_handles_closed	disabled
 metadata_table_reference_count	disabled
-metadata_mem_pool_size	disabled
 lock_deadlocks	disabled
 lock_timeouts	disabled
 lock_rec_lock_waits	disabled
@@ -67,9 +66,12 @@ buffer_flush_background_pages	disabled
 buffer_LRU_batch_scanned	disabled
 buffer_LRU_batch_num_scan	disabled
 buffer_LRU_batch_scanned_per_call	disabled
-buffer_LRU_batch_total_pages	disabled
-buffer_LRU_batches	disabled
-buffer_LRU_batch_pages	disabled
+buffer_LRU_batch_flush_total_pages	disabled
+buffer_LRU_batches_flush	disabled
+buffer_LRU_batch_flush_pages	disabled
+buffer_LRU_batch_evict_total_pages	disabled
+buffer_LRU_batches_evict	disabled
+buffer_LRU_batch_evict_pages	disabled
 buffer_LRU_single_flush_scanned	disabled
 buffer_LRU_single_flush_num_scan	disabled
 buffer_LRU_single_flush_scanned_per_call	disabled
@@ -149,18 +151,23 @@ log_lsn_checkpoint_age	disabled
 log_lsn_buf_pool_oldest	disabled
 log_max_modified_age_async	disabled
 log_max_modified_age_sync	disabled
-log_pending_log_writes	disabled
+log_pending_log_flushes	disabled
 log_pending_checkpoint_writes	disabled
 log_num_log_io	disabled
 log_waits	disabled
 log_write_requests	disabled
 log_writes	disabled
+log_padded	disabled
 compress_pages_compressed	disabled
 compress_pages_decompressed	disabled
 compression_pad_increments	disabled
 compression_pad_decrements	disabled
-index_splits	disabled
-index_merges	disabled
+index_page_splits	disabled
+index_page_merge_attempts	disabled
+index_page_merge_successful	disabled
+index_page_reorg_attempts	disabled
+index_page_reorg_successful	disabled
+index_page_discards	disabled
 adaptive_hash_searches	disabled
 adaptive_hash_searches_btree	disabled
 adaptive_hash_pages_added	disabled
@@ -194,10 +201,13 @@ innodb_dblwr_pages_written	disabled
 innodb_page_size	disabled
 innodb_rwlock_s_spin_waits	disabled
 innodb_rwlock_x_spin_waits	disabled
+innodb_rwlock_sx_spin_waits	disabled
 innodb_rwlock_s_spin_rounds	disabled
 innodb_rwlock_x_spin_rounds	disabled
+innodb_rwlock_sx_spin_rounds	disabled
 innodb_rwlock_s_os_waits	disabled
 innodb_rwlock_x_os_waits	disabled
+innodb_rwlock_sx_os_waits	disabled
 dml_reads	disabled
 dml_inserts	disabled
 dml_deletes	disabled
@@ -247,10 +257,13 @@ lock_row_lock_waits	disabled
 lock_row_lock_time_avg	disabled
 innodb_rwlock_s_spin_waits	disabled
 innodb_rwlock_x_spin_waits	disabled
+innodb_rwlock_sx_spin_waits	disabled
 innodb_rwlock_s_spin_rounds	disabled
 innodb_rwlock_x_spin_rounds	disabled
+innodb_rwlock_sx_spin_rounds	disabled
 innodb_rwlock_s_os_waits	disabled
 innodb_rwlock_x_os_waits	disabled
+innodb_rwlock_sx_os_waits	disabled
 set global innodb_monitor_enable = "%lock*";
 ERROR 42000: Variable 'innodb_monitor_enable' can't be set to the value of '%lock*'
 set global innodb_monitor_enable="%%%%%%%%%%%%%%%%%%%%%%%%%%%";
@@ -375,7 +388,6 @@ name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	statu
 metadata_table_handles_opened	2	NULL	2	2	NULL	2	enabled
 metadata_table_handles_closed	1	NULL	1	1	NULL	1	enabled
 metadata_table_reference_count	NULL	NULL	0	NULL	NULL	0	disabled
-metadata_mem_pool_size	NULL	NULL	0	NULL	NULL	0	disabled
 set global innodb_monitor_disable = module_metadata;
 set global innodb_monitor_reset = module_metadata;
 select name, max_count, min_count, count,
@@ -386,7 +398,6 @@ name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	statu
 metadata_table_handles_opened	2	NULL	2	NULL	NULL	0	disabled
 metadata_table_handles_closed	1	NULL	1	NULL	NULL	0	disabled
 metadata_table_reference_count	NULL	NULL	0	NULL	NULL	0	disabled
-metadata_mem_pool_size	NULL	NULL	0	NULL	NULL	0	disabled
 set global innodb_monitor_reset_all = module_metadata;
 select name, max_count, min_count, count,
 max_count_reset, min_count_reset, count_reset, status
@@ -396,7 +407,6 @@ name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	statu
 metadata_table_handles_opened	NULL	NULL	0	NULL	NULL	0	disabled
 metadata_table_handles_closed	NULL	NULL	0	NULL	NULL	0	disabled
 metadata_table_reference_count	NULL	NULL	0	NULL	NULL	0	disabled
-metadata_mem_pool_size	NULL	NULL	0	NULL	NULL	0	disabled
 set global innodb_monitor_enable = module_trx;
 begin;
 insert into monitor_test values(9);

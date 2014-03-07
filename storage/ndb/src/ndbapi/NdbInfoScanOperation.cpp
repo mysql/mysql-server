@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -330,7 +330,8 @@ int NdbInfoScanOperation::receive(void)
     {
       const NodeFailRep * const rep =
         CAST_CONSTPTR(NodeFailRep, sig->getDataPtr());
-      if (NdbNodeBitmask::get(rep->theNodes, m_node_id))
+      Uint32 len = NodeFailRep::getNodeMaskLength(sig->getLength());
+      if (BitmaskImpl::safe_get(len, rep->theAllNodes, m_node_id))
       {
         DBUG_PRINT("info", ("Node %d where scan was runnig failed", m_node_id));
         m_state = Error;

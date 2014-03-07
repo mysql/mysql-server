@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #include <ndb_global.h>
 #include "tuppage.hpp"
+
+#define JAM_FILE_ID 427
+
 
 /**
  * Fix pages maintain a double linked list of free entries

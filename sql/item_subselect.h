@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,15 +85,13 @@ protected:
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
   /* where subquery is placed */
-  enum_parsing_place parsing_place;
+  enum_parsing_context parsing_place;
   /* work with 'substitution' */
   bool have_to_be_excluded;
   /* cache of constant state */
   bool const_item_cache;
 
 public:
-  /* changed engine indicator */
-  bool engine_changed;
   /* subquery is transformed */
   bool changed;
 
@@ -146,7 +144,6 @@ public:
   {
     old_engine= engine;
     engine= eng;
-    engine_changed= 1;
     return eng == 0;
   }
 
@@ -162,11 +159,14 @@ public:
     mechanism. Engine call this method before rexecution query.
   */
   virtual void reset_value_registration() {}
-  enum_parsing_place place() { return parsing_place; }
-  bool walk_body(Item_processor processor, bool walk_subquery, uchar *arg);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  enum_parsing_context place() { return parsing_place; }
+  bool walk_join_condition(List<TABLE_LIST> *tables, Item_processor processor,
+                           enum_walk walk, uchar *arg);
+  bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);
   bool inform_item_in_cond_of_tab(uchar *join_tab_index);
+  virtual bool clean_up_after_removal(uchar *arg);
 
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
 
@@ -180,6 +180,8 @@ public:
   friend void mark_select_range_as_dependent(THD*,
                                              st_select_lex*, st_select_lex*,
                                              Field*, Item*, Item_ident*);
+private:
+  virtual bool subq_opt_away_processor(uchar *arg);
 };
 
 /* single value subselect */
@@ -205,7 +207,7 @@ public:
   longlong val_int ();
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool val_bool();
   enum Item_result result_type() const;
@@ -326,7 +328,7 @@ public:
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -393,10 +395,15 @@ private:
     */
     bool added_to_where;
     /**
-       True: if original subquery was dependent (correlated) before IN->EXISTS
+       True: if subquery was dependent (correlated) before IN->EXISTS
        was done.
     */
-    bool originally_dependent;
+    bool dependent_before;
+    /**
+       True: if subquery was dependent (correlated) after IN->EXISTS
+       was done.
+    */
+    bool dependent_after;
   } *in2exists_info;
 
   Item *remove_in2exists_conds(Item* conds);
@@ -418,8 +425,8 @@ public:
   { return in2exists_info && in2exists_info->added_to_where; }
 
   /// Is reliable only if IN->EXISTS has been done.
-  bool originally_dependent() const
-  { return in2exists_info->originally_dependent; }
+  bool dependent_before_in2exists() const
+  { return in2exists_info->dependent_before; }
 
   bool *get_cond_guard(int i)
   {
@@ -430,7 +437,7 @@ public:
     if ( pushed_cond_guards)
       pushed_cond_guards[i]= v;
   }
-  bool have_guarded_conds() { return test(pushed_cond_guards); }
+  bool have_guarded_conds() { return MY_TEST(pushed_cond_guards); }
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
@@ -454,7 +461,7 @@ public:
   trans_res single_value_in_to_exists_transformer(JOIN * join,
                                                   Comp_creator *func);
   trans_res row_value_in_to_exists_transformer(JOIN * join);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool exec();
   longlong val_int();
   double val_real();
@@ -463,7 +470,8 @@ public:
   void update_null_value () { (void) val_bool(); }
   bool val_bool();
   void top_level_item() { abort_on_null=1; }
-  inline bool is_top_level_item() { return abort_on_null; }
+  bool is_top_level_item() const { return abort_on_null; }
+
   bool test_limit(st_select_lex_unit *unit);
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
@@ -565,7 +573,6 @@ public:
   virtual bool change_result(Item_subselect *si,
                              select_result_interceptor *result)= 0;
   virtual bool no_tables() const = 0;
-  virtual bool is_executed() const { return FALSE; }
   virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
 #ifndef DBUG_OFF
   /**
@@ -584,7 +591,6 @@ class subselect_single_select_engine: public subselect_engine
 {
 private:
   bool prepared; /* simple subselect is prepared */
-  bool executed; /* simple subselect is executed */
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:
@@ -604,7 +610,6 @@ public:
                              select_result_interceptor *result);
   virtual bool no_tables() const;
   virtual bool may_be_null() const;
-  virtual bool is_executed() const { return executed; }
   virtual enum_engine_type engine_type() const { return SINGLE_SELECT_ENGINE; }
 
   friend class subselect_hash_sj_engine;
@@ -630,7 +635,6 @@ public:
   virtual bool change_result(Item_subselect *si,
                              select_result_interceptor *result);
   virtual bool no_tables() const;
-  virtual bool is_executed() const;
   virtual enum_engine_type engine_type() const { return UNION_ENGINE; }
 
 private:
@@ -683,7 +687,10 @@ private:
   bool unique;
 public:
 
-  // constructor can assign THD because it will be called after JOIN::prepare
+  /*
+    constructor can assign THD because it will be called after
+    SELECT_LEX::prepare
+  */
   subselect_indexsubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
                                  Item *having_arg, bool chk_null,
@@ -717,12 +724,6 @@ Item * all_any_subquery_creator(Item *left_expr,
                                 chooser_compare_func_creator cmp,
                                 bool all,
                                 SELECT_LEX *select_lex);
-
-
-inline bool Item_subselect::is_evaluated() const
-{
-  return engine->is_executed();
-}
 
 
 inline bool Item_subselect::is_uncacheable() const
@@ -766,7 +767,7 @@ private:
   */
   subselect_single_select_engine *materialize_engine;
   /* Temp table context of the outer select's JOIN. */
-  TMP_TABLE_PARAM *tmp_param;
+  Temp_table_param *tmp_param;
 
 public:
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,

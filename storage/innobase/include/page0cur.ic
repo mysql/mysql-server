@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,7 +31,7 @@ Created 10/4/1994 Heikki Tuuri
 
 /*********************************************************//**
 Gets pointer to the page frame where the cursor is positioned.
-@return	page */
+@return page */
 UNIV_INLINE
 page_t*
 page_cur_get_page(
@@ -46,7 +46,7 @@ page_cur_get_page(
 
 /*********************************************************//**
 Gets pointer to the buffer block where the cursor is positioned.
-@return	page */
+@return page */
 UNIV_INLINE
 buf_block_t*
 page_cur_get_block(
@@ -60,7 +60,7 @@ page_cur_get_block(
 
 /*********************************************************//**
 Gets pointer to the page frame where the cursor is positioned.
-@return	page */
+@return page */
 UNIV_INLINE
 page_zip_des_t*
 page_cur_get_page_zip(
@@ -72,7 +72,7 @@ page_cur_get_page_zip(
 
 /*********************************************************//**
 Gets the record where the cursor is positioned.
-@return	record */
+@return record */
 UNIV_INLINE
 rec_t*
 page_cur_get_rec(
@@ -116,7 +116,7 @@ page_cur_set_after_last(
 
 /*********************************************************//**
 Returns TRUE if the cursor is before first user record on page.
-@return	TRUE if at start */
+@return TRUE if at start */
 UNIV_INLINE
 ibool
 page_cur_is_before_first(
@@ -130,7 +130,7 @@ page_cur_is_before_first(
 
 /*********************************************************//**
 Returns TRUE if the cursor is after last user record.
-@return	TRUE if at end */
+@return TRUE if at end */
 UNIV_INLINE
 ibool
 page_cur_is_after_last(
@@ -161,20 +161,6 @@ page_cur_position(
 }
 
 /**********************************************************//**
-Invalidates a page cursor by setting the record pointer NULL. */
-UNIV_INLINE
-void
-page_cur_invalidate(
-/*================*/
-	page_cur_t*	cur)	/*!< out: page cursor */
-{
-	ut_ad(cur);
-
-	cur->rec = NULL;
-	cur->block = NULL;
-}
-
-/**********************************************************//**
 Moves the cursor to the next record on page. */
 UNIV_INLINE
 void
@@ -201,35 +187,47 @@ page_cur_move_to_prev(
 }
 
 #ifndef UNIV_HOTBACKUP
-/****************************************************************//**
-Searches the right position for a page cursor.
-@return	number of matched fields on the left */
+/** Search the right position for a page cursor.
+@param[in] block buffer block
+@param[in] index index tree
+@param[in] tuple data tuple
+@param[in] mode PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, or PAGE_CUR_GE
+@param[out] cursor page cursor
+@return number of matched fields on the left */
 UNIV_INLINE
 ulint
 page_cur_search(
-/*============*/
-	const buf_block_t*	block,	/*!< in: buffer block */
-	const dict_index_t*	index,	/*!< in: record descriptor */
-	const dtuple_t*		tuple,	/*!< in: data tuple */
-	ulint			mode,	/*!< in: PAGE_CUR_L,
-					PAGE_CUR_LE, PAGE_CUR_G, or
-					PAGE_CUR_GE */
-	page_cur_t*		cursor)	/*!< out: page cursor */
+	const buf_block_t*	block,
+	const dict_index_t*	index,
+	const dtuple_t*		tuple,
+	ulint			mode,
+	page_cur_t*		cursor)
 {
-	ulint		low_matched_fields = 0;
-	ulint		low_matched_bytes = 0;
-	ulint		up_matched_fields = 0;
-	ulint		up_matched_bytes = 0;
+	ulint		low_match = 0;
+	ulint		up_match = 0;
 
 	ut_ad(dtuple_check_typed(tuple));
 
 	page_cur_search_with_match(block, index, tuple, mode,
-				   &up_matched_fields,
-				   &up_matched_bytes,
-				   &low_matched_fields,
-				   &low_matched_bytes,
-				   cursor);
-	return(low_matched_fields);
+				   &up_match, &low_match, cursor);
+	return(low_match);
+}
+
+/** Search the right position for a page cursor.
+@param[in] block buffer block
+@param[in] index index tree
+@param[in] tuple data tuple
+@param[out] cursor page cursor
+@return number of matched fields on the left */
+UNIV_INLINE
+ulint
+page_cur_search(
+	const buf_block_t*	block,
+	const dict_index_t*	index,
+	const dtuple_t*		tuple,
+	page_cur_t*		cursor)
+{
+	return(page_cur_search(block, index, tuple, PAGE_CUR_LE, cursor));
 }
 
 /***********************************************************//**
@@ -237,7 +235,13 @@ Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
 the same logical position, but the physical position may change if it is
 pointing to a compressed page that was reorganized.
-@return	pointer to record if succeed, NULL otherwise */
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
+@return pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t*
 page_cur_tuple_insert(
@@ -267,8 +271,8 @@ page_cur_tuple_insert(
 		rec, index, *offsets, ULINT_UNDEFINED, heap);
 
 	if (buf_block_get_page_zip(cursor->block)) {
-		rec = page_cur_insert_rec_zip(&cursor->rec, cursor->block,
-					      index, rec, *offsets, mtr);
+		rec = page_cur_insert_rec_zip(
+			cursor, index, rec, *offsets, mtr);
 	} else {
 		rec = page_cur_insert_rec_low(cursor->rec,
 					      index, rec, *offsets, mtr);
@@ -284,7 +288,13 @@ Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
 the same logical position, but the physical position may change if it is
 pointing to a compressed page that was reorganized.
-@return	pointer to record if succeed, NULL otherwise */
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
+@return pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t*
 page_cur_rec_insert(
@@ -296,8 +306,8 @@ page_cur_rec_insert(
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
 {
 	if (buf_block_get_page_zip(cursor->block)) {
-		return(page_cur_insert_rec_zip(&cursor->rec, cursor->block,
-					       index, rec, offsets, mtr));
+		return(page_cur_insert_rec_zip(
+			       cursor, index, rec, offsets, mtr));
 	} else {
 		return(page_cur_insert_rec_low(cursor->rec,
 					       index, rec, offsets, mtr));

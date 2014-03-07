@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
-   reserved
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +23,7 @@
 
 static int get_options(int argc, char *argv[]);
 static int rnd(int max_value);
-static sig_handler endprog(int sig_number);
+static void endprog(int sig_number);
 
 static uint flag=0,verbose=0,testflag=0,recant=10000,silent=0;
 static uint keys=MAX_KEYS;
@@ -53,7 +52,7 @@ int main(int argc, char *argv[])
   HP_SHARE *tmp_share;
   HP_KEYDEF keyinfo[MAX_KEYS];
   HA_KEYSEG keyseg[MAX_KEYS*5];
-  HEAP_PTR UNINIT_VAR(position);
+  HEAP_PTR position= 0;
   HP_CREATE_INFO hp_create_info;
   CHARSET_INFO *cs= &my_charset_latin1;
   my_bool unused;
@@ -128,7 +127,7 @@ int main(int argc, char *argv[])
   signal(SIGINT,endprog);
 
   printf("- Writing records:s\n");
-  strmov((char*) record,"          ..... key");
+  my_stpcpy((char*) record,"          ..... key");
 
   for (i=0 ; i < recant ; i++)
   {
@@ -392,13 +391,13 @@ int main(int argc, char *argv[])
       pos--;
     if (!error && (i-- == 0))
     {
-      bmove(record3,record,reclength);
+      memmove(record3, record, reclength);
       position=heap_position(file);
     }
   }
   if (error)
     goto err;
-  bmove(record2,record,reclength);
+  memmove(record2, record, reclength);
   if (heap_rsame(file,record,-1) || heap_rsame(file,record2,2))
     goto err;
   if (memcmp(record2,record,reclength))
@@ -431,39 +430,6 @@ int main(int argc, char *argv[])
     }
   }
 
-#ifdef OLD_HEAP_VERSION
-  {
-    uint check;
-    printf("- Read through all records with rnd\n");
-    if (heap_extra(file,HA_EXTRA_RESET) || heap_extra(file,HA_EXTRA_CACHE))
-    {
-      puts("got error from heap_extra");
-      goto end;
-    }
-    ant=check=0;
-    while ((error=heap_rrnd(file,record,(ulong) -1)) != HA_ERR_END_OF_FILE &&
-	   ant < write_count + 10)
-    {
-      if (!error)
-      {
-	ant++;
-	check+=calc_check(record,reclength);
-      }
-    }
-    if (ant != write_count-opt_delete)
-    {
-      printf("rrnd: I can only find: %d records of %d\n", ant,
-	     write_count-opt_delete);
-      goto end;
-    }
-    if (heap_extra(file,HA_EXTRA_NO_CACHE))
-    {
-      puts("got error from heap_extra(HA_EXTRA_NO_CACHE)");
-      goto end;
-    }
-  }
-#endif
-
   printf("- Read through all records with scan\n");
   if (heap_reset(file) || heap_extra(file,HA_EXTRA_CACHE))
   {
@@ -487,14 +453,6 @@ int main(int argc, char *argv[])
 	   write_count-opt_delete);
     goto end;
   }
-#ifdef OLD_HEAP_VERSION
-  if (check != check2)
-  {
-    puts("scan: Checksum didn't match reading with rrnd");
-    goto end;
-  }
-#endif
-
 
   if (heap_extra(file,HA_EXTRA_NO_CACHE))
   {
@@ -660,7 +618,7 @@ static int rnd(int max_value)
 } /* rnd */
 
 
-static sig_handler endprog(int sig_number __attribute__((unused)))
+static void endprog(int sig_number __attribute__((unused)))
 {
   {
     hp_panic(HA_PANIC_CLOSE);

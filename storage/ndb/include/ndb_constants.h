@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -145,5 +144,14 @@
 #define NDB_INFO_OP_SCAN         (256 + 1)
 #define NDB_INFO_OP_SCAN_SH      (256 + 2)
 #define NDB_INFO_OP_SCAN_EX      (256 + 3)
+
+/**
+ * FK actions
+ */
+#define NDB_FK_NO_ACTION   0
+#define NDB_FK_RESTRICT    1
+#define NDB_FK_CASCADE     2
+#define NDB_FK_SET_NULL    3
+#define NDB_FK_SET_DEFAULT 4
 
 #endif

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #include "LongSignal.hpp"
 #include "LongSignalImpl.hpp"
 #include "SimulatedBlock.hpp"
+
+#define JAM_FILE_ID 224
+
 
 SimplePropertiesSectionReader::SimplePropertiesSectionReader
 (struct SegmentedSectionPtr & ptr, class SectionSegmentPool & pool)
@@ -277,3 +279,9 @@ SimplePropertiesSectionWriter::getPtr(struct SegmentedSectionPtr & dst){
   m_head = m_currentSegment = 0;
   m_prevPtrI = RNIL;
 }
+
+/** 
+ * #undef is needed since this file is included by 
+ * SimplePropertiesSection_nonmt.cpp and SimplePropertiesSection_mt.cpp
+ */
+#undef JAM_FILE_ID
