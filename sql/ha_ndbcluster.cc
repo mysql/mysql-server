@@ -13490,8 +13490,6 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   DBUG_ENTER("ndbcluster_get_share");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
-//safe_mutex_assert_owner(&ndbcluster_mutex);  ... Need to change ndbcluster_mutex to 'mysql_mutex_t'
-
   if (!(share= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                            (const uchar*) key,
                                            length)))
