@@ -1735,6 +1735,17 @@ retry:
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
   for (TABLE_LIST *tl= table_list;;)
   {
+    if (tl &&
+        tl->select_lex && tl->select_lex->master_unit() &&
+        tl->select_lex->master_unit()->executed)
+    {
+      /*
+        There is no sense to check tables of already executed parts
+        of the query
+      */
+      tl= tl->next_global;
+      continue;
+    }
     if (((! (res= find_table_in_global_list(tl, d_name, t_name))) &&
          (! (res= mysql_lock_have_duplicate(thd, table, tl)))) ||
         ((!res->table || res->table != table->table) &&
