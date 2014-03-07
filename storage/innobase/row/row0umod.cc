@@ -631,20 +631,20 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			finished building the index, but it does not
 			yet exist in MySQL. In this case, we suppress
 			the printout to the error log. */
-			fputs("InnoDB: error in sec index entry del undo in\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, trx, index);
-			fputs("\n"
-			      "InnoDB: tuple ", stderr);
-			dtuple_print(stderr, entry);
-			fputs("\n"
-			      "InnoDB: record ", stderr);
-			rec_print(stderr, btr_pcur_get_rec(&pcur), index);
-			putc('\n', stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"In sec index entry del undo in index %s of"
+				" table %s",
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				ut_get_name(trx, TRUE, index->table_name).c_str());
+
+			ib_logf(IB_LOG_LEVEL_ERROR, "Tuple %s",
+				rec_printer(entry).c_str());
+
+			ib_logf(IB_LOG_LEVEL_ERROR, "Record %s",
+				rec_printer(btr_pcur_get_rec(&pcur),
+					    index).c_str());
 			trx_print(stderr, trx, 0);
-			fputs("\n"
-			      "InnoDB: Submit a detailed bug report"
-			      " to http://bugs.mysql.com\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "%s", BUG_REPORT_MSG);
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Record in index %s was not found"

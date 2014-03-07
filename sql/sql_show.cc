@@ -2167,7 +2167,10 @@ public:
     if (inspect_thd->mysys_var)
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
     /* INFO */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     if (inspect_thd->query().str)
     {
       const size_t width= min(m_max_query_length,
@@ -2177,7 +2180,7 @@ public:
       thd_info->query_string=
         CSET_STRING(q, q ? width : 0, inspect_thd->charset());
     }
-    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
     /* MYSQL_TIME */
     thd_info->start_time= inspect_thd->start_time.tv_sec;
@@ -2346,7 +2349,10 @@ public:
     if (inspect_thd->mysys_var)
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
     /* INFO */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     if (inspect_thd->query().str)
     {
       const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
@@ -2355,7 +2361,7 @@ public:
                              inspect_thd->charset());
       table->field[7]->set_notnull();
     }
-    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
     /* MYSQL_TIME */
     if (inspect_thd->start_time.tv_sec)

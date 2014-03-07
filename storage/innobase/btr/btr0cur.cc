@@ -2740,7 +2740,7 @@ fail_err:
 			      thr != NULL
 			      ? trx_get_id_for_print(thr_get_trx(thr))
 			      : 0,
-			      rec_printer(entry).str().c_str()));
+			      rec_printer(entry).c_str()));
 
 
 	/* Now, try the insert */
@@ -2800,13 +2800,17 @@ fail_err:
 					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "Cannot insert tuple");
-			dtuple_print(stderr, entry);
-			fputs(" into ", stderr);
-			dict_index_name_print(stderr, thr_get_trx(thr), index);
-			ib_logf(IB_LOG_LEVEL_ERROR, "Max insert size %lu",
-				(ulong) max_size);
-			ut_error;
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Cannot insert tuple %s into index %s of table"
+				" %s. Max insert size " ULINTPF,
+				rec_printer(entry).c_str(),
+				ut_get_name(
+					thr_get_trx(thr),
+					FALSE, index->name).c_str(),
+				ut_get_name(
+					thr_get_trx(thr),
+					TRUE, index->table_name).c_str(),
+				max_size);
 		}
 	}
 
@@ -3334,7 +3338,7 @@ btr_cur_update_in_place(
 	DBUG_PRINT("ib_cur", ("update-in-place %s (" IB_ID_FMT
 			      ") by " TRX_ID_FMT ": %s",
 			      index->name, index->id, trx_id,
-			      rec_printer(rec, offsets).str().c_str()));
+			      rec_printer(rec, offsets).c_str()));
 
 	block = btr_cur_get_block(cursor);
 	page_zip = buf_block_get_page_zip(block);
@@ -3537,7 +3541,7 @@ any_extern:
 	DBUG_PRINT("ib_cur", ("update %s (" IB_ID_FMT ") by " TRX_ID_FMT
 			      ": %s",
 			      index->name, index->id, trx_id,
-			      rec_printer(rec, *offsets).str().c_str()));
+			      rec_printer(rec, *offsets).c_str()));
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
@@ -4319,7 +4323,7 @@ btr_cur_del_mark_set_clust_rec(
 			      ") by " TRX_ID_FMT ": %s",
 			      index->table_name, index->id,
 			      trx_get_id_for_print(trx),
-			      rec_printer(rec, offsets).str().c_str()));
+			      rec_printer(rec, offsets).c_str()));
 
 	if (dict_index_is_online_ddl(index)) {
 		row_log_table_delete(rec, index, offsets, NULL);
