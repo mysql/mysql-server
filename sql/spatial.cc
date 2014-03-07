@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -204,7 +204,7 @@ static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo)
   double res;
   if (bo != Geometry::wkb_xdr)
   {
-    float8get(res, ptr);
+    float8get(&res, ptr);
   }
   else
   {
@@ -217,7 +217,7 @@ static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo)
     inv_array[5]= ptr[2];
     inv_array[6]= ptr[1];
     inv_array[7]= ptr[0];
-    float8get(res, inv_array);
+    float8get(&res, inv_array);
   }
   return res;
 }

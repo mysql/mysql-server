@@ -6328,7 +6328,7 @@ int read_line(char *buf, int size)
       {
         if (!(charlen= my_mbcharlen(charset_info, (unsigned char) c)))
         {
-          char c1= my_getc(cur_file->file);
+          int c1= my_getc(cur_file->file);
           if (c1 == EOF)
           {
             *p++= c;
