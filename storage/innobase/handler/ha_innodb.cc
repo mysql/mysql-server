@@ -10672,7 +10672,7 @@ Calculate Record Per Key value. Need to exclude the NULL value if
 innodb_stats_method is set to "nulls_ignored"
 @return estimated record per key value */
 static
-ha_rows
+double
 innodb_rec_per_key(
 /*===============*/
 	dict_index_t*	index,		/*!< in: dict_index_t structure */
@@ -10680,7 +10680,7 @@ innodb_rec_per_key(
 					calculating rec per key */
 	ha_rows		records)	/*!< in: estimated total records */
 {
-	ha_rows		rec_per_key;
+	double		rec_per_key;
 	ib_uint64_t	n_diff;
 
 	ut_a(index->table->stat_initialized);
@@ -10691,7 +10691,7 @@ innodb_rec_per_key(
 
 	if (n_diff == 0) {
 
-		rec_per_key = records;
+		rec_per_key = static_cast<double>(records);
 	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
 		ib_uint64_t	n_null;
 		ib_uint64_t	n_non_null;
@@ -10714,16 +10714,16 @@ innodb_rec_per_key(
 		consider that the table consists mostly of NULL value.
 		Set rec_per_key to 1. */
 		if (n_diff <= n_null) {
-			rec_per_key = 1;
+			rec_per_key = 1.0;
 		} else {
 			/* Need to exclude rows with NULL values from
 			rec_per_key calculation */
-			rec_per_key = (ha_rows)
-				((records - n_null) / (n_diff - n_null));
+			rec_per_key = static_cast<double>(records - n_null)
+				/ (n_diff - n_null);
 		}
 	} else {
 		DEBUG_SYNC_C("after_checking_for_0");
-		rec_per_key = (ha_rows) (records / n_diff);
+		rec_per_key = static_cast<double>(records) / n_diff;
 	}
 
 	return(rec_per_key);
@@ -10741,7 +10741,6 @@ ha_innobase::info_low(
 	bool	is_analyze)
 {
 	dict_table_t*	ib_table;
-	ha_rows		rec_per_key;
 	ib_uint64_t	n_rows;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
@@ -11019,12 +11018,15 @@ ha_innobase::info_low(
 				break;
 			}
 
-			for (j = 0; j < table->key_info[i].actual_key_parts; j++) {
+			KEY*	key = &table->key_info[i];
 
-				if (table->key_info[i].flags & HA_FULLTEXT) {
+			for (j = 0; j < key->actual_key_parts; j++) {
+
+				if (key->flags & HA_FULLTEXT) {
 					/* The whole concept has no validity
 					for FTS indexes. */
-					table->key_info[i].rec_per_key[j] = 1;
+					key->rec_per_key[j] = 1;
+					key->set_records_per_key(j, 1.0);
 					continue;
 				}
 
@@ -11044,23 +11046,39 @@ ha_innobase::info_low(
 					break;
 				}
 
-				rec_per_key = innodb_rec_per_key(
+				double	rec_per_key = innodb_rec_per_key(
 					index, j, stats.records);
+
+				/* Here we have two variants for rec_per_key:
+				1. The new one which is set via
+				set_records_per_key() and works with floating
+				point values;
+				2. The old one which is set by directly
+				assigning to rec_per_key[] and works with
+				integer values (to be removed). */
+
+				key->set_records_per_key(
+					j, static_cast<float>(rec_per_key));
+
+				/* Handle the 'integer' variant. The code below
+				should be deleted once we are sure that the
+				floating point numbers are fine. */
+
+				ulong	rec_per_key_int
+					= static_cast<ulong>(rec_per_key);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
 				index selectivity is 2 times better than
 				our estimate: */
 
-				rec_per_key = rec_per_key / 2;
+				rec_per_key_int = rec_per_key_int / 2;
 
-				if (rec_per_key == 0) {
-					rec_per_key = 1;
+				if (rec_per_key_int == 0) {
+					rec_per_key_int = 1;
 				}
 
-				table->key_info[i].rec_per_key[j] =
-				  rec_per_key >= ~(ulong) 0 ? ~(ulong) 0 :
-				  (ulong) rec_per_key;
+				key->rec_per_key[j] = rec_per_key_int;
 			}
 		}
 
