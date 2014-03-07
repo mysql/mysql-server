@@ -3720,9 +3720,9 @@ btr_index_rec_validate(
 			buf_page_print(page, univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 
-			fputs("InnoDB: corrupt record ", stderr);
-			rec_print_old(stderr, rec);
-			putc('\n', stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "Corrupt record %s",
+				rec_printer(rec).c_str());
+
 		}
 		return(FALSE);
 	}
@@ -3758,9 +3758,8 @@ btr_index_rec_validate(
 				buf_page_print(page, univ_page_size,
 					       BUF_PAGE_PRINT_NO_CRASH);
 
-				fputs("InnoDB: corrupt record ", stderr);
-				rec_print_new(stderr, rec, offsets);
-				putc('\n', stderr);
+				ib_logf(IB_LOG_LEVEL_ERROR, "Corrupt record %s",
+					rec_printer(rec, offsets).c_str());
 			}
 			if (heap) {
 				mem_heap_free(heap);
@@ -4112,23 +4111,21 @@ loop:
 
 			btr_validate_report2(index, level, block, right_block);
 
-			fputs("InnoDB: records in wrong order"
-			      " on adjacent pages\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Records in wrong order on adjacent pages.");
 
 			buf_page_print(page, univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 			buf_page_print(right_page, univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 
-			fputs("InnoDB: record ", stderr);
-			rec = page_rec_get_prev(page_get_supremum_rec(page));
-			rec_print(stderr, rec, index);
-			putc('\n', stderr);
-			fputs("InnoDB: record ", stderr);
-			rec = page_rec_get_next(
-				page_get_infimum_rec(right_page));
-			rec_print(stderr, rec, index);
-			putc('\n', stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Last record on the left page: %s",
+				rec_printer(rec, index).c_str());
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"First record on the right page: %s",
+				rec_printer(right_rec, index).c_str());
 
 			ret = false;
 		}
@@ -4180,18 +4177,16 @@ loop:
 			buf_page_print(page, univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 
-			fputs("InnoDB: node ptr ", stderr);
-			rec_print(stderr, node_ptr, index);
-
 			rec = btr_cur_get_rec(&node_cur);
-			fprintf(stderr, "\n"
-				"InnoDB: node ptr child page n:o %lu\n",
-				(ulong) btr_node_ptr_get_child_page_no(
-					rec, offsets));
-
-			fputs("InnoDB: record on page ", stderr);
-			rec_print_new(stderr, rec, offsets);
-			putc('\n', stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR, "Node ptr %s",
+				rec_printer(node_ptr, index).c_str());
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Node ptr child page n:o " ULINTPF,
+				btr_node_ptr_get_child_page_no(
+						rec, offsets));
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Record on page %s",
+				rec_printer(rec, offsets).c_str());
 			ret = false;
 
 			goto node_ptr_fails;
@@ -4218,12 +4213,11 @@ loop:
 					BUF_PAGE_PRINT_NO_CRASH);
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Node ptrs differ on levels > 0");
-				fputs("InnoDB: node ptr ",stderr);
-				rec_print_new(stderr, node_ptr, offsets);
-				fputs("InnoDB: first rec ", stderr);
-				rec_print(stderr, first_rec, index);
-				putc('\n', stderr);
+					"Node ptrs differ on levels > 0.");
+				ib_logf(IB_LOG_LEVEL_ERROR, "Node ptr %s",
+					rec_printer(node_ptr, offsets).c_str());
+				ib_logf(IB_LOG_LEVEL_ERROR, "First rec %s",
+					rec_printer(first_rec, index).c_str());
 				ret = false;
 
 				goto node_ptr_fails;
