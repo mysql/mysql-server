@@ -53,7 +53,7 @@ touch_mem(void* arg)
   size_t sz = touch_mem_ptr->sz;
   Uint32 index = touch_mem_ptr->index;
   unsigned char *p = (unsigned char *)touch_mem_ptr->p;
-  size_t num_pages_per_thread;
+  size_t num_pages_per_thread = 1;
   size_t first_page;
   size_t tot_pages = (sz + (TOUCH_PAGE_SIZE - 1)) / TOUCH_PAGE_SIZE;
 

@@ -4158,18 +4158,18 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
 	  Uint32 *part= ptr->get_end_of_fix_part_ptr(regTabPtr);
 	  if(! (ptr->m_header_bits & Tuple_header::COPY_TUPLE))
 	  {
-	    ndbassert(len == fix_sz + 1);
+	    ndbrequire(len == fix_sz + 1);
 	    Local_key tmp; tmp.assref(*part);
 	    Ptr<Page> tmpPage;
 	    part= get_ptr(&tmpPage, *(Var_part_ref*)part);
 	    len= ((Var_page*)tmpPage.p)->get_entry_len(tmp.m_page_idx);
 	    Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)part)[mm_vars]);
-	    ndbassert(len >= ((sz + 3) >> 2));
+	    ndbrequire(len >= ((sz + 3) >> 2));
 	  } 
 	  else
 	  {
 	    Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)part)[mm_vars]);
-	    ndbassert(len >= ((sz+3)>>2)+fix_sz);
+	    ndbrequire(len >= ((sz+3)>>2)+fix_sz);
 	  }
 	  if(ptr->m_operation_ptr_i != RNIL)
 	  {
@@ -4183,7 +4183,7 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
 	   */
 	  Uint32 *part= page->get_ptr(i);
 	  Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)part)[mm_vars]);
-	  ndbassert(len >= ((sz + 3) >> 2));
+	  ndbrequire(len >= ((sz + 3) >> 2));
 	} 
 	else 
 	{

@@ -2216,7 +2216,7 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
             Uint32 components = idxName.split(idxNameComponents,
                                               splitString);
             
-            assert(components == 4);
+            require(components == 4);
             
             primTableObjectId = atoi(idxNameComponents[2].c_str());
             indexName = idxNameComponents[3];
@@ -2257,7 +2257,7 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
             
             Uint32 components = tabName.split(tabNameComponents,
                                               splitString);
-            assert (components == 3);
+            require(components == 3);
             
             /* Now we generate a string of the format
              * <dbname>/<schemaname>/<tabname>/<idxname>
