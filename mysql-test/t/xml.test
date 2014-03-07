@@ -1,3 +1,4 @@
+
 SET @xml='<a aa1="aa1" aa2="aa2">a1<b ba1="ba1">b1<c>c1</c>b2</b>a2</a>';
 SELECT extractValue(@xml,'/a');
 SELECT extractValue(@xml,'/a/b');
@@ -597,7 +598,7 @@ CREATE TABLE IF NOT EXISTS t1 (
   id int(10) unsigned NOT NULL AUTO_INCREMENT,
   xml text,
   PRIMARY KEY (id)
-) ENGINE=MyISAM;
+);
 
 INSERT INTO t1 (id, xml) VALUES
 (15, '<?xml version="1.0"?><bla name="blubb"></bla>'),

@@ -1,3 +1,4 @@
+
 # This test checks that setting of optimizer_switch works correctly.
 # Test cases for bugs related to changing the setting of optimizer_switch,
 # should go here.
@@ -255,6 +256,10 @@ WHERE ta.a IN (SELECT c FROM t2 AS tb
                WHERE tb.d >= SOME(SELECT e FROM t3 as tc
                                   WHERE ta.b=tc.e));
 
+analyze table t1;
+analyze table t2;
+analyze table t3;
+analyze table t4;
 eval EXPLAIN $query;
 eval $query;
 

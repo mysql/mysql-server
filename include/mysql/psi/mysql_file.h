@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,6 +42,10 @@
 */
 
 #include "mysql/psi/psi.h"
+
+#ifndef PSI_FILE_CALL
+#define PSI_FILE_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
 
 /**
   @defgroup File_instrumentation File Instrumentation
@@ -803,7 +807,8 @@ inline_mysql_file_fopen(
   const char *filename, int flags, myf myFlags)
 {
   MYSQL_FILE *that;
-  that= (MYSQL_FILE*) my_malloc(sizeof(MYSQL_FILE), MYF(MY_WME));
+  that= (MYSQL_FILE*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                sizeof(MYSQL_FILE), MYF(MY_WME));
   if (likely(that != NULL))
   {
 #ifdef HAVE_PSI_FILE_INTERFACE

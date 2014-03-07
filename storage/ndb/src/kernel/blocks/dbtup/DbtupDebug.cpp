@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,12 @@
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
+#include "AttributeOffset.hpp"
+#ifdef TEST_MR
+#include <time.h>
+#endif
 
+#define JAM_FILE_ID 411
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -45,7 +50,6 @@ void Dbtup::execDEBUG_SIG(Signal* signal)
 }//Dbtup::execDEBUG_SIG()
 
 #ifdef TEST_MR
-#include <time.h>
 
 void startTimer(struct timespec *tp)
 {
@@ -332,7 +336,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
         sum_req += alloc;
     doalloc:
 	Chunk chunk;
-	allocConsPages(alloc, chunk.pageCount, chunk.pageId);
+	allocConsPages(jamBuffer(), alloc, chunk.pageCount, chunk.pageId);
 	ndbrequire(chunk.pageCount <= alloc);
 	if(chunk.pageCount != 0){
 	  chunks.push_back(chunk);
@@ -573,8 +577,6 @@ operator<<(NdbOut& out, const AttributeDescriptor& off)
   memcpy(&word, &off, 4);
   return out;
 }
-
-#include "AttributeOffset.hpp"
 
 NdbOut&
 operator<<(NdbOut& out, const AttributeOffset& off)

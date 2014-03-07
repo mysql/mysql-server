@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Check for problems with delete
 #
@@ -130,6 +135,23 @@ select * from t11;
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 drop table t11, t12, t2;
+
+--echo # sql_safe_updates mode with multi-table DELETE
+
+CREATE TABLE t1(a INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES(10),(20);
+
+CREATE TABLE t2(b INTEGER);
+INSERT INTO t2 VALUES(10),(20);
+
+SET SESSION sql_safe_updates=1;
+
+-- error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE t1 FROM t1 JOIN t2 WHERE t1.a = 10;
+
+SET SESSION sql_safe_updates=default;
+
+DROP TABLE t1, t2;
 
 #
 # Bug #4198: deletion and KEYREAD
@@ -610,3 +632,18 @@ DEALLOCATE PREPARE stm;
 
 DROP TABLE t2, t1;
 DROP PROCEDURE p1;
+
+--echo #
+--echo # Bug#18345346 Assertion failed: table_ref->view && table_ref->table == 0
+--echo #
+
+CREATE TABLE b(a INTEGER);
+CREATE VIEW y AS SELECT 1 FROM b, b AS e;
+CREATE VIEW x AS SELECT 1 FROM y;
+CREATE VIEW z AS SELECT 1 FROM x LIMIT 1;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE z FROM (SELECT 1) AS x, z;
+
+DROP VIEW z, x, y;
+DROP TABLE b;

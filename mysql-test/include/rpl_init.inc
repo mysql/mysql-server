@@ -7,7 +7,6 @@
 #    well as extra connections server_1_1, server_2_1, ...,
 #    server_N_1. server_I and server_I_1 are connections to the same
 #    server.
-#  - Sets up @@auto_increment_increment and @@auto_increment_increment.
 #  - Verifies that @@server_id of all servers are different.
 #  - Calls RESET MASTER, RESET SLAVE, USE test, CHANGE MASTER, START SLAVE.
 #  - Sets the connection to server_1 before exiting.
@@ -51,6 +50,7 @@
 #    [--let $rpl_skip_reset_master_and_slave= 1]
 #    [--let $rpl_debug= 1]
 #    [--let $slave_timeout= NUMBER]
+#    [--let $use_gtids= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -103,6 +103,9 @@
 #    $slave_timeout
 #      Timeout used when waiting for the slave threads to start.
 #      See include/wait_for_slave_param.inc
+#
+#    $use_gtids
+#      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
 #
 #
 # ==== Side effects ====
@@ -200,8 +203,37 @@ while ($_rpl_server)
     RESET MASTER;
     RESET SLAVE;
   }
-  eval SET auto_increment_increment= $rpl_server_count;
-  eval SET auto_increment_offset= $_rpl_server;
+  # Only way to do this in mtr :-(
+  if ($_rpl_server == 1) {
+    --let $server_1_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 2) {
+    --let $server_2_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 3) {
+    --let $server_3_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 4) {
+    --let $server_4_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 5) {
+    --let $server_5_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 6) {
+    --let $server_6_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 7) {
+    --let $server_7_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 8) {
+    --let $server_8_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 9) {
+    --let $server_9_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 10) {
+    --let $server_10_datadir= `SELECT @@datadir`
+  }
 
   --dec $_rpl_server
 }
@@ -244,6 +276,10 @@ if ($rpl_check_server_ids)
 
 # $rpl_master_list must be set so that include/rpl_change_topology.inc
 # knows which servers are initialized and not.
+if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+{
+  --let $use_gtids=1
+}
 --let $rpl_master_list= `SELECT REPEAT('x', $rpl_server_count * LENGTH($rpl_server_count))`
 --source include/rpl_change_topology.inc
 

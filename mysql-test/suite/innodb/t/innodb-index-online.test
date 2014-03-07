@@ -4,8 +4,6 @@
 let $innodb_metrics_select=
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 
-call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
-
 # DISCARD TABLESPACE needs file-per-table
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
 SET GLOBAL innodb_file_per_table = on;

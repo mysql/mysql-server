@@ -1,6 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008 MySQL AB, 2008 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,7 +59,7 @@ sub _cpuinfo {
     }
 
     # Make sure bogomips is set to some value
-    $cpuinfo->{bogomips} |= DEFAULT_BOGO_MIPS;
+    $cpuinfo->{bogomips} ||= DEFAULT_BOGO_MIPS;
 
     # Cpus reported once, but with 'cpu_count' set to the actual number
     my $cpu_count= $cpuinfo->{cpu_count} || 1;

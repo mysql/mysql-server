@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@ Created 12/19/1997 Heikki Tuuri
 
 /*********************************************************************//**
 Gets the plan node for the nth table in a join.
-@return	plan node */
+@return plan node */
 UNIV_INLINE
 plan_t*
 sel_node_get_nth_plan(
@@ -55,7 +55,7 @@ sel_node_reset_cursor(
 
 /**********************************************************************//**
 Performs an execution step of an open or close cursor statement node.
-@return	query thread to run next or NULL */
+@return query thread to run next or NULL */
 UNIV_INLINE
 que_thr_t*
 open_step(

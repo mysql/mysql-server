@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -397,6 +397,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     this.type = java.sql.Date.class;
                     break;
                 case Datetime:
+                case Datetime2:
                     this.objectOperationHandlerDelegate = objectOperationHandlerJavaSqlTimestamp;
                     this.type = java.sql.Timestamp.class;
                     break;
@@ -474,10 +475,12 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     this.type = String.class;
                     break;
                 case Time:
+                case Time2:
                     this.objectOperationHandlerDelegate = objectOperationHandlerJavaSqlTime;
                     this.type = java.sql.Time.class;
                     break;
                 case Timestamp:
+                case Timestamp2:
                     this.objectOperationHandlerDelegate = objectOperationHandlerJavaSqlTimestamp;
                     this.type = java.sql.Timestamp.class;
                     break;

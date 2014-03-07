@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,12 +86,6 @@ uint32 ndb_mi_get_slave_run_id()
 #else
   return active_mi->rli->slave_run_id;
 #endif
-}
-
-bool ndb_mi_get_in_relay_log_statement(Relay_log_info* rli)
-{
-  DBUG_ASSERT (rli != NULL);
-  return (rli->get_flag(Relay_log_info::IN_STMT) != 0);
 }
 
 ulong ndb_mi_get_relay_log_trans_retries()

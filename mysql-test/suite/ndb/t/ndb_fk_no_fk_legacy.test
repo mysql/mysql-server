@@ -1,0 +1,5 @@
+#
+# Run the legacy compatibility test with legacy engine
+#
+let $engine=InNoDb;
+--source ndb_fk_no_fk_compat.inc

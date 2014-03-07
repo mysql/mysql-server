@@ -1,5 +1,4 @@
-/* Copyright (C) 2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef DBLQH_COMMON_H
 #define DBLQH_COMMON_H
@@ -20,6 +19,9 @@
 #include <pc.hpp>
 #include <ndb_types.h>
 #include <Bitmask.hpp>
+
+#define JAM_FILE_ID 443
+
 
 /*
  * Log part id is from DBDIH.  Number of log parts is configurable with a
@@ -47,5 +49,8 @@ struct NdbLogPartInfo {
   bool partNoOwner(Uint32 lpno) const;
   Uint32 partNoIndex(Uint32 lpno) const;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

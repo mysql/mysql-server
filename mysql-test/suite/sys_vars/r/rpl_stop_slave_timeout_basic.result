@@ -1,0 +1,93 @@
+SET @start_value = @@global.rpl_stop_slave_timeout;
+SELECT @start_value;
+@start_value
+31536000
+'#--------------------FN_DYNVARS_019_01------------------------#'
+SET @@global.rpl_stop_slave_timeout = 100;
+SET @@global.rpl_stop_slave_timeout = DEFAULT;
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+31536000
+'#---------------------FN_DYNVARS_019_02-------------------------#'
+SET @@global.rpl_stop_slave_timeout = @start_value;
+SELECT @@global.rpl_stop_slave_timeout = 5;
+@@global.rpl_stop_slave_timeout = 5
+0
+'#--------------------FN_DYNVARS_019_03------------------------#'
+SET @@global.rpl_stop_slave_timeout = 2;
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+2
+SET @@global.rpl_stop_slave_timeout = 10000;
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+10000
+SET @@global.rpl_stop_slave_timeout = 21221204;
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+21221204
+'#--------------------FN_DYNVARS_019_04-------------------------#'
+SET @@global.rpl_stop_slave_timeout = 1;
+Warnings:
+Warning	1292	Truncated incorrect rpl_stop_slave_timeout value: '1'
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+2
+SET @@global.rpl_stop_slave_timeout = -1024;
+Warnings:
+Warning	1292	Truncated incorrect rpl_stop_slave_timeout value: '-1024'
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+2
+SET @@global.rpl_stop_slave_timeout = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect rpl_stop_slave_timeout value: '42949672950'
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+31536000
+SET @@global.rpl_stop_slave_timeout = 21221204.10;
+ERROR 42000: Incorrect argument type to variable 'rpl_stop_slave_timeout'
+SET @@global.rpl_stop_slave_timeout = ON;
+ERROR 42000: Incorrect argument type to variable 'rpl_stop_slave_timeout'
+'#-------------------FN_DYNVARS_019_05----------------------------#'
+SET @@session.rpl_stop_slave_timeout = 0;
+ERROR HY000: Variable 'rpl_stop_slave_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.rpl_stop_slave_timeout;
+ERROR HY000: Variable 'rpl_stop_slave_timeout' is a GLOBAL variable
+'#----------------------FN_DYNVARS_019_06------------------------#'
+SELECT @@global.rpl_stop_slave_timeout = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='rpl_stop_slave_timeout';
+@@global.rpl_stop_slave_timeout = VARIABLE_VALUE
+1
+'#---------------------FN_DYNVARS_019_07----------------------#'
+SET @@global.rpl_stop_slave_timeout = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect rpl_stop_slave_timeout value: '1'
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+2
+SET @@global.rpl_stop_slave_timeout = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect rpl_stop_slave_timeout value: '0'
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+2
+'#---------------------FN_DYNVARS_019_08----------------------#'
+SET @@global.rpl_stop_slave_timeout = 5;
+SELECT @@rpl_stop_slave_timeout = @@global.rpl_stop_slave_timeout;
+@@rpl_stop_slave_timeout = @@global.rpl_stop_slave_timeout
+1
+'#---------------------FN_DYNVARS_019_09----------------------#'
+SET rpl_stop_slave_timeout = 1;
+ERROR HY000: Variable 'rpl_stop_slave_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET global.rpl_stop_slave_timeout = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'rpl_stop_slave_timeout = 1' at line 1
+SELECT global.rpl_stop_slave_timeout;
+ERROR 42S02: Unknown table 'global' in field list
+SELECT rpl_stop_slave_timeout = @@session.rpl_stop_slave_timeout;
+ERROR 42S22: Unknown column 'rpl_stop_slave_timeout' in 'field list'
+SET @@global.rpl_stop_slave_timeout = @start_value;
+SELECT @@global.rpl_stop_slave_timeout;
+@@global.rpl_stop_slave_timeout
+31536000

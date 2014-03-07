@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "sql_class.h"                          // THD, set_var.h: THD
 #include "set_var.h"                            // Item
 #include "sp_pcontext.h"                        // sp_pcontext
+#include "mem_root_array.h"
 
 /**
   @defgroup Stored_Routines Stored Routines
@@ -35,6 +36,17 @@
 class sp_instr;
 class sp_branch_instr;
 class sp_lex_branch_instr;
+
+/**
+  Number of PSI_statement_info instruments
+  for internal stored programs statements.
+*/
+#define SP_PSI_STATEMENT_INFO_COUNT 16
+
+#ifdef HAVE_PSI_INTERFACE
+void init_sp_psi_keys(void);
+#endif
+
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -192,6 +204,7 @@ public:
     if (!is_parsing_sp_body())
       return;
 
+    thd->free_items();
     thd->mem_root= m_saved_memroot;
     thd->free_list= m_saved_free_list;
 
@@ -482,6 +495,11 @@ public:
   uint m_flags;
 
   /**
+    Instrumentation interface for SP.
+  */
+  PSI_sp_share *m_sp_share;
+
+  /**
     Definition of the RETURN-field (from the RETURNS-clause).
     It's used (and valid) for stored functions only.
   */
@@ -578,8 +596,8 @@ public:
   /// Trigger characteristics.
   st_trg_chistics m_trg_chistics;
 
-  /// The Table_triggers_list instance, where this trigger belongs to.
-  class Table_triggers_list *m_trg_list;
+  /// The Table_trigger_dispatcher instance, where this trigger belongs to.
+  class Table_trigger_dispatcher *m_trg_list;
 
 public:
   static void *operator new(size_t size) throw ();
@@ -595,11 +613,11 @@ public:
     Get the value of the SP cache version, as remembered
     when the routine was inserted into the cache.
   */
-  ulong sp_cache_version() const
+  int64 sp_cache_version() const
   { return m_sp_cache_version; }
 
   /// Set the value of the SP cache version.
-  void set_sp_cache_version(ulong sp_cache_version)
+  void set_sp_cache_version(int64 sp_cache_version)
   { m_sp_cache_version= sp_cache_version; }
 
   Stored_program_creation_ctx *get_creation_ctx()
@@ -613,6 +631,15 @@ public:
 
   /// Set the statement-definition (body-definition) end position.
   void set_body_end(THD *thd);
+
+  bool setup_trigger_fields(THD *thd,
+                            Table_trigger_field_support *tfs,
+                            GRANT_INFO *subject_table_grant,
+                            bool need_fix_fields);
+
+  void mark_used_trigger_fields(TABLE *subject_table);
+
+  bool has_updated_trigger_fields(const MY_BITMAP *used_fields) const;
 
   /**
     Execute trigger stored program.
@@ -722,10 +749,10 @@ public:
   { return m_flags & MODIFIES_DATA; }
 
   uint instructions()
-  { return m_instructions.elements(); }
+  { return static_cast<uint>(m_instructions.size()); }
 
   sp_instr *last_instruction()
-  { return *m_instructions.back(); }
+  { return m_instructions.back(); }
 
   /**
     Reset LEX-object during parsing, before we parse a sub statement.
@@ -812,7 +839,7 @@ public:
   */
   sp_instr *get_instr(uint i)
   {
-    return (i < (uint) m_instructions.elements()) ? m_instructions.at(i) : NULL;
+    return (i < (uint) m_instructions.size()) ? m_instructions.at(i) : NULL;
   }
 
   /**
@@ -858,9 +885,9 @@ public:
     else if (m_flags & HAS_SQLCOM_FLUSH)
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
 
-    return test(m_flags &
-		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT|
-                 HAS_COMMIT_OR_ROLLBACK|HAS_SQLCOM_RESET|HAS_SQLCOM_FLUSH));
+    return MY_TEST(m_flags &
+                   (CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT|
+                    HAS_COMMIT_OR_ROLLBACK|HAS_SQLCOM_RESET|HAS_SQLCOM_FLUSH));
   }
 
 #ifndef DBUG_OFF
@@ -951,7 +978,7 @@ private:
   sp_pcontext *m_root_parsing_ctx;
 
   /// The SP-instructions.
-  Dynamic_array<sp_instr *> m_instructions;
+  Mem_root_array<sp_instr *, true> m_instructions;
 
   /**
     Multi-set representing optimized list of tables to be locked by this
@@ -974,7 +1001,7 @@ private:
     is obsolete and should not be used --
     sp_cache_flush_obsolete() will purge it.
   */
-  ulong m_sp_cache_version;
+  int64 m_sp_cache_version;
 
   /// Snapshot of several system variables at CREATE-time.
   Stored_program_creation_ctx *m_creation_ctx;

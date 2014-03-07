@@ -122,9 +122,6 @@ CALL sp1();
 2	a	b
 1.2	@v1	@v2
 1.2	1	2
-Warnings:
-Warning	1265	Data truncated for column 'x' at row 1
-Warning	1265	Data truncated for column 'y' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 
 Testcase 3.1.2.26:
@@ -754,9 +751,6 @@ set @x=1;
 END//
 INSERT INTO temp VALUES('0', NULL);
 CALL sp0();
-Warnings:
-Warning	1265	Data truncated for column 'f1' at row 1
-Warning	1265	Data truncated for column 'f2' at row 1
 SELECT @done, @x;
 @done	@x
 0	1

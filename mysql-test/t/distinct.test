@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Bug with distinct and INSERT INTO
 # Bug with group by and not used fields
@@ -84,6 +89,7 @@ insert into t4 select * from t3;
 insert into t3 select * from t4;
 
 explain select distinct t1.a from t1,t3 where t1.a=t3.a;
+
 # This query uses the "not used in distinct" optimization (search for
 # not_used_in_distinct in code); it means that when we have a partial
 # record for t1, and we find a match in t3, we have a combination
@@ -98,7 +104,6 @@ flush status;
 select distinct t1.a from t1,t3 where t1.a=t3.a;
 show status like 'Handler_read%';
 flush status;
-# This one does ~200 reads, filed as Bug #13622058
 select distinct 1 from t1,t3 where t1.a=t3.a;
 show status like 'Handler_read%';
 
@@ -645,6 +650,43 @@ INSERT INTO t1 VALUES (1111, 2222), (3333, 4444);
 SELECT DISTINCT CONCAT(a,b) AS c FROM t1 ORDER BY 1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#16539979 BASIC SELECT COUNT(DISTINCT ID) IS BROKEN.
+--echo # Bug#17867117 ERROR RESULT WHEN "COUNT + DISTINCT + CASE WHEN" NEED MERGE_WALK 
+--echo #
+
+SET @tmp_table_size_save= @@tmp_table_size;
+SET @@tmp_table_size= 1024;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 SELECT a+8 FROM t1;
+INSERT INTO t1 SELECT a+16 FROM t1;
+INSERT INTO t1 SELECT a+32 FROM t1;
+INSERT INTO t1 SELECT a+64 FROM t1;
+INSERT INTO t1 VALUE(NULL);
+SELECT COUNT(DISTINCT a) FROM t1;
+SELECT COUNT(DISTINCT (a+0)) FROM t1;
+DROP TABLE t1;
+
+create table tb(
+id int auto_increment primary key,
+v varchar(32))
+engine=myisam charset=gbk;
+insert into tb(v) values("aaa");
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+insert into tb(v) (select v from tb);
+
+update tb set v=concat(v, id);
+select count(distinct case when id<=64 then id end) from tb;
+select count(distinct case when id<=63 then id end) from tb;
+drop table tb;
+
+SET @@tmp_table_size= @tmp_table_size_save;
 
 --echo End of 5.5 tests
 

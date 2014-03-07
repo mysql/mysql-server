@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@
 int my_readlink(char *to, const char *filename, myf MyFlags)
 {
 #ifndef HAVE_READLINK
-  strmov(to,filename);
+  my_stpcpy(to,filename);
   return 1;
 #else
   int result=0;
@@ -48,7 +48,7 @@ int my_readlink(char *to, const char *filename, myf MyFlags)
     if ((my_errno=errno) == EINVAL)
     {
       result= 1;
-      strmov(to,filename);
+      my_stpcpy(to,filename);
     }
     else
     {
@@ -98,9 +98,7 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #endif /* HAVE_READLINK */
 }
 
-#if defined(SCO)
-#define BUFF_LEN 4097
-#elif defined(MAXPATHLEN)
+#if defined(MAXPATHLEN)
 #define BUFF_LEN MAXPATHLEN
 #else
 #define BUFF_LEN FN_LEN
@@ -128,7 +126,7 @@ int my_is_symlink(const char *filename __attribute__((unused)))
 
 int my_realpath(char *to, const char *filename, myf MyFlags)
 {
-#if defined(HAVE_REALPATH) && !defined(HAVE_BROKEN_REALPATH)
+#if defined(HAVE_REALPATH)
   int result=0;
   char buff[BUFF_LEN];
   char *ptr;

@@ -1,0 +1,26 @@
+################################################################################
+# Purpose:                                                                     #
+#  Tests around number of partitions                                           #
+#------------------------------------------------------------------------------#
+# Original Author: Horst Hunger                                                #
+# Original Date: 2012-08-30                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+# General not engine specific settings and requirements
+
+# The server must support partitioning.
+--source include/have_partition.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+let $engine= 'MyISAM';
+
+##### Number of files the storage engine will need to create partitions.
+let $mysql_needed_max_files=24576;
+
+--source suite/max_parts/inc/partition_max_parts_range.inc

@@ -98,7 +98,7 @@ t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL,
   `b` char(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
   `c` binary(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 set @@sql_mode="mysql323";
 show create table t1;
 Table	Create Table
@@ -106,7 +106,7 @@ t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL,
   `b` char(10) binary DEFAULT NULL,
   `c` binary(10) DEFAULT NULL
-) TYPE=MyISAM
+) TYPE=ENGINE
 set @@sql_mode="mysql40";
 show create table t1;
 Table	Create Table
@@ -114,7 +114,7 @@ t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL,
   `b` char(10) binary DEFAULT NULL,
   `c` binary(10) DEFAULT NULL
-) TYPE=MyISAM
+) TYPE=ENGINE
 drop table t1;
 set session sql_mode = '';
 create table t1 ( min_num   dec(6,6)     default .000001);
@@ -122,7 +122,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `min_num` decimal(6,6) DEFAULT '0.000001'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1 ;
 set session sql_mode = 'IGNORE_SPACE';
 create table t1 ( min_num   dec(6,6)     default 0.000001);
@@ -130,14 +130,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `min_num` decimal(6,6) DEFAULT '0.000001'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1 ;
 create table t1 ( min_num   dec(6,6)     default .000001);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `min_num` decimal(6,6) DEFAULT '0.000001'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1 ;
 set @@SQL_MODE=NULL;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'NULL'
@@ -159,7 +159,7 @@ t1	CREATE TABLE `t1` (
   `f1` int(11) NOT NULL,
   `f2` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`f1`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
 show local variables like 'SQL_MODE';
@@ -737,3 +737,62 @@ DROP FUNCTION test_function;
 SET @@sql_mode= @org_mode;
 
 #End of Test for Bug#12601974 
+#
+# BUG#18311187 - SQL_MODE IS CHANGED TO WRONG VALUE AFTER DUMP/DATA
+#                UPGRADE FOR TRIGGERS
+#
+SET @org_mode= @@sql_mode;
+# NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
+# are removed in 5.7 and their functionality is merged with STRICT mode.
+# Setting these modes in 5.7 will give warning and have no effect.
+SET sql_mode= 'NO_ZERO_DATE';
+Warnings:
+Warning	1910	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+SELECT @@sql_mode;
+@@sql_mode
+
+SET sql_mode= 'NO_ZERO_IN_DATE';
+Warnings:
+Warning	1910	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+SELECT @@sql_mode;
+@@sql_mode
+
+SET sql_mode= 'ERROR_FOR_DIVISION_BY_ZERO';
+Warnings:
+Warning	1910	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+SELECT @@sql_mode;
+@@sql_mode
+
+#
+# Restore sql mode
+#
+SET sql_mode= @org_mode;
+#
+# Check that NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
+# are removed in triggers after upgrading to 5.7.
+#
+CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
+SHOW CREATE TRIGGER ins_sum;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+ins_sum	STRICT_ALL_TABLES	CREATE DEFINER=`root`@`localhost` TRIGGER ins_sum BEFORE INSERT ON account FOR EACH ROW SET @sum = @sum + NEW.amount	utf8	utf8_general_ci	latin1_swedish_ci	NULL
+# Clean-up
+DROP TABLE account;
+#
+# Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
+# manually into mysql.proc table do not show up in SHOW CREATE procs/funcs OUTPUT.
+#
+INSERT INTO mysql.proc VALUES ('test','p1','PROCEDURE','p1','SQL','CONTAINS_SQL','NO','DEFINER','','','begin end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin end');
+# NO_ZERO_* modes should not show up in the output.
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	STRICT_ALL_TABLES	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+begin end	utf8	utf8_general_ci	latin1_swedish_ci
+INSERT INTO mysql.proc VALUES ('test','f1','FUNCTION','f1','SQL','CONTAINS_SQL','NO','DEFINER','','int(11)','begin return 1; end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin return 1; end');
+# NO_ZERO_* modes should not show up in the output.
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1	STRICT_ALL_TABLES	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+begin return 1; end	utf8	utf8_general_ci	latin1_swedish_ci
+# Clean-up.
+DROP PROCEDURE p1;
+DROP FUNCTION f1;

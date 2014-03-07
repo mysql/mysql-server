@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 #define SQL_BASE_INCLUDED
 
 #include "unireg.h"                    // REQUIRED: for other includes
-#include "sql_trigger.h"                        /* trg_event_type */
 #include "sql_class.h"                          /* enum_mark_columns */
 #include "mysqld.h"                             /* key_map */
 
@@ -30,6 +29,7 @@ struct TABLE_LIST;
 class THD;
 struct handlerton;
 struct TABLE;
+class Table_trigger_dispatcher;
 
 typedef class st_select_lex SELECT_LEX;
 
@@ -175,20 +175,20 @@ void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
                                           bool ignore_errors,
-                                          Table_triggers_list *triggers,
-                                          enum trg_event_type event,
+                                          TABLE *table,
+                                          enum enum_trigger_event_type event,
                                           int num_fields);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values,
                                           bool ignore_errors,
-                                          Table_triggers_list *triggers,
-                                          enum trg_event_type event,
+                                          TABLE *table,
+                                          enum enum_trigger_event_type event,
                                           int num_fields);
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
-int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
-	       List<Item> *sum_func_list, uint wild_num);
+int setup_wild(THD *thd, List<Item> &fields,
+               List<Item> *sum_func_list, uint wild_num);
 bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
@@ -239,8 +239,6 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
-int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-		Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
@@ -262,8 +260,8 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
-TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
-                         bool check_alias);
+TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
+                         TABLE_LIST *table_list, bool check_alias);
 int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
@@ -289,7 +287,6 @@ void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables,
                          bool wait_for_refresh, ulong timeout);
-bool close_cached_connection_tables(THD *thd, LEX_STRING *connect_string);
 void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
                                bool remove_from_locked_tables,
                                TABLE *skip_table);
@@ -365,10 +362,11 @@ inline bool setup_fields_with_no_wrap(THD *thd, Ref_ptr_array ref_pointer_array,
                                       bool allow_sum_func)
 {
   bool res;
-  thd->lex->select_lex.no_wrap_view_item= TRUE;
+  DBUG_ASSERT(thd->lex->select_lex != NULL);
+  thd->lex->select_lex->no_wrap_view_item= true;
   res= setup_fields(thd, ref_pointer_array, item, mark_used_columns,
                     sum_func_list, allow_sum_func);
-  thd->lex->select_lex.no_wrap_view_item= FALSE;
+  thd->lex->select_lex->no_wrap_view_item= false;
   return res;
 }
 
@@ -495,7 +493,7 @@ public:
   };
   Open_table_context(THD *thd, uint flags);
 
-  bool recover_from_failed_open(THD *thd);
+  bool recover_from_failed_open();
   bool request_backoff_action(enum_open_table_action action_arg,
                               TABLE_LIST *table);
 
@@ -535,6 +533,8 @@ public:
   }
 
 private:
+  /* THD for which tables are opened. */
+  THD *m_thd;
   /**
     For OT_DISCOVER and OT_REPAIR actions, the table list element for
     the table which definition should be re-discovered or which
@@ -617,5 +617,8 @@ private:
   int m_handled_errors;
   int m_unhandled_errors;
 };
+
+#include "pfs_table_provider.h"
+#include "mysql/psi/mysql_table.h"
 
 #endif /* SQL_BASE_INCLUDED */

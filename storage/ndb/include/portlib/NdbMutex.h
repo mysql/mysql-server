@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,6 +80,7 @@ int NdbMutex_InitWithName(NdbMutex* p_mutex, const char * name);
  * * returnvalue: 0 = succeeded, -1 = failed
  */
 int NdbMutex_Destroy(NdbMutex* p_mutex);
+int NdbMutex_Deinit(NdbMutex* p_mutex);
 
 /**
  * Lock a mutex

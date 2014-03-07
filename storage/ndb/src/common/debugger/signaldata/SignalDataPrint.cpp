@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -275,6 +275,13 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_LCP_STATUS_REQ, printLCP_STATUS_REQ }
   ,{ GSN_LCP_STATUS_CONF, printLCP_STATUS_CONF }
   ,{ GSN_LCP_STATUS_REF, printLCP_STATUS_REF }
+
+  ,{ GSN_CREATE_FK_REQ, printCREATE_FK_REQ }
+  ,{ GSN_CREATE_FK_REF, printCREATE_FK_REF }
+  ,{ GSN_CREATE_FK_CONF, printCREATE_FK_CONF }
+  ,{ GSN_DROP_FK_REQ, printDROP_FK_REQ }
+  ,{ GSN_DROP_FK_REF, printDROP_FK_REF }
+  ,{ GSN_DROP_FK_CONF, printDROP_FK_CONF }
 
   ,{ 0, 0 }
 };

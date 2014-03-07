@@ -3,6 +3,7 @@
 ##################################################
 -- source include/not_ndb_default.inc
 -- source include/master-slave.inc
+-- source include/have_myisam.inc
 let $engine_type=myisam;
 -- source extra/rpl_tests/rpl_delete_no_where.test
 --source include/rpl_end.inc

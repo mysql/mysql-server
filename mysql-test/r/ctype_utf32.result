@@ -101,7 +101,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `l` varchar(10) CHARACTER SET utf32 NOT NULL DEFAULT '',
   `r` varchar(10) CHARACTER SET utf32 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select hex(l), hex(r) from t1;
 hex(l)	hex(r)
 00000421000004210000042100000421000004210000042100000421000004210000042100000420	00000420000004210000042100000421000004210000042100000421000004210000042100000421
@@ -127,14 +127,18 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) CHARACTER SET utf32 DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain select * from t1 where a like 'abc%';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	43	NULL	1	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	43	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like 'abc%')
 explain select * from t1 where a like concat('abc','%');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	43	NULL	1	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	43	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like <cache>(concat('abc','%')))
 select * from t1 where a like "abc%";
 a
 abc
@@ -310,7 +314,7 @@ a
 фЫвапролдж
 DROP TABLE t1;
 CREATE TABLE t1 (word varchar(64) NOT NULL, PRIMARY KEY (word))
-ENGINE=MyISAM CHARACTER SET utf32;
+CHARACTER SET utf32;
 INSERT INTO t1 (word) VALUES ("cat");
 SELECT * FROM t1 WHERE word LIKE "c%";
 word
@@ -349,8 +353,10 @@ INSERT INTO t1 (word) VALUES ("aardvark");
 INSERT INTO t1 (word) VALUES ("aardvara");
 INSERT INTO t1 (word) VALUES ("aardvarz");
 EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT * FROM t1 ORDER BY word;
 word	bar
 a	0
@@ -360,8 +366,10 @@ aardvara	0
 aardvark	0
 aardvarz	0
 EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	258	NULL	6	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	258	NULL	6	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT word FROM t1 ORDER by word;
 word
 a
@@ -384,8 +392,10 @@ INSERT INTO t1 (word) VALUES ("aardvark");
 INSERT INTO t1 (word) VALUES ("aardvara");
 INSERT INTO t1 (word) VALUES ("aardvarz");
 EXPLAIN SELECT * FROM t1 ORDER BY WORD;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	258	NULL	6	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	258	NULL	6	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT * FROM t1 ORDER BY word;
 word
 a
@@ -409,8 +419,10 @@ INSERT INTO t1 (word) VALUES ("aardvark");
 INSERT INTO t1 (word) VALUES ("aardvara");
 INSERT INTO t1 (word) VALUES ("aardvarz");
 EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT * FROM t1 ORDER BY word;
 word	bar
 a	2
@@ -420,8 +432,10 @@ aardvara	5
 aardvark	4
 aardvarz	6
 EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
 SELECT word FROM t1 ORDER BY word;
 word
 a
@@ -509,7 +523,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('x','y','z') CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('x');
 insert into t1 values ('y');
 insert into t1 values ('z');
@@ -523,7 +537,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('D');
 insert into t1 values ('E ');
 insert into t1 values ('ä');
@@ -545,7 +559,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` set('x','y','z','ä','ö','ü') CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('x');
 insert into t1 values ('y');
 insert into t1 values ('z');
@@ -618,7 +632,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET utf32 COLLATE utf32_bin NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (_utf8mb4 0xEFBE9D),(_utf8mb4 0xF0908E84);
 INSERT INTO t1 VALUES (_utf8mb4 0xCE85),(_utf8mb4 0xF4808080);
 SELECT HEX(a), HEX(CONVERT(a USING utf8mb4)) FROM t1 ORDER BY a;
@@ -642,6 +656,21 @@ HEX(a)	HEX(WEIGHT_STRING(a))
 00010384	010384
 00100000	100000
 DROP TABLE IF EXISTS t1;
+#
+# BUG#16691598 - ORDER BY LOWER(COLUMN) PRODUCES 
+#                OUT-OF-ORDER RESULTS
+#
+CREATE TABLE  t1 SELECT ('a a') as n;
+INSERT INTO t1 VALUES('a b');
+SELECT * FROM t1 ORDER BY LOWER(n) ASC;
+n
+a a
+a b
+SELECT * FROM t1 ORDER BY LOWER(n) DESC;
+n
+a b
+a a
+DROP TABLE t1;
 select @@collation_connection;
 @@collation_connection
 utf32_bin
@@ -716,8 +745,10 @@ insert into t1 values (repeat(0x0000201f, 10));
 insert into t1 values (repeat(0x00002020, 10));
 insert into t1 values (repeat(0x00002021, 10));
 explain select hex(a) from t1 order by a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	a	40	NULL	3	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a	40	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select hex(`test`.`t1`.`a`) AS `hex(a)` from `test`.`t1` order by `test`.`t1`.`a`
 select hex(a) from t1 order by a;
 hex(a)
 0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F
@@ -738,14 +769,14 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `status` enum('active','passive') CHARACTER SET utf32 NOT NULL DEFAULT 'passive'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD a int NOT NULL AFTER status;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `status` enum('active','passive') CHARACTER SET utf32 NOT NULL DEFAULT 'passive',
   `a` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
 End of 4.1 tests
 CREATE TABLE t1 (a varchar(64) character set utf32, b decimal(10,3));
@@ -954,9 +985,9 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` mediumtext CHARACTER SET utf32
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (a varchar(250) character set utf32 primary key);
+create table t1 (a varchar(250) character set utf32 primary key) engine=MyISAM;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -964,11 +995,21 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (a varchar(334) character set utf32 primary key);
+create table t1 (a varchar(334) character set utf32 primary key) engine=MyISAM;
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
+create table t1 (a varchar(150) character set utf32 primary key);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(150) CHARACTER SET utf32 NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a varchar(334) character set utf32 primary key);
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 create table t1 (a varchar(333) character set utf32, key(a));
 Warnings:
-Warning	1071	Specified key was too long; max key length is 1000 bytes
+Warning	1071	Specified key was too long; max key length is 767 bytes
 insert into t1 values (repeat('a',333)), (repeat('b',333));
 flush tables;
 check table t1;
@@ -1000,7 +1041,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(64) CHARACTER SET utf32 DEFAULT NULL,
   `s2` varchar(64) CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=default_engine DEFAULT CHARSET=latin1
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
@@ -1061,7 +1102,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(2) CHARACTER SET utf32 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES ('ab'),('AE'),('ab'),('AE');
 SELECT * FROM t1 ORDER BY s1;
 s1
@@ -1120,7 +1161,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `CONCAT(s1)` varchar(255) CHARACTER SET utf32 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1, t2;
 #
 # Bug#45263 utf32_general_ci, bad effects around CREATE TABLE AS SELECT
@@ -1154,7 +1195,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `format(123,2,'no_NO')` varchar(37) CHARACTER SET utf32 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SELECT * FROM t1;
 format(123,2,'no_NO')
 123,00

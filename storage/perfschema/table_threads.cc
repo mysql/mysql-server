@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -105,11 +105,10 @@ table_threads::m_share=
 {
   { C_STRING_WITH_LEN("threads") },
   &pfs_updatable_acl,
-  &table_threads::create,
+  table_threads::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  1000, /* records */
+  cursor_by_thread::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -128,8 +127,10 @@ table_threads::table_threads()
 
 void table_threads::make_row(PFS_thread *pfs)
 {
-  pfs_lock lock;
-  pfs_lock processlist_lock;
+  pfs_optimistic_state lock;
+  pfs_optimistic_state session_lock;
+  pfs_optimistic_state stmt_lock;
+  PFS_stage_class *stage_class;
   PFS_thread_class *safe_class;
 
   m_row_exists= false;
@@ -147,6 +148,9 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
 
+  /* Protect this reader against session attribute changes */
+  pfs->m_session_lock.begin_optimistic_lock(&session_lock);
+
   m_row.m_username_length= pfs->m_username_length;
   if (unlikely(m_row.m_username_length > sizeof(m_row.m_username)))
     return;
@@ -159,39 +163,68 @@ void table_threads::make_row(PFS_thread *pfs)
   if (m_row.m_hostname_length != 0)
     memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
 
+  if (! pfs->m_session_lock.end_optimistic_lock(& session_lock))
+  {
+    /*
+      One of the columns:
+      - PROCESSLIST_USER
+      - PROCESSLIST_HOST
+      is being updated.
+      Do not discard the entire row.
+      Do not loop waiting for a stable value.
+      Just return NULL values.
+    */
+    m_row.m_username_length= 0;
+    m_row.m_hostname_length= 0;
+  }
+
+  /* Protect this reader against statement attributes changes */
+  pfs->m_stmt_lock.begin_optimistic_lock(&stmt_lock);
+
   m_row.m_dbname_length= pfs->m_dbname_length;
   if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname)))
     return;
   if (m_row.m_dbname_length != 0)
     memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
 
-  m_row.m_command= pfs->m_command;
-  m_row.m_start_time= pfs->m_start_time;
-
-  /* Protect this reader against attribute changes. */
-  pfs->m_lock.begin_optimistic_lock(&processlist_lock);
-
-  /* FIXME: need to copy it ? */
-  m_row.m_processlist_state_ptr= pfs->m_processlist_state_ptr;
-  m_row.m_processlist_state_length= pfs->m_processlist_state_length;
-  /* FIXME: need to copy it ? */
-  m_row.m_processlist_info_ptr= pfs->m_processlist_info_ptr;
+  m_row.m_processlist_info_ptr= & pfs->m_processlist_info[0];
   m_row.m_processlist_info_length= pfs->m_processlist_info_length;
 
-  if (! pfs->m_lock.end_optimistic_lock(& processlist_lock))
+  if (! pfs->m_stmt_lock.end_optimistic_lock(& stmt_lock))
   {
     /*
-      Columns PROCESSLIST_STATE or PROCESSLIST_INFO are being
-      updated while we read them, and are unsafe to use.
+      One of the columns:
+      - PROCESSLIST_DB
+      - PROCESSLIST_INFO
+      is being updated.
       Do not discard the entire row.
       Do not loop waiting for a stable value.
-      Just return NULL values for these columns.
+      Just return NULL values.
     */
-    m_row.m_processlist_state_length= 0;
+    m_row.m_dbname_length= 0;
     m_row.m_processlist_info_length= 0;
   }
 
-  m_row.m_enabled_ptr= &pfs->m_enabled;
+  /* Dirty read, sanitize the command. */
+  m_row.m_command= pfs->m_command;
+  if ((m_row.m_command < 0) || (m_row.m_command > COM_END))
+    m_row.m_command= COM_END;
+
+  m_row.m_start_time= pfs->m_start_time;
+
+  stage_class= find_stage_class(pfs->m_stage);
+  if (stage_class != NULL)
+  {
+    m_row.m_processlist_state_ptr= stage_class->m_name + stage_class->m_prefix_length;
+    m_row.m_processlist_state_length= stage_class->m_name_length - stage_class->m_prefix_length;
+  }
+  else
+  {
+    m_row.m_processlist_state_length= 0;
+  }
+
+  m_row.m_enabled= pfs->m_enabled;
+  m_row.m_psi= pfs;
 
   if (pfs->m_lock.end_optimistic_lock(& lock))
     m_row_exists= true;
@@ -275,6 +308,13 @@ int table_threads::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 9: /* PROCESSLIST_STATE */
+        /* This column's datatype is declared as varchar(64). Thread's state
+           message cannot be more than 64 characters. Otherwise, we will end up
+           in 'data truncated' warning/error (depends sql_mode setting) when
+           server is updating this column for those threads. To prevent this
+           kind of issue, an assert is added.
+         */
+        DBUG_ASSERT(m_row.m_processlist_state_length <= f->char_length());
         if (m_row.m_processlist_state_length > 0)
           set_field_varchar_utf8(f, m_row.m_processlist_state_ptr,
                                  m_row.m_processlist_state_length);
@@ -298,7 +338,7 @@ int table_threads::read_row_values(TABLE *table,
         f->set_null();
         break;
       case 13: /* INSTRUMENTED */
-        set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);
+        set_field_enum(f, m_row.m_enabled ? ENUM_YES : ENUM_NO);
         break;
       default:
         DBUG_ASSERT(false);
@@ -338,7 +378,7 @@ int table_threads::update_row_values(TABLE *table,
         return HA_ERR_WRONG_COMMAND;
       case 13: /* INSTRUMENTED */
         value= (enum_yes_no) get_field_enum(f);
-        *m_row.m_enabled_ptr= (value == ENUM_YES) ? true : false;
+        m_row.m_psi->set_enabled((value == ENUM_YES) ? true : false);
         break;
       default:
         DBUG_ASSERT(false);

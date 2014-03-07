@@ -1,3 +1,5 @@
+--source include/have_innodb.inc
+
 # FTS index with transaction
 # Important Note:
 # 1) Uncommitted records are not visible using FTS index - this is by FTS design

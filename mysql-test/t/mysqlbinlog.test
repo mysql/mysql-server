@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # We are using .opt file since we need small binlog size
 # TODO: Need to look at making a row based version once the new row based client is completed. [jbm]
 -- source include/have_binlog_format_statement.inc
@@ -294,7 +299,8 @@ error 1;
 exec $MYSQL_BINLOG $MYSQL_TEST_DIR/std_data/corrupt-relay-bin.000624 > $MYSQLTEST_VARDIR/tmp/bug31793.sql;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug31793.sql
 
-
+# Set the timestamp back to default
+set timestamp= default;
 #
 # Test --disable-force-if-open and --force-if-open
 #

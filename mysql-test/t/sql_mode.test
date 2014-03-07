@@ -1,3 +1,7 @@
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
+
 --disable_warnings
 drop table if exists t1,t2,v1,v2;
 drop view if exists t1,t2,v1,v2;
@@ -12,21 +16,39 @@ CREATE TABLE `t1` (
 ) ENGINE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
 set @@sql_mode="";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="ansi_quotes";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="no_table_options";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="no_key_options";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="no_field_options,mysql323,mysql40";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 select @@sql_mode;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -54,10 +76,19 @@ CREATE TABLE t1 (
  c binary(10)
 ) character set latin1;
 set @@sql_mode="";
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="mysql323";
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="mysql40";
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -68,16 +99,25 @@ drop table t1;
 set session sql_mode = '';
 # statement for comparison, value starts with '.'
 create table t1 ( min_num   dec(6,6)     default .000001);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1 ;
 #
 set session sql_mode = 'IGNORE_SPACE';
 # statement for comparison, value starts with '0'
 create table t1 ( min_num   dec(6,6)     default 0.000001);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1 ;
 # This statement fails, value starts with '.'
 create table t1 ( min_num   dec(6,6)     default .000001);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1 ;
 
@@ -88,14 +128,23 @@ drop table t1 ;
 set @@SQL_MODE=NULL;
 
 #
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 # Bug #797: in sql_mode=ANSI, show create table ignores auto_increment
 #
 set session sql_mode=ansi;
 create table t1
 (f1 integer auto_increment primary key,
  f2 timestamp not null default current_timestamp on update current_timestamp);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set session sql_mode=no_field_options;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -213,12 +262,18 @@ SELECT "a\\b", "a\\\'b", "a""\\b", "a""\\\'b";
 #--error 1289
 #create table t1 (a int) engine=isam;
 #--error 1146
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 #show create table t1;
 #drop table if exists t1;
 #
 ## for comparison, lets see the warnings...
 #set session sql_mode = '';
 #create table t1 (a int) engine=isam;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 #show create table t1;
 #drop table t1;
 
@@ -513,3 +568,70 @@ SET @@sql_mode= @org_mode;
 
 --echo 
 --echo #End of Test for Bug#12601974 
+
+--echo #
+--echo # BUG#18311187 - SQL_MODE IS CHANGED TO WRONG VALUE AFTER DUMP/DATA
+--echo #                UPGRADE FOR TRIGGERS
+--echo #
+SET @org_mode= @@sql_mode;
+
+--echo # NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
+--echo # are removed in 5.7 and their functionality is merged with STRICT mode.
+--echo # Setting these modes in 5.7 will give warning and have no effect.
+
+SET sql_mode= 'NO_ZERO_DATE';
+SELECT @@sql_mode;
+
+SET sql_mode= 'NO_ZERO_IN_DATE';
+SELECT @@sql_mode;
+
+SET sql_mode= 'ERROR_FOR_DIVISION_BY_ZERO';
+SELECT @@sql_mode;
+
+--echo #
+--echo # Restore sql mode
+--echo #
+SET sql_mode= @org_mode;
+
+--echo #
+--echo # Check that NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
+--echo # are removed in triggers after upgrading to 5.7.
+--echo #
+CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
+
+# Commands executed on 5.6 to create the table and trigger.
+#set sql_mode="NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES";
+#
+#CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
+#CREATE TRIGGER ins_sum BEFORE INSERT ON account FOR EACH ROW SET @sum = @sum + NEW.amount;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+#Copy 5.6 Triggers to 5.7
+--copy_file $MYSQL_TEST_DIR/std_data/bug18311187_account.TRG $MYSQLD_DATADIR/test/account.TRG
+--copy_file $MYSQL_TEST_DIR/std_data/bug18311187_ins_sum.TRN $MYSQLD_DATADIR/test/ins_sum.TRN
+
+SHOW CREATE TRIGGER ins_sum;
+
+--echo # Clean-up
+--remove_file $MYSQLD_DATADIR/test/account.TRG
+--remove_file $MYSQLD_DATADIR/test/ins_sum.TRN
+DROP TABLE account;
+
+--echo #
+--echo # Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
+--echo # manually into mysql.proc table do not show up in SHOW CREATE procs/funcs OUTPUT.
+--echo #
+INSERT INTO mysql.proc VALUES ('test','p1','PROCEDURE','p1','SQL','CONTAINS_SQL','NO','DEFINER','','','begin end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin end');
+
+--echo # NO_ZERO_* modes should not show up in the output.
+SHOW CREATE PROCEDURE p1;
+
+INSERT INTO mysql.proc VALUES ('test','f1','FUNCTION','f1','SQL','CONTAINS_SQL','NO','DEFINER','','int(11)','begin return 1; end','root@localhost',now(), now(),'NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'begin return 1; end');
+
+--echo # NO_ZERO_* modes should not show up in the output.
+SHOW CREATE FUNCTION f1;
+
+--echo # Clean-up.
+DROP PROCEDURE p1;
+DROP FUNCTION f1;

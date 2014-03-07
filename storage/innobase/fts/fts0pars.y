@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011,  Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013,  Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
  */
 
 %{
-
+#include "ha_prototypes.h"
 #include "mem0mem.h"
 #include "fts0ast.h"
 #include "fts0blex.h"
 #include "fts0tlex.h"
 #include "fts0pars.h"
+#include <my_sys.h>
 
 extern	int fts_lexer(YYSTYPE*, fts_lexer_t*);
 extern	int fts_blexer(YYSTYPE*, yyscan_t);
@@ -101,7 +102,7 @@ expr_lst: /* Empty */	{
 		$$ = fts_ast_create_node_list(state, $1);
 
 		if (!$$) {
-			$$ = fts_ast_create_node_subexp_list(state, $2);
+			$$ = $2;
 		} else {
 			fts_ast_add_node($$, $2);
 		}
@@ -110,13 +111,18 @@ expr_lst: /* Empty */	{
 
 sub_expr: '(' expr_lst ')'		{
 		$$ = $2;
+
+		if ($$) {
+			$$ = fts_ast_create_node_subexp_list(state, $$);
+		}
 	}
 
 	| prefix '(' expr_lst ')'	{
-		$$ = fts_ast_create_node_subexp_list(state, $1);
+		$$ = fts_ast_create_node_list(state, $1);
 
 		if ($3) {
-			fts_ast_add_node($$, $3);
+			fts_ast_add_node($$,
+				fts_ast_create_node_subexp_list(state, $3));
 		}
 	}
 	;
@@ -134,7 +140,7 @@ expr	: term		{
 	}
 
 	| text '@' FTS_NUMB {
-		fts_ast_term_set_distance($1, strtoul($3, NULL, 10));
+		fts_ast_text_set_distance($1, strtoul($3, NULL, 10));
 		free($3);
 	}
 
@@ -152,7 +158,7 @@ expr	: term		{
 	| prefix text '@' FTS_NUMB {
 		$$ = fts_ast_create_node_list(state, $1);
 		fts_ast_add_node($$, $2);
-		fts_ast_term_set_distance($2, strtoul($4, NULL, 10));
+		fts_ast_text_set_distance($2, strtoul($4, NULL, 10));
 		free($4);
 	}
 
@@ -193,6 +199,10 @@ term	: FTS_TERM	{
 		free($1);
 	}
 
+	/* Ignore leading '*' */
+	| '*' term {
+		$$  = $2;
+	}
 	;
 
 text	: FTS_TEXT	{
@@ -228,13 +238,13 @@ fts_lexer_create(
 
 	if (boolean_mode) {
 		fts0blex_init(&fts_lexer->yyscanner);
-		fts0b_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
+		fts0b_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_blexer;
 		/* FIXME: Debugging */
 		/* fts0bset_debug(1 , fts_lexer->yyscanner); */
 	} else {
 		fts0tlex_init(&fts_lexer->yyscanner);
-		fts0t_scan_bytes((char*) query, query_len, fts_lexer->yyscanner);
+		fts0t_scan_bytes((char*) query, (int) query_len, fts_lexer->yyscanner);
 		fts_lexer->scanner = (fts_scan) fts_tlexer;
 	}
 

@@ -1,0 +1,36 @@
+tt023:1  timestamp(0) 157795200
+tt024:1  timestmap(4) 157795200.1234
+tt025:1  datetime(0)  1975-01-01 01:02:03
+tt026:1  datetime(3)  1975-01-01 01:02:03.123
+tt027:1  date         1975-02-02
+tt028:1  time         00:03:00
+tt028:2  time         00:03:15
+tt028:3  time         -00:03:30
+tt029:1  time(2)      00:03:00.05
+tt029:2  time(2)      00:03:15.10
+tt029:3  time(2)      -00:03:30.15
+SELECT mkey, unix_timestamp(sval) FROM tt023 order by mkey;
+mkey	unix_timestamp(sval)
+1	157795200
+SELECT mkey, unix_timestamp(sval) FROM tt024 order by mkey;
+mkey	unix_timestamp(sval)
+1	157795200.1234
+SELECT * FROM tt025 order by mkey;
+mkey	sval
+1	1975-01-01 01:02:03
+SELECT * FROM tt026 order by mkey;
+mkey	sval
+1	1975-01-01 01:02:03.123
+SELECT * FROM tt027 order by mkey;
+mkey	sval
+1	1975-02-02
+SELECT * FROM tt028 order by mkey;
+mkey	sval
+1	00:03:00
+2	00:03:15
+3	-00:03:30
+SELECT * FROM tt029 order by mkey;
+mkey	sval
+1	00:03:00.05
+2	00:03:15.10
+3	-00:03:30.15

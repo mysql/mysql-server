@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +16,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbinfo.h"
 #include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
 
@@ -190,6 +187,7 @@ enum ndbinfo_error_codes {
   ERR_INCOMPAT_TABLE_DEF = 40001
 };
 
+static
 struct error_message {
   int error;
   const char* message;
@@ -531,7 +529,11 @@ int ha_ndbinfo::rnd_init(bool scan)
     DBUG_RETURN(err2mysql(err));
 
   if ((err = scan_op->readTuples()) != 0)
+  {
+    // Release the scan operation
+    g_ndbinfo->releaseScanOperation(scan_op);
     DBUG_RETURN(err2mysql(err));
+  }
 
   /* Read all columns specified in read_set */
   for (uint i = 0; i < table->s->fields; i++)
@@ -544,7 +546,13 @@ int ha_ndbinfo::rnd_init(bool scan)
   }
 
   if ((err = scan_op->execute()) != 0)
+  {
+    // Release pointers to the columns
+    m_impl.m_columns.clear();
+    // Release the scan operation
+    g_ndbinfo->releaseScanOperation(scan_op);
     DBUG_RETURN(err2mysql(err));
+  }
 
   m_impl.m_scan_op = scan_op;
   DBUG_RETURN(0);
@@ -834,5 +842,3 @@ struct st_mysql_plugin ndbinfo_plugin =
 };
 
 template class Vector<const NdbInfoRecAttr*>;
-
-#endif

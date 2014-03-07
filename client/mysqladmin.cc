@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
-               tty_password= 0, opt_nobeep;
+               tty_password= 0, opt_nobeep, opt_secure_auth= TRUE;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations;
 static uint opt_count_iterations= 0, my_end_arg;
@@ -50,8 +50,9 @@ static char * unix_port=0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static uint opt_enable_cleartext_plugin= 0;
 static my_bool using_opt_enable_cleartext_plugin= 0;
+static my_bool opt_show_warnings= 0;
 
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
@@ -76,7 +77,7 @@ extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
 static my_bool sql_connect(MYSQL *mysql, uint wait);
 static int execute_commands(MYSQL *mysql,int argc, char **argv);
 static int drop_db(MYSQL *mysql,const char *db);
-extern "C" sig_handler endprog(int signal_number);
+extern "C" void endprog(int signal_number);
 static void nice_time(ulong sec,char *buff);
 static void print_header(MYSQL_RES *result);
 static void print_top(MYSQL_RES *result);
@@ -90,6 +91,7 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile);
 static my_bool wait_pidfile(char *pidfile, time_t last_modified,
 			    struct stat *pidfile_status);
 static void store_values(MYSQL_RES *result);
+static void print_warnings(MYSQL *mysql);
 
 /*
   The order of commands must be the same as command_names,
@@ -163,7 +165,7 @@ static struct my_option my_long_options[] =
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef __WIN__
+#ifdef _WIN32
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -181,7 +183,10 @@ static struct my_option my_long_options[] =
    "Currently only works with extended-status.",
    &opt_relative, &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
   0, 0, 0},
-#ifdef HAVE_SMEM
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+   " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+   &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -224,6 +229,10 @@ static struct my_option my_long_options[] =
     "Enable/disable the clear text authentication plugin.",
    &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"show_warnings", OPT_SHOW_WARNINGS,
+   "Show warnings after execution",
+   &opt_show_warnings, &opt_show_warnings,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -247,7 +256,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       char *start=argument;
       my_free(opt_password);
-      opt_password=my_strdup(argument,MYF(MY_FAE));
+      opt_password=my_strdup(PSI_NOT_INSTRUMENTED,
+                             argument,MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1]=0;				/* Cut length of argument */
@@ -260,7 +270,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     option_silent++;
     break;
   case 'W':
-#ifdef __WIN__
+#ifdef _WIN32
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
@@ -347,6 +357,8 @@ int main(int argc,char *argv[])
 
   if (opt_bind_addr)
     mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
+  if (!opt_secure_auth)
+    mysql_options(&mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_connect_timeout)
@@ -354,20 +366,10 @@ int main(int argc,char *argv[])
     uint tmp=opt_connect_timeout;
     mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT, (char*) &tmp);
   }
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*)&opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
@@ -498,7 +500,7 @@ int main(int argc,char *argv[])
   mysql_close(&mysql);
   my_free(opt_password);
   my_free(user);
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   my_free(shared_memory_base_name);
 #endif
   free_defaults(save_argv);
@@ -508,7 +510,7 @@ int main(int argc,char *argv[])
 }
 
 
-sig_handler endprog(int signal_number __attribute__((unused)))
+void endprog(int signal_number __attribute__((unused)))
 {
   interrupted=1;
 }
@@ -634,6 +636,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
   for (; argc > 0 ; argv++,argc--)
   {
     int option;
+    bool log_warnings= true;
     switch (option= find_type(argv[0], &command_typelib, FIND_TYPE_BASIC)) {
     case ADMIN_CREATE:
     {
@@ -696,6 +699,8 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	if (wait_pidfile(pidfile, last_modified, &pidfile_status))
 	  return -1;
       }
+      /* Do not try to print warning as server has gone away */
+      log_warnings= false;
       break;
     }
     case ADMIN_FLUSH_PRIVILEGES:
@@ -979,7 +984,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
       if (typed_password[0])
       {
-#ifdef __WIN__
+#ifdef _WIN32
         size_t pw_len= strlen(typed_password);
         if (pw_len > 1 && typed_password[0] == '\'' &&
             typed_password[pw_len-1] == '\'')
@@ -1087,6 +1092,14 @@ retry:
           goto error;
 	}
       }
+      /*
+        We may call set sql_log_off after this so check for warnings here.
+      */
+      if (opt_show_warnings)
+      {
+        print_warnings(mysql);
+        log_warnings= false;
+      }
       if (log_off && mysql_query(mysql, "set sql_log_off=0"))
       {
         if (opt_verbose)
@@ -1155,6 +1168,8 @@ error:
       my_printf_error(0, "Unknown command: '%-.60s'", error_flags, argv[0]);
       return 1;
     }
+    if (opt_show_warnings && log_warnings)
+      print_warnings(mysql);
   }
   return 0;
 }
@@ -1246,23 +1261,23 @@ static void nice_time(ulong sec,char *buff)
     tmp=sec/(3600L*24);
     sec-=3600L*24*tmp;
     buff=int10_to_str(tmp, buff, 10);
-    buff=strmov(buff,tmp > 1 ? " days " : " day ");
+    buff=my_stpcpy(buff,tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600L)
   {
     tmp=sec/3600L;
     sec-=3600L*tmp;
     buff=int10_to_str(tmp, buff, 10);
-    buff=strmov(buff,tmp > 1 ? " hours " : " hour ");
+    buff=my_stpcpy(buff,tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60)
   {
     tmp=sec/60;
     sec-=60*tmp;
     buff=int10_to_str(tmp, buff, 10);
-    buff=strmov(buff," min ");
+    buff=my_stpcpy(buff," min ");
   }
-  strmov(int10_to_str(sec, buff, 10)," sec");
+  my_stpcpy(int10_to_str(sec, buff, 10)," sec");
 }
 
 
@@ -1375,7 +1390,7 @@ static void store_values(MYSQL_RES *result)
 
   for (i = 0; (row = mysql_fetch_row(result)); i++)
   {
-    strmov(ex_var_names[i], row[0]);
+    my_stpcpy(ex_var_names[i], row[0]);
     last_values[i]=strtoull(row[1],NULL,10);
     ex_val_max_len[i]=2;		/* Default print width for values */
   }
@@ -1461,7 +1476,7 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
   {
     MYSQL_ROW row=mysql_fetch_row(result);
     if (row)
-      strmov(pidfile, row[1]);
+      my_stpcpy(pidfile, row[1]);
     mysql_free_result(result);
     return row == 0;				/* Error if row = 0 */
   }
@@ -1515,4 +1530,51 @@ static my_bool wait_pidfile(char *pidfile, time_t last_modified,
 	    buff, count-1);
   }
   DBUG_RETURN(error);
+}
+
+/*
+  Print warning(s) generated by a statement execution
+*/
+static void print_warnings(MYSQL *mysql)
+{
+  const char   *query;
+  MYSQL_RES    *result= NULL;
+  MYSQL_ROW    cur;
+  my_ulonglong num_rows;
+  uint         error;
+
+  /* Save current error before calling "show warnings" */
+  error= mysql_errno(mysql);
+
+  /* Get the warnings */
+  query= "show warnings";
+  if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) ||
+      !(result= mysql_store_result(mysql)))
+  {
+    my_printf_error(0,"Could not print warnings; error: '%-.200s'",
+                    error_flags, mysql_error(mysql));
+  }
+
+  /* Bail out when no warnings */
+  if (!(num_rows= mysql_num_rows(result)))
+    goto end;
+
+  cur= mysql_fetch_row(result);
+
+  /*
+    Don't print a duplicate of the current error.  It is possible for SHOW
+    WARNINGS to return multiple errors with the same code, but different
+    messages.  To be safe, skip printing the duplicate only if it is the only
+    warning.
+  */
+  if (!cur || (num_rows == 1 && error == (uint) strtoul(cur[1], NULL, 10)))
+    goto end;
+
+  do
+  {
+    printf("%s (Code %s): %s\n", cur[0], cur[1], cur[2]);
+  } while ((cur= mysql_fetch_row(result)));
+
+end:
+  mysql_free_result(result);
 }

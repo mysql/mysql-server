@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include <NdbOut.hpp>
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 1
+
 
 struct NodeStatePOD
 {
@@ -347,4 +350,7 @@ NodeState::operator=(const NodeStatePOD& ns)
   m_connected_nodes.assign(ns.m_connected_nodes);
   return * this;
 }
+
+#undef JAM_FILE_ID
+
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* Describe, check and repair of MyISAM tables */
 
@@ -22,9 +22,6 @@
 #include <stdarg.h>
 #include <my_getopt.h>
 #include <my_bit.h>
-#ifdef HAVE_SYS_VADVICE_H
-#include <sys/vadvise.h>
-#endif
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
@@ -359,7 +356,7 @@ static void usage(void)
   -?, --help          Display this help and exit.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
-#if defined( __WIN__)
+#if defined(_WIN32)
    printf("semicolon (;)");
 #else
    printf("colon (:)");
@@ -679,7 +676,7 @@ get_one_option(int optid,
   case OPT_STATS_METHOD:
   {
     int method;
-    enum_mi_stats_method UNINIT_VAR(method_conv);
+    enum_mi_stats_method method_conv= 0;
     myisam_stats_method_str= argument;
     if ((method= find_type(argument, &myisam_stats_method_typelib,
                            FIND_TYPE_BASIC)) <= 0)
@@ -1009,7 +1006,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  The data file is nowadays reopened in the repair code so we should
 	  soon remove the following reopen-code
 	*/
-#ifndef TO_BE_REMOVED
 	if (param->out_flag & O_NEW_DATA)
 	{			/* Change temp file to org file */
 	  (void) my_close(info->dfile,MYF(MY_WME)); /* Close new file */
@@ -1019,7 +1015,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
 	  param->read_cache.file=info->dfile;
 	}
-#endif
 	if (! error)
 	{
 	  uint key;
@@ -1030,7 +1025,10 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	  my_bool update_index=1;
 	  for (key=0 ; key < share->base.keys; key++)
 	    if (share->keyinfo[key].flag & (HA_BINARY_PACK_KEY|HA_FULLTEXT))
-	      update_index=0;
+            {
+              update_index=0;
+              break;
+            }
 
 	  error=mi_sort_records(param,info,filename,param->opt_sort_key,
                              /* what is the following parameter for ? */
@@ -1118,7 +1116,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
   if ((param->testflag & T_AUTO_INC) ||
       ((param->testflag & T_REP_ANY) && info->s->base.auto_key))
     update_auto_increment_key(param, info,
-			      (my_bool) !test(param->testflag & T_AUTO_INC));
+			      (my_bool) !MY_TEST(param->testflag & T_AUTO_INC));
 
   if (!(param->testflag & T_DESCRIPT))
   {
@@ -1219,21 +1217,21 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
     }
     pos=buff;
     if (share->state.changed & STATE_CRASHED)
-      strmov(buff,"crashed");
+      my_stpcpy(buff,"crashed");
     else
     {
       if (share->state.open_count)
-	pos=strmov(pos,"open,");
+	pos=my_stpcpy(pos,"open,");
       if (share->state.changed & STATE_CHANGED)
-	pos=strmov(pos,"changed,");
+	pos=my_stpcpy(pos,"changed,");
       else
-	pos=strmov(pos,"checked,");
+	pos=my_stpcpy(pos,"checked,");
       if (!(share->state.changed & STATE_NOT_ANALYZED))
-	pos=strmov(pos,"analyzed,");
+	pos=my_stpcpy(pos,"analyzed,");
       if (!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))
-	pos=strmov(pos,"optimized keys,");
+	pos=my_stpcpy(pos,"optimized keys,");
       if (!(share->state.changed & STATE_NOT_SORTED_PAGES))
-	pos=strmov(pos,"sorted index pages,");
+	pos=my_stpcpy(pos,"sorted index pages,");
       pos[-1]=0;				/* Remove extra ',' */
     }      
     printf("Status:              %s\n",buff);
@@ -1257,9 +1255,6 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 
   if (param->testflag & T_VERBOSE)
   {
-#ifdef USE_RELOC
-    printf("Init-relocation:     %13s\n",llstr(share->base.reloc,llbuff));
-#endif
     printf("Datafile parts:      %13s  Deleted data:       %13s\n",
 	   llstr(share->state.split,llbuff),
 	   llstr(info->state->empty,llbuff2));
@@ -1306,19 +1301,19 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
     pos=buff;
     if (keyseg->flag & HA_REVERSE_SORT)
       *pos++ = '-';
-    pos=strmov(pos,type_names[keyseg->type]);
+    pos=my_stpcpy(pos,type_names[keyseg->type]);
     *pos++ = ' ';
     *pos=0;
     if (keyinfo->flag & HA_PACK_KEY)
-      pos=strmov(pos,prefix_packed_txt);
+      pos=my_stpcpy(pos,prefix_packed_txt);
     if (keyinfo->flag & HA_BINARY_PACK_KEY)
-      pos=strmov(pos,bin_packed_txt);
+      pos=my_stpcpy(pos,bin_packed_txt);
     if (keyseg->flag & HA_SPACE_PACK)
-      pos=strmov(pos,diff_txt);
+      pos=my_stpcpy(pos,diff_txt);
     if (keyseg->flag & HA_BLOB_PART)
-      pos=strmov(pos,blob_txt);
+      pos=my_stpcpy(pos,blob_txt);
     if (keyseg->flag & HA_NULL_PART)
-      pos=strmov(pos,null_txt);
+      pos=my_stpcpy(pos,null_txt);
     *pos=0;
 
     printf("%-4d%-6ld%-3d %-8s%-21s",
@@ -1337,14 +1332,14 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
       pos=buff;
       if (keyseg->flag & HA_REVERSE_SORT)
 	*pos++ = '-';
-      pos=strmov(pos,type_names[keyseg->type]);
+      pos=my_stpcpy(pos,type_names[keyseg->type]);
       *pos++= ' ';
       if (keyseg->flag & HA_SPACE_PACK)
-	pos=strmov(pos,diff_txt);
+	pos=my_stpcpy(pos,diff_txt);
       if (keyseg->flag & HA_BLOB_PART)
-	pos=strmov(pos,blob_txt);
+	pos=my_stpcpy(pos,blob_txt);
       if (keyseg->flag & HA_NULL_PART)
-	pos=strmov(pos,null_txt);
+	pos=my_stpcpy(pos,null_txt);
       *pos=0;
       printf("    %-6ld%-3d         %-21s",
 	     (long) keyseg->start+1,keyseg->length,buff);
@@ -1396,13 +1391,13 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 	type=share->rec[field].base_type;
       else
 	type=(enum en_fieldtype) share->rec[field].type;
-      end=strmov(buff,field_pack[type]);
+      end=my_stpcpy(buff,field_pack[type]);
       if (share->options & HA_OPTION_COMPRESS_RECORD)
       {
 	if (share->rec[field].pack_type & PACK_TYPE_SELECTED)
-	  end=strmov(end,", not_always");
+	  end=my_stpcpy(end,", not_always");
 	if (share->rec[field].pack_type & PACK_TYPE_SPACE_FIELDS)
-	  end=strmov(end,", no empty");
+	  end=my_stpcpy(end,", no empty");
 	if (share->rec[field].pack_type & PACK_TYPE_ZERO_FILL)
 	{
 	  sprintf(end,", zerofill(%d)",share->rec[field].space_length_bits);
@@ -1410,7 +1405,7 @@ static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 	}
       }
       if (buff[0] == ',')
-	strmov(buff,buff+2);
+	my_stpcpy(buff,buff+2);
       int10_to_str((long) share->rec[field].length,length,10);
       null_bit[0]=null_pos[0]=0;
       if (share->rec[field].null_bit)

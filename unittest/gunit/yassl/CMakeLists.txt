@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,9 +25,11 @@ INCLUDE_DIRECTORIES(
 ADD_DEFINITIONS(${SSL_DEFINES})
 
 ## Do not treat warnings as error for yassl code
-STRING(REPLACE "-Werror" "" nowerr_flags "${CMAKE_CXX_FLAGS}")
-SET(CMAKE_CXX_FLAGS ${nowerr_flags})
+STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 ADD_EXECUTABLE(yassl-t yassl-t.cc)
 TARGET_LINK_LIBRARIES(yassl-t gunit_small sqlgunitlib strings dbug regex)
+IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+  TARGET_LINK_LIBRARIES(yassl-t perfschema pfs_server_stubs)
+ENDIF()
 TARGET_LINK_LIBRARIES(yassl-t ${LIBSOCKET})

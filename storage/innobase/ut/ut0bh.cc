@@ -1,6 +1,6 @@
 /***************************************************************************//**
 
-Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,12 +30,10 @@ Created 2010-05-28 by Sunny Bains
 #include "ut0bh.ic"
 #endif
 
-#include <string.h>
-
 /**********************************************************************//**
 Create a binary heap.
 @return a new binary heap */
-UNIV_INTERN
+
 ib_bh_t*
 ib_bh_create(
 /*=========*/
@@ -61,7 +59,7 @@ ib_bh_create(
 /**********************************************************************//**
 Free a binary heap.
 @return a new binary heap */
-UNIV_INTERN
+
 void
 ib_bh_free(
 /*=======*/
@@ -73,7 +71,7 @@ ib_bh_free(
 /**********************************************************************//**
 Add an element to the binary heap. Note: The element is copied.
 @return pointer to added element or NULL if full. */
-UNIV_INTERN
+
 void*
 ib_bh_push(
 /*=======*/
@@ -109,7 +107,7 @@ ib_bh_push(
 
 /**********************************************************************//**
 Remove the first element from the binary heap. */
-UNIV_INTERN
+
 void
 ib_bh_pop(
 /*======*/

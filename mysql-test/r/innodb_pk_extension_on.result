@@ -56,8 +56,10 @@ test.t1	analyze	status	OK
 # REF access optimization
 #
 EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY,k1	k1	10	const,const	#	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	PRIMARY,k1	k1	10	const,const	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3))
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 count(*)
@@ -72,8 +74,10 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY,k1	k1	10	const,const	#	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	PRIMARY,k1	k1	10	const,const	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3))
 FLUSH STATUS;
 SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 pk_2
@@ -92,8 +96,10 @@ Handler_read_rnd_next	0
 # RANGE access optimization
 #
 EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,k1	k1	10	NULL	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,k1	k1	10	NULL	#	83.33	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 count(*)
@@ -108,8 +114,10 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,k1	k1	10	NULL	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,k1	k1	10	NULL	#	83.33	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5))
 FLUSH STATUS;
 SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 pk_1	pk_2
@@ -132,8 +140,10 @@ Handler_read_rnd_next	0
 # MAX/MIN optimization
 #
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE f1 = '2000-01-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	#	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where multiple equal('2000-01-03', `test`.`t1`.`f1`)
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 MIN(pk_1)
@@ -148,8 +158,10 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	#	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal('2000-01-03', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 MIN(pk_1)
@@ -164,8 +176,10 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT MAX(pk_1) FROM t1 WHERE f1 = '2000-01-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	#	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where multiple equal('2000-01-03', `test`.`t1`.`f1`)
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 MAX(pk_1)
@@ -180,8 +194,10 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	#	Select tables optimized away
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`pk_1`) AS `MAX(pk_1)` from `test`.`t1` where ((`test`.`t1`.`pk_1` between 3 and 5) and multiple equal('2000-01-03', `test`.`t1`.`f1`))
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 MAX(pk_1)
@@ -199,8 +215,10 @@ Handler_read_rnd_next	0
 # Loose index scan
 #
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE f2 BETWEEN 13 AND 14 GROUP BY f2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	k2	k2	5	NULL	#	Using where; Using index for group-by
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k2	k2	5	NULL	#	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where (`test`.`t1`.`f2` between 13 and 14) group by `test`.`t1`.`f2`
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f2 BETWEEN 13 AND 14 GROUP BY f2;
 MIN(pk_1)
@@ -216,8 +234,10 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE f2 IN (1, 2) GROUP BY f2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	k2	k2	5	NULL	#	Using where; Using index for group-by
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	k2	k2	5	NULL	#	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk_1`) AS `MIN(pk_1)` from `test`.`t1` where (`test`.`t1`.`f2` in (1,2)) group by `test`.`t1`.`f2`
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f2 IN (1, 2) GROUP BY f2;
 MIN(pk_1)
@@ -237,9 +257,11 @@ Handler_read_rnd_next	0
 #
 EXPLAIN SELECT count(*) FROM t1 AS t1 JOIN t1 AS t2
 ON t2.pk_1 = t1.pk_1 WHERE t1.f1 = '2000-01-03' AND t2.f1 = '2000-01-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY,k1	k1	6	const	#	Using index
-1	SIMPLE	t2	ref	PRIMARY,k1	k1	10	const,test.t1.pk_1	#	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	PRIMARY,k1	k1	6	const	#	100.00	Using index
+1	SIMPLE	t2	NULL	ref	PRIMARY,k1	k1	10	const,test.t1.pk_1	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`pk_1` = `test`.`t1`.`pk_1`) and (`test`.`t2`.`f1` = '2000-01-03') and (`test`.`t1`.`f1` = '2000-01-03'))
 FLUSH STATUS;
 SELECT count(*) FROM t1 AS t1 JOIN t1 AS t2
 ON t2.pk_1 = t1.pk_1 WHERE t1.f1 = '2000-01-03' AND t2.f1 = '2000-01-03';
@@ -259,8 +281,10 @@ Handler_read_rnd_next	0
 #
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY,k1	k1	10	const,const	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	PRIMARY,k1	k1	10	const,const	#	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
@@ -278,8 +302,10 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,k1	k1	10	NULL	#	Using where; Using index; Using filesort
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,k1	k1	10	NULL	#	83.33	Using where; Using index; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` between 3 and 5)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;
 SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
@@ -314,15 +340,19 @@ f1 = 0 AND f2 = 0 AND f3 = 0 AND f4 = 0 AND f5 = 0 AND
 f6 = 0 AND f7 = 0 AND f8 = 0 AND f9 = 0 AND f10 = 0 AND
 f11 = 0 AND f12 = 0 AND f13 = 0 AND f14 = 0 AND
 f15 = 0 AND f16 = 0 AND f17 = 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	k1	k1	71	const,const,const,const,const,const,const,const,const,const,const,const,const,const,const,const	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	k1	k1	71	const,const,const,const,const,const,const,const,const,const,const,const,const,const,const,const	#	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f17` AS `f17` from `test`.`t1` FORCE INDEX (`k1`) where ((`test`.`t1`.`f17` = 0) and (`test`.`t1`.`f16` = 0) and (`test`.`t1`.`f15` = 0) and (`test`.`t1`.`f14` = 0) and (`test`.`t1`.`f13` = 0) and (`test`.`t1`.`f12` = 0) and (`test`.`t1`.`f11` = 0) and (`test`.`t1`.`f10` = 0) and (`test`.`t1`.`f9` = 0) and (`test`.`t1`.`f8` = 0) and (`test`.`t1`.`f7` = 0) and (`test`.`t1`.`f6` = 0) and (`test`.`t1`.`f5` = 0) and (`test`.`t1`.`f4` = 0) and (`test`.`t1`.`f3` = 0) and (`test`.`t1`.`f2` = 0) and (`test`.`t1`.`f1` = 0))
 EXPLAIN SELECT f17 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 0 AND f2 = 0 AND f3 = 0 AND f4 = 0 AND f5 = 0 AND
 f6 = 0 AND f7 = 0 AND f8 = 0 AND f9 = 0 AND
 f11 = 0 AND f12 = 0 AND f13 = 0 AND f14 = 0 AND
 f15 = 0 AND f16 = 0 AND f17 = 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	k1	k1	71	const,const,const,const,const,const,const,const,const,const,const,const,const,const,const,const	#	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	k1	k1	71	const,const,const,const,const,const,const,const,const,const,const,const,const,const,const,const	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f17` AS `f17` from `test`.`t1` FORCE INDEX (`k1`) where ((`test`.`t1`.`f17` = 0) and (`test`.`t1`.`f16` = 0) and (`test`.`t1`.`f15` = 0) and (`test`.`t1`.`f14` = 0) and (`test`.`t1`.`f13` = 0) and (`test`.`t1`.`f12` = 0) and (`test`.`t1`.`f11` = 0) and (`test`.`t1`.`f9` = 0) and (`test`.`t1`.`f8` = 0) and (`test`.`t1`.`f7` = 0) and (`test`.`t1`.`f6` = 0) and (`test`.`t1`.`f5` = 0) and (`test`.`t1`.`f4` = 0) and (`test`.`t1`.`f3` = 0) and (`test`.`t1`.`f2` = 0) and (`test`.`t1`.`f1` = 0))
 DROP TABLE t1;
 #
 # Max key length limitation
@@ -338,18 +368,24 @@ KEY k1 (f5, f6, f7)
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	k1	k1	3015	const,const,const,const,const,const	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	k1	k1	3015	const,const,const,const,const,const	#	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where ((`test`.`t1`.`f7` = 'a') and (`test`.`t1`.`f6` = 'a') and (`test`.`t1`.`f5` = 'a') and (`test`.`t1`.`f4` = 'a') and (`test`.`t1`.`f3` = 'a') and (`test`.`t1`.`f2` = 'a') and (`test`.`t1`.`f1` = 'a'))
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	k1	k1	3015	const,const,const,const,const,const	#	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	k1	k1	3015	const,const,const,const,const,const	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where ((`test`.`t1`.`f7` = 'a') and (`test`.`t1`.`f6` = 'a') and (`test`.`t1`.`f5` = 'a') and (`test`.`t1`.`f3` = 'a') and (`test`.`t1`.`f2` = 'a') and (`test`.`t1`.`f1` = 'a'))
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	k1	k1	2513	const,const,const,const,const	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	k1	k1	2513	const,const,const,const,const	#	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where ((`test`.`t1`.`f7` = 'a') and (`test`.`t1`.`f6` = 'a') and (`test`.`t1`.`f5` = 'a') and (`test`.`t1`.`f4` = 'a') and (`test`.`t1`.`f2` = 'a') and (`test`.`t1`.`f1` = 'a'))
 DROP TABLE t1;
 #
 # Unique extended key
@@ -374,9 +410,11 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 INSERT INTO t2 VALUES (1,1), (2,2);
 EXPLAIN SELECT t2.f1 FROM t2 JOIN t1 IGNORE INDEX(primary) ON t2.f1 = t1.pk and t2.f2 = t1.f1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t1	eq_ref	f1	f1	8	test.t2.f2,test.t2.f1	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	eq_ref	f1	f1	8	test.t2.f2,test.t2.f1	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1` from `test`.`t2` join `test`.`t1` IGNORE INDEX (PRIMARY) where ((`test`.`t1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t1`.`pk` = `test`.`t2`.`f1`))
 FLUSH STATUS;
 SELECT t2.f1 FROM t2 JOIN t1 IGNORE INDEX(primary) ON t2.f1 = t1.pk and t2.f2 = t1.f1;
 f1

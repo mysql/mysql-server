@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #ifndef PFS_STAT_H
 #define PFS_STAT_H
 
+#include <algorithm>
 #include "sql_const.h"
 /* memcpy */
 #include "string.h"
@@ -58,7 +59,25 @@ struct PFS_single_stat
     m_max= 0;
   }
 
+  inline bool has_timed_stats() const
+  {
+    return (m_min <= m_max);
+  }
+
   inline void aggregate(const PFS_single_stat *stat)
+  {
+    if (stat->m_count != 0)
+    {
+      m_count+= stat->m_count;
+      m_sum+= stat->m_sum;
+      if (unlikely(m_min > stat->m_min))
+        m_min= stat->m_min;
+      if (unlikely(m_max < stat->m_max))
+        m_max= stat->m_max;
+    }
+  }
+
+  inline void aggregate_no_check(const PFS_single_stat *stat)
   {
     m_count+= stat->m_count;
     m_sum+= stat->m_sum;
@@ -95,39 +114,49 @@ struct PFS_byte_stat : public PFS_single_stat
   /** Byte count statistics */
   ulonglong m_bytes;
 
-  /* Aggregate wait stats, event count and byte count */
+  /** Aggregate wait stats, event count and byte count */
   inline void aggregate(const PFS_byte_stat *stat)
   {
-    PFS_single_stat::aggregate(stat);
+    if (stat->m_count != 0)
+    {
+      PFS_single_stat::aggregate_no_check(stat);
+      m_bytes+= stat->m_bytes;
+    }
+  }
+
+  /** Aggregate wait stats, event count and byte count */
+  inline void aggregate_no_check(const PFS_byte_stat *stat)
+  {
+    PFS_single_stat::aggregate_no_check(stat);
     m_bytes+= stat->m_bytes;
   }
 
-  /* Aggregate individual wait time, event count and byte count */
+  /** Aggregate individual wait time, event count and byte count */
   inline void aggregate(ulonglong wait, ulonglong bytes)
   {
     aggregate_value(wait);
     m_bytes+= bytes;
   }
 
-  /* Aggregate wait stats and event count */
+  /** Aggregate wait stats and event count */
   inline void aggregate_waits(const PFS_byte_stat *stat)
   {
     PFS_single_stat::aggregate(stat);
   }
 
-  /* Aggregate event count and byte count */
+  /** Aggregate event count and byte count */
   inline void aggregate_counted()
   {
     PFS_single_stat::aggregate_counted();
   }
 
-  /* Aggregate event count and byte count */
+  /** Aggregate event count and byte count */
   inline void aggregate_counted(ulonglong bytes)
   {
     PFS_single_stat::aggregate_counted();
     m_bytes+= bytes;
   }
-    
+
   PFS_byte_stat()
   {
     reset();
@@ -145,22 +174,28 @@ struct PFS_mutex_stat
 {
   /** Wait statistics. */
   PFS_single_stat m_wait_stat;
+#ifdef PFS_LATER
   /**
     Lock statistics.
     This statistic is not exposed in user visible tables yet.
   */
   PFS_single_stat m_lock_stat;
+#endif
 
   inline void aggregate(const PFS_mutex_stat *stat)
   {
     m_wait_stat.aggregate(&stat->m_wait_stat);
+#ifdef PFS_LATER
     m_lock_stat.aggregate(&stat->m_lock_stat);
+#endif
   }
 
   inline void reset(void)
   {
     m_wait_stat.reset();
+#ifdef PFS_LATER
     m_lock_stat.reset();
+#endif
   }
 };
 
@@ -169,6 +204,7 @@ struct PFS_rwlock_stat
 {
   /** Wait statistics. */
   PFS_single_stat m_wait_stat;
+#ifdef PFS_LATER
   /**
     RWLock read lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -179,19 +215,24 @@ struct PFS_rwlock_stat
     This statistic is not exposed in user visible tables yet.
   */
   PFS_single_stat m_write_lock_stat;
+#endif
 
   inline void aggregate(const PFS_rwlock_stat *stat)
   {
     m_wait_stat.aggregate(&stat->m_wait_stat);
+#ifdef PFS_LATER
     m_read_lock_stat.aggregate(&stat->m_read_lock_stat);
     m_write_lock_stat.aggregate(&stat->m_write_lock_stat);
+#endif
   }
 
   inline void reset(void)
   {
     m_wait_stat.reset();
+#ifdef PFS_LATER
     m_read_lock_stat.reset();
     m_write_lock_stat.reset();
+#endif
   }
 };
 
@@ -200,6 +241,7 @@ struct PFS_cond_stat
 {
   /** Wait statistics. */
   PFS_single_stat m_wait_stat;
+#ifdef PFS_LATER
   /**
     Number of times a condition was signalled.
     This statistic is not exposed in user visible tables yet.
@@ -210,19 +252,24 @@ struct PFS_cond_stat
     This statistic is not exposed in user visible tables yet.
   */
   ulonglong m_broadcast_count;
+#endif
 
   inline void aggregate(const PFS_cond_stat *stat)
   {
     m_wait_stat.aggregate(&stat->m_wait_stat);
+#ifdef PFS_LATER
     m_signal_count+= stat->m_signal_count;
     m_broadcast_count+= stat->m_broadcast_count;
+#endif
   }
 
   inline void reset(void)
   {
     m_wait_stat.reset();
+#ifdef PFS_LATER
     m_signal_count= 0;
     m_broadcast_count= 0;
+#endif
   }
 };
 
@@ -233,7 +280,7 @@ struct PFS_file_io_stat
   PFS_byte_stat m_read;
   /** WRITE statistics */
   PFS_byte_stat m_write;
-  /** Miscelleanous statistics */
+  /** Miscellaneous statistics */
   PFS_byte_stat m_misc;
 
   inline void reset(void)
@@ -301,11 +348,51 @@ struct PFS_stage_stat
   inline void aggregate_value(ulonglong value)
   { m_timer1_stat.aggregate_value(value); }
 
+  inline void aggregate(const PFS_stage_stat *stat)
+  { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
+};
+
+/** Statistics for stored program usage. */
+struct PFS_sp_stat
+{
+  PFS_single_stat m_timer1_stat;
+
+  inline void reset(void)
+  { m_timer1_stat.reset(); }
+
+  inline void aggregate_counted()
+  { m_timer1_stat.aggregate_counted(); }
+
+  inline void aggregate_value(ulonglong value)
+  { m_timer1_stat.aggregate_value(value); }
+
+  inline void aggregate(const PFS_stage_stat *stat)
+  { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
+};
+
+/** Statistics for prepared statement usage. */
+struct PFS_prepared_stmt_stat
+{
+  PFS_single_stat m_timer1_stat;
+
+  inline void reset(void)
+  { m_timer1_stat.reset(); }
+
+  inline void aggregate_counted()
+  { m_timer1_stat.aggregate_counted(); }
+
+  inline void aggregate_value(ulonglong value)
+  { m_timer1_stat.aggregate_value(value); }
+
   inline void aggregate(PFS_stage_stat *stat)
   { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
 };
 
-/** Statistics for statement usage. */
+/**
+  Statistics for statement usage.
+  This structure uses lazy initialization,
+  controlled by member @c m_timer1_stat.m_count.
+*/
 struct PFS_statement_stat
 {
   PFS_single_stat m_timer1_stat;
@@ -331,80 +418,128 @@ struct PFS_statement_stat
 
   PFS_statement_stat()
   {
-    m_error_count= 0;
-    m_warning_count= 0;
-    m_rows_affected= 0;
-    m_lock_time= 0;
-    m_rows_sent= 0;
-    m_rows_examined= 0;
-    m_created_tmp_disk_tables= 0;
-    m_created_tmp_tables= 0;
-    m_select_full_join= 0;
-    m_select_full_range_join= 0;
-    m_select_range= 0;
-    m_select_range_check= 0;
-    m_select_scan= 0;
-    m_sort_merge_passes= 0;
-    m_sort_range= 0;
-    m_sort_rows= 0;
-    m_sort_scan= 0;
-    m_no_index_used= 0;
-    m_no_good_index_used= 0;
+    reset();
+  }
+
+  inline void reset()
+  {
+    m_timer1_stat.m_count= 0;
+  }
+
+  inline void mark_used()
+  {
+    delayed_reset();
+  }
+
+private:
+  inline void delayed_reset(void)
+  {
+    if (m_timer1_stat.m_count == 0)
+    {
+      m_timer1_stat.reset();
+      m_error_count= 0;
+      m_warning_count= 0;
+      m_rows_affected= 0;
+      m_lock_time= 0;
+      m_rows_sent= 0;
+      m_rows_examined= 0;
+      m_created_tmp_disk_tables= 0;
+      m_created_tmp_tables= 0;
+      m_select_full_join= 0;
+      m_select_full_range_join= 0;
+      m_select_range= 0;
+      m_select_range_check= 0;
+      m_select_scan= 0;
+      m_sort_merge_passes= 0;
+      m_sort_range= 0;
+      m_sort_rows= 0;
+      m_sort_scan= 0;
+      m_no_index_used= 0;
+      m_no_good_index_used= 0;
+    }
+  }
+
+public:
+  inline void aggregate_counted()
+  {
+    delayed_reset();
+    m_timer1_stat.aggregate_counted();
+  }
+
+  inline void aggregate_value(ulonglong value)
+  {
+    delayed_reset();
+    m_timer1_stat.aggregate_value(value);
+  }
+
+  inline void aggregate(const PFS_statement_stat *stat)
+  {
+    if (stat->m_timer1_stat.m_count != 0)
+    {
+      delayed_reset();
+      m_timer1_stat.aggregate_no_check(& stat->m_timer1_stat);
+
+      m_error_count+= stat->m_error_count;
+      m_warning_count+= stat->m_warning_count;
+      m_rows_affected+= stat->m_rows_affected;
+      m_lock_time+= stat->m_lock_time;
+      m_rows_sent+= stat->m_rows_sent;
+      m_rows_examined+= stat->m_rows_examined;
+      m_created_tmp_disk_tables+= stat->m_created_tmp_disk_tables;
+      m_created_tmp_tables+= stat->m_created_tmp_tables;
+      m_select_full_join+= stat->m_select_full_join;
+      m_select_full_range_join+= stat->m_select_full_range_join;
+      m_select_range+= stat->m_select_range;
+      m_select_range_check+= stat->m_select_range_check;
+      m_select_scan+= stat->m_select_scan;
+      m_sort_merge_passes+= stat->m_sort_merge_passes;
+      m_sort_range+= stat->m_sort_range;
+      m_sort_rows+= stat->m_sort_rows;
+      m_sort_scan+= stat->m_sort_scan;
+      m_no_index_used+= stat->m_no_index_used;
+      m_no_good_index_used+= stat->m_no_good_index_used;
+    }
+  }
+};
+
+/** Statistics for transaction usage. */
+struct PFS_transaction_stat
+{
+  PFS_single_stat m_read_write_stat;
+  PFS_single_stat m_read_only_stat;
+
+  ulonglong m_savepoint_count;
+  ulonglong m_rollback_to_savepoint_count;
+  ulonglong m_release_savepoint_count;
+
+  PFS_transaction_stat()
+  {
+    m_savepoint_count= 0;
+    m_rollback_to_savepoint_count= 0;
+    m_release_savepoint_count= 0;
+  }
+
+  ulonglong count(void)
+  {
+    return (m_read_write_stat.m_count + m_read_only_stat.m_count);
   }
 
   inline void reset(void)
   {
-    m_timer1_stat.reset();
-    m_error_count= 0;
-    m_warning_count= 0;
-    m_rows_affected= 0;
-    m_lock_time= 0;
-    m_rows_sent= 0;
-    m_rows_examined= 0;
-    m_created_tmp_disk_tables= 0;
-    m_created_tmp_tables= 0;
-    m_select_full_join= 0;
-    m_select_full_range_join= 0;
-    m_select_range= 0;
-    m_select_range_check= 0;
-    m_select_scan= 0;
-    m_sort_merge_passes= 0;
-    m_sort_range= 0;
-    m_sort_rows= 0;
-    m_sort_scan= 0;
-    m_no_index_used= 0;
-    m_no_good_index_used= 0;
+    m_read_write_stat.reset();
+    m_read_only_stat.reset();
+    m_savepoint_count= 0;
+    m_rollback_to_savepoint_count= 0;
+    m_release_savepoint_count= 0;
   }
 
-  inline void aggregate_counted()
-  { m_timer1_stat.aggregate_counted(); }
-
-  inline void aggregate_value(ulonglong value)
-  { m_timer1_stat.aggregate_value(value); }
-
-  inline void aggregate(PFS_statement_stat *stat)
+  inline void aggregate(const PFS_transaction_stat *stat)
   {
-    m_timer1_stat.aggregate(& stat->m_timer1_stat);
-
-    m_error_count+= stat->m_error_count;
-    m_warning_count+= stat->m_warning_count;
-    m_rows_affected+= stat->m_rows_affected;
-    m_lock_time+= stat->m_lock_time;
-    m_rows_sent+= stat->m_rows_sent;
-    m_rows_examined+= stat->m_rows_examined;
-    m_created_tmp_disk_tables+= stat->m_created_tmp_disk_tables;
-    m_created_tmp_tables+= stat->m_created_tmp_tables;
-    m_select_full_join+= stat->m_select_full_join;
-    m_select_full_range_join+= stat->m_select_full_range_join;
-    m_select_range+= stat->m_select_range;
-    m_select_range_check+= stat->m_select_range_check;
-    m_select_scan+= stat->m_select_scan;
-    m_sort_merge_passes+= stat->m_sort_merge_passes;
-    m_sort_range+= stat->m_sort_range;
-    m_sort_rows+= stat->m_sort_rows;
-    m_sort_scan+= stat->m_sort_scan;
-    m_no_index_used+= stat->m_no_index_used;
-    m_no_good_index_used+= stat->m_no_good_index_used;
+    m_read_write_stat.aggregate(&stat->m_read_write_stat);
+    m_read_only_stat.aggregate(&stat->m_read_only_stat);
+    m_savepoint_count+= stat->m_savepoint_count;
+    m_rollback_to_savepoint_count+= stat->m_rollback_to_savepoint_count;
+    m_release_savepoint_count+= stat->m_release_savepoint_count;
   }
 };
 
@@ -473,7 +608,9 @@ enum PFS_TL_LOCK_TYPE
 
   /* Locks for handler::ha_external_lock() */
   PFS_TL_READ_EXTERNAL= 8,
-  PFS_TL_WRITE_EXTERNAL= 9
+  PFS_TL_WRITE_EXTERNAL= 9,
+
+  PFS_TL_NONE= 99
 };
 
 #define COUNT_PFS_TL_LOCK_TYPE 10
@@ -631,7 +768,7 @@ struct PFS_socket_io_stat
   PFS_byte_stat m_read;
   /** WRITE statistics */
   PFS_byte_stat m_write;
-  /** Miscelleanous statistics */
+  /** Miscellaneous statistics */
   PFS_byte_stat m_misc;
 
   inline void reset(void)
@@ -675,6 +812,431 @@ struct PFS_socket_stat
   inline void reset(void)
   {
     m_io_stat.reset();
+  }
+};
+
+struct PFS_memory_stat_delta
+{
+  size_t m_alloc_count_delta;
+  size_t m_free_count_delta;
+  size_t m_alloc_size_delta;
+  size_t m_free_size_delta;
+
+  void reset()
+  {
+    m_alloc_count_delta= 0;
+    m_free_count_delta= 0;
+    m_alloc_size_delta= 0;
+    m_free_size_delta= 0;
+  }
+};
+
+/**
+  Memory statistics.
+  Conceptually, the following statistics are maintained:
+  - CURRENT_COUNT_USED,
+  - LOW_COUNT_USED,
+  - HIGH_COUNT_USED
+  - CURRENT_SIZE_USED,
+  - LOW_SIZE_USED,
+  - HIGH_SIZE_USED
+  Now, the implementation keeps different counters,
+  which are easier (less overhead) to maintain while
+  collecting statistics.
+  Invariants are as follows:
+  CURRENT_COUNT_USED = @c m_alloc_count - @c m_free_count
+  LOW_COUNT_USED + @c m_free_count_capacity = CURRENT_COUNT_USED
+  CURRENT_COUNT_USED + @c m_alloc_count_capacity = HIGH_COUNT_USED
+  CURRENT_SIZE_USED = @c m_alloc_size - @c m_free_size
+  LOW_SIZE_USED + @c m_free_size_capacity = CURRENT_SIZE_USED
+  CURRENT_SIZE_USED + @c m_alloc_size_capacity = HIGH_SIZE_USED
+
+*/
+struct PFS_memory_stat
+{
+  bool m_used;
+  size_t m_alloc_count;
+  size_t m_free_count;
+  size_t m_alloc_size;
+  size_t m_free_size;
+
+  size_t m_alloc_count_capacity;
+  size_t m_free_count_capacity;
+  size_t m_alloc_size_capacity;
+  size_t m_free_size_capacity;
+
+  inline void reset(void)
+  {
+    m_used= false;
+    m_alloc_count= 0;
+    m_free_count= 0;
+    m_alloc_size= 0;
+    m_free_size= 0;
+
+    m_alloc_count_capacity= 0;
+    m_free_count_capacity= 0;
+    m_alloc_size_capacity= 0;
+    m_free_size_capacity= 0;
+  }
+
+  inline void rebase(void)
+  {
+    if (! m_used)
+      return;
+
+    size_t base;
+
+    base= std::min<size_t>(m_alloc_count, m_free_count);
+    m_alloc_count-= base;
+    m_free_count-= base;
+
+    base= std::min<size_t>(m_alloc_size, m_free_size);
+    m_alloc_size-= base;
+    m_free_size-= base;
+
+    m_alloc_count_capacity= 0;
+    m_free_count_capacity= 0;
+    m_alloc_size_capacity= 0;
+    m_free_size_capacity= 0;
+  }
+
+  inline void partial_aggregate_to(PFS_memory_stat *stat)
+  {
+    if (! m_used)
+      return;
+
+    size_t base;
+
+    stat->m_used= true;
+
+    base= std::min<size_t>(m_alloc_count, m_free_count);
+    if (base != 0)
+    {
+      stat->m_alloc_count+= base;
+      stat->m_free_count+= base;
+      m_alloc_count-= base;
+      m_free_count-= base;
+    }
+
+    base= std::min<size_t>(m_alloc_size, m_free_size);
+    if (base != 0)
+    {
+      stat->m_alloc_size+= base;
+      stat->m_free_size+= base;
+      m_alloc_size-= base;
+      m_free_size-= base;
+    }
+
+    stat->m_alloc_count_capacity+= m_alloc_count_capacity;
+    stat->m_free_count_capacity+= m_free_count_capacity;
+    stat->m_alloc_size_capacity+= m_alloc_size_capacity;
+    stat->m_free_size_capacity+= m_free_size_capacity;
+
+    m_alloc_count_capacity= 0;
+    m_free_count_capacity= 0;
+    m_alloc_size_capacity= 0;
+    m_free_size_capacity= 0;
+  }
+
+  inline void full_aggregate_to(PFS_memory_stat *stat) const
+  {
+    if (! m_used)
+      return;
+
+    stat->m_used= true;
+
+    stat->m_alloc_count+= m_alloc_count;
+    stat->m_free_count+= m_free_count;
+    stat->m_alloc_size+= m_alloc_size;
+    stat->m_free_size+= m_free_size;
+
+    stat->m_alloc_count_capacity+= m_alloc_count_capacity;
+    stat->m_free_count_capacity+= m_free_count_capacity;
+    stat->m_alloc_size_capacity+= m_alloc_size_capacity;
+    stat->m_free_size_capacity+= m_free_size_capacity;
+  }
+
+  inline void partial_aggregate_to(PFS_memory_stat *stat1, PFS_memory_stat *stat2)
+  {
+    if (! m_used)
+      return;
+
+    size_t base;
+
+    stat1->m_used= true;
+    stat2->m_used= true;
+
+    base= std::min<size_t>(m_alloc_count, m_free_count);
+    if (base != 0)
+    {
+      stat1->m_alloc_count+= base;
+      stat2->m_alloc_count+= base;
+      stat1->m_free_count+= base;
+      stat2->m_free_count+= base;
+      m_alloc_count-= base;
+      m_free_count-= base;
+    }
+
+    base= std::min<size_t>(m_alloc_size, m_free_size);
+    if (base != 0)
+    {
+      stat1->m_alloc_size+= base;
+      stat2->m_alloc_size+= base;
+      stat1->m_free_size+= base;
+      stat2->m_free_size+= base;
+      m_alloc_size-= base;
+      m_free_size-= base;
+    }
+
+    stat1->m_alloc_count_capacity+= m_alloc_count_capacity;
+    stat2->m_alloc_count_capacity+= m_alloc_count_capacity;
+    stat1->m_free_count_capacity+= m_free_count_capacity;
+    stat2->m_free_count_capacity+= m_free_count_capacity;
+    stat1->m_alloc_size_capacity+= m_alloc_size_capacity;
+    stat2->m_alloc_size_capacity+= m_alloc_size_capacity;
+    stat1->m_free_size_capacity+= m_free_size_capacity;
+    stat2->m_free_size_capacity+= m_free_size_capacity;
+
+    m_alloc_count_capacity= 0;
+    m_free_count_capacity= 0;
+    m_alloc_size_capacity= 0;
+    m_free_size_capacity= 0;
+  }
+
+  inline void full_aggregate_to(PFS_memory_stat *stat1, PFS_memory_stat *stat2) const
+  {
+    if (! m_used)
+      return;
+
+    stat1->m_used= true;
+    stat2->m_used= true;
+
+    stat1->m_alloc_count+= m_alloc_count;
+    stat2->m_alloc_count+= m_alloc_count;
+    stat1->m_free_count+= m_free_count;
+    stat2->m_free_count+= m_free_count;
+    stat1->m_alloc_size+= m_alloc_size;
+    stat2->m_alloc_size+= m_alloc_size;
+    stat1->m_free_size+= m_free_size;
+    stat2->m_free_size+= m_free_size;
+
+    stat1->m_alloc_count_capacity+= m_alloc_count_capacity;
+    stat2->m_alloc_count_capacity+= m_alloc_count_capacity;
+    stat1->m_free_count_capacity+= m_free_count_capacity;
+    stat2->m_free_count_capacity+= m_free_count_capacity;
+    stat1->m_alloc_size_capacity+= m_alloc_size_capacity;
+    stat2->m_alloc_size_capacity+= m_alloc_size_capacity;
+    stat1->m_free_size_capacity+= m_free_size_capacity;
+    stat2->m_free_size_capacity+= m_free_size_capacity;
+  }
+
+  inline PFS_memory_stat_delta *count_alloc(size_t size,
+                                            PFS_memory_stat_delta *delta)
+  {
+    m_used= true;
+
+    m_alloc_count++;
+    m_free_count_capacity++;
+    m_alloc_size+= size;
+    m_free_size_capacity+= size;
+
+    if ((m_alloc_count_capacity >= 1) &&
+        (m_alloc_size_capacity >= size))
+    {
+      m_alloc_count_capacity--;
+      m_alloc_size_capacity-= size;
+      return NULL;
+    }
+
+    delta->reset();
+
+    if (m_alloc_count_capacity >= 1)
+    {
+      m_alloc_count_capacity--;
+    }
+    else
+    {
+      delta->m_alloc_count_delta= 1;
+    }
+
+    if (m_alloc_size_capacity >= size)
+    {
+      m_alloc_size_capacity-= size;
+    }
+    else
+    {
+      delta->m_alloc_size_delta= size - m_alloc_size_capacity;
+      m_alloc_size_capacity= 0;
+    }
+
+    return delta;
+  }
+
+  inline PFS_memory_stat_delta *count_realloc(size_t old_size, size_t new_size,
+                                              PFS_memory_stat_delta *delta)
+  {
+    m_used= true;
+
+    size_t size_delta= new_size - old_size;
+    m_alloc_count++;
+    m_alloc_size+= new_size;
+    m_free_count++;
+    m_free_size+= old_size;
+
+    if (new_size == old_size)
+    {
+      return NULL;
+    }
+
+    if (new_size > old_size)
+    {
+      /* Growing */
+      size_delta= new_size - old_size;
+      m_free_size_capacity+= size_delta;
+
+      if (m_alloc_size_capacity >= size_delta)
+      {
+        m_alloc_size_capacity-= size_delta;
+        return NULL;
+      }
+
+      delta->reset();
+      delta->m_alloc_size_delta= size_delta - m_alloc_size_capacity;
+      m_alloc_size_capacity= 0;
+    }
+    else
+    {
+      /* Shrinking */
+      size_delta= old_size - new_size;
+      m_alloc_size_capacity+= size_delta;
+
+      if (m_free_size_capacity >= size_delta)
+      {
+        m_free_size_capacity-= size_delta;
+        return NULL;
+      }
+
+      delta->reset();
+      delta->m_free_size_delta= size_delta - m_free_size_capacity;
+      m_free_size_capacity= 0;
+    }
+
+    return delta;
+  }
+
+  inline PFS_memory_stat_delta *count_free(size_t size, PFS_memory_stat_delta *delta)
+  {
+    m_used= true;
+
+    m_free_count++;
+    m_alloc_count_capacity++;
+    m_free_size+= size;
+    m_alloc_size_capacity+= size;
+
+    if ((m_free_count_capacity >= 1) &&
+        (m_free_size_capacity >= size))
+    {
+      m_free_count_capacity--;
+      m_free_size_capacity-= size;
+      return NULL;
+    }
+
+    delta->reset();
+
+    if (m_free_count_capacity >= 1)
+    {
+      m_free_count_capacity--;
+    }
+    else
+    {
+      delta->m_free_count_delta= 1;
+    }
+
+    if (m_free_size_capacity >= size)
+    {
+      m_free_size_capacity-= size;
+    }
+    else
+    {
+      delta->m_free_size_delta= size - m_free_size_capacity;
+      m_free_size_capacity= 0;
+    }
+
+    return delta;
+  }
+
+  inline PFS_memory_stat_delta *apply_delta(const PFS_memory_stat_delta *delta,
+                                            PFS_memory_stat_delta *delta_buffer)
+  {
+    size_t val;
+    size_t remaining_alloc_count;
+    size_t remaining_alloc_size;
+    size_t remaining_free_count;
+    size_t remaining_free_size;
+    bool has_remaining= false;
+
+    m_used= true;
+
+    val= delta->m_alloc_count_delta;
+    if (val <= m_alloc_count_capacity)
+    {
+      m_alloc_count_capacity-= val;
+      remaining_alloc_count= 0;
+    }
+    else
+    {
+      remaining_alloc_count= val - m_alloc_count_capacity;
+      m_alloc_count_capacity= 0;
+      has_remaining= true;
+    }
+
+    val= delta->m_alloc_size_delta;
+    if (val <= m_alloc_size_capacity)
+    {
+      m_alloc_size_capacity-= val;
+      remaining_alloc_size= 0;
+    }
+    else
+    {
+      remaining_alloc_size= val - m_alloc_size_capacity;
+      m_alloc_size_capacity= 0;
+      has_remaining= true;
+    }
+
+    val= delta->m_free_count_delta;
+    if (val <= m_free_count_capacity)
+    {
+      m_free_count_capacity-= val;
+      remaining_free_count= 0;
+    }
+    else
+    {
+      remaining_free_count= val - m_free_count_capacity;
+      m_free_count_capacity= 0;
+      has_remaining= true;
+    }
+
+    val= delta->m_free_size_delta;
+    if (val <= m_free_size_capacity)
+    {
+      m_free_size_capacity-= val;
+      remaining_free_size= 0;
+    }
+    else
+    {
+      remaining_free_size= val - m_free_size_capacity;
+      m_free_size_capacity= 0;
+      has_remaining= true;
+    }
+
+    if (! has_remaining)
+      return NULL;
+
+    delta_buffer->m_alloc_count_delta= remaining_alloc_count;
+    delta_buffer->m_alloc_size_delta= remaining_alloc_size;
+    delta_buffer->m_free_count_delta= remaining_free_count;
+    delta_buffer->m_free_size_delta= remaining_free_size;
+    return delta_buffer;
   }
 };
 

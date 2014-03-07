@@ -1,5 +1,4 @@
-/* Copyright 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef NDB_LS_IMPL_HPP
 #define NDB_LS_IMPL_HPP
@@ -37,6 +36,9 @@ f_section_lock =
 #define SPC_CACHE_ARG
 #endif
 
+
+#define JAM_FILE_ID 228
+
 /* Calculate number of segments to release based on section size
  * Always release one segment, even if size is zero
  */
@@ -53,5 +55,8 @@ bool writeToSection(Uint32 firstSegmentIVal, Uint32 offset, const Uint32* src, U
 
 void release(SPC_ARG SegmentedSectionPtr & ptr);
 void releaseSection(SPC_ARG Uint32 firstSegmentIVal);
+
+
+#undef JAM_FILE_ID
 
 #endif

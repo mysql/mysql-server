@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Test of different EXPLAINs
 
@@ -89,7 +94,7 @@ INSERT INTO t2 VALUES (),(),();
 
 # We only need to make sure that there is no buffer overrun and the index map
 # is displayed correctly
---replace_column 1 X 2 X 3 X 4 X 5 X 6 X 7 X 8 X 9 X
+--replace_column 1 X 2 X 3 X 5 X 6 X 7 X 8 X 9 X 10 X
 EXPLAIN SELECT 1 FROM
   (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
 DROP TABLE t2;
@@ -113,6 +118,11 @@ EXPLAIN EXTENDED SELECT 1
 
 prepare s1 from 
 'EXPLAIN EXTENDED SELECT 1  
+ FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
+execute s1;
+
+prepare s1 from 
+'EXPLAIN FORMAT=JSON SELECT 1  
  FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1';
 execute s1;
 
@@ -143,6 +153,10 @@ CREATE TABLE t1(a LONGTEXT);
 INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
 INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
 --error ER_BAD_FIELD_ERROR
+EXPLAIN SELECT DISTINCT 1 FROM t1,
+        (SELECT a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
+         WHERE t1.a = d1.a;
+--error ER_WRONG_USAGE
 EXPLAIN SELECT DISTINCT 1 FROM t1,
         (SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) as d1
          WHERE t1.a = d1.a;
@@ -188,13 +202,13 @@ insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
 ('2001-01-01 1:1:1', '1:1:1');
 insert into t2 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
 flush tables;
-EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+EXPLAIN SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN (SELECT innr.dt FROM t2 AS innr WHERE outr.dt IS NULL );
 flush tables;
-SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN (SELECT innr.dt FROM t2 AS innr WHERE outr.dt IS NULL );
 flush tables;
-EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' ); 
+EXPLAIN SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN ( SELECT innr.dt FROM t2 AS innr WHERE outr.t < '2005-11-13 7:41:31' ); 
 flush tables;
-SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
+SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN ( SELECT innr.dt FROM t2 AS innr WHERE outr.t < '2005-11-13 7:41:31' );
 drop tables t1, t2;
 set optimizer_switch= @opt_sw_save;
 
@@ -390,6 +404,9 @@ INSERT INTO t2 VALUES (3),(4),(5);
 # LIMIT <offset> is for SELECT, not for EXPLAIN OUTPUT:
 --echo # EXPLAIN must return 3 rows:
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
+
+EXPLAIN REPLACE INTO t1 VALUES (10);
+EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
 
 DROP TABLE t1, t2;
 

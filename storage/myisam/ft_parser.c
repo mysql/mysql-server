@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -340,9 +340,11 @@ MYSQL_FTPARSER_PARAM* ftparser_alloc_param(MI_INFO *info)
       (ftb_check_phrase_internal, ftb_phrase_add_word). Thus MAX_PARAM_NR=2.
     */
     info->ftparser_param= (MYSQL_FTPARSER_PARAM *)
-      my_malloc(MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) *
+      my_malloc(mi_key_memory_FTPARSER_PARAM,
+                MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) *
                 info->s->ftkeys, MYF(MY_WME | MY_ZEROFILL));
-    init_alloc_root(&info->ft_memroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
+    init_alloc_root(mi_key_memory_ft_memroot,
+                    &info->ft_memroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
   }
   return info->ftparser_param;
 }

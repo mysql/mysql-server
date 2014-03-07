@@ -8,7 +8,7 @@ mt = 2
 [ndb_mgmd]
 
 [mysqld]
-skip-innodb
+innodb
 skip-grant-tables
 socket=mysql.sock
 default-storage-engine=myisam

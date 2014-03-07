@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,13 +24,13 @@
 MYSQL* find_atrtdb_client(atrt_config& config)
 {
   atrt_cluster* cluster = 0;
-  for (size_t i = 0; i<config.m_clusters.size(); i++)
+  for (unsigned i = 0; i<config.m_clusters.size(); i++)
   {
     if (strcmp(config.m_clusters[i]->m_name.c_str(), ".atrt") == 0)
     {
       cluster = config.m_clusters[i];
 
-      for (size_t i = 0; i<cluster->m_processes.size(); i++)
+      for (unsigned i = 0; i<cluster->m_processes.size(); i++)
       {
         if (cluster->m_processes[i]->m_type == atrt_process::AP_CLIENT)
         {

@@ -78,7 +78,8 @@ SET @@global.interactive_timeout = 60020;
 SELECT @@global.interactive_timeout;
 SET @@global.interactive_timeout = 65535;
 SELECT @@global.interactive_timeout;
-
+SET @@global.interactive_timeout = 31536000;
+SELECT @@global.interactive_timeout;
 
 --echo '#--------------------FN_DYNVARS_052_04-------------------------#'
 ##############################################################################
@@ -91,7 +92,8 @@ SET @@session.interactive_timeout = 50050;
 SELECT @@session.interactive_timeout;
 SET @@session.interactive_timeout = 65535;
 SELECT @@session.interactive_timeout;
-
+SET @@session.interactive_timeout = 31536000;
+SELECT @@session.interactive_timeout;
 
 --echo '#------------------FN_DYNVARS_052_05-----------------------#'
 ###############################################################
@@ -101,6 +103,8 @@ SELECT @@session.interactive_timeout;
 SET @@global.interactive_timeout = 0;
 SELECT @@global.interactive_timeout;
 SET @@global.interactive_timeout = -1024;
+SELECT @@global.interactive_timeout;
+SET @@global.interactive_timeout = 31536001;
 SELECT @@global.interactive_timeout;
 SET @@global.interactive_timeout = 1000000000;
 SELECT @@global.interactive_timeout;
@@ -117,6 +121,9 @@ SET @@session.interactive_timeout = -2;
 SELECT @@session.interactive_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.interactive_timeout = 65530.34;
+SELECT @@session.interactive_timeout;
+SET @@session.interactive_timeout = 31536001;
+SELECT @@session.interactive_timeout;
 SET @@session.interactive_timeout = 100000000;
 SELECT @@session.interactive_timeout;
 

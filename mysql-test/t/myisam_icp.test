@@ -1,3 +1,11 @@
+# This tests the functionality of the Myisam engine
+# These testcases also exist in InnoDB engine
+# All tests are required to run with Myisam
+# Hence MTR starts mysqld with MyISAM as default
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 #
 # ICP/MyISAM tests (Index Condition Pushdown)
 # (Turns off all other 6.0 optimizer switches)

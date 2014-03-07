@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /*
 =======================================================================
@@ -136,12 +136,8 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
   999900000, 999990000, 999999000,
   999999900, 999999990 };
 
-#ifdef HAVE_purify
-#define sanity(d) DBUG_ASSERT((d)->len > 0)
-#else
 #define sanity(d) DBUG_ASSERT((d)->len >0 && ((d)->buf[0] | \
                               (d)->buf[(d)->len-1] | 1))
-#endif
 
 #define FIX_INTG_FRAC_ERROR(len, intg1, frac1, error)                   \
         do                                                              \
@@ -353,7 +349,7 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
   if (!(intg_len= fixed_precision ? fixed_intg : intg))
     intg_len= 1;
   frac_len= fixed_precision ? fixed_decimals : frac;
-  len= from->sign + intg_len + test(frac) + frac_len;
+  len= from->sign + intg_len + MY_TEST(frac) + frac_len;
   if (fixed_precision)
   {
     if (frac > fixed_decimals)
@@ -387,7 +383,7 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
     else
       frac-=j;
     frac_len= frac;
-    len= from->sign + intg_len + test(frac) + frac_len;
+    len= from->sign + intg_len + MY_TEST(frac) + frac_len;
   }
   *to_len= len;
   s[len]= 0;
@@ -1260,7 +1256,7 @@ int double2lldiv_t(double nr, lldiv_t *lld)
 
     And for -1234567890.1234 it would be
 
-                7E F2 04 37 2D FB 2D
+                7E F2 04 C7 2D FB 2D
 */
 int decimal2bin(decimal_t *from, uchar *to, int precision, int frac)
 {
@@ -1437,7 +1433,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
   if (intg0x)
   {
     int i=dig2bytes[intg0x];
-    dec1 UNINIT_VAR(x);
+    dec1 x= 0;
     switch (i)
     {
       case 1: x=mi_sint1korr(from); break;
@@ -1478,7 +1474,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
   if (frac0x)
   {
     int i=dig2bytes[frac0x];
-    dec1 UNINIT_VAR(x);
+    dec1 x= 0;
     switch (i)
     {
       case 1: x=mi_sint1korr(from); break;
@@ -1563,7 +1559,7 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
               decimal_round_mode mode)
 {
   int frac0=scale>0 ? ROUND_UP(scale) : (scale + 1)/DIG_PER_DEC1,
-    frac1=ROUND_UP(from->frac), UNINIT_VAR(round_digit),
+    frac1=ROUND_UP(from->frac), round_digit= 0,
     intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
 
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
@@ -2213,7 +2209,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
 {
   int frac1=ROUND_UP(from1->frac)*DIG_PER_DEC1, prec1=from1->intg+frac1,
       frac2=ROUND_UP(from2->frac)*DIG_PER_DEC1, prec2=from2->intg+frac2,
-      UNINIT_VAR(error), i, intg0, frac0, len1, len2, dintg, div_mod=(!mod);
+      error= 0, i, intg0, frac0, len1, len2, dintg, div_mod=(!mod);
   dec1 *buf0, *buf1=from1->buf, *buf2=from2->buf, *tmp1,
        *start2, *stop2, *stop1, *stop0, norm2, carry, *start1, dcarry;
   dec2 norm_factor, x, guess, y;
@@ -2453,6 +2449,10 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
   }
 done:
   my_afree(tmp1);
+  tmp1= remove_leading_zeroes(to, &to->intg);
+  if(to->buf != tmp1)
+    memmove(to->buf, tmp1,
+            (ROUND_UP(to->intg) + ROUND_UP(to->frac)) * sizeof(dec1));
   return error;
 }
 

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -82,7 +82,7 @@ ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
       if(plan.pk_access) {
         // To flush, scan the table and delete every row
         if(plan.canHaveExternalValue()) {
-          DEBUG_PRINT("prefix %d - doing ExternalValue delete");
+          DEBUG_PRINT("prefix %d - doing ExternalValue delete", i);
           r = scan_delete_ext_val(pipeline, &inst, &plan);
         }
         else {
@@ -98,7 +98,7 @@ ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
                      i, pfx->table ? pfx->table->table_name : "",
                      pfx->info.use_ndb, pfx->info.do_db_flush);
   }
-  
+  DEBUG_PRINT("Flush complete.");
   return ENGINE_SUCCESS;
 }
 

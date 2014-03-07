@@ -1,0 +1,24 @@
+SET @old_log_timestamps     = @@global.log_timestamps;
+
+# log_timestamps -- values UTC|SYSTEM
+SET GLOBAL  log_timestamps=UTC;
+SELECT      @@global.log_timestamps;
+SET GLOBAL  log_timestamps=SYSTEM;
+SELECT      @@global.log_timestamps;
+
+# sess var
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_timestamps=UTC;
+
+# wrong value
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL  log_timestamps=ON;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL  log_timestamps=2;
+
+
+# log_timestamps -- default UTC
+SET GLOBAL  log_timestamps=DEFAULT;
+SELECT      @@global.log_timestamps;
+
+SET GLOBAL log_timestamps      = @old_log_timestamps;

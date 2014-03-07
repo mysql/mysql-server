@@ -26,6 +26,10 @@ SET @@global.connect_timeout = 21221204;
 SELECT @@global.connect_timeout;
 @@global.connect_timeout
 21221204
+SET @@global.connect_timeout = 31536000;
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+31536000
 '#--------------------FN_DYNVARS_019_04-------------------------#'
 SET @@global.connect_timeout = 1;
 Warnings:
@@ -39,6 +43,12 @@ Warning	1292	Truncated incorrect connect_timeout value: '-1024'
 SELECT @@global.connect_timeout;
 @@global.connect_timeout
 2
+SET @@global.connect_timeout = 31536001;
+Warnings:
+Warning	1292	Truncated incorrect connect_timeout value: '31536001'
+SELECT @@global.connect_timeout;
+@@global.connect_timeout
+31536000
 SET @@global.connect_timeout = 42949672950;
 Warnings:
 Warning	1292	Truncated incorrect connect_timeout value: '42949672950'

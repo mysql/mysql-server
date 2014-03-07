@@ -2662,8 +2662,10 @@ a
 -01:00:00.999999
 -838:59:59.000000
 EXPLAIN SELECT * FROM t1 WHERE a='01:02:03.456700';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	6	const	1	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	a	a	6	const	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '01:02:03.456700')
 SELECT * FROM t1 WHERE a='01:02:03.456700';
 a
 01:02:03.456700
@@ -2895,9 +2897,10 @@ a
 # Testing Item_temporal_with_ref::print
 #
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (990000,0);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	14	100.00	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	14	100.00	Using where
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in ('99:00:00.000000','00:00:00.000000'))
 #
 # Testing IN with index: field->store_packed
@@ -4251,44 +4254,52 @@ SET @@timestamp=default;
 # Testing EXPLAIN EXTENDED SELECT for CAST(TIME(N))
 #
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time) AS `CAST('10:10:10' AS TIME)`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(0));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time) AS `CAST('10:10:10' AS TIME(0))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(1));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(1)) AS `CAST('10:10:10' AS TIME(1))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(2));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(2)) AS `CAST('10:10:10' AS TIME(2))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(3));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(3)) AS `CAST('10:10:10' AS TIME(3))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(4));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(4)) AS `CAST('10:10:10' AS TIME(4))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(5));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(5)) AS `CAST('10:10:10' AS TIME(5))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(6));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(6)) AS `CAST('10:10:10' AS TIME(6))`
 #
 # Testing CAST with bad FSPs
@@ -5528,7 +5539,7 @@ SELECT DATE_ADD(TIME'00:00:00.0', INTERVAL 1000000000000000000000.1 SECOND);
 DATE_ADD(TIME'00:00:00.0', INTERVAL 1000000000000000000000.1 SECOND)
 00:00:00.0
 Warnings:
-Warning	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: '1000000000000000000000.1'
 CREATE TABLE t1 AS SELECT
 DATE_ADD(TIME'00:00:00', INTERVAL 1 SECOND) AS t0s0,
 DATE_ADD(TIME'00:00:00', INTERVAL 1.1 SECOND) AS t0s1,
@@ -7165,8 +7176,10 @@ a
 0000-00-00 23:59:59.999999
 0000-00-00 00:00:00.000000
 EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	8	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	a	a	8	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '2000-01-01 01:02:03.456700')
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 a
 2000-01-01 01:02:03.456700
@@ -7336,9 +7349,9 @@ DROP TABLE t1;
 #
 # Testing values with zeros in dates
 #
-SET sql_mode=no_zero_in_date;
+SET sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
-INSERT INTO t1 VALUES ('1999-00-00 00:00:00', '1999-00-00 00:00:00');
+INSERT IGNORE INTO t1 VALUES ('1999-00-00 00:00:00', '1999-00-00 00:00:00');
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 Warning	1264	Out of range value for column 'b' at row 1
@@ -7837,9 +7850,10 @@ a
 # Testing Item_temporal_with_ref::print
 #
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (0.000001,0);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in ('0000-00-00 00:00:00.000001','0000-00-00 00:00:00.000000'))
 #
 # Testing IN with index: involves field->store_packed()
@@ -9029,44 +9043,52 @@ DROP TABLE t1;
 # Testing EXPLAIN EXTENDED SELECT for CAST(DATETIME(N))
 #
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime) AS `CAST('10:10:10' AS DATETIME)`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(0));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime) AS `CAST('10:10:10' AS DATETIME(0))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(1));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(1)) AS `CAST('10:10:10' AS DATETIME(1))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(2));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(2)) AS `CAST('10:10:10' AS DATETIME(2))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(3));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(3)) AS `CAST('10:10:10' AS DATETIME(3))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(4));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(4)) AS `CAST('10:10:10' AS DATETIME(4))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(5));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(5)) AS `CAST('10:10:10' AS DATETIME(5))`
 EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(6));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(6)) AS `CAST('10:10:10' AS DATETIME(6))`
 #
 # Testing CAST with bad FSPs
@@ -12283,8 +12305,10 @@ a
 0000-00-00 00:00:00.000000
 0000-00-00 00:00:00.000000
 EXPLAIN SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	7	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	a	a	7	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = '2000-01-01 01:02:03.456700')
 SELECT * FROM t1 WHERE a='2000-01-01 01:02:03.456700';
 a
 2000-01-01 01:02:03.456700
@@ -12593,7 +12617,7 @@ CREATE TABLE t2 AS SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` timestamp(6) NOT NULL DEFAULT '0000-00-00 00:00:00.000000'
+  `a` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t2, t1;
 #
@@ -17269,4 +17293,259 @@ SECOND(-4.99999999991e0)
 SELECT SECOND(TRUNCATE('5',180));
 SECOND(TRUNCATE('5',180))
 5
+#
+# Bug#17080703 INCONSISTENT DATETIME CONVERSIONS WITH FRACTIONAL SECONDS
+#
+# Test for TIMESTAMP datatype.
+SELECT TIMESTAMP '20130710010203';
+TIMESTAMP '20130710010203'
+2013-07-10 01:02:03
+SELECT TIMESTAMP '201307100102031';
+ERROR HY000: Incorrect DATETIME value: '201307100102031'
+SELECT TIMESTAMP '2013071001020312';
+ERROR HY000: Incorrect DATETIME value: '2013071001020312'
+SELECT TIMESTAMP '20130710010203123';
+ERROR HY000: Incorrect DATETIME value: '20130710010203123'
+SELECT TIMESTAMP '201307100102031234';
+ERROR HY000: Incorrect DATETIME value: '201307100102031234'
+SELECT TIMESTAMP '2013071001020312345';
+ERROR HY000: Incorrect DATETIME value: '2013071001020312345'
+SELECT TIMESTAMP '20130710010203123456';
+ERROR HY000: Incorrect DATETIME value: '20130710010203123456'
+# Test non decimal point as delimiter for fractional seconds.
+SELECT TIMESTAMP '2013:07:10 01:02:03:04';
+ERROR HY000: Incorrect DATETIME value: '2013:07:10 01:02:03:04'
+# Test for invalid seconds >= 60 properly separated by decimal point with fractions.
+SELECT TIMESTAMP '2013:07:10 01.02.131';
+ERROR HY000: Incorrect DATETIME value: '2013:07:10 01.02.131'
+SELECT TIMESTAMP '2013:07:10 01.02.131.2';
+ERROR HY000: Incorrect DATETIME value: '2013:07:10 01.02.131.2'
+SELECT TIMESTAMP '2013:07:10 01.02.0312.3';
+ERROR HY000: Incorrect DATETIME value: '2013:07:10 01.02.0312.3'
+SELECT TIMESTAMP '2013.07.10 01.02.131.23456';
+ERROR HY000: Incorrect DATETIME value: '2013.07.10 01.02.131.23456'
+SELECT TIMESTAMP '201307100102031.';
+ERROR HY000: Incorrect DATETIME value: '201307100102031.'
+SELECT TIMESTAMP '2012071001021.1';
+ERROR HY000: Incorrect DATETIME value: '2012071001021.1'
+# Test for valid seconds properly separated by decimal point with fractions.
+SELECT TIMESTAMP '2013:07:10 01.02.0.31';
+TIMESTAMP '2013:07:10 01.02.0.31'
+2013-07-10 01:02:00.31
+SELECT TIMESTAMP '20130710010203.';
+TIMESTAMP '20130710010203.'
+2013-07-10 01:02:03
+# Test for valid seconds properly separated by decimal point with fractions.
+SELECT TIMESTAMP '20130710010203.1';
+TIMESTAMP '20130710010203.1'
+2013-07-10 01:02:03.1
+SELECT TIMESTAMP '20130710010203.12';
+TIMESTAMP '20130710010203.12'
+2013-07-10 01:02:03.12
+SELECT TIMESTAMP '20130710010203.123';
+TIMESTAMP '20130710010203.123'
+2013-07-10 01:02:03.123
+SELECT TIMESTAMP '20130710010203.1234';
+TIMESTAMP '20130710010203.1234'
+2013-07-10 01:02:03.1234
+SELECT TIMESTAMP '20130710010203.12345';
+TIMESTAMP '20130710010203.12345'
+2013-07-10 01:02:03.12345
+SELECT TIMESTAMP '20130710010203.123456';
+TIMESTAMP '20130710010203.123456'
+2013-07-10 01:02:03.123456
+SELECT TIMESTAMP '20130710010203.1234567';
+TIMESTAMP '20130710010203.1234567'
+2013-07-10 01:02:03.123457
+# Test for valid time literals in insert operation.
+CREATE TABLE t(key1 INT UNIQUE, col TIMESTAMP(6));
+INSERT INTO t VALUES (1, '20130710010203.1'), (2, '20130710010203.12'), (3, '20130710010203.123'), (4, '20130710010203.1234'),
+(5,'20130710010203.12345'), (6, '20130710010203.123456'), (7, '201207100102');
+SELECT * FROM t ORDER BY key1;
+key1	col
+1	2013-07-10 01:02:03.100000
+2	2013-07-10 01:02:03.120000
+3	2013-07-10 01:02:03.123000
+4	2013-07-10 01:02:03.123400
+5	2013-07-10 01:02:03.123450
+6	2013-07-10 01:02:03.123456
+7	2020-12-07 10:01:02.000000
+DELETE FROM t;
+# Test for invalid time literals in insert operation.
+INSERT INTO t VALUES (1, '201307100102031'), (2, '2013071001020312'), (3, '20130710010203123'), (4, '201307100102031234'),
+(5, '2013071001020312345'), (6, '20130710010203123456'), (7, '2013:07:10 01.02.031'), (8, '2013:07:10 01.02.031.2'),
+(9, '2013:07:10 01.02.0312.3'), (10, '2012071001021.1'), (11, '2012071001021');
+Warnings:
+Warning	1265	Data truncated for column 'col' at row 1
+Warning	1265	Data truncated for column 'col' at row 2
+Warning	1265	Data truncated for column 'col' at row 3
+Warning	1265	Data truncated for column 'col' at row 4
+Warning	1265	Data truncated for column 'col' at row 5
+Warning	1265	Data truncated for column 'col' at row 6
+Warning	1265	Data truncated for column 'col' at row 9
+Warning	1265	Data truncated for column 'col' at row 10
+Warning	1265	Data truncated for column 'col' at row 11
+SELECT * FROM t ORDER BY key1;
+key1	col
+1	2013-07-10 01:02:03.000000
+2	2013-07-10 01:02:03.000000
+3	2013-07-10 01:02:03.000000
+4	2013-07-10 01:02:03.000000
+5	2013-07-10 01:02:03.000000
+6	2013-07-10 01:02:03.000000
+7	2013-07-10 01:02:31.000000
+8	2013-07-10 01:02:31.200000
+9	0000-00-00 00:00:00.000000
+10	2020-12-07 10:01:02.000000
+11	2020-12-07 10:01:02.000000
+DROP TABLE t;
+# Test for DATETIME datatype.
+# Test for valid time literals in insert operation.
+CREATE TABLE t(key1 INT UNIQUE, col DATETIME(6));
+INSERT INTO t VALUES (1, '20130710010203.1'), (2, '20130710010203.12'), (3, '20130710010203.123'), (4, '20130710010203.1234'),
+(5, '20130710010203.12345'), (6, '20130710010203.123456'), (7, '201207100102');
+SELECT * FROM t ORDER BY key1;
+key1	col
+1	2013-07-10 01:02:03.100000
+2	2013-07-10 01:02:03.120000
+3	2013-07-10 01:02:03.123000
+4	2013-07-10 01:02:03.123400
+5	2013-07-10 01:02:03.123450
+6	2013-07-10 01:02:03.123456
+7	2020-12-07 10:01:02.000000
+DELETE FROM t;
+# Test for invalid time literals in insert operation.
+INSERT INTO t VALUES (1, '201307100102031'), (2, '2013071001020312'), (3, '20130710010203123'), (4, '201307100102031234'),
+(5, '2013071001020312345'), (6, '20130710010203123456'), (7, '2013:07:10 01.02.031'), (8, '2013:07:10 01.02.031.2'),
+(9, '2013:07:10 01.02.0312.3'), (10, '2012071001021.1'), (11, '2012071001021');
+Warnings:
+Warning	1265	Data truncated for column 'col' at row 1
+Warning	1265	Data truncated for column 'col' at row 2
+Warning	1265	Data truncated for column 'col' at row 3
+Warning	1265	Data truncated for column 'col' at row 4
+Warning	1265	Data truncated for column 'col' at row 5
+Warning	1265	Data truncated for column 'col' at row 6
+Warning	1265	Data truncated for column 'col' at row 9
+Warning	1265	Data truncated for column 'col' at row 10
+Warning	1265	Data truncated for column 'col' at row 11
+SELECT * FROM t ORDER BY key1;
+key1	col
+1	2013-07-10 01:02:03.000000
+2	2013-07-10 01:02:03.000000
+3	2013-07-10 01:02:03.000000
+4	2013-07-10 01:02:03.000000
+5	2013-07-10 01:02:03.000000
+6	2013-07-10 01:02:03.000000
+7	2013-07-10 01:02:31.000000
+8	2013-07-10 01:02:31.200000
+9	0000-00-00 00:00:00.000000
+10	2020-12-07 10:01:02.000000
+11	2020-12-07 10:01:02.000000
+DROP TABLE t;
+# Test for TIME datatype.
+SELECT TIME '010203';
+TIME '010203'
+01:02:03
+SELECT TIME '1010203';
+TIME '1010203'
+101:02:03
+SELECT TIME '01010203';
+TIME '01010203'
+101:02:03
+SELECT TIME '10102031';
+ERROR HY000: Incorrect TIME value: '10102031'
+SELECT TIME '101020312';
+ERROR HY000: Incorrect TIME value: '101020312'
+SELECT TIME '1010203123';
+ERROR HY000: Incorrect TIME value: '1010203123'
+SELECT TIME '10102031234';
+ERROR HY000: Incorrect TIME value: '10102031234'
+SELECT TIME '101020312345';
+ERROR HY000: Incorrect TIME value: '101020312345'
+SELECT TIME '1010203123456';
+ERROR HY000: Incorrect TIME value: '1010203123456'
+# Test non decimal point as delimiter for fractional seconds.
+SELECT TIME '01:02:03:04';
+ERROR HY000: Incorrect TIME value: '01:02:03:04'
+# Test for invalid seconds >= 60 properly separated by decimal point with fractions.
+SELECT TIME '01:02:131';
+ERROR HY000: Incorrect TIME value: '01:02:131'
+SELECT TIME '01:02:131.2';
+ERROR HY000: Incorrect TIME value: '01:02:131.2'
+SELECT TIME '01:02:0312.3';
+ERROR HY000: Incorrect TIME value: '01:02:0312.3'
+SELECT TIME '01:02:131.23456';
+ERROR HY000: Incorrect TIME value: '01:02:131.23456'
+SELECT TIME '11102031.';
+ERROR HY000: Incorrect TIME value: '11102031.'
+# Test for valid seconds properly separated by decimal point with fractions.
+SELECT TIME '01:02:0.31';
+TIME '01:02:0.31'
+01:02:00.31
+SELECT TIME '010203.';
+TIME '010203.'
+01:02:03
+# Test for valid seconds properly separated by decimal point with fractions.
+SELECT TIME '110203.1';
+TIME '110203.1'
+11:02:03.1
+SELECT TIME '010203.12';
+TIME '010203.12'
+01:02:03.12
+SELECT TIME '010203.123';
+TIME '010203.123'
+01:02:03.123
+SELECT TIME '010203.1234';
+TIME '010203.1234'
+01:02:03.1234
+SELECT TIME '010203.12345';
+TIME '010203.12345'
+01:02:03.12345
+SELECT TIME '010203.123456';
+TIME '010203.123456'
+01:02:03.123456
+SELECT TIME '010203.1234567';
+TIME '010203.1234567'
+01:02:03.123457
+SELECT TIME '01021.1';
+TIME '01021.1'
+00:10:21.1
+# Test for valid time literals in insert operation.
+CREATE TABLE t(key1 INT UNIQUE, col TIME(6));
+INSERT INTO t VALUES (1, '010203.1'), (2, '010203.12'), (3, '010203.123'), (4, '010203.1234'),
+(5, '010203.12345'), (6, '010203.123456'), (7, '0203.123456'), (8, '03.123456'), (9, '0.123456');
+SELECT * FROM t ORDER BY key1;
+key1	col
+1	01:02:03.100000
+2	01:02:03.120000
+3	01:02:03.123000
+4	01:02:03.123400
+5	01:02:03.123450
+6	01:02:03.123456
+7	00:02:03.123456
+8	00:00:03.123456
+9	00:00:00.123456
+DELETE FROM t;
+# Test for invalid time literals in insert operation.
+INSERT INTO t VALUES (1, '0102031'), (2, '01020312'), (3, '010203123'), (4, '0102031234'),
+(5, '01020312345'), (6, '010203123456'), (7, '01:02:031'), (8, '01:02:031.2'),
+(9, '01:02:0312.3');
+Warnings:
+Warning	1264	Out of range value for column 'col' at row 3
+Warning	1264	Out of range value for column 'col' at row 4
+Warning	1264	Out of range value for column 'col' at row 5
+Note	1265	Data truncated for column 'col' at row 6
+Warning	1264	Out of range value for column 'col' at row 9
+SELECT * FROM t ORDER BY key1;
+key1	col
+1	10:20:31.000000
+2	102:03:12.000000
+3	838:59:59.000000
+4	838:59:59.000000
+5	838:59:59.000000
+6	12:34:56.000000
+7	01:02:31.000000
+8	01:02:31.200000
+9	00:00:00.000000
+DROP TABLE t;
 # End of 5.6 tests

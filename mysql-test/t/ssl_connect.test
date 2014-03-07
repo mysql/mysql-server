@@ -1,4 +1,3 @@
-
 -- source include/have_ssl_communication.inc
 
 # Repeat connect/disconnect

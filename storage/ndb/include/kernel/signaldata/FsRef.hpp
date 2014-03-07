@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +20,9 @@
 
 #include <ndbd_exit_codes.h>
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 194
+
 
 /**
  * FsRef - Common signal class for all REF signals sent from Ndbfs
@@ -98,5 +100,8 @@ FsRef::setErrorCode(UintR & errorcode, UintR errorcodetype){
   ASSERT_MAX(errorcodetype, fsErrMax, "FsRef::setErrorCode");
   errorcode = errorcodetype;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

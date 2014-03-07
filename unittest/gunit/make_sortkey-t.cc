@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -48,8 +48,8 @@ protected:
     m_sort_fields[1].field= NULL;
     m_sort_fields[0].reverse= false;
     m_sort_fields[1].reverse= false;
-    m_sort_param.local_sortorder= m_sort_fields;
-    m_sort_param.end= m_sort_param.local_sortorder + 1;
+    m_sort_param.local_sortorder=
+      Bounds_checked_array<SORT_FIELD>(m_sort_fields, 1);
     memset(m_buff, 'a', sizeof(m_buff));
     m_to= &m_buff[8];
   }
@@ -94,7 +94,7 @@ TEST_F(MakeSortKeyTest, IntResult)
   EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
-  make_sortkey(&m_sort_param, m_to, m_ref_buff);
+  m_sort_param.make_sortkey(m_to, m_ref_buff);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -114,7 +114,7 @@ TEST_F(MakeSortKeyTest, IntResultNull)
   EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
-  make_sortkey(&m_sort_param, m_to, m_ref_buff);
+  m_sort_param.make_sortkey(m_to, m_ref_buff);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -133,7 +133,7 @@ TEST_F(MakeSortKeyTest, DecimalResult)
   EXPECT_EQ(10U, m_sort_fields[0].length);
   EXPECT_EQ(DECIMAL_RESULT, m_sort_fields[0].result_type);
 
-  make_sortkey(&m_sort_param, m_to, m_ref_buff);
+  m_sort_param.make_sortkey(m_to, m_ref_buff);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -151,7 +151,7 @@ TEST_F(MakeSortKeyTest, RealResult)
   EXPECT_EQ(sizeof(double), m_sort_fields[0].length);
   EXPECT_EQ(REAL_RESULT, m_sort_fields[0].result_type);
 
-  make_sortkey(&m_sort_param, m_to, m_ref_buff);
+  m_sort_param.make_sortkey(m_to, m_ref_buff);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }

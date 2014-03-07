@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 stop slave;
 #
@@ -56,12 +56,14 @@ reset slave;
 start slave;
 flush logs;
 create table t1 (a int);
+include/sync_slave_sql_with_master.inc
 include/check_slave_is_running.inc
 #
 # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
 #
 flush logs;
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/check_slave_is_running.inc
 flush logs;
 show master status;

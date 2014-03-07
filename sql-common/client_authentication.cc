@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -99,20 +99,21 @@ RSA *rsa_init(MYSQL *mysql)
       If a key path was submitted but no key located then we print an error
       message. Else we just report that there is no public key.
     */
-    fprintf(stderr,"Can't locate server public key '%s'\n",
-              mysql->options.extension->server_public_key_path);
+    my_message_local(WARNING_LEVEL, "Can't locate server public key '%s'",
+                     mysql->options.extension->server_public_key_path);
 
     return 0;
   }
-  
+
   mysql_mutex_lock(&g_public_key_mutex);
   key= g_public_key= PEM_read_RSA_PUBKEY(pub_key_file, 0, 0, 0);
   mysql_mutex_unlock(&g_public_key_mutex);
   fclose(pub_key_file);
   if (g_public_key == NULL)
   {
-    fprintf(stderr, "Public key is not in PEM format: '%s'\n",
-            mysql->options.extension->server_public_key_path);
+    ERR_clear_error();
+    my_message_local(WARNING_LEVEL, "Public key is not in PEM format: '%s'",
+                     mysql->options.extension->server_public_key_path);
     return 0;
   }
 
@@ -144,6 +145,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   bool connection_is_secure= false;
   unsigned char scramble_pkt[20];
   unsigned char *pkt;
+  my_bool ssl_enforce= FALSE;
 
 
   DBUG_ENTER("sha256_password_auth_client");
@@ -152,9 +154,14 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     Get the scramble from the server because we need it when sending encrypted
     password.
   */
-  if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH)
+  if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH + 1)
   {
     DBUG_PRINT("info",("Scramble is not of correct length."));
+    DBUG_RETURN(CR_ERROR);
+  }
+  if (pkt[SCRAMBLE_LENGTH] != '\0')
+  {
+    DBUG_PRINT("info",("Missing protocol token in scramble data."));
     DBUG_RETURN(CR_ERROR);
   }
   /*
@@ -163,9 +170,26 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   */
   memcpy(scramble_pkt, pkt, SCRAMBLE_LENGTH);
 
+  if (mysql_get_option(mysql, MYSQL_OPT_SSL_ENFORCE, &ssl_enforce))
+    ssl_enforce= FALSE;
+
   if (mysql_get_ssl_cipher(mysql) != NULL)
     connection_is_secure= true;
-  
+  /*
+    If set to the default plugin, then the client and server haven't
+    attempted a SSL connection yet and there is no way of knowing if this will
+    be successful later on when encryption is needed.
+
+    The only way to be sure that SSL will be established is to check if the
+    client enforce SSL.
+
+    If MYSQL_OPT_ENFORCE_SSL flag isn't set then SSL might be established but
+    the client will still expect RSA keys from the server and fail if those
+    aren't available.
+  */
+  else if (ssl_enforce)
+    connection_is_secure= true; // Safely assume connection will be encrypted
+
   /* If connection isn't secure attempt to get the RSA public key file */
   if (!connection_is_secure)
   {
@@ -205,7 +229,10 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         public_key= PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
         if (public_key == 0)
+        {
+          ERR_clear_error();
           DBUG_RETURN(CR_ERROR);
+        }
         got_public_key_from_server= true;
       }
       

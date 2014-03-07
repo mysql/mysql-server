@@ -1,0 +1,7 @@
+# Tests for the performance schema
+#
+--source include/have_32bit.inc
+--source ../include/memory_aggregate_setup.inc
+--source ../include/memory_aggregate_load.inc
+--source ../include/memory_aggregate_cleanup.inc
+

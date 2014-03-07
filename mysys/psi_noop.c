@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -236,7 +236,7 @@ static void set_thread_state_noop(const char* state NNN)
   return;
 }
 
-static void set_thread_info_noop(const char* info NNN, int info_len NNN)
+static void set_thread_info_noop(const char* info NNN, uint info_len NNN)
 {
   return;
 }
@@ -462,7 +462,8 @@ static void end_stage_noop(void)
 static PSI_statement_locker*
 get_thread_statement_locker_noop(PSI_statement_locker_state *state NNN,
                                  PSI_statement_key key NNN,
-                                 const void *charset NNN)
+                                 const void *charset NNN,
+                                 PSI_sp_share *sp_share NNN)
 {
   return NULL;
 }
@@ -587,6 +588,73 @@ static void end_statement_noop(PSI_statement_locker *locker NNN,
   return;
 }
 
+static PSI_transaction_locker*
+get_thread_transaction_locker_noop(PSI_transaction_locker_state *state NNN,
+                                   const void *xid NNN,
+                                   const ulonglong *trxid NNN,
+                                   int isolation_level NNN,
+                                   my_bool read_only NNN,
+                                   my_bool autocommit NNN)
+{
+  return NULL;
+}
+
+static void start_transaction_noop(PSI_transaction_locker *locker NNN,
+                                   const char *src_file NNN, uint src_line NNN)
+{
+  return;
+}
+
+static void set_transaction_xid_noop(PSI_transaction_locker *locker NNN,
+                                     const void *xid NNN,
+                                     int xa_state NNN)
+{
+  return;
+}
+
+static void set_transaction_xa_state_noop(PSI_transaction_locker *locker NNN,
+                                          int xa_state NNN)
+{
+  return;
+}
+
+static void set_transaction_gtid_noop(PSI_transaction_locker *locker NNN,
+                                      const void *sid NNN,
+                                      const void *gtid_spec NNN)
+{
+  return;
+}
+
+static void set_transaction_trxid_noop(PSI_transaction_locker *locker NNN,
+                                       const ulonglong *trxid NNN)
+{
+  return;
+}
+
+static void inc_transaction_savepoints_noop(PSI_transaction_locker *locker NNN,
+                                            ulong count NNN)
+{
+  return;
+}
+
+static void inc_transaction_rollback_to_savepoint_noop(PSI_transaction_locker *locker NNN,
+                                                       ulong count NNN)
+{
+  return;
+}
+
+static void inc_transaction_release_savepoint_noop(PSI_transaction_locker *locker NNN,
+                                                   ulong count NNN)
+{
+  return;
+}
+
+static void end_transaction_noop(PSI_transaction_locker *locker NNN,
+                                 my_bool commit NNN)
+{
+  return;
+}
+
 static PSI_socket_locker*
 start_socket_wait_noop(PSI_socket_locker_state *state NNN,
                        PSI_socket *socket NNN,
@@ -623,18 +691,45 @@ static void set_socket_thread_owner_noop(PSI_socket *socket NNN)
   return;
 }
 
+static PSI_prepared_stmt*
+create_prepare_stmt_noop(void *identity NNN, uint stmt_id NNN,
+                         PSI_statement_locker *locker NNN, 
+                         const char *stmt_name NNN, size_t stmt_name_length NNN,
+                         const char *name NNN, size_t length NNN)
+{
+  return NULL;
+}
+
+static void
+execute_prepare_stmt_noop(PSI_statement_locker *locker NNN,
+                        PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
+void
+destroy_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
+void
+reprepare_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
 static struct PSI_digest_locker*
 digest_start_noop(PSI_statement_locker *locker NNN)
 {
   return NULL;
 }
 
-static PSI_digest_locker*
-digest_add_token_noop(PSI_digest_locker *locker NNN,
-                      uint token NNN,
-                      struct OPAQUE_LEX_YYSTYPE *yylval NNN)
+static void
+digest_end_noop(PSI_digest_locker *locker NNN,
+                const struct sql_digest_storage *digest NNN)
 {
-  return NULL;
+  return;
 }
 
 static int
@@ -643,6 +738,104 @@ set_thread_connect_attrs_noop(const char *buffer __attribute__((unused)),
                              const void *from_cs __attribute__((unused)))
 {
   return 0;
+}
+
+static PSI_sp_locker*
+pfs_start_sp_noop(PSI_sp_locker_state *state NNN, PSI_sp_share *sp_share NNN)
+{
+  return NULL;
+}
+
+static void pfs_end_sp_noop(PSI_sp_locker *locker NNN)
+{
+  return;
+}
+
+static void
+pfs_drop_sp_noop(uint object_type NNN,
+                 const char *schema_name NNN, uint schema_name_length NNN,
+                 const char *object_name NNN, uint object_name_length NNN)
+{
+  return;
+}
+
+static PSI_sp_share*
+pfs_get_sp_share_noop(uint object_type NNN,
+                      const char *schema_name NNN, uint schema_name_length NNN,
+                      const char *object_name NNN, uint object_name_length NNN)
+{
+  return NULL;
+}
+
+static void
+pfs_release_sp_share_noop(PSI_sp_share *sp_share NNN)
+{
+  return;
+}
+
+static void register_memory_noop(const char *category NNN,
+                                 PSI_memory_info *info NNN,
+                                 int count NNN)
+{
+  return;
+}
+
+static PSI_memory_key memory_alloc_noop(PSI_memory_key key NNN, size_t size NNN)
+{
+  return PSI_NOT_INSTRUMENTED;
+}
+
+static PSI_memory_key memory_realloc_noop(PSI_memory_key key NNN, size_t old_size NNN, size_t new_size NNN)
+{
+  return PSI_NOT_INSTRUMENTED;
+}
+
+static void memory_free_noop(PSI_memory_key key NNN, size_t size NNN)
+{
+  return;
+}
+
+static void unlock_table_noop(PSI_table *table NNN)
+{
+  return;
+}
+
+static PSI_metadata_lock *
+create_metadata_lock_noop(void *identity NNN,
+                          const MDL_key *mdl_key NNN,
+                          opaque_mdl_type mdl_type NNN,
+                          opaque_mdl_duration mdl_duration NNN,
+                          opaque_mdl_status mdl_status NNN,
+                          const char *src_file NNN,
+                          uint src_line NNN)
+{
+  return NULL;
+}
+
+static void
+set_metadata_lock_status_noop(PSI_metadata_lock* lock NNN,
+                              opaque_mdl_status mdl_status NNN)
+{
+}
+
+static void
+destroy_metadata_lock_noop(PSI_metadata_lock* lock NNN)
+{
+}
+
+static PSI_metadata_locker *
+start_metadata_wait_noop(PSI_metadata_locker_state *state NNN,
+                         PSI_metadata_lock *mdl NNN,
+                         const char *src_file NNN,
+                         uint src_line NNN)
+{
+  return NULL;
+}
+
+static void
+end_metadata_wait_noop(PSI_metadata_locker *locker NNN,
+                       int rc NNN)
+{
 }
 
 static PSI PSI_noop=
@@ -736,14 +929,44 @@ static PSI PSI_noop=
   set_statement_no_index_used_noop,
   set_statement_no_good_index_used_noop,
   end_statement_noop,
+  get_thread_transaction_locker_noop,
+  start_transaction_noop,
+  set_transaction_xid_noop,
+  set_transaction_xa_state_noop,
+  set_transaction_gtid_noop,
+  set_transaction_trxid_noop,
+  inc_transaction_savepoints_noop,
+  inc_transaction_rollback_to_savepoint_noop,
+  inc_transaction_release_savepoint_noop,
+  end_transaction_noop,
   start_socket_wait_noop,
   end_socket_wait_noop,
   set_socket_state_noop,
   set_socket_info_noop,
   set_socket_thread_owner_noop,
+  create_prepare_stmt_noop,
+  destroy_prepared_stmt_noop,
+  reprepare_prepared_stmt_noop,
+  execute_prepare_stmt_noop,
   digest_start_noop,
-  digest_add_token_noop,
-  set_thread_connect_attrs_noop
+  digest_end_noop,
+  set_thread_connect_attrs_noop,
+  pfs_start_sp_noop,
+  pfs_end_sp_noop,
+  pfs_drop_sp_noop,
+  pfs_get_sp_share_noop,
+  pfs_release_sp_share_noop,
+  register_memory_noop,
+  memory_alloc_noop,
+  memory_realloc_noop,
+  memory_free_noop,
+
+  unlock_table_noop,
+  create_metadata_lock_noop,
+  set_metadata_lock_status_noop,
+  destroy_metadata_lock_noop,
+  start_metadata_wait_noop,
+  end_metadata_wait_noop
 };
 
 /**

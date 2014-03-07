@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ static pthread_mutex_t LOCK_thread_count;
 static char *database,*host,*user,*password,*unix_socket,*query;
 uint tcp_port;
 
-#ifndef __WIN__
+#ifndef _WIN32
 void *test_thread(void *arg __attribute__((unused)))
 #else
 unsigned __stdcall test_thread(void *arg __attribute__((unused)))

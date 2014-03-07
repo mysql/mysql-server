@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,6 +99,19 @@ public abstract class AbstractJPABaseTest extends SingleEMTestCase {
         failOnError();
         em.close();
     }
+
+    public void createEmployeeInstances() {
+        for (int i = 0; i < getNumberOfEmployees(); ++i) {
+            System.out.println("AbstractJPABaseTest creating Employee " + i);
+            Employee e = new Employee();
+            e.setId(i);
+            e.setAge(i);
+            e.setMagic(i);
+            e.setName("Employee " + i);
+            em.persist(e);
+        }
+    }
+
     public void createAll() {
         em = emf.createEntityManager();
         begin();

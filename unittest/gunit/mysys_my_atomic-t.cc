@@ -160,9 +160,6 @@ pthread_handler_t test_atomic_cas(void *arg)
 
 void do_tests()
 {
-  bad= my_atomic_initialize();
-  EXPECT_FALSE(bad) << "my_atomic_initialize() returned";
-
   my_atomic_rwlock_init(&rwl);
 
   b32= c32= 0;

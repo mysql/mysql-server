@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,5 +52,8 @@ public enum ColumnType {
     Unsigned,        ///< 32 bit. 4 byte unsigned integer, can be used in array
     Varbinary,       ///< Length bytes: 1, Max: 255
     Varchar,         ///< Length bytes: 1, Max: 255
-    Year             ///< Year 1901-2155 (1 byte)
+    Year,            ///< Year 1901-2155 (1 byte)
+    Time2,           ///< MySQL 5.6 time2
+    Datetime2,       ///< MySQL 5.6 datetime2
+    Timestamp2       ///< MySQL 5.6 timestamp2
 }

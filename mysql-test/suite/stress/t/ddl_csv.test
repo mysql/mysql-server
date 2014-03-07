@@ -9,7 +9,6 @@
 #
 
 # Storage engine to be used in CREATE TABLE
---source include/have_csv.inc
 let $engine_type= CSV;
 
 

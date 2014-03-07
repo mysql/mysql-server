@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define NDB_INTERPRETER_HPP
 
 #include <ndb_types.h>
+
+#define JAM_FILE_ID 215
+
 
 class Interpreter {
 public:
@@ -87,6 +90,7 @@ public:
   static Uint32 Sub(Uint32 DstReg, Uint32 SrcReg1, Uint32 SrcReg2);
   static Uint32 Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2);
   static Uint32 ExitOK();
+  static Uint32 ExitLastOK();
 
   /**
    * Branch OP_ARG
@@ -305,6 +309,12 @@ Interpreter::ExitOK(){
 
 inline
 Uint32
+Interpreter::ExitLastOK(){
+  return EXIT_OK_LAST;
+}
+
+inline
+Uint32
 Interpreter::getOpCode(Uint32 op){
   return op & 0x3f;
 }
@@ -407,5 +417,8 @@ Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
     return NULL;
   }
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

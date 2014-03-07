@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ Created 12/27/1996 Heikki Tuuri
 
 /*********************************************************************//**
 Creates an update vector object.
-@return	own: update vector object */
+@return own: update vector object */
 UNIV_INLINE
 upd_t*
 upd_create(
@@ -56,7 +56,7 @@ upd_create(
 /*********************************************************************//**
 Returns the number of fields in the update vector == number of columns
 to be updated by an update vector.
-@return	number of fields */
+@return number of fields */
 UNIV_INLINE
 ulint
 upd_get_n_fields(
@@ -71,7 +71,7 @@ upd_get_n_fields(
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Returns the nth field of an update vector.
-@return	update vector field */
+@return update vector field */
 UNIV_INLINE
 upd_field_t*
 upd_get_nth_field(
@@ -119,7 +119,7 @@ upd_field_set_field_no(
 
 /*********************************************************************//**
 Returns a field of an update vector by field_no.
-@return	update vector field, or NULL */
+@return update vector field, or NULL */
 UNIV_INLINE
 const upd_field_t*
 upd_get_field_by_field_no(

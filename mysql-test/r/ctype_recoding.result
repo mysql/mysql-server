@@ -7,7 +7,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 SELECT a FROM t1;
 a
 проба
@@ -31,7 +31,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text CHARACTER SET cp1251
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 SELECT HEX(a) FROM t1;
 HEX(a)
 EFF0EEE1E0
@@ -51,7 +51,7 @@ SHOW CREATE TABLE таблица;
 Table	Create Table
 таблица	CREATE TABLE `таблица` (
   `поле` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'комментарий поля'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='комментарий таблицы'
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='комментарий таблицы'
 SHOW FIELDS FROM таблица;
 Field	Type	Null	Key	Default	Extra
 поле	char(32)	NO		NULL	
@@ -63,7 +63,7 @@ SHOW CREATE TABLE РЮАКХЖЮ;
 Table	Create Table
 РЮАКХЖЮ	CREATE TABLE `РЮАКХЖЮ` (
   `ОНКЕ` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'ЙНЛЛЕМРЮПХИ ОНКЪ'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='ЙНЛЛЕМРЮПХИ РЮАКХЖШ'
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='ЙНЛЛЕМРЮПХИ РЮАКХЖШ'
 SHOW FIELDS FROM РЮАКХЖЮ;
 Field	Type	Null	Key	Default	Extra
 ОНКЕ	char(32)	NO		NULL	
@@ -75,7 +75,7 @@ SHOW CREATE TABLE я┌п╟п╠п╩п╦я├п╟;
 Table	Create Table
 я┌п╟п╠п╩п╦я├п╟	CREATE TABLE `я┌п╟п╠п╩п╦я├п╟` (
   `п©п╬п╩п╣` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ п©п╬п╩я▐'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ я┌п╟п╠п╩п╦я├я▀'
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ я┌п╟п╠п╩п╦я├я▀'
 SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
 Field	Type	Null	Key	Default	Extra
 п©п╬п╩п╣	char(32)	NO		NULL	
@@ -118,13 +118,13 @@ SHOW CREATE TABLE `я┌п╣я│я┌`;
 Table	Create Table
 я┌п╣я│я┌	CREATE TABLE `я┌п╣я│я┌` (
   `я┌п╣я│я┌` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 SET NAMES utf8;
 SHOW CREATE TABLE `я┌п╣я│я┌`;
 Table	Create Table
 я┌п╣я│я┌	CREATE TABLE `я┌п╣я│я┌` (
   `я┌п╣я│я┌` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE `я┌п╣я│я┌`;
 SET NAMES binary;
 SET character_set_connection=utf8;
@@ -143,7 +143,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `Д` char(128) DEFAULT 'Д',
   `Д1` enum('Д1','Д2') DEFAULT 'Д2'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 Д	char(128)	YES		Д	
@@ -154,7 +154,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `ц╓` char(128) DEFAULT 'ц╓',
   `ц╓1` enum('ц╓1','ц╓2') DEFAULT 'ц╓2'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 ц╓	char(128)	YES		ц╓	
@@ -262,7 +262,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(1) CHARACTER SET cp1251 DEFAULT 'Ъ'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1(a char character set latin1 default _cp1251 0xFF);
 ERROR 42000: Invalid default value for 'a'

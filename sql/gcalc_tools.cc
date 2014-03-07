@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,14 +15,15 @@
 
 
 #include "my_global.h"
-
-#ifdef HAVE_SPATIAL
-
 #include "sql_string.h"
 #include "gcalc_tools.h"
 #include "gstream.h"                            // Gis_read_stream
 #include "spatial.h"
 #include "sql_class.h"                          // THD
+#include "prealloced_array.h"
+
+#include <algorithm>
+#include <functional>
 
 #define float_to_coord(d) ((double) d)
 
@@ -99,9 +100,9 @@ int Gcalc_function::single_shape_op(shape_type shape_kind, gcalc_shape_info *si)
   Specify how many arguments we're going to have.
 */
 
-int Gcalc_function::reserve_shape_buffer(uint n_shapes)
+int Gcalc_function::reserve_shape_buffer(uint n_shapes_arg)
 {
-  return shapes_buffer.reserve(n_shapes * shape_buffer_item_size, 512);
+  return shapes_buffer.reserve(n_shapes_arg * shape_buffer_item_size, 512);
 }
 
 
@@ -1208,15 +1209,21 @@ int Gcalc_operation_reducer::get_line_result(res_point *cur,
 }
 
 
-static int chunk_info_cmp(const Gcalc_result_receiver::chunk_info *a1,
-                          const Gcalc_result_receiver::chunk_info *a2)
+class Chunk_info_cmp :
+  public std::binary_function<const Gcalc_result_receiver::chunk_info &,
+                              const Gcalc_result_receiver::chunk_info &, bool>
 {
-  if (a1->first_point != a2->first_point)
-    return a1->first_point < a2->first_point ? -1 : 1;
-  if (a1->is_poly_hole != a2->is_poly_hole)
-    return a1->is_poly_hole < a2->is_poly_hole ? -1 : 1;
-  return (int) a1->order - (int) a2->order;
-}
+public:
+  bool operator()(const Gcalc_result_receiver::chunk_info &a1,
+                  const Gcalc_result_receiver::chunk_info &a2)
+  {
+    if (a1.first_point != a2.first_point)
+      return a1.first_point < a2.first_point;
+    if (a1.is_poly_hole != a2.is_poly_hole)
+      return a1.is_poly_hole < a2.is_poly_hole;
+    return a1.order < a2.order;
+  }
+};
 
 
 #ifndef DBUG_OFF
@@ -1259,7 +1266,8 @@ int Gcalc_result_receiver::reorder_chunks(chunk_info *chunks, int nchunks)
 int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
 {
   DBUG_ENTER("Gcalc_operation_reducer::get_result");
-  Dynamic_array<Gcalc_result_receiver::chunk_info> chunks;
+  Prealloced_array<Gcalc_result_receiver::chunk_info, 16>
+    chunks(PSI_NOT_INSTRUMENTED);
   bool polygons_found= false;
 
   *m_res_hook= NULL;
@@ -1269,7 +1277,7 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
     Gcalc_result_receiver::chunk_info chunk;
 
     chunk.first_point= m_result;
-    chunk.order= chunks.elements();
+    chunk.order= chunks.size();
     chunk.position= storage->position();
     chunk.is_poly_hole= false;
 
@@ -1304,17 +1312,17 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
 
 end_shape:
     chunk.length= storage->position() - chunk.position;
-    chunks.append(chunk);
+    chunks.push_back(chunk);
   }
 
   /*
     In case if some polygons where found, we need to reorder polygon rings
     in the output buffer to make all hole rings go after their outer rings.
   */
-  if (polygons_found && chunks.elements() > 1)
+  if (polygons_found && chunks.size() > 1)
   {
-    chunks.sort(chunk_info_cmp);
-    if (storage->reorder_chunks(chunks.front(), chunks.elements()))
+    std::sort(chunks.begin(), chunks.end(), Chunk_info_cmp());
+    if (storage->reorder_chunks(chunks.begin(), chunks.size()))
       DBUG_RETURN(1);
   }
   
@@ -1332,6 +1340,3 @@ void Gcalc_operation_reducer::reset()
   free_list(m_first_active_thread);
   DBUG_VOID_RETURN;
 }
-
-#endif /*HAVE_SPATIAL*/
-

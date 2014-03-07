@@ -23,9 +23,8 @@ drop table if exists t1;
 --error 1439
 create table t1 (a bit(65)) engine=innodb;
 
+--error ER_INVALID_FIELD_SIZE
 create table t1 (a bit(0)) engine=innodb;
-show create table t1;
-drop table t1;
 
 create table t1 (a bit(64)) engine=innodb;
 insert into t1 values 

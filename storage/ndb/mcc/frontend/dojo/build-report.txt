@@ -1,0 +1,2819 @@
+Build started: Wed Dec 14 2011 17:20:01 GMT-0800 (PST)
+Build application version: 1.7.0dev (23930)
+Messages:
+info(100) Assumed module uses legacy loader API.
+	module: dojox/secure/DOM
+	module: dojox/storage
+	module: dojox/jsonPath
+	module: dojox/wire/TreeAdapter
+	module: dojox/wire/demos/WidgetRepeater
+	module: dojox/drawing/stencil/Path
+	module: dojox/widget/DynamicTooltip
+	module: dojox/widget/AnalogGauge
+	module: dojox/widget/Loader
+	module: dojox/storage/AirFileStorageProvider
+	module: dojox/xmpp/sasl
+	module: dojox/lang/aspect/memoizerGuard
+	module: dojox/mobile/app/compat
+	module: dojox/widget/gauge/AnalogArrowIndicator
+	module: dojox/drawing/stencil/Ellipse
+	module: dojox/wire/Wire
+	module: dojox/widget/rotator/ThumbnailController
+	module: dojox/mobile/app/ImageView
+	module: dojox/cometd/HttpChannels
+	module: dojox/drawing/plugins/tools/Zoom
+	module: dojox/data/restListener
+	module: dojox/mobile/app/TextBox
+	module: dojox/storage/CookieStorageProvider
+	module: dojox/mobile/app/AlertDialog
+	module: dojox/lang/oo/mixin
+	module: dojox/editor/plugins/ResizeTableColumn
+	module: dojox/drawing/tools/custom/Vector
+	module: dojox/drawing/manager/Undo
+	module: dojox/drawing/stencil/Text
+	module: dojox/drawing/ui/Button
+	module: dojox/widget/CalendarViews
+	module: dojox/mobile/app/SceneController
+	module: dojox/storage/LocalStorageProvider
+	module: dojox/storage/GearsStorageProvider
+	module: dojox/mobile/app/_event
+	module: dojox/cometd/RestChannels
+	module: dojox/widget/RollingList
+	module: dojox/lang/functional/curry
+	module: dojox/drawing/util/typeset
+	module: dojox/drawing/tools/Arrow
+	module: dojox/lang/functional/zip
+	module: dojox/widget/rotator/Wipe
+	module: dojox/wire/ml/XmlHandler
+	module: dojox/wire/ml/util
+	module: dojox/cometd/ack
+	module: dojox/xmpp/ChatService
+	module: dojox/drawing/tools/Ellipse
+	module: dojox/lang/aspect
+	module: dojox/wire/TextAdapter
+	module: dojox/lang/oo/aop
+	module: dojox/lang/aspect/cflow
+	module: dojox/drawing/defaults
+	module: dojox/drawing/tools/Pencil
+	module: dojox/drawing/plugins/tools/Pan
+	module: dojox/drawing/ui/Toolbar
+	module: dojox/help/_base
+	module: dojox/sql
+	module: dojox/socket/Reconnect
+	module: dojox/storage/AirDBStorageProvider
+	module: dojox/widget/Portlet
+	module: dojox/storage/Provider
+	module: dojox/lang/aspect/counter
+	module: dojox/data/ItemExplorer
+	module: dojox/xmpp/TransportSession
+	module: dojox/lang/functional/listcomp
+	module: dojox/editor/plugins/SpellCheck
+	module: dojox/data/StoreExplorer
+	module: dojox/widget/AutoRotator
+	module: dojox/lang/async/event
+	module: dojox/mobile/app/ImageThumbView
+	module: dojox/gantt/GanttChart
+	module: dojox/data/demos/widgets/PicasaView
+	module: dojox/image/ThumbnailPicker
+	module: dojox/xmpp/util
+	module: dojox/xmpp/widget/ChatSession
+	module: dojox/drawing/plugins/drawing/GreekPalette
+	module: dojox/widget/Pager
+	module: dojox/mobile/app/StageController
+	module: dojox/cometd/timesync
+	module: dojox/widget/BarGauge
+	module: dojox/drawing/manager/Stencil
+	module: dojox/widget/DocTester
+	module: dojox/lang/docs
+	module: dojox/cometd/longPollTransport
+	module: dojox/lang/async/timeout
+	module: dojox/drawing/annotations/BoxShadow
+	module: dojox/rails
+	module: dojox/cometd/_base
+	module: dojox/wire/demos/TableContainer
+	module: dojox/gantt/GanttTaskItem
+	module: dojox/gantt/GanttResourceItem
+	module: dojox/widget/gauge/_Gauge
+	module: dojox/wire/ml/Action
+	module: dojox/lang/functional/util
+	module: dojox/layout/BorderContainer
+	module: dojox/xmpp/PresenceService
+	module: dojox/flash/_base
+	module: dojox/lang/oo/Decorator
+	module: dojox/wire/_base
+	module: dojox/drawing/tools/custom/Axes
+	module: dojox/wire
+	module: dojox/layout/dnd/PlottedDnd
+	module: dojox/drawing/util/oo
+	module: dojox/widget/rotator/PanFade
+	module: dojox/widget/gauge/AnalogNeedleIndicator
+	module: dojox/wire/ml/DataStore
+	module: dojox/storage/BehaviorStorageProvider
+	module: dojox/wire/ml/JsonHandler
+	module: dojox/widget/Iterator
+	module: dojox/xmpp/xmppSession
+	module: dojox/drawing/tools/Rect
+	module: dojox/widget/SortList
+	module: dojox/cometd/longPollTransportFormEncoded
+	module: dojox/lang/functional/tailrec
+	module: dojox/data/demos/widgets/FlickrViewList
+	module: dojox/cometd/timestamp
+	module: dojox/jsonPath/query
+	module: dojox/mobile/app/_base
+	module: dojox/lang/functional/numrec
+	module: dojox/drawing/ui/dom/Pan
+	module: dojox/drawing/stencil/_Base
+	module: dojox/drawing/stencil/Rect
+	module: dojox/lang/oo/Filter
+	module: dojox/xmpp/bosh
+	module: dojox/secure/sandbox
+	module: dojox/storage/WhatWGStorageProvider
+	module: dojox/mobile/app/_FormWidget
+	module: dojox/gantt/GanttProjectItem
+	module: dojox/lang/functional/multirec
+	module: dojox/lang/aspect/memoizer
+	module: dojox/widget/rotator/Slide
+	module: dojox/image/SlideShow
+	module: dojox/cometd
+	module: dojox/drawing/annotations/Angle
+	module: dojox/data/demos/stores/LazyLoadJSIStore
+	module: dojox/secure/fromJson
+	module: dojox/drawing/plugins/tools/Iconize
+	module: dojox/widget/CalendarFx
+	module: dojox/mobile/app/_Widget
+	module: dojox/drawing/util/common
+	module: dojox/mobile/app/SceneAssistant
+	module: dojox/help/console
+	module: dojox/drawing/stencil/Image
+	module: dojox/lang/async/topic
+	module: dojox/drawing/plugins/_Plugin
+	module: dojox/sql/_base
+	module: dojox/drawing/tools/Line
+	module: dojox/lang/observable
+	module: dojox/drawing/manager/Mouse
+	module: dojox/secure/capability
+	module: dojox/widget/FilePicker
+	module: dojox/widget/rotator/Fade
+	module: dojox/drawing/util/positioning
+	module: dojox/lang/async
+	module: dojox/wire/TableAdapter
+	module: dojox/drawing/stencil/Line
+	module: dojox/lang/functional/linrec
+	module: dojox/lang/oo/rearrange
+	module: dojox/drawing/ui/dom/Toolbar
+	module: dojox/wire/ml/Service
+	module: dojox/lang/typed
+	module: dojox/drawing/tools/custom/Equation
+	module: dojox/storage/manager
+	module: dojox/drawing/library/greek
+	module: dojox/widget/Rotator
+	module: dojox/cometd/longPollTransportJsonEncoded
+	module: dojox/widget/FisheyeList
+	module: dojox/wire/ml/Transfer
+	module: dojox/lang/aspect/profiler
+	module: dojox/widget/DataPresentation
+	module: dojox/wire/DataWire
+	module: dojox/drawing
+	module: dojox/drawing/_base
+	module: dojox/widget/Calendar
+	module: dojox/drawing/manager/Canvas
+	module: dojox/lang/oo/general
+	module: dojox/wire/XmlWire
+	module: dojox/drawing/tools/TextBlock
+	module: dojox/drawing/annotations/Label
+	module: dojox/wire/ml/Invocation
+	module: dojox/lang/functional/binrec
+	module: dojox/gantt/TabMenu
+	module: dojox/jq
+	module: dojox/drawing/manager/StencilUI
+	module: dojox/lang/aspect/timer
+	module: dojox/layout/ext-dijit/layout/StackContainer-touch
+	module: dojox/mobile/app/List
+	module: dojox/widget/UpgradeBar
+	module: dojox/layout/dnd/Avatar
+	module: dojox/data/demos/widgets/FileView
+	module: dojox/drawing/annotations/Arrow
+	module: dojox/drawing/manager/Anchors
+	module: dojox/drawing/library/icons
+	module: dojox/widget/rotator/Pan
+	module: dojox/wire/ml/RestHandler
+	module: dojox/drawing/plugins/drawing/Silverlight
+	module: dojox/drawing/plugins/drawing/Grid
+	module: dojox/xmpp/RosterService
+	module: dojox/robot/recorder
+	module: dojox/mobile/app/ListSelector
+	module: dojox/lang/aspect/tracer
+	module: dojox/widget/FeedPortlet
+	module: dojox/drawing/manager/_registry
+	module: dojox/drawing/ui/Tooltip
+	module: dojox/storage/FlashStorageProvider
+	module: dojox/cometd/callbackPollTransport
+	module: dojox/widget/gauge/AnalogArcIndicator
+	module: dojox/drawing/manager/keys
+	module: dojox/flash
+	module: dojox/sql/_crypto
+	module: dojox/wire/CompositeWire
+	module: dojox/widget/rotator/Controller
+	module: dojox/xmpp/UserService
+	module: dojox/storage/AirEncryptedLocalStorageProvider
+	module: dojox/image/Gallery
+	module: dojox/storage/_common
+	module: dojox/data/demos/widgets/PicasaViewList
+	module: dojox/widget/gauge/BarIndicator
+	module: dojox/drawing/tools/Path
+	module: dojox/drawing/Drawing
+	module: dojox/drawing/ui/dom/Zoom
+	module: dojox/wire/ml/Data
+info(101) Using dojo/loadInit plugin for module.
+	module: dojox/cometd/RestChannels
+info(102) Optimizing module
+	module: dijit/MenuBar
+	module: dijit/_editor/range
+	module: dijit/Dialog
+	module: dijit/form/Slider
+	module: dijit/_Templated
+	module: dijit/_editor/RichText
+	module: dijit/ToolbarSeparator
+	module: dijit/form/RadioButton
+	module: dijit/MenuSeparator
+	module: dijit/form/ToggleButton
+	module: dijit/CheckedMenuItem
+	module: dijit/_tree/dndSource
+	module: dijit/_DialogMixin
+	module: dijit/_Widget
+	module: dijit/layout/AccordionContainer
+	module: dijit/form/SimpleTextarea
+	module: dijit/form/MultiSelect
+	module: dijit/tree/model
+	module: dijit/tree/ForestStoreModel
+	module: dijit/_Calendar
+	module: dijit/layout/SplitContainer
+	module: dijit/form/TimeTextBox
+	module: dijit/Menu
+	module: dijit/dijit-all
+	module: dijit/_base/window
+	module: dijit/form/MappedTextBox
+	module: dijit/form/CheckBox
+	module: dijit/form/Textarea
+	module: dijit/_base/scroll
+	module: dijit/form/DropDownButton
+	module: dijit/_TimePicker
+	module: dijit/_Contained
+	module: dijit/InlineEditBox
+	module: dijit/_Container
+	module: dijit/layout/BorderContainer
+	module: dijit/_base/wai
+	module: dijit/form/ComboBoxMixin
+	module: dijit/form/Select
+	module: dijit/Calendar
+	module: dijit/_base/manager
+	module: dijit/_editor/plugins/AlwaysShowToolbar
+	module: dijit/form/ComboButton
+	module: dijit/WidgetSet
+	module: dijit/form/RangeBoundTextBox
+	module: dijit/DialogUnderlay
+	module: dijit/form/_ToggleButtonMixin
+	module: dijit/form/VerticalSlider
+	module: dijit/_TemplatedMixin
+	module: dijit/form/HorizontalSlider
+	module: dijit/_editor/plugins/ToggleDir
+	module: dijit/form/_TextBoxMixin
+	module: dijit/a11y
+	module: dijit/form/TextBox
+	module: dijit/form/_DateTimeTextBox
+	module: dijit/layout/StackContainer
+	module: dijit/form/_RadioButtonMixin
+	module: dijit/form/Form
+	module: dijit/form/_FormWidgetMixin
+	module: dijit/main
+	module: dijit/_base/place
+	module: dijit/_base/sniff
+	module: dijit/_base/popup
+	module: dijit/_editor/plugins/NewPage
+	module: dijit/registry
+	module: dijit/_base/focus
+	module: dijit/PopupMenuBarItem
+	module: dijit/form/_FormMixin
+	module: dijit/BackgroundIframe
+	module: dijit/layout/TabController
+	module: dijit/_MenuBase
+	module: dijit/_editor/_Plugin
+	module: dijit/layout/ScrollingTabController
+	module: dijit/form/_ListMouseMixin
+	module: dijit/tree/_dndSelector
+	module: dijit/_OnDijitClickMixin
+	module: dijit/form/VerticalRuleLabels
+	module: dijit/layout/StackController
+	module: dijit/form/DateTextBox
+	module: dijit/form/_FormValueMixin
+	module: dijit/layout/AccordionPane
+	module: dijit/TitlePane
+	module: dijit/form/_AutoCompleterMixin
+	module: dijit/form/CurrencyTextBox
+	module: dijit/place
+	module: dijit/layout/_LayoutWidget
+	module: dijit/form/ComboBox
+	module: dijit/layout/_ContentPaneResizeMixin
+	module: dijit/form/_ButtonMixin
+	module: dijit/tree/TreeStoreModel
+	module: dijit/_editor/plugins/Print
+	module: dijit/form/HorizontalRule
+	module: dijit/hccss
+	module: dijit/Editor
+	module: dijit/form/HorizontalRuleLabels
+	module: dijit/popup
+	module: dijit/layout/TabContainer
+	module: dijit/_base
+	module: dijit/_editor/plugins/EnterKeyHandling
+	module: dijit/layout/LinkPane
+	module: dijit/form/_FormValueWidget
+	module: dijit/_BidiSupport
+	module: dijit/tree/_dndContainer
+	module: dijit/focus
+	module: dijit/ColorPalette
+	module: dijit/_CssStateMixin
+	module: dijit/_WidgetBase
+	module: dijit/form/FilteringSelect
+	module: dijit/MenuBarItem
+	module: dijit/_editor/html
+	module: dijit/form/_FormWidget
+	module: dijit/dijit
+	module: dijit/form/NumberSpinner
+	module: dijit/MenuItem
+	module: dijit/DropDownMenu
+	module: dijit/_base/typematic
+	module: dijit/_editor/plugins/LinkDialog
+	module: dijit/form/_ListBase
+	module: dijit/typematic
+	module: dijit/_editor/plugins/FontChoice
+	module: dijit/_editor/plugins/ViewSource
+	module: dijit/form/_FormSelectWidget
+	module: dijit/layout/_TabContainerBase
+	module: dijit/form/_ComboBoxMenu
+	module: dijit/_KeyNavContainer
+	module: dijit/form/DataList
+	module: dijit/Tooltip
+	module: dijit/PopupMenuItem
+	module: dijit/layout/ContentPane
+	module: dijit/_WidgetsInTemplateMixin
+	module: dijit/form/VerticalRule
+	module: dijit/_HasDropDown
+	module: dijit/tree/dndSource
+	module: dijit/form/_CheckBoxMixin
+	module: dijit/_editor/plugins/FullScreen
+	module: dijit/layout/LayoutContainer
+	module: dijit/layout/utils
+	module: dijit/ProgressBar
+	module: dijit/_PaletteMixin
+	module: dijit/_editor/selection
+	module: dijit/Declaration
+	module: dijit/_editor/plugins/TextColor
+	module: dijit/_FocusMixin
+	module: dijit/form/ValidationTextBox
+	module: dijit/form/NumberTextBox
+	module: dijit/form/_ComboBoxMenuMixin
+	module: dijit/Tree
+	module: dijit/form/_ExpandingTextAreaMixin
+	module: dijit/form/Button
+	module: dijit/CalendarLite
+	module: dijit/Toolbar
+	module: dijit/form/_Spinner
+	module: dijit/_editor/plugins/TabIndent
+	module: dijit/TooltipDialog
+	module: dojox/form/MultiComboBox
+	module: dojox/secure/DOM
+	module: dojox/form/uploader/plugins/IFrame
+	module: dojox/form/manager/_ClassMixin
+	module: dojox/rpc/Rest
+	module: dojox/form/RadioStack
+	module: dojox/gauges/GlossySemiCircularGauge
+	module: dojox/socket
+	module: dojox/gauges/BarGauge
+	module: dojox/gfx3d
+	module: dojox/storage
+	module: dojox/image/_base
+	module: dojox/dtl/Context
+	module: dojox/fx/ext-dojo/reverse
+	module: dojox/jsonPath
+	module: dojox/charting/themes/Julie
+	module: dojox/editor/plugins/TablePlugins
+	module: dojox/app/module/env
+	module: dojox/grid/enhanced/plugins/Printer
+	module: dojox/gauges/AnalogLineIndicator
+	module: dojox/wire/TreeAdapter
+	module: dojox/layout/ScrollPane
+	module: dojox/wire/demos/WidgetRepeater
+	module: dojox/layout/FloatingPane
+	module: dojox/encoding/_base
+	module: dojox/drawing/stencil/Path
+	module: dojox/widget/Wizard
+	module: dojox/charting/plot2d/StackedBars
+	module: dojox/widget/DynamicTooltip
+	module: dojox/validate
+	module: dojox/mobile/IconItem
+	module: dojox/data/FlickrStore
+	module: dojox/geo/openlayers/Collection
+	module: dojox/form/manager/_EnableMixin
+	module: dojox/widget/AnalogGauge
+	module: dojox/charting/themes/Midwest
+	module: dojox/widget/Loader
+	module: dojox/charting/action2d/Base
+	module: dojox/collections/_base
+	module: dojox/highlight/languages/xquery
+	module: dojox/charting/themes/Grasshopper
+	module: dojox/gauges/GlossyCircularGaugeNeedle
+	module: dojox/json/ref
+	module: dojox/timing/Sequence
+	module: dojox/storage/AirFileStorageProvider
+	module: dojox/mobile/_ItemBase
+	module: dojox/charting/themes/Grasslands
+	module: dojox/xmpp/sasl
+	module: dojox/mvc/Generate
+	module: dojox/gesture/tap
+	module: dojox/html/ellipsis
+	module: dojox/dtl/filter/htmlstrings
+	module: dojox/mvc/Group
+	module: dojox/lang/aspect/memoizerGuard
+	module: dojox/analytics/Urchin
+	module: dojox/mobile/app/compat
+	module: dojox/rpc/Client
+	module: dojox/mobile/ListItem
+	module: dojox/charting/action2d/MouseZoomAndPan
+	module: dojox/widget/gauge/AnalogArrowIndicator
+	module: dojox/css3/transit
+	module: dojox/drawing/stencil/Ellipse
+	module: dojox/date/buddhist/locale
+	module: dojox/wire/Wire
+	module: dojox/charting/plot2d/Areas
+	module: dojox/validate/br
+	module: dojox/json/schema
+	module: dojox/charting/themes/PlotKit/purple
+	module: dojox/widget/rotator/ThumbnailController
+	module: dojox/mobile/app/ImageView
+	module: dojox/highlight/languages/_dynamic
+	module: dojox/dtl/contrib/objects
+	module: dojox/validate/ca
+	module: dojox/charting/themes/Ireland
+	module: dojox/gfx3d/lighting
+	module: dojox/mvc/_DataBindingMixin
+	module: dojox/form/RangeSlider
+	module: dojox/editor/plugins/_SmileyPalette
+	module: dojox/grid/enhanced/plugins/Search
+	module: dojox/grid/enhanced/plugins/_SelectionPreserver
+	module: dojox/cometd/HttpChannels
+	module: dojox/grid/enhanced/plugins/exporter/_ExportWriter
+	module: dojox/form/FileInputAuto
+	module: dojox/drawing/plugins/tools/Zoom
+	module: dojox/form/_HasDropDown
+	module: dojox/gauges/GlossyHorizontalGaugeMarker
+	module: dojox/data/restListener
+	module: dojox/av/widget/PlayButton
+	module: dojox/mobile/app/TextBox
+	module: dojox/charting/action2d/Tooltip
+	module: dojox/storage/CookieStorageProvider
+	module: dojox/charting/plot2d/Bars
+	module: dojox/mobile/app/AlertDialog
+	module: dojox/charting/themes/Distinctive
+	module: dojox/form/FilePickerTextBox
+	module: dojox/gfx/utils
+	module: dojox/lang/oo/mixin
+	module: dojox/string/sprintf
+	module: dojox/editor/plugins/ResizeTableColumn
+	module: dojox/drawing/tools/custom/Vector
+	module: dojox/charting/plot2d/Base
+	module: dojox/mvc/_Container
+	module: dojox/app/transition
+	module: dojox/charting/plot3d/Bars
+	module: dojox/mvc/StatefulModel
+	module: dojox/dtl/DomInline
+	module: dojox/charting/action2d/Shake
+	module: dojox/io/proxy/xip
+	module: dojox/drawing/manager/Undo
+	module: dojox/charting/plot3d/Base
+	module: dojox/fx/easing
+	module: dojox/sketch/Figure
+	module: dojox/data/CssClassStore
+	module: dojox/drawing/stencil/Text
+	module: dojox/calc/toFrac
+	module: dojox/drawing/ui/Button
+	module: dojox/dtl/_DomTemplated
+	module: dojox/grid/_CheckBoxSelector
+	module: dojox/widget/CalendarViews
+	module: dojox/data/PicasaStore
+	module: dojox/data/QueryReadStore
+	module: dojox/mobile/app/SceneController
+	module: dojox/store/LightstreamerStore
+	module: dojox/data/FlickrRestStore
+	module: dojox/gesture/swipe
+	module: dojox/dtl/_Templated
+	module: dojox/charting/plot2d/ClusteredColumns
+	module: dojox/charting/plot2d/MarkersOnly
+	module: dojox/gfx/arc
+	module: dojox/grid/enhanced/plugins/DnD
+	module: dojox/storage/LocalStorageProvider
+	module: dojox/form/ListInput
+	module: dojox/encoding/compression/splay
+	module: dojox/analytics/_base
+	module: dojox/grid/_RowSelector
+	module: dojox/gfx/_base
+	module: dojox/storage/GearsStorageProvider
+	module: dojox/mobile/app/_event
+	module: dojox/data/JsonRestStore
+	module: dojox/calc/Standard
+	module: dojox/cometd/RestChannels-loadInit
+	module: dojox/highlight/languages/pygments/javascript
+	module: dojox/image/Badge
+	module: dojox/mobile/Carousel
+	module: dojox/widget/RollingList
+	module: dojox/lang/functional/curry
+	module: dojox/drawing/util/typeset
+	module: dojox/drawing/tools/Arrow
+	module: dojox/charting/themes/gradientGenerator
+	module: dojox/charting/themes/PlotKit/green
+	module: dojox/data/PersevereStore
+	module: dojox/validate/creditCard
+	module: dojox/charting/widget/BidiSupport
+	module: dojox/av/widget/ProgressSlider
+	module: dojox/widget/DialogSimple
+	module: dojox/grid/LazyTreeGridStoreModel
+	module: dojox/encoding/crypto/RSAKey
+	module: dojox/charting/themes/Desert
+	module: dojox/charting/action2d/_IndicatorElement
+	module: dojox/timing/_base
+	module: dojox/widget/MultiSelectCalendar
+	module: dojox/gauges/_Indicator
+	module: dojox/charting/Theme
+	module: dojox/highlight/languages/_www
+	module: dojox/dtl/Inline
+	module: dojox/mobile/uacss
+	module: dojox/lang/functional/zip
+	module: dojox/grid/DataSelection
+	module: dojox/widget/rotator/Wipe
+	module: dojox/highlight/languages/_all
+	module: dojox/wire/ml/XmlHandler
+	module: dojox/wire/ml/util
+	module: dojox/mobile/ExpandingTextArea
+	module: dojox/gauges/AnalogGauge
+	module: dojox/widget/ColorPicker
+	module: dojox/string/Builder
+	module: dojox/encoding/ascii85
+	module: dojox/io/xhrMultiPart
+	module: dojox/grid/enhanced/plugins/Selector
+	module: dojox/charting/action2d/Magnify
+	module: dojox/mobile/_compat
+	module: dojox/lang/functional/lambda
+	module: dojox/mobile/compat
+	module: dojox/geo/openlayers/Point
+	module: dojox/data/CssRuleStore
+	module: dojox/embed/flashVars
+	module: dojox/charting/plot2d/StackedAreas
+	module: dojox/mobile/FixedSplitterPane
+	module: dojox/cometd/ack
+	module: dojox/xmpp/ChatService
+	module: dojox/date/buddhist
+	module: dojox/geo/charting/Feature
+	module: dojox/mobile/View
+	module: dojox/geo/openlayers/JsonImport
+	module: dojox/dtl/filter/dates
+	module: dojox/drawing/tools/Ellipse
+	module: dojox/widget/Toaster
+	module: dojox/lang/aspect
+	module: dojox/wire/TextAdapter
+	module: dojox/validate/web
+	module: dojox/charting/themes/ThreeD
+	module: dojox/color/_base
+	module: dojox/editor/plugins/ShowBlockNodes
+	module: dojox/grid/_FocusManager
+	module: dojox/lang/oo/aop
+	module: dojox/lang/aspect/cflow
+	module: dojox/timing/Streamer
+	module: dojox/atom/widget/FeedEntryEditor
+	module: dojox/gauges/AnalogIndicatorBase
+	module: dojox/encoding/crypto/_base
+	module: dojox/dtl/render/dom
+	module: dojox/analytics/profiles/analytics.profile
+	module: dojox/gfx/attach
+	module: dojox/drawing/defaults
+	module: dojox/drawing/tools/Pencil
+	module: dojox/drawing/plugins/tools/Pan
+	module: dojox/app/view
+	module: dojox/gfx3d/object
+	module: dojox/form/Rating
+	module: dojox/mobile/_ComboBoxMenu
+	module: dojox/drawing/ui/Toolbar
+	module: dojox/help/_base
+	module: dojox/color/Palette
+	module: dojox/av/widget/VolumeButton
+	module: dojox/app/model
+	module: dojox/charting/themes/PlotKit/blue
+	module: dojox/charting/widget/Chart
+	module: dojox/grid/enhanced/plugins/IndirectSelection
+	module: dojox/app/animation
+	module: dojox/mobile
+	module: dojox/charting/plot2d/Scatter
+	module: dojox/sql
+	module: dojox/charting/action2d/TouchZoomAndPan
+	module: dojox/grid/enhanced/plugins/filter/FilterDefDialog
+	module: dojox/editor/plugins/AutoUrlLink
+	module: dojox/charting/Element
+	module: dojox/socket/Reconnect
+	module: dojox/gfx3d/vector
+	module: dojox/mobile/TabBarButton
+	module: dojox/grid/cells/tree
+	module: dojox/mobile/TextBox
+	module: dojox/storage/AirDBStorageProvider
+	module: dojox/widget/Portlet
+	module: dojox/storage/Provider
+	module: dojox/data/GoogleFeedStore
+	module: dojox/lang/aspect/counter
+	module: dojox/embed/Quicktime
+	module: dojox/form/Manager
+	module: dojox/data/ItemExplorer
+	module: dojox/mobile/_ScrollableMixin
+	module: dojox/sketch/Toolbar
+	module: dojox/xmpp/TransportSession
+	module: dojox/layout/GridContainerLite
+	module: dojox/geo/openlayers/GfxLayer
+	module: dojox/dtl/filter/misc
+	module: dojox/geo/charting/_base
+	module: dojox/validate/us
+	module: dojox/lang/functional/listcomp
+	module: dojox/mobile/_ListTouchMixin
+	module: dojox/charting/scaler/common
+	module: dojox/data/GoogleSearchStore
+	module: dojox/grid/enhanced/plugins/filter/FilterBuilder
+	module: dojox/mobile/CheckBox
+	module: dojox/form/uploader/plugins/HTML5
+	module: dojox/mobile/ToolBarButton
+	module: dojox/color
+	module: dojox/grid/_RowManager
+	module: dojox/grid/Selection
+	module: dojox/date/hebrew
+	module: dojox/editor/plugins/SpellCheck
+	module: dojox/data/StoreExplorer
+	module: dojox/widget/AutoRotator
+	module: dojox/grid/enhanced/plugins/Cookie
+	module: dojox/lang/functional
+	module: dojox/app/bind
+	module: dojox/lang/async/event
+	module: dojox/string/BidiComplex
+	module: dojox/gauges/AnalogArcIndicator
+	module: dojox/charting/themes/GreySkies
+	module: dojox/mobile/ToggleButton
+	module: dojox/mobile/app/ImageThumbView
+	module: dojox/fx/ext-dojo/NodeList-style
+	module: dojox/mobile/FlippableView
+	module: dojox/geo/charting/MouseInteractionSupport
+	module: dojox/gantt/GanttChart
+	module: dojox/charting/themes/Claro
+	module: dojox/gauges/GlossyCircularGauge
+	module: dojox/html
+	module: dojox/dtl/tag/loader
+	module: dojox/data/demos/widgets/PicasaView
+	module: dojox/mobile/RoundRect
+	module: dojox/grid/_Layout
+	module: dojox/image/ThumbnailPicker
+	module: dojox/atom/io/model
+	module: dojox/xmpp/util
+	module: dojox/timing/doLater
+	module: dojox/xmpp/widget/ChatSession
+	module: dojox/drawing/plugins/drawing/GreekPalette
+	module: dojox/gfx/vml_attach
+	module: dojox/highlight/languages/delphi
+	module: dojox/widget/Pager
+	module: dojox/sketch
+	module: dojox/mobile/app/StageController
+	module: dojox/grid/_View
+	module: dojox/gfx/gradient
+	module: dojox/charting/widget/Sparkline
+	module: dojox/fx/scroll
+	module: dojox/cometd/timesync
+	module: dojox/geo/openlayers/widget/Map
+	module: dojox/form/uploader/plugins/Flash
+	module: dojox/widget/BarGauge
+	module: dojox/drawing/manager/Stencil
+	module: dojox/data/HtmlTableStore
+	module: dojox/widget/DocTester
+	module: dojox/highlight/languages/_static
+	module: dojox/layout/GridContainer
+	module: dojox/mobile/Opener
+	module: dojox/css3/transition
+	module: dojox/charting/DataSeries
+	module: dojox/lang/docs
+	module: dojox/grid/enhanced/plugins/filter/ClearFilterConfirm
+	module: dojox/cometd/longPollTransport
+	module: dojox/lang/async/timeout
+	module: dojox/fx/_base
+	module: dojox/mobile/_base
+	module: dojox/grid/enhanced/plugins/_RowMapLayer
+	module: dojox/gfx/silverlight
+	module: dojox/charting/themes/CubanShirts
+	module: dojox/dtl/tag/misc
+	module: dojox/calc/GraphPro
+	module: dojox/form/DateTextBox
+	module: dojox/analytics/plugins/dojo
+	module: dojox/mobile/FixedSplitter
+	module: dojox/lang/functional/fold
+	module: dojox/dtl/render/html
+	module: dojox/drawing/annotations/BoxShadow
+	module: dojox/validate/isbn
+	module: dojox/rails
+	module: dojox/mobile/ProgressIndicator
+	module: dojox/date/islamic/Date
+	module: dojox/editor/plugins/CollapsibleToolbar
+	module: dojox/mvc/Output
+	module: dojox/grid/enhanced/plugins/_StoreLayer
+	module: dojox/cometd/_base
+	module: dojox/gauges/GlossyCircularGaugeBase
+	module: dojox/data/ServiceStore
+	module: dojox/grid/_EditManager
+	module: dojox/wire/demos/TableContainer
+	module: dojox/gantt/GanttTaskItem
+	module: dojox/charting/plot2d/Default
+	module: dojox/gantt/GanttResourceItem
+	module: dojox/highlight/languages/xml
+	module: dojox/av/widget/Status
+	module: dojox/charting/themes/IndigoNation
+	module: dojox/gfx
+	module: dojox/highlight/widget/Code
+	module: dojox/widget/gauge/_Gauge
+	module: dojox/editor/plugins/UploadImage
+	module: dojox/charting/themes/Adobebricks
+	module: dojox/data/AppStore
+	module: dojox/charting/action2d/ChartAction
+	module: dojox/xml/widgetParser
+	module: dojox/charting/DataChart
+	module: dojox/charting/themes/BlueDusk
+	module: dojox/mobile/common
+	module: dojox/wire/ml/Action
+	module: dojox/editor/plugins/Breadcrumb
+	module: dojox/atom/io/Connection
+	module: dojox/mvc/_patches
+	module: dojox/dtl/contrib/data
+	module: dojox/charting/themes/Renkoo
+	module: dojox/collections/Dictionary
+	module: dojox/xml/DomParser
+	module: dojox/timing/ThreadPool
+	module: dojox/lang/functional/util
+	module: dojox/gauges/TextIndicator
+	module: dojox/layout/BorderContainer
+	module: dojox/xmpp/PresenceService
+	module: dojox/flash/_base
+	module: dojox/lang/oo/Decorator
+	module: dojox/geo/openlayers/Layer
+	module: dojox/wire/_base
+	module: dojox/mobile/_DataListMixin
+	module: dojox/rpc/OfflineRest
+	module: dojox/geo/openlayers/GreatCircle
+	module: dojox/layout/RadioGroup
+	module: dojox/fx/_core
+	module: dojox/mvc
+	module: dojox/geo/openlayers/LineString
+	module: dojox/charting/widget/Legend
+	module: dojox/mobile/PageIndicator
+	module: dojox/editor/plugins/SafePaste
+	module: dojox/mobile/RoundRectDataList
+	module: dojox/data/util/JsonQuery
+	module: dojox/atom/widget/FeedViewer
+	module: dojox/mdnd/adapter/DndFromDojo
+	module: dojox/gauges/BarCircleIndicator
+	module: dojox/charting/themes/RoyalPurples
+	module: dojox/charting/plot2d/common
+	module: dojox/gfx/fx
+	module: dojox/drawing/tools/custom/Axes
+	module: dojox/layout/DragPane
+	module: dojox/wire
+	module: dojox/charting/themes/PlotKit/red
+	module: dojox/analytics/plugins/idle
+	module: dojox/editor/plugins/AutoSave
+	module: dojox/layout/dnd/PlottedDnd
+	module: dojox/charting/themes/Harmony
+	module: dojox/drawing/util/oo
+	module: dojox/date/islamic
+	module: dojox/grid/_TreeView
+	module: dojox/validate/regexp
+	module: dojox/widget/rotator/PanFade
+	module: dojox/layout/ExpandoPane
+	module: dojox/calc/FuncGen
+	module: dojox/dtl/filter/lists
+	module: dojox/NodeList/delegate
+	module: dojox/highlight/languages/html
+	module: dojox/main
+	module: dojox/analytics/profiles/analyticsInBase.profile
+	module: dojox/widget/gauge/AnalogNeedleIndicator
+	module: dojox/mobile/ContentPane
+	module: dojox/lang/functional/array
+	module: dojox/wire/ml/DataStore
+	module: dojox/highlight/languages/pygments/xml
+	module: dojox/analytics/plugins/window
+	module: dojox/encoding/compression/lzw
+	module: dojox/io/httpParse
+	module: dojox/highlight/languages/pygments/_www
+	module: dojox/rpc/JsonRPC
+	module: dojox/gauges/Range
+	module: dojox/storage/BehaviorStorageProvider
+	module: dojox/app/main
+	module: dojox/grid/cells/_base
+	module: dojox/gfx/path
+	module: dojox/encoding/crypto/Blowfish
+	module: dojox/wire/ml/JsonHandler
+	module: dojox/gesture/Base
+	module: dojox/analytics/plugins/mouseClick
+	module: dojox/widget/Iterator
+	module: dojox/testing/DocTest
+	module: dojox/grid/enhanced/plugins/NestedSorting
+	module: dojox/data/AndOrReadStore
+	module: dojox/grid/_Builder
+	module: dojox/xmpp/xmppSession
+	module: dojox/fx/Shadow
+	module: dojox/dtl/tag/loop
+	module: dojox/form/manager/_DisplayMixin
+	module: dojox/encoding/base64
+	module: dojox/drawing/tools/Rect
+	module: dojox/charting/themes/Tufte
+	module: dojox/image/Magnifier
+	module: dojox/widget/SortList
+	module: dojox/cometd/longPollTransportFormEncoded
+	module: dojox/encoding/crypto/RSAKey-ext
+	module: dojox/data/KeyValueStore
+	module: dojox/gfx/renderer
+	module: dojox/lang/functional/tailrec
+	module: dojox/data/demos/widgets/FlickrViewList
+	module: dojox/rpc/ProxiedPath
+	module: dojox/xml/parser
+	module: dojox/cometd/timestamp
+	module: dojox/form/FileInput
+	module: dojox/collections/Set
+	module: dojox/gfx/decompose
+	module: dojox/jsonPath/query
+	module: dojox/data/WikipediaStore
+	module: dojox/charting/themes/Charged
+	module: dojox/mobile/app/_base
+	module: dojox/lang/functional/numrec
+	module: dojox/grid/enhanced/plugins/Pagination
+	module: dojox/analytics/plugins/consoleMessages
+	module: dojox/drawing/ui/dom/Pan
+	module: dojox/data/OpmlStore
+	module: dojox/grid/_Events
+	module: dojox/charting/themes/Dollar
+	module: dojox/dtl/dom
+	module: dojox/charting/axis2d/common
+	module: dojox/collections/Queue
+	module: dojox/charting/Chart2D
+	module: dojox/editor/plugins/PrettyPrint
+	module: dojox/geo/charting/Map
+	module: dojox/drawing/stencil/_Base
+	module: dojox/charting/themes/Minty
+	module: dojox/drawing/stencil/Rect
+	module: dojox/grid/enhanced/plugins/CellMerge
+	module: dojox/date/hebrew/locale
+	module: dojox/charting/Chart3D
+	module: dojox/grid/enhanced/plugins/filter/_FilterExpr
+	module: dojox/lang/oo/Filter
+	module: dojox/xmpp/bosh
+	module: dojox/fx/_arg
+	module: dojox/dtl/utils/date
+	module: dojox/mobile/mobile-all
+	module: dojox/math/random/Secure
+	module: dojox/mobile/SpinWheelSlot
+	module: dojox/mobile/i18n
+	module: dojox/dtl/tag/date
+	module: dojox/gfx3d/scheduler
+	module: dojox/secure/sandbox
+	module: dojox/data/CdfStore
+	module: dojox/storage/WhatWGStorageProvider
+	module: dojox/form/TriStateCheckBox
+	module: dojox/mobile/TransitionEvent
+	module: dojox/image/LightboxNano
+	module: dojox/uuid/_base
+	module: dojox/gauges/_Gauge
+	module: dojox/mobile/IconContainer
+	module: dojox/mobile/scrollable
+	module: dojox/editor/plugins/EntityPalette
+	module: dojox/dtl/filter/integers
+	module: dojox/sketch/PreexistingAnnotation
+	module: dojox/html/ext-dojo/style
+	module: dojox/gauges/BarIndicator
+	module: dojox/charting/themes/Algae
+	module: dojox/date/php
+	module: dojox/mobile/app/_FormWidget
+	module: dojox/gantt/GanttProjectItem
+	module: dojox/lang/functional/sequence
+	module: dojox/timing
+	module: dojox/app/scene
+	module: dojox/dtl/filter/strings
+	module: dojox/grid/_Scroller
+	module: dojox/lang/functional/multirec
+	module: dojox/fx/text
+	module: dojox/lang/aspect/memoizer
+	module: dojox/widget/rotator/Slide
+	module: dojox/av/_Media
+	module: dojox/form/CheckedMultiSelect
+	module: dojox/date/timezone
+	module: dojox/sketch/Annotation
+	module: dojox/dtl
+	module: dojox/image/SlideShow
+	module: dojox/collections/BinaryTree
+	module: dojox/grid/enhanced/_FocusManager
+	module: dojox/form/Uploader
+	module: dojox/editor/plugins/InsertEntity
+	module: dojox/cometd
+	module: dojox/grid/enhanced/_Plugin
+	module: dojox/data/CouchDBRestStore
+	module: dojox/drawing/annotations/Angle
+	module: dojox/data/demos/stores/LazyLoadJSIStore
+	module: dojox/secure/fromJson
+	module: dojox/grid/enhanced/_Events
+	module: dojox/css3/fx
+	module: dojox/highlight/languages/javascript
+	module: dojox/mobile/sniff
+	module: dojox/data/RailsStore
+	module: dojox/grid/TreeSelection
+	module: dojox/mobile/RoundRectCategory
+	module: dojox/charting/plot2d/Lines
+	module: dojox/drawing/plugins/tools/Iconize
+	module: dojox/highlight/languages/django
+	module: dojox/grid/enhanced/plugins/exporter/TableWriter
+	module: dojox/widget/CalendarFx
+	module: dojox/mobile/app/_Widget
+	module: dojox/lang/functional/scan
+	module: dojox/drawing/util/common
+	module: dojox/validate/_base
+	module: dojox/mvc/Repeat
+	module: dojox/charting/themes/Tom
+	module: dojox/data/SnapLogicStore
+	module: dojox/mdnd/dropMode/VerticalDropMode
+	module: dojox/form/DropDownSelect
+	module: dojox/charting/scaler/primitive
+	module: dojox/mobile/app/SceneAssistant
+	module: dojox/grid/enhanced/plugins/Exporter
+	module: dojox/help/console
+	module: dojox/charting/themes/PrimaryColors
+	module: dojox/grid/enhanced/_PluginManager
+	module: dojox/geo/charting/TouchInteractionSupport
+	module: dojox/sketch/LeadAnnotation
+	module: dojox/editor/plugins/InsertAnchor
+	module: dojox/data/XmlItem
+	module: dojox/html/styles
+	module: dojox/mvc/Bind
+	module: dojox/encoding/crypto/SimpleAES
+	module: dojox/drawing/stencil/Image
+	module: dojox/lang/async/topic
+	module: dojox/calc/_Executor
+	module: dojox/charting/plot2d/StackedColumns
+	module: dojox/mdnd/Moveable
+	module: dojox/drawing/plugins/_Plugin
+	module: dojox/html/metrics
+	module: dojox/io/xhrScriptPlugin
+	module: dojox/sql/_base
+	module: dojox/charting/plot2d/Stacked
+	module: dojox/drawing/tools/Line
+	module: dojox/grid/enhanced/plugins/GridSource
+	module: dojox/lang/observable
+	module: dojox/charting/themes/MiamiNice
+	module: dojox/drawing/manager/Mouse
+	module: dojox/secure/capability
+	module: dojox/widget/FilePicker
+	module: dojox/charting/plot2d/Markers
+	module: dojox/widget/rotator/Fade
+	module: dojox/editor/plugins/NormalizeStyle
+	module: dojox/sketch/DoubleArrowAnnotation
+	module: dojox/drawing/util/positioning
+	module: dojox/math/BigInteger-ext
+	module: dojox/geo/openlayers/Map
+	module: dojox/charting/themes/Electric
+	module: dojox/av/FLVideo
+	module: dojox/data/FileStore
+	module: dojox/json/query
+	module: dojox/gfx/silverlight_attach
+	module: dojox/app/module/history
+	module: dojox/grid/_Grid
+	module: dojox/mdnd/dropMode/DefaultDropMode
+	module: dojox/gauges/AnalogNeedleIndicator
+	module: dojox/data/CsvStore
+	module: dojox/lang/async
+	module: dojox/embed/Flash
+	module: dojox/layout/RotatorContainer
+	module: dojox/mobile/TabBar
+	module: dojox/dtl/_base
+	module: dojox/charting/axis2d/Default
+	module: dojox/charting/plot2d/ClusteredBars
+	module: dojox/gfx/canvas
+	module: dojox/editor/plugins/Smiley
+	module: dojox/rpc/Service
+	module: dojox/dtl/contrib/dom
+	module: dojox/gfx/vml
+	module: dojox/editor/plugins/_SpellCheckParser
+	module: dojox/wire/TableAdapter
+	module: dojox/gfx/canvas_attach
+	module: dojox/drawing/stencil/Line
+	module: dojox/gfx/Mover
+	module: dojox/charting/themes/common
+	module: dojox/uuid
+	module: dojox/date/posix
+	module: dojox/charting/Chart
+	module: dojox/date/hebrew/Date
+	module: dojox/editor/plugins/TextColor
+	module: dojox/geo/charting/widget/Legend
+	module: dojox/charting/action2d/MouseIndicator
+	module: dojox/encoding/digests/_base
+	module: dojox/lang/functional/linrec
+	module: dojox/highlight/languages/python
+	module: dojox/image
+	module: dojox/grid/cells/dijit
+	module: dojox/editor/plugins/StatusBar
+	module: dojox/lang/oo/rearrange
+	module: dojox/geo/charting/KeyboardInteractionSupport
+	module: dojox/drawing/ui/dom/Toolbar
+	module: dojox/wire/ml/Service
+	module: dojox/charting/themes/Shrooms
+	module: dojox/lang/typed
+	module: dojox/charting/plot2d/StackedLines
+	module: dojox/editor/plugins/PasteFromWord
+	module: dojox/geo/openlayers/Patch
+	module: dojox/drawing/tools/custom/Equation
+	module: dojox/charting/themes/SageToLime
+	module: dojox/rpc/JsonRest
+	module: dojox/storage/manager
+	module: dojox/grid/enhanced/plugins/filter/FilterStatusTip
+	module: dojox/charting/plot2d/Spider
+	module: dojox/collections/SortedList
+	module: dojox/charting/plot2d/Pie
+	module: dojox/geo/openlayers/Geometry
+	module: dojox/drawing/library/greek
+	module: dojox/data/css
+	module: dojox/widget/Rotator
+	module: dojox/grid/enhanced/plugins/Menu
+	module: dojox/gfx/svg_attach
+	module: dojox/charting/axis2d/Base
+	module: dojox/highlight/languages/pygments/html
+	module: dojox/charting/plot2d/Columns
+	module: dojox/cometd/longPollTransportJsonEncoded
+	module: dojox/sketch/Slider
+	module: dojox/widget/FisheyeList
+	module: dojox/geo/charting/widget/Map
+	module: dojox/widget/PlaceholderMenuItem
+	module: dojox/data/S3Store
+	module: dojox/editor/plugins/Blockquote
+	module: dojox/wire/ml/Transfer
+	module: dojox/widget/FisheyeLite
+	module: dojox/mobile/Switch
+	module: dojox/lang/aspect/profiler
+	module: dojox/charting/plot2d/Bubble
+	module: dojox/widget/DataPresentation
+	module: dojox/gauges/BarLineIndicator
+	module: dojox/av/widget/Player
+	module: dojox/analytics/plugins/mouseOver
+	module: dojox/gfx3d/_base
+	module: dojox/io/windowName
+	module: dojox/wire/DataWire
+	module: dojox/grid/cells
+	module: dojox/math/random/prng4
+	module: dojox/charting/themes/Chris
+	module: dojox/drawing
+	module: dojox/form/manager/_Mixin
+	module: dojox/drawing/_base
+	module: dojox/grid/enhanced/plugins/filter/FilterBar
+	module: dojox/form/_SelectStackMixin
+	module: dojox/mdnd/LazyManager
+	module: dojox/grid/enhanced/plugins/exporter/CSVWriter
+	module: dojox/widget/Calendar
+	module: dojox/mobile/SpinWheelDatePicker
+	module: dojox/form/manager/_ValueMixin
+	module: dojox/gfx/move
+	module: dojox/drawing/manager/Canvas
+	module: dojox/xml/Script
+	module: dojox/sketch/Anchor
+	module: dojox/lang/oo/general
+	module: dojox/widget/Standby
+	module: dojox/wire/XmlWire
+	module: dojox/mobile/SpinWheelTimePicker
+	module: dojox/drawing/tools/TextBlock
+	module: dojox/editor/plugins/PageBreak
+	module: dojox/form/uploader/FileList
+	module: dojox/fx
+	module: dojox/charting/themes/PlotKit/base
+	module: dojox/data/HtmlStore
+	module: dojox/charting/scaler/linear
+	module: dojox/charting/StoreSeries
+	module: dojox/gfx/Moveable
+	module: dojox/dtl/filter/logic
+	module: dojox/uuid/Uuid
+	module: dojox/mobile/Overlay
+	module: dojox/charting/action2d/MoveSlice
+	module: dojox/grid/TreeGrid
+	module: dojox/mdnd/dropMode/OverDropMode
+	module: dojox/gfx/_gfxBidiSupport
+	module: dojox/date/relative
+	module: dojox/color/Colorspace
+	module: dojox/dtl/contrib/dijit
+	module: dojox/charting/themes/Bahamation
+	module: dojox/layout/TableContainer
+	module: dojox/mobile/Slider
+	module: dojox/validate/check
+	module: dojox/widget/Roller
+	module: dojox/html/entities
+	module: dojox/gfx3d/gradient
+	module: dojox/drawing/annotations/Label
+	module: dojox/html/_base
+	module: dojox/wire/ml/Invocation
+	module: dojox/lang/functional/binrec
+	module: dojox/dnd/BoundingBoxController
+	module: dojox/editor/plugins/ToolbarLineBreak
+	module: dojox/fx/flip
+	module: dojox/gfx/shape
+	module: dojox/gantt/TabMenu
+	module: dojox/mobile/RadioButton
+	module: dojox/charting/themes/PlotKit/cyan
+	module: dojox/gfx3d/matrix
+	module: dojox/mobile/EdgeToEdgeCategory
+	module: dojox/geo/charting/_Marker
+	module: dojox/lang/utils
+	module: dojox/sketch/UndoStack
+	module: dojox/jq
+	module: dojox/mvc/_base
+	module: dojox/gfx/VectorText
+	module: dojox/math/random/Simple
+	module: dojox/charting/plot3d/Cylinders
+	module: dojox/form/DropDownStack
+	module: dojox/io/OAuth
+	module: dojox/mobile/EdgeToEdgeList
+	module: dojox/drawing/manager/StencilUI
+	module: dojox/mdnd/AreaManager
+	module: dojox/editor/plugins/LocalImage
+	module: dojox/mobile/SpinWheel
+	module: dojox/form/TimeSpinner
+	module: dojox/image/Lightbox
+	module: dojox/embed/Object
+	module: dojox/gfx/svg
+	module: dojox/lang/aspect/timer
+	module: dojox/layout/ext-dijit/layout/StackContainer-touch
+	module: dojox/fx/Timeline
+	module: dojox/mobile/app
+	module: dojox/highlight/languages/cpp
+	module: dojox/charting/BidiSupport
+	module: dojox/geo/openlayers/TouchInteractionSupport
+	module: dojox/geo/openlayers/GeometryFeature
+	module: dojox/mobile/app/List
+	module: dojox/collections/Stack
+	module: dojox/math/BigInteger
+	module: dojox/gfx/canvasWithEvents
+	module: dojox/grid/_Selector
+	module: dojox/sketch/SingleArrowAnnotation
+	module: dojox/fx/ext-dojo/NodeList
+	module: dojox/io/xhrPlugins
+	module: dojox/widget/UpgradeBar
+	module: dojox/gauges/GlossyHorizontalGauge
+	module: dojox/mdnd/PureSource
+	module: dojox/charting/plot2d/Grid
+	module: dojox/layout/ToggleSplitter
+	module: dojox/highlight/languages/sql
+	module: dojox/charting/action2d/Highlight
+	module: dojox/sketch/UnderlineAnnotation
+	module: dojox/grid/_RadioSelector
+	module: dojox/analytics
+	module: dojox/encoding/digests/SHA1
+	module: dojox/app/module/lifecycle
+	module: dojox/charting/plot2d/Candlesticks
+	module: dojox/charting/plot2d/_PlotEvents
+	module: dojox/layout/dnd/Avatar
+	module: dojox/fx/style
+	module: dojox/math/_base
+	module: dojox/data/demos/widgets/FileView
+	module: dojox/math/matrix
+	module: dojox/string/BidiEngine
+	module: dojox/grid/enhanced/plugins/filter/FilterLayer
+	module: dojox/layout/ResizeHandle
+	module: dojox/mobile/SwapView
+	module: dojox/drawing/annotations/Arrow
+	module: dojox/highlight/languages/css
+	module: dojox/grid/EnhancedGrid
+	module: dojox/charting/themes/Wetland
+	module: dojox/data/JsonQueryRestStore
+	module: dojox/drawing/manager/Anchors
+	module: dojox/drawing/library/icons
+	module: dojox/widget/rotator/Pan
+	module: dojox/geo/openlayers/Feature
+	module: dojox/wire/ml/RestHandler
+	module: dojox/layout/ContentPane
+	module: dojox/mobile/TextArea
+	module: dojox/drawing/plugins/drawing/Silverlight
+	module: dojox/mdnd/DropIndicator
+	module: dojox/editor/plugins/Save
+	module: dojox/encoding/bits
+	module: dojox/io/scriptFrame
+	module: dojox/grid/enhanced/plugins/AutoScroll
+	module: dojox/drawing/plugins/drawing/Grid
+	module: dojox/grid/enhanced/plugins/filter/_DataExprs
+	module: dojox/charting/action2d/PlotAction
+	module: dojox/grid/util
+	module: dojox/grid/enhanced/plugins/Filter
+	module: dojox/xmpp/RosterService
+	module: dojox/robot/recorder
+	module: dojox/encoding/digests/MD5
+	module: dojox/highlight
+	module: dojox/form/PasswordValidator
+	module: dojox/data/OpenSearchStore
+	module: dojox/io/xhrWindowNamePlugin
+	module: dojox/data/AtomReadStore
+	module: dojox/grid/enhanced/plugins/Rearrange
+	module: dojox/date/islamic/locale
+	module: dojox/charting/themes/PlotKit/orange
+	module: dojox/form/manager/_NodeMixin
+	module: dojox/gfx/matrix
+	module: dojox/data/XmlStore
+	module: dojox/mobile/app/ListSelector
+	module: dojox/form/uploader/Base
+	module: dojox/editor/plugins/FindReplace
+	module: dojox/charting/widget/Chart2D
+	module: dojox/form/BusyButton
+	module: dojox/mobile/ComboBox
+	module: dojox/mobile/Tooltip
+	module: dojox/av/FLAudio
+	module: dojox/math/round
+	module: dojox/gauges/AnalogCircleIndicator
+	module: dojox/uuid/generateRandomUuid
+	module: dojox/highlight/languages/groovy
+	module: dojox/gauges/AnalogArrowIndicator
+	module: dojox/editor/plugins/Preview
+	module: dojox/html/format
+	module: dojox/grid/LazyTreeGrid
+	module: dojox/charting/themes/WatersEdge
+	module: dojox/charting/widget/SelectableLegend
+	module: dojox/date/buddhist/Date
+	module: dojox/lang/aspect/tracer
+	module: dojox/grid/_SelectionPreserver
+	module: dojox/charting/themes/PurpleRain
+	module: dojox/editor/plugins/NormalizeIndentOutdent
+	module: dojox/gfx/gradutils
+	module: dojox/mobile/RoundRectList
+	module: dojox/mdnd/AutoScroll
+	module: dojox/date/hebrew/numerals
+	module: dojox/data/ClientFilter
+	module: dojox/mobile/EdgeToEdgeDataList
+	module: dojox/mobile/Heading
+	module: dojox/math/curves
+	module: dojox/calc/Grapher
+	module: dojox/form/FileUploader
+	module: dojox/math
+	module: dojox/widget/FeedPortlet
+	module: dojox/form/manager/_FormMixin
+	module: dojox/drawing/manager/_registry
+	module: dojox/collections/ArrayList
+	module: dojox/grid/enhanced/plugins/Dialog
+	module: dojox/highlight/languages/pygments/css
+	module: dojox/drawing/ui/Tooltip
+	module: dojox/storage/FlashStorageProvider
+	module: dojox/cometd/callbackPollTransport
+	module: dojox/widget/gauge/AnalogArcIndicator
+	module: dojox/math/stats
+	module: dojox/dnd/Selector
+	module: dojox/drawing/manager/keys
+	module: dojox/flash
+	module: dojox/sql/_crypto
+	module: dojox/wire/CompositeWire
+	module: dojox/dtl/tag/logic
+	module: dojox/string/tokenize
+	module: dojox/fx/split
+	module: dojox/widget/rotator/Controller
+	module: dojox/grid/_ViewManager
+	module: dojox/xmpp/UserService
+	module: dojox/widget/Dialog
+	module: dojox/form/FileInputBlind
+	module: dojox/storage/AirEncryptedLocalStorageProvider
+	module: dojox/dtl/ext-dojo/NodeList
+	module: dojox/collections
+	module: dojox/image/Gallery
+	module: dojox/sketch/_Plugin
+	module: dojox/mobile/Button
+	module: dojox/highlight/_base
+	module: dojox/storage/_common
+	module: dojox/mobile/ScrollableView
+	module: dojox/lang/functional/reversed
+	module: dojox/uuid/generateTimeBasedUuid
+	module: dojox/geo/openlayers/WidgetFeature
+	module: dojox/widget/TitleGroup
+	module: dojox/data/dom
+	module: dojox/mdnd/adapter/DndToDojo
+	module: dojox/highlight/languages/pygments/_html
+	module: dojox/highlight/languages/java
+	module: dojox/grid/DataGrid
+	module: dojox/form/_FormSelectWidget
+	module: dojox/charting/Series
+	module: dojox/data/demos/widgets/PicasaViewList
+	module: dojox/mobile/deviceTheme
+	module: dojox/charting/action2d/TouchIndicator
+	module: dojox/data/AndOrWriteStore
+	module: dojox/mobile/ViewController
+	module: dojox/widget/gauge/BarIndicator
+	module: dojox/image/MagnifierLite
+	module: dojox/charting/axis2d/Invisible
+	module: dojox/mobile/transition
+	module: dojox/drawing/tools/Path
+	module: dojox/encoding/easy64
+	module: dojox/image/FlickrBadge
+	module: dojox/grid/enhanced/plugins/filter/_ConditionExpr
+	module: dojox/mobile/parser
+	module: dojox/lang/functional/object
+	module: dojox/drawing/Drawing
+	module: dojox/drawing/ui/dom/Zoom
+	module: dojox/wire/ml/Data
+	module: dojox/charting/plot2d/OHLC
+	module: dojox/atom/widget/FeedEntryViewer
+	module: dojox/fx/ext-dojo/complex
+	module: dojo/jaxer
+	module: dojo/date
+	module: dojo/data/api/Request
+	module: dojo/_base/array
+	module: dojo/currency
+	module: dojo/_firebug/firebug
+	module: dojo/dom-form
+	module: dojo/_base/query
+	module: dojo/NodeList-html
+	module: dojo/dom-construct
+	module: dojo/date/locale
+	module: dojo/require
+	module: dojo/dom-prop
+	module: dojo/data/api/Write
+	module: dojo/_base/browser
+	module: dojo/rpc/RpcService
+	module: dojo/_base/Deferred
+	module: dojo/keys
+	module: dojo/NodeList-traverse
+	module: dojo/NodeList-data
+	module: dojo/dojo
+	module: dojo/data/util/filter
+	module: dojo/dnd/common
+	module: dojo/store/api/Store
+	module: dojo/dom-attr
+	module: dojo/data/ObjectStore
+	module: dojo/store/Observable
+	module: dojo/dnd/Moveable
+	module: dojo/store/util/QueryResults
+	module: dojo/AdapterRegistry
+	module: dojo/regexp
+	module: dojo/_base/config
+	module: dojo/io/script
+	module: dojo/Evented
+	module: dojo/string
+	module: dojo/dnd/Avatar
+	module: dojo/dnd/Mover
+	module: dojo/topic
+	module: dojo/data/ItemFileReadStore
+	module: dojo/dom-class
+	module: dojo/touch
+	module: dojo/cache
+	module: dojo/_base/xhr
+	module: dojo/hash
+	module: dojo/store/util/SimpleQueryEngine
+	module: dojo/store/JsonRest
+	module: dojo/dnd/AutoSource
+	module: dojo/dnd/Manager
+	module: dojo/_base/window
+	module: dojo/_base/json
+	module: dojo/json
+	module: dojo/dnd/Selector
+	module: dojo/_base/Color
+	module: dojo/fx
+	module: dojo/data/util/sorter
+	module: dojo/data/api/Notification
+	module: dojo/dom
+	module: dojo/window
+	module: dojo/store/DataStore
+	module: dojo/_base/lang
+	module: dojo/DeferredList
+	module: dojo/io-query
+	module: dojo/cldr/monetary
+	module: dojo/dom-geometry
+	module: dojo/date/stamp
+	module: dojo/dnd/Container
+	module: dojo/colors
+	module: dojo/cldr/supplemental
+	module: dojo/number
+	module: dojo/dnd/TimedMoveable
+	module: dojo/main
+	module: dojo/behavior
+	module: dojo/fx/Toggler
+	module: dojo/data/ItemFileWriteStore
+	module: dojo/back
+	module: dojo/_base/declare
+	module: dojo/domReady
+	module: dojo/text
+	module: dojo/dnd/Target
+	module: dojo/i18n
+	module: dojo/store/Cache
+	module: dojo/data/util/simpleFetch
+	module: dojo/dnd/Source
+	module: dojo/NodeList-dom
+	module: dojo/cookie
+	module: dojo/NodeList-fx
+	module: dojo/_base/fx
+	module: dojo/uacss
+	module: dojo/_base/NodeList
+	module: dojo/query
+	module: dojo/rpc/JsonService
+	module: dojo/fx/easing
+	module: dojo/ready
+	module: dojo/mouse
+	module: dojo/aspect
+	module: dojo/_base/sniff
+	module: dojo/store/Memory
+	module: dojo/on
+	module: dojo/data/api/Read
+	module: dojo/dnd/move
+	module: dojo/data/api/Identity
+	module: dojo/loadInit
+	module: dojo/_base/connect
+	module: dojo/io/iframe
+	module: dojo/selector/acme
+	module: dojo/rpc/JsonpService
+	module: dojo/gears
+	module: dojo/_base/event
+	module: dojo/NodeList-manipulate
+	module: dojo/_base/html
+	module: dojo/_base/kernel
+	module: dojo/html
+	module: dojo/_base/loader
+	module: dojo/dom-style
+	module: dojo/Stateful
+	module: dojo/selector/lite
+	module: dojo/dnd/autoscroll
+	module: dojo/has
+	module: dojo/_base/url
+	module: dojo/selector/_loader
+	module: dojo/_base/unload
+	module: dojo/parser
+	module: dojox/cometd/RestChannels-loadInit
+info(106) Optimizing CSS.
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Dialog_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/layout/TabContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/layout/AccordionContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/layout/AccordionContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/Slider_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/form/Slider_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/form/TimeTextBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/layout/AccordionContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/soria.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/nihilo.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/ColorPalette.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/Select_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Editor.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/Common_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/form/Checkbox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/layout/TabContainer_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/TimePicker.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/icons/editorIcons.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/form/Slider.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Calendar_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/Slider.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Dialog.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Tree.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/tundra.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/TitlePane_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/Checkbox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/form/Slider_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/ColorPalette.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Editor.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/claro_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Menu.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Toolbar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/icons/editorIcons_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Menu_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/TitlePane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Calendar_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/TitlePane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/layout/AccordionContainer_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Menu_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Dialog.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Editor_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Toolbar_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Menu_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/TitlePane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/ColorPalette.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Tree.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/form/Button.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/soria_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/form/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Menu.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/layout/TabContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/TimePicker.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/Button_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/form/TimeTextBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/ColorPalette.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/TitlePane_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/claro.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/ProgressBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/form/Button_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/layout/TabContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Toolbar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/layout/TabContainer_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/InlineEditBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Menu_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Dialog_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Editor_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/layout/SplitContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/form/Select.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Editor.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/form/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/layout/BorderContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/layout/TabContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/form/Checkbox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/layout/ContentPane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/layout/AccordionContainer_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/layout/ContentPane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Dialog.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Tree_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/layout/TabContainer_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/dijit_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/TimePicker_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/layout/BorderContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/TitlePane_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Calendar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/ProgressBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Toolbar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/ProgressBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Editor.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/form/Button_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/form/RadioButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/form/Button.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/icons/commonIcons_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/icons/commonIcons.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/TimePicker.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/document.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/tundra_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/form/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/form/Button.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Tree.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/Button.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/TimePicker.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Dialog_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/layout/TabContainer_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Menu.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Dialog.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/layout/ContentPane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Calendar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Tree_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Tree.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/ProgressBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/form/Slider.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Menu.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Editor_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Tree_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Calendar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/Editor_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/TimePicker_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/dijit.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/layout/BorderContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/Calendar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/layout/AccordionContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/TitlePane_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/NumberSpinner.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/form/Select.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/form/Checkbox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/form/Select.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/layout/BorderContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/Select.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Calendar_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/nihilo_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/layout/SplitContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/form/Slider_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/TitlePane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/claro/form/RadioButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/TimePicker_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/TimePicker_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/layout/SplitContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/form/Slider.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/form/RadioButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/form/RadioButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Dialog_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/soria/Toolbar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/nihilo/Calendar_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dijit/themes/tundra/layout/ContentPane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonCheckboxOn.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/RoundRect-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/EdgeToEdgeCategory.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/FileUploader.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/ListInput.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Carousel.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Button.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/EdgeToEdgeList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Heading.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ToggleButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/TabBar-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/EnhancedGrid_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/View.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/flip.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/RoundRectList-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/autumn.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/common-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonTransparent29.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/ToggleButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/ProgressIndicator.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/android-compat.css; skipped: EdgeToEdgeCategory-compat.css,/home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/base-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonOrangeBall.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/CollapsibleToolbar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Heading-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/charting/resources/Legend.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/ComboBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGreenBall.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/RadioButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/EdgeToEdgeList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Switch.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/ToggleButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Slider-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/custom-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Button.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/ToolBarButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonCheckboxOff-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/TextBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/iphone.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/DocTester/DocTester.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/RoundRect.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ListItem-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/ComboBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Opener-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/RoundRect-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/ComboBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/Pagination_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/Breadcrumb.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/Toaster/Toaster.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/ToggleButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleDownArrow.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGreenCircleArrow.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/RoundRectCategory.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/base.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/TriStateCheckBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/TextBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/TextArea-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/TabBar-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/Pagination.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/ListItem.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/DnD_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/resources/Grid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/borland.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/InsertAnchor.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Slider.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/Wizard/Wizard.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/resources/tundraGrid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/claro/Filter.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/atom/widget/templates/css/HtmlFeedViewerGrouping.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/Blockquote.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/TextBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/Dialog/Dialog.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonYellowStar-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Button-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ToolBarButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/FilePickerTextBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/resources/Grid_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/drawing/resources/drawing.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/swirl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonCheckboxOff.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/claroEnhancedGrid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/calc/resources/Standard.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/IconContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/base-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Carousel.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonCheckboxOn-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/resources/nihiloGrid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/TextArea.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/image/resources/Magnifier.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/FilePicker/FilePicker.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/reveal.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/data/demos/picasaDemo.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/RoundRectList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/RoundRect.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Tooltip-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/RadioButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/BusyButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/RadioButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/TextArea.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/gantt/resources/gantt.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/SortList/SortList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Opener-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/android.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/IconContainer_keyframes.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonRedCircleMinus.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Tooltip-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Opener.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/TabBar-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/EdgeToEdgeList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/layout/resources/DndGridContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/RoundRectCategory.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/IconContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/Preview.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/base.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Overlay-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/manni.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/dijit/base.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonRedCirclePlus.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleGrayButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/EdgeToEdgeCategory.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonRedCircleMinus-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/atom/widget/templates/css/HtmlFeedEntryViewer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleGreenPlus.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/colorful.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/ToolBarButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlueCircleArrow.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/image/resources/ThumbnailPicker.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/ColorPicker/ColorPicker.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/InsertEntity.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Button.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGreenCirclePlus.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/EdgeToEdgeCategory-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/layout/resources/FloatingPane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/ComboBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/RoundRect.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/FindReplace.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/RadioButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/atom/widget/templates/css/HtmlFeedViewerEntry.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/Filter_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/friendly.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/CheckBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/editorPlugins.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/TextArea-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Overlay.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/base.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/base-compat.css; skipped: EdgeToEdgeCategory-compat.css,/home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/base-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGreenCircleMinus.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/dissolve.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/layout/resources/GridContainer.css; non-relative URLs skipped: data:image/gif;base64,R0lGODlhAQABAID/AMDAwAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw%3D%3D,../../mdnd/resources/dnd.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/TextArea.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGrayArrow.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/dijit/ColorPicker.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/CheckBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/sketch/resources/sketch.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/SpellCheck.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/RoundRectCategory.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/RadioButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGrayStar-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteDownArrow.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/IconContainer-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/image/resources/Gallery.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonColorButtons-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGrayArrow-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/View.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ComboBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/IconContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/murphy.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/FixedSplitter.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Heading-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/RoundRectList-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Tooltip.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/ProgressIndicator-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonRedBall-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Switch-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Overlay.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/LocalImage.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Opener.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhitePlus.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/TextArea-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/fade.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/TabBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteSearch-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Tooltip.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/SpinWheel.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Button-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleGreenPlus-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteSearch.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlackCircleCross.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/RadioButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/AutoSave.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/PageIndicator.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonTransparent30.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/RoundRect.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/TabBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/av/widget/resources/Player.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/RoundRectList-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/SpinWheel-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Overlay-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/iphone-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonRedBall.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Button.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/pastie.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/drawing/resources/toolbar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/RadioButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/iphone-app.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Tooltip.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/CheckBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlueBall-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/PasteFromWord.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/dijit/dijit-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/default.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Switch-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/image/resources/SlideShow.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Carousel.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleGrayButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/Portlet/Portlet.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Overlay-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Button-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Opener-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/perldoc.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlueBall.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/CheckBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/Calendar/Calendar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGrayRoundRect.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mdnd/resources/dnd.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGreenBall-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/cover.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/base-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleOrangeButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonRedCirclePlus-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlueCirclePlus-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/TextBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonRedCircleArrow-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/PageIndicator.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlueCircleMinus.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleOrangeButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/ProgressIndicator-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/TextBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/RoundRectList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/atom/widget/templates/css/HtmlFeedEntryEditor.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Overlay.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/ComboBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Slider-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/emacs.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonOrangeBall-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/Filter.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/native.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/TextBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/blackberry.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/UploaderFileList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Heading.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/EdgeToEdgeList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonTransparent19.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/Pager/Pager.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/DnD.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/EdgeToEdgeCategory.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/CheckBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/ProgressIndicator-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/claro/EnhancedGrid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/Sorter_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/tundra/Filter.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonDarkBlueCheck-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/trac.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Switch.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Switch-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/calc/resources/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/resources/soriaGrid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/ListItem.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/Rating.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/ToggleButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/dijit/Calendar-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/tundraEnhancedGrid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Slider-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/base-compat.css; skipped: EdgeToEdgeCategory-compat.css,/home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/base-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Heading.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ProgressIndicator.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/layout/resources/RadioGroup.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Tooltip-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/claro/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteCheck-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/ListItem.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/layout/resources/ExpandoPane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/ListItem-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/tundra/EnhancedGrid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Switch.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlueCircleMinus-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGreenCircleMinus-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/PageIndicator.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteArrow.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/html/resources/ellipsis.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/RoundRectList-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/calc/resources/GraphPro.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/TextArea.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlueCircleArrow-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/IconContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ipad-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/RoundRectList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Slider.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/TabBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlueCirclePlus.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/atom/widget/templates/css/EntryHeader.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGrayRoundRect-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/wire/demos/TableContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ToggleButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/FisheyeList/FisheyeList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/slidev.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/View.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/FileInput.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/wire/demos/markup/flickrDemo.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/RoundRect-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/RollingList/RollingList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/PageBreak.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/layout/resources/ToggleSplitter.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/slide.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Slider.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGrayStar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ProgressIndicator-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/RadioButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/CheckedMultiSelect.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/EdgeToEdgeCategory.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/UpgradeBar/UpgradeBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/dijit/ColorPalette.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/android-app-compat.css; skipped: EdgeToEdgeCategory-compat.css,/home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/base-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/Sorter.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/Save.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/TextBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/TabBar-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/EnhancedGrid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Slider-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/resources/claroGrid.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/ProgressIndicator.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/image/resources/image.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/zoomIn.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/ListItem-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/layout/resources/ResizeHandle.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/tundra/Sorter.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/zoomOut.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/TitleGroup/TitleGroup.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/View.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Heading.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/ShowBlockNodes.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/dijit/Calendar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/IconContainer-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ListItem.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteDownArrow-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/ToolBarButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/form/resources/RangeSlider.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/StatusBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonDarkBlueCheck.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/CheckBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/CheckBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Heading-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/RoundRect-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ipad.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/drawing/resources/GreekPalette.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/android-app.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGreenCirclePlus-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/layout/resources/ScrollPane.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/EdgeToEdgeCategory-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Tooltip.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleRedCross.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/TabBar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/TextBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Button-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/Smiley.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Heading-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/Switch.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/dijit/dijit.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleRedCross-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/tundra/Common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/ToggleButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/gauges/_Gauge.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/common.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Switch.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/CheckBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/RoundRectList.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteCheck.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/custom.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonBlackCircleCross-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/scaleIn.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Switch-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/image/resources/Badge.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonGreenCircleArrow-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/ToggleButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhitePlus-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/base.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Overlay-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteUpArrow.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/ProgressIndicator.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleGreenButton-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonYellowStar.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/pygments/fruity.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonColorButtons.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteUpArrow-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/coverv.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/scaleOut.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/atom/widget/templates/css/HtmlFeedViewer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Opener.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/PageIndicator.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/SafePaste.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/image/resources/Lightbox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/IconContainer-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/ComboBox-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/layout/resources/RotatorContainer.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/RoundRectCategory.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/widget/Loader/Loader.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Slider.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonRedCircleArrow.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/geo/charting/resources/Map.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/iphone-app-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/highlight/resources/highlight.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/TextArea-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/editor/plugins/resources/css/TextColor.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/Tooltip-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleDownArrow-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Opener-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/android/Carousel.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/blackberry-compat.css; skipped: EdgeToEdgeCategory-compat.css,/home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/base-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonWhiteArrow-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/transitions/revealv.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/ComboBox.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/iphone/Opener.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/common/domButtons/DomButtonSilverCircleGreenButton.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/ListItem-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/custom/IconContainer-compat.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/grid/enhanced/resources/Common_rtl.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojox/mobile/themes/blackberry/Overlay.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojo/_firebug/firebug.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojo/resources/dojo.css
+	file: /home/csnover/dtk17/build/dojo-release-1.7.1/dojo/resources/dnd.css
+info(107) Package Version:
+	package: dijit; version: 1.7.1
+	package: dojox; version: 1.7.1
+	package: dojo; version: 1.7.1
+info(108) Interning strings.
+	module: dojox/secure/DOM
+	module: dojox/storage
+	module: dojox/jsonPath
+	module: dojox/wire/TreeAdapter
+	module: dojox/wire/demos/WidgetRepeater
+	module: dojox/drawing/stencil/Path
+	module: dojox/widget/DynamicTooltip
+	module: dojox/widget/AnalogGauge
+	module: dojox/widget/Loader
+	module: dojox/storage/AirFileStorageProvider
+	module: dojox/xmpp/sasl
+	module: dojox/lang/aspect/memoizerGuard
+	module: dojox/mobile/app/compat
+	module: dojox/widget/gauge/AnalogArrowIndicator
+	module: dojox/drawing/stencil/Ellipse
+	module: dojox/wire/Wire
+	module: dojox/widget/rotator/ThumbnailController
+	module: dojox/mobile/app/ImageView
+	module: dojox/cometd/HttpChannels
+	module: dojox/drawing/plugins/tools/Zoom
+	module: dojox/data/restListener
+	module: dojox/mobile/app/TextBox
+	module: dojox/storage/CookieStorageProvider
+	module: dojox/mobile/app/AlertDialog
+	module: dojox/lang/oo/mixin
+	module: dojox/editor/plugins/ResizeTableColumn
+	module: dojox/drawing/tools/custom/Vector
+	module: dojox/drawing/manager/Undo
+	module: dojox/drawing/stencil/Text
+	module: dojox/drawing/ui/Button
+	module: dojox/widget/CalendarViews
+	module: dojox/mobile/app/SceneController
+	module: dojox/storage/LocalStorageProvider
+	module: dojox/storage/GearsStorageProvider
+	module: dojox/mobile/app/_event
+	module: dojox/cometd/RestChannels
+	module: dojox/widget/RollingList
+	module: dojox/lang/functional/curry
+	module: dojox/drawing/util/typeset
+	module: dojox/drawing/tools/Arrow
+	module: dojox/lang/functional/zip
+	module: dojox/widget/rotator/Wipe
+	module: dojox/wire/ml/XmlHandler
+	module: dojox/wire/ml/util
+	module: dojox/cometd/ack
+	module: dojox/xmpp/ChatService
+	module: dojox/drawing/tools/Ellipse
+	module: dojox/lang/aspect
+	module: dojox/wire/TextAdapter
+	module: dojox/lang/oo/aop
+	module: dojox/lang/aspect/cflow
+	module: dojox/drawing/defaults
+	module: dojox/drawing/tools/Pencil
+	module: dojox/drawing/plugins/tools/Pan
+	module: dojox/drawing/ui/Toolbar
+	module: dojox/help/_base
+	module: dojox/sql
+	module: dojox/socket/Reconnect
+	module: dojox/storage/AirDBStorageProvider
+	module: dojox/widget/Portlet
+	module: dojox/storage/Provider
+	module: dojox/lang/aspect/counter
+	module: dojox/data/ItemExplorer
+	module: dojox/xmpp/TransportSession
+	module: dojox/lang/functional/listcomp
+	module: dojox/editor/plugins/SpellCheck
+	module: dojox/data/StoreExplorer
+	module: dojox/widget/AutoRotator
+	module: dojox/lang/async/event
+	module: dojox/mobile/app/ImageThumbView
+	module: dojox/gantt/GanttChart
+	module: dojox/data/demos/widgets/PicasaView
+	module: dojox/image/ThumbnailPicker
+	module: dojox/xmpp/util
+	module: dojox/xmpp/widget/ChatSession
+	module: dojox/drawing/plugins/drawing/GreekPalette
+	module: dojox/widget/Pager
+	module: dojox/mobile/app/StageController
+	module: dojox/cometd/timesync
+	module: dojox/widget/BarGauge
+	module: dojox/drawing/manager/Stencil
+	module: dojox/widget/DocTester
+	module: dojox/lang/docs
+	module: dojox/cometd/longPollTransport
+	module: dojox/lang/async/timeout
+	module: dojox/drawing/annotations/BoxShadow
+	module: dojox/rails
+	module: dojox/cometd/_base
+	module: dojox/wire/demos/TableContainer
+	module: dojox/gantt/GanttTaskItem
+	module: dojox/gantt/GanttResourceItem
+	module: dojox/widget/gauge/_Gauge
+	module: dojox/wire/ml/Action
+	module: dojox/lang/functional/util
+	module: dojox/layout/BorderContainer
+	module: dojox/xmpp/PresenceService
+	module: dojox/flash/_base
+	module: dojox/lang/oo/Decorator
+	module: dojox/wire/_base
+	module: dojox/drawing/tools/custom/Axes
+	module: dojox/wire
+	module: dojox/layout/dnd/PlottedDnd
+	module: dojox/drawing/util/oo
+	module: dojox/widget/rotator/PanFade
+	module: dojox/widget/gauge/AnalogNeedleIndicator
+	module: dojox/wire/ml/DataStore
+	module: dojox/storage/BehaviorStorageProvider
+	module: dojox/wire/ml/JsonHandler
+	module: dojox/widget/Iterator
+	module: dojox/xmpp/xmppSession
+	module: dojox/drawing/tools/Rect
+	module: dojox/widget/SortList
+	module: dojox/cometd/longPollTransportFormEncoded
+	module: dojox/lang/functional/tailrec
+	module: dojox/data/demos/widgets/FlickrViewList
+	module: dojox/cometd/timestamp
+	module: dojox/jsonPath/query
+	module: dojox/mobile/app/_base
+	module: dojox/lang/functional/numrec
+	module: dojox/drawing/ui/dom/Pan
+	module: dojox/drawing/stencil/_Base
+	module: dojox/drawing/stencil/Rect
+	module: dojox/lang/oo/Filter
+	module: dojox/xmpp/bosh
+	module: dojox/secure/sandbox
+	module: dojox/storage/WhatWGStorageProvider
+	module: dojox/mobile/app/_FormWidget
+	module: dojox/gantt/GanttProjectItem
+	module: dojox/lang/functional/multirec
+	module: dojox/lang/aspect/memoizer
+	module: dojox/widget/rotator/Slide
+	module: dojox/image/SlideShow
+	module: dojox/cometd
+	module: dojox/drawing/annotations/Angle
+	module: dojox/data/demos/stores/LazyLoadJSIStore
+	module: dojox/secure/fromJson
+	module: dojox/drawing/plugins/tools/Iconize
+	module: dojox/widget/CalendarFx
+	module: dojox/mobile/app/_Widget
+	module: dojox/drawing/util/common
+	module: dojox/mobile/app/SceneAssistant
+	module: dojox/help/console
+	module: dojox/drawing/stencil/Image
+	module: dojox/lang/async/topic
+	module: dojox/drawing/plugins/_Plugin
+	module: dojox/sql/_base
+	module: dojox/drawing/tools/Line
+	module: dojox/lang/observable
+	module: dojox/drawing/manager/Mouse
+	module: dojox/secure/capability
+	module: dojox/widget/FilePicker
+	module: dojox/widget/rotator/Fade
+	module: dojox/drawing/util/positioning
+	module: dojox/lang/async
+	module: dojox/wire/TableAdapter
+	module: dojox/drawing/stencil/Line
+	module: dojox/lang/functional/linrec
+	module: dojox/lang/oo/rearrange
+	module: dojox/drawing/ui/dom/Toolbar
+	module: dojox/wire/ml/Service
+	module: dojox/lang/typed
+	module: dojox/drawing/tools/custom/Equation
+	module: dojox/storage/manager
+	module: dojox/drawing/library/greek
+	module: dojox/widget/Rotator
+	module: dojox/cometd/longPollTransportJsonEncoded
+	module: dojox/widget/FisheyeList
+	module: dojox/wire/ml/Transfer
+	module: dojox/lang/aspect/profiler
+	module: dojox/widget/DataPresentation
+	module: dojox/wire/DataWire
+	module: dojox/drawing
+	module: dojox/drawing/_base
+	module: dojox/widget/Calendar
+	module: dojox/drawing/manager/Canvas
+	module: dojox/lang/oo/general
+	module: dojox/wire/XmlWire
+	module: dojox/drawing/tools/TextBlock
+	module: dojox/drawing/annotations/Label
+	module: dojox/wire/ml/Invocation
+	module: dojox/lang/functional/binrec
+	module: dojox/gantt/TabMenu
+	module: dojox/jq
+	module: dojox/drawing/manager/StencilUI
+	module: dojox/lang/aspect/timer
+	module: dojox/layout/ext-dijit/layout/StackContainer-touch
+	module: dojox/mobile/app/List
+	module: dojox/widget/UpgradeBar
+	module: dojox/layout/dnd/Avatar
+	module: dojox/data/demos/widgets/FileView
+	module: dojox/drawing/annotations/Arrow
+	module: dojox/drawing/manager/Anchors
+	module: dojox/drawing/library/icons
+	module: dojox/widget/rotator/Pan
+	module: dojox/wire/ml/RestHandler
+	module: dojox/drawing/plugins/drawing/Silverlight
+	module: dojox/drawing/plugins/drawing/Grid
+	module: dojox/xmpp/RosterService
+	module: dojox/robot/recorder
+	module: dojox/mobile/app/ListSelector
+	module: dojox/lang/aspect/tracer
+	module: dojox/widget/FeedPortlet
+	module: dojox/drawing/manager/_registry
+	module: dojox/drawing/ui/Tooltip
+	module: dojox/storage/FlashStorageProvider
+	module: dojox/cometd/callbackPollTransport
+	module: dojox/widget/gauge/AnalogArcIndicator
+	module: dojox/drawing/manager/keys
+	module: dojox/flash
+	module: dojox/sql/_crypto
+	module: dojox/wire/CompositeWire
+	module: dojox/widget/rotator/Controller
+	module: dojox/xmpp/UserService
+	module: dojox/storage/AirEncryptedLocalStorageProvider
+	module: dojox/image/Gallery
+	module: dojox/storage/_common
+	module: dojox/data/demos/widgets/PicasaViewList
+	module: dojox/widget/gauge/BarIndicator
+	module: dojox/drawing/tools/Path
+	module: dojox/drawing/Drawing
+	module: dojox/drawing/ui/dom/Zoom
+	module: dojox/wire/ml/Data
+warn(216) dojo/has plugin resource could not be resolved during build-time.
+	plugin resource id: dojo-firebug?./_firebug/firebug; reference module id: dojo/main
+	plugin resource id: dom-addeventlistener?:./aspect; reference module id: dojo/on
+Layer Contents:
+dojox/mobile/compat:
+	dojox/mobile/compat
+
+dojox/charting/widget/Chart2D:
+	dojox/charting/plot2d/_PlotEvents
+	dojo/uacss
+	dojox/charting/axis2d/Invisible
+	dojo/text
+	dojox/lang/utils
+	dojox/charting/plot2d/Pie
+	dijit/hccss
+	dojox/charting/action2d/Shake
+	dojox/lang/functional/lambda
+	dojox/lang/functional/reversed
+	dojox/charting/scaler/primitive
+	dojox/charting/plot2d/Candlesticks
+	dojox/charting/widget/Sparkline
+	dojox/gfx/matrix
+	dojox/charting/plot2d/Scatter
+	dojox/lang/functional/scan
+	dojox/color/_base
+	dojox/charting/plot2d/OHLC
+	dojox/charting/plot2d/ClusteredColumns
+	dojox/charting/Chart
+	dojox/lang/functional/sequence
+	dojox/charting/plot2d/MarkersOnly
+	dojox/charting/plot2d/Areas
+	dojox/charting/action2d/Base
+	dojo/fx
+	dojox/gfx/fx
+	dojox/charting/action2d/PlotAction
+	dijit/BackgroundIframe
+	dojox/main
+	dojox/charting/action2d/Magnify
+	dojo/Stateful
+	dojox/charting/plot2d/Markers
+	dojox/charting/plot2d/Bubble
+	dojo/touch
+	dojox/gfx/gradutils
+	dojo/string
+	dijit/registry
+	dojox/charting/plot2d/Lines
+	dijit/_base/manager
+	dojox/charting/plot2d/StackedAreas
+	dojox/charting/plot2d/Stacked
+	dojo/fx/easing
+	dojox/charting/action2d/Highlight
+	dojox/charting/axis2d/Base
+	dojox/color/Palette
+	dijit/a11y
+	dojox/charting/plot2d/Grid
+	dojox/lang/functional/fold
+	dijit/templates/Tooltip.html
+	dojox/charting/plot2d/Spider
+	dojox/charting/plot2d/StackedBars
+	dojox/charting/themes/GreySkies
+	dojox/charting/plot2d/Columns
+	dijit/place
+	dojox/lang/functional/array
+	dojox/charting/Theme
+	dojox/charting/themes/common
+	dojox/charting/plot2d/common
+	dijit/_Widget
+	dijit/_FocusMixin
+	dijit/_OnDijitClickMixin
+	dojo/cache
+	dojox/charting/plot2d/Bars
+	dojox/gfx/_base
+	dijit/focus
+	dojox/charting/widget/Legend
+	dojox/charting/plot2d/StackedLines
+	dojox/charting/plot2d/StackedColumns
+	dojox/charting/widget/Chart2D
+	dojox/charting/Series
+	dojox/charting/plot2d/Default
+	dijit/main
+	dojox/charting/plot2d/Base
+	dojox/charting/action2d/Tooltip
+	dojox/gfx
+	dojox/charting/Chart2D
+	dojox/charting/scaler/linear
+	dojox/gfx/renderer
+	dojox/charting/widget/Chart
+	dojox/lang/functional
+	dojox/charting/scaler/common
+	dojox/charting/axis2d/common
+	dijit/_TemplatedMixin
+	dojox/lang/functional/object
+	dojo/window
+	dojox/charting/axis2d/Default
+	dojox/charting/plot2d/ClusteredBars
+	dojox/charting/action2d/MoveSlice
+	dojo/colors
+	dijit/Tooltip
+	dojox/charting/Element
+	dijit/_WidgetBase
+
+dojo/dojo:
+	dojo/_base/fx
+	dojo/dom-form
+	dojo/_base/html
+	dojo/_base/kernel
+	dojo/io-query
+	dojo/_base/Deferred
+	dojo/NodeList-dom
+	dojo/query
+	dojo/has
+	dojo/_base/loader
+	dojo/json
+	dojo/_base/declare
+	dojo/dom
+	dojo/_base/browser
+	dojo/selector/acme
+	dojo/dom-style
+	dojo/dom-geometry
+	dojo/dom-prop
+	dojo/dom-attr
+	dojo/dom-construct
+	dojo/keys
+	dojo/domReady
+	dojo/_base/lang
+	dojo/Evented
+	dojo/mouse
+	dojo/topic
+	dojo/_base/xhr
+	dojo/_base/unload
+	dojo/_base/NodeList
+	dojo/_base/Color
+	dojo/selector/_loader
+	dojo/on
+	dojo/_base/sniff
+	dojo/_base/array
+	dojo/_base/json
+	dojo/dom-class
+	dojo/_base/window
+	dojo/_base/config
+	dojo/_base/event
+	dojo/main
+	dojo/ready
+	dojo/aspect
+	dojo/_base/connect
+
+dojox/mobile:
+	dojox/mobile/ViewController
+	dojox/mobile/RoundRect
+	dojox/mobile/RoundRectList
+	dojox/mobile/sniff
+	dojox/mobile/TransitionEvent
+	dijit/_WidgetBase
+	dojox/mobile
+	dojox/mobile/View
+	dojox/main
+	dojox/mobile/transition
+	dojo/Stateful
+	dojox/mobile/Heading
+	dojox/mobile/Switch
+	dojox/mobile/ListItem
+	dijit/registry
+	dojox/mobile/common
+	dojox/mobile/uacss
+	dojox/mobile/RoundRectCategory
+	dojox/mobile/ProgressIndicator
+	dojox/mobile/EdgeToEdgeList
+	dojox/mobile/EdgeToEdgeCategory
+	dojox/mobile/ToolBarButton
+	dojox/mobile/_ItemBase
+	dijit/_Contained
+	dojox/mobile/_base
+	dijit/main
+	dijit/_Container
+
+dojox/gfx:
+	dojox/gfx
+	dojox/gfx/_base
+	dojox/gfx/renderer
+
+dojox/dtl:
+	dojox/dtl/_base
+	dojox/dtl/tag/loader
+	dojo/date
+	dojox/date/php
+	dojox/dtl
+	dojox/dtl/ext-dojo/NodeList
+	dojox/dtl/utils/date
+	dojox/dtl/tag/loop
+	dojox/string/Builder
+	dojox/string/tokenize
+	dojox/dtl/tag/misc
+	dojox/dtl/Context
+	dojox/dtl/tag/logic
+	dojox/dtl/tag/date
+
+dojox/mobile/app:
+	dojo/uacss
+	dojox/mobile/app/_Widget
+	dojox/mobile/app/ImageThumbView
+	dojox/mobile/TransitionEvent
+	dojox/mobile/ViewController
+	dojox/mobile/ToolBarButton
+	dojox/mobile/_ItemBase
+	dijit/hccss
+	dijit/_Contained
+	dijit/form/_TextBoxMixin
+	dojox/mobile/parser
+	dijit/_Container
+	dojox/mobile/app/SceneController
+	dojox/mobile/app/_base
+	dijit/_base/scroll
+	dojo/fx
+	dijit/_base
+	dojox/mobile/sniff
+	dojox/mobile/ProgressIndicator
+	dijit/form/_FormWidgetMixin
+	dijit/BackgroundIframe
+	dojox/mobile
+	dijit/form/_FormValueMixin
+	dojox/mobile/common
+	dojox/mobile/Heading
+	dojox/main
+	dojox/mobile/RoundRectList
+	dojo/Stateful
+	dojox/mobile/app/List
+	dojox/mobile/app/ListSelector
+	dojox/mobile/EdgeToEdgeCategory
+	dojo/string
+	dojox/mobile/TextBox
+	dijit/registry
+	dijit/_base/manager
+	dijit/_base/place
+	dojox/mobile/View
+	dijit/WidgetSet
+	dojo/fx/easing
+	dijit/a11y
+	dijit/typematic
+	dojox/mobile/app/ImageView
+	dijit/_base/focus
+	dojox/mobile/ListItem
+	dojox/mobile/app/StageController
+	dijit/place
+	dojox/mobile/app
+	dojox/mobile/app/_event
+	dojox/mobile/_base
+	dojox/mobile/Button
+	dojox/mobile/Switch
+	dijit/focus
+	dijit/_base/sniff
+	dijit/main
+	dojox/mobile/RoundRect
+	dijit/form/_ButtonMixin
+	dijit/_base/typematic
+	dojox/mobile/RoundRectCategory
+	dojox/mobile/app/TextBox
+	dojox/mobile/app/SceneAssistant
+	dijit/_base/popup
+	dojox/mobile/transition
+	dijit/_base/wai
+	dojo/window
+	dojox/mobile/EdgeToEdgeList
+	dijit/popup
+	dojox/mobile/uacss
+	dijit/_base/window
+	dijit/_WidgetBase
+	dojox/mobile/app/AlertDialog
+
+dojox/mobile/app/compat:
+	dojox/mobile/app/compat
+	dojox/main
+	dojox/mobile/compat
+	dijit/main
+
+dijit/dijit-all:
+	dijit/_editor/plugins/FontChoice
+	dijit/form/nls/validate
+	dijit/templates/CheckedMenuItem.html
+	dijit/form/TextBox
+	dojo/currency
+	dijit/DialogUnderlay
+	dijit/form/templates/ComboButton.html
+	dijit/layout/ScrollingTabController
+	dijit/_editor/html
+	dijit/_editor/nls/commands
+	dijit/_HasDropDown
+	dijit/tree/TreeStoreModel
+	dijit/_editor/plugins/EnterKeyHandling
+	dijit/_MenuBase
+	dojo/i18n
+	dijit/PopupMenuBarItem
+	dijit/tree/ForestStoreModel
+	dijit/layout/templates/AccordionButton.html
+	dijit/TitlePane
+	dijit/form/_ComboBoxMenuMixin
+	dijit/form/templates/DropDownButton.html
+	dijit/form/ToggleButton
+	dijit/form/NumberSpinner
+	dijit/form/Textarea
+	dijit/form/DateTextBox
+	dijit/form/ComboButton
+	dijit/layout/AccordionContainer
+	dijit/layout/SplitContainer
+	dijit/templates/Calendar.html
+	dijit/form/_AutoCompleterMixin
+	dijit/dijit-all
+	dijit/templates/ColorPalette.html
+	dijit/layout/templates/_ScrollingTabControllerButton.html
+	dijit/form/MappedTextBox
+	dijit/form/ComboBoxMixin
+	dijit/form/_TextBoxMixin
+	dijit/form/SimpleTextarea
+	dijit/layout/templates/_TabButton.html
+	dijit/PopupMenuItem
+	dijit/_TimePicker
+	dijit/form/RadioButton
+	dijit/form/templates/HorizontalSlider.html
+	dijit/templates/TimePicker.html
+	dijit/InlineEditBox
+	dojo/dnd/autoscroll
+	dijit/form/_RadioButtonMixin
+	dijit/templates/TreeNode.html
+	dojo/dnd/TimedMoveable
+	dijit/layout/LinkPane
+	dijit/form/_ListMouseMixin
+	dijit/templates/Tree.html
+	dojo/cldr/monetary
+	dojo/cookie
+	dijit/form/templates/DropDownBox.html
+	dijit/ProgressBar
+	dijit/form/NumberTextBox
+	dijit/form/TimeTextBox
+	dijit/ColorPalette
+	dijit/form/templates/Button.html
+	dijit/form/CurrencyTextBox
+	dijit/templates/MenuItem.html
+	dijit/form/templates/CheckBox.html
+	dojo/cldr/nls/gregorian
+	dijit/form/templates/VerticalSlider.html
+	dijit/layout/LayoutContainer
+	dijit/Tooltip
+	dijit/templates/MenuSeparator.html
+	dijit/form/VerticalSlider
+	dijit/form/DropDownButton
+	dijit/templates/ProgressBar.html
+	dojo/date
+	dijit/layout/_ContentPaneResizeMixin
+	dijit/form/RangeBoundTextBox
+	dijit/_editor/RichText
+	dijit/nls/loading
+	dojo/dnd/Moveable
+	dijit/TooltipDialog
+	dojo/nls/colors
+	dojo/store/util/SimpleQueryEngine
+	dojo/cldr/nls/number
+	dijit/form/_ExpandingTextAreaMixin
+	dijit/MenuItem
+	dijit/MenuBarItem
+	dijit/layout/TabController
+	dojo/cldr/supplemental
+	dijit/MenuBar
+	dijit/ToolbarSeparator
+	dijit/layout/StackController
+	dijit/templates/TooltipDialog.html
+	dojo/dnd/Mover
+	dijit/form/HorizontalRule
+	dijit/layout/TabContainer
+	dijit/templates/Menu.html
+	dijit/_editor/nls/FontChoice
+	dijit/form/_Spinner
+	dijit/form/Button
+	dijit/layout/templates/TabContainer.html
+	dojo/dnd/move
+	dijit/form/Form
+	dijit/layout/_TabContainerBase
+	dojo/store/Memory
+	dijit/templates/Tooltip.html
+	dijit/Editor
+	dojo/cldr/nls/currency
+	dijit/Toolbar
+	dijit/layout/StackContainer
+	dojo/regexp
+	dijit/form/ComboBox
+	dijit/form/_FormMixin
+	dijit/_editor/plugins/LinkDialog
+	dijit/DropDownMenu
+	dijit/Menu
+	dijit/form/_CheckBoxMixin
+	dijit/layout/ContentPane
+	dijit/form/templates/ValidationTextBox.html
+	dijit/form/templates/TextBox.html
+	dijit/_KeyNavContainer
+	dijit/layout/utils
+	dijit/form/DataList
+	dijit/templates/Dialog.html
+	dijit/_editor/_Plugin
+	dijit/form/CheckBox
+	dijit/templates/MenuBar.html
+	dijit/tree/_dndSelector
+	dojo/html
+	dijit/_PaletteMixin
+	dijit/templates/TitlePane.html
+	dijit/form/ValidationTextBox
+	dijit/layout/BorderContainer
+	dojo/number
+	dojo/data/util/filter
+	dijit/_WidgetsInTemplateMixin
+	dijit/form/HorizontalRuleLabels
+	dijit/templates/MenuBarItem.html
+	dijit/form/FilteringSelect
+	dojo/data/util/sorter
+	dijit/form/_ButtonMixin
+	dojo/colors
+	dijit/form/templates/Spinner.html
+	dijit/tree/_dndContainer
+	dojo/date/locale
+	dijit/templates/InlineEditBox.html
+	dijit/form/VerticalRule
+	dijit/form/_FormSelectWidget
+	dijit/form/Select
+	dijit/_editor/range
+	dojo/store/util/QueryResults
+	dijit/form/_ListBase
+	dojo/DeferredList
+	dojo/dnd/common
+	dijit/CalendarLite
+	dijit/CheckedMenuItem
+	dijit/form/VerticalRuleLabels
+	dijit/Declaration
+	dijit/MenuSeparator
+	dijit/form/_ComboBoxMenu
+	dijit/layout/templates/ScrollingTabController.html
+	dijit/Dialog
+	dijit/form/MultiSelect
+	dijit/form/_DateTimeTextBox
+	dijit/form/_ToggleButtonMixin
+	dijit/Calendar
+	dijit/form/templates/Select.html
+	dijit/_editor/selection
+	dijit/form/nls/ComboBox
+	dojo/fx
+	dijit/_DialogMixin
+	dijit/nls/common
+	dijit/Tree
+	dijit/form/HorizontalSlider
+
+dijit/dijit:
+	dojo/uacss
+	dojo/text
+	dijit/hccss
+	dijit/_Contained
+	dojo/parser
+	dijit/_Container
+	dijit/_base/scroll
+	dijit/layout/_LayoutWidget
+	dijit/_base
+	dijit/form/_FormWidgetMixin
+	dijit/BackgroundIframe
+	dijit/form/_FormValueMixin
+	dojo/Stateful
+	dojo/touch
+	dijit/_CssStateMixin
+	dojo/_base/url
+	dojo/string
+	dijit/form/_FormValueWidget
+	dijit/registry
+	dijit/_base/manager
+	dijit/_base/place
+	dijit/WidgetSet
+	dijit/a11y
+	dijit/typematic
+	dijit/_base/focus
+	dijit/place
+	dijit/_Widget
+	dojo/cache
+	dijit/_FocusMixin
+	dijit/_OnDijitClickMixin
+	dijit/focus
+	dijit/_base/sniff
+	dijit/dijit
+	dijit/main
+	dojo/date/stamp
+	dijit/form/_FormWidget
+	dijit/_base/typematic
+	dijit/_base/popup
+	dijit/_TemplatedMixin
+	dijit/_base/wai
+	dojo/window
+	dijit/popup
+	dijit/_base/window
+	dijit/_WidgetBase
+
+dojox/grid/DataGrid:
+	dojo/uacss
+	dojo/text
+	dijit/hccss
+	dojox/grid/_View
+	dijit/_Contained
+	dojo/dnd/Selector
+	dojo/parser
+	dojox/grid/DataSelection
+	dijit/templates/CheckedMenuItem.html
+	dojo/dnd/Manager
+	dojox/grid/_RowSelector
+	dojox/grid/_Layout
+	dojo/i18n
+	dojox/grid/_Grid
+	dijit/nls/loading
+	dojox/main
+	dojo/dnd/Mover
+	dojo/Stateful
+	dojo/touch
+	dojox/grid/Selection
+	dijit/_CssStateMixin
+	dojox/grid/resources/_Grid.html
+	dojox/grid/_RowManager
+	dojo/_base/url
+	dojo/string
+	dojo/dnd/Avatar
+	dojox/grid/_Scroller
+	dojox/grid/_Events
+	dojo/dnd/autoscroll
+	dijit/registry
+	dijit/_base/manager
+	dojox/html/metrics
+	dojox/grid/_EditManager
+	dijit/a11y
+	dijit/CheckedMenuItem
+	dojo/dnd/Container
+	dojo/dnd/common
+	dojox/grid/_ViewManager
+	dojox/grid/cells
+	dijit/_Widget
+	dijit/_FocusMixin
+	dijit/_OnDijitClickMixin
+	dojo/cache
+	dijit/focus
+	dojox/grid/util
+	dojox/grid/DataGrid
+	dijit/templates/MenuItem.html
+	dijit/main
+	dojo/date/stamp
+	dojox/grid/resources/View.html
+	dojox/grid/_FocusManager
+	dijit/MenuItem
+	dijit/_TemplatedMixin
+	dojox/grid/_SelectionPreserver
+	dojo/window
+	dojox/grid/_Builder
+	dojo/dnd/Source
+	dojox/grid/cells/_base
+	dijit/_WidgetBase
+	dojo/dnd/Moveable
+
+
+
+Process finished normally
+	errors: 0
+	warnings: 2
+	build time: 37.287 seconds

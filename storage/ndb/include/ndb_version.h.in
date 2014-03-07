@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -820,6 +820,19 @@ int
 ndbd_dict_get_tabinforef_implemented(Uint32 x)
 {
   return x >= NDBD_DICT_GET_TABINFOREF_IMPLEMENTED;
+}
+
+/**
+ * Dbtc::execFIRE_TRIG_ORD can receive long signals.
+ */
+#define NDBD_LONG_FIRE_TRIG_ORD NDB_MAKE_VERSION(7,3,2)
+
+static
+inline
+int
+ndbd_long_fire_trig_ord(Uint32 x)
+{
+  return x >= NDBD_LONG_FIRE_TRIG_ORD;
 }
 
 #endif

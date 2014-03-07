@@ -2,7 +2,7 @@
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_show_tables.txt;
 
 # Dump the output of ndb_show_tables to file
---exec $NDB_SHOW_TABLES --no-defaults --p > $dump_file
+--exec $NDB_SHOW_TABLES --no-defaults -p > $dump_file
 
 TRUNCATE ndb_show_tables_results;
 

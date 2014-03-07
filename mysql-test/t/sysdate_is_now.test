@@ -1,3 +1,4 @@
+
 #
 # BUG#15101 restore aliasing of SYSDATE to NOW in 5.0
 # this feature is activated via --sysdate-is-now mysqld init opt

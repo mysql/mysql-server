@@ -1,6 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -107,9 +106,6 @@ sub check_socket_path_length {
   my ($path)= @_;
 
   return 0 if IS_WINDOWS;
-  # This may not be true, but we can't test for it on AIX due to Perl bug
-  # See Bug #45771
-  return 0 if ($^O eq 'aix');
 
   require IO::Socket::UNIX;
 

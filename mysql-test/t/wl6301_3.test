@@ -1,3 +1,4 @@
+
 # WL#6301: Change default value for the 'bind-address' option
 #
 # 3. Check that if the server is bound to the IPv4-mapped IPv6-address,

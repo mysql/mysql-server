@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include <my_getopt.h>
 #include <assert.h>
 #include <my_dir.h>
+#include <mysql_version.h>
 
 #define MAX_ROWS  1000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
@@ -182,6 +183,23 @@ int main(int argc, char *argv[])
       fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);
       DBUG_RETURN(1);
     }
+#if MYSQL_VERSION_ID >= 50100 && MYSQL_VERSION_ID < 50500
+/* Number of error messages in 5.1 - do not change this number! */
+#define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 641
+#elif MYSQL_VERSION_ID >= 50500 && MYSQL_VERSION_ID < 50600
+/* Number of error messages in 5.5 - do not change this number! */
+#define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 728
+#endif
+#if MYSQL_OLD_GA_ERROR_MESSAGE_COUNT
+    if (row_count != MYSQL_OLD_GA_ERROR_MESSAGE_COUNT)
+    {
+      fprintf(stderr, "Can only add new error messages to latest GA. ");
+      fprintf(stderr, "Use ER_UNKNOWN_ERROR instead.\n");
+      fprintf(stderr, "Expected %u messages, found %u.\n",
+              MYSQL_OLD_GA_ERROR_MESSAGE_COUNT, row_count);
+      DBUG_RETURN(1);
+    }
+#endif
     if (lang_head == NULL || error_head == NULL)
     {
       fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);
@@ -363,7 +381,7 @@ static int create_sys_files(struct languages *lang_head,
     /* continue with header of the errmsg.sys file */
     length= ftell(to) - HEADER_LENGTH - row_count * 4;
     memset(head, 0, HEADER_LENGTH);
-    bmove((uchar *) head, (uchar *) file_head, 4);
+    memmove(head, file_head, 4);
     head[4]= 1;
     int4store(head + 6, length);
     int4store(head + 10, row_count);
@@ -794,8 +812,9 @@ static char *get_word(char **str)
   DBUG_ENTER("get_word");
 
   *str= find_end_of_word(start);
-  DBUG_RETURN(my_strndup(start, (uint) (*str - start),
-				    MYF(MY_WME | MY_FAE)));
+  DBUG_RETURN(my_strndup(PSI_NOT_INSTRUMENTED,
+                         start, (uint) (*str - start),
+			 MYF(MY_WME | MY_FAE)));
 }
 
 
@@ -828,8 +847,9 @@ static struct message *parse_message_string(struct message *new_message,
   while (*str != ' ' && *str != '\t' && *str)
     str++;
   if (!(new_message->lang_short_name=
-	my_strndup(start, (uint) (str - start),
-			      MYF(MY_WME | MY_FAE))))
+	my_strndup(PSI_NOT_INSTRUMENTED,
+                   start, (uint) (str - start),
+		   MYF(MY_WME | MY_FAE))))
     DBUG_RETURN(0);				/* Fatal error */
   DBUG_PRINT("info", ("msg_slang: %s", new_message->lang_short_name));
 
@@ -848,8 +868,9 @@ static struct message *parse_message_string(struct message *new_message,
   start= str + 1;
   str= parse_text_line(start);
 
-  if (!(new_message->text= my_strndup(start, (uint) (str - start),
-						 MYF(MY_WME | MY_FAE))))
+  if (!(new_message->text= my_strndup(PSI_NOT_INSTRUMENTED,
+                                      start, (uint) (str - start),
+                                      MYF(MY_WME | MY_FAE))))
     DBUG_RETURN(0);				/* Fatal error */
   DBUG_PRINT("info", ("msg_text: %s", new_message->text));
 
@@ -869,7 +890,8 @@ static struct errors *parse_error_string(char *str, int er_count)
   DBUG_PRINT("enter", ("str: %s", str));
 
   /* create a new element */
-  new_error= (struct errors *) my_malloc(sizeof(*new_error), MYF(MY_WME));
+  new_error= (struct errors *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                         sizeof(*new_error), MYF(MY_WME));
 
   if (my_init_dynamic_array(&new_error->msg, sizeof(struct message), 0, 0))
     DBUG_RETURN(0);				/* OOM: Fatal error */
@@ -958,7 +980,8 @@ static struct languages *parse_charset_string(char *str)
   do
   {
     /*creating new element of the linked list */
-    new_lang= (struct languages *) my_malloc(sizeof(*new_lang), MYF(MY_WME));
+    new_lang= (struct languages *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                             sizeof(*new_lang), MYF(MY_WME));
     new_lang->next_lang= head;
     head= new_lang;
 

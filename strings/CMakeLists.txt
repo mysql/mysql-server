@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,12 +15,13 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 
-SET(STRINGS_SOURCES bchange.c bmove_upp.c ctype-big5.c ctype-bin.c ctype-cp932.c
-                ctype-czech.c ctype-euc_kr.c ctype-eucjpms.c ctype-extra.c ctype-gb2312.c ctype-gbk.c
+SET(STRINGS_SOURCES bchange.c ctype-big5.c ctype-bin.c ctype-cp932.c
+                ctype-czech.c ctype-euc_kr.c ctype-eucjpms.c ctype-extra.c ctype-gb2312.c ctype-gbk.c ctype-gb18030.c
                 ctype-latin1.c ctype-mb.c ctype-simple.c ctype-sjis.c ctype-tis620.c ctype-uca.c
                 ctype-ucs2.c ctype-ujis.c ctype-utf8.c ctype-win1250ch.c ctype.c decimal.c dtoa.c int2str.c
                 is_prefix.c llstr.c longlong2str.c my_strtoll10.c my_vsnprintf.c
-                str2int.c str_alloc.c strcend.c strend.c strfill.c strmake.c strmov.c strnmov.c 
+                str2int.c str_alloc.c strcend.c strend.c strfill.c strmake.c
+                my_stpmov.c my_stpnmov.c
                 strxmov.c strxnmov.c xml.c
 		my_strchr.c strcont.c strappend.c)
 
@@ -34,3 +35,8 @@ ADD_CONVENIENCE_LIBRARY(strings ${STRINGS_SOURCES})
 
 ADD_EXECUTABLE(conf_to_src EXCLUDE_FROM_ALL conf_to_src.c)
 TARGET_LINK_LIBRARIES(conf_to_src strings)
+
+INSTALL_DEBUG_SYMBOLS(strings)
+IF(MSVC)
+   INSTALL_DEBUG_TARGET(strings DESTINATION ${INSTALL_LIBDIR}/debug)
+ENDIF()

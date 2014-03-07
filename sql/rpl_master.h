@@ -1,5 +1,5 @@
 #ifndef RPL_MASTER_H_INCLUDED
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length);
   events in that set.
 */
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-                       const Gtid_set* gtid_set);
+                       Gtid_set* gtid_set);
 
 int reset_master(THD* thd);
 

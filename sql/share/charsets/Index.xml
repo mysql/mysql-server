@@ -3,7 +3,8 @@
 <charsets max-id="99">
 
 <copyright>
-  Copyright (c) 2003, 2012,  Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2003-2005 MySQL AB
+   Use is subject to license terms
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 </copyright>
 
 <description>
@@ -386,11 +387,25 @@ To make maintaining easier please:
   <description>GBK Simplified Chinese</description>
   <alias>cp936</alias>
   <collation name="gbk_chinese_ci"	id="28"	order="Chinese">
-    <flag>primary</flag>	
+    <flag>primary</flag>
     <flag>compiled</flag>
   </collation>
   <collation name="gbk_bin"	id="87"	order="Binary">
-    <flag>binary</flag>	
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
+</charset>
+
+<charset name="gb18030">
+  <family>East Asian</family>
+  <description>China National Standard GB18030</description>
+  <alias>cp54936</alias>
+  <collation name="gb18030_chinese_ci" id="248" order="Chinese">
+    <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="gb18030_bin" id="249" order="Binary">
+    <flag>binary</flag>
     <flag>compiled</flag>
   </collation>
 </charset>

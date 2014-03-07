@@ -1,0 +1,124 @@
+# This file contains XA-related test cases that requires mysql server
+# built with debug.
+-- source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("Found 1 prepared XA transactions");
+--enable_query_log
+
+--echo #
+--echo # WL#7155: Test 1: check that prepared transaction branch
+--echo # is recovered after abnormal server termination.
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+ 
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--disable_query_log
+set session debug="+d,crash_after_xa_recover";
+--enable_query_log
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+XA RECOVER;
+
+# Call script that will poll the server waiting for it to disappear
+--source include/wait_until_disconnected.inc
+
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/start_mysqld.inc
+
+--disable_query_log
+set session debug="-d,crash_after_xa_recover";
+--enable_query_log
+
+XA RECOVER;
+SELECT * FROM t1;
+XA COMMIT 'xid1';
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # WL#7155: Test 2: check that in case of abnormal server termination
+--echo # the changes done by unprepared transaction branch will be rolled back
+--echo # after the server restart.
+--echo # 
+
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+ 
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+
+--disable_query_log
+set session debug="+d,crash_after_xa_recover";
+--enable_query_log
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+XA RECOVER;
+
+# Call script that will poll the server waiting for it to disappear
+--source include/wait_until_disconnected.inc
+
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/start_mysqld.inc
+
+--disable_query_log
+set session debug="-d,crash_after_xa_recover";
+--enable_query_log
+
+XA RECOVER;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # WL#7155: Test 3: Check that escaped "'" symbol for xid value
+--echo # is handled correctly during recovering XA transaction. 
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+
+XA START 'xid1', 'br\'_1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1', 'br\'_1';
+XA PREPARE 'xid1', 'br\'_1';
+
+--disable_query_log
+set session debug="+d,crash_after_xa_recover";
+--enable_query_log
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+XA RECOVER;
+
+# Call script that will poll the server waiting for it to disappear
+--source include/wait_until_disconnected.inc
+
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/start_mysqld.inc
+
+--disable_query_log
+set session debug="-d,crash_after_xa_recover";
+--enable_query_log
+
+XA RECOVER;
+XA ROLLBACK 'xid1', 'br\'_1';
+
+DROP TABLE t1;
+

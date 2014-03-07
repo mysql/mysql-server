@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,7 +79,7 @@
 #include "lock.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_parse.h"                     // is_log_table_write_query
-#include "sql_acl.h"                       // SUPER_ACL
+#include "auth_common.h"                   // SUPER_ACL
 #include <hash.h>
 #include <assert.h>
 
@@ -501,16 +501,16 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
         removed_locks= table->lock_count;
 
         /* Move down all table pointers above 'i'. */
-	bmove((char*) (locked->table+i),
-	      (char*) (locked->table+i+1),
-	      (old_tables - i) * sizeof(TABLE*));
+	memmove(reinterpret_cast<char*> (locked->table + i),
+                reinterpret_cast<char*> (locked->table + i + 1),
+                (old_tables - i) * sizeof(TABLE*));
 
         lock_data_end= table->lock_data_start + table->lock_count;
         /* Move down all lock data pointers above 'table->lock_data_end-1' */
-        bmove((char*) (locked->locks + table->lock_data_start),
-              (char*) (locked->locks + lock_data_end),
-              (locked->lock_count - lock_data_end) *
-              sizeof(THR_LOCK_DATA*));
+        memmove(reinterpret_cast<char*> (locked->locks + table->lock_data_start),
+                reinterpret_cast<char*> (locked->locks + lock_data_end),
+                (locked->lock_count - lock_data_end) *
+                sizeof(THR_LOCK_DATA*));
 
         /*
           Fix moved table elements.
@@ -593,7 +593,8 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
   DBUG_ENTER("mysql_lock_merge");
 
   if (!(sql_lock= (MYSQL_LOCK*)
-	my_malloc(sizeof(*sql_lock)+
+	my_malloc(key_memory_MYSQL_LOCK,
+                  sizeof(*sql_lock)+
 		  sizeof(THR_LOCK_DATA*)*(a->lock_count+b->lock_count)+
 		  sizeof(TABLE*)*(a->table_count+b->table_count),MYF(MY_WME))))
     DBUG_RETURN(0);				// Fatal error
@@ -695,7 +696,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     from the first part immediately before calling thr_multi_lock().
   */
   if (!(sql_lock= (MYSQL_LOCK*)
-	my_malloc(sizeof(*sql_lock) +
+	my_malloc(key_memory_MYSQL_LOCK,
+                  sizeof(*sql_lock) +
 		  sizeof(THR_LOCK_DATA*) * tables * 2 +
                   sizeof(table_ptr) * lock_count,
 		  MYF(0))))
@@ -788,9 +790,11 @@ bool lock_schema_name(THD *thd, const char *db)
 
   if (thd->global_read_lock.can_acquire_protection())
     return TRUE;
-  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_STATEMENT);
-  mdl_request.init(MDL_key::SCHEMA, db, "", MDL_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_STATEMENT);
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::SCHEMA, db, "", MDL_EXCLUSIVE, MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&global_request);
@@ -845,11 +849,14 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
 
   if (thd->global_read_lock.can_acquire_protection())
     return TRUE;
-  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_STATEMENT);
-  schema_request.init(MDL_key::SCHEMA, db, "", MDL_INTENTION_EXCLUSIVE,
-                      MDL_TRANSACTION);
-  mdl_request.init(mdl_type, db, name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_STATEMENT);
+  MDL_REQUEST_INIT(&schema_request,
+                   MDL_key::SCHEMA, db, "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&mdl_request,
+                   mdl_type, db, name, MDL_EXCLUSIVE, MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&schema_request);
@@ -972,7 +979,8 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
 
     DBUG_ASSERT(! thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
                                                  MDL_SHARED));
-    mdl_request.init(MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
 
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout))
@@ -1048,7 +1056,8 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
   if (m_state != GRL_ACQUIRED)
     DBUG_RETURN(0);
 
-  mdl_request.init(MDL_key::COMMIT, "", "", MDL_SHARED, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::COMMIT, "", "", MDL_SHARED, MDL_EXPLICIT);
 
   if (thd->mdl_context.acquire_lock(&mdl_request,
                                     thd->variables.lock_wait_timeout))

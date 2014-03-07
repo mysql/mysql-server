@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include "ndb_limits.h"
 #include "kernel_types.h"
 #include <Bitmask.hpp>
+
+#define JAM_FILE_ID 2
+
 
 /**
  * No of 32 bits words needed to store a node bitmask
@@ -88,5 +91,8 @@ typedef BitmaskPOD<(unsigned int)_NDB_NODE_BITMASK_SIZE> NdbNodeBitmaskPOD;
  * S3 = 2log(B)
  * S4 = 2^B - 1
  */
+
+
+#undef JAM_FILE_ID
 
 #endif

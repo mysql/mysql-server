@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "vio_priv.h"
-
-#ifdef _WIN32
 
 static size_t wait_overlapped_result(Vio *vio, int timeout)
 {
@@ -101,22 +99,19 @@ my_bool vio_is_connected_pipe(Vio *vio)
 }
 
 
-int vio_close_pipe(Vio *vio)
+int vio_shutdown_pipe(Vio *vio)
 {
   BOOL ret;
-  DBUG_ENTER("vio_close_pipe");
+  DBUG_ENTER("vio_shutdown_pipe");
 
   CancelIo(vio->hPipe);
   CloseHandle(vio->overlapped.hEvent);
   DisconnectNamedPipe(vio->hPipe);
   ret= CloseHandle(vio->hPipe);
 
-  vio->type= VIO_CLOSED;
+  vio->inactive= TRUE;
   vio->hPipe= NULL;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
 
   DBUG_RETURN(ret);
 }
-
-#endif
-

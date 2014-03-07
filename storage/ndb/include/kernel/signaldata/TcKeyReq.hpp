@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "SignalData.hpp"
 #include <transporter/TransporterDefinitions.hpp>
+
+#define JAM_FILE_ID 127
+
 
 /**
  * @class TcKeyReq
@@ -115,14 +118,12 @@ private:
    *   It includes all attribute info sent in possible attrinfo 
    *   signals as well as the attribute info sent in TCKEYREQ.
    *
-   *   (APIVERSION << 16 | ATTRINFOLEN)
-   *
    * Long TCKEYREQ
-   *   (APIVERSION << 16)
+   *   ATTRIBUTE INFO (attrinfo) LENGTH is unused in signal.
    *   Get AttrInfoLength from length of section 1, if present.
    *
    */
-  UintR attrLen;              // DATA 2   (also stores API Version)
+  UintR attrLen;              // DATA 2
   UintR tableId;              // DATA 3
   UintR requestInfo;          // DATA 4   Various transaction flags
   UintR tableSchemaVersion;   // DATA 5
@@ -149,9 +150,7 @@ private:
    * Get:ers for attrLen
    */ 
 
-  static Uint16  getAPIVersion(const UintR & attrLen);
   static Uint16  getAttrinfoLen(const UintR & attrLen);
-  static void setAPIVersion(UintR & attrLen, Uint16 apiVersion);
   static void setAttrinfoLen(UintR & attrLen, Uint16 aiLen);
 
 
@@ -215,6 +214,12 @@ private:
    */
   static UintR getDeferredConstraints(const UintR & requestInfo);
   static void setDeferredConstraints(UintR & requestInfo, UintR val);
+
+  /**
+   * Foreign key constraints disabled
+   */
+  static UintR getDisableFkConstraints(const UintR & requestInfo);
+  static void setDisableFkConstraints(UintR & requestInfo, UintR val);
 
   /**
    * Set:ers for scanInfo
@@ -284,6 +289,8 @@ private:
 #define TC_COORDINATED_SHIFT (16)
 #define TC_DEFERRED_CONSTAINTS_SHIFT (17)
 
+#define TC_DISABLE_FK_SHIFT (18)
+
 /**
  * Scan Info
  *
@@ -317,16 +324,15 @@ private:
  * Attr Len
  *
  n = Attrinfo length(words)   - 16 Bits -> max 65535 (Short TCKEYREQ only)
- a = API version no           - 16 Bits -> max 65535
+ a = removed was API version no  - 16 Bits -> max 65535
+ API version no is more than 16 bits, was not used in kernel
+ (removed in 7.3.3, 7.2.14, 7.1.29, 7.0.40, 6.3.53)
 
            1111111111222222222233
  01234567890123456789012345678901
  aaaaaaaaaaaaaaaannnnnnnnnnnnnnnn   (Short TCKEYREQ)
  aaaaaaaaaaaaaaaa                   (Long TCKEYREQ)
 */
-
-#define API_VER_NO_SHIFT     (16)
-#define API_VER_NO_MASK      (65535)
 
 #define ATTRLEN_SHIFT        (0)
 #define ATTRLEN_MASK         (65535)
@@ -576,19 +582,6 @@ TcKeyReq::setTakeOverScanInfo(UintR & scanInfo, Uint32 aScanInfo){
 
 inline
 Uint16
-TcKeyReq::getAPIVersion(const UintR & anAttrLen){
-  return (Uint16)((anAttrLen >> API_VER_NO_SHIFT) & API_VER_NO_MASK);
-}
-
-inline
-void
-TcKeyReq::setAPIVersion(UintR & anAttrLen, Uint16 apiVersion){
-// ASSERT_MAX(apiVersion, API_VER_NO_MASK, "TcKeyReq::setAPIVersion");
-  anAttrLen |= (apiVersion << API_VER_NO_SHIFT);
-}
-
-inline
-Uint16
 TcKeyReq::getAttrinfoLen(const UintR & anAttrLen){
   return (Uint16)((anAttrLen) & ATTRLEN_MASK);
 }
@@ -653,5 +646,21 @@ TcKeyReq::getDeferredConstraints(const UintR & requestInfo){
   return (requestInfo >> TC_DEFERRED_CONSTAINTS_SHIFT) & 1;
 }
 
+inline
+void
+TcKeyReq::setDisableFkConstraints(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "TcKeyReq::setDisableFkConstraints");
+  requestInfo |= (val << TC_DISABLE_FK_SHIFT);
+}
+
+inline
+UintR
+TcKeyReq::getDisableFkConstraints(const UintR & requestInfo){
+  return (requestInfo >> TC_DISABLE_FK_SHIFT) & 1;
+}
+
+
+
+#undef JAM_FILE_ID
 
 #endif

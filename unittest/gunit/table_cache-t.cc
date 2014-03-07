@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,7 +135,7 @@ public:
     memset(cache_element_arr, 0, sizeof(cache_element_arr));
     cache_element= cache_element_arr;
     // MEM_ROOT is used for constructing ha_example() instances.
-    init_alloc_root(&m_mem_root, 1024, 0);
+    init_alloc_root(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     /*
       Assertion in some of Table_cache methods check that version of
       the share is up-to-date.
@@ -152,7 +152,7 @@ public:
 
   TABLE *create_table(THD *thd)
   {
-    TABLE *result= (TABLE *)my_malloc(sizeof(TABLE), MYF(0));
+    TABLE *result= (TABLE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(TABLE), MYF(0));
 
     memset(result, 0, sizeof(TABLE));
     result->s= this;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -153,7 +153,7 @@ int main(int argc, char** argv){
   Vector<BaseString> list;
   BaseString tmp(_options);
   tmp.split(list, ",");
-  for (size_t i = 0; i<list.size(); i++)
+  for (unsigned i = 0; i<list.size(); i++)
   {
     bool found = false;
     for (int o = 0; _ops[o].name != 0; o++)
@@ -213,7 +213,7 @@ int main(int argc, char** argv){
       if (hq.m_rows_found.size() != 0)
       {
         printf("\tfound: [ ");
-        for (size_t i = 0; i<hq.m_rows_found.size(); i++)
+        for (unsigned i = 0; i<hq.m_rows_found.size(); i++)
         {
           printf("%u ", (Uint32)hq.m_rows_found[i]);
         }

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (C) 2007 MySQL AB
+# Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -204,19 +204,30 @@ fi
 # Build the source, make installs, and   #
 # create the database to be rsynced	 #
 ##########################################
+function build_cluster()
+{
+    if [ -x storage/ndb/compile-cluster ]
+    then
+        storage/ndb/compile-cluster --autotest $*
+    else
+        BUILD/compile-ndb-autotest $*
+    fi
+}
+
 install_dir0=$install_dir/$tag0
 install_dir1=$install_dir/$tag1
 if [ "$build" ]
 then
 	cd $dst_place0
         rm -rf $install_dir0
-	BUILD/compile-ndb-autotest --prefix=$install_dir0
+        build_cluster --prefix=$install_dir0
 	make install
 
 	cd $dst_place1
 	rm -rf $install_dir1
-        BUILD/compile-ndb-autotest --prefix=$install_dir1
+        build_cluster --prefix=$install_dir1
 	make install
+        fi
 fi
 
 

@@ -1,0 +1,105 @@
+-- source include/have_ndb.inc
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+#
+# found in http://www.mysqlperformanceblog.com/2010/09/20/instrumentation-and-the-cost-of-foreign-keys/
+#
+CREATE TABLE parent (
+ id INT NOT NULL AUTO_INCREMENT,
+ bogus_column char(32),
+ PRIMARY KEY (id)
+) ENGINE=ndb;
+
+CREATE TABLE child (
+ id INT NOT NULL AUTO_INCREMENT,
+ parent_id INT NOT NULL,
+ bogus_column char(32),
+ PRIMARY KEY (id),
+ KEY (parent_id)
+) ENGINE=ndb;
+
+alter table child add constraint fkname foreign key (parent_id) references parent (id) on update restrict on delete restrict;
+
+INSERT INTO parent (bogus_column)
+VALUES ('aaa'), ('bbb'), ('ccc'), ('ddd'), ('eee');
+
+INSERT INTO child (parent_id,bogus_column) VALUES
+(1, 'aaa'), (2,'bbb'), (3, 'ccc'),
+(4, 'ddd'), (5, 'eee');
+
+connection con1;
+START TRANSACTION; # session1
+
+connection con2;
+START TRANSACTION; # session2
+
+# session1
+connection con1;
+UPDATE child SET parent_id = 5 WHERE parent_id = 4;
+
+#session2
+connection con2;
+UPDATE parent SET bogus_column = 'new!' WHERE id = 4;
+
+#session2
+connection con2;
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE parent SET bogus_column = 'new!' WHERE id = 5;
+
+connection con1;
+rollback;
+
+connection con2;
+rollback;
+
+alter table child drop foreign key fkname;
+
+#
+# But if you use no action instead of restrict
+#   it works fine
+#
+alter table child add constraint fkname foreign key (parent_id) references parent (id);
+
+connection con1;
+START TRANSACTION; # session1
+
+connection con2;
+START TRANSACTION; # session2
+
+# session1
+connection con1;
+UPDATE child SET parent_id = 5 WHERE parent_id = 4;
+
+#session2
+connection con2;
+UPDATE parent SET bogus_column = 'new!' WHERE id = 4;
+
+#session2
+connection con2;
+UPDATE parent SET bogus_column = 'new!' WHERE id = 5;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+drop table child, parent;
+
+#
+# bug#7412
+#
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  ref_id int(11) default NULL,
+  PRIMARY KEY  (id),
+  KEY ref_id (ref_id),
+  CONSTRAINT ref_id FOREIGN KEY (ref_id) REFERENCES t1 (id)
+) ENGINE=ndb;
+
+INSERT INTO t1 VALUES (1, 1);
+DELETE FROM t1 WHERE id = 1;
+
+drop table t1;

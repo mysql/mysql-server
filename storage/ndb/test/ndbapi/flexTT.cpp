@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -164,7 +164,9 @@ waitForThreads(void)
     NdbSleep_MilliSleep(20);
     for (int i = 0; i < (int)tNoOfThreads ; i++) {
       if (ThreadReady[i] == 0) {
+        // Found one thread not yet ready, continue waiting
         cont = 1;
+        break;
       }//if
     }//for
   } while (cont == 1);

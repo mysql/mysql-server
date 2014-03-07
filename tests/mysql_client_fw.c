@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights
+ * reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -36,12 +37,13 @@ static char *opt_user= 0;
 static char *opt_password= 0;
 static char *opt_host= 0;
 static char *opt_unix_socket= 0;
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name= 0;
 #endif
 static unsigned int  opt_port;
 static my_bool tty_password= 0, opt_silent= 0;
 
+static my_bool opt_secure_auth= 1;
 static MYSQL *mysql= 0;
 static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
@@ -195,6 +197,28 @@ static void die(const char *file, int line, const char *expr)
 #define mytest(x) if (!(x)) {myerror(NULL);DIE_UNLESS(FALSE);}
 #define mytest_r(x) if ((x)) {myerror(NULL);DIE_UNLESS(FALSE);}
 
+/* Silence unused function warnings for some of the static functions. */
+static int cmp_double(double *a, double *b) __attribute__((unused));
+static void verify_col_data(const char *table, const char *col,
+                            const char *exp_data) __attribute__((unused));
+static void do_verify_prepare_field(MYSQL_RES *result, unsigned int no,
+                                    const char *name, const char *org_name,
+                                    enum enum_field_types type,
+                                    const char *table, const char *org_table,
+                                    const char *db, unsigned long length,
+                                    const char *def, const char *file,
+                                    int line) __attribute__((unused));
+static void verify_st_affected_rows(MYSQL_STMT *stmt,
+                                    ulonglong exp_count) __attribute__((unused));
+static void verify_affected_rows(ulonglong exp_count) __attribute__((unused));
+static void verify_field_count(MYSQL_RES *result,
+                               uint exp_count) __attribute__((unused));
+#ifndef EMBEDDED_LIBRARY
+static void execute_prepare_query(const char *query,
+                                  ulonglong exp_count) __attribute__((unused));
+#endif
+static my_bool thread_query(const char *query) __attribute__((unused));
+
 
 /* A workaround for Sun Forte 5.6 on Solaris x86 */
 
@@ -250,7 +274,7 @@ base on Windows.
 static MYSQL *mysql_client_init(MYSQL* con)
 {
  MYSQL* res = mysql_init(con);
- #ifdef HAVE_SMEM
+ #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
  if (res && shared_memory_base_name)
  mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
  #endif
@@ -259,6 +283,9 @@ static MYSQL *mysql_client_init(MYSQL* con)
 
  if (opt_default_auth && *opt_default_auth)
  mysql_options(res, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
+ if (!opt_secure_auth)
+ mysql_options(res, MYSQL_SECURE_AUTH, (char*)&opt_secure_auth);
  return res;
 }
 
@@ -303,7 +330,7 @@ static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
  MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
- if (stmt && mysql_stmt_prepare(stmt, query, (uint) strlen(query)))
+ if (stmt && mysql_stmt_prepare(stmt, query, (ulong)strlen(query)))
  {
    mysql_stmt_close(stmt);
    return 0;
@@ -348,6 +375,9 @@ static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
 
  if (opt_default_auth && *opt_default_auth)
  mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
+ if (!opt_secure_auth)
+ mysql_options(mysql, MYSQL_SECURE_AUTH, (char*)&opt_secure_auth);
 
  if (!(mysql_real_connect(mysql, opt_host, opt_user,
  opt_password, opt_db ? opt_db:"test", opt_port,
@@ -448,7 +478,8 @@ static void my_print_dashes(MYSQL_RES *result)
 static void my_print_result_metadata(MYSQL_RES *result)
 {
  MYSQL_FIELD  *field;
- unsigned int i, j;
+ unsigned int i;
+ size_t j;
  unsigned int field_count;
 
  mysql_field_seek(result, 0);
@@ -970,7 +1001,7 @@ const char *query_arg)
 
  fetch->handle= mysql_stmt_init(mysql);
 
- rc= mysql_stmt_prepare(fetch->handle, fetch->query, strlen(fetch->query));
+ rc= mysql_stmt_prepare(fetch->handle, fetch->query, (ulong)strlen(fetch->query));
  check_execute(fetch->handle, rc);
 
  /*
@@ -998,7 +1029,7 @@ const char *query_arg)
  fetch->column_count);
  fetch->out_data= (char**) calloc(1, sizeof(char*) * fetch->column_count);
  fetch->out_data_length= (ulong*) calloc(1, sizeof(ulong) *
- fetch->column_count);
+                                         fetch->column_count);
  for (i= 0; i < fetch->column_count; ++i)
  {
    fetch->out_data[i]= (char*) calloc(1, MAX_COLUMN_LENGTH);
@@ -1202,7 +1233,7 @@ static struct my_option client_test_long_options[] =
  0, 0, 0, 0, 0, 0},
 {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
  0},
-#ifdef HAVE_SMEM
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 {"shared-memory-base-name", 'm', "Base name of shared memory.", 
  &shared_memory_base_name, (uchar**)&shared_memory_base_name, 0, 
  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1226,6 +1257,9 @@ static struct my_option client_test_long_options[] =
 {"default_auth", 0, "Default authentication client-side plugin to use.",
  &opt_default_auth, &opt_default_auth, 0,
  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+{"secure-auth", 0, "Refuse client connecting to server if it"
+  " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+  &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1267,7 +1301,8 @@ char *argument)
  {
    char *start=argument;
    my_free(opt_password);
-   opt_password= my_strdup(argument, MYF(MY_FAE));
+   opt_password= my_strdup(PSI_NOT_INSTRUMENTED,
+                           argument, MYF(MY_FAE));
    while (*argument) *argument++= 'x';               /* Destroy argument */
    if (*start)
    start[1]=0;
@@ -1298,7 +1333,8 @@ char *argument)
  }
  if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
  !(embedded_server_args[embedded_server_arg_count++]=
- my_strdup(argument, MYF(MY_FAE))))
+ my_strdup(PSI_NOT_INSTRUMENTED,
+           argument, MYF(MY_FAE))))
  {
    DIE("Can't use server argument");
  }
@@ -1378,7 +1414,7 @@ int main(int argc, char **argv)
 
  /* Copy the original arguments, so it can be reused for restarting. */
  original_argc= argc;
- original_argv= malloc(argc * sizeof(char*));
+ original_argv= (char**)malloc(argc * sizeof(char*));
  if (argc && !original_argv)
  exit(1);
  for (i= 0; i < argc; i++)
@@ -1395,7 +1431,7 @@ int main(int argc, char **argv)
  /* If there are any arguments left (named tests), save them. */
  if (argc)
  {
-   tests_to_run= malloc((argc + 1) * sizeof(char*));
+   tests_to_run= (char**)malloc((argc + 1) * sizeof(char*));
    if (!tests_to_run)
    exit(1);
    for (i= 0; i < argc; i++)

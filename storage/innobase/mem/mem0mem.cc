@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,8 @@ The memory management
 Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #include "mem0mem.h"
 #ifdef UNIV_NONINL
 #include "mem0mem.ic"
@@ -30,91 +32,25 @@ Created 6/9/1994 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "srv0srv.h"
-#include "mem0dbg.cc"
 #include <stdarg.h>
 
-/*
-			THE MEMORY MANAGEMENT
-			=====================
+/** Duplicates a NUL-terminated string, allocated from a memory heap.
+@param[in]	heap,	memory heap where string is allocated
+@param[in]	str)	string to be copied
+@return own: a copy of the string */
 
-The basic element of the memory management is called a memory
-heap. A memory heap is conceptually a
-stack from which memory can be allocated. The stack may grow infinitely.
-The top element of the stack may be freed, or
-the whole stack can be freed at one time. The advantage of the
-memory heap concept is that we can avoid using the malloc and free
-functions of C which are quite expensive, for example, on the Solaris + GCC
-system (50 MHz Sparc, 1993) the pair takes 3 microseconds,
-on Win NT + 100MHz Pentium, 2.5 microseconds.
-When we use a memory heap,
-we can allocate larger blocks of memory at a time and thus
-reduce overhead. Slightly more efficient the method is when we
-allocate the memory from the index page buffer pool, as we can
-claim a new page fast. This is called buffer allocation.
-When we allocate the memory from the dynamic memory of the
-C environment, that is called dynamic allocation.
-
-The default way of operation of the memory heap is the following.
-First, when the heap is created, an initial block of memory is
-allocated. In dynamic allocation this may be about 50 bytes.
-If more space is needed, additional blocks are allocated
-and they are put into a linked list.
-After the initial block, each allocated block is twice the size of the
-previous, until a threshold is attained, after which the sizes
-of the blocks stay the same. An exception is, of course, the case
-where the caller requests a memory buffer whose size is
-bigger than the threshold. In that case a block big enough must
-be allocated.
-
-The heap is physically arranged so that if the current block
-becomes full, a new block is allocated and always inserted in the
-chain of blocks as the last block.
-
-In the debug version of the memory management, all the allocated
-heaps are kept in a list (which is implemented as a hash table).
-Thus we can notice if the caller tries to free an already freed
-heap. In addition, each buffer given to the caller contains
-start field at the start and a trailer field at the end of the buffer.
-
-The start field has the following content:
-A. sizeof(ulint) bytes of field length (in the standard byte order)
-B. sizeof(ulint) bytes of check field (a random number)
-
-The trailer field contains:
-A. sizeof(ulint) bytes of check field (the same random number as at the start)
-
-Thus we can notice if something has been copied over the
-borders of the buffer, which is illegal.
-The memory in the buffers is initialized to a random byte sequence.
-After freeing, all the blocks in the heap are set to random bytes
-to help us discover errors which result from the use of
-buffers in an already freed heap. */
-
-#ifdef MEM_PERIODIC_CHECK
-
-ibool					mem_block_list_inited;
-/* List of all mem blocks allocated; protected by the mem_comm_pool mutex */
-UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
-
-#endif
-
-/**********************************************************************//**
-Duplicates a NUL-terminated string, allocated from a memory heap.
-@return	own: a copy of the string */
-UNIV_INTERN
 char*
 mem_heap_strdup(
-/*============*/
-	mem_heap_t*	heap,	/*!< in: memory heap where string is allocated */
-	const char*	str)	/*!< in: string to be copied */
+	mem_heap_t*	heap,
+	const char*	str)
 {
 	return(static_cast<char*>(mem_heap_dup(heap, str, strlen(str) + 1)));
 }
 
 /**********************************************************************//**
 Duplicate a block of data, allocated from a memory heap.
-@return	own: a copy of the data */
-UNIV_INTERN
+@return own: a copy of the data */
+
 void*
 mem_heap_dup(
 /*=========*/
@@ -127,8 +63,8 @@ mem_heap_dup(
 
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.
-@return	own: the result */
-UNIV_INTERN
+@return own: the result */
+
 char*
 mem_heap_strcat(
 /*============*/
@@ -153,7 +89,7 @@ mem_heap_strcat(
 
 /****************************************************************//**
 Helper function for mem_heap_printf.
-@return	length of formatted string, including terminating NUL */
+@return length of formatted string, including terminating NUL */
 static
 ulint
 mem_heap_printf_low(
@@ -265,8 +201,8 @@ A simple sprintf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type).
-@return	heap-allocated formatted string */
-UNIV_INTERN
+@return heap-allocated formatted string */
+
 char*
 mem_heap_printf(
 /*============*/
@@ -293,21 +229,59 @@ mem_heap_printf(
 	return(str);
 }
 
+#ifdef UNIV_DEBUG
+/** Validates the contents of a memory heap.
+Checks a memory heap for consistency, prints the contents if any error
+is detected. A fatal error is logged if an error is detected.
+@param[in]	heap	Memory heap to validate. */
+
+void
+mem_heap_validate(
+	const mem_heap_t*	heap)
+{
+	ulint	size = 0;
+
+	for (const mem_block_t* block = heap;
+		block != NULL;
+		block = UT_LIST_GET_NEXT(list, block)) {
+
+		mem_block_validate(block);
+
+		switch (block->type) {
+		case MEM_HEAP_DYNAMIC:
+			break;
+		case MEM_HEAP_BUFFER:
+		case MEM_HEAP_BUFFER | MEM_HEAP_BTR_SEARCH:
+			ut_ad(block->len <= UNIV_PAGE_SIZE);
+			break;
+		default:
+			ut_error;
+		}
+
+		size += block->len;
+	}
+
+	ut_ad(size == heap->total_size);
+}
+#endif /* UNIV_DEBUG */
+
 /***************************************************************//**
 Creates a memory heap block where data can be allocated.
 @return own: memory heap block, NULL if did not succeed (only possible
 for MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
-mem_heap_create_block(
-/*==================*/
+mem_heap_create_block_func(
+/*=======================*/
 	mem_heap_t*	heap,	/*!< in: memory heap or NULL if first block
 				should be created */
 	ulint		n,	/*!< in: number of bytes needed for user data */
-	ulint		type,	/*!< in: type of heap: MEM_HEAP_DYNAMIC or
-				MEM_HEAP_BUFFER */
+#ifdef UNIV_DEBUG
 	const char*	file_name,/*!< in: file name where created */
-	ulint		line)	/*!< in: line where created */
+	ulint		line,	/*!< in: line where created */
+#endif /* UNIV_DEBUG */
+	ulint		type)	/*!< in: type of heap: MEM_HEAP_DYNAMIC or
+				MEM_HEAP_BUFFER */
 {
 #ifndef UNIV_HOTBACKUP
 	buf_block_t*	buf_block = NULL;
@@ -318,8 +292,9 @@ mem_heap_create_block(
 	ut_ad((type == MEM_HEAP_DYNAMIC) || (type == MEM_HEAP_BUFFER)
 	      || (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
 
-	if (heap && heap->magic_n != MEM_BLOCK_MAGIC_N) {
-		mem_analyze_corruption(heap);
+	if (heap != NULL) {
+		mem_block_validate(heap);
+		ut_d(mem_heap_validate(heap));
 	}
 
 	/* In dynamic allocation, calculate the size: block header + data. */
@@ -330,8 +305,7 @@ mem_heap_create_block(
 
 		ut_ad(type == MEM_HEAP_DYNAMIC || n <= MEM_MAX_ALLOC_IN_BUF);
 
-		block = static_cast<mem_block_t*>(
-			mem_area_alloc(&len, mem_comm_pool));
+		block = static_cast<mem_block_t*>(ut_malloc(len));
 	} else {
 		len = UNIV_PAGE_SIZE;
 
@@ -354,7 +328,11 @@ mem_heap_create_block(
 		block = (mem_block_t*) buf_block->frame;
 	}
 
-	ut_ad(block);
+	if (block == NULL) {
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Unable to allocate memory of size %lu.", len);
+	}
+
 	block->buf_block = buf_block;
 	block->free_block = NULL;
 #else /* !UNIV_HOTBACKUP */
@@ -364,21 +342,10 @@ mem_heap_create_block(
 #endif /* !UNIV_HOTBACKUP */
 
 	block->magic_n = MEM_BLOCK_MAGIC_N;
-	ut_strlcpy_rev(block->file_name, file_name, sizeof(block->file_name));
-	block->line = line;
+	ut_d(ut_strlcpy_rev(block->file_name, file_name,
+			    sizeof(block->file_name)));
+	ut_d(block->line = line);
 
-#ifdef MEM_PERIODIC_CHECK
-	mutex_enter(&(mem_comm_pool->mutex));
-
-	if (!mem_block_list_inited) {
-		mem_block_list_inited = TRUE;
-		UT_LIST_INIT(mem_block_list);
-	}
-
-	UT_LIST_ADD_LAST(mem_block_list, mem_block_list, block);
-
-	mutex_exit(&(mem_comm_pool->mutex));
-#endif
 	mem_block_set_len(block, len);
 	mem_block_set_type(block, type);
 	mem_block_set_free(block, MEM_BLOCK_HEADER_SIZE);
@@ -407,7 +374,7 @@ mem_heap_create_block(
 Adds a new block to a memory heap.
 @return created block, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INTERN
+
 mem_block_t*
 mem_heap_add_block(
 /*===============*/
@@ -418,7 +385,7 @@ mem_heap_add_block(
 	mem_block_t*	new_block;
 	ulint		new_size;
 
-	ut_ad(mem_heap_check(heap));
+	ut_d(mem_block_validate(heap));
 
 	block = UT_LIST_GET_LAST(heap->base);
 
@@ -453,14 +420,14 @@ mem_heap_add_block(
 
 	/* Add the new block as the last block */
 
-	UT_LIST_INSERT_AFTER(list, heap->base, block, new_block);
+	UT_LIST_INSERT_AFTER(heap->base, block, new_block);
 
 	return(new_block);
 }
 
 /******************************************************************//**
 Frees a block from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_block_free(
 /*================*/
@@ -475,19 +442,9 @@ mem_heap_block_free(
 	buf_block = static_cast<buf_block_t*>(block->buf_block);
 #endif /* !UNIV_HOTBACKUP */
 
-	if (block->magic_n != MEM_BLOCK_MAGIC_N) {
-		mem_analyze_corruption(block);
-	}
+	mem_block_validate(block);
 
-	UT_LIST_REMOVE(list, heap->base, block);
-
-#ifdef MEM_PERIODIC_CHECK
-	mutex_enter(&(mem_comm_pool->mutex));
-
-	UT_LIST_REMOVE(mem_block_list, mem_block_list, block);
-
-	mutex_exit(&(mem_comm_pool->mutex));
-#endif
+	UT_LIST_REMOVE(heap->base, block);
 
 	ut_ad(heap->total_size >= block->len);
 	heap->total_size -= block->len;
@@ -496,36 +453,19 @@ mem_heap_block_free(
 	len = block->len;
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
 
+	UNIV_MEM_ASSERT_W(block, len);
+
 #ifndef UNIV_HOTBACKUP
-	if (!srv_use_sys_malloc) {
-#ifdef UNIV_MEM_DEBUG
-		/* In the debug version we set the memory to a random
-		combination of hex 0xDE and 0xAD. */
-
-		mem_erase_buf((byte*) block, len);
-#else /* UNIV_MEM_DEBUG */
-		UNIV_MEM_ASSERT_AND_FREE(block, len);
-#endif /* UNIV_MEM_DEBUG */
-
-	}
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
 
 		ut_ad(!buf_block);
-		mem_area_free(block, mem_comm_pool);
+		ut_free(block);
 	} else {
 		ut_ad(type & MEM_HEAP_BUFFER);
 
 		buf_block_free(buf_block);
 	}
 #else /* !UNIV_HOTBACKUP */
-#ifdef UNIV_MEM_DEBUG
-	/* In the debug version we set the memory to a random
-	combination of hex 0xDE and 0xAD. */
-
-	mem_erase_buf((byte*) block, len);
-#else /* UNIV_MEM_DEBUG */
-	UNIV_MEM_ASSERT_AND_FREE(block, len);
-#endif /* UNIV_MEM_DEBUG */
 	ut_free(block);
 #endif /* !UNIV_HOTBACKUP */
 }
@@ -533,7 +473,7 @@ mem_heap_block_free(
 #ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
-UNIV_INTERN
+
 void
 mem_heap_free_block_free(
 /*=====================*/
@@ -547,30 +487,3 @@ mem_heap_free_block_free(
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
-
-#ifdef MEM_PERIODIC_CHECK
-/******************************************************************//**
-Goes through the list of all allocated mem blocks, checks their magic
-numbers, and reports possible corruption. */
-UNIV_INTERN
-void
-mem_validate_all_blocks(void)
-/*=========================*/
-{
-	mem_block_t*	block;
-
-	mutex_enter(&(mem_comm_pool->mutex));
-
-	block = UT_LIST_GET_FIRST(mem_block_list);
-
-	while (block) {
-		if (block->magic_n != MEM_BLOCK_MAGIC_N) {
-			mem_analyze_corruption(block);
-		}
-
-		block = UT_LIST_GET_NEXT(mem_block_list, block);
-	}
-
-	mutex_exit(&(mem_comm_pool->mutex));
-}
-#endif

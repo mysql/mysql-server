@@ -27,7 +27,7 @@
     -->
     <persistence-unit name="none" transaction-type="RESOURCE_LOCAL">
         <class>com.mysql.cluster.crund.A</class>
-        <class>com.mysql.cluster.crund.B0</class>
+        <class>com.mysql.cluster.crund.B</class>
     </persistence-unit>
 
     <!--
@@ -62,7 +62,7 @@
 
         <!-- We must enumerate each entity in the persistence unit -->
         <class>com.mysql.cluster.crund.A</class>
-        <class>com.mysql.cluster.crund.B0</class>
+        <class>com.mysql.cluster.crund.B</class>
 
         <!-- From the EclipseLink JPA documentation, not sure what this does
         <exclude-unlisted-classes>false</exclude-unlisted-classes>

@@ -1,7 +1,7 @@
 drop table if exists t1,t2,t7,t8,t9;
 drop database if exists mysqltest;
-create table t1 (a int not null auto_increment, b char(16) not null, primary key (a));
-create table t2 (a int not null auto_increment, b char(16) not null, primary key (a));
+create table t1 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam;
+create table t2 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam;
 insert into t1 (b) values ("test"),("test1"),("test2"),("test3");
 insert into t2 (b) select b from t1;
 insert into t1 (b) select b from t2;
@@ -112,11 +112,11 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-CREATE TABLE t1(a INT)
+CREATE TABLE t1(a INT) ENGINE = MYISAM
 DATA DIRECTORY='TEST_DIR/tmp'
 INDEX DIRECTORY='TEST_DIR/tmp';
 Got one of the listed errors
-CREATE TABLE t2(a INT)
+CREATE TABLE t2(a INT) ENGINE = MYISAM
 DATA DIRECTORY='TEST_DIR/tmp'
 INDEX DIRECTORY='TEST_DIR/tmp';
 RENAME TABLE t2 TO t1;
@@ -153,19 +153,19 @@ SET SESSION keep_files_on_create = FALSE;
 CREATE TABLE t1 (a INT) ENGINE MYISAM;
 DROP TABLE t1;
 End of 5.0 tests
-CREATE TABLE t1(a INT)
+CREATE TABLE t1(a INT) ENGINE=MYISAM
 INDEX DIRECTORY='MYSQLD_DATADIR/mysql';
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(a INT)
+CREATE TABLE t1(a INT) ENGINE=MYISAM
 DATA DIRECTORY='MYSQLD_DATADIR/test';
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(a INT)
+CREATE TABLE t1(a INT) ENGINE=MYISAM
 DATA DIRECTORY='MYSQLD_DATADIR/';
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(a INT)
+CREATE TABLE t1(a INT) ENGINE=MYISAM
 INDEX DIRECTORY='MYSQLD_DATADIR';
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(a INT)
+CREATE TABLE t1(a INT) ENGINE=MYISAM
 INDEX DIRECTORY='TEST_DIR/master-data_var';
 ERROR HY000: Can't create/write to file 'TEST_DIR/master-data_var/t1.MYI' (Errcode: 2 - No such file or directory)
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='NO_DIR_IN_CREATE';
@@ -179,7 +179,7 @@ SET @@SQL_MODE=@OLD_SQL_MODE;
 # BUG#40980 - Drop table can remove another MyISAM table's
 #             data and index files
 #
-CREATE TABLE user(a INT) DATA DIRECTORY='MYSQL_TMP_DIR/mysql'
+CREATE TABLE user(a INT) ENGINE=MYISAM DATA DIRECTORY='MYSQL_TMP_DIR/mysql'
                              INDEX DIRECTORY='MYSQL_TMP_DIR/mysql';
 FLUSH TABLE user;
 # Symlinking mysql database to tmpdir

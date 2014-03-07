@@ -1,3 +1,5 @@
+--source include/have_utf8.inc
+
 #
 # Some simple test of load data
 #
@@ -363,7 +365,7 @@ SET sql_mode = '';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT '1 \\\\aa\n' INTO DUMPFILE '$file'
 
-CREATE TABLE t1 (id INT, val1 CHAR(3)) ENGINE=MyISAM;
+CREATE TABLE t1 (id INT, val1 CHAR(3));
 
 SET sql_mode = 'NO_BACKSLASH_ESCAPES';
 
@@ -610,7 +612,7 @@ disconnect con1;
 --echo #
 
 CREATE TABLE t1(f1 INT);
-EVAL SELECT 0xE1BB30 INTO OUTFILE 't1.dat';
+EVAL SELECT 0xE1C330 INTO OUTFILE 't1.dat';
 --disable_warnings
 LOAD DATA INFILE 't1.dat' IGNORE INTO TABLE t1 CHARACTER SET utf8;
 --enable_warnings
@@ -635,3 +637,18 @@ create table t1(a point);
 drop table t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#17834434: sql/table.h: Assertion tbl->updatable &&
+--echo #               !tbl->multitable_view failed
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+
+CREATE VIEW v1 AS SELECT t1.a FROM t1, t1 AS t2;
+
+--error ER_NON_UPDATABLE_TABLE
+LOAD DATA LOCAL INFILE '' REPLACE INTO TABLE v1;
+
+DROP VIEW v1;
+DROP TABLE t1;

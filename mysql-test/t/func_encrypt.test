@@ -1,3 +1,4 @@
+
 -- source include/have_ssl_crypto_functs.inc
 
 --disable_warnings
@@ -96,7 +97,7 @@ explain extended select des_decrypt(des_encrypt("hello",4),'password2'), des_dec
 drop table if exists t1;
 --enable_warnings
 create table t1 (f1 smallint(6) default null, f2  mediumtext character set utf8)
-engine=myisam default charset=latin1;
+default charset=latin1;
 insert into t1 values (null,'contraction\'s');
 insert into t1 values (-15818,'requirement\'s');
 --disable_result_log

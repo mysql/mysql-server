@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -76,7 +76,8 @@ get_full_path ()
 
 me=`get_full_path $0`
 
-basedir=`echo $me | sed -e 's;/bin/mysql_config;;'`
+# Script might have been renamed but assume mysql_<something>config
+basedir=`echo $me | sed -e 's;/bin/mysql_.*config;;'`
 
 ldata='@localstatedir@'
 execdir='@libexecdir@'
@@ -110,10 +111,12 @@ fi
 
 # Create options 
 # We intentionally add a space to the beginning and end of lib strings, simplifies replace later
-libs=" $ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @NON_THREADED_LIBS@"
-libs="$libs @openssl_libs@ @STATIC_NSS_FLAGS@ "
-libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
-embedded_libs=" $ldflags -L$pkglibdir -lmysqld @LIBDL@ @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
+libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@"
+libs="$libs @openssl_libs@ "
+libs_r=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient_r @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
+libs="$libs @QUOTED_CMAKE_C_LINK_FLAGS@"
+libs_r="$libs_r @QUOTED_CMAKE_C_LINK_FLAGS@"
+embedded_libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
 embedded_libs="$embedded_libs @QUOTED_CMAKE_CXX_LINK_FLAGS@"
 
 cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
@@ -121,8 +124,8 @@ cxxflags="-I$pkgincludedir @CXXFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
 
 # Remove some options that a client doesn't have to care about
-for remove in DDBUG_OFF DSAFE_MUTEX DFORCE_INIT_OF_VARS \
-              DEXTRA_DEBUG DHAVE_purify O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
+for remove in DDBUG_OFF DSAFE_MUTEX \
+              DEXTRA_DEBUG DHAVE_VALGRIND O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
               'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
               unroll2 ip mp restrict
 do
@@ -160,8 +163,7 @@ Options:
         --plugindir      [$plugindir]
         --socket         [$socket]
         --port           [$port]
-        --version        [$version]
-        --libmysqld-libs [$embedded_libs]
+        --version        [$version]@LIBMYSQLD_LIBS_USAGE@
         --variable=VAR   VAR is one of:
                 pkgincludedir [$pkgincludedir]
                 pkglibdir     [$pkglibdir]
@@ -183,7 +185,7 @@ while test $# -gt 0; do
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
-        --embedded-libs | --embedded | --libmysqld-libs) echo "$embedded_libs" ;;
+        --embedded-libs | --embedded | --libmysqld-libs) @DISABLE_EMBEDDED_SH@ echo "$embedded_libs" ;;
         --variable=*)
           var=`echo "$1" | sed 's,^[^=]*=,,'`
           case "$var" in

@@ -1977,14 +1977,10 @@ rename table t2 to t0, t1 to t2, t0 to t1;;
 # for 'deadlock_con1' which holds shared metadata lock on 't2'.
 # 
 # The below statement should not wait as doing so will cause deadlock.
-# Instead it should fail and emit ER_LOCK_DEADLOCK statement.
+# Instead it should fail and emit ER_LOCK_DEADLOCK statement and 
+# transaction should be rolled back.
 select * from t1;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-#
-# Let us check that failure of the above statement has not released
-# metadata lock on table 't1', i.e. that RENAME TABLE is still blocked.
-# Commit transaction to unblock RENAME TABLE.
-commit;
 #
 # Switching to connection 'default'.
 # Reap RENAME TABLE.
@@ -2022,15 +2018,9 @@ unlock tables;
 # Switching to connection 'deadlock_con1'.
 # Since the latest RENAME TABLE entered in deadlock with SELECT
 # statement the latter should be aborted and emit ER_LOCK_DEADLOCK
-# error.
+# error and transaction should be rolled back.
 # Reap SELECT * FROM t1.
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-#
-# Again let us check that failure of the SELECT statement has not
-# released metadata lock on table 't2', i.e. that the latest RENAME
-# is blocked.
-# Commit transaction to unblock this RENAME TABLE.
-commit;
 #
 # Switching to connection 'deadlock_con2'.
 # Reap RENAME TABLE ... .
@@ -2065,14 +2055,10 @@ alter table t1 add column j int, rename to t2;;
 # metadata lock on 't2' and starts waiting for connection
 # 'deadlock_con1' which holds shared lock on 't1'.
 # The below statement should not wait as it will cause deadlock.
-# An appropriate error should be reported instead.
+# An appropriate error should be reported instead and transaction
+# should be rolled back.
 select * from t2;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-# Again let us check that failure of the above statement has not
-# released all metadata locks in connection 'deadlock_con1' and
-# so ALTER TABLE ... RENAME is still blocked.
-# Commit transaction to unblock ALTER TABLE ... RENAME.
-commit;
 #
 # Switching to connection 'default'.
 # Reap ALTER TABLE ... RENAME.
@@ -2580,12 +2566,6 @@ set debug_sync='mdl_acquire_lock_wait SIGNAL alter_go';
 # fail due to 't1' changing its name to 't2').
 update t1 set c3=c3+1 where c2 = 3;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-#
-# Let us check that failure of the above statement has not released
-# metadata lock on table 't1', i.e. that ALTER TABLE is still blocked.
-# Unblock ALTER TABLE by commiting transaction and thus releasing
-# metadata lock on 't1'.
-commit;
 #
 # Switching to connection 'con46273'.
 # Reap ALTER TABLE.

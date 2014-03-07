@@ -15,6 +15,7 @@ ThreadConfig=ldm={count=4}
 MaxNoOfConcurrentOperations=250000
 LongMessageBuffer=64M
 TransactionDeadlockDetectionTimeout=30000
+TimeBetweenEpochs=1000
 
 [ENV]
 # Need to always use ndbmtd when we want lots of partitions

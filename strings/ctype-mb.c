@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,15 +17,13 @@
 #include "m_ctype.h"
 #include "m_string.h"
 
-#ifdef USE_MB
-
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
 {
   uint32 l;
-  uchar *map= cs->to_upper;
+  const uchar *map= cs->to_upper;
   char *str_orig= str;
-  
+
   while (*str)
   {
     /* Pointing after the '\0' is safe here. */
@@ -44,9 +42,9 @@ size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
 size_t my_casedn_str_mb(const CHARSET_INFO *cs, char *str)
 {
   uint32 l;
-  uchar *map= cs->to_lower;
+  const uchar *map= cs->to_lower;
   char *str_orig= str;
-  
+
   while (*str)
   {
     /* Pointing after the '\0' is safe here. */
@@ -62,10 +60,10 @@ size_t my_casedn_str_mb(const CHARSET_INFO *cs, char *str)
 }
 
 
-static inline MY_UNICASE_CHARACTER*
+static inline const MY_UNICASE_CHARACTER*
 get_case_info_for_ch(const CHARSET_INFO *cs, uint page, uint offs)
 {
-  MY_UNICASE_CHARACTER *p;
+  const MY_UNICASE_CHARACTER *p;
   return cs->caseinfo ? ((p= cs->caseinfo->page[page]) ? &p[offs] : NULL) :  NULL;
 }
 
@@ -79,17 +77,17 @@ size_t my_caseup_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
 {
   uint32 l;
   char *srcend= src + srclen;
-  uchar *map= cs->to_upper;
+  const uchar *map= cs->to_upper;
 
   DBUG_ASSERT(cs->caseup_multiply == 1);
   DBUG_ASSERT(src == dst && srclen == dstlen);
   DBUG_ASSERT(cs->mbmaxlen == 2);
-  
+
   while (src < srcend)
   {
     if ((l=my_ismbchar(cs, src, srcend)))
     {
-      MY_UNICASE_CHARACTER *ch;
+      const MY_UNICASE_CHARACTER *ch;
       if ((ch= get_case_info_for_ch(cs, (uchar) src[0], (uchar) src[1])))
       {
         *src++= ch->toupper >> 8;
@@ -114,17 +112,17 @@ size_t my_casedn_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
 {
   uint32 l;
   char *srcend= src + srclen;
-  uchar *map=cs->to_lower;
+  const uchar *map=cs->to_lower;
 
   DBUG_ASSERT(cs->casedn_multiply == 1);
-  DBUG_ASSERT(src == dst && srclen == dstlen);  
+  DBUG_ASSERT(src == dst && srclen == dstlen);
   DBUG_ASSERT(cs->mbmaxlen == 2);
-  
+
   while (src < srcend)
   {
     if ((l= my_ismbchar(cs, src, srcend)))
     {
-      MY_UNICASE_CHARACTER *ch;
+      const MY_UNICASE_CHARACTER *ch;
       if ((ch= get_case_info_for_ch(cs, (uchar) src[0], (uchar) src[1])))
       {
         *src++= ch->tolower >> 8;
@@ -156,7 +154,7 @@ static size_t
 my_casefold_mb_varlen(const CHARSET_INFO *cs,
                       char *src, size_t srclen,
                       char *dst, size_t dstlen __attribute__((unused)),
-                      uchar *map,
+                      const uchar *map,
                       size_t is_upper)
 {
   char *srcend= src + srclen, *dst0= dst;
@@ -168,7 +166,7 @@ my_casefold_mb_varlen(const CHARSET_INFO *cs,
     size_t mblen= my_ismbchar(cs, src, srcend);
     if (mblen)
     {
-      MY_UNICASE_CHARACTER *ch;
+      const MY_UNICASE_CHARACTER *ch;
       if ((ch= get_case_info_for_ch(cs, (uchar) src[0], (uchar) src[1])))
       {
         int code= is_upper ? ch->toupper : ch->tolower;
@@ -219,23 +217,23 @@ my_caseup_mb_varlen(const CHARSET_INFO *cs, char *src, size_t srclen,
 int my_strcasecmp_mb(const CHARSET_INFO *cs,const char *s, const char *t)
 {
   uint32 l;
-  uchar *map=cs->to_upper;
-  
+  const uchar *map=cs->to_upper;
+
   while (*s && *t)
   {
     /* Pointing after the '\0' is safe here. */
     if ((l=my_ismbchar(cs, s, s + cs->mbmaxlen)))
     {
       while (l--)
-        if (*s++ != *t++) 
+        if (*s++ != *t++)
           return 1;
     }
-    else if (my_mbcharlen(cs, *t) > 1)
-      return 1;
-    else if (map[(uchar) *s++] != map[(uchar) *t++])
+    else if (my_mbcharlen(cs, *t) != 1 ||
+             map[(uchar) *s++] != map[(uchar) *t++])
       return 1;
   }
   /* At least one of '*s' and '*t' is zero here. */
+  DBUG_ASSERT(!*t || !*s);
   return (*t != *s);
 }
 
@@ -728,9 +726,22 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end)
       memset(str, cs->max_sort_char, end - str);
       return;
     }
-    buf[0]= cs->max_sort_char >> 8;
-    buf[1]= cs->max_sort_char & 0xFF;
-    buflen= 2;
+    else if (cs->max_sort_char <= 0xFFFF)
+    {
+      buf[0]= cs->max_sort_char >> 8;
+      buf[1]= cs->max_sort_char & 0xFF;
+      buflen= 2;
+    }
+    else
+    {
+      /* Currently, it's only for GB18030, so it must be a 4-byte char */
+      DBUG_ASSERT(cs->max_sort_char > 0xFFFFFF);
+      buf[0]= cs->max_sort_char >> 24 & 0xFF;
+      buf[1]= cs->max_sort_char >> 16 & 0xFF;
+      buf[2]= cs->max_sort_char >> 8 & 0xFF;
+      buf[3]= cs->max_sort_char & 0xFF;
+      buflen= 4;
+    }
   }
   else
   {
@@ -1215,10 +1226,10 @@ my_wildcmp_mb_bin(const CHARSET_INFO *cs,
 
 
 /*
-  Data was produced from EastAsianWidth.txt 
+  Data was produced from EastAsianWidth.txt
   using utt11-dump utility.
 */
-static char pg11[256]=
+static const char pg11[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1230,7 +1241,7 @@ static char pg11[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pg23[256]=
+static const char pg23[256]=
 {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -1242,7 +1253,7 @@ static char pg23[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pg2E[256]=
+static const char pg2E[256]=
 {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -1254,7 +1265,7 @@ static char pg2E[256]=
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pg2F[256]=
+static const char pg2F[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1266,7 +1277,7 @@ static char pg2F[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0
 };
 
-static char pg30[256]=
+static const char pg30[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,
@@ -1278,7 +1289,7 @@ static char pg30[256]=
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 };
 
-static char pg31[256]=
+static const char pg31[256]=
 {
 0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1290,7 +1301,7 @@ static char pg31[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 };
 
-static char pg32[256]=
+static const char pg32[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1302,7 +1313,7 @@ static char pg32[256]=
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0
 };
 
-static char pg4D[256]=
+static const char pg4D[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1314,7 +1325,7 @@ static char pg4D[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pg9F[256]=
+static const char pg9F[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1326,7 +1337,7 @@ static char pg9F[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgA4[256]=
+static const char pgA4[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1338,7 +1349,7 @@ static char pgA4[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgD7[256]=
+static const char pgD7[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1350,7 +1361,7 @@ static char pgD7[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgFA[256]=
+static const char pgFA[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1362,7 +1373,7 @@ static char pgFA[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgFE[256]=
+static const char pgFE[256]=
 {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1374,7 +1385,7 @@ static char pgFE[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgFF[256]=
+static const char pgFF[256]=
 {
 0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1386,7 +1397,7 @@ static char pgFF[256]=
 1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static struct {int page; char *p;} utr11_data[256]=
+static const struct {int page; const char *p;} utr11_data[256]=
 {
 {0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},
 {0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},
@@ -1489,6 +1500,3 @@ MY_COLLATION_HANDLER my_collation_mb_bin_handler =
     my_hash_sort_mb_bin,
     my_propagate_simple
 };
-
-
-#endif

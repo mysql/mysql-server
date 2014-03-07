@@ -1,3 +1,4 @@
+
 -- source include/have_query_cache.inc
 #
 # Test of query cache with --lower-case-table-names

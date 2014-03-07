@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 #include "mysys_priv.h"
 #include "m_string.h"
-#ifdef __WIN__
+#ifdef _WIN32
 
 /* Windows NT/2000 discretionary access control utility functions. */
 
@@ -117,7 +117,8 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
   }
   GetTokenInformation(htoken, TokenUser, 0, 0, &owner_token_length);
 
-  if (! my_multi_malloc(MYF(MY_WME),
+  if (! my_multi_malloc(key_memory_win_SECURITY_ATTRIBUTES,
+                        MYF(MY_WME),
                         &sa, ALIGN_SIZE(sizeof(SECURITY_ATTRIBUTES)) +
                              sizeof(My_security_attr),
                         &sd, sizeof(SECURITY_DESCRIPTOR),
@@ -147,7 +148,8 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
                GetLengthSid(everyone_sid) + GetLengthSid(owner_sid);
 
   /* Create an ACL */
-  if (! (dacl= (PACL) my_malloc(dacl_length, MYF(MY_ZEROFILL|MY_WME))))
+  if (! (dacl= (PACL) my_malloc(key_memory_win_PACL,
+                                dacl_length, MYF(MY_ZEROFILL|MY_WME))))
   {
     *perror= "Failed to allocate memory for DACL";
     goto error;
@@ -220,4 +222,4 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa)
   }
 }
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */

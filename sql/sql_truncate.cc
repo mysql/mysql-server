@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "sql_table.h"   // write_bin_log
 #include "datadict.h"    // dd_recreate_table()
 #include "lock.h"        // MYSQL_OPEN_* flags
-#include "sql_acl.h"     // DROP_ACL
+#include "auth_common.h" // DROP_ACL
 #include "sql_parse.h"   // check_one_table_access()
 #include "sql_truncate.h"
 #include "sql_show.h"    //append_identifier()
@@ -416,7 +416,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       if ((error= recreate_temporary_table(thd, tmp_table)))
         binlog_stmt= FALSE; /* No need to binlog failed truncate-by-recreate. */
 
-      DBUG_ASSERT(! thd->transaction.stmt.cannot_safely_rollback());
+      DBUG_ASSERT(! thd->get_transaction()->cannot_safely_rollback(
+        Transaction_ctx::STMT));
     }
     else
     {
@@ -480,12 +481,12 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       query_cache_invalidate does not need a valid TABLE object.
     */
     table_ref->table= NULL;
-    query_cache_invalidate3(thd, table_ref, FALSE);
+    query_cache.invalidate(thd, table_ref, FALSE);
   }
 
   /* DDL is logged in statement format, regardless of binlog format. */
   if (binlog_stmt)
-    error|= write_bin_log(thd, !error, thd->query(), thd->query_length());
+    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the
@@ -509,7 +510,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 bool Sql_cmd_truncate_table::execute(THD *thd)
 {
   bool res= TRUE;
-  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   DBUG_ENTER("Sql_cmd_truncate_table::execute");
 
   if (check_one_table_access(thd, DROP_ACL, first_table))

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,6 @@
 /* Written by Alex Barkov, who has a shared copyright to this code */
 
 #include "myisam.h"
-
-#ifdef HAVE_SPATIAL
 #include "sp_defs.h"
 
 #define MAX_REC_LENGTH 1024
@@ -485,12 +483,5 @@ static void rtree_PrintWKB(uchar *wkb, uint n_dims)
     }
   }
 }
-
-#else
-int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
-{
-  exit(0);
-}
-#endif /*HAVE_SPATIAL*/
 
 #include "mi_extrafunc.h"

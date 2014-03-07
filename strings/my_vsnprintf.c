@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -155,10 +155,9 @@ static char *backtick_string(const CHARSET_INFO *cs, char *to, char *end,
 
   for ( ; par < par_end; par+= char_len)
   {
-    uchar c= *(uchar *) par;
-    if (!(char_len= my_mbcharlen(cs, c)))
-      char_len= 1;
-    if (char_len == 1 && c == (uchar) quote_char )
+    if (!(char_len= my_mbcharlen_ptr(cs, par, par_end)))
+      goto err;
+    if (char_len == 1 && *par == quote_char)
     {
       if (start + 1 >= end)
         goto err;
@@ -166,9 +165,9 @@ static char *backtick_string(const CHARSET_INFO *cs, char *to, char *end,
     }
     if (start + char_len >= end)
       goto err;
-    start= strnmov(start, par, char_len);
+    start= my_stpnmov(start, par, char_len);
   }
-    
+
   if (start + 1 >= end)
     goto err;
   *start++= quote_char;
@@ -200,7 +199,7 @@ static char *process_str_arg(const CHARSET_INFO *cs, char *to, char *end,
   if (print_type & ESCAPED_ARG)
     to= backtick_string(cs, to, end, par, plen, '`');
   else
-    to= strnmov(to,par,plen);
+    to= my_stpnmov(to,par,plen);
   return to;
 }
 
@@ -295,7 +294,7 @@ static char *process_int_arg(char *to, char *end, size_t length,
       }
       to+= diff;
     }
-    bmove(to, store_start, res_length);
+    memmove(to, store_start, res_length);
   }
   to+= res_length;
   return to;
@@ -343,6 +342,7 @@ start:
     print_arr[idx].length--;    
     DBUG_ASSERT(*fmt == '$' && print_arr[idx].length < MAX_ARGS);
     args_arr[print_arr[idx].length].arg_type= 'd';
+    args_arr[print_arr[idx].length].have_longlong= 0;
     print_arr[idx].flags|= LENGTH_ARG;
     arg_count= MY_MAX(arg_count, print_arr[idx].length + 1);
     fmt++;
@@ -361,6 +361,7 @@ start:
       print_arr[idx].width--;
       DBUG_ASSERT(*fmt == '$' && print_arr[idx].width < MAX_ARGS);
       args_arr[print_arr[idx].width].arg_type= 'd';
+      args_arr[print_arr[idx].width].have_longlong= 0;
       print_arr[idx].flags|= WIDTH_ARG;
       arg_count= MY_MAX(arg_count, print_arr[idx].width + 1);
       fmt++;
@@ -493,7 +494,7 @@ start:
       length= MY_MIN(end - to , print_arr[i].end - print_arr[i].begin);
       if (to + length < end)
         length++;
-      to= strnmov(to, print_arr[i].begin, length);
+      to= my_stpnmov(to, print_arr[i].begin, length);
     }
     DBUG_ASSERT(to <= end);
     *to='\0';				/* End of errmessage */

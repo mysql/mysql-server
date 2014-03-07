@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -323,7 +323,9 @@ echo "host=$HOST" >> info.txt
 if [ "$clone1" ]
 then
     echo "clone1=$clone1" >> info.txt
+    [ ! -f $install_dir1/code1.txt ] || cp $install_dir1/code1.txt .
 fi
+[ ! -f $install_dir0/code0.txt ] || cp $install_dir0/code0.txt .
 if [ "$clonename" ]
 then
     echo "clonename=$clonename" >> info.txt

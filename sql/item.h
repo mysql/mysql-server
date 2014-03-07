@@ -1,7 +1,8 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "field.h"                              /* Derivation */
 #include "sql_array.h"
-#include "sql_trigger.h"
+#include "table_trigger_field_support.h"  // Table_trigger_field_support
 
 class Protocol;
 struct TABLE_LIST;
@@ -653,7 +654,7 @@ class Item
   void operator=(Item &);
   /* Cache of the result of is_expensive(). */
   int8 is_expensive_cache;
-  virtual bool is_expensive_processor(uchar *arg) { return 0; }
+  virtual bool is_expensive_processor(uchar *arg) { return false; }
 
 public:
   static void *operator new(size_t size) throw ()
@@ -676,6 +677,13 @@ public:
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   enum traverse_order { POSTFIX, PREFIX };
+
+  enum enum_walk
+  {
+    WALK_PREFIX=   0x01,
+    WALK_POSTFIX=  0x02,
+    WALK_SUBQUERY= 0x04
+  };
   
   /* Reuse size, only used by SP local variable assignment, otherwize 0 */
   uint rsize;
@@ -724,6 +732,11 @@ public:
   my_bool fixed;                        /* If item fixed with fix_fields */
   DTCollation collation;
   Item_result cmp_context;              /* Comparison context */
+  /*
+    If this item was created in runtime memroot,it cannot be used for
+    substitution in subquery transformation process
+   */
+  bool runtime_item;
  protected:
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
@@ -785,7 +798,17 @@ public:
     complete fix_fields() procedure.
   */
   inline void quick_fix_field() { fixed= 1; }
-  /* Function returns 1 on overflow and -1 on fatal errors */
+
+  /**
+    Save the item into a field but do not emit any warnings.
+
+    @param field         field to save the item into
+    @param no_coversions whether or not to allow conversions of the value
+
+    @return the status from saving into the field
+      @retval TYPE_OK    item saved without any issues
+      @retval != TYPE_OK there were issues saving the item
+  */
   type_conversion_status save_in_field_no_warnings(Field *field,
                                                    bool no_conversions);
   /**
@@ -1089,19 +1112,19 @@ protected:
   /**
     Convert val_str() to date in MYSQL_TIME
   */
-  bool get_date_from_string(MYSQL_TIME *ltime, uint flags);
+  bool get_date_from_string(MYSQL_TIME *ltime, my_time_flags_t flags);
   /**
     Convert val_real() to date in MYSQL_TIME
   */
-  bool get_date_from_real(MYSQL_TIME *ltime, uint flags);
+  bool get_date_from_real(MYSQL_TIME *ltime, my_time_flags_t flags);
   /**
     Convert val_decimal() to date in MYSQL_TIME
   */
-  bool get_date_from_decimal(MYSQL_TIME *ltime, uint flags);
+  bool get_date_from_decimal(MYSQL_TIME *ltime, my_time_flags_t flags);
   /**
     Convert val_int() to date in MYSQL_TIME
   */
-  bool get_date_from_int(MYSQL_TIME *ltime, uint flags);
+  bool get_date_from_int(MYSQL_TIME *ltime, my_time_flags_t flags);
   /**
     Convert get_time() from time to date in MYSQL_TIME
   */
@@ -1110,12 +1133,12 @@ protected:
   /**
     Convert a numeric type to date
   */
-  bool get_date_from_numeric(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date_from_numeric(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
 
   /**
     Convert a non-temporal type to date
   */
-  bool get_date_from_non_temporal(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date_from_non_temporal(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
 
   /**
     Convert val_str() to time in MYSQL_TIME
@@ -1191,6 +1214,23 @@ public:
 
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
+  /**
+    Return used table information for the level this item is resolved on.
+     - For fields, this returns the table the item is resolved from.
+     - For all other items, this behaves like used_tables().
+
+    @note: Use this function with caution. External calls to this function
+           should only be made for class objects derived from Item_ident.
+           Item::resolved_used_tables is for internal use only, in order to
+           process fields underlying a view column reference.
+  */
+  virtual table_map resolved_used_tables() const
+  {
+    // As this is the level this item was resolved on, it cannot be outer:
+    DBUG_ASSERT(!(used_tables() & OUTER_REF_TABLE_BIT));
+
+    return used_tables();
+  }
   /*
     Return table map of tables that can't be NULL tables (tables that are
     used in a context where if they would contain a NULL row generated
@@ -1276,7 +1316,7 @@ public:
   void split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
                        List<Item> &fields,
                        Item **ref, bool skip_registered);
-  virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate)= 0;
+  virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
   virtual bool get_time(MYSQL_TIME *ltime)= 0;
   /**
     Get timestamp in "struct timeval" format.
@@ -1284,7 +1324,7 @@ public:
     @retval  true  on error
   */
   virtual bool get_timeval(struct timeval *tm, int *warnings);
-  virtual bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
+  virtual bool get_date_result(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*
     The method allows to determine nullness of a complex expression 
@@ -1320,12 +1360,18 @@ public:
   virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
   /*
-    set value of aggregate function in case of no rows for grouping were found
+    Set value of aggregate function in case of no rows for grouping were found.
+    Also used for subqueries with outer references in SELECT list.
   */
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
   virtual Item *copy_andor_structure(THD *thd) { return this; }
   virtual Item *real_item() { return this; }
+  virtual Item *substitutional_item()
+  {
+    return  runtime_item ? real_item() : this;
+  }
+  virtual void set_runtime_created() { runtime_item= true; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   static const CHARSET_INFO *default_charset();
@@ -1341,7 +1387,27 @@ public:
                                             &my_charset_bin;
   };
 
-  virtual bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  /**
+    Traverses a tree of Items in prefix and/or postfix order.
+    Optionally walks into subqueries.
+
+    @param processor   processor function to be invoked per item
+                       returns true to abort traversal, false to continue
+    @param walk        controls how to traverse the item tree
+                       WALK_PREFIX:  call processor before invoking children
+                       WALK_POSTFIX: call processor after invoking children
+                       WALK_SUBQUERY go down into subqueries
+                       walk values are bit-coded and may be combined.
+                       Omitting both WALK_PREFIX and WALK_POSTFIX is "undefined
+                       behaviour" but will traverse all leaf nodes of the tree.
+    @param arg         Optional pointer to a walk-specific object
+
+    @retval      false walk succeeded
+    @retval      true  walk aborted
+                       by agreement, an error may have been reported
+  */
+
+  virtual bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
     return (this->*processor)(arg);
   }
@@ -1389,13 +1455,13 @@ public:
     this function and set the int_arg to maximum of the input data
     and their own version info.
   */
-  virtual bool intro_version(uchar *int_arg) { return 0; }
+  virtual bool intro_version(uchar *int_arg) { return false; }
 
-  virtual bool remove_dependence_processor(uchar * arg) { return 0; }
-  virtual bool remove_fixed(uchar * arg) { fixed= 0; return 0; }
+  virtual bool remove_dependence_processor(uchar * arg) { return false; }
+  virtual bool remove_fixed(uchar * arg) { fixed= 0; return false; }
   virtual bool cleanup_processor(uchar *arg);
-  virtual bool collect_item_field_processor(uchar * arg) { return 0; }
-  virtual bool add_field_to_set_processor(uchar * arg) { return 0; }
+  virtual bool collect_item_field_processor(uchar * arg) { return false; }
+  virtual bool add_field_to_set_processor(uchar * arg) { return false; }
 
   /**
      Visitor interface for removing all column expressions (Item_field) in
@@ -1405,12 +1471,19 @@ public:
                  Field::field_index values.
    */
   virtual bool remove_column_from_bitmap(uchar *arg) { return false; }
-  virtual bool find_item_in_field_list_processor(uchar *arg) { return 0; }
-  virtual bool change_context_processor(uchar *context) { return 0; }
-  virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
+  virtual bool find_item_in_field_list_processor(uchar *arg) { return false; }
+  virtual bool change_context_processor(uchar *context) { return false; }
+  virtual bool reset_query_id_processor(uchar *query_id_arg) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
-  virtual bool register_field_in_read_map(uchar *arg) { return 0; }
-  virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) { return false; }
+  virtual bool register_field_in_read_map(uchar *arg) { return false; }
+  virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) {return false;}
+  /**
+     Clean up after removing the item from the item tree.
+
+     @param arg Pointer to the st_select_lex from which the walk started, i.e.,
+                the st_select_lex that contained the clause that was removed.
+  */
+  virtual bool clean_up_after_removal(uchar *arg) { return false; }
 
   virtual bool cache_const_expr_analyzer(uchar **arg);
   virtual Item* cache_const_expr_transformer(uchar *arg);
@@ -1491,28 +1564,25 @@ public:
     assumes that there are no multi-byte collations amongst the partition
     fields.
   */
-  virtual bool check_partition_func_processor(uchar *bool_arg) { return TRUE;}
+  virtual bool check_partition_func_processor(uchar *bool_arg) { return true;}
   virtual bool subst_argument_checker(uchar **arg)
   { 
     if (*arg)
       *arg= NULL; 
-    return TRUE;     
+    return true;     
   }
   virtual bool explain_subquery_checker(uchar **arg) { return true; }
   virtual Item *explain_subquery_propagator(uchar *arg) { return this; }
 
   virtual Item *equal_fields_propagator(uchar * arg) { return this; }
-  virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
+  virtual bool set_no_const_sub(uchar *arg) { return false; }
   virtual Item *replace_equal_field(uchar * arg) { return this; }
   /*
     Check if an expression value has allowed arguments, like DATE/DATETIME
     for date functions. Also used by partitioning code to reject
     timezone-dependent expressions in a (sub)partitioning function.
   */
-  virtual bool check_valid_arguments_processor(uchar *bool_arg)
-  {
-    return FALSE;
-  }
+  virtual bool check_valid_arguments_processor(uchar *arg) { return false; }
 
   /**
     Find a function of a given type
@@ -1633,8 +1703,9 @@ public:
   virtual bool is_expensive()
   {
     if (is_expensive_cache < 0)
-      is_expensive_cache= walk(&Item::is_expensive_processor, 0, (uchar*)0);
-    return test(is_expensive_cache);
+      is_expensive_cache= walk(&Item::is_expensive_processor, WALK_POSTFIX,
+                               NULL);
+    return MY_TEST(is_expensive_cache);
   }
   virtual bool can_be_evaluated_now() const;
   uint32 max_char_length() const
@@ -1682,11 +1753,7 @@ public:
   /**
      Check if an item either is a blob field, or will be represented as a BLOB
      field if a field is created based on this item.
-     
-     @note Original non-BLOB items that are longer than
-     CONVERT_IF_BIGGER_TO_BLOB will be converted to BLOBs when a field
-     is created for it.
-     
+
      @retval TRUE  If a field based on this item will be a BLOB field,
      @retval FALSE Otherwise.
   */
@@ -1699,6 +1766,13 @@ public:
   virtual bool has_stored_program() const { return with_stored_program; }
   /// Whether this Item was created by the IN->EXISTS subquery transformation
   virtual bool created_by_in2exists() const { return false; }
+  void mark_subqueries_optimized_away()
+  {
+    if (has_subquery())
+      walk(&Item::subq_opt_away_processor, WALK_POSTFIX, NULL);
+  }
+private:
+  virtual bool subq_opt_away_processor(uchar *arg) { return false; }
 };
 
 
@@ -1764,7 +1838,7 @@ public:
   longlong val_int();
   String *val_str(String *sp);
   my_decimal *val_decimal(my_decimal *decimal_value);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool is_null();
 
@@ -1961,7 +2035,7 @@ public:
   longlong val_int();
   String *val_str(String *sp);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool is_null();
   virtual void print(String *str, enum_query_type query_type);
@@ -2030,7 +2104,7 @@ public:
   Item_num() { collation.set_numeric(); } /* Remove gcc warning */
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) { return false;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -2072,10 +2146,6 @@ public:
              const char *db_name_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_ident(THD *thd, Item_ident *item);
-  /*
-    Return used table information for the level on which this table is resolved.
-  */
-  virtual table_map resolved_used_tables() const= 0;
   const char *full_name() const;
   virtual void fix_after_pullout(st_select_lex *parent_select,
                                  st_select_lex *removed_select);
@@ -2083,7 +2153,11 @@ public:
   bool remove_dependence_processor(uchar * arg);
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
-    { context= (Name_resolution_context *)cntx; return FALSE; }
+  {
+    context= reinterpret_cast<Name_resolution_context *>(cntx);
+    return false;
+  }
+
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
                             const char *db_name,
                             const char *table_name, List_iterator<Item> *it,
@@ -2108,7 +2182,7 @@ public:
   longlong val_int() { return field->val_int(); }
   String *val_str(String *str) { return field->val_str(str); }
   my_decimal *val_decimal(my_decimal *dec) { return field->val_decimal(dec); }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return field->get_date(ltime, fuzzydate);
   }
@@ -2206,8 +2280,8 @@ public:
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
-  bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+  bool get_date_result(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool get_timeval(struct timeval *tm, int *warnings);
   bool is_null() { return field->is_null(); }
@@ -2218,7 +2292,7 @@ public:
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
   void cleanup();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
@@ -2272,7 +2346,7 @@ public:
   }
 #endif
 
-  /// Pushes the item to select_lex.non_agg_fields() and updates its marker.
+  /// Pushes the item to select_lex->non_agg_fields() and updates its marker.
   bool push_to_non_agg_fields(st_select_lex *select_lex);
 
   friend class Item_default_value;
@@ -2308,7 +2382,7 @@ public:
   longlong val_date_temporal() { return val_int(); }
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return true;
   }
@@ -2331,7 +2405,7 @@ public:
   }
 
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 };
 
 /**
@@ -2359,7 +2433,7 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return true;}
   enum_field_types field_type() const { return fld_type; }
   Item_result result_type() const { return res_type; }
 };  
@@ -2448,7 +2522,7 @@ public:
   my_decimal *val_decimal(my_decimal*);
   String *val_str(String*);
   bool get_time(MYSQL_TIME *tm);
-  bool get_date(MYSQL_TIME *tm, uint fuzzydate);
+  bool get_date(MYSQL_TIME *tm, my_time_flags_t fuzzydate);
   type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   void set_null();
@@ -2561,7 +2635,7 @@ public:
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -2575,9 +2649,9 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg() { value= -value; return this; }
   uint decimal_precision() const
-  { return (uint)(max_length - test(value < 0)); }
+  { return (uint)(max_length - MY_TEST(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
-  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return false;}
 };
 
 
@@ -2625,7 +2699,7 @@ public:
   type_conversion_status save_in_field(Field *field, bool no_conversions);
   longlong val_time_temporal() { return val_int(); }
   longlong val_date_temporal() { return val_int(); }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     DBUG_ASSERT(0);
     return false;
@@ -2659,7 +2733,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
-  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return false;}
 };
 
 
@@ -2684,7 +2758,7 @@ public:
   double val_real();
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *val) { return &decimal_value; }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
@@ -2708,7 +2782,7 @@ public:
   uint decimal_precision() const { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const;
   void set_decimal_value(my_decimal *value_par);
-  bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+  bool check_partition_func_processor(uchar *bool_arg) { return false;}
 };
 
 
@@ -2753,7 +2827,7 @@ public:
   }
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_real(ltime, fuzzydate);
   }
@@ -2860,7 +2934,7 @@ public:
     return (String*) &str_value;
   }
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -2886,7 +2960,7 @@ public:
     max_length= str_value.numchars() * collation.collation->mbmaxlen;
   }
   virtual void print(String *str, enum_query_type query_type);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 
   /**
     Return TRUE if character-set-introducer was explicitly specified in the
@@ -2955,7 +3029,7 @@ public:
     str->append(func_name);
   }
 
-  bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  bool check_partition_func_processor(uchar *int_arg) {return true;}
 };
 
 
@@ -3034,7 +3108,7 @@ public:
   bool basic_const_item() const { return 1; }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -3049,7 +3123,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_partition_func_processor(uchar *int_arg) {return false;}
 private:
   void hex_string_init(const char *str, uint str_length);
 };
@@ -3110,11 +3184,23 @@ public:
   enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
   Field *result_field;			 /* Save result here */
   Item **ref;
+private:
+  /**
+    'ref' can be set (to non-NULL) in the constructor or afterwards.
+    The second case means that we are doing resolution, possibly pointing
+    'ref' to a non-permanent Item. To not have 'ref' become dangling at the
+    end of execution, and to start clean for the resolution of the next
+    execution, 'ref' must be restored to NULL. rollback_item_tree_changes()
+    does not handle restoration of Item** values, so we need this dedicated
+    Boolean.
+  */
+  const bool chop_ref;
+public:
   Item_ref(Name_resolution_context *context_arg,
            const char *db_arg, const char *table_name_arg,
            const char *field_name_arg)
     :Item_ident(context_arg, db_arg, table_name_arg, field_name_arg),
-     result_field(0), ref(0) {}
+    result_field(0), ref(NULL), chop_ref(!ref) {}
   /*
     This constructor is used in two scenarios:
     A) *item = NULL
@@ -3135,7 +3221,8 @@ public:
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
-    :Item_ident(thd, item), result_field(item->result_field), ref(item->ref) {}
+    :Item_ident(thd, item), result_field(item->result_field), ref(item->ref),
+    chop_ref(!ref) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { 
@@ -3150,7 +3237,7 @@ public:
   bool val_bool();
   String *val_str(String* tmp);
   bool is_null();
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   double val_result();
   longlong val_int_result();
   String *str_result(String* tmp);
@@ -3169,6 +3256,10 @@ public:
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd);
+  bool const_item() const
+  {
+    return (*ref)->const_item() && (used_tables() == 0);
+  }
   table_map used_tables() const		
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -3178,7 +3269,10 @@ public:
     if (!depended_from) 
       (*ref)->update_used_tables(); 
   }
-  virtual table_map resolved_used_tables() const;
+
+  virtual table_map resolved_used_tables() const
+  { return (*ref)->resolved_used_tables(); }
+
   table_map not_null_tables() const
   {
     /*
@@ -3199,10 +3293,11 @@ public:
   {
     return ref ? (*ref)->real_item() : this;
   }
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
-    return (*ref)->walk(processor, walk_subquery, arg) ||
-           (this->*processor)(arg);
+    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+           (*ref)->walk(processor, walk, arg) ||
+           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
   virtual Item* transform(Item_transformer, uchar *arg);
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
@@ -3313,7 +3408,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
   bool is_null();
-  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
 
@@ -3447,7 +3542,7 @@ public:
   String* val_str(String* s);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   virtual void print(String *str, enum_query_type query_type);
   /*
     we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
@@ -3506,7 +3601,7 @@ public:
   }
   enum_field_types field_type() const { return cached_field_type; }
   void print(String *str, enum_query_type query_type);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     DBUG_ASSERT(0);
     return true;
@@ -3700,7 +3795,7 @@ public:
   virtual my_decimal *val_decimal(my_decimal *) = 0;
   virtual double val_real() = 0;
   virtual longlong val_int() = 0;
-  virtual bool get_date(MYSQL_TIME *ltime, uint fuzzydate)= 0;
+  virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
   virtual bool get_time(MYSQL_TIME *ltime)= 0;
   virtual type_conversion_status save_in_field(Field *field,
                                                bool no_conversions) = 0;
@@ -3720,7 +3815,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   double val_real();
   longlong val_int();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   void copy();
   type_conversion_status save_in_field(Field *field, bool no_conversions);
@@ -3745,7 +3840,7 @@ public:
   {
     return null_value ? LL(0) : cached_value;
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -3791,7 +3886,7 @@ public:
   {
     return (longlong) rint(val_real());
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_real(ltime, fuzzydate);
   }
@@ -3822,7 +3917,7 @@ public:
   }
   double val_real();
   longlong val_int();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
@@ -3942,10 +4037,11 @@ public:
   table_map used_tables() const { return (table_map)0L; }
   Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
-  bool walk(Item_processor processor, bool walk_subquery, uchar *args)
+  bool walk(Item_processor processor, enum_walk walk, uchar *args)
   {
-    return arg->walk(processor, walk_subquery, args) ||
-      (this->*processor)(args);
+    return ((walk & WALK_PREFIX) && (this->*processor)(args)) ||
+           (arg && arg->walk(processor, walk, args)) ||
+           ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
 
   Item *transform(Item_transformer transformer, uchar *args);
@@ -3982,15 +4078,14 @@ public:
   */
   table_map used_tables() const { return RAND_TABLE_BIT; }
 
-  bool walk(Item_processor processor, bool walk_subquery, uchar *args)
+  bool walk(Item_processor processor, enum_walk walk, uchar *args)
   {
-    return arg->walk(processor, walk_subquery, args) ||
-	    (this->*processor)(args);
+    return ((walk & WALK_PREFIX) && (this->*processor)(args)) ||
+           arg->walk(processor, walk, args) ||
+           ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
 };
 
-
-class Table_triggers_list;
 
 /*
   Represents NEW/OLD version of field of row which is
@@ -4008,25 +4103,27 @@ class Item_trigger_field : public Item_field,
 {
 public:
   /* Is this item represents row from NEW or OLD row ? */
-  enum row_version_type {OLD_ROW, NEW_ROW};
-  row_version_type row_version;
+  enum_trigger_variable_type trigger_var_type;
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
   /* Index of the field in the TABLE::field array */
   uint field_idx;
-  /* Pointer to Table_trigger_list object for table of this trigger */
-  Table_triggers_list *triggers;
+  /* Pointer to an instance of Table_trigger_field_support interface */
+  Table_trigger_field_support *triggers;
 
   Item_trigger_field(Name_resolution_context *context_arg,
-                     row_version_type row_ver_arg,
+                     enum_trigger_variable_type trigger_var_type_arg,
                      const char *field_name_arg,
                      ulong priv, const bool ro)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     row_version(row_ver_arg), field_idx((uint)-1), original_privilege(priv),
+     trigger_var_type(trigger_var_type_arg),
+     field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}
-  void setup_field(THD *thd, TABLE *table, GRANT_INFO *table_grant_info);
+  void setup_field(THD *thd,
+                   Table_trigger_field_support *table_triggers,
+                   GRANT_INFO *table_grant_info);
   enum Type type() const { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
@@ -4051,7 +4148,7 @@ public:
   {
     bool ret= set_value(thd, NULL, it);
     if (!ret)
-      bitmap_set_bit(triggers->trigger_table->fields_set_during_insert,
+      bitmap_set_bit(triggers->get_subject_table()->fields_set_during_insert,
                      field_idx);
     return ret;
   }
@@ -4118,6 +4215,11 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
+  virtual table_map resolved_used_tables() const
+  {
+    return example ? example->resolved_used_tables() : used_table_map;
+  }
+
   virtual bool allocate(uint i) { return 0; }
   virtual bool setup(Item *item)
   {
@@ -4126,6 +4228,8 @@ public:
     decimals= item->decimals;
     collation.set(item->collation);
     unsigned_flag= item->unsigned_flag;
+    with_subselect|= item->has_subquery();
+    with_stored_program|= item->has_stored_program();
     if (item->type() == FIELD_ITEM)
       cached_field= ((Item_field *)item)->field;
     return 0;
@@ -4165,8 +4269,8 @@ public:
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
   bool basic_const_item() const
-  { return test(example && example->basic_const_item());}
-  bool walk (Item_processor processor, bool walk_subquery, uchar *argument);
+  { return MY_TEST(example && example->basic_const_item());}
+  bool walk (Item_processor processor, enum_walk walk, uchar *arg);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
   bool is_null() { return value_cached ? null_value : example->is_null(); }
   Item_result result_type() const
@@ -4196,7 +4300,7 @@ public:
   longlong val_date_temporal() { return val_int(); }
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -4220,7 +4324,7 @@ public:
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_real(ltime, fuzzydate);
   }
@@ -4244,7 +4348,7 @@ public:
   longlong val_int();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
@@ -4276,7 +4380,7 @@ public:
   longlong val_int();
   String* val_str(String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -4336,7 +4440,7 @@ public:
     illegal_method_call((const char*)"val_decimal");
     return 0;
   };
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     illegal_method_call((const char *) "get_date");
     return true;
@@ -4391,7 +4495,7 @@ public:
   longlong val_date_temporal();
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   enum Item_result result_type() const { return STRING_RESULT; }
   /*
@@ -4435,7 +4539,7 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     DBUG_ASSERT(0);
     return true;

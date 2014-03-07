@@ -2,6 +2,7 @@
 # Purpose: To test having extra columns on the master WL#3915
 #############################################################
 -- source include/have_binlog_format_row.inc
+-- source include/not_gtid_enabled.inc
 -- source include/master-slave.inc
 -- source include/have_innodb.inc
 

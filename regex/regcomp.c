@@ -1,7 +1,7 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#ifdef __WIN__
+#ifdef _WIN32
 #include  <limits.h>
 #endif
 
@@ -216,8 +216,8 @@ struct parse *p;
 int stop;			/* character this ERE should end at */
 {
 	char c;
-	sopno UNINIT_VAR(prevback);
-	sopno UNINIT_VAR(prevfwd);
+	sopno prevback= 0;
+	sopno prevfwd= 0;
 	sopno conc;
 	int first = 1;		/* is this the first alternative? */
 
@@ -1417,14 +1417,10 @@ sopno pos;
 	}
 	{
           int length=(HERE()-pos-1)*sizeof(sop);
-          bmove_upp((uchar *) &p->strip[pos+1]+length,
-                    (uchar *) &p->strip[pos]+length,
-                    length);
+          memmove((uchar *) &p->strip[pos+1],
+                  (uchar *) &p->strip[pos],
+                  length);
         }
-#ifdef OLD_CODE
-        memmove((char *)&p->strip[pos+1], (char *)&p->strip[pos],
-                                                (HERE()-pos-1)*sizeof(sop));
-#endif
 	p->strip[pos] = s;
 }
 
@@ -1502,8 +1498,8 @@ struct parse *p;
 struct re_guts *g;
 {
 	sop *scan;
-	sop *UNINIT_VAR(start);
-	sop *UNINIT_VAR(newstart);
+	sop *start= NULL;
+	sop *newstart= NULL;
 	sopno newlen;
 	sop s;
 	char *cp;

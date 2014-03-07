@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,6 +131,8 @@ typedef struct Binlog_storage_observer {
   */
   int (*after_flush)(Binlog_storage_param *param,
                      const char *log_file, my_off_t log_pos);
+  int (*after_sync)(Binlog_storage_param *param,
+                     const char *log_file, my_off_t log_pos);
 } Binlog_storage_observer;
 
 /**
@@ -139,6 +141,23 @@ typedef struct Binlog_storage_observer {
 typedef struct Binlog_transmit_param {
   uint32 server_id;
   uint32 flags;
+  /* Let us keep 1-16 as output flags and 17-32 as input flags */
+  static const uint32 F_OBSERVE= 1;
+  static const uint32 F_DONT_OBSERVE= 2;
+
+  void set_observe_flag() { flags|= F_OBSERVE; }
+  void set_dont_observe_flag() { flags|= F_DONT_OBSERVE; }
+  /**
+     If F_OBSERVE is set by any plugin, then it should observe binlog
+     transmission, even F_DONT_OBSERVE is set by some plugins.
+
+     If both F_OBSERVE and F_DONT_OBSERVE are not set, then it is an old
+     plugin. In this case, it should always observe binlog transmission.
+   */
+  bool should_observe()
+  {
+    return (flags & F_OBSERVE) || !(flags & F_DONT_OBSERVE);
+  }
 } Binlog_transmit_param;
 
 /**
@@ -211,17 +230,24 @@ typedef struct Binlog_transmit_observer {
                            const char *log_file, my_off_t log_pos );
 
   /**
-     This callback is called after sending an event packet to slave
+     This callback is called after an event packet is sent to the
+     slave or is skipped.
 
-     @param param Observer common parameter
-     @param event_buf Binlog event packet buffer sent
-     @param len length of the event packet buffer
-
+     @param param             Observer common parameter
+     @param event_buf         Binlog event packet buffer sent
+     @param len               length of the event packet buffer
+     @param skipped_log_file  Binlog file name of the event that
+                              was skipped in the master. This is
+                              null if the position was not skipped
+     @param skipped_log_pos   Binlog position of the event that
+                              was skipped in the master. 0 if not
+                              skipped
      @retval 0 Sucess
      @retval 1 Failure
    */
   int (*after_send_event)(Binlog_transmit_param *param,
-                          const char *event_buf, unsigned long len);
+                          const char *event_buf, unsigned long len,
+                          const char *skipped_log_file, my_off_t skipped_log_pos);
 
   /**
      This callback is called after resetting master status
@@ -433,28 +459,6 @@ int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *
    @retval 1 Observer not exists
 */
 int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *p);
-
-/**
-   Connect to master
-
-   This function can only used in the slave I/O thread context, and
-   will use the same master information to do the connection.
-
-   @code
-   MYSQL *mysql = mysql_init(NULL);
-   if (rpl_connect_master(mysql))
-   {
-     // do stuff with the connection
-   }
-   mysql_close(mysql); // close the connection
-   @endcode
-   
-   @param mysql address of MYSQL structure to use, pass NULL will
-   create a new one
-
-   @return address of MYSQL structure on success, NULL on failure
-*/
-MYSQL *rpl_connect_master(MYSQL *mysql);
 
 /**
    Set thread entering a condition

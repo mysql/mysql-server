@@ -1,3 +1,4 @@
+
 -- source include/have_ssl_crypto_functs.inc
 
 # This test can't be in func_encrypt.test, because it requires
@@ -14,7 +15,7 @@ select des_encrypt('hello');
 --echo # Bug #11643: des_encrypt() causes server to die
 --echo #
 
-CREATE TABLE t1 (des VARBINARY(200) NOT NULL DEFAULT '') ENGINE=MyISAM;
+CREATE TABLE t1 (des VARBINARY(200) NOT NULL DEFAULT '');
 
 INSERT INTO t1 VALUES ('1234'), ('12345'), ('123456'), ('1234567');
 

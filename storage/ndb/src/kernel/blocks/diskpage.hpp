@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,10 @@
 #define __NDB_DISKPAGE_HPP
 
 #include <ndb_types.h>
+#include <NdbOut.hpp>
+
+#define JAM_FILE_ID 436
+
 
 struct File_formats 
 {
@@ -236,9 +239,11 @@ File_formats::Datafile::Extent_header::check_free(Uint32 extent_size) const
   return true;
 }
 
-#include <NdbOut.hpp>
 NdbOut& operator<<(NdbOut& out, const File_formats::Zero_page_header&);
 NdbOut& operator<<(NdbOut& out, const File_formats::Datafile::Zero_page&);
 NdbOut& operator<<(NdbOut& out, const File_formats::Undofile::Zero_page&);
+
+
+#undef JAM_FILE_ID
 
 #endif

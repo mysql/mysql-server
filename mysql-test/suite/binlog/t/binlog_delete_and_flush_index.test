@@ -1,3 +1,4 @@
+
 # BUG#34582: FLUSH LOGS does not close and reopen the binlog index
 # file
 #

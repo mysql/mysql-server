@@ -206,7 +206,7 @@ ANALYZE TABLE t1;
 -- enable_query_log
 
 --echo This must show range + using index condition:
---replace_column 9 x
+--replace_column 10 x
 explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 drop table t0,t1;
@@ -271,7 +271,7 @@ insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
 ANALYZE TABLE t2;
 -- enable_result_log
 -- enable_query_log
---replace_column 9 #
+--replace_column 10 #
 explain select * from t2 force index (d) where d < 10;
 drop table t2;
 
@@ -591,3 +591,49 @@ eval $query;
 
 DROP TABLE ten, t1, t2, t3, t4, t5;
 
+--echo #
+--echo # Bug 18172819 CRASH ON DSMRR_IMPL::CHOOSE_MRR_IMPL IN SQL/HANDLER.CC 
+--echo #
+
+# Test needs to run with big_tables ON
+set @big_tables_save= @@big_tables;
+set big_tables=ON;
+SELECT @@big_tables;
+
+CREATE TABLE t1 (
+  i1 INTEGER NOT NULL,
+  c1 VARCHAR(1)
+);
+
+INSERT INTO t1 VALUES (1,'a'), (2, NULL);
+
+CREATE TABLE t2 (
+  c1 VARCHAR(1),
+  i1 INTEGER NOT NULL,
+  KEY (c1)
+);
+
+INSERT INTO t2 VALUES ('a', 1), (NULL, 2);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
+let query=
+SELECT *
+FROM
+  ( SELECT * FROM  t1 ) AS d1
+WHERE d1.c1 IN ( SELECT c1 FROM t2 )
+  AND d1.c1 IS NULL
+ORDER BY d1.i1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+# Restore the configuration for big_tables
+set big_tables=@big_tables_save;

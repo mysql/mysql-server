@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,6 @@ uint32 ndb_mi_get_slave_run_id();
 /*
    Relay log info related functions
 */
-bool ndb_mi_get_in_relay_log_statement(class Relay_log_info* rli);
 ulong ndb_mi_get_relay_log_trans_retries();
 void ndb_mi_set_relay_log_trans_retries(ulong number);
 

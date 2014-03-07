@@ -1,10 +1,10 @@
 CREATE USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user;
 user	plugin
-root	
-root	
-root	
-root	
+root	mysql_native_password
+root	mysql_native_password
+root	mysql_native_password
+root	mysql_native_password
 kristofer	sha256_password
 user()	current_user()
 kristofer@localhost	kristofer@%
@@ -33,7 +33,7 @@ user()	current_user()
 kristofer@localhost	kristofer@localhost
 SHOW GRANTS FOR 'kristofer'@'localhost';
 Grants for kristofer@localhost
-GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost'
 DROP USER 'kristofer'@'localhost';
 GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
 Connection should fail for localhost

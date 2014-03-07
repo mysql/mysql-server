@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -402,7 +402,6 @@ static const int bulk_padding= 64;              // bytes "overhead" in packet
 
 /* Variables used when chopping off trailing characters */
 static const uint sizeof_trailing_comma= sizeof(", ") - 1;
-static const uint sizeof_trailing_closeparen= sizeof(") ") - 1;
 static const uint sizeof_trailing_and= sizeof(" AND ") - 1;
 static const uint sizeof_trailing_where= sizeof(" WHERE ") - 1;
 
@@ -432,6 +431,8 @@ static uchar *federated_get_key(FEDERATED_SHARE *share, size_t *length,
   return (uchar*) share->share_key;
 }
 
+static PSI_memory_key fe_key_memory_federated_share;
+
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key fe_key_mutex_federated, fe_key_mutex_FEDERATED_SHARE_mutex;
 
@@ -441,6 +442,11 @@ static PSI_mutex_info all_federated_mutexes[]=
   { &fe_key_mutex_FEDERATED_SHARE_mutex, "FEDERATED_SHARE::mutex", 0}
 };
 
+static PSI_memory_info all_federated_memory[]=
+{
+  { &fe_key_memory_federated_share, "FEDERATED_SHARE", 0}
+};
+
 static void init_federated_psi_keys(void)
 {
   const char* category= "federated";
@@ -448,6 +454,9 @@ static void init_federated_psi_keys(void)
 
   count= array_elements(all_federated_mutexes);
   mysql_mutex_register(category, all_federated_mutexes, count);
+
+  count= array_elements(all_federated_memory);
+  mysql_memory_register(category, all_federated_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -524,8 +533,8 @@ int federated_done(void *p)
   @brief Append identifiers to the string.
 
   @param[in,out] string	The target string.
-  @param[in] name 		Identifier name
-  @param[in] length 	Length of identifier name in bytes
+  @param[in] name       Identifier name
+  @param[in] length     Length of identifier name in bytes
   @param[in] quote_char Quote char to use for quoting identifier.
 
   @return Operation Status
@@ -539,32 +548,36 @@ int federated_done(void *p)
 static bool append_ident(String *string, const char *name, size_t length,
                          const char quote_char)
 {
-  bool result;
-  uint clen;
-  const char *name_end;
+  bool result= true;
   DBUG_ENTER("append_ident");
 
   if (quote_char)
   {
-    string->reserve((uint) length * 2 + 2);
+    string->reserve(length * 2 + 2);
+
     if ((result= string->append(&quote_char, 1, system_charset_info)))
       goto err;
 
-    for (name_end= name+length; name < name_end; name+= clen)
+    uint clen= 0;
+
+    for (const char *name_end= name + length; name < name_end; name+= clen)
     {
-      uchar c= *(uchar *) name;
+      char c= *name;
+
       if (!(clen= my_mbcharlen(system_charset_info, c)))
-        clen= 1;
-      if (clen == 1 && c == (uchar) quote_char &&
+        goto err;
+
+      if (clen == 1 && c == quote_char &&
           (result= string->append(&quote_char, 1, system_charset_info)))
         goto err;
+
       if ((result= string->append(name, clen, string->charset())))
         goto err;
     }
     result= string->append(&quote_char, 1, system_charset_info);
   }
   else
-    result= string->append(name, (uint) length, system_charset_info);
+    result= string->append(name, length, system_charset_info);
 
 err:
   DBUG_RETURN(result);
@@ -603,8 +616,7 @@ int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
        get_server_by_name(mem_root, share->connection_string, &server_buffer)))
   {
     DBUG_PRINT("info", ("get_server_by_name returned > 0 error condition!"));
-    /* need to come up with error handling */
-    error_num=1;
+    error_num= ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE;
     goto error;
   }
   DBUG_PRINT("info", ("get_server_by_name returned server at %lx",
@@ -1459,7 +1471,7 @@ prepare_for_next_key_part:
         ptr was incremented by 1. Since store_length still counts null-byte,
         we need to subtract 1 from store_length.
       */
-      ptr+= store_length - test(key_part->null_bit);
+      ptr+= store_length - MY_TEST(key_part->null_bit);
       if (tmp.append(STRING_WITH_LEN(" AND ")))
         goto err;
 
@@ -1508,7 +1520,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
   */
   query.length(0);
 
-  init_alloc_root(&mem_root, 256, 0);
+  init_alloc_root(fe_key_memory_federated_share, &mem_root, 256, 0);
 
   mysql_mutex_lock(&federated_mutex);
 
@@ -2101,7 +2113,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *new_data)
     this? Because we only are updating one record, and LIMIT enforces
     this.
   */
-  bool has_a_primary_key= test(table->s->primary_key != MAX_KEY);
+  bool has_a_primary_key= MY_TEST(table->s->primary_key != MAX_KEY);
   
   /*
     buffers for following strings
@@ -2304,6 +2316,22 @@ int ha_federated::delete_row(const uchar *buf)
   DBUG_RETURN(0);
 }
 
+int ha_federated::index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                key_part_map keypart_map,
+                                enum ha_rkey_function find_flag)
+{
+  int error= index_init(index, 0);
+  if (error)
+    return error;
+  error= index_read_map(buf, key, keypart_map, find_flag);
+  if(!error && stored_result)
+  {
+    uchar *dummy_arg=NULL;
+    position(dummy_arg);
+  }
+  int error1= index_end();
+  return error ?  error : error1;
+}
 
 /*
   Positions an index cursor to the index specified in the handle. Fetches the
@@ -3158,7 +3186,8 @@ int ha_federated::real_connect()
   */
   sql_query.append(share->select_query);
   sql_query.append(STRING_WITH_LEN(" WHERE 1=0"));
-  if (mysql_real_query(mysql, sql_query.ptr(), sql_query.length()))
+  if (mysql_real_query(mysql, sql_query.ptr(),
+                       static_cast<ulong>(sql_query.length())))
   {
     sql_query.length(0);
     sql_query.append("error: ");
@@ -3198,7 +3227,7 @@ int ha_federated::real_query(const char *query, size_t length)
   if (!query || !length)
     goto end;
 
-  rc= mysql_real_query(mysql, query, (uint) length);
+  rc= mysql_real_query(mysql, query, static_cast<ulong>(length));
   
 end:
   DBUG_RETURN(rc);
@@ -3284,63 +3313,6 @@ int ha_federated::external_lock(THD *thd, int lock_type)
   /*
     Support for transactions disabled until WL#2952 fixes it.
   */
-#ifdef XXX_SUPERCEDED_BY_WL2952
-  if (lock_type != F_UNLCK)
-  {
-    ha_federated *trx= (ha_federated *)thd_get_ha_data(thd, ht);
-
-    DBUG_PRINT("info",("federated not lock F_UNLCK"));
-    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) 
-    {
-      DBUG_PRINT("info",("federated autocommit"));
-      /* 
-        This means we are doing an autocommit
-      */
-      error= connection_autocommit(TRUE);
-      if (error)
-      {
-        DBUG_PRINT("info", ("error setting autocommit TRUE: %d", error));
-        DBUG_RETURN(error);
-      }
-      trans_register_ha(thd, FALSE, ht);
-    }
-    else 
-    { 
-      DBUG_PRINT("info",("not autocommit"));
-      if (!trx)
-      {
-        /* 
-          This is where a transaction gets its start
-        */
-        error= connection_autocommit(FALSE);
-        if (error)
-        { 
-          DBUG_PRINT("info", ("error setting autocommit FALSE: %d", error));
-          DBUG_RETURN(error);
-        }
-        thd_set_ha_data(thd, ht, this);
-        trans_register_ha(thd, TRUE, ht);
-        /*
-          Send a lock table to the remote end.
-          We do not support this at the moment
-        */
-        if (thd->options & (OPTION_TABLE_LOCK))
-        {
-          DBUG_PRINT("info", ("We do not support lock table yet"));
-        }
-      }
-      else
-      {
-        ha_federated *ptr;
-        for (ptr= trx; ptr; ptr= ptr->trx_next)
-          if (ptr == this)
-            break;
-          else if (!ptr->trx_next)
-            ptr->trx_next= this;
-      }
-    }
-  }
-#endif /* XXX_SUPERCEDED_BY_WL2952 */
   DBUG_RETURN(error);
 }
 

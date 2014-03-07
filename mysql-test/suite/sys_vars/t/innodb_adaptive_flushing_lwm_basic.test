@@ -67,9 +67,10 @@ SELECT @@global.innodb_adaptive_flushing_lwm;
 #     change the value of innodb_adaptive_flushing_lwm to a valid value       #
 ###############################################################################
 
+SET @@global.innodb_adaptive_flushing_lwm = 0;
+SELECT @@global.innodb_adaptive_flushing_lwm;
 SET @@global.innodb_adaptive_flushing_lwm = 1;
 SELECT @@global.innodb_adaptive_flushing_lwm;
-
 SET @@global.innodb_adaptive_flushing_lwm = 60;
 SELECT @@global.innodb_adaptive_flushing_lwm;
 SET @@global.innodb_adaptive_flushing_lwm = 70;
@@ -83,18 +84,25 @@ SELECT @@global.innodb_adaptive_flushing_lwm;
 SET @@global.innodb_adaptive_flushing_lwm = -1;
 SELECT @@global.innodb_adaptive_flushing_lwm;
 
+SET @@global.innodb_adaptive_flushing_lwm = -1024;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_adaptive_flushing_lwm = "T";
 SELECT @@global.innodb_adaptive_flushing_lwm;
-
-
-
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_adaptive_flushing_lwm = "Y";
 SELECT @@global.innodb_adaptive_flushing_lwm;
 
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_adaptive_flushing_lwm = 10.4;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
 SET @@global.innodb_adaptive_flushing_lwm = 71;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+SET @@global.innodb_adaptive_flushing_lwm = 65536;
 SELECT @@global.innodb_adaptive_flushing_lwm;
 
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'

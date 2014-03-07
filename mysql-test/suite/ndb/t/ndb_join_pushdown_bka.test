@@ -1,6 +1,11 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Test of pushed joins, aka SPJ, or AQL.
-# (Test with defaults + 'batch_key_access=on')
+# (Test with defaults + 'batched_key_access=on')
 #
 # NOTE: BKA will turn of lots of pushed join, we 
 #       are unsure if this is the best strategy, or
@@ -8,12 +13,12 @@
 #
 
 --source include/have_ndb.inc
-if (!`select locate('batch_key_access', @@global.optimizer_switch) > 0`)
+if (!`select locate('batched_key_access', @@global.optimizer_switch) > 0`)
 {
-  skip Need batch_key_access;
+  skip Need batched_key_access;
 }
 
-set @@global.optimizer_switch='batch_key_access=on';
+set @@global.optimizer_switch='batched_key_access=on';
 
 --source ndb_join_pushdown.inc 
 

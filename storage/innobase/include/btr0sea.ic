@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ Created 2/17/1996 Heikki Tuuri
 
 /*********************************************************************//**
 Updates the search info. */
-UNIV_INTERN
+
 void
 btr_search_info_update_slow(
 /*========================*/
@@ -38,7 +38,7 @@ btr_search_info_update_slow(
 
 /********************************************************************//**
 Returns search info for an index.
-@return	search info; search mutex reserved */
+@return search info; search mutex reserved */
 UNIV_INLINE
 btr_search_t*
 btr_search_get_info(
@@ -60,8 +60,8 @@ btr_search_info_update(
 	btr_search_t*	info;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	info = btr_search_get_info(index);

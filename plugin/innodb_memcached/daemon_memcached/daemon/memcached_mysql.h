@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -37,7 +37,7 @@ struct memcached_context
 	unsigned int	m_r_batch_size;
 	unsigned int	m_w_batch_size;
 	bool		m_enable_binlog;
-}; 
+};
 
 typedef struct memcached_context        memcached_context_t;
 
@@ -49,7 +49,10 @@ void* daemon_memcached_main(void *p);
 
 void shutdown_server(void);
 
+bool initialize_complete(void);
 bool shutdown_complete(void);
+
+bool init_complete(void);
 
 # ifdef __cplusplus
 }

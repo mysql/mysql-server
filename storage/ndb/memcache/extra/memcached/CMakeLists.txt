@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +15,12 @@
 
 
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/include/memcached
                     ${CMAKE_CURRENT_SOURCE_DIR}/utilities 
                     ${CMAKE_CURRENT_SOURCE_DIR}/daemon                                    
-                    ${CMAKE_CURRENT_SOURCE_DIR}/../libevent)
+                    ${LIBEVENT_INCLUDE_DIR})
 
 IF(${CMAKE_COMPILER_IS_GNUCC})
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
@@ -46,9 +47,9 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
                 utilities/genhash_int.h
                 utilities/util.c)
 
-ADD_CONVENIENCE_LIBRARY(memcached_utilities ${LIBMEMCACHED_UTILITIES_SOURCES})
+ADD_CONVENIENCE_LIBRARY(ndb_memcached_utilities ${LIBMEMCACHED_UTILITIES_SOURCES})
 IF(HAVE_LIBDL)
-target_link_libraries(memcached_utilities dl)
+target_link_libraries(ndb_memcached_utilities dl)
 ENDIF()
 
 SET(MEMCACHED_SOURCES
@@ -71,11 +72,16 @@ SET(MEMCACHED_SOURCES
 add_executable(memcached ${MEMCACHED_SOURCES})
 
 target_link_libraries(memcached 
-                      event memcached_utilities
+                      ndb_memcached_utilities
+                      ${LIBEVENT_LIBRARY}
                       ${LIBM} ${LIBNSL} ${LIBSOCKET})
 IF(HAVE_LIBDL)
 target_link_libraries(memcached dl)
 ENDIF()
+
+if(LIBRT)
+  target_link_libraries(memcached rt)
+endif()
 
 CHECK_INCLUDE_FILE("link.h"          HAVE_LINK_H)
 CHECK_INCLUDE_FILE("stdbool.h"       HAVE_STDBOOL_H)
@@ -87,7 +93,7 @@ CHECK_INCLUDE_FILES("sys/types.h;netinet/tcp.h" HAVE_NETINET_TCP_H)
 CHECK_FUNCTION_EXISTS(htonll         HAVE_HTONLL)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config_tests.in 
-               ${CMAKE_CURRENT_SOURCE_DIR}/config.h)
+               ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 install(TARGETS memcached DESTINATION ${INSTALL_SBINDIR}) 
 

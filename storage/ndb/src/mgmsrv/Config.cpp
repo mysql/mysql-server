@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -752,7 +751,10 @@ bool Config::illegal_change(const Properties& diff_list) const {
       Uint32 type;
       require(what->get("Type", &type));
       if (type == DT_ILLEGAL_CHANGE)
+      {
         illegal= true;
+        break;
+      }
     }
   }
   return illegal;

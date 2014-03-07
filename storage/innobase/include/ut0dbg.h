@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,99 +32,39 @@ Created 1/30/1994 Heikki Tuuri
 #define ut_error	assert(0)
 #else /* !UNIV_INNOCHECKSUM */
 
-#include "univ.i"
-#include <stdlib.h>
-#include "os0thread.h"
+/* Do not include univ.i because univ.i includes this. */
 
-#if defined(__GNUC__) && (__GNUC__ > 2)
-/** Test if an assertion fails.
-@param EXPR	assertion expression
-@return		nonzero if EXPR holds, zero if not */
-# define UT_DBG_FAIL(EXPR) UNIV_UNLIKELY(!((ulint)(EXPR)))
-#else
-/** This is used to eliminate compiler warnings */
-extern ulint	ut_dbg_zero;
-/** Test if an assertion fails.
-@param EXPR	assertion expression
-@return		nonzero if EXPR holds, zero if not */
-# define UT_DBG_FAIL(EXPR) !((ulint)(EXPR) + ut_dbg_zero)
-#endif
+#include "os0thread.h"
 
 /*************************************************************//**
 Report a failed assertion. */
-UNIV_INTERN
+
 void
 ut_dbg_assertion_failed(
 /*====================*/
 	const char*	expr,	/*!< in: the failed assertion */
 	const char*	file,	/*!< in: source file containing the assertion */
 	ulint		line)	/*!< in: line number of the assertion */
-	UNIV_COLD __attribute__((nonnull(2)));
-
-#if defined(__WIN__) || defined(__INTEL_COMPILER)
-# undef UT_DBG_USE_ABORT
-#elif defined(__GNUC__) && (__GNUC__ > 2)
-# define UT_DBG_USE_ABORT
-#endif
-
-#ifndef UT_DBG_USE_ABORT
-/** A null pointer that will be dereferenced to trigger a memory trap */
-extern ulint*	ut_dbg_null_ptr;
-#endif
-
-#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/** If this is set to TRUE by ut_dbg_assertion_failed(), all threads
-will stop at the next ut_a() or ut_ad(). */
-extern ibool	ut_dbg_stop_threads;
-
-/*************************************************************//**
-Stop a thread after assertion failure. */
-UNIV_INTERN
-void
-ut_dbg_stop_thread(
-/*===============*/
-	const char*	file,
-	ulint		line);
-#endif
-
-#ifdef UT_DBG_USE_ABORT
-/** Abort the execution. */
-# define UT_DBG_PANIC abort()
-/** Stop threads (null operation) */
-# define UT_DBG_STOP do {} while (0)
-#else /* UT_DBG_USE_ABORT */
-/** Abort the execution. */
-# define UT_DBG_PANIC					\
-	if (*(ut_dbg_null_ptr)) ut_dbg_null_ptr = NULL
-/** Stop threads in ut_a(). */
-# define UT_DBG_STOP do						\
-	if (UNIV_UNLIKELY(ut_dbg_stop_threads)) {		\
-		ut_dbg_stop_thread(__FILE__, (ulint) __LINE__);	\
-	} while (0)
-#endif /* UT_DBG_USE_ABORT */
+	UNIV_COLD __attribute__((nonnull(2), noreturn));
 
 /** Abort execution if EXPR does not evaluate to nonzero.
-@param EXPR	assertion expression that should hold */
+@param EXPR assertion expression that should hold */
 #define ut_a(EXPR) do {						\
-	if (UT_DBG_FAIL(EXPR)) {				\
+	if (UNIV_UNLIKELY(!(ulint) (EXPR))) {			\
 		ut_dbg_assertion_failed(#EXPR,			\
 				__FILE__, (ulint) __LINE__);	\
-		UT_DBG_PANIC;					\
 	}							\
-	UT_DBG_STOP;						\
 } while (0)
 
 /** Abort execution. */
-#define ut_error do {						\
-	ut_dbg_assertion_failed(0, __FILE__, (ulint) __LINE__);	\
-	UT_DBG_PANIC;						\
-} while (0)
+#define ut_error						\
+	ut_dbg_assertion_failed(0, __FILE__, (ulint) __LINE__)
 
 #ifdef UNIV_DEBUG
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)	ut_a(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
-#define ut_d(EXPR)	do {EXPR;} while (0)
+#define ut_d(EXPR)	EXPR
 #else
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)
@@ -133,37 +73,115 @@ ut_dbg_stop_thread(
 #endif
 
 /** Silence warnings about an unused variable by doing a null assignment.
-@param A	the unused variable */
+@param A the unused variable */
 #define UT_NOT_USED(A)	A = A
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
+
+#if defined(HAVE_SYS_TYPES_H) && defined(HAVE_SYS_TIME_H) \
+		&& defined(HAVE_SYS_RESOURCE_H)
+
+#define HAVE_UT_CHRONO_T
 
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
-/** structure used for recording usage statistics */
-struct speedo_t {
-	struct rusage	ru;	/*!< getrusage() result */
-	struct timeval	tv;	/*!< gettimeofday() result */
+/** A "chronometer" used to clock snippets of code.
+Example usage:
+	ut_chrono_t	ch("this loop");
+	for (;;) { ... }
+	ch.show();
+would print the timings of the for() loop, prefixed with "this loop:" */
+class ut_chrono_t {
+public:
+	/** Constructor.
+	@param[in]	name	chrono's name, used when showing the values */
+	ut_chrono_t(
+		const char*	name)
+		:
+		m_name(name),
+		m_show_from_destructor(true)
+	{
+		reset();
+	}
+
+	/** Resets the chrono (records the current time in it). */
+	void
+	reset()
+	{
+		gettimeofday(&m_tv, NULL);
+
+		getrusage(RUSAGE_SELF, &m_ru);
+	}
+
+	/** Shows the time elapsed and usage statistics since the last reset. */
+	void
+	show()
+	{
+		struct rusage	ru_now;
+		struct timeval	tv_now;
+		struct timeval	tv_diff;
+
+		getrusage(RUSAGE_SELF, &ru_now);
+
+		gettimeofday(&tv_now, NULL);
+
+#ifndef timersub
+#define timersub(a, b, r)						\
+		do {							\
+			(r)->tv_sec = (a)->tv_sec - (b)->tv_sec;	\
+			(r)->tv_usec = (a)->tv_usec - (b)->tv_usec;	\
+			if ((r)->tv_usec < 0) {				\
+				(r)->tv_sec--;				\
+				(r)->tv_usec += 1000000;		\
+			}						\
+		} while (0)
+#endif /* timersub */
+
+#define CHRONO_PRINT(type, tvp)						\
+		fprintf(stderr, "%s: %s% 5ld.%06ld sec\n",		\
+			m_name, type, (tvp)->tv_sec, (tvp)->tv_usec)
+
+		timersub(&tv_now, &m_tv, &tv_diff);
+		CHRONO_PRINT("real", &tv_diff);
+
+		timersub(&ru_now.ru_utime, &m_ru.ru_utime, &tv_diff);
+		CHRONO_PRINT("user", &tv_diff);
+
+		timersub(&ru_now.ru_stime, &m_ru.ru_stime, &tv_diff);
+		CHRONO_PRINT("sys ", &tv_diff);
+	}
+
+	/** Cause the timings not to be printed from the destructor. */
+	void end()
+	{
+		m_show_from_destructor = false;
+	}
+
+	/** Destructor. */
+	~ut_chrono_t()
+	{
+		if (m_show_from_destructor) {
+			show();
+		}
+	}
+
+private:
+	/** Name of this chronometer. */
+	const char*	m_name;
+
+	/** True if the current timings should be printed by the destructor. */
+	bool		m_show_from_destructor;
+
+	/** getrusage() result as of the last reset(). */
+	struct rusage	m_ru;
+
+	/** gettimeofday() result as of the last reset(). */
+	struct timeval	m_tv;
 };
 
-/*******************************************************************//**
-Resets a speedo (records the current time in it). */
-UNIV_INTERN
-void
-speedo_reset(
-/*=========*/
-	speedo_t*	speedo);	/*!< out: speedo */
-
-/*******************************************************************//**
-Shows the time elapsed and usage statistics since the last reset of a
-speedo. */
-UNIV_INTERN
-void
-speedo_show(
-/*========*/
-	const speedo_t*	speedo);	/*!< in: speedo */
+#endif /* HAVE_SYS_TYPES_H && HAVE_SYS_TIME_H && HAVE_SYS_RESOURCE_H */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 

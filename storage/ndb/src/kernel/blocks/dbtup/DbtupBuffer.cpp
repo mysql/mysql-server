@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +22,9 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <signaldata/TransIdAI.hpp>
+
+#define JAM_FILE_ID 410
+
 
 void Dbtup::execSEND_PACKED(Signal* signal)
 {
@@ -163,6 +165,28 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
   transIdAI->transId[0]= sig1;
   transIdAI->transId[1]= sig2;
   
+  const Uint32 routeBlockref= req_struct->TC_ref;
+  /**
+   * If we are not connected to the destination block, we may reach it 
+   * indirectly by sending a TRANSID_AI_R signal to routeBlockref. Only
+   * TC can handle TRANSID_AI_R signals. The 'ndbrequire' below should
+   * check that there is no chance of sending TRANSID_AI_R to a block
+   * that cannot handle it.
+   */
+  ndbrequire(refToMain(routeBlockref) == DBTC || 
+             /**
+              * routeBlockref will point to SPJ for operations initiated by
+              * that block. TRANSID_AI_R should not be sent to SPJ, as
+              * SPJ will do its own internal error handling to compensate
+              * for the lost TRANSID_AI signal.
+              */
+             refToMain(routeBlockref) == DBSPJ ||
+             /** 
+              * A node should always be connected to itself. So we should
+              * never need to send TRANSID_AI_R in this case.
+              */
+             (nodeId == getOwnNodeId() && connectedToNode));
+
   if (connectedToNode){
     /**
      * Own node -> execute direct
@@ -275,48 +299,43 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       LinearSectionPtr ptr[3];
       ptr[0].p= &signal->theData[3];
       ptr[0].sz= ToutBufIndex;
-      sendSignal(recBlockref, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+      if (ERROR_INSERTED(4035))
+      {
+        /* Copy data to Seg-section for delayed send */
+        Uint32 sectionIVal = RNIL;
+        ndbrequire(appendToSection(sectionIVal, ptr[0].p, ptr[0].sz));
+        SectionHandle sh(this, sectionIVal);
+        
+        sendSignalWithDelay(recBlockref, GSN_TRANSID_AI, signal, 10, 3, &sh);
+      }
+      else
+      {
+        sendSignal(recBlockref, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+      }
     }
     return;
   }
 
   /** 
    * If this node does not have a direct connection 
-   * to the receiving node we want to send the signals 
+   * to the receiving node, we want to send the signals 
    * routed via the node that controls this read
    */
-  Uint32 routeBlockref= req_struct->TC_ref;
-  
-  if (true){ // TODO is_api && !old_dest){
+  // TODO is_api && !old_dest){
+  if (refToNode(recBlockref) == refToNode(routeBlockref))
+  {
     jam();
-    transIdAI->attrData[0]= recBlockref;
-    LinearSectionPtr ptr[3];
-    ptr[0].p= &signal->theData[25];
-    ptr[0].sz= ToutBufIndex;
-    sendSignal(routeBlockref, GSN_TRANSID_AI_R, signal, 4, JBB, ptr, 1);
+    /**
+     * Signal's only alternative route is direct - cannot be delivered, 
+     * drop it. (Expected behavior if recBlockRef is an SPJ block.)
+     */
     return;
   }
-  
-  /**
-   * Fill in a TRANSID_AI signal, use last word to store
-   * final destination and send it to route node
-   * as signal TRANSID_AI_R (R as in Routed)
-   */ 
-  Uint32 tot= ToutBufIndex;
-  Uint32 sent= 0;
-  Uint32 maxLen= TransIdAI::DataLength - 1;
-  while (sent < tot) {
-    jam();      
-    Uint32 dataLen= (tot - sent > maxLen) ? maxLen : tot - sent;
-    Uint32 sigLen= dataLen + TransIdAI::HeaderLength + 1; 
-    MEMCOPY_NO_WORDS(&transIdAI->attrData,
-		     &signal->theData[25+sent],
-		     dataLen);
-    // Set final destination in last word
-    transIdAI->attrData[dataLen]= recBlockref;
-    
-    sendSignal(routeBlockref, GSN_TRANSID_AI_R, 
-	       signal, sigLen, JBB);
-    sent += dataLen;
-  }
+  // Only TC can handle TRANSID_AI_R signals.
+  ndbrequire(refToMain(routeBlockref) == DBTC);
+  transIdAI->attrData[0]= recBlockref;
+  LinearSectionPtr ptr[3];
+  ptr[0].p= &signal->theData[25];
+  ptr[0].sz= ToutBufIndex;
+  sendSignal(routeBlockref, GSN_TRANSID_AI_R, signal, 4, JBB, ptr, 1);
 }

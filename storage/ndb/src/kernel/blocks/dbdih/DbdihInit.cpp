@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define DBDIH_C
 #include "Dbdih.hpp"
 #include <ndb_limits.h>
+
+#define JAM_FILE_ID 355
+
 
 #define DEBUG(x) { ndbout << "DIH::" << x << endl; }
 
@@ -45,7 +48,7 @@ void Dbdih::initData()
   c_takeOverPool.setSize(MAX_NDB_NODES);
   {
     Ptr<TakeOverRecord> ptr;
-    while (c_activeTakeOverList.seize(ptr))
+    while (c_activeTakeOverList.seizeFirst(ptr))
     {
       new (ptr.p) TakeOverRecord;
     }

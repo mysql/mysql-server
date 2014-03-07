@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +11,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef CONFIG_CHANGE_H
 #define CONFIG_CHANGE_H
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 7
+
 
 struct ConfigChangeReq
 {
@@ -263,5 +266,8 @@ struct ConfigCheckRef
   Uint32 expected_state;
   Uint32 length; // Length of the config data in long signal
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

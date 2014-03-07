@@ -1,0 +1,428 @@
+CREATE SCHEMA my_schema;
+USE my_schema;
+CREATE FUNCTION f_thread_id (i INT) RETURNS CHAR(4) DETERMINISTIC
+RETURN CONCAT(LPAD(CAST(i AS CHAR),3,'_'),'_') ;
+SELECT CONCAT('->', f_thread_id( 1), '<-');
+CONCAT('->', f_thread_id( 1), '<-')
+->__1_<-
+SELECT CONCAT('->', f_thread_id(12), '<-');
+CONCAT('->', f_thread_id(12), '<-')
+->_12_<-
+SET @extra_int    = 1;
+SET @extra_string = f_thread_id(@extra_int);
+SELECT @extra_int , @extra_string;
+@extra_int	@extra_string
+1	__1_
+CREATE FUNCTION f_col_int1 (i INT) RETURNS INT(20) DETERMINISTIC
+RETURN i * 1000 + @extra_int ;
+SELECT f_col_int1(my_col) AS my_result
+FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
+UNION SELECT 1234 UNION SELECT 12345) AS tx;
+my_result
+1001
+12001
+123001
+1234001
+12345001
+CREATE FUNCTION f_col_int2 (i INT) RETURNS INT(20) DETERMINISTIC
+RETURN @extra_int * 10000000 + i ;
+SELECT f_col_int2(my_col) AS my_result
+FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
+UNION SELECT 1234 UNION SELECT 12345) AS tx;
+my_result
+10000001
+10000012
+10000123
+10001234
+10012345
+CREATE FUNCTION f_col_int3 (i INT) RETURNS INT(20) DETERMINISTIC
+RETURN @extra_int ;
+SELECT f_col_int3(my_col) AS my_result
+FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
+UNION SELECT 1234 UNION SELECT 12345) AS tx;
+my_result
+1
+1
+1
+1
+1
+CREATE FUNCTION f_col_blob (i INT) RETURNS BLOB DETERMINISTIC
+RETURN RPAD(@extra_string,(@@innodb_page_size / 2 ) + 1,'a');
+SELECT CONCAT('->', SUBSTR(f_col_blob(my_col) FROM 1 FOR 10),
+'<-.....->', SUBSTR(f_col_blob(my_col) FROM -10 FOR 10), '<-') AS my_result
+FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
+UNION SELECT 1234 UNION SELECT 12345) AS tx;
+my_result
+->__1_aaaaaa<-.....->aaaaaaaaaa<-
+->__1_aaaaaa<-.....->aaaaaaaaaa<-
+->__1_aaaaaa<-.....->aaaaaaaaaa<-
+->__1_aaaaaa<-.....->aaaaaaaaaa<-
+->__1_aaaaaa<-.....->aaaaaaaaaa<-
+CREATE FUNCTION f_col_char0 (i INT) RETURNS CHAR(255) DETERMINISTIC
+RETURN LPAD(CAST(i AS CHAR),255,' ');
+SELECT CONCAT('->', f_col_char0(my_col), '<-') AS my_result
+FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
+UNION SELECT 1234 UNION SELECT 12345) AS tx;
+my_result
+->                                                                                                                                                                                                                                                              1<-
+->                                                                                                                                                                                                                                                             12<-
+->                                                                                                                                                                                                                                                            123<-
+->                                                                                                                                                                                                                                                           1234<-
+->                                                                                                                                                                                                                                                          12345<-
+CREATE FUNCTION f_col_char1 (i INT) RETURNS CHAR(26) DETERMINISTIC
+RETURN
+CONCAT('B',
+LPAD(SUBSTR(CAST(i AS CHAR),1,(LENGTH(CAST(i AS CHAR)) DIV 2)),10,' '),
+@extra_string,
+RPAD(SUBSTR(CAST(i AS CHAR), -((LENGTH(CAST(i AS CHAR)) + 1) DIV 2)),10,' '),
+'E') ;
+SELECT CONCAT('->', f_col_char1(my_col), '<-') AS my_result
+FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
+UNION SELECT 1234 UNION SELECT 12345) AS tx;
+my_result
+->B          __1_1         E<-
+->B         1__1_2         E<-
+->B         1__1_23        E<-
+->B        12__1_34        E<-
+->B        12__1_345       E<-
+CREATE FUNCTION f_col_char2 (i INT) RETURNS CHAR(26) DETERMINISTIC
+RETURN
+CONCAT('B',
+RPAD(SUBSTR(CAST(i AS CHAR),1,(LENGTH(CAST(i AS CHAR)) DIV 2)),10,' '),
+@extra_string,
+LPAD(SUBSTR(CAST(i AS CHAR), -((LENGTH(CAST(i AS CHAR)) + 1) DIV 2)),10,' '),
+'E');
+SELECT CONCAT('->', f_col_char2(my_col), '<-') AS my_result
+FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
+UNION SELECT 1234 UNION SELECT 12345) AS tx;
+my_result
+->B          __1_         1E<-
+->B1         __1_         2E<-
+->B1         __1_        23E<-
+->B12        __1_        34E<-
+->B12        __1_       345E<-
+CREATE FUNCTION f_col_char3 (i INT) RETURNS CHAR(26) DETERMINISTIC
+RETURN
+CONCAT('B',@extra_string,LPAD(CAST(i AS CHAR),20,' '),'E');
+SELECT CONCAT('->', f_col_char3(my_col), '<-') AS my_result
+FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
+UNION SELECT 1234 UNION SELECT 12345) AS tx;
+my_result
+->B__1_                   1E<-
+->B__1_                  12E<-
+->B__1_                 123E<-
+->B__1_                1234E<-
+->B__1_               12345E<-
+CREATE FUNCTION f_col_char4 (i INT) RETURNS CHAR(26) DETERMINISTIC
+RETURN
+CONCAT('B',RPAD(CAST(i AS CHAR),20,' '),@extra_string,'E');
+SELECT CONCAT('->', f_col_char4(my_col), '<-') AS my_result
+FROM (SELECT 1 AS my_col UNION SELECT 12 UNION SELECT 123
+UNION SELECT 1234 UNION SELECT 12345) AS tx;
+my_result
+->B1                   __1_E<-
+->B12                  __1_E<-
+->B123                 __1_E<-
+->B1234                __1_E<-
+->B12345               __1_E<-
+CREATE TABLE my_metrics LIKE information_schema.innodb_metrics;
+ALTER TABLE my_metrics ADD COLUMN phase ENUM('after', 'before'),
+DROP COLUMN SUBSYSTEM, DROP COLUMN TYPE, DROP COLUMN COMMENT,
+ADD PRIMARY KEY (NAME,phase);
+CREATE TABLE t1 (
+col_int0 BIGINT,
+col_int1 BIGINT,
+col_int2 BIGINT,
+col_int3 BIGINT,
+col_blob BLOB,
+col_char0 VARCHAR(255),
+col_char1 VARCHAR(30),
+col_char2 VARCHAR(30),
+col_char3 VARCHAR(30),
+col_char4 VARCHAR(30)
+) ENGINE = InnoDB;
+ALTER TABLE t1 ADD UNIQUE KEY uidx_col_int0 (col_int0),
+ADD UNIQUE KEY uidx1 (col_int1, col_char0),
+ADD UNIQUE KEY uidx2 (col_int2, col_char0, col_int1),
+ADD UNIQUE KEY uidx3 (col_int3, col_int2, col_char0),
+ADD UNIQUE KEY uidx4 (col_char1, col_char0),
+ADD UNIQUE KEY uidx5 (col_char2, col_char0, col_char1),
+ADD UNIQUE KEY uidx6 (col_char3, col_char2, col_char0),
+ADD UNIQUE KEY uidx7 (col_int1, col_int2, col_int3, col_char4,
+col_char1, col_char2, col_char3, col_char0),
+ADD KEY idx8 (col_blob(10), col_char4);
+CREATE PROCEDURE proc_fill_t1 (max_row_count INT, load_unit INT)
+BEGIN
+DECLARE my_count INTEGER DEFAULT 0;
+DECLARE max_load_count INTEGER DEFAULT 0;
+DROP TABLE IF EXISTS t0;
+CREATE TEMPORARY TABLE t0 (col_int0 BIGINT, PRIMARY KEY(col_int0));
+WHILE (my_count < load_unit ) DO
+SET my_count = my_count + 1;
+INSERT INTO t0 SET col_int0 = my_count;
+END WHILE;
+SET max_load_count = (SELECT (max_row_count DIV load_unit) + 1 );
+SELECT COUNT(col_int0) INTO @val FROM t1;
+SET my_count = 0;
+REPEAT
+INSERT INTO t1 (col_int0, col_int1, col_int2, col_int3, col_blob,
+col_char0, col_char1, col_char2,col_char3,col_char4)
+SELECT col_int0 + @val,
+f_col_int1(col_int0 + @val),
+f_col_int2(col_int0 + @val),
+f_col_int3(col_int0 + @val),
+f_col_blob(col_int0 + @val),
+f_col_char0(col_int0 + @val),
+f_col_char1(col_int0 + @val),
+f_col_char2(col_int0 + @val),
+f_col_char3(col_int0 + @val),
+f_col_char4(col_int0 + @val)
+FROM t0;
+COMMIT;
+SELECT MAX(col_int0) INTO @val FROM t1;
+SET my_count = my_count + 1;
+UNTIL( my_count > max_load_count OR @val >= max_row_count )
+END REPEAT;
+DROP TEMPORARY TABLE t0;
+END|
+CREATE PROCEDURE proc_dml (max_duration INT, t1_stripe_half INT)
+BEGIN
+DECLARE aux INTEGER DEFAULT 0;
+DECLARE start_time INT;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION, SQLWARNING, NOT FOUND BEGIN END;
+SET @extra_int    = CONNECTION_ID();
+SET @extra_string = f_thread_id(@extra_int);
+SELECT ROUND(MAX(col_int0) / 2 ) INTO @t1_half FROM t1;
+# The user lock 'Blocker' should be already set by some other session S1.
+# S1 starts the race by releasing that lock.
+# Wait till the lock is released and the lock can be obtained.
+# In order to prevent endless waiting in case of non foreseen problems
+# limit the timespan to 30 seconds.
+SELECT GET_LOCK('Blocker', 30) INTO @aux;
+# Release the lock immediate so that the other "runner" sessions start too.
+SELECT RELEASE_LOCK('Blocker') INTO @aux;
+SET start_time = UNIX_TIMESTAMP();
+WHILE (UNIX_TIMESTAMP() - start_time < max_duration) DO
+SET @aux = @t1_half - t1_stripe_half + ROUND(RAND() * t1_stripe_half * 2);
+UPDATE t1 SET
+col_int1  = f_col_int1(col_int0),
+col_int2  = f_col_int2(col_int0),
+col_int3  = f_col_int3(col_int0),
+col_blob  = f_col_blob(col_int0),
+col_char0 = f_col_char0(col_int0),
+col_char1 = f_col_char1(col_int0),
+col_char2 = f_col_char2(col_int0),
+col_char3 = f_col_char3(col_int0),
+col_char4 = f_col_char4(col_int0)
+WHERE col_int0 = @aux;
+COMMIT;
+END WHILE;
+END|
+SET GLOBAL innodb_monitor_disable = "innodb_rwlock_sx_%";
+SET @pre_reset_ts = NOW();
+SET GLOBAL innodb_monitor_reset   = "innodb_rwlock_sx_%";
+SET @pre_enable_ts = NOW();
+SET GLOBAL innodb_monitor_enable  = "innodb_rwlock_sx_%";
+SET @pre_collect_ts = NOW();
+DELETE FROM my_metrics;
+INSERT INTO my_metrics
+SELECT NAME, COUNT, MAX_COUNT, MIN_COUNT, AVG_COUNT,
+COUNT_RESET, MAX_COUNT_RESET, MIN_COUNT_RESET, AVG_COUNT_RESET,
+TIME_ENABLED, TIME_DISABLED, TIME_ELAPSED, TIME_RESET,
+STATUS, 'before'
+FROM information_schema.innodb_metrics
+WHERE NAME LIKE 'innodb_rwlock_sx_%';
+# TC-01 There are exact three entries "innodb_rwlock_sx_%" with the
+#       with the name which follow in innodb_metrics.
+#    pass
+SELECT COUNT(*) INTO @sx_count FROM my_metrics;
+# TC-02 Counting is now enabled. ALL = @sx_count entries show that.
+#    pass
+# TC-03 @pre_reset_ts < TIME_RESET. ALL = @sx_count entries show that.
+#    pass
+# TC-04 @pre_enable_ts < TIME_ENABLED. ALL = @sx_count entries show that.
+#    pass
+# TC-05 TIME_RESET < TIME_ENABLED AND TIME_ENABLED < @pre_collect_ts
+#       AND TIME_ELAPSED > 0. ALL = @sx_count entries show that.
+#    pass
+# TC-06 COUNT_RESET = MAX_COUNT_RESET. ALL = @sx_count entries show that.
+#    pass
+SET GLOBAL innodb_monitor_reset = "innodb_rwlock_sx_%";
+SHOW ENGINE INNODB STATUS;
+DELETE FROM my_metrics;
+INSERT INTO my_metrics
+SELECT NAME, COUNT, MAX_COUNT, MIN_COUNT, AVG_COUNT,
+COUNT_RESET, MAX_COUNT_RESET, MIN_COUNT_RESET, AVG_COUNT_RESET,
+TIME_ENABLED, TIME_DISABLED, TIME_ELAPSED, TIME_RESET,
+STATUS, 'before'
+FROM information_schema.innodb_metrics
+WHERE NAME LIKE 'innodb_rwlock_sx_%';
+SET @extra_string = '__0_';
+SET @extra_int    =    0;
+# TC-07 One session inserts some significant amount of rows into t1.
+#       The system MUST survive that.
+SET @max_row_count = <max_row_count>;
+SET @load_unit = <load_unit>;
+SET @start_time = UNIX_TIMESTAMP();
+SET AUTOCOMMIT = OFF;
+CALL proc_fill_t1 (@max_row_count, @load_unit);
+#    pass
+SET AUTOCOMMIT = ON;
+SELECT col_int0 INTO @t1_half FROM t1
+WHERE col_int0 >= (@val DIV 2) ORDER BY col_int0 LIMIT 1;
+SHOW ENGINE INNODB STATUS;
+SELECT col_int0, col_int1, col_int2, col_int3,
+CONCAT('->', SUBSTR(col_blob FROM 1 FOR 10),
+'<-.....->', SUBSTR(col_blob FROM -10 FOR 10), '<-') AS  col_blobx,
+CONCAT('->',col_char0,'<-') AS col_char0x,
+CONCAT('->',col_char1,'<-') AS col_char1x,
+CONCAT('->',col_char2,'<-') AS col_char2x,
+CONCAT('->',col_char3,'<-') AS col_char3x,
+CONCAT('->',col_char4,'<-') AS col_char4x
+FROM t1 WHERE col_int0 between 98 AND 102;
+col_int0	98
+col_int1	98000
+col_int2	98
+col_int3	0
+col_blobx	->__0_aaaaaa<-.....->aaaaaaaaaa<-
+col_char0x	->                                                                                                                                                                                                                                                             98<-
+col_char1x	->B         9__0_8         E<-
+col_char2x	->B9         __0_         8E<-
+col_char3x	->B__0_                  98E<-
+col_char4x	->B98                  __0_E<-
+col_int0	99
+col_int1	99000
+col_int2	99
+col_int3	0
+col_blobx	->__0_aaaaaa<-.....->aaaaaaaaaa<-
+col_char0x	->                                                                                                                                                                                                                                                             99<-
+col_char1x	->B         9__0_9         E<-
+col_char2x	->B9         __0_         9E<-
+col_char3x	->B__0_                  99E<-
+col_char4x	->B99                  __0_E<-
+col_int0	100
+col_int1	100000
+col_int2	100
+col_int3	0
+col_blobx	->__0_aaaaaa<-.....->aaaaaaaaaa<-
+col_char0x	->                                                                                                                                                                                                                                                            100<-
+col_char1x	->B         1__0_00        E<-
+col_char2x	->B1         __0_        00E<-
+col_char3x	->B__0_                 100E<-
+col_char4x	->B100                 __0_E<-
+col_int0	101
+col_int1	101000
+col_int2	101
+col_int3	0
+col_blobx	->__0_aaaaaa<-.....->aaaaaaaaaa<-
+col_char0x	->                                                                                                                                                                                                                                                            101<-
+col_char1x	->B         1__0_01        E<-
+col_char2x	->B1         __0_        01E<-
+col_char3x	->B__0_                 101E<-
+col_char4x	->B101                 __0_E<-
+col_int0	102
+col_int1	102000
+col_int2	102
+col_int3	0
+col_blobx	->__0_aaaaaa<-.....->aaaaaaaaaa<-
+col_char0x	->                                                                                                                                                                                                                                                            102<-
+col_char1x	->B         1__0_02        E<-
+col_char2x	->B1         __0_        02E<-
+col_char3x	->B__0_                 102E<-
+col_char4x	->B102                 __0_E<-
+# TC-11 Several concurrent sessions perform updates in t1 like mad.
+#       The system MUST survive this.
+#       Printing of statements is partially suppressed.
+SET @start_time = UNIX_TIMESTAMP();
+SELECT 1 FROM t1 WHERE col_int0 = @t1_half FOR UPDATE;
+1
+1
+SELECT GET_LOCK('Blocker', 1000) ;
+GET_LOCK('Blocker', 1000)
+1
+RELEASE_LOCK('Blocker')
+1
+#    pass
+SHOW ENGINE INNODB STATUS;
+# TC-13 One session performs ALTER TABLE t1 ADD KEY ... on the fat table t1.
+#       The system MUST survive this.
+SET @start_time = UNIX_TIMESTAMP();
+ALTER TABLE t1 ADD KEY idx_col_char4_col_char0 (col_char4,col_char0);
+SHOW ENGINE INNODB STATUS;
+#    pass
+# TC-15 One session performs a fat update on the fat table t1.
+#       The system MUST survive this.
+SET @start_time   = UNIX_TIMESTAMP();
+SET @extra_int    = 13;
+SET @extra_string = f_thread_id(@extra_int);
+UPDATE t1 SET
+col_int1  = f_col_int1(col_int0),  col_int2  = f_col_int2(col_int0),
+col_int3  = f_col_int3(col_int0),  col_blob  = f_col_blob(col_int0),
+col_char0 = f_col_char0(col_int0), col_char1 = f_col_char1(col_int0),
+col_char2 = f_col_char2(col_int0), col_char3 = f_col_char3(col_int0),
+col_char4 = f_col_char4(col_int0)
+WHERE col_int0 BETWEEN @t1_half - 2500 AND @t1_half + 2500;
+COMMIT;
+SHOW ENGINE INNODB STATUS;
+#    pass
+INSERT INTO my_metrics
+SELECT NAME, COUNT, MAX_COUNT, MIN_COUNT, AVG_COUNT,
+COUNT_RESET, MAX_COUNT_RESET, MIN_COUNT_RESET, AVG_COUNT_RESET,
+TIME_ENABLED, TIME_DISABLED, TIME_ELAPSED, TIME_RESET,
+STATUS, 'after'
+FROM information_schema.innodb_metrics
+WHERE NAME LIKE 'innodb_rwlock_sx_%';
+# TC-16 The following activities happend after reset in innodb_metrics
+#       - Insert some significant amount of rows into t1.
+#       - Several concurrent users perform excessive updates in t1.
+#       - ALTER TABLE ... ADD KEY <sufficient big enough structure>
+#       - One UPDATE statement modifying a huge slice of t1.
+#       Any of them causes heavy use of SX lock and therefore COUNT_RESET
+#       must have grown for ALL = @sx_count entries.
+#    pass
+# TC-09 Heavy activity after reset.
+#       COUNT_RESET = MAX_COUNT_RESET for ALL = @sx_count entries
+#       needs to stay valid though he counters will have grown.
+#    pass
+DELETE FROM my_metrics;
+INSERT INTO my_metrics
+SELECT NAME, COUNT, MAX_COUNT, MIN_COUNT, AVG_COUNT,
+COUNT_RESET, MAX_COUNT_RESET, MIN_COUNT_RESET, AVG_COUNT_RESET,
+TIME_ENABLED, TIME_DISABLED, TIME_ELAPSED, TIME_RESET,
+STATUS, 'before'
+FROM information_schema.innodb_metrics
+WHERE NAME LIKE 'innodb_rwlock_sx_%';
+SET GLOBAL innodb_monitor_reset = "innodb_rwlock_sx_%";
+INSERT INTO my_metrics
+SELECT NAME, COUNT, MAX_COUNT, MIN_COUNT, AVG_COUNT,
+COUNT_RESET, MAX_COUNT_RESET, MIN_COUNT_RESET, AVG_COUNT_RESET,
+TIME_ENABLED, TIME_DISABLED, TIME_ELAPSED, TIME_RESET,
+STATUS, 'after'
+FROM information_schema.innodb_metrics
+WHERE NAME LIKE 'innodb_rwlock_sx_%';
+# TC-08 There was a reset. COUNT_RESET = MAX_COUNT_RESET for ALL
+#       = @sx_count entries.
+#    pass
+# TC-17 We had heavy activity causing big counters and after that a reset.
+#       Reset causes COUNT > COUNT_RESET AND MAX_COUNT > MAX_COUNT_RESET
+#       for ALL @sx_count entries.
+#    pass
+# TC-18 We had some reset but this must not decrease COUNT or MAX_COUNT
+#       after.COUNT >= before.COUNT AND
+#       after.MAX_COUNT >= before.MAX_COUNT for ALL @sx_count entries.
+#    pass
+# TC-19 We had some reset after heavy activity and this must cause
+#       after.COUNT_RESET < before.COUNT_RESET
+#       AND after.MAX_COUNT_RESET < before.MAX_COUNT_RESET AND
+#       for ALL @sx_count entries.
+#    pass
+USE test;
+DROP SCHEMA my_schema;
+SET GLOBAL innodb_monitor_disable   = all;
+SET GLOBAL innodb_monitor_reset_all = all;
+SET GLOBAL innodb_monitor_enable    = default;
+SET GLOBAL innodb_monitor_disable   = default;
+SET GLOBAL innodb_monitor_reset     = default;
+SET GLOBAL innodb_monitor_reset_all = default;
+SET GLOBAL innodb_monitor_disable   = "innodb_rwlock_sx_%";
+SET GLOBAL innodb_monitor_reset     = "innodb_rwlock_sx_%";

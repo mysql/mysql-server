@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
+#include "my_global.h"
 #include <mysql/plugin.h>
 #include <ndbapi/NdbApi.hpp>
 #include <portlib/NdbTick.h>
@@ -173,6 +173,7 @@ private:
 
 #include "ndb_thd.h"
 #include "ndb_thd_ndb.h"
+#include "log.h"
 
 
 extern ulong opt_ndb_extra_logging;
@@ -192,7 +193,7 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
     return 0;
   DBUG_ENTER("ndbcluster_global_schema_lock");
   DBUG_PRINT("enter", ("query: '%-.4096s', no_lock_queue: %d",
-                       *thd_query(thd), no_lock_queue));
+                       thd_query_unsafe(thd).str, no_lock_queue));
   if (thd_ndb->global_schema_lock_count)
   {
     if (thd_ndb->global_schema_lock_trans)

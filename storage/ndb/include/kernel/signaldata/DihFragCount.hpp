@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2006, 2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define DIH_FRAG_COUNT_HPP
  
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 12
+
 
 /**
  * DihFragCountReq
@@ -67,5 +69,8 @@ public:
   Uint32 m_tableStatus; // Dbdih::TabRecord::tabStatus
   Uint32 m_schemaTransId;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

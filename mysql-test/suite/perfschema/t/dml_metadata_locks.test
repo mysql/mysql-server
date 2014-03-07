@@ -1,0 +1,35 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_result_log
+select * from performance_schema.metadata_locks;
+--enable_result_log
+
+select * from performance_schema.metadata_locks
+  where object_name='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.metadata_locks
+  set object_name='FOO', owner_thread_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.metadata_locks
+  set owner_thread_id=12 where object_name='foo';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.metadata_locks;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.metadata_locks
+  where timer_name='CYCLE';
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.metadata_locks READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.metadata_locks WRITE;
+UNLOCK TABLES;
+

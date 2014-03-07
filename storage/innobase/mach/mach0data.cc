@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,65 +30,66 @@ Created 11/28/1995 Heikki Tuuri
 #include "mach0data.ic"
 #endif
 
-/*********************************************************//**
-Reads a ulint in a compressed form if the log record fully contains it.
-@return	pointer to end of the stored field, NULL if not complete */
-UNIV_INTERN
-byte*
+/** Read a 32-bit integer in a compressed form.
+@param[in,out]	ptr	pointer to memory where to read;
+advanced by the number of bytes consumed, or set NULL if out of space
+@param[in]	end_ptr	end of the buffer
+@return unsigned value */
+
+ib_uint32_t
 mach_parse_compressed(
-/*==================*/
-	byte*	ptr,	/*!< in: pointer to buffer from where to read */
-	byte*	end_ptr,/*!< in: pointer to end of the buffer */
-	ulint*	val)	/*!< out: read value (< 2^32) */
+	const byte**	ptr,
+	const byte*	end_ptr)
 {
-	ulint	flag;
+	ulint	val;
 
-	ut_ad(ptr && end_ptr && val);
-
-	if (ptr >= end_ptr) {
-
-		return(NULL);
+	if (*ptr >= end_ptr) {
+		*ptr = NULL;
+		return(0);
 	}
 
-	flag = mach_read_from_1(ptr);
+	val = mach_read_from_1(*ptr);
 
-	if (flag < 0x80UL) {
-		*val = flag;
-		return(ptr + 1);
-
-	} else if (flag < 0xC0UL) {
-		if (end_ptr < ptr + 2) {
-			return(NULL);
+	if (val < 0x80) {
+		/* 0nnnnnnn (7 bits) */
+		++*ptr;
+		return(static_cast<ib_uint32_t>(val));
+	} else if (val < 0xC0) {
+		/* 10nnnnnn nnnnnnnn (14 bits) */
+		if (end_ptr >= *ptr + 2) {
+			val = mach_read_from_2(*ptr) & 0x3FFF;
+			ut_ad(val > 0x7F);
+			*ptr += 2;
+			return(static_cast<ib_uint32_t>(val));
 		}
-
-		*val = mach_read_from_2(ptr) & 0x7FFFUL;
-
-		return(ptr + 2);
-
-	} else if (flag < 0xE0UL) {
-		if (end_ptr < ptr + 3) {
-			return(NULL);
+	} else if (val < 0xE0) {
+		/* 110nnnnn nnnnnnnn nnnnnnnn (21 bits) */
+		if (end_ptr >= *ptr + 3) {
+			val = mach_read_from_3(*ptr) & 0x1FFFFF;
+			ut_ad(val > 0x3FFF);
+			*ptr += 3;
+			return(static_cast<ib_uint32_t>(val));
 		}
-
-		*val = mach_read_from_3(ptr) & 0x3FFFFFUL;
-
-		return(ptr + 3);
-	} else if (flag < 0xF0UL) {
-		if (end_ptr < ptr + 4) {
-			return(NULL);
+	} else if (val < 0xF0) {
+		/* 1110nnnn nnnnnnnn nnnnnnnn nnnnnnnn (28 bits) */
+		if (end_ptr >= *ptr + 4) {
+			val = mach_read_from_4(*ptr) & 0xFFFFFFF;
+			ut_ad(val > 0x1FFFFF);
+			*ptr += 4;
+			return(static_cast<ib_uint32_t>(val));
 		}
-
-		*val = mach_read_from_4(ptr) & 0x1FFFFFFFUL;
-
-		return(ptr + 4);
 	} else {
-		ut_ad(flag == 0xF0UL);
+		ut_ad(val == 0xF0);
 
-		if (end_ptr < ptr + 5) {
-			return(NULL);
+		/* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
+		if (end_ptr >= *ptr + 5) {
+			val = mach_read_from_4(*ptr + 1);
+			ut_ad(val > 0xFFFFFFF);
+			*ptr += 5;
+			return(static_cast<ib_uint32_t>(val));
 		}
-
-		*val = mach_read_from_4(ptr + 1);
-		return(ptr + 5);
 	}
+
+	*ptr = NULL;
+	return(0);
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,10 +106,10 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
         return result;
     }
 
-    /** Convert days, hours, minutes, and seconds into milliseconds after the Epoch, UCT.
-     * Date is index origin 1 so add one to the number of days. Default year and month,
+    /** Convert hours, minutes, and seconds into milliseconds after the Epoch, UCT.
+     * Default year, month, and day,
      * as these are assumed by Calendar to be the Epoch.
-     * @param day the number of days
+     * @param day the number of days: ignored
      * @param hour the hour (or number of hours)
      * @param minute the minute (or number of minutes)
      * @param second the second (or number of seconds)
@@ -118,7 +118,6 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
     protected static long getMillisFor(int days, int hour, int minute, int second) {
         Calendar calendar = Calendar.getInstance();
         calendar.clear();
-        calendar.set(Calendar.DATE, days + 1);
         calendar.set(Calendar.HOUR, hour);
         calendar.set(Calendar.MINUTE, minute);
         calendar.set(Calendar.SECOND, second);

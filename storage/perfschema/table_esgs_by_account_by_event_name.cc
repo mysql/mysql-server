@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
   @file storage/perfschema/table_esgs_by_account_by_event_name.cc
@@ -85,8 +85,7 @@ table_esgs_by_account_by_event_name::m_share=
   table_esgs_by_account_by_event_name::create,
   NULL, /* write_row */
   table_esgs_by_account_by_event_name::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_esgs_by_account_by_event_name::get_row_count,
   sizeof(pos_esgs_by_account_by_event_name),
   &m_table_lock,
   &m_field_def,
@@ -105,6 +104,12 @@ table_esgs_by_account_by_event_name::delete_all_rows(void)
   reset_events_stages_by_thread();
   reset_events_stages_by_account();
   return 0;
+}
+
+ha_rows
+table_esgs_by_account_by_event_name::get_row_count(void)
+{
+  return account_max * stage_class_max;
 }
 
 table_esgs_by_account_by_event_name::table_esgs_by_account_by_event_name()
@@ -175,7 +180,7 @@ table_esgs_by_account_by_event_name::rnd_pos(const void *pos)
 void table_esgs_by_account_by_event_name
 ::make_row(PFS_account *account, PFS_stage_class *klass)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   m_row_exists= false;
 
   account->m_lock.begin_optimistic_lock(&lock);

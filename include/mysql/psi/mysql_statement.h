@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.   
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,14 @@
 
 #include "mysql/psi/psi.h"
 
+#ifndef PSI_STATEMENT_CALL
+#define PSI_STATEMENT_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
+#ifndef PSI_DIGEST_CALL
+#define PSI_DIGEST_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
 /**
   @defgroup Statement_instrumentation Statement Instrumentation
   @ingroup Instrumentation_interface
@@ -41,7 +49,6 @@
   do {} while (0)
 #endif
 
-#ifdef HAVE_PSI_STATEMENT_INTERFACE
 #ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
   #define MYSQL_DIGEST_START(LOCKER) \
     inline_mysql_digest_start(LOCKER)
@@ -49,24 +56,20 @@
   #define MYSQL_DIGEST_START(LOCKER) \
     NULL
 #endif
-#else
-  #define MYSQL_DIGEST_START(LOCKER) \
-    NULL
-#endif
 
 #ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-  #define MYSQL_ADD_TOKEN(LOCKER, T, Y) \
-    inline_mysql_add_token(LOCKER, T, Y)
+  #define MYSQL_DIGEST_END(LOCKER, DIGEST) \
+    inline_mysql_digest_end(LOCKER, DIGEST)
 #else
-  #define MYSQL_ADD_TOKEN(LOCKER, T, Y) \
-    NULL
+  #define MYSQL_DIGEST_END(LOCKER, DIGEST) \
+    do {} while (0)
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS) \
-    inline_mysql_start_statement(STATE, K, DB, DB_LEN, CS, __FILE__, __LINE__)
+  #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS, SPS) \
+    inline_mysql_start_statement(STATE, K, DB, DB_LEN, CS, SPS, __FILE__, __LINE__)
 #else
-  #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS) \
+  #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS, SPS) \
     NULL
 #endif
 
@@ -132,20 +135,17 @@ inline_mysql_digest_start(PSI_statement_locker *locker)
   PSI_digest_locker* digest_locker= NULL;
 
   if (likely(locker != NULL))
-    digest_locker= PSI_STATEMENT_CALL(digest_start)(locker);
+    digest_locker= PSI_DIGEST_CALL(digest_start)(locker);
   return digest_locker;
 }
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-static inline struct PSI_digest_locker *
-inline_mysql_add_token(PSI_digest_locker *locker, uint token,
-                       void *yylval)
+static inline void
+inline_mysql_digest_end(PSI_digest_locker *locker, const sql_digest_storage *digest)
 {
   if (likely(locker != NULL))
-    locker= PSI_STATEMENT_CALL(digest_add_token)(locker, token,
-                                      (OPAQUE_LEX_YYSTYPE*)yylval);
-  return locker;
+    PSI_DIGEST_CALL(digest_end)(locker, digest);
 }
 #endif
 
@@ -154,10 +154,12 @@ inline_mysql_start_statement(PSI_statement_locker_state *state,
                              PSI_statement_key key,
                              const char *db, uint db_len,
                              const CHARSET_INFO *charset,
+                             PSI_sp_share *sp_share,
                              const char *src_file, int src_line)
 {
   PSI_statement_locker *locker;
-  locker= PSI_STATEMENT_CALL(get_thread_statement_locker)(state, key, charset);
+  locker= PSI_STATEMENT_CALL(get_thread_statement_locker)(state, key, charset,
+                                                          sp_share);
   if (likely(locker != NULL))
     PSI_STATEMENT_CALL(start_statement)(locker, db, db_len, src_file, src_line);
   return locker;

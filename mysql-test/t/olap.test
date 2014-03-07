@@ -1,3 +1,4 @@
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -36,6 +37,7 @@ select product, sum(profit),avg(profit) from t1 group by product with rollup;
 # Sub totals
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year;
 select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
+analyze table t1;
 explain extended select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
 select product, country_id , sum(profit) from t1 group by product desc, country_id with rollup;
 
@@ -142,26 +144,33 @@ INSERT INTO t1 VALUES
   (2,1), (2,1);
 
 SELECT SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
 
 SELECT SUM(b), COUNT(DISTINCT b) FROM t1 GROUP BY a WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT SUM(b), COUNT(DISTINCT b) FROM t1 GROUP BY a WITH ROLLUP;
 
 SELECT SUM(b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT SUM(b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
 
 SELECT SUM(b), COUNT(DISTINCT b), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT SUM(b), COUNT(DISTINCT b), COUNT(*) FROM t1
   GROUP BY a WITH ROLLUP;
 
 SELECT a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
 
 SELECT b, a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT b,a, sum(b) FROM t1 GROUP BY a,b WITH ROLLUP;
 
 ALTER TABLE t1 ADD COLUMN c INT;
 SELECT a,b,sum(c) FROM t1 GROUP BY a,b,c WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT distinct a,b,sum(c) FROM t1 GROUP BY a,b,c WITH ROLLUP;
 
 DROP TABLE t1;
@@ -280,6 +289,7 @@ DROP TABLE t1;
 create table t1 ( a varchar(9), b int );
 insert into t1 values('a',1),(null,2);
 select a, max(b) from t1 group by a with rollup;
+--error ER_WRONG_USAGE
 select distinct a, max(b) from t1 group by a with rollup;
 drop table t1;
 
@@ -301,12 +311,16 @@ INSERT INTO t1
   VALUES (2,10),(3,30),(2,40),(1,10),(2,30),(1,20),(2,10);
 
 SELECT a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT a, SUM(b) FROM t1 GROUP BY a WITH ROLLUP;
 SELECT a, b, COUNT(*) FROM t1 GROUP BY a,b WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT a, b, COUNT(*) FROM t1 GROUP BY a,b WITH ROLLUP;
 
 SELECT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT 'x', a, SUM(b) FROM t1 GROUP BY 1,2 WITH ROLLUP;
 
 DROP TABLE t1;
@@ -325,6 +339,7 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 
 SELECT type FROM t1 GROUP BY type WITH ROLLUP;
 SELECT type FROM v1 GROUP BY type WITH ROLLUP;
+analyze table v1,t1;
 EXPLAIN SELECT type FROM v1 GROUP BY type WITH ROLLUP;
 
 DROP VIEW v1;
@@ -386,6 +401,7 @@ CREATE TABLE t2 (b INT);
 INSERT INTO t2 VALUES (100);
 
 SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
 
 DROP TABLE t1, t2;
@@ -399,6 +415,8 @@ CREATE TABLE t2 (b INT);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 
+SELECT b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
+--error ER_WRONG_USAGE
 SELECT DISTINCT b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
 
 DROP TABLE t1, t2;
@@ -409,7 +427,7 @@ DROP TABLE t1, t2;
 --echo # Bug#13011553 CRASH IN SORTCMP OR CACHED_ITEM_STR::CMP IF GROUP BY SUBQUERY WITH ROLLUP
 --echo #
 
-CREATE TABLE t1 (f1 DATETIME) ENGINE = MyISAM;
+CREATE TABLE t1 (f1 DATETIME);
 INSERT INTO  t1 VALUES ('2012-12-20 00:00:00'), (NULL);
 
 SELECT f1 FROM t1 GROUP BY
@@ -417,7 +435,7 @@ SELECT f1 FROM t1 GROUP BY
 
 DROP TABLE t1;
 
-CREATE TABLE t1 (f1 DATE) ENGINE = MyISAM;
+CREATE TABLE t1 (f1 DATE);
 INSERT INTO  t1 VALUES ('2012-12-20'), (NULL);
 
 SELECT f1 FROM t1 GROUP BY
@@ -425,7 +443,7 @@ SELECT f1 FROM t1 GROUP BY
 
 DROP TABLE t1;
 
-CREATE TABLE t1 (f1 TIME) ENGINE = MyISAM;
+CREATE TABLE t1 (f1 TIME);
 INSERT INTO  t1 VALUES ('11:11:11'), (NULL);
 
 SELECT f1 FROM t1 GROUP BY

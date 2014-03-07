@@ -5624,7 +5624,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `name` varchar(10) COLLATE utf8_swedish_ci DEFAULT NULL,
   `level` smallint(5) unsigned DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_swedish_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_swedish_ci
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
 concat(name,space(level))	concat(name, repeat(' ',level))
@@ -5900,7 +5900,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(64) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci DEFAULT NULL,
   `s2` varchar(64) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=default_engine DEFAULT CHARSET=latin1
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
@@ -6831,7 +6831,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (_utf32 0x0180),(_utf32 0x023A);
 INSERT INTO t1 VALUES (_utf32 0x023B),(_utf32 0x023C);
 INSERT INTO t1 VALUES (_utf32 0x023D),(_utf32 0x023E);
@@ -7102,8 +7102,10 @@ F0909080	30D2	𐐀
 F09090A8	30D2	𐐨
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT hex(c) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	42	NULL	3	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c	c	42	NULL	4	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select hex(`test`.`t1`.`c`) AS `hex(c)` from `test`.`t1` where (`test`.`t1`.`c` like 'a%') order by `test`.`t1`.`c`
 SELECT hex(c), hex(weight_string(c)) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
 hex(c)	hex(weight_string(c))
 61	120F
@@ -7119,6 +7121,20 @@ hex(c)	hex(weight_string(c))	c
 F0909080	30D2	𐐀
 F09090A8	30D2	𐐨
 DROP TABLE t1;
+#
+# Bug #16204175 : COLLATION NAME MISSING FROM LOG MESSAGES
+#                 ABOUT LDML DEFINITION PROBLEMS
+#
+# Check whether the new collation is loaded after restart
+SHOW COLLATION LIKE 'utf8_test';
+Collation	Charset	Id	Default	Compiled	Sortlen
+utf8_test	utf8	999			8
+# Create a table with the unknown collation.
+CREATE TABLE t1(id INT PRIMARY KEY, c CHAR(1) COLLATE utf8_test);
+ERROR HY000: Unknown collation: 'utf8_test'
+# Below error is caused as a result of this test. The error message
+# contains collation name which is added as a part of the fix.
+call mtr.add_suppression("Shift expected at '' for COLLATION : utf8_test");
 #
 # End of 5.6 tests
 #

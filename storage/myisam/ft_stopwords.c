@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
@@ -57,7 +57,8 @@ int ft_init_stopwords()
 {
   if (!stopwords3)
   {
-    if (!(stopwords3=(TREE *)my_malloc(sizeof(TREE),MYF(0))))
+    if (!(stopwords3=(TREE *)my_malloc(mi_key_memory_ft_stopwords,
+                                       sizeof(TREE),MYF(0))))
       return -1;
     init_tree(stopwords3,0,0,sizeof(FT_STOPWORD),(qsort_cmp2)&FT_STOPWORD_cmp,
               0,
@@ -88,13 +89,15 @@ int ft_init_stopwords()
       return -1;
     len=(uint)my_seek(fd, 0L, MY_SEEK_END, MYF(0));
     my_seek(fd, 0L, MY_SEEK_SET, MYF(0));
-    if (!(start=buffer=my_malloc(len+1, MYF(MY_WME))))
+    if (!(start=buffer=my_malloc(mi_key_memory_ft_stopwords,
+                                 len+1, MYF(MY_WME))))
       goto err0;
     len=my_read(fd, buffer, len, MYF(MY_WME));
     end=start+len;
     while (ft_simple_get_word(ft_stopword_cs, &start, end, &w, TRUE))
     {
-      if (ft_add_stopword(my_strndup((char*) w.pos, w.len, MYF(0))))
+      if (ft_add_stopword(my_strndup(mi_key_memory_ft_stopwords,
+                                     (char*) w.pos, w.len, MYF(0))))
         goto err1;
     }
     error=0;

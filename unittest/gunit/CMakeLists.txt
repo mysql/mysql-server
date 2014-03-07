@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -98,7 +98,7 @@ SET(GMOCK_DOWNLOAD_URL
 MACRO(HTTP_PROXY_HINT)
   MESSAGE(STATUS
     "If you are inside a firewall, you may need to use an http proxy: "
-    "export http_proxy=http://foo.bar.com:80")
+    "export http_proxy=http://example.com:80")
 ENDMACRO()
 
 
@@ -160,6 +160,13 @@ IF(NOT GMOCK_FOUND)
   RETURN()
 ENDIF()
 
+SET(GMOCK_INCLUDE_DIRS
+  ${GMOCK_SOURCE_DIR}
+  ${GMOCK_SOURCE_DIR}/include
+  ${GTEST_SOURCE_DIR}
+  ${GTEST_SOURCE_DIR}/include
+  CACHE INTERNAL "")
+
 # Build gmock/gtest libraries.
 INCLUDE_DIRECTORIES(
   ${GMOCK_SOURCE_DIR}
@@ -175,17 +182,36 @@ IF (WITH_SSL STREQUAL "bundled")
   ADD_SUBDIRECTORY(yassl)
 ENDIF()
 
+ADD_SUBDIRECTORY(innodb)
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/unittest/mytap
+  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/storage/example
 )
 
+# Turn off some warning flags when compiling GUnit
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-null-dereference" HAVE_NO_NULL)
+IF(HAVE_NO_NULL)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-null-dereference")
+ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
+ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-compare-distinct-pointer-types"
+                           HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
+IF(HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-compare-distinct-pointer-types")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
+
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
-  gunit_test_main.cc tap_event_listener.cc thread_utils.cc)
+  gunit_test_main.cc skip_trailing.cc tap_event_listener.cc thread_utils.cc)
 ADD_LIBRARY(gunit_large STATIC
   gunit_test_main_server.cc test_utils.cc tap_event_listener.cc thread_utils.cc)
 ADD_DEPENDENCIES(gunit_small GenError)
@@ -204,6 +230,7 @@ SET(TESTS
   alignment
   bounded_queue
   bounds_checked_array
+  bitmap
   byteorder
 ##  client_string TODO: move to a client test directory
   cost_estimate
@@ -217,18 +244,29 @@ SET(TESTS
   my_bitmap
   my_error
   my_fileutils
+  my_murmur3
   my_regex
   mysys_base64
   mysys_lf
   mysys_my_atomic
+  mysys_my_loadpath
   mysys_my_malloc
+  mysys_my_pwrite
   mysys_my_rdtsc
+  mysys_my_symlink
   mysys_my_vsnprintf
+  mysys_my_write
+  opt_costmodel
+  opt_recperkey
+  prealloced_array
   sql_list
   sql_plist
   sql_string
   stdcxx
+  strings_skip_trailing
+  strtoll
   thread_utils
+  my_timer
   )
   
 IF(WIN32)
@@ -239,20 +277,31 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  debug_sync
+  explain_filename
   field
   get_diagnostics
   handler
   insert_delayed
   item
   item_func_now_local
+  item_timefunc
+  item_like
   join_tab_sort
+  log_throttle
   make_sortkey
+  mdl_sync
   my_decimal
   opt_range
+  opt_ref
   opt_trace
   segfault
   sql_table
+  strings_utf8
   table_cache
+  tc_log_mmap
+  thd_manager
+  unique
 )
 
 ## Merging tests into fewer executables saves *a lot* of
@@ -294,6 +343,11 @@ IF (MERGE_UNITTESTS)
     gunit_large strings dbug regex mysys)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql binlog rpl master slave sql)
 
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
+    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema pfs_server_stubs)
+  ENDIF()
+
   ADD_TEST(merge_large_tests merge_large_tests-t)
   ADD_TEST(merge_small_tests merge_small_tests-t)
 
@@ -302,9 +356,20 @@ ELSE()
   FOREACH(test ${TESTS})
     ADD_EXECUTABLE(${test}-t ${test}-t.cc)
     TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
+    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+      TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
+    ENDIF()
     ADD_TEST(${test} ${test}-t)
   ENDFOREACH()
   
+  # See comments about __builtin_memcmp in the source file.
+  IF(HAVE_NO_BUILTIN_MEMCMP)
+    SET_SOURCE_FILES_PROPERTIES(
+      filesort_compare-t.cc
+      PROPERTIES COMPILE_FLAGS "-fno-builtin-memcmp"
+  )
+  ENDIF()
+
   FOREACH(test ${SERVER_TESTS})
     SET(SRC_FILES ${test}-t.cc)
     IF(WIN32)
@@ -321,6 +386,11 @@ ELSE()
     TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
     TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
     TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+
+    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+      TARGET_LINK_LIBRARIES(${test}-t perfschema)
+    ENDIF()
+
     ADD_TEST(${test} ${test}-t)
   ENDFOREACH()
 

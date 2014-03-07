@@ -1,6 +1,6 @@
 #ifndef SQL_ALLOC_INCLUDED
 #define SQL_ALLOC_INCLUDED
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,15 +44,9 @@ public:
   static void operator delete[](void *ptr, MEM_ROOT *mem_root)
   { /* never called */ }
   static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
-#ifdef HAVE_purify
-  bool dummy;
-  inline Sql_alloc() :dummy(0) {}
-  inline ~Sql_alloc() {}
-#else
+
   inline Sql_alloc() {}
   inline ~Sql_alloc() {}
-#endif
-
 };
 
 #endif // SQL_ALLOC_INCLUDED

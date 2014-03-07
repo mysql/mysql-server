@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,16 +23,47 @@ ENDIF()
 ######### BUNDLED SOURCES FOR MEMCACHED AND LIBEVENT
 
 option(WITH_BUNDLED_MEMCACHED "Use bundled memcached" ON)
-option(WITH_BUNDLED_LIBEVENT "Use bundled libevent for building memcached" ON)
-
 if(WITH_BUNDLED_MEMCACHED)
-  add_subdirectory(extra/memcached)
+  #
+  # Build the memcached bundled with NDB
+  #
 
+  # Handle the deprecated option to build libevent from
+  # code bundled with NDB. I.e the libevent bundled with NDB
+  # is not built anymore and instead the libevent bundled
+  # with MySQL or system libs are used.
+  option(WITH_BUNDLED_LIBEVENT "Deprecated, use WITH_LIBEVENT")
+  mark_as_advanced(WITH_BUNDLED_LIBEVENT)
   if(WITH_BUNDLED_LIBEVENT)
-    add_subdirectory(extra/libevent)
-    add_dependencies(memcached event)
+    MESSAGE(WARNING "Ignoring deprecated WITH_BUNDLED_LIBEVENT, use "
+                   "WITH_LIBEVENT to configure which library to use "
+                   "when building memcached")
   endif()
+
+
+  # The libevent library is needed to build memcached.
+  # Make sure it has been found or configured to build
+  # by the code in cmake/libevent.cmake
+  if (NOT LIBEVENT_FOUND)
+    MESSAGE(SEND_ERROR "The libevent library is necessary to build "
+                       "memcached, use WITH_LIBEVENT to configure which "
+                       "library to use")
+  else()
+    # NOTE! Seems to be a slight confusion which variables
+    # are set by cmake/libevent.cmake. The comment says
+    # LIBEVENT_LIBRARIES and LIBEVENT_INCLUDE_DIR, but actually
+    # slightly different varables are set depending on bundled or not.
+    # Thus using the same variable names as plugin/innodb_memcached/ assuming
+    # that things does _not_ build unless using bundled libevent.
+    ndb_require_variable(LIBEVENT_LIBRARY)
+    ndb_require_variable(LIBEVENT_INCLUDE_DIR)
+  endif()
+
+  add_subdirectory(extra/memcached)
 endif()
+
+
+
 ####################################################
 
 # Don't disable assert
@@ -63,6 +94,7 @@ include_directories(BEFORE include)
 include_directories(BEFORE ${CACHE_SRC})
 include_directories(${NDB_SOURCE_DIR}/src/ndbjtie/mysql)
 include_directories(${NDB_SOURCE_DIR}/src/ndbapi/)
+include_directories(${CMAKE_BINARY_DIR}/storage/ndb/memcache/include/)
 include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(AFTER ${BUNDLED_MEMCACHED})
 
@@ -103,8 +135,10 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/timing.c
     src/workitem.c
     src/workqueue.c
+    src/Scheduler.cc
     src/schedulers/S_sched.cc
     src/schedulers/Stockholm.cc
+    src/schedulers/Scheduler73.cc
     ${CACHE_SRC}/items.c
     ${CACHE_SRC}/assoc.c
     ${CACHE_SRC}/slabs.c
@@ -127,6 +161,7 @@ ENDIF()
 IF(${CMAKE_CXX_COMPILER_ID} STREQUAL "SunPro")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -features=extensions") # __func__
 ENDIF()
+
 
 ########## ENVIRONMENT TESTS #########
 
@@ -157,11 +192,12 @@ if(HAVE_FUNC_IN_CXX)
   add_definitions(-DDEBUG_OUTPUT)
 endif()
 
+
 ########### GENERATED FILES #############
 
 # Build ndbmemcache_config.h
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.in 
-               ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbmemcache_config.h)
+               ${CMAKE_CURRENT_BINARY_DIR}/include/ndbmemcache_config.h)
 
 # Build sandbox.sh
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/sandbox.sh.in
@@ -174,25 +210,38 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/memcached_path.pl.in
 # Copy the SQL script into /scripts/ in the build directory.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/ndb_memcache_metadata.sql
                ${CMAKE_BINARY_DIR}/scripts/ndb_memcache_metadata.sql COPYONLY)
+
+# Build the "memclient" utility
+SET(MEMCACHE_PM ${CMAKE_SOURCE_DIR}/mysql-test/lib/My/Memcache.pm)
+SET(MEMCLIENT_PL ${CMAKE_CURRENT_SOURCE_DIR}/memclient.pl)
+SET(MEMCLIENT ${CMAKE_CURRENT_BINARY_DIR}/memclient)
+FILE(READ   ${MEMCLIENT_PL} CONTENTS)
+FILE(WRITE  ${MEMCLIENT} "${CONTENTS}")
+FILE(READ   ${MEMCACHE_PM} CONTENTS)
+FILE(APPEND ${MEMCLIENT} "${CONTENTS}")
+
                
 ######### TARGETS ############
-# Build the convenience library
+
+### Build the convenience library
 ADD_CONVENIENCE_LIBRARY(ndbmemcache ${NDB_MEMCACHE_SOURCE_FILES})
 
-target_link_libraries(ndbmemcache ndbclient_static ndbgeneral memcached_utilities)
+target_link_libraries(ndbmemcache
+                      ndbclient_static
+                      ndbgeneral
+                      ${MEMCACHED_UTILITIES_LIBRARY})
 
-# Build the module
+### Build the module
 add_library(ndb_engine MODULE src/ndb_engine.c src/stub.cc)
 
 target_link_libraries(ndb_engine ndbmemcache ndbclient_static)
 
-
-# If we are using the bundled memcache, it is a dependency:
+### If we are using the bundled memcache, it is a dependency:
 if(WITH_BUNDLED_MEMCACHED)
   add_dependencies(ndb_engine memcached)
 endif()
 
-# Extra linker flags because CMake's "MODULE" support is not quite right.  
+### Extra linker flags because CMake's "MODULE" support is not quite right.  
 if(APPLE) 
   set(FINAL_LINK_FLAGS "-flat_namespace -undefined suppress -bind_at_load")
 elseif(${CMAKE_COMPILER_IS_GNUCC}) 
@@ -212,8 +261,11 @@ set_target_properties(ndb_engine PROPERTIES
 ###
 install(TARGETS ndb_engine DESTINATION ${INSTALL_LIBDIR})
 
+### Install memclient 
+### 
+install(PROGRAMS ${MEMCLIENT} DESTINATION ${INSTALL_BINDIR})
 
-### Install the memcache-api directory  ################
+### Install the memcache-api directory
 ###
 SET(MEMCACHE_API_DIR "${INSTALL_MYSQLSHAREDIR}/memcache-api")
 install(DIRECTORY DESTINATION ${MEMCACHE_API_DIR} )

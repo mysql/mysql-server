@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef ATTRIBUTE_HEADER
 #define ATTRIBUTE_HEADER
+
+#define JAM_FILE_ID 6
+
 
 /**
  * @class AttributeHeader
@@ -282,6 +285,9 @@ AttributeHeader::getAttributeId(Uint32 m_value)
 {
   return m_value >> 16;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif
 

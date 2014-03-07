@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 ################################################################################
 #
 # NOTICE:
@@ -12,10 +17,6 @@
 
 # Uses GRANT commands that usually disabled in embedded server
 -- source include/not_embedded.inc
-
-# check that CSV engine was compiled in, as the result of the test
-# depends on the presence of the log tables (which are CSV-based).
---source include/have_csv.inc
 
 #
 # Test of some show commands
@@ -764,6 +765,7 @@ SHOW COLUMNS FROM t1;
 
 --echo ----------------------------------------------------------------
 
+--replace_column 6 #
 SHOW TRIGGERS LIKE 't1';
 
 --echo ----------------------------------------------------------------
@@ -1078,33 +1080,55 @@ CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
 
 # Test.
 
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 CREATE PROCEDURE p1() SHOW CREATE TRIGGER t1_bi;
 
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
+--replace_column 7 #
 CALL p1();
 
 PREPARE stmt1 FROM 'SHOW CREATE TRIGGER t1_bi';
 
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 EXECUTE stmt1;
+--replace_column 7 #
 
 # Cleanup.
 
@@ -1164,6 +1188,7 @@ SHOW CREATE PROCEDURE p1;
 
 SHOW CREATE FUNCTION f1;
 
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 SHOW CREATE EVENT ev1;
@@ -1219,7 +1244,12 @@ eval KILL QUERY $ID;
 --enable_query_log
 
 CONNECTION con1;
---error ER_QUERY_INTERRUPTED
+let $wait_timeout= 5;
+let $wait_condition=
+  SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE
+  INFO= "KILL QUERY $ID";
+--source include/wait_condition.inc
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE non_existent;
 
 DISCONNECT con1;
@@ -1310,6 +1340,7 @@ LOCK TABLE t1 WRITE;
 --echo # Connection default
 connection default;
 # Should not block.
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 --echo # Connection con1
@@ -1321,6 +1352,7 @@ UNLOCK TABLES;
 --echo # Connection default
 connection default;
 START TRANSACTION;
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 --echo # Connection con1
@@ -1380,10 +1412,12 @@ DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1 (a INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 CREATE TEMPORARY TABLE t1 (b INT);
 # Should still work
+--replace_column 7 #
 SHOW CREATE TRIGGER t1_bi;
 
 DROP TEMPORARY TABLE t1;

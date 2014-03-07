@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,5 +46,12 @@ LEX_STRING stage_instrument_prefix=
 LEX_STRING statement_instrument_prefix=
 { C_STRING_WITH_LEN("statement/") };
 
+LEX_STRING transaction_instrument_prefix=
+{ C_STRING_WITH_LEN("transaction") };
+
 LEX_STRING socket_instrument_prefix=
 { C_STRING_WITH_LEN("wait/io/socket/") };
+
+LEX_STRING memory_instrument_prefix=
+{ C_STRING_WITH_LEN("memory/") };
+

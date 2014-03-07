@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,12 +36,12 @@
 #ifdef	__cplusplus
 extern "C" {					// Because of SCO 3.2V4.2
 #endif
-#if !defined( __WIN__)
+#if !defined(_WIN32)
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
 #include <sys/utsname.h>
-#endif // __WIN__
+#endif // _WIN32
 #ifdef	__cplusplus
 }
 #endif
@@ -124,7 +124,6 @@ void Host_errors::aggregate(const Host_errors *errors)
 }
 
 static hash_filo *hostname_cache;
-ulong host_cache_size;
 
 void hostname_cache_refresh()
 {
@@ -141,12 +140,12 @@ void hostname_cache_resize(uint size)
   hostname_cache->resize(size);
 }
 
-bool hostname_cache_init()
+bool hostname_cache_init(uint size)
 {
   Host_entry tmp;
   uint key_offset= (uint) ((char*) (&tmp.ip_key) - (char*) &tmp);
 
-  if (!(hostname_cache= new hash_filo(HOST_CACHE_SIZE,
+  if (!(hostname_cache= new hash_filo(size,
                                       key_offset, HOST_ENTRY_KEY_SIZE,
                                       NULL, (my_hash_free_key) free,
                                       &my_charset_bin)))
@@ -414,7 +413,6 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
 {
   const struct sockaddr *ip= (const sockaddr *) ip_storage;
   int err_code;
-  bool err_status;
   Host_errors errors;
 
   DBUG_ENTER("ip_to_hostname");
@@ -456,12 +454,12 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     if (entry)
     {
       entry->m_last_seen= now;
+      *connect_errors= entry->m_errors.m_connect;
 
-      if (entry->m_errors.m_connect > max_connect_errors)
+      if (entry->m_errors.m_connect >= max_connect_errors)
       {
         entry->m_errors.m_host_blocked++;
         entry->set_error_timestamps(now);
-        *connect_errors= entry->m_errors.m_connect;
         mysql_mutex_unlock(&hostname_cache->lock);
         DBUG_RETURN(RC_BLOCKED_HOST);
       }
@@ -474,7 +472,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
       if (entry->m_host_validated)
       {
         if (entry->m_hostname_length)
-          *hostname= my_strdup(entry->m_hostname, MYF(0));
+          *hostname= my_strdup(key_memory_host_cache_hostname,
+                               entry->m_hostname, MYF(0));
 
         DBUG_PRINT("info",("IP (%s) has been found in the cache. "
                            "Hostname: '%s'",
@@ -943,7 +942,9 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
     {
-      err_status=
+#ifndef DBUG_OFF
+      bool err_status=
+#endif
         vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
                                      ip_buffer, sizeof (ip_buffer));
       DBUG_ASSERT(!err_status);
@@ -955,7 +956,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     {
       /* Copy host name string to be stored in the cache. */
 
-      *hostname= my_strdup(hostname_buffer, MYF(0));
+      *hostname= my_strdup(key_memory_host_cache_hostname,
+                           hostname_buffer, MYF(0));
 
       if (!*hostname)
       {
@@ -987,7 +989,9 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     {
       char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
-      err_status=
+#ifndef DBUG_OFF
+      bool err_status=
+#endif
         vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
                                      ip_buffer, sizeof (ip_buffer));
       DBUG_ASSERT(!err_status);

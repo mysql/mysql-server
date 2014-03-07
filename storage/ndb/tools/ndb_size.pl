@@ -1,7 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (C) 2005-2008 MySQL AB
-#  All rights reserved. Use is subject to license terms.
+# Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1329,7 +1328,7 @@ sub output
 	printf $f, 'Varsize NULL Bytes/Row';
 	printf $v, $t->vdm_null_bytes->{$_}||0 foreach @{$t->dm_versions};
 	print "\n";
-	printf $f, 'Avg Varside DM/Row';
+	printf $f, 'Avg Varsize DM/Row';
 	printf $v, (exists($t->row_vdm_size->{$_})?
 		    $t->row_vdm_size->{$_}: 0)
 		    foreach @{$r->versions};
@@ -1732,7 +1731,7 @@ ENDHTML
 	    push @r, (exists($t->row_vdm_size->{$_})?
 		      $t->row_vdm_size->{$_}: 0)
 		foreach @{$r->versions};
-	    print $self->tr('Avg Varside DM/Row',@r);
+	    print $self->tr('Avg Varsize DM/Row',@r);
 	}
 	print "</table>\n";
 	print $self->h4("Memory Calculations");

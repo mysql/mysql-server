@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 */
 
 #include "fulltext.h"
-#if defined(__WIN__)
+#if defined(_WIN32)
 #include <fcntl.h>
 #else
 #include <stddef.h>
@@ -102,7 +102,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 			  ulonglong sortbuff_size)
 {
   int error,maxbuffer,skr;
-  uint sort_length, keys;
+  uint sort_length, keys= 0;
   ulonglong memavl, old_memavl;
   DYNAMIC_ARRAY buffpek;
   ha_rows records;
@@ -133,7 +133,6 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   memavl= MY_MAX(sortbuff_size, MIN_SORT_BUFFER);
   records=	info->sort_info->max_records;
   sort_length=	info->key_length;
-  LINT_INIT(keys);
 
   if ((memavl - sizeof(BUFFPEK)) / (sort_length + sizeof(char *)) > UINT_MAX32)
     memavl= sizeof(BUFFPEK) + UINT_MAX32 * (sort_length + sizeof(char *));
@@ -160,7 +159,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
       }
       while ((maxbuffer= (int) (records/(keys-1)+1)) != skr);
 
-    if ((sort_keys=(uchar **)my_malloc(keys*(sort_length+sizeof(char*))+
+    if ((sort_keys=(uchar **)my_malloc(PSI_NOT_INSTRUMENTED,
+                                       keys*(sort_length+sizeof(char*))+
 				       HA_FT_MAXBYTELEN, MYF(0))))
     {
       if (my_init_dynamic_array(&buffpek, sizeof(BUFFPEK), maxbuffer,
@@ -313,11 +313,9 @@ pthread_handler_t thr_find_all_keys(void *arg)
   MI_SORT_PARAM *sort_param= (MI_SORT_PARAM*) arg;
   int error;
   ulonglong memavl, old_memavl;
-  uint keys, sort_length;
+  uint keys= 0, sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys=0;
-
-  LINT_INIT(keys);
 
   error=1;
 
@@ -382,7 +380,8 @@ pthread_handler_t thr_find_all_keys(void *arg)
         while ((maxbuffer= (int) (idx/(keys-1)+1)) != skr);
       }
       if ((sort_keys= (uchar**)
-           my_malloc(keys*(sort_length+sizeof(char*))+
+           my_malloc(PSI_NOT_INSTRUMENTED,
+                     keys*(sort_length+sizeof(char*))+
                      ((sort_param->keyinfo->flag & HA_FULLTEXT) ?
                       HA_FT_MAXBYTELEN : 0), MYF(0))))
       {
@@ -497,7 +496,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 {
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param=sort_info->param;
-  ulong UNINIT_VAR(length), keys;
+  ulong length= 0, keys;
   ulong *rec_per_key_part=param->rec_per_key_part;
   int got_error=sort_info->got_error;
   uint i;
@@ -506,7 +505,6 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
   MI_SORT_PARAM *sinfo;
   uchar *mergebuf=0;
   DBUG_ENTER("thr_write_keys");
-  LINT_INIT(length);
 
   for (i= 0, sinfo= sort_param ;
        i < sort_info->total_keys ;
@@ -568,7 +566,8 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
         length=param->sort_buffer_length;
         while (length >= MIN_SORT_BUFFER)
         {
-          if ((mergebuf= my_malloc(length, MYF(0))))
+          if ((mergebuf= my_malloc(PSI_NOT_INSTRUMENTED,
+                                   length, MYF(0))))
               break;
           length=length*3/4;
         }
@@ -906,7 +905,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   int error;
   uint sort_length,maxcount;
   ha_rows count;
-  my_off_t UNINIT_VAR(to_start_filepos);
+  my_off_t to_start_filepos= 0;
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
@@ -916,7 +915,6 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   count=error=0;
   maxcount=keys/((uint) (Tb-Fb) +1);
   DBUG_ASSERT(maxcount > 0);
-  LINT_INIT(to_start_filepos);
   if (to_file)
     to_start_filepos=my_b_tell(to_file);
   strpos=(uchar*) sort_keys;

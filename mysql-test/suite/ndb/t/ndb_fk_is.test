@@ -1,0 +1,9 @@
+-- source include/have_ndb.inc
+
+--let $engine=innodb
+--echo # engine=innodb
+--source ndb_fk_is.inc
+
+--let $engine=ndb
+--echo # engine=ndb
+--source ndb_fk_is.inc

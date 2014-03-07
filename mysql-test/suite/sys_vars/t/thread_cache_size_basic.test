@@ -1,3 +1,4 @@
+--source include/not_embedded.inc
 
 #
 # 2010-01-20 OBN - Added check of I_S values after variable value change

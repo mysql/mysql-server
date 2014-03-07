@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Reads from an undo log record the record type.
-@return	record type */
+@return record type */
 UNIV_INLINE
 ulint
 trx_undo_rec_get_type(
@@ -38,7 +38,7 @@ trx_undo_rec_get_type(
 
 /**********************************************************************//**
 Reads from an undo log record the record compiler info.
-@return	compiler info */
+@return compiler info */
 UNIV_INLINE
 ulint
 trx_undo_rec_get_cmpl_info(
@@ -50,7 +50,7 @@ trx_undo_rec_get_cmpl_info(
 
 /**********************************************************************//**
 Returns TRUE if an undo log record contains an extern storage field.
-@return	TRUE if extern */
+@return TRUE if extern */
 UNIV_INLINE
 ibool
 trx_undo_rec_get_extern_storage(
@@ -67,7 +67,7 @@ trx_undo_rec_get_extern_storage(
 
 /**********************************************************************//**
 Reads the undo log record number.
-@return	undo no */
+@return undo no */
 UNIV_INLINE
 undo_no_t
 trx_undo_rec_get_undo_no(
@@ -78,24 +78,12 @@ trx_undo_rec_get_undo_no(
 
 	ptr = undo_rec + 3;
 
-	return(mach_ull_read_much_compressed(ptr));
-}
-
-/**********************************************************************//**
-Returns the start of the undo record data area.
-@return	offset to the data area */
-UNIV_INLINE
-ulint
-trx_undo_rec_get_offset(
-/*====================*/
-	undo_no_t	undo_no)	/*!< in: undo no read from node */
-{
-	return(3 + mach_ull_get_much_compressed_size(undo_no));
+	return(mach_u64_read_much_compressed(ptr));
 }
 
 /***********************************************************************//**
 Copies the undo record to the heap.
-@return	own: copy of undo log record */
+@return own: copy of undo log record */
 UNIV_INLINE
 trx_undo_rec_t*
 trx_undo_rec_copy(

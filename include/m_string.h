@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,27 +30,16 @@
 #if defined(HAVE_STRINGS_H)
 #include <strings.h>
 #endif
-#if defined(HAVE_STRING_H)
 #include <string.h>
-#endif
 
 /* need by my_vsnprintf */
 #include <stdarg.h> 
 
-/*  This is needed for the definitions of memcpy... on solaris */
-#if defined(HAVE_MEMORY_H) && !defined(__cplusplus)
-#include <memory.h>
-#endif
-
 #define bfill please_use_memset_rather_than_bfill()
 #define bzero please_use_memset_rather_than_bzero()
-
-#if !defined(HAVE_MEMCPY) && !defined(HAVE_MEMMOVE)
-# define memcpy(d, s, n)	bcopy ((s), (d), (n))
-# define memmove(d, s, n)	bmove ((d), (s), (n))
-#elif defined(HAVE_MEMMOVE)
-# define bmove(d, s, n)		memmove((d), (s), (n))
-#endif
+#define bmove please_use_memmove_rather_than_bmove()
+#define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov()
+#define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov()
 
 #if defined(__cplusplus)
 extern "C" {
@@ -65,27 +54,12 @@ extern void *(*my_str_malloc)(size_t);
 extern void *(*my_str_realloc)(void *, size_t);
 extern void (*my_str_free)(void *);
 
-#if defined(HAVE_STPCPY) && MY_GNUC_PREREQ(3, 4) && !defined(__INTEL_COMPILER)
-#define strmov(A,B) __builtin_stpcpy((A),(B))
-#elif defined(HAVE_STPCPY)
-#define strmov(A,B) stpcpy((A),(B))
-#ifndef stpcpy
-extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
-#endif
-#endif
-
 /* Declared in int2str() */
 extern char _dig_vec_upper[];
 extern char _dig_vec_lower[];
 
-#ifndef strmov
-#define strmov_overlapp(A,B) strmov(A,B)
-#define strmake_overlapp(A,B,C) strmake(A,B,C)
-#endif
-
 	/* Prototypes for string functions */
 
-extern	void bmove_upp(uchar *dst,const uchar *src,size_t len);
 extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
 		     size_t new_len,size_t tot_len);
 extern	void strappend(char *s,size_t len,pchar fill);
@@ -94,15 +68,58 @@ extern  char *strcend(const char *, pchar);
 extern	char *strfill(char * s,size_t len,pchar fill);
 extern	char *strmake(char *dst,const char *src,size_t length);
 
-#ifndef strmov
-extern	char *strmov(char *dst,const char *src);
-#else
-extern	char *strmov_overlapp(char *dst,const char *src);
-#endif
-extern	char *strnmov(char *dst, const char *src, size_t n);
+extern	char *my_stpmov(char *dst,const char *src);
+extern	char *my_stpnmov(char *dst, const char *src, size_t n);
 extern	char *strcont(const char *src, const char *set);
 extern	char *strxmov(char *dst, const char *src, ...);
 extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
+
+/**
+   Copy a string from src to dst until (and including) terminating null byte.
+
+   @param dst   Destination
+   @param src   Source
+
+   @note src and dst cannot overlap.
+         Use my_stpmov() if src and dst overlaps.
+
+   @note Unsafe, consider using my_stpnpy() instead.
+
+   @return pointer to terminating null byte.
+*/
+static inline char *my_stpcpy(char *dst, const char *src)
+{
+#if defined(HAVE_BUILTIN_STPCPY)
+  return __builtin_stpcpy(dst, src);
+#elif defined(HAVE_STPCPY)
+  return stpcpy(dst, src);
+#else
+  /* Fallback to implementation supporting overlap. */
+  return my_stpmov(dst, src);
+#endif
+}
+
+/**
+   Copy fixed-size string from src to dst.
+
+   @param dst   Destination
+   @param src   Source
+   @param n     Maximum number of characters to copy.
+
+   @note src and dst cannot overlap
+         Use my_stpnmov() if src and dst overlaps.
+
+   @return pointer to terminating null byte.
+*/
+static inline char *my_stpncpy(char *dst, const char *src, size_t n)
+{
+#if defined(HAVE_STPNCPY)
+  return stpncpy(dst, src, n);
+#else
+  /* Fallback to implementation supporting overlap. */
+  return my_stpnmov(dst, src, n);
+#endif
+}
 
 /* Prototypes of normal stringfunctions (with may ours) */
 #ifndef HAVE_STRNLEN
@@ -151,10 +168,6 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 
 extern char *llstr(longlong value,char *buff);
 extern char *ullstr(longlong value,char *buff);
-#ifndef HAVE_STRTOUL
-extern long strtol(const char *str, char **ptr, int base);
-extern ulong strtoul(const char *str, char **ptr, int base);
-#endif
 
 extern char *int2str(long val, char *dst, int radix, int upcase);
 extern char *int10_to_str(long val,char *dst,int radix);
@@ -167,20 +180,10 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #undef strtoll
 #define strtoll(A,B,C) strtol((A),(B),(C))
 #define strtoull(A,B,C) strtoul((A),(B),(C))
-#ifndef HAVE_STRTOULL
-#define HAVE_STRTOULL
-#endif
-#ifndef HAVE_STRTOLL
-#define HAVE_STRTOLL
-#endif
 #else
 #ifdef HAVE_LONG_LONG
 extern char *ll2str(longlong val,char *dst,int radix, int upcase);
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
-#if (!defined(HAVE_STRTOULL) || defined(NO_STRTOLL_PROTO))
-extern longlong strtoll(const char *str, char **ptr, int base);
-extern ulonglong strtoull(const char *str, char **ptr, int base);
-#endif
 #endif
 #endif
 #define longlong2str(A,B,C) ll2str((A),(B),(C),1)
@@ -207,15 +210,6 @@ struct st_mysql_const_lex_string
   size_t length;
 };
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
-
-/* SPACE_INT is a word that contains only spaces */
-#if SIZEOF_INT == 4
-#define SPACE_INT 0x20202020
-#elif SIZEOF_INT == 8
-#define SPACE_INT 0x2020202020202020
-#else
-#error define the appropriate constant for a word full of spaces
-#endif
 
 /**
   Skip trailing space.
@@ -250,9 +244,18 @@ typedef struct st_mysql_const_lex_string LEX_CSTRING;
    @param     len   the length of the string
    @return          the last non-space character
 */
-
+#if defined(__sparc) || defined(__sparcv9)
 static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
 {
+  /* SPACE_INT is a word that contains only spaces */
+#if SIZEOF_INT == 4
+  const unsigned SPACE_INT= 0x20202020U;
+#elif SIZEOF_INT == 8
+  const unsigned SPACE_INT= 0x2020202020202020ULL;
+#else
+#error define the appropriate constant for a word full of spaces
+#endif
+
   const uchar *end= ptr + len;
 
   if (len > 20)
@@ -262,20 +265,37 @@ static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
     const uchar *start_words= (const uchar *)(intptr)
        ((((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
 
-    DBUG_ASSERT(((ulonglong)(intptr)ptr) >= SIZEOF_INT);
-    if (end_words > ptr)
-    {
-      while (end > end_words && end[-1] == 0x20)
-        end--;
-      if (end[-1] == 0x20 && start_words < end_words)
-        while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
-          end -= SIZEOF_INT;
-    }
+    DBUG_ASSERT(end_words > ptr);
+    while (end > end_words && end[-1] == 0x20)
+      end--;
+    if (end[-1] == 0x20 && start_words < end_words)
+      while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
+        end -= SIZEOF_INT;
   }
   while (end > ptr && end[-1] == 0x20)
     end--;
   return (end);
 }
+#else
+/*
+  Reads 8 bytes at a time, ignoring alignment.
+  We use uint8korr, which is fast (it simply reads a *ulonglong)
+  on all platforms, except sparc.
+*/
+static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len)
+{
+  const uchar *end= ptr + len;
+  while (end - ptr >= 8)
+  {
+    if (uint8korr(end-8) != 0x2020202020202020ULL)
+      break;
+    end-= 8;
+  }
+  while (end > ptr && end[-1] == 0x20)
+    end--;
+  return (end);
+}
+#endif
 
 static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
 {

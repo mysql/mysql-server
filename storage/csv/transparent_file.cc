@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,9 +18,12 @@
 #include "transparent_file.h"
 #include "my_sys.h"          // MY_WME, MY_ALLOW_ZERO_PTR, MY_SEEK_SET
 
+PSI_memory_key csv_key_memory_Transparent_file;
+
 Transparent_file::Transparent_file() : lower_bound(0), buff_size(IO_SIZE)
 { 
-  buff= (uchar *) my_malloc(buff_size*sizeof(uchar),  MYF(MY_WME)); 
+  buff= (uchar *) my_malloc(csv_key_memory_Transparent_file,
+                            buff_size*sizeof(uchar),  MYF(MY_WME)); 
 }
 
 Transparent_file::~Transparent_file()

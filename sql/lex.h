@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,12 +222,14 @@ static SYMBOL symbols[] = {
   { "FETCH",            SYM(FETCH_SYM)},
   { "FIELDS",		SYM(COLUMNS)},
   { "FILE",		SYM(FILE_SYM)},
+  { "FILTER",		SYM(FILTER_SYM)},
   { "FIRST",		SYM(FIRST_SYM)},
   { "FIXED",		SYM(FIXED_SYM)},
   { "FLOAT",		SYM(FLOAT_SYM)},
   { "FLOAT4",		SYM(FLOAT_SYM)},
   { "FLOAT8",		SYM(DOUBLE_SYM)},
   { "FLUSH",		SYM(FLUSH_SYM)},
+  { "FOLLOWS",          SYM(FOLLOWS_SYM)},
   { "FOR",		SYM(FOR_SYM)},
   { "FORCE",		SYM(FORCE_SYM)},
   { "FOREIGN",		SYM(FOREIGN)},
@@ -350,6 +352,7 @@ static SYMBOL symbols[] = {
   { "MATCH",		SYM(MATCH)},
   { "MAX_CONNECTIONS_PER_HOUR", SYM(MAX_CONNECTIONS_PER_HOUR)},
   { "MAX_QUERIES_PER_HOUR", SYM(MAX_QUERIES_PER_HOUR)},
+  { "MAX_STATEMENT_TIME",   SYM(MAX_STATEMENT_TIME_SYM)},
   { "MAX_ROWS",		SYM(MAX_ROWS)},
   { "MAX_SIZE",		SYM(MAX_SIZE_SYM)},
   { "MAX_UPDATES_PER_HOUR", SYM(MAX_UPDATES_PER_HOUR)},
@@ -386,6 +389,7 @@ static SYMBOL symbols[] = {
   { "NDB",              SYM(NDBCLUSTER_SYM)},
   { "NDBCLUSTER",       SYM(NDBCLUSTER_SYM)},
   { "NCHAR",		SYM(NCHAR_SYM)},
+  { "NEVER",            SYM(NEVER_SYM)},
   { "NEW",              SYM(NEW_SYM)},
   { "NEXT",		SYM(NEXT_SYM)},
   { "NO",		SYM(NO_SYM)},
@@ -430,6 +434,7 @@ static SYMBOL symbols[] = {
   { "POINT",		SYM(POINT_SYM)},
   { "POLYGON",		SYM(POLYGON)},
   { "PORT",		SYM(PORT_SYM)},
+  { "PRECEDES",         SYM(PRECEDES_SYM)},
   { "PRECISION",	SYM(PRECISION)},
   { "PREPARE",          SYM(PREPARE_SYM)},
   { "PRESERVE",		SYM(PRESERVE_SYM)},
@@ -473,6 +478,13 @@ static SYMBOL symbols[] = {
   { "REPEATABLE",	SYM(REPEATABLE_SYM)},
   { "REPLACE",		SYM(REPLACE)},
   { "REPLICATION",	SYM(REPLICATION)},
+  { "REPLICATE_DO_DB",     SYM(REPLICATE_DO_DB)},
+  { "REPLICATE_IGNORE_DB", SYM(REPLICATE_IGNORE_DB)},
+  { "REPLICATE_DO_TABLE",  SYM(REPLICATE_DO_TABLE)},
+  { "REPLICATE_IGNORE_TABLE",     SYM(REPLICATE_IGNORE_TABLE)},
+  { "REPLICATE_WILD_DO_TABLE", SYM(REPLICATE_WILD_DO_TABLE)},
+  { "REPLICATE_WILD_IGNORE_TABLE", SYM(REPLICATE_WILD_IGNORE_TABLE)},
+  { "REPLICATE_REWRITE_DB", SYM(REPLICATE_REWRITE_DB)},
   { "REPEAT",           SYM(REPEAT_SYM)},
   { "REQUIRE",	        SYM(REQUIRE_SYM)},
   { "RESET",		SYM(RESET_SYM)},

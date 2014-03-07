@@ -2455,6 +2455,8 @@ drop table t1;
 
 create table t1 (s1 int);
 insert into t1 values (null),(1);
+select avg(s1) as x from t1 group by s1 with rollup;
+--error ER_WRONG_USAGE
 select distinct avg(s1) as x from t1 group by s1 with rollup;
 drop table t1;
 
@@ -2942,8 +2944,8 @@ insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C;
 analyze table t2;
 select 'In next EXPLAIN, B.rows must be exactly 10:' Z;
 
-explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
-          and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);
+explain select * from t2 a, t2 b where a.a=5 and a.b=5 and a.c<5
+          and b.a=5 and b.b=a.e and (b.b =1 or b.b = 3 or b.b=5);
 drop table t1, t2;
 
 #
@@ -3400,7 +3402,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 INT, c2 INT);
 INSERT INTO t1 VALUES (1,11), (2,22), (2,22);
 
-let $n= 31;
+let $n= 29;
 let $q= COUNT(c2);
 while ($n)
 {
@@ -3408,7 +3410,10 @@ while ($n)
   dec $n;
 }
 --disable_warnings
+--disable_result_log
+--error 0,1436
 eval EXPLAIN SELECT c1 FROM t1 WHERE $q > 0;
+--enable_result_log
 --enable_warnings
 
 let $n= 64;
@@ -4212,7 +4217,7 @@ DROP TABLE t1,t2,t_empty;
 --echo #
 --echo # Bug#45227: Lost HAVING clause led to a wrong result.
 --echo #
-CREATE TABLE `CC` (
+CREATE TABLE `cc` (
   `int_nokey` int(11) NOT NULL,
   `int_key` int(11) NOT NULL,
   `varchar_key` varchar(1) NOT NULL,
@@ -4220,18 +4225,18 @@ CREATE TABLE `CC` (
   KEY `int_key` (`int_key`),
   KEY `varchar_key` (`varchar_key`)
 );
-INSERT INTO `CC` VALUES
+INSERT INTO `cc` VALUES
 (0,8,'q','q'),(5,8,'m','m'),(7,3,'j','j'),(1,2,'z','z'),(8,2,'a','a'),(2,6,'',''),(1,8,'e'
 ,'e'),(8,9,'t','t'),(5,2,'q','q'),(4,6,'b','b'),(5,5,'w','w'),(3,2,'m','m'),(0,4,'x','x'),
 (8,9,'',''),(0,6,'w','w'),(4,5,'x','x'),(0,0,'e','e'),(0,0,'e','e'),(2,8,'p','p'),(0,0,'x'
 ,'x');
-EXPLAIN SELECT `varchar_nokey` G1  FROM CC  WHERE `int_nokey` AND `int_key`  <= 4
-  HAVING G1  ORDER  BY `varchar_key` LIMIT  6   ;
+EXPLAIN SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
+  HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 
-SELECT `varchar_nokey` G1  FROM CC  WHERE `int_nokey` AND `int_key`  <= 4
-  HAVING G1  ORDER  BY `varchar_key` LIMIT  6   ;
+SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
+  HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 
-DROP TABLE CC;
+DROP TABLE cc;
 --echo # End of test#45227
 
 --echo #

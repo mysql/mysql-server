@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,18 +29,18 @@
 #include "opt_explain.h"    // join_type_str
 #include <hash.h>
 #include <thr_alarm.h>
-#if defined(HAVE_MALLINFO) && defined(HAVE_MALLOC_H)
+#if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
 #include <malloc.h>
-#elif defined(HAVE_MALLINFO) && defined(HAVE_SYS_MALLOC_H)
+#elif defined(HAVE_MALLOC_INFO) && defined(HAVE_SYS_MALLOC_H)
 #include <sys/malloc.h>
 #endif
 
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
 #include "events.h"
 #endif
 
-#include "global_threads.h"
 #include "table_cache.h" // table_cache_manager
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {
@@ -141,7 +141,7 @@ TEST_join(JOIN *join)
       if (tab->use_quick == QS_DYNAMIC_RANGE)
 	fprintf(DBUG_FILE,
 		"                  quick select checked for each record (keys: %s)\n",
-		tab->select->quick_keys.print(buf));
+                form->quick_keys.print(buf));
       else if (tab->select->quick)
       {
 	fprintf(DBUG_FILE, "                  quick select used:\n");
@@ -193,29 +193,27 @@ void print_keyuse_array(Opt_trace_context *trace,
 #ifndef DBUG_OFF
 /* purecov: begin inspected */
 
-/* 
+/** 
   Print the current state during query optimization.
 
-  SYNOPSIS
-    print_plan()
-    join         pointer to the structure providing all context info for
-                 the query
-    read_time    the cost of the best partial plan
-    record_count estimate for the number of records returned by the best
-                 partial plan
-    idx          length of the partial QEP in 'join->positions';
-                 also an index in the array 'join->best_ref';
-    info         comment string to appear above the printout
-
-  DESCRIPTION
+  @param join              pointer to the structure providing all context
+                           info for the query
+  @param idx               length of the partial QEP in 'join->positions'
+                           also an index in the array 'join->best_ref'
+  @param record_count      estimate for the number of records returned by
+                           the best partial plan
+  @param read_time         the cost of the best partial plan.
+                           If a complete plan is printed (join->best_read is 
+                           set), this argument is ignored. 
+  @param current_read_time the accumulated cost of the current partial plan
+  @param info              comment string to appear above the printout 
+  
+  @details
     This function prints to the log file DBUG_FILE the members of 'join' that
     are used during query optimization (join->positions, join->best_positions,
     and join->best_ref) and few other related variables (read_time,
     record_count).
     Useful to trace query optimizer functions.
-
-  RETURN
-    None
 */
 
 void
@@ -462,7 +460,8 @@ void mysql_print_status()
   printf("\nStatus information:\n\n");
   (void) my_getwd(current_dir, sizeof(current_dir),MYF(0));
   printf("Current dir: %s\n", current_dir);
-  printf("Running threads: %u  Stack size: %ld\n", get_thread_count(),
+  printf("Running threads: %u  Stack size: %ld\n",
+         Global_THD_manager::get_instance()->get_thd_count(),
 	 (long) my_thread_stack_size);
   thr_print_locks();				// Write some debug info
 #ifndef DBUG_OFF
@@ -471,7 +470,7 @@ void mysql_print_status()
   /* Print key cache status */
   puts("\nKey caches:");
   process_key_caches(print_key_cache_status);
-  mysql_rwlock_rdlock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_status);
   printf("\nhandler status:\n\
 read_key:   %10llu\n\
 read_next:  %10llu\n\
@@ -487,7 +486,7 @@ update:     %10llu\n",
 	 tmp.ha_write_count,
 	 tmp.ha_delete_count,
 	 tmp.ha_update_count);
-  mysql_rwlock_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_status);
   printf("\nTable status:\n\
 Opened tables: %10lu\n\
 Open tables:   %10lu\n\
@@ -499,7 +498,6 @@ Open streams:  %10lu\n",
 	 (ulong) my_stream_opened);
 
   ALARM_INFO alarm_info;
-#ifndef DONT_USE_THR_ALARM
   thr_alarm_info(&alarm_info);
   printf("\nAlarm status:\n\
 Active alarms:   %u\n\
@@ -508,37 +506,13 @@ Next alarm time: %lu\n",
 	 alarm_info.active_alarms,
 	 alarm_info.max_used_alarms,
 	 alarm_info.next_alarm_time);
-#endif
   display_table_locks();
-#ifdef HAVE_MALLINFO
-  struct mallinfo info= mallinfo();
-  printf("\nMemory status:\n\
-Non-mmapped space allocated from system: %d\n\
-Number of free chunks:			 %d\n\
-Number of fastbin blocks:		 %d\n\
-Number of mmapped regions:		 %d\n\
-Space in mmapped regions:		 %d\n\
-Maximum total allocated space:		 %d\n\
-Space available in freed fastbin blocks: %d\n\
-Total allocated space:			 %d\n\
-Total free space:			 %d\n\
-Top-most, releasable space:		 %d\n\
-Estimated memory (with thread stack):    %ld\n",
-	 (int) info.arena	,
-	 (int) info.ordblks,
-	 (int) info.smblks,
-	 (int) info.hblks,
-	 (int) info.hblkhd,
-	 (int) info.usmblks,
-	 (int) info.fsmblks,
-	 (int) info.uordblks,
-	 (int) info.fordblks,
-	 (int) info.keepcost,
-	 (long) (get_thread_count() * my_thread_stack_size +
-                 info.hblkhd + info.arena));
+#ifdef HAVE_MALLOC_INFO
+  printf("\nMemory status:\n");
+  malloc_info(0, stdout);
 #endif
 
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   Events::dump_internal_status();
 #endif
   puts("");

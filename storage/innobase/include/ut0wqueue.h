@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,37 +34,37 @@ processing.
 
 #include "ut0list.h"
 #include "mem0mem.h"
-#include "os0sync.h"
-#include "sync0types.h"
 
+// Forward declaration
+struct ib_list_t;
 struct ib_wqueue_t;
 
 /****************************************************************//**
 Create a new work queue.
-@return	work queue */
-UNIV_INTERN
+@return work queue */
+
 ib_wqueue_t*
-ib_wqueue_create(void);
-/*===================*/
+ib_wqueue_create();
+/*===============*/
 
 /****************************************************************//**
 Free a work queue. */
-UNIV_INTERN
+
 void
 ib_wqueue_free(
 /*===========*/
-	ib_wqueue_t*	wq);	/*!< in: work queue */
+	ib_wqueue_t*	wq);		/*!< in: work queue */
 
 /****************************************************************//**
 Add a work item to the queue. */
-UNIV_INTERN
+
 void
 ib_wqueue_add(
 /*==========*/
-	ib_wqueue_t*	wq,	/*!< in: work queue */
-	void*		item,	/*!< in: work item */
-	mem_heap_t*	heap);	/*!< in: memory heap to use for allocating the
-				list node */
+	ib_wqueue_t*	wq,		/*!< in: work queue */
+	void*		item,		/*!< in: work item */
+	mem_heap_t*	heap);		/*!< in: memory heap to use for
+					allocating the list node */
 
 /********************************************************************
 Check if queue is empty. */
@@ -78,12 +78,12 @@ ib_wqueue_is_empty(
 
 /****************************************************************//**
 Wait for a work item to appear in the queue.
-@return	work item */
-UNIV_INTERN
+@return work item */
+
 void*
 ib_wqueue_wait(
 /*===========*/
-	ib_wqueue_t*	wq);	/*!< in: work queue */
+	ib_wqueue_t*	wq);		/*!< in: work queue */
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
@@ -95,11 +95,4 @@ ib_wqueue_timedwait(
 	ib_wqueue_t*	wq,		/* in: work queue */
 	ib_time_t	wait_in_usecs); /* in: wait time in micro seconds */
 
-/* Work queue. */
-struct ib_wqueue_t {
-	ib_mutex_t		mutex;	/*!< mutex protecting everything */
-	ib_list_t*	items;	/*!< work item list */
-	os_event_t	event;	/*!< event we use to signal additions to list */
-};
-
-#endif
+#endif /* IB_WORK_QUEUE_H */

@@ -1,3 +1,4 @@
+
 #
 # Test year
 #
@@ -50,8 +51,8 @@ SELECT * FROM t4;
 
 SELECT * FROM t2, t4 WHERE yy = yyyy;
 SELECT * FROM t2, t4 WHERE yy <=> yyyy;
-SELECT * FROM t2, t4 WHERE yy < yyyy;
-SELECT * FROM t2, t4 WHERE yy > yyyy;
+SELECT * FROM t2, t4 WHERE yy < yyyy ORDER BY yy,yyyy;
+SELECT * FROM t2, t4 WHERE yy > yyyy ORDER BY yy,yyyy;
 
 --echo # Comparison of YEAR(2) with YEAR(2)
 

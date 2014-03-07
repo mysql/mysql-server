@@ -3,6 +3,11 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+# This test can't be run with query cache ON. It heavily
+# relies on the exact way in which statements are executed.
+--source include/have_query_cache_disabled.inc
+
+# 
 #
 # Important note:
 # this test is extremely sensitive to how threads are running inside the server,
@@ -10,6 +15,16 @@
 #
 
 # Setup
+
+# InnoDB automatically creates and opens system tables for persistent
+# stats on the first table create. We don't want object instances for
+# these tables to affect our calculations so we create one InnoDB table
+# in advance.
+#
+# We also want to exclude one instance of MDL_lock::m_rwlock which is
+# created for each database affected by DDL. So we create this InnoDB
+# table in 'test' database.
+create table test.t0(a int) engine = innodb;
 
 flush status;
 flush tables;
@@ -28,6 +43,7 @@ select count(*) from performance_schema.mutex_instances
 
 select count(*) from performance_schema.rwlock_instances
   into @v0_rwlock_instances;
+
 
 select count(*) from performance_schema.cond_instances
   into @v0_cond_instances;
@@ -387,7 +403,7 @@ show status like "performance_schema%";
 # plus rwlocks used inside the storage engine
 # This is very storage engine dependent
 #
-select @rwlock_per_share <= 3;
+select @rwlock_per_share <= 4;
 
 #
 # Expecting 0:
@@ -461,10 +477,10 @@ select @file_per_handle;
 # not enforcing mutex estimates
 
 select if(
-      (@rwlock_per_share <= 3)
+      (@rwlock_per_share <= 4)
   AND (@cond_per_share = 0)
   AND (@file_per_share <= 3)
-  AND (@mutex_per_con = 3)
+  AND (@mutex_per_con = 5)
   AND (@rwlock_per_con = 1)
   AND (@cond_per_con = 2)
   AND (@file_per_con = 0)
@@ -476,3 +492,5 @@ select if(
   "FAILED: heuristics need to be updated")
   as status;
 
+# Cleanup
+drop table test.t0;

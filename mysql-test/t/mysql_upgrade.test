@@ -1,3 +1,4 @@
+
 -- source include/mysql_upgrade_preparation.inc
 
 #
@@ -48,7 +49,9 @@ DROP USER mysqltest1@'%';
 --replace_result $MYSQLTEST_VARDIR var
 --replace_regex /.*mysqlcheck.*: Got/mysqlcheck: Got/ /\([0-9]*\)/(errno)/
 --error 1
---exec $MYSQL_UPGRADE --skip-verbose --force --host=not_existing_host 2>&1
+# NC: Added --skip-version-check, as the version check would fail when
+# mysql_upgrade tries to get the server version.
+--exec $MYSQL_UPGRADE --skip-verbose --force --host=not_existing_host --skip-version-check 2>&1
 
 #
 # Bug #28401 mysql_upgrade Failed with STRICT_ALL_TABLES, ANSI_QUOTES and NO_ZERO_DATE
@@ -59,7 +62,7 @@ DROP USER mysqltest1@'%';
 # for the session to make sure the SQL is legal.
 
 # Test by setting sql_mode before running mysql_upgrade
-set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
+set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES';
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 eval set GLOBAL sql_mode=default;
 
@@ -146,6 +149,23 @@ SET PASSWORD FOR 'bug13586336'@'localhost' = OLD_PASSWORD('a');
 --echo Run mysql_upgrade with all privileges on a user
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 DROP USER 'bug13586336'@'localhost';
+
+
+--echo #
+--echo # WL#7010: Remove unused --basedir and --datadir options
+--echo #   from mysql_upgrade
+--echo #
+
+--echo Run mysql_upgrade with --datadir : should fail
+--replace_regex /.*mysql_upgrade.*: unk/mysql_upgrade: unk/
+--error 1
+--exec $MYSQL_UPGRADE --skip-verbose --force --datadir=somedir 2>&1
+
+--echo Run mysql_upgrade with --basedir : should fail
+--replace_regex /.*mysql_upgrade.*: unk/mysql_upgrade: unk/
+--error 1
+--exec $MYSQL_UPGRADE --skip-verbose --force --basedir=somedir 2>&1
+
 
 --echo
 --echo End of tests

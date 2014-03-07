@@ -1,4 +1,4 @@
-/* Copyright © 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright © 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,6 +125,11 @@ static int validate_dictionary_check(mysql_string_handle password)
   int length;
   int error= 0;
   char *buffer;
+
+  if (dictionary_words.empty())
+   return (1);
+
+  /* New String is allocated */
   mysql_string_handle lower_string_handle= mysql_string_to_lowercase(password);
   if (!(buffer= (char*) malloc(MAX_PASSWORD_LENGTH)))
     return (0);
@@ -132,6 +137,8 @@ static int validate_dictionary_check(mysql_string_handle password)
   length= mysql_string_convert_to_char_ptr(lower_string_handle, "utf8",
                                            buffer, MAX_PASSWORD_LENGTH,
                                            &error);
+  /* Free the allocated string */
+  mysql_string_free(lower_string_handle);
   int substr_pos= 0;
   int substr_length= length;
   string_type password_str= (const char *)buffer;
@@ -141,24 +148,21 @@ static int validate_dictionary_check(mysql_string_handle password)
     std::set as container stores the dictionary words,
     binary comparison between dictionary words and password
   */
-  if (!dictionary_words.empty())
+  while (substr_length >= MIN_DICTIONARY_WORD_LENGTH)
   {
-    while (substr_length >= MIN_DICTIONARY_WORD_LENGTH)
+    substr_pos= 0;
+    while (substr_pos + substr_length <= length)
     {
-      substr_pos= 0;
-      while (substr_pos + substr_length <= length)
+      password_substr= password_str.substr(substr_pos, substr_length);
+      itr= dictionary_words.find(password_substr);
+      if (itr != dictionary_words.end())
       {
-        password_substr= password_str.substr(substr_pos, substr_length);
-        itr= dictionary_words.find(password_substr);
-        if (itr != dictionary_words.end())
-        {
-          free(buffer);
-          return (0);
-        }
-        substr_pos++;
+        free(buffer);
+        return (0);
       }
-      substr_length--;
+      substr_pos++;
     }
+    substr_length--;
   }
   free(buffer);
   return (1);
@@ -244,6 +248,49 @@ static int get_password_strength(mysql_string_handle password)
   return ((policy+1) * PASSWORD_SCORE + PASSWORD_SCORE);
 }
 
+/**
+  @brief Check and readjust effective value of validate_password_length
+
+  @details
+  Readjust validate_password_length according to the values of
+  validate_password_number_count,validate_password_mixed_case_count
+  and validate_password_special_char_count. This is required at the
+  time plugin installation and as a part of setting new values for
+  any of above mentioned variables.
+
+*/
+static void
+readjust_validate_password_length()
+{
+  int policy_password_length;
+
+  /*
+    Effective value of validate_password_length variable is:
+
+    MAX(validate_password_length,
+        (validate_password_number_count +
+         2*validate_password_mixed_case_count +
+         validate_password_special_char_count))
+  */
+  policy_password_length= (validate_password_number_count +
+                           (2 * validate_password_mixed_case_count) +
+                           validate_password_special_char_count);
+
+  if (validate_password_length < policy_password_length)
+  {
+    /*
+       Raise a warning that effective restriction on password
+       length is changed.
+    */
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Effective value of validate_password_length is changed."
+                          " New value is %d",
+                          policy_password_length);
+
+    validate_password_length= policy_password_length;
+  }
+}
+
 /* Plugin type-specific descriptor */
 static struct st_mysql_validate_password validate_password_descriptor=
 {
@@ -261,6 +308,8 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info)
 {
   plugin_info_ptr= plugin_info;
   read_dictionary_file();
+  /* Check if validate_password_length needs readjustment */
+  readjust_validate_password_length();
   return (0);
 }
 
@@ -288,8 +337,6 @@ length_update(MYSQL_THD thd __attribute__((unused)),
               struct st_mysql_sys_var *var __attribute__((unused)),
               void *var_ptr, const void *save)
 {
-  int new_validate_password_length;
-
   /* check if there is an actual change */
   if (*((int *)var_ptr) == *((int *)save))
     return;
@@ -303,33 +350,7 @@ length_update(MYSQL_THD thd __attribute__((unused)),
   */
   *((int *)var_ptr)= *((int *)save);
 
-  /*
-    Any change in above mentioned system variables can trigger a change in
-    actual password length restriction applied by validate password plugin.
-    actual restriction on password length can be described as:
-
-    MAX(validate_password_length,
-        (validate_password_number_count +
-         2*validate_password_mixed_case_count +
-         validate_password_special_char_count))
-  */
-
-  new_validate_password_length= (validate_password_number_count +
-                                 (2 * validate_password_mixed_case_count) +
-                                 validate_password_special_char_count);
-
-  if (validate_password_length < new_validate_password_length)
-  {
-    /*
-       Raise a warning that effective restriction on password
-       length is changed.
-    */
-    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                          "Effective value of validate_password_length is changed. New value is %d",
-                          new_validate_password_length);
-
-    validate_password_length= new_validate_password_length;
-  }
+  readjust_validate_password_length();
 }
 
 

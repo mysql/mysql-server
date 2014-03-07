@@ -8,6 +8,7 @@
 #
 # Set $engine_type
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+# --source include/have_memory.inc
 let $engine_type= memory;
 
 # Create some objects needed in many testcases

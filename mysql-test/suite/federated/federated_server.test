@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # WL #3031 This test tests the new servers table as well as
 # if federated can utilise the servers table
 -- source suite/federated/include/federated.inc

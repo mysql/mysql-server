@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,8 @@ void my_string_ptr_sort(uchar *base, uint items, size_t size)
   uchar **ptr=0;
 
   if (radixsort_is_appliccable(items, size) &&
-      (ptr= (uchar**) my_malloc(items*sizeof(char*),MYF(0))))
+      (ptr= (uchar**) my_malloc(key_memory_radix_sort,
+                                items*sizeof(char*),MYF(0))))
   {
     radixsort_for_str_ptr((uchar**) base,items,size,ptr);
     my_free(ptr);

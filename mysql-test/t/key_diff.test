@@ -1,3 +1,4 @@
+
 #
 # Check on condition on different length keys.
 
@@ -15,6 +16,7 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES ('A','B'),('b','A'),('C','c'),('D','E'),('a','a');
 
 select * from t1,t1 as t2;
+analyze table t1;
 explain select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B;
 #select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B;
 select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B order by binary t1.a,t2.a;

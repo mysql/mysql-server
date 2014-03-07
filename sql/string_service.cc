@@ -1,4 +1,4 @@
-/* Copyright © 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,11 @@
 
 #include <my_sys.h>
 #include "string_service.h"
+/* key_memory_string_iterator */
+#include "mysqld.h"
+#include "unireg.h"
+PSI_memory_key key_memory_string_iterator;
+
 /*  
   This service function converts the mysql_string to the character set
   specified by charset_name parameter.
@@ -48,7 +53,9 @@ int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
 extern "C"
 void mysql_string_free(mysql_string_handle string_handle)
 {
-  my_free((String *) string_handle);
+  String *str= (String *) string_handle;
+  str->free();
+  delete [] str;
 }
 
 /*  
@@ -67,7 +74,8 @@ mysql_string_iterator_handle mysql_string_get_iterator(mysql_string_handle
                                                        string_handle)
 {
   String *str= (String *) string_handle;
-  string_iterator *iterator= (string_iterator *) my_malloc(sizeof
+  string_iterator *iterator= (string_iterator *) my_malloc(key_memory_string_iterator,
+                                                           sizeof
                                            (struct st_string_iterator), MYF(0));
   iterator->iterator_str= str;
   iterator->iterator_ptr= str->ptr();
@@ -135,26 +143,23 @@ extern "C"
 mysql_string_handle mysql_string_to_lowercase(mysql_string_handle string_handle)
 {
   String *str= (String *) string_handle;
-  String *res;
+  String *res= new String[1];
   const CHARSET_INFO *cs= str->charset();
-
+  res->set_charset(cs);
   if (cs->casedn_multiply == 1)
   {
     uint len;
-    len= cs->cset->casedn(cs, (char*) str->ptr(), str->length(),
-                          (char*) str->ptr(), str->length());
-    str->length(len);
-    res= str;
+    res= copy_if_not_alloced(res, str, str->length());
+    len= cs->cset->casedn_str(cs, (char*) res->ptr());
+    DBUG_ASSERT(len <= res->length());
+    res->length(len);
   }
   else
   {
     uint len= str->length() * cs->casedn_multiply;
-    temp_str.alloc(len);
-    temp_str.set_charset(cs);
-    len= cs->cset->casedn(cs, (char*) str->ptr(), str->length(),
-                          (char*) temp_str.ptr(), len);
-    temp_str.length(len);
-    res= &temp_str;
+    res->alloc(len);
+    len= cs->cset->casedn(cs, (char*) str->ptr(), str->length(), (char *) res->ptr(), len);
+    res->length(len);
   }
   return (res);
 }

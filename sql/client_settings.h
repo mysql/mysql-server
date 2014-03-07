@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,11 +36,10 @@
                              CLIENT_SECURE_CONNECTION | \
                              CLIENT_PLUGIN_AUTH | \
                              CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
-                             CLIENT_CONNECT_ATTRS)
+                             CLIENT_CONNECT_ATTRS | \
+                             CLIENT_SESSION_TRACK)
 
 #define read_user_name(A) {}
-#undef HAVE_SMEM
-#undef _CUSTOMCONFIG_
 
 #define mysql_server_init(a,b,c) mysql_client_plugin_init()
 #define mysql_server_end()       mysql_client_plugin_deinit()

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -89,16 +89,20 @@ ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Makefiles")
   # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
+    "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
+    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
   FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
     SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
     SET(CXXFLAGS "${CXXFLAGS} -arch ${ARCH}")
   ENDFOREACH()
 ELSE()
   # Strip maintainer mode options if necessary
-  STRING(REPLACE "${MY_MAINTAINER_C_WARNINGS}" "" CFLAGS "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  STRING(REPLACE "${MY_MAINTAINER_CXX_WARNINGS}" "" CXXFLAGS "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_C_WARNING_FLAGS}" "" CFLAGS
+    "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+  STRING(REPLACE "${MY_CXX_WARNING_FLAGS}" "" CXXFLAGS
+    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 ENDIF()
 
 IF(UNIX)
@@ -139,43 +143,6 @@ ENDIF()
 SET(HOSTNAME "hostname")
 SET(MYSQLD_USER "mysql")
 
-# Required for mysqlbug until autotools are deprecated, once done remove these
-# and expand default cmake variables
-SET(CC ${CMAKE_C_COMPILER})
-SET(CXX ${CMAKE_CXX_COMPILER})
-SET(SAVE_CC ${CMAKE_C_COMPILER})
-SET(SAVE_CXX ${CMAKE_CXX_COMPILER})
-SET(SAVE_CFLAGS ${CFLAGS})
-SET(SAVE_CXXFLAGS ${CXXFLAGS})
-# XXX no cmake equivalent for this, just make one up
-SET(CONFIGURE_LINE "Built using CMake")
-
-# Also required for mysqlbug, autoconf only supports --version so for now we
-# just explicitly require GNU
-IF(CMAKE_COMPILER_IS_GNUCC)
-  EXECUTE_PROCESS(
-    COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1} --version
-    COMMAND sed 1q
-    OUTPUT_VARIABLE CC_VERSION)
-ELSE()
-  SET(CC_VERSION "")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  EXECUTE_PROCESS(
-    COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} --version
-    COMMAND sed 1q
-    OUTPUT_VARIABLE CXX_VERSION)
-ELSE()
-  SET(CXX_VERSION "")
-ENDIF()
-
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlbug.sh
-  ${CMAKE_CURRENT_BINARY_DIR}/mysqlbug ESCAPE_QUOTES @ONLY)
-INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/mysqlbug
-  DESTINATION ${INSTALL_BINDIR}
-  COMPONENT Server
-  )
-
 ENDIF(UNIX)
 
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
@@ -214,7 +181,6 @@ INSTALL_SCRIPT(
   COMPONENT Server
   )
 
-
 SET(prefix "${CMAKE_INSTALL_PREFIX}")
 SET(sysconfdir ${prefix})
 SET(bindir ${prefix}/${INSTALL_BINDIR})
@@ -226,6 +192,11 @@ SET(pkgincludedir ${prefix}/${INSTALL_INCLUDEDIR})
 SET(pkglibdir ${prefix}/${INSTALL_LIBDIR})
 SET(pkgplugindir ${prefix}/${INSTALL_PLUGINDIR})
 SET(localstatedir ${MYSQL_DATADIR})
+
+SET(RPATH_OPTION "")
+IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+  SET(RPATH_OPTION "-R$pkglibdir")
+ENDIF()
 
 # some scripts use  @TARGET_LINUX@
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -278,11 +249,16 @@ ENDMACRO()
 EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
 EXTRACT_LINK_LIBRARIES(mysqlserver LIBS)
 
-# mysql_config evaluates ${LIBDL}, we want to avoid it
-# as our CLIENT_LIBS and LIBS are already correct
-SET(LIBDL)
+SET(LIBMYSQLD_LIBS_USAGE "
+        --libmysqld-libs [$embedded_libs]")
+SET(DISABLE_EMBEDDED_SH "")
+SET(DISABLE_EMBEDDED_PL "")
+IF(WITHOUT_SERVER)
+  SET(LIBMYSQLD_LIBS_USAGE)
+  SET(DISABLE_EMBEDDED_SH  "usage; ")
+  SET(DISABLE_EMBEDDED_PL "usage(); ")
+ENDIF()
 
-SET(NON_THREADED_LIBS ${CLIENT_LIBS})
 SET(mysql_config_COMPONENT COMPONENT Development)
 
 IF(WIN32)
@@ -290,11 +266,10 @@ IF(WIN32)
   # The resulting files will have .pl extension (those are perl scripts)
 
   # Input files with pl.in extension
-  SET(PLIN_FILES mysql_config mysql_secure_installation)
+  SET(PLIN_FILES mysql_config)
   # Input files with .sh extension
 
-  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow
-    mysqlhotcopy)
+  SET(SH_FILES mysqld_multi mysqldumpslow mysqlhotcopy)
 
   FOREACH(file ${PLIN_FILES})
     IF(NOT ${file}_COMPONENT)
@@ -311,18 +286,14 @@ IF(WIN32)
     INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl COMPONENT Server_Scripts)
   ENDFOREACH()
 ELSE()
+  # Configure this one, for testing, but do not install it.
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_config.pl.in
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_config.pl ESCAPE_QUOTES @ONLY)
   # On Unix, most of the files end up in the bin directory
   SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
-    msql2mysql
     mysql_config
-    mysql_fix_extensions
-    mysql_setpermission
     mysql_zap
-    mysqlaccess
-    mysqlaccess.conf
-    mysql_convert_table_format
-    mysql_find_rows
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi
@@ -349,18 +320,15 @@ ELSE()
       COMPONENT ${${file}_COMPONENT}
      )
   ENDFOREACH()
-
-  # Input files with pl.in extension - drop the extension completely
-  SET(PLIN_FILES mysql_secure_installation)
-  FOREACH(file ${PLIN_FILES})
-    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.pl.in
-      ${CMAKE_CURRENT_BINARY_DIR}/${file} ESCAPE_QUOTES @ONLY)
-    EXECUTE_PROCESS(COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/${file})
-    IF(NOT ${file}_COMPONENT)
-      SET(${file}_COMPONENT Server)
-    ENDIF()
-    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file} COMPONENT ${${file}_COMPONENT})
-  ENDFOREACH()
+  IF(COPY_MYSQL_CONFIG)
+    CONFIGURE_FILE(${CMAKE_CURRENT_BINARY_DIR}/mysql_config
+       ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_config COPYONLY)
+    INSTALL_SCRIPT(
+      ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_config
+      DESTINATION ${INSTALL_BINDIR}
+      COMPONENT ${mysql_server_config_COMPONENT}
+    )
+  ENDIF()
 ENDIF()
 
 # Install libgcc as  mylibgcc.a

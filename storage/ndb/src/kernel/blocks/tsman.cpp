@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,9 @@
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <dbtup/Dbtup.hpp>
+
+#define JAM_FILE_ID 359
+
 
 #define JONAS 0
 
@@ -417,7 +420,7 @@ Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
 
     new (ptr.p) Tablespace(this, req);
     m_tablespace_hash.add(ptr);
-    m_tablespace_list.add(ptr);
+    m_tablespace_list.addFirst(ptr);
 
     ptr.p->m_state = Tablespace::TS_ONLINE;
 
@@ -645,7 +648,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal){
  
     new (file_ptr.p) Datafile(req);
     Local_datafile_list tmp(m_file_pool, ptr.p->m_meta_files);
-    tmp.add(file_ptr);
+    tmp.addFirst(file_ptr);
 
     file_ptr.p->m_state = Datafile::FS_CREATING;
     file_ptr.p->m_tablespace_ptr_i = ptr.i;
@@ -1255,7 +1258,7 @@ Tsman::load_extent_page_callback(Signal* signal,
     Local_datafile_list free(m_file_pool, ts_ptr.p->m_free_files);
     Local_datafile_list meta(m_file_pool, ts_ptr.p->m_meta_files);
     meta.remove(ptr);
-    free.add(ptr);
+    free.addFirst(ptr);
   }
   m_file_hash.add(ptr);
   
@@ -1384,7 +1387,8 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
 	  {
 	    Uint32 bits= header->get_free_bits(i) & COMMITTED_MASK;
 	    header->update_free_bits(i, bits | (bits << UNCOMMITTED_SHIFT));
-	    tup.disk_restart_page_bits(tableId, fragmentId, &key, bits);
+	    tup.disk_restart_page_bits(tableId, fragmentId, &key, 
+                                       bits);
 	  }
           D("extent used" << V(j) << V(tableId) << V(fragmentId) << V(key));
 	}
@@ -1407,13 +1411,13 @@ Tsman::scan_extent_headers(Signal* signal, Ptr<Datafile> ptr)
   {
     Local_datafile_list free(m_file_pool, lg_ptr.p->m_free_files);
     meta.remove(ptr);
-    free.add(ptr);
+    free.addFirst(ptr);
   }
   else
   {
     Local_datafile_list full(m_file_pool, lg_ptr.p->m_full_files);
     meta.remove(ptr);
-    full.add(ptr);
+    full.addFirst(ptr);
   }
   
   signal->theData[0] = TsmanContinueB::SCAN_DATAFILE_EXTENT_HEADERS;
@@ -1473,7 +1477,7 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       }
       
       Local_datafile_list meta(m_file_pool, fg_ptr.p->m_meta_files);
-      meta.add(file_ptr);
+      meta.addFirst(file_ptr);
       
       if (file_ptr.p->m_online.m_used_extent_cnt || 
 	  file_ptr.p->m_state != Datafile::FS_ONLINE)
@@ -1510,12 +1514,12 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
       if (file_ptr.p->m_online.m_first_free_extent != RNIL)
       {
 	Local_datafile_list free(m_file_pool, fg_ptr.p->m_free_files);
-	free.add(file_ptr);
+        free.addFirst(file_ptr);
       }
       else
       {
 	Local_datafile_list full(m_file_pool, fg_ptr.p->m_full_files);
-	full.add(file_ptr);
+        full.addFirst(file_ptr);
       }
       break;
     }
@@ -1573,7 +1577,9 @@ Tsman::Datafile::Datafile(const struct CreateFileImplReq* req)
 void
 Tsman::execALLOC_EXTENT_REQ(Signal* signal)
 {
-  jamEntry();
+  EmulatedJamBuffer* const jamBuf = getThrJamBuf();
+
+  thrjam(jamBuf);
   Ptr<Tablespace> ts_ptr;
   Ptr<Datafile> file_ptr;
   AllocExtentReq req = *(AllocExtentReq*)signal->getDataPtr();
@@ -1628,10 +1634,10 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
       file_ptr.p->m_online.m_first_free_extent = next_free;
       if (next_free == RNIL)
       {
-	jam();
+	thrjam(jamBuf);
 	Local_datafile_list full(m_file_pool, ts_ptr.p->m_full_files);
 	tmp.remove(file_ptr);
-	full.add(file_ptr);
+        full.addFirst(file_ptr);
       }
       
       /**
@@ -1649,18 +1655,18 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
     }
     else 
     {
-      jam();
+      thrjam(jamBuf);
       err = AllocExtentReq::UnmappedExtentPageIsNotImplemented;
     }
   }
   else
   {
-    jam();
+    thrjam(jamBuf);
     err = AllocExtentReq::NoExtentAvailable;
     Local_datafile_list full_tmp(m_file_pool, ts_ptr.p->m_full_files);
     if (tmp.isEmpty() && full_tmp.isEmpty())
     { 
-      jam();
+      thrjam(jamBuf);
       err = AllocExtentReq::NoDatafile;
     }
   }
@@ -1676,7 +1682,9 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
 void
 Tsman::execFREE_EXTENT_REQ(Signal* signal)
 {
-  jamEntry();
+  EmulatedJamBuffer* const jamBuf = getThrJamBuf();
+
+  thrjam(jamBuf);
   Ptr<Datafile> file_ptr;
   FreeExtentReq req = *(FreeExtentReq*)signal->getDataPtr();
   FreeExtentReq::ErrorCode err = (FreeExtentReq::ErrorCode)0;
@@ -1717,7 +1725,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
     file_ptr.p->m_online.m_used_extent_cnt--;
     if (m_lcp_ongoing)
     {
-      jam();
+      thrjam(jamBuf);
       header->m_next_free_extent= file_ptr.p->m_online.m_lcp_free_extent_head;
       if(file_ptr.p->m_online.m_lcp_free_extent_head == RNIL)
 	file_ptr.p->m_online.m_lcp_free_extent_tail= extent;
@@ -1725,7 +1733,7 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
     }
     else
     {
-      jam();
+      thrjam(jamBuf);
       header->m_next_free_extent = file_ptr.p->m_online.m_first_free_extent;
       if (file_ptr.p->m_online.m_first_free_extent == RNIL)
       {
@@ -1737,14 +1745,14 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
 	Local_datafile_list free(m_file_pool, ptr.p->m_free_files);
 	Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
 	full.remove(file_ptr);
-	free.add(file_ptr);
+        free.addFirst(file_ptr);
       }
       file_ptr.p->m_online.m_first_free_extent = extent;
     }
   }
   else
   {
-    jam();
+    thrjam(jamBuf);
     err = FreeExtentReq::UnmappedExtentPageIsNotImplemented;
   }
   
@@ -1761,7 +1769,7 @@ Tsman::update_page_free_bits(Signal* signal,
 			     Local_key *key, 
 			     unsigned committed_bits)
 {
-  jamEntry();
+  jamNoBlock();
 
   /**
    * 1) Compute which extent_no key belongs to
@@ -1831,7 +1839,7 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
 			  unsigned* uncommitted, 
 			  unsigned* committed)
 {
-  jamEntry();
+  jamNoBlock();
 
   Ptr<Datafile> file_ptr;
   Datafile file_key;
@@ -1874,7 +1882,7 @@ Tsman::get_page_free_bits(Signal* signal, Local_key *key,
 int
 Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
 {
-  jamEntry();
+  jamNoBlock();
 
   /**
    * 1) Compute which extent_no key belongs to
@@ -2013,7 +2021,7 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
 void
 Tsman::execALLOC_PAGE_REQ(Signal* signal)
 {
-  jamEntry();
+  jamNoBlock();
   
   AllocPageReq *rep= (AllocPageReq*)signal->getDataPtr();
   AllocPageReq req = *rep;
@@ -2234,7 +2242,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       Local_datafile_list free(m_file_pool, ptr.p->m_free_files);
       Local_datafile_list full(m_file_pool, ptr.p->m_full_files);
       full.remove(file);
-      free.add(file);
+      free.addFirst(file);
     }
     else
     {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include "ndb_limits.h"
 
+#define JAM_FILE_ID 4
+
+
 /**
  * Masks and lists used by index and trigger.  Must be plain old Uint32 data.
  * XXX depends on other headers XXX move to some common file
@@ -36,5 +39,8 @@ struct Id_array
 };
 
 typedef Id_array<MAX_ATTRIBUTES_IN_INDEX> IndexAttributeList;
+
+
+#undef JAM_FILE_ID
 
 #endif

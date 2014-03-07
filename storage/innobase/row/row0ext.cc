@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,16 +31,18 @@ Created September 2006 Marko Makela
 
 #include "btr0cur.h"
 
-/********************************************************************//**
-Fills the column prefix cache of an externally stored column. */
+/** Fills the column prefix cache of an externally stored column.
+@param[in,out]	ext		column prefix cache
+@param[in]	i		index of ext->ext[]
+@param[in]	page_size	page size
+@param[in]	dfield		data field */
 static
 void
 row_ext_cache_fill(
-/*===============*/
-	row_ext_t*	ext,	/*!< in/out: column prefix cache */
-	ulint		i,	/*!< in: index of ext->ext[] */
-	ulint		zip_size,/*!< compressed page size in bytes, or 0 */
-	const dfield_t*	dfield)	/*!< in: data field */
+	row_ext_t*		ext,
+	ulint			i,
+	const page_size_t&	page_size,
+	const dfield_t*		dfield)
 {
 	const byte*	field	= static_cast<const byte*>(
 					dfield_get_data(dfield));
@@ -58,21 +60,35 @@ row_ext_cache_fill(
 		/* The BLOB pointer is not set: we cannot fetch it */
 		ext->len[i] = 0;
 	} else {
-		/* Fetch at most ext->max_len of the column.
-		The column should be non-empty.  However,
-		trx_rollback_or_clean_all_recovered() may try to
-		access a half-deleted BLOB if the server previously
-		crashed during the execution of
-		btr_free_externally_stored_field(). */
-		ext->len[i] = btr_copy_externally_stored_field_prefix(
-			buf, ext->max_len, zip_size, field, f_len);
+		if (ext->max_len == REC_VERSION_56_MAX_INDEX_COL_LEN
+		    && f_len > BTR_EXTERN_FIELD_REF_SIZE) {
+			/* In this case, the field is in B format or beyond,
+			(refer to the definition of row_ext_t.max_len)
+			and the field is already fill with prefix, otherwise
+			f_len would be BTR_EXTERN_FIELD_REF_SIZE.
+			So there is no need to re-read the prefix externally,
+			but just copy the local prefix to buf. Please note
+			if the ext->len[i] is zero, it means an error
+			as above. */
+			memcpy(buf, field, f_len - BTR_EXTERN_FIELD_REF_SIZE);
+			ext->len[i] = f_len - BTR_EXTERN_FIELD_REF_SIZE;
+		} else {
+			/* Fetch at most ext->max_len of the column.
+			The column should be non-empty.  However,
+			trx_rollback_or_clean_all_recovered() may try to
+			access a half-deleted BLOB if the server previously
+			crashed during the execution of
+			btr_free_externally_stored_field(). */
+			ext->len[i] = btr_copy_externally_stored_field_prefix(
+				buf, ext->max_len, page_size, field, f_len);
+		}
 	}
 }
 
 /********************************************************************//**
 Creates a cache of column prefixes of externally stored columns.
-@return	own: column prefix cache */
-UNIV_INTERN
+@return own: column prefix cache */
+
 row_ext_t*
 row_ext_create(
 /*===========*/
@@ -91,7 +107,7 @@ row_ext_create(
 	mem_heap_t*	heap)	/*!< in: heap where created */
 {
 	ulint		i;
-	ulint		zip_size = dict_tf_get_zip_size(flags);
+	const page_size_t&	page_size = dict_tf_get_page_size(flags);
 
 	row_ext_t*	ret;
 
@@ -100,9 +116,6 @@ row_ext_create(
 	ret = static_cast<row_ext_t*>(
 		mem_heap_alloc(heap,
 			       (sizeof *ret) + (n_ext - 1) * sizeof ret->len));
-
-	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 	ret->n_ext = n_ext;
 	ret->ext = ext;
@@ -121,7 +134,7 @@ row_ext_create(
 		const dfield_t*	dfield;
 
 		dfield = dtuple_get_nth_field(tuple, ext[i]);
-		row_ext_cache_fill(ret, i, zip_size, dfield);
+		row_ext_cache_fill(ret, i, page_size, dfield);
 	}
 
 	return(ret);
