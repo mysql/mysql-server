@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,26 +25,36 @@
 #endif
 #include "sql_const.h"
 #include <mysql/plugin_audit.h>
-#include "log.h"
 #include "rpl_tblmap.h"
 #include "mdl.h"
 #include "sql_locale.h"                         /* my_locale_st */
 #include "sql_profile.h"                   /* PROFILING */
-#include "scheduler.h"                     /* thd_scheduler */
 #include "protocol.h"             /* Protocol_text, Protocol_binary */
 #include "violite.h"              /* vio_is_connected */
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include "rpl_gtid.h"
+#include "dur_prop.h"
+#include "prealloced_array.h"
 
+#include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
+
+#include <pfs_statement_provider.h>
 #include <mysql/psi/mysql_statement.h>
+
+#include <pfs_idle_provider.h>
 #include <mysql/psi/mysql_idle.h>
+
 #include <mysql_com_server.h>
+#include "opt_costmodel.h"                      // Cost_model_server
 #include "sql_data_change.h"
 
-#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
+#include "sys_vars_resource_mgr.h"
+#include "session_tracker.h"
+
+#include "transaction_info.h"
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -81,6 +92,9 @@ class Rows_log_event;
 class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
+typedef struct st_log_info LOG_INFO;
+
+struct st_thd_timer;
 
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 
@@ -90,10 +104,26 @@ enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
+                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
+enum enum_binlog_row_image {
+  /** PKE in the before image and changed columns in the after image */
+  BINLOG_ROW_IMAGE_MINIMAL= 0,
+  /** Whenever possible, before and after image contain all columns except blobs. */
+  BINLOG_ROW_IMAGE_NOBLOB= 1,
+  /** All columns in both before and after image. */
+  BINLOG_ROW_IMAGE_FULL= 2
+};
+enum enum_binlog_format {
+  BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
+  BINLOG_FORMAT_STMT=  1, ///< statement-based
+  BINLOG_FORMAT_ROW=   2, ///< row-based
+  BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
+};
 
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
@@ -123,6 +153,13 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
 #define MODE_STRICT_TRANS_TABLES        (MODE_NO_BACKSLASH_ESCAPES*2)
 #define MODE_STRICT_ALL_TABLES          (MODE_STRICT_TRANS_TABLES*2)
+/*
+ * NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
+ * removed in 5.7 and their functionality is merged with STRICT MODE.
+ * However, For backward compatibility during upgrade, these modes are kept
+ * but they are not used. Setting these modes in 5.7 will give warning and
+ * have no effect.
+ */
 #define MODE_NO_ZERO_IN_DATE            (MODE_STRICT_ALL_TABLES*2)
 #define MODE_NO_ZERO_DATE               (MODE_NO_ZERO_IN_DATE*2)
 #define MODE_INVALID_DATES              (MODE_NO_ZERO_DATE*2)
@@ -137,21 +174,21 @@ extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
+extern LEX_CSTRING EMPTY_CSTR;
+extern LEX_CSTRING NULL_CSTR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
-extern bool volatile shutdown_in_progress;
-
-extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd);
-extern "C" char **thd_query(MYSQL_THD thd);
+extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
+extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
 
 /**
   @class CSET_STRING
-  @brief Character set armed LEX_STRING
+  @brief Character set armed LEX_CSTRING
 */
 class CSET_STRING
 {
 private:
-  LEX_STRING string;
+  LEX_CSTRING string;
   const CHARSET_INFO *cs;
 public:
   CSET_STRING() : cs(&my_charset_bin)
@@ -159,7 +196,7 @@ public:
     string.str= NULL;
     string.length= 0;
   }
-  CSET_STRING(char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
+  CSET_STRING(const char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
   cs(cs_arg)
   {
     DBUG_ASSERT(cs_arg != NULL);
@@ -167,12 +204,9 @@ public:
     string.length= length_arg;
   }
 
-  inline char *str() const { return string.str; }
+  inline const char *str() const { return string.str; }
   inline size_t length() const { return string.length; }
   const CHARSET_INFO *charset() const { return cs; }
-
-  friend LEX_STRING * thd_query_string (MYSQL_THD thd);
-  friend char **thd_query(MYSQL_THD thd);
 };
 
 
@@ -216,40 +250,6 @@ public:
   */
   Key_part_spec *clone(MEM_ROOT *mem_root) const
   { return new (mem_root) Key_part_spec(*this); }
-};
-
-
-class Alter_drop :public Sql_alloc {
-public:
-  enum drop_type {KEY, COLUMN, FOREIGN_KEY };
-  const char *name;
-  enum drop_type type;
-  Alter_drop(enum drop_type par_type,const char *par_name)
-    :name(par_name), type(par_type)
-  {
-    DBUG_ASSERT(par_name != NULL);
-  }
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_drop *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_drop(*this); }
-};
-
-
-class Alter_column :public Sql_alloc {
-public:
-  const char *name;
-  Item *def;
-  Alter_column(const char *par_name,Item *literal)
-    :name(par_name), def(literal) {}
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_column *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_column(*this); }
 };
 
 
@@ -329,6 +329,56 @@ typedef struct st_mysql_lock
   uint table_count,lock_count;
   THR_LOCK_DATA **locks;
 } MYSQL_LOCK;
+
+
+/**
+ To be used for pool-of-threads (implemeneted differently on various OSs)
+*/
+class thd_scheduler
+{
+public:
+  /*
+    Thread instrumentation for the user job.
+    This member holds the instrumentation while the user job is not run
+    by a thread.
+
+    Note that this member is not conditionally declared
+    (ifdef HAVE_PSI_INTERFACE), because doing so will change the binary
+    layout of THD, which is exposed to plugin code that may be compiled
+    differently.
+  */
+  PSI_thread *m_psi;
+
+  void *data;                  /* scheduler-specific data structure */
+
+  thd_scheduler()
+  : m_psi(NULL), data(NULL)
+  { }
+
+  ~thd_scheduler() { }
+};
+
+/* Needed to get access to scheduler variables */
+void* thd_get_scheduler_data(THD *thd);
+void thd_set_scheduler_data(THD *thd, void *data);
+PSI_thread* thd_get_psi(THD *thd);
+void thd_set_psi(THD *thd, PSI_thread *psi);
+
+
+/**
+  the struct aggregates two paramenters that identify an event
+  uniquely in scope of communication of a particular master and slave couple.
+  I.e there can not be 2 events from the same staying connected master which
+  have the same coordinates.
+  @note
+  Such identifier is not yet unique generally as the event originating master
+  is resetable. Also the crashed master can be replaced with some other.
+*/
+typedef struct rpl_event_coordinates
+{
+  char * file_name; // binlog file name (directories stripped)
+  my_off_t  pos;       // event's position in the binlog file
+} LOG_POS_COORD;
 
 
 class LEX_COLUMN : public Sql_alloc
@@ -456,6 +506,8 @@ typedef struct system_variables
   ulong tx_isolation;
   ulong updatable_views_with_limit;
   uint max_user_connections;
+  ulong my_aes_mode;
+
   /**
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
@@ -512,6 +564,11 @@ typedef struct system_variables
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
 
+  ulong max_statement_time;
+
+  char *track_sysvars_ptr;
+  my_bool session_track_schema;
+  my_bool session_track_state_change;
 } SV;
 
 
@@ -574,6 +631,11 @@ typedef struct system_status_var
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+
+  ulonglong max_statement_time_exceeded;
+  ulonglong max_statement_time_set;
+  ulonglong max_statement_time_set_failed;
+
   /*
     Number of statements sent from the client
   */
@@ -590,6 +652,7 @@ typedef struct system_status_var
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
+
 } STATUS_VAR;
 
 /*
@@ -599,9 +662,6 @@ typedef struct system_status_var
 */
 
 #define last_system_status_var questions
-
-void mark_transaction_to_rollback(THD *thd, bool all);
-
 
 /**
   Get collation by name, send error to client on failure.
@@ -711,13 +771,6 @@ public:
   { return strmake_root(mem_root,str,size); }
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
-  inline void *memdup_w_gap(const void *str, size_t size, uint gap)
-  {
-    void *ptr;
-    if ((ptr= alloc_root(mem_root,size+gap)))
-      memcpy(ptr,str,size);
-    return ptr;
-  }
 
   void set_query_arena(Query_arena *set);
 
@@ -771,31 +824,37 @@ public:
 
   LEX_STRING name; /* name for named prepared statements */
   LEX *lex;                                     // parse tree descriptor
-  /*
-    Points to the query associated with this statement. It's const, but
-    we need to declare it char * because all table handlers are written
-    in C and need to point to it.
 
-    Note that if we set query = NULL, we must at the same time set
-    query_length = 0, and protect the whole operation with
-    LOCK_thd_data mutex. To avoid crashes in races, if we do not
-    know that thd->query cannot change at the moment, we should print
-    thd->query like this:
-      (1) reserve the LOCK_thd_data mutex;
-      (2) print or copy the value of query and query_length
-      (3) release LOCK_thd_data mutex.
-    This printing is needed at least in SHOW PROCESSLIST and SHOW
-    ENGINE INNODB STATUS.
+  /**
+    The query associated with this statement.
+
+    In order to enforce a safe access pattern when it is used by
+    THD, it is private and its getter/setter are protected.
+    It is assumed that other classes inheriting from Statement
+    (Prepared_Statement) access the query string from one thread only.
+
+    See comments for THD's setters/getters about how to access this
+    safely from multiple threads.
   */
-  CSET_STRING query_string;
+private:
+  LEX_CSTRING m_query_string;
 
+protected:
+  virtual const LEX_CSTRING& query() const { return m_query_string; }
+
+  void set_query(const LEX_CSTRING& string_arg)
+  {
+    m_query_string= string_arg;
+  }
+
+public:
   /*
     In some cases, we may want to modify the query (i.e. replace
     passwords with their hashes before logging the statement etc.).
 
     In case the query was rewritten, the original query will live in
-    query_string, while the rewritten query lives in rewritten_query.
-    If rewritten_query is empty, query_string should be logged.
+    m_query_string, while the rewritten query lives in rewritten_query.
+    If rewritten_query is empty, m_query_string should be logged.
     If rewritten_query is non-empty, the rewritten query it contains
     should be used in logs (general log, slow query log, binary log).
 
@@ -806,22 +865,6 @@ public:
   */
   String      rewritten_query;
 
-  inline char *query() const { return query_string.str(); }
-  inline uint32 query_length() const { return query_string.length(); }
-  const CHARSET_INFO *query_charset() const { return query_string.charset(); }
-  void set_query_inner(const CSET_STRING &string_arg)
-  {
-    query_string= string_arg;
-  }
-  void set_query_inner(char *query_arg, uint32 query_length_arg,
-                       const CHARSET_INFO *cs_arg)
-  {
-    set_query_inner(CSET_STRING(query_arg, query_length_arg, cs_arg));
-  }
-  void reset_query_inner()
-  {
-    set_query_inner(CSET_STRING());
-  }
   /**
     Name of the current (default) database.
 
@@ -844,15 +887,21 @@ public:
   Statement() {}
 
   Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-            enum enum_state state_arg, ulong id_arg);
+            enum_state state_arg, ulong id_arg);
   virtual ~Statement();
 
   /* Assign execution context (note: not all members) of given stmt to self */
-  virtual void set_statement(Statement *stmt);
-  void set_n_backup_statement(Statement *stmt, Statement *backup);
-  void restore_backup_statement(Statement *stmt, Statement *backup);
+  void set_statement(Statement *stmt);
   /* return class type */
   virtual Type type() const;
+#ifdef HAVE_PSI_PS_INTERFACE 
+  virtual PSI_prepared_stmt* get_PS_prepared_stmt()
+  {
+    /* One should never reach here. */
+    DBUG_ASSERT(0);
+    return NULL;
+  }
+#endif
 };
 
 
@@ -900,7 +949,7 @@ public:
     survive COMMIT or ROLLBACK. Currently all but MyISAM cursors are closed.
     CURRENTLY NOT IMPLEMENTED!
   */
-  void close_transient_cursors();
+  void close_transient_cursors() { }
   void erase(Statement *statement);
   /* Erase all statements (calls Statement destructor) */
   void reset();
@@ -911,292 +960,17 @@ private:
   Statement *last_found_statement;
 };
 
-class Ha_trx_info;
-
-struct THD_TRANS
-{
-  /* true is not all entries in the ht[] support 2pc */
-  bool        no_2pc;
-  int         rw_ha_count;
-  /* storage engines that registered in this transaction */
-  Ha_trx_info *ha_list;
-
-private:
-  /* 
-    The purpose of this member variable (i.e. flag) is to keep track of
-    statements which cannot be rolled back safely(completely).
-    For example,
-
-    * statements that modified non-transactional tables. The value
-    MODIFIED_NON_TRANS_TABLE is set within mysql_insert, mysql_update,
-    mysql_delete, etc if a non-transactional table is modified.
-
-    * 'DROP TEMPORARY TABLE' and 'CREATE TEMPORARY TABLE' statements.
-    The former sets the value CREATED_TEMP_TABLE is set and the latter
-    the value DROPPED_TEMP_TABLE.
-    
-    The tracked statements are modified in scope of:
-
-    * transaction, when the variable is a member of THD::transaction.all
-    
-    * top-level statement or sub-statement, when the variable is a
-    member of THD::transaction.stmt
-
-    This member has the following life cycle:
-
-    * stmt.m_unsafe_rollback_flags is used to keep track of top-level statements
-    which cannot be rolled back safely. At the end of the statement, the value
-    of stmt.m_unsafe_rollback_flags is merged with all.m_unsafe_rollback_flags
-    and gets reset.
-    
-    * all.cannot_safely_rollback is reset at the end of transaction
-
-    * Since we do not have a dedicated context for execution of a sub-statement,
-    to keep track of non-transactional changes in a sub-statement, we re-use
-    stmt.m_unsafe_rollback_flags. At entrance into a sub-statement, a copy of
-    the value of stmt.m_unsafe_rollback_flags (containing the changes of the
-    outer statement) is saved on stack.  Then stmt.m_unsafe_rollback_flags is
-    reset to 0 and the substatement is executed. Then the new value is merged
-    with the saved value.
-  */
-
-  unsigned int m_unsafe_rollback_flags;
-  /*
-    Define the type of statemens which cannot be rolled back safely.
-    Each type occupies one bit in m_unsafe_rollback_flags.
-  */
-  static unsigned int const MODIFIED_NON_TRANS_TABLE= 0x01;
-  static unsigned int const CREATED_TEMP_TABLE= 0x02;
-  static unsigned int const DROPPED_TEMP_TABLE= 0x04;
-
-public:
-#ifndef DBUG_OFF
-  void dbug_unsafe_rollback_flags(const char* msg) const
-  {
-    DBUG_PRINT("debug", ("%s.unsafe_rollback_flags: %s%s%s",
-                         msg,
-                         FLAGSTR(m_unsafe_rollback_flags, MODIFIED_NON_TRANS_TABLE),
-                         FLAGSTR(m_unsafe_rollback_flags, CREATED_TEMP_TABLE),
-                         FLAGSTR(m_unsafe_rollback_flags, DROPPED_TEMP_TABLE)));
-  }
-#endif
-
-  bool cannot_safely_rollback() const
-  {
-    return m_unsafe_rollback_flags > 0;
-  }
-  unsigned int get_unsafe_rollback_flags() const
-  {
-    return m_unsafe_rollback_flags;
-  }
-  void set_unsafe_rollback_flags(unsigned int flags)
-  {
-    DBUG_PRINT("debug", ("set_unsafe_rollback_flags: %d", flags));
-    m_unsafe_rollback_flags= flags;
-  }
-  void add_unsafe_rollback_flags(unsigned int flags)
-  {
-    DBUG_PRINT("debug", ("add_unsafe_rollback_flags: %d", flags));
-    m_unsafe_rollback_flags|= flags;
-  }
-  void reset_unsafe_rollback_flags()
-  {
-    DBUG_PRINT("debug", ("reset_unsafe_rollback_flags"));
-    m_unsafe_rollback_flags= 0;
-  }
-  void mark_modified_non_trans_table()
-  {
-    DBUG_PRINT("debug", ("mark_modified_non_trans_table"));
-    m_unsafe_rollback_flags|= MODIFIED_NON_TRANS_TABLE;
-  }
-  bool has_modified_non_trans_table() const
-  {
-    return m_unsafe_rollback_flags & MODIFIED_NON_TRANS_TABLE;
-  }
-  void mark_created_temp_table()
-  {
-    DBUG_PRINT("debug", ("mark_created_temp_table"));
-    m_unsafe_rollback_flags|= CREATED_TEMP_TABLE;
-  }
-  bool has_created_temp_table() const
-  {
-    return m_unsafe_rollback_flags & CREATED_TEMP_TABLE;
-  }
-  void mark_dropped_temp_table()
-  {
-    DBUG_PRINT("debug", ("mark_dropped_temp_table"));
-    m_unsafe_rollback_flags|= DROPPED_TEMP_TABLE;
-  }
-  bool has_dropped_temp_table() const
-  {
-    return m_unsafe_rollback_flags & DROPPED_TEMP_TABLE;
-  }
-
-  void reset()
-  {
-    no_2pc= FALSE;
-    rw_ha_count= 0;
-    reset_unsafe_rollback_flags();
-  }
-  bool is_empty() const { return ha_list == NULL; }
-};
-
-/**
-  Either statement transaction or normal transaction - related
-  thread-specific storage engine data.
-
-  If a storage engine participates in a statement/transaction,
-  an instance of this class is present in
-  thd->transaction.{stmt|all}.ha_list. The addition to
-  {stmt|all}.ha_list is made by trans_register_ha().
-
-  When it's time to commit or rollback, each element of ha_list
-  is used to access storage engine's prepare()/commit()/rollback()
-  methods, and also to evaluate if a full two phase commit is
-  necessary.
-
-  @sa General description of transaction handling in handler.cc.
-*/
-
-class Ha_trx_info
-{
-#ifndef DBUG_OFF
-  friend const char *
-  ha_list_names(Ha_trx_info *ha_list, char *const buf_arg)
-  {
-    char *buf = buf_arg;
-    while (ha_list)
-    {
-      buf += sprintf(buf, "%s", ha_legacy_type_name(ha_list->m_ht->db_type));
-      ha_list = ha_list->m_next;
-      if (ha_list)
-        buf += sprintf(buf, ", ");
-    }
-    if (buf == buf_arg)
-      sprintf(buf, "<NONE>");
-    return buf_arg;
-  }
-#endif
-
-public:
-  /** Register this storage engine in the given transaction context. */
-  void register_ha(THD_TRANS *trans, handlerton *ht_arg)
-  {
-    DBUG_ENTER("Ha_trx_info::register_ha");
-    DBUG_PRINT("enter", ("trans: 0x%llx, ht: 0x%llx (%s)",
-                         (ulonglong) trans, (ulonglong) ht_arg,
-                         ha_legacy_type_name(ht_arg->db_type)));
-    DBUG_ASSERT(m_flags == 0);
-    DBUG_ASSERT(m_ht == NULL);
-    DBUG_ASSERT(m_next == NULL);
-
-    m_ht= ht_arg;
-    m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
-
-    m_next= trans->ha_list;
-    trans->ha_list= this;
-    DBUG_VOID_RETURN;
-  }
-
-  /** Clear, prepare for reuse. */
-  void reset()
-  {
-    DBUG_ENTER("Ha_trx_info::reset");
-    m_next= NULL;
-    m_ht= NULL;
-    m_flags= 0;
-    DBUG_VOID_RETURN;
-  }
-
-  Ha_trx_info() { reset(); }
-
-  void set_trx_read_write()
-  {
-    DBUG_ASSERT(is_started());
-    m_flags|= (int) TRX_READ_WRITE;
-  }
-  bool is_trx_read_write() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_flags & (int) TRX_READ_WRITE;
-  }
-  bool is_started() const { return m_ht != NULL; }
-  /** Mark this transaction read-write if the argument is read-write. */
-  void coalesce_trx_with(const Ha_trx_info *stmt_trx)
-  {
-    /*
-      Must be called only after the transaction has been started.
-      Can be called many times, e.g. when we have many
-      read-write statements in a transaction.
-    */
-    DBUG_ASSERT(is_started());
-    if (stmt_trx->is_trx_read_write())
-      set_trx_read_write();
-  }
-  Ha_trx_info *next() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_next;
-  }
-  handlerton *ht() const
-  {
-    DBUG_ASSERT(is_started());
-    return m_ht;
-  }
-private:
-  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1 };
-  /** Auxiliary, used for ha_list management */
-  Ha_trx_info *m_next;
-  /**
-    Although a given Ha_trx_info instance is currently always used
-    for the same storage engine, 'ht' is not-NULL only when the
-    corresponding storage is a part of a transaction.
-  */
-  handlerton *m_ht;
-  /**
-    Transaction flags related to this engine.
-    Not-null only if this instance is a part of transaction.
-    May assume a combination of enum values above.
-  */
-  uchar       m_flags;
-};
-
-struct st_savepoint {
-  struct st_savepoint *prev;
-  char                *name;
-  uint                 length;
-  Ha_trx_info         *ha_list;
-  /** State of metadata locks before this savepoint was set. */
-  MDL_savepoint        mdl_savepoint;
-};
-
-enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED, XA_ROLLBACK_ONLY};
-extern const char *xa_state_names[];
-
-typedef struct st_xid_state {
-  /* For now, this is only used to catch duplicated external xids */
-  XID  xid;                           // transaction identifier
-  enum xa_states xa_state;            // used by external XA only
-  bool in_thd;
-  /* Error reported by the Resource Manager (RM) to the Transaction Manager. */
-  uint rm_error;
-} XID_STATE;
-
-extern mysql_mutex_t LOCK_xid_cache;
-extern HASH xid_cache;
-bool xid_cache_init(void);
-void xid_cache_free(void);
-XID_STATE *xid_cache_search(XID *xid);
-bool xid_cache_insert(XID *xid, enum xa_states xa_state);
-bool xid_cache_insert(XID_STATE *xid_state);
-void xid_cache_delete(XID_STATE *xid_state);
-
 /**
   @class Security_context
   @brief A set of THD members describing the current authenticated user.
 */
 
 class Security_context {
+private:
+
+String host;
+String ip;
+String external_user;
 public:
   Security_context() {}                       /* Remove gcc warning */
   /*
@@ -1206,13 +980,11 @@ public:
     priv_user - The user privilege we are using. May be "" for anonymous user.
     ip - client IP
   */
-  char   *host, *user, *ip;
+  char   *user;
   char   priv_user[USERNAME_LENGTH];
   char   proxy_user[USERNAME_LENGTH + MAX_HOSTNAME + 5];
   /* The host privilege we are using */
   char   priv_host[MAX_HOSTNAME];
-  /* The external user (if available) */
-  char   *external_user;
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
@@ -1226,9 +998,15 @@ public:
   {
     return (*priv_host ? priv_host : (char *)"%");
   }
-  
-  bool set_user(char *user_arg);
 
+  bool set_user(char *user_arg);
+  String *get_host();
+  String *get_ip();
+  String *get_external_user();
+  void set_host(const char *p);
+  void set_ip(const char *p);
+  void set_external_user(const char *p);
+  void set_host(const char *str, size_t len);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
@@ -1242,152 +1020,6 @@ public:
 #endif
   bool user_matches(Security_context *);
 };
-
-/**
-  @class Log_throttle
-  @brief Used for rate-limiting a log (slow query log etc.)
-*/
-
-class Log_throttle
-{
-private:
-  /**
-    We're using our own (empty) security context during summary generation.
-    That way, the aggregate value of the suppressed queries isn't printed
-    with a specific user's name (i.e. the user who sent a query when or
-    after the time-window closes), as that would be misleading.
-  */
-  Security_context aggregate_sctx;
-  /**
-    Total of the execution times of queries in this time-window for which
-    we suppressed logging. For use in summary printing.
-  */
-  ulonglong total_exec_time;
-  /**
-    Total of the lock times of queries in this time-window for which
-    we suppressed logging. For use in summary printing.
-  */
-  ulonglong total_lock_time;
-
-  /**
-    When will/did current window end?
-  */
-  ulonglong window_end;
-  /**
-    A reference to the threshold ("no more than n log lines per ...").
-    References a (system-?) variable in the server.
-  */
-  ulong *rate;
-  /**
-    Log no more than rate lines of a given type per window_size
-    (e.g. per minute, usually LOG_THROTTLE_WINDOW_SIZE).
-  */
-  const ulong window_size;
-  /**
-   There have been this many lines of this type in this window,
-   including those that we suppressed. (We don't simply stop
-   counting once we reach the threshold as we'll write a summary
-   of the suppressed lines later.)
-  */
-  ulong count;
-  /**
-    Template for the summary line. Should contain %lu as the only
-    conversion specification.
-  */
-  const char *summary_template;
-  /**
-    Log_throttle is shared between THDs.
-  */
-  mysql_mutex_t *LOCK_log_throttle;
-  /**
-    The routine we call to actually log a line (i.e. our summary).
-    The signature miraculously coincides with slow_log_print().
-  */
-  bool (*log_summary)(THD *, const char *, uint);
-
-  /**
-    Lock this object as it's shared between THDs.
-  */
-  void lock_exclusive() { mysql_mutex_lock(LOCK_log_throttle); }
-  /**
-    Unlock this object.
-  */
-  void unlock() { mysql_mutex_unlock(LOCK_log_throttle); }
-  /**
-    Start a new window.
-  */
-  void new_window(ulonglong now);
-  /**
-    Increase count of queries of the type we're handling.
-    Returns the new value for the caller to compare against their limit.
-  */
-  ulong inc_queries() { return ++count; }
-  /**
-    Check whether we're still in the current window. (If not, the caller
-    will want to print a summary (if the logging of any lines was suppressed),
-    and start a new window.)
-  */
-  bool in_window(ulonglong now) const { return (now < window_end); };
-  /**
-    Prepare a summary of suppressed lines for logging.
-    (For now, to slow query log.)
-    This function returns the number of queries that were qualified for
-    inclusion in the log, but were not printed because of the rate-limiting.
-    The summary will contain this count as well as the respective totals for
-    lock and execution time.
-    This function assumes that the caller already holds the necessary locks.
-  */
-  ulong prepare_summary(THD *thd);
-  /**
-    Actually print the prepared summary to log.
-  */
-  void print_summary(THD *thd, ulong suppressed,
-                     ulonglong print_lock_time,
-                     ulonglong print_exec_time);
-
-public:
-  /**
-    We're rate-limiting messages per minute; 60,000,000 microsecs = 60s
-    Debugging is less tedious with a window in the region of 5000000
-  */
-  static const ulong LOG_THROTTLE_WINDOW_SIZE= 60000000;
-
-  /**
-    @param threshold     suppress after this many queries ...
-    @param window_usecs  ... in this many micro-seconds
-    @param logger        call this function to log a single line (our summary)
-    @param msg           use this template containing %lu as only non-literal
-  */
-  Log_throttle(ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
-               bool (*logger)(THD *, const char *, uint),
-               const char *msg);
-
-  /**
-    Prepare and print a summary of suppressed lines to log.
-    (For now, slow query log.)
-    The summary states the number of queries that were qualified for
-    inclusion in the log, but were not printed because of the rate-limiting,
-    and their respective totals for lock and execution time.
-    This wrapper for prepare_summary() and print_summary() handles the
-    locking/unlocking.
-
-    @param thd                 The THD that tries to log the statement.
-    @retval 0                  Logging was not supressed, no summary needed.
-    @retval false              Logging was supressed; a summary was printed.
-  */
-  bool flush(THD *thd);
-
-  /**
-    Top-level function.
-    @param thd                 The THD that tries to log the statement.
-    @param eligible            Is the statement of the type we might suppress?
-    @retval true               Logging should be supressed.
-    @retval false              Logging should not be supressed.
-  */
-  bool log(THD *thd, bool eligible);
-};
-
-extern Log_throttle log_throttle_qni;
 
 
 /**
@@ -1449,22 +1081,26 @@ private:
 
     @sa check_and_update_table_version()
   */
-  Dynamic_array<Reprepare_observer *> m_reprepare_observers;
+  Prealloced_array<Reprepare_observer *, 4> m_reprepare_observers;
 
 public:
   Reprepare_observer *get_reprepare_observer() const
   {
     return
-      m_reprepare_observers.elements() > 0 ?
-      *m_reprepare_observers.back() :
+      m_reprepare_observers.size() > 0 ?
+      m_reprepare_observers.back() :
       NULL;
   }
 
   void push_reprepare_observer(Reprepare_observer *o)
-  { m_reprepare_observers.append(o); }
+  { m_reprepare_observers.push_back(o); }
 
   Reprepare_observer *pop_reprepare_observer()
-  { return m_reprepare_observers.pop(); }
+  {
+    Reprepare_observer *retval= m_reprepare_observers.back();
+    m_reprepare_observers.pop_back();
+    return retval;
+  }
 
   void reset_reprepare_observers()
   { m_reprepare_observers.clear(); }
@@ -1552,7 +1188,8 @@ public:
      operations which open/lock/close tables (e.g. open_table()) one has to
      call init_open_tables_state().
   */
-  Open_tables_state() : state_flags(0U) { }
+  Open_tables_state()
+    : m_reprepare_observers(PSI_INSTRUMENT_ME), state_flags(0U) { }
 
   void set_open_tables_state(Open_tables_state *state);
 
@@ -1787,7 +1424,8 @@ public:
     m_reopen_array(NULL),
     m_locked_tables_count(0)
   {
-    init_sql_alloc(&m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
+    init_sql_alloc(key_memory_locked_table_list,
+                   &m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
   }
   void unlock_locked_tables(THD *thd);
   ~Locked_tables_list()
@@ -1905,6 +1543,8 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   tm->tv_usec= (long) (micro_time % 1000000);
 }
 
+class Modification_plan;
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -1964,9 +1604,7 @@ public:
   */
   struct st_mysql_stmt *current_stmt;
 #endif
-#ifdef HAVE_QUERY_CACHE
   Query_cache_tls query_cache_tls;
-#endif
   NET	  net;				// client connection descriptor
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
@@ -1983,12 +1621,37 @@ public:
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
     Protects THD data accessed from other threads:
-    - thd->query and thd->query_length (used by SHOW ENGINE
-      INNODB STATUS and SHOW PROCESSLIST
     - thd->mysys_var (used by KILL statement and shutdown).
     Is locked when THD is deleted.
   */
   mysql_mutex_t LOCK_thd_data;
+
+  /**
+    Protects THD::m_query_string. No other mutexes should be locked
+    while having this mutex locked.
+  */
+  mysql_mutex_t LOCK_thd_query;
+
+  /**
+    Protects query plan (SELECT/UPDATE/DELETE's) from being freed/changed
+    while another thread explains it. Following structures are protected by
+    this mutex:
+      THD::Query_plan
+      Modification_plan
+      SELECT_LEX::join
+      JOIN::plan_state
+      Tree of SELECT_LEX_UNIT after THD::Query_plan was set till
+        THD::Query_plan cleanup
+      JOIN_TAB::select->quick
+    Code that changes objects above should take this mutex.
+    Explain code takes this mutex to block changes to named structures to
+    avoid crashes in following functions:
+      explain_single_table_modification
+      explain_query
+      mysql_explain_other
+    All explain code assumes that this mutex is already taken.
+  */
+  mysql_mutex_t LOCK_query_plan;
 
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;
@@ -2032,6 +1695,76 @@ public:
     allocated) strings, which memory won't go away over time.
   */
   const char *proc_info;
+
+  /**
+     Query plan for EXPLAINable commands, should be locked with
+     LOCK_query_plan before using.
+  */
+  class Query_plan
+  {
+  private:
+    THD *const thd;
+    /// Original sql_command;
+    enum_sql_command sql_command;
+    /// LEX of topmost statement
+    LEX *lex;
+    /// Query plan for UPDATE/DELETE/INSERT/REPLACE
+    const Modification_plan *modification_plan;
+    /// True if query is run in prepared statement
+    bool is_ps;
+
+  public:
+    Query_plan(THD *thd_arg) : thd(thd_arg), sql_command(SQLCOM_END),
+      modification_plan(NULL)
+    {}
+    explicit Query_plan(const Query_plan&); ///< not defined
+    Query_plan& operator=(const Query_plan&); ///< not defined
+    /**
+      Set query plan.
+
+      @note This function takes THD::LOCK_query_plan mutex.
+    */
+    void set_query_plan(enum_sql_command sql_cmd, LEX *lex_arg, bool ps);
+    /**
+      Change current command.
+
+      @details This function is needed for single UPDATE statement, for which
+      after opening tables we can find out that the statement have to be
+      converted multi UPDATE.
+
+      @note This function takes THD::LOCK_query_plan mutex.
+    */
+    void set_command(enum_sql_command sql_cmd);
+    /*
+      5 functions below expect THD::LOCK_query_plan to be already taken by a
+      caller.
+    */
+    enum_sql_command get_command() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return sql_command;
+    }
+    LEX *get_lex() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return lex;
+    }
+    Modification_plan const *get_plan()
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return modification_plan;
+    }
+    bool is_ps_query() const
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      return is_ps;
+    }
+    void set_modification_plan(Modification_plan *plan_arg)
+    {
+      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      modification_plan= plan_arg;
+    }
+  } query_plan;
 
 private:
   unsigned int m_current_stage_key;
@@ -2084,7 +1817,7 @@ public:
   struct timeval start_time;
   struct timeval user_time;
   // track down slow pthread_create
-  ulonglong  prior_thr_create_utime, thr_create_utime;
+  ulonglong  thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
   /**
@@ -2104,6 +1837,16 @@ public:
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
 
+  /** 
+    Used by fill_status() to avoid acquiring LOCK_status mutex twice
+    when this function is called recursively (e.g. queries 
+    that contains SELECT on I_S.GLOBAL_STATUS with subquery on the 
+    same I_S table).
+    Incremented each time fill_status() function is entered and 
+    decremented each time before it returns from the function.
+  */
+  uint fill_status_recursion_level;
+
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
@@ -2112,7 +1855,7 @@ public:
     *after* last event written by this
     thread.
   */
-  event_coordinates binlog_next_event_pos;
+  rpl_event_coordinates binlog_next_event_pos;
   void set_next_event_pos(const char* _filename, ulonglong _pos);
   void clear_next_event_pos();
 
@@ -2211,6 +1954,16 @@ public:
     return m_binlog_filter_state;
   }
 
+#ifdef HAVE_MY_TIMER
+  /** Holds active timer object */
+  struct st_thd_timer_info *timer;
+  /**
+    After resetting(cancelling) timer, current timer object is cached
+    with timer_cache timer to reuse.
+  */
+  struct st_thd_timer_info *timer_cache;
+#endif
+
 private:
   /**
     Indicate if the current statement should be discarded
@@ -2266,6 +2019,7 @@ private:
    */
   /**@{*/
   const char *m_trans_log_file;
+  char *m_trans_fixed_log_file;
   my_off_t m_trans_end_pos;
   /**@}*/
 
@@ -2298,100 +2052,28 @@ public:
 
 #endif /* MYSQL_CLIENT */
 
+private:
+  Transaction_ctx m_transaction;
+
 public:
+  Transaction_ctx *get_transaction()
+  {
+    return &m_transaction;
+  }
 
-  struct st_transactions {
-    SAVEPOINT *savepoints;
-    THD_TRANS all;			// Trans since BEGIN WORK
-    THD_TRANS stmt;			// Trans for current statement
-    XID_STATE xid_state;
-    Rows_log_event *m_pending_rows_event;
+  const Transaction_ctx *get_transaction() const
+  {
+    return &m_transaction;
+  }
 
-    /*
-       Tables changed in transaction (that must be invalidated in query cache).
-       List contain only transactional tables, that not invalidated in query
-       cache (instead of full list of changed in transaction tables).
-    */
-    CHANGED_TABLE_LIST* changed_tables;
-    MEM_ROOT mem_root; // Transaction-life memory allocation pool
-
-    /*
-      (Mostly) binlog-specific fields use while flushing the caches
-      and committing transactions.
-    */
-    struct {
-      bool enabled:1;                   // see ha_enable_transaction()
-      bool pending:1;                   // Is the transaction commit pending?
-      bool xid_written:1;               // The session wrote an XID
-      bool real_commit:1;               // Is this a "real" commit?
-      bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
-#ifndef DBUG_OFF
-      bool ready_preempt:1;             // internal in MYSQL_BIN_LOG::ordered_commit
-#endif
-    } flags;
-
-    void cleanup()
-    {
-      DBUG_ENTER("THD::st_transaction::cleanup");
-      changed_tables= 0;
-      savepoints= 0;
-
-      /*
-        If rm_error is raised, it means that this piece of a distributed
-        transaction has failed and must be rolled back. But the user must
-        rollback it explicitly, so don't start a new distributed XA until
-        then.
-      */
-      if (!xid_state.rm_error)
-        xid_state.xid.null();
-      free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
-      DBUG_VOID_RETURN;
-    }
-    my_bool is_active()
-    {
-      return (all.ha_list != NULL);
-    }
-    st_transactions()
-    {
-      memset(this, 0, sizeof(*this));
-      xid_state.xid.null();
-      init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-    }
-    void push_unsafe_rollback_warnings(THD *thd)
-    {
-      if (all.has_modified_non_trans_table())
-        push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
-
-      if (all.has_created_temp_table())
-        push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
-                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
-
-      if (all.has_dropped_temp_table())
-        push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
-                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
-    }
-    void merge_unsafe_rollback_flags()
-    {
-      /*
-        Merge stmt.unsafe_rollback_flags to all.unsafe_rollback_flags. If
-        the statement cannot be rolled back safely, the transaction including
-        this statement definitely cannot rolled back safely.
-      */
-      all.add_unsafe_rollback_flags(stmt.get_unsafe_rollback_flags());
-    }
-  } transaction;
   Global_read_lock global_read_lock;
   Field      *dup_field;
-#ifndef __WIN__
+#ifndef _WIN32
   sigset_t signals;
 #endif
-#ifdef SIGNAL_WITH_VIO_CLOSE
+
   Vio* active_vio;
-#endif
+
   /*
     This is to track items changed during execution of a prepared
     statement/stored procedure. It's created by
@@ -2547,6 +2229,15 @@ public:
     }
     return first_successful_insert_id_in_prev_stmt;
   }
+  inline void reset_first_successful_insert_id()
+  {
+    arg_of_last_insert_id_function= FALSE;
+    first_successful_insert_id_in_prev_stmt= 0;
+    first_successful_insert_id_in_cur_stmt= 0;
+    first_successful_insert_id_in_prev_stmt_for_binlog= 0;
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt= FALSE;
+  }
+
   /*
     Used by Intvar_log_event::do_apply_event() and by "SET INSERT_ID=#"
     (mysqlbinlog). We'll soon add a variant which can take many intervals in
@@ -2558,6 +2249,9 @@ public:
     auto_inc_intervals_forced.append(next_id, ULONGLONG_MAX, 0);
   }
 
+  /**
+    Stores the result of the FOUND_ROWS() function.
+  */
   ulonglong  limit_found_rows;
 
 private:
@@ -2676,12 +2370,25 @@ public:
   PROFILING  profiling;
 #endif
 
+  /** Current statement digest. */
+  sql_digest_state *m_digest;
+  /** Top level statement digest. */
+  sql_digest_state m_digest_state;
+
   /** Current statement instrumentation. */
   PSI_statement_locker *m_statement_psi;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   /** Current statement instrumentation state. */
   PSI_statement_locker_state m_statement_state;
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
+
+  /** Current transaction instrumentation. */
+  PSI_transaction_locker *m_transaction_psi;
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  /** Current transaction instrumentation state. */
+  PSI_transaction_locker_state m_transaction_state;
+#endif /* HAVE_PSI_TRANSACTION_INTERFACE */
+
   /** Idle instrumentation. */
   PSI_idle_locker *m_idle_psi;
 #ifdef HAVE_PSI_IDLE_INTERFACE
@@ -2710,7 +2417,6 @@ public:
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
-  uint       select_number;             //number of select (used for EXPLAIN)
   /*
     Current or next transaction isolation level.
     When a connection is established, the value is taken from
@@ -2768,13 +2474,21 @@ public:
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
       m_trans_log_file= file + dirname_length(file);
+      if (!m_trans_fixed_log_file)
+        m_trans_fixed_log_file= (char*) alloc_root(&main_mem_root, FN_REFLEN+1);
+      DBUG_ASSERT(strlen(m_trans_log_file) <= FN_REFLEN);
+      strcpy(m_trans_fixed_log_file, m_trans_log_file);
     }
     else
+    {
       m_trans_log_file= NULL;
+      m_trans_fixed_log_file= NULL;
+    }
 
     m_trans_end_pos= pos;
-    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_end_pos: %llu",
-                          m_trans_log_file, m_trans_end_pos));
+    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_fixed_log_file: %s, "
+                          "m_trans_end_pos: %llu", m_trans_log_file,
+                          m_trans_fixed_log_file, m_trans_end_pos));
     DBUG_VOID_RETURN;
   }
 
@@ -2790,13 +2504,34 @@ public:
                           pos_var ? *pos_var : 0));
     DBUG_VOID_RETURN;
   }
+
+  void get_trans_fixed_pos(const char **file_var, my_off_t *pos_var) const
+  {
+    DBUG_ENTER("THD::get_trans_fixed_pos");
+    if (file_var)
+      *file_var = m_trans_fixed_log_file;
+    if (pos_var)
+      *pos_var= m_trans_end_pos;
+    DBUG_PRINT("return", ("file: %s, pos: %llu",
+                          file_var ? *file_var : "<none>",
+                          pos_var ? *pos_var : 0));
+    DBUG_VOID_RETURN;
+  }
+
+  my_off_t get_trans_pos() { return m_trans_end_pos; }
   /**@}*/
 
 
   /*
     Error code from committing or rolling back the transaction.
   */
-  int commit_error;
+  enum Commit_error
+  {
+    CE_NONE= 0,
+    CE_FLUSH_ERROR,
+    CE_COMMIT_ERROR,
+    CE_ERROR_COUNT
+  } commit_error;
 
   /*
     Define durability properties that engines may check to
@@ -2816,6 +2551,7 @@ public:
     KILL_BAD_DATA=1,
     KILL_CONNECTION=ER_SERVER_SHUTDOWN,
     KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILL_TIMEOUT=ER_QUERY_TIMEOUT,
     KILLED_NO_VALUE      /* means neither of the states */
   };
   killed_state volatile killed;
@@ -2974,13 +2710,11 @@ public:
     The THD dtor is effectively split in two:
       THD::release_resources() and ~THD().
 
-    We want to minimize the time we hold LOCK_thread_count,
+    We want to minimize the time we hold LOCK_thd_count,
     so when destroying a global thread, do:
 
     thd->release_resources()
-    mysql_mutex_lock(&LOCK_thread_count);
-    remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
+    Global_THD_manager::get_instance()->remove_thd();
     delete thd;
    */
   ~THD();
@@ -3005,25 +2739,26 @@ public:
     alloc_root. 
   */
   void init_for_queries(Relay_log_info *rli= NULL);
-  void change_user(void);
+  void cleanup_connection(void);
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();
-#ifdef SIGNAL_WITH_VIO_CLOSE
+
   inline void set_active_vio(Vio* vio)
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+
   inline void clear_active_vio()
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = 0;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
-  void close_active_vio();
-#endif
+
+  void shutdown_active_vio();
   void awake(THD::killed_state state_to_set);
 
   /** Disconnect the associated communication endpoint. */
@@ -3041,7 +2776,7 @@ public:
   };
   
   int binlog_query(enum_binlog_query_type qtype,
-                   char const *query, ulong query_len, bool is_trans,
+                   const char *query, size_t query_len, bool is_trans,
                    bool direct, bool suppress_use,
                    int errcode);
 #endif
@@ -3117,17 +2852,25 @@ public:
   virtual bool notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
+  /**
+    Provide thread specific random seed for MDL_context's PRNG.
+
+    Note that even if two connections will request seed during handling of
+    statements which were started at exactly the same time, and thus will
+    get the same values in PRNG at the start, they will naturally diverge
+    soon, since calls to PRNG in MDL subsystem are affected by many factors
+    making process quite random. OTOH the fact that we use time as a seed
+    gives more randomness and thus better coverage in tests as opposed to
+    using thread_id for the same purpose.
+  */
+  virtual uint get_rand_seed() { return (uint)start_utime; }
+
   // End implementation of MDL_context_owner interface.
 
-  inline sql_mode_t datetime_flags() const
-  {
-    return variables.sql_mode &
-      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
-  }
   inline bool is_strict_mode() const
   {
-    return test(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                      MODE_STRICT_ALL_TABLES));
+    return MY_TEST(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                         MODE_STRICT_ALL_TABLES));
   }
   inline Time_zone *time_zone()
   {
@@ -3280,13 +3023,9 @@ public:
   {
     return !stmt_arena->is_stmt_prepare();
   }
-  inline void* trans_alloc(unsigned int size)
-  {
-    return alloc_root(&transaction.mem_root,size);
-  }
 
   LEX_STRING *make_lex_string(LEX_STRING *lex_str,
-                              const char* str, uint length,
+                              const char* str, size_t length,
                               bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
@@ -3298,7 +3037,6 @@ public:
 
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
-  CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
   int send_explain_fields(select_result *result);
 
   /**
@@ -3371,16 +3109,31 @@ public:
   { return get_stmt_da()->stacked_da(); }
 
   /**
+    Returns thread-local Diagnostics Area for parsing.
+    We need to have a clean DA in case errors or warnings are thrown
+    during parsing, but we can't just reset the main DA in case we
+    have a diagnostic statement on our hand that needs the old DA
+    to answer questions about the previous execution.
+    Keeping a static per-thread DA for parsing is less costly than
+    allocating a temporary one for each statement we parse.
+  */
+  Diagnostics_area *get_parser_da()
+  { return &m_parser_da; }
+
+  /**
     Push the given Diagnostics Area on top of the stack, making
     it the new first Diagnostics Area. Conditions in the new second
     Diagnostics Area will be copied to the new first Diagnostics Area.
 
     @param da   Diagnostics Area to be come the top of
                 the Diagnostics Area stack.
+    @param copy_conditions
+                Copy the conditions from the new second Diagnostics Area
+                to the new first Diagnostics Area, as per SQL standard.
   */
-  void push_diagnostics_area(Diagnostics_area *da)
+  void push_diagnostics_area(Diagnostics_area *da, bool copy_conditions= true)
   {
-    get_stmt_da()->push_diagnostics_area(this, da);
+    get_stmt_da()->push_diagnostics_area(this, da, copy_conditions);
     m_stmt_da= da;
   }
 
@@ -3391,7 +3144,7 @@ public:
   }
 
 public:
-  inline const CHARSET_INFO *charset()
+  const CHARSET_INFO *charset() const
   { return variables.character_set_client; }
   void update_charset();
 
@@ -3403,6 +3156,8 @@ public:
       DBUG_PRINT("info",
                  ("change_item_tree place %p old_value %p new_value %p",
                   place, *place, new_value));
+      if (new_value)
+        new_value->set_runtime_created(); /* Note the change of item tree */
       nocheck_register_item_tree_change(place, *place, mem_root);
     }
     *place= new_value;
@@ -3441,7 +3196,7 @@ public:
     int err= killed_errno();
     if (err && !get_stmt_da()->is_set())
     {
-      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
+      if ((err == KILL_CONNECTION) && !abort_loop)
         err = KILL_QUERY;
       /*
         KILL is fatal because:
@@ -3458,7 +3213,8 @@ public:
   inline bool really_abort_on_warning()
   {
     return (abort_on_warning &&
-            (!transaction.stmt.cannot_safely_rollback() ||
+            (!get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT) ||
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
@@ -3543,6 +3299,15 @@ public:
     DBUG_VOID_RETURN;
   }
 
+#ifdef HAVE_REPLICATION
+  /**
+    Copies variables.gtid_next to
+    ((Slave_worker *)rli_slave)->currently_executing_gtid,
+    if this is a slave thread.
+  */
+  void set_currently_executing_gtid_for_slave_thread();
+#endif
+
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
   Gtid_set *get_gtid_next_list()
   {
@@ -3570,6 +3335,13 @@ public:
     gtids, owned_gtid.sidno==-1.
   */
   Gtid owned_gtid;
+
+  /**
+    For convenience, this contains the SID component of the GTID
+    stored in owned_gtid.
+  */
+  rpl_sid owned_sid;
+
   /**
     If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),
     then this member variable contains the subset of those GTIDs that
@@ -3581,14 +3353,26 @@ public:
   {
     if (owned_gtid.sidno == -1)
     {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set.clear();
 #else
       DBUG_ASSERT(0);
 #endif
     }
     owned_gtid.sidno= 0;
+    owned_sid.clear();
   }
+
+  /*
+    There are some statements (like OPTIMIZE TABLE, ANALYZE TABLE and
+    REPAIR TABLE) that might call trans_rollback_stmt() and also will be
+    sucessfully executed and will have to go to the binary log.
+    For these statements, the skip_gtid_rollback flag must be set to avoid
+    problems when the statement is executed with a GTID_NEXT set to GTID_GROUP
+    (like the SQL thread do when applying events from other server).
+    When this flag is set, a call to gtid_rollback() will do nothing.
+  */
+  bool skip_gtid_rollback;
 
   /**
     Set the current database; use deep copy of C-string.
@@ -3614,6 +3398,12 @@ public:
   bool set_db(const char *new_db, size_t new_db_len)
   {
     bool result;
+    /*
+      Acquiring mutex LOCK_thd_data as we either free the memory allocated
+      for the database and reallocating the memory for the new db or memcpy
+      the new_db to the db.
+    */
+    mysql_mutex_lock(&LOCK_thd_data);
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
       memcpy(db, new_db, new_db_len+1);
@@ -3621,11 +3411,13 @@ public:
     {
       my_free(db);
       if (new_db)
-        db= my_strndup(new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
+        db= my_strndup(key_memory_THD_db,
+                       new_db, new_db_len, MYF(MY_WME | ME_FATALERROR));
       else
         db= NULL;
     }
     db_length= db ? new_db_len : 0;
+    mysql_mutex_unlock(&LOCK_thd_data);
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
@@ -3770,8 +3562,8 @@ private:
                   const char* msg);
 
 public:
-  /** Overloaded to guard query/query_length fields */
-  virtual void set_statement(Statement *stmt);
+  void set_n_backup_statement(Statement *stmt, Statement *backup);
+  void restore_backup_statement(Statement *stmt, Statement *backup);
 
   void set_command(enum enum_server_command command);
 
@@ -3779,31 +3571,74 @@ public:
   { return m_command; }
 
   /**
-    Assign a new value to thd->query and thd->query_id and mysys_var.
-    Protected with LOCK_thd_data mutex.
+    For safe and protected access to the query string, the following
+    rules should be followed:
+    1: Only the owner (current_thd) can set the query string.
+       This will be protected by LOCK_thd_query.
+    2: The owner (current_thd) can read the query string without
+       locking LOCK_thd_query.
+    3: Other threads must lock LOCK_thd_query before reading
+       the query string.
+
+    This means that write-write conflicts are avoided by LOCK_thd_query.
+    Read(by owner or other thread)-write(other thread) are disallowed.
+    Read(other thread)-write(by owner) conflicts are avoided by LOCK_thd_query.
+    Read(by owner)-write(by owner) won't happen as THD=thread.
   */
-  void set_query(char *query_arg, uint32 query_length_arg,
-                 const CHARSET_INFO *cs_arg)
+  virtual const LEX_CSTRING& query() const
   {
-    set_query(CSET_STRING(query_arg, query_length_arg, cs_arg));
+#ifndef DBUG_OFF
+    if (current_thd != this)
+      mysql_mutex_assert_owner(&LOCK_thd_query);
+#endif
+    return Statement::query();
   }
-  void set_query(char *query_arg, uint32 query_length_arg) /*Mutex protected*/
+
+  /**
+    Assign a new value to thd->m_query_string.
+    Protected with the LOCK_thd_query mutex.
+  */
+  void set_query(const char *query_arg, size_t query_length_arg)
   {
-    set_query(CSET_STRING(query_arg, query_length_arg, charset()));
+    LEX_CSTRING tmp= { query_arg, query_length_arg };
+    set_query(tmp);
   }
-  void set_query(const CSET_STRING &str); /* Mutex protected */
-  void reset_query()               /* Mutex protected */
-  { set_query(CSET_STRING()); }
-  void set_query_and_id(char *query_arg, uint32 query_length_arg,
-                        const CHARSET_INFO *cs, query_id_t new_query_id);
-  void set_query_id(query_id_t new_query_id);
+  void set_query(const LEX_CSTRING& query_arg);
+  void reset_query() { set_query(LEX_CSTRING()); }
+
+  /**
+    Assign a new value to thd->query_id.
+    Protected with the LOCK_thd_data mutex.
+  */
+  void set_query_id(query_id_t new_query_id)
+  {
+    mysql_mutex_lock(&LOCK_thd_data);
+    query_id= new_query_id;
+    mysql_mutex_unlock(&LOCK_thd_data);
+  }
+
+  /**
+    Assign a new value to open_tables.
+    Protected with the LOCK_thd_data mutex.
+  */
   void set_open_tables(TABLE *open_tables_arg)
   {
     mysql_mutex_lock(&LOCK_thd_data);
     open_tables= open_tables_arg;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
-  void set_mysys_var(struct st_my_thread_var *new_mysys_var);
+
+  /**
+    Assign a new value to mysys_var.
+    Protected with the LOCK_thd_data mutex.
+  */
+  void set_mysys_var(struct st_my_thread_var *new_mysys_var)
+  {
+    mysql_mutex_lock(&LOCK_thd_data);
+    mysys_var= new_mysys_var;
+    mysql_mutex_unlock(&LOCK_thd_data);
+  }
+
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
@@ -3882,6 +3717,8 @@ public:
   LEX_STRING get_invoker_host() { return invoker_host; }
   bool has_invoker() { return invoker_user.length > 0; }
 
+  void mark_transaction_to_rollback(bool all);
+
 #ifndef DBUG_OFF
 private:
   int gis_debug; // Storage for "SELECT ST_GIS_DEBUG(param);"
@@ -3912,6 +3749,7 @@ private:
   */
   MEM_ROOT main_mem_root;
   Diagnostics_area main_da;
+  Diagnostics_area m_parser_da;              /**< cf. get_parser_da() */
   Diagnostics_area *m_stmt_da;
 
   /**
@@ -3932,6 +3770,28 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+
+private:
+  /**
+    Optimizer cost model for server operations.
+  */
+  Cost_model_server m_cost_model;
+
+public:
+  /**
+    Initialize the optimizer cost model.
+
+    This function should be called each time a new query is started.
+  */
+  void init_cost_model() { m_cost_model.init(); }
+
+  /**
+    Retrieve the optimizer cost model for this connection.
+  */
+  const Cost_model_server* cost_model() const { return &m_cost_model; }
+
+  Session_tracker session_tracker;
+  Session_sysvar_resource_manager session_sysvar_res_mgr;
 };
 
 
@@ -4014,11 +3874,28 @@ my_eof(THD *thd)
 
 #define reenable_binlog(A)   (A)->variables.option_bits= tmp_disable_binlog__save_options;}
 
-
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
-                     LEX_STRING *lex_str, const char* str, uint length,
+                     LEX_STRING *lex_str, const char* str, size_t length,
                      bool allocate_lex_string);
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const char *src, size_t src_len)
+{
+  return make_lex_string_root(root, dst, src, src_len, false);
+}
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const LEX_STRING &src)
+{
+  return make_lex_string_root(root, dst, src.str, src.length, false);
+}
+
+inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
+                                   const char *src)
+{
+  return make_lex_string_root(root, dst, src, strlen(src), false);
+}
 
 /*
   Used to hold information about file and file structure in exchange
@@ -4059,6 +3936,23 @@ public:
   ha_rows estimated_rowcount;
   select_result();
   virtual ~select_result() {};
+  /**
+    Change wrapped select_result.
+
+    Replace the wrapped result object with new_result and call
+    prepare() and prepare2() on new_result.
+
+    This base class implementation doesn't wrap other select_results.
+
+    @param new_result The new result object to wrap around
+
+    @retval false Success
+    @retval true  Error
+  */
+  virtual bool change_result(select_result *new_result)
+  {
+    return false;
+  }
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
   {
     unit= u;
@@ -4117,7 +4011,7 @@ public:
 class select_result_interceptor: public select_result
 {
 public:
-  select_result_interceptor() {}              /* Remove gcc warning */
+  select_result_interceptor() {}  /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_result_set_metadata(List<Item> &fields, uint flag) { return FALSE; }
 };
@@ -4223,6 +4117,9 @@ private:
      allowed.
    */
   List<Item> *fields;
+protected:
+  /// ha_start_bulk_insert has been called. Never cleared.
+  bool bulk_insert_started;
 public:
   ulonglong autoinc_value_of_last_inserted_row; // autogenerated or not
   COPY_INFO info;
@@ -4235,16 +4132,8 @@ public:
 
      @param table_list_par   The table reference for the destination table.
      @param table_par        The destination table. May be NULL.
-     @param target_columns   The columns of the table which is the target for
-                             insertion. May be NULL, but if not, the same
-                             value must be used for target_or_source_columns.
-     @param target_or_source_columns The columns of the source table providing
-                             data, or columns of the target table. If the
-                             target table is known, the columns of that table
-                             should be used. If the target table is not known
-                             (it may not yet exist), the columns of the source
-                             table should be used, and target_columns should
-                             be NULL.
+     @param target_columns   See details.
+     @param target_or_source_columns See details.
      @param update_fields    The columns to be updated in case of duplicate
                              keys. May be NULL.
      @param update_values    The values to be assigned in case of duplicate
@@ -4259,25 +4148,31 @@ public:
      select_insert members initialized here are totally redundant, as they are
      found inside the COPY_INFO.
 
-     Here is the explanation of how we set the manage_defaults parameter of
-     info's constructor below.
-     @li if target_columns==NULL, the statement is
+     The target_columns and target_or_source_columns arguments are set by
+     callers as follows:
+     @li if CREATE SELECT:
+      - target_columns == NULL,
+      - target_or_source_columns == expressions listed after SELECT, as in
+          CREATE ... SELECT expressions
+     @li if INSERT SELECT:
+      target_columns
+      == target_or_source_columns
+      == columns listed between INSERT and SELECT, as in
+          INSERT INTO t (columns) SELECT ...
+
+     We set the manage_defaults argument of info's constructor as follows
+     ([...] denotes something optional):
+     @li If target_columns==NULL, the statement is
 @verbatim
-     CREATE TABLE a_table (possibly some columns1) SELECT columns2
+     CREATE TABLE a_table [(columns1)] SELECT expressions2
 @endverbatim
-     which sets all of a_table's columns2 to values returned by SELECT (no
-     default needs to be set); a_table's columns1 get set from defaults
-     prepared by make_empty_rec() when table is created, not by COPY_INFO. So
-     manage_defaults is "false".
-     @li otherwise, target_columns!=NULL and so it is INSERT SELECT. If there
-     are explicitely listed columns like
+     so 'info' must manage defaults of columns1.
+     @li Otherwise it is:
 @verbatim
-     INSERT INTO a_table (columns1) SELECT ...
+     INSERT INTO a_table [(columns1)] SELECT ...
 @verbatim
-     then non-listed columns (columns of a_table which are not columns1) may
-     need a default set by COPY_INFO so manage_defaults is "true". If no
-     column is explicitely listed, all columns will be set to values returned
-     by SELECT, so "manage_defaults" is false.
+     target_columns is columns1, if not empty then 'info' must manage defaults
+     of other columns than columns1.
   */
   select_insert(TABLE_LIST *table_list_par,
                 TABLE *table_par,
@@ -4290,11 +4185,12 @@ public:
     :table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
+     bulk_insert_started(false),
      autoinc_value_of_last_inserted_row(0),
      info(COPY_INFO::INSERT_OPERATION,
           target_columns,
           // manage_defaults
-          target_columns != NULL && target_columns->elements != 0,
+          (target_columns == NULL || target_columns->elements != 0),
           duplic,
           ignore),
      update(COPY_INFO::UPDATE_OPERATION,
@@ -4375,20 +4271,27 @@ public:
 
 #include <myisam.h>
 
-/* 
-  Param to create temporary tables when doing SELECT:s 
-  NOTE
-    This structure is copied using memcpy as a part of JOIN.
-*/
+typedef Mem_root_array<Item*, true> Func_ptr_array;
 
-class TMP_TABLE_PARAM :public Sql_alloc
+/**
+  Object containing parameters used when creating and using temporary
+  tables. Temporary tables created with the help of this object are
+  used only internally by the query execution engine.
+*/
+class Temp_table_param :public Sql_alloc
 {
 public:
   List<Item> copy_funcs;
   Copy_field *copy_field, *copy_field_end;
   uchar	    *group_buff;
-  Item	    **items_to_copy;			/* Fields in tmp table */
+  Func_ptr_array *items_to_copy;             /* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
+
+  /**
+    After temporary table creation, points to an index on the table
+    created depending on the purpose of the table - grouping,
+    duplicate elimination, etc. There is at most one such index.
+  */
   KEY *keyinfo;
   ha_rows end_write_records;
   /**
@@ -4420,7 +4323,20 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  /**
+    Number of outer_sum_funcs i.e the number of set functions that are
+    aggregated in a query block outer to this subquery.
+
+    @see count_field_types
+  */
+  uint  outer_sum_func_count;
+  /**
+    Enabled when we have atleast one outer_sum_func. Needed when used
+    along with distinct.
+
+    @see create_tmp_table
+  */
+  bool  using_outer_summary_function;
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4445,40 +4361,53 @@ public:
   */
   bool bit_fields_as_long;
 
-  TMP_TABLE_PARAM()
-    :copy_field(0), copy_field_end(0), group_parts(0),
-     group_length(0), group_null_parts(0),
-     using_indirect_summary_function(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     skip_create_table(FALSE), bit_fields_as_long(0)
+  Temp_table_param()
+    :copy_field(NULL), copy_field_end(NULL),
+     recinfo(NULL), start_recinfo(NULL),
+     keyinfo(NULL),
+     field_count(0), func_count(0), sum_func_count(0), hidden_field_count(0),
+     group_parts(0), group_length(0), group_null_parts(0),
+     quick_group(1),
+     outer_sum_func_count(0),
+     using_outer_summary_function(false),
+     table_charset(NULL),
+     schema_table(false), precomputed_group_by(false), force_copy_fields(false),
+     skip_create_table(false), bit_fields_as_long(false)
   {}
-  ~TMP_TABLE_PARAM()
+  ~Temp_table_param()
   {
     cleanup();
   }
-  void init(void);
-  inline void cleanup(void)
+
+  void cleanup(void)
   {
-    if (copy_field)				/* Fix for Intel compiler */
-    {
-      delete [] copy_field;
-      copy_field= NULL;
-      copy_field_end= NULL;
-    }
+    delete [] copy_field;
+    copy_field= NULL;
+    copy_field_end= NULL;
   }
 };
 
 class select_union :public select_result_interceptor
 {
-  TMP_TABLE_PARAM tmp_table_param;
+  Temp_table_param tmp_table_param;
 public:
   TABLE *table;
 
   select_union() :table(0) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+  /**
+    Do prepare() and prepare2() if they have been postponed until
+    column type information is computed (used by select_union_direct).
+
+    @param types Column types
+
+    @return false on success, true on failure
+  */
+  virtual bool postponed_prepare(List<Item> &types)
+  { return false; }
   bool send_data(List<Item> &items);
   bool send_eof();
-  bool flush();
+  virtual bool flush();
   void cleanup();
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
@@ -4486,6 +4415,104 @@ public:
                            bool create_table);
   friend bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived);
 };
+
+
+/**
+  UNION result that is passed directly to the receiving select_result
+  without filling a temporary table.
+
+  Function calls are forwarded to the wrapped select_result, but some
+  functions are expected to be called only once for each query, so
+  they are only executed for the first SELECT in the union (execept
+  for send_eof(), which is executed only for the last SELECT).
+
+  This select_result is used when a UNION is not DISTINCT and doesn't
+  have a global ORDER BY clause. @see st_select_lex_unit::prepare().
+*/
+class select_union_direct :public select_union
+{
+private:
+  /// Result object that receives all rows
+  select_result *result;
+  /// The last SELECT_LEX of the union
+  SELECT_LEX *last_select_lex;
+
+  /// Wrapped result has received metadata
+  bool done_send_result_set_metadata;
+  /// Wrapped result has initialized tables
+  bool done_initialize_tables;
+
+  /// Accumulated limit_found_rows
+  ulonglong limit_found_rows;
+
+  /// Number of rows offset
+  ha_rows offset;
+  /// Number of rows limit + offset, @see select_union_direct::send_data()
+  ha_rows limit;
+
+public:
+  select_union_direct(select_result *result, SELECT_LEX *last_select_lex)
+    :result(result), last_select_lex(last_select_lex),
+    done_send_result_set_metadata(false), done_initialize_tables(false),
+    limit_found_rows(0)
+  {}
+  bool change_result(select_result *new_result);
+  uint field_count(List<Item> &fields) const
+  {
+    // Only called for top-level select_results, usually select_send
+    DBUG_ASSERT(false); /* purecov: inspected */
+    return 0; /* purecov: inspected */
+  }
+  bool postponed_prepare(List<Item> &types);
+  bool send_result_set_metadata(List<Item> &list, uint flags);
+  bool send_data(List<Item> &items);
+  bool initialize_tables (JOIN *join= NULL);
+  void send_error(uint errcode, const char *err)
+  {
+    result->send_error(errcode, err); /* purecov: inspected */
+  }
+  bool send_eof();
+  bool flush() { return false; }
+  bool check_simple_select() const
+  {
+    // Only called for top-level select_results, usually select_send
+    DBUG_ASSERT(false); /* purecov: inspected */
+    return false; /* purecov: inspected */
+  }
+  void abort_result_set()
+  {
+    result->abort_result_set(); /* purecov: inspected */
+  }
+  void cleanup()
+  {
+    /*
+      Only called for top-level select_results, usually select_send,
+      and for the results of subquery engines
+      (select_<something>_subselect).
+    */
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+  void set_thd(THD *thd_arg)
+  {
+    /*
+      Only called for top-level select_results, usually select_send,
+      and for the results of subquery engines
+      (select_<something>_subselect).
+    */
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+  void reset_offset_limit_cnt()
+  {
+    // EXPLAIN should never output to a select_union_direct
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+  void begin_dataset()
+  {
+    // Only called for sp_cursor::Select_fetch_into_spvars
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+};
+
 
 /* Base subselect interface class */
 class select_subselect :public select_result_interceptor
@@ -4575,7 +4602,7 @@ public:
   SELECT_LEX_UNIT *sel;
   inline Table_ident(THD *thd, LEX_STRING db_arg, LEX_STRING table_arg,
 		     bool force)
-    :table(table_arg), sel((SELECT_LEX_UNIT *)0)
+    :table(table_arg), sel(NULL)
   {
     if (!force && (thd->client_capabilities & CLIENT_NO_SCHEMA))
       db.str=0;
@@ -4583,7 +4610,7 @@ public:
       db= db_arg;
   }
   inline Table_ident(LEX_STRING table_arg) 
-    :table(table_arg), sel((SELECT_LEX_UNIT *)0)
+    :table(table_arg), sel(NULL)
   {
     db.str=0;
   }
@@ -4601,7 +4628,7 @@ public:
     table.str= internal_table_name;
     table.length=1;
   }
-  bool is_derived_table() const { return test(sel); }
+  bool is_derived_table() const { return MY_TEST(sel); }
   inline void change_db(char *db_name)
   {
     db.str= db_name; db.length= (uint) strlen(db_name);
@@ -4675,13 +4702,14 @@ class user_var_entry
   /**
     Initialize all members
     @param name - Name of the user_var_entry instance.
+    @cs         - charset information of the user_var_entry instance.
   */
-  void init(const Simple_cstring &name)
+  void init(const Simple_cstring &name, const CHARSET_INFO *cs)
   {
     copy_name(name);
     reset_value();
     update_query_id= 0;
-    collation.set(NULL, DERIVATION_IMPLICIT, 0);
+    collation.set(cs, DERIVATION_IMPLICIT, 0);
     unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
@@ -4751,19 +4779,21 @@ public:
   /**
     Allocate and initialize a user variable instance.
     @param namec  Name of the variable.
+    @param cs     Charset of the variable.
     @return
     @retval  Address of the allocated and initialized user_var_entry instance.
     @retval  NULL on allocation error.
   */
-  static user_var_entry *create(const Name_string &name)
+  static user_var_entry *create(const Name_string &name, const CHARSET_INFO *cs)
   {
     user_var_entry *entry;
-    uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
-               (name.length() + 1) + extra_size;
-    if (!(entry= (user_var_entry*) my_malloc(size, MYF(MY_WME |
+    size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
+                 (name.length() + 1) + extra_size;
+    if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
+                                             size, MYF(MY_WME |
                                                        ME_FATALERROR))))
       return NULL;
-    entry->init(name);
+    entry->init(name, cs);
     return entry;
   }
 
@@ -4788,75 +4818,28 @@ public:
   my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
 };
 
-/*
-   Unique -- class for unique (removing of duplicates). 
-   Puts all values to the TREE. If the tree becomes too big,
-   it's dumped to the file. User can request sorted values, or
-   just iterate through them. In the last case tree merging is performed in
-   memory simultaneously with iteration, so it should be ~2-3x faster.
- */
-
-class Unique :public Sql_alloc
-{
-  DYNAMIC_ARRAY file_ptrs;
-  ulong max_elements;
-  ulonglong max_in_memory_size;
-  IO_CACHE file;
-  TREE tree;
-  uchar *record_pointers;
-  bool flush();
-  uint size;
-
-public:
-  ulong elements;
-  Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
-	 uint size_arg, ulonglong max_in_memory_size_arg);
-  ~Unique();
-  ulong elements_in_tree() { return tree.elements_in_tree; }
-  inline bool unique_add(void *ptr)
-  {
-    DBUG_ENTER("unique_add");
-    DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
-    if (tree.elements_in_tree > max_elements && flush())
-      DBUG_RETURN(1);
-    DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));
-  }
-
-  bool get(TABLE *table);
-  static double get_use_cost(uint *buffer, uint nkeys, uint key_size, 
-                             ulonglong max_in_memory_size);
-  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
-                                            ulonglong max_in_memory_size)
-  {
-    ulonglong max_elems_in_tree=
-      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
-    return (int) (sizeof(uint)*(1 + nkeys/max_elems_in_tree));
-  }
-
-  void reset();
-  bool walk(tree_walk_action action, void *walk_action_arg);
-
-  uint get_size() const { return size; }
-  ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
-
-  friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
-  friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);
-};
-
-
 class multi_delete :public select_result_interceptor
 {
-  TABLE_LIST *delete_tables, *table_being_deleted;
+  TABLE_LIST *delete_tables;
+  /// Pointers to temporary files used for delayed deletion of rows
   Unique **tempfiles;
+  /// Pointers to table objects matching tempfiles
+  TABLE **tables;
   ha_rows deleted, found;
   uint num_of_tables;
   int error;
+  /// Map of all tables to delete rows from
+  table_map delete_table_map;
+  /// Map of tables to delete from immediately
+  table_map delete_immediate;
+  // Map of transactional tables to be deleted from
+  table_map transactional_table_map;
+  /// Map of non-transactional tables to be deleted from
+  table_map non_transactional_table_map;
+  /// True if some delete operation has been performed (immediate or delayed)
   bool do_delete;
-  /* True if at least one table we delete from is transactional */
-  bool transactional_tables;
-  /* True if at least one table we delete from is not transactional */
-  bool normal_tables;
-  bool delete_while_scanning;
+  /// True if some actual delete operation against non-transactional table done
+  bool non_transactional_deleted;
   /*
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.
@@ -4891,7 +4874,7 @@ class multi_update :public select_result_interceptor
   TABLE_LIST *leaves;     /* list of leves of join table tree */
   TABLE_LIST *update_tables, *table_being_updated;
   TABLE **tmp_tables, *main_table, *table_to_update;
-  TMP_TABLE_PARAM *tmp_table_param;
+  Temp_table_param *tmp_table_param;
   ha_rows updated, found;
   List <Item> *fields, *values;
   List <Item> **fields_for_table, **values_for_table;
@@ -5100,13 +5083,12 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
-void mark_transaction_to_rollback(THD *thd, bool all);
 
 /* Inline functions */
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex->current_select->add_item_to_list(thd, item);
+  return thd->lex->current_select()->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
@@ -5116,13 +5098,20 @@ inline bool add_value_to_list(THD *thd, Item *value)
 
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_order_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_order_to_list(thd, item, asc);
+}
+
+inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
+{
+  return thd->lex->current_select()->add_gorder_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
-  return thd->lex->current_select->add_group_to_list(thd, item, asc);
+  return thd->lex->current_select()->add_group_to_list(thd, item, asc);
 }
+
+/*************************************************************************/
 
 #endif /* MYSQL_SERVER */
 

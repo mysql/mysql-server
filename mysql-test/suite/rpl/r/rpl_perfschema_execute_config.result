@@ -1,0 +1,37 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/assert.inc [On master, the table should return an empty set.]
+
+# Verify that SELECT works and produces an output similar to
+# the corresponding field in SHOW SLAVE STATUS(SSS) in all scenarios.
+
+
+# Verify that output is same as SSS on a fresh slave.
+
+include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+
+# Verify that the value of this field is correct after STOP SLAVE.
+
+include/stop_slave.inc
+include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+
+# Verify that, when desired delay is set, the value is shown corectly.
+
+change master to master_delay= 2;
+include/start_slave.inc
+include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+
+# Verify that the value is preserved after STOP SLAVE.
+
+include/stop_slave.inc
+include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+
+# Verify that, when desired delay is reset, the value is shown corectly.
+
+change master to master_delay= 0;
+include/start_slave.inc
+include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+include/rpl_end.inc

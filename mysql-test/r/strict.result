@@ -2,7 +2,7 @@ set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
 select @@sql_mode;
 @@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (col1 date);
 INSERT INTO t1 VALUES('2004-01-01'),('2004-02-29');
@@ -26,23 +26,27 @@ ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 INSERT INTO t1 VALUES ('59');
 ERROR 22007: Incorrect date value: '59' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES';
-INSERT INTO t1 VALUES('2004-01-03'),('2004-0-31');
-set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
+INSERT IGNORE INTO t1 VALUES('2004-01-03'),('2004-0-31');
+Warnings:
+Warning	1264	Out of range value for column 'col1' at row 2
 INSERT INTO t1 VALUES('2004-0-30');
 ERROR 22007: Incorrect date value: '2004-0-30' for column 'col1' at row 1
 INSERT INTO t1 VALUES('2004-01-04'),('2004-0-31'),('2004-01-05');
 ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 2
-INSERT INTO t1 VALUES('0000-00-00');
+INSERT IGNORE INTO t1 VALUES('0000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'col1' at row 1
 INSERT IGNORE INTO t1 VALUES('2004-0-29');
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
-set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
 INSERT INTO t1 VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 INSERT IGNORE INTO t1 VALUES('0000-00-00');
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
-INSERT INTO t1 VALUES ('2004-0-30');
+INSERT IGNORE INTO t1 VALUES ('2004-0-30');
+Warnings:
+Warning	1264	Out of range value for column 'col1' at row 1
 INSERT INTO t1 VALUES ('2004-2-30');
 ERROR 22007: Incorrect date value: '2004-2-30' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
@@ -59,12 +63,12 @@ col1
 0000-10-31
 2004-01-02
 2004-01-03
-2004-00-31
+0000-00-00
 2004-01-04
 0000-00-00
 0000-00-00
 0000-00-00
-2004-00-30
+0000-00-00
 2004-02-30
 2004-02-29
 0000-00-00
@@ -186,10 +190,13 @@ INSERT INTO t1 VALUES('2004-10-32 15:30:00');
 ERROR 22007: Incorrect datetime value: '2004-10-32 15:30:00' for column 'col1' at row 1
 INSERT INTO t1 VALUES('2004-02-30 15:30:04');
 ERROR 22007: Incorrect datetime value: '2004-02-30 15:30:04' for column 'col1' at row 1
-INSERT INTO t1 VALUES('0000-00-00 00:00:00');
-set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
-INSERT INTO t1 VALUES('0000-00-00 00:00:00');
-set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
+INSERT IGNORE INTO t1 VALUES('0000-00-00 00:00:00');
+Warnings:
+Warning	1264	Out of range value for column 'col1' at row 1
+set @@sql_mode='STRICT_ALL_TABLES';
+INSERT IGNORE INTO t1 VALUES('0000-00-00 00:00:00');
+Warnings:
+Warning	1264	Out of range value for column 'col1' at row 1
 INSERT INTO t1 VALUES('0000-00-00 00:00:00');
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'col1' at row 1
 set @@sql_mode='ansi,traditional';
@@ -350,8 +357,8 @@ UPDATE t1 SET col2=col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value for column 'col2' at row 3
 UPDATE t1 SET col1=col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
-INSERT INTO t1 values (1/0,1/0);
+set @@sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+INSERT IGNORE INTO t1 values (1/0,1/0);
 Warnings:
 Warning	1365	Division by 0
 Warning	1365	Division by 0
@@ -1143,13 +1150,13 @@ insert into t1 (col1) values (convert('0000-00-00',date));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 insert into t1 (col1) values (cast('0000-00-00' as date));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
-set sql_mode='no_zero_date';
-insert into t1 values (0,0,0);
+set sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+insert ignore into t1 values (0,0,0);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
 Warning	1264	Out of range value for column 'col2' at row 1
 Warning	1264	Out of range value for column 'col3' at row 1
-insert into t1 values (0.0,0.0,0.0);
+insert ignore into t1 values (0.0,0.0,0.0);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
 Warning	1264	Out of range value for column 'col2' at row 1
@@ -1172,7 +1179,16 @@ insert into t1 select * from t1;
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 alter table t1 modify col1 datetime;
 ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col1' at row 1
-alter ignore table t1 modify col1 datetime;
+select * from t1;
+col1
+0000-00-00
+0000-00-00
+NULL
+drop table t1;
+create table t1 (col1 datetime);
+insert ignore into t1 values ('0000-00-00 00:00:00'),
+('0000-00-00 00:00:00'),
+(NULL);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
 Warning	1264	Out of range value for column 'col1' at row 2
@@ -1273,7 +1289,7 @@ alter table t1 add primary key(a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -1283,7 +1299,7 @@ alter table t1 add primary key(a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` timestamp NOT NULL DEFAULT '2005-01-02 03:04:05',
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -1495,7 +1511,7 @@ create table t1 (f1 set('a','a'));
 ERROR HY000: Column 'f1' has duplicated value 'a' in SET
 create table t1 (f1 enum('a','a'));
 ERROR HY000: Column 'f1' has duplicated value 'a' in ENUM
-set @@sql_mode='NO_ZERO_DATE';
+set @@sql_mode='STRICT_ALL_TABLES';
 create table t1(a datetime not null);
 select count(*) from t1 where a is null;
 count(*)
@@ -1509,9 +1525,9 @@ End of 5.0 tests
 # WL#946 TIME/TIMESTAMP/DATETIME with fractional seconds: CAST to DATETIME
 #
 #
-# STR_TO_DATE with NO_ZERO_DATE did not return NULL (with warning)
+# STR_TO_DATE did not return NULL (with warning)
 # in get_date(). Only did in val_str() and val_int().
-SET sql_mode='NO_ZERO_DATE';
+SET sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
 SELECT
 STR_TO_DATE('2001','%Y'),
 CONCAT(STR_TO_DATE('2001','%Y')),
@@ -1525,3 +1541,134 @@ Warning	1411	Incorrect datetime value: '2001' for function str_to_date
 #
 # End of 5.6 tests
 #
+#
+# WL#7467 : Deprecate (5.6) and remove (5.7) ERROR_FOR_DIVISION_BY_ZERO, 
+#           NO_ZERO_DATE, NO_ZERO_IN_DATE SQL MODES and make their
+#           functionality part of STRICT MODE
+#
+# Previously, insertion of ZERO dates used to give error if STRICT MODE 
+# was enabled with NO_ZERO_DATE and NO_ZERO_IN_DATE modes. Also Division
+# by Zero would cause the statement to fail if STRICT MODE was enabled
+# with ERROR_FOR_DIVISION_BY_ZERO mode.
+# With the implementation of this Worklog, since the functionality of 
+# NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO has 
+# become part of STRICT MODE, DML statements inserting Invalid dates or
+# causing division by zero errors are rejected when STRICT MODE is enabled.
+# However, if the user still wants to insert invalid dates in
+# in STRICT MODE, or does not want the statement to fail in case of division
+# by zero error, the same previous behaviour can be achieved by using
+# IGNORE keyword along with the supported DML statements.
+#
+SET @@sql_mode = 'STRICT_ALL_TABLES';
+CREATE TABLE t1 (a DATE);
+INSERT INTO t1 VALUES('0000-00-00');
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+INSERT IGNORE INTO t1 VALUES('0000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+SELECT * FROM t1;
+a
+0000-00-00
+INSERT INTO t1 VALUES('2004-0-30');
+ERROR 22007: Incorrect date value: '2004-0-30' for column 'a' at row 1
+INSERT IGNORE INTO t1 VALUES('2004-0-30');
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+SELECT * FROM t1;
+a
+0000-00-00
+0000-00-00
+UPDATE t1 SET a = '0000-00-00';
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+UPDATE IGNORE t1 SET a = '0000-00-00';
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+SELECT * FROM t1;
+a
+0000-00-00
+0000-00-00
+UPDATE t1 SET a = '2004-0-30';
+ERROR 22007: Incorrect date value: '2004-0-30' for column 'a' at row 1
+UPDATE IGNORE t1 SET a = '2004-0-30';
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+SELECT * FROM t1;
+a
+0000-00-00
+0000-00-00
+INSERT INTO t1 SELECT * FROM t1;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+INSERT IGNORE INTO t1 SELECT * FROM t1;
+Warnings:
+Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
+SELECT * FROM t1;
+a
+0000-00-00
+0000-00-00
+0000-00-00
+0000-00-00
+CREATE TABLE t2(b DATE) SELECT a FROM t1;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+CREATE TABLE t2 (b DATE) IGNORE SELECT a FROM t1;
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+Warning	1264	Out of range value for column 'a' at row 4
+SELECT * FROM t2;
+b	a
+NULL	0000-00-00
+NULL	0000-00-00
+NULL	0000-00-00
+NULL	0000-00-00
+DROP TABLE t2;
+INSERT INTO t1 VALUES(1/0);
+ERROR 22012: Division by 0
+INSERT IGNORE INTO t1 VALUES(1/0);
+Warnings:
+Warning	1365	Division by 0
+SELECT * FROM t1;
+a
+0000-00-00
+0000-00-00
+0000-00-00
+0000-00-00
+NULL
+UPDATE t1 SET a = (1/0);
+ERROR 22012: Division by 0
+UPDATE IGNORE t1 SET a = (1/0);
+Warnings:
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+CREATE TABLE t2(b DATE) SELECT (1/0) FROM t1;
+ERROR 22012: Division by 0
+CREATE TABLE t2 (b DATE) IGNORE SELECT (1/0) FROM t1;
+Warnings:
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+SELECT * FROM t2;
+b	(1/0)
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+# Clean-up
+DROP TABLE t1,t2;
+SET @@sql_mode = 'STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+CREATE TABLE t1 (a1 INT, a2 DATETIME);
+UPDATE t1 SET a2={d '1789-07-14'} WHERE a1=0;
+# Clean-up
+DROP TABLE t1;
+SET sql_mode=@org_mode;

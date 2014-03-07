@@ -1,3 +1,4 @@
+
 --source include/not_embedded.inc
 
 ###########################################################################
@@ -21,7 +22,7 @@ select 7 as expected, /*!01000 1 + /*!01000 8 + /*!01000 error */ 16 + */ 2 + */
 select 4 as expected, /* 1 + /*!01000 8 + */ 2 + */ 4;
 EOF
 
---exec $MYSQL --comment --force --table test <$MYSQLTEST_VARDIR/tmp/bug39559.sql
+--exec $MYSQL --comments --force --table test <$MYSQLTEST_VARDIR/tmp/bug39559.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug39559.sql
 
 --echo # Bug#46527 "COMMIT AND CHAIN RELEASE does not make sense"

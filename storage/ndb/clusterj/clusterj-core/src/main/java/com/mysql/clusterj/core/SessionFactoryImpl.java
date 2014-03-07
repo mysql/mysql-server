@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -377,7 +377,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     @SuppressWarnings("unchecked")
     protected static <T> Class<T> getClassForProxy(T object) {
         Class cls = object.getClass();
-        if (cls.getName().startsWith("$Proxy")) {
+        if (java.lang.reflect.Proxy.isProxyClass(cls)) {
             cls = proxyClassToDomainClass.get(cls);
         }
         return cls;        

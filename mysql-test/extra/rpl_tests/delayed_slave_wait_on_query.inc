@@ -31,11 +31,11 @@ connection master;
 
 --let $assert_text= Query $query_number should not be executed
 --let $assert_cond= MAX(b) < $query_number FROM t1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be 'Waiting until MASTER_DELAY...'
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Waiting until MASTER_DELAY%"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --echo # sleep 1*T
 --sleep $time1
@@ -45,11 +45,11 @@ connection master;
 
 --let $assert_text= Query $query_number should be executed
 --let $assert_cond= MAX(b) = $query_number FROM t1
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --let $assert_text= Status should be 'Has read all relay log...'
 --let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Slave has read all relay log%"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 
 --source include/check_slave_is_running.inc

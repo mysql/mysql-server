@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -964,6 +964,10 @@ int
 NdbOperation::interpret_exit_nok()
 {
   INT_DEBUG(("interpret_exit_nok"));
+  /**
+   * 899 is used here for historical reasons. Observe that this collides with 
+   * "Rowid already allocated" (see ndberror.c).
+   */
   Uint32 ErrorCode = 899;
 
   if (initial_interpreterCheck() == -1)

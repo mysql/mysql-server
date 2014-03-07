@@ -1,3 +1,5 @@
+--source include/have_innodb.inc
+
 #
 # Test of fulltext index
 # bug reported by  Tibor Simko <tibor.simko@cern.ch>

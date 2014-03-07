@@ -131,15 +131,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
 ))	{
   "steps": [
     {
-      "view": {
-        "database": "test",
-        "view": "sq1_alias1",
-        "in_select#": 1,
-        "select#": 5,
-        "merged": true
-      } /* view */
-    },
-    {
       "join_preparation": {
         "select#": 1,
         "steps": [
@@ -152,31 +143,13 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                     "select#": 3,
                     "steps": [
                       {
-                        "expanded_query": "/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))"
+                        "expanded_query": "/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)"
                       }
                     ] /* steps */
                   } /* join_preparation */
                 },
                 {
-                  "join_preparation": {
-                    "select#": 4,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`)"
-                      },
-                      {
-                        "transformation": {
-                          "select#": 4,
-                          "from": "IN (SELECT)",
-                          "to": "semijoin",
-                          "chosen": true
-                        } /* transformation */
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
-                  "expanded_query": "/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from (`t2` `alias1` left join (`t2` `alias2` left join `t2` `alias3` on((`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))) on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) where `alias2`.`col_varchar_key` in (/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`))"
+                  "expanded_query": "/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from `t2` `alias1` semi join (`t3` `sq2_alias1`) join `t2` `alias2` join `t2` `alias3` where (1 and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (`alias2`.`col_varchar_key` = `sq2_alias1`.`col_varchar_nokey`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))"
                 },
                 {
                   "transformation": {
@@ -185,24 +158,12 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                     "to": "semijoin",
                     "chosen": false
                   } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */,
-                    "evaluating_constant_having_conditions": [
-                    ] /* evaluating_constant_having_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `where_subselect_19379`.`field1` AS `field1`,`where_subselect_19379`.`field2` AS `field2` from `where_subselect_19379` where (not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from (`t2` `alias1` left join (`t2` `alias2` left join `t2` `alias3` on((`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))) on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) where (`alias2`.`col_varchar_key` in (/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`)) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))"
+            "expanded_query": "/* select#1 */ select `where_subselect_19379`.`field1` AS `field1`,`where_subselect_19379`.`field2` AS `field2` from `where_subselect_19379` where (not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from `t2` `alias1` semi join (`t3` `sq2_alias1`) join `t2` `alias2` join `t2` `alias3` where (1 and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (`alias2`.`col_varchar_key` = `sq2_alias1`.`col_varchar_nokey`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -214,25 +175,25 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from (`t2` `alias1` left join (`t2` `alias2` left join `t2` `alias3` on((`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))) on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) where (`alias2`.`col_varchar_key` in (/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`)) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))",
+              "original_condition": "(not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from `t2` `alias1` semi join (`t3` `sq2_alias1`) join `t2` `alias2` join `t2` `alias3` where (1 and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (`alias2`.`col_varchar_key` = `sq2_alias1`.`col_varchar_nokey`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from (`t2` `alias1` left join (`t2` `alias2` left join `t2` `alias3` on((`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))) on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) where (`alias2`.`col_varchar_key` in (/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`)) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))"
+                  "resulting_condition": "(not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from `t2` `alias1` semi join (`t3` `sq2_alias1`) join `t2` `alias2` join `t2` `alias3` where (1 and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (`alias2`.`col_varchar_key` = `sq2_alias1`.`col_varchar_nokey`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from (`t2` `alias1` left join (`t2` `alias2` left join `t2` `alias3` on((`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))) on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) where (`alias2`.`col_varchar_key` in (/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`)) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))"
+                  "resulting_condition": "(not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from `t2` `alias1` semi join (`t3` `sq2_alias1`) join `t2` `alias2` join `t2` `alias3` where (1 and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (`alias2`.`col_varchar_key` = `sq2_alias1`.`col_varchar_nokey`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from (`t2` `alias1` left join (`t2` `alias2` left join `t2` `alias3` on((`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))) on((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`))) where (`alias2`.`col_varchar_key` in (/* select#4 */ select `sq2_alias1`.`col_varchar_nokey` AS `sq2_field1` from `t3` `sq2_alias1` where (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`)) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from ((`t4`) join `t1` `sq1_alias2` on((`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))"
+                  "resulting_condition": "(not(<in_optimizer>((`where_subselect_19379`.`field1`,`where_subselect_19379`.`field2`),<exists>(/* select#2 */ select (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)) AS `field1`,`alias1`.`col_varchar_nokey` AS `field2` from `t2` `alias1` semi join (`t3` `sq2_alias1`) join `t2` `alias2` join `t2` `alias3` where (1 and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field1`) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(`where_subselect_19379`.`field2`) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (`alias2`.`col_varchar_key` = `sq2_alias1`.`col_varchar_nokey`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)) having (<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -267,6 +228,660 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
         "empty_result": {
           "cause": "no matching row in const table"
         } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_optimization": {
+        "select#": 2,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(1 and <if>(outer_field_is_not_null, ((<cache>(NULL) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(NULL) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and (`alias2`.`col_varchar_key` = `sq2_alias1`.`col_varchar_nokey`) and (`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(1 and <if>(outer_field_is_not_null, ((<cache>(NULL) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(NULL) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and multiple equal(`alias2`.`col_varchar_key`, `sq2_alias1`.`col_varchar_nokey`, `alias3`.`col_varchar_key`, `alias3`.`col_varchar_nokey`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(1 and <if>(outer_field_is_not_null, ((<cache>(NULL) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(NULL) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and multiple equal(`alias2`.`col_varchar_key`, `sq2_alias1`.`col_varchar_nokey`, `alias3`.`col_varchar_key`, `alias3`.`col_varchar_nokey`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(<if>(outer_field_is_not_null, ((<cache>(NULL) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(NULL) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`sq2_alias1`.`col_varchar_nokey` <= `alias1`.`col_varchar_key`) and multiple equal(`alias2`.`col_varchar_key`, `sq2_alias1`.`col_varchar_nokey`, `alias3`.`col_varchar_key`, `alias3`.`col_varchar_nokey`))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "condition_processing": {
+              "condition": "HAVING",
+              "original_condition": "(<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))",
+              "steps": [
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(<if>(outer_field_is_not_null, <is_not_null_test>((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`alias1`.`col_varchar_nokey`), true))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t2` `alias1`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "table": "`t2` `alias2`",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "table": "`t2` `alias3`",
+                "row_may_be_null": false,
+                "map_bit": 2,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "table": "`t3` `sq2_alias1`",
+                "row_may_be_null": false,
+                "map_bit": 3,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "pulled_out_semijoin_tables": [
+            ] /* pulled_out_semijoin_tables */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t2` `alias1`",
+                "table_scan": {
+                  "rows": 1,
+                  "cost": 1
+                } /* table_scan */
+              },
+              {
+                "table": "`t2` `alias2`",
+                "table_scan": {
+                  "rows": 1,
+                  "cost": 1
+                } /* table_scan */
+              },
+              {
+                "table": "`t2` `alias3`",
+                "table_scan": {
+                  "rows": 1,
+                  "cost": 1
+                } /* table_scan */
+              },
+              {
+                "table": "`t3` `sq2_alias1`",
+                "table_scan": {
+                  "rows": 1,
+                  "cost": 1
+                } /* table_scan */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "execution_plan_for_potential_materialization": {
+              "steps": [
+              ] /* steps */
+            } /* execution_plan_for_potential_materialization */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t2` `alias1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 1,
+                      "cost": 1.2,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.2,
+                "rows_for_plan": 1,
+                "semijoin_strategy_choice": [
+                ] /* semijoin_strategy_choice */,
+                "rest_of_plan": [
+                  {
+                    "plan_prefix": [
+                      "`t2` `alias1`"
+                    ] /* plan_prefix */,
+                    "table": "`t2` `alias2`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "buffers_needed": 1,
+                          "rows": 1,
+                          "cost": 1.2,
+                          "chosen": true
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 2.4,
+                    "rows_for_plan": 1,
+                    "semijoin_strategy_choice": [
+                    ] /* semijoin_strategy_choice */,
+                    "rest_of_plan": [
+                      {
+                        "plan_prefix": [
+                          "`t2` `alias1`",
+                          "`t2` `alias2`"
+                        ] /* plan_prefix */,
+                        "table": "`t2` `alias3`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "buffers_needed": 1,
+                              "rows": 1,
+                              "cost": 1.2,
+                              "chosen": true
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "cost_for_plan": 3.6,
+                        "rows_for_plan": 1,
+                        "semijoin_strategy_choice": [
+                        ] /* semijoin_strategy_choice */,
+                        "rest_of_plan": [
+                          {
+                            "plan_prefix": [
+                              "`t2` `alias1`",
+                              "`t2` `alias2`",
+                              "`t2` `alias3`"
+                            ] /* plan_prefix */,
+                            "table": "`t3` `sq2_alias1`",
+                            "best_access_path": {
+                              "considered_access_paths": [
+                                {
+                                  "access_type": "scan",
+                                  "using_join_cache": true,
+                                  "buffers_needed": 1,
+                                  "rows": 1,
+                                  "cost": 1.2,
+                                  "chosen": true
+                                }
+                              ] /* considered_access_paths */
+                            } /* best_access_path */,
+                            "cost_for_plan": 4.8001,
+                            "rows_for_plan": 1,
+                            "semijoin_strategy_choice": [
+                              {
+                                "strategy": "FirstMatch",
+                                "recalculate_access_paths_and_cost": {
+                                  "tables": [
+                                    {
+                                      "table": "`t3` `sq2_alias1`",
+                                      "best_access_path": {
+                                        "considered_access_paths": [
+                                          {
+                                            "access_type": "scan",
+                                            "using_join_cache": true,
+                                            "buffers_needed": 1,
+                                            "rows": 1,
+                                            "cost": 1.2,
+                                            "chosen": true
+                                          }
+                                        ] /* considered_access_paths */
+                                      } /* best_access_path */
+                                    }
+                                  ] /* tables */
+                                } /* recalculate_access_paths_and_cost */,
+                                "cost": 4.8001,
+                                "rows": 1,
+                                "chosen": true
+                              },
+                              {
+                                "strategy": "DuplicatesWeedout",
+                                "cost": 7.2001,
+                                "rows": 1,
+                                "duplicate_tables_left": false,
+                                "chosen": false
+                              }
+                            ] /* semijoin_strategy_choice */,
+                            "chosen": true
+                          }
+                        ] /* rest_of_plan */
+                      },
+                      {
+                        "plan_prefix": [
+                          "`t2` `alias1`",
+                          "`t2` `alias2`"
+                        ] /* plan_prefix */,
+                        "table": "`t3` `sq2_alias1`",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "buffers_needed": 1,
+                              "rows": 1,
+                              "cost": 1.2,
+                              "chosen": true
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "cost_for_plan": 3.6,
+                        "rows_for_plan": 1,
+                        "semijoin_strategy_choice": [
+                          {
+                            "strategy": "FirstMatch",
+                            "recalculate_access_paths_and_cost": {
+                              "tables": [
+                                {
+                                  "table": "`t3` `sq2_alias1`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "scan",
+                                        "using_join_cache": true,
+                                        "buffers_needed": 1,
+                                        "rows": 1,
+                                        "cost": 1.2,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                }
+                              ] /* tables */
+                            } /* recalculate_access_paths_and_cost */,
+                            "cost": 3.6,
+                            "rows": 1,
+                            "chosen": true
+                          },
+                          {
+                            "strategy": "DuplicatesWeedout",
+                            "cost": 6,
+                            "rows": 1,
+                            "duplicate_tables_left": false,
+                            "chosen": false
+                          }
+                        ] /* semijoin_strategy_choice */,
+                        "pruned_by_heuristic": true
+                      }
+                    ] /* rest_of_plan */
+                  },
+                  {
+                    "plan_prefix": [
+                      "`t2` `alias1`"
+                    ] /* plan_prefix */,
+                    "table": "`t2` `alias3`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "buffers_needed": 1,
+                          "rows": 1,
+                          "cost": 1.2,
+                          "chosen": true
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 2.4,
+                    "rows_for_plan": 1,
+                    "semijoin_strategy_choice": [
+                    ] /* semijoin_strategy_choice */,
+                    "pruned_by_heuristic": true
+                  },
+                  {
+                    "plan_prefix": [
+                      "`t2` `alias1`"
+                    ] /* plan_prefix */,
+                    "table": "`t3` `sq2_alias1`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "buffers_needed": 1,
+                          "rows": 1,
+                          "cost": 1.2,
+                          "chosen": true
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 2.4,
+                    "rows_for_plan": 1,
+                    "semijoin_strategy_choice": [
+                    ] /* semijoin_strategy_choice */,
+                    "pruned_by_heuristic": true
+                  }
+                ] /* rest_of_plan */
+              },
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t2` `alias2`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 1,
+                      "cost": 1.2,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.2,
+                "rows_for_plan": 1,
+                "semijoin_strategy_choice": [
+                ] /* semijoin_strategy_choice */,
+                "pruned_by_heuristic": true
+              },
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t2` `alias3`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 1,
+                      "cost": 1.2,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.2,
+                "rows_for_plan": 1,
+                "semijoin_strategy_choice": [
+                ] /* semijoin_strategy_choice */,
+                "pruned_by_heuristic": true
+              },
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t3` `sq2_alias1`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 1,
+                      "cost": 1.2,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.2,
+                "rows_for_plan": 1,
+                "semijoin_strategy_choice": [
+                ] /* semijoin_strategy_choice */,
+                "pruned_by_heuristic": true
+              },
+              {
+                "final_semijoin_strategy": "FirstMatch",
+                "recalculate_access_paths_and_cost": {
+                  "tables": [
+                    {
+                      "table": "`t3` `sq2_alias1`",
+                      "best_access_path": {
+                        "considered_access_paths": [
+                          {
+                            "access_type": "scan",
+                            "using_join_cache": true,
+                            "buffers_needed": 1,
+                            "rows": 1,
+                            "cost": 1.2,
+                            "chosen": true
+                          }
+                        ] /* considered_access_paths */
+                      } /* best_access_path */
+                    }
+                  ] /* tables */
+                } /* recalculate_access_paths_and_cost */
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "materialization",
+              "has_nullable_expressions": true,
+              "treat_UNKNOWN_as_FALSE": false,
+              "possible": false,
+              "cause": "cannot_handle_partial_matches"
+            } /* transformation */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`) and (`sq2_alias1`.`col_varchar_nokey` = `alias2`.`col_varchar_key`) and <if>(outer_field_is_not_null, ((<cache>(NULL) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(NULL) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true) and (`alias2`.`col_varchar_key` <= `alias1`.`col_varchar_key`))",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t2` `alias1`",
+                  "attached": "(<if>(outer_field_is_not_null, ((<cache>(NULL) = (/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`))) or isnull((/* select#3 */ select sum(`t4`.`pk`) AS `sq1_field1` from `t4` join `t1` `sq1_alias2` where (`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)))), true) and <if>(outer_field_is_not_null, ((<cache>(NULL) = `alias1`.`col_varchar_nokey`) or isnull(`alias1`.`col_varchar_nokey`)), true))"
+                },
+                {
+                  "table": "`t2` `alias2`",
+                  "attached": "(`alias2`.`col_varchar_key` <= `alias1`.`col_varchar_key`)"
+                },
+                {
+                  "table": "`t2` `alias3`",
+                  "attached": "((`alias3`.`col_varchar_key` = `alias2`.`col_varchar_key`) and (`alias3`.`col_varchar_nokey` = `alias2`.`col_varchar_key`))"
+                },
+                {
+                  "table": "`t3` `sq2_alias1`",
+                  "attached": "(`sq2_alias1`.`col_varchar_nokey` = `alias2`.`col_varchar_key`)"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t2` `alias1`"
+              },
+              {
+                "table": "`t2` `alias2`"
+              },
+              {
+                "table": "`t2` `alias3`"
+              },
+              {
+                "table": "`t3` `sq2_alias1`"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_optimization": {
+        "select#": 3,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "multiple equal(`sq1_alias2`.`col_varchar_key`, `t4`.`col_varchar_key`)"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "multiple equal(`sq1_alias2`.`col_varchar_key`, `t4`.`col_varchar_key`)"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "multiple equal(`sq1_alias2`.`col_varchar_key`, `t4`.`col_varchar_key`)"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t4`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "table": "`t1` `sq1_alias2`",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t4`",
+                "table_scan": {
+                  "rows": 1,
+                  "cost": 1
+                } /* table_scan */
+              },
+              {
+                "table": "`t1` `sq1_alias2`",
+                "table_scan": {
+                  "rows": 1,
+                  "cost": 1
+                } /* table_scan */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t4`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 1,
+                      "cost": 1.2,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.2,
+                "rows_for_plan": 1,
+                "rest_of_plan": [
+                  {
+                    "plan_prefix": [
+                      "`t4`"
+                    ] /* plan_prefix */,
+                    "table": "`t1` `sq1_alias2`",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "buffers_needed": 1,
+                          "rows": 1,
+                          "cost": 1.2,
+                          "chosen": true
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 2.4,
+                    "rows_for_plan": 1,
+                    "chosen": true
+                  }
+                ] /* rest_of_plan */
+              },
+              {
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1` `sq1_alias2`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 1,
+                      "cost": 1.2,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 1.2,
+                "rows_for_plan": 1,
+                "pruned_by_heuristic": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": "(`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)",
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "table": "`t4`",
+                  "attached": null
+                },
+                {
+                  "table": "`t1` `sq1_alias2`",
+                  "attached": "(`sq1_alias2`.`col_varchar_key` = `t4`.`col_varchar_key`)"
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t4`"
+              },
+              {
+                "table": "`t1` `sq1_alias2`"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
       } /* join_optimization */
     },
     {
@@ -331,34 +946,16 @@ FROM t1
         "steps": [
           {
             "join_preparation": {
-              "select#": 2,
+              "select#": 3,
               "steps": [
                 {
-                  "join_preparation": {
-                    "select#": 3,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#3 */ select `t2`.`col_int_key` from `t2`"
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
-                  "expanded_query": "/* select#2 */ select (/* select#3 */ select `t2`.`col_int_key` from `t2`) from `t1`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
+                  "expanded_query": "/* select#3 */ select `t2`.`col_int_key` from `t2`"
                 }
               ] /* steps */
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `where_subselect_19033`.`field1` AS `field1` from `where_subselect_19033` where `where_subselect_19033`.`field1` in (/* select#2 */ select (/* select#3 */ select `t2`.`col_int_key` from `t2`) from `t1`)"
+            "expanded_query": "/* select#1 */ select `where_subselect_19033`.`field1` AS `field1` from `where_subselect_19033` semi join (`t1`) where (1 and (`where_subselect_19033`.`field1` = (/* select#3 */ select `t2`.`col_int_key` from `t2`)))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -368,104 +965,23 @@ FROM t1
         "select#": 1,
         "steps": [
           {
-            "transformation": {
-              "select#": 2,
-              "from": "IN (SELECT)",
-              "to": "semijoin",
-              "chosen": true,
-              "evaluating_constant_semijoin_conditions": [
-                {
-                  "subselect_execution": {
-                    "select#": 3,
-                    "steps": [
-                      {
-                        "join_optimization": {
-                          "select#": 3,
-                          "steps": [
-                            {
-                              "table_dependencies": [
-                                {
-                                  "table": "`t2`",
-                                  "row_may_be_null": false,
-                                  "map_bit": 0,
-                                  "depends_on_map_bits": [
-                                  ] /* depends_on_map_bits */
-                                }
-                              ] /* table_dependencies */
-                            },
-                            {
-                              "rows_estimation": [
-                                {
-                                  "table": "`t2`",
-                                  "rows": 1,
-                                  "cost": 1,
-                                  "table_type": "system",
-                                  "empty": false
-                                }
-                              ] /* rows_estimation */
-                            },
-                            {
-                              "attaching_conditions_to_tables": {
-                                "original_condition": null,
-                                "attached_conditions_computation": [
-                                ] /* attached_conditions_computation */,
-                                "attached_conditions_summary": [
-                                ] /* attached_conditions_summary */
-                              } /* attaching_conditions_to_tables */
-                            },
-                            {
-                              "refine_plan": [
-                              ] /* refine_plan */
-                            }
-                          ] /* steps */
-                        } /* join_optimization */
-                      },
-                      {
-                        "join_execution": {
-                          "select#": 3,
-                          "steps": [
-                          ] /* steps */
-                        } /* join_execution */
-                      }
-                    ] /* steps */
-                  } /* subselect_execution */
-                },
-                {
-                  "subselect_execution": {
-                    "select#": 3,
-                    "steps": [
-                    ] /* steps */
-                  } /* subselect_execution */
-                }
-              ] /* evaluating_constant_semijoin_conditions */
-            } /* transformation */
-          },
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "semijoin"
-              ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `where_subselect_19033`.`field1` AS `field1` from `where_subselect_19033` semi join (`t1`) where (1 and (`where_subselect_19033`.`field1` = 7))"
-            } /* transformations_to_nested_joins */
-          },
-          {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(1 and (`where_subselect_19033`.`field1` = 7))",
+              "original_condition": "(1 and (`where_subselect_19033`.`field1` = (/* select#3 */ select `t2`.`col_int_key` from `t2`)))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(1 and multiple equal(7, `where_subselect_19033`.`field1`))"
+                  "resulting_condition": "(1 and multiple equal((/* select#3 */ select `t2`.`col_int_key` from `t2`), `where_subselect_19033`.`field1`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and multiple equal(7, `where_subselect_19033`.`field1`))"
+                  "resulting_condition": "(1 and multiple equal((/* select#3 */ select `t2`.`col_int_key` from `t2`), `where_subselect_19033`.`field1`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "multiple equal(7, `where_subselect_19033`.`field1`)"
+                  "resulting_condition": "multiple equal((/* select#3 */ select `t2`.`col_int_key` from `t2`), `where_subselect_19033`.`field1`)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -495,6 +1011,62 @@ FROM t1
           {
             "pulled_out_semijoin_tables": [
             ] /* pulled_out_semijoin_tables */
+          },
+          {
+            "subselect_execution": {
+              "select#": 3,
+              "steps": [
+                {
+                  "join_optimization": {
+                    "select#": 3,
+                    "steps": [
+                      {
+                        "table_dependencies": [
+                          {
+                            "table": "`t2`",
+                            "row_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
+                      {
+                        "rows_estimation": [
+                          {
+                            "table": "`t2`",
+                            "rows": 1,
+                            "cost": 1,
+                            "table_type": "system",
+                            "empty": false
+                          }
+                        ] /* rows_estimation */
+                      },
+                      {
+                        "attaching_conditions_to_tables": {
+                          "original_condition": null,
+                          "attached_conditions_computation": [
+                          ] /* attached_conditions_computation */,
+                          "attached_conditions_summary": [
+                          ] /* attached_conditions_summary */
+                        } /* attaching_conditions_to_tables */
+                      },
+                      {
+                        "refine_plan": [
+                        ] /* refine_plan */
+                      }
+                    ] /* steps */
+                  } /* join_optimization */
+                },
+                {
+                  "join_execution": {
+                    "select#": 3,
+                    "steps": [
+                    ] /* steps */
+                  } /* join_execution */
+                }
+              ] /* steps */
+            } /* subselect_execution */
           },
           {
             "rows_estimation": [
@@ -618,8 +1190,7 @@ FROM t1
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "index_scan"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -768,44 +1339,26 @@ ON table2 .col_int_key = table1 .col_int_key
         "steps": [
           {
             "join_preparation": {
-              "select#": 3,
+              "select#": 2,
               "steps": [
                 {
-                  "join_preparation": {
-                    "select#": 4,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#4 */ select count(`t1`.`col_int_key`) from `t1`"
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
-                  "expanded_query": "/* select#3 */ select `table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`t1`.`col_int_key`) from `t1`) from (`t1` `table1` join `t1` `table2` on((`table2`.`col_int_key` = `table1`.`col_int_key`)))"
-                },
-                {
-                  "join_preparation": {
-                    "select#": 2,
-                    "steps": [
-                      {
-                        "expanded_query": "/* select#2 */ select count(`t1`.`col_int_key`) from `t1`"
-                      }
-                    ] /* steps */
-                  } /* join_preparation */
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
+                  "expanded_query": "/* select#2 */ select count(`t1`.`col_int_key`) from `t1`"
                 }
               ] /* steps */
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `where_subselect_20070`.`field1` AS `field1`,`where_subselect_20070`.`( SELECT COUNT( col_int_key )\nFROM t1\n)` AS `( SELECT COUNT( col_int_key )\nFROM t1\n)` from `where_subselect_20070` where (`where_subselect_20070`.`field1`,(/* select#2 */ select count(`t1`.`col_int_key`) from `t1`)) in (/* select#3 */ select `table2`.`col_int_key` AS `field1`,(/* select#4 */ select count(`t1`.`col_int_key`) from `t1`) from (`t1` `table1` join `t1` `table2` on((`table2`.`col_int_key` = `table1`.`col_int_key`))))"
+            "join_preparation": {
+              "select#": 4,
+              "steps": [
+                {
+                  "expanded_query": "/* select#4 */ select count(`t1`.`col_int_key`) from `t1`"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select `where_subselect_20070`.`field1` AS `field1`,`where_subselect_20070`.`( SELECT COUNT( col_int_key )\nFROM t1\n)` AS `( SELECT COUNT( col_int_key )\nFROM t1\n)` from `where_subselect_20070` semi join (`t1` `table1` join `t1` `table2`) where (1 and (`where_subselect_20070`.`field1` = `table2`.`col_int_key`) and ((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`) = (/* select#4 */ select count(`t1`.`col_int_key`) from `t1`)) and (`table2`.`col_int_key` = `table1`.`col_int_key`))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -814,26 +1367,6 @@ ON table2 .col_int_key = table1 .col_int_key
       "join_optimization": {
         "select#": 1,
         "steps": [
-          {
-            "transformation": {
-              "select#": 3,
-              "from": "IN (SELECT)",
-              "to": "semijoin",
-              "chosen": true,
-              "evaluating_constant_semijoin_conditions": [
-              ] /* evaluating_constant_semijoin_conditions */
-            } /* transformation */
-          },
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "semijoin",
-                "JOIN_condition_to_WHERE",
-                "parenthesis_removal"
-              ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `where_subselect_20070`.`field1` AS `field1`,`where_subselect_20070`.`( SELECT COUNT( col_int_key )\nFROM t1\n)` AS `( SELECT COUNT( col_int_key )\nFROM t1\n)` from `where_subselect_20070` semi join (`t1` `table1` join `t1` `table2`) where (1 and (`where_subselect_20070`.`field1` = `table2`.`col_int_key`) and ((/* select#2 */ select count(`t1`.`col_int_key`) from `t1`) = (/* select#4 */ select count(`t1`.`col_int_key`) from `t1`)) and (`table2`.`col_int_key` = `table1`.`col_int_key`))"
-            } /* transformations_to_nested_joins */
-          },
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -922,8 +1455,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 {
                                   "refine_plan": [
                                     {
-                                      "table": "`t1`",
-                                      "access_type": "index_scan"
+                                      "table": "`t1`"
                                     }
                                   ] /* refine_plan */
                                 }
@@ -1008,8 +1540,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 {
                                   "refine_plan": [
                                     {
-                                      "table": "`t1`",
-                                      "access_type": "index_scan"
+                                      "table": "`t1`"
                                     }
                                   ] /* refine_plan */
                                 }
@@ -1153,12 +1684,13 @@ ON table2 .col_int_key = table1 .col_int_key
                                 "access_type": "ref",
                                 "index": "col_int_key",
                                 "rows": 2,
-                                "cost": 4.493,
+                                "cost": 5.693,
                                 "chosen": true
                               },
                               {
                                 "access_type": "scan",
                                 "using_join_cache": true,
+                                "buffers_needed": 1,
                                 "rows": 3,
                                 "cost": 4.607,
                                 "chosen": true
@@ -1205,12 +1737,13 @@ ON table2 .col_int_key = table1 .col_int_key
                                 "access_type": "ref",
                                 "index": "col_int_key",
                                 "rows": 2,
-                                "cost": 4.493,
+                                "cost": 5.693,
                                 "chosen": true
                               },
                               {
                                 "access_type": "scan",
                                 "using_join_cache": true,
+                                "buffers_needed": 1,
                                 "rows": 3,
                                 "cost": 4.607,
                                 "chosen": true
@@ -1260,14 +1793,15 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 6.5395,
+                          "cost": 8.5395,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
-                          "cost": 5.8074,
+                          "cost": 5.8075,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
@@ -1289,14 +1823,15 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 18.819,
+                              "cost": 25.619,
                               "chosen": true
                             },
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 3,
-                              "cost": 13.009,
+                              "cost": 13.01,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
@@ -1316,7 +1851,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 6.5395,
+                                        "cost": 8.5395,
                                         "chosen": true
                                       },
                                       {
@@ -1336,7 +1871,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 12.679,
+                                        "cost": 17.079,
                                         "chosen": true
                                       },
                                       {
@@ -1384,14 +1919,15 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 6.5395,
+                          "cost": 8.5395,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
-                          "cost": 5.8074,
+                          "cost": 5.8075,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
@@ -1413,14 +1949,15 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 18.819,
+                              "cost": 25.619,
                               "chosen": true
                             },
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 3,
-                              "cost": 13.009,
+                              "cost": 13.01,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
@@ -1440,7 +1977,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 6.5395,
+                                        "cost": 8.5395,
                                         "chosen": true
                                       },
                                       {
@@ -1460,7 +1997,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                         "access_type": "ref",
                                         "index": "col_int_key",
                                         "rows": 2,
-                                        "cost": 12.679,
+                                        "cost": 17.079,
                                         "chosen": true
                                       },
                                       {
@@ -1534,6 +2071,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 6,
                           "cost": 6.8192,
                           "chosen": true
@@ -1557,24 +2095,25 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 24.958,
+                              "cost": 34.158,
                               "chosen": true
                             },
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 3,
                               "cost": 16.61,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
-                        "cost_for_plan": 26.236,
+                        "cost_for_plan": 26.237,
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 43.836,
+                            "cost": 43.837,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1595,12 +2134,13 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 4.493,
+                          "cost": 5.693,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 4.607,
                           "chosen": true
@@ -1627,6 +2167,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 6,
                               "cost": 16.42,
                               "chosen": true
@@ -1636,6 +2177,43 @@ ON table2 .col_int_key = table1 .col_int_key
                         "cost_for_plan": 23.834,
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
+                          {
+                            "strategy": "LooseScan",
+                            "recalculate_access_paths_and_cost": {
+                              "tables": [
+                                {
+                                  "table": "`t1` `table1`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "ref",
+                                        "index": "col_int_key",
+                                        "usable": false,
+                                        "chosen": false
+                                      },
+                                      {
+                                        "access_type": "scan",
+                                        "rows": 4,
+                                        "cost": 2.8068,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */,
+                                  "unknown_key_1": {
+                                    "searching_loose_scan_index": {
+                                      "indexes": [
+                                        {
+                                          "index": "col_int_key",
+                                          "index_handles_needed_semijoin_equalities": false
+                                        }
+                                      ] /* indexes */
+                                    } /* searching_loose_scan_index */
+                                  }
+                                }
+                              ] /* tables */
+                            } /* recalculate_access_paths_and_cost */,
+                            "chosen": false
+                          },
                           {
                             "strategy": "MaterializeScan",
                             "recalculate_access_paths_and_cost": {
@@ -1647,6 +2225,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       {
                                         "access_type": "scan",
                                         "using_join_cache": true,
+                                        "buffers_needed": 1,
                                         "rows": 6,
                                         "cost": 6.8194,
                                         "chosen": true
@@ -1684,8 +2263,7 @@ ON table2 .col_int_key = table1 .col_int_key
                     {
                       "access_type": "ref",
                       "index": "col_int_key",
-                      "rows": 2e308,
-                      "cost": 0,
+                      "usable": false,
                       "chosen": false
                     },
                     {
@@ -1711,6 +2289,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 6,
                           "cost": 6.8192,
                           "chosen": true
@@ -1734,24 +2313,25 @@ ON table2 .col_int_key = table1 .col_int_key
                               "access_type": "ref",
                               "index": "col_int_key",
                               "rows": 2,
-                              "cost": 24.958,
+                              "cost": 34.158,
                               "chosen": true
                             },
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 3,
                               "cost": 16.61,
                               "chosen": true
                             }
                           ] /* considered_access_paths */
                         } /* best_access_path */,
-                        "cost_for_plan": 26.236,
+                        "cost_for_plan": 26.237,
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
                             "strategy": "DuplicatesWeedout",
-                            "cost": 43.836,
+                            "cost": 43.837,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
@@ -1772,12 +2352,13 @@ ON table2 .col_int_key = table1 .col_int_key
                           "access_type": "ref",
                           "index": "col_int_key",
                           "rows": 2,
-                          "cost": 4.493,
+                          "cost": 5.693,
                           "chosen": true
                         },
                         {
                           "access_type": "scan",
                           "using_join_cache": true,
+                          "buffers_needed": 1,
                           "rows": 3,
                           "cost": 4.607,
                           "chosen": true
@@ -1804,6 +2385,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             {
                               "access_type": "scan",
                               "using_join_cache": true,
+                              "buffers_needed": 1,
                               "rows": 6,
                               "cost": 16.42,
                               "chosen": true
@@ -1813,6 +2395,83 @@ ON table2 .col_int_key = table1 .col_int_key
                         "cost_for_plan": 23.834,
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
+                          {
+                            "strategy": "LooseScan",
+                            "recalculate_access_paths_and_cost": {
+                              "tables": [
+                                {
+                                  "table": "`t1` `table2`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "ref",
+                                        "index": "col_int_key",
+                                        "usable": false,
+                                        "chosen": false
+                                      },
+                                      {
+                                        "access_type": "scan",
+                                        "rows": 4,
+                                        "cost": 2.8068,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */,
+                                  "unknown_key_2": {
+                                    "searching_loose_scan_index": {
+                                      "indexes": [
+                                        {
+                                          "index": "col_int_key",
+                                          "covering_scan": {
+                                            "cost": 1.0698,
+                                            "chosen": true
+                                          } /* covering_scan */
+                                        }
+                                      ] /* indexes */
+                                    } /* searching_loose_scan_index */
+                                  }
+                                },
+                                {
+                                  "table": "`t1` `table1`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "ref",
+                                        "index": "col_int_key",
+                                        "rows": 2,
+                                        "cost": 5.693,
+                                        "chosen": true
+                                      },
+                                      {
+                                        "access_type": "scan",
+                                        "rows": 3,
+                                        "cost": 11.227,
+                                        "chosen": false
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                },
+                                {
+                                  "table": "`where_subselect_20070`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "scan",
+                                        "using_join_cache": true,
+                                        "buffers_needed": 1,
+                                        "rows": 6,
+                                        "cost": 11.62,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                }
+                              ] /* tables */
+                            } /* recalculate_access_paths_and_cost */,
+                            "cost": 19.182,
+                            "rows": 6,
+                            "chosen": true
+                          },
                           {
                             "strategy": "MaterializeScan",
                             "recalculate_access_paths_and_cost": {
@@ -1824,6 +2483,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       {
                                         "access_type": "scan",
                                         "using_join_cache": true,
+                                        "buffers_needed": 1,
                                         "rows": 6,
                                         "cost": 6.8194,
                                         "chosen": true
@@ -1835,8 +2495,8 @@ ON table2 .col_int_key = table1 .col_int_key
                             } /* recalculate_access_paths_and_cost */,
                             "cost": 19.433,
                             "rows": 6,
-                            "duplicate_tables_left": true,
-                            "chosen": true
+                            "duplicate_tables_left": false,
+                            "chosen": false
                           },
                           {
                             "strategy": "DuplicatesWeedout",
@@ -1888,7 +2548,7 @@ ON table2 .col_int_key = table1 .col_int_key
                         "rows": 4,
                         "cost": 4.9068
                       } /* table_scan */,
-                      "potential_range_indices": [
+                      "potential_range_indexes": [
                         {
                           "index": "col_int_key",
                           "usable": true,
@@ -1896,7 +2556,7 @@ ON table2 .col_int_key = table1 .col_int_key
                             "col_int_key"
                           ] /* key_parts */
                         }
-                      ] /* potential_range_indices */,
+                      ] /* potential_range_indexes */,
                       "best_covering_index_scan": {
                         "index": "col_int_key",
                         "cost": 1.8698,
@@ -1913,7 +2573,7 @@ ON table2 .col_int_key = table1 .col_int_key
                           {
                             "index": "col_int_key",
                             "chosen": false,
-                            "cause": "unknown"
+                            "cause": "depends_on_unread_values"
                           }
                         ] /* range_scan_alternatives */,
                         "analyzing_roworder_intersect": {
@@ -1948,19 +2608,16 @@ ON table2 .col_int_key = table1 .col_int_key
           {
             "refine_plan": [
               {
-                "table": "`where_subselect_20070`",
-                "access_type": "table_scan"
+                "table": "`where_subselect_20070`"
               },
               {
                 "table": "``.`<subquery3>`"
               },
               {
-                "table": "`t1` `table1`",
-                "access_type": "index_scan"
+                "table": "`t1` `table1`"
               },
               {
-                "table": "`t1` `table2`",
-                "access_type": "index_scan"
+                "table": "`t1` `table2`"
               }
             ] /* refine_plan */
           }
@@ -2183,7 +2840,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                           "rows": 1,
                                           "cost": 3.3
                                         } /* table_scan */,
-                                        "potential_range_indices": [
+                                        "potential_range_indexes": [
                                           {
                                             "index": "a",
                                             "usable": true,
@@ -2199,7 +2856,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                               "c"
                                             ] /* key_parts */
                                           }
-                                        ] /* potential_range_indices */,
+                                        ] /* potential_range_indexes */,
                                         "best_covering_index_scan": {
                                           "index": "a_2",
                                           "cost": 1.2,
@@ -2275,8 +2932,8 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                           },
                                           {
                                             "access_type": "scan",
-                                            "cause": "covering_index_better_than_full_scan",
-                                            "chosen": false
+                                            "chosen": false,
+                                            "cause": "covering_index_better_than_full_scan"
                                           }
                                         ] /* considered_access_paths */
                                       } /* best_access_path */,
@@ -2313,13 +2970,6 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                   } /* clause_processing */
                                 },
                                 {
-                                  "refine_plan": [
-                                    {
-                                      "table": "`t1`"
-                                    }
-                                  ] /* refine_plan */
-                                },
-                                {
                                   "added_back_ref_condition": "((`t1`.`a` <=> 1))"
                                 },
                                 {
@@ -2334,6 +2984,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                       "access_type": "ref"
                                     } /* index_order_summary */
                                   } /* reconsidering_access_paths_for_index_ordering */
+                                },
+                                {
+                                  "refine_plan": [
+                                    {
+                                      "table": "`t1`"
+                                    }
+                                  ] /* refine_plan */
                                 }
                               ] /* steps */
                             } /* join_optimization */

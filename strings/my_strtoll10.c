@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,8 +193,8 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error)
     goto overflow;
 
   /* Check that we didn't get an overflow with the last digit */
-  if (i > cutoff || (i == cutoff && ((j > cutoff2 || j == cutoff2) &&
-                                     k > cutoff3)))
+  if (i > cutoff || (i == cutoff && (j > cutoff2 || (j == cutoff2 &&
+                                     k > cutoff3))))
     goto overflow;
   li=i*LFACTOR2+ (ulonglong) j*100 + k;
   return (longlong) li;

@@ -20,9 +20,6 @@
 #                   create variants for embedded/non embedded server.
 #
 
-let $engine_type       = MEMORY;
-let $other_engine_type = MyISAM;
-
 let $is_table = TRIGGERS;
 
 # The table INFORMATION_SCHEMA.TRIGGERS must exist
@@ -79,6 +76,7 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 #       information_schema.tables is in is_columns_is.test.
 
 # Show that several columns are always NULL.
+--replace_column 17 #
 SELECT * FROM information_schema.triggers
 WHERE trigger_catalog IS NOT NULL OR event_object_catalog IS NOT NULL
    OR action_condition IS NOT NULL OR action_reference_old_table IS NOT NULL
@@ -133,7 +131,9 @@ ON db_datadict.t1 FOR EACH ROW SET @test_before = 2, new.f1 = @test_before;
 GRANT ALL ON db_datadict.t1 TO 'testuser2'@'localhost';
 REVOKE TRIGGER ON db_datadict.t1 FROM 'testuser2'@'localhost';
 GRANT SELECT ON db_datadict.t1 TO 'testuser3'@'localhost';
+--replace_column 17 #
 eval $my_select;
+--replace_column 6 #
 eval $my_show;
 
 --echo # Establish connection testuser2 (user=testuser2)
@@ -141,7 +141,9 @@ eval $my_show;
 connect (testuser2, localhost, testuser2, , db_datadict);
 SHOW GRANTS FOR 'testuser2'@'localhost';
 --echo # No TRIGGER Privilege --> no result for query
+--replace_column 17 #
 eval $my_select;
+--replace_column 6 #
 eval $my_show;
 
 --echo # Establish connection testuser3 (user=testuser3)
@@ -149,7 +151,9 @@ eval $my_show;
 connect (testuser3, localhost, testuser3, , test);
 SHOW GRANTS FOR 'testuser3'@'localhost';
 --echo # TRIGGER Privilege + SELECT Privilege on t1 --> result for query
+--replace_column 17 #
 eval $my_select;
+--replace_column 6 #
 eval $my_show;
 
 --echo # Establish connection testuser4 (user=testuser4)
@@ -160,7 +164,9 @@ SHOW GRANTS FOR 'testuser4'@'localhost';
 --disable_abort_on_error
 SELECT * FROM db_datadict.t1;
 DESC db_datadict.t1;
+--replace_column 17 #
 eval $my_select;
+--replace_column 6 #
 eval $my_show;
 
 --echo # Switch to connection default and close connections testuser1 - testuser4
@@ -169,7 +175,9 @@ disconnect testuser1;
 disconnect testuser2;
 disconnect testuser3;
 disconnect testuser4;
+--replace_column 17 #
 eval $my_select;
+--replace_column 6 #
 eval $my_show;
 DROP USER 'testuser1'@'localhost';
 DROP USER 'testuser2'@'localhost';

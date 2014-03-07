@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -450,6 +450,19 @@ RestoreMetaData::readMetaTableDesc() {
 
     m_objects.push(obj, 0); // Put first
     return true;
+    break;
+  }
+  case DictTabInfo::ForeignKey:
+  {
+    NdbDictionary::ForeignKey * dst = new NdbDictionary::ForeignKey;
+    errcode =
+      NdbDictInterface::parseForeignKeyInfo(NdbForeignKeyImpl::getImpl(* dst),
+                                            (const Uint32*)ptr, len);
+    if (errcode)
+      delete dst;
+    obj.m_objPtr = dst;
+    debug << hex << obj.m_objPtr << " " 
+	   << dec << dst->getObjectId() << " " << dst->getName() << endl;
     break;
   }
   default:

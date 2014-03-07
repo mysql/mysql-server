@@ -36,6 +36,12 @@ drop prepare dump_statements_host;
 drop prepare dump_statements_history;
 drop prepare dump_statements_global;
 
+drop prepare dump_transactions_account;
+drop prepare dump_transactions_user;
+drop prepare dump_transactions_host;
+drop prepare dump_transactions_history;
+drop prepare dump_transactions_global;
+
 drop prepare dump_users;
 drop prepare dump_hosts;
 drop prepare dump_accounts;
@@ -49,6 +55,7 @@ insert into performance_schema.setup_actors
   select * from test.setup_actors;
 drop table test.setup_actors;
 drop table test.t1;
+drop function test.f;
 
 update performance_schema.threads set instrumented='YES';
 update performance_schema.setup_instruments set enabled='YES', timed='YES';

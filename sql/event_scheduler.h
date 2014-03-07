@@ -1,6 +1,6 @@
 #ifndef _EVENT_SCHEDULER_H_
 #define _EVENT_SCHEDULER_H_
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ public:
   /* State changing methods follow */
 
   bool
-  start();
+  start(int *err_no);
 
   bool
   stop();
@@ -99,7 +99,7 @@ public:
   dump_internal_status();
 
 private:
-  uint
+  int
   workers_count();
 
   /* helper functions */

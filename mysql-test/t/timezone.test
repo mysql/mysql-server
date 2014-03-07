@@ -1,3 +1,4 @@
+
 #
 # Test of SYSTEM time zone handling ( for my_system_gmt_sec()).
 # This script must be run with TZ=MET

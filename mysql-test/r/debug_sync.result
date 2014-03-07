@@ -2,7 +2,7 @@ SET DEBUG_SYNC= 'RESET';
 DROP TABLE IF EXISTS t1;
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: ''
+debug_sync	ON - signals: ''
 SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6 EXECUTE 2 HIT_LIMIT 3';
 SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6 EXECUTE 2';
 SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6           HIT_LIMIT 3';
@@ -150,34 +150,34 @@ SET @myvar= 'now SIGNAL from_myvar';
 SET DEBUG_SYNC= @myvar;
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 'from_myvar'
+debug_sync	ON - signals: 'from_myvar'
 SET DEBUG_SYNC= LEFT('now SIGNAL from_function_cut_here', 24);
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 'from_function'
+debug_sync	ON - signals: 'from_function,from_myvar'
 SET DEBUG_SYNC= 'now SIGNAL something';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 'something'
+debug_sync	ON - signals: 'from_function,from_myvar,something'
 SET DEBUG_SYNC= 'now WAIT_FOR nothing TIMEOUT 0';
 Warnings:
 Warning	####	debug sync point wait timed out
 SET DEBUG_SYNC= 'now SIGNAL nothing';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 'nothing'
+debug_sync	ON - signals: 'from_function,from_myvar,nothing,something'
 SET DEBUG_SYNC= 'now WAIT_FOR nothing TIMEOUT 0';
 SET DEBUG_SYNC= 'now SIGNAL something EXECUTE 0';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 'nothing'
+debug_sync	ON - signals: 'from_function,from_myvar,something'
 SET DEBUG_SYNC= 'now WAIT_FOR anotherthing TIMEOUT 0 EXECUTE 0';
 SET DEBUG_SYNC= 'now HIT_LIMIT 1';
 ERROR HY000: debug sync point hit limit reached
 SET DEBUG_SYNC= 'RESET';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: ''
+debug_sync	ON - signals: ''
 SET DEBUG_SYNC= 'p1abcd   SIGNAL s1 EXECUTE 2';
 SET DEBUG_SYNC= 'p2abc    SIGNAL s2 EXECUTE 2';
 SET DEBUG_SYNC= 'p9abcdef SIGNAL s9 EXECUTE 2';
@@ -190,23 +190,23 @@ SET DEBUG_SYNC= 'p3abcdef SIGNAL s3 EXECUTE 2';
 SET DEBUG_SYNC= 'p4a      TEST';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 's4'
+debug_sync	ON - signals: 's4'
 SET DEBUG_SYNC= 'p1abcd   TEST';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 's1'
+debug_sync	ON - signals: 's1,s4'
 SET DEBUG_SYNC= 'p7       TEST';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 's7'
+debug_sync	ON - signals: 's1,s4,s7'
 SET DEBUG_SYNC= 'p9abcdef TEST';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 's9'
+debug_sync	ON - signals: 's1,s4,s7,s9'
 SET DEBUG_SYNC= 'p3abcdef TEST';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 's3'
+debug_sync	ON - signals: 's1,s3,s4,s7,s9'
 SET DEBUG_SYNC= 'p1abcd   CLEAR';
 SET DEBUG_SYNC= 'p2abc    CLEAR';
 SET DEBUG_SYNC= 'p5abcde  CLEAR';
@@ -219,19 +219,19 @@ SET DEBUG_SYNC= 'p7       CLEAR';
 SET DEBUG_SYNC= 'p1abcd   TEST';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 's3'
+debug_sync	ON - signals: 's1,s3,s4,s7,s9'
 SET DEBUG_SYNC= 'p7       TEST';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 's3'
+debug_sync	ON - signals: 's1,s3,s4,s7,s9'
 SET DEBUG_SYNC= 'p9abcdef TEST';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: 's3'
+debug_sync	ON - signals: 's1,s3,s4,s7,s9'
 SET DEBUG_SYNC= 'RESET';
 SHOW VARIABLES LIKE 'DEBUG_SYNC';
 Variable_name	Value
-debug_sync	ON - current signal: ''
+debug_sync	ON - signals: ''
 CREATE USER mysqltest_1@localhost;
 GRANT SUPER ON *.* TO mysqltest_1@localhost;
 connection con1, mysqltest_1

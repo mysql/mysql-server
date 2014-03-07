@@ -1,0 +1,53 @@
+#
+# WL#7155: Test 1: check that prepared transaction branch
+# is recovered after abnormal server termination.
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+SELECT * FROM t1;
+a
+XA COMMIT 'xid1';
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;
+#
+# WL#7155: Test 2: check that in case of abnormal server termination
+# the changes done by unprepared transaction branch will be rolled back
+# after the server restart.
+# 
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1;
+a
+DROP TABLE t1;
+#
+# WL#7155: Test 3: Check that escaped "'" symbol for xid value
+# is handled correctly during recovering XA transaction. 
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1', 'br\'_1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1', 'br\'_1';
+XA PREPARE 'xid1', 'br\'_1';
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	5	xid1br'_1
+XA ROLLBACK 'xid1', 'br\'_1';
+DROP TABLE t1;

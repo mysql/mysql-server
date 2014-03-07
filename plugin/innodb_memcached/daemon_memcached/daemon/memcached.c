@@ -85,6 +85,33 @@ static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
 #define STATS_MISS(conn, op, key, nkey) \
     STATS_TWO(conn, op##_misses, cmd_##op, key, nkey)
 
+#if defined(HAVE_GCC_ATOMIC_BUILTINS)
+
+#define STATS_NOKEY(conn, op)	\
+do { \
+    struct thread_stats *thread_stats = \
+        get_thread_stats(conn); \
+	__sync_add_and_fetch(&thread_stats->op, 1); \
+} while (0)
+
+#define STATS_NOKEY2(conn, op1, op2)	\
+do { \
+    struct thread_stats *thread_stats = \
+        get_thread_stats(conn); \
+	__sync_add_and_fetch(&thread_stats->op1, 1); \
+	__sync_add_and_fetch(&thread_stats->op2, 1); \
+} while (0)
+
+#define STATS_ADD(conn, op, amt)	\
+do { \
+    struct thread_stats *thread_stats = \
+        get_thread_stats(conn); \
+	__sync_add_and_fetch(&thread_stats->op, amt); \
+} while (0)
+
+#define MEMCACHED_ATOMIC_MSG	"InnoDB MEMCACHED: Memcached uses atomic increment \n"
+
+#else /* HAVE_GCC_ATOMIC_BUILTINS */
 #define STATS_NOKEY(conn, op) { \
     struct thread_stats *thread_stats = \
         get_thread_stats(conn); \
@@ -110,7 +137,11 @@ static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
     pthread_mutex_unlock(&thread_stats->mutex); \
 }
 
+#define MEMCACHED_ATOMIC_MSG	"InnoDB Memcached: Memcached DOES NOT use atomic increment"
+#endif /* HAVE_GCC_ATOMIC_BUILTINS */
+
 volatile sig_atomic_t memcached_shutdown;
+volatile sig_atomic_t memcached_initialized;
 
 /*
  * We keep the current time of day in a global variable that's updated by a
@@ -6717,6 +6748,11 @@ bool shutdown_complete(void)
 {
     return(memcached_shutdown == 2);
 }
+
+bool init_complete(void)
+{
+    return(memcached_initialized == 1);
+}
 #endif
 
 static EXTENSION_LOGGER_DESCRIPTOR* get_logger(void)
@@ -7021,6 +7057,8 @@ int main (int argc, char **argv) {
     char** option_argv = NULL;
     eng_config_info_t my_eng_config;
 
+    memcached_initialized = 0;
+
     if (m_config->m_engine_library) {
 	engine = m_config->m_engine_library;
 
@@ -7042,6 +7080,7 @@ int main (int argc, char **argv) {
 #endif /* INNODB_MEMCACHED */
 
     memcached_shutdown = 0;
+    memcached_initialized = 0;
 
     if (!sanitycheck()) {
         return(NULL);
@@ -7329,6 +7368,7 @@ int main (int argc, char **argv) {
 
 	free(option_argv);
     }
+    fprintf(stderr, MEMCACHED_ATOMIC_MSG);
 #else
     /* process arguments */
     while (-1 != (c = getopt(argc, argv,
@@ -7893,6 +7933,8 @@ int main (int argc, char **argv) {
     /* Drop privileges no longer needed */
     drop_privileges();
 
+    memcached_initialized = 1;
+
     /* enter the event loop */
     event_base_loop(main_base, 0);
 
@@ -7915,7 +7957,16 @@ func_exit:
     if (settings.inter)
       free(settings.inter);
 
+#ifdef INNODB_MEMCACHED
+    /* free event base */
+    if (main_base) {
+        event_base_free(main_base);
+        main_base = NULL;
+    }
+#endif
+
     memcached_shutdown = 2;
+    memcached_initialized = 2;
 
     return EXIT_SUCCESS;
 }

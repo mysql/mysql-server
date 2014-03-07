@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define GCP_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 131
+
 
 /**
  * Sent as a distributed signal DIH-DIH.
@@ -64,11 +66,12 @@ struct GCPNoMoreTrans // Local DIH/TC
 
 struct GCPTCFinished // Local TC-DIH
 {
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
 
   Uint32 senderData;
   Uint32 gci_hi;
   Uint32 gci_lo;
+  Uint32 tcFailNo;
 };
 
 struct GCPNodeFinished // Distr. DIH-DIH
@@ -162,5 +165,8 @@ private:
   Uint32 nodeId;
   Uint32 gci;
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

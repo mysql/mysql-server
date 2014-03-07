@@ -1,3 +1,4 @@
+--source include/have_myisam.inc
 #
 # Bug#11401: Load data infile 'REPLACE INTO' fails on slave.
 #
@@ -114,7 +115,7 @@ FLUSH LOGS;
 --echo -------- switch to master --------
 connection master;
 FLUSH LOGS;
-
+DROP TEMPORARY TABLE IF EXISTS mysqltest1.tmp2;
 DROP DATABASE mysqltest1;
 
 --echo End of 5.1 tests
@@ -156,7 +157,7 @@ let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
   WHERE info = "RENAME TABLE t1 TO t3, t2 TO t1" and
   state = "Waiting for table metadata lock";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
 
 COMMIT;
 

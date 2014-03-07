@@ -54,7 +54,7 @@ SELECT @@global.log_warnings;
 ########################################################################
 
 SET @@global.log_warnings = DEFAULT;
-SELECT @@global.log_warnings = 1;
+SELECT @@global.log_warnings = 2;
 
 
 --echo '#--------------------FN_DYNVARS_067_03-------------------------#'

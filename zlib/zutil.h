@@ -124,12 +124,8 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 
 #if defined(MACOS) || defined(TARGET_OS_MAC)
 #  define OS_CODE  0x07
-#  if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
-#    include <unix.h> /* for fdopen */
-#  else
-#    ifndef fdopen
-#      define fdopen(fd,mode) NULL /* No fdopen() */
-#    endif
+#  ifndef fdopen
+#    define fdopen(fd,mode) NULL /* No fdopen() */
 #  endif
 #endif
 
@@ -138,9 +134,7 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #endif
 
 #ifdef WIN32
-#  ifndef __CYGWIN__  /* Cygwin is Unix, not Win32 */
-#    define OS_CODE  0x0b
-#  endif
+#  define OS_CODE  0x0b
 #endif
 
 #ifdef __50SERIES /* Prime/PRIMOS */
@@ -149,18 +143,6 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 
 #if defined(_BEOS_) || defined(RISCOS)
 #  define fdopen(fd,mode) NULL /* No fdopen() */
-#endif
-
-#if (defined(_MSC_VER) && (_MSC_VER > 600))
-#  if defined(_WIN32_WCE)
-#    define fdopen(fd,mode) NULL /* No fdopen() */
-#    ifndef _PTRDIFF_T_DEFINED
-       typedef int ptrdiff_t;
-#      define _PTRDIFF_T_DEFINED
-#    endif
-#  else
-#    define fdopen(fd,type)  _fdopen(fd,type)
-#  endif
 #endif
 
         /* common defaults */
@@ -175,53 +157,6 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 
          /* functions */
 
-#if defined(STDC99) || (defined(__TURBOC__) && __TURBOC__ >= 0x550)
-#  ifndef HAVE_VSNPRINTF
-#    define HAVE_VSNPRINTF
-#  endif
-#endif
-#if defined(__CYGWIN__)
-#  ifndef HAVE_VSNPRINTF
-#    define HAVE_VSNPRINTF
-#  endif
-#endif
-#ifndef HAVE_VSNPRINTF
-#  ifdef MSDOS
-     /* vsnprintf may exist on some MS-DOS compilers (DJGPP?),
-        but for now we just assume it doesn't. */
-#    define NO_vsnprintf
-#  endif
-#  ifdef __TURBOC__
-#    define NO_vsnprintf
-#  endif
-#  if defined(WIN32) && (!defined(_MSC_VER) || _MSC_VER < 1500)
-     /* In Win32, vsnprintf is available as the "non-ANSI" _vsnprintf. */
-#    if !defined(vsnprintf) && !defined(NO_vsnprintf)
-#      define vsnprintf _vsnprintf
-#    endif
-#  endif
-#  ifdef __SASC
-#    define NO_vsnprintf
-#  endif
-#endif
-#ifdef VMS
-#  define NO_vsnprintf
-#endif
-
-#if defined(pyr)
-#  define NO_MEMCPY
-#endif
-#if defined(SMALL_MEDIUM) && !defined(_MSC_VER) && !defined(__SC__)
- /* Use our own functions for small and medium model with MSC <= 5.0.
-  * You may have to use the same strategy for Borland C (untested).
-  * The __SC__ check is for Symantec.
-  */
-#  define NO_MEMCPY
-#endif
-#if defined(STDC) && !defined(HAVE_MEMCPY) && !defined(NO_MEMCPY)
-#  define HAVE_MEMCPY
-#endif
-#ifdef HAVE_MEMCPY
 #  ifdef SMALL_MEDIUM /* MSDOS small or medium model */
 #    define zmemcpy _fmemcpy
 #    define zmemcmp _fmemcmp
@@ -231,11 +166,6 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #    define zmemcmp memcmp
 #    define zmemzero(dest, len) memset(dest, 0, len)
 #  endif
-#else
-   extern void zmemcpy  OF((Bytef* dest, const Bytef* source, uInt len));
-   extern int  zmemcmp  OF((const Bytef* s1, const Bytef* s2, uInt len));
-   extern void zmemzero OF((Bytef* dest, uInt len));
-#endif
 
 /* Diagnostic functions */
 #ifdef DEBUG

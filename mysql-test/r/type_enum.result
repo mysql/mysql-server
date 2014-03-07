@@ -1627,14 +1627,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('','a','b') NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a enum (' ','a','b ') not null default 'b ');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('','a','b') NOT NULL DEFAULT 'b'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a enum ('0','1'));
 insert into t1 set a='foobar';
@@ -1659,7 +1659,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('‰','1','2') NOT NULL DEFAULT '‰'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 set names latin1;
 CREATE TABLE t1 (
@@ -1671,7 +1671,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT '1',
   `b` enum('value','ˆ‰¸_value',' √’') NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		1	
@@ -1700,7 +1700,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('‰','ˆ','¸') CHARACTER SET utf8 DEFAULT '¸'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 insert into t1 values ('‰'), ('ˆ'), ('¸');
 select a from t1 order by a;
 a
@@ -1718,7 +1718,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('‰','ˆ','¸') DEFAULT '¸'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 select a from t1 order by a;
 a
 ‰
@@ -1752,28 +1752,28 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int(11) DEFAULT NULL,
   `f2` enum('ˇˇ') DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1(russian enum('E','F','EˇF','FˇE') NOT NULL DEFAULT'E');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `russian` enum('E','F','EˇF','FˇE') NOT NULL DEFAULT 'E'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1(denormal enum('E','F','E,F','F,E') NOT NULL DEFAULT'E');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `denormal` enum('E','F','E,F','F,E') NOT NULL DEFAULT 'E'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1(russian_deviant enum('E','F','EˇF','F,E') NOT NULL DEFAULT'E');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `russian_deviant` enum('E','F','EˇF','F,E') NOT NULL DEFAULT 'E'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
  !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\Ä','zzÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü†°¢£§•¶ß®©™´¨≠ÆØ∞±≤≥¥µ∂∑∏π∫ªºΩæø¿¡¬√ƒ≈∆«»… ÀÃÕŒœ–—“”‘’÷◊ÿŸ⁄€‹›ﬁﬂ‡·‚„‰ÂÊÁËÈÍÎÏÌÓÔÒÚÛÙıˆ˜¯˘˙˚¸˝˛ˇ'));
@@ -1840,15 +1840,19 @@ a
 
 c
 EXPLAIN SELECT a FROM t1 WHERE a=0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1004	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 0)
 SELECT a FROM t1 WHERE a=0;
 a
 
 ALTER TABLE t1 ADD PRIMARY KEY (a);
 EXPLAIN SELECT a FROM t1 WHERE a=0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	1	const	1	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	1	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select '' AS `a` from `test`.`t1` where ('' = 0)
 SELECT a FROM t1 WHERE a=0;
 a
 

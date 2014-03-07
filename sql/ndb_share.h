@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,8 +22,6 @@
 #include <my_alloc.h>        // MEM_ROOT
 #include <thr_lock.h>        // THR_LOCK
 #include <my_bitmap.h>       // MY_BITMAP
-#include <mysql_com.h>       // NAME_CHAR_LEN
-#include <sql_const.h>       // MAX_REF_PARTS
 
 #include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
 #include "ndb_conflict.h"

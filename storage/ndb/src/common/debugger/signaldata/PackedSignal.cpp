@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +17,7 @@
 
 #include <signaldata/PackedSignal.hpp>
 #include <signaldata/LqhKey.hpp>
+#include <signaldata/FireTrigOrd.hpp>
 #include <debugger/DebuggerNames.hpp>
 
 bool
@@ -98,7 +98,7 @@ printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec
       break;
     }
     case ZFIRE_TRIG_REQ: {
-      Uint32 signalLength = 3;
+      Uint32 signalLength = FireTrigReq::SignalLength;
 
       fprintf(output, "--------------- Signal ----------------\n");
       fprintf(output, "r.bn: %u \"%s\", length: %u \"FIRE_TRIG_REQ\"\n",
@@ -107,7 +107,7 @@ printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec
       break;
     }
     case ZFIRE_TRIG_CONF: {
-      Uint32 signalLength = 4;
+      Uint32 signalLength = FireTrigConf::SignalLength;
 
       fprintf(output, "--------------- Signal ----------------\n");
       fprintf(output, "r.bn: %u \"%s\", length: %u \"FIRE_TRIG_CONF\"\n",
@@ -123,4 +123,81 @@ printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec
   }//for
   fprintf(output, "--------- End Packed Signals ----------\n");
   return true;
+}
+
+bool
+PackedSignal::verify(const Uint32* data, Uint32 len, Uint32 receiverBlockNo, 
+                     Uint32 typesExpected, Uint32 commitLen)
+{
+  Uint32 pos = 0;
+  bool bad = false;
+
+  if (unlikely(len > 25))
+  {
+    fprintf(stderr, "Bad PackedSignal length : %u\n", len);
+    bad = true;
+  }
+  else
+  {
+    while ((pos < len) && ! bad)
+    {
+      Uint32 sigType = data[pos] >> 28;
+      if (unlikely(((1 << sigType) & typesExpected) == 0))
+      {
+        fprintf(stderr, "Unexpected sigtype in packed signal : %u at pos %u.  Expected : %u\n",
+                sigType, pos, typesExpected);
+        bad = true;
+        break;
+      }
+      switch (sigType)
+      {
+      case ZCOMMIT:
+        assert(commitLen > 0);
+        pos += commitLen;
+        break;
+      case ZCOMPLETE:
+        pos+= 3;
+        break;
+      case ZCOMMITTED:
+        pos+= 3;
+        break;
+      case ZCOMPLETED:
+        pos+= 3;
+        break;
+      case ZLQHKEYCONF:
+        pos+= LqhKeyConf::SignalLength;
+        break;
+      case ZREMOVE_MARKER:
+        pos+= 3;
+        break;
+      case ZFIRE_TRIG_REQ:
+        pos+= FireTrigReq::SignalLength;
+        break;
+      case ZFIRE_TRIG_CONF:
+        pos+= FireTrigConf::SignalLength;
+        break;
+      default :
+        fprintf(stderr, "Unrecognised signal type %u at pos %u\n",
+                sigType, pos);
+        bad = true;
+        break;
+      }
+    }
+    
+    if (likely(pos == len))
+    {
+      /* Looks ok */
+      return true;
+    }
+    
+    if (!bad)
+    {
+      fprintf(stderr, "Packed signal component length (%u) != total length (%u)\n",
+               pos, len);
+    }
+  }
+
+  printPACKED_SIGNAL(stderr, data, len, receiverBlockNo);
+  
+  return false;
 }

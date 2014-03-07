@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,38 +26,6 @@
 #ifndef SQL_PRIV_INCLUDED
 #define SQL_PRIV_INCLUDED
 
-#ifndef MYSQL_CLIENT
-
-/*
-  Generates a warning that a feature is deprecated. 
-
-  Using it as
-
-  WARN_DEPRECATED(thd, "BAD", "'GOOD'");
-
-  Will result in a warning
- 
-  "The syntax 'BAD' is deprecated and will be removed in a
-   future release. Please use 'GOOD' instead"
-
-   Note that in macro arguments BAD is not quoted, while 'GOOD' is.
-*/
-#define WARN_DEPRECATED(Thd,Old,New)                            \
-  do {                                                                      \
-    if (((THD *) Thd) != NULL)                                              \
-      push_warning_printf(((THD *) Thd), Sql_condition::SL_WARNING,    \
-                        ER_WARN_DEPRECATED_SYNTAX,                          \
-                        ER(ER_WARN_DEPRECATED_SYNTAX),                      \
-                        (Old), (New));                                      \
-    else                                                                    \
-      sql_print_warning("The syntax '%s' is deprecated and will be removed " \
-                        "in a future release. Please use %s instead.",      \
-                        (Old), (New));                                      \
-  } while(0)
-
-/*************************************************************************/
-
-#endif
 
 /*
    This is included in the server and in the client.
@@ -69,7 +37,7 @@
    values, or it will break replication between version.
 
    context is encoded as following:
-   SELECT - SELECT_LEX_NODE::options
+   SELECT - SELECT_LEX::options
    THD    - THD::options
    intern - neither. used only as
             func(..., select_node->options | thd->options | OPTION_XXX, ...)
@@ -93,7 +61,7 @@
 #define TMP_TABLE_ALL_COLUMNS   (1ULL << 12)    // SELECT, intern
 #define OPTION_WARNINGS         (1ULL << 13)    // THD, user
 #define OPTION_AUTO_IS_NULL     (1ULL << 14)    // THD, user, binlog
-#define OPTION_FOUND_COMMENT    (1ULL << 15)    // SELECT, intern, parser
+#define OPTION_FOUND_COMMENT    (1ULL << 15)    // DEPRECATED
 #define OPTION_SAFE_UPDATES     (1ULL << 16)    // THD, user
 #define OPTION_BUFFER_RESULT    (1ULL << 17)    // SELECT, user
 #define OPTION_BIN_LOG          (1ULL << 18)    // THD, user
@@ -211,17 +179,6 @@ template <class T> bool valid_buffer_range(T jump,
 #define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 15)
 #define OPTIMIZER_SWITCH_LAST                      (1ULL << 16)
 
-/**
-   If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
-   optimizer features (semijoin) will be available.
- */
-#define OPTIMIZER_SWITCH_ALL 1
-
-/* 
-  The following must be kept in sync with optimizer_switch string in 
-  sys_vars.cc.
-*/
-#ifdef OPTIMIZER_SWITCH_ALL
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
@@ -237,18 +194,6 @@ template <class T> bool valid_buffer_range(T jump,
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
                                   OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
                                   OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
-#else
-#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
-                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
-                                  OPTIMIZER_SWITCH_MRR | \
-                                  OPTIMIZER_SWITCH_MRR_COST_BASED | \
-                                  OPTIMIZER_SWITCH_BNL | \
-                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
-#endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should
@@ -275,7 +220,7 @@ template <class T> bool valid_buffer_range(T jump,
 */ 
 #define CONTEXT_ANALYSIS_ONLY_PREPARE 1
 /*
-  Special JOIN::prepare mode: changing of query is prohibited.
+  Special SELECT_LEX::prepare mode: changing of query is prohibited.
   When creating a view, we need to just check its syntax omitting
   any optimizations: afterwards definition of the view will be
   reconstructed by means of ::print() methods and written to
@@ -292,11 +237,9 @@ template <class T> bool valid_buffer_range(T jump,
 #define UNCACHEABLE_DEPENDENT   1
 #define UNCACHEABLE_RAND        2
 #define UNCACHEABLE_SIDEEFFECT	4
-/// forcing to save JOIN for explain
-#define UNCACHEABLE_EXPLAIN     8
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
-#define UNCACHEABLE_UNITED     16
-#define UNCACHEABLE_CHECKOPTION 32
+#define UNCACHEABLE_UNITED      8
+#define UNCACHEABLE_CHECKOPTION 16
 
 /*
   Some defines for exit codes for ::is_equal class functions.
@@ -305,13 +248,38 @@ template <class T> bool valid_buffer_range(T jump,
 #define IS_EQUAL_YES 1
 #define IS_EQUAL_PACK_LENGTH 2
 
-enum enum_parsing_place
+/**
+  Names for different query parse tree parts
+*/
+
+enum enum_parsing_context
 {
-  NO_MATTER,
-  IN_HAVING,
-  SELECT_LIST,
-  IN_WHERE,
-  IN_ON
+  CTX_NONE= 0, ///< Empty value
+  CTX_MESSAGE, ///< "No tables used" messages etc.
+  CTX_TABLE, ///< for single-table UPDATE/DELETE/INSERT/REPLACE
+  CTX_SELECT_LIST, ///< SELECT (subquery), (subquery)...
+  CTX_UPDATE_VALUE_LIST, ///< UPDATE ... SET field=(subquery)...
+  CTX_JOIN,
+  CTX_JOIN_TAB,
+  CTX_MATERIALIZATION,
+  CTX_DUPLICATES_WEEDOUT,
+  CTX_DERIVED, ///< "Derived" subquery
+  CTX_WHERE, ///< Subquery in WHERE clause item tree
+  CTX_ON,    ///< ON clause context
+  CTX_HAVING, ///< Subquery in HAVING clause item tree
+  CTX_ORDER_BY, ///< ORDER BY clause execution context
+  CTX_GROUP_BY, ///< GROUP BY clause execution context
+  CTX_SIMPLE_ORDER_BY, ///< ORDER BY clause execution context
+  CTX_SIMPLE_GROUP_BY, ///< GROUP BY clause execution context
+  CTX_DISTINCT, ///< DISTINCT clause execution context
+  CTX_SIMPLE_DISTINCT, ///< DISTINCT clause execution context
+  CTX_BUFFER_RESULT, ///< see SQL_BUFFER_RESULT in the manual
+  CTX_ORDER_BY_SQ, ///< Subquery in ORDER BY clause item tree
+  CTX_GROUP_BY_SQ, ///< Subquery in GROUP BY clause item tree
+  CTX_OPTIMIZED_AWAY_SUBQUERY, ///< Subquery executed once during optimization
+  CTX_UNION,
+  CTX_UNION_RESULT, ///< Pseudo-table context for UNION result
+  CTX_QUERY_SPEC ///< Inner SELECTs of UNION expression
 };
 
 

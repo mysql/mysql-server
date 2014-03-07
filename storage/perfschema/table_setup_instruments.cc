@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -58,11 +58,10 @@ table_setup_instruments::m_share=
 {
   { C_STRING_WITH_LEN("setup_instruments") },
   &pfs_updatable_acl,
-  &table_setup_instruments::create,
+  table_setup_instruments::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_setup_instruments::get_row_count,
   sizeof(pos_setup_instruments),
   &m_table_lock,
   &m_field_def,
@@ -72,6 +71,16 @@ table_setup_instruments::m_share=
 PFS_engine_table* table_setup_instruments::create(void)
 {
   return new table_setup_instruments();
+}
+
+ha_rows
+table_setup_instruments::get_row_count(void)
+{
+  return wait_class_max
+    + stage_class_max
+    + statement_class_max
+    + transaction_class_max
+    + memory_class_max;
 }
 
 table_setup_instruments::table_setup_instruments()
@@ -123,11 +132,20 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_STATEMENT:
       instr_class= find_statement_class(m_pos.m_index_2);
       break;
+    case pos_setup_instruments::VIEW_TRANSACTION:
+      instr_class= find_transaction_class(m_pos.m_index_2);
+      break;
     case pos_setup_instruments::VIEW_SOCKET:
       instr_class= find_socket_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_IDLE:
       instr_class= find_idle_class(m_pos.m_index_2);
+      break;
+    case pos_setup_instruments::VIEW_MEMORY:
+      instr_class= find_memory_class(m_pos.m_index_2);
+      break;
+    case pos_setup_instruments::VIEW_METADATA:
+      instr_class= find_metadata_class(m_pos.m_index_2);
       break;
     }
     if (instr_class)
@@ -177,11 +195,20 @@ int table_setup_instruments::rnd_pos(const void *pos)
   case pos_setup_instruments::VIEW_STATEMENT:
     instr_class= find_statement_class(m_pos.m_index_2);
     break;
+  case pos_setup_instruments::VIEW_TRANSACTION:
+    instr_class= find_transaction_class(m_pos.m_index_2);
+    break;
   case pos_setup_instruments::VIEW_SOCKET:
     instr_class= find_socket_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_IDLE:
     instr_class= find_idle_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_MEMORY:
+    instr_class= find_memory_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_METADATA:
+    instr_class= find_metadata_class(m_pos.m_index_2);
     break;
   }
   if (instr_class)
@@ -288,6 +315,7 @@ int table_setup_instruments::update_row_values(TABLE *table,
       break;
     case pos_setup_instruments::VIEW_STAGE:
     case pos_setup_instruments::VIEW_STATEMENT:
+    case pos_setup_instruments::VIEW_TRANSACTION:
       /* No flag to update. */
       break;
     case pos_setup_instruments::VIEW_SOCKET:
@@ -295,6 +323,12 @@ int table_setup_instruments::update_row_values(TABLE *table,
       break;
     case pos_setup_instruments::VIEW_IDLE:
       /* No flag to update. */
+      break;
+    case pos_setup_instruments::VIEW_MEMORY:
+      /* No flag to update. */
+      break;
+    case pos_setup_instruments::VIEW_METADATA:
+      update_metadata_derived_flags();
       break;
     default:
       DBUG_ASSERT(false);

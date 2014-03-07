@@ -1,11 +1,11 @@
+
 # this test needs multithreaded mysqltest
 -- source include/not_embedded.inc
 #
 # Basic log tables test
 #
-
-# check that CSV engine was compiled in
---source include/have_csv.inc
+# Test needs myisam for some myisam specific testcases
+--source include/have_myisam.inc 
 
 SET @old_general_log_state = @@global.general_log;
 SET @old_log_output=       @@global.log_output;
@@ -291,28 +291,28 @@ drop table mysql.slow_log;
 use mysql;
 
 CREATE TABLE `general_log` (
-  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-                         ON UPDATE CURRENT_TIMESTAMP,
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+                         ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
-  `argument` mediumtext NOT NULL
+  `argument` mediumblob NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
 
 CREATE TABLE `slow_log` (
-  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-                         ON UPDATE CURRENT_TIMESTAMP,
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+                         ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
-  `query_time` time NOT NULL,
-  `lock_time` time NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
   `rows_sent` int(11) NOT NULL,
   `rows_examined` int(11) NOT NULL,
   `db` varchar(512) NOT NULL,
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
-  `sql_text` mediumtext NOT NULL,
+  `sql_text` mediumblob NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log';
 
@@ -658,7 +658,7 @@ CREATE TABLE `db_17876.slow_log_data` (
   `last_insert_id` int(11) default NULL,
   `insert_id` int(11) default NULL,
   `server_id` int(11) default NULL,
-  `sql_text` mediumtext,
+  `sql_text` mediumblob,
   `thread_id` bigint(21) unsigned not NULL
 );
 
@@ -668,7 +668,7 @@ CREATE TABLE `db_17876.general_log_data` (
   `thread_id` bigint(21) unsigned not NULL,
   `server_id` int(11) DEFAULT NULL,
   `command_type` varchar(64) DEFAULT NULL,
-  `argument` mediumtext
+  `argument` mediumblob
 );
 
 DELIMITER //;
@@ -717,7 +717,8 @@ END //
 CREATE procedure `db_17876.archiveGeneralLog`()
 BEGIN
   DECLARE event_time CHAR(20);
-  DECLARE user_host, argument MEDIUMTEXT;
+  DECLARE user_host MEDIUMTEXT;
+  DECLARE argument MEDIUMBLOB;
   DECLARE thread_id BIGINT UNSIGNED;
   DECLARE server_id INT;
   DECLARE sql_text BLOB;
@@ -986,6 +987,18 @@ RENAME TABLE slow_log TO renamed_slow_log;
 use test;
 flush tables with read lock;
 unlock tables;
+
+
+--echo #
+--echo # WL#6613: Refactor logging code - split logging and binlogging code
+--echo #
+
+# Additional test coverage
+SET GLOBAL log_output= 'TABLE';
+SELECT @@general_log;
+--error ER_BAD_LOG_STATEMENT
+ALTER TABLE mysql.general_log DISCARD TABLESPACE;
+
 
 SET @@session.long_query_time= @old_long_query_time;
 

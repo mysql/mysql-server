@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include "sql_select.h"
 #include "sql_optimizer.h"                    // JOIN
 #include "sql_view.h"                         // check_duplicate_names
-#include "sql_acl.h"                          // SELECT_ACL
+#include "auth_common.h"                      // SELECT_ACL
 #include "sql_tmp_table.h"                    // Tmp tables
 
 
@@ -76,15 +76,6 @@ mysql_handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*))
       {
         if ((res= mysql_handle_single_derived(lex, table_ref, processor)))
           goto out;
-      }
-      if (lex->describe)
-      {
-        /*
-          Force join->join_tmp creation, because we will use this JOIN
-          twice for EXPLAIN and we have to have unchanged join for EXPLAINing
-        */
-        sl->uncacheable|= UNCACHEABLE_EXPLAIN;
-        sl->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
       }
     }
   }
@@ -359,7 +350,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
                             result->tmp_table_param.start_recinfo,
                             &result->tmp_table_param.recinfo,
                             (unit->first_select()->options |
-                             thd->lex->select_lex.options |
+                             thd->lex->select_lex->options |
                              thd->variables.option_bits |
                              TMP_TABLE_ALL_COLUMNS),
                             thd->variables.big_tables, &thd->opt_trace))
@@ -413,8 +404,8 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
   {
     SELECT_LEX *first_select= unit->first_select();
     JOIN *join= first_select->join;
-    SELECT_LEX *save_current_select= lex->current_select;
-    lex->current_select= first_select;
+    SELECT_LEX *save_current_select= lex->current_select();
+    lex->set_current_select(first_select);
 
     DBUG_ASSERT(join && join->optimized);
 
@@ -424,7 +415,7 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
 
     join->exec();
     res= join->error;
-    lex->current_select= save_current_select;
+    lex->set_current_select(save_current_select);
   }
 
   if (!res)
@@ -450,6 +441,6 @@ bool mysql_derived_cleanup(THD *thd, LEX *lex, TABLE_LIST *derived)
   DBUG_ENTER("mysql_derived_cleanup");
   SELECT_LEX_UNIT *unit= derived->derived;
   if (unit)
-    unit->cleanup();
+    unit->cleanup(false);
   DBUG_RETURN(false);
 }

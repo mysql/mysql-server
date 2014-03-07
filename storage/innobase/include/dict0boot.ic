@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,7 +25,7 @@ Created 4/18/1996 Heikki Tuuri
 
 /**********************************************************************//**
 Returns a new row id.
-@return	the new id */
+@return the new id */
 UNIV_INLINE
 row_id_t
 dict_sys_get_new_row_id(void)
@@ -51,7 +51,7 @@ dict_sys_get_new_row_id(void)
 
 /**********************************************************************//**
 Reads a row id from a record or other 6-byte stored form.
-@return	row id */
+@return row id */
 UNIV_INLINE
 row_id_t
 dict_sys_read_row_id(

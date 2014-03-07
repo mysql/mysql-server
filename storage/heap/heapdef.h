@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,8 +103,14 @@ extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
 
 extern mysql_mutex_t THR_LOCK_heap;
 
+extern PSI_memory_key hp_key_memory_HP_SHARE;
+extern PSI_memory_key hp_key_memory_HP_INFO;
+extern PSI_memory_key hp_key_memory_HP_PTRS;
+extern PSI_memory_key hp_key_memory_HP_KEYDEF;
+
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key hp_key_mutex_HP_SHARE_intern_lock;
+
 void init_heap_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */
 

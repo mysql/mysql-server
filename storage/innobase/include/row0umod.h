@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,8 +36,8 @@ Created 2/27/1997 Heikki Tuuri
 
 /***********************************************************//**
 Undoes a modify operation on a row of a table.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
+@return DB_SUCCESS or error code */
+
 dberr_t
 row_undo_mod(
 /*=========*/

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"
 #include "mysqld.h"                             // LOCK_uuid_generator
-#include "sql_acl.h"                            // SUPER_ACL
+#include "auth_common.h"                        // SUPER_ACL
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
 #include "password.h"           // my_make_scrambled_password,
                                 // my_make_scrambled_password_323
@@ -52,6 +52,7 @@
 #include "sha1.h"
 #include "my_aes.h"
 #include <zlib.h>
+#include "my_rnd.h"
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
@@ -364,39 +365,135 @@ void Item_func_sha2::fix_length_and_dec()
 
 /* Implementation of AES encryption routines */
 
+/** helper class to process an IV argument to aes_encrypt/aes_decrypt */
+class iv_argument
+{
+  char iv_buff[MY_AES_IV_SIZE + 1];  // +1 to cater for the terminating NULL
+  String tmp_iv_value;
+public:
+  iv_argument() :
+    tmp_iv_value(iv_buff, sizeof(iv_buff), system_charset_info)
+  {}
+
+  /**
+    Validate the arguments and retrieve the IV value.
+
+    Processes a 3d optional IV argument to an Item_func function.
+    Contains all the necessary stack buffers etc.
+
+    @param aes_opmode  the encryption mode
+    @param arg_count   number of parameters passed to the function
+    @param args        array of arguments passed to the function
+    @param func_name   the name of the function (for errors)
+    @param thd         the current thread (for errors)
+    @param [out] error_generated  set to true if error was generated.
+
+    @return a pointer to the retrived validated IV or NULL
+  */
+  const unsigned char *retrieve_iv_ptr(enum my_aes_opmode aes_opmode,
+                                       uint arg_count,
+                                       Item **args,
+                                       const char *func_name,
+                                       THD *thd,
+                                       my_bool *error_generated)
+  {
+    const unsigned char *iv_str= NULL;
+
+    *error_generated= FALSE;
+
+    if (my_aes_needs_iv(aes_opmode))
+    {
+      /* we only enforce the need for IV */
+      if (arg_count == 3)
+      {
+        String *iv= args[2]->val_str(&tmp_iv_value);
+        if (!iv || iv->length() < MY_AES_IV_SIZE)
+        {
+          my_error(ER_AES_INVALID_IV, MYF(0), func_name, (long long) MY_AES_IV_SIZE);
+          *error_generated= TRUE;
+          return NULL;
+        }
+        iv_str= (unsigned char *) iv->ptr();
+      }
+      else
+      {
+        my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), func_name);
+        *error_generated= TRUE;
+        return NULL;
+      }
+    }
+    else
+    {
+      if (arg_count == 3)
+      {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            WARN_OPTION_IGNORED,
+                            ER(WARN_OPTION_IGNORED), "IV");
+      }
+    }
+    return iv_str;
+  }
+};
+
+
 String *Item_func_aes_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   char key_buff[80];
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
-  String *sptr= args[0]->val_str(str);			// String to encrypt
-  String *key=  args[1]->val_str(&tmp_key_value);	// key
+  String *sptr, *key;
   int aes_length;
+  THD *thd= current_thd;
+  ulong aes_opmode;
+  iv_argument iv_arg;
+  DBUG_ENTER("Item_func_aes_decrypt::val_str");
+
+  sptr= args[0]->val_str(str);			// String to encrypt
+  key=  args[1]->val_str(&tmp_key_value);	// key
+  aes_opmode= thd->variables.my_aes_mode;
+
+  DBUG_ASSERT(aes_opmode <= MY_AES_END);
+
   if (sptr && key) // we need both arguments to be not NULL
   {
-    null_value=0;
-    aes_length=my_aes_get_size(sptr->length()); // Calculate result length
+    const unsigned char *iv_str= 
+      iv_arg.retrieve_iv_ptr((enum my_aes_opmode) aes_opmode, arg_count, args,
+                             func_name(), thd, &null_value);
+    if (null_value)
+      DBUG_RETURN(NULL);
 
+    // Calculate result length
+    aes_length= my_aes_get_size(sptr->length(),
+                                (enum my_aes_opmode) aes_opmode);
+
+    str_value.set_charset(&my_charset_bin);
     if (!str_value.alloc(aes_length))		// Ensure that memory is free
     {
       // finally encrypt directly to allocated buffer.
-      if (my_aes_encrypt(sptr->ptr(),sptr->length(), (char*) str_value.ptr(),
-			 key->ptr(), key->length()) == aes_length)
+      if (my_aes_encrypt((unsigned char *) sptr->ptr(), sptr->length(),
+                         (unsigned char *) str_value.ptr(),
+                         (unsigned char *) key->ptr(), key->length(),
+                         (enum my_aes_opmode) aes_opmode,
+                         iv_str) == aes_length)
       {
 	// We got the expected result length
 	str_value.length((uint) aes_length);
-	return &str_value;
+        DBUG_RETURN(&str_value);
       }
     }
   }
   null_value=1;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
 void Item_func_aes_encrypt::fix_length_and_dec()
 {
-  max_length=my_aes_get_size(args[0]->max_length);
+  ulong aes_opmode= current_thd->variables.my_aes_mode;
+  DBUG_ASSERT(aes_opmode <= MY_AES_END);
+
+  max_length=my_aes_get_size(args[0]->max_length,
+                             (enum my_aes_opmode) aes_opmode);
 }
 
 
@@ -406,20 +503,32 @@ String *Item_func_aes_decrypt::val_str(String *str)
   char key_buff[80];
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
   String *sptr, *key;
+  THD *thd= current_thd;
+  ulong aes_opmode;
+  iv_argument iv_arg;
   DBUG_ENTER("Item_func_aes_decrypt::val_str");
 
   sptr= args[0]->val_str(str);			// String to decrypt
   key=  args[1]->val_str(&tmp_key_value);	// Key
+  aes_opmode= thd->variables.my_aes_mode;
+  DBUG_ASSERT(aes_opmode <= MY_AES_END);
+
   if (sptr && key)  			// Need to have both arguments not NULL
   {
-    null_value=0;
+    const unsigned char *iv_str=
+      iv_arg.retrieve_iv_ptr((enum my_aes_opmode) aes_opmode, arg_count, args,
+      func_name(), thd, &null_value);
+    if (null_value)
+      DBUG_RETURN(NULL);
+    str_value.set_charset(&my_charset_bin);
     if (!str_value.alloc(sptr->length()))  // Ensure that memory is free
     {
       // finally decrypt directly to allocated buffer.
       int length;
-      length=my_aes_decrypt(sptr->ptr(), sptr->length(),
-			    (char*) str_value.ptr(),
-                            key->ptr(), key->length());
+      length= my_aes_decrypt((unsigned char *) sptr->ptr(), sptr->length(),
+                             (unsigned char *) str_value.ptr(),
+                             (unsigned char *) key->ptr(), key->length(),
+                             (enum my_aes_opmode) aes_opmode, iv_str);
       if (length >= 0)  // if we got correct data data
       {
         str_value.length((uint) length);
@@ -437,6 +546,59 @@ void Item_func_aes_decrypt::fix_length_and_dec()
 {
    max_length=args[0]->max_length;
    maybe_null= 1;
+}
+
+/*
+  Artificially limited to 1k to avoid excessive memory usage.
+  The SSL lib supports up to INT_MAX.
+*/
+const longlong Item_func_random_bytes::MAX_RANDOM_BYTES_BUFFER= 1024;
+
+
+void Item_func_random_bytes::fix_length_and_dec()
+{
+  collation.set(&my_charset_bin);
+  max_length= MAX_RANDOM_BYTES_BUFFER;
+}
+
+
+String *Item_func_random_bytes::val_str(String *a)
+{
+  DBUG_ASSERT(fixed == 1);
+  longlong n_bytes= args[0]->val_int();
+  null_value= args[0]->null_value;
+
+  if (null_value)
+    return NULL;
+
+  str_value.set_charset(&my_charset_bin);
+
+  if (n_bytes <= 0 || n_bytes > MAX_RANDOM_BYTES_BUFFER)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "length", func_name());
+    null_value= TRUE;
+    return NULL;
+  }
+
+  if (str_value.alloc(n_bytes))
+  {
+    my_error(ER_OUTOFMEMORY, n_bytes);
+    null_value= TRUE;
+    return NULL;
+  }
+
+  str_value.set_charset(&my_charset_bin);
+
+  if (my_rand_buffer((unsigned char *) str_value.ptr(), n_bytes))
+  {
+    my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), func_name(),
+             "SSL library can't generate random bytes");
+    null_value= TRUE;
+    return NULL;
+  }
+
+  str_value.length(n_bytes);
+  return &str_value;
 }
 
 
@@ -1064,7 +1226,6 @@ String *Item_func_reverse::val_str(String *str)
   ptr= (char *) res->ptr();
   end= ptr + res->length();
   tmp= (char *) tmp_value.ptr() + tmp_value.length();
-#ifdef USE_MB
   if (use_mb(res->charset()))
   {
     uint32 l;
@@ -1073,6 +1234,7 @@ String *Item_func_reverse::val_str(String *str)
       if ((l= my_ismbchar(res->charset(),ptr,end)))
       {
         tmp-= l;
+        DBUG_ASSERT(tmp >= tmp_value.ptr());
         memcpy(tmp,ptr,l);
         ptr+= l;
       }
@@ -1081,7 +1243,6 @@ String *Item_func_reverse::val_str(String *str)
     }
   }
   else
-#endif /* USE_MB */
   {
     while (ptr < end)
       *--tmp= *ptr++;
@@ -1103,7 +1264,7 @@ void Item_func_reverse::fix_length_and_dec()
   Don't reallocate val_str() if not needed.
 
   @todo
-    Fix that this works with binary strings when using USE_MB 
+    Fix that this works with binary strings
 */
 
 String *Item_func_replace::val_str(String *str)
@@ -1113,11 +1274,9 @@ String *Item_func_replace::val_str(String *str)
   int offset;
   uint from_length,to_length;
   bool alloced=0;
-#ifdef USE_MB
   const char *ptr,*end,*strend,*search,*search_end;
   uint32 l;
   bool binary_cmp;
-#endif
 
   null_value=0;
   res=args[0]->val_str(str);
@@ -1129,26 +1288,18 @@ String *Item_func_replace::val_str(String *str)
 
   res->set_charset(collation.collation);
 
-#ifdef USE_MB
   binary_cmp = ((res->charset()->state & MY_CS_BINSORT) || !use_mb(res->charset()));
-#endif
 
   if (res2->length() == 0)
     return res;
-#ifndef USE_MB
-  if ((offset=res->strstr(*res2)) < 0)
-    return res;
-#else
   offset=0;
   if (binary_cmp && (offset=res->strstr(*res2)) < 0)
     return res;
-#endif
   if (!(res3=args[2]->val_str(&tmp_value2)))
     goto null;
   from_length= res2->length();
   to_length=   res3->length();
 
-#ifdef USE_MB
   if (!binary_cmp)
   {
     search=res2->ptr();
@@ -1198,7 +1349,6 @@ skip:
     }
   }
   else
-#endif /* USE_MB */
     do
     {
       if (res->length()-from_length + to_length >
@@ -1566,7 +1716,6 @@ String *Item_func_substr_index::val_str(String *str)
 
   res->set_charset(collation.collation);
 
-#ifdef USE_MB
   if (use_mb(res->charset()))
   {
     const char *ptr= res->ptr();
@@ -1617,7 +1766,6 @@ String *Item_func_substr_index::val_str(String *str)
     }
   }
   else
-#endif /* USE_MB */
   {
     if (count > 0)
     {					// start counting from the beginning
@@ -1678,8 +1826,7 @@ String *Item_func_ltrim::val_str(String *str)
   char buff[MAX_FIELD_WIDTH], *ptr, *end;
   String tmp(buff,sizeof(buff),system_charset_info);
   String *res, *remove_str;
-  uint remove_length;
-  LINT_INIT(remove_length);
+  uint remove_length= 0;
 
   res= args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
@@ -1725,8 +1872,7 @@ String *Item_func_rtrim::val_str(String *str)
   char buff[MAX_FIELD_WIDTH], *ptr, *end;
   String tmp(buff, sizeof(buff), system_charset_info);
   String *res, *remove_str;
-  uint remove_length;
-  LINT_INIT(remove_length);
+  uint remove_length= 0;
 
   res= args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
@@ -1745,14 +1891,11 @@ String *Item_func_rtrim::val_str(String *str)
 
   ptr= (char*) res->ptr();
   end= ptr+res->length();
-#ifdef USE_MB
   char *p=ptr;
   uint32 l;
-#endif
   if (remove_length == 1)
   {
     char chr=(*remove_str)[0];
-#ifdef USE_MB
     if (use_mb(res->charset()))
     {
       while (ptr < end)
@@ -1762,14 +1905,12 @@ String *Item_func_rtrim::val_str(String *str)
       }
       ptr=p;
     }
-#endif
     while (ptr != end  && end[-1] == chr)
       end--;
   }
   else
   {
     const char *r_ptr=remove_str->ptr();
-#ifdef USE_MB
     if (use_mb(res->charset()))
     {
   loop:
@@ -1786,7 +1927,6 @@ String *Item_func_rtrim::val_str(String *str)
       }
     }
     else
-#endif /* USE_MB */
     {
       while (ptr + remove_length <= end &&
 	     !memcmp(end-remove_length, r_ptr, remove_length))
@@ -1807,8 +1947,7 @@ String *Item_func_trim::val_str(String *str)
   const char *r_ptr;
   String tmp(buff, sizeof(buff), system_charset_info);
   String *res, *remove_str;
-  uint remove_length;
-  LINT_INIT(remove_length);
+  uint remove_length= 0;
 
   res= args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
@@ -1828,18 +1967,34 @@ String *Item_func_trim::val_str(String *str)
   ptr= (char*) res->ptr();
   end= ptr+res->length();
   r_ptr= remove_str->ptr();
-  while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
-    ptr+=remove_length;
-#ifdef USE_MB
   if (use_mb(res->charset()))
   {
+    while (ptr + remove_length <= end)
+    {
+      uint num_bytes= 0;
+      while (num_bytes < remove_length)
+      {
+        uint len;
+        if ((len= my_ismbchar(res->charset(), ptr + num_bytes, end)))
+          num_bytes+= len;
+        else
+          ++num_bytes;
+      }
+      if (num_bytes != remove_length)
+        break;
+      if (memcmp(ptr, r_ptr, remove_length))
+        break;
+      ptr+= remove_length;
+    }
     char *p=ptr;
     uint32 l;
  loop:
     while (ptr + remove_length < end)
     {
-      if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l;
-      else ++ptr;
+      if ((l= my_ismbchar(res->charset(), ptr,end)))
+        ptr+= l;
+      else
+        ++ptr;
     }
     if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
     {
@@ -1850,8 +2005,9 @@ String *Item_func_trim::val_str(String *str)
     ptr=p;
   }
   else
-#endif /* USE_MB */
   {
+    while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
+      ptr+=remove_length;
     while (ptr + remove_length <= end &&
 	   !memcmp(end-remove_length,r_ptr,remove_length))
       end-=remove_length;
@@ -2073,9 +2229,8 @@ char *Item_func_old_password::alloc(THD *thd, const char *password,
 String *Item_func_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res  =args[0]->val_str(str);
-
 #ifdef HAVE_CRYPT
+  String *res = args[0]->val_str(str);
   char salt[3],*salt_ptr;
   if ((null_value=args[0]->null_value))
     return 0;
@@ -2166,12 +2321,14 @@ String *Item_func_encode::val_str(String *str)
 
 void Item_func_encode::crypto_transform(String *res)
 {
+  push_deprecated_warn(current_thd, "ENCODE", "AES_ENCRYPT");
   sql_crypt.encode((char*) res->ptr(),res->length());
   res->set_charset(&my_charset_bin);
 }
 
 void Item_func_decode::crypto_transform(String *res)
 {
+  push_deprecated_warn(current_thd, "DECODE", "AES_DECRYPT");
   sql_crypt.decode((char*) res->ptr(),res->length());
 }
 
@@ -2512,7 +2669,7 @@ String *Item_func_format::val_str_ascii(String *str)
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
     str->set_real(nr, dec, &my_charset_numeric);
-    if (isnan(nr) || my_isinf(nr))
+    if (my_isnan(nr) || my_isinf(nr))
       return str;
     str_length=str->length();
   }
@@ -2612,7 +2769,8 @@ double Item_func_elt::val_real()
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
-  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
+  if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
+      || tmp >= arg_count)
     return 0.0;
   double result= args[tmp]->val_real();
   null_value= args[tmp]->null_value;
@@ -2625,7 +2783,8 @@ longlong Item_func_elt::val_int()
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
-  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
+  if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
+      || tmp >= arg_count)
     return 0;
 
   longlong result= args[tmp]->val_int();
@@ -2639,7 +2798,8 @@ String *Item_func_elt::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
-  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
+  if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
+      || tmp >= arg_count)
     return NULL;
 
   String *result= args[tmp]->val_str(str);
@@ -3207,7 +3367,9 @@ String *Item_func_conv::val_str(String *str)
   int to_base= (int) args[2]->val_int();
   int err;
 
+  // Note that abs(INT_MIN) is undefined.
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
+      from_base == INT_MIN || to_base == INT_MIN ||
       abs(to_base) > 36 || abs(to_base) < 2 ||
       abs(from_base) > 36 || abs(from_base) < 2 || !(res->length()))
   {
@@ -3437,6 +3599,8 @@ String *Item_func_weight_string::val_str(String *str)
                                    nweights ? nweights : tmp_length,
                                    (const uchar *) res->ptr(), res->length(),
                                    flags);
+  DBUG_ASSERT(frm_length <= tmp_length);
+
   tmp_value.length(frm_length);
   null_value= 0;
   return &tmp_value;
@@ -4368,12 +4532,11 @@ String *Item_func_uuid::val_str(String *str)
   tohex(s, time_low, 8);
   tohex(s+9, time_mid, 4);
   tohex(s+14, time_hi_and_version, 4);
-  strmov(s+18, clock_seq_and_node_str);
+  my_stpcpy(s+18, clock_seq_and_node_str);
   return str;
 }
 
 
-#ifdef HAVE_REPLICATION
 void Item_func_gtid_subtract::fix_length_and_dec()
 {
   maybe_null= args[0]->maybe_null || args[1]->maybe_null;
@@ -4430,4 +4593,3 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
   null_value= true;
   DBUG_RETURN(NULL);
 }
-#endif // HAVE_REPLICATION

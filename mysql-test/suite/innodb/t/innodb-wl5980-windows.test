@@ -14,6 +14,28 @@
 --source include/have_innodb_16k.inc
 --source include/not_embedded.inc
 
+--echo #Check whether unzip is installed on the system
+--echo #Store the command output into a temp file.
+perl;
+ my $dir = $ENV{'MYSQLTEST_VARDIR'};
+ my $cmd = system('unzip --help > NUL 2>&1');
+ open ( OUTPUT, ">$dir/tmp/tar.inc") ;
+ print OUTPUT "let \$stat = $cmd;\n";
+ close (OUTPUT);
+EOF
+
+--echo #Get the value of the $stat variable from perl, to MTR
+--source  $MYSQLTEST_VARDIR/tmp/tar.inc
+
+--echo #Check the status is non-zero
+if ($stat != 0)
+{
+ --skip Test requires Unzip on Windows
+}
+
+--echo #Remove the temp file tar.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/tar.inc
+
 --echo # Set the environmental variables
 let $MYSQL_BASEDIR= `select @@basedir`;
 
@@ -107,6 +129,22 @@ closedir(DIR);
 
 exit 0;
 EOF
+
+--echo # Restarting the server with skip-grant-tables option and updating
+--echo # mysql.user table. This is to deal with the restriction imposed on
+--echo # plugin field for users in WL6982.
+
+--echo # Restart the DB server from unzip location of MySQL Data Dir 
+-- exec echo "restart: --datadir=$MYSQL_TMP_DIR/mysqld.5980/data/ --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+-- exec $MYSQL -e "UPDATE mysql.user SET plugin = 'mysql_native_password'"
+
+-- echo # Stop server
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- shutdown_server 30
+-- source include/wait_until_disconnected.inc
 
 --echo # Restart the DB server from unzip location of MySQL Data Dir 
 -- exec echo "restart: --datadir=$MYSQL_TMP_DIR/mysqld.5980/data/ " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

@@ -1,3 +1,6 @@
+--source include/have_myisam.inc
+# The include file ctype_numconv.inc have some MyISAM specific tests
+
 # Test of charset cp1251
 
 --disable_warnings

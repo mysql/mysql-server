@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 drop table if exists test.t1;
 reset master;
@@ -61,6 +61,7 @@ where event_name like "%MYSQL_BIN_LOG%"
 EVENT_NAME	COUNT_STAR
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_done	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::prep_xids_cond	NONE
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_binlog_end_pos	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit_queue	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_done	MANY
@@ -69,6 +70,7 @@ wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync_queue	MANY
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	NONE
 "Expect no slave relay log"
 select * from performance_schema.file_summary_by_instance
 where event_name like "%relaylog%" order by file_name;
@@ -93,6 +95,7 @@ wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	0	0	0	0	0
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync_queue	0	0	0	0	0
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_xids	0	0	0	0	0
 "============ Performance schema on slave ============"
 select * from performance_schema.file_summary_by_instance
 where file_name like "%master-%" order by file_name;
@@ -151,6 +154,7 @@ where event_name like "%MYSQL_BIN_LOG%"
 EVENT_NAME	COUNT_STAR
 wait/synch/cond/sql/MYSQL_BIN_LOG::COND_done	NONE
 wait/synch/cond/sql/MYSQL_BIN_LOG::prep_xids_cond	NONE
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_binlog_end_pos	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_commit_queue	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_done	MANY
@@ -159,6 +163,7 @@ wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync	MANY
 wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_sync_queue	MANY
+wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_xids	NONE
 "Expect a slave relay log"
 select
 substring(file_name, locate("slave-", file_name)) as FILE_NAME,
@@ -203,6 +208,7 @@ wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_done	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_flush_queue	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	MANY
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log	MANY
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	MANY
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	NONE
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync_queue	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_xids	MANY
 include/rpl_end.inc

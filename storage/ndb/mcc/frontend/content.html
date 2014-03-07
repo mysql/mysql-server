@@ -1,0 +1,138 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<!--
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+-->
+<html dir="ltr" lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
+        <title>MySQL Cluster</title>
+        <link href="img/favicon.ico" rel="icon" type="image/x-icon"/>
+        <link rel="stylesheet" type="text/css" href="css/content.css"/>
+        <link rel="stylesheet" type="text/css" 
+                href="dojo/dijit/themes/claro/claro.css"/>
+        <link rel="stylesheet" type="text/css" 
+                href="dojo/dojox/grid/resources/Grid.css"/>
+        <link rel="stylesheet" type="text/css" 
+                href="dojo/dojox/grid/resources/claroGrid.css"/>
+
+        <script  type="text/javascript" src="dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
+
+        <script  type="text/javascript">
+            // Path to top level mcc module
+            dojo.registerModulePath("mcc", "../../js/mcc");
+
+            // MCC modules immediately required
+            dojo.require("mcc.util");
+            dojo.require("mcc.storage");
+            dojo.require("mcc.gui");
+
+            // Dojo widgets immediately required
+            dojo.require("dijit.layout.ContentPane");
+            dojo.require("dijit.layout.BorderContainer");
+            dojo.require("dijit.layout.TabContainer");
+            dojo.require("dijit.form.Button");
+
+            // When ready, initialize storage and enter first page in wizard
+            dojo.ready(function() {
+                mcc.storage.initializeStorage().then(function () {
+                    mcc.gui.enterFirst();   
+                    mcc.util.inf("Ready for configuration of MySQL Cluster");
+                });
+            });
+        </script>
+    </head>
+    <body class="claro">
+        <!-- Side panels -->
+        <div id="panel-main-bottom"></div>
+        <div id="panel-main-left">
+            <span><img alt="Left top" src="img/content-panel-main-left-top.png" width="11"
+                height="108" />
+            </span>
+            <img  alt="Left bottom" src="img/content-panel-main-left-bottom.png" 
+                width="11" height="12" id="panel-main-img-bottom" />
+        </div>
+        <div id="panel-main-right">
+            <span><img alt="Right top" src="img/content-panel-main-right-top.png" width="11"
+                height="108" />
+            </span>
+            <img alt="Right bottom" src="img/content-panel-main-right-bottom.png" width="11" 
+                height="12" id="panel-main-img-bottom" />
+        </div>
+
+        <!-- Title left and right -->
+        <div id="title" class="title">
+            <img alt="Oracle logo" src="img/content-title.png" width="262" height="14" />
+            <span></span>
+        </div>
+
+        <!-- Main container -->
+        <div id="content-main">
+            <div id="content-main-tab-container"
+                data-dojo-type="dijit.layout.TabContainer" 
+                data-dojo-props="nested: true">
+                <!-- Define cluster -->
+                <div data-dojo-type="dijit.layout.ContentPane"
+                        data-dojo-props="title: 'Define cluster'"
+                        id="configWizardDefineCluster">
+                </div>
+                <!-- Define hosts -->
+                <div data-dojo-type="dijit.layout.ContentPane" 
+                        data-dojo-props="title: 'Define hosts'" 
+                        iconClass="arrowIcon"
+                        id="configWizardDefineHosts">
+                </div>
+                <!-- Define processes -->
+                <div data-dojo-type="dijit.layout.ContentPane"
+                        data-dojo-props="title: 'Define processes'"
+                        iconClass="arrowIcon"
+                        id="configWizardDefineProcesses">
+                </div>
+                <!-- Define parameters -->
+                <div data-dojo-type="dijit.layout.ContentPane"
+                        data-dojo-props="title: 'Define parameters'" 
+                        iconClass="arrowIcon"
+                        id="configWizardDefineParameters">
+                </div>
+                <!-- Deploy configuration -->
+                <div data-dojo-type="dijit.layout.ContentPane"
+                        data-dojo-props="title: 'Deploy configuration'" 
+                        iconClass="arrowIcon"
+                        id="configWizardDeployConfig">
+                </div>
+            </div>
+        </div>
+
+        <!-- Page navigation buttons -->
+        <div id="content-main-tab-buttons">
+            <span data-dojo-type="dijit.form.Button"
+                data-dojo-props="iconClass: 'leftIcon'"
+                onClick="mcc.gui.prevPage"
+                id="configWizardPrevPage">Previous
+            </span> 
+            <span data-dojo-type="dijit.form.Button"
+                data-dojo-props="iconClass: 'rightIcon'"
+                onClick="mcc.gui.nextPage"
+                id="configWizardNextPage">Next
+            </span>
+            <span data-dojo-type="dijit.form.Button"
+                data-dojo-props="iconClass: 'lastIcon'"
+                id="configWizardLastPage"
+                onClick="mcc.gui.lastPage">Finish
+            </span>
+        </div>
+    </body>
+</html>
+

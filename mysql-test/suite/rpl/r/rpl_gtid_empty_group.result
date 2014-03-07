@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 SET @save.binlog_format= @@global.binlog_format;
 SET @@global.binlog_format= row;
@@ -11,6 +11,7 @@ SET @@session.binlog_format= statement;
 CREATE TABLE t1(id INTEGER) ENGINE= Innodb /* group one */;
 UPDATE t1 SET id= 1 WHERE id = 0          /* group two */;
 CREATE TABLE t_ignore(id INTEGER) ENGINE= Innodb /* group three */;
+include/sync_slave_sql_with_master.inc
 must be *three* groups logged, where the two last empty:
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -37,5 +38,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Previous_gtids	#	#	Gtid_set
 DROP TABLE t1;
 DROP TABLE t_ignore;
+include/sync_slave_sql_with_master.inc
 SET @@global.binlog_format= @save.binlog_format;
 include/rpl_end.inc

@@ -1,3 +1,10 @@
+# Test for preload_keys of Myisam.The InnoDB storage
+# engine doesn't support this preload_keys
+# Hence MTR starts mysqld with MyISAM as default
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 #
 # Testing of PRELOAD
 #

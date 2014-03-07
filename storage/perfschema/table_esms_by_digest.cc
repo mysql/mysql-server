@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
   @file storage/perfschema/table_esms_by_digest.cc
@@ -194,8 +194,7 @@ table_esms_by_digest::m_share=
   table_esms_by_digest::create,
   NULL, /* write_row */
   table_esms_by_digest::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_esms_by_digest::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -213,6 +212,12 @@ table_esms_by_digest::delete_all_rows(void)
 {
   reset_esms_by_digest();
   return 0;
+}
+
+ha_rows
+table_esms_by_digest::get_row_count(void)
+{
+  return digest_max;
 }
 
 table_esms_by_digest::table_esms_by_digest()
@@ -295,7 +300,7 @@ int table_esms_by_digest
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
 
-  /* 
+  /*
     Set the null bits. It indicates how many fields could be null
     in the table.
   */

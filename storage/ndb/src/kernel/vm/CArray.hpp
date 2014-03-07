@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,9 @@
 #define CARRAY_HPP
 
 #include "ndbd_malloc.hpp"
+
+#define JAM_FILE_ID 271
+
 
 /**
  * Template class used for implementing an c - array
@@ -147,5 +149,8 @@ CArray<T>::getPtr(Ptr<T> & ptr, Uint32 i) const {
     ErrorReporter::handleAssert("CArray<T>::getPtr", __FILE__, __LINE__);
   }
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

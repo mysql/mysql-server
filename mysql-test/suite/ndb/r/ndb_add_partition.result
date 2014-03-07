@@ -37,6 +37,36 @@ c int unsigned not null,
 primary key(a,b),
 unique (b))
 ENGINE = NDB;
+CREATE TABLE t5 (a int unsigned not null,
+b int unsigned not null,
+c int unsigned null,
+primary key(a,b),
+unique (b),
+unique (c))
+ENGINE = NDB
+partition by key(a) partitions 3;
+Table: test.t1
+FragmentCount: 2
+b$unique(b) - UniqueHashIndex
+FragmentCount: 2
+Table: test.t2
+FragmentCount: 2
+b$unique(b) - UniqueHashIndex
+FragmentCount: 2
+Table: test.t3
+FragmentCount: 4
+b$unique(b) - UniqueHashIndex
+FragmentCount: 4
+Table: test.t4
+FragmentCount: 2
+b$unique(b) - UniqueHashIndex
+FragmentCount: 2
+Table: test.t5
+FragmentCount: 3
+b$unique(b) - UniqueHashIndex
+FragmentCount: 3
+c$unique(c) - UniqueHashIndex
+FragmentCount: 3
 INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
 (6,6,6),(7,7,7),(8,8,8),(9,9,9),(10,10,10),
@@ -61,6 +91,7 @@ INSERT INTO t1 VALUES
 insert into t2 select * from t1;
 insert into t3 select * from t1;
 insert into t4 select * from t1;
+insert into t5 (a,b,c) select a,b,if(a%2,b,NULL) as c from t1;
 select count(*) from t1;
 count(*)
 100
@@ -71,6 +102,9 @@ select count(*) from t3;
 count(*)
 100
 select count(*) from t4;
+count(*)
+100
+select count(*) from t5;
 count(*)
 100
 select * from t1 where a < 20;
@@ -261,18 +295,20 @@ Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Cannot use normal reorganize partition on t3 as it has explicit MAX_ROWS set
 alter online table t3 reorganize partition;
-ERROR 42000: This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
-Error	1235	This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
+Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 alter online table t3 max_rows=50000000;
 Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t4 reorganize partition;
 Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter online table t5 partition by key() partitions 6;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 Check partitions added, expect 0 in all cases
 partitions added to t1
 t1_added
@@ -296,7 +332,7 @@ alter online table t3 max_rows=100000000;
 Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t4 max_rows=100000000;
-ERROR 42000: This version of MySQL doesn't yet support 'alter online table t4 max_rows=100000000'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 partitions added to t1 (expect 1)
 t1_added
 1
@@ -312,12 +348,12 @@ t4_added
 alter online table t1 reorganize partition;
 ERROR HY000: REORGANIZE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs
 alter online table t3 reorganize partition;
-ERROR 42000: This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
-Error	1235	This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
+Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 alter online table t4 reorganize partition;
 Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
@@ -507,6 +543,10 @@ a	b	c
 select * from t4 where b = 50;
 a	b	c
 50	50	50
+Table: test.t4
+FragmentCount: 2
+b$unique(b) - UniqueHashIndex
+FragmentCount: 2
 drop table t4;
 alter online table t1 add partition partitions 2;
 Warnings:
@@ -667,7 +707,25 @@ a	b	c
 select * from t3 where b = 50;
 a	b	c
 50	50	50
-drop table t1,t2,t3;
+Table: test.t1
+FragmentCount: 5
+b$unique(b) - UniqueHashIndex
+FragmentCount: 2
+Table: test.t2
+FragmentCount: 7
+b$unique(b) - UniqueHashIndex
+FragmentCount: 2
+Table: test.t3
+FragmentCount: 8
+b$unique(b) - UniqueHashIndex
+FragmentCount: 4
+Table: test.t5
+FragmentCount: 3
+b$unique(b) - UniqueHashIndex
+FragmentCount: 3
+c$unique(c) - UniqueHashIndex
+FragmentCount: 3
+drop table t1,t2,t3,t5;
 alter tablespace ts1 drop datafile 'datafile.dat' engine = ndb;
 drop tablespace ts1 engine = ndb;
 drop logfile group lg1 engine = ndb;

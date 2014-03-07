@@ -1,0 +1,144 @@
+# -----------------------------------------------------------------------
+# Tests for the performance schema stored program instrumentation.
+# -----------------------------------------------------------------------
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--echo ################################################
+--echo # Quering PS statement summary and history_long#
+--echo ################################################ 
+
+--source suite/perfschema/include/program_setup.inc
+--source suite/perfschema/include/program_execution.inc
+
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
+
+SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
+       OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
+       performance_schema.events_statements_history_long WHERE
+       CURRENT_SCHEMA='stored_programs' AND 
+       (SQL_TEXT not like '%count(*) = 1%' OR SQL_TEXT IS NULL)
+       ORDER BY OBJECT_NAME, NESTING_EVENT_LEVEL, SQL_TEXT;
+
+
+--echo # clean -up
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+# After truncate the statictics collected will are reset
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
+
+--source suite/perfschema/include/program_cleanup.inc 
+
+# After clean-up the stored programs are removed from PS tables 
+
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS 
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='stored_programs' ORDER BY OBJECT_NAME;
+
+# Check the intrumentation of stored programs 
+# when statement/sp/% instruments not timed
+
+--source suite/perfschema/include/program_setup.inc
+
+update performance_schema.setup_instruments set enabled='YES', timed='NO'
+  where name like "statement/sp/%" order by name; 
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--source suite/perfschema/include/program_execution.inc
+
+# check instrumentation 
+
+SELECT EVENT_NAME, TIMER_START, TIMER_END, TIMER_WAIT FROM
+       performance_schema.events_statements_history_long WHERE
+       CURRENT_SCHEMA='stored_programs' AND EVENT_NAME like "statement/sp/%";
+
+# clean-up
+
+# Restore the setup
+update performance_schema.setup_instruments set enabled='YES', timed='YES'
+  where name like "statement/sp/%" order by name;
+
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
+--source suite/perfschema/include/program_cleanup.inc
+
+#----------------------------------------------------------------
+# The statistics of a stored program are not collected 
+# if its execution fails 
+#----------------------------------------------------------------
+
+--echo # set-up
+CREATE DATABASE sp;
+USE sp;
+
+CREATE TABLE t1(
+  a INT,
+  b INT
+);
+
+--echo # let the creation of the following stored programs fail 
+--error 1064
+CREATE PROCEDURE fail1(IN a INT  OUT x CHAR(16)) 
+  SET a=1;
+
+--error 1064
+CREATE FUNCTION fail2(a INT , b INT) RETURNS INT
+  x=SELECT COUNT(*) FROM t; 
+
+--error 1064
+CREATE EVENT fail3 SCHEDULE EVERY MICROSECOND DO
+  DROP TABLE t;
+
+--echo # the below query on PS table doesn't show any rows 
+--echo # as the creation of stored programs failed 
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='sp'; 
+  
+--echo # create few stored programs 
+DELIMITER |;
+CREATE PROCEDURE p(x1 INT, x2 INT)
+BEGIN
+  INSERT INTO t1 VALUES (x1, x2);
+END|
+DELIMITER ;|
+
+CREATE FUNCTION f(y1 INT, y2 INT) RETURNS INT
+  RETURN y1+y2;
+
+CREATE TRIGGER trg AFTER INSERT ON t1 FOR EACH ROW
+  SET @neg=-1;
+
+--echo # execute the created stored programs such that they fail.
+--error 1318
+CALL p(7);
+--error 1318
+SELECT f("add",1,3);
+--error 1064
+INSERT INTO t1;
+
+--echo # the below query on PS table doesn't expose any statistics as 
+--echo # execution of the created stored porgrams failed.
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
+       FROM performance_schema.events_statements_summary_by_program
+       WHERE OBJECT_SCHEMA='sp';
+
+--echo #clean-up
+DROP PROCEDURE p;
+DROP FUNCTION f;
+DROP TRIGGER trg;
+DROP TABLE t1;
+DROP DATABASE sp;

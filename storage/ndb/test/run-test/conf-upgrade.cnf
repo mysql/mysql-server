@@ -9,7 +9,7 @@ mt=2
 [ndb_mgmd]
 
 [mysqld]
-skip-innodb
+innodb
 loose-skip-bdb
 socket=mysql.sock
 skip-grant-tables

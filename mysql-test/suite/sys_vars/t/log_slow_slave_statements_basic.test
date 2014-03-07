@@ -1,0 +1,110 @@
+################## mysql-test\t\log_slow_slave_statements_basic.test ######
+#                                                                             #
+# Variable Name: log_slow_slave_statements                                    #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type:                                                                  #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2013-02-05                                                   #
+# Author : Mark Leith                                                         #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_slow_slave_statements                                       #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.6/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+SET @start_value= @@global.log_slow_slave_statements;
+
+####################################################################
+#   Valid values for boolean                                       #
+####################################################################
+SET @@global.log_slow_slave_statements= DEFAULT;
+SELECT @@global.log_slow_slave_statements;
+
+SET @@global.log_slow_slave_statements= TRUE;
+SELECT @@global.log_slow_slave_statements;
+
+SET @@global.log_slow_slave_statements= true;
+SELECT @@global.log_slow_slave_statements;
+
+SET @@global.log_slow_slave_statements= 0;
+SELECT @@global.log_slow_slave_statements;
+
+SET @@global.log_slow_slave_statements= 1;
+SELECT @@global.log_slow_slave_statements;
+
+SET @goodvar= TRUE;
+SET @@global.log_slow_slave_statements= @goodvar;
+SELECT @@global.log_slow_slave_statements;
+
+SET GLOBAL log_slow_slave_statements= DEFAULT;
+SELECT @@global.log_slow_slave_statements;
+
+SET GLOBAL log_slow_slave_statements= ON;
+SELECT @@global.log_slow_slave_statements;
+
+SET GLOBAL log_slow_slave_statements= OFF;
+SELECT @@global.log_slow_slave_statements;
+
+SET GLOBAL log_slow_slave_statements= -0;
+SELECT @@global.log_slow_slave_statements;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_slow_slave_statements= 0.00;
+
+SET GLOBAL log_slow_slave_statements= +0;
+SELECT @@global.log_slow_slave_statements;
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_slave_statements= 'DEFAULT';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_slave_statements= 'true';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_slave_statements= BLABLA;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_slave_statements= 25;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_slow_slave_statements= -1;
+
+SET @badvar= 'true';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_slave_statements= @badvar;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_slow_slave_statements= 'DEFAULT';
+
+--error ER_GLOBAL_VARIABLE
+SET log_slow_slave_statements= TRUE;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_slow_slave_statements= TRUE;
+
+--error ER_GLOBAL_VARIABLE
+SET @@session.log_slow_slave_statements= TRUE;
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_slow_slave_statements= TRUE;
+
+--error ER_PARSE_ERROR
+SET @@global log_slow_slave_statements= TRUE;
+
+--error ER_PARSE_ERROR
+SET @@SESSION log_slow_slave_statements= TRUE;
+
+SET @@global.log_slow_slave_statements= @start_value;
+

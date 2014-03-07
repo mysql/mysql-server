@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,11 +93,11 @@ char * fn_format(char * to, const char *name, const char *dir,
   {
     if (to == startpos)
     {
-      bmove(buff,(uchar*) name,length);		/* Save name for last copy */
+      memmove(buff, name, length);              /* Save name for last copy */
       name=buff;
     }
-    pos=strmake(strmov(to,dev),name,length);
-    (void) strmov(pos,ext);			/* Don't convert extension */
+    pos=strmake(my_stpcpy(to,dev),name,length);
+    (void) my_stpcpy(pos,ext);			/* Don't convert extension */
   }
   /*
     If MY_RETURN_REAL_PATH and MY_RESOLVE_SYMLINK is given, only do
@@ -108,7 +108,7 @@ char * fn_format(char * to, const char *name, const char *dir,
 				   MY_RESOLVE_LINK: 0));
   else if (flag & MY_RESOLVE_SYMLINKS)
   {
-    strmov(buff,to);
+    my_stpcpy(buff,to);
     (void) my_readlink(to, buff, MYF(0));
   }
   DBUG_RETURN(to);

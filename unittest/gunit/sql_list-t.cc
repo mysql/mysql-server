@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ protected:
 
   virtual void SetUp()
   {
-    init_sql_alloc(&m_mem_root, 1024, 0);
+    init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     ASSERT_EQ(0, my_pthread_setspecific_ptr(THR_MALLOC, &m_mem_root_p));
     MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
     ASSERT_EQ(root, m_mem_root_p);
@@ -75,13 +75,17 @@ protected:
   static void SetUpTestCase()
   {
     ASSERT_EQ(0, pthread_key_create(&THR_THD, NULL));
+    THR_THD_initialized= true;
     ASSERT_EQ(0, pthread_key_create(&THR_MALLOC, NULL));
+    THR_MALLOC_initialized= true;
   }
 
   static void TearDownTestCase()
   {
     pthread_key_delete(THR_THD);
+    THR_THD_initialized= false;
     pthread_key_delete(THR_MALLOC);
+    THR_MALLOC_initialized= false;
   }
 
   MEM_ROOT m_mem_root;
@@ -129,7 +133,7 @@ TEST_F(SqlListTest, DeepCopy)
   int values[] = {11, 22, 33, 42, 5};
   insert_values(values, &m_int_list);
   MEM_ROOT mem_root;
-  init_alloc_root(&mem_root, 4096, 4096);
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 4096, 4096);
   List<int> list_copy(m_int_list, &mem_root);
   EXPECT_EQ(list_copy.elements, m_int_list.elements);
   while (!list_copy.is_empty())

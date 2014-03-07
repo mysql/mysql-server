@@ -1,0 +1,16 @@
+#
+# Smaller version of rpl_*mts*_crash_safe test
+#
+--source include/have_slave_parallel_type_database.inc
+--source include/master-slave.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+call mtr.add_suppression('Attempting backtrace');
+call mtr.add_suppression("Recovery from master pos .*");
+call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
+
+--let $crash_safe_small= 1
+--source extra/rpl_tests/rpl_mts_crash_safe.test

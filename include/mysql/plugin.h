@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define _my_plugin_h
 
 /*
-  On Windows, exports from DLL need to be declared
+  On Windows, exports from DLL need to be declared.
   Also, plugin needs to be declared as extern "C" because MSVC 
   unlike other compilers, uses C++ mangling for variables not only
   for functions.
@@ -73,7 +73,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0104
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0105
 
 /*
   The allowable types of plugins
@@ -169,6 +169,7 @@ typedef int (*mysql_show_var_func)(MYSQL_THD, struct st_mysql_show_var*, char *)
 #define PLUGIN_VAR_STR          0x0005
 #define PLUGIN_VAR_ENUM         0x0006
 #define PLUGIN_VAR_SET          0x0007
+#define PLUGIN_VAR_DOUBLE       0x0008
 #define PLUGIN_VAR_UNSIGNED     0x0080
 #define PLUGIN_VAR_THDLOCAL     0x0100 /* Variable is per-connection */
 #define PLUGIN_VAR_READONLY     0x0200 /* Server variable is read only */
@@ -351,6 +352,11 @@ DECLARE_MYSQL_SYSVAR_TYPELIB(name, unsigned long long) = { \
   PLUGIN_VAR_SET | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, &varname, def, typelib }
 
+#define MYSQL_SYSVAR_DOUBLE(name, varname, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_SYSVAR_SIMPLE(name, double) = { \
+  PLUGIN_VAR_DOUBLE | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, &varname, def, min, max, blk }
+
 #define MYSQL_THDVAR_BOOL(name, opt, comment, check, update, def) \
 DECLARE_MYSQL_THDVAR_BASIC(name, char) = { \
   PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
@@ -400,6 +406,11 @@ DECLARE_MYSQL_THDVAR_TYPELIB(name, unsigned long) = { \
 DECLARE_MYSQL_THDVAR_TYPELIB(name, unsigned long long) = { \
   PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
   #name, comment, check, update, -1, def, NULL, typelib }
+
+#define MYSQL_THDVAR_DOUBLE(name, opt, comment, check, update, def, min, max, blk) \
+DECLARE_MYSQL_THDVAR_SIMPLE(name, double) = { \
+  PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL | ((opt) & PLUGIN_VAR_MASK), \
+  #name, comment, check, update, -1, def, min, max, blk, NULL }
 
 /* accessor macros */
 
@@ -497,7 +508,7 @@ struct handlerton;
 /*
   API for Replication plugin. (MYSQL_REPLICATION_PLUGIN)
 */
- #define MYSQL_REPLICATION_INTERFACE_VERSION 0x0200
+ #define MYSQL_REPLICATION_INTERFACE_VERSION 0x0300
  
  /**
     Replication plugin descriptor
@@ -547,10 +558,22 @@ void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 void thd_storage_lock_wait(MYSQL_THD thd, long long value);
 int thd_tx_isolation(const MYSQL_THD thd);
 int thd_tx_is_read_only(const MYSQL_THD thd);
-char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
-                           unsigned int max_query_len);
+char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
+                           size_t max_query_len);
 /* Increments the row counter, see THD::row_count */
 void thd_inc_row_count(MYSQL_THD thd);
+int thd_allow_batch(MYSQL_THD thd);
+
+
+/**
+  Mark transaction to rollback and mark error as fatal to a
+  sub-statement if in sub statement mode.
+
+  @param thd  user thread connection handle
+  @param all  if all != 0, rollback the main transaction
+*/
+
+void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 
 /**
   Create a temporary file.
@@ -582,6 +605,12 @@ int mysql_tmpfile(const char *prefix);
 */
 int thd_killed(const MYSQL_THD thd);
 
+/**
+  Set the killed status of the current statement.
+
+  @param thd  user thread connection handle
+*/
+void thd_set_kill_status(const MYSQL_THD thd);
 
 /**
   Get binary log position for latest written entry.

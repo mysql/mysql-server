@@ -1,0 +1,249 @@
+--echo #
+--echo # WL#6661: Error logging: Allow control of verbosity
+--echo #
+
+--source include/not_embedded.inc
+
+# Unfortunately while the order of the requirements was sensible for
+# human consumption, it's relatively impractical to test in that order. :(
+
+CALL mtr.add_suppression("option 'log_error_verbosity'");
+CALL mtr.add_suppression("--verbose is for use with");
+
+SET @old_log_error_verbosity= @@global.log_error_verbosity;
+SET @old_log_warnings       = @@global.log_warnings;
+SET @old_log_timestamps     = @@global.log_timestamps;
+
+
+--echo
+--echo # Spec 1: Nomenclature, no test
+
+
+--echo
+--echo # The following four can be verified using mysqld--help-[not]win.test:
+--echo #
+--echo # Spec 2a: "--help works"
+--echo # Spec 2b: "default verbosity for --help is 1, errors only"
+--echo #
+--echo # Spec 3a: "--help --verbose works"
+--echo # Spec 3b: "default verbosity for --help --verbose is 1, errors only"
+
+
+--echo
+--echo # Spec 4a "new sys-var log_error_verbosity"
+--echo # Spec 4d "--log_error_verbosity settable on command-line"
+--echo # Spec B  "later options replace earlier ones."
+# (pick something low in .opt so we won't have to deal with start-up spam.)
+SELECT @@global.log_error_verbosity;
+
+--echo
+--echo # Spec 4b "default"
+# defaults to highest verbosity
+SET GLOBAL log_error_verbosity=DEFAULT;
+SELECT @@global.log_error_verbosity;
+
+--echo
+--echo # Spec 4c "range"
+# turning off even errors is forbidden for now.
+SET GLOBAL log_error_verbosity=0;
+SELECT @@global.log_error_verbosity;
+
+--echo
+--echo # Spec 4c "range"
+# there is nothing beyond Notes, so there is no level higher than 3.
+SET GLOBAL log_error_verbosity=4;
+SELECT @@global.log_error_verbosity;
+
+--echo
+--echo # Spec 4d -- see above at 4a, and below in error log
+
+--echo
+--echo # Spec 4e "global only"
+# It's a global. There is no thread-specific log_error_verbosity.
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_error_verbosity=DEFAULT;
+
+--echo
+--echo # Spec 4e "SUPER required for log_error_verbosity"
+--echo # Spec Ed "SUPER required for log_timestamps"
+# It's not settable by just anyone.
+# We keep these two in here rather than in the log_..._basic
+# as they depend on not_embedded.
+CREATE USER mysqltest_1;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+connect(user1,localhost,mysqltest_1,,*NO-ONE*);
+connection user1;
+--echo # as unprivileged user:
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL log_error_verbosity=1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL log_timestamps=SYSTEM;
+disconnect user1;
+--source include/wait_until_disconnected.inc
+
+connection default;
+--echo # as root:
+DROP USER mysqltest_1;
+
+
+--echo
+--echo # Spec 5 "--verbose without --help throws an error" -- see below in error log
+
+
+--echo
+--echo # Spec 6 "example for things previously governed by log_warnings"
+--echo # see error log below for results
+
+SET GLOBAL  init_connect='wombat;';
+
+CREATE USER mysqltest_yeslog;
+CREATE USER mysqltest_nolog;
+
+--echo # Spec 6a "log_error_warnings=2+ includes warnings"
+
+SET GLOBAL  log_error_verbosity=2;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+connect(user2,localhost,mysqltest_yeslog,,*NO-ONE*);
+connection default;
+
+--echo # Spec 6c "warnings now gagged by log_error_verbosity=1"
+SET GLOBAL  log_error_verbosity=1;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+connect(user3,localhost,mysqltest_nolog,,*NO-ONE*);
+
+connection user2;
+disconnect user2;
+--source include/wait_until_disconnected.inc
+connection user3;
+disconnect user3;
+--source include/wait_until_disconnected.inc
+
+connection default;
+DROP USER mysqltest_yeslog;
+DROP USER mysqltest_nolog;
+
+SET GLOBAL  init_connect='';
+
+
+--echo # Spec 6b "log_error_warnings=3  includes notes"
+SET GLOBAL  log_error_verbosity=2;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(user1,localhost,mysqltest_2_nolog,,*NO-ONE*);
+
+SET GLOBAL  log_error_verbosity=3;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(user1,localhost,mysqltest_3_yeslog,,*NO-ONE*);
+
+SET GLOBAL  log_error_verbosity=DEFAULT;
+
+
+
+--echo
+--echo # Spec 7 "--log_warning throws deprecation warning" -- see below in error log
+
+
+--echo
+--echo # Spec 8/Spec 8a "log_warnings sets log_error_verbosity"
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_warnings=2;
+
+SET GLOBAL  log_warnings=0;
+SELECT      @@global.log_error_verbosity;
+
+SET GLOBAL  log_warnings=1;
+SELECT      @@global.log_error_verbosity;
+
+SET GLOBAL  log_warnings=2;
+SELECT      @@global.log_error_verbosity;
+
+--echo # out of range
+SET GLOBAL  log_warnings=4;
+SELECT      @@global.log_error_verbosity, @@global.log_warnings;
+
+--echo # reverse: log_error_verbosity updates log_warnings
+SET GLOBAL  log_error_verbosity=1;
+SELECT      @@global.log_warnings;
+
+
+--echo
+--echo # Spec 9 -- no test; limits part shown in Spec 4c/Spec 8
+
+
+--echo
+--echo # Spec A -- see Spec 4c "range" and Spec 8
+--echo #           "interaction of log_warnings and log_error_verbosity"
+
+
+--echo
+--echo # Spec B -- see above at 4a, and below in error log
+
+
+--echo
+--echo # Spec C  "bootstrap" -- no test
+
+
+--echo
+--echo # Spec D  "timestamp format" -- results in log below = regex was matched
+
+
+--echo
+--echo # Spec Ea  "log_timestamps"
+# SYSTEM here rather than default; set from command-line.
+SELECT      @@global.log_timestamps;
+--echo # Spec Eb  "log_timestamps -- values UTC|SYSTEM"
+SET GLOBAL  log_timestamps=UTC;
+SELECT      @@global.log_timestamps;
+SET GLOBAL  log_timestamps=SYSTEM;
+SELECT      @@global.log_timestamps;
+--echo # Spec Ec  "log_timestamps -- default UTC"
+SET GLOBAL  log_timestamps=DEFAULT;
+SELECT      @@global.log_timestamps;
+--echo # Spec Ed  "SUPER required" -- see 4e
+--echo # Spec Ee  "SYSTEM = old behavior" -- no test
+
+--echo
+--echo # Spec 4d "--log_error_verbosity settable on command-line"
+--echo # Spec 5  "--verbose without --help throws an error"
+--echo # Spec 7  "--log_warning throws deprecation warning"
+--echo # Spec D  "ISO 8601 / RFC 3339 compliant timestamps"
+--echo #
+--echo # error log:
+
+let GREP_FILE=$MYSQLTEST_VARDIR/tmp/wl6661_log.err;
+let GREP_PATTERN=Access denied;
+
+# be very specific with the regex, we've got a format to prove:
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
+--perl
+  use strict;
+  my $file= $ENV{'GREP_FILE'} or die("grep file not set");
+  my $pattern= $ENV{'GREP_PATTERN'} or die("pattern is not set");
+  open(FILE, "$file") or die("Unable to open $file: $!");
+  while (<FILE>) {
+    my $line = $_;
+    if ($line =~ /$pattern/) {
+      print "$line\n";
+    }
+  }
+  close(FILE);
+
+  rename $file, "$file~";
+
+  open(FILE, ">", "$file") or die("Unable to open file: $!");
+  close(FILE);
+EOF
+
+--echo
+--echo # cleanup
+SET GLOBAL log_warnings        = @old_log_warnings;
+SET GLOBAL log_error_verbosity = @old_log_error_verbosity;
+SET GLOBAL log_timestamps      = @old_log_timestamps;
+
+FLUSH LOGS;
+
+--echo
+--echo #
+--echo # end WL#6661

@@ -31,7 +31,7 @@ set foreign_key_checks=1 /* ensure the check */;
 insert into ti1 values (1),(2),(3);
 insert into ti2 set a=2, b=2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #connection slave;
 select * from ti1 order by b /* must be (1),(2),(3) */;
@@ -48,7 +48,7 @@ delete from ti1 where b=1;
 select * from ti1 order by b /* must be (2),(3) */;
 
 # slave must catch up (expect some warnings in error.log)
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #connection slave;
 select * from ti1 order by b /* must stays as were on master (1),(2),(3) */;
@@ -59,7 +59,7 @@ connection master;
 insert into ti2 set a=3, b=3;
 
 # slave must catch up (expect some warnings in error.log)
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #connection slave;
 select * from ti2 order by b /* must be (1,1),(2,2) - not inserted */;
@@ -104,7 +104,7 @@ set foreign_key_checks=1 /* ensure the check */;
 insert into ti1 values (1),(2),(3);
 insert into ti2 set a=2, b=2;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #connection slave;
 select * from ti1 order by b /* must be (1),(2),(3) */;
@@ -135,13 +135,13 @@ set foreign_key_checks= 1;
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 set global slave_exec_mode='STRICT';
 
 connection master;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #connection slave;
 --echo *** conspire the following insert failure
@@ -169,13 +169,13 @@ set foreign_key_checks= 1;
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 set global slave_exec_mode='STRICT';
 
 connection master;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 select * from ti2 order by b /* must be (2,2),(3,3) */;
 
@@ -207,7 +207,7 @@ set foreign_key_checks= 1;
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 set global slave_exec_mode='STRICT';
 
@@ -219,7 +219,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (-1),(-2),(-3);
 INSERT INTO t2 VALUES (-1),(-2),(-3);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #connection slave;
 DELETE FROM t1 WHERE a = -2;
@@ -239,7 +239,7 @@ enable_query_log;
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 set global slave_exec_mode='STRICT';
 
@@ -257,7 +257,7 @@ enable_query_log;
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 set global slave_exec_mode='STRICT';
 
@@ -279,7 +279,7 @@ enable_query_log;
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 set global slave_exec_mode='STRICT';
 
@@ -299,7 +299,7 @@ enable_query_log;
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 SET @@global.slave_exec_mode= @old_slave_exec_mode;
 
@@ -308,6 +308,6 @@ SET @@global.slave_exec_mode= @old_slave_exec_mode;
 connection master;
 
 drop table t1,t2,ti2,ti1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= @old_slave_exec_mode;
 

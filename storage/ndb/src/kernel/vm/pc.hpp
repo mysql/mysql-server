@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +22,10 @@
 #include "Emulator.hpp"
 #include <NdbOut.hpp>
 #include <ndb_limits.h>
+#include <NdbThread.h>
+
+#define JAM_FILE_ID 282
+
 
 #ifdef NO_EMULATED_JAM
 
@@ -44,21 +47,25 @@
 #else
 
 #define thrjamEntryBlockLine(jamBufferArg, blockNo, line) \
-  do { \
-    EmulatedJamBuffer* jamBuffer = jamBufferArg; \
-    Uint32 blockNumber = blockNo; \
-    Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
-    jamBuffer->theEmulatedJam[jamIndex++] = (blockNumber << 20) | (line); \
-    jamBuffer->theEmulatedJamBlockNumber = blockNumber; \
-    jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
-  } while (0)
+  thrjamLine(jamBufferArg, line)
 
+/**
+ * Make an entry in the jamBuffer to record that execution reached a given
+ * point in the source code. For a description of how to maintain and debug 
+ * JAM_FILE_IDs, please refer to the comments for jamFileNames in Emulator.cpp.
+ */
 #define thrjamLine(jamBufferArg, line) \
   do { \
-    EmulatedJamBuffer* jamBuffer = jamBufferArg; \
+    EmulatedJamBuffer* const jamBuffer = jamBufferArg; \
     Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
-    jamBuffer->theEmulatedJam[jamIndex++] = (line); \
+    jamBuffer->theEmulatedJam[jamIndex++] = JamEvent((JAM_FILE_ID), (line)); \
     jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
+    /* Occasionally check that the jam buffer belongs to this thread.*/ \
+    assert((jamIndex & 3) != 0 || \
+           jamBuffer == NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM));       \
+    /* Occasionally check that jamFileNames[JAM_FILE_ID] matches __FILE__.*/ \
+    assert((jamIndex & 0xff) != 0 ||                     \
+           JamEvent::verifyId((JAM_FILE_ID), __FILE__)); \
   } while(0)
 
 #define jamBlockLine(block, line) thrjamLine(block->jamBuffer(), line)
@@ -140,6 +147,7 @@
 #define ERROR_INSERTED(x) false
 #define ERROR_INSERTED_CLEAR(x) false
 #define ERROR_INSERT_VALUE 0
+#define ERROR_INSERT_EXTRA Uint32(0)
 #define SET_ERROR_INSERT_VALUE(x) do { } while(0)
 #define SET_ERROR_INSERT_VALUE2(x,y) do { } while(0)
 #define CLEAR_ERROR_INSERT_VALUE do { } while(0)
@@ -213,6 +221,7 @@
 #define ndbassert(check) \
   if(likely(check)){ \
   } else {     \
+    jamNoBlock(); \
     progError(__LINE__, NDBD_EXIT_NDBASSERT, __FILE__); \
   }
 #else
@@ -222,6 +231,7 @@
 #define ndbrequireErr(check, error) \
   if(likely(check)){ \
   } else {     \
+    jamNoBlock(); \
     progError(__LINE__, error, __FILE__); \
   }
 
@@ -231,12 +241,14 @@
 #define CRASH_INSERTION(errorType) \
   if (!ERROR_INSERTED((errorType))) { \
   } else { \
+    jamNoBlock(); \
     progError(__LINE__, NDBD_EXIT_ERROR_INSERT, __FILE__); \
   }
 
 #define CRASH_INSERTION2(errorNum, condition) \
   if (!(ERROR_INSERTED(errorNum) && condition)) { \
   } else { \
+    jamNoBlock(); \
     progError(__LINE__, NDBD_EXIT_ERROR_INSERT, __FILE__); \
   }
 
@@ -244,5 +256,14 @@
   memcpy((void*)(to), (void*)(from), (size_t)(page_size_in_bytes));
 #define MEMCOPY_NO_WORDS(to, from, no_of_words) \
   memcpy((to), (void*)(from), (size_t)((no_of_words) << 2));
+
+// Get the jam buffer for the current thread.
+inline EmulatedJamBuffer* getThrJamBuf()
+{
+  return reinterpret_cast<EmulatedJamBuffer*>
+    (NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM));
+}
+
+#undef JAM_FILE_ID
 
 #endif

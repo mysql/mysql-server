@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,16 +23,19 @@ Create Full Text Index with (parallel) merge sort
 Created 10/13/2010 Jimmy Yang
 *******************************************************/
 
-#include "dict0dict.h" /* dict_table_stats_lock() */
+#include "ha_prototypes.h"
+
+#include "dict0dict.h"
 #include "row0merge.h"
 #include "pars0pars.h"
 #include "row0ftsort.h"
 #include "row0merge.h"
 #include "row0row.h"
 #include "btr0cur.h"
+#include "fts0plugin.h"
 
 /** Read the next record to buffer N.
-@param N	index into array of merge info structure */
+@param N index into array of merge info structure */
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
@@ -46,7 +49,7 @@ Created 10/13/2010 Jimmy Yang
 	} while (0)
 
 /** Parallel sort degree */
-UNIV_INTERN ulong	fts_sort_pll_degree	= 2;
+ulong	fts_sort_pll_degree	= 2;
 
 /*********************************************************************//**
 Create a temporary "fts sort index" used to merge sort the
@@ -58,7 +61,7 @@ integer value)
 3) Word's position in original doc.
 
 @return dict_index_t structure for the fts sort index */
-UNIV_INTERN
+
 dict_index_t*
 row_merge_create_fts_sort_index(
 /*============================*/
@@ -86,6 +89,7 @@ row_merge_create_fts_sort_index(
 	new_index->n_uniq = FTS_NUM_FIELDS_SORT;
 	new_index->n_def = FTS_NUM_FIELDS_SORT;
 	new_index->cached = TRUE;
+	new_index->parser = index->parser;
 
 	idx_field = dict_index_get_nth_field(index, 0);
 	charset = fts_index_get_charset(index);
@@ -96,7 +100,7 @@ row_merge_create_fts_sort_index(
 	field->prefix_len = 0;
 	field->col = static_cast<dict_col_t*>(
 		mem_heap_alloc(new_index->heap, sizeof(dict_col_t)));
-	field->col->len = fts_max_token_size;
+	field->col->len = FTS_MAX_WORD_LEN;
 
 	if (strcmp(charset->name, "latin1_swedish_ci") == 0) {
 		field->col->mtype = DATA_VARCHAR;
@@ -166,7 +170,7 @@ row_merge_create_fts_sort_index(
 /*********************************************************************//**
 Initialize FTS parallel sort structures.
 @return TRUE if all successful */
-UNIV_INTERN
+
 ibool
 row_fts_psort_info_init(
 /*====================*/
@@ -194,7 +198,7 @@ row_fts_psort_info_init(
 
 	block_size = 3 * srv_sort_buf_size;
 
-	*psort = psort_info = static_cast<fts_psort_t*>(mem_zalloc(
+	*psort = psort_info = static_cast<fts_psort_t*>(ut_zalloc(
 		 fts_sort_pll_degree * sizeof *psort_info));
 
 	if (!psort_info) {
@@ -204,11 +208,11 @@ row_fts_psort_info_init(
 
 	/* Common Info for all sort threads */
 	common_info = static_cast<fts_psort_common_t*>(
-		mem_alloc(sizeof *common_info));
+		ut_malloc(sizeof *common_info));
 
 	if (!common_info) {
 		ut_free(dup);
-		mem_free(psort_info);
+		ut_free(psort_info);
 		return(FALSE);
 	}
 
@@ -216,8 +220,8 @@ row_fts_psort_info_init(
 	common_info->new_table = (dict_table_t*) new_table;
 	common_info->trx = trx;
 	common_info->all_info = psort_info;
-	common_info->sort_event = os_event_create();
-	common_info->merge_event = os_event_create();
+	common_info->sort_event = os_event_create(0);
+	common_info->merge_event = os_event_create(0);
 	common_info->opt_doc_id_size = opt_doc_id_size;
 
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
@@ -225,13 +229,14 @@ row_fts_psort_info_init(
 	a particular "FTS index partition" */
 	for (j = 0; j < fts_sort_pll_degree; j++) {
 
-		UT_LIST_INIT(psort_info[j].fts_doc_list);
+		UT_LIST_INIT(
+			psort_info[j].fts_doc_list, &fts_doc_item_t::doc_list);
 
 		for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 
 			psort_info[j].merge_file[i] =
 				 static_cast<merge_file_t*>(
-					mem_zalloc(sizeof(merge_file_t)));
+					ut_zalloc(sizeof(merge_file_t)));
 
 			if (!psort_info[j].merge_file[i]) {
 				ret = FALSE;
@@ -241,7 +246,10 @@ row_fts_psort_info_init(
 			psort_info[j].merge_buf[i] = row_merge_buf_create(
 				dup->index);
 
-			row_merge_file_create(psort_info[j].merge_file[i]);
+			if (row_merge_file_create(psort_info[j].merge_file[i])
+			    < 0) {
+				goto func_exit;
+			}
 
 			/* Need to align memory for O_DIRECT write */
 			psort_info[j].block_alloc[i] =
@@ -262,12 +270,15 @@ row_fts_psort_info_init(
 		psort_info[j].child_status = 0;
 		psort_info[j].state = 0;
 		psort_info[j].psort_common = common_info;
+		psort_info[j].error = DB_SUCCESS;
+		psort_info[j].memory_used = 0;
+		mutex_create("fts_pll_tokenize", &psort_info[j].mutex);
 	}
 
 	/* Initialize merge_info structures parallel merge and insert
 	into auxiliary FTS tables (FTS_INDEX_TABLE) */
 	*merge = merge_info = static_cast<fts_psort_t*>(
-		mem_alloc(FTS_NUM_AUX_INDEX * sizeof *merge_info));
+		ut_malloc(FTS_NUM_AUX_INDEX * sizeof *merge_info));
 
 	for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 
@@ -286,7 +297,7 @@ func_exit:
 /*********************************************************************//**
 Clean up and deallocate FTS parallel sort structures, and close the
 merge sort files  */
-UNIV_INTERN
+
 void
 row_fts_psort_info_destroy(
 /*=======================*/
@@ -304,27 +315,25 @@ row_fts_psort_info_destroy(
 						psort_info[j].merge_file[i]);
 				}
 
-				if (psort_info[j].block_alloc[i]) {
-					ut_free(psort_info[j].block_alloc[i]);
-				}
-				mem_free(psort_info[j].merge_file[i]);
+				ut_free(psort_info[j].block_alloc[i]);
+				ut_free(psort_info[j].merge_file[i]);
 			}
+
+			mutex_free(&psort_info[j].mutex);
 		}
 
-		os_event_free(merge_info[0].psort_common->sort_event);
-		os_event_free(merge_info[0].psort_common->merge_event);
+		os_event_destroy(merge_info[0].psort_common->sort_event);
+		os_event_destroy(merge_info[0].psort_common->merge_event);
 		ut_free(merge_info[0].psort_common->dup);
-		mem_free(merge_info[0].psort_common);
-		mem_free(psort_info);
+		ut_free(merge_info[0].psort_common);
+		ut_free(psort_info);
 	}
 
-	if (merge_info) {
-		mem_free(merge_info);
-	}
+	ut_free(merge_info);
 }
 /*********************************************************************//**
 Free up merge buffers when merge sort is done */
-UNIV_INTERN
+
 void
 row_fts_free_pll_merge_buf(
 /*=======================*/
@@ -347,8 +356,89 @@ row_fts_free_pll_merge_buf(
 }
 
 /*********************************************************************//**
+FTS plugin parser 'myql_add_word' callback function for row merge.
+Refer to 'st_mysql_ftparser_param' for more detail.
+@return always returns 0 */
+static
+int
+row_merge_fts_doc_add_word_for_parser(
+/*==================================*/
+	MYSQL_FTPARSER_PARAM	*param,		/* in: parser paramter */
+	char			*word,		/* in: token word */
+	int			word_len,	/* in: word len */
+	MYSQL_FTPARSER_BOOLEAN_INFO*	boolean_info)	/* in: boolean info */
+{
+	fts_string_t		str;
+	fts_tokenize_ctx_t*	t_ctx;
+	row_fts_token_t*	fts_token;
+	byte*			ptr;
+
+	ut_ad(param);
+	ut_ad(param->mysql_ftparam);
+	ut_ad(word);
+	ut_ad(boolean_info);
+
+	t_ctx = static_cast<fts_tokenize_ctx_t*>(param->mysql_ftparam);
+	ut_ad(t_ctx);
+
+	str.f_str = reinterpret_cast<byte*>(word);
+	str.f_len = word_len;
+	str.f_n_char = fts_get_token_size(
+		(CHARSET_INFO*)param->cs, word, word_len);
+
+	ut_ad(boolean_info->position >= 0);
+
+	ptr = static_cast<byte*>(ut_malloc(sizeof(row_fts_token_t)
+			+ sizeof(fts_string_t) + str.f_len));
+	fts_token = reinterpret_cast<row_fts_token_t*>(ptr);
+	fts_token->text = reinterpret_cast<fts_string_t*>(
+			ptr + sizeof(row_fts_token_t));
+	fts_token->text->f_str = static_cast<byte*>(
+			ptr + sizeof(row_fts_token_t) + sizeof(fts_string_t));
+
+	fts_token->text->f_len = str.f_len;
+	fts_token->text->f_n_char = str.f_n_char;
+	memcpy(fts_token->text->f_str, str.f_str, str.f_len);
+	fts_token->position = boolean_info->position;
+
+	/* Add token to list */
+	UT_LIST_ADD_LAST(t_ctx->fts_token_list, fts_token);
+
+	return(0);
+}
+
+/*********************************************************************//**
+Tokenize by fts plugin parser */
+static
+void
+row_merge_fts_doc_tokenize_by_parser(
+/*=================================*/
+	fts_doc_t*		doc,	/* in: doc to tokenize */
+	st_mysql_ftparser*	parser,	/* in: plugin parser instance */
+	fts_tokenize_ctx_t*	t_ctx)	/* in/out: tokenize ctx instance */
+{
+	MYSQL_FTPARSER_PARAM	param;
+
+	ut_a(parser);
+
+	/* Set paramters for param */
+	param.mysql_parse = fts_tokenize_document_internal;
+	param.mysql_add_word = row_merge_fts_doc_add_word_for_parser;
+	param.mysql_ftparam = t_ctx;
+	param.cs = doc->charset;
+	param.doc = reinterpret_cast<char*>(doc->text.f_str);
+	param.length = static_cast<int>(doc->text.f_len);
+	param.mode= MYSQL_FTPARSER_SIMPLE_MODE;
+
+	PARSER_INIT(parser, &param);
+	/* We assume parse returns successfully here. */
+	parser->parse(&param);
+	PARSER_DEINIT(parser, &param);
+}
+
+/*********************************************************************//**
 Tokenize incoming text data and add to the sort buffer.
-@return	TRUE if the record passed, FALSE if out of space */
+@return TRUE if the record passed, FALSE if out of space */
 static
 ibool
 row_merge_fts_doc_tokenize(
@@ -364,8 +454,7 @@ row_merge_fts_doc_tokenize(
 						store Doc ID during sort*/
 	fts_tokenize_ctx_t*	t_ctx)          /*!< in/out: tokenize context */
 {
-	ulint		i;
-	ulint		inc;
+	ulint		inc = 0;
 	fts_string_t	str;
 	ulint		len;
 	row_merge_buf_t* buf;
@@ -375,6 +464,7 @@ row_merge_fts_doc_tokenize(
 	byte		str_buf[FTS_MAX_WORD_LEN + 1];
 	ulint		data_size[FTS_NUM_AUX_INDEX];
 	ulint		n_tuple[FTS_NUM_AUX_INDEX];
+	st_mysql_ftparser*	parser;
 
 	t_str.f_n_char = 0;
 	t_ctx->buf_used = 0;
@@ -382,28 +472,62 @@ row_merge_fts_doc_tokenize(
 	memset(n_tuple, 0, FTS_NUM_AUX_INDEX * sizeof(ulint));
 	memset(data_size, 0, FTS_NUM_AUX_INDEX * sizeof(ulint));
 
+	parser = sort_buf[0]->index->parser;
+
 	/* Tokenize the data and add each word string, its corresponding
 	doc id and position to sort buffer */
-	for (i = t_ctx->processed_len; i < doc->text.f_len; i += inc) {
+	while (t_ctx->processed_len < doc->text.f_len) {
 		ib_rbt_bound_t	parent;
 		ulint		idx = 0;
 		ib_uint32_t	position;
-		ulint           offset = 0;
 		ulint		cur_len = 0;
 		doc_id_t	write_doc_id;
+		row_fts_token_t* fts_token = NULL;
 
-		inc = innobase_mysql_fts_get_token(
-			doc->charset, doc->text.f_str + i,
-			doc->text.f_str + doc->text.f_len, &str, &offset);
+		if (parser != NULL) {
+			if (t_ctx->processed_len == 0) {
+				UT_LIST_INIT(t_ctx->fts_token_list, &row_fts_token_t::token_list);
 
-		ut_a(inc > 0);
+				/* Parse the whole doc and cache tokens */
+				row_merge_fts_doc_tokenize_by_parser(doc,
+					parser, t_ctx);
+
+				/* Just indictate we have parsed all the word */
+				t_ctx->processed_len += 1;
+			}
+
+			/* Then get a token */
+			fts_token = UT_LIST_GET_FIRST(t_ctx->fts_token_list);
+			if (fts_token) {
+				str.f_len = fts_token->text->f_len;
+				str.f_n_char = fts_token->text->f_n_char;
+				str.f_str = fts_token->text->f_str;
+			} else {
+				ut_ad(UT_LIST_GET_LEN(t_ctx->fts_token_list) == 0);
+				/* Reach the end of the list */
+				t_ctx->processed_len = doc->text.f_len;
+				break;
+			}
+		} else {
+			inc = innobase_mysql_fts_get_token(
+				doc->charset,
+				doc->text.f_str + t_ctx->processed_len,
+				doc->text.f_str + doc->text.f_len, &str);
+
+			ut_a(inc > 0);
+		}
 
 		/* Ignore string whose character number is less than
 		"fts_min_token_size" or more than "fts_max_token_size" */
 		if (str.f_n_char < fts_min_token_size
 		    || str.f_n_char > fts_max_token_size) {
+			if (parser != NULL) {
+				UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
+				ut_free(fts_token);
+			} else {
+				t_ctx->processed_len += inc;
+			}
 
-			t_ctx->processed_len += inc;
 			continue;
 		}
 
@@ -419,7 +543,13 @@ row_merge_fts_doc_tokenize(
 		    && rbt_search(t_ctx->cached_stopword,
 				  &parent, &t_str) == 0) {
 
-			t_ctx->processed_len += inc;
+			if (parser != NULL) {
+				UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
+				ut_free(fts_token);
+			} else {
+				t_ctx->processed_len += inc;
+			}
+
 			continue;
 		}
 
@@ -447,7 +577,7 @@ row_merge_fts_doc_tokenize(
 		field->type.prtype = word_dtype->prtype | DATA_NOT_NULL;
 
 		/* Variable length field, set to max size. */
-		field->type.len = fts_max_token_size;
+		field->type.len = FTS_MAX_WORD_LEN;
 		field->type.mbminmaxlen = word_dtype->mbminmaxlen;
 
 		cur_len += len;
@@ -485,9 +615,15 @@ row_merge_fts_doc_tokenize(
 		++field;
 
 		/* The third field is the position */
-		mach_write_to_4(
-			(byte*) &position,
-			(i + offset + inc - str.f_len + t_ctx->init_pos));
+		if (parser != NULL) {
+			mach_write_to_4(
+				reinterpret_cast<byte*>(&position),
+				(fts_token->position + t_ctx->init_pos));
+		} else {
+			mach_write_to_4(
+				reinterpret_cast<byte*>(&position),
+				(t_ctx->processed_len + inc - str.f_len + t_ctx->init_pos));
+		}
 
 		dfield_set_data(field, &position, sizeof(position));
 		len = dfield_get_len(field);
@@ -507,20 +643,24 @@ row_merge_fts_doc_tokenize(
 		/* Reserve one byte for the end marker of row_merge_block_t. */
 		if (buf->total_size + data_size[idx] + cur_len
 		    >= srv_sort_buf_size - 1) {
-
 			buf_full = TRUE;
 			break;
 		}
 
 		/* Increment the number of tuples */
 		n_tuple[idx]++;
-		t_ctx->processed_len += inc;
+		if (parser != NULL) {
+			UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
+			ut_free(fts_token);
+		} else {
+			t_ctx->processed_len += inc;
+		}
 		data_size[idx] += cur_len;
 	}
 
 	/* Update the data length and the number of new word tuples
 	added in this round of tokenization */
-	for (i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
+	for (ulint i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
 		/* The computation of total_size below assumes that no
 		delete-mark flags will be stored and that all fields
 		are NOT NULL and fixed-length. */
@@ -542,10 +682,38 @@ row_merge_fts_doc_tokenize(
 }
 
 /*********************************************************************//**
+Get next doc item from fts_doc_list */
+UNIV_INLINE
+void
+row_merge_fts_get_next_doc_item(
+/*============================*/
+	fts_psort_t*		psort_info,	/*!< in: psort_info */
+	fts_doc_item_t**	doc_item)	/*!< in/out: doc item */
+{
+	if (*doc_item != NULL) {
+		ut_free(*doc_item);
+	}
+
+	mutex_enter(&psort_info->mutex);
+
+	*doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
+	if (*doc_item != NULL) {
+		UT_LIST_REMOVE(psort_info->fts_doc_list, *doc_item);
+
+		ut_ad(psort_info->memory_used >= sizeof(fts_doc_item_t)
+		      + (*doc_item)->field->len);
+		psort_info->memory_used -= sizeof(fts_doc_item_t)
+			+ (*doc_item)->field->len;
+	}
+
+	mutex_exit(&psort_info->mutex);
+}
+
+/*********************************************************************//**
 Function performs parallel tokenization of the incoming doc strings.
 It also performs the initial in memory sort of the parsed records.
 @return OS_THREAD_DUMMY_RETURN */
-UNIV_INTERN
+
 os_thread_ret_t
 fts_parallel_tokenization(
 /*======================*/
@@ -554,7 +722,6 @@ fts_parallel_tokenization(
 	fts_psort_t*		psort_info = (fts_psort_t*) arg;
 	ulint			i;
 	fts_doc_item_t*		doc_item = NULL;
-	fts_doc_item_t*		prev_doc_item = NULL;
 	row_merge_buf_t**	buf;
 	ibool			processed = FALSE;
 	merge_file_t**		merge_file;
@@ -564,7 +731,6 @@ fts_parallel_tokenization(
 	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
 	doc_id_t		last_doc_id = 0;
-	ulint			zip_size;
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
 	dict_table_t*		table = psort_info->psort_common->new_table;
@@ -572,7 +738,7 @@ fts_parallel_tokenization(
 	dict_field_t*		idx_field;
 	fts_tokenize_ctx_t	t_ctx;
 	ulint			retried = 0;
-	ut_ad(psort_info);
+	dberr_t			error = DB_SUCCESS;
 
 	ut_ad(psort_info);
 
@@ -594,13 +760,10 @@ fts_parallel_tokenization(
 				? DATA_VARCHAR : DATA_VARMYSQL;
 
 	block = psort_info->merge_block;
-	zip_size = dict_table_zip_size(table);
 
-	doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
+	const page_size_t&	page_size = dict_table_page_size(table);
 
-	if (doc_item) {
-		prev_doc_item = doc_item;
-	}
+	row_merge_fts_get_next_doc_item(psort_info, &doc_item);
 
 	t_ctx.cached_stopword = table->fts->cache->stopword_info.cached_stopword;
 	processed = TRUE;
@@ -610,17 +773,8 @@ loop:
 
 		last_doc_id = doc_item->doc_id;
 
-		if (!(dfield->data)
-		    || dfield_get_len(dfield) == UNIV_SQL_NULL) {
-			num_doc_processed++;
-			doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
-
-			/* Always remember the last doc_item we processed */
-			if (doc_item) {
-				prev_doc_item = doc_item;
-			}
-			continue;
-		}
+		ut_ad (dfield->data != NULL
+		       && dfield_get_len(dfield) != UNIV_SQL_NULL);
 
 		/* If finish processing the last item, update "doc" with
 		strings in the doc_item, otherwise continue processing last
@@ -637,7 +791,7 @@ loop:
 				doc.text.f_str =
 					btr_copy_externally_stored_field(
 						&doc.text.f_len, data,
-						zip_size, data_len, blob_heap);
+						page_size, data_len, blob_heap);
 			} else {
 				doc.text.f_str = data;
 				doc.text.f_len = data_len;
@@ -668,12 +822,13 @@ loop:
 		num_doc_processed++;
 
 		if (fts_enable_diag_print && num_doc_processed % 10000 == 1) {
-			fprintf(stderr, "number of doc processed %d\n",
+			ib_logf(IB_LOG_LEVEL_INFO, "Number of doc processed %d",
 				(int) num_doc_processed);
 #ifdef FTS_INTERNAL_DIAG_PRINT
 			for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
-				fprintf(stderr, "ID %d, partition %d, word "
-					"%d\n",(int) psort_info->psort_id,
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"ID %d, partition %d, word"
+					" %d",(int) psort_info->psort_id,
 					(int) i, (int) mycount[i]);
 			}
 #endif
@@ -681,19 +836,10 @@ loop:
 
 		mem_heap_empty(blob_heap);
 
-		if (doc_item->field->data) {
-			ut_free(doc_item->field->data);
-			doc_item->field->data = NULL;
-		}
+		row_merge_fts_get_next_doc_item(psort_info, &doc_item);
 
-		doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
-
-		/* Always remember the last doc_item we processed */
-		if (doc_item) {
-			prev_doc_item = doc_item;
-			if (last_doc_id != doc_item->doc_id) {
-				t_ctx.init_pos = 0;
-			}
+		if (doc_item && last_doc_id != doc_item->doc_id) {
+			t_ctx.init_pos = 0;
 		}
 	}
 
@@ -704,9 +850,14 @@ loop:
 		row_merge_buf_write(buf[t_ctx.buf_used],
 				    merge_file[t_ctx.buf_used],
 				    block[t_ctx.buf_used]);
-		row_merge_write(merge_file[t_ctx.buf_used]->fd,
-				merge_file[t_ctx.buf_used]->offset++,
-				block[t_ctx.buf_used]);
+
+		if (!row_merge_write(merge_file[t_ctx.buf_used]->fd,
+				     merge_file[t_ctx.buf_used]->offset++,
+				     block[t_ctx.buf_used])) {
+			error = DB_TEMP_FILE_WRITE_FAILURE;
+			goto func_exit;
+		}
+
 		UNIV_MEM_INVALID(block[t_ctx.buf_used][0], srv_sort_buf_size);
 		buf[t_ctx.buf_used] = row_merge_buf_empty(buf[t_ctx.buf_used]);
 		mycount[t_ctx.buf_used] += t_ctx.rows_added[t_ctx.buf_used];
@@ -718,35 +869,32 @@ loop:
 
 	/* Parent done scanning, and if finish processing all the docs, exit */
 	if (psort_info->state == FTS_PARENT_COMPLETE) {
-	    	if (num_doc_processed >= UT_LIST_GET_LEN(
-			psort_info->fts_doc_list)) {
+		if (UT_LIST_GET_LEN(psort_info->fts_doc_list) == 0) {
 			goto exit;
 		} else if (retried > 10000) {
 			ut_ad(!doc_item);
 			/* retied too many times and cannot get new record */
-			fprintf(stderr, "InnoDB: FTS parallel sort processed "
-					"%lu records, the sort queue has "
-					"%lu records. But sort cannot get "
-					"the next records", num_doc_processed,
+			ib_logf(IB_LOG_LEVEL_ERROR,
+					"FTS parallel sort processed"
+					" %lu records, the sort queue has"
+					" %lu records. But sort cannot get"
+					" the next records", num_doc_processed,
 					UT_LIST_GET_LEN(
 						psort_info->fts_doc_list));
 			goto exit;
 		}
+	} else if (psort_info->state == FTS_PARENT_EXITING) {
+		/* Parent abort */
+		goto func_exit;
 	}
 
-	if (doc_item) {
-		doc_item = UT_LIST_GET_NEXT(doc_list, doc_item);
-	} else if (prev_doc_item) {
+	if (doc_item == NULL) {
 		os_thread_yield();
-		doc_item = UT_LIST_GET_NEXT(doc_list, prev_doc_item);
-	} else {
-		os_thread_yield();
-		doc_item = UT_LIST_GET_FIRST(psort_info->fts_doc_list);
 	}
 
-	if (doc_item) {
-		prev_doc_item = doc_item;
+	row_merge_fts_get_next_doc_item(psort_info, &doc_item);
 
+	if (doc_item != NULL) {
 		if (last_doc_id != doc_item->doc_id) {
 			t_ctx.init_pos = 0;
 		}
@@ -796,9 +944,12 @@ exit:
 			never flush to temp file, it can be held all in
 			memory */
 			if (merge_file[i]->offset != 0) {
-				row_merge_write(merge_file[i]->fd,
+				if (!row_merge_write(merge_file[i]->fd,
 						merge_file[i]->offset++,
-						block[i]);
+						block[i])) {
+					error = DB_TEMP_FILE_WRITE_FAILURE;
+					goto func_exit;
+				}
 
 				UNIV_MEM_INVALID(block[i][0],
 						 srv_sort_buf_size);
@@ -814,32 +965,53 @@ exit:
 	}
 
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
-
 		if (!merge_file[i]->offset) {
 			continue;
 		}
 
-		tmpfd[i] = innobase_mysql_tmpfile();
-		row_merge_sort(psort_info->psort_common->trx,
-			       psort_info->psort_common->dup,
-			       merge_file[i], block[i], &tmpfd[i]);
+		tmpfd[i] = row_merge_file_create_low();
+		if (tmpfd[i] < 0) {
+			error = DB_OUT_OF_MEMORY;
+			goto func_exit;
+		}
+
+		error = row_merge_sort(psort_info->psort_common->trx,
+				       psort_info->psort_common->dup,
+				       merge_file[i], block[i], &tmpfd[i]);
+		if (error != DB_SUCCESS) {
+			close(tmpfd[i]);
+			goto func_exit;
+		}
+
 		total_rec += merge_file[i]->n_rec;
 		close(tmpfd[i]);
 	}
 
+func_exit:
 	if (fts_enable_diag_print) {
 		DEBUG_FTS_SORT_PRINT("  InnoDB_FTS: complete merge sort\n");
 	}
 
 	mem_heap_free(blob_heap);
 
+	mutex_enter(&psort_info->mutex);
+	psort_info->error = error;
+	mutex_exit(&psort_info->mutex);
+
+	if (UT_LIST_GET_LEN(psort_info->fts_doc_list) > 0) {
+		/* child can exit either with error or told by parent. */
+		ut_ad(error != DB_SUCCESS
+		      || psort_info->state == FTS_PARENT_EXITING);
+	}
+
+	/* Free fts doc list in case of error. */
+	do {
+		row_merge_fts_get_next_doc_item(psort_info, &doc_item);
+	} while (doc_item != NULL);
+
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
-
-#ifdef __WIN__
-	CloseHandle(psort_info->thread_hdl);
-#endif /*__WIN__ */
 
 	os_thread_exit(NULL);
 
@@ -848,7 +1020,7 @@ exit:
 
 /*********************************************************************//**
 Start the parallel tokenization and parallel merge sort */
-UNIV_INTERN
+
 void
 row_fts_start_psort(
 /*================*/
@@ -859,16 +1031,16 @@ row_fts_start_psort(
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		psort_info[i].psort_id = i;
-		psort_info[i].thread_hdl = os_thread_create(
-			fts_parallel_tokenization,
-			(void*) &psort_info[i], &thd_id);
+		os_thread_create(fts_parallel_tokenization,
+				 (void*) &psort_info[i],
+				 &thd_id);
 	}
 }
 
 /*********************************************************************//**
 Function performs the merge and insertion of the sorted records.
 @return OS_THREAD_DUMMY_RETURN */
-UNIV_INTERN
+
 os_thread_ret_t
 fts_parallel_merge(
 /*===============*/
@@ -889,10 +1061,6 @@ fts_parallel_merge(
 	os_event_set(psort_info->psort_common->merge_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
 
-#ifdef __WIN__
-	CloseHandle(psort_info->thread_hdl);
-#endif /*__WIN__ */
-
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;
@@ -900,7 +1068,7 @@ fts_parallel_merge(
 
 /*********************************************************************//**
 Kick off the parallel merge and insert thread */
-UNIV_INTERN
+
 void
 row_fts_start_parallel_merge(
 /*=========================*/
@@ -914,14 +1082,15 @@ row_fts_start_parallel_merge(
 		merge_info[i].psort_id = i;
 		merge_info[i].child_status = 0;
 
-		merge_info[i].thread_hdl = os_thread_create(
-			fts_parallel_merge, (void*) &merge_info[i], &thd_id);
+		os_thread_create(fts_parallel_merge,
+				 (void*) &merge_info[i],
+				 &thd_id);
 	}
 }
 
 /********************************************************************//**
 Insert processed FTS data to auxillary index tables.
-@return	DB_SUCCESS if insertion runs fine */
+@return DB_SUCCESS if insertion runs fine */
 static __attribute__((nonnull))
 dberr_t
 row_merge_write_fts_word(
@@ -952,9 +1121,9 @@ row_merge_write_fts_word(
 			fts_node);
 
 		if (error != DB_SUCCESS) {
-			fprintf(stderr, "InnoDB: failed to write"
-				" word %s to FTS auxiliary index"
-				" table, error (%s) \n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Failed to write word %s to FTS auxiliary index"
+				" table, error (%s)",
 				word->text.f_str, ut_strerr(error));
 			ret = error;
 		}
@@ -968,8 +1137,8 @@ row_merge_write_fts_word(
 
 /*********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
-@return	DB_SUCCESS or error number */
-UNIV_INTERN
+@return DB_SUCCESS or error number */
+
 void
 row_fts_insert_tuple(
 /*=================*/
@@ -1029,7 +1198,7 @@ row_fts_insert_tuple(
 	token_word.f_str = static_cast<byte*>(dfield_get_data(dfield));
 
 	if (!word->text.f_str) {
-		fts_utf8_string_dup(&word->text, &token_word, ins_ctx->heap);
+		fts_string_dup(&word->text, &token_word, ins_ctx->heap);
 	}
 
 	/* compare to the last word, to see if they are the same
@@ -1051,7 +1220,7 @@ row_fts_insert_tuple(
 					 ins_ctx->charset);
 
 		/* Copy the new word */
-		fts_utf8_string_dup(&word->text, &token_word, ins_ctx->heap);
+		fts_string_dup(&word->text, &token_word, ins_ctx->heap);
 
 		num_item = ib_vector_size(positions);
 
@@ -1147,7 +1316,7 @@ row_fts_sel_tree_propagate(
 
 	sel_tree[parent] = selected;
 
-	return(parent);
+	return(static_cast<int>(parent));
 }
 
 /*********************************************************************//**
@@ -1167,8 +1336,8 @@ row_fts_sel_tree_update(
 	ulint	i;
 
 	for (i = 1; i <= height; i++) {
-		propagated = row_fts_sel_tree_propagate(
-			propagated, sel_tree, mrec, offsets, index);
+		propagated = static_cast<ulint>(row_fts_sel_tree_propagate(
+			static_cast<int>(propagated), sel_tree, mrec, offsets, index));
 	}
 
 	return(sel_tree[0]);
@@ -1192,8 +1361,8 @@ row_fts_build_sel_tree_level(
 	ulint	i;
 	ulint	num_item;
 
-	start = (1 << level) - 1;
-	num_item = (1 << level);
+	start = static_cast<ulint>((1 << level) - 1);
+	num_item = static_cast<ulint>(1 << level);
 
 	for (i = 0; i < num_item;  i++) {
 		child_left = sel_tree[(start + i) * 2 + 1];
@@ -1268,8 +1437,9 @@ row_fts_build_sel_tree(
 		sel_tree[i + start] = i;
 	}
 
-	for (i = treelevel - 1; i >=0; i--) {
-		row_fts_build_sel_tree_level(sel_tree, i, mrec, offsets, index);
+	for (i = static_cast<int>(treelevel) - 1; i >= 0; i--) {
+		row_fts_build_sel_tree_level(
+			sel_tree, static_cast<ulint>(i), mrec, offsets, index);
 	}
 
 	return(treelevel);
@@ -1278,8 +1448,8 @@ row_fts_build_sel_tree(
 /*********************************************************************//**
 Read sorted file containing index data tuples and insert these data
 tuples to the index
-@return	DB_SUCCESS or error number */
-UNIV_INTERN
+@return DB_SUCCESS or error number */
+
 dberr_t
 row_fts_merge_insert(
 /*=================*/
@@ -1367,8 +1537,8 @@ row_fts_merge_insert(
 	}
 
 	if (fts_enable_diag_print) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB_FTS: to inserted %lu records\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"InnoDB_FTS: to inserted %lu records",
 			(ulong) count_diag);
 	}
 
@@ -1387,11 +1557,17 @@ row_fts_merge_insert(
 	ins_ctx.ins_graph = static_cast<que_t**>(mem_heap_alloc(heap, n_bytes));
 	memset(ins_ctx.ins_graph, 0x0, n_bytes);
 
+	/* We should set the flags2 with aux_table_name here,
+	in order to get the correct aux table names. */
+	index->table->flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
+	DBUG_EXECUTE_IF("innodb_test_wrong_fts_aux_table_name",
+			index->table->flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
+
 	ins_ctx.fts_table.type = FTS_INDEX_TABLE;
 	ins_ctx.fts_table.index_id = index->id;
 	ins_ctx.fts_table.table_id = table->id;
 	ins_ctx.fts_table.parent = index->table->name;
-	ins_ctx.fts_table.table = NULL;
+	ins_ctx.fts_table.table = index->table;
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {
@@ -1448,7 +1624,7 @@ row_fts_merge_insert(
 					    mrec[i], mrec[min_rec],
 					    offsets[i], offsets[min_rec],
 					    index, NULL) < 0) {
-					min_rec = i;
+					min_rec = static_cast<int>(i);
 				}
 			}
 		} else {
@@ -1508,8 +1684,8 @@ exit:
 	mem_heap_free(heap);
 
 	if (fts_enable_diag_print) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB_FTS: inserted %lu records\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"InnoDB_FTS: inserted %lu records",
 			(ulong) count);
 	}
 

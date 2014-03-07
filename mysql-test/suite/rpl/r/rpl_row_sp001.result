@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 
 <Begin test section 1 (non deterministic SP)>
@@ -33,6 +33,7 @@ a	t
 2	NEW
 3	NEW
 4	NEW
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY a;
 a	t
 1	NEW
@@ -46,6 +47,7 @@ a	t
 2	Tex
 3	Tex
 4	Tex
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY a;
 a	t
 1	Tex
@@ -59,6 +61,7 @@ a	t
 2	SQL
 3	SQL
 4	SQL
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY a;
 a	t
 1	SQL
@@ -72,6 +75,7 @@ a	t
 2	NONE
 3	NONE
 4	NONE
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY a;
 a	t
 1	NONE
@@ -82,4 +86,5 @@ DROP PROCEDURE test.p1;
 DROP PROCEDURE test.p2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -276,3 +276,21 @@ drop table t1;
 drop table t2;
 SET DEBUG_SYNC = 'RESET';
 DROP FUNCTION MY_KILL;
+#
+# Bug#12661349 assert in protocol::end_statement
+#
+# Note: This test case should be run with --ps-protocol
+CREATE TABLE t1 (col1 INT);
+connect con1, localhost, root;
+SET DEBUG_SYNC= 'before_execute_sql_command SIGNAL waiting WAIT_FOR killed';
+SELECT * FROM t1;
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR waiting';
+KILL QUERY <con1_id>;
+SET DEBUG_SYNC= 'now SIGNAL killed';
+connection con1;
+ERROR 70100: Query execution was interrupted
+disconnect con1;
+connection default;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

@@ -2,7 +2,7 @@
       xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
   <Product 
     Id="*" 
-    UpgradeCode="88AD3A5F-E83F-4B83-9D6B-6B38189E9AC5"
+    UpgradeCode="F59F931A-0282-45D0-97CD-33F8B43AE3C2"
     Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" 
     Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@" 
     Language="1033" 
@@ -34,37 +34,30 @@
        Languages='1033'
        Compressed='yes'
        SummaryCodepage='1252'
-       Platform='@Platform@'/>
-    
+       Platform='@Platform@'
+       InstallScope="perMachine"/>
+  
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
     <!-- Upgrade -->
     
-    <Upgrade Id="88AD3A5F-E83F-4B83-9D6B-6B38189E9AC5">
+    <Upgrade Id="F59F931A-0282-45D0-97CD-33F8B43AE3C2">
       <?if '@PATCH_VERSION@' != '0'?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
         IncludeMinimum="yes"
         Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
+        IncludeMaximum="yes"
         Property="OLDERVERSIONBEINGUPGRADED"
         MigrateFeatures="yes"
         />
       <?endif?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
+        IncludeMinimum="no"
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />
     </Upgrade>
-    <Upgrade Id="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3">
-      <UpgradeVersion 
-        Minimum="5.6.0"
-        IncludeMinimum="yes"
-        Maximum="5.6.6"
-		IncludeMaximum="yes"
-        Property="OLDUPGRADECODE"
-        MigrateFeatures="yes"
-        />
-    </Upgrade>	
     <Condition Message="A later version of [ProductName] is already installed. Setup will now exit.">
       NOT NEWERVERSIONDETECTED OR Installed
     </Condition>
@@ -80,44 +73,46 @@
         Installed
       </Custom>
     </InstallExecuteSequence>
-	<InstallUISequence>
+    <InstallUISequence>
       <!-- App search is what does FindInstallLocation, and it is dependent on FindRelatedProducts -->
       <AppSearch After="FindRelatedProducts"/>
-	</InstallUISequence>
+    </InstallUISequence>
  
     <!-- Find previous installation -->
     <Property Id="INSTALLDIR">
       <RegistrySearch Id="FindInstallLocation"
           Root="HKLM"
+          @Win64@
           Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
           Name="InstallLocation"
           Type="raw" />
     </Property>
-	 <Property Id="OLDERVERSION">
+    <Property Id="OLDERVERSION"> 
       <RegistrySearch Id="FindOlderVersion"
-          Root="HKLM"
-          Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
-          Name="DisplayVersion"
-          Type="raw" />
+        Root="HKLM"
+        @Win64@
+        Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
+        Name="DisplayVersion"
+        Type="raw" />
     </Property>
-	 <Property Id="DATADIR">
+    <Property Id="DATADIR">
       <RegistrySearch Id="FindDataDir"
           Root="HKLM"
           Key="SOFTWARE\MySQL AB\[ProductName]"
           Name="DataLocation"
           Type="raw" />
     </Property>
-	 <Property Id="INSTALLDIR2">
+    <Property Id="INSTALLDIR2">
        <RegistrySearch Id="FindInstallLocation2"
           Root="HKLM"
           Key="SOFTWARE\MySQL AB\[ProductName]"
           Name="Location"
           Type="raw" />
     </Property>
-	<CustomAction Id="SetInstallDir2" Property="INSTALLDIR" Value="[INSTALLDIR2]" /> 
-	<InstallUISequence>
-	 <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
-	</InstallUISequence>
+    <CustomAction Id="SetInstallDir2" Property="INSTALLDIR" Value="[INSTALLDIR2]" /> 
+    <InstallUISequence>
+    <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
+    </InstallUISequence>
 
 
     <!-- UI -->

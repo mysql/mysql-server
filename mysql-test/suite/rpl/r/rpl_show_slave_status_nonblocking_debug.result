@@ -1,0 +1,32 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/sync_slave_sql_with_master.inc
+SET @slave_debug_save= @@GLOBAL.DEBUG;
+#######################################################################
+# Call SHOW SLAVE STATUS NONBLOCKING while run locks are hold on
+# STOP SLAVE.
+include/stop_slave.inc
+SET @@GLOBAL.DEBUG = '+d,simulate_hold_run_locks_on_stop_slave';
+include/start_slave.inc
+STOP SLAVE;
+[connection slave1]
+include/assert.inc [SHOW SLAVE STATUS NONBLOCKING must not wait for locks, if it waits Slave_SQL_Running will be "No"]
+[connection slave]
+include/wait_for_slave_to_stop.inc
+SET GLOBAL DEBUG= @slave_debug_save;
+#######################################################################
+# Hold SHOW SLAVE STATUS NONBLOCKING just before call
+# show_slave_status(), execute STOP SLAVE and resume SSS NONBLOCKING.
+SET @@GLOBAL.DEBUG = '+d,simulate_hold_show_slave_status_nonblocking';
+include/start_slave.inc
+SHOW SLAVE STATUS NONBLOCKING;
+[connection slave1]
+include/stop_slave.inc
+[connection slave]
+SET GLOBAL DEBUG= @slave_debug_save;
+include/start_slave.inc
+include/rpl_end.inc

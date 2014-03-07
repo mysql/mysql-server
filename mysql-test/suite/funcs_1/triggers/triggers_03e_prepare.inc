@@ -36,6 +36,7 @@ let $message= #### Testcase for trigger privilege on execution time ########;
 
 	connection default;
         select current_user;
+--replace_column 6 #
 	show triggers;
 	grant  select, insert, update ,trigger
 	        on priv_db.t1 to test_yesprivs@localhost

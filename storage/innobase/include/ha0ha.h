@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +47,7 @@ ha_search_and_get_data(
 Looks for an element when we know the pointer to the data and updates
 the pointer to data if found.
 @return TRUE if found */
-UNIV_INTERN
+
 ibool
 ha_search_and_update_if_found_func(
 /*===============================*/
@@ -62,66 +62,44 @@ ha_search_and_update_if_found_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Looks for an element when we know the pointer to the data and
 updates the pointer to data if found.
-@param table		in/out: hash table
-@param fold		in: folded value of the searched data
-@param data		in: pointer to the data
-@param new_block	in: block containing new_data
-@param new_data		in: new pointer to the data */
+@param table in/out: hash table
+@param fold in: folded value of the searched data
+@param data in: pointer to the data
+@param new_block in: block containing new_data
+@param new_data in: new pointer to the data */
 # define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
 	ha_search_and_update_if_found_func(table,fold,data,new_block,new_data)
 #else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 /** Looks for an element when we know the pointer to the data and
 updates the pointer to data if found.
-@param table		in/out: hash table
-@param fold		in: folded value of the searched data
-@param data		in: pointer to the data
-@param new_block	ignored: block containing new_data
-@param new_data		in: new pointer to the data */
+@param table in/out: hash table
+@param fold in: folded value of the searched data
+@param data in: pointer to the data
+@param new_block ignored: block containing new_data
+@param new_data in: new pointer to the data */
 # define ha_search_and_update_if_found(table,fold,data,new_block,new_data) \
 	ha_search_and_update_if_found_func(table,fold,data,new_data)
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 /*************************************************************//**
 Creates a hash table with at least n array cells.  The actual number
 of cells is chosen to be a prime number slightly bigger than n.
-@return	own: created table */
-UNIV_INTERN
+@return own: created table */
+
 hash_table_t*
-ha_create_func(
-/*===========*/
-	ulint	n,		/*!< in: number of array cells */
-#ifdef UNIV_SYNC_DEBUG
-	ulint	mutex_level,	/*!< in: level of the mutexes in the latching
-				order: this is used in the debug version */
-#endif /* UNIV_SYNC_DEBUG */
-	ulint	n_mutexes,	/*!< in: number of mutexes to protect the
+ib_create(
+/*======*/
+	ulint		n,	/*!< in: number of array cells */
+	const char*	name,	/*!< in: mutex name */
+	ulint		n_mutexes,/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
-	ulint	type);		/*!< in: type of datastructure for which
+	ulint		type);	/*!< in: type of datastructure for which
 				the memory heap is going to be used e.g.:
 				MEM_HEAP_FOR_BTR_SEARCH or
 				MEM_HEAP_FOR_PAGE_HASH */
-#ifdef UNIV_SYNC_DEBUG
-/** Creates a hash table.
-@return		own: created table
-@param n_c	in: number of array cells.  The actual number of cells is
-chosen to be a slightly bigger prime number.
-@param level	in: level of the mutexes in the latching order
-@param n_m	in: number of mutexes to protect the hash table;
-		must be a power of 2, or 0 */
-# define ha_create(n_c,n_m,type,level) ha_create_func(n_c,level,n_m,type)
-#else /* UNIV_SYNC_DEBUG */
-/** Creates a hash table.
-@return		own: created table
-@param n_c	in: number of array cells.  The actual number of cells is
-chosen to be a slightly bigger prime number.
-@param level	in: level of the mutexes in the latching order
-@param n_m	in: number of mutexes to protect the hash table;
-		must be a power of 2, or 0 */
-# define ha_create(n_c,n_m,type,level) ha_create_func(n_c,n_m,type)
-#endif /* UNIV_SYNC_DEBUG */
-
 /*************************************************************//**
 Empties a hash table and frees the memory heaps. */
-UNIV_INTERN
+
 void
 ha_clear(
 /*=====*/
@@ -131,8 +109,8 @@ ha_clear(
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return	TRUE if succeed, FALSE if no more memory could be allocated */
-UNIV_INTERN
+@return TRUE if succeed, FALSE if no more memory could be allocated */
+
 ibool
 ha_insert_for_fold_func(
 /*====================*/
@@ -151,11 +129,11 @@ ha_insert_for_fold_func(
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return	TRUE if succeed, FALSE if no more memory could be allocated
-@param t	in: hash table
-@param f	in: folded value of data
-@param b	in: buffer block containing the data
-@param d	in: data, must not be NULL */
+@return TRUE if succeed, FALSE if no more memory could be allocated
+@param t in: hash table
+@param f in: folded value of data
+@param b in: buffer block containing the data
+@param d in: data, must not be NULL */
 # define ha_insert_for_fold(t,f,b,d) 	do {		\
 	ha_insert_for_fold_func(t,f,b,d);		\
 	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);	\
@@ -165,11 +143,11 @@ is inserted.
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
-@return	TRUE if succeed, FALSE if no more memory could be allocated
-@param t	in: hash table
-@param f	in: folded value of data
-@param b	ignored: buffer block containing the data
-@param d	in: data, must not be NULL */
+@return TRUE if succeed, FALSE if no more memory could be allocated
+@param t in: hash table
+@param f in: folded value of data
+@param b ignored: buffer block containing the data
+@param d in: data, must not be NULL */
 # define ha_insert_for_fold(t,f,b,d)	do {		\
 	ha_insert_for_fold_func(t,f,d);			\
 	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);	\
@@ -179,7 +157,7 @@ is inserted.
 /*********************************************************//**
 Looks for an element when we know the pointer to the data and deletes
 it from the hash table if found.
-@return	TRUE if found */
+@return TRUE if found */
 UNIV_INLINE
 ibool
 ha_search_and_delete_if_found(
@@ -191,7 +169,7 @@ ha_search_and_delete_if_found(
 /*****************************************************************//**
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */
-UNIV_INTERN
+
 void
 ha_remove_all_nodes_to_page(
 /*========================*/
@@ -201,8 +179,8 @@ ha_remove_all_nodes_to_page(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
-@return	TRUE if ok */
-UNIV_INTERN
+@return TRUE if ok */
+
 ibool
 ha_validate(
 /*========*/
@@ -212,7 +190,7 @@ ha_validate(
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 /*************************************************************//**
 Prints info of a hash table. */
-UNIV_INTERN
+
 void
 ha_print_info(
 /*==========*/
@@ -222,12 +200,12 @@ ha_print_info(
 
 /** The hash table external chain node */
 struct ha_node_t {
+	ulint		fold;	/*!< fold value for the data */
 	ha_node_t*	next;	/*!< next chain node or NULL if none */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block;	/*!< buffer block containing the data, or NULL */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	const rec_t*	data;	/*!< pointer to the data */
-	ulint		fold;	/*!< fold value for the data */
 };
 
 #ifdef UNIV_DEBUG

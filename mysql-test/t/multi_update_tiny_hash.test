@@ -1,3 +1,4 @@
+
 #
 # Test of update statement that uses many tables,
 # --max_heap_table_size=1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ enum enum_used_fields
 static bool init_fields(THD *thd, TABLE_LIST *tables,
 			struct st_find_field *find_fields, uint count)
 {
-  Name_resolution_context *context= &thd->lex->select_lex.context;
+  Name_resolution_context *context= &thd->lex->select_lex->context;
   DBUG_ENTER("init_fields");
   context->resolve_in_table_list_only(tables);
   for (; count-- ; find_fields++)
@@ -590,6 +590,9 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
   if (!cond->fixed)
     cond->fix_fields(thd, &cond);	// can never fail
 
+  // Initialize the cost model that will be used for this table
+  table->init_cost_model(thd->cost_model());
+
   /* Assume that no indexes cover all required fields */
   table->covering_keys.clear_all();
 
@@ -697,10 +700,10 @@ bool mysqld_help(THD *thd, const char *mask)
     Init tables and fields to be usable from items
     tables do not contain VIEWs => we can pass 0 as conds
   */
-  thd->lex->select_lex.context.table_list=
-    thd->lex->select_lex.context.first_name_resolution_table= &tables[0];
-  if (setup_tables(thd, &thd->lex->select_lex.context,
-                   &thd->lex->select_lex.top_join_list,
+  thd->lex->select_lex->context.table_list=
+    thd->lex->select_lex->context.first_name_resolution_table= &tables[0];
+  if (setup_tables(thd, &thd->lex->select_lex->context,
+                   &thd->lex->select_lex->top_join_list,
                    tables, &leaves, FALSE))
     goto error;
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
@@ -721,7 +724,7 @@ bool mysqld_help(THD *thd, const char *mask)
 
   if (count_topics == 0)
   {
-    int UNINIT_VAR(key_id);
+    int key_id= 0;
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
                                   used_fields[help_keyword_name].field,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,12 @@
 #define MAX_FIELD_CHARLENGTH	255
 #define MAX_FIELD_VARCHARLENGTH	65535
 #define MAX_FIELD_BLOBLENGTH UINT_MAX32     /* cf field_blob::get_length() */
+/**
+  CHAR and VARCHAR fields longer than this number of characters are converted
+  to BLOB.
+  Non-character fields longer than this number of bytes are converted to BLOB.
+  Comparisons should be '>' or '<='.
+*/
 #define CONVERT_IF_BIGGER_TO_BLOB 512		/* Used for CREATE ... SELECT */
 
 /* Max column width +1 */
@@ -72,8 +78,8 @@
 
 #define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
 
-#define DEFAULT_SORT_MEMORY (256U* 1024U)
-#define MIN_SORT_MEMORY     (32U * 1024U)
+#define DEFAULT_SORT_MEMORY (256UL* 1024UL)
+#define MIN_SORT_MEMORY     (32UL * 1024UL)
 
 /* Some portable defines */
 
@@ -156,7 +162,6 @@
 #define UDF_ALLOC_BLOCK_SIZE		1024
 #define TABLE_ALLOC_BLOCK_SIZE		1024
 #define WARN_ALLOC_BLOCK_SIZE		2048
-#define WARN_ALLOC_PREALLOC_SIZE	1024
 
 /*
   The following parameters is to decide when to use an extra cache to
@@ -264,7 +269,7 @@
 */
 #define MAX_TIME_ZONE_NAME_LENGTH       (NAME_LEN + 1)
 
-#if defined(__WIN__)
+#if defined(_WIN32)
 #define INTERRUPT_PRIOR -2
 #define CONNECT_PRIOR	-1
 #define WAIT_PRIOR	0
@@ -274,6 +279,6 @@
 #define CONNECT_PRIOR	9
 #define WAIT_PRIOR	8
 #define QUERY_PRIOR	6
-#endif /* __WIN92__ */
+#endif /* _WIN32 */
 
 #endif /* SQL_CONST_INCLUDED */

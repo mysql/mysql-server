@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* based on Wei Dai's integer.cpp from CryptoPP */
 
@@ -50,7 +50,9 @@
         #include <emmintrin.h>
     #endif
 #elif defined(_MSC_VER) && defined(_M_IX86)
-    #pragma message("You do not seem to have the Visual C++ Processor Pack ")
+/*    #pragma message("You do not seem to have the Visual C++ Processor Pack ")
+     #pragma message("installed, so use of SSE2 intrinsics will be disabled.")
+*/
     #pragma message("installed, so use of SSE2 intrinsics will be disabled.")
 #elif defined(__GNUC__) && defined(__i386__)
 /*   #warning You do not have GCC 3.3 or later, or did not specify the -msse2 \
@@ -68,7 +70,7 @@ template <class T>
 CPP_TYPENAME AlignedAllocator<T>::pointer AlignedAllocator<T>::allocate(
                                            size_type n, const void *)
 {
-    if (n > max_size())
+    if (n > this->max_size())
         return 0;
     if (n == 0)
         return 0;

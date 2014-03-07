@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -60,7 +60,7 @@ introduced where a call to log_free_check() is bypassed. */
 /***************************************************************//**
 Removes a clustered index record. The pcur in node was positioned on the
 record, now it is detached.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static  __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_ins_remove_clust_rec(
@@ -76,15 +76,16 @@ row_undo_ins_remove_clust_rec(
 	bool		online;
 
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(node->trx->in_rollback);
 
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
-	/* This is similar to row_undo_mod_clust(). Even though we
-	call row_log_table_rollback() elsewhere, the DDL thread may
-	already have copied this row to the sort buffers or to the new
-	table. We must log the removal, so that the row will be
-	correctly purged. However, we can log the removal out of sync
-	with the B-tree modification. */
+	/* This is similar to row_undo_mod_clust(). The DDL thread may
+	already have copied this row from the log to the new table.
+	We must log the removal, so that the row will be correctly
+	purged. However, we can log the removal out of sync with the
+	B-tree modification. */
 
 	online = dict_index_is_online_ddl(index);
 	if (online) {
@@ -104,27 +105,27 @@ row_undo_ins_remove_clust_rec(
 
 	ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur), btr_cur->index)
 	      == node->trx->id);
+	ut_ad(!rec_get_deleted_flag(
+		      btr_cur_get_rec(btr_cur),
+		      dict_table_is_comp(btr_cur->index->table)));
 
 	if (online && dict_index_is_online_ddl(index)) {
 		const rec_t*	rec	= btr_cur_get_rec(btr_cur);
 		mem_heap_t*	heap	= NULL;
 		const ulint*	offsets	= rec_get_offsets(
 			rec, index, NULL, ULINT_UNDEFINED, &heap);
-		row_log_table_delete(
-			rec, index, offsets,
-			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
-					+ rec));
+		row_log_table_delete(rec, index, offsets, NULL);
 		mem_heap_free(heap);
 	}
 
 	if (node->table->id == DICT_INDEXES_ID) {
+
 		ut_ad(!online);
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
-		/* Drop the index tree associated with the row in
-		SYS_INDEXES table: */
-
-		dict_drop_index_tree(btr_pcur_get_rec(&(node->pcur)), &mtr);
+		dict_drop_index_tree(
+			btr_pcur_get_rec(&node->pcur), &(node->pcur),
+			true, &mtr);
 
 		mtr_commit(&mtr);
 
@@ -144,15 +145,14 @@ row_undo_ins_remove_clust_rec(
 retry:
 	/* If did not succeed, try pessimistic descent to tree */
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
-	success = btr_pcur_restore_position(BTR_MODIFY_TREE,
-					    &(node->pcur), &mtr);
+	success = btr_pcur_restore_position(
+			BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+			&node->pcur, &mtr);
 	ut_a(success);
 
-	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-				   trx_is_recv(node->trx)
-				   ? RB_RECOVERY
-				   : RB_NORMAL, &mtr);
+	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, &mtr);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -172,14 +172,13 @@ retry:
 
 func_exit:
 	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
-	trx_undo_rec_release(node->trx, node->undo_no);
 
 	return(err);
 }
 
 /***************************************************************//**
 Removes a secondary index entry if found.
-@return	DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec_low(
@@ -199,13 +198,14 @@ row_undo_ins_remove_sec_low(
 	log_free_check();
 
 	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (mode == BTR_MODIFY_LEAF) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
+		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
+		mtr_sx_lock(dict_index_get_lock(index), &mtr);
 	}
 
 	if (row_log_online_op_try(index, entry, 0)) {
@@ -230,18 +230,17 @@ row_undo_ins_remove_sec_low(
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
-	if (mode != BTR_MODIFY_TREE) {
+	if (mode != (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE)) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
 			? DB_SUCCESS : DB_FAIL;
 	} else {
-		/* No need to distinguish RB_RECOVERY here, because we
-		are deleting a secondary index record: the distinction
-		between RB_NORMAL and RB_RECOVERY only matters when
-		deleting a record that contains externally stored
-		columns. */
+		/* Passing rollback=false here, because we are
+		deleting a secondary index record: the distinction
+		only matters when deleting a record that contains
+		externally stored columns. */
 		ut_ad(!dict_index_is_clust(index));
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   RB_NORMAL, &mtr);
+					   false, &mtr);
 	}
 func_exit:
 	btr_pcur_close(&pcur);
@@ -254,7 +253,7 @@ func_exit_no_pcur:
 /***************************************************************//**
 Removes a secondary index entry from the index if found. Tries first
 optimistic, then pessimistic descent down the tree.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec(
@@ -276,7 +275,9 @@ row_undo_ins_remove_sec(
 
 	/* Try then pessimistic descent to the B-tree */
 retry:
-	err = row_undo_ins_remove_sec_low(BTR_MODIFY_TREE, index, entry);
+	err = row_undo_ins_remove_sec_low(
+		BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+		index, entry);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -319,7 +320,8 @@ row_undo_ins_parse_undo_rec(
 	node->rec_type = type;
 
 	node->update = NULL;
-	node->table = dict_table_open_on_id(table_id, dict_locked, FALSE);
+	node->table = dict_table_open_on_id(
+		table_id, dict_locked, DICT_TABLE_OP_NORMAL);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (UNIV_UNLIKELY(node->table == NULL)) {
@@ -339,12 +341,12 @@ close_table:
 			}
 
 		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: table ");
-			ut_print_name(stderr, node->trx, TRUE,
-				      node->table->name);
-			fprintf(stderr, " has no indexes, "
-				"ignoring the table\n");
+			std::string	str = ut_get_name(node->trx, TRUE,
+							  node->table->name);
+
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Table %s has no indexes, ignoring the table",
+				str.c_str());
 			goto close_table;
 		}
 	}
@@ -352,7 +354,7 @@ close_table:
 
 /***************************************************************//**
 Removes secondary index records.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec_rec(
@@ -383,13 +385,14 @@ row_undo_ins_remove_sec_rec(
 			/* The database must have crashed after
 			inserting a clustered index record but before
 			writing all the externally stored columns of
-			that record.  Because secondary index entries
-			are inserted after the clustered index record,
-			we may assume that the secondary index record
-			does not exist.  However, this situation may
-			only occur during the rollback of incomplete
-			transactions. */
-			ut_a(trx_is_recv(node->trx));
+			that record, or a statement is being rolled
+			back because an error occurred while storing
+			off-page columns.
+
+			Because secondary index entries are inserted
+			after the clustered index record, we may
+			assume that the secondary index record does
+			not exist. */
 		} else {
 			err = row_undo_ins_remove_sec(index, entry);
 
@@ -414,8 +417,8 @@ the same clustered index unique key did not have any record, even delete
 marked, at the time of the insert.  InnoDB is eager in a rollback:
 if it figures out that an index record will be removed in the purge
 anyway, it will remove it in the rollback.
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-UNIV_INTERN
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+
 dberr_t
 row_undo_ins(
 /*=========*/
@@ -425,14 +428,14 @@ row_undo_ins(
 	ibool	dict_locked;
 
 	ut_ad(node->state == UNDO_NODE_INSERT);
+	ut_ad(node->trx->in_rollback);
+	ut_ad(trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
 	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
 
 	row_undo_ins_parse_undo_rec(node, dict_locked);
 
 	if (node->table == NULL) {
-		trx_undo_rec_release(node->trx, node->undo_no);
-
 		return(DB_SUCCESS);
 	}
 
@@ -440,14 +443,6 @@ row_undo_ins(
 
 	node->index = dict_table_get_first_index(node->table);
 	ut_ad(dict_index_is_clust(node->index));
-
-	if (dict_index_is_online_ddl(node->index)) {
-		/* Note that we are rolling back this transaction, so
-		that all inserts and updates with this DB_TRX_ID can
-		be skipped. */
-		row_log_table_rollback(node->index, node->trx->id);
-	}
-
 	/* Skip the clustered index (the first index) */
 	node->index = dict_table_get_next_index(node->index);
 

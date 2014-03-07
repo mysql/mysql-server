@@ -1,0 +1,79 @@
+# WL#6404 - Add rewrite-db option to mysqlbinlog on RBR
+#
+# The test checks that there is no leak of the global variables used
+# to decide whether rewrite-db option is ON or OFF.
+#
+# The test checks this by creating two tables in two different databases.
+# insert rows in both of them.
+#
+# Read the binlog file using the new option --rewrite-db="db1->db3" and
+# writing in the .sql file.
+#
+# On applying the .sql file on database db3, we get an error since not
+# all events are converted for database db3. Only DB1 is converted to db3.
+# The db2 event cause the error.
+#
+
+--source include/have_binlog_format_row.inc
+RESET MASTER;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (i INT);
+
+# Get some INSERT, UPDATE and DELETE ROW events.
+INSERT INTO db1.t1 VALUES(1);
+INSERT INTO db1.t1 VALUES(2);
+UPDATE t1 SET i= i+1;
+DELETE FROM t1 WHERE i=2;
+
+CREATE DATABASE db2;
+CREATE TABLE db2.t1 (i INT);
+
+# Get some INSERT, UPDATE and DELETE ROW events.
+INSERT INTO db2.t1 VALUES(3);
+INSERT INTO db2.t1 VALUES(4);
+INSERT INTO db2.t1 VALUES(5);
+UPDATE db2.t1 SET i= i+1;
+DELETE FROM db2.t1 WHERE i=4;
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+
+# Using the new option to apply the row event on some other database (from db1 -> db3 in the current case)
+
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db3" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
+call mtr.add_suppression("Slave SQL: Error executing row event:*");
+
+--echo Dropping the database db1 creating the new database db3.
+DROP DATABASE db1;
+CREATE DATABASE db3;
+
+# The SQL file will be applied but only db1 events will be replayed on db3.
+# Database db2 will not be applied on db3 confirming there is no leak.
+DROP DATABASE db2;
+
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
+--echo [The sql file will be applied on the current database]
+--exec $MYSQL --database=db3 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
+
+--echo [The content of table db3.t1 and db2.t1 will be different confirming no leak]
+
+--let $db3_max= `SELECT MAX(i) FROM db3.t1`
+--let $db2_max= `SELECT MAX(i) FROM db2.t1`
+--let $assert_text= The content of the table t1 in database db3 and db2 is different
+--let $assert_cond= $db3_max <> $db2_max
+--source include/assert.inc
+
+--let $db3_count= `SELECT COUNT(*) FROM db3.t1`
+--let $db2_count= `SELECT COUNT(*) FROM db2.t1`
+--let $assert_text= Table t1 in db3 have different row count than t1 in db2
+--let $assert_cond= $db3_count=1 AND $db2_count<>1
+--source include/assert.inc
+
+--echo CLEANUP
+
+#--remove_file $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;

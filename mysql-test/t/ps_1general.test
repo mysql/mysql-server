@@ -1,3 +1,4 @@
+
 ###################### ps_general.test #######################
 #                                                            #
 #   basic and miscellaneous tests for prepared statements    #
@@ -7,7 +8,8 @@
 #    
 # NOTE: PLEASE SEE THE DETAILED DESCRIPTION AT THE BOTTOM OF THIS FILE
 #       BEFORE ADDING NEW TEST CASES HERE !!!
-
+# one subtest needs page size > 8k
+--source include/have_innodb_16k.inc
 --disable_warnings
 drop table if exists t5, t6, t7, t8;
 drop database if exists mysqltest ;
@@ -327,7 +329,9 @@ prepare stmt4 from ' show create table t2 ';
 prepare stmt4 from ' show master status ';
 prepare stmt4 from ' show master logs ';
 prepare stmt4 from ' show slave status ';
+--error ER_UNSUPPORTED_PS
 prepare stmt4 from ' show warnings limit 20 ';
+--error ER_UNSUPPORTED_PS
 prepare stmt4 from ' show errors limit 20 ';
 prepare stmt4 from ' show storage engines ';
 # The output depends upon the precise order in which
@@ -494,16 +498,11 @@ prepare stmt1 from ' KILL 0 ';
 ## simple explain
 # cases derived from client_test.c: test_explain_bug()
 prepare stmt1 from ' explain select a from t1 order by b ';
-# PS protocol gives slightly different metadata
 --disable_ps_protocol
---enable_metadata
 execute stmt1;
---disable_metadata
 SET @arg00=1 ;
 prepare stmt1 from ' explain select a from t1 where a > ? order by b ';
---enable_metadata
 execute stmt1 using @arg00;
---disable_metadata
 --enable_ps_protocol
 
 ## parameters with probably problematic characters (quote, double  quote)

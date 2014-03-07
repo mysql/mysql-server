@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -33,6 +33,13 @@ Created 04/12/2011 Jimmy Yang
 #include "innodb_config.h"
 #include "innodb_cb_api.h"
 #include "innodb_utility.h"
+
+/** Configure options enum IDs, their "names" and their default value */
+option_t	config_option_names[] =
+{
+        {OPTION_ID_COL_SEP, COLUMN_SEPARATOR, {"|", 1}},
+        {OPTION_ID_TBL_MAP_SEP, TABLE_MAP_SEPARATOR, {".", 1}}
+};
 
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
@@ -166,7 +173,7 @@ innodb_read_cache_policy(
 	ib_ulint_t		data_len;
 	ib_col_meta_t		col_meta;
 
-	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED, true, false);
 
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CACHE_POLICIES, NULL, ib_trx,
@@ -195,7 +202,7 @@ innodb_read_cache_policy(
 		goto func_exit;
 	}
 
-	err = innodb_cb_read_row(crsr, tpl);
+	err = ib_cb_read_row(crsr, tpl, NULL, NULL);
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
@@ -258,6 +265,7 @@ func_exit:
 	}
 
 	innodb_cb_trx_commit(ib_trx);
+	ib_cb_trx_release(ib_trx);
 
 	return(err == DB_SUCCESS || err == DB_END_OF_INDEX);
 }
@@ -283,7 +291,7 @@ innodb_read_config_option(
 	ib_col_meta_t		col_meta;
 	int			current_option = -1;
 
-	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED, true, false);
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CONFIG_OPTIONS, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_S);
@@ -310,7 +318,7 @@ innodb_read_config_option(
 
 
 	do {
-		err = innodb_cb_read_row(crsr, tpl);
+		err = ib_cb_read_row(crsr, tpl, NULL, NULL);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: failed to read"
@@ -388,6 +396,7 @@ func_exit:
 	}
 
 	innodb_cb_trx_commit(ib_trx);
+	ib_cb_trx_release(ib_trx);
 
 	return(err == DB_SUCCESS || err == DB_END_OF_INDEX);
 }
@@ -506,7 +515,7 @@ innodb_config_meta_hash_init(
 	ib_err_t		err = DB_SUCCESS;
 	meta_cfg_info_t*        default_item = NULL;
 
-	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED, true, false);
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CONTAINER_TABLE, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_S);
@@ -514,9 +523,9 @@ innodb_config_meta_hash_init(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: Please create config table"
 				"'%s' in database '%s' by running"
-				" 'scripts/innodb_config.sql. error %d'\n",
+				" 'innodb_memcached_config.sql. error %s'\n",
 			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
-			err);
+			ib_cb_ut_strerr(err));
 		err = DB_ERROR;
 		goto func_exit;
 	}
@@ -529,7 +538,7 @@ innodb_config_meta_hash_init(
 	while (err == DB_SUCCESS) {
 		meta_cfg_info_t*        item;
 
-		err = innodb_cb_read_row(crsr, tpl);
+		err = ib_cb_read_row(crsr, tpl, NULL, NULL);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: failed to read row"
@@ -578,6 +587,7 @@ func_exit:
 	}
 
 	innodb_cb_trx_commit(ib_trx);
+	ib_cb_trx_release(ib_trx);
 
 	return(default_item);
 }
@@ -622,7 +632,7 @@ innodb_config_container(
 		}
 	}
 
-	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	ib_trx = ib_cb_trx_begin(IB_TRX_READ_COMMITTED, true, false);
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
 			       MCI_CFG_CONTAINER_TABLE, NULL, ib_trx,
 			       &crsr, &idx_crsr, IB_LOCK_S);
@@ -630,7 +640,7 @@ innodb_config_container(
 	if (err != DB_SUCCESS) {
 		fprintf(stderr, " InnoDB_Memcached: Please create config table"
 				"'%s' in database '%s' by running"
-				" 'scripts/innodb_config.sql. error %d'\n",
+				" 'innodb_memcached_config.sql. error %d'\n",
 			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
 			err);
 		err = DB_ERROR;
@@ -646,7 +656,7 @@ innodb_config_container(
 		/* User supplied a config option name, find it */
 		tpl = ib_cb_search_tuple_create(crsr);
 
-		err = ib_cb_col_set_value(tpl, 0, name, name_len);
+		err = ib_cb_col_set_value(tpl, 0, name, name_len, true);
 
 		ib_cb_cursor_set_match_mode(crsr, IB_EXACT_MATCH);
 		err = ib_cb_moveto(crsr, tpl, IB_CUR_GE);
@@ -662,11 +672,11 @@ innodb_config_container(
 
 	if (!name) {
 		read_tpl = tpl;
-		err = innodb_cb_read_row(crsr, tpl);
+		err = ib_cb_read_row(crsr, tpl, NULL, NULL);
 	} else {
 		read_tpl = ib_cb_read_tuple_create(crsr);
 
-		err = ib_cb_read_row(crsr, read_tpl);
+		err = ib_cb_read_row(crsr, read_tpl, NULL, NULL);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -751,6 +761,7 @@ func_exit:
 	}
 
 	innodb_cb_trx_commit(ib_trx);
+	ib_cb_trx_release(ib_trx);
 
 	if (err != DB_SUCCESS) {
 		free(item);
@@ -781,6 +792,18 @@ innodb_config_value_col_verify(
 	meta_column_t*	col_verify)	/*!< in: verify structure */
 {
 	ib_err_t	err = DB_NOT_FOUND;
+	char            table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
+	char*		dbname;
+	char*		tname;
+
+	/* Get table name. */
+	dbname = meta_info->col_info[CONTAINER_DB].col_name;
+	tname = meta_info->col_info[CONTAINER_TABLE].col_name;
+#ifdef __WIN__
+	sprintf(table_name, "%s\%s", dbname, tname);
+#else
+	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, tname);
+#endif
 
 	if (!meta_info->n_extra_col) {
 		meta_column_t*	cinfo = meta_info->col_info;
@@ -791,7 +814,14 @@ innodb_config_value_col_verify(
 			    && col_meta->type != IB_CHAR
 			    && col_meta->type != IB_BLOB
 			    && col_meta->type != IB_CHAR_ANYCHARSET
-			    && col_meta->type != IB_VARCHAR_ANYCHARSET) {
+			    && col_meta->type != IB_VARCHAR_ANYCHARSET
+			    && col_meta->type != IB_INT) {
+				fprintf(stderr,
+					" InnoDB_Memcached: the value"
+					" column %s in table %s"
+					" should be INTEGER, CHAR or"
+					" VARCHAR.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 			}
 
@@ -803,12 +833,21 @@ innodb_config_value_col_verify(
 		int	i;
 
 		for (i = 0; i < meta_info->n_extra_col; i++) {
-			if (strcmp(name, meta_info->extra_col_info[i].col_name) == 0) {
+			if (strcmp(name,
+				   meta_info->extra_col_info[i].col_name) == 0)
+			{
 				if (col_meta->type != IB_VARCHAR
 				    && col_meta->type != IB_CHAR
 				    && col_meta->type != IB_BLOB
 				    && col_meta->type != IB_CHAR_ANYCHARSET
-				    && col_meta->type != IB_VARCHAR_ANYCHARSET) {
+				    && col_meta->type != IB_VARCHAR_ANYCHARSET
+				    && col_meta->type != IB_INT) {
+					fprintf(stderr,
+						" InnoDB_Memcached: the value"
+						" column %s in table %s"
+						" should be INTEGER, CHAR or"
+						" VARCHAR.\n",
+						name, table_name);
 					err = DB_DATA_MISMATCH;
 					break;
 				}
@@ -861,6 +900,9 @@ innodb_verify_low(
 	char*		name;
 	meta_column_t*	cinfo = info->col_info;
 	meta_column_t*	col_verify = NULL;
+	char            table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN];
+	char*		dbname;
+	char*		tname;
 
 	tpl = innodb_cb_read_tuple_create(crsr);
 
@@ -876,6 +918,15 @@ innodb_verify_low(
 		}
 	}
 
+	/* Get table name. */
+	dbname = info->col_info[CONTAINER_DB].col_name;
+	tname = info->col_info[CONTAINER_TABLE].col_name;
+#ifdef __WIN__
+	sprintf(table_name, "%s\%s", dbname, tname);
+#else
+	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, tname);
+#endif
+
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
 	/* Verify each mapped column */
@@ -890,7 +941,10 @@ innodb_verify_low(
 
 		if (result == DB_SUCCESS) {
 			is_value_col = true;
-			continue;
+
+			if (strcmp(name, cinfo[CONTAINER_KEY].col_name)) {
+				continue;
+			}
 		} else if (result == DB_DATA_MISMATCH) {
 			err = DB_DATA_MISMATCH;
 			goto func_exit;
@@ -901,7 +955,13 @@ innodb_verify_low(
 			if (col_meta.type != IB_VARCHAR
 			    && col_meta.type != IB_CHAR
 			    && col_meta.type != IB_VARCHAR_ANYCHARSET
-			    && col_meta.type != IB_CHAR_ANYCHARSET) {
+			    && col_meta.type != IB_CHAR_ANYCHARSET
+			    && col_meta.type != IB_INT) {
+				fprintf(stderr,
+					" InnoDB_Memcached: the key"
+					" column %s in table %s should"
+					" be INTEGER, CHAR or VARCHAR.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
@@ -911,6 +971,10 @@ innodb_verify_low(
 		} else if (strcmp(name, cinfo[CONTAINER_FLAG].col_name) == 0) {
 			/* Flag column must be integer type */
 			if (col_meta.type != IB_INT) {
+				fprintf(stderr, " InnoDB_Memcached: the flag"
+						" column %s in table %s should"
+						" be INTEGER.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
@@ -921,6 +985,10 @@ innodb_verify_low(
 		} else if (strcmp(name, cinfo[CONTAINER_CAS].col_name) == 0) {
 			/* CAS column must be integer type */
 			if (col_meta.type != IB_INT) {
+				fprintf(stderr, " InnoDB_Memcached: the cas"
+						" column %s in table %s should"
+						" be INTEGER.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
@@ -931,6 +999,10 @@ innodb_verify_low(
 		} else if (strcmp(name, cinfo[CONTAINER_EXP].col_name) == 0) {
 			/* EXP column must be integer type */
 			if (col_meta.type != IB_INT) {
+				fprintf(stderr, " InnoDB_Memcached: the expire"
+						" column %s in table %s should"
+						" be INTEGER.\n",
+					name, table_name);
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
@@ -1070,7 +1142,7 @@ innodb_verify(
 	info->cas_enabled = false;
 	info->exp_enabled = false;
 
-#ifdef __WIN__
+#ifdef _WIN32
 	sprintf(table_name, "%s\%s", dbname, name);
 #else
 	snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
@@ -1123,6 +1195,18 @@ innodb_config(
 	if (!name) {
 		item = innodb_config_meta_hash_init(*meta_hash);
 	} else {
+		ib_ulint_t	fold;
+
+		fold = ut_fold_string(name);
+		HASH_SEARCH(name_hash, *meta_hash, fold,
+			    meta_cfg_info_t*, item,
+			    (name_len == item->col_info[0].col_name_len
+			     && strcmp(name, item->col_info[0].col_name) == 0));
+
+		if (item) {
+			return(item);
+		}
+
 		item = innodb_config_container(name, name_len, *meta_hash);
 	}
 

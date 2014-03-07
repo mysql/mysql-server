@@ -1,4 +1,5 @@
 
+
 --disable_warnings
 drop table if exists t1_30237_bool;
 --enable_warnings

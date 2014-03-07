@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +21,9 @@
 #include <ndb_types.h>
 #include <ndb_limits.h>
 #include <NodeBitmask.hpp>
+
+#define JAM_FILE_ID 357
+
 
 /**
  * No bits in Sysfile to represent nodeid
@@ -272,5 +274,8 @@ Sysfile::setTakeOverNode(NodeId nodeId, Uint32 takeOver[], NodeId toNode){
   takeOver[word] = (tmp & mask) | ((toNode & 255) << shift);  
 }
 
+
+
+#undef JAM_FILE_ID
 
 #endif

@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # Copyright (C) 2003, 2005 MySQL AB
+# Use is subject to license terms
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -14,8 +15,8 @@
 #
 # You should have received a copy of the GNU Library General Public
 # License along with this library; if not, write to the Free
-# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-# MA 02111-1307, USA
+# Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+# MA 02110-1301, USA
 
 #
 # postflight - this script will be executed after the MySQL PKG

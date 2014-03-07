@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 enum partition_keywords
 {
   PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR,
-  PKW_COLUMNS
+  PKW_COLUMNS, PKW_ALGORITHM
 };
 
 
@@ -132,8 +132,8 @@ private:
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
   uint m_open_test_lock;                // Open test_if_locked
-  char *m_file_buffer;                  // Content of the .par file 
-  char *m_name_buffer_ptr;		// Pointer to first partition name
+  char *m_file_buffer;                  // Content of the .par file
+  char *m_name_buffer_ptr;              // Pointer to first partition name
   plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
   uint m_file_tot_parts;                // Debug
@@ -143,15 +143,20 @@ private:
   partition_info *m_part_info;          // local reference to partition
   Field **m_part_field_array;           // Part field array locally to save acc
   uchar *m_ordered_rec_buffer;          // Row and key buffer for ord. idx scan
-  /*
-    Current index.
-    When used in key_rec_cmp: If clustered pk, index compare
-    must compare pk if given index is same for two rows.
-    So normally m_curr_key_info[0]= current index and m_curr_key[1]= NULL,
-    and if clustered pk, [0]= current index, [1]= pk, [2]= NULL
+  /**
+    Current index used for sorting.
+    If clustered PK exists, then it will be used as secondary index to
+    sort on if the first is equal in key_rec_cmp.
+    So if clustered pk: m_curr_key_info[0]= current index and
+    m_curr_key_info[1]= pk and [2]= NULL.
+    Otherwise [0]= current index, [1]= NULL, and we will
+    sort by rowid as secondary sort key if equal first key.
   */
-  KEY *m_curr_key_info[3];              // Current index
+  KEY *m_curr_key_info[3];
+  /** Offset in m_ordered_rec_buffer from part buffer to its record buffer. */
+  uint m_rec_offset;
   uchar *m_rec0;                        // table->record[0]
+  const uchar *m_err_rec;               // record which gave error
   QUEUE m_queue;                        // Prio queue used by sorted read
   /*
     Since the partition handler is a handler on top of other handlers, it
@@ -192,13 +197,13 @@ private:
   bool m_is_sub_partitioned;             // Is subpartitioned
   bool m_ordered_scan_ongoing;
 
-  /* 
+  /*
     If set, this object was created with ha_partition::clone and doesn't
     "own" the m_part_info structure.
   */
   ha_partition *m_is_clone_of;
   MEM_ROOT *m_clone_mem_root;
-  
+
   /*
     We keep track if all underlying handlers are MyISAM since MyISAM has a
     great number of extra flags not needed by other handlers.
@@ -260,6 +265,10 @@ private:
   /** partitions that returned HA_ERR_KEY_NOT_FOUND. */
   MY_BITMAP m_key_not_found_partitions;
   bool m_key_not_found;
+  bool m_reverse_order;
+  bool m_icp_in_use;
+  /** Need to sort by ref (rowid) too. */
+  bool m_sec_sort_by_rowid;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
@@ -313,7 +322,7 @@ public:
   virtual int delete_table(const char *from);
   virtual int rename_table(const char *from, const char *to);
   virtual int create(const char *name, TABLE *form,
-		     HA_CREATE_INFO *create_info);
+                     HA_CREATE_INFO *create_info);
   virtual int create_handler_files(const char *name,
                                    const char *old_name, int action_flag,
                                    HA_CREATE_INFO *create_info);
@@ -341,12 +350,13 @@ private:
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
                             handler *file, const char *part_name,
-                            partition_element *p_elem);
+                            partition_element *p_elem,
+                            uint disable_non_uniq_indexes);
   /*
     delete_table and rename_table uses very similar logic which
     is packed into this routine.
   */
-  uint del_ren_table(const char *from, const char *to);
+  int del_ren_table(const char *from, const char *to);
   /*
     One method to create the table_name.par file containing the names of the
     underlying partitions, their engine and the number of partitions.
@@ -407,7 +417,7 @@ public:
     -------------------------------------------------------------------------
   */
   virtual THR_LOCK_DATA **store_lock(THD * thd, THR_LOCK_DATA ** to,
-				     enum thr_lock_type lock_type);
+                                     enum thr_lock_type lock_type);
   virtual int external_lock(THD * thd, int lock_type);
   /*
     When table is locked a statement is started by calling start_stmt
@@ -485,13 +495,13 @@ public:
   */
   int truncate_partition(Alter_info *, bool *binlog_stmt);
 
-  virtual bool is_fatal_error(int error, uint flags)
+  virtual bool is_ignorable_error(int error)
   {
-    if (!handler::is_fatal_error(error, flags) ||
+    if (handler::is_ignorable_error(error) ||
         error == HA_ERR_NO_PARTITION_FOUND ||
         error == HA_ERR_NOT_IN_LOCK_PARTITIONS)
-      return FALSE;
-    return TRUE;
+      return true;
+    return false;
   }
 
 
@@ -590,7 +600,7 @@ public:
     read_first_row is virtual method but is only implemented by
     handler.cc, no storage engine has implemented it so neither
     will the partition handler.
-    
+
     virtual int read_first_row(uchar *buf, uint primary_key);
   */
 
@@ -604,8 +614,8 @@ public:
 
 
   virtual int read_range_first(const key_range * start_key,
-			       const key_range * end_key,
-			       bool eq_range, bool sorted);
+                               const key_range * end_key,
+                               bool eq_range, bool sorted);
   virtual int read_range_next();
 
 private:
@@ -616,7 +626,7 @@ private:
   int partition_scan_set_up(uchar * buf, bool idx_read_flag);
   int handle_unordered_next(uchar * buf, bool next_same);
   int handle_unordered_scan_next_partition(uchar * buf);
-  int handle_ordered_index_scan(uchar * buf, bool reverse_order);
+  int handle_ordered_index_scan(uchar * buf);
   int handle_ordered_index_scan_key_not_found();
   int handle_ordered_next(uchar * buf, bool next_same);
   int handle_ordered_prev(uchar * buf);
@@ -709,7 +719,7 @@ public:
     Used by optimiser to calculate cost of using a particular index.
   */
   virtual ha_rows records_in_range(uint inx, key_range * min_key,
-				   key_range * max_key);
+                                   key_range * max_key);
 
   /*
     Upper bound of number records returned in scan is sum of all
@@ -884,7 +894,7 @@ public:
     special file for handling names of partitions, engine types.
     HA_REC_NOT_IN_SEQ is always set for partition handler since we cannot
     guarantee that the records will be returned in sequence.
-    HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_CAN_SQL_HANDLER, HA_DUPLICATE_POS,
+    HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_DUPLICATE_POS,
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is disabled
     until further investigated.
   */
@@ -948,11 +958,7 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    /* 
-      TODO: sergefp: Support Index Condition Pushdown in this table handler.
-    */
-    return m_file[0]->index_flags(inx, part, all_parts) &
-           ~HA_DO_INDEX_COND_PUSHDOWN;
+    return m_file[0]->index_flags(inx, part, all_parts);
   }
 
   /**
@@ -970,7 +976,7 @@ public:
 
     The maximum supported values is the minimum of all handlers in the table
   */
-  uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const; 
+  uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const;
   virtual uint max_supported_record_length() const;
   virtual uint max_supported_keys() const;
   virtual uint max_supported_key_parts() const;
@@ -1014,6 +1020,30 @@ public:
     -------------------------------------------------------------------------
   */
   virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
+
+  /*
+    -------------------------------------------------------------------------
+    MODULE condition pushdown
+    -------------------------------------------------------------------------
+    cond_push
+    -------------------------------------------------------------------------
+  */
+
+  /* No support of engine condition pushdown yet! */
+  //const Item *cond_push(const Item *cond);
+  //void cond_pop();
+  /* Only Index condition pushdown is supported currently. */
+  Item *idx_cond_push(uint keyno, Item* idx_cond);
+  void cancel_pushed_idx_cond();
+  /* No support of pushed joins yet! */
+  //uint number_of_pushed_joins()
+  //virtual const TABLE* root_of_pushed_join() const
+  //virtual const TABLE* parent_of_pushed_join() const
+  //virtual int index_read_pushed(uchar * buf, const uchar * key,
+                                //key_part_map keypart_map)
+  //virtual int index_next_pushed(uchar * buf)
+
+
   /*
     -------------------------------------------------------------------------
     MODULE auto increment
@@ -1155,11 +1185,8 @@ public:
     -------------------------------------------------------------------------
     MODULE tablespace support
     -------------------------------------------------------------------------
-    Admin of table spaces is not applicable to the partition handler (InnoDB)
-    This means that the following method is not implemented:
-    -------------------------------------------------------------------------
-    virtual int discard_or_import_tablespace(my_bool discard)
   */
+    virtual int discard_or_import_tablespace(my_bool discard);
 
   /*
     -------------------------------------------------------------------------
@@ -1180,9 +1207,18 @@ public:
     virtual bool check_and_repair(THD *thd);
     virtual bool auto_repair() const;
     virtual bool is_crashed() const;
+    virtual int check_for_upgrade(HA_CHECK_OPT *check_opt);
 
     private:
     int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt, uint flags);
+    int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt, uint part_id,
+                        uint flag);
+    /**
+      Check if the rows are placed in the correct partition.  If the given
+      argument is true, then move the rows to the correct partition.
+    */
+    int check_misplaced_rows(uint read_part_id, bool repair);
+    void append_row_to_str(String &str);
     public:
   /*
     -------------------------------------------------------------------------

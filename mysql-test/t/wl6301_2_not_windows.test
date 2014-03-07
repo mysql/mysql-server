@@ -1,3 +1,4 @@
+
 # WL#6301: Change default value for the 'bind-address' option
 #
 # 2. Check that if the server is started with bind-address=0.0.0.0,

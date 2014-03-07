@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,70 +73,37 @@ namespace AQP
     DBUG_ENTER("get_join_type");
     DBUG_ASSERT(get_access_no() > predecessor->get_access_no());
 
-    if (get_join_tab()->table->pos_in_table_list->outer_join != 0)
+    const JOIN_TAB* const first_inner= get_join_tab()->first_inner;
+    if (first_inner == NULL)
     {
-      /*
-        This cover unnested outer joins such as 
-        'select * from t1 left join t2 on t1.attr=t1.pk'.
-       */
-      DBUG_PRINT("info", ("JT_OUTER_JOIN between %s and %s",
-                          predecessor->get_join_tab()->table->alias,
-                          get_join_tab()->table->alias));
-      DBUG_RETURN(JT_OUTER_JOIN);
+      // 'this' is not outer joined with any table.
+      DBUG_PRINT("info", ("JT_INNER_JOIN'ed table %s",
+                           get_join_tab()->table->alias));
+      DBUG_RETURN(JT_INNER_JOIN);
     }
 
-    const TABLE_LIST* const child_embedding= 
-      get_join_tab()->table->pos_in_table_list->embedding;
-
-    if (child_embedding == NULL)
+    /**
+     * Fall Through: 'this' is a member in an outer join,
+     * but 'predecessor' may still be embedded in the same
+     * inner join as 'this'.
+     */
+    const JOIN_TAB* const last_inner= first_inner->last_inner;
+    if (predecessor->get_join_tab() >= first_inner &&
+        predecessor->get_join_tab() <= last_inner)
     {
-      // 'this' is not on the inner side of any left join.
       DBUG_PRINT("info", ("JT_INNER_JOIN between %s and %s",
                           predecessor->get_join_tab()->table->alias,
                           get_join_tab()->table->alias));
       DBUG_RETURN(JT_INNER_JOIN);
     }
-
-    DBUG_ASSERT(child_embedding->outer_join != 0);
-
-    const TABLE_LIST *predecessor_embedding= 
-      predecessor->get_join_tab()->table->pos_in_table_list->embedding;
-
-    /*
-      This covers the nested join case, i.e:
-      <table reference> LEFT JOIN (<joined table>).
-      
-      TABLE_LIST objects form a tree where TABLE_LIST::emebedding points to
-      the parent object. Now if child_embedding is non null and not an 
-      ancestor of predecessor_embedding in the embedding tree, then 'this'
-      must be on the inner side of some left join where 'predecessor' is on 
-      the outer side.
-     */
-    while (true)
+    else
     {
-      if (predecessor_embedding == child_embedding)
-      {
-        DBUG_PRINT("info", ("JT_INNER_JOIN between %s and %s",
-                            predecessor->get_join_tab()->table->alias,
-                            get_join_tab()->table->alias));
-        DBUG_RETURN(JT_INNER_JOIN);
-      }
-      else if (predecessor_embedding == NULL)
-      {
-        /*
-           We reached the root of the tree without finding child_embedding,
-           so it must be in another branch and hence on the inner side of some
-           left join where 'predecessor' is on the outer side.
-         */
-        DBUG_PRINT("info", ("JT_OUTER_JOIN between %s and %s",
-                            predecessor->get_join_tab()->table->alias,
-                            get_join_tab()->table->alias));
-        DBUG_RETURN(JT_OUTER_JOIN);
-      }
-      // Iterate through ancestors of predecessor_embedding.
-      predecessor_embedding = predecessor_embedding->embedding;
+      DBUG_PRINT("info", ("JT_OUTER_JOIN between %s and %s",
+                          predecessor->get_join_tab()->table->alias,
+                          get_join_tab()->table->alias));
+      DBUG_RETURN(JT_OUTER_JOIN);
     }
-  }
+  } //Table_access::get_join_type
 
   /**
     Get the number of key values for this operation. It is an error
@@ -194,15 +161,15 @@ namespace AQP
 
       case AT_ORDERED_INDEX_SCAN:
         DBUG_ASSERT(get_join_tab()->position);
-        DBUG_ASSERT(get_join_tab()->position->records_read>0.0);
-        return get_join_tab()->position->records_read;
+        DBUG_ASSERT(get_join_tab()->position->fanout>0.0);
+        return get_join_tab()->position->fanout;
 
       case AT_MULTI_PRIMARY_KEY:
       case AT_MULTI_UNIQUE_KEY:
       case AT_MULTI_MIXED:
         DBUG_ASSERT(get_join_tab()->position);
-        DBUG_ASSERT(get_join_tab()->position->records_read>0.0);
-        return get_join_tab()->position->records_read;
+        DBUG_ASSERT(get_join_tab()->position->fanout>0.0);
+        return get_join_tab()->position->fanout;
 
       case AT_TABLE_SCAN:
         DBUG_ASSERT(get_join_tab()->table->file->stats.records>0.0);
@@ -257,7 +224,6 @@ namespace AQP
     DBUG_PRINT("info", ("group_optimized_away:%d",
                         get_join_tab()->join->group_optimized_away));
 
-    DBUG_PRINT("info", ("full_join:%d", get_join_tab()->join->full_join));
     DBUG_PRINT("info", ("need_tmp:%d", get_join_tab()->join->need_tmp));
     DBUG_PRINT("info", ("select_distinct:%d",
                         get_join_tab()->join->select_distinct));
@@ -473,6 +439,26 @@ namespace AQP
   bool Table_access::uses_join_cache() const
   {
     return get_join_tab()->use_join_cache != JOIN_CACHE::ALG_NONE;
+  }
+
+  /**
+    Check if 'FirstMatch' strategy is used for this table and return
+    the last table 'firstmatch' will skip over.
+    The tables ['last_skipped'..'this'] will form a range of tables
+    which we skipped when a 'firstmatch' is found
+  */
+  const Table_access* Table_access::get_firstmatch_last_skipped() const
+  {
+    const JOIN_TAB* const join_tab= get_join_tab();
+    if (join_tab->do_firstmatch())
+    {
+      DBUG_ASSERT(join_tab->firstmatch_return < join_tab);
+      const uint firstmatch_last_skipped= 
+        join_tab->firstmatch_return+1 - m_join_plan->get_join_tab(0);
+
+      return m_join_plan->get_table_access(firstmatch_last_skipped);
+    }
+    return NULL;
   }
 
   /**

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,14 +50,14 @@ static int g_fd;
 */
 static size_t file_size;
 static char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
-            *opt_login_path= NULL;
+            *opt_login_path= NULL, *opt_socket= NULL, *opt_port= NULL;
 
 static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
 
 static my_bool opt_verbose, opt_all, tty_password= 0, opt_warn,
                opt_remove_host, opt_remove_pass, opt_remove_user,
-               login_path_specified= FALSE;
+               opt_remove_socket, opt_remove_port, login_path_specified= FALSE;
 
 static int execute_commands(int command);
 static int set_command(void);
@@ -141,6 +141,10 @@ static struct my_option my_set_command_options[]=
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User name to be entered into the login file.", &opt_user,
    &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "Socket path to be entered into login file.", &opt_socket,
+   &opt_socket, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to be entered into login file.", &opt_port,
+   &opt_port, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"warn", 'w', "Warn and ask for confirmation if set command attempts to "
    "overwrite an existing login path (enabled by default).",
    &opt_warn, &opt_warn, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -157,8 +161,9 @@ static struct my_option my_remove_command_options[]=
    0, 0, 0},
   {"login-path", 'G', "Name of the login path from which options to "
    "be removed (entire path would be removed if none of user, password, "
-   "or host options are specified). (Default : client)", &opt_login_path,
-   &opt_login_path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "host, socket, or port options are specified). (Default : client)",
+   &opt_login_path, &opt_login_path, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
   {"password", 'p', "Remove password from the login path.",
    &opt_remove_pass, &opt_remove_pass, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -168,6 +173,10 @@ static struct my_option my_remove_command_options[]=
    "to remove the default login path (client) if no login path is specified "
    "(enabled by default).", &opt_warn, &opt_warn, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
+  {"socket", 'S', "Remove socket path from the login path.", &opt_remove_socket,
+   &opt_remove_socket, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Remove port number from the login path.", &opt_remove_port,
+   &opt_remove_port, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -229,6 +238,13 @@ my_set_command_get_one_option(int optid,
     tty_password= 1;
     break;
   case 'G':
+    if (login_path_specified)
+    {
+      /* Error, we do not support multiple login paths. */
+      my_perror("Error: Use of multiple login paths is not supported. "
+                "Exiting..");
+      return 1;
+    }
     login_path_specified= TRUE;
     break;
   case '?':
@@ -246,6 +262,13 @@ my_remove_command_get_one_option(int optid,
 {
   switch(optid) {
   case 'G':
+    if (login_path_specified)
+    {
+      /* Error, we do not support multiple login paths. */
+      my_perror("Error: Use of multiple login paths is not supported. "
+                "Exiting..");
+      return 1;
+    }
     login_path_specified= TRUE;
     break;
   case '?':
@@ -263,6 +286,13 @@ my_print_command_get_one_option(int optid,
 {
   switch(optid) {
   case 'G':
+    if (login_path_specified)
+    {
+      /* Error, we do not support multiple login paths. */
+      my_perror("Error: Use of multiple login paths is not supported. "
+                "Exiting..");
+      return 1;
+    }
     login_path_specified= TRUE;
     break;
   case '?':
@@ -374,7 +404,8 @@ static int do_handle_options(int argc, char *argv[])
     exit(1);
   }
 
-  if (!(ptr= (char *) my_malloc((argc + 2) * sizeof(char *),
+  if (!(ptr= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                (argc + 2) * sizeof(char *),
                                 MYF(MY_WME))))
     goto error;
 
@@ -426,7 +457,8 @@ static int do_handle_options(int argc, char *argv[])
 
   /* If NULL, set it to 'client' (default) */
   if (!opt_login_path)
-    opt_login_path= my_strdup("client", MYF(MY_WME));
+    opt_login_path= my_strdup(PSI_NOT_INSTRUMENTED,
+                              "client", MYF(MY_WME));
 
 done:
   my_free(ptr);
@@ -535,6 +567,18 @@ static int set_command(void)
   {
     dynstr_append(&path_buf, "\nhost = ");
     dynstr_append(&path_buf, opt_host);
+  }
+
+  if (opt_socket)
+  {
+    dynstr_append(&path_buf, "\nsocket = ");
+    dynstr_append(&path_buf, opt_socket);
+  }
+
+  if (opt_port)
+  {
+    dynstr_append(&path_buf, "\nport = ");
+    dynstr_append(&path_buf, opt_port);
   }
 
   dynstr_append(&path_buf, "\n");
@@ -734,7 +778,7 @@ static my_bool check_and_create_login_file(void)
   {
     verbose_msg("File exists.\n");
 
-    file_size= stat_info.st_size;
+    file_size= (size_t) stat_info.st_size;
 
 #ifdef _WIN32
     if (1)
@@ -901,7 +945,8 @@ static void mask_password_and_print(char *buf)
 static void remove_options(DYNAMIC_STRING *file_buf, const char *path_name)
 {
   /* If nope of the options are specified remove the entire path. */
-  if (!opt_remove_host && !opt_remove_pass && !opt_remove_user)
+  if (!opt_remove_host && !opt_remove_pass && !opt_remove_user
+      && !opt_remove_socket && !opt_remove_port)
   {
     remove_login_path(file_buf, path_name);
     return;
@@ -915,6 +960,12 @@ static void remove_options(DYNAMIC_STRING *file_buf, const char *path_name)
 
   if (opt_remove_host)
     remove_option(file_buf, path_name, "host");
+
+  if (opt_remove_socket)
+    remove_option(file_buf, path_name, "socket");
+
+  if (opt_remove_port)
+    remove_option(file_buf, path_name, "port");
 }
 
 
@@ -931,7 +982,8 @@ static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
   int search_len, shift_len;
   bool option_found= FALSE;
 
-  search_str= (char *) my_malloc((uint) strlen(option_name) + 2, MYF(MY_WME));
+  search_str= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                 (uint) strlen(option_name) + 2, MYF(MY_WME));
   sprintf(search_str, "\n%s", option_name);
 
   if ((start= locate_login_path(file_buf, path_name)) == NULL)
@@ -1246,7 +1298,7 @@ error:
 
   @param plain     [in]   Plain text to be encrypted.
   @param plain_len [in]   Length of the plain text.
-  @param cipher    [in]   Encrypted cipher text.
+  @param cipher    [out]  Encrypted cipher text.
 
   @return                 -1 if error encountered,
                           length encrypted, otherwise.
@@ -1257,9 +1309,12 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[])
   DBUG_ENTER("encrypt_buffer");
   int aes_len;
 
-  aes_len= my_aes_get_size(plain_len);
+  aes_len= my_aes_get_size(plain_len, my_aes_128_ecb);
 
-  if (my_aes_encrypt(plain, plain_len, cipher, my_key, LOGIN_KEY_LEN) == aes_len)
+  if (my_aes_encrypt((const unsigned char *) plain, plain_len,
+                     (unsigned char *) cipher,
+                     (const unsigned char *) my_key, LOGIN_KEY_LEN,
+                     my_aes_128_ecb, NULL) == aes_len)
     DBUG_RETURN(aes_len);
 
   verbose_msg("Error! Couldn't encrypt the buffer.\n");
@@ -1272,7 +1327,7 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[])
 
   @param cipher     [in]  Cipher text to be decrypted.
   @param cipher_len [in]  Length of the cipher text.
-  @param plain      [in]  Decrypted plain text.
+  @param plain      [out] Decrypted plain text.
 
   @return                 -1 if error encountered,
                           length decrypted, otherwise.
@@ -1283,8 +1338,11 @@ static int decrypt_buffer(const char *cipher, int cipher_len, char plain[])
   DBUG_ENTER("decrypt_buffer");
   int aes_length;
 
-  if ((aes_length= my_aes_decrypt(cipher, cipher_len, (char *) plain,
-                                  my_key, LOGIN_KEY_LEN)) > 0)
+  if ((aes_length= my_aes_decrypt((const unsigned char *) cipher, cipher_len,
+                                  (unsigned char *) plain,
+                                  (const unsigned char *) my_key,
+                                  LOGIN_KEY_LEN,
+                                  my_aes_128_ecb, NULL)) > 0)
     DBUG_RETURN(aes_length);
 
   verbose_msg("Error! Couldn't decrypt the buffer.\n");
@@ -1423,8 +1481,8 @@ static void usage_program(void)
   my_print_help(my_program_long_options);
   my_print_variables(my_program_long_options);
   puts("\nWhere command can be any one of the following :\n\
-       set [command options]     Sets user name/password/host name for a\n\
-                                 given login path (section).\n\
+       set [command options]     Sets user name/password/host name/socket/port\n\
+                                 for a given login path (section).\n\
        remove [command options]  Remove a login path from the login file.\n\
        print [command options]   Print all the options for a specified\n\
                                  login path.\n\

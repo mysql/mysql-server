@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -124,15 +124,22 @@ void CleanUp();
 
 
 // no gas on these systems ?, disable for now
-#if defined(__sun__) || defined (__APPLE__)
+#if defined(__sun__)
+    #undef  TAOCRYPT_DISABLE_X86ASM
     #define TAOCRYPT_DISABLE_X86ASM
 #endif
 
 // icc problem with -03 and integer, disable for now
 #if defined(__INTEL_COMPILER)
+    #undef  TAOCRYPT_DISABLE_X86ASM
     #define TAOCRYPT_DISABLE_X86ASM
 #endif
 
+// indpedent of build system, unless ia32 asm is enabled disable it
+#if !defined(TAOCRYPT_ENABLE_X86ASM)
+    #undef  TAOCRYPT_DISABLE_X86ASM
+    #define TAOCRYPT_DISABLE_X86ASM
+#endif
 
 // Turn on ia32 ASM for Big Integer
 // CodeWarrior defines _MSC_VER
@@ -172,12 +179,12 @@ void CleanUp();
 #	define TAOCRYPT_MALLOC_ALIGNMENT_IS_16
 #endif
 
-#if defined(__linux__) || defined(__sun__) || defined(__CYGWIN__)
+#if defined(__linux__) || defined(__sun__)
 #	define TAOCRYPT_MEMALIGN_AVAILABLE
 #endif
 
 
-#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(_WIN32)
     #define TAOCRYPT_WIN32_AVAILABLE
 #endif
 

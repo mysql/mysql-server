@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,11 @@
 
 #include <ndb_global.h>
 #include <NdbApi.hpp>
-#include <readline/readline.h>
+#include <readline.h>
 #include <../../ndbapi/SignalSender.hpp>
+
+#define JAM_FILE_ID 237
+
 
 void
 print_help(){

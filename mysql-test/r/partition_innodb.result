@@ -25,8 +25,10 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT b FROM t1 WHERE b between 'L' and 'N' AND a > -100;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,b	b	67	NULL	18	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	pNeg_pNegsp0,pNeg_pNegsp1,pNeg_pNegsp2,pNeg_pNegsp3,pNeg_pNegsp4,pNeg_pNegsp5,pNeg_pNegsp6,pNeg_pNegsp7,pNeg_pNegsp8,pNeg_pNegsp9,p0_p0sp0,p0_p0sp1,p0_p0sp2,p0_p0sp3,p0_p0sp4,p0_p0sp5,p0_p0sp6,p0_p0sp7,p0_p0sp8,p0_p0sp9,pMAX_pMAXsp0,pMAX_pMAXsp1,pMAX_pMAXsp2,pMAX_pMAXsp3,pMAX_pMAXsp4,pMAX_pMAXsp5,pMAX_pMAXsp6,pMAX_pMAXsp7,pMAX_pMAXsp8,pMAX_pMAXsp9	range	PRIMARY,b	b	67	NULL	18	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` between 'L' and 'N') and (`test`.`t1`.`a` > <cache>(-(100))))
 DROP TABLE t1;
 #
 # Bug#13007154: Crash in keys_to_use_for_scanning with ORDER BY
@@ -190,32 +192,59 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 90)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 90)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 90)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 89;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 89)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 89;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 89)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 89;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 89)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 100;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 100)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 100;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 100)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 100;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 100)
 DROP TABLE t1;
 #
 # Bug#50104: Partitioned table with just 1 partion works with fk
@@ -395,7 +424,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	4	#	#	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	4	#	#	0	0	#	NULL	NULL	#	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int auto_increment primary key)
 engine = innodb
@@ -409,14 +438,14 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	4	#	#	0	0	#	5	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	4	#	#	0	0	#	5	NULL	#	NULL	latin1_swedish_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	8	#	#	0	0	#	9	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	8	#	#	0	0	#	9	NULL	#	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 partition by key (a)
@@ -436,8 +465,11 @@ partition by range (year(a))
 partition p1 values less than (2007));
 explain partitions select * from t1
 where a between '2006-01-01' and '2007-06-01';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '2006-01-01' and '2007-06-01')
 drop table t1;
 create table t1 (a int)
 engine = x
@@ -548,13 +580,11 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT, b TIMESTAMP DEFAULT '0000-00-00 00:00:00')
 ENGINE=INNODB PARTITION BY LINEAR HASH (a) PARTITIONS 1;
 SET @old_mode = @@sql_mode;
-SET SESSION sql_mode = 'NO_ZERO_DATE';
+SET SESSION sql_mode = '';
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
-Warnings:
-Warning	1264	Out of range value for column 'b' at row 1
 SET SESSION sql_mode = @old_mode;
 DROP TABLE t1;
 #
@@ -585,3 +615,38 @@ a	b
 1	2
 0	1
 DROP TABLE t1;
+#
+# Bug#16943907: FLUSH TABLES FOR EXPORT: ASSERTION IN HA_PARTITION::EXTRA
+#
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
+PARTITION BY HASH (a) PARTITIONS 2;
+FLUSH TABLES t1 FOR EXPORT;
+# List of files after EXPORT (should include a .cfg file for each part).
+t1#P#p0.cfg
+t1#P#p0.ibd
+t1#P#p1.cfg
+t1#P#p1.ibd
+t1.frm
+t1.par
+# Copying the .cfg and .ibd files as backup
+UNLOCK TABLES;
+# List of files after UNLOCK (no .cfg files).
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1.frm
+t1.par
+ALTER TABLE t1 DISCARD TABLESPACE;
+# List of files after DISCARD (no .cfg/.ibd files).
+t1.frm
+t1.par
+# Moving the .cfg and .ibd files back from backup
+ALTER TABLE t1 IMPORT TABLESPACE;
+# List of files after IMPORT (.cfg files still there).
+t1#P#p0.cfg
+t1#P#p0.ibd
+t1#P#p1.cfg
+t1#P#p1.ibd
+t1.frm
+t1.par
+DROP TABLE t1;
+# List of files after DROP (.cfg files should also be removed).

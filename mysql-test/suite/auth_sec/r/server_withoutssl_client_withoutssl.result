@@ -1,0 +1,400 @@
+
+
+======================================================================================
+Checking the user access with SSL through user created with mysql_old_password plugin
+======================================================================================
+
+Creating a user with the mysql_old_plugin
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+set @@session.old_passwords=1;
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+The client should not connect with secure auth enabled.
+select @@global.secure_auth;
+@@global.secure_auth
+1
+1 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+The client should connect with secure auth disabled.
+set @@global.secure_auth=0;
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+1
+0 for GLOBAL Expected
+1 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+1
+0 for GLOBAL Expected
+1 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+1
+0 for GLOBAL Expected
+1 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+1
+0 for GLOBAL Expected
+1 for SESSION Expected
+The mysql_old_password plugin client should not connect with secure auth enabled at the client side.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+======================================================================================
+Checking the user access with SSL through user created with mysql_native_password plugin
+======================================================================================
+
+Creating a user with the mysql_old_plugin
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+set @@session.old_passwords=0;
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+The client should connect with secure auth enabled.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+The client should connect with secure auth disabled.
+set @@global.secure_auth=0;
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+The mysql_native_password plugin client should  connect with secure auth enabled at the client side.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+0
+@@session.old_passwords
+0
+0 for GLOBAL Expected
+0 for SESSION Expected
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+======================================================================================
+Checking the user access with SSL through user created with sha256_password plugin
+======================================================================================
+
+Creating a user with the mysql_old_plugin
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+set @@session.old_passwords=2;
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+The client should connect with secure auth enabled.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+The client should connect with secure auth disabled.
+set @@global.secure_auth=0;
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+The mysql_native_password plugin client should  connect with secure auth enabled at the client side.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+=================================================================================================
+Starting the server with the default authentication sha256_password
+=================================================================================================
+
+# Restart server with default-authentication-plugin=sha256_password;
+
+
+======================================================================================
+Checking the user access with SSL through user created with mysql_old_password plugin
+======================================================================================
+
+Creating a user with the mysql_old_plugin
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+set @@session.old_passwords=1;
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+The client should not connect with secure auth enabled.
+select @@global.secure_auth;
+@@global.secure_auth
+1
+1 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+The client should connect with secure auth disabled.
+set @@global.secure_auth=0;
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+1
+2 for GLOBAL Expected
+1 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+1
+2 for GLOBAL Expected
+1 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+1
+2 for GLOBAL Expected
+1 for SESSION Expected
+**** connecting client using the ssl credentials
+2 for GLOBAL Expected
+1 for SESSION Expected
+The mysql_old_password plugin client should not connect with secure auth enabled at the client side.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+======================================================================================
+Checking the user access with SSL through user created with mysql_native_password plugin
+======================================================================================
+
+Creating a user with the mysql_old_plugin
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+set @@session.old_passwords=0;
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+The client should connect with secure auth enabled.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+0
+2 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+0
+2 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+0
+2 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+2 for GLOBAL Expected
+0 for SESSION Expected
+The client should connect with secure auth disabled.
+set @@global.secure_auth=0;
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+0
+2 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+0
+2 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+0
+2 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+2 for GLOBAL Expected
+0 for SESSION Expected
+The mysql_native_password plugin client should  connect with secure auth enabled at the client side.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+0
+2 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+0
+2 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+@@Global.old_passwords
+2
+@@session.old_passwords
+0
+2 for GLOBAL Expected
+0 for SESSION Expected
+**** connecting client using the ssl credentials
+2 for GLOBAL Expected
+0 for SESSION Expected
+DROP USER 'Tanjotuser1'@'localhost';
+
+
+======================================================================================
+Checking the user access with SSL through user created with sha256_password plugin
+======================================================================================
+
+Creating a user with the sha256_plugin
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+set @@session.old_passwords=2;
+set password for 'Tanjotuser1'@'localhost' = password('abc');
+GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
+The client should connect with secure auth enabled.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+The client should connect with secure auth disabled.
+set @@global.secure_auth=0;
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+The mysql_native_password plugin client should  connect with secure auth enabled at the client side.
+select @@global.secure_auth;
+@@global.secure_auth
+0
+0 Expected
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+**** connecting client using the ssl credentials
+DROP USER 'Tanjotuser1'@'localhost';
+set @@global.secure_auth=default;
+set @@session.old_passwords=default;

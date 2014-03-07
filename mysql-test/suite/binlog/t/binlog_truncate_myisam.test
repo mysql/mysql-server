@@ -1,3 +1,4 @@
+source include/have_myisam.inc;
 source include/have_log_bin.inc;
 
 SET @old_binlog_format=@@binlog_format;

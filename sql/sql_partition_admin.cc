@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "ha_partition.h"                   // ha_partition
 #endif
 #include "sql_base.h"                       // open_and_lock_tables
+#include "log.h"
 
 #ifndef WITH_PARTITION_STORAGE_ENGINE
 
@@ -49,7 +50,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
   /* Moved from mysql_execute_command */
   LEX *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *select_lex= lex->select_lex;
   /* first table of first SELECT_LEX */
   TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
   /*
@@ -487,7 +488,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   TABLE_LIST *swap_table_list;
   handlerton *table_hton;
   partition_element *part_elem;
-  char *partition_name;
+  String *partition_name;
   char temp_name[FN_REFLEN+1];
   char part_file_name[FN_REFLEN+1];
   char swap_file_name[FN_REFLEN+1];
@@ -504,9 +505,7 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   /* Don't allow to exchange with log table */
   swap_table_list= table_list->next_local;
-  if (check_if_log_table(swap_table_list->db_length, swap_table_list->db,
-                         swap_table_list->table_name_length,
-                         swap_table_list->table_name, 0))
+  if (query_logger.check_if_log_table(swap_table_list, false))
   {
     my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
     DBUG_RETURN(TRUE);
@@ -542,7 +541,8 @@ bool Sql_cmd_alter_table_exchange_partition::
   /* set lock pruning on first table */
   partition_name= alter_info->partition_names.head();
   if (table_list->table->part_info->
-        set_named_partition_bitmap(partition_name, strlen(partition_name)))
+        set_named_partition_bitmap(partition_name->c_ptr(),
+                                   partition_name->length()))
     DBUG_RETURN(true);
 
   if (lock_tables(thd, table_list, table_counter, 0))
@@ -573,12 +573,13 @@ bool Sql_cmd_alter_table_exchange_partition::
                        table_list->next_local->db,
                        temp_name, "", FN_IS_TMP);
 
-  if (!(part_elem= part_table->part_info->get_part_elem(partition_name,
-                                                        part_file_name +
-                                                          part_file_name_len,
-                                                        &swap_part_id)))
+  if (!(part_elem= part_table->part_info->
+                     get_part_elem(partition_name->c_ptr(),
+                                   part_file_name +
+                                     part_file_name_len,
+                                   &swap_part_id)))
   {
-    my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name,
+    my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name->c_ptr(),
              part_table->alias);
     DBUG_RETURN(TRUE);
   }
@@ -635,7 +636,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   */
   (void) thd->locked_tables_list.reopen_tables(thd);
 
-  if ((error= write_bin_log(thd, TRUE, thd->query(), thd->query_length())))
+  if ((error= write_bin_log(thd, true, thd->query().str, thd->query().length)))
   {
     /*
       The error is reported in write_bin_log().
@@ -660,7 +661,7 @@ err:
   // For query cache
   table_list->table= NULL;
   table_list->next_local->table= NULL;
-  query_cache_invalidate3(thd, table_list, FALSE);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   DBUG_RETURN(error);
 }
@@ -678,7 +679,7 @@ bool Sql_cmd_alter_table_analyze_partition::execute(THD *thd)
   thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
 
   res= Sql_cmd_analyze_table::execute(thd);
-    
+
   DBUG_RETURN(res);
 }
 
@@ -739,9 +740,9 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   int error;
   ha_partition *partition;
   ulong timeout= thd->variables.lock_wait_timeout;
-  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   Alter_info *alter_info= &thd->lex->alter_info;
-  uint table_counter, i;
+  uint table_counter;
   List<String> partition_names_list;
   bool binlog_stmt;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
@@ -774,29 +775,20 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     TODO: Add support for TRUNCATE PARTITION for NDB and other
           engines supporting native partitioning.
   */
-  if (first_table->table->s->db_type() != partition_hton)
+
+  if (!first_table->table || first_table->view ||
+      first_table->table->s->db_type() != partition_hton)
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
-  
+
   /*
     Prune all, but named partitions,
     to avoid excessive calls to external_lock().
   */
-  List_iterator<char> partition_names_it(alter_info->partition_names);
-  uint num_names= alter_info->partition_names.elements;
-  for (i= 0; i < num_names; i++)
-  {
-    char *partition_name= partition_names_it++;
-    String *str_partition_name= new (thd->mem_root)
-                                  String(partition_name, system_charset_info);
-    if (!str_partition_name)
-      DBUG_RETURN(true);
-    partition_names_list.push_back(str_partition_name);
-  }
-  first_table->partition_names= &partition_names_list;
+  first_table->partition_names= &alter_info->partition_names;
   if (first_table->table->part_info->set_partition_bitmaps(first_table))
     DBUG_RETURN(true);
 
@@ -828,7 +820,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     Also, it is logged in statement format, regardless of the binlog format.
   */
   if (error != HA_ERR_WRONG_COMMAND && binlog_stmt)
-    error|= write_bin_log(thd, !error, thd->query(), thd->query_length());
+    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the
@@ -843,7 +835,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 
   // Invalidate query cache
   DBUG_ASSERT(!first_table->next_local);
-  query_cache_invalidate3(thd, first_table, FALSE);
+  query_cache.invalidate(thd, first_table, FALSE);
 
   DBUG_RETURN(error);
 }

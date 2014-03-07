@@ -1,0 +1,46 @@
+CREATE TABLE parent (
+id INT NOT NULL AUTO_INCREMENT,
+bogus_column char(32),
+PRIMARY KEY (id)
+) ENGINE=ndb;
+CREATE TABLE child (
+id INT NOT NULL AUTO_INCREMENT,
+parent_id INT NOT NULL,
+bogus_column char(32),
+PRIMARY KEY (id),
+KEY (parent_id)
+) ENGINE=ndb;
+alter table child add constraint fkname foreign key (parent_id) references parent (id) on update restrict on delete restrict;
+INSERT INTO parent (bogus_column)
+VALUES ('aaa'), ('bbb'), ('ccc'), ('ddd'), ('eee');
+INSERT INTO child (parent_id,bogus_column) VALUES
+(1, 'aaa'), (2,'bbb'), (3, 'ccc'),
+(4, 'ddd'), (5, 'eee');
+START TRANSACTION;
+START TRANSACTION;
+UPDATE child SET parent_id = 5 WHERE parent_id = 4;
+UPDATE parent SET bogus_column = 'new!' WHERE id = 4;
+UPDATE parent SET bogus_column = 'new!' WHERE id = 5;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+rollback;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (parent_id) references parent (id);
+START TRANSACTION;
+START TRANSACTION;
+UPDATE child SET parent_id = 5 WHERE parent_id = 4;
+UPDATE parent SET bogus_column = 'new!' WHERE id = 4;
+UPDATE parent SET bogus_column = 'new!' WHERE id = 5;
+commit;
+commit;
+drop table child, parent;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+ref_id int(11) default NULL,
+PRIMARY KEY  (id),
+KEY ref_id (ref_id),
+CONSTRAINT ref_id FOREIGN KEY (ref_id) REFERENCES t1 (id)
+) ENGINE=ndb;
+INSERT INTO t1 VALUES (1, 1);
+DELETE FROM t1 WHERE id = 1;
+drop table t1;

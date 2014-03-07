@@ -1,0 +1,346 @@
+set global innodb_file_per_table = on;
+create procedure populate()
+begin
+declare i int default 1;
+while (i <= 5000) do
+insert into t1 values (i, 'a', 'b');
+insert into t2 values (i, 'a', 'b');
+insert into t3 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+create procedure populate_small()
+begin
+declare i int default 10001;
+while (i <= 12000) do
+insert into t1 values (i, 'c', 'd');
+insert into t2 values (i, 'a', 'b');
+insert into t3 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+use test;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Antelope';
+create table tNUMBER
+(i int, cNUMBER char(NUMBER), cNUMBER char(NUMBER),
+index cNUMBER_idx(cNUMBER))
+engine=innodb row_format=compact
+key_block_size=NUMBER;
+Warnings:
+Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+create table t2
+(i int, c1 char(100), c2 char(100),
+index c1_idx(c1))
+engine=innodb row_format=compact
+key_block_size=16;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+create temporary table t3
+(i int, c1 char(100), c2 char(100),
+index c1_idx(c1))
+engine=innodb row_format=compact
+key_block_size=16;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+0
+select count(*) from t3;
+count(*)
+0
+begin;
+call populate();
+commit;
+select count(*) from t1;
+count(*)
+5000
+select count(*) from t2;
+count(*)
+5000
+select count(*) from t3;
+count(*)
+5000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+5000
+select count(*) from t3;
+count(*)
+5000
+call populate_small();
+select count(*) from t1;
+count(*)
+2000
+select count(*) from t2;
+count(*)
+7000
+select count(*) from t3;
+count(*)
+7000
+truncate table t2;
+truncate table t3;
+select count(*) from t1;
+count(*)
+2000
+select count(*) from t2;
+count(*)
+0
+select count(*) from t3;
+count(*)
+0
+call populate_small();
+select count(*) from t1;
+count(*)
+4000
+select count(*) from t2;
+count(*)
+2000
+select count(*) from t3;
+count(*)
+2000
+drop table t1;
+drop table t2;
+drop table t3;
+drop procedure populate;
+drop procedure populate_small;
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 1;
+set global innodb_file_per_table = on;
+create procedure populate()
+begin
+declare i int default 1;
+while (i <= 5000) do
+insert into t1 values (i, 'a', 'b');
+insert into t2 values (i, 'a', 'b');
+insert into t3 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+create procedure populate_small()
+begin
+declare i int default 10001;
+while (i <= 12000) do
+insert into t1 values (i, 'c', 'd');
+insert into t2 values (i, 'a', 'b');
+insert into t3 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+use test;
+set global innodb_file_per_table = 1;
+set global innodb_file_format = 'Barracuda';
+create table tNUMBER
+(i int, cNUMBER char(NUMBER), cNUMBER char(NUMBER),
+index cNUMBER_idx(cNUMBER))
+engine=innodb row_format=compressed
+key_block_size=NUMBER;
+create table t2
+(i int, c1 char(100), c2 char(100),
+index c1_idx(c1))
+engine=innodb row_format=compressed
+key_block_size=16;
+create temporary table t3
+(i int, c1 char(100), c2 char(100),
+index c1_idx(c1))
+engine=innodb row_format=compressed
+key_block_size=16;
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+0
+select count(*) from t3;
+count(*)
+0
+begin;
+call populate();
+commit;
+select count(*) from t1;
+count(*)
+5000
+select count(*) from t2;
+count(*)
+5000
+select count(*) from t3;
+count(*)
+5000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+5000
+select count(*) from t3;
+count(*)
+5000
+call populate_small();
+select count(*) from t1;
+count(*)
+2000
+select count(*) from t2;
+count(*)
+7000
+select count(*) from t3;
+count(*)
+7000
+truncate table t2;
+truncate table t3;
+select count(*) from t1;
+count(*)
+2000
+select count(*) from t2;
+count(*)
+0
+select count(*) from t3;
+count(*)
+0
+call populate_small();
+select count(*) from t1;
+count(*)
+4000
+select count(*) from t2;
+count(*)
+2000
+select count(*) from t3;
+count(*)
+2000
+drop table t1;
+drop table t2;
+drop table t3;
+drop procedure populate;
+drop procedure populate_small;
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 1;
+set global innodb_file_per_table = on;
+create procedure populate()
+begin
+declare i int default 1;
+while (i <= 5000) do
+insert into t1 values (i, 'a', 'b');
+insert into t2 values (i, 'a', 'b');
+insert into t3 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+create procedure populate_small()
+begin
+declare i int default 10001;
+while (i <= 12000) do
+insert into t1 values (i, 'c', 'd');
+insert into t2 values (i, 'a', 'b');
+insert into t3 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+use test;
+set global innodb_file_per_table = 0;
+set global innodb_file_format = 'Antelope';
+create table tNUMBER
+(i int, cNUMBER char(NUMBER), cNUMBER char(NUMBER),
+index cNUMBER_idx(cNUMBER))
+engine=innodb row_format=compact
+key_block_size=NUMBER;
+Warnings:
+Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+create table t2
+(i int, c1 char(100), c2 char(100),
+index c1_idx(c1))
+engine=innodb row_format=compact
+key_block_size=16;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+create temporary table t3
+(i int, c1 char(100), c2 char(100),
+index c1_idx(c1))
+engine=innodb row_format=compact
+key_block_size=16;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+0
+select count(*) from t3;
+count(*)
+0
+begin;
+call populate();
+commit;
+select count(*) from t1;
+count(*)
+5000
+select count(*) from t2;
+count(*)
+5000
+select count(*) from t3;
+count(*)
+5000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+select count(*) from t2;
+count(*)
+5000
+select count(*) from t3;
+count(*)
+5000
+call populate_small();
+select count(*) from t1;
+count(*)
+2000
+select count(*) from t2;
+count(*)
+7000
+select count(*) from t3;
+count(*)
+7000
+truncate table t2;
+truncate table t3;
+select count(*) from t1;
+count(*)
+2000
+select count(*) from t2;
+count(*)
+0
+select count(*) from t3;
+count(*)
+0
+call populate_small();
+select count(*) from t1;
+count(*)
+4000
+select count(*) from t2;
+count(*)
+2000
+select count(*) from t3;
+count(*)
+2000
+drop table t1;
+drop table t2;
+drop table t3;
+drop procedure populate;
+drop procedure populate_small;
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 1;

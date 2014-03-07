@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,13 +34,35 @@
 #
 ##############################################################################
 
-use Fcntl;
-use File::Basename;
-use File::Copy;
-use Getopt::Long;
-use Sys::Hostname;
-use Data::Dumper;
 use strict;
+use warnings;
+
+##############################################################################
+# Check if all needed modules are available, exit if something is missing.
+##############################################################################
+
+BEGIN {
+  my @req_mods = ('Fcntl', 'File::Basename', 'File::Copy', 'Getopt::Long',
+                  'Sys::Hostname', 'Data::Dumper');
+  my @missing_mods;
+  my $req;
+  foreach $req (@req_mods) {
+    eval 'require ' . $req;
+    if ($@) {
+      push(@missing_mods, $req);
+    } else {
+      $req->import();
+    }
+  }
+  # this avoids the confusing "BEGIN failed--compilation aborted" message
+  local $SIG{__DIE__} = sub {warn @_; exit 1};
+
+  if (@missing_mods) {
+    my $msg = "FATAL ERROR: please install the following Perl modules " .
+              "before executing $0:\n" . join("\n",@missing_mods)."\n";
+    die $msg;
+  }
+}
 
 Getopt::Long::Configure("pass_through");
 
@@ -75,17 +97,20 @@ Usage: $0 [OPTIONS]
   --help               Display this help and exit.                     
   --ldata=path         The path to the MySQL data directory. Same as --datadir.
   --no-defaults        Don't read default options from any option file.
+  --keep-my-cnf        Don't try to create my.cnf based on template. 
+                       Useful for systems with working, updated my.cnf.
 EOF1
   if ( $^O !~ m/^(MSWin32|cygwin)$/ ) {
     print <<EOF2;
-  --random-passwords   Create and set a random password for all root accounts
-                       and set the "password expired" flag,
-                       also remove the anonymous accounts.
+  --skip-random-passwords   1. Don't create random passwords for root accounts.
+                            2. Keep anonymous users.
+                            3. Keep test database and related grants.
 EOF2
   }
   print <<EOF3;
   --rpm                For internal use.  This option is used by RPM files
                        during the MySQL installation process.
+                       Implies --keep-my-cnf option.
   --skip-name-resolve  Use IP addresses rather than hostnames when creating
                        grant table entries.  This option can be useful if
                        your DNS does not work.
@@ -149,9 +174,10 @@ sub parse_arguments
 
              "skip-name-resolve",
              "verbose",
+             "keep-my-cnf",
              "rpm",
              "help",
-             "random-passwords",
+             "skip-random-passwords",
 
              # These options will also be pased to mysqld.
              "defaults-file=s",
@@ -293,10 +319,21 @@ sub basic_single_escape {
 ##############################################################################
 
 my $secret_file;   # full path name of the confidential file
+my $password;
 my $escaped_password;      # the password, with special characters escaped
 
 sub ensure_secret_file {
-  $secret_file = $ENV{HOME} . "/.mysql_secret";
+  if ( exists $ENV{HOME} ) {
+    $secret_file = $ENV{HOME} . "/.mysql_secret";
+  } elsif ( -d "/root" ) {
+    # If we don't have any environment this might be because we're 
+    # running as a service script. Assume the user is root and that he has
+    # a standard root account.
+    $secret_file= "/root/.mysql_secret";
+  } else
+  {
+    die "ERROR: Found no /root home directory. Please create one.";
+  }
 
   # Create safe files to avoid leaking info to other users
   # Loop may be extended if we need more ...
@@ -343,10 +380,9 @@ sub tell_root_password {
   # to automatically extract the password (automated testing!), and the final
   # empty line is for better redability.
   append_file($secret_file,
-             "# The random password set for the root user at $now (local time): " .
-                 $escaped_password,
+             "# The random password set for the root user at $now (local time):\n" .
+             $password . "\n",
              "");
-  print "A random root password has been set. You will find it in '$secret_file'.\n";
 }
 
 ##############################################################################
@@ -356,23 +392,38 @@ sub tell_root_password {
 ##############################################################################
 
 sub generate_random_password {
-  # Short term:
-  # On (at least) Linux and Solaris, a "random" device is available, use it:
-  # cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1
-  # Without LC_ALL, "tr" may not know the "alnum" character class -
-  # and there are user profiles which do not have this set.
-  # Note: There is no guarantee the results will pass a validation checker
-  # as resulted from WL#2739
-  # http://wl.no.oracle.com/worklo/?tid=2739
-  # http://dev.mysql.com/doc/refman/5.6/en/validate-password-plugin.html
-  #
-  # Long term:
-  # Password generated via Perl module "String::MkPasswd" available at
-  # http://search.cpan.org/~cgrau/String-MkPasswd/bin/mkpasswd.pl
-  # Using it got approved recently.
-  #
-  my $password = `cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
-  chomp ($password);
+  # On Linux, Solaris, Max OS X and FreeBSD we have a random device available.
+  my $randfile = "/dev/urandom";
+  open(FD, $randfile) || die "Can't open $randfile for reading: $!";
+  my $password = "";
+  my $pass_len = 16;
+  my $got_special= 0;
+  my $got_num= 0;
+  my $got_upper= 0;
+  my $c;
+  do
+  {
+    while (length($password) < $pass_len) {
+      $c = getc(FD);
+      if ($c =~ /\w/ || $c =~ /[,.!\$\@\{\}\=\-\+\#\[\]\(\)]/) {
+        $password .= $c;
+        if ($c =~ /[0-9]/)
+        { $got_num = 1; }
+        if ( $c =~ /[A-Z]/ )
+        { $got_upper = 1; }
+        if ($c =~ /[,.!\$\@\{\}\=\-\+\#\[\]\(\)]/)
+        { $got_special= 1; }
+      }
+    }
+    if ($got_special == 0 || $got_num == 0 || $got_upper == 0)
+    {
+      $got_special= 0;
+      $got_num= 0;
+      $got_upper= 0;
+      $password= "";
+    }
+  } while(length($password) < $pass_len);
+  close(FD); 
   return $password;
 }
 
@@ -409,10 +460,15 @@ $basedir= "@prefix@" if ! $basedir;		# Default
 # ----------------------------------------------------------------------
 
 my $print_defaults;
+my $keep_my_cnf = 0;
 
 if ( $opt->{srcdir} and $opt->{basedir} )
 {
-  error("Specify either --basedir or --srcdir, not both");
+  error($opt,"Specify either --basedir or --srcdir, not both");
+}
+if ( $opt->{rpm} || $opt->{'keep-my-cnf'} )
+{
+  $keep_my_cnf = 1;
 }
 if ( $opt->{srcdir} )
 {
@@ -435,30 +491,42 @@ my $config_file;
 my $copy_cfg_file;
 
 # ----------------------------------------------------------------------
-# This will be the default config file
+# This will be the default config file (unless creation is unwanted)
 # ----------------------------------------------------------------------
 
 $config_file= "$basedir/my.cnf";
 
 my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
 				  "share","share/mysql","support-files");
+# Distros might move files
+if ((! -r $cfg_template) && (-r "@pkgdatadir@/my-default.cnf")) {
+  $cfg_template = "@pkgdatadir@/my-default.cnf";
+}
+
 -e $cfg_template or cannot_find_file("my-default.cnf");
 
 $copy_cfg_file= $config_file;
+my $failed_write_cfg= 0;
 if (-e $copy_cfg_file)
 {
   $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
   # Too early to print warning here, the user may not notice
 }
-open (TEMPL, $cfg_template) or error("Could not open config template");
-open (CFG, "> $copy_cfg_file") or error("Could not open config file");
-while (<TEMPL>)
-{
-  # Remove lines beginning with # *** which are template comments
-  print CFG $_ unless /^# \*\*\*/;
+
+if ( ! $keep_my_cnf ) {
+  open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
+  if (open (CFG, "> $copy_cfg_file")) {
+    while (<TEMPL>) {
+      # Remove lines beginning with # *** which are template comments
+      print CFG $_ unless /^# \*\*\*/;
+    }
+    close CFG;
+  } else {
+    warning($opt,"Could not write to config file $copy_cfg_file: $!");
+    $failed_write_cfg= 1;
+  }
+  close TEMPL;
 }
-close CFG;
-close TEMPL;
 
 # ----------------------------------------------------------------------
 # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
@@ -494,24 +562,24 @@ parse_arguments($opt, 'PICK-ARGS-FROM-ARGV', @ARGV);
 # Create a random password for root, if requested and implemented
 # ----------------------------------------------------------------------
 
-if ( $opt->{'random-passwords'} ) {
+if ( !$opt->{'skip-random-passwords'} ) {
   # Add other non-working OS like this: $^O =~ m/^(solaris|linux|freebsd|darwin)$/
   # and maintain "usage()".
   # Issue 1: random password creation
   # Issue 2: confidential file
   if ( $^O =~ m/^(MSWin32|cygwin)$/ ) {
     print "Random password not yet implemented for $^O - option will be ignored\n";
-    delete $opt->{'random-passwords'};
+    $opt->{'skip-random-passwords'}= 1;
   } else {
     ensure_secret_file();
-    my $password = generate_random_password();
+    $password = generate_random_password();
     if ( $password ) {
       # "true" means "string is non-empty"
       $escaped_password = basic_single_escape($password);
     } else {
       # Whatever the reason (missing "/dev/urandom"), an empty password is bad
       print "Could not generate a random password - not setting one\n";
-      delete $opt->{'random-passwords'};
+      $opt->{'skip-random-passwords'}= 1;
     }
   }
 }
@@ -693,7 +761,7 @@ my $mysqld_install_cmd_line = quote_options($mysqld_bootstrap,
                                             "--bootstrap",
                                             "--basedir=$basedir",
                                             "--datadir=$opt->{ldata}",
-                                            "--log-warnings=0",
+                                            "--log_error_verbosity=1",
                                             "--loose-skip-ndbcluster",
                                             "--max_allowed_packet=8M",
                                             "--default-storage-engine=MyISAM",
@@ -734,7 +802,7 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
     print PIPE $_;
   }
 
-  if ( $opt->{'random-passwords'} )
+  if ( !$opt->{'skip-random-passwords'} )
   {
     open(SQL3, $security_commands)
       or error($opt,"can't open $security_commands for reading: $!");
@@ -743,7 +811,7 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
       # using the implicit variable $_ !
       s/ABC123xyz/$escaped_password/e ;  # Replace placeholder by random password
     print PIPE $_;
-  }
+    }
     close SQL3;
     tell_root_password();
   }
@@ -780,17 +848,9 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
                  "The \"HELP\" command might not work properly");
   }
 
-  report_verbose($opt,"To start mysqld at boot time you have to copy",
-                      "support-files/mysql.server to the right place " .
-                      "for your system");
-
   if ( !$opt->{'cross-bootstrap'} )
   {
-    # This is not a true installation on a running system.  The end user must
-    # set a password after installing the data files on the real host system.
-    # At this point, there is no end user, so it does not make sense to print
-    # this reminder.
-    if ( $opt->{'random-passwords'} ) {
+    if ( !$opt->{'skip-random-passwords'} ) {
       report($opt,
              "A RANDOM PASSWORD HAS BEEN SET FOR THE MySQL root USER !",
              "You will find that password in '$secret_file'.",
@@ -798,32 +858,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
              "You must change that password on your first connect,",
              "no other statement but 'SET PASSWORD' will be accepted.",
              "See the manual for the semantics of the 'password expired' flag.",
-             "",
-             "Also, the account for the anonymous user has been removed.",
-             "",
-             "In addition, you can run:",
-             "",
-             "  $bindir/mysql_secure_installation",
-             "",
-             "which will also give you the option of removing the test database.",
-             "This is strongly recommended for production servers.",
-             "",
-             "See the manual for more instructions.");
+             "");
     } else {
     report($opt,
            "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !",
            "To do so, start the server, then issue the following commands:",
            "",
            "  $bindir/mysqladmin -u root password 'new-password'",
-           "  $bindir/mysqladmin -u root -h $hostname password 'new-password'",
-           "",
-           "Alternatively you can run:",
-           "",
-           "  $bindir/mysql_secure_installation",
-           "",
-           "which will also give you the option of removing the test",
-           "databases and anonymous user created by default.  This is",
-           "strongly recommended for production servers.",
            "",
            "See the manual for more instructions.");
     }
@@ -840,7 +881,7 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
              "  cd mysql-test ; perl mysql-test-run.pl");
     }
     report($opt,
-           "Please report any problems with the " . '@scriptdir@' . "/mysqlbug script!",
+           "Please report any problems at http://bugs.mysql.com/",
            "",
            "The latest information about MySQL is available on the web at",
            "",
@@ -848,27 +889,34 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
            "",
            "Support MySQL by buying support/licenses at http://shop.mysql.com");
 
-    if ($copy_cfg_file eq $config_file)
+    if (!$keep_my_cnf)
     {
-      report($opt,
-	     "New default config file was created as $config_file and",
-	     "will be used by default by the server when you start it.",
-	     "You may edit this file to change server settings");
-    }
-    else
-    {
-      warning($opt,
-	      "Found existing config file $config_file on the system.",
-	      "Because this file might be in use, it was not replaced,",
-	      "but was used in bootstrap (unless you used --defaults-file)",
-	      "and when you later start the server.",
-	      "The new default config file was created as $copy_cfg_file,",
-	      "please compare it with your file and take the changes you need.");
-    }
-    foreach my $cfg ( "/etc/my.cnf", "/etc/mysql/my.cnf" )
-    {
-      check_sys_cfg_file ($opt, $cfg);
-    }
+      if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
+      {
+        report($opt,
+	       "New default config file was created as $config_file and",
+	       "will be used by default by the server when you start it.",
+	       "You may edit this file to change server settings");
+      }
+      elsif ($failed_write_cfg)
+      {
+        warning($opt,
+	        "Could not copy config file template $cfg_template to",
+	        "$copy_cfg_file, may not have access rights to do so.",
+	        "You may want to copy the file manually, or create your own,",
+                "it will then be used by default by the server when you start it.");
+      }
+      else
+      {
+        warning($opt,
+	        "Found existing config file $config_file on the system.",
+	        "Because this file might be in use, it was not replaced,",
+	        "but was used in bootstrap (unless you used --defaults-file)",
+	        "and when you later start the server.",
+	        "The new default config file was created as $copy_cfg_file,",
+	        "please compare it with your file and take the changes you need.");
+      }
+    } # if (!keep_my_cnf)
   }
   exit 0
 }
@@ -895,8 +943,9 @@ else
         "Please consult the MySQL manual section: 'Problems running mysql_install_db',",
         "and the manual section that describes problems on your OS.",
         "Another information source is the MySQL email archive.",
-        "Please check all of the above before mailing us!",
-        "And if you do mail us, you MUST use the " . '@scriptdir@' . "/mysqlbug script!")
+        "",
+        "Please check all of the above before submitting a bug report",
+        "at http://bugs.mysql.com/")
 }
 
 ##############################################################################
@@ -904,21 +953,6 @@ else
 #  Misc
 #
 ##############################################################################
-
-sub check_sys_cfg_file
-{
-  my $opt= shift;
-  my $fname= shift;
-
-  if ( -e $fname )
-  {
-    warning($opt,
-	    "Default config file $fname exists on the system",
-	    "This file will be read by default by the MySQL server",
-	    "If you do not want to use this, either remove it, or use the",
-	    "--defaults-file argument to mysqld_safe when starting the server");
-  }
-}
 
 sub report_verbose
 {

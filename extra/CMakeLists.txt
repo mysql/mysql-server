@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,9 +18,8 @@ ${CMAKE_SOURCE_DIR}/include
 ${ZLIB_INCLUDE_DIR}
 # Following is for perror, in case NDB is compiled in.
 ${CMAKE_SOURCE_DIR}/storage/ndb/include
-${CMAKE_SOURCE_DIR}/storage/ndb/include/util  
+${CMAKE_BINARY_DIR}/storage/ndb/include
 ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
-${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
 ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
 
 # Default install component for the files is Server here
@@ -51,6 +50,9 @@ ADD_CUSTOM_TARGET(GenError
                   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
                   ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys 
                   ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
+
+# Set InnoDB mutex type
+ADD_DEFINITIONS(-DMUTEX_EVENT)
 
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 ## For 'comp_err' we need it to be available during build.
@@ -85,16 +87,20 @@ TARGET_LINK_LIBRARIES(replace mysys)
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   # Add path to the InnoDB headers
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include)
+  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include ${CMAKE_SOURCE_DIR}/sql)
   # We use the InnoDB code directly in case the code changes.
   ADD_DEFINITIONS("-DUNIV_INNOCHECKSUM")
   SET(INNOBASE_SOURCES
       ../storage/innobase/buf/buf0checksum.cc
       ../storage/innobase/ut/ut0crc32.cc
       ../storage/innobase/ut/ut0ut.cc
+      ../storage/innobase/buf/buf0buf.cc
+      ../storage/innobase/page/page0zip.cc
      )
+
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
   TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl)
+  ADD_DEPENDENCIES(innochecksum GenError)
 ENDIF()
 
 IF(UNIX)
@@ -107,3 +113,9 @@ IF(UNIX)
   SET_TARGET_PROPERTIES(mysql_waitpid PROPERTIES LINKER_LANGUAGE CXX)
 ENDIF()
 
+# In published release builds on Solaris, we need to bundle gcc source.
+# PB2 will take care of putting it in extra/ when needed
+IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/gcc-4.8.1.tar.bz2)
+  INSTALL(FILES gcc-4.8.1.tar.bz2 
+          DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Development)
+ENDIF()

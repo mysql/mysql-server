@@ -2785,20 +2785,10 @@ let $wait_condition=
 --source include/wait_condition.inc
 --echo # 
 --echo # The below statement should not wait as doing so will cause deadlock.
---echo # Instead it should fail and emit ER_LOCK_DEADLOCK statement.
+--echo # Instead it should fail and emit ER_LOCK_DEADLOCK statement and 
+--echo # transaction should be rolled back.
 --error ER_LOCK_DEADLOCK
 select * from t1;
-
---echo #
---echo # Let us check that failure of the above statement has not released
---echo # metadata lock on table 't1', i.e. that RENAME TABLE is still blocked.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table metadata lock" and
-        info = "rename table t2 to t0, t1 to t2, t0 to t1";
---source include/wait_condition.inc
---echo # Commit transaction to unblock RENAME TABLE.
-commit;
 
 --echo #
 --echo # Switching to connection 'default'.
@@ -2862,22 +2852,10 @@ unlock tables;
 connection deadlock_con1;
 --echo # Since the latest RENAME TABLE entered in deadlock with SELECT
 --echo # statement the latter should be aborted and emit ER_LOCK_DEADLOCK
---echo # error.
+--echo # error and transaction should be rolled back.
 --echo # Reap SELECT * FROM t1.
 --error ER_LOCK_DEADLOCK
 --reap
-
---echo #
---echo # Again let us check that failure of the SELECT statement has not
---echo # released metadata lock on table 't2', i.e. that the latest RENAME
---echo # is blocked.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table metadata lock" and
-        info = "rename table t1 to t0, t2 to t1, t0 to t2";
---source include/wait_condition.inc
---echo # Commit transaction to unblock this RENAME TABLE.
-commit;
 
 --echo #
 --echo # Switching to connection 'deadlock_con2'.
@@ -2927,21 +2905,10 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 --echo # The below statement should not wait as it will cause deadlock.
---echo # An appropriate error should be reported instead.
+--echo # An appropriate error should be reported instead and transaction
+--echo # should be rolled back.
 --error ER_LOCK_DEADLOCK
 select * from t2;
-
---echo # Again let us check that failure of the above statement has not
---echo # released all metadata locks in connection 'deadlock_con1' and
---echo # so ALTER TABLE ... RENAME is still blocked.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table metadata lock" and
-        info = "alter table t1 add column j int, rename to t2";
---source include/wait_condition.inc
-
---echo # Commit transaction to unblock ALTER TABLE ... RENAME.
-commit;
 
 --echo #
 --echo # Switching to connection 'default'.
@@ -3813,19 +3780,6 @@ set debug_sync='mdl_acquire_lock_wait SIGNAL alter_go';
 --echo # fail due to 't1' changing its name to 't2').
 --error ER_LOCK_DEADLOCK
 update t1 set c3=c3+1 where c2 = 3;
-
---echo #
---echo # Let us check that failure of the above statement has not released
---echo # metadata lock on table 't1', i.e. that ALTER TABLE is still blocked.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table metadata lock" and
-        info = "alter table t1 add column e int, rename to t2";
---source include/wait_condition.inc
-
---echo # Unblock ALTER TABLE by commiting transaction and thus releasing
---echo # metadata lock on 't1'.
-commit;
 
 --echo #
 --echo # Switching to connection 'con46273'.

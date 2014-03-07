@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -246,7 +246,7 @@ int NdbRestarts::executeRestart(NDBT_Context* ctx,
                                 int safety){
   // Check that there are enough nodes in the cluster
   // for this test
-  NdbRestarter restarter;
+  NdbRestarter restarter(0, &ctx->m_cluster_connection);
   if (_restart->m_numRequiredNodes > restarter.getNumDbNodes()){
     g_err << "This test requires " << _restart->m_numRequiredNodes << " nodes "
 	  << "there are only "<< restarter.getNumDbNodes() <<" nodes in cluster" 

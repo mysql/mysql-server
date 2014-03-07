@@ -107,7 +107,7 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_6_dest identified by 'dest_pas
 GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
 
 --sorted_result
-SELECT user,plugin,authentication_string,password FROM mysql.user;
+SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 
 --echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_6_user  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 --error 1
@@ -115,7 +115,7 @@ SELECT user,plugin,authentication_string,password FROM mysql.user;
 
 GRANT PROXY ON qa_test_6_dest TO root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
 --sorted_result
-SELECT user,plugin,authentication_string,password FROM mysql.user;
+SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 
 --echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 --error 1
@@ -123,7 +123,7 @@ SELECT user,plugin,authentication_string,password FROM mysql.user;
 
 REVOKE PROXY ON qa_test_6_dest FROM root;
 --sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user;
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 
 --echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 --error 1
@@ -133,7 +133,7 @@ DROP USER qa_test_6_user;
 DROP USER qa_test_6_dest;
 DELETE FROM mysql.user WHERE user='root' AND plugin='qa_auth_interface';
 --sorted_result
-SELECT user,plugin,authentication_string,password FROM mysql.user;
+SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 
 
 --echo === Test of the --default_auth option for clients ====

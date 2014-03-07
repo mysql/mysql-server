@@ -888,7 +888,7 @@ SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 
 # part 2 of the problem : DESC test cases
 --echo # Must use ref-or-null on the a_c index
---replace_column 1 x 2 x 3 x 6 x 7 x 8 x 9 x 10 x
+--replace_column 1 x 2 x 3 x 7 x 8 x 9 x 10 x 12 x
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 --echo # Must return 1 row
@@ -1567,7 +1567,7 @@ DROP TABLE where_subselect;
 #
 
 CREATE TABLE t1 (
-  id1 INT NULL,
+  id1 INT NOT NULL,
   id2 INT  NOT NULL,
   junk INT NOT NULL,
   PRIMARY KEY (id1, id2, junk),

@@ -1,3 +1,4 @@
+
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/have_gbk.inc
 
@@ -7,7 +8,7 @@ SET NAMES gbk;
 
 CREATE TABLE t1 (
   f1 BLOB
-) ENGINE=MyISAM DEFAULT CHARSET=gbk;
+) DEFAULT CHARSET=gbk;
 
 delimiter |;
 CREATE PROCEDURE p1(IN val BLOB)
@@ -38,3 +39,4 @@ SELECT hex(f1) FROM t1;
 DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE t2;
+--remove_file $MYSQLD_DATADIR/master-bin.saved

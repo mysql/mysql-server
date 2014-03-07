@@ -1,0 +1,439 @@
+
+
+=======================================================================
+Checking the password authentication with mysql_native_password plugin
+=======================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'abc';
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password'
+1
+1 Expected
+SET @@global.old_passwords=0;
+SET @@session.old_passwords=0;
+select (select Password from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc');
+(select Password from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc')
+1
+1 Expected
+select (select Password from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc');
+(select Password from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc')
+1
+1 Expected
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+=======================================================================
+Checking the password authentication with mysql_old_password plugin
+=======================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_old_password';
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_old_password';
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_old_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_old_password';
+(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_old_password'
+1
+1 Expected
+ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser1'@'localhost' has a password in the old format; please change the password to the new format
+ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser2'@'localhost' has a password in the old format; please change the password to the new format
+SET @@global.old_passwords=1;
+SET @@session.old_passwords=1;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser1'@'localhost' has a password in the old format; please change the password to the new format
+ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser2'@'localhost' has a password in the old format; please change the password to the new format
+select @@global.secure_auth;
+@@global.secure_auth
+1
+1 Expected
+ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser1'@'localhost' has a password in the old format; please change the password to the new format
+ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser2'@'localhost' has a password in the old format; please change the password to the new format
+set @@global.secure_auth=0;
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+=======================================================================
+Checking the password authentication with sha256_password plugin
+=======================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='sha256_password';
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='sha256_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='sha256_password';
+(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='sha256_password'
+1
+1 Expected
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+SET @@global.old_passwords=2;
+SET @@session.old_passwords=2;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of long password (more than 40 chars) using mysql_native_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of long password (more than 40 chars) using mysql_old_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_old_password';
+SET @@global.old_passwords=1;
+SET @@session.old_passwords=1;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+set @@global.secure_auth=0;
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of long password (more than 40 chars) using sha256_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+SET @@global.old_passwords=2;
+SET @@session.old_passwords=2;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222');
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of NULL password using mysql_native_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY '';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY '';
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of NULL password using mysql_old_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_old_password';
+SET @@global.old_passwords=1;
+SET @@session.old_passwords=1;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('');
+set @@global.secure_auth=0;
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the integrity of NULL password using sha256_password plugin
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+SET @@global.old_passwords=2;
+SET @@session.old_passwords=2;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('');
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the --secure_auth and --skip-secure-auth option from client side
+====================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_old_password';
+SET @@global.old_passwords=1;
+SET @@session.old_passwords=1;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+set @@global.secure_auth=0;
+
+**** Client using --secure-auth option should not be able to send password to server in old format 
+**** Client using --skip-secure-auth option should be able to send password to server in old format
+user()	current_user()
+Tanjotuser1@localhost	Tanjotuser1@localhost
+user()	current_user()
+Tanjotuser2@localhost	Tanjotuser2@127.0.0.1
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+====================================================================================================
+checking the combination of Client default_auth=mysql_old_password and server default_auth=native
+====================================================================================================
+
+set @@global.secure_auth=1;
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_old_password';
+SET @@global.old_passwords=1;
+SET @@session.old_passwords=1;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
+GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
+set @@global.secure_auth=0;
+**** Client default_auth=mysql_old_password and server default_auth=native
+user()	current_user()
+Tanjotuser1@localhost	Tanjotuser1@localhost
+user()	current_user()
+Tanjotuser2@localhost	Tanjotuser2@127.0.0.1
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+=================================================================================================
+checking the combination of Client default_auth=sha256_password and server default_auth=native
+=================================================================================================
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+SET @@global.old_passwords=2;
+SET @@session.old_passwords=2;
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
+GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
+**** Client default_auth=sha_256_password and server default auth=native
+user()	current_user()
+Tanjotuser1@localhost	Tanjotuser1@localhost
+**** Client default_auth=native and server default auth=native
+user()	current_user()
+Tanjotuser2@localhost	Tanjotuser2@127.0.0.1
+**** Client default_auth=sha_256_password + public key on file.
+user()	current_user()
+Tanjotuser1@localhost	Tanjotuser1@localhost
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+
+=================================================================================================
+Starting the server with the default authentication mysql_native_password
+=================================================================================================
+
+# Restart server with default-authentication-plugin=mysql_native_password;
+Creating a user with mysql_native_password plugin
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
+Grant all on *.* to 'Tanjotuser1'@'localhost';
+Creating a user with mysql_old_password plugin
+CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+set @@session.old_passwords=1;
+set password for 'Tanjotuser2'@'localhost' =password('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+Grant all on *.* to 'Tanjotuser2'@'localhost';
+Creating a user with SHA256_password plugin
+CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
+set @@session.old_passwords=2;
+set password for 'Tanjotuser3'@'localhost' =password('abc');
+Grant all on *.* to 'Tanjotuser3'@'localhost';
+set @@global.secure_auth=0;
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_old_password';
+(select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_old_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
+(select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password'
+1
+1 Expected
+select @@global.old_passwords;
+@@global.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser1 with Client default_auth=mysql_native_password 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser1 with Client default_auth=mysql_old_password 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser1 with Client default_auth=sha256_password 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with Client default_auth=mysql_native_password 
+@@session.old_passwords
+1
+1 Expected
+**** connecting Tanjotuser2 with Client default_auth=mysql_old_password 
+@@session.old_passwords
+1
+1 Expected
+**** connecting Tanjotuser2 with Client default_auth=sha256_password 
+@@session.old_passwords
+1
+1 Expected
+**** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
+@@session.old_passwords
+2
+2 Expected
+**** connecting Tanjotuser3 with Client default_auth=mysql_old_password 
+@@session.old_passwords
+2
+2 Expected
+**** connecting Tanjotuser3 with Client default_auth=sha256_password 
+@@session.old_passwords
+2
+2 Expected
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'localhost';
+DROP USER 'Tanjotuser3'@'localhost';
+
+
+=================================================================================================
+Starting the server with the default authentication sha256_password
+=================================================================================================
+
+# Restart server with default-authentication-plugin=sha256_password;
+Creating a user with mysql_old_password plugin
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
+set @@session.old_passwords=1;
+set password for 'Tanjotuser1'@'localhost' =password('abc');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
+Grant all on *.* to 'Tanjotuser1'@'localhost';
+Creating a user with mysql_native_password plugin
+CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+set @@session.old_passwords=0;
+set password for 'Tanjotuser2'@'localhost' =password('abc');
+Grant all on *.* to 'Tanjotuser2'@'localhost';
+Creating a user with SHA256_password plugin
+CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED by 'abc';
+Grant all on *.* to 'Tanjotuser3'@'localhost';
+set @@global.secure_auth=0;
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_old_password';
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_old_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password';
+(select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password'
+1
+1 Expected
+select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
+(select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password'
+1
+1 Expected
+select @@global.old_passwords;
+@@global.old_passwords
+2
+2 Expected
+**** connecting Tanjotuser1 with Client default_auth=mysql_native_password 
+@@session.old_passwords
+1
+1 Expected
+**** connecting Tanjotuser1 with Client default_auth=mysql_old_password 
+@@session.old_passwords
+1
+1 Expected
+**** connecting Tanjotuser1 with Client default_auth=sha256_password 
+@@session.old_passwords
+1
+1 Expected
+**** connecting Tanjotuser2 with Client default_auth=mysql_native_password 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with Client default_auth=mysql_old_password 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser2 with Client default_auth=sha256_password 
+@@session.old_passwords
+0
+0 Expected
+**** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
+@@session.old_passwords
+2
+2 Expected
+**** connecting Tanjotuser3 with Client default_auth=mysql_old_password 
+@@session.old_passwords
+2
+2 Expected
+**** connecting Tanjotuser3 with Client default_auth=sha256_password 
+@@session.old_passwords
+2
+2 Expected
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'localhost';
+DROP USER 'Tanjotuser3'@'localhost';
+SET GLOBAL old_passwords= default;
+set @@global.secure_auth=default;

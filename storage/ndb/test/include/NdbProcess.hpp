@@ -1,7 +1,6 @@
 /*
-  Copyright 2009 Sun Microsystems, Inc.
+  Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
-   All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,6 +62,12 @@ public:
       BaseString tmp;
       tmp.assfmt("%s%d", str, val);
       m_args.push_back(tmp);
+    }
+
+    void add(const Args & args)
+    {
+      for (unsigned i = 0; i < args.m_args.size(); i++)
+        add(args.m_args[i].c_str());
     }
 
     const Vector<BaseString>& args(void) const

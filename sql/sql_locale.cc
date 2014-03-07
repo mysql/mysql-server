@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "sql_locale.h"
 #include "sql_class.h"                          // THD
 #include "my_sys.h"                             // MY_*, NullS, NULL
+#include "log.h"
 
 
 enum err_msgs_index

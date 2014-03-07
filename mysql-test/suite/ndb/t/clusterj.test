@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 #
 # Run the Cluster/J JUnit tests from MTR
 #
@@ -6,9 +11,9 @@
 --source include/have_utf8.inc
 --source include/have_sjis.inc
 --source include/not_embedded.inc
---source suite/ndb/include/have_java.inc
---source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_clusterj.inc
+--source suite/ndb/include/have_connectorj.inc
+--source suite/ndb/include/have_java.inc
 
 --let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
 --let JAVA_CLASSPATH_1=$CLUSTERJ_JAR
@@ -43,6 +48,7 @@ DROP TABLE decimaltypes;
 DROP TABLE dn2id;
 DROP TABLE doubletypes;
 DROP TABLE floattypes;
+DROP TABLE hashpk;
 DROP TABLE longintstringfk;
 DROP TABLE longintstringix;
 DROP TABLE longintstringpk;

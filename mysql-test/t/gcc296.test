@@ -1,3 +1,4 @@
+
 #try to crash gcc 2.96
 --disable_warnings
 drop table if exists t1;

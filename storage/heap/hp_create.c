@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,7 +131,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
           keyinfo->get_key_length= hp_rb_key_length;
       }
     }
-    if (!(share= (HP_SHARE*) my_malloc((uint) sizeof(HP_SHARE)+
+    if (!(share= (HP_SHARE*) my_malloc(hp_key_memory_HP_SHARE,
+                                       (uint) sizeof(HP_SHARE)+
 				       keys*sizeof(HP_KEYDEF)+
 				       key_segs*sizeof(HA_KEYSEG),
 				       MYF(MY_ZEROFILL))))
@@ -188,7 +189,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     share->auto_increment= create_info->auto_increment;
     share->create_time= (long) time((time_t*) 0);
     /* Must be allocated separately for rename to work */
-    if (!(share->name= my_strdup(name,MYF(0))))
+    if (!(share->name= my_strdup(hp_key_memory_HP_SHARE,
+                                 name, MYF(0))))
     {
       my_free(share);
       goto err;

@@ -1,5 +1,4 @@
-/* Copyright (c) 2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,14 +54,14 @@ int main (int argc, char **argv)
     printf("%s\n", mysql_error(&conn));
   }
 
-  OK = mysql_real_query (&conn, query4, (uint) strlen(query4));
+  OK = mysql_real_query (&conn, query4, (ulong) strlen(query4));
 
   assert(0 == OK);
 
   printf("%ld inserted\n",
          (long) mysql_insert_id(&conn));
 
-  OK = mysql_real_query (&conn, query5, (uint) strlen(query5));
+  OK = mysql_real_query (&conn, query5, (ulong) strlen(query5));
 
   assert(0 == OK);
 

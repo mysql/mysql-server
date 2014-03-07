@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ static struct my_option my_long_options[] =
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(NULL);
+  ndb_short_usage_sub("<table name>[, <table name>[, ...]]");
 }
 
 static void usage()

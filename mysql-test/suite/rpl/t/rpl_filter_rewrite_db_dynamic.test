@@ -1,0 +1,42 @@
+#
+# Test if dynamic replication database filter rules are properly evaluated.
+#
+
+source include/have_binlog_format_statement.inc;
+source include/master-slave.inc;
+
+connection slave;
+--error ER_SLAVE_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
+
+connection slave;
+source include/stop_slave.inc;
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
+source include/start_slave.inc;
+connection master;
+
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+
+USE db1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 values (12);
+
+--source include/sync_slave_sql_with_master.inc
+
+# Just prove that there is no db1.t1 at slave after sync
+--error ER_NO_SUCH_TABLE
+SELECT * from db1.t1;
+# And check that db1.t1 data is replicated as db2.t1's data.
+--let $diff_tables=master:db1.t1, slave:db2.t1
+--source include/diff_tables.inc
+
+# Clean up
+connection master;
+DROP DATABASE db1;
+DROP DATABASE db2;
+
+--source include/rpl_end.inc
+
+connection slave;
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=();

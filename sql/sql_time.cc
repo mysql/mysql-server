@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,13 +20,11 @@
 #include "unireg.h"                      // REQUIRED by other includes
 #include "sql_time.h"
 #include "tztime.h"                             // struct Time_zone
-#include "sql_class.h"   // THD, MODE_INVALID_DATES, MODE_NO_ZERO_DATE
+#include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
 #include <m_ctype.h>
 
 
 	/* Some functions to calculate dates */
-
-#ifndef TESTTIME
 
 /*
   Name description of interval names used in statements.
@@ -105,9 +103,9 @@ uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year)
   uint days;
   ulong daynr=calc_daynr(l_time->year,l_time->month,l_time->day);
   ulong first_daynr=calc_daynr(l_time->year,1,1);
-  bool monday_first= test(week_behaviour & WEEK_MONDAY_FIRST);
-  bool week_year= test(week_behaviour & WEEK_YEAR);
-  bool first_weekday= test(week_behaviour & WEEK_FIRST_WEEKDAY);
+  bool monday_first= MY_TEST(week_behaviour & WEEK_MONDAY_FIRST);
+  bool week_year= MY_TEST(week_behaviour & WEEK_YEAR);
+  bool first_weekday= MY_TEST(week_behaviour & WEEK_FIRST_WEEKDAY);
 
   uint weekday=calc_weekday(first_daynr, !monday_first);
   *year=l_time->year;
@@ -229,9 +227,8 @@ ulong convert_month_to_period(ulong month)
 */
 static uint
 to_ascii(const CHARSET_INFO *cs,
-         const char *src, uint src_length,
-         char *dst, uint dst_length)
-                     
+         const char *src, size_t src_length,
+         char *dst, size_t dst_length)
 {
   int cnvres;
   my_wc_t wc;
@@ -252,8 +249,9 @@ to_ascii(const CHARSET_INFO *cs,
 
 
 /* Character set-aware version of str_to_time() */
-bool str_to_time(const CHARSET_INFO *cs, const char *str,uint length,
-                 MYSQL_TIME *l_time, uint flags, MYSQL_TIME_STATUS *status)
+bool str_to_time(const CHARSET_INFO *cs, const char *str, size_t length,
+                 MYSQL_TIME *l_time, my_time_flags_t flags,
+                 MYSQL_TIME_STATUS *status)
 {
   char cnv[MAX_TIME_FULL_WIDTH + 3]; // +3 for nanoseconds (for rounding)
   if ((cs->state & MY_CS_NONASCII) != 0)
@@ -270,8 +268,8 @@ bool str_to_time(const CHARSET_INFO *cs, const char *str,uint length,
 
 /* Character set-aware version of str_to_datetime() */
 bool str_to_datetime(const CHARSET_INFO *cs,
-                     const char *str, uint length,
-                     MYSQL_TIME *l_time, uint flags,
+                     const char *str, size_t length,
+                     MYSQL_TIME *l_time, my_time_flags_t flags,
                      MYSQL_TIME_STATUS *status)
 {
   char cnv[MAX_DATETIME_FULL_WIDTH + 3]; // +3 for nanoseconds (for rounding)
@@ -383,14 +381,16 @@ bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
     See description of str_to_datetime() for more information.
 */
 bool
-str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time, uint flags)
+str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
+                          my_time_flags_t flags)
 {
   MYSQL_TIME_STATUS status;
   THD *thd= current_thd;
-  bool ret_val= str_to_datetime(str, l_time,
-                                (flags | (thd->variables.sql_mode &
-                                 (MODE_INVALID_DATES | MODE_NO_ZERO_DATE))),
-                                &status);
+  if (thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_INVALID_DATES)
+    flags|= TIME_INVALID_DATES;
+  bool ret_val= str_to_datetime(str, l_time, flags, &status);
   if (ret_val || status.warnings)
     make_truncated_value_warning(ErrConvString(str), l_time->time_type);
   return ret_val;
@@ -406,8 +406,8 @@ str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time, uint flags)
   @param[in,out] warnings Warning flags.
   @return                False on success, true on error.
 */
-static bool
-lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime, uint flags, int *warnings)
+static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
+                                my_time_flags_t flags, int *warnings)
 {
   if (lld.rem < 0 || // Catch negative numbers with zero int part, e.g: -0.1
       number_to_datetime(lld.quot, ltime, flags, warnings) == LL(-1))
@@ -444,9 +444,8 @@ lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime, uint flags, int *warnings)
   @param       flags   Conversion flags.
   @return              False on success, true on error.
 */
-bool
-my_decimal_to_datetime_with_warn(const my_decimal *decimal,
-                                 MYSQL_TIME *ltime, uint flags)
+bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
+                                      MYSQL_TIME *ltime, my_time_flags_t flags)
 {
   lldiv_t lld;
   int warnings= 0;
@@ -473,8 +472,8 @@ my_decimal_to_datetime_with_warn(const my_decimal *decimal,
   @param       flags   Conversion flags.
   @return              False on success, true on error.
 */
-bool
-my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime, uint flags)
+bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
+                                     my_time_flags_t flags)
 {
   lldiv_t lld;
   int warnings= 0;
@@ -500,8 +499,8 @@ my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime, uint flags)
   @param[out]  ltime   The variable to convert to.
   @return              False on success, true on error.
 */
-bool
-my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime, uint flags)
+bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
+                                       my_time_flags_t flags)
 {
   int warnings= 0;
   bool rc= number_to_datetime(nr, ltime, flags, &warnings) == LL(-1);
@@ -539,7 +538,6 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings)
   Convert decimal number to TIME
   @param      decimal_value  The number to convert from.
   @param[out] ltime          The variable to convert to.
-  @param      flags          Conversion flags.
   @return     False on success, true on error.
 */
 bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
@@ -567,7 +565,6 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
 
   @param      nr      The number to convert from.
   @param[out] ltime   The variable to convert to.
-  @param      flags   Conversion flags.
   @return     False on success, true on error.
 */
 bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
@@ -595,7 +592,6 @@ bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
   Convert longlong number to TIME
   @param      nr     The number to convert from.
   @param[out] ltime  The variable to convert to.
-  @param      flags  Conversion flags.
   @return     False on success, true on error.
 */
 bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime)
@@ -815,36 +811,30 @@ void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds)
 }
 
 
-/*
+/**
   Parse a format string specification
 
-  SYNOPSIS
-    parse_date_time_format()
-    format_type		Format of string (time, date or datetime)
-    format_str		String to parse
-    format_length	Length of string
-    date_time_format	Format to fill in
+  @param format_type  Format of string (time, date or datetime)
+  @date_time_format   Format to fill in
 
-  NOTES
-    Fills in date_time_format->positions for all date time parts.
+  Fills in date_time_format->positions for all date time parts.
 
-    positions marks the position for a datetime element in the format string.
-    The position array elements are in the following order:
-    YYYY-DD-MM HH-MM-DD.FFFFFF AM
-    0    1  2  3  4  5  6      7
+  positions marks the position for a datetime element in the format string.
+  The position array elements are in the following order:
+  YYYY-DD-MM HH-MM-DD.FFFFFF AM
+  0    1  2  3  4  5  6      7
 
-    If positions[0]= 5, it means that year will be the forth element to
-    read from the parsed date string.
+  If positions[0]= 5, it means that year will be the forth element to
+  read from the parsed date string.
 
-  RETURN
-    0	ok
-    1	error
+  @return true if error, false otherwise.
 */
 
-bool parse_date_time_format(timestamp_type format_type, 
-			    const char *format, uint format_length,
+bool parse_date_time_format(timestamp_type format_type,
 			    DATE_TIME_FORMAT *date_time_format)
 {
+  const char *format= date_time_format->format.str;
+  size_t format_length= date_time_format->format.length;
   uint offset= 0, separators= 0;
   const char *ptr= format, *format_str;
   const char *end= ptr+format_length;
@@ -868,8 +858,7 @@ bool parse_date_time_format(timestamp_type format_type,
   {
     if (*ptr == '%' && ptr+1 != end)
     {
-      uint position;
-      LINT_INIT(position);
+      uint position= 0;
       switch (*++ptr) {
       case 'y':					// Year
       case 'Y':
@@ -1057,41 +1046,6 @@ bool parse_date_time_format(timestamp_type format_type,
 
 
 /*
-  Create a DATE_TIME_FORMAT object from a format string specification
-
-  SYNOPSIS
-    date_time_format_make()
-    format_type		Format to parse (time, date or datetime)
-    format_str		String to parse
-    format_length	Length of string
-
-  NOTES
-    The returned object should be freed with my_free()
-
-  RETURN
-    NULL ponter:	Error
-    new object
-*/
-
-DATE_TIME_FORMAT
-*date_time_format_make(timestamp_type format_type,
-		       const char *format_str, uint format_length)
-{
-  DATE_TIME_FORMAT tmp;
-
-  if (format_length && format_length < 255 &&
-      !parse_date_time_format(format_type, format_str,
-			      format_length, &tmp))
-  {
-    tmp.format.str=    (char*) format_str;
-    tmp.format.length= format_length;
-    return date_time_format_copy((THD *)0, &tmp);
-  }
-  return 0;
-}
-
-
-/*
   Create a copy of a DATE_TIME_FORMAT object
 
   SYNOPSIS
@@ -1110,12 +1064,13 @@ DATE_TIME_FORMAT
 DATE_TIME_FORMAT *date_time_format_copy(THD *thd, DATE_TIME_FORMAT *format)
 {
   DATE_TIME_FORMAT *new_format;
-  ulong length= sizeof(*format) + format->format.length + 1;
+  size_t length= sizeof(*format) + format->format.length + 1;
 
   if (thd)
     new_format= (DATE_TIME_FORMAT *) thd->alloc(length);
   else
-    new_format=  (DATE_TIME_FORMAT *) my_malloc(length, MYF(MY_WME));
+    new_format=  (DATE_TIME_FORMAT *) my_malloc(key_memory_DATE_TIME_FORMAT,
+                                                length, MYF(MY_WME));
   if (new_format)
   {
     /* Put format string after current pos */
@@ -1772,5 +1727,3 @@ double double_from_datetime_packed(enum enum_field_types type,
   return result +
         ((double) MY_PACKED_TIME_GET_FRAC_PART(packed_value)) / 1000000;
 }
-
-#endif

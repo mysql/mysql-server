@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 
 #ifndef MEM_ROOT_ARRAY_INCLUDED
@@ -58,6 +58,16 @@ public:
     clear();
   }
 
+  /**
+    Switches mem-root, in case original mem-root was copied.
+    NOTE: m_root should really be const, i.e. never change after initialization.
+  */
+  void set_mem_root(MEM_ROOT *new_root)
+  {
+    m_root= new_root;
+    DBUG_ASSERT(m_root != NULL);
+  }
+
   Element_type &at(size_t n)
   {
     DBUG_ASSERT(n < size());
@@ -69,6 +79,12 @@ public:
     DBUG_ASSERT(n < size());
     return m_array[n];
   }
+
+  Element_type &operator[](size_t n) { return at(n); }
+  const Element_type &operator[](size_t n) const { return at(n); }
+
+  Element_type &back() { return at(size() - 1); }
+  const Element_type &back() const { return at(size() - 1); }
 
   // Returns a pointer to the first element in the array.
   Element_type *begin() { return &m_array[0]; }
@@ -155,13 +171,65 @@ public:
     return false;
   }
 
+  /**
+    Removes the last element in the array, effectively reducing the
+    container size by one. This destroys the removed element.
+   */
+  void pop_back()
+  {
+    DBUG_ASSERT(!empty());
+    if (!has_trivial_destructor)
+      back().~Element_type();
+    m_size-= 1;
+  }
+
+  /**
+    Resizes the container so that it contains n elements.
+
+    If n is smaller than the current container size, the content is
+    reduced to its first n elements, removing those beyond (and
+    destroying them).
+
+    If n is greater than the current container size, the content is
+    expanded by inserting at the end as many elements as needed to
+    reach a size of n. If val is specified, the new elements are
+    initialized as copies of val, otherwise, they are
+    value-initialized.
+
+    If n is also greater than the current container capacity, an automatic
+    reallocation of the allocated storage space takes place.
+
+    Notice that this function changes the actual content of the
+    container by inserting or erasing elements from it.
+   */
+  void resize(size_t n, Element_type val= Element_type())
+  {
+    if (n == m_size)
+      return;
+    if (n > m_size)
+    {
+      if (!reserve(n))
+      {
+        while (n != m_size)
+          push_back(val);
+      }
+      return;
+    }
+    if (!has_trivial_destructor)
+    {
+      while (n != m_size)
+        pop_back();
+    }
+    m_size= n;
+  }
+
   size_t capacity()     const { return m_capacity; }
   size_t element_size() const { return sizeof(Element_type); }
   bool   empty()        const { return size() == 0; }
   size_t size()         const { return m_size; }
 
 private:
-  MEM_ROOT *const m_root;
+  MEM_ROOT       *m_root;
   Element_type   *m_array;
   size_t          m_size;
   size_t          m_capacity;

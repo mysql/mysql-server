@@ -3,9 +3,9 @@
 
 --source include/have_partition.inc
 
-let $engine_table= MYISAM;
-let $engine_part= MYISAM;
-let $engine_subpart= MYISAM;
+let $engine_table= InnoDB;
+let $engine_part= InnoDB;
+let $engine_subpart= InnoDB;
 
 use test;
 

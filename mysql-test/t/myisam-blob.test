@@ -1,3 +1,11 @@
+# This testcase throws following error when run with InnoDB as Default
+# Unknown/unsupported storage engine: InnoDB
+# All tests are required to run with MyISAM
+# MTR starts mysqld with MyISAM as default
+
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 #
 # Test bugs in the MyISAM code with blobs
 #

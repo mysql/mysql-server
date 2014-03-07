@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #ifndef KERNEL_RECORDS_HPP
 #define KERNEL_RECORDS_HPP
+
+#define JAM_FILE_ID 347
+
 
 /**
  * Resource groups
@@ -128,5 +131,8 @@
 #define RT_DBDICT_CREATE_NODEGROUP   MAKE_TID( 20, RG_SCHEMA_TRANS_MEMORY)
 #define RT_DBDICT_DROP_NODEGROUP     MAKE_TID( 21, RG_SCHEMA_TRANS_MEMORY)
 #define RT_DBDICT_OP_SECTION_BUFFER  MAKE_TID( 22, RG_SCHEMA_TRANS_MEMORY)
+
+
+#undef JAM_FILE_ID
 
 #endif

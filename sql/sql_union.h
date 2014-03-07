@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,10 @@ typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option);
-
-
+bool mysql_union_prepare_and_optimize(THD *thd, LEX *lex,
+                                      select_result *result,
+                                      SELECT_LEX_UNIT *unit,
+                                      ulong union_options);
+bool mysql_optimize_prepared_inner_units(THD *thd, SELECT_LEX_UNIT *unit,
+                                         ulong options);
 #endif /* SQL_UNION_INCLUDED */

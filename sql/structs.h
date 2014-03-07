@@ -1,7 +1,7 @@
 #ifndef STRUCTS_INCLUDED
 #define STRUCTS_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,6 +84,12 @@ public:
   void init_flags();                    /** Set key_part_flag from field */
 };
 
+/**
+  If an entry for a key part in KEY::rec_per_key_float[] has this value,
+  then the storage engine has not provided a value for it and the rec_per_key
+  value for this key part is unknown.
+*/
+#define REC_PER_KEY_UNKNOWN -1.0f
 
 typedef struct st_key {
   /** Tot length of key */
@@ -125,11 +131,114 @@ typedef struct st_key {
     For temporary heap tables this member is NULL.
   */
   ulong *rec_per_key;
+
+private:
+  /**
+    Array of AVG(#records with the same field value) for 1st ... Nth
+    key part. For temporary heap tables this member is NULL.  This is
+    the same information as stored in the above rec_per_key array but
+    using float values instead of integer values. If the storage
+    engine has supplied values in this array, these will be
+    used. Otherwise the value in rec_per_key will be used.
+    @todo In the next release the rec_per_key array above should be
+    removed and only this should be used.
+
+    This variable is made protected instead of private in order to be
+    able to delete the array in the unit test (@see Fake_KEY). If the
+    KEY struct is re-written to manage the memory for this array, this
+    should be changed to private.
+  */
+  float *rec_per_key_float;
+public:
   union {
     int  bdb_return_if_eq;
   } handler;
   TABLE *table;
   LEX_STRING comment;
+
+  /** 
+    Check if records per key estimate is available for given key part.
+
+    @param key_part_no key part number, must be in [0, KEY::actual_key_parts)
+
+    @return true if records per key estimate is available, false otherwise
+  */
+
+  bool has_records_per_key(uint key_part_no) const
+  {
+    DBUG_ASSERT(key_part_no < actual_key_parts);
+
+    return ((rec_per_key_float && rec_per_key_float[key_part_no] !=
+             REC_PER_KEY_UNKNOWN) || 
+            (rec_per_key && rec_per_key[key_part_no] != 0));
+  }
+
+  /**
+    Retrieve an estimate for the average number of records per distinct value,
+    when looking only at the first key_part_no+1 columns.
+
+    If no record per key estimate is available for this key part,
+    REC_PER_KEY_UNKNOWN is returned.
+
+    @param key_part_no key part number, must be in [0, KEY::actual_key_parts)
+
+    @return Number of records having the same key value
+      @retval REC_PER_KEY_UNKNOWN    no records per key estimate available
+      @retval != REC_PER_KEY_UNKNOWN record per key estimate
+  */
+
+  float records_per_key(uint key_part_no) const
+  {
+    DBUG_ASSERT(key_part_no < actual_key_parts);
+
+    /*
+      If the storage engine has provided rec per key estimates as float
+      then use this. If not, use the integer version.
+    */
+    if (rec_per_key_float[key_part_no] != REC_PER_KEY_UNKNOWN)
+      return rec_per_key_float[key_part_no];
+
+    return (rec_per_key[key_part_no] != 0) ? 
+      static_cast<float>(rec_per_key[key_part_no]) : REC_PER_KEY_UNKNOWN;
+  }
+
+  /**
+    Set the records per key estimate for a key part.
+
+    @param key_part_no     the number of key parts that the estimate includes,
+                           must be in [0, KEY::actual_key_parts)
+    @param rec_per_key_est new records per key estimate
+  */
+
+  void set_records_per_key(uint key_part_no, float rec_per_key_est)
+  {
+    DBUG_ASSERT(key_part_no < actual_key_parts);
+    DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN || 
+                rec_per_key_est >= 0.0);
+
+    rec_per_key_float[key_part_no]= rec_per_key_est;
+  }
+
+  /**
+    Assign storage for the rec per key arrays to the KEY object.
+
+    This is used when allocating memory and creating KEY objects. The
+    caller is responsible for allocating the correct size for the
+    two arrays. If needed, the caller is also responsible for
+    de-allocating the memory when the KEY object is no longer used.
+
+    @param rec_per_key_arg       pointer to allocated array for storing
+                                 records per key using ulong
+    @param rec_per_key_float_arg pointer to allocated array for storing
+                                 records per key using float
+  */
+  
+  void set_rec_per_key_array(ulong *rec_per_key_arg,
+                             float *rec_per_key_float_arg)
+  {
+    rec_per_key= rec_per_key_arg;
+    rec_per_key_float= rec_per_key_float_arg;
+  }
 } KEY;
 
 
@@ -174,12 +283,23 @@ extern const char *show_comp_option_name[];
 
 typedef int *(*update_var)(THD *, struct st_mysql_show_var *);
 
+/*
+  This structure holds the specifications relating to
+  ALTER user ... PASSWORD EXPIRE ...
+*/
+typedef struct st_lex_alter {
+  bool update_password_expired_column;
+  bool use_default_password_lifetime;
+  uint16 expire_after_days;
+} LEX_ALTER;
+
 typedef struct	st_lex_user {
   LEX_STRING user, host, password, plugin, auth;
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
   bool uses_identified_by_password_clause;
+  LEX_ALTER alter_status;
 } LEX_USER;
 
 /*
@@ -292,6 +412,13 @@ private:
   ulonglong  interval_max;    // excluded bound. Redundant.
 public:
   Discrete_interval *next;    // used when linked into Discrete_intervals_list
+
+  /// Determine if the given value is within the interval
+  bool in_range(const ulonglong value) const
+  {
+    return  ((value >= interval_min) && (value < interval_max));
+  }
+
   void replace(ulonglong start, ulonglong val, ulonglong incr)
   {
     interval_min=    start;

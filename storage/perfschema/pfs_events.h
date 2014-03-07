@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,6 +40,8 @@ struct PFS_events
   ulonglong m_nesting_event_id;
   /** NESTING_EVENT_TYPE */
   enum_event_type m_nesting_event_type;
+  /** NESTING_EVENT_LEVEL */
+  uint m_nesting_event_level;
   /** Instrument metadata. */
   PFS_instr_class *m_class;
   /**

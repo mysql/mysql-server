@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,8 +36,10 @@ struct row_setup_consumers
   LEX_STRING m_name;
   /** Column ENABLED. */
   bool *m_enabled_ptr;
-  /** Hidden column, refresh. */
-  bool m_refresh;
+  /** Hidden column, instrument refresh. */
+  bool m_instrument_refresh;
+  /** Hidden column, thread refresh. */
+  bool m_thread_refresh;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_CONSUMERS. */
@@ -47,6 +49,7 @@ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
+  static ha_rows get_row_count();
 
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);

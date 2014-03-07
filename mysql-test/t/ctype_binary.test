@@ -1,3 +1,6 @@
+--source include/have_myisam.inc
+# The include file ctype_numconv.inc have some MyISAM specific tests
+
 
 set names binary;
 

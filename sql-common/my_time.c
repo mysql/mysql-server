@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ void set_max_time(MYSQL_TIME *tm, my_bool neg)
 */
 
 my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                   ulonglong flags, int *was_cut)
+                   my_time_flags_t flags, int *was_cut)
 {
   if (not_zero_date)
   {
@@ -266,23 +266,21 @@ my_bool check_datetime_range(const MYSQL_TIME *ltime)
 #define MAX_DATE_PARTS 8
 
 my_bool
-str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
-                ulonglong flags, MYSQL_TIME_STATUS *status)
+str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
+                my_time_flags_t flags, MYSQL_TIME_STATUS *status)
 {
-  uint field_length, UNINIT_VAR(year_length), digits, i, number_of_fields;
+  uint field_length= 0, year_length= 0, digits, i, number_of_fields;
   uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
   uint add_hours= 0, start_loop;
   ulong not_zero_date, allow_space;
   my_bool is_internal_format;
-  const char *pos, *UNINIT_VAR(last_field_pos);
+  const char *pos, *last_field_pos= NULL;
   const char *end=str+length;
   const uchar *format_position;
   my_bool found_delimitier= 0, found_space= 0;
   uint frac_pos, frac_len;
   DBUG_ENTER("str_to_datetime");
-  DBUG_PRINT("ENTER",("str: %.*s",length,str));
-
-  LINT_INIT(field_length);
+  DBUG_PRINT("ENTER", ("str: %.*s", (int)length, str));
 
   my_time_status_init(status);
 
@@ -425,6 +423,16 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
         */
         last_field_pos= str;
         field_length= 6;                        /* 6 digits */
+      }
+      else if (my_isdigit(&my_charset_latin1,str[0]))
+      {
+        /*
+          We do not see a decimal point which would have indicated a
+          fractional second part in further read. So we skip the further
+          processing of digits.
+        */
+        i++;
+        break;
       }
       continue;
     }
@@ -622,7 +630,7 @@ err:
      1  error
 */
 
-my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
+my_bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
                     MYSQL_TIME_STATUS *status)
 {
   ulong date[5];
@@ -666,7 +674,7 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
   for (; str != end && my_isspace(&my_charset_latin1, str[0]) ; str++)
     ;
 
-  LINT_INIT(state);
+  state= 0;
   found_days=found_hours=0;
   if ((uint) (end-str) > 1 && str != end_of_days &&
       my_isdigit(&my_charset_latin1, *str))
@@ -712,8 +720,8 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
     /* Fix the date to assume that seconds was given */
     if (!found_hours && !found_days)
     {
-      bmove_upp((uchar*) (date+4), (uchar*) (date+state),
-                sizeof(long)*(state-1));
+      size_t len= sizeof(long) * (state - 1);
+      memmove((uchar*) (date+4) - len, (uchar*) (date+state) - len, len);
       memset(date, 0, sizeof(long)*(4-state));
     }
     else
@@ -1083,35 +1091,6 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
     t->day-= 2;
     shift= 2;
   }
-#ifdef TIME_T_UNSIGNED
-  else
-  {
-    /*
-      We can get 0 in time_t representaion only on 1969, 31 of Dec or on
-      1970, 1 of Jan. For both dates we use shift, which is added
-      to t->day in order to step out a bit from the border.
-      This is required for platforms, where time_t is unsigned.
-      As far as I know, among the platforms we support it's only QNX.
-      Note: the order of below if-statements is significant.
-    */
-
-    if ((t->year == TIMESTAMP_MIN_YEAR + 1) && (t->month == 1)
-        && (t->day <= 10))
-    {
-      t->day+= 2;
-      shift= -2;
-    }
-
-    if ((t->year == TIMESTAMP_MIN_YEAR) && (t->month == 12)
-        && (t->day == 31))
-    {
-      t->year++;
-      t->month= 1;
-      t->day= 2;
-      shift= -2;
-    }
-  }
-#endif
 
   tmp= (time_t) (((calc_daynr((uint) t->year, (uint) t->month, (uint) t->day) -
                    (long) days_at_timestart) * SECONDS_IN_24H +
@@ -1397,7 +1376,7 @@ int my_timeval_to_str(const struct timeval *tm, char *to, uint dec)
 */
 
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
-                            ulonglong flags, int *was_cut)
+                            my_time_flags_t flags, int *was_cut)
 {
   long part1,part2;
 
@@ -1470,7 +1449,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
       !check_date(time_res, (nr != 0), flags, was_cut))
     return nr;
 
-  /* Don't want to have was_cut get set if NO_ZERO_DATE was violated. */
+  /* Don't want to have was_cut get set if TIME_NO_ZERO_DATE was violated. */
   if (!nr && (flags & TIME_NO_ZERO_DATE))
     return LL(-1);
 

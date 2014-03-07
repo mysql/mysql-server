@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,6 +48,9 @@
 #include <NdbSleep.h>
 #include <SafeCounter.hpp>
 #include <SectionReader.hpp>
+
+#define JAM_FILE_ID 380
+
 
 #define ZREPORT_MEMORY_USAGE 1000
 
@@ -603,7 +606,7 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
     /**
      * Create a new one
      */
-    if(subscribers.seize(ptr) == false){
+    if (subscribers.seizeFirst(ptr) == false){
       sendSignal(senderRef, GSN_EVENT_SUBSCRIBE_REF, signal, 1, JBB);
       return;
     }
@@ -1290,7 +1293,7 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   if (tuserblockref != 0)
   {
     signal->theData[0] = errNo;
-    sendSignal(tuserblockref, GSN_NDB_TAMPER, signal, 1, JBB);
+    sendSignal(tuserblockref, GSN_NDB_TAMPER, signal, signal->getLength(), JBB);
   }
 #endif
 }//execTAMPER_ORD()
@@ -1339,6 +1342,11 @@ cmp_event_buf(const void * ptr0, const void * ptr1)
   Uint32 time1 = m_saved_event_buffer[pos1].getScanPosSeq();
   return time0 - time1;
 }
+
+#if defined VM_TRACE || defined ERROR_INSERT
+static Uint32 f_free_segments[32];
+static Uint32 f_free_segment_pos = 0;
+#endif
 
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)
@@ -1441,6 +1449,79 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 	      g_sectionSegmentPool.getNoOfFree());
   }
 
+  if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshotStart)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    f_free_segment_pos = 0;
+    bzero(f_free_segments, sizeof(f_free_segments));
+#endif
+  }
+
+  if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshot)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    f_free_segments[f_free_segment_pos] = g_sectionSegmentPool.getNoOfFree();
+    f_free_segment_pos = (f_free_segment_pos + 1) % NDB_ARRAY_SIZE(f_free_segments);
+#endif
+  }
+
+  if (arg == DumpStateOrd::CmvmiLongSignalMemorySnapshotCheck)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    Uint32 start = (f_free_segment_pos + 1)% NDB_ARRAY_SIZE(f_free_segments);
+    Uint32 stop = (f_free_segment_pos - 1) % NDB_ARRAY_SIZE(f_free_segments);
+    Uint32 cnt_dec = 0;
+    Uint32 cnt_inc = 0;
+    Uint32 cnt_same = 0;
+    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    {
+      Uint32 prev = (i - 1) % NDB_ARRAY_SIZE(f_free_segments);
+      if (f_free_segments[prev] == f_free_segments[i])
+        cnt_same++;
+      else if (f_free_segments[prev] > f_free_segments[i])
+        cnt_dec++;
+      else if (f_free_segments[prev] < f_free_segments[i])
+        cnt_inc++;
+    }
+
+    printf("snapshots: ");
+    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    {
+      printf("%u ", f_free_segments[i]);
+    }
+    printf("\n");
+    printf("summary: #same: %u #increase: %u #decrease: %u\n",
+           cnt_same, cnt_inc, cnt_dec);
+
+    if (cnt_dec > 1)
+    {
+      /**
+       * If memory decreased more than once...
+       *   it must also increase atleast once
+       */
+      ndbrequire(cnt_inc > 0);
+    }
+
+    if (cnt_dec == 1)
+    {
+      // it decreased once...this is ok
+      return;
+    }
+    if (cnt_same >= (cnt_inc + cnt_dec))
+    {
+      // it was frequently the same...this is ok
+      return;
+    }
+    if (cnt_same + cnt_dec >= cnt_inc)
+    {
+      // it was frequently the same or less...this is ok
+      return;
+    }
+
+    ndbrequire(false);
+#endif
+  }
+
   if (dumpState->args[0] == DumpStateOrd::DumpPageMemory)
   {
     const Uint32 len = signal->getLength();
@@ -1461,6 +1542,19 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     {
       // Dump data and index memory to specific ref
       Uint32 result_ref = signal->theData[1];
+      /* Validate ref */
+      {
+        Uint32 node = refToNode(result_ref);
+        if (node == 0 || 
+            node >= MAX_NODES)
+        {
+          ndbout_c("Bad node in ref to DUMP %u : %u %u",
+                   DumpStateOrd::DumpPageMemory,
+                   node,
+                   result_ref);
+          return;
+        }
+      }
       reportDMUsage(signal, 0, result_ref);
       reportIMUsage(signal, 0, result_ref);
       return;

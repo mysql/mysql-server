@@ -15,5 +15,8 @@
 #                   Create this script based on older scripts and new code.
 #
 
+let $engine_type       = InnoDB;
+let $other_engine_type = InnoDB;
+--source include/have_innodb.inc
 --source include/not_embedded.inc
 --source suite/funcs_1/datadict/is_triggers.inc

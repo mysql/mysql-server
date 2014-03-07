@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 #define OPT_TRACE_INCLUDED
 
 #include "my_config.h"  // OPTIMIZER_TRACE
-#include "sql_array.h"  // Dynamic_array
 #include "sql_list.h"   // because sql_cmd.h needs it
 #include "sql_cmd.h"    // for enum_sql_command
 #include "opt_trace_context.h" // Opt_trace_context

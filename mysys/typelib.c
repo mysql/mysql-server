@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* Functions to handle typelib */
 
@@ -68,7 +68,7 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 int find_type(const char *x, const TYPELIB *typelib, uint flags)
 {
   int find,pos;
-  int UNINIT_VAR(findpos);                       /* guarded by find */
+  int findpos= 0;                       /* guarded by find */
   const char *i;
   const char *j;
   DBUG_ENTER("find_type");
@@ -135,7 +135,7 @@ void make_type(char * to, uint nr,
   if (!nr)
     to[0]=0;
   else
-    (void) strmov(to,get_type(typelib,nr-1));
+    (void) my_stpcpy(to,get_type(typelib,nr-1));
   DBUG_VOID_RETURN;
 } /* make_type */
 

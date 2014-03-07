@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include <ndb_global.h>
 #include <mgmapi_config_parameters.h>
+
+#define JAM_FILE_ID 3
+
 
 /**
  * 
@@ -91,8 +94,6 @@ public:
     return memcmp(this, &l, sizeof(* this)) == 0;
   }
 
-  LogLevel& operator=(const struct EventSubscribeReq & req);
-  
 private:
   /**
    * The actual data
@@ -149,17 +150,7 @@ LogLevel::set_max(const LogLevel & org){
   return * this;
 }
 
-#include "signaldata/EventSubscribeReq.hpp"
 
-inline
-LogLevel&
-LogLevel::operator=(const EventSubscribeReq& req)
-{
-  clear();
-  for(size_t i = 0; i<req.noOfEntries; i++){
-    logLevelData[(req.theData[i] >> 16)] = req.theData[i] & 0xFFFF;
-  }
-  return * this;
-}
+#undef JAM_FILE_ID
 
 #endif

@@ -1,3 +1,5 @@
+--source include/have_innodb.inc
+
 #------------------------------------------------------------------------------
 # Test With two FTS index on same table + alter/create/drop index + tnx
 #------------------------------------------------------------------------------

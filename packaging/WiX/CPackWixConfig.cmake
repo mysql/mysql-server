@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ IF(ESSENTIALS)
  ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Embedded;Debuginfo;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries")
+    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries")
 ENDIF()
 
 

@@ -2,7 +2,7 @@
 #   This file was modified by Oracle in 2011 and later.
 #   Details of the modifications are described in the "changelog" section.
 #
-#   Modifications copyright (c) 2011, 2012, Oracle and/or its
+#   Modifications copyright (c) 2011, 2014, Oracle and/or its
 #   affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -230,14 +230,14 @@ Source9: mysql-embedded-check.c
 Source999: filter-requires-mysql.sh
 
 # Patch1: mysql-ssl-multilib.patch           Not needed by MySQL (yaSSL), will not work in 5.5 (cmake)
-Patch2: mysql-5.5-errno.patch
+# Patch2: mysql-5.5-errno.patch              Fixed in trunk
 Patch4: mysql-5.5-testing.patch
 Patch5: mysql-install-test.patch
-Patch6: mysql-5.6-stack-guard.patch
+# Patch6: mysql-5.6-stack-guard.patch        Fixed in 5.6
 # Patch7: mysql-disable-test.patch           Already fixed in current 5.1
 # Patch8: mysql-setschedparam.patch          Will not work in 5.5 (cmake)
 # Patch9: mysql-no-docs.patch                Will not work in 5.5 (cmake)
-Patch10: mysql-strmov.patch
+# Patch10: mysql-strmov.patch                Fixed in trunk
        # Not used by MySQL
 # Patch12: mysql-cve-2008-7247.patch         Already fixed in 5.5
 Patch13: mysql-expired-certs.patch
@@ -268,11 +268,12 @@ Requires: bash
 Provides: mysql
 
 # MySQL (with caps) is upstream's spelling of their own RPMs for mysql
-Conflicts: MySQL
+Obsoletes: MySQL
 # mysql-cluster used to be built from this SRPM, but no more
 Obsoletes: mysql-cluster < 5.1.44
 # We need cross-product "Obsoletes:" to allow cross-product upgrades:
-Obsoletes: mysql mysql-advanced
+Obsoletes: mysql < %{version}-%{release} 
+Obsoletes: mysql-advanced < %{version}-%{release}
 
 # Working around perl dependency checking bug in rpm FTTB. Remove later.
 %global __perl_requires %{SOURCE999}
@@ -295,8 +296,9 @@ further info.
 Summary: The shared libraries required for MySQL clients
 Group: Applications/Databases
 Requires: /sbin/ldconfig
+Obsoletes: mysql-libs < %{version}-%{release}  
+Obsoletes: mysql-libs-advanced < %{version}-%{release}
 Provides: mysql-libs
-Obsoletes: mysql-libs mysql-libs-advanced
 
 %description -n mysql-libs%{product_suffix}
 The mysql-libs package provides the essential shared libraries for any 
@@ -318,9 +320,10 @@ Requires(preun): initscripts
 Requires(postun): initscripts
 # mysqlhotcopy needs DBI/DBD support
 Requires: perl-DBI, perl-DBD-MySQL
+Obsoletes: MySQL-server
+Obsoletes: mysql-server < %{version}-%{release}
+Obsoletes: mysql-server-advanced < %{version}-%{release}
 Provides: mysql-server
-Conflicts: MySQL-server
-Obsoletes: mysql-server mysql-server-advanced
 
 %description -n mysql-server%{product_suffix}
 MySQL is a multi-user, multi-threaded SQL database server. MySQL is a
@@ -334,9 +337,10 @@ Summary: Files for development of MySQL applications
 Group: Applications/Databases
 Requires: mysql%{product_suffix} = %{version}-%{release}
 Requires: openssl-devel
+Obsoletes: MySQL-devel
+Obsoletes: mysql-devel < %{version}-%{release}
+Obsoletes: mysql-devel-advanced < %{version}-%{release}
 Provides: mysql-devel
-Conflicts: MySQL-devel
-Obsoletes: mysql-devel mysql-devel-advanced
 
 %description -n mysql-devel%{product_suffix}
 MySQL is a multi-user, multi-threaded SQL database server. This
@@ -347,8 +351,9 @@ developing MySQL client applications.
 
 Summary: MySQL as an embeddable library
 Group: Applications/Databases
+Obsoletes: mysql-embedded < %{version}-%{release}
+Obsoletes: mysql-embedded-advanced < %{version}-%{release}
 Provides: mysql-embedded
-Obsoletes: mysql-embedded mysql-embedded-advanced
 
 %description -n mysql-embedded%{product_suffix}
 MySQL is a multi-user, multi-threaded SQL database server. This
@@ -362,8 +367,9 @@ Summary: Development files for MySQL as an embeddable library
 Group: Applications/Databases
 Requires: mysql-embedded%{product_suffix} = %{version}-%{release}
 Requires: mysql-devel%{product_suffix} = %{version}-%{release}
+Obsoletes: mysql-embedded-devel < %{version}-%{release}
+Obsoletes: mysql-embedded-devel-advanced < %{version}-%{release}
 Provides: mysql-embedded-devel
-Obsoletes: mysql-embedded-devel mysql-embedded-devel-advanced
 
 %description -n mysql-embedded-devel%{product_suffix}
 MySQL is a multi-user, multi-threaded SQL database server. This
@@ -376,9 +382,10 @@ Summary: The test suite distributed with MySQL
 Group: Applications/Databases
 Requires: mysql%{product_suffix} = %{version}-%{release}
 Requires: mysql-server%{product_suffix} = %{version}-%{release}
+Obsoletes: MySQL-test
+Obsoletes: mysql-test < %{version}-%{release}
+Obsoletes: mysql-test-advanced < %{version}-%{release}
 Provides: mysql-test
-Conflicts: MySQL-test
-Obsoletes: mysql-test mysql-test-advanced
 
 %description -n mysql-test%{product_suffix}
 MySQL is a multi-user, multi-threaded SQL database server. This
@@ -390,10 +397,10 @@ the MySQL sources.
 
 cd %{src_dir} # read about "%setup -n"
 # %patch1 -p1
-%patch2 -p1
+# %patch2 -p1
 # %patch4 -p1  TODO / FIXME: if wanted, needs to be adapted to new mysql-test-run setup
 %patch5 -p1
-%patch6 -p1
+# %patch6 -p1
 # %patch8 -p1
 # %patch9 -p1
 # %patch10 -p1
@@ -619,8 +626,6 @@ install -m 0644 %{SOURCE3} $RPM_BUILD_ROOT/etc/my.cnf
 # 5.1.32 forgets to install the mysql-test README file
 # obsolete: install -m 0644 mysql-test/README $RPM_BUILD_ROOT%{_datadir}/mysql-test/README  # 'README' is there already
 
-mv ${RPM_BUILD_ROOT}%{_bindir}/mysqlbug ${RPM_BUILD_ROOT}%{_libdir}/mysql/mysqlbug
-install -m 0755 scriptstub ${RPM_BUILD_ROOT}%{_bindir}/mysqlbug
 mv ${RPM_BUILD_ROOT}%{_bindir}/mysql_config ${RPM_BUILD_ROOT}%{_libdir}/mysql/mysql_config
 install -m 0755 scriptstub ${RPM_BUILD_ROOT}%{_bindir}/mysql_config
 
@@ -658,6 +663,7 @@ rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/ChangeLog
 rm -fr ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris/
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-stress-test.pl.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-test-run.pl.1*
+rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysqlbug.1*
 
 mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d
 echo "%{_libdir}/mysql" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/%{name}-%{_arch}.conf
@@ -782,13 +788,9 @@ fi
 # The below file *only* applies to builds not done by MySQL / Sun / Oracle:
 # %doc README.mysql-docs
 
-%{_bindir}/msql2mysql
 %{_bindir}/mysql
 %{_bindir}/mysql_config
-%{_bindir}/mysql_find_rows
 %{_bindir}/mysql_waitpid
-%{_bindir}/mysqlaccess
-%{_bindir}/mysqlaccess.conf
 %{_bindir}/mysqladmin
 %{_bindir}/mysqlbinlog
 %{_bindir}/mysqlcheck
@@ -801,9 +803,7 @@ fi
 
 %{_mandir}/man1/mysql.1*
 %{_mandir}/man1/mysql_config.1*
-%{_mandir}/man1/mysql_find_rows.1*
 %{_mandir}/man1/mysql_waitpid.1*
-%{_mandir}/man1/mysqlaccess.1*
 %{_mandir}/man1/mysqladmin.1*
 %{_mandir}/man1/mysqldump.1*
 %{_mandir}/man1/mysqlshow.1*
@@ -811,7 +811,6 @@ fi
 %{_mandir}/man1/my_print_defaults.1*
 %{_mandir}/man1/mysql_config_editor.1*
 
-%{_libdir}/mysql/mysqlbug
 %{_libdir}/mysql/mysql_config
 
 %files -n mysql-libs%{product_suffix}
@@ -863,19 +862,12 @@ fi
 %{_bindir}/myisam_ftdump
 %{_bindir}/myisamlog
 %{_bindir}/myisampack
-%{_bindir}/mysql_convert_table_format
-%{_bindir}/mysql_fix_extensions
 %{_bindir}/mysql_install_db
 %{_bindir}/mysql_plugin
 %{_bindir}/mysql_secure_installation
-%if %{commercial}
-%else
-%{_bindir}/mysql_setpermission
-%endif
 %{_bindir}/mysql_tzinfo_to_sql
 %{_bindir}/mysql_upgrade
 %{_bindir}/mysql_zap
-%{_bindir}/mysqlbug
 %{_bindir}/mysqldumpslow
 %{_bindir}/mysqld_multi
 %{_bindir}/mysqld_safe
@@ -898,20 +890,16 @@ fi
 # obsolete by "-f release/support-files/plugins.files" above
 # %{_libdir}/mysql/plugin
 
-%{_mandir}/man1/msql2mysql.1*
 %{_mandir}/man1/myisamchk.1*
 %{_mandir}/man1/myisamlog.1*
 %{_mandir}/man1/myisampack.1*
-%{_mandir}/man1/mysql_convert_table_format.1*
 %{_mandir}/man1/myisam_ftdump.1*
 %{_mandir}/man1/mysql.server.1*
-%{_mandir}/man1/mysql_fix_extensions.1*
 %{_mandir}/man1/mysql_install_db.1*
 %{_mandir}/man1/mysql_plugin.1*
 %{_mandir}/man1/mysql_secure_installation.1*
 %{_mandir}/man1/mysql_upgrade.1*
 %{_mandir}/man1/mysql_zap.1*
-%{_mandir}/man1/mysqlbug.1*
 %{_mandir}/man1/mysqldumpslow.1*
 %{_mandir}/man1/mysqlbinlog.1*
 %{_mandir}/man1/mysqlcheck.1*
@@ -920,10 +908,6 @@ fi
 %{_mandir}/man1/mysqlhotcopy.1*
 %{_mandir}/man1/mysqlimport.1*
 %{_mandir}/man1/mysqlman.1*
-%if %{commercial}
-%else
-%{_mandir}/man1/mysql_setpermission.1*
-%endif
 %{_mandir}/man1/mysqltest.1*
 %{_mandir}/man1/innochecksum.1*
 %{_mandir}/man1/perror.1*
@@ -979,6 +963,11 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Mon Jul  8 2013 Tor Didriksen <tor.didriksen@oracle.com>
+- Fix Bug#35019 Use pthread_attr_getguardsize for better robustness
+  of stack thread sizes
+- Remove Patch6: mysql-5.6-stack-guard.patch
+
 * Mon Dec 10 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - Replace old my-*.cnf config file examples with template my-default.cnf
 - Handle several files for packaging which are new in 5.6 (compared to 5.5).

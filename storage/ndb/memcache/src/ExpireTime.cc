@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011 Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -22,6 +22,8 @@
 
 #include "memcached/types.h"
 #include "memcached/server_api.h"
+
+#include <NdbApi.hpp>
 
 #include "ExpireTime.h"
 #include "Operation.h"
@@ -47,6 +49,10 @@ ExpireTime::ExpireTime(workitem *i) :
 }
 
 
+/*  stored_item_has_expired() 
+    If the timestamp is a MySQL 5.6 fractional-second timestamp,
+    only the integer part is considered.
+*/
 bool ExpireTime::stored_item_has_expired(Operation &op) {  
   SERVER_CORE_API * SERVER = item->pipeline->engine->server.core;
   time_t stored_exptime;

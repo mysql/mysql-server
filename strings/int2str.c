@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,7 +91,6 @@ int2str(long int val, char *dst, int radix,
   new_val= uval / (ulong) radix;
   *--p = dig_vec[(uchar) (uval- (ulong) new_val*(ulong) radix)];
   val = new_val;
-#ifdef HAVE_LDIV
   while (val != 0)
   {
     ldiv_t res;
@@ -99,14 +98,6 @@ int2str(long int val, char *dst, int radix,
     *--p = dig_vec[res.rem];
     val= res.quot;
   }
-#else
-  while (val != 0)
-  {
-    new_val=val/radix;
-    *--p = dig_vec[(uchar) (val-new_val*radix)];
-    val= new_val;
-  }
-#endif
   while ((*dst++ = *p++) != 0) ;
   return dst-1;
 }

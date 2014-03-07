@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 
 #include "mysys_priv.h"
 
-#ifdef __WIN__
+#ifdef _WIN32
 
 
 /* Windows console handling */
@@ -298,4 +298,4 @@ my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc, char ***ar
   return 0;
 }
 
-#endif /* __WIN__ */
+#endif /* _WIN32 */

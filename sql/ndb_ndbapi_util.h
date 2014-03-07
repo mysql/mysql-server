@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,10 +30,6 @@ union NdbValue
   NdbBlob *blob;
   void *ptr;
 };
-
-int get_ndb_blobs_value(struct TABLE* table, NdbValue* value_array,
-                        uchar*& buffer, uint& buffer_size,
-                        my_ptrdiff_t ptrdiff);
 
 char *ndb_pack_varchar(const NdbDictionary::Column *col,
                        char *buf, const char *str, int sz);

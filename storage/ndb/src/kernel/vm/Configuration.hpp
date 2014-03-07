@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,9 @@
 #include <util/SparseBitmask.hpp>
 #include <util/UtilBuffer.hpp>
 #include "mt_thr_config.hpp"
+
+#define JAM_FILE_ID 276
+
 
 enum ThreadTypes
 {
@@ -171,5 +174,8 @@ const char *
 Configuration::backupFilePath() const {
   return _backupPath;
 }
+
+
+#undef JAM_FILE_ID
 
 #endif

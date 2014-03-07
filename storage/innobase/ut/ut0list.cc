@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,15 +30,15 @@ Created 4/26/2006 Osku Salerma
 
 /****************************************************************//**
 Create a new list.
-@return	list */
-UNIV_INTERN
+@return list */
+
 ib_list_t*
 ib_list_create(void)
 /*=================*/
 {
 	ib_list_t*	list;
 
-	list = static_cast<ib_list_t*>(mem_alloc(sizeof(*list)));
+	list = static_cast<ib_list_t*>(ut_malloc(sizeof(*list)));
 
 	list->first = NULL;
 	list->last = NULL;
@@ -50,8 +50,8 @@ ib_list_create(void)
 /****************************************************************//**
 Create a new list using the given heap. ib_list_free MUST NOT BE CALLED for
 lists created with this function.
-@return	list */
-UNIV_INTERN
+@return list */
+
 ib_list_t*
 ib_list_create_heap(
 /*================*/
@@ -70,7 +70,7 @@ ib_list_create_heap(
 
 /****************************************************************//**
 Free a list. */
-UNIV_INTERN
+
 void
 ib_list_free(
 /*=========*/
@@ -82,13 +82,13 @@ ib_list_free(
 	to e.g. have all the nodes allocated from a single heap that is then
 	freed after the list itself is freed. */
 
-	mem_free(list);
+	ut_free(list);
 }
 
 /****************************************************************//**
 Add the data to the start of the list.
-@return	new list node */
-UNIV_INTERN
+@return new list node */
+
 ib_list_node_t*
 ib_list_add_first(
 /*==============*/
@@ -101,8 +101,8 @@ ib_list_add_first(
 
 /****************************************************************//**
 Add the data to the end of the list.
-@return	new list node */
-UNIV_INTERN
+@return new list node */
+
 ib_list_node_t*
 ib_list_add_last(
 /*=============*/
@@ -115,8 +115,8 @@ ib_list_add_last(
 
 /****************************************************************//**
 Add the data after the indicated node.
-@return	new list node */
-UNIV_INTERN
+@return new list node */
+
 ib_list_node_t*
 ib_list_add_after(
 /*==============*/
@@ -172,7 +172,7 @@ ib_list_add_after(
 
 /****************************************************************//**
 Remove the node from the list. */
-UNIV_INTERN
+
 void
 ib_list_remove(
 /*===========*/

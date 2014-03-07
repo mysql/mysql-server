@@ -86,7 +86,6 @@ child	CREATE TABLE `child` (
 DELETE FROM parent where a = 1;
 SELECT * FROM child;
 a1	a2
-1	NULL
 2	3
 10	20
 SET foreign_key_checks = 0;
@@ -144,10 +143,10 @@ ALTER TABLE `#child` ADD CONSTRAINT fk_40 FOREIGN KEY (a1, a2)
 REFERENCES `#parent`(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_40' in the foreign table '#child'
-SET DEBUG = '-d,innodb_test_no_foreign_idx';
 SHOW ERRORS;
 Level	Code	Message
 Error	1821	Failed to add the foreign key constaint. Missing index for constraint 'fk_40' in the foreign table '#child'
+SET DEBUG = '-d,innodb_test_no_foreign_idx';
 SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -171,10 +170,10 @@ ALTER TABLE child ADD CONSTRAINT fk_42 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_42' in the referenced table 'parent'
-SET DEBUG = '-d,innodb_test_no_reference_idx';
 SHOW ERRORS;
 Level	Code	Message
 Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk_42' in the referenced table 'parent'
+SET DEBUG = '-d,innodb_test_no_reference_idx';
 SET DEBUG = '+d,innodb_test_wrong_fk_option';
 ALTER TABLE child ADD CONSTRAINT fk_42 FOREIGN KEY (a1, a2)
 REFERENCES parent(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -204,10 +203,10 @@ ALTER TABLE `#child` ADD CONSTRAINT fk_43 FOREIGN KEY (a1, a2)
 REFERENCES `#parent`(a, b) ON DELETE CASCADE ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 ERROR HY000: Failed to add the foreign key constraint 'test/fk_43' to system tables
-SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 SHOW ERRORS;
 Level	Code	Message
 Error	1823	Failed to add the foreign key constraint 'test/fk_43' to system tables
+SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 DROP TABLE `#child`;
 DROP TABLE `#parent`;
 SET foreign_key_checks = 0;
@@ -286,11 +285,6 @@ ALTER TABLE child CHANGE a2 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=COPY.
-ALTER TABLE child CHANGE a2 a3 int;
-ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
-ON DELETE SET NULL ON UPDATE CASCADE,
-ALGORITHM = INPLACE;
 DROP TABLE child;
 DROP TABLE parent;
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
@@ -305,7 +299,7 @@ ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=COPY.
+ERROR HY000: Failed to add the foreign key constraint 'test/fk_1' to system tables
 SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
@@ -332,11 +326,6 @@ ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=COPY.
-ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
-ALGORITHM = INPLACE;
-ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
-ON DELETE SET NULL ON UPDATE CASCADE, ALGORITHM = INPLACE;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -363,7 +352,7 @@ test/parent
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a3` int(11) NOT NULL DEFAULT '0',
+  `a3` int(11) NOT NULL,
   `a2` int(11) DEFAULT NULL,
   PRIMARY KEY (`a3`),
   KEY `tb` (`a2`),
@@ -413,11 +402,6 @@ ALTER TABLE child CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=COPY.
-ALTER TABLE child CHANGE a1 a3 INT,
-ALGORITHM = INPLACE;
-ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
-ON DELETE SET NULL ON UPDATE CASCADE, ALGORITHM=INPLACE;
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/fk_1	test/child	test/parent	1	6
@@ -455,7 +439,7 @@ ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=COPY.
+ERROR HY000: Failed to add the foreign key constraint on table 'child'. Incorrect options in FOREIGN KEY constraint 'test/fk_1'
 DROP TABLE parent;
 DROP TABLE child;
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL, c INT) ENGINE = InnoDB;

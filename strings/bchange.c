@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2001, 2006, 2007 MySQL AB
-   Use is subject to license terms.
+/*
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,10 +30,6 @@
 void bchange(uchar *dst, size_t old_length, const uchar *src,
 	     size_t new_length, size_t tot_length)
 {
-  size_t rest=tot_length-old_length;
-  if (old_length < new_length)
-    bmove_upp(dst+rest+new_length,dst+tot_length,rest);
-  else
-    bmove(dst+new_length,dst+old_length,rest);
+  memmove(dst + new_length, dst + old_length, tot_length - old_length);
   memcpy(dst,src,new_length);
 }

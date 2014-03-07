@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -73,4 +73,10 @@ void ndbmc_debug_enter(const char *func) {
   else
     fprintf(debug_outfile, "main --> %s()\n", func);
 }
+
+
+void ndbmc_debug_flush() {
+  fflush(debug_outfile);
+}
+
 

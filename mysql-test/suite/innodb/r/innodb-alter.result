@@ -163,7 +163,7 @@ test/t1	test/t3
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) NOT NULL DEFAULT '0',
+  `c1` int(11) NOT NULL,
   `c3` int(11) DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
@@ -189,7 +189,7 @@ ALTER TABLE t3 CHANGE c3
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) NOT NULL DEFAULT '0',
+  `c1` int(11) NOT NULL,
   `1234567890123456789012345678901234567890123456789012345678901234` int(11) DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
@@ -222,7 +222,7 @@ test/t1	test/t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL DEFAULT '0',
+  `c1` int(11) NOT NULL,
   `c3` int(11) DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
@@ -434,7 +434,7 @@ ID	FOR_COL_NAME	REF_COL_NAME	POS
 SHOW CREATE TABLE tt;
 Table	Create Table
 tt	CREATE TABLE `tt` (
-  `pk` int(11) NOT NULL DEFAULT '0',
+  `pk` int(11) NOT NULL,
   `c2` int(11) DEFAULT '42',
   `ct` text,
   PRIMARY KEY (`pk`),
@@ -514,7 +514,7 @@ ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1n;
 Table	Create Table
 t1n	CREATE TABLE `t1n` (
-  `c2` int(11) NOT NULL DEFAULT '0',
+  `c2` int(11) NOT NULL,
   `ct` int(11) DEFAULT NULL,
   `c1` text,
   `cu` text,
@@ -527,7 +527,7 @@ ALGORITHM=COPY;
 SHOW CREATE TABLE t1n;
 Table	Create Table
 t1n	CREATE TABLE `t1n` (
-  `c1` int(11) NOT NULL DEFAULT '0',
+  `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `ct` text,
   `cu` text,
@@ -543,7 +543,7 @@ ALTER TABLE t1n ADD INDEX(c4), CHANGE c2 c4 INT, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1n;
 Table	Create Table
 t1n	CREATE TABLE `t1n` (
-  `c1` int(11) NOT NULL DEFAULT '0',
+  `c1` int(11) NOT NULL,
   `c4` int(11) DEFAULT NULL,
   `ct` text,
   `cu` text,
@@ -559,7 +559,7 @@ ALTER TABLE t1n CHANGE c4 c11 INT, ADD INDEX(c11), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1n;
 Table	Create Table
 t1n	CREATE TABLE `t1n` (
-  `c1` int(11) NOT NULL DEFAULT '0',
+  `c1` int(11) NOT NULL,
   `c11` int(11) DEFAULT NULL,
   `ct` text,
   `cu` text,

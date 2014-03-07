@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,8 @@
 using std::min;
 using std::max;
 
+PSI_memory_key key_memory_log_event_old;
+
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
 // Old implementation of do_apply_event()
@@ -49,12 +51,14 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
   uchar const *row_start= ev->m_rows_buf;
 
   /*
-    If m_table_id == ~0UL, then we have a dummy event that does not
-    contain any data.  In that case, we just remove all tables in the
+    If m_table_id == ~0U or max 6 Bytes integer, then we have a dummy event that
+    does not contain any data.  In that case, we just remove all tables in the
     tables_to_lock list, close the thread tables, and return with
     success.
    */
-  if (ev->m_table_id == ~0UL)
+  if ((ev->m_table_id.id() == ~0U || ev->m_table_id.id() == (~0ULL >> 16)) &&
+      ev->m_cols.n_bits == 1 && ev->m_cols.bitmap[0] == 0)
+
   {
     /*
        This one is supposed to be set: just an extra check so that
@@ -168,9 +172,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     TABLE_LIST *ptr= rli->tables_to_lock;
     for (uint i=0; ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
-#ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
-#endif
   }
 
   TABLE* table= const_cast<Relay_log_info*>(rli)->m_table_map.get_table(ev->m_table_id);
@@ -556,6 +558,20 @@ replace_record(THD *thd, TABLE *table,
     }
 
     /*
+      key index value is either valid in the range [0-MAX_KEY) or
+      has value MAX_KEY as a marker for the case when no information
+      about key can be found. In the last case we have to require
+      that storage engine has the flag HA_DUPLICATE_POS turned on.
+      If this invariant is false then DBUG_ASSERT will crash
+      the server built in debug mode. For the server that was built
+      without DEBUG we have additional check for the value of key index
+      in the code below in order to report about error in any case.
+    */
+    DBUG_ASSERT(keynum != MAX_KEY ||
+                (keynum == MAX_KEY &&
+                 (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
+
+    /*
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
 
@@ -591,12 +607,22 @@ replace_record(THD *thd, TABLE *table,
           DBUG_RETURN(ENOMEM);
       }
 
-      key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
-               0);
-      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                (const uchar*)key.get(),
-                                                HA_WHOLE_KEY,
-                                                HA_READ_KEY_EXACT);
+      if ((uint)keynum < MAX_KEY)
+      {
+        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+                 0);
+        error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                  (const uchar*)key.get(),
+                                                  HA_WHOLE_KEY,
+                                                  HA_READ_KEY_EXACT);
+      }
+      else
+        /*
+          For the server built in non-debug mode returns error if
+          handler::get_dup_key() returned MAX_KEY as the value of key index.
+        */
+        error= HA_ERR_FOUND_DUPP_KEY;
+
       if (error)
       {
         DBUG_PRINT("info", ("ha_index_read_idx_map() returns error %d", error));
@@ -737,14 +763,8 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       DBUG_RETURN(error);
     }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
     DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
     DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
-#endif
 
     /*
       We need to set the null bytes to ensure that the filler bit are
@@ -763,14 +783,8 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       DBUG_RETURN(error);
     }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
     DBUG_DUMP("table->record[0]", table->record[0], table->s->reclength);
     DBUG_DUMP("table->record[1]", table->record[1], table->s->reclength);
-#endif
     /*
       Below is a minor "optimization".  If the key (i.e., key number
       0) has the HA_NOSAME flag set, we know that we have found the
@@ -1011,7 +1025,8 @@ int Delete_rows_log_event_old::do_before_row_operations(TABLE *table)
 
   if (table->s->keys > 0)
   {
-    m_memory= (uchar*) my_multi_malloc(MYF(MY_WME),
+    m_memory= (uchar*) my_multi_malloc(key_memory_log_event_old,
+                                       MYF(MY_WME),
                                        &m_after_image,
                                        (uint) table->s->reclength,
                                        &m_key,
@@ -1020,7 +1035,8 @@ int Delete_rows_log_event_old::do_before_row_operations(TABLE *table)
   }
   else
   {
-    m_after_image= (uchar*) my_malloc(table->s->reclength, MYF(MY_WME));
+    m_after_image= (uchar*) my_malloc(key_memory_log_event_old,
+                                      table->s->reclength, MYF(MY_WME));
     m_memory= (uchar*)m_after_image;
     m_key= NULL;
   }
@@ -1108,7 +1124,8 @@ int Update_rows_log_event_old::do_before_row_operations(TABLE *table)
 
   if (table->s->keys > 0)
   {
-    m_memory= (uchar*) my_multi_malloc(MYF(MY_WME),
+    m_memory= (uchar*) my_multi_malloc(key_memory_log_event_old,
+                                       MYF(MY_WME),
                                        &m_after_image,
                                        (uint) table->s->reclength,
                                        &m_key,
@@ -1117,7 +1134,8 @@ int Update_rows_log_event_old::do_before_row_operations(TABLE *table)
   }
   else
   {
-    m_after_image= (uchar*) my_malloc(table->s->reclength, MYF(MY_WME));
+    m_after_image= (uchar*) my_malloc(key_memory_log_event_old,
+                                      table->s->reclength, MYF(MY_WME));
     m_memory= m_after_image;
     m_key= NULL;
   }
@@ -1353,11 +1371,12 @@ Old_rows_log_event::Old_rows_log_event(const char *buf, uint event_len,
 
   const uchar* const ptr_rows_data= (const uchar*) ptr_after_width;
   size_t const data_size= event_len - (ptr_rows_data - (const uchar *) buf);
-  DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %lu",
-                     m_table_id, m_flags, m_width, (ulong) data_size));
+  DBUG_PRINT("info",("m_table_id: %llu  m_flags: %d  m_width: %lu  data_size: %lu",
+                     m_table_id.id(), m_flags, m_width, (ulong) data_size));
   DBUG_DUMP("rows_data", (uchar*) ptr_rows_data, data_size);
 
-  m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
+  m_rows_buf= (uchar*) my_malloc(key_memory_log_event_old,
+                                 data_size, MYF(MY_WME));
   if (likely((bool)m_rows_buf))
   {
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -1411,13 +1430,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
   DBUG_ENTER("Old_rows_log_event::do_add_row_data");
   DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
                        (ulong) length));
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
   DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
-#endif
 
   DBUG_ASSERT(m_rows_buf <= m_rows_cur);
   DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
@@ -1431,7 +1444,8 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     my_ptrdiff_t const new_alloc= 
         block_size * ((cur_size + length + block_size - 1) / block_size);
 
-    uchar* const new_buf= (uchar*)my_realloc((uchar*)m_rows_buf, (uint) new_alloc,
+    uchar* const new_buf= (uchar*)my_realloc(key_memory_log_event_old,
+                                             (uchar*)m_rows_buf, (uint) new_alloc,
                                            MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -1466,12 +1480,13 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
   int error= 0;
 
   /*
-    If m_table_id == ~0UL, then we have a dummy event that does not
-    contain any data.  In that case, we just remove all tables in the
+    If m_table_id == ~0U or max 6 Bytes integer, then we have a dummy event that
+    does not contain any data.  In that case, we just remove all tables in the
     tables_to_lock list, close the thread tables, and return with
     success.
    */
-  if (m_table_id == ~0UL)
+  if ((m_table_id.id() == ~0U || m_table_id.id() == (~0ULL >> 16)) &&
+      m_cols.n_bits == 1 && m_cols.bitmap[0] == 0)
   {
     /*
        This one is supposed to be set: just an extra check so that
@@ -1578,9 +1593,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     {
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
     }
-#ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
-#endif
   }
 
   TABLE* 
@@ -1800,7 +1813,10 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       Xid_log_event will come next which will, if some transactional engines
       are involved, commit the transaction and flush the pending event to the
       binlog.
+      If there was a deadlock the transaction should have been rolled back
+      already. So there should be no need to rollback the transaction.
     */
+    DBUG_ASSERT(! thd->transaction_rollback_request);
     if ((error= (binlog_error ? trans_rollback_stmt(thd) : trans_commit_stmt(thd))))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
@@ -1880,21 +1896,9 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 bool Old_rows_log_event::write_data_header(IO_CACHE *file)
 {
-  uchar buf[ROWS_HEADER_LEN];	// No need to init the buffer
-
   // This method should not be reached.
   assert(0);
-
-  DBUG_ASSERT(m_table_id != ~0UL);
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                  {
-                    int4store(buf + 0, m_table_id);
-                    int2store(buf + 4, m_flags);
-                    return (my_b_safe_write(file, buf, 6));
-                  });
-  int6store(buf + RW_MAPID_OFFSET, (ulonglong)m_table_id);
-  int2store(buf + RW_FLAGS_OFFSET, m_flags);
-  return (my_b_safe_write(file, buf, ROWS_HEADER_LEN));
+  return TRUE;
 }
 
 
@@ -1936,7 +1940,7 @@ int Old_rows_log_event::pack_info(Protocol *protocol)
   char const *const flagstr=
     get_flags(STMT_END_F) ? " flags: STMT_END_F" : "";
   size_t bytes= my_snprintf(buf, sizeof(buf),
-                               "table_id: %lu%s", m_table_id, flagstr);
+                            "table_id: %llu%s", m_table_id.id(), flagstr);
   protocol->store(buf, bytes, &my_charset_bin);
   return 0;
 }
@@ -1954,8 +1958,8 @@ void Old_rows_log_event::print_helper(FILE *file,
   {
     bool const last_stmt_event= get_flags(STMT_END_F);
     print_header(head, print_event_info, !last_stmt_event);
-    my_b_printf(head, "\t%s: table id %lu%s\n",
-                name, m_table_id,
+    my_b_printf(head, "\t%s: table id %llu%s\n",
+                name, m_table_id.id(),
                 last_stmt_event ? " flags: STMT_END_F" : "");
     print_base64(body, print_event_info, !last_stmt_event);
   }
@@ -2052,7 +2056,19 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
       */
       DBUG_RETURN(error);
     }
-
+    /*
+      key index value is either valid in the range [0-MAX_KEY) or
+      has value MAX_KEY as a marker for the case when no information
+      about key can be found. In the last case we have to require
+      that storage engine has the flag HA_DUPLICATE_POS turned on.
+      If this invariant is false then DBUG_ASSERT will crash
+      the server built in debug mode. For the server that was built
+      without DEBUG we have additional check for the value of key index
+      in the code below in order to report about error in any case.
+    */
+    DBUG_ASSERT(keynum != MAX_KEY ||
+                (keynum == MAX_KEY &&
+                 (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
     /*
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
@@ -2096,12 +2112,22 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
         }
       }
 
-      key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
-               0);
-      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                (const uchar*)key.get(),
-                                                HA_WHOLE_KEY,
-                                                HA_READ_KEY_EXACT);
+      if ((uint)keynum < MAX_KEY)
+      {
+        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+                 0);
+        error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                  (const uchar*)key.get(),
+                                                  HA_WHOLE_KEY,
+                                                  HA_READ_KEY_EXACT);
+      }
+      else
+        /*
+          For the server built in non-debug mode returns error if
+          handler::get_dup_key() returned MAX_KEY as the value of key index.
+        */
+        error= HA_ERR_FOUND_DUPP_KEY;
+
       if (error)
       {
         DBUG_PRINT("info",("ha_index_read_idx_map() returns error %d", error));
@@ -2300,13 +2326,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
     DBUG_ASSERT(m_key);
     key_copy(m_key, table->record[0], table->key_info, 0);
 
-    /*
-      Don't print debug messages when running valgrind since they can
-      trigger false warnings.
-     */
-#ifndef HAVE_purify
     DBUG_DUMP("key data", m_key, table->key_info->key_length);
-#endif
 
     /*
       We need to set the null bytes to ensure that the filler bit are
@@ -2330,14 +2350,8 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_RETURN(error);
     }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
     DBUG_PRINT("info",("found first matching record")); 
     DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-#endif
     /*
       Below is a minor "optimization".  If the key (i.e., key number
       0) has the HA_NOSAME flag set, we know that we have found the
@@ -2689,7 +2703,8 @@ Delete_rows_log_event_old::do_before_row_operations(const Slave_reporting_capabi
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches
-    m_key= (uchar*)my_malloc(m_table->key_info->key_length, MYF(MY_WME));
+    m_key= (uchar*)my_malloc(key_memory_log_event_old,
+                             m_table->key_info->key_length, MYF(MY_WME));
     if (!m_key)
       return HA_ERR_OUT_OF_MEM;
   }
@@ -2785,7 +2800,8 @@ Update_rows_log_event_old::do_before_row_operations(const Slave_reporting_capabi
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches
-    m_key= (uchar*)my_malloc(m_table->key_info->key_length, MYF(MY_WME));
+    m_key= (uchar*)my_malloc(key_memory_log_event_old,
+                             m_table->key_info->key_length, MYF(MY_WME));
     if (!m_key)
       return HA_ERR_OUT_OF_MEM;
   }
@@ -2844,15 +2860,9 @@ Update_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
     Now we have the right row to update.  The old row (the one we're
     looking for) is in record[1] and the new row is in record[0].
   */
-#ifndef HAVE_purify
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
   DBUG_PRINT("info",("Updating row in table"));
   DBUG_DUMP("old record", m_table->record[1], m_table->s->reclength);
   DBUG_DUMP("new values", m_table->record[0], m_table->s->reclength);
-#endif
 
   error= m_table->file->ha_update_row(m_table->record[1], m_table->record[0]);
   if (error == HA_ERR_RECORD_IS_THE_SAME)

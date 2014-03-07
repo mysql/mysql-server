@@ -1,6 +1,9 @@
 #
 # Test of MERGE tables with multisession and many waits.
 #
+# MERGE tables require MyISAM tables
+--source include/have_myisam.inc 
+
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
 # We use some debug-only features in this test

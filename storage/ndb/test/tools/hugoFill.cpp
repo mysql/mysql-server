@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +28,6 @@
 int main(int argc, const char** argv){
   ndb_init();
 
-  int _records = 0;
   const char* _tabname = NULL;
   int _help = 0;
   int _batch = 512;

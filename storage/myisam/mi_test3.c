@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -361,7 +361,7 @@ int test_write(MI_INFO *file,int id,int lock_type)
   }
 
   sprintf((char*) record.id,"%7d",getpid());
-  strnmov((char*) record.text,"Testing...", sizeof(record.text));
+  my_stpnmov((char*) record.text,"Testing...", sizeof(record.text));
 
   tries=(uint) rnd(100)+10;
   for (i=count=0 ; i < tries ; i++)
@@ -417,7 +417,7 @@ int test_update(MI_INFO *file,int id,int lock_type)
     }
   }
   memset(&new_record, 0, sizeof(new_record));
-  strmov((char*) new_record.text,"Updated");
+  my_stpcpy((char*) new_record.text,"Updated");
 
   found=next=prev=update=0;
   for (i=0 ; i < 100 ; i++)

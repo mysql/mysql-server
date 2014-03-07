@@ -414,7 +414,17 @@ while ($server <= $n_servers)
 --let $server= 1
 while ($server <= $n_servers)
 {
+  --connection default
   eval DROP DATABASE db_$server;
+
+  # restoring the AUTO_POSITION 
+  --connection server_$server
+  --let $include_silent=1
+  --source include/stop_slave.inc
+  CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+  --source include/start_slave.inc
+  --let $include_silent=0
+
   --inc $server
 }
 

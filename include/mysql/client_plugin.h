@@ -1,5 +1,5 @@
 #ifndef MYSQL_CLIENT_PLUGIN_INCLUDED
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,14 +28,48 @@
 #include <stdlib.h>
 #endif
 
+/*
+  On Windows, exports from DLL need to be declared.
+  Also, plugin needs to be declared as extern "C" because MSVC
+  unlike other compilers, uses C++ mangling for variables not only
+  for functions.
+*/
+
+#undef MYSQL_PLUGIN_EXPORT
+
+#if defined(_MSC_VER)
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+  #ifdef __cplusplus
+    #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
+  #else
+    #define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
+  #endif
+#else /* MYSQL_DYNAMIC_PLUGIN */
+  #ifdef __cplusplus
+    #define  MYSQL_PLUGIN_EXPORT extern "C"
+  #else
+    #define MYSQL_PLUGIN_EXPORT
+  #endif
+#endif /*MYSQL_DYNAMIC_PLUGIN */
+#else /*_MSC_VER */
+#define MYSQL_PLUGIN_EXPORT
+#endif
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* known plugin types */
 #define MYSQL_CLIENT_reserved1               0
 #define MYSQL_CLIENT_reserved2               1
 #define MYSQL_CLIENT_AUTHENTICATION_PLUGIN   2
+#define MYSQL_CLIENT_TRACE_PLUGIN            3
 
 #define MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION  0x0100
+#define MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION           0x0100
 
-#define MYSQL_CLIENT_MAX_PLUGINS             3
+#define MYSQL_CLIENT_MAX_PLUGINS             4
 
 #define mysql_declare_client_plugin(X)          \
      MYSQL_PLUGIN_EXPORT struct st_mysql_client_plugin_ ## X        \
@@ -158,5 +192,11 @@ mysql_client_register_plugin(struct st_mysql *mysql,
 **/
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
+
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
 

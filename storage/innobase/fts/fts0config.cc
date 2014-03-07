@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@ Created 2007/5/9 Sunny Bains
 
 #include "fts0priv.h"
 
-#ifndef UNIV_NONINL
+#ifdef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
 #endif
@@ -69,7 +69,7 @@ fts_config_fetch_value(
 Get value from the config table. The caller must ensure that enough
 space is allocated for value to hold the column contents.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_get_value(
 /*=================*/
@@ -85,6 +85,7 @@ fts_config_get_value(
 	que_t*		graph;
 	dberr_t		error;
 	ulint		name_len = strlen(name);
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	info = pars_info_create();
 
@@ -100,12 +101,14 @@ fts_config_get_value(
 	pars_info_bind_varchar_literal(info, "name", (byte*) name, name_len);
 
 	fts_table->suffix = "CONFIG";
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
 
 	graph = fts_parse_sql(
 		fts_table,
 		info,
 		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT value FROM %s"
+		"DECLARE CURSOR c IS SELECT value FROM $table_name"
 		" WHERE key = :name;\n"
 		"BEGIN\n"
 		""
@@ -132,7 +135,7 @@ fts_config_get_value(
 /*********************************************************************//**
 Create the config table name for retrieving index specific value.
 @return index config parameter name */
-UNIV_INTERN
+
 char*
 fts_config_create_index_param_name(
 /*===============================*/
@@ -148,10 +151,12 @@ fts_config_create_index_param_name(
 	/* Caller is responsible for deleting name. */
 	name = static_cast<char*>(ut_malloc(
 		len + FTS_AUX_MIN_TABLE_ID_LENGTH + 2));
-	strcpy(name, param);
+	::strcpy(name, param);
 	name[len] = '_';
 
-	fts_write_object_id(index->id, name + len + 1);
+	fts_write_object_id(index->id, name + len + 1,
+			    DICT_TF2_FLAG_IS_SET(index->table,
+						 DICT_TF2_FTS_AUX_HEX_NAME));
 
 	return(name);
 }
@@ -161,7 +166,7 @@ Get value specific to an FTS index from the config table. The caller
 must ensure that enough space is allocated for value to hold the
 column contents.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_get_index_value(
 /*=======================*/
@@ -192,7 +197,7 @@ fts_config_get_index_value(
 /******************************************************************//**
 Set the value in the config table for name.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_set_value(
 /*=================*/
@@ -210,6 +215,7 @@ fts_config_set_value(
 	undo_no_t	undo_no;
 	undo_no_t	n_rows_updated;
 	ulint		name_len = strlen(name);
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	info = pars_info_create();
 
@@ -218,10 +224,13 @@ fts_config_set_value(
 				       value->f_str, value->f_len);
 
 	fts_table->suffix = "CONFIG";
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
 
 	graph = fts_parse_sql(
 		fts_table, info,
-		"BEGIN UPDATE %s SET value = :value WHERE key = :name;");
+		"BEGIN UPDATE $table_name SET value = :value"
+		" WHERE key = :name;");
 
 	trx->op_info = "setting FTS config value";
 
@@ -243,10 +252,13 @@ fts_config_set_value(
 		pars_info_bind_varchar_literal(
 			info, "value", value->f_str, value->f_len);
 
+		fts_get_table_name(fts_table, table_name);
+		pars_info_bind_id(info, true, "table_name", table_name);
+
 		graph = fts_parse_sql(
 			fts_table, info,
 			"BEGIN\n"
-			"INSERT INTO %s VALUES(:name, :value);");
+			"INSERT INTO $table_name VALUES(:name, :value);");
 
 		trx->op_info = "inserting FTS config value";
 
@@ -261,7 +273,7 @@ fts_config_set_value(
 /******************************************************************//**
 Set the value specific to an FTS index in the config table.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_set_index_value(
 /*=======================*/
@@ -292,7 +304,7 @@ fts_config_set_index_value(
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_get_index_ulint(
 /*=======================*/
@@ -312,9 +324,8 @@ fts_config_get_index_ulint(
 	error = fts_config_get_index_value(trx, index, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ut_print_timestamp(stderr);
 
-		fprintf(stderr, "  InnoDB: Error: (%s) reading `%s'\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) reading `%s'",
 			ut_strerr(error), name);
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
@@ -328,7 +339,7 @@ fts_config_get_index_ulint(
 /******************************************************************//**
 Set an ulint value in the config table.
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_set_index_ulint(
 /*=======================*/
@@ -354,9 +365,8 @@ fts_config_set_index_ulint(
 	error = fts_config_set_index_value(trx, index, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ut_print_timestamp(stderr);
 
-		fprintf(stderr, "  InnoDB: Error: (%s) writing `%s'\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) writing `%s'",
 			ut_strerr(error), name);
 	}
 
@@ -368,7 +378,7 @@ fts_config_set_index_ulint(
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_get_ulint(
 /*=================*/
@@ -389,9 +399,7 @@ fts_config_get_ulint(
 	error = fts_config_get_value(trx, fts_table, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr, "  InnoDB: Error: (%s) reading `%s'\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) reading `%s'",
 			ut_strerr(error), name);
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
@@ -405,7 +413,7 @@ fts_config_get_ulint(
 /******************************************************************//**
 Set an ulint value in the config table.
 @return DB_SUCCESS if all OK else error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_set_ulint(
 /*=================*/
@@ -432,9 +440,7 @@ fts_config_set_ulint(
 	error = fts_config_set_value(trx, fts_table, name, &value);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr, "  InnoDB: Error: (%s) writing `%s'\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) writing `%s'",
 			ut_strerr(error), name);
 	}
 
@@ -446,7 +452,7 @@ fts_config_set_ulint(
 /******************************************************************//**
 Increment the value in the config table for column name.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_increment_value(
 /*=======================*/
@@ -463,6 +469,7 @@ fts_config_increment_value(
 	que_t*		graph = NULL;
 	ulint		name_len = strlen(name);
 	pars_info_t*	info = pars_info_create();
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	/* We set the length of value to the max bytes it can hold. This
 	information is used by the callback that reads the value.*/
@@ -477,11 +484,13 @@ fts_config_increment_value(
 		info, "my_func", fts_config_fetch_value, &value);
 
 	fts_table->suffix = "CONFIG";
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "config_table", table_name);
 
 	graph = fts_parse_sql(
 		fts_table, info,
 		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT value FROM %s"
+		"DECLARE CURSOR c IS SELECT value FROM $config_table"
 		" WHERE key = :name FOR UPDATE;\n"
 		"BEGIN\n"
 		""
@@ -518,10 +527,8 @@ fts_config_increment_value(
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr, "  InnoDB: Error: (%s) "
-			"while incrementing %s.\n", ut_strerr(error), name);
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) while incrementing %s.",
+			ut_strerr(error), name);
 	}
 
 	ut_free(value.f_str);
@@ -532,7 +539,7 @@ fts_config_increment_value(
 /******************************************************************//**
 Increment the per index value in the config table for column name.
 @return DB_SUCCESS or error code */
-UNIV_INTERN
+
 dberr_t
 fts_config_increment_index_value(
 /*=============================*/

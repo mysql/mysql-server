@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,11 +28,10 @@
 #include "strfunc.h"      // find_set_from_flags, find_set
 #include "sql_parse.h"    // check_global_access
 #include "sql_table.h"  // reassign_keycache_tables
-#include "sql_time.h"   // date_time_format_copy,
-                        // date_time_format_make
+#include "sql_time.h"   // date_time_format_copy
 #include "derror.h"
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
-#include "sql_acl.h"    // SUPER_ACL
+#include "auth_common.h"  // SUPER_ACL
 #include "sql_select.h" // free_underlaid_joins
 #include "sql_show.h"   // make_default_log_name, append_identifier
 #include "sql_view.h"   // updatable_views_with_limit_typelib
@@ -73,7 +72,7 @@ int sys_var_init()
   DBUG_RETURN(0);
 
 error:
-  fprintf(stderr, "failed to initialize System variables");
+  my_message_local(ERROR_LEVEL, "failed to initialize system variables");
   DBUG_RETURN(1);
 }
 
@@ -90,7 +89,7 @@ int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags)
   DBUG_RETURN(0);
 
 error:
-  fprintf(stderr, "failed to initialize System variables");
+  my_message_local(ERROR_LEVEL, "failed to initialize system variables");
   DBUG_RETURN(1);
 }
 
@@ -194,8 +193,18 @@ bool sys_var::update(THD *thd, set_var *var)
       (on_update && on_update(this, thd, OPT_GLOBAL));
   }
   else
-    return session_update(thd, var) ||
+  {
+    bool ret= session_update(thd, var) ||
       (on_update && on_update(this, thd, OPT_SESSION));
+
+    if ((!ret) &&
+        thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
+      thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&(var->var->name));
+    if ((!ret) &&
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(&var->var->name);
+    return ret;
+  }
 }
 
 uchar *sys_var::session_value_ptr(THD *thd, LEX_STRING *base)
@@ -248,17 +257,14 @@ uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
     return session_value_ptr(thd, base);
 }
 
-bool sys_var::set_default(THD *thd, enum_var_type type)
+bool sys_var::set_default(THD *thd, set_var* var)
 {
-  LEX_STRING empty={0,0};
-  set_var var(type, 0, &empty, 0);
-
-  if (type == OPT_GLOBAL || scope() == GLOBAL)
-    global_save_default(thd, &var);
+  if (var->type == OPT_GLOBAL || scope() == GLOBAL)
+    global_save_default(thd, var);
   else
-    session_save_default(thd, &var);
+    session_save_default(thd, var);
 
-  return check(thd, &var) || update(thd, &var);
+  return check(thd, var) || update(thd, var);
 }
 
 void sys_var::do_deprecated_warning(THD *thd)
@@ -409,7 +415,8 @@ int mysql_add_sys_var_chain(sys_var *first)
     /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
     if (my_hash_insert(&system_variable_hash, (uchar*) var))
     {
-      fprintf(stderr, "*** duplicate variable name '%s' ?\n", var->name.str);
+      my_message_local(ERROR_LEVEL, "duplicate variable name '%s'!?",
+                       var->name.str);
       goto error;
     }
   }
@@ -569,7 +576,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
     if ((error= var->check(thd)))
       goto err;
   }
-  if (!(error= test(thd->is_error())))
+  if (!(error= MY_TEST(thd->is_error())))
   {
     it.rewind();
     while ((var= it++))
@@ -577,7 +584,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
   }
 
 err:
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  free_underlaid_joins(thd, thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 
@@ -670,7 +677,7 @@ int set_var::light_check(THD *thd)
 */
 int set_var::update(THD *thd)
 {
-  return value ? var->update(thd, this) : var->set_default(thd, type);
+  return value ? var->update(thd, this) : var->set_default(thd, this);
 }
 
 /**
@@ -740,6 +747,8 @@ int set_var_user::update(THD *thd)
     my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY), MYF(0));
     return -1;
   }
+  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
   return 0;
 }
 
@@ -754,24 +763,33 @@ void set_var_user::print(THD *thd, String *str)
   Functions to handle SET PASSWORD
 *****************************************************************************/
 
+/**
+  Check the validity of the SET PASSWORD request
+
+  User name and no host is used for SET PASSWORD =
+  No user name and no host used for SET PASSWORD for CURRENT_USER() =
+
+  @param  thd  The current thread
+  @return      status code
+  @retval 0    failure
+  @retval 1    success
+*/
 int set_var_password::check(THD *thd)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!user->host.str)
   {
     DBUG_ASSERT(thd->security_ctx->priv_host);
-    if (*thd->security_ctx->priv_host != 0)
-    {
-      user->host.str= (char *) thd->security_ctx->priv_host;
-      user->host.length= strlen(thd->security_ctx->priv_host);
-    }
-    else
-    {
-      user->host.str= (char *)"%";
-      user->host.length= 1;
-    }
+    user->host.str= (char *) thd->security_ctx->priv_host;
+    user->host.length= strlen(thd->security_ctx->priv_host);
   }
-  if (user->user.length == 0)
+  /*
+    In case of anonymous user, user->user is set to empty string with length 0.
+    But there might be case when user->user.str could be NULL. For Ex:
+    "set password for current_user() = password('xyz');". In this case,
+    set user information as of the current user.
+  */
+  if (!user->user.str)
   {
     DBUG_ASSERT(thd->security_ctx->user);
     user->user.str= (char *) thd->security_ctx->user;
@@ -836,6 +854,22 @@ int set_var_collation_client::update(THD *thd)
   thd->variables.character_set_results= character_set_results;
   thd->variables.collation_connection= collation_connection;
   thd->update_charset();
+
+  /* Mark client collation variables as changed */
+  if (thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
+  {
+    LEX_CSTRING cs_client= {"character_set_client",
+                            sizeof("character_set_client") - 1};
+    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_client);
+    LEX_CSTRING cs_results= {"character_set_results",
+                             sizeof("character_set_results") -1};
+    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_results);
+    LEX_CSTRING cs_connection= {"character_set_connection",
+                                sizeof("character_set_connection") - 1};
+    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_connection);
+  }
+  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
   thd->protocol_text.init(thd);
   thd->protocol_binary.init(thd);
   return 0;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 #define ACC_SCAN_HPP
 
 #include "SignalData.hpp"
+
+#define JAM_FILE_ID 121
+
 
 /*
  * Used by ACC and TUX scan.
@@ -259,5 +262,8 @@ private:
   Uint32 accPtr;                // scanptr.i in ACC or TUX
   Uint32 checkLcpStop;          // from enum
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

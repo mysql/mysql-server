@@ -1,3 +1,4 @@
+
 #
 # Due to "Bug#18474  Unlistable directories yield no info from
 # information_schema, part2" this test can't be run on Window with our

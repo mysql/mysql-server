@@ -36,11 +36,15 @@ where name like "wait/synch/mutex/sql/LOCK_open";
 count(name)
 1
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_thread_count";
+where name like "wait/synch/mutex/sql/LOCK_thd_count";
 count(name)
 1
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_log_throttle_qni";
+count(name)
+1
+select count(name) from mutex_instances
+where name like "wait/synch/mutex/sql/LOCK_status";
 count(name)
 1
 select count(name) from mutex_instances
@@ -100,15 +104,11 @@ where name like "wait/synch/mutex/sql/LOCK_user_locks";
 count(name)
 1
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/Cversion_lock";
-count(name)
-1
-select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_audit_mask";
 count(name)
 1
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_xid_cache";
+where name like "wait/synch/mutex/sql/LOCK_transaction_cache";
 count(name)
 1
 select count(name) from mutex_instances
@@ -133,10 +133,6 @@ count(name)
 1
 select count(name) from rwlock_instances
 where name like "wait/synch/rwlock/sql/LOCK_system_variables_hash";
-count(name)
-1
-select count(name) from rwlock_instances
-where name like "wait/synch/rwlock/sql/LOCK_status";
 count(name)
 1
 select count(name) from cond_instances

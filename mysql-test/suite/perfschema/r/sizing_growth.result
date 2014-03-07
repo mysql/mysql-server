@@ -1,3 +1,4 @@
+create table test.t0(a int) engine = innodb;
 flush status;
 flush tables;
 select * from performance_schema.mutex_instances;
@@ -189,8 +190,13 @@ Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
 Performance_schema_locker_lost	0
+Performance_schema_memory_classes_lost	0
+Performance_schema_metadata_lock_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
+Performance_schema_nested_statement_lost	0
+Performance_schema_prepared_statements_lost	0
+Performance_schema_program_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
 Performance_schema_session_connect_attrs_lost	0
@@ -203,8 +209,8 @@ Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
-select @rwlock_per_share <= 3;
-@rwlock_per_share <= 3
+select @rwlock_per_share <= 4;
+@rwlock_per_share <= 4
 1
 select @cond_per_share;
 @cond_per_share
@@ -214,7 +220,7 @@ select @file_per_share <= 3;
 1
 select @mutex_per_con;
 @mutex_per_con
-3
+5
 select @rwlock_per_con;
 @rwlock_per_con
 1
@@ -237,10 +243,10 @@ select @file_per_handle;
 @file_per_handle
 0
 select if(
-(@rwlock_per_share <= 3)
+(@rwlock_per_share <= 4)
 AND (@cond_per_share = 0)
 AND (@file_per_share <= 3)
-AND (@mutex_per_con = 3)
+AND (@mutex_per_con = 5)
 AND (@rwlock_per_con = 1)
 AND (@cond_per_con = 2)
 AND (@file_per_con = 0)
@@ -253,3 +259,4 @@ AND (@file_per_handle = 0),
 as status;
 status
 OK: heuristics are up to date
+drop table test.t0;

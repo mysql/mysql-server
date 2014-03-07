@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,10 +23,8 @@
 #include <signaldata/AccLock.hpp>
 #include <md5_hash.hpp>
 
-#undef jam
-#undef jamEntry
-#define jam() { jamLine(32000 + __LINE__); }
-#define jamEntry() { jamEntryLine(32000 + __LINE__); }
+#define JAM_FILE_ID 408
+
 
 #ifdef VM_TRACE
 #define dbg(x) globalSignalLoggers.log x
@@ -68,7 +66,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     {
       // seize from pool and link to per-fragment list
       LocalDLList<ScanOp> list(c_scanOpPool, frag.m_scanList);
-      if (! list.seize(scanPtr)) {
+      if (! list.seizeFirst(scanPtr)) {
 	jam();
 	break;
       }
@@ -649,12 +647,12 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   } else {
     Disk_alloc_info& alloc = frag.m_disk_alloc_info;
     // for now must check disk part explicitly
-    if (alloc.m_extent_list.firstItem == RNIL) {
+    if (alloc.m_extent_list.isEmpty()) {
       jam();
       scan.m_state = ScanOp::Last;
       return;
     }
-    pos.m_extent_info_ptr_i = alloc.m_extent_list.firstItem;
+    pos.m_extent_info_ptr_i = alloc.m_extent_list.getFirst();
     Extent_info* ext = c_extent_pool.getPtr(pos.m_extent_info_ptr_i);
     key.m_file_no = ext->m_key.m_file_no;
     key.m_page_no = ext->m_first_page_no;
@@ -1233,7 +1231,7 @@ Dbtup::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
     list.next(lockPtr);
   }
 #endif
-  bool ok = list.seize(lockPtr);
+  bool ok = list.seizeLast(lockPtr);
   ndbrequire(ok);
   lockPtr.p->m_accLockOp = accLockOp;
 }

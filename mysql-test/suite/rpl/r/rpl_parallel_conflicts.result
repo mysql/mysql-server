@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 create view coord_wait_list  as SELECT id from Information_Schema.processlist where state like 'Waiting for Slave Worker%';
 include/stop_slave.inc
@@ -14,6 +14,7 @@ create database d3;
 create table d1.t1 (a int auto_increment primary key) engine=innodb;
 create table d2.t1 (a int auto_increment primary key) engine=innodb;
 create table d3.t1 (a int auto_increment primary key) engine=innodb;
+include/sync_slave_sql_with_master.inc
 begin;
 insert into d2.t1 values (1);
 begin;
@@ -73,6 +74,7 @@ rollback;
 drop database d1;
 drop database d2;
 drop database d3;
+include/sync_slave_sql_with_master.inc
 drop view coord_wait_list;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 include/rpl_end.inc

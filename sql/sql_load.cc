@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,15 +29,14 @@
 #include "sql_insert.h" // check_that_all_fields_are_given_values,
                         // prepare_triggers_for_insert_stmt,
                         // write_record
-#include "sql_acl.h"    // INSERT_ACL, UPDATE_ACL
+#include "auth_common.h"// INSERT_ACL, UPDATE_ACL
 #include "log_event.h"  // Delete_file_log_event,
                         // Execute_load_query_log_event,
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <m_ctype.h>
 #include "rpl_mi.h"
 #include "rpl_slave.h"
-#include "sp_head.h"
-#include "sql_trigger.h"
+#include "table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql_show.h"
 #include <algorithm>
 
@@ -177,7 +176,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 {
   char name[FN_REFLEN];
   File file;
-  TABLE *table= NULL;
   int error= 0;
   const String *field_term= ex->field_term;
   const String *escaped=    ex->escaped;
@@ -187,6 +185,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   LOAD_FILE_INFO lf_info;
   THD::killed_state killed_status= THD::NOT_KILLED;
   bool is_concurrent;
+  bool transactional_table;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -196,7 +195,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   */
   char *tdb= thd->db ? thd->db : db;		// Result is never null
   ulong skip_lines= ex->skip_lines;
-  bool transactional_table;
   DBUG_ENTER("mysql_load");
 
   /*
@@ -230,25 +228,32 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (open_and_lock_tables(thd, table_list, TRUE, 0))
     DBUG_RETURN(TRUE);
-  if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
-                                    &thd->lex->select_lex.top_join_list,
+  if (setup_tables_and_check_access(thd, &thd->lex->select_lex->context,
+                                    &thd->lex->select_lex->top_join_list,
                                     table_list,
-                                    &thd->lex->select_lex.leaf_tables, FALSE,
+                                    &thd->lex->select_lex->leaf_tables, FALSE,
                                     INSERT_ACL | UPDATE_ACL,
                                     INSERT_ACL | UPDATE_ACL))
-     DBUG_RETURN(-1);
-  if (!table_list->table ||               // do not suport join view
-      !table_list->updatable ||           // and derived tables
-      check_key_in_view(thd, table_list))
+     DBUG_RETURN(true);
+
+  TABLE_LIST *const insert_table_ref=
+    table_list->updatable &&             // View must be updatable
+    !table_list->multitable_view &&      // Multi-table view not allowed
+    !table_list->derived ?               // derived tables not allowed
+    table_list->updatable_base_table() : NULL;
+
+  if (insert_table_ref == NULL ||
+      check_key_in_view(thd, table_list, insert_table_ref))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
     DBUG_RETURN(TRUE);
   }
   if (table_list->prepare_where(thd, 0, TRUE) ||
       table_list->prepare_check_option(thd))
-  {
     DBUG_RETURN(TRUE);
-  }
+
+  // Pass the check option down to the underlying table:
+  insert_table_ref->check_option= table_list->check_option;
   /*
     Let us emit an error if we are loading data to table which is used
     in subselect in SET clause like we do it for INSERT.
@@ -257,27 +262,33 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table is marked to be 'used for insert' in which case we should never
     mark this table as 'const table' (ie, one that has only one row).
   */
-  if (unique_table(thd, table_list, table_list->next_global, 0))
+  if (unique_table(thd, insert_table_ref, table_list->next_global, 0))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
     DBUG_RETURN(TRUE);
   }
 
-  table= table_list->table;
+  TABLE *const table= insert_table_ref->table;
 
   for (Field **cur_field= table->field; *cur_field; ++cur_field)
     (*cur_field)->reset_warnings();
 
-  transactional_table= table->file->has_transactions();
 #ifndef EMBEDDED_LIBRARY
+  transactional_table= table->file->has_transactions();
   is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
 #endif
 
   if (!fields_vars.elements)
   {
-    Field **field;
-    for (field=table->field; *field ; field++)
-      fields_vars.push_back(new Item_field(*field));
+    Field_iterator_table_ref field_iterator;
+    field_iterator.set(table_list);
+    for (; !field_iterator.end_of_fields(); field_iterator.next())
+    {
+      Item *item;
+      if (!(item= field_iterator.create_item(thd)))
+        DBUG_RETURN(TRUE);
+      fields_vars.push_back(item->real_item());
+    }
     bitmap_set_all(table->write_set);
     /*
       Let us also prepare SET clause, altough it is probably empty
@@ -311,7 +322,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     ignore= 1;
 
   /*
-    (1):
     * LOAD DATA INFILE fff INTO TABLE xxx SET columns2
     sets all columns, except if file's row lacks some: in that case,
     defaults are set by read_fixed_length() and read_sep_field(),
@@ -319,9 +329,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     * LOAD DATA INFILE fff INTO TABLE xxx (columns1) SET columns2=
     may need a default for columns other than columns1 and columns2.
   */
+  const bool manage_defaults= fields_vars.elements != 0;
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
                  &fields_vars, &set_fields,
-                 fields_vars.elements != 0, //(1)
+                 manage_defaults,
                  handle_duplicates, ignore, escape_char);
 
   if (info.add_function_default_columns(table, table->write_set))
@@ -373,9 +384,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   else
 #endif
   {
-#ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
-    ex->file_name+=dirname_length(ex->file_name);
-#endif
     if (!dirname_length(ex->file_name))
     {
       strxnmov(name, FN_REFLEN-1, mysql_real_data_home, tdb, NullS);
@@ -420,7 +428,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
     }
 
-#if !defined(__WIN__) && ! defined(__NETWARE__)
+#if !defined(_WIN32)
     MY_STAT stat_info;
     if (!my_stat(name, &stat_info, MYF(MY_WME)))
       DBUG_RETURN(TRUE);
@@ -479,7 +487,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
   }
 
-  if (!(error=test(read_info.error)))
+  if (!(error=MY_TEST(read_info.error)))
   {
 
     table->next_number_field=table->found_next_number_field;
@@ -497,17 +505,17 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
     if (ex->filetype == FILETYPE_XML) /* load xml */
-      error= read_xml_field(thd, info, table_list, fields_vars,
+      error= read_xml_field(thd, info, insert_table_ref, fields_vars,
                             set_fields, set_values, read_info,
                             skip_lines, ignore);
     else if (!field_term->length() && !enclosed->length())
-      error= read_fixed_length(thd, info, table_list, fields_vars,
+      error= read_fixed_length(thd, info, insert_table_ref, fields_vars,
                                set_fields, set_values, read_info,
-			       skip_lines, ignore);
+                               skip_lines, ignore);
     else
-      error= read_sep_field(thd, info, table_list, fields_vars,
+      error= read_sep_field(thd, info, insert_table_ref, fields_vars,
                             set_fields, set_values, read_info,
-			    *enclosed, skip_lines, ignore);
+                            *enclosed, skip_lines, ignore);
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         table->file->ha_end_bulk_insert() && !error)
     {
@@ -541,7 +549,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     We must invalidate the table in query cache before binlog writing and
     ha_autocommit_...
   */
-  query_cache_invalidate3(thd, table_list, 0);
+  query_cache.invalidate_single(thd, insert_table_ref, false);
   if (error)
   {
     if (read_file_from_client)
@@ -582,7 +590,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
-	  if (thd->transaction.stmt.cannot_safely_rollback())
+	  if (thd->get_transaction()->cannot_safely_rollback(
+	      Transaction_ctx::STMT))
             (void) write_execute_load_query_log_event(thd, ex,
                                                       table_list->db, 
                                                       table_list->table_name,
@@ -656,9 +665,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   /* ok to client sent only after binlog write and engine commit */
   my_ok(thd, info.stats.copied + info.stats.deleted, 0L, name);
 err:
-  DBUG_ASSERT(transactional_table ||
+  DBUG_ASSERT(table->file->has_transactions() ||
               !(info.stats.copied || info.stats.deleted) ||
-              thd->transaction.stmt.cannot_safely_rollback());
+              thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
   table->auto_increment_field_not_null= FALSE;
   thd->abort_on_warning= 0;
@@ -685,7 +695,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                       *p= NULL;
   size_t               pl= 0;
   List<Item>           fv;
-  Item                *item, *val;
+  Item                *item;
+  String              *str;
   String               pfield, pfields;
   int                  n;
   const char          *tbl= table_name_arg;
@@ -728,7 +739,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     {
       if (n++)
         pfields.append(", ");
-      if (item->type() == Item::FIELD_ITEM)
+      if (item->type() == Item::FIELD_ITEM ||
+                 item->type() == Item::REF_ITEM)
         append_identifier(thd, &pfields, item->item_name.ptr(),
                           strlen(item->item_name.ptr()));
       else
@@ -740,20 +752,28 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   if (!thd->lex->update_list.is_empty())
   {
     List_iterator<Item> lu(thd->lex->update_list);
-    List_iterator<Item> lv(thd->lex->value_list);
+    List_iterator<String> ls(thd->lex->load_set_str_list);
 
     pfields.append(" SET ");
     n= 0;
 
     while ((item= lu++))
     {
-      val= lv++;
+      str= ls++;
       if (n++)
         pfields.append(", ");
       append_identifier(thd, &pfields, item->item_name.ptr(),
                         strlen(item->item_name.ptr()));
-      pfields.append(val->item_name.ptr());
+      // Extract exact Item value
+      str->copy();
+      pfields.append((char *)str->ptr());
+      str->free();
     }
+    /*
+      Clear the SET string list once the SET command is reconstructed
+      as we donot require the list anymore.
+    */
+    thd->lex->load_set_str_list.empty();
   }
 
   p= pfields.c_ptr_safe();
@@ -817,11 +837,18 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
     it.rewind();
     uchar *pos=read_info.row_start;
-#ifdef HAVE_purify
-    read_info.row_end[0]=0;
-#endif
 
     restore_record(table, s->default_values);
+    /*
+      Check whether default values of the fields not specified in column list
+      are correct or not.
+    */
+    if (validate_default_values_of_unset_fields(thd, table))
+    {
+      read_info.error= 1;
+      break;
+    }
+
     /*
       There is no variables in fields_vars list in this format so
       this conversion is safe.
@@ -877,8 +904,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
-                                             table->triggers,
-                                             TRG_EVENT_INSERT,
+                                             table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -913,9 +939,36 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
-  DBUG_RETURN(test(read_info.error));
+  DBUG_RETURN(MY_TEST(read_info.error));
 }
 
+
+class Field_tmp_nullability_guard
+{
+public:
+  explicit Field_tmp_nullability_guard(Item *item)
+   :m_field(NULL)
+  {
+    if (item->type() == Item::FIELD_ITEM)
+    {
+      m_field= ((Item_field *) item)->field;
+      /*
+        Enable temporary nullability for items that corresponds
+        to table fields.
+      */
+      m_field->set_tmp_nullable();
+    }
+  }
+
+  ~Field_tmp_nullability_guard()
+  {
+    if (m_field)
+      m_field->reset_tmp_nullable();
+  }
+
+private:
+  Field *m_field;
+};
 
 
 static int
@@ -943,6 +996,15 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     restore_record(table, s->default_values);
+    /*
+      Check whether default values of the fields not specified in column list
+      are correct or not.
+    */
+    if (validate_default_values_of_unset_fields(thd, table))
+    {
+      read_info.error= 1;
+      break;
+    }
 
     while ((item= it++))
     {
@@ -962,12 +1024,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       real_item= item->real_item();
 
-      /*
-        Enable temporary nullability for items that corresponds
-        to table fields.
-      */
-      if (real_item->type() == Item::FIELD_ITEM)
-        ((Item_field *)real_item)->field->set_tmp_nullable();
+      Field_tmp_nullability_guard fld_tmp_nullability_guard(real_item);
 
       if ((!read_info.enclosed &&
 	  (enclosed_length && length == 4 &&
@@ -1093,21 +1150,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
     }
 
-    // Clear temporary nullability flags for every field in the table.
-
-    it.rewind();
-    while ((item= it++))
-    {
-      Item *real_item= item->real_item();
-      if (real_item->type() == Item::FIELD_ITEM)
-        ((Item_field *)real_item)->field->reset_tmp_nullable();
-    }
-
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
-                                             table->triggers,
-                                             TRG_EVENT_INSERT,
+                                             table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1166,7 +1212,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
-  DBUG_RETURN(test(read_info.error));
+  DBUG_RETURN(MY_TEST(read_info.error));
 }
 
 
@@ -1213,6 +1259,15 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 #endif
     
     restore_record(table, s->default_values);
+    /*
+      Check whether default values of the fields not specified in column list
+      are correct or not.
+    */
+    if (validate_default_values_of_unset_fields(thd, table))
+    {
+      read_info.error= 1;
+      break;
+    }
     
     while ((item= it++))
     {
@@ -1305,8 +1360,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
-                                             table->triggers,
-                                             TRG_EVENT_INSERT,
+                                             table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1329,7 +1383,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
     continue_loop:;
   }
-  DBUG_RETURN(test(read_info.error) || thd->is_error());
+  DBUG_RETURN(MY_TEST(read_info.error) || thd->is_error());
 } /* load xml end */
 
 
@@ -1404,7 +1458,8 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   set_if_bigger(length,line_start.length());
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
-  if (!(buffer=(uchar*) my_malloc(buff_length+1,MYF(0))))
+  if (!(buffer=(uchar*) my_malloc(key_memory_READ_INFO,
+                                  buff_length+1,MYF(0))))
     error=1; /* purecov: inspected */
   else
   {
@@ -1457,6 +1512,28 @@ READ_INFO::~READ_INFO()
 #define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
 #define PUSH(A) *(stack_pos++)=(A)
 
+/**
+  The logic here is similar with my_mbcharlen, except for GET and PUSH
+
+  @param[in]  cs  charset info
+  @param[in]  chr the first char of sequence
+  @param[out] len the length of multi-byte char
+*/
+#define GET_MBCHARLEN(cs, chr, len)                                           \
+  do {                                                                        \
+    len= my_mbcharlen((cs), (chr));                                           \
+    if (len == 0 && my_mbmaxlenlen((cs)) == 2)                                \
+    {                                                                         \
+      int chr1= GET;                                                          \
+      if (chr1 != my_b_EOF)                                                   \
+      {                                                                       \
+        len= my_mbcharlen_2((cs), (chr), chr1);                               \
+        /* Must be gb18030 charset */                                         \
+        DBUG_ASSERT(len == 2 || len == 4);                                    \
+      }                                                                       \
+      PUSH(chr1);                                                             \
+    }                                                                         \
+  } while (0)
 
 inline int READ_INFO::terminator(const char *ptr,uint length)
 {
@@ -1541,11 +1618,7 @@ int READ_INFO::read_field()
         PUSH(chr);
         chr= escape_char;
       }
-#ifdef ALLOW_LINESEPARATOR_IN_STRINGS
-      if (chr == line_term_char)
-#else
       if (chr == line_term_char && found_enclosed_char == INT_MAX)
-#endif
       {
 	if (terminator(line_term_ptr,line_term_length))
 	{					// Maybe unexpected linefeed
@@ -1600,17 +1673,23 @@ int READ_INFO::read_field()
 	  return 0;
 	}
       }
-#ifdef USE_MB
-      if (my_mbcharlen(read_charset, chr) > 1 &&
-          to + my_mbcharlen(read_charset, chr) <= end_of_buff)
+
+      uint ml;
+      GET_MBCHARLEN(read_charset, chr, ml);
+      if (ml == 0)
+      {
+        error= 1;
+        return 1;
+      }
+
+
+      if (ml > 1 &&
+          to + ml <= end_of_buff)
       {
         uchar* p= (uchar*) to;
-        int ml, i;
         *to++ = chr;
 
-        ml= my_mbcharlen(read_charset, chr);
-
-        for (i= 1; i < ml; i++) 
+        for (uint i= 1; i < ml; i++)
         {
           chr= GET;
           if (chr == my_b_EOF)
@@ -1628,17 +1707,17 @@ int READ_INFO::read_field()
                         (const char *)p,
                         (const char *)to))
           continue;
-        for (i= 0; i < ml; i++)
+        for (uint i= 0; i < ml; i++)
           PUSH((uchar) *--to);
         chr= GET;
       }
-#endif
       *to++ = (uchar) chr;
     }
     /*
     ** We come here if buffer is too small. Enlarge it and continue
     */
-    if (!(new_buffer=(uchar*) my_realloc((char*) buffer,buff_length+1+IO_SIZE,
+    if (!(new_buffer=(uchar*) my_realloc(key_memory_READ_INFO,
+                                         (char*) buffer,buff_length+1+IO_SIZE,
 					MYF(MY_WME))))
       return (error=1);
     to=new_buffer + (to-buffer);
@@ -1736,22 +1815,22 @@ int READ_INFO::next_line()
   for (;;)
   {
     int chr = GET;
-#ifdef USE_MB
+    uint ml;
     if (chr == my_b_EOF)
     {
       eof= 1;
       return 1;
     }
-   if (my_mbcharlen(read_charset, chr) > 1)
+   GET_MBCHARLEN(read_charset, chr, ml);
+   if (ml > 1)
    {
        for (uint i=1;
-            chr != my_b_EOF && i<my_mbcharlen(read_charset, chr);
+            chr != my_b_EOF && i < ml;
             i++)
 	   chr = GET;
        if (chr == escape_char)
 	   continue;
    }
-#endif
    if (chr == my_b_EOF)
    {
       eof=1;
@@ -1879,12 +1958,20 @@ int READ_INFO::read_value(int delim, String *val)
 
   for (chr= GET; my_tospace(chr) != delim && chr != my_b_EOF;)
   {
-#ifdef USE_MB
-    if (my_mbcharlen(read_charset, chr) > 1)
+    uint ml;
+    GET_MBCHARLEN(read_charset, chr, ml);
+    if (ml == 0)
+    {
+      chr= my_b_EOF;
+      val->length(0);
+      return chr;
+    }
+
+    if (ml > 1)
     {
       DBUG_PRINT("read_xml",("multi byte"));
-      int i, ml= my_mbcharlen(read_charset, chr);
-      for (i= 1; i < ml; i++) 
+
+      for (uint i= 1; i < ml; i++)
       {
         val->append(chr);
         /*
@@ -1896,7 +1983,6 @@ int READ_INFO::read_value(int delim, String *val)
           return chr;
       }
     }
-#endif
     if(chr == '&')
     {
       tmp.length(0);

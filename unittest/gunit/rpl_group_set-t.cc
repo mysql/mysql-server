@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -246,7 +246,8 @@ public:
   int errtext_stack_pos;
   bool verbose;
 
-  void append_errtext(int line, const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 3, 4)
+  void append_errtext(int line, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)))
   {
     va_list argp;
     va_start(argp, fmt);
@@ -508,7 +509,7 @@ TEST_F(GroupTest, Group_containers)
 
   // Do not generate warnings (because that causes segfault when done
   // from a unittest).
-  global_system_variables.log_warnings= 0;
+  global_system_variables.log_error_verbosity= 1;
 
   mysql_bin_log.server_uuid_sidno= 1;
 

@@ -518,6 +518,31 @@ else
 fi
 plugin_dir="${plugin_dir}${PLUGIN_VARIANT}"
 
+# A pid file is created for the mysqld_safe process. This file protects the
+# server instance resources during race conditions.
+safe_pid="$DATADIR/mysqld_safe.pid"
+if test -f $safe_pid
+then
+  PID=`cat "$safe_pid"`
+  if @CHECK_PID@
+  then
+    if @FIND_PROC@
+    then
+      log_error "A mysqld_safe process already exists"
+      exit 1
+    fi
+  fi
+  rm -f "$safe_pid"
+  if test -f "$safe_pid"
+  then
+    log_error "Fatal error: Can't remove the mysqld_safe pid file"
+    exit 1
+  fi
+fi
+
+# Insert pid proerply into the pid file.
+ps -e | grep  [m]ysqld_safe | awk '{print $1}' | sed -n 1p > $safe_pid
+# End of mysqld_safe pid(safe_pid) check.
 
 # Determine what logging facility to use
 
@@ -528,6 +553,7 @@ then
   if [ $? -ne 0 ]
   then
     log_error "--syslog requested, but no 'logger' program found.  Please ensure that 'logger' is in your PATH, or do not specify the --syslog option to mysqld_safe."
+    rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
     exit 1
   fi
 fi
@@ -542,6 +568,7 @@ then
 
     # mysqld does not add ".err" to "--log-error=foo."; it considers a
     # trailing "." as an extension
+    
     if expr "$err_log" : '.*\.[^/]*$' > /dev/null
     then
         :
@@ -569,7 +596,7 @@ then
   log_notice "Logging to '$err_log'."
   logging=file
 
-  if [ ! -e "$err_log" ]; then                  # if error log already exists,
+  if [ ! -f "$err_log" ]; then                  # if error log already exists,
     touch "$err_log"                            # we just append. otherwise,
     chmod "$fmode" "$err_log"                   # fix the permissions here!
   fi
@@ -632,6 +659,7 @@ does not exist or is not executable. Please cd to the mysql installation
 directory and restart this script from there as follows:
 ./bin/mysqld_safe&
 See http://dev.mysql.com/doc/mysql/en/mysqld-safe.html for more information"
+  rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
   exit 1
 fi
 
@@ -725,6 +753,7 @@ then
     if @FIND_PROC@
     then    # The pid contains a mysqld process
       log_error "A mysqld process already exists"
+      rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
       exit 1
     fi
   fi
@@ -735,6 +764,7 @@ then
 $pid_file
 Please remove it manually and start $0 again;
 mysqld daemon not started"
+    rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
     exit 1
   fi
 fi
@@ -779,13 +809,13 @@ have_sleep=1
 
 while true
 do
-  rm -f $safe_mysql_unix_port "$pid_file"	# Some extra safety
-
+  # Some extra safety
+  rm -f $safe_mysql_unix_port "$pid_file" "$pid_file.shutdown"	
   start_time=`date +%M%S`
 
   eval_log_error "$cmd"
 
-  if [ $want_syslog -eq 0 -a ! -e "$err_log" ]; then
+  if [ $want_syslog -eq 0 -a ! -f "$err_log" ]; then
     touch "$err_log"                    # hypothetical: log was renamed but not
     chown $user "$err_log"              # flushed yet. we'd recreate it with
     chmod "$fmode" "$err_log"           # wrong owner next time we log, so set
@@ -795,6 +825,12 @@ do
 
   if test ! -f "$pid_file"		# This is removed if normal shutdown
   then
+    break
+  fi
+
+  if test -f "$pid_file.shutdown"	# created to signal that it must stop
+  then
+    log_notice "$pid_file.shutdown present. The server will not restart."
     break
   fi
 
@@ -856,5 +892,9 @@ do
   log_notice "mysqld restarted"
 done
 
+rm -f "$pid_file.shutdown"
+
 log_notice "mysqld from pid file $pid_file ended"
 
+rm -f "$safe_pid"                       # Some Extra Safety. File is deleted
+                                        # once the mysqld process ends.

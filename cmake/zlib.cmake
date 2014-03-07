@@ -1,5 +1,4 @@
-# Copyright (c) 2009 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
-  SET(ZLIB_LIBRARY  zlib)
+  SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
   SET(ZLIB_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/zlib)
   SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
@@ -38,9 +37,7 @@ ENDMACRO()
 
 MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
 
-  IF(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR 
-     CMAKE_SYSTEM_NAME STREQUAL "AIX" OR
-     CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  IF(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     # Use bundled zlib on some platforms by default (system one is too
     # old or not existent)
     IF (NOT WITH_ZLIB)
@@ -57,13 +54,17 @@ MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
      INCLUDE(CheckFunctionExists)
       SET(CMAKE_REQUIRED_LIBRARIES z)
       CHECK_FUNCTION_EXISTS(crc32 HAVE_CRC32)
+      CHECK_FUNCTION_EXISTS(compressBound HAVE_COMPRESSBOUND)
+      CHECK_FUNCTION_EXISTS(deflateBound HAVE_DEFLATEBOUND)
       SET(CMAKE_REQUIRED_LIBRARIES)
-      IF(HAVE_CRC32)
-        SET(ZLIB_LIBRARY z CACHE INTERNAL "System zlib library")
-        SET(WITH_ZLIB "system" CACHE STRING "Which zlib to use (possible values are 'bundled' or 'system')")
+      IF(HAVE_CRC32 AND HAVE_COMPRESSBOUND AND HAVE_DEFLATEBOUND)
+        SET(ZLIB_LIBRARY ${ZLIB_LIBRARIES} CACHE INTERNAL "System zlib library")
+        SET(WITH_ZLIB "system" CACHE STRING
+          "Which zlib to use (possible values are 'bundled' or 'system')")
         SET(ZLIB_SOURCES "")
       ELSE()
         SET(ZLIB_FOUND FALSE CACHE INTERNAL "Zlib found but not usable")
+        MESSAGE(STATUS "system zlib found but not usable")
       ENDIF()
     ENDIF()
     IF(NOT ZLIB_FOUND)

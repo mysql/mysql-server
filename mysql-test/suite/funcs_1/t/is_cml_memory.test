@@ -14,6 +14,7 @@
 # are expected within result sets.
 --source include/not_embedded.inc
 
+# --source include/have_memory.inc
 let $engine_type= MEMORY;
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 USE test;

@@ -1,0 +1,19 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.events_transactions_summary_global_by_event_name
+  add column foo integer;
+
+truncate table performance_schema.events_transactions_summary_global_by_event_name;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.events_transactions_summary_global_by_event_name
+  ADD INDEX test_index(EVENT_NAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index
+  ON performance_schema.events_transactions_summary_global_by_event_name(EVENT_NAME);
+

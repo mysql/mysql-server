@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,32 +50,11 @@ extern "C" {
 
 	/* typedefs for my_dir & my_stat */
 
-#ifdef USE_MY_STAT_STRUCT
-
-typedef struct my_stat
-{
-  dev_t		st_dev;		/* major & minor device numbers */
-  ino_t		st_ino;		/* inode number */
-  ushort	st_mode;	/* file permissons (& suid sgid .. bits) */
-  short		st_nlink;	/* number of links to file */
-  ushort	st_uid;		/* user id */
-  ushort	st_gid;		/* group id */
-  dev_t		st_rdev;	/* more major & minor device numbers (???) */
-  off_t		st_size;	/* size of file */
-  time_t	st_atime;	/* time for last read */
-  time_t	st_mtime;	/* time for last contens modify */
-  time_t	st_ctime;	/* time for last inode or contents modify */
-} MY_STAT;
-
-#else
-
 #if(_MSC_VER)
 #define MY_STAT struct _stati64 /* 64 bit file size */
 #else
 #define MY_STAT struct stat	/* Orginal struct have what we need */
 #endif
-
-#endif /* USE_MY_STAT_STRUCT */
 
 /* Struct describing one file returned from my_dir */
 typedef struct fileinfo

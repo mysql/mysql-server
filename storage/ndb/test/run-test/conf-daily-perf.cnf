@@ -8,7 +8,7 @@ mt = 2
 [ndb_mgmd]
 
 [mysqld]
-skip-innodb
+innodb
 loose-skip-bdb
 skip-grant-tables
 socket=mysql.sock

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -62,17 +62,17 @@ public class DbugTest extends AbstractClusterJTest{
         errorIfNotEqual("Failed to pop original state", originalState, actualState);
 
         dbug = ClusterJHelper.newDbug();
-        dbug.output(TMP_FILE_NAME).flush().debug(new String[] {"a", "b", "c", "d", "e", "f"}).push();
+        dbug.output(TMP_FILE_NAME).flush().debug(new String[] {"a"}).push();
         actualState = dbug.get();
-        // keywords are stored LIFO
-        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:O," + TMP_FILE_NAME, actualState);
+        // multiple keywords are tested in ndbjtie/test
+        errorIfNotEqual("Wrong state created", "d,a:O," + TMP_FILE_NAME, actualState);
         dbug.pop();
 
         dbug = ClusterJHelper.newDbug();
-        dbug.append(TMP_FILE_NAME).trace().debug("a,b,c,d,e,f").set();
+        dbug.append(TMP_FILE_NAME).trace().debug("a").set();
         actualState = dbug.get();
-        // keywords are stored LIFO
-        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:a," + TMP_FILE_NAME + ":t", actualState);
+        // multiple keywords are tested in ndbjtie/test
+        errorIfNotEqual("Wrong state created", "d,a:a," + TMP_FILE_NAME + ":t", actualState);
         dbug.pop();
 
         failOnError();

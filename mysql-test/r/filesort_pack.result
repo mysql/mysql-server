@@ -1,0 +1,28 @@
+CREATE TABLE t1 (
+id int(10) unsigned NOT NULL auto_increment,
+k int(10) unsigned NOT NULL default '0',
+c char(120) NOT NULL default '',
+pad char(60) NOT NULL default '',
+PRIMARY KEY (id),
+KEY k (k)
+) engine=innodb;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET @@session.sort_buffer_size=32768;
+FLUSH STATUS;
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	0
+Sort_rows	0
+Sort_scan	0
+SELECT c FROM t1 WHERE id between 2 and 1002 ORDER BY c;
+SHOW SESSION STATUS LIKE 'Sort%';
+Variable_name	Value
+Sort_merge_passes	0
+Sort_range	1
+Sort_rows	139
+Sort_scan	0
+SET @@session.sort_buffer_size=DEFAULT;
+DROP TABLE t1;

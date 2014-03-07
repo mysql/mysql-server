@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,8 @@
 /* Instead of including sql_lex.h we add this typedef here */
 typedef List<Item> List_item;
 
-bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
+bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
+                          TABLE_LIST **insert_table_ref,
                           List<Item> &fields, List_item *values,
                           List<Item> &update_fields,
                           List<Item> &update_values, enum_duplicates duplic,
@@ -41,5 +42,6 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 void prepare_triggers_for_insert_stmt(TABLE *table);
 int write_record(THD *thd, TABLE *table,
                  COPY_INFO *info, COPY_INFO *update);
+bool validate_default_values_of_unset_fields(THD *thd, TABLE *table);
 
 #endif /* SQL_INSERT_INCLUDED */

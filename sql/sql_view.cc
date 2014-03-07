@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include "sql_show.h"    // append_identifier
 #include "sql_table.h"                         // build_table_filename
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
-#include "sql_acl.h"           // *_ACL, check_grant
+#include "auth_common.h"       // *_ACL, check_grant
 #include "sql_select.h"
 #include "parse_file.h"
 #include "sp.h"
@@ -174,7 +174,7 @@ static bool make_valid_column_names(LEX *lex)
   uint column_no= 1;
   DBUG_ENTER("make_valid_column_names");
 
-  for (SELECT_LEX *sl= &lex->select_lex; sl; sl= sl->next_select())
+  for (SELECT_LEX *sl= lex->select_lex; sl; sl= sl->next_select())
   {
     for (List_iterator_fast<Item> it(sl->item_list); (item= it++); column_no++)
     {
@@ -287,10 +287,10 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                           enum_view_create_mode mode)
 {
-  LEX *lex= thd->lex;
+  LEX        *const lex= thd->lex;
   /* first table in list is target VIEW name => cut off it */
   TABLE_LIST *tbl;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
   SELECT_LEX *sl;
   bool res= TRUE;
   DBUG_ENTER("create_view_precheck");
@@ -360,7 +360,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
     }
   }
 
-  if (&lex->select_lex != lex->all_selects_list)
+  if (lex->select_lex != lex->all_selects_list)
   {
     /* check tables of subqueries */
     for (tbl= tables; tbl; tbl= tbl->next_global)
@@ -436,11 +436,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
   TABLE_LIST *tbl;
-  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   SELECT_LEX *sl;
 #endif
-  SELECT_LEX_UNIT *unit= &lex->unit;
+  SELECT_LEX_UNIT *const unit= lex->unit;
   bool res= FALSE;
   DBUG_ENTER("mysql_create_view");
 
@@ -766,7 +766,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   if (mode != VIEW_CREATE_NEW)
-    query_cache_invalidate3(thd, view, 0);
+    query_cache.invalidate(thd, view, FALSE);
   if (res)
     goto err;
 
@@ -777,7 +777,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 err:
   THD_STAGE_INFO(thd, stage_end);
   lex->link_first_table_back(view, link_to_local);
-  unit->cleanup();
+  unit->cleanup(true);
   DBUG_RETURN(res || thd->is_error());
 }
 
@@ -897,12 +897,25 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
                   system_charset_info);
 
   char md5[MD5_BUFF_LENGTH];
-  bool can_be_merged;
   char dir_buff[FN_REFLEN + 1], path_buff[FN_REFLEN + 1];
   LEX_STRING dir, file, path;
   int error= 0;
   bool was_truncated;
   DBUG_ENTER("mysql_register_view");
+
+  /*
+    A view can be merged if it is technically possible and if the user didn't
+    ask that we create a temporary table instead.
+  */
+  const bool can_be_merged= lex->can_be_merged() &&
+    lex->create_view_algorithm != VIEW_ALGORITHM_TMPTABLE;
+
+  if (can_be_merged)
+  {
+    for (ORDER *order= lex->select_lex->order_list.first ;
+         order; order= order->next)
+      order->used_alias= false;               /// @see Item::print_for_order()
+  }
 
   /* Generate view definition and IS queries. */
   view_query.length(0);
@@ -911,9 +924,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     sql_mode_t sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
-    lex->unit.print(&view_query, QT_TO_ARGUMENT_CHARSET); 
-    lex->unit.print(&is_query,
-                    enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
+    lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET); 
+    lex->unit->print(&is_query,
+                enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
 
     thd->variables.sql_mode|= sql_mode;
   }
@@ -940,9 +953,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;   
   }
   view->md5.length= 32;
-  can_be_merged= lex->can_be_merged();
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
-      !lex->can_be_merged())
+      !can_be_merged)
   {
     push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_VIEW_MERGE,
                  ER(ER_WARN_VIEW_MERGE));
@@ -953,11 +965,11 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->definer.host= lex->definer->host;
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
-  if ((view->updatable_view= (can_be_merged &&
-                              view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
+
+  if ((view->updatable_view= can_be_merged))
   {
     /* TODO: change here when we will support UNIONs */
-    for (TABLE_LIST *tbl= lex->select_lex.table_list.first;
+    for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
 	 tbl;
 	 tbl= tbl->next_local)
     {
@@ -1084,8 +1096,8 @@ loop_out:
     UNION
   */
   if (view->updatable_view &&
-      !lex->select_lex.master_unit()->is_union() &&
-      !(lex->select_lex.table_list.first)->next_local &&
+      !lex->select_lex->master_unit()->is_union() &&
+      !(lex->select_lex->table_list.first)->next_local &&
       find_table_in_global_list(lex->query_tables->next_global,
 				lex->query_tables->db,
 				lex->query_tables->table_name))
@@ -1117,6 +1129,36 @@ err:
 }
 
 
+/**
+   Go through a list of tables and join nests, recursively, and if they have
+   the name_resolution_context which points to removed_select, repoint it to
+   parent_select.
+   The select_lex pointer of the join nest is also repointed.
+
+   @param  join_list  List of tables and join nests
+   @param  removed_select  select_lex which is removed (merged into
+   parent_lex)
+   @param  parent_select
+ */
+void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
+                                    SELECT_LEX *removed_select,
+                                    SELECT_LEX *parent_select)
+{
+  List_iterator_fast<TABLE_LIST> ti(join_list);
+  TABLE_LIST *tbl;
+  while ((tbl= ti++))
+  {
+    DBUG_ASSERT(tbl->select_lex == removed_select);
+    tbl->select_lex= parent_select;
+    if (tbl->context_of_embedding &&
+        tbl->context_of_embedding->select_lex == removed_select)
+      tbl->context_of_embedding->select_lex= parent_select;
+    if (tbl->nested_join)
+      repoint_contexts_of_join_nests(tbl->nested_join->join_list,
+                                     removed_select, parent_select);
+  }
+}
+
 
 /**
   read VIEW .frm and create structures
@@ -1132,13 +1174,13 @@ err:
 bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
                      bool open_view_no_parse)
 {
-  SELECT_LEX *end, *view_select= NULL;
+  SELECT_LEX *view_select= NULL;
   LEX *old_lex, *lex;
   Query_arena *arena, backup;
   TABLE_LIST *top_view= table->top_table();
   bool parse_status= true;
   bool result= true, view_is_mergeable;
-  TABLE_LIST *UNINIT_VAR(view_main_select_tables);
+  TABLE_LIST *view_main_select_tables= NULL;
 
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
@@ -1222,22 +1264,30 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
   table->definer.user.str= table->definer.host.str= 0;
   table->definer.user.length= table->definer.host.length= 0;
 
-  Opt_trace_object trace_wrapper(&thd->opt_trace);
-  Opt_trace_object trace_view(&thd->opt_trace, "view");
-  // When reading I_S.VIEWS, table->alias may be NULL
-  trace_view.add_utf8("database", table->db, table->db_length).
-    add_utf8("view", table->alias ? table->alias : table->table_name).
-    add("in_select#", old_lex->select_lex.select_number);
+  Opt_trace_context * const trace= &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_view(trace, "view");
+  if (trace->is_started())
+  {
+    /*
+      When opening I_S views, or tables used by triggers, some information is
+      not available.
+    */
+    trace_view.add_utf8("database", table->db, table->db_length).
+      add_utf8("view", table->alias ? table->alias : table->table_name);
+    if (table->select_lex)
+      trace_view.add("in_select#", table->select_lex->select_number);
+  }
 
   /*
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
   */
   DBUG_ASSERT(share->view_def != NULL);
-  if (share->view_def->parse((uchar*)table, thd->mem_root, view_parameters,
-                             required_view_parameters,
-                             &file_parser_dummy_hook))
-    goto err;
+  if ((result= share->view_def->parse((uchar*)table, thd->mem_root,
+                                      view_parameters, required_view_parameters,
+                                      &file_parser_dummy_hook)))
+    goto end;
 
   /*
     check old format view .frm
@@ -1300,6 +1350,11 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
+  if (!table->view)
+  {
+    result= true;
+    goto end;
+  }
 
   {
     char old_db_buf[NAME_LEN+1];
@@ -1319,11 +1374,12 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       goto end;
 
     lex_start(thd);
-    view_select= &lex->select_lex;
-    view_select->select_number= ++thd->select_number;
+    view_select= lex->select_lex;
+    // Correctly mark unit for explain
+    lex->unit->explain_marker= CTX_DERIVED;
 
-    trace_view.add("select#", view_select->select_number);
-
+    // Needed for correct units markup for EXPLAIN
+    lex->describe= old_lex->describe;
     sql_mode_t saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
@@ -1384,46 +1440,49 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       // If executing prepared statement: see "Optimizer trace" note above.
       opt_trace_disable_if_no_view_access(thd, table, view_tables);
 
+      /*
+        The user we run EXPLAIN as (either the connected user who issued
+        the EXPLAIN statement, or the definer of a SUID stored routine
+        which contains the EXPLAIN) should have both SHOW_VIEW_ACL and
+        SELECT_ACL on the view being opened as well as on all underlying
+        views since EXPLAIN will disclose their structure. This user also
+        should have SELECT_ACL on all underlying tables of the view since
+        this EXPLAIN will disclose information about the number of rows in
+        it.
+
+        To perform this privilege check we create auxiliary TABLE_LIST
+        object for the view in order a) to avoid trashing "table->grant"
+        member for original table list element, which contents can be
+        important at later stage for column-level privilege checking
+        b) get TABLE_LIST object with "security_ctx" member set to 0,
+        i.e. forcing check_table_access() to use active user's security
+        context.
+
+        There is no need for creating similar copies of table list elements
+        for underlying tables since they are just have been constructed and
+        thus have TABLE_LIST::security_ctx == 0 and fresh TABLE_LIST::grant
+        member.
+
+        Finally at this point making sure we have SHOW_VIEW_ACL on the views
+        will suffice as we implicitly require SELECT_ACL anyway.
+      */
+      
+      TABLE_LIST view_no_suid;
+      memset(static_cast<void *>(&view_no_suid), 0, sizeof(TABLE_LIST));
+      view_no_suid.db= table->db;
+      view_no_suid.table_name= table->table_name;
+
+      DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
+
+      if (check_table_access(thd, SELECT_ACL, view_tables,
+                             FALSE, UINT_MAX, TRUE) ||
+          check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid,
+                             FALSE, UINT_MAX, TRUE))
+        table->view_no_explain= true;
+
       if (old_lex->describe && is_explainable_query(old_lex->sql_command))
       {
-        /*
-          The user we run EXPLAIN as (either the connected user who issued
-          the EXPLAIN statement, or the definer of a SUID stored routine
-          which contains the EXPLAIN) should have both SHOW_VIEW_ACL and
-          SELECT_ACL on the view being opened as well as on all underlying
-          views since EXPLAIN will disclose their structure. This user also
-          should have SELECT_ACL on all underlying tables of the view since
-          this EXPLAIN will disclose information about the number of rows in
-          it.
-
-          To perform this privilege check we create auxiliary TABLE_LIST
-          object for the view in order a) to avoid trashing "table->grant"
-          member for original table list element, which contents can be
-          important at later stage for column-level privilege checking
-          b) get TABLE_LIST object with "security_ctx" member set to 0,
-          i.e. forcing check_table_access() to use active user's security
-          context.
-
-          There is no need for creating similar copies of table list elements
-          for underlying tables since they are just have been constructed and
-          thus have TABLE_LIST::security_ctx == 0 and fresh TABLE_LIST::grant
-          member.
-
-          Finally at this point making sure we have SHOW_VIEW_ACL on the views
-          will suffice as we implicitly require SELECT_ACL anyway.
-        */
-        
-        TABLE_LIST view_no_suid;
-        memset(static_cast<void *>(&view_no_suid), 0, sizeof(TABLE_LIST));
-        view_no_suid.db= table->db;
-        view_no_suid.table_name= table->table_name;
-
-        DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
-
-        if (check_table_access(thd, SELECT_ACL, view_tables,
-                               FALSE, UINT_MAX, TRUE) ||
-            check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid,
-                               FALSE, UINT_MAX, TRUE))
+        if (table->view_no_explain)
         {
           my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
           goto err;
@@ -1508,7 +1567,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         This may change in future, for example if we enable merging of
         views with subqueries in select list.
       */
-      view_main_select_tables= lex->select_lex.table_list.first;
+      view_main_select_tables= lex->select_lex->table_list.first;
 
       /*
         Let us set proper lock type for tables of the view's main
@@ -1553,7 +1612,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 				   lex->safe_to_cache_query);
     /* move SQL_CACHE to whole query */
     if (view_select->options & OPTION_TO_QUERY_CACHE)
-      old_lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
+      old_lex->select_lex->options|= OPTION_TO_QUERY_CACHE;
 
     if (table->view_suid)
     {
@@ -1562,7 +1621,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         objects of the view.
       */
       if (!(table->view_sctx= (Security_context *)
-            thd->stmt_arena->alloc(sizeof(Security_context))))
+            thd->stmt_arena->calloc(sizeof(Security_context))))
         goto err;
       security_ctx= table->view_sctx;
     }
@@ -1610,7 +1669,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       - VIEW used in subquery or command support MERGE algorithm
     */
     if (view_is_mergeable &&
-        (table->select_lex->master_unit() != &old_lex->unit ||
+        (table->select_lex->master_unit() != old_lex->unit ||
          old_lex->can_use_merged()) &&
         !old_lex->can_not_use_merged())
     {
@@ -1621,6 +1680,9 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
+      // This is just for the trace_view below:
+      view_select->select_number= ++old_lex->select_number;
+      trace_view.add("select#", view_select->select_number);
       trace_view.add("merged", true);
       table->updatable= (table->updatable_view != 0);
       table->effective_with_check=
@@ -1632,10 +1694,20 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         tbl->grant.want_privilege= top_view->grant.orig_want_privilege;
 
       /* prepare view context */
-      lex->select_lex.context.resolve_in_table_list_only(view_main_select_tables);
-      lex->select_lex.context.outer_context= 0;
-      lex->select_lex.context.select_lex= table->select_lex;
-      lex->select_lex.select_n_having_items+=
+      lex->select_lex->
+        context.resolve_in_table_list_only(view_main_select_tables);
+      lex->select_lex->context.outer_context= NULL;
+
+      /*
+        Correct all name resolution contexts which point to the view's
+        select_lex.
+      */
+      lex->select_lex->context.select_lex= table->select_lex;
+      repoint_contexts_of_join_nests(view_select->top_join_list,
+                                     view_select,
+                                     table->select_lex);
+
+      lex->select_lex->select_n_having_items+=
         table->select_lex->select_n_having_items;
 
       /*
@@ -1644,7 +1716,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         for this purprose because we don't support MERGE algorithm for views
         with unions).
       */
-      for (tbl= lex->select_lex.get_table_list(); tbl; tbl= tbl->next_local)
+      for (tbl= lex->select_lex->get_table_list(); tbl; tbl= tbl->next_local)
         tbl->select_lex= table->select_lex;
 
       {
@@ -1671,7 +1743,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       }
 
       /* Store WHERE clause for post-processing in setup_underlying */
-      table->where= view_select->where;
+      table->where= view_select->where_cond();
       /*
         Add subqueries units to SELECT into which we merging current view.
         unit(->next)* chain starts with subqueries that are used by this
@@ -1682,26 +1754,16 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 
         NOTE: we do not support UNION here, so we take only one select
       */
-      SELECT_LEX_NODE *end_unit= table->select_lex->slave;
-      SELECT_LEX_UNIT *next_unit;
-      for (SELECT_LEX_UNIT *unit= lex->select_lex.first_inner_unit();
-           unit;
-           unit= next_unit)
-      {
-        if (unit == end_unit)
-          break;
-        SELECT_LEX_NODE *save_slave= unit->slave;
-        next_unit= unit->next_unit();
-        unit->include_down(table->select_lex);
-        unit->slave= save_slave; // fix include_down initialisation
-      }
+      st_select_lex_unit *first_unit= lex->select_lex->first_inner_unit();
+      if (first_unit)
+        first_unit->include_chain(old_lex, table->select_lex);
 
       /* 
         We can safely ignore the VIEW's ORDER BY if we merge into union 
         branch, as order is not important there.
       */
       if (!table->select_lex->master_unit()->is_union())
-        table->select_lex->order_list.push_back(&lex->select_lex.order_list);
+        table->select_lex->order_list.push_back(&lex->select_lex->order_list);
       /*
 	This SELECT_LEX will be linked in global SELECT_LEX list
 	to make it processed by mysql_handle_derived(),
@@ -1713,29 +1775,26 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
 
     table->effective_algorithm= VIEW_ALGORITHM_TMPTABLE;
     DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
-    trace_view.add("materialized", true);
     view_select->linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
     table->effective_with_check= VIEW_CHECK_NONE;
     old_lex->subqueries= TRUE;
 
     /* SELECT tree link */
-    lex->unit.include_down(table->select_lex);
-    lex->unit.slave= view_select; // fix include_down initialisation
+    lex->unit->include_down(old_lex, table->select_lex);
 
-    table->derived= &lex->unit;
+    trace_view.add("select#", view_select->select_number);
+    trace_view.add("materialized", true);
+
+    table->derived= lex->unit;
   }
   else
     goto err;
 
 ok:
-  /* global SELECT list linking */
-  end= view_select;	// primary SELECT_LEX is always last
-  end->link_next= old_lex->all_selects_list;
-  old_lex->all_selects_list->link_prev= &end->link_next;
-  old_lex->all_selects_list= lex->all_selects_list;
-  lex->all_selects_list->link_prev=
-    (st_select_lex_node**)&old_lex->all_selects_list;
+  // Link chain of query blocks into global list:
+  lex->all_selects_list->include_chain_in_global(&old_lex->all_selects_list);
+
   table->derived_key_list.empty();
 
 ok2:
@@ -1853,7 +1912,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     */
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name,
                      FALSE);
-    query_cache_invalidate3(thd, view, 0);
+    query_cache.invalidate(thd, view, FALSE);
     sp_cache_invalidate();
   }
 
@@ -1873,7 +1932,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     /* if something goes wrong, bin-log with possible error code,
        otherwise bin-log with error code cleared.
      */
-    if (write_bin_log(thd, !something_wrong, thd->query(), thd->query_length()))
+    if (write_bin_log(thd, !something_wrong,
+                      thd->query().str, thd->query().length))
       something_wrong= 1;
   }
 
@@ -1886,32 +1946,25 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 }
 
 
-/*
+/**
   check of key (primary or unique) presence in updatable view
 
-  SYNOPSIS
-    check_key_in_view()
-    thd     thread handler
-    view    view for check with opened table
+  If the table to be checked is a view and the query has LIMIT clause,
+  then check that the view fulfills one of the following constraints:
+   1) it contains the primary key of the underlying updatable table.
+   2) it contains a unique key of the underlying updatable table whose
+      columns are all non-nullable.
+   3) it contains all columns of the underlying updatable table.
 
-  DESCRIPTION
-    If it is VIEW and query have LIMIT clause then check that underlying
-    table of view contain one of following:
-      1) primary key of underlying table
-      2) unique key underlying table with fields for which NULL value is
-         impossible
-      3) all fields of underlying table
+  @param thd       thread handler
+  @param view      view for check with opened table
+  @param table_ref underlying updatable table of the view
 
-  RETURN
-    FALSE   OK
-    TRUE    view do not contain key or all fields
+  @return false is success, true if error
 */
 
-bool check_key_in_view(THD *thd, TABLE_LIST *view)
+bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
 {
-  TABLE *table;
-  Field_translator *trans, *end_of_trans;
-  KEY *key_info, *key_info_end;
   DBUG_ENTER("check_key_in_view");
 
   /*
@@ -1920,15 +1973,15 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
   */
   if ((!view->view && !view->belong_to_view) ||
       thd->lex->sql_command == SQLCOM_INSERT ||
-      thd->lex->select_lex.select_limit == 0)
-    DBUG_RETURN(FALSE); /* it is normal table or query without LIMIT */
-  table= view->table;
-  view= view->top_table();
-  trans= view->field_translation;
-  key_info_end= (key_info= table->key_info)+ table->s->keys;
+      thd->lex->select_lex->select_limit == 0)
+    DBUG_RETURN(false); /* it is normal table or query without LIMIT */
 
-  end_of_trans=  view->field_translation_end;
-  DBUG_ASSERT(table != 0 && view->field_translation != 0);
+  TABLE *const table = table_ref->table;
+  view= view->top_table();
+  Field_translator *const trans= view->field_translation;
+  Field_translator *const end_of_trans= view->field_translation_end;
+  KEY *key_info= table->key_info;
+  KEY *const key_info_end= key_info + table->s->keys;
 
   {
     /*
@@ -2167,7 +2220,7 @@ mysql_rename_view(THD *thd,
     DBUG_RETURN(1);  
 
   /* remove cache entries */
-  query_cache_invalidate3(thd, view, 0);
+  query_cache.invalidate(thd, view, FALSE);
   sp_cache_invalidate();
   error= FALSE;
 

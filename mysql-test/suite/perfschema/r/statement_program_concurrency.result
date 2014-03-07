@@ -1,0 +1,107 @@
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history;
+# concurrency check through multi connections
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE DATABASE db3;
+USE db1;
+CREATE TABLE t1(
+i INT NOT NULL
+);
+LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t1;
+CREATE PROCEDURE proc()
+BEGIN
+INSERT INTO t1 SELECT * FROM t1;
+END|
+CALL proc();;
+USE db2;
+CREATE TABLE t2(
+i INT NOT NULL
+);
+LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t2;
+CREATE FUNCTION addition(x INT, y INT) RETURNS INT
+BEGIN
+INSERT INTO t2 SELECT * FROM t2;
+RETURN x+y;
+END|
+SELECT addition(1234,9876);;
+USE db3;
+CREATE TABLE t(
+i INT NOT NULL,
+j INT
+);
+CREATE TABLE t3(
+i INT NOT NULL
+);
+LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t3;
+INSERT INTO t VALUES ( 10,1000 );
+CREATE TRIGGER trg AFTER INSERT ON t FOR EACH ROW
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t VALUES ( 20,2000);;
+addition(1234,9876)
+11110
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_STATEMENTS
+FROM performance_schema.events_statements_summary_by_program
+WHERE OBJECT_SCHEMA='db1' OR OBJECT_SCHEMA='db2' OR OBJECT_SCHEMA='db3'
+       ORDER BY OBJECT_SCHEMA, OBJECT_NAME;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
+PROCEDURE	db1	proc	1	1
+FUNCTION	db2	addition	1	2
+TRIGGER	db3	trg	1	1
+SELECT EVENT_NAME, SQL_TEXT, CURRENT_SCHEMA, OBJECT_TYPE, OBJECT_SCHEMA,
+OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL FROM
+performance_schema.events_statements_history WHERE CURRENT_SCHEMA='db1'
+       OR CURRENT_SCHEMA='db2' OR CURRENT_SCHEMA='db3' 
+ORDER BY CURRENT_SCHEMA, OBJECT_NAME;
+EVENT_NAME	SQL_TEXT	CURRENT_SCHEMA	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	NESTING_EVENT_TYPE	NESTING_EVENT_LEVEL
+statement/sql/change_db	USE db1	db1	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE t1(
+i INT NOT NULL
+)	db1	NULL	NULL	NULL	NULL	0
+statement/sql/load	LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t1	db1	NULL	NULL	NULL	NULL	0
+statement/sql/create_procedure	CREATE PROCEDURE proc()
+BEGIN
+INSERT INTO t1 SELECT * FROM t1;
+END	db1	NULL	NULL	NULL	NULL	0
+statement/sql/call_procedure	CALL proc()	db1	NULL	NULL	NULL	NULL	0
+statement/sp/stmt	INSERT INTO t1 SELECT * FROM t1	db1	PROCEDURE	db1	proc	STATEMENT	1
+statement/sql/change_db	USE db2	db2	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE t2(
+i INT NOT NULL
+)	db2	NULL	NULL	NULL	NULL	0
+statement/sql/load	LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t2	db2	NULL	NULL	NULL	NULL	0
+statement/sql/create_function	CREATE FUNCTION addition(x INT, y INT) RETURNS INT
+BEGIN
+INSERT INTO t2 SELECT * FROM t2;
+RETURN x+y;
+END	db2	NULL	NULL	NULL	NULL	0
+statement/sql/select	SELECT addition(1234,9876)	db2	NULL	NULL	NULL	NULL	0
+statement/sp/stmt	INSERT INTO t2 SELECT * FROM t2	db2	FUNCTION	db2	addition	TRANSACTION	1
+statement/sp/freturn	NULL	db2	FUNCTION	db2	addition	TRANSACTION	1
+statement/sql/change_db	USE db3	db3	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE t(
+i INT NOT NULL,
+j INT
+)	db3	NULL	NULL	NULL	NULL	0
+statement/sql/create_table	CREATE TABLE t3(
+i INT NOT NULL
+)	db3	NULL	NULL	NULL	NULL	0
+statement/sql/load	LOAD DATA INFILE '../../std_data/wl5766_data.txt' INTO TABLE t3	db3	NULL	NULL	NULL	NULL	0
+statement/sql/insert	INSERT INTO t VALUES ( 10,1000 )	db3	NULL	NULL	NULL	NULL	0
+statement/sql/create_trigger	CREATE TRIGGER trg AFTER INSERT ON t FOR EACH ROW
+INSERT INTO t3 SELECT * FROM t3	db3	NULL	NULL	NULL	NULL	0
+statement/sql/insert	INSERT INTO t VALUES ( 20,2000)	db3	NULL	NULL	NULL	NULL	0
+statement/sp/stmt	INSERT INTO t3 SELECT * FROM t3	db3	TRIGGER	db3	trg	TRANSACTION	1
+TRUNCATE TABLE performance_schema.events_statements_summary_by_program;
+TRUNCATE TABLE performance_schema.events_statements_history;
+# Clean-up
+DROP PROCEDURE db1.proc;
+DROP FUNCTION db2.addition;
+DROP TRIGGER db3.trg;
+DROP TABLE db1.t1;
+DROP TABLE db2.t2;
+DROP TABLE db3.t3;
+DROP TABLE db3.t;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;

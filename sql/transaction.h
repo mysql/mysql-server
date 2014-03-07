@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +21,13 @@
 
 class THD;
 
+bool trans_check_state(THD *thd);
+
 bool trans_begin(THD *thd, uint flags= 0);
 bool trans_commit(THD *thd);
 bool trans_commit_implicit(THD *thd);
 bool trans_rollback(THD *thd);
+bool trans_rollback_implicit(THD *thd);
 
 bool trans_commit_stmt(THD *thd);
 bool trans_rollback_stmt(THD *thd);
@@ -32,11 +35,5 @@ bool trans_rollback_stmt(THD *thd);
 bool trans_savepoint(THD *thd, LEX_STRING name);
 bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name);
 bool trans_release_savepoint(THD *thd, LEX_STRING name);
-
-bool trans_xa_start(THD *thd);
-bool trans_xa_end(THD *thd);
-bool trans_xa_prepare(THD *thd);
-bool trans_xa_commit(THD *thd);
-bool trans_xa_rollback(THD *thd);
 
 #endif /* TRANSACTION_H */

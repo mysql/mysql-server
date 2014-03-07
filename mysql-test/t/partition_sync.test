@@ -68,7 +68,7 @@ SELECT * FROM tbl_with_partitions;
 connection con2;
 set session debug="+d,abort_copy_table";
 --error ER_LOCK_WAIT_TIMEOUT
-ALTER TABLE tbl_with_partitions ADD COLUMN f INT;
+ALTER TABLE tbl_with_partitions ADD COLUMN f INT, ALGORITHM=COPY;
 
 --echo # Connection 1
 --echo # Try accessing the table after Alter aborted.

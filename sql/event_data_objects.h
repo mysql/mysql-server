@@ -1,6 +1,6 @@
 #ifndef _EVENT_DATA_OBJECTS_H_
 #define _EVENT_DATA_OBJECTS_H_
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@ class THD;
 class Time_zone;
 struct TABLE;
 
+void init_scheduler_psi_keys(void);
+
 class Event_queue_element_for_exec
 {
 public:
@@ -48,6 +50,15 @@ private:
   /* Prevent use of these */
   Event_queue_element_for_exec(const Event_queue_element_for_exec &);
   void operator=(Event_queue_element_for_exec &);
+#ifdef HAVE_PSI_INTERFACE
+public:
+  PSI_statement_info* get_psi_info()
+  {
+    return & psi_info;
+  }
+
+  static PSI_statement_info psi_info;
+#endif
 };
 
 

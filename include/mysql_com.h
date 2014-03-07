@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,10 +53,10 @@
 #define LOCAL_HOST_NAMEDPIPE "."
 
 
-#if defined(__WIN__) && !defined( _CUSTOMCONFIG_)
+#if defined(_WIN32)
 #define MYSQL_NAMEDPIPE "MySQL"
 #define MYSQL_SERVICENAME "MySQL"
-#endif /* __WIN__ */
+#endif /* _WIN32 */
 
 /*
   You should add new commands to the end of this list, otherwise old
@@ -72,7 +72,7 @@ enum enum_server_command
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE,
   COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON,
-  COM_BINLOG_DUMP_GTID,
+  COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION,
   /* don't forget to update const char *command_name[] in sql_parse.cc */
 
   /* Must be last */
@@ -125,6 +125,8 @@ enum enum_server_command
 #define FIELD_FLAGS_COLUMN_FORMAT 24    /* Field column format, bit 24-25 */
 #define FIELD_FLAGS_COLUMN_FORMAT_MASK (3 << FIELD_FLAGS_COLUMN_FORMAT)
 #define FIELD_IS_DROPPED (1<< 26)       /* Intern: Field is being dropped */
+#define EXPLICIT_NULL_FLAG (1<< 27)     /* Field is explicitly specified as
+                                           NULL by the user */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */
@@ -183,6 +185,12 @@ enum enum_server_command
 /* Don't close the connection for a connection with expired password. */
 #define CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS (1UL << 22)
 
+/**
+  Capable of handling server state change information. Its a hint to the
+  server to include the state change information in Ok packet.
+*/
+#define CLIENT_SESSION_TRACK (1UL << 23)
+
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
@@ -218,6 +226,7 @@ enum enum_server_command
                            | CLIENT_CONNECT_ATTRS \
                            | CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA \
                            | CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS \
+                           | CLIENT_SESSION_TRACK \
 )
 
 /*
@@ -276,6 +285,11 @@ enum enum_server_command
 */
 #define SERVER_STATUS_IN_TRANS_READONLY 8192
 
+/**
+  This status flag, when on, implies that one of the state information has
+  changed on the server because of the execution of the last statement.
+*/
+#define SERVER_SESSION_STATE_CHANGED (1UL << 14)
 
 /**
   Server status flags that must be cleared when starting
@@ -292,7 +306,8 @@ enum enum_server_command
                                  SERVER_QUERY_WAS_SLOW |\
                                  SERVER_STATUS_DB_DROPPED |\
                                  SERVER_STATUS_CURSOR_EXISTS|\
-                                 SERVER_STATUS_LAST_ROW_SENT)
+                                 SERVER_STATUS_LAST_ROW_SENT|\
+                                 SERVER_SESSION_STATE_CHANGED)
 
 #define MYSQL_ERRMSG_SIZE	512
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
@@ -314,7 +329,6 @@ typedef struct st_vio Vio;
 #define MAX_BLOB_WIDTH		16777216	/* Default width for blob */
 
 typedef struct st_net {
-#if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
   Vio *vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
@@ -339,7 +353,6 @@ typedef struct st_net {
     Pointer to query object in query cache, do not equal NULL (0) for
     queries in cache that have not stored its results yet
   */
-#endif
   /*
     Unused, please remove with the next incompatible ABI change.
   */
@@ -472,6 +485,24 @@ enum enum_mysql_set_option
   MYSQL_OPTION_MULTI_STATEMENTS_OFF
 };
 
+/*
+  Type of state change information that the server can include in the Ok
+  packet.
+  Note : 1) session_state_type shouldn't go past 255 (i.e. 1-byte boundary).
+         2) Modify the definition of SESSION_TRACK_END when a new member is
+	    added.
+*/
+enum enum_session_state_type
+{
+  SESSION_TRACK_SYSTEM_VARIABLES,                       /* Session system variables */
+  SESSION_TRACK_SCHEMA,                          /* Current schema */
+  SESSION_TRACK_STATE_CHANGE                  /* track session state changes */
+};
+
+#define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
+
+#define SESSION_TRACK_END SESSION_TRACK_STATE_CHANGE
+
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 
 #ifdef __cplusplus
@@ -588,6 +619,7 @@ void my_thread_end(void);
 ulong STDCALL net_field_length(uchar **packet);
 my_ulonglong net_field_length_ll(uchar **packet);
 uchar *net_store_length(uchar *pkg, ulonglong length);
+unsigned int net_length_size(ulonglong num);
 #endif
 
 #ifdef __cplusplus

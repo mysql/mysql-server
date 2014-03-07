@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -19,6 +19,7 @@
 
 #include "test_utils.h"
 #include "rpl_handler.h"                        // delegates_init()
+#include "mysqld_thd_manager.h"                 // Global_THD_manager
 
 namespace my_testing {
 
@@ -49,23 +50,22 @@ void setup_server_for_unit_tests()
   init_common_variables();
   my_init_signals();
   randominit(&sql_rand, 0, 0);
-  xid_cache_init();
+  transaction_cache_init();
   delegates_init();
   gtid_server_init();
   error_handler_hook= test_error_handler_hook;
-  // Initialize logger last, to avoid spurious warnings to stderr.
-  logger.init_base();
+  // Initialize Query_logger last, to avoid spurious warnings to stderr.
+  query_logger.init();
 }
 
 void teardown_server_for_unit_tests()
 {
   sys_var_end();
   delegates_destroy();
-  xid_cache_free();
+  transaction_cache_free();
   gtid_server_cleanup();
   mysql_mutex_destroy(&LOCK_error_log);
-  logger.cleanup_base();
-  logger.cleanup_end();
+  query_logger.cleanup();
 }
 
 void Server_initializer::set_expected_error(uint val)
@@ -81,6 +81,13 @@ void Server_initializer::SetUp()
   m_thd->thread_stack= (char*) &stack_thd;
   m_thd->store_globals();
   lex_start(m_thd);
+  m_thd->set_current_time();
+
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  m_thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  m_thd->thread_id= m_thd->variables.pseudo_thread_id;
+
+  my_pthread_setspecific_ptr(THR_THD, m_thd);
 }
 
 void Server_initializer::TearDown()

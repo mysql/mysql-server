@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 #include "mysys_priv.h"
 #include <m_string.h>
@@ -28,7 +29,7 @@ static char * expand_tilde(char **path);
 void pack_dirname(char * to, const char *from)
 {
   int cwd_err;
-  size_t d_length,length,UNINIT_VAR(buff_length);
+  size_t d_length, length, buff_length= 0;
   char * start;
   char buff[FN_REFLEN];
   DBUG_ENTER("pack_dirname");
@@ -68,7 +69,7 @@ void pack_dirname(char * to, const char *from)
       if (memcmp(to,home_dir,length) == 0 && to[length] == FN_LIBCHAR)
       {
 	to[0]=FN_HOMELIB;			/* Filename begins with ~ */
-	(void) strmov_overlapp(to+1,to+length);
+	(void) my_stpmov(to+1,to+length);
       }
     }
     if (! cwd_err)
@@ -78,14 +79,14 @@ void pack_dirname(char * to, const char *from)
 	if (memcmp(buff,home_dir,length) == 0 && buff[length] == FN_LIBCHAR)
 	{
 	  buff[0]=FN_HOMELIB;
-	  (void) strmov_overlapp(buff+1,buff+length);
+	  (void) my_stpmov(buff+1,buff+length);
 	}
       }
       if (is_prefix(to,buff))
       {
 	length= strlen(buff);
 	if (to[length])
-	  (void) strmov_overlapp(to,to+length);	/* Remove everything before */
+	  (void) my_stpmov(to,to+length);	/* Remove everything before */
 	else
 	{
 	  to[0]= FN_CURLIB;			/* Put ./ instead of cwd */
@@ -140,12 +141,12 @@ size_t cleanup_dirname(char *to, const char *from)
   if ((pos=strrchr(from_ptr,FN_DEVCHAR)) != 0)
   {						/* Skip device part */
     length=(size_t) (pos-from_ptr)+1;
-    start=strnmov(buff,from_ptr,length); from_ptr+=length;
+    start=my_stpnmov(buff,from_ptr,length); from_ptr+=length;
   }
 #endif
 
   parent[0]=FN_LIBCHAR;
-  length=(size_t) (strmov(parent+1,FN_PARENTDIR)-parent);
+  length=(size_t) (my_stpcpy(parent+1,FN_PARENTDIR)-parent);
   for (pos=start ; (*pos= *from_ptr++) != 0 ; pos++)
   {
 #ifdef BACKSLASH_MBTAIL
@@ -174,7 +175,7 @@ size_t cleanup_dirname(char *to, const char *from)
 	      pos+=length+1;			/* Don't unpack ~/.. */
 	      continue;
 	    }
-	    pos=strmov(buff,home_dir)-1;	/* Unpacks ~/.. */
+	    pos=my_stpcpy(buff,home_dir)-1;	/* Unpacks ~/.. */
 	    if (*pos == FN_LIBCHAR)
 	      pos--;				/* home ended with '/' */
 	  }
@@ -185,7 +186,7 @@ size_t cleanup_dirname(char *to, const char *from)
 	      pos+=length+1;			/* Don't unpack ./.. */
 	      continue;
 	    }
-	    pos=strmov(buff,curr_dir)-1;	/* Unpacks ./.. */
+	    pos=my_stpcpy(buff,curr_dir)-1;	/* Unpacks ./.. */
 	    if (*pos == FN_LIBCHAR)
 	      pos--;				/* home ended with '/' */
 	  }
@@ -195,7 +196,7 @@ size_t cleanup_dirname(char *to, const char *from)
           if (pos[1] == FN_HOMELIB ||
               (pos >= start && memcmp(pos, parent, length) == 0))
 	  {					/* Don't remove ~user/ */
-	    pos=strmov(end_parentdir+1,parent);
+	    pos=my_stpcpy(end_parentdir+1,parent);
 	    *pos=FN_LIBCHAR;
 	    continue;
 	  }
@@ -221,7 +222,7 @@ size_t cleanup_dirname(char *to, const char *from)
       }
     }
   }
-  (void) strmov(to,buff);
+  (void) my_stpcpy(to,buff);
   DBUG_PRINT("exit",("to: '%s'",to));
   DBUG_RETURN((size_t) (pos-buff));
 } /* cleanup_dirname */
@@ -307,11 +308,8 @@ size_t unpack_dirname(char * to, const char *from)
       {
 	if ((h_length > 0) && (tilde_expansion[h_length-1] == FN_LIBCHAR))
 	  h_length--;
-	if (buff+h_length < suffix)
-	  bmove(buff+h_length,suffix,length);
-	else
-	  bmove_upp((uchar*) buff+h_length+length, (uchar*) suffix+length, length);
-	bmove(buff,tilde_expansion,h_length);
+        memmove(buff + h_length, suffix, length);
+	memmove(buff, tilde_expansion, h_length);
       }
     }
   }
@@ -375,7 +373,7 @@ size_t unpack_filename(char * to, const char *from)
   n_length=unpack_dirname(buff,buff);
   if (n_length+strlen(from+length) < FN_REFLEN)
   {
-    (void) strmov(buff+n_length,from+length);
+    (void) my_stpcpy(buff+n_length,from+length);
     length= system_filename(to,buff);		/* Fix to usably filename */
   }
   else
@@ -401,10 +399,10 @@ char *intern_filename(char *to, const char *from)
   char buff[FN_REFLEN];
   if (from == to)
   {						/* Dirname may destroy from */
-    strmov(buff,from);
+    (void) my_stpnmov(buff, from, FN_REFLEN);
     from=buff;
   }
   length= dirname_part(to, from, &to_length);	/* Copy dirname & fix chars */
-  (void) strmov(to + to_length,from+length);
+  (void) my_stpnmov(to + to_length, from + length, FN_REFLEN - to_length);
   return (to);
 } /* intern_filename */

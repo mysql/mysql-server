@@ -9,9 +9,7 @@ set global ndb_dbg_check_shares=1;
 create table t1 ( a int primary key) engine = ndb;
 begin;
 insert into t1 values(1);
-alter online table t1 add column b int column_format dynamic;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table t1 algorithm=inplace, add column b int column_format dynamic;
 commit;
 drop table t1;
 set global ndb_dbg_check_shares=1;
@@ -19,7 +17,7 @@ set global ndb_dbg_check_shares=1;
 create table t1 ( a int primary key) engine = ndb;
 begin;
 insert into t1 values(1);
-alter offline table t1 add column b int column_format dynamic;
+alter table t1 algorithm=copy, add column b int column_format dynamic;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 drop table t1;
@@ -28,9 +26,7 @@ set global ndb_dbg_check_shares=1;
 create table t1 ( a int primary key, b int) engine = ndb;
 begin;
 insert into t1 values(1, 1);
-create online index ind_b on t1(b);
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+create index ind_b on t1(b) algorithm=inplace;
 commit;
 drop table t1;
 set global ndb_dbg_check_shares=1;

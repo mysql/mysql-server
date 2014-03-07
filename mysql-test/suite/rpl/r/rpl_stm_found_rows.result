@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 ==== Initialize ====
 **** On Master ****
@@ -30,6 +30,7 @@ sect	test	count
 1	1	183
 1	2	3
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 sect	test	count
 1	1	183
@@ -64,6 +65,7 @@ sect	test	count
 2	2	183
 2	3	183
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
 sect	test	count
 2	1	3
@@ -89,6 +91,7 @@ sect	test	count
 3	1	183
 3	2	183
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 SELECT * FROM logtbl WHERE sect = 3 ORDER BY sect,test;
 sect	test	count
 3	1	183

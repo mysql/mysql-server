@@ -1,2 +1,4 @@
 The latest information about building MySQL with CMake is located on 
-http://forge.mysql.com/wiki/CMake
+http://dev.mysql.com/doc/internals/en/cmake.html
+
+See also BUILD/README

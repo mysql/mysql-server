@@ -35,6 +35,27 @@ SELECT * FROM information_schema.session_variables
 WHERE variable_name='innodb_api_bk_commit_interval';
 --error ER_GLOBAL_VARIABLE
 SET session innodb_api_bk_commit_interval=1;
+#
+# Valid values
+#
+SET global innodb_api_bk_commit_interval=1;
+SELECT @@global.innodb_api_bk_commit_interval;
+SET global innodb_api_bk_commit_interval=100000;
+SELECT @@global.innodb_api_bk_commit_interval;
+SET global innodb_api_bk_commit_interval=1073741824;
+SELECT @@global.innodb_api_bk_commit_interval;
+
+#
+# Invalid values
+#
+SET global innodb_api_bk_commit_interval=0;
+SELECT @@global.innodb_api_bk_commit_interval;
+SET global innodb_api_bk_commit_interval=-1024;
+SELECT @@global.innodb_api_bk_commit_interval;
+SET global innodb_api_bk_commit_interval=1073741825;
+SELECT @@global.innodb_api_bk_commit_interval;
+SET global innodb_api_bk_commit_interval=4294967295;
+SELECT @@global.innodb_api_bk_commit_interval;
 
 #
 # incorrect types

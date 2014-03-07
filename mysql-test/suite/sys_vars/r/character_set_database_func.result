@@ -35,7 +35,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(40) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
 DROP TABLE t1;
 DROP DATABASE db1;
 '--ascii character set specified--'
@@ -50,7 +50,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(40) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=ascii
+) ENGINE=InnoDB DEFAULT CHARSET=ascii
 DROP TABLE t1;
 DROP DATABASE db1;
 '------Check if load data uses character_set_database----------'

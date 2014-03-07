@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /**
   @file storage/perfschema/table_ews_by_host_by_event_name.cc
@@ -81,8 +81,7 @@ table_ews_by_host_by_event_name::m_share=
   table_ews_by_host_by_event_name::create,
   NULL, /* write_row */
   table_ews_by_host_by_event_name::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_ews_by_host_by_event_name::get_row_count,
   sizeof(pos_ews_by_host_by_event_name),
   &m_table_lock,
   &m_field_def,
@@ -102,6 +101,12 @@ table_ews_by_host_by_event_name::delete_all_rows(void)
   reset_events_waits_by_account();
   reset_events_waits_by_host();
   return 0;
+}
+
+ha_rows
+table_ews_by_host_by_event_name::get_row_count(void)
+{
+  return host_max * wait_class_max;
 }
 
 table_ews_by_host_by_event_name::table_ews_by_host_by_event_name()
@@ -153,6 +158,9 @@ int table_ews_by_host_by_event_name::rnd_next(void)
           break;
         case pos_ews_by_host_by_event_name::VIEW_IDLE:
           instr_class= find_idle_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_host_by_event_name::VIEW_METADATA:
+          instr_class= find_metadata_class(m_pos.m_index_3);
           break;
         default:
           instr_class= NULL;
@@ -209,6 +217,9 @@ table_ews_by_host_by_event_name::rnd_pos(const void *pos)
   case pos_ews_by_host_by_event_name::VIEW_IDLE:
     instr_class= find_idle_class(m_pos.m_index_3);
     break;
+  case pos_ews_by_host_by_event_name::VIEW_METADATA:
+    instr_class= find_metadata_class(m_pos.m_index_3);
+    break;
   default:
     instr_class= NULL;
     DBUG_ASSERT(false);
@@ -226,7 +237,7 @@ table_ews_by_host_by_event_name::rnd_pos(const void *pos)
 void table_ews_by_host_by_event_name
 ::make_row(PFS_host *host, PFS_instr_class *klass)
 {
-  pfs_lock lock;
+  pfs_optimistic_state lock;
   m_row_exists= false;
 
   host->m_lock.begin_optimistic_lock(&lock);

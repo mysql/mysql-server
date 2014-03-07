@@ -1,0 +1,93 @@
+-- source include/have_ndb.inc
+
+###
+### PK vs PK
+###
+create table parent (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table child (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+# Parent pk
+# child pk, uk, oi
+alter table child add constraint fk1 foreign key (a) references parent(a);
+alter table child add constraint fk2 foreign key (b) references parent(a);
+alter table child add constraint fk3 foreign key (c) references parent(a);
+
+show create table child;
+
+# Parent uk
+# child pk, uk, oi
+alter table child add constraint fk4 foreign key (a) references parent(b);
+alter table child add constraint fk5 foreign key (b) references parent(b);
+alter table child add constraint fk6 foreign key (c) references parent(b);
+
+show create table child;
+
+# Parent oi
+# child pk, uk, oi
+# not supported
+
+# The failing alters spits out warnings, which include the
+# name of the temporary table...which has a random name
+# so disable_result_log :-(
+--disable_result_log
+
+--error ER_CANNOT_ADD_FOREIGN
+alter table child algorithm=copy, add constraint fk7 foreign key (a) references parent(c);
+--error ER_CANNOT_ADD_FOREIGN
+alter table child algorithm=copy, add constraint fk8 foreign key (a) references parent(c);
+--error ER_CANNOT_ADD_FOREIGN
+alter table child algorithm=copy, add constraint fk9 foreign key (a) references parent(c);
+
+--enable_result_log
+
+--error ER_CANNOT_ADD_FOREIGN
+alter table child algorithm=inplace, add constraint fk7 foreign key (a) references parent(c);
+show warnings;
+--error ER_CANNOT_ADD_FOREIGN
+alter table child algorithm=inplace, add constraint fk8 foreign key (a) references parent(c);
+show warnings;
+--error ER_CANNOT_ADD_FOREIGN
+alter table child algorithm=inplace, add constraint fk9 foreign key (a) references parent(c);
+show warnings;
+
+drop table child, parent;
+
+#
+# Test using SQL
+#
+create table parent (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table child (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key (a),
+  unique key (b) using hash,
+  key (c),
+  constraint fk1 foreign key(a) references parent (a),
+  constraint fk2 foreign key(b) references parent (a),
+  constraint fk3 foreign key(c) references parent (a),
+  constraint fk4 foreign key(a) references parent (b),
+  constraint fk5 foreign key(b) references parent (b),
+  constraint fk6 foreign key(c) references parent (b)
+) engine=ndbcluster;
+
+show create table child;
+drop table child, parent;
+

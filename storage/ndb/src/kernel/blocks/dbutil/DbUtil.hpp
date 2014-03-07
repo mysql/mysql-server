@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,9 +23,7 @@
 #include <NodeBitmask.hpp>
 
 #include <ArrayPool.hpp>
-#include <SLList.hpp>
-#include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <IntrusiveList.hpp>
 #include <DataBuffer.hpp>
 #include <KeyTable.hpp>
 
@@ -39,6 +37,9 @@
 #include <Array.hpp>
 
 #include <LockQueue.hpp>
+
+#define JAM_FILE_ID 401
+
 
 #define UTIL_WORDS_PER_PAGE 1023
 
@@ -225,6 +226,7 @@ public:
     Uint32    noOfKeyAttr;     // Number of key attributes
     Uint32    noOfAttr;        // Number of attributes
     bool      releaseFlag;     // flag if operation release after completion
+    UtilPrepareReq::OperationTypeValue operationType;
 
     /**
      * Attribute Mapping
@@ -289,7 +291,7 @@ public:
     Operation(KeyInfoBuffer::DataBufferPool & ki, 
 	      AttrInfoBuffer::DataBufferPool & ai,
 	      ResultSetBuffer::DataBufferPool & _rs) :
-      prepOp_i(RNIL), keyInfo(ki), attrInfo(ai), rs(_rs) {}
+      prepOp_i(RNIL), keyInfo(ki), attrInfo(ai), rs(_rs), transPtrI(RNIL) {}
     
     PreparedOperation *            prepOp;
     Uint32                         prepOp_i;
@@ -482,5 +484,8 @@ public:
   void mutex_locked(Signal* signal, Uint32 mutexId, Uint32 retVal);
   void mutex_unlocked(Signal* signal, Uint32 mutexId, Uint32 retVal);
 };
+
+
+#undef JAM_FILE_ID
 
 #endif

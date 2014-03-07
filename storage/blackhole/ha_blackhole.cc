@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 #include "probes_mysql.h"
 #include "ha_blackhole.h"
 #include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*
+
+static PSI_memory_key bh_key_memory_blackhole_share;
 
 static bool is_slave_applier(THD *thd)
 {
@@ -120,7 +122,7 @@ int ha_blackhole::update_row(const uchar *old_data, uchar *new_data)
 {
   DBUG_ENTER("ha_blackhole::update_row");
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -129,7 +131,7 @@ int ha_blackhole::delete_row(const uchar *buf)
 {
   DBUG_ENTER("ha_blackhole::delete_row");
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     DBUG_RETURN(0);
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
@@ -148,7 +150,7 @@ int ha_blackhole::rnd_next(uchar *buf)
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        TRUE);
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -239,7 +241,7 @@ int ha_blackhole::index_read_map(uchar * buf, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -257,7 +259,7 @@ int ha_blackhole::index_read_idx_map(uchar * buf, uint idx, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read_idx");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -274,7 +276,7 @@ int ha_blackhole::index_read_last_map(uchar * buf, const uchar * key,
   DBUG_ENTER("ha_blackhole::index_read_last");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   THD *thd= ha_thd();
-  if (is_slave_applier(thd) && thd->query() == NULL)
+  if (is_slave_applier(thd) && thd->query().str == NULL)
     rc= 0;
   else
     rc= HA_ERR_END_OF_FILE;
@@ -344,13 +346,14 @@ static st_blackhole_share *get_share(const char *table_name)
         my_hash_search(&blackhole_open_tables,
                        (uchar*) table_name, length)))
   {
-    if (!(share= (st_blackhole_share*) my_malloc(sizeof(st_blackhole_share) +
+    if (!(share= (st_blackhole_share*) my_malloc(bh_key_memory_blackhole_share,
+                                                 sizeof(st_blackhole_share) +
                                                  length,
                                                  MYF(MY_WME | MY_ZEROFILL))))
       goto error;
 
     share->table_name_length= length;
-    strmov(share->table_name, table_name);
+    my_stpcpy(share->table_name, table_name);
     
     if (my_hash_insert(&blackhole_open_tables, (uchar*) share))
     {
@@ -397,6 +400,11 @@ static PSI_mutex_info all_blackhole_mutexes[]=
   { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_GLOBAL}
 };
 
+static PSI_memory_info all_blackhole_memory[]=
+{
+  { &bh_key_memory_blackhole_share, "blackhole_share", 0}
+};
+
 void init_blackhole_psi_keys()
 {
   const char* category= "blackhole";
@@ -404,6 +412,9 @@ void init_blackhole_psi_keys()
 
   count= array_elements(all_blackhole_mutexes);
   mysql_mutex_register(category, all_blackhole_mutexes, count);
+
+  count= array_elements(all_blackhole_memory);
+  mysql_memory_register(category, all_blackhole_memory, count);
 }
 #endif
 

@@ -54,7 +54,9 @@ let $more_pk_ui_tests= 0;
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
+--source include/force_myisam_default.inc 
 let $engine= 'MyISAM';
+
 # The server uses in case of MyISAM symlinking (if available) and the expected
 # results fit to symlinking support.
 --source include/have_symlink.inc

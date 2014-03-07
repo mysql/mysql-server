@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ create index idx_timestamp_not_null_btree on timestamptypes(timestamp_not_null_b
 create unique index idx_timestamp_not_null_both on timestamptypes(timestamp_not_null_both);
 
  */
-@Ignore
+@Ignore("writeJDBCreadNDB got failure to match column data for row 1 column 3 Expected: Tue Jan 01 01:01:02 CET 1980 actual: Mon Dec 31 23:01:02 CET 1979")
 public class TimestampAsSqlTimestampTypesTest extends AbstractClusterJModelTest {
 
     @Override

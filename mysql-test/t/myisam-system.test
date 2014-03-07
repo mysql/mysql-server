@@ -1,5 +1,9 @@
+
 #
 # Test how DROP TABLE works if the index or data file doesn't exists
+# myisam specific test
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 # Initialise
 --disable_warnings

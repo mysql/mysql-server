@@ -1,0 +1,67 @@
+-- source include/have_innodb.inc
+-- source include/have_ndb.inc
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+###
+### PK vs PK
+###
+create table parent (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key (a,b),
+  unique(b,c) using hash,
+  index(c,a)) engine = ndb;
+
+create table child (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key (b,a),
+  unique(c,b) using hash,
+  index(c,a)) engine = ndb;
+
+insert into parent values (1,2,3);
+
+alter table child add constraint fkname foreign key (c,a) references parent(a,b) on delete restrict on update restrict;
+
+--error 1452
+insert into child values (2,1,2);
+--error 1452
+insert into child values (1,1,1);
+--error 0
+insert into child values (2,1,1);
+--error 1451
+delete from parent;
+
+delete from child;
+alter table child drop foreign key fkname;
+
+alter table child add constraint fkname foreign key (b,a) references parent(a,b) on delete restrict on update restrict;
+
+--error 1452
+insert into child values (1,2,2);
+--error 1452
+insert into child values (2,3,1);
+--error 0
+insert into child values (2,1,1);
+--error 1451
+delete from parent;
+
+delete from child;
+alter table child drop foreign key fkname;
+
+alter table child add constraint fkname foreign key (c,b) references parent(a,b) on delete restrict on update restrict;
+
+--error 1452
+insert into child values (1,2,2);
+--error 1452
+insert into child values (2,3,1);
+--error 0
+insert into child values (2,2,1);
+--error 1451
+delete from parent;
+
+drop table child, parent;

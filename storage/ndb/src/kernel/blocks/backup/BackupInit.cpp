@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +25,9 @@
 
 #include <Properties.hpp>
 #include <Configuration.hpp>
+
+#define JAM_FILE_ID 472
+
 
 //extern const unsigned Ndbcntr::g_sysTableCount;
 
@@ -254,29 +256,29 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   { // Init all tables
     SLList<Table> tables(c_tablePool);
     TablePtr ptr;
-    while(tables.seize(ptr)){
+    while (tables.seizeFirst(ptr)){
       new (ptr.p) Table(c_fragmentPool);
     }
-    tables.release();
+    while (tables.releaseFirst());
   }
 
   {
     SLList<BackupFile> ops(c_backupFilePool);
     BackupFilePtr ptr;
-    while(ops.seize(ptr)){
+    while (ops.seizeFirst(ptr)){
       new (ptr.p) BackupFile(* this, c_pagePool);
     }
-    ops.release();
+    while (ops.releaseFirst());
   }
   
   {
     SLList<BackupRecord> recs(c_backupPool);
     BackupRecordPtr ptr;
-    while(recs.seize(ptr)){
+    while (recs.seizeFirst(ptr)){
       new (ptr.p) BackupRecord(* this, c_tablePool, 
 			       c_backupFilePool, c_triggerPool);
     }
-    recs.release();
+    while (recs.releaseFirst());
   }
 
   // Initialize BAT for interface to file system

@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -710,20 +710,11 @@
 }
 
 #
-# See related Bug#56666
-# Race condition between the server main thread and the kill server thread.
-#
-# Because of this race condition, the call to shutdown_performance_schema()
-# was commented in sql/mysqld.cc, causing the reported leaks.
-#
-
-{
-   missing shutdown_performance_schema 1a
-   Memcheck:Leak
-   fun:malloc
-   fun:_Z10pfs_mallocmi
-}
-
+# Bug#56666 is fixed by WL#6407
+# Also, as part of WL#6407, call to shutdown_performance_schema()
+# is uncommented in sql/mysqld.cc. As this call was commented out
+# for long time, there are still some leaks which needs to be
+# addressed by pfs.
 {
    missing shutdown_performance_schema 1b
    Memcheck:Leak
@@ -732,10 +723,22 @@
    fun:_Z10pfs_mallocmi
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 2
    Memcheck:Leak
    fun:malloc
+   ...
+   fun:my_malloc
+   fun:_lf_alloc_new
+   fun:lf_hash_insert
+}
+
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
+{
+   missing shutdown_performance_schema 2-mem
+   Memcheck:Leak
+   ...
    fun:my_malloc
    fun:_lf_alloc_new
    fun:lf_hash_insert
@@ -745,123 +748,128 @@
 # Note that initialize_bucket() is reccursive,
 # can't provide more stack context.
 #
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 3a
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:initialize_bucket
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
+{
+   missing shutdown_performance_schema 3a-mem
+   Memcheck:Leak
+   ...
+   fun:my_malloc
+   fun:initialize_bucket
+}
+
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 3b
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:initialize_bucket
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
+{
+   missing shutdown_performance_schema 3b-mem
+   Memcheck:Leak
+   ...
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:initialize_bucket
+}
+
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 4
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:_lf_pinbox_get_pins
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
+{
+   missing shutdown_performance_schema 4-mem
+   Memcheck:Leak
+   ...
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:_lf_pinbox_get_pins
+}
+
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 5
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_insert
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
+{
+   missing shutdown_performance_schema 5-mem
+   Memcheck:Leak
+   ...
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_insert
+}
+
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 6
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_delete
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
+{
+   missing shutdown_performance_schema 6-mem
+   Memcheck:Leak
+   ...
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_delete
+}
+
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
    missing shutdown_performance_schema 7
    Memcheck:Leak
    fun:malloc
+   ...
    fun:my_malloc
    fun:_lf_dynarray_lvalue
    fun:lf_hash_search
 }
 
+# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
 {
-   missing shutdown_performance_schema 8
+   missing shutdown_performance_schema 7-mem
    Memcheck:Leak
-   fun:malloc
+   ...
    fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:handle_options
-   fun:_Z20handle_early_optionsv
-}
-
-{
-   missing shutdown_performance_schema 9
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z25init_pfs_instrument_arrayv
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 9a
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:_Z20handle_early_optionsv
-   fun:_Z11mysqld_mainiPPc
-}
-
-# Same as shutdown_performance_schema 9,
-# but the compiler/linker can sometime change the
-# calls from:
-# main()
-#   --> init_pfs_instrument_array()
-#     --> init_dynamic_array2()
-# to:
-# main()
-#   --> init_dynamic_array2()
-# when building with optimizations.
-
-{
-   missing shutdown_performance_schema 10
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 11
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:(below main)
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_search
 }
 
 {
@@ -987,6 +995,56 @@
    fun:buf_buddy_free
 }
 
+#
+# NDB packfrm vs deflate
+#
+{
+   NDB packfrm case 1
+   Memcheck:Cond
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+   fun:packfrm
+}
+
+{
+   NDB packfrm case 2
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+   fun:packfrm
+}
+
+#
+# pfs vs compress
+#
+{
+   pfs vs. compress case 1
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+}
+
+{
+   pfs vs. compress case 2
+   Memcheck:Cond
+   fun:deflate_slow
+   fun:deflate
+   fun:compress
+   fun:my_compress_alloc
+   fun:my_compress
+}
+
 # Note the wildcard in the (mangled) function signatures of
 # write_keys() and find_all_keys().
 # They both return ha_rows, which is platform dependent.
@@ -1001,37 +1059,7 @@
    fun:my_b_flush_io_cache
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
-   fun:_Z*13find_all_keysP10Sort_paramP10SQL_SELECTP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIhhEPy
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / two
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:my_b_flush_io_cache
-   fun:_Z15merge_many_buffP10Sort_paramPhP10st_buffpekPjP11st_io_cache
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / three
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:my_b_flush_io_cache
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / four
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:my_b_flush_io_cache
-   fun:_my_b_write
-   fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
+   fun:_Z*13find_all_keysP10Sort_paramP10SQL_SELECTP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIPhS8_S_EPy
    fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
 }
 
@@ -1044,23 +1072,47 @@
    fun:load_builtin_compressions
    fun:SSL_COMP_get_compression_methods
    fun:SSL_library_init
-   fun:check_ssl_init
-   fun:new_VioSSLFd
 }
+
 {
-   BUG#14801497 CONDITIONAL JUMP OR MOVE DEPENDS ON UNINITIALISED VALUE(S) IN CREATE_TMP_TABLE
+   Bug#16039908 "BYTES STILL REACHABLE" IN VALGRIND TEST ON 5.6/TRUNK
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+   fun:_ZL10plugin_delP13st_plugin_int
+   fun:_ZL12reap_pluginsv
+   fun:_Z15plugin_shutdownv
+   fun:_ZL8clean_upb*
+}
+
+{
+   main.udf gives similar warning as Bug#16039908
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z8udf_freev
+   fun:_ZL8clean_upb*
+}
+
+#Suppress warnings from glibc implementation of 'malloc_info' 
+{
+   Malloc_info uninitialised value of size 8
+   Memcheck:Value8
+   fun:_itoa_word
+   fun:vfprintf
+   fun:fprintf
+   fun:mi_arena.*
+   fun:malloc_info
+}
+
+{
+   Malloc_info conditional jump depends on uninitialised values
    Memcheck:Cond
-   fun:_Z16create_tmp_tableP3THDP15TMP_TABLE_PARAMR4ListI4ItemEP8st_orderbbyyPKc
-   fun:_Z19create_schema_tableP3THDP10TABLE_LIST
-   fun:_Z18mysql_schema_tableP3THDP3LEXP10TABLE_LIST
    ...
-   fun:_Z11open_tablesP3THDPP10TABLE_LISTPjjP19Prelocking_strategy
-   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbjP19Prelocking_strategy
-   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbj
-   fun:_Z21mysql_execute_commandP3THD
-   fun:_Z11mysql_parseP3THDPcjP12Parser_state
-   fun:_Z16dispatch_command19enum_server_commandP3THDPcj
-   fun:_Z24do_handle_one_connectionP3THD
-   fun:handle_one_connection
-   fun:pfs_spawn_thread
+   fun:mi_arena.*
+   fun:malloc_info
 }

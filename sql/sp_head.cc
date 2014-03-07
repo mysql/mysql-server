@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,8 +23,7 @@
 #include "sql_show.h"          // append_identifier
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
 #include "sql_table.h"         // prepare_create_field
-#include "sql_acl.h"           // *_ACL
-#include "sql_array.h"         // Dynamic_array
+#include "auth_common.h"       // *_ACL
 #include "log_event.h"         // append_query_string, Query_log_event
 
 #include "sp_head.h"
@@ -38,9 +37,34 @@
 #include "sql_base.h"          // close_thread_tables
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
-#include "global_threads.h"
 
 #include <my_user.h>           // parse_user
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_sp.h"
+
+#ifdef HAVE_PSI_INTERFACE
+void init_sp_psi_keys()
+{
+  const char *category= "sp";
+
+  PSI_server->register_statement(category, & sp_instr_stmt::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_set::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_set_trigger_field::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_jump::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_jump_if_not::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_freturn::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_hpush_jump::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_hpop::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_hreturn::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_cpush::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_cpop::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_copen::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_cclose::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_cfetch::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_error::psi_info, 1);
+  PSI_server->register_statement(category, & sp_instr_set_case_expr::psi_info, 1);
+}
+#endif
 
 /**
   SP_TABLE represents all instances of one table in an optimized multi-set of
@@ -162,7 +186,7 @@ sp_name::sp_name(const MDL_key *key, char *qname_buff)
   }
   else
   {
-    strmov(qname_buff, m_name.str);
+    my_stpcpy(qname_buff, m_name.str);
     m_qname.length= m_name.length;
   }
   m_explicit_name= false;
@@ -193,7 +217,8 @@ void *sp_head::operator new(size_t size) throw()
 {
   MEM_ROOT own_root;
 
-  init_sql_alloc(&own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  init_sql_alloc(key_memory_sp_head_main_root,
+                 &own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
 
   sp_head *sp= (sp_head *) alloc_root(&own_root, size);
   if (!sp)
@@ -235,6 +260,7 @@ sp_head::sp_head(enum_sp_type type)
   m_last_cached_sp(NULL),
   m_trg_list(NULL),
   m_root_parsing_ctx(NULL),
+  m_instructions(&main_mem_root),
   m_sp_cache_version(0),
   m_creation_ctx(NULL),
   unsafe_flags(0)
@@ -242,6 +268,8 @@ sp_head::sp_head(enum_sp_type type)
   m_first_instance= this;
   m_first_free_instance= this;
   m_last_cached_sp= this;
+
+  m_instructions.reserve(32);
 
   m_return_field_def.charset = NULL;
 
@@ -264,6 +292,10 @@ sp_head::sp_head(enum_sp_type type)
   my_hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   my_hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key,
                0, 0);
+
+  m_trg_chistics.ordering_clause= TRG_ORDER_NONE;
+  m_trg_chistics.anchor_trigger_name.str= NULL;
+  m_trg_chistics.anchor_trigger_name.length= 0;
 }
 
 
@@ -346,6 +378,72 @@ void sp_head::set_body_end(THD *thd)
   m_defstr.length= end_ptr - lip->get_cpp_buf();
   m_defstr.str= thd->strmake(lip->get_cpp_buf(), m_defstr.length);
   trim_whitespace(thd->charset(), & m_defstr);
+}
+
+
+bool sp_head::setup_trigger_fields(THD *thd,
+                                   Table_trigger_field_support *tfs,
+                                   GRANT_INFO *subject_table_grant,
+                                   bool need_fix_fields)
+{
+  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  {
+    f->setup_field(thd, tfs, subject_table_grant);
+
+    if (need_fix_fields &&
+        !f->fixed &&
+        f->fix_fields(thd, (Item **) NULL))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+void sp_head::mark_used_trigger_fields(TABLE *subject_table)
+{
+  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  {
+    if (f->field_idx == (uint) -1)
+    {
+      // We cannot mark fields which does not present in table.
+      continue;
+    }
+
+    bitmap_set_bit(subject_table->read_set, f->field_idx);
+
+    if (f->get_settable_routine_parameter())
+      bitmap_set_bit(subject_table->write_set, f->field_idx);
+  }
+}
+
+
+/**
+  Check whether any table's fields are used in trigger.
+
+  @param [in] used_fields       bitmap of fields to check
+
+  @return Check result
+    @retval true   Some table fields are used in trigger
+    @retval false  None of table fields are used in trigger
+*/
+
+bool sp_head::has_updated_trigger_fields(const MY_BITMAP *used_fields) const
+{
+  for (Item_trigger_field *f= m_trg_table_fields.first; f; f= f->next_trg_field)
+  {
+    // We cannot check fields which does not present in table.
+    if (f->field_idx != (uint) -1)
+    {
+      if (bitmap_is_set(used_fields, f->field_idx) &&
+          f->get_settable_routine_parameter())
+        return true;
+    }
+  }
+
+  return false;
 }
 
 
@@ -436,7 +534,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   String old_packet;
   Object_creation_ctx *saved_creation_ctx;
   Diagnostics_area *caller_da= thd->get_stmt_da();
-  Diagnostics_area sp_da(caller_da->statement_id(), false);
+  Diagnostics_area sp_da(false);
 
   /*
     Just reporting a stack overrun error
@@ -474,7 +572,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   opt_trace_disable_if_no_security_context_access(thd);
 
   /* init per-instruction memroot */
-  init_sql_alloc(&execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_sp_head_execute_root,
+                 &execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
   DBUG_ASSERT(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
@@ -614,9 +713,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       break;
     }
 
-    /* Reset number of warnings for this query. */
-    thd->get_stmt_da()->reset_statement_cond_count();
-
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
     /*
@@ -641,7 +737,30 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
+    sql_digest_state digest_state;
+    sql_digest_state *parent_digest= thd->m_digest;
+    thd->m_digest= & digest_state;
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+    PSI_statement_locker_state psi_state;
+    PSI_statement_info *psi_info = i->get_psi_info();
+    PSI_statement_locker *parent_locker;
+ 
+    parent_locker= thd->m_statement_psi;
+    thd->m_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
+                                                thd->db, thd->db_length,
+                                                thd->charset(),
+                                                this->m_sp_share);
+#endif
+
     err_status= i->execute(thd, &ip);
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+    thd->m_statement_psi= parent_locker;
+#endif
+
+    thd->m_digest= parent_digest;
 
     if (i->free_list)
       cleanup_items(i->free_list);
@@ -706,11 +825,18 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->stmt_arena= old_arena;
   state= STMT_EXECUTED;
 
-  if (err_status)
+  if (err_status && thd->is_error() && !caller_da->is_error())
   {
     /*
       If the SP ended with an exception, transfer the exception condition
       information to the Diagnostics Area of the caller.
+
+      Note that no error might be set yet in the case of kill.
+      It will be set later by mysql_execute_command() / execute_trigger().
+
+      In the case of multi update, it is possible that we can end up
+      executing a trigger after the update has failed. In this case,
+      keep the exception condition from the caller_da and don't transfer.
     */
     caller_da->set_error_status(thd->get_stmt_da()->mysql_errno(),
                                 thd->get_stmt_da()->message_text(),
@@ -719,9 +845,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
   /*
     - conditions generated during trigger execution should not be
-    propagated to the caller on success;
+    propagated to the caller on success;   (merge_da_on_success)
     - if there was an exception during execution, conditions should be
-    propagated to the caller in any case.
+    propagated to the caller in any case.  (err_status)
   */
   if (err_status || merge_da_on_success)
   {
@@ -732,45 +858,30 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       Diagnostics Area.
 
       On the other hand, if the routine body is not empty and some statement
-      in the routine generates a condition or uses tables, Diagnostics Area
-      is guaranteed to have changed. In this case we know that the routine
-      Diagnostics Area contains only new conditions, and thus we perform a copy.
+      in the routine generates a condition, Diagnostics Area is guaranteed to
+      have changed. In this case we know that the routine Diagnostics Area
+      contains only new conditions, and thus we perform a copy.
+
+      We don't use push_warning() here as to avoid invocation of
+      condition handlers or escalation of warnings to errors.
     */
-    if (caller_da->diagnostics_area_changed(&sp_da))
+    if (!err_status && thd->get_stmt_da() != &sp_da)
     {
       /*
-        If the invocation of the routine was a standalone statement,
-        rather than a sub-statement, in other words, if it's a CALL
-        of a procedure, rather than invocation of a function or a
-        trigger, we need to clear the current contents of the caller's
-        Diagnostics Area.
-
-        This is per MySQL rules: if a statement generates a warning,
-        warnings from the previous statement are flushed.  Normally
-        it's done in push_warning(). However, here we don't use
-        push_warning() to avoid invocation of condition handlers or
-        escalation of warnings to errors.
+        If we are RETURNing directly from a handler and the handler has
+        executed successfully, only transfer the conditions that were
+        raised during handler execution. Conditions that were present
+        when the handler was activated, are considered handled.
       */
-      caller_da->opt_reset_condition_info(thd->query_id);
-
-      if (!err_status && thd->get_stmt_da() != &sp_da)
-      {
-        /*
-          If we are RETURNing directly from a handler and the handler has
-          executed successfully, only transfer the conditions that were
-          raised during handler execution. Conditions that were present
-          when the handler was activated, are considered handled.
-        */
-        caller_da->copy_new_sql_conditions(thd, thd->get_stmt_da());
-      }
-      else // err_status || thd->get_stmt_da() == sp_da
-      {
-        /*
-          If we ended with an exception or the SP exited without any handler
-          active, transfer all conditions to the Diagnostics Area of the caller.
-        */
-        caller_da->copy_sql_conditions_from_da(thd, thd->get_stmt_da());
-      }
+      caller_da->copy_new_sql_conditions(thd, thd->get_stmt_da());
+    }
+    else // err_status || thd->get_stmt_da() == sp_da
+    {
+      /*
+        If we ended with an exception, or the SP exited without any handler
+        active, transfer all conditions to the Diagnostics Area of the caller.
+      */
+      caller_da->copy_sql_conditions_from_da(thd, thd->get_stmt_da());
     }
   }
 
@@ -903,7 +1014,8 @@ bool sp_head::execute_trigger(THD *thd,
     TODO: we should create sp_rcontext once per command and reuse it
     on subsequent executions of a trigger.
   */
-  init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_sp_head_call_root,
+                 &call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
   sp_rcontext *trigger_runtime_ctx=
@@ -918,7 +1030,16 @@ bool sp_head::execute_trigger(THD *thd,
   trigger_runtime_ctx->sp= this;
   thd->sp_runtime_ctx= trigger_runtime_ctx;
 
+#ifdef HAVE_PSI_SP_INTERFACE
+  PSI_sp_locker_state psi_state;
+  PSI_sp_locker *locker;
+
+  locker= MYSQL_START_SP(&psi_state, m_sp_share);
+#endif
   err_status= execute(thd, FALSE);
+#ifdef HAVE_PSI_SP_INTERFACE
+  MYSQL_END_SP(locker);
+#endif
 
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
@@ -942,7 +1063,7 @@ err_with_cleanup:
 bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                                Field *return_value_fld)
 {
-  ulonglong binlog_save_options;
+  ulonglong binlog_save_options= 0;
   bool need_binlog_call= FALSE;
   uint arg_no;
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
@@ -956,7 +1077,6 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 
-  LINT_INIT(binlog_save_options);
   // Resetting THD::where to its default value
   thd->where= THD::DEFAULT_WHERE;
   /*
@@ -987,7 +1107,8 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     TODO: we should create sp_rcontext once per command and reuse
     it on subsequent executions of a function/trigger.
   */
-  init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  init_sql_alloc(key_memory_sp_head_call_root,
+                 &call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
   sp_rcontext *func_runtime_ctx= sp_rcontext::create(thd, m_root_parsing_ctx,
@@ -1097,9 +1218,9 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    mysql_mutex_lock(&LOCK_thread_count);
-    q= global_query_id;
-    mysql_mutex_unlock(&LOCK_thread_count);
+    my_atomic_rwlock_rdlock(&global_query_id_lock);
+    q= my_atomic_load64(&global_query_id); 
+    my_atomic_rwlock_rdunlock(&global_query_id_lock);
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;
@@ -1117,7 +1238,16 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
+#ifdef HAVE_PSI_SP_INTERFACE
+  PSI_sp_locker_state psi_state;
+  PSI_sp_locker *locker;
+
+  locker= MYSQL_START_SP(&psi_state, m_sp_share);
+#endif
   err_status= execute(thd, TRUE);
+#ifdef HAVE_PSI_SP_INTERFACE
+  MYSQL_END_SP(locker);
+#endif
 
   thd->restore_active_arena(&call_arena, &backup_arena);
 
@@ -1288,7 +1418,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
       arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
-    thd->lex->unit.cleanup();
+    thd->lex->unit->cleanup(true);
 
     if (!thd->in_sub_stmt)
     {
@@ -1301,10 +1431,18 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     close_thread_tables(thd);
     thd_proc_info(thd, 0);
 
-    if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
-      thd->mdl_context.release_transactional_locks();
-    else if (! thd->in_sub_stmt)
-      thd->mdl_context.release_statement_locks();
+    if (! thd->in_sub_stmt)
+    {
+      if (thd->transaction_rollback_request)
+      {
+        trans_rollback_implicit(thd);
+        thd->mdl_context.release_transactional_locks();
+      }
+      else if (! thd->in_multi_stmt_transaction_mode())
+        thd->mdl_context.release_transactional_locks();
+      else
+        thd->mdl_context.release_statement_locks();
+    }
 
     thd->rollback_item_tree_changes();
 
@@ -1334,8 +1472,17 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   opt_trace_disable_if_no_stored_proc_func_access(thd, this);
 
+#ifdef HAVE_PSI_SP_INTERFACE
+  PSI_sp_locker_state psi_state;
+  PSI_sp_locker *locker;
+
+  locker= MYSQL_START_SP(&psi_state, m_sp_share);
+#endif
   if (!err_status)
     err_status= execute(thd, TRUE);
+#ifdef HAVE_PSI_SP_INTERFACE
+  MYSQL_END_SP(locker);
+#endif
 
   if (save_log_general)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;
@@ -1641,7 +1788,7 @@ bool sp_head::add_instr(THD *thd, sp_instr *instr)
   */
   instr->mem_root= get_persistent_mem_root();
 
-  return m_instructions.append(instr);
+  return m_instructions.push_back(instr);
 }
 
 
@@ -1666,7 +1813,7 @@ void sp_head::optimize()
     {
       if (src != dst)
       {
-        m_instructions.set(dst, i);
+        m_instructions[dst]= i;
 
         /* Move the instruction and update prev. jumps */
         sp_branch_instr *ibp;
@@ -1681,7 +1828,7 @@ void sp_head::optimize()
     }
   }
 
-  m_instructions.elements(dst);
+  m_instructions.resize(dst);
   bp.empty();
 }
 
@@ -1928,10 +2075,11 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
         is safe to infer the type of metadata lock from the type of
         table lock.
       */
-      table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                              table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                              MDL_SHARED_WRITE : MDL_SHARED_READ,
-                              MDL_TRANSACTION);
+      MDL_REQUEST_INIT(&table->mdl_request,
+                       MDL_key::TABLE, table->db, table->table_name,
+                       table->lock_type >= TL_WRITE_ALLOW_WRITE ?
+                         MDL_SHARED_WRITE : MDL_SHARED_READ,
+                       MDL_TRANSACTION);
 
       /* Everyting else should be zeroed */
 

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,7 +89,21 @@ extern "C" {
 			   int nodeId, 
 			   int errorCode,
 			   struct ndb_mgm_reply* reply);
-    
+
+  /**
+   * Provoke an error.
+   *
+   * @param handle the NDB management handle.
+   * @param nodeId the node id.
+   * @param errrorCode the errorCode.
+   * @param reply the reply message.
+   * @return 0 if successful or an error code.
+   */
+  int ndb_mgm_insert_error2(NdbMgmHandle handle,
+                            int nodeId,
+                            int errorCode,
+                            int extra,
+                            struct ndb_mgm_reply* reply);
 
   /**
    *

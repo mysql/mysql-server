@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
   will be resolved later.
 */
 #include "sql_class.h"                          // set_var.h: THD
+#include "sql_parse.h"                          // check_stack_overrun 
 #include "set_var.h"
 #include "my_xml.h"
 #include "sp_pcontext.h"
@@ -222,6 +223,9 @@ public:
   {
     max_length= MAX_BLOB_WIDTH;
     collation.collation= pxml->charset();
+    // To avoid premature evaluation, mark all nodeset functions as non-const.
+    used_tables_cache= RAND_TABLE_BIT;
+    const_item_cache= false;
   }
   const char *func_name() const { return "nodeset"; }
 };
@@ -1545,6 +1549,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath);
 
     [1] LocationPath ::=   RelativeLocationPath
                          | AbsoluteLocationPath
+    [3] RelativeLocationPath ::= RelativeLocationPath '/' Step
 
   RETURN
     1 - success
@@ -1654,6 +1659,12 @@ static int my_xpath_parse_RelativeLocationPath(MY_XPATH *xpath)
   [4] Step ::=   AxisSpecifier NodeTest Predicate*
                | AbbreviatedStep
   [8] Predicate ::= '[' PredicateExpr ']'
+  [9] PredicateExpr ::= Expr (RECURSIVE)
+  [14] Expr ::= OrExpr
+
+  reduced to:
+
+  [8b] Predicate ::= '[' OrExpr ']' (RECURSIVE)
 
   RETURN
     1 - success
@@ -1834,10 +1845,16 @@ static int my_xpath_parse_AbbreviatedStep(MY_XPATH *xpath)
   SYNOPSYS
 
   [15] PrimaryExpr ::= VariableReference	
-                       | '(' Expr ')'	
+                       | '(' Expr ')'   (RECURSIVE)
                        | Literal	
                        | Number	
                        | FunctionCall
+  [14] Expr ::= OrExpr
+
+  reduced to:
+
+  [15b] PrimaryExpr ::= '(' OrExpr ')'  (RECURSIVE)
+
   RETURN
     1 - success
     0 - failure
@@ -1873,7 +1890,12 @@ static int my_xpath_parse_PrimaryExpr(MY_XPATH *xpath)
 
   SYNOPSYS
     [16] FunctionCall ::= FunctionName '(' ( Argument ( ',' Argument )* )? ')'
-    [17] Argument      ::= Expr
+    [17] Argument      ::= Expr (RECURSIVE)
+    [14] Expr ::= OrExpr
+ 
+    reduced to:
+ 
+    [16b] FunctionCall ::= FunctionName '(' ( OrExpr ( ',' OrExpr )* )? ')' (RECURSIVE)
 
   RETURN
     1 - success
@@ -2045,6 +2067,12 @@ static int my_xpath_parse_FilterExpr(MY_XPATH *xpath)
 */
 static int my_xpath_parse_OrExpr(MY_XPATH *xpath)
 {
+  THD *thd= current_thd;
+  uchar stack_top;
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, &stack_top))
+   return 1;
+
   if (!my_xpath_parse_AndExpr(xpath))
     return 0;
 
@@ -2696,8 +2724,12 @@ int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 
   node.parent= data->parent; // Set parent for the new node to old parent
   data->parent= numnodes;    // Remember current node as new parent
+  DBUG_ASSERT(data->level <= MAX_LEVEL);
   data->pos[data->level]= numnodes;
-  node.level= data->level++;
+  if (data->level < MAX_LEVEL)
+    node.level= data->level++;
+  else
+    return MY_XML_ERROR;
   node.type= st->current_node_type; // TAG or ATTR
   node.beg= attr;
   node.end= attr + len;

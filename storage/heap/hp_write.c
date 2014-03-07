@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2002, 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +16,7 @@
 /* Write a record to heap-databas */
 
 #include "heapdef.h"
-#ifdef __WIN__
+#ifdef _WIN32
 #include <fcntl.h>
 #endif
 
@@ -197,8 +196,8 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
   HP_SHARE *share = info->s;
   int flag;
   ulong halfbuff,hashnr,first_index;
-  uchar *UNINIT_VAR(ptr_to_rec),*UNINIT_VAR(ptr_to_rec2);
-  HASH_INFO *empty,*UNINIT_VAR(gpos),*UNINIT_VAR(gpos2),*pos;
+  uchar *ptr_to_rec= NULL, *ptr_to_rec2= NULL;
+  HASH_INFO *empty, *gpos= NULL, *gpos2= NULL, *pos;
   DBUG_ENTER("hp_write_key");
 
   flag=0;

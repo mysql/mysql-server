@@ -2,6 +2,7 @@
 --source include/not_embedded.inc
 --source include/mysql_upgrade_preparation.inc
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
+call mtr.add_suppression("Did not write failed .*");
 
 query_vertical SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
   FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
@@ -24,7 +25,7 @@ connect(plug_con,localhost,plug,plug_dest);
 GRANT PROXY ON plug_dest TO plug;
 --echo test proxies_priv columns
 --replace_column 1 xx 7 xx
-SELECT * FROM mysql.proxies_priv;
+SELECT * FROM mysql.proxies_priv WHERE user !='root';
 --echo test mysql.proxies_priv;
 SHOW CREATE TABLE mysql.proxies_priv;
 
@@ -121,8 +122,7 @@ disconnect plug_con_grant;
 DROP USER new_grant_user;
 
 --echo # try re-create existing user via GRANT IDENTIFIED WITH
-#--error ER_GRANT_PLUGIN_USER_EXISTS
---echo GRANTS which don't affect current plugin are allowed!
+--error ER_GRANT_PLUGIN_USER_EXISTS
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 

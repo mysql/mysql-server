@@ -38,7 +38,7 @@ INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 --source include/assert.inc
 
 # Compare master and slave
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:test.t1 , slave:test.t1
 --source include/diff_tables.inc
 
@@ -58,6 +58,9 @@ INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 --let $assert_text= Count of elements in t1 should be 6.
 --source include/assert.inc
 
+# force outstanding executed transactions to be flushed to binlog for ndb
+--save_master_pos
+
 if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 {
   --let $binlog_position_cmp= =
@@ -66,6 +69,7 @@ if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 }
 if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 {
+  --source extra/rpl_tests/rpl_insert_ignore_gtid_on.inc
   --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 2, 1\', Info, 1]\' LIKE \'%$statement_file\'
   --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
 }
@@ -91,6 +95,9 @@ eval CREATE TABLE t2 (
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 
+# force outstanding executed transactions to be flushed to binlog for ndb
+--save_master_pos
+
 --let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
 --let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1)
 --let $statement_file=INSERT INTO t1 SELECT t2.a FROM t2 ORDER BY t2.a ON DUPLICATE KEY UPDATE t1.a= t1.a
@@ -101,6 +108,9 @@ INSERT INTO t2 VALUES (1);
 --let $assert_text= Sum of elements in t1 should be 1.
 --source include/assert.inc
 
+# force outstanding executed transactions to be flushed to binlog for ndb
+--save_master_pos
+
 if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 {
   --let $binlog_position_cmp= =
@@ -109,6 +119,7 @@ if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 }
 if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 {
+  --source extra/rpl_tests/rpl_insert_ignore_gtid_on.inc
   --let $assert_cond= \'[\'SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_start LIMIT 1, 1\', Info, 1]\' LIKE \'%$statement_file\'
   --let $assert_text= In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.
 }
@@ -118,4 +129,4 @@ if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 # Clean up
 --connection master
 drop table t1, t2;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc

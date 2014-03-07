@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,6 +46,8 @@ struct row_events_statements
   ulonglong m_nesting_event_id;
   /** Column NESTING_EVENT_TYPE. */
   enum_event_type m_nesting_event_type;
+  /** Column NESTING_EVENT_LEVEL. */
+  uint m_nesting_event_level;
   /** Column EVENT_NAME. */
   const char *m_name;
   /** Length in bytes of @c m_name. */
@@ -72,6 +74,18 @@ struct row_events_statements
   char m_current_schema_name[NAME_LEN];
   /** Length in bytes of @c m_current_schema_name. */
   uint m_current_schema_name_length;
+
+  /** Column OBJECT_TYPE. */
+  enum_object_type m_object_type;
+  /** Column OBJECT_SCHEMA. */
+  char m_schema_name[NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
+  /** Column OBJECT_NAME. */
+  char m_object_name[NAME_LEN];
+  /** Length in bytes of @c m_object_name. */
+  uint m_object_name_length;
+
 
   /** Column MESSAGE_TEXT. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];
@@ -174,7 +188,10 @@ protected:
   ~table_events_statements_common()
   {}
 
-  void make_row(PFS_events_statements *statement);
+  void make_row_part_1(PFS_events_statements *statement,
+                       sql_digest_storage *digest);
+
+  void make_row_part_2(const sql_digest_storage *digest);
 
   /** Current row. */
   row_events_statements m_row;
@@ -190,6 +207,7 @@ public:
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
   static int delete_all_rows();
+  static ha_rows get_row_count();
 
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
@@ -216,6 +234,8 @@ private:
   */
   static TABLE_FIELD_DEF m_field_def;
 
+  void make_row(PFS_thread* pfs_thread, PFS_events_statements *statement);
+
   /** Current position. */
   pos_events_statements_current m_pos;
   /** Next position. */
@@ -230,6 +250,7 @@ public:
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
   static int delete_all_rows();
+  static ha_rows get_row_count();
 
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
@@ -247,6 +268,8 @@ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
 
+  void make_row(PFS_thread* pfs_thread, PFS_events_statements *statement);
+
   /** Current position. */
   pos_events_statements_history m_pos;
   /** Next position. */
@@ -261,6 +284,7 @@ public:
   static PFS_engine_table_share m_share;
   static PFS_engine_table* create();
   static int delete_all_rows();
+  static ha_rows get_row_count();
 
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
@@ -277,6 +301,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+
+  void make_row(PFS_events_statements *statement);
 
   /** Current position. */
   PFS_simple_index m_pos;

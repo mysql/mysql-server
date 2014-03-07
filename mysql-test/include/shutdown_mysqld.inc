@@ -13,6 +13,6 @@ if ($rpl_inited)
 --exec echo "wait" > $_expect_file_name
 
 # Send shutdown to the connected server
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 

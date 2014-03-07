@@ -1,3 +1,4 @@
+
 # This test should work in embedded server after we fix mysqltest
 -- source include/not_embedded.inc
 ###################### mysql_comments.test #############################
@@ -28,10 +29,12 @@ drop trigger if exists t1_bi;
 
 # Test without comments
 --echo "Pass 1 : --disable-comments"
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{2}/--TIMESTAMP--/
 --exec $MYSQL --disable-comments test 2>&1 < "./t/mysql_comments.sql"
 
 # Test with comments
 --echo "Pass 2 : --enable-comments"
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{2}/--TIMESTAMP--/
 --exec $MYSQL --enable-comments test 2>&1 < "./t/mysql_comments.sql"
 
 --echo End of 5.0 tests

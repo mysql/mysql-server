@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ INCLUDE(CheckSymbolExists)
 
 # Something that needs to be set on legacy reasons
 SET(TARGET_OS_LINUX 1)
-SET(HAVE_NPTL 1)
 SET(_GNU_SOURCE 1)
 
 # Fix CMake (< 2.8) flags. -rdynamic exports too many symbols.
@@ -33,15 +32,13 @@ ENDFOREACH()
 
 # Ensure we have clean build for shared libraries
 # without unresolved symbols
-SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
+# Not supported with AddressSanitizer and MemorySanitizer
+IF(NOT WITH_ASAN AND NOT WITH_MSAN)
+  SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
+ENDIF()
 
 # 64 bit file offset support flag
 SET(_FILE_OFFSET_BITS 64)
 
 # Linux specific HUGETLB /large page support
-CHECK_SYMBOL_EXISTS(SHM_HUGETLB sys/shm.h  HAVE_DECL_SHM_HUGETLB)
-IF(HAVE_DECL_SHM_HUGETLB)
-  SET(HAVE_LARGE_PAGES 1)
-  SET(HUGETLB_USE_PROC_MEMINFO 1)
-  SET(HAVE_LARGE_PAGE_OPTION 1)
-ENDIF()
+CHECK_SYMBOL_EXISTS(SHM_HUGETLB sys/shm.h HAVE_LINUX_LARGE_PAGES)

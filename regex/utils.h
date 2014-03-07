@@ -15,8 +15,3 @@ typedef unsigned char uch;
 #endif
 #endif
 #include <assert.h>
-
-/* for old systems with bcopy() but no memmove() */
-#ifdef USEBCOPY
-#define	memmove(d, s, c)	bcopy(s, d, c)
-#endif

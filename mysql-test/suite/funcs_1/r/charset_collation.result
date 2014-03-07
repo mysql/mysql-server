@@ -36,5 +36,5 @@ latin1_bin	latin1
 latin1_general_ci	latin1
 utf8_bin	utf8
 utf8_general_ci	utf8
-# Switch to connection default + disconnect con
+# Switch to connection default
 DROP USER dbdict_test@localhost;

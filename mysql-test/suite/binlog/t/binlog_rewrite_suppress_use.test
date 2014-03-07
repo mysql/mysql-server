@@ -1,0 +1,61 @@
+# WL#6404 - Add rewrite-db option to mysqlbinlog on RBR
+#
+# The test aims to check that the use of rewrite-db option of
+# mysqlbinlog suppresses the USE DATABASE command logged in
+# binlog file.
+#
+
+--source include/have_binlog_format_row.inc
+RESET MASTER;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (i INT);
+
+# Get some INSERT, UPDATE and DELETE ROW events.
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+UPDATE t1 SET i= i+1;
+DELETE FROM t1 WHERE i=2;
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+
+# Checking for the suppression of the USE DATABASE command on using the new option.
+# Reading binlog file without the rewrite-db option.
+--echo [The use <db_name> is not suppressed in the general use of mysqlbinlog]
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event.sql
+--let GREP_FILE=$MYSQLTEST_VARDIR/tmp/row_event.sql
+--let GREP_PATTERN=use `db1`
+--source extra/rpl_tests/grep_pattern.inc
+
+# Reading binlog file with the rewrite-db option.
+--echo [The use <db_name> is suppressed on using rewrite-db option of mysqlbinlog]
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--let GREP_FILE=$MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--let GREP_PATTERN=use `db1`
+--source extra/rpl_tests/grep_pattern.inc
+
+CREATE DATABASE db2;
+DROP DATABASE db1;
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
+--exec $MYSQL --database=db2 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event.sql
+--error ER_NO_SUCH_TABLE
+SELECT * FROM db2.t1;
+
+DROP DATABASE db1;
+# With gtid-mode=on we need purge gtid_executed, if not transactions
+# replayed through mysqlbinlog will be skipped.
+RESET MASTER;
+--echo [The event of table db1.t1 has been successfully applied to db2.t1]
+--exec $MYSQL --database=db2 --local-infile=1 < $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--let $assert_text= Assert that table db2.t1 has no rows after applying the sql file.
+--let $assert_cond= `SELECT COUNT(*)=1 from db2.t1`
+--source include/assert.inc
+
+--echo [CLEANUP]
+--remove_file $MYSQLTEST_VARDIR/tmp/row_event.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+
+DROP DATABASE db1;
+DROP DATABASE db2;

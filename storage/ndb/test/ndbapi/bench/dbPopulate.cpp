@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005, 2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,7 +112,7 @@ static void populateServers(UserHandle *uh, int count)
    for(i = 0; i < count; i++) {
       sprintf(tmp, "-Server %d-", i);
 
-      len = strlen(tmp);
+      len = (int)strlen(tmp);
       for(j = 0; j < SERVER_NAME_LENGTH; j++){
          serverName[j] = tmp[j % len];
       }
@@ -211,7 +210,7 @@ static void populateGroups(UserHandle *uh, int count)
    for(i = 0; i < NO_OF_GROUPS; i++) {
       sprintf(tmp, "-Group %d-", i);
 
-      len = strlen(tmp);
+      len = (int)strlen(tmp);
 
       for(j = 0; j < GROUP_NAME_LENGTH; j++) {
         groupName[j] = tmp[j % len];

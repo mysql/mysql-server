@@ -16,7 +16,7 @@
 # --source include/save_master_pos.inc
 #
 # On slave:
-# --source include/sync_slave_io_with_master.inc
+# --source include/sync_slave_io.inc
 #
 # Parameters:
 #   $use_gtids
@@ -29,7 +29,7 @@
 #     See include/rpl_init.inc
 
 
---let $include_filename= sync_io_with_master.inc
+--let $include_filename= sync_slave_io.inc
 --source include/begin_include_file.inc
 
 --let $_old_slave_error_param= $slave_error_param
@@ -37,7 +37,7 @@
 
 if ($use_gtids)
 {
-  --let $slave_param= Retrieved_Gtid_set
+  --let $slave_param= Retrieved_Gtid_Set
   --let $slave_param_value= $_saved_gtids
   --source include/wait_for_slave_param.inc
 }
@@ -55,5 +55,5 @@ if (!$use_gtids)
 --let $slave_error_param= $_old_slave_error_param
 
 
---let $include_filename= sync_io_with_master.inc
+--let $include_filename= sync_slave_io.inc
 --source include/end_include_file.inc

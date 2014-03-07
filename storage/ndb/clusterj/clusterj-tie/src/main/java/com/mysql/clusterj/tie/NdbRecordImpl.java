@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -706,10 +706,13 @@ public class NdbRecordImpl {
                 case Blob:
                 case Date:
                 case Datetime:
+                case Datetime2:
                 case Double:
                 case Text:
                 case Time:
+                case Time2:
                 case Timestamp:
+                case Timestamp2:
                     align8.add(storeColumn);
                     break;
                 case Binary:

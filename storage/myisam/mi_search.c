@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   }
 
   if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
-                               test(!(nextflag & SEARCH_SAVE_BUFF)))))
+                               MY_TEST(!(nextflag & SEARCH_SAVE_BUFF)))))
     goto err;
   DBUG_DUMP("page", buff, mi_getint(buff));
 
@@ -125,7 +125,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   {
     uchar *old_buff=buff;
     if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
-                                 test(!(nextflag & SEARCH_SAVE_BUFF)))))
+                                 MY_TEST(!(nextflag & SEARCH_SAVE_BUFF)))))
       goto err;
     keypos=buff+(keypos-old_buff);
     maxpos=buff+(maxpos-old_buff);
@@ -183,11 +183,10 @@ int _mi_bin_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
                    uchar *buff __attribute__((unused)), my_bool *last_key)
 {
   int start,mid,end,save_end;
-  int flag;
+  int flag= 0;
   uint totlength,nod_flag,not_used[2];
   DBUG_ENTER("_mi_bin_search");
 
-  LINT_INIT(flag);
   totlength=keyinfo->keylength+(nod_flag=mi_test_if_nod(page));
   start=0; mid=1;
   save_end=end=(int) ((mi_getint(page)-2-nod_flag)/totlength-1);
@@ -246,8 +245,8 @@ int _mi_seq_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
                    uchar *key, uint key_len, uint comp_flag, uchar **ret_pos,
                    uchar *buff, my_bool *last_key)
 {
-  int UNINIT_VAR(flag);
-  uint nod_flag,UNINIT_VAR(length),not_used[2];
+  int flag= 0;
+  uint nod_flag, length= 0, not_used[2];
   uchar t_buff[MI_MAX_KEY_BUFF],*end;
   DBUG_ENTER("_mi_seq_search");
 
@@ -296,14 +295,14 @@ int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
     flag is the value returned by ha_key_cmp and as treated as final
   */
   int flag=0, my_flag=-1;
-  uint nod_flag, UNINIT_VAR(length), len, matched, cmplen, kseg_len;
-  uint UNINIT_VAR(prefix_len), suffix_len;
-  int key_len_skip, UNINIT_VAR(seg_len_pack), key_len_left;
+  uint nod_flag, length= 0, len, matched, cmplen, kseg_len;
+  uint prefix_len= 0, suffix_len;
+  int key_len_skip, seg_len_pack= 0, key_len_left;
   uchar *end, *kseg, *vseg;
-  uchar *sort_order=keyinfo->seg->charset->sort_order;
+  const uchar *sort_order=keyinfo->seg->charset->sort_order;
   uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
-  uchar *UNINIT_VAR(saved_from), *UNINIT_VAR(saved_to);
-  uchar *UNINIT_VAR(saved_vseg);
+  uchar *saved_from= NULL, *saved_to= NULL;
+  uchar *saved_vseg= NULL;
   uint  saved_length=0, saved_prefix_len=0;
   uint  length_pack;
   DBUG_ENTER("_mi_prefix_search");
@@ -835,14 +834,14 @@ uint _mi_get_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
 	if (tot_length >= 255 && *start != 255)
 	{
 	  /* length prefix changed from a length of one to a length of 3 */
-	  bmove_upp(key+length+3, key+length+1, length);
+	  memmove(key + 3, key + 1, length);
 	  *key=255;
 	  mi_int2store(key+1,tot_length);
 	  key+=3+length;
 	}
 	else if (tot_length < 255 && *start == 255)
 	{
-	  bmove(key+1,key+3,length);
+	  memmove(key + 1, key + 3, length);
 	  *key=tot_length;
 	  key+=1+length;
 	}
@@ -901,7 +900,7 @@ uint _mi_get_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
     page+=length;
   }
   length=keyseg->length+nod_flag;
-  bmove((uchar*) key,(uchar*) page,length);
+  memmove((uchar*) key, (uchar*) page, length);
   *page_pos= page+length;
   return ((uint) (key-start_key)+keyseg->length);
 } /* _mi_get_pack_key */
@@ -1056,7 +1055,7 @@ uchar *_mi_get_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
   nod_flag=mi_test_if_nod(page);
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
-    bmove((uchar*) key,(uchar*) keypos,keyinfo->keylength+nod_flag);
+    memmove((uchar*) key, (uchar*) keypos, keyinfo->keylength + nod_flag);
     DBUG_RETURN(keypos+keyinfo->keylength+nod_flag);
   }
   else
@@ -1094,8 +1093,8 @@ static my_bool _mi_get_prev_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
   {
     *return_key_length=keyinfo->keylength;
-    bmove((uchar*) key,(uchar*) keypos- *return_key_length-nod_flag,
-          *return_key_length);
+    memmove((uchar*) key, (uchar*) keypos - *return_key_length - nod_flag,
+            *return_key_length);
     DBUG_RETURN(0);
   }
   else
@@ -1136,7 +1135,8 @@ uchar *_mi_get_last_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
     lastpos=endpos-keyinfo->keylength-nod_flag;
     *return_key_length=keyinfo->keylength;
     if (lastpos > page)
-      bmove((uchar*) lastkey,(uchar*) lastpos,keyinfo->keylength+nod_flag);
+      memmove((uchar*) lastkey,
+              (uchar*) lastpos, keyinfo->keylength + nod_flag);
   }
   else
   {
@@ -1470,7 +1470,8 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   int length;
   uint key_length,ref_length,org_key_length=0,
        length_pack,new_key_length,diff_flag,pack_marker;
-  uchar *start,*end,*key_end,*sort_order;
+  uchar *start,*end,*key_end;
+  const uchar *sort_order;
   my_bool same_length;
 
   length_pack=s_temp->ref_length=s_temp->n_ref_length=s_temp->n_length=0;
@@ -1751,9 +1752,6 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   uint length,key_length,ref_length;
 
   s_temp->totlength=key_length=_mi_keylength(keyinfo,key)+nod_flag;
-#ifdef HAVE_purify
-  s_temp->n_length= s_temp->n_ref_length=0;	/* For valgrind */
-#endif
   s_temp->key=key;
   s_temp->prev_key=org_key;
   if (prev_key)                                 /* If not first key in block */
@@ -1862,8 +1860,8 @@ void _mi_store_var_pack_key(MI_KEYDEF *keyinfo  __attribute__((unused)),
     /* Not packed against previous key */
     store_pack_length(s_temp->pack_marker == 128,key_pos,s_temp->key_length);
   }
-  bmove((uchar*) key_pos,(uchar*) s_temp->key,
-        (length=s_temp->totlength-(uint) (key_pos-start)));
+  memmove((uchar*) key_pos, (uchar*) s_temp->key,
+          (length= s_temp->totlength - (uint) (key_pos - start)));
 
   if (!s_temp->next_key_pos)                    /* No following key */
     return;

@@ -1,0 +1,2 @@
+--loose-enable-performance-schema
+--loose-performance_schema_max_memory_classes=0

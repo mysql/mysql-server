@@ -1,3 +1,4 @@
+
 -- source include/have_query_cache.inc
 #
 # QUERY CACHE options for VIEWs

@@ -1,7 +1,7 @@
 #ifndef SSLOPT_VARS_INCLUDED
 #define SSLOPT_VARS_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,21 +17,34 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-#ifdef SSL_VARS_NOT_STATIC
-#define SSL_STATIC
+/* Always try to use SSL per default */
+static my_bool opt_use_ssl   = TRUE;
+/* Fall back on unencrypted connections per default */
+static my_bool opt_ssl_enforce= FALSE;
+static char *opt_ssl_ca      = 0;
+static char *opt_ssl_capath  = 0;
+static char *opt_ssl_cert    = 0;
+static char *opt_ssl_cipher  = 0;
+static char *opt_ssl_key     = 0;
+static char *opt_ssl_crl     = 0;
+static char *opt_ssl_crlpath = 0;
+#ifndef MYSQL_CLIENT
+#error This header is supposed to be used only in the client
+#endif
+#define SSL_SET_OPTIONS(mysql) \
+  if (opt_use_ssl) \
+  { \
+    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca, \
+      opt_ssl_capath, opt_ssl_cipher); \
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl); \
+    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath); \
+    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &opt_ssl_enforce); \
+  } \
+  mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, \
+    (char*)&opt_ssl_verify_server_cert)
+
+static my_bool opt_ssl_verify_server_cert= 0;
 #else
-#define SSL_STATIC static
-#endif
-SSL_STATIC my_bool opt_use_ssl   = 0;
-SSL_STATIC char *opt_ssl_ca      = 0;
-SSL_STATIC char *opt_ssl_capath  = 0;
-SSL_STATIC char *opt_ssl_cert    = 0;
-SSL_STATIC char *opt_ssl_cipher  = 0;
-SSL_STATIC char *opt_ssl_key     = 0;
-SSL_STATIC char *opt_ssl_crl     = 0;
-SSL_STATIC char *opt_ssl_crlpath = 0;
-#ifdef MYSQL_CLIENT
-SSL_STATIC my_bool opt_ssl_verify_server_cert= 0;
-#endif
+#define SSL_SET_OPTIONS(mysql) do { } while(0)
 #endif
 #endif /* SSLOPT_VARS_INCLUDED */

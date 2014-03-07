@@ -1,15 +1,20 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+include/sync_slave_sql_with_master.inc
+include/rpl_restart_server.inc [server_number=1]
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
 select master_pos_wait('master-bin.999999',0,2);
 master_pos_wait('master-bin.999999',0,2)
 -1
 explain extended select master_pos_wait('master-bin.999999',0,2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select master_pos_wait('master-bin.999999',0,2) AS `master_pos_wait('master-bin.999999',0,2)`
 select master_pos_wait('master-bin.999999',0);
 stop slave sql_thread;
