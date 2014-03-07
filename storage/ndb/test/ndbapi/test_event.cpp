@@ -270,7 +270,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
       NdbEventOperation *tmp;
       while ((tmp= pNdb->nextEvent()))
       {
-	assert(tmp == pOp);
+	require(tmp == pOp);
 	r++;
 	count++;
 
@@ -685,7 +685,7 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
       ndb->pollEvents(100, &curr_gci);
       while ((pOp= ndb->nextEvent()) != 0)
       {
-	assert(pOp == pCreate);
+	require(pOp == pCreate);
       
         if (pOp->getEventType() >=
             NdbDictionary::Event::TE_FIRST_NON_DATA_EVENT)
@@ -1034,7 +1034,7 @@ int runEventListenerUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
       ndb->pollEvents(100, &curr_gci);
       while ((pOp= ndb->nextEvent()) != 0)
       {
-	assert(pOp == pCreate);
+	require(pOp == pCreate);
       } 
     }
   }

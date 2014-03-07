@@ -49,7 +49,7 @@ struct ConfigFactory
       nodeId = mask.find_first();
     }
 
-    assert(mask.get(nodeId));
+    require(mask.get(nodeId));
     mask.clear(nodeId);
     return nodeId;
   }
@@ -63,7 +63,7 @@ struct ConfigFactory
   {
     Uint32 base_port = get_ndbt_base_port() + /* mysqld */ 1;
     Properties config;
-    assert(mgmds >= 1 && ndbds >= 1 && mysqlds >= 1);
+    require(mgmds >= 1 && ndbds >= 1 && mysqlds >= 1);
     NodeBitmask mask;
     mask.set();
     mask.clear(Uint32(0));

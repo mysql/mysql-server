@@ -200,7 +200,7 @@ NdbRestarter::getNextMasterNodeId(int nodeId){
       break;
     }
   }
-  assert(i < ndbNodes.size());
+  require(i < ndbNodes.size());
   if (i == ndbNodes.size())
     return -1;
 
@@ -461,7 +461,7 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
         g_info<< ", start_phase=" << ndbNode->start_phase;
       g_info << endl;
 
-      assert(ndbNode != NULL);
+      require(ndbNode != NULL);
 
       if(_status == NDB_MGM_NODE_STATUS_STARTING && 
 	 ((ndbNode->node_status == NDB_MGM_NODE_STATUS_STARTING && 

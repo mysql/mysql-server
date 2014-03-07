@@ -46,29 +46,29 @@ NDBT_Context::~NDBT_Context(){
 }
 
 const NdbDictionary::Table* NDBT_Context::getTab(){
-  assert(tables.size());
+  require(tables.size());
   return tables[0];
 }
 
 NDBT_TestSuite* NDBT_Context::getSuite(){ 
-  assert(suite != NULL);
+  require(suite != NULL);
   return suite;
 }
 
 NDBT_TestCase* NDBT_Context::getCase(){ 
-  assert(testcase != NULL);
+  require(testcase != NULL);
   return testcase;
 }
 
 const char* NDBT_Context::getTableName(int n) const
 { 
-  assert(suite != NULL);
+  require(suite != NULL);
   return suite->m_tables_in_test[n].c_str();
 }
 
 int NDBT_Context::getNumTables() const
 { 
-  assert(suite != NULL);
+  require(suite != NULL);
   return suite->m_tables_in_test.size();
 }
 
@@ -135,7 +135,7 @@ const char* NDBT_Context::getPropertyWait(const char* _name, const char* _waitVa
 void  NDBT_Context::setProperty(const char* _name, Uint32 _val){ 
   NdbMutex_Lock(propertyMutexPtr);
   const bool b = props.put(_name, _val, true);
-  assert(b == true);
+  require(b == true);
   NdbCondition_Broadcast(propertyCondPtr);
   NdbMutex_Unlock(propertyMutexPtr);
 }
@@ -145,7 +145,7 @@ NDBT_Context::decProperty(const char * name){
   NdbMutex_Lock(propertyMutexPtr);
   Uint32 val = 0;
   if(props.get(name, &val)){
-    assert(val > 0);
+    require(val > 0);
     props.put(name, (val - 1), true);
   }
   NdbCondition_Broadcast(propertyCondPtr);
@@ -180,7 +180,7 @@ NDBT_Context::casProperty(const char * name, Uint32 oldValue, Uint32 newValue)
 void  NDBT_Context::setProperty(const char* _name, const char* _val){ 
   NdbMutex_Lock(propertyMutexPtr);
   const bool b = props.put(_name, _val, true);
-  assert(b == true);
+  require(b == true);
   NdbCondition_Broadcast(propertyCondPtr);
   NdbMutex_Unlock(propertyMutexPtr);
 }
@@ -254,12 +254,12 @@ NDBT_Context::getTables()
 }
 
 void NDBT_Context::setSuite(NDBT_TestSuite* psuite){ 
-  assert(psuite != NULL);
+  require(psuite != NULL);
   suite = psuite;
 }
 
 void NDBT_Context::setCase(NDBT_TestCase* pcase){ 
-  assert(pcase != NULL);
+  require(pcase != NULL);
   testcase = pcase;
 }
 
@@ -322,13 +322,13 @@ NDBT_Step::tearDown(){
 }
 
 Ndb* NDBT_Step::getNdb() const {
-  assert(m_ndb != NULL);
+  require(m_ndb != NULL);
   return m_ndb;
 }
 
 
 int NDBT_Step::execute(NDBT_Context* ctx) {
-  assert(ctx != NULL);
+  require(ctx != NULL);
 
   char buf[64]; // For timestamp string
   g_info << "  |- " << name << " started ["
@@ -359,12 +359,12 @@ int NDBT_Step::execute(NDBT_Context* ctx) {
 }
 
 void NDBT_Step::setContext(NDBT_Context* pctx){
-  assert(pctx != NULL);
+  require(pctx != NULL);
   m_ctx = pctx;
 }
 
 NDBT_Context* NDBT_Step::getContext(){
-  assert(m_ctx != NULL);
+  require(m_ctx != NULL);
   return m_ctx;
 }
 
@@ -397,7 +397,7 @@ NDBT_TestCase::NDBT_TestCase(NDBT_TestSuite* psuite,
   _comment(pcomment),
   suite(psuite)
 {
-  assert(suite != NULL);
+  require(suite != NULL);
 
   m_all_tables = false;
   m_has_run = false;
@@ -444,7 +444,7 @@ NDBT_TestCaseImpl1::~NDBT_TestCaseImpl1(){
 }
 
 int NDBT_TestCaseImpl1::addStep(NDBT_Step* pStep){
-  assert(pStep != NULL);
+  require(pStep != NULL);
   steps.push_back(pStep);
   pStep->setStepNo(steps.size());
   int res = NORESULT;
@@ -453,14 +453,14 @@ int NDBT_TestCaseImpl1::addStep(NDBT_Step* pStep){
 }
 
 int NDBT_TestCaseImpl1::addVerifier(NDBT_Verifier* pVerifier){
-  assert(pVerifier != NULL);
+  require(pVerifier != NULL);
   verifiers.push_back(pVerifier);
   return 0;
 }
 
 int NDBT_TestCaseImpl1::addInitializer(NDBT_Initializer* pInitializer,
                                        bool first){
-  assert(pInitializer != NULL);
+  require(pInitializer != NULL);
   if (first)
     initializers.push(pInitializer, 0);
   else
@@ -469,15 +469,15 @@ int NDBT_TestCaseImpl1::addInitializer(NDBT_Initializer* pInitializer,
 }
 
 int NDBT_TestCaseImpl1::addFinalizer(NDBT_Finalizer* pFinalizer){
-  assert(pFinalizer != NULL);
+  require(pFinalizer != NULL);
   finalizers.push_back(pFinalizer);
   return 0;
 }
 
 void NDBT_TestCaseImpl1::addTable(const char* tableName, bool isVerify) {
-  assert(tableName != NULL);
+  require(tableName != NULL);
   const NdbDictionary::Table* pTable = NDBT_Tables::getTable(tableName);
-  assert(pTable != NULL);
+  require(pTable != NULL);
   testTables.push_back(pTable);
   isVerifyTables = isVerify;
 }
@@ -518,21 +518,21 @@ bool NDBT_TestCaseImpl1::isVerify(const NdbDictionary::Table* aTable) {
 
 void  NDBT_TestCase::setProperty(const char* _name, Uint32 _val){ 
   const bool b = props.put(_name, _val);
-  assert(b == true);
+  require(b == true);
 }
 
 void  NDBT_TestCase::setProperty(const char* _name, const char* _val){ 
   const bool b = props.put(_name, _val);
-  assert(b == true);
+  require(b == true);
 }
 
 
 void *
 runStep(void * s){
-  assert(s != NULL);
+  require(s != NULL);
   NDBT_Step* pStep = (NDBT_Step*)s;
   NDBT_Context* ctx = pStep->getContext();
-  assert(ctx != NULL);
+  require(ctx != NULL);
    // Execute function
   int res = pStep->execute(ctx);
   if(res != NDBT_OK){
@@ -540,7 +540,7 @@ runStep(void * s){
   }
   // Report 
   NDBT_TestCaseImpl1* pCase = (NDBT_TestCaseImpl1*)ctx->getCase();
-  assert(pCase != NULL);
+  require(pCase != NULL);
   pCase->reportStepResult(pStep, res);
   return NULL;
 }
@@ -587,8 +587,8 @@ void NDBT_TestCaseImpl1::waitSteps(){
 	numStepsFail++;
     }       
   }
-  assert(completedSteps == steps.size());
-  assert(completedSteps == numStepsCompleted);
+  require(completedSteps == steps.size());
+  require(completedSteps == numStepsCompleted);
   
   NdbMutex_Unlock(waitThreadsMutexPtr);
   void *status;
@@ -612,7 +612,7 @@ NDBT_TestCaseImpl1::getNoOfCompletedSteps() const {
 
 void NDBT_TestCaseImpl1::reportStepResult(const NDBT_Step* pStep, int result){
   NdbMutex_Lock(waitThreadsMutexPtr);
-  assert(pStep != NULL);
+  require(pStep != NULL);
   for (unsigned i = 0; i < steps.size(); i++){
     if(steps[i] != NULL && steps[i] == pStep){
       results[i] = result;
@@ -641,7 +641,7 @@ int NDBT_TestCase::execute(NDBT_Context* ctx)
 
     PropertiesType pt;
     const bool b = props.getTypeOf(key, &pt);
-    assert(b == true);
+    require(b == true);
     switch(pt){
     case PropertiesType_Uint32:{
       Uint32 val;
@@ -848,7 +848,7 @@ void NDBT_TestSuite::setCreateAllTables(bool _flag){
   m_createAll = _flag;
 }
 void NDBT_TestSuite::setConnectCluster(bool _flag){
-  assert(m_createTable == false);
+  require(m_createTable == false);
   m_connect_cluster = _flag;
 }
 
@@ -877,13 +877,13 @@ bool NDBT_TestSuite::timerIsOn(){
 }
 
 int NDBT_TestSuite::addTest(NDBT_TestCase* pTest){
-  assert(pTest != NULL);
+  require(pTest != NULL);
   tests.push_back(pTest);
   return 0;
 }
 
 int NDBT_TestSuite::addExplicitTest(NDBT_TestCase* pTest){
-  assert(pTest != NULL);
+  require(pTest != NULL);
   explicitTests.push_back(pTest);
   return 0;
 }
@@ -1704,7 +1704,7 @@ void NDBT_TestCaseImpl1::print(){
   for(const char * key = it.first(); key != 0; key = it.next()){
     PropertiesType pt;
     const bool b = props.getTypeOf(key, &pt);
-    assert(b == true);
+    require(b == true);
     switch(pt){
     case PropertiesType_Uint32:{
       Uint32 val;

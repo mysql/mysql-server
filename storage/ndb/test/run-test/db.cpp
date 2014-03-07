@@ -139,7 +139,7 @@ setup_db(atrt_config& config)
   if (atrt_client)
   {
     atrt_process* atrt_mysqld = atrt_client->m_mysqld;
-    assert(atrt_mysqld);
+    require(atrt_mysqld);
 
     // Run the commands to create the db
     for (int i = 0; create_sql[i]; i++)

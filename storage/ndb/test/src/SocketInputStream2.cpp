@@ -55,7 +55,7 @@ SocketInputStream2::has_data_to_read()
   if (res == 0)
     return false; // Timeout occured
 
-  assert(res == -1);
+  require(res == -1);
   return false;
 }
 
