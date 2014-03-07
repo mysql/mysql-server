@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -118,6 +118,12 @@ void test_bootstrap()
   param.m_memory_class_sizing= 0;
   param.m_metadata_lock_sizing= 0;
 
+  param.m_hints.m_table_definition_cache = 100;
+  param.m_hints.m_table_open_cache       = 100;
+  param.m_hints.m_max_connections        = 100;
+  param.m_hints.m_open_files_limit       = 100;
+  param.m_hints.m_max_prepared_stmt_count= 100;
+
   pre_initialize_performance_schema();
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
@@ -182,6 +188,12 @@ PSI * load_perfschema()
   param.m_statement_stack_sizing= 10;
   param.m_memory_class_sizing= 10;
   param.m_metadata_lock_sizing= 10;
+
+  param.m_hints.m_table_definition_cache = 100;
+  param.m_hints.m_table_open_cache       = 100;
+  param.m_hints.m_max_connections        = 100;
+  param.m_hints.m_open_files_limit       = 100;
+  param.m_hints.m_max_prepared_stmt_count= 100;
 
   pre_initialize_performance_schema();
   /* test_bootstrap() covered this, assuming it just works */
@@ -1547,6 +1559,12 @@ void test_event_name_index()
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
 
+  param.m_hints.m_table_definition_cache = 100;
+  param.m_hints.m_table_open_cache       = 100;
+  param.m_hints.m_max_connections        = 100;
+  param.m_hints.m_open_files_limit       = 100;
+  param.m_hints.m_max_prepared_stmt_count= 100;
+
   pre_initialize_performance_schema();
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "bootstrap");
@@ -1773,6 +1791,12 @@ void test_leaks()
   param.m_digest_sizing= 1000;
   param.m_program_sizing= 1000;
   param.m_statement_stack_sizing= 10;
+
+  param.m_hints.m_table_definition_cache = 100;
+  param.m_hints.m_table_open_cache       = 100;
+  param.m_hints.m_max_connections        = 100;
+  param.m_hints.m_open_files_limit       = 100;
+  param.m_hints.m_max_prepared_stmt_count= 100;
 
   pre_initialize_performance_schema();
   boot= initialize_performance_schema(& param);

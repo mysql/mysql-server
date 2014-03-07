@@ -2226,7 +2226,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       if(!ptr)
         return my_b_printf(file, "NULL");
       float fl;
-      float4get(fl, ptr);
+      float4get(&fl, ptr);
       char tmp[320];
       sprintf(tmp, "%-20g", (double) fl);
       my_b_printf(file, "%s", tmp); /* my_snprintf doesn't support %-20g */
@@ -2239,7 +2239,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       if(!ptr)
         return my_b_printf(file, "NULL");
       double dbl;
-      float8get(dbl, ptr);
+      float8get(&dbl, ptr);
       char tmp[320];
       sprintf(tmp, "%-.20g", dbl); /* my_snprintf doesn't support %-20g */
       my_b_printf(file, "%s", tmp);
@@ -7729,7 +7729,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
     switch (type) {
     case REAL_RESULT:
       double real_val;
-      float8get(real_val, val);
+      float8get(&real_val, val);
       if (!(buf= (char*) my_malloc(key_memory_log_event,
                                    val_offset + MY_GCVT_MAX_FIELD_WIDTH + 1,
                                    MYF(MY_WME))))
@@ -8000,7 +8000,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     case REAL_RESULT:
       double real_val;
       char real_buf[FMT_G_BUFSIZE(14)];
-      float8get(real_val, val);
+      float8get(&real_val, val);
       sprintf(real_buf, "%.14g", real_val);
       my_b_printf(head, ":=%s%s\n", real_buf, print_event_info->delimiter);
       break;
@@ -8120,7 +8120,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   {
     switch (type) {
     case REAL_RESULT:
-      float8get(real_val, val);
+      float8get(&real_val, val);
       it= new Item_float(real_val, 0);
       val= (char*) &real_val;		// Pointer to value in native format
       val_len= 8;

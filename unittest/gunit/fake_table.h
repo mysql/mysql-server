@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ class Fake_TABLE: public TABLE
 
     const_table= false;
     maybe_null= 0;
-    map= 1u << highest_table_id;                    /* ID bit of table */
+    map= 1ULL << highest_table_id;              /* ID bit of table */
     highest_table_id= (highest_table_id + 1) % MAX_TABLES;
     key_info= &m_keys[0];
     for (int i= 0; i < max_keys; i++)
