@@ -2259,9 +2259,12 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 {
   Uint8 Toperation;
   jamEntry();
-  Uint32 tmp = operationRecPtr.i = signal->theData[0];
+  operationRecPtr.i = signal->theData[0];
   ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+#ifdef VM_TRACE
+  Uint32 tmp = operationRecPtr.i;
   void* ptr = operationRecPtr.p;
+#endif
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   fragrecptr.i = operationRecPtr.p->fragptr;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
@@ -4585,8 +4588,8 @@ Dbacc::startNew(Signal* signal, OperationrecPtr newOwner)
   
   Uint32 opbits = newOwner.p->m_op_bits;
   Uint32 op = opbits & Operationrec::OP_MASK;
-  Uint32 opstate = (opbits & Operationrec::OP_STATE_MASK);
-  ndbassert(opstate == Operationrec::OP_STATE_WAITING);
+  ndbassert((opbits & Operationrec::OP_STATE_MASK) ==
+             Operationrec::OP_STATE_WAITING);
   ndbassert(opbits & Operationrec::OP_LOCK_OWNER);
   const bool deleted = opbits & Operationrec::OP_ELEMENT_DISAPPEARED;
   Uint32 errCode = 0;

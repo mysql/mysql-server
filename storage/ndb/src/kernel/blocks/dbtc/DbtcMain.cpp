@@ -218,8 +218,10 @@ void Dbtc::execCONTINUEB(Signal* signal)
   UintR Tdata1 = signal->theData[2];
   UintR Tdata2 = signal->theData[3];
   UintR Tdata3 = signal->theData[4];
+#ifdef ERROR_INSERT
   UintR Tdata4 = signal->theData[5];
   UintR Tdata5 = signal->theData[6];
+#endif
   switch (tcase) {
   case TcContinueB::ZRETURN_FROM_QUEUED_DELIVERY:
     jam();
@@ -244,7 +246,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     return;
   case TcContinueB::ZINITIALISE_RECORDS:
     jam();
-    initialiseRecordsLab(signal, Tdata0, Tdata2, signal->theData[4]);
+    initialiseRecordsLab(signal, Tdata0, Tdata2, Tdata3);
     return;
   case TcContinueB::ZSEND_COMMIT_LOOP:
     jam();
@@ -11798,7 +11800,6 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
   jamEntry();
   DihScanGetNodesConf * conf = (DihScanGetNodesConf*)signal->getDataPtr();
   const Uint32 tableId = conf->tableId;
-  const Uint32 fragCnt = conf->fragCnt;
 
   if (signal->getNoOfSections() > 0)
   {
@@ -11818,7 +11819,7 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
   else   // Short signal, with single FragItem
   {
     jam();
-    ndbassert(fragCnt == 1);
+    ndbassert(conf->fragCnt == 1);
     ndbassert(signal->getLength() 
               == DihScanGetNodesConf::FixedSignalLength + DihScanGetNodesConf::FragItem::Length);
 
@@ -16174,12 +16175,11 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   jamEntry();
   indexOpPtr.i = tcKeyConf->apiConnectPtr;
   TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
-  Uint32 confInfo = tcKeyConf->confInfo;
 
   /**
    * Check on TCKEYCONF whether the the transaction was committed
    */
-  ndbassert(TcKeyConf::getCommitFlag(confInfo) == false);
+  ndbassert(TcKeyConf::getCommitFlag(tcKeyConf->confInfo) == false);
 
   indexOpPtr.p = indexOp;
   if (!indexOp) {
@@ -17872,7 +17872,7 @@ Dbtc::execKEYINFO20(Signal* signal)
   ndbrequire(transPtr.p->immediateTriggerId == RNIL);
   transPtr.p->immediateTriggerId = tcPtr.p->currentTriggerId;
   EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength +
-                 use_scan_takeover ? 1 : 0);
+                 (use_scan_takeover ? 1 : 0));
   jamEntry();
 
   /*

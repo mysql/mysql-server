@@ -3611,12 +3611,13 @@ Dbspj::lookup_build(Build_context& ctx,
 
       Uint32 hashValue = src->hashValue;
       Uint32 fragId = src->fragmentData;
-      Uint32 requestInfo = src->requestInfo;
       Uint32 attrLen = src->attrLen; // fragdist-key is in here
 
       /**
        * assertions
        */
+#ifdef VM_TRACE
+      Uint32 requestInfo = src->requestInfo;
       ndbassert(LqhKeyReq::getAttrLen(attrLen) == 0);         // Only long
       ndbassert(LqhKeyReq::getScanTakeOverFlag(attrLen) == 0);// Not supported
       ndbassert(LqhKeyReq::getReorgFlag(attrLen) == ScanFragReq::REORG_ALL);       // Not supported
@@ -3628,6 +3629,7 @@ Dbspj::lookup_build(Build_context& ctx,
       ndbassert(LqhKeyReq::getLastReplicaNo(requestInfo) == 0);
       ndbassert(LqhKeyReq::getApplicationAddressFlag(requestInfo) != 0);
       ndbassert(LqhKeyReq::getSameClientAndTcFlag(requestInfo) == 0);
+#endif
 
 #if TODO
       /**
@@ -3637,11 +3639,13 @@ Dbspj::lookup_build(Build_context& ctx,
       static Uint8 getSimpleFlag(const UintR & requestInfo);
 #endif
 
+#ifdef VM_TRACE
       Uint32 dst_requestInfo = dst->requestInfo;
       ndbassert(LqhKeyReq::getInterpretedFlag(requestInfo) ==
                 LqhKeyReq::getInterpretedFlag(dst_requestInfo));
       ndbassert(LqhKeyReq::getNoDiskFlag(requestInfo) ==
                 LqhKeyReq::getNoDiskFlag(dst_requestInfo));
+#endif
 
       dst->hashValue = hashValue;
       dst->fragmentData = fragId;

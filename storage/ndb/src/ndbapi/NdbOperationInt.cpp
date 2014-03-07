@@ -73,7 +73,7 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (tNdbColumnImpl == NULL)
       goto inc_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() != true) ||
@@ -132,7 +132,7 @@ NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (tNdbColumnImpl == NULL)
       goto write_attr_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() == false) ||
@@ -183,7 +183,7 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (tNdbColumnImpl == NULL)
       goto read_attr_check_error1;
     if (tNdbColumnImpl->getInterpretableType() == false)
@@ -232,7 +232,7 @@ NdbOperation::initial_interpreterCheck()
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (theStatus == ExecInterpretedValue) {
       return 0; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
@@ -262,7 +262,7 @@ NdbOperation::labelCheck()
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (theStatus == ExecInterpretedValue) {
       return 0; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
@@ -294,7 +294,7 @@ NdbOperation::intermediate_interpreterCheck()
     return -1;
   }
 
-  if ((theInterpretIndicator == 1)) {
+  if (theInterpretIndicator == 1) {
     if (theStatus == ExecInterpretedValue) {
       return 0; // Simply continue with interpretation
     } else if (theStatus == SubroutineExec) {

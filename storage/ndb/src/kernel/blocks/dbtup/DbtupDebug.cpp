@@ -204,8 +204,8 @@ void
 Dbtup::execDUMP_STATE_ORD(Signal* signal)
 {
   Uint32 type = signal->theData[0];
-  DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
 
+  (void)type;
 #if 0
   if (type == 100) {
     RelTabMemReq * const req = (RelTabMemReq *)signal->getDataPtrSend();
@@ -270,6 +270,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #ifdef ERROR_INSERT
   if (type == DumpStateOrd::EnableUndoDelayDataWrite) {
+    DumpStateOrd * const dumpState = (DumpStateOrd *)&signal->theData[0];
     ndbout << "Dbtup:: delay write of datapages for table = " 
 	   << dumpState->args[1]<< endl;
     c_errorInsert4000TableId = dumpState->args[1];
@@ -382,6 +383,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 
+#ifdef ERROR_INSERT
   if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
   {
     {
@@ -419,6 +421,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_CHECK2(c_storedProcPool, c_storedProcCountNonAPI);
     return;
   }
+#endif
 }//Dbtup::execDUMP_STATE_ORD()
 
 /* ---------------------------------------------------------------- */

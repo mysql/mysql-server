@@ -216,7 +216,9 @@ public:
   void cache_isort(Cache& c);
   void cache_hsort(Cache& c);
   void cache_hsort_sift(Cache& c, int i, int count);
+#ifdef ndb_index_stat_hsort_verify
   void cache_hsort_verify(Cache& c, int count);
+#endif
   int cache_verify(const Cache& c);
   void move_cache();
   void clean_cache();

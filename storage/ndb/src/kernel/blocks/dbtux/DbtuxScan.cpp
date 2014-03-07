@@ -464,7 +464,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   if (scan.m_lockwait) {
     jam();
     // LQH asks if we are waiting for lock and we tell it to ask again
-    const TreeEnt ent = scan.m_scanEnt;
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned

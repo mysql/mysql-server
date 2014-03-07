@@ -371,6 +371,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       }
       else
       {
+        tFirstDataPtr = NULL;
         tCon = lookupTransactionFromOperation(keyConf);
         if (tCon == NULL) goto InvalidSignal;
       }
