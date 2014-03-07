@@ -1991,8 +1991,6 @@ end:
     while (1)
     {
       struct timespec abstime;
-      int i;
-      int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
       set_timespec(abstime, 1);
       int ret= pthread_cond_timedwait(&injector_cond,
                                       &ndb_schema_object->mutex,
@@ -2007,24 +2005,8 @@ end:
         pthread_mutex_unlock(&ndb_schema_share_mutex);
         break;
       }
-      MY_BITMAP servers;
-      bitmap_init(&servers, 0, 256, FALSE);
-      bitmap_clear_all(&servers);
-      bitmap_set_bit(&servers, node_id); // "we" are always alive
-      pthread_mutex_lock(&ndb_schema_share->mutex);
-      for (i= 0; i < no_storage_nodes; i++)
-      {
-        /* remove any unsubscribed from schema_subscribers */
-        MY_BITMAP *tmp= &ndb_schema_share->subscriber_bitmap[i];
-        bitmap_union(&servers, tmp);
-      }
-      pthread_mutex_unlock(&ndb_schema_share->mutex);
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
-
-      /* remove any unsubscribed from ndb_schema_object->slock */
-      bitmap_intersect(&ndb_schema_object->slock_bitmap, &servers);
-      bitmap_free(&servers);
 
       if (bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
         break;
@@ -2830,6 +2812,21 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
+    // Build bitmask of subscribers
+    MY_BITMAP servers;
+    bitmap_init(&servers, 0, 256, FALSE);
+    bitmap_clear_all(&servers);
+    bitmap_set_bit(&servers, own_nodeid()); // "we" are always alive
+    pthread_mutex_lock(&ndb_schema_share->mutex);
+    const unsigned no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
+    for (unsigned i= 0; i < no_storage_nodes; i++)
+    {
+      /* remove any unsubscribed from schema_subscribers */
+      MY_BITMAP *tmp= &ndb_schema_share->subscriber_bitmap[i];
+      bitmap_union(&servers, tmp);
+    }
+    pthread_mutex_unlock(&ndb_schema_share->mutex);
+
     /*
       Copy the latest slock info into the ndb_schema_object so that
       waiter can check if all nodes it's waiting for has answered
@@ -2847,6 +2844,14 @@ class Ndb_schema_event_handler {
     }
     memcpy(ndb_schema_object->slock, schema->slock_buf,
            sizeof(ndb_schema_object->slock));
+    DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
+              (uchar*)ndb_schema_object->slock_bitmap.bitmap,
+              no_bytes_in_map(&ndb_schema_object->slock_bitmap));
+
+    /* remove any unsubscribed from ndb_schema_object->slock */
+    bitmap_intersect(&ndb_schema_object->slock_bitmap, &servers);
+    bitmap_free(&servers);
+
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
