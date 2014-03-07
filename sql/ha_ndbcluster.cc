@@ -417,8 +417,6 @@ pthread_cond_t COND_ndb_setup_complete; // Signal with ndbcluster_mutex
 
 extern Ndb* g_ndb;
 
-uchar g_node_id_map[max_ndb_nodes];
-
 /// Handler synchronization
 pthread_mutex_t ndbcluster_mutex;
 
@@ -12055,12 +12053,6 @@ static int connect_callback()
   pthread_mutex_lock(&ndb_util_thread.LOCK);
   update_status_variables(NULL, &g_ndb_status,
                           g_ndb_cluster_connection);
-
-  uint node_id, i= 0;
-  Ndb_cluster_connection_node_iter node_iter;
-  memset((void *)g_node_id_map, 0xFFFF, sizeof(g_node_id_map));
-  while ((node_id= g_ndb_cluster_connection->get_next_node(node_iter)))
-    g_node_id_map[node_id]= i++;
 
   pthread_cond_broadcast(&ndb_util_thread.COND);
   pthread_mutex_unlock(&ndb_util_thread.LOCK);

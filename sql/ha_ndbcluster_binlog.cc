@@ -2186,6 +2186,30 @@ private:
 };
 
 
+class Ndb_schema_dist_data {
+  uchar g_node_id_map[max_ndb_nodes];
+public:
+  Ndb_schema_dist_data(const Ndb_schema_dist_data&); // Not implemented
+
+  void init(Ndb_cluster_connection* cluster_connection)
+  {
+    // Initialize "g_node_id_map" which maps from nodeid to index in
+    // subscriber bitmaps array. The mapping array is only used when
+    // the NDB binlog thread handles events on the mysql.ndb_schema table
+    uint node_id, i= 0;
+    Ndb_cluster_connection_node_iter node_iter;
+    memset((void *)g_node_id_map, 0xFFFF, sizeof(g_node_id_map));
+    while ((node_id= cluster_connection->get_next_node(node_iter)))
+      g_node_id_map[node_id]= i++;
+  }
+
+  // Map from nodeid to position in subscriber bitmaps array
+  uint8 map2subscriber_bitmap_index(uint nodeid) const
+  {
+    return g_node_id_map[nodeid];
+  }
+};
+
 #include "ndb_local_schema.h"
 
 class Ndb_schema_event_handler {
@@ -3554,6 +3578,7 @@ class Ndb_schema_event_handler {
   THD* m_thd;
   MEM_ROOT* m_mem_root;
   uint m_own_nodeid;
+  Ndb_schema_dist_data& m_schema_dist_data;
   bool m_post_epoch;
 
   bool is_post_epoch(void) const { return m_post_epoch; }
@@ -3565,8 +3590,10 @@ public:
   Ndb_schema_event_handler(); // Not implemented
   Ndb_schema_event_handler(const Ndb_schema_event_handler&); // Not implemented
 
-  Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root, uint own_nodeid):
+  Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root, uint own_nodeid,
+                           Ndb_schema_dist_data& schema_dist_data):
     m_thd(thd), m_mem_root(mem_root), m_own_nodeid(own_nodeid),
+    m_schema_dist_data(schema_dist_data),
     m_post_epoch(false)
   {
   }
@@ -3640,7 +3667,7 @@ public:
     {
       /* Remove all subscribers for node from bitmap in ndb_schema_share */
       NDB_SHARE *tmp_share= event_data->share;
-      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
+      uint8 node_id= m_schema_dist_data.map2subscriber_bitmap_index(pOp->getNdbdNodeId());
       DBUG_ASSERT(node_id != 0xFF);
       pthread_mutex_lock(&tmp_share->mutex);
       bitmap_clear_all(&tmp_share->subscriber_bitmap[node_id]);
@@ -3662,7 +3689,7 @@ public:
     {
       /* Add node as subscriber from bitmap in ndb_schema_share */
       NDB_SHARE *tmp_share= event_data->share;
-      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
+      uint8 node_id= m_schema_dist_data.map2subscriber_bitmap_index(pOp->getNdbdNodeId());
       uint8 req_id= pOp->getReqNodeId();
       DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
       pthread_mutex_lock(&tmp_share->mutex);
@@ -3686,7 +3713,7 @@ public:
     {
       /* Remove node as subscriber from bitmap in ndb_schema_share */
       NDB_SHARE *tmp_share= event_data->share;
-      uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
+      uint8 node_id= m_schema_dist_data.map2subscriber_bitmap_index(pOp->getNdbdNodeId());
       uint8 req_id= pOp->getReqNodeId();
       DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
       pthread_mutex_lock(&tmp_share->mutex);
@@ -6747,6 +6774,8 @@ Ndb_binlog_thread::do_run()
 
   log_info("Started");
 
+  Ndb_schema_dist_data schema_dist_data;
+
 restart_cluster_failure:
   int have_injector_mutex_lock= 0;
   binlog_thread_state= BCCC_exit;
@@ -6917,6 +6946,8 @@ restart_cluster_failure:
     thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
     thd->query_id= 0; // to keep valgrind quiet
   }
+
+  schema_dist_data.init(g_ndb_cluster_connection);
 
   {
     log_verbose(1, "Wait for first event");
@@ -7100,7 +7131,8 @@ restart_cluster_failure:
     // to use the same memroot(or vice versa)
     Ndb_schema_event_handler
       schema_event_handler(thd, &mem_root,
-                           g_ndb_cluster_connection->node_id());
+                           g_ndb_cluster_connection->node_id(),
+                           schema_dist_data);
 
     *root_ptr= &mem_root;
 
