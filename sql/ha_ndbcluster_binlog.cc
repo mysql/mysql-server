@@ -1778,7 +1778,7 @@ int ndbcluster_log_schema_op(THD *thd,
   }
 
   const NdbError *ndb_error= 0;
-  // Use nodeid of the global cluster connection since that is
+  // Use nodeid of the primary cluster connection since that is
   // the nodeid which the coordinator and participants listen to
   const uint32 node_id= g_ndb_cluster_connection->node_id();
   Uint64 epoch= 0;
