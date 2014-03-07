@@ -952,7 +952,7 @@ rec_print(
 class rec_printer : public std::ostringstream {
 public:
 	/** Convert ostreamstring to char pointer
-	@return	char pointer to ostreamstring. */
+	@return char pointer to ostreamstring. */
 	const char* c_str()
 	{
 		return(this->str().c_str());
