@@ -3091,6 +3091,14 @@ end_with_restore_list:
       {
         DBUG_ASSERT(all_tables->view != 0);
         DBUG_PRINT("info", ("Switch to multi-update"));
+        if (select_lex->order_list.elements ||
+            select_lex->select_limit)
+        { // Clauses not supported by multi-update: can't switch.
+          my_error(ER_VIEW_PREVENT_UPDATE, MYF(0),
+                   all_tables->alias, "UPDATE", all_tables->alias);
+          res= true;
+          break;
+        }
         if (!thd->in_sub_stmt)
           thd->query_plan.set_query_plan(SQLCOM_UPDATE_MULTI, lex,
                                          !thd->stmt_arena->is_conventional());
