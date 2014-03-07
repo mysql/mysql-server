@@ -1768,9 +1768,9 @@ rec_print_old(
 	n = rec_get_n_fields_old(rec);
 
 	o << "PHYSICAL RECORD: n_fields " << n << "; "
-	  << (rec_get_1byte_offs_flag(rec) ? 1 : 2)
-	  << "-byte offsets; info bits "
-	  << rec_get_info_bits(rec, FALSE) << std::endl;
+		<< (rec_get_1byte_offs_flag(rec) ? 1 : 2)
+		<< "-byte offsets; info bits "
+		<< rec_get_info_bits(rec, FALSE) << std::endl;
 
 	for (i = 0; i < n; i++) {
 
@@ -1790,7 +1790,7 @@ rec_print_old(
 			}
 		} else {
 			o << " SQL NULL, size "
-			  << rec_get_nth_field_size(rec, i);
+				<< rec_get_nth_field_size(rec, i);
                 }
 
 		o << ";" << std::endl;
@@ -1827,8 +1827,7 @@ rec_print_comp(
 				ut_print_buf(o, data, len);
 			} else if (rec_offs_nth_extern(offsets, i)) {
 				ut_print_buf(o, data, 30);
-				o << " (total " << len
-				  << " bytes, external)";
+				o << " (total " << len << " bytes, external)";
 
 				ut_print_buf(o, data + len
 					     - BTR_EXTERN_FIELD_REF_SIZE,
@@ -1865,8 +1864,8 @@ rec_print_new(
 	}
 
 	o << "PHYSICAL RECORD: n_fields " << rec_offs_n_fields(offsets)
-	  << "; compact format; info bits "
-	  << rec_get_info_bits(rec, TRUE) << std::endl;
+		<< "; compact format; info bits "
+		<< rec_get_info_bits(rec, TRUE) << std::endl;
 
 	rec_print_comp(o, rec, offsets);
 	rec_validate(rec, offsets);
@@ -1918,8 +1917,8 @@ rec_print(
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
-	o << (comp ? "COMPACT RECORD" : "RECORD")
-	  << "(info_bits=" << info << ", " << n << " fields): {";
+	o << (comp ? "COMPACT RECORD" : "RECORD") << "(info_bits=" << info
+		<< ", " << n << " fields): {";
 
 	for (ulint i = 0; i < n; i++) {
 		const byte*	data;
@@ -1940,9 +1939,8 @@ rec_print(
 			ulint	local_len = len - BTR_EXTERN_FIELD_REF_SIZE;
 			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-			o << '['
-			  << local_len
-			  << '+' << BTR_EXTERN_FIELD_REF_SIZE << ']';
+			o << '[' << local_len << '+'
+				<< BTR_EXTERN_FIELD_REF_SIZE << ']';
 			ut_print_buf(o, data, local_len);
 			ut_print_buf_hex(o, data + local_len,
 					 BTR_EXTERN_FIELD_REF_SIZE);
