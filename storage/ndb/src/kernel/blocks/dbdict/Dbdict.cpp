@@ -438,7 +438,6 @@ void Dbdict::execCONTINUEB(Signal* signal)
     }
     break;
   case 9999:
-    ERROR_INSERTED(signal->theData[1]);
     CRASH_INSERTION(ERROR_INSERT_VALUE);
     break;
 #endif
@@ -6393,7 +6392,6 @@ void
 Dbdict::createTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateTableRecPtr createTabPtr;
   getOpRec(op_ptr, createTabPtr);
 
@@ -6474,7 +6472,6 @@ Dbdict::createTab_local(Signal* signal,
   jam();
   CreateTableRecPtr createTabPtr;
   getOpRec(op_ptr, createTabPtr);
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   createTabPtr.p->m_callback = * c;
 
@@ -7200,7 +7197,6 @@ void
 Dbdict::createTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   CreateTableRecPtr createTabPtr;
   getOpRec(op_ptr, createTabPtr);
@@ -7385,7 +7381,6 @@ Dbdict::createTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::createTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateTableRecPtr createTabPtr;
   getOpRec(op_ptr, createTabPtr);
   const CreateTabReq* impl_req = &createTabPtr.p->m_request;
@@ -7547,7 +7542,10 @@ void Dbdict::releaseTableObject(Uint32 table_ptr_i, bool removeFromHash)
     name.erase();
     def.erase();
   }
-  while (list.releaseFirst());
+  while (list.releaseFirst())
+  {
+    ;
+  }
 
   {
     if (tablePtr.p->m_upgrade_trigger_handling.m_upgrade)
@@ -7822,8 +7820,6 @@ Dbdict::dropTable_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 void
 Dbdict::dropTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-
   DropTableRecPtr dropTabPtr;
   getOpRec(op_ptr, dropTabPtr);
 
@@ -7853,7 +7849,6 @@ Dbdict::dropTable_backup_mutex_locked(Signal* signal,
   DropTableRecPtr dropTabPtr;
   findSchemaOp(op_ptr, dropTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   const DropTabReq* impl_req = &dropTabPtr.p->m_request;
 
   TableRecordPtr tablePtr;
@@ -8058,8 +8053,6 @@ void
 Dbdict::dropTable_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   DropTableRecPtr dropTabPtr;
   getOpRec(op_ptr, dropTabPtr);
@@ -9415,7 +9408,6 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
   AlterTableRecPtr alterTabPtr;
   findSchemaOp(op_ptr, alterTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
   TableRecordPtr tablePtr;
@@ -9966,7 +9958,6 @@ void
 Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
@@ -12186,8 +12177,6 @@ Dbdict::dropIndex_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 void
 Dbdict::dropIndex_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-
   DropIndexRecPtr dropIndexPtr;
   getOpRec(op_ptr, dropIndexPtr);
 
@@ -12201,8 +12190,6 @@ Dbdict::dropIndex_prepare(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::dropIndex_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-
   DropIndexRecPtr dropIndexPtr;
   getOpRec(op_ptr, dropIndexPtr);
 
@@ -13219,8 +13206,6 @@ Dbdict::alterIndex_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 void
 Dbdict::alterIndex_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-
   AlterIndexRecPtr alterIndexPtr;
   getOpRec(op_ptr, alterIndexPtr);
   const AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
@@ -13432,7 +13417,6 @@ void
 Dbdict::alterIndex_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   AlterIndexRecPtr alterIndexPtr;
   getOpRec(op_ptr, alterIndexPtr);
@@ -13502,7 +13486,6 @@ Dbdict::alterIndex_complete(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::alterIndex_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   AlterIndexRecPtr alterIndexPtr;
   getOpRec(op_ptr, alterIndexPtr);
   const AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
@@ -13546,7 +13529,6 @@ Dbdict::alterIndex_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::alterIndex_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   AlterIndexRecPtr alterIndexPtr;
   getOpRec(op_ptr, alterIndexPtr);
   const AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
@@ -14756,9 +14738,8 @@ Dbdict::indexStat_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
   SchemaTransPtr& trans_ptr = op_ptr.p->m_trans_ptr;
   IndexStatRecPtr indexStatPtr;
   getOpRec(op_ptr, indexStatPtr);
-  const IndexStatImplReq* impl_req = &indexStatPtr.p->m_request;
 
-  D("indexStat_reply" << V(impl_req->indexId));
+  D("indexStat_reply" << V(indexStatPtr.p->m_request.indexId));
 
   if (!hasError(error)) {
     IndexStatConf* conf = (IndexStatConf*)signal->getDataPtrSend();
@@ -18630,7 +18611,6 @@ Dbdict::createTrigger_parse_endpoint(Signal* signal,
 {
   jam();
 
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateTriggerRecPtr createTriggerPtr;
   getOpRec(op_ptr, createTriggerPtr);
   CreateTrigImplReq* impl_req = &createTriggerPtr.p->m_request;
@@ -18933,7 +18913,6 @@ Dbdict::createTrigger_prepare_fromLocal(Signal* signal,
   CreateTriggerRecPtr createTriggerPtr;
   findSchemaOp(op_ptr, createTriggerPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   if (ret == 0)
   {
@@ -19755,7 +19734,6 @@ Dbdict::dropTrigger_commit_fromLocal(Signal* signal,
   DropTriggerRecPtr dropTriggerPtr;
   findSchemaOp(op_ptr, dropTriggerPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   if (ret)
   {
@@ -20461,17 +20439,18 @@ Dbdict::execDICT_TAKEOVER_REF(Signal* signal)
   DictTakeoverRef* ref = (DictTakeoverRef*)signal->getDataPtr();
   Uint32 senderRef = ref->senderRef;
   Uint32 nodeId = refToNode(senderRef);
-  Uint32 masterRef = ref->masterRef;
   NodeRecordPtr masterNodePtr;
   jamEntry();
 #ifdef VM_TRACE
-  ndbout_c("Dbdict::execDICT_TAKEOVER_REF: error %u, from %u", ref->errorCode, nodeId);
+  ndbout_c("Dbdict::execDICT_TAKEOVER_REF: error %u, from %u",
+           ref->errorCode,
+           nodeId);
 #endif
   /*
     Slave has died (didn't reply) or doesn't not have any transaction
     Ignore it during rest of master takeover.
   */
-  ndbassert(refToNode(masterRef) == c_masterNodeId);
+  ndbassert(refToNode(ref->masterRef) == c_masterNodeId);
   c_nodes.getPtr(masterNodePtr, c_masterNodeId);
   masterNodePtr.p->m_nodes.clear(nodeId);
   /*
@@ -22715,7 +22694,6 @@ Dbdict::createFilegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::createFilegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFilegroupRecPtr createFilegroupRecPtr;
   getOpRec(op_ptr, createFilegroupRecPtr);
   CreateFilegroupImplReq* impl_req = &createFilegroupRecPtr.p->m_request;
@@ -22741,7 +22719,6 @@ Dbdict::createFilegroup_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
   SchemaOpPtr op_ptr;
   CreateFilegroupRecPtr createFilegroupPtr;
   ndbrequire(findSchemaOp(op_ptr, createFilegroupPtr, op_key));
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
   if (ret == 0)
   {
@@ -22995,7 +22972,6 @@ Dbdict::dropFile_prepare(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::dropFile_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFileRecPtr dropFilePtr;
   getOpRec(op_ptr, dropFilePtr);
   DropFileImplReq* impl_req = &dropFilePtr.p->m_request;
@@ -23375,7 +23351,6 @@ void
 Dbdict::dropFilegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   ndbrequire(false);
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFilegroupRecPtr dropFilegroupPtr;
   getOpRec(op_ptr, dropFilegroupPtr);
   DropFilegroupImplReq* impl_req = &dropFilegroupPtr.p->m_request;
@@ -23416,7 +23391,6 @@ void
 Dbdict::dropFilegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFilegroupRecPtr dropFilegroupRecPtr;
   getOpRec(op_ptr, dropFilegroupRecPtr);
   DropFilegroupImplReq* impl_req = &dropFilegroupRecPtr.p->m_request;
@@ -23474,7 +23448,6 @@ Dbdict::dropFilegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
 
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFilegroupRecPtr dropFilegroupRecPtr;
   getOpRec(op_ptr, dropFilegroupRecPtr);
   DropFilegroupImplReq* impl_req = &dropFilegroupRecPtr.p->m_request;
@@ -23817,7 +23790,6 @@ void
 Dbdict::createNodegroup_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateNodegroupRecPtr createNodegroupRecPtr;
   getOpRec(op_ptr, createNodegroupRecPtr);
   CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
@@ -23865,7 +23837,6 @@ Dbdict::createNodegroup_fromBlockSubStartStop(Signal* signal,
 void
 Dbdict::createNodegroup_toLocal(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateNodegroupRecPtr createNodegroupRecPtr;
   getOpRec(op_ptr, createNodegroupRecPtr);
   CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
@@ -23969,7 +23940,6 @@ Dbdict::createNodegroup_fromLocal(Signal* signal,
 void
 Dbdict::createNodegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateNodegroupRecPtr createNodegroupRecPtr;
   getOpRec(op_ptr, createNodegroupRecPtr);
   //CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
@@ -24005,7 +23975,6 @@ void
 Dbdict::createNodegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateNodegroupRecPtr createNodegroupRecPtr;
   getOpRec(op_ptr, createNodegroupRecPtr);
   CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
@@ -24038,7 +24007,6 @@ Dbdict::createNodegroup_fromWaitGCP(Signal* signal,
   findSchemaOp(op_ptr, createNodegroupRecPtr, op_key);
   ndbrequire(!op_ptr.isNull());
 
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   //CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
 
   if (ret == 0)
@@ -24112,7 +24080,6 @@ void
 Dbdict::createNodegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateNodegroupRecPtr createNodegroupRecPtr;
   getOpRec(op_ptr, createNodegroupRecPtr);
   CreateNodegroupImplReq* impl_req = &createNodegroupRecPtr.p->m_request;
@@ -24316,7 +24283,6 @@ void
 Dbdict::dropNodegroup_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropNodegroupRecPtr dropNodegroupRecPtr;
   getOpRec(op_ptr, dropNodegroupRecPtr);
   DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
@@ -24364,7 +24330,6 @@ Dbdict::dropNodegroup_fromBlockSubStartStop(Signal* signal,
 void
 Dbdict::dropNodegroup_toLocal(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropNodegroupRecPtr dropNodegroupRecPtr;
   getOpRec(op_ptr, dropNodegroupRecPtr);
   DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
@@ -24471,7 +24436,6 @@ Dbdict::dropNodegroup_fromLocal(Signal* signal,
 void
 Dbdict::dropNodegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropNodegroupRecPtr dropNodegroupRecPtr;
   getOpRec(op_ptr, dropNodegroupRecPtr);
   //DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
@@ -24507,7 +24471,6 @@ void
 Dbdict::dropNodegroup_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropNodegroupRecPtr dropNodegroupRecPtr;
   getOpRec(op_ptr, dropNodegroupRecPtr);
   DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
@@ -24540,7 +24503,6 @@ Dbdict::dropNodegroup_fromWaitGCP(Signal* signal,
   findSchemaOp(op_ptr, dropNodegroupRecPtr, op_key);
   ndbrequire(!op_ptr.isNull());
 
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   //DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
 
   if (ret == 0)
@@ -24616,7 +24578,6 @@ Dbdict::dropNodegroup_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
 
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropNodegroupRecPtr dropNodegroupRecPtr;
   getOpRec(op_ptr, dropNodegroupRecPtr);
   DropNodegroupImplReq* impl_req = &dropNodegroupRecPtr.p->m_request;
@@ -25439,7 +25400,6 @@ Dbdict::createFK_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
 
   findSchemaOp(op_ptr, createFKRecPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
 
   if (ret == 0)
@@ -25486,7 +25446,6 @@ Dbdict::createFK_fromBuildFK(Signal* signal, Uint32 op_key, Uint32 ret)
 
   findSchemaOp(op_ptr, createFKRecPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
 
   if (ret == 0)
@@ -25567,7 +25526,6 @@ Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("createFK_prepare");
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
   getOpRec(op_ptr, createFKRecPtr);
   const CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
@@ -25746,7 +25704,6 @@ void
 Dbdict::createFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("createFK_abortPrepare");
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
   getOpRec(op_ptr, createFKRecPtr);
   CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
@@ -25806,7 +25763,6 @@ Dbdict::createFK_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("createFK_commit");
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
   getOpRec(op_ptr, createFKRecPtr);
   CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
@@ -25821,7 +25777,6 @@ Dbdict::createFK_complete(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("createFK_complete");
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   CreateFKRecPtr createFKRecPtr;
   getOpRec(op_ptr, createFKRecPtr);
   CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
@@ -25953,7 +25908,6 @@ Dbdict::buildFK_parse(Signal* signal, bool master,
                               SectionHandle& handle, ErrorInfo& error)
 {
   D("buildFK_parse");
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   BuildFKRecPtr buildFKRecPtr;
   getOpRec(op_ptr, buildFKRecPtr);
   BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
@@ -25988,7 +25942,6 @@ bool
 Dbdict::buildFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("buildFK_subOps");
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   BuildFKRecPtr buildFKRecPtr;
   getOpRec(op_ptr, buildFKRecPtr);
   //BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
@@ -26436,7 +26389,6 @@ Dbdict::dropFK_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
 
   findSchemaOp(op_ptr, dropFKRecPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
 
   if (ret == 0)
@@ -26516,7 +26468,6 @@ Dbdict::dropFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("dropFK_prepare");
   jam();
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKRecPtr dropFKRecPtr;
   getOpRec(op_ptr, dropFKRecPtr);
   DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
@@ -26529,7 +26480,6 @@ void
 Dbdict::dropFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("dropFK_abortPrepare");
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKRecPtr dropFKRecPtr;
   getOpRec(op_ptr, dropFKRecPtr);
   DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
@@ -26608,7 +26558,6 @@ Dbdict::dropFK_complete(Signal* signal, SchemaOpPtr op_ptr)
   D("dropFK_complete");
   jam();
 
-  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKRecPtr dropFKRecPtr;
   getOpRec(op_ptr, dropFKRecPtr);
   DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
@@ -27062,25 +27011,48 @@ Dbdict::releaseSchemaOp(SchemaOpPtr& op_ptr)
   D("releaseSchemaOp" << V(op_ptr.p->op_key));
 
   const OpInfo& info = getOpInfo(op_ptr);
-  (this->*(info.m_release))(op_ptr);
 
-  while (op_ptr.p->m_sections != 0) {
+  /* Release first any sections connected to this Schema Operation */
+
+  while (op_ptr.p->m_sections != 0)
+  {
     jam();
     releaseOpSection(op_ptr, op_ptr.p->m_sections - 1);
   }
 
+  /* Now unlink any DICT objects connected to this schema operation */
+
   OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
   Uint32 obj_ptr_i = oprec_ptr.p->m_obj_ptr_i;
-  if (obj_ptr_i != RNIL) {
+  if (obj_ptr_i != RNIL)
+  {
     jam();
     unlinkDictObject(op_ptr);
   }
 
-  if (!op_ptr.p->m_oplnk_ptr.isNull()) {
+  /**
+   * Now that we have released sections and objects connected to the
+   * operation record specific for this schema operation, we're ready
+   * to release the specific schema operation and unlink it from the
+   * schema operation.
+   */
+  (this->*(info.m_release))(op_ptr);
+
+  /**
+   * Now we will release all schema operations and their connected records
+   * associated with this schema operation. (Recursive call!)
+   */
+  if (!op_ptr.p->m_oplnk_ptr.isNull())
+  {
     jam();
     releaseSchemaOp(op_ptr.p->m_oplnk_ptr);
   }
 
+  /**
+   * Now we only have remaining the schema operation, so we release this,
+   * but first we remove it from the hash table. Finally we ensure that
+   * we don't reuse the operation pointer.
+   */
   ndbrequire(op_ptr.p->m_magic == SchemaOp::DICT_MAGIC);
   c_schemaOpHash.remove(op_ptr);
   c_schemaOpPool.release(op_ptr);

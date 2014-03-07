@@ -1998,6 +1998,7 @@ NdbDictionaryImpl::putTable(NdbTableImpl *impl)
 
   int ret = getBlobTables(*impl);
   int error = 0;
+  (void)ret;
   assert(ret == 0);
 
   m_globalHash->lock();
@@ -5329,15 +5330,15 @@ NdbDictInterface::execCREATE_EVNT_CONF(const NdbApiSignal * signal,
     m_tableData.append(ptr[1].p, 4 * ptr[1].sz);
   }
 
+#ifdef DEBUG_OUTPUT
   const CreateEvntConf * const createEvntConf=
     CAST_CONSTPTR(CreateEvntConf, signal->getDataPtr());
 
-  Uint32 subscriptionId = createEvntConf->getEventId();
-  Uint32 subscriptionKey = createEvntConf->getEventKey();
-
   DBUG_PRINT("info",("nodeid=%d,subscriptionId=%d,subscriptionKey=%d",
 		     refToNode(signal->theSendersBlockRef),
-		     subscriptionId,subscriptionKey));
+		     createEvntConf->getEventId(),
+                     createEvntConf->getEventKey()));
+#endif
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -5367,12 +5368,10 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
   const SubStopConf * const subStopConf=
     CAST_CONSTPTR(SubStopConf, signal->getDataPtr());
 
-  Uint32 subscriptionId = subStopConf->subscriptionId;
-  Uint32 subscriptionKey = subStopConf->subscriptionKey;
-  Uint32 subscriberData = subStopConf->subscriberData;
-
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
-		     subscriptionId,subscriptionKey,subscriberData));
+		     subStopConf->subscriptionId,
+                     subStopConf->subscriptionKey,
+                     subStopConf->subscriberData));
 
   Uint32 gci_hi= 0;
   Uint32 gci_lo= 0;
@@ -5399,13 +5398,13 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
   const SubStopRef * const subStopRef=
     CAST_CONSTPTR(SubStopRef, signal->getDataPtr());
 
-  Uint32 subscriptionId = subStopRef->subscriptionId;
-  Uint32 subscriptionKey = subStopRef->subscriptionKey;
-  Uint32 subscriberData = subStopRef->subscriberData;
   m_error.code= subStopRef->errorCode;
 
   DBUG_PRINT("error",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d,error=%d",
-		      subscriptionId,subscriptionKey,subscriberData,m_error.code));
+		      subStopRef->subscriptionId,
+                      subStopRef->subscriptionKey,
+                      subStopRef->subscriberData,
+                      m_error.code));
   if (m_error.code == SubStopRef::NotMaster &&
       signal->getLength() >= SubStopRef::SL_MasterNode)
   {
@@ -5423,11 +5422,8 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
   const SubStartConf * const subStartConf=
     CAST_CONSTPTR(SubStartConf, signal->getDataPtr());
 
-  Uint32 subscriptionId = subStartConf->subscriptionId;
-  Uint32 subscriptionKey = subStartConf->subscriptionKey;
   SubscriptionData::Part part = 
     (SubscriptionData::Part)subStartConf->part;
-  Uint32 subscriberData = subStartConf->subscriberData;
 
   switch(part) {
   case SubscriptionData::MetaData: {
@@ -5459,7 +5455,9 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
     m_data.m_sub_start_conf.m_buckets = ~0;
   }
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
-		     subscriptionId,subscriptionKey,subscriberData));
+		     subStartConf->subscriptionId,
+                     subStartConf->subscriptionKey,
+                     subStartConf->subscriberData));
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -9167,9 +9165,11 @@ void
 NdbDictInterface::execSCHEMA_TRANS_END_CONF(const NdbApiSignal * signal,
                                             const LinearSectionPtr ptr[3])
 {
+#ifndef NDEBUG
   const SchemaTransEndConf* conf=
     CAST_CONSTPTR(SchemaTransEndConf, signal->getDataPtr());
   assert(m_tx.m_transId == conf->transId);
+#endif
   m_impl->theWaiter.signal(NO_WAIT);
 }
 

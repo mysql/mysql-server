@@ -7261,8 +7261,8 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       /*  STARTED THIS */
       /*  LOCAL CHECKPOINT.                                                  */
       /*---------------------------------------------------------------------*/
-      Uint32 lcpId = SYSFILE->latestLCP_ID;
 #ifdef VM_TRACE
+      Uint32 lcpId = SYSFILE->latestLCP_ID;
       g_eventLogger->info("Decreasing latestLCP_ID from %d to %d", lcpId, lcpId - 1);
 #endif
       SYSFILE->latestLCP_ID--;
@@ -13678,7 +13678,9 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   bool tableDone = reportLcpCompletion(lcpReport);
   
   Uint32 started = lcpReport->maxGciStarted;
+#ifdef VM_TRACE
   Uint32 completed = lcpReport->maxGciCompleted;
+#endif
 
   if (started > c_lcpState.lcpStopGcp)
   {
@@ -17772,7 +17774,7 @@ void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
 
 void Dbdih::execDEBUG_SIG(Signal* signal) 
 {
-  signal = signal; //Avoid compiler warnings
+  (void)signal; //Avoid compiler warnings
 }//Dbdih::execDEBUG_SIG()
 
 void

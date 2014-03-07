@@ -2657,7 +2657,7 @@ Suma::get_tabinfo_ref_release(Signal* signal, Ptr<Table> tabPtr)
   LocalDLList<Subscription> subList(c_subscriptionPool,
                                     tabPtr.p->m_subscriptions);
   Ptr<Subscription> subPtr;
-  bool empty = subList.isEmpty();
+  ndbassert(!subList.isEmpty());
   for(subList.first(subPtr); !subPtr.isNull();)
   {
     jam();
@@ -2684,7 +2684,6 @@ Suma::get_tabinfo_ref_release(Signal* signal, Ptr<Table> tabPtr)
   }
 
   c_tables.release(tabPtr);
-  ndbassert(!empty);
 }
 
 void
@@ -2718,7 +2717,7 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   LocalDLList<Subscription> subList(c_subscriptionPool,
                                     tabPtr.p->m_subscriptions);
   Ptr<Subscription> subPtr;
-  bool empty = subList.isEmpty();
+  ndbassert(!subList.isEmpty());
   for(subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
   {
     jam();
@@ -2741,7 +2740,6 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
     }
   }
 
-  ndbassert(!empty);
 }
 
 bool

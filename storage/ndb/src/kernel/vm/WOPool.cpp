@@ -56,8 +56,7 @@ WOPool::seize_new_page(Ptr<void>& ptr)
     m_current_page_no = page_no;
     m_current_page = page;
     page->m_type_id = m_record_info.m_type_id;
-    bool ret = seize(ptr);
-    assert(ret);
+    seize_in_page(ptr);
     return true;
   }
   return false;

@@ -487,6 +487,8 @@ inline
 NdbPack::Type::Type(int typeId, Uint32 byteSize, bool nullable, Uint32 csNumber)
 {
   set(typeId, byteSize, nullable, csNumber);
+  m_arrayType = 0;
+  m_nullbitPos = 0;
 }
 
 inline void

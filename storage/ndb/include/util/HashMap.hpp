@@ -33,7 +33,7 @@
 
 inline const void* HashMap__get_key(const void* key_ptr, size_t* key_length)
 {
-  key_length = key_length;
+  (void)key_length;
   return key_ptr;
 }
 

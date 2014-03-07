@@ -127,7 +127,6 @@ ClusterMgr::configure(Uint32 nodeId,
       theNode.m_info.m_type = NodeInfo::MGM;
       break;
     default:
-      type = type;
       break;
     }
   }

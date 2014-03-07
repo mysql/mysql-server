@@ -35,7 +35,9 @@ verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
 
   assert(first != NULL);
   Uint32 totalSize= first->m_sz;
+#ifdef VM_TRACE
   Uint32 lastSegIVal= first->m_lastSegment;
+#endif
 
   /* Hmm, need to be careful of length == 0
    * Nature abhors a segmented section with length 0

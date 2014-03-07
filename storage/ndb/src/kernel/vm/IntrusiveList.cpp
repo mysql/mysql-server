@@ -397,8 +397,7 @@ main(int argc, char **argv)
   if (argc == 2)
     scale = atoi(argv[1]);
 
-  Pool_context pc = test_context(1 * scale);
-
+  (void)test_context(1 * scale);
   ArrayPool<T> pool;
 
   pool.setSize(10 * scale);

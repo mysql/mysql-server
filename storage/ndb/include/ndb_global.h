@@ -287,7 +287,8 @@ C_MODE_START
 /** see below */
 typedef int(*RequirePrinter)(const char *fmt, ...);
 void require_failed(int exitcode, RequirePrinter p,
-                    const char* expr, const char* file, int line);
+                    const char* expr, const char* file, int line)
+                    ATTRIBUTE_NORETURN;
 int ndbout_printer(const char * fmt, ...);
 C_MODE_END
 /*

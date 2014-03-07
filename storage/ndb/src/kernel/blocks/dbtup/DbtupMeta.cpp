@@ -2207,7 +2207,6 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
       }
     }
     
-    ArrayPool<Page> *cheat_pool= (ArrayPool<Page>*)&m_global_page_pool;
     for(pos= 0; pos<MAX_FREE_LIST; pos++)
     {
       ndbrequire(alloc_info.m_page_requests[pos].isEmpty());

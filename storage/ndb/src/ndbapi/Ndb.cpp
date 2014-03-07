@@ -1805,14 +1805,23 @@ Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNam
     register const char *ptr = internalIndexName;
    
     // Scan name from the end
-    while (*ptr++); ptr--; // strend
+    while (*ptr++)
+    {
+      ;
+    }
+    ptr--; // strend
+
     while (ptr >= internalIndexName && *ptr != table_name_separator)
+    {
       ptr--;
+    }
      
     return ptr + 1;
   }
   else
+  {
     return internalIndexName;
+  }
 }
 
 const char *
@@ -2215,7 +2224,6 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
             
             Uint32 components = idxName.split(idxNameComponents,
                                               splitString);
-            
             require(components == 4);
             
             primTableObjectId = atoi(idxNameComponents[2].c_str());
