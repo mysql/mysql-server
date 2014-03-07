@@ -42,7 +42,6 @@ const uint error_conflict_fn_violation= 9999;
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
-extern unsigned char g_node_id_map[max_ndb_nodes];
 extern pthread_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 
