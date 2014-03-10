@@ -647,7 +647,7 @@ static int
 list_table_status(MYSQL *mysql,const char *db,const char *wild)
 {
   char query[NAME_LEN + 100];
-  int len;
+  size_t len;
   MYSQL_RES *result;
   MYSQL_ROW row;
 
@@ -687,7 +687,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 	    const char *wild)
 {
   char query[NAME_LEN + 100];
-  int len;
+  size_t len;
   MYSQL_RES *result;
   MYSQL_ROW row;
   ulong rows= 0;

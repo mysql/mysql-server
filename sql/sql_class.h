@@ -3029,7 +3029,7 @@ public:
                               bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
-		      const char *from, uint from_length,
+		      const char *from, size_t from_length,
 		      const CHARSET_INFO *from_cs);
 
   bool convert_string(String *s, const CHARSET_INFO *from_cs,
