@@ -2452,6 +2452,14 @@ static uint64_t env_get_loader_memory_size(DB_ENV *env) {
     return memory_size;
 }
 
+static void env_do_backtrace(DB_ENV *env) {
+    if (env->i->errfile) {
+        db_env_do_backtrace(env->i->errfile);
+    } else {
+        db_env_do_backtrace(stderr);
+    }
+}
+
 static int 
 toku_env_create(DB_ENV ** envp, uint32_t flags) {
     int r = ENOSYS;
@@ -2527,6 +2535,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     USENV(change_fsync_log_period);
     USENV(set_loader_memory_size);
     USENV(get_loader_memory_size);
+    USENV(do_backtrace);
 #undef USENV
     
     // unlocked methods
