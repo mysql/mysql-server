@@ -1764,13 +1764,6 @@ class Start_event_v3: public Binary_log_event
   </tr>
 
   <tr>
-    <td>created_ts</td>
-    <td>4 byte unsigned integer</td>
-    <td>The creation timestamp, if non-zero,
-        is the time in seconds when this event was created</td>
-  </tr>
-
-  <tr>
     <td>common_header_len</td>
     <td>1 byte unsigned integer</td>
     <td>The length of the event header. This value includes the extra_headers

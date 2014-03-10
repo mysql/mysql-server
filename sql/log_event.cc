@@ -5137,7 +5137,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 Format_description_log_event::
 Format_description_log_event(uint8_t binlog_ver, const char* server_ver)
 : Start_event_v3(FORMAT_DESCRIPTION_EVENT),
-  Format_description_event(binlog_ver, ::server_version)
+  Format_description_event(binlog_ver, server_ver == 0 ? ::server_version : server_ver)
 {
   is_valid= header_is_valid() && version_is_valid();
   /*
@@ -12690,8 +12690,8 @@ int Gtid_log_event::do_update_pos(Relay_log_info *rli)
 Previous_gtids_log_event::
 Previous_gtids_log_event(const char *buf, uint event_len,
                          const Format_description_event *description_event)
-   :Previous_gtids_event(buf, event_len, description_event),
-    Log_event(header(), footer(), true)
+: Previous_gtids_event(buf, event_len, description_event),
+  Log_event(header(), footer(), true)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
   if (buf != NULL)

@@ -63,9 +63,6 @@ using  binary_log::Binary_log_event;
 class String;
 typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
-#ifndef SERVER_VERSION_LENGTH
-#define SERVER_VERSION_LENGTH 60
-#endif
 extern char server_version[SERVER_VERSION_LENGTH];
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
 
