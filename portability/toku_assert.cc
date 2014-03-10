@@ -138,31 +138,30 @@ void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(
 bool toku_gdb_dump_on_assert = false;
 void (*do_assert_hook)(void) = NULL;
 
-extern "C" void db_env_do_backtrace(void) __attribute__((__visibility__("default")));  // also declared in db.h for consumers of that API
-extern "C" void db_env_do_backtrace(void) {
+void db_env_do_backtrace(FILE *outf) {
     // backtrace
 #if !TOKU_WINDOWS
     int n = backtrace(backtrace_pointers, N_POINTERS);
-    fprintf(stderr, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert); fflush(stderr);
-    backtrace_symbols_fd(backtrace_pointers, n, fileno(stderr));
+    fprintf(outf, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert); fflush(outf);
+    backtrace_symbols_fd(backtrace_pointers, n, fileno(outf));
 #endif
 
-    fflush(stderr);
+    fflush(outf);
     
     if (engine_status_num_rows && toku_maybe_get_engine_status_text_p) {
 	int buffsize = engine_status_num_rows * 128;  // assume 128 characters per row (gross overestimate, should be safe)
 	char buff[buffsize];	
 	toku_maybe_get_engine_status_text_p(buff, buffsize);  
-	fprintf(stderr, "Engine status:\n%s\n", buff);
+	fprintf(outf, "Engine status:\n%s\n", buff);
+    } else {
+	fprintf(outf, "Engine status function not available\n");
     }
-    else
-	fprintf(stderr, "Engine status function not available\n");
-    fprintf(stderr, "Memory usage:\n");
-    fflush(stderr);	    // just in case malloc_stats() crashes, we still want engine status (and to know that malloc_stats() failed)
+    fprintf(outf, "Memory usage:\n");
+    fflush(outf);	    // just in case malloc_stats() crashes, we still want engine status (and to know that malloc_stats() failed)
     if (malloc_stats_f) {
         malloc_stats_f();
     }
-    fflush(stderr);	    
+    fflush(outf);
 
     if (do_assert_hook) do_assert_hook();
     if (toku_gdb_dump_on_assert) {
@@ -172,7 +171,7 @@ extern "C" void db_env_do_backtrace(void) {
 
 __attribute__((noreturn))
 static void toku_do_backtrace_abort(void) {
-    db_env_do_backtrace();
+    db_env_do_backtrace(stderr);
 
 #if TOKU_WINDOWS
     //Following commented methods will not always end the process (could hang).

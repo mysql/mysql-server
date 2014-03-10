@@ -98,6 +98,7 @@ PATENT RIGHTS GRANT:
 
 #include <stdint.h>
 #include <errno.h>
+#include <stdio.h>
 
 #ifdef NDEBUG
 #error NDEBUG should not be set
@@ -134,6 +135,7 @@ void toku_do_assert_expected_fail(uintptr_t/*expr*/, uintptr_t /*expected*/, con
 // #define GCOV
 
 extern void (*do_assert_hook)(void); // Set this to a function you want called after printing the assertion failure message but before calling abort().  By default this is NULL.
+void db_env_do_backtrace(FILE *outf);
 
 #if defined(GCOV) || TOKU_WINDOWS
 #define assert(expr)      toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno())
