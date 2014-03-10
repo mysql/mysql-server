@@ -2467,6 +2467,14 @@ static void env_set_killed_callback(DB_ENV *env, uint64_t default_killed_time_ms
     env->i->killed_callback = killed_callback;
 }
 
+static void env_do_backtrace(DB_ENV *env) {
+    if (env->i->errfile) {
+        db_env_do_backtrace(env->i->errfile);
+    } else {
+        db_env_do_backtrace(stderr);
+    }
+}
+
 static int 
 toku_env_create(DB_ENV ** envp, uint32_t flags) {
     int r = ENOSYS;
@@ -2543,6 +2551,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     USENV(set_loader_memory_size);
     USENV(get_loader_memory_size);
     USENV(set_killed_callback);
+    USENV(do_backtrace);
 #undef USENV
     
     // unlocked methods
