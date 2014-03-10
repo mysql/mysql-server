@@ -463,7 +463,7 @@ static void print_db_env_struct (void) {
                              "int (*iterate_pending_lock_requests)        (DB_ENV *env, iterate_requests_callback callback, void *extra)",
                              "void (*set_loader_memory_size)(DB_ENV *env, uint64_t (*get_loader_memory_size_callback)(void))",
                              "uint64_t (*get_loader_memory_size)(DB_ENV *env)",
-                             "void (*env_do_backtrace)                    (DB_ENV *env)",
+                             "void (*do_backtrace)                        (DB_ENV *env)",
                              NULL};
 
         sort_and_dump_fields("db_env", true, extra);

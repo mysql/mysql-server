@@ -2454,7 +2454,7 @@ static uint64_t env_get_loader_memory_size(DB_ENV *env) {
 
 static void env_do_backtrace(DB_ENV *env) {
     if (env->i->errfile) {
-        db_env_do_backtrace(env->i->errfile);
+        db_env_do_backtrace((FILE *) env->i->errfile);
     } else {
         db_env_do_backtrace(stderr);
     }
