@@ -464,7 +464,7 @@ static void print_db_env_struct (void) {
                              "void (*set_loader_memory_size)(DB_ENV *env, uint64_t (*get_loader_memory_size_callback)(void))",
                              "uint64_t (*get_loader_memory_size)(DB_ENV *env)",
                              "void (*set_killed_callback)(DB_ENV *env, uint64_t default_killed_time_msec, uint64_t (*get_killed_time_callback)(uint64_t default_killed_time_msec), int (*killed_callback)(void))",
-                             "void (*env_do_backtrace)                    (DB_ENV *env)",
+                             "void (*do_backtrace)                        (DB_ENV *env)",
                              NULL};
 
         sort_and_dump_fields("db_env", true, extra);
