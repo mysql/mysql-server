@@ -1937,8 +1937,8 @@ void Item_sum_variance::update_field()
 
   /* Serialize format is (double)m, (double)s, (longlong)count */
   double field_recurrence_m, field_recurrence_s;
-  float8get(field_recurrence_m, res);
-  float8get(field_recurrence_s, res + sizeof(double));
+  float8get(&field_recurrence_m, res);
+  float8get(&field_recurrence_s, res + sizeof(double));
   field_count=sint8korr(res+sizeof(double)*2);
 
   variance_fp_recurrence_next(&field_recurrence_m, &field_recurrence_s, &field_count, nr);
@@ -2415,7 +2415,7 @@ void Item_sum_sum::update_field()
     double old_nr,nr;
     uchar *res=result_field->ptr;
 
-    float8get(old_nr,res);
+    float8get(&old_nr,res);
     nr= args[0]->val_real();
     if (!args[0]->null_value)
     {
@@ -2470,7 +2470,7 @@ void Item_sum_avg::update_field()
     if (!args[0]->null_value)
     {
       double old_nr;
-      float8get(old_nr, res);
+      float8get(&old_nr, res);
       field_count= sint8korr(res + sizeof(double));
       old_nr+= nr;
       float8store(res,old_nr);
@@ -2647,7 +2647,7 @@ double Item_avg_field::val_real()
   if (hybrid_type == DECIMAL_RESULT)
     return val_real_from_decimal();
 
-  float8get(nr,field->ptr);
+  float8get(&nr,field->ptr);
   res= (field->ptr+sizeof(double));
   count= sint8korr(res);
 
@@ -2755,7 +2755,7 @@ double Item_variance_field::val_real()
 
   double recurrence_s;
   ulonglong count;
-  float8get(recurrence_s, (field->ptr + sizeof(double)));
+  float8get(&recurrence_s, (field->ptr + sizeof(double)));
   count=sint8korr(field->ptr+sizeof(double)*2);
 
   if ((null_value= (count <= sample)))

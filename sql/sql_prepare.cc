@@ -571,9 +571,9 @@ static void set_param_float(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 4)
     return;
-  float4get(data,*pos);
+  float4get(&data,*pos);
 #else
-  floatget(data, *pos);
+  floatget(&data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 4;
@@ -585,9 +585,9 @@ static void set_param_double(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
     return;
-  float8get(data,*pos);
+  float8get(&data,*pos);
 #else
-  doubleget(data, *pos);
+  doubleget(&data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 8;
