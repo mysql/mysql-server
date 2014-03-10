@@ -253,6 +253,7 @@ SET(TESTS
 SET(SERVER_TESTS
   copy_info
   create_field
+  debug_sync
   delayable_insert_operation
   explain_filename
   field
