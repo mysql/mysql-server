@@ -861,7 +861,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 
   reclength=  mrg->file[0]->s->base.reclength;
   null_bytes= mrg->file[0]->s->base.null_bytes;
-  record=(uchar*) my_alloca(reclength);
+  record=(uchar*) my_safe_alloca(reclength, MARIA_MAX_RECORD_ON_STACK);
   end_count=huff_counts+mrg->file[0]->s->base.fields;
   record_count=0; glob_crc=0;
   max_blob_length=0;
@@ -1145,7 +1145,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
 
   mrg->records=record_count;
   mrg->max_blob_length=max_blob_length;
-  my_afree(record);
+  my_safe_afree(record, reclength, MARIA_MAX_RECORD_ON_STACK);
   DBUG_RETURN(error != HA_ERR_END_OF_FILE);
 }
 
@@ -2415,7 +2415,8 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   DBUG_ENTER("compress_maria_file");
 
   /* Allocate a buffer for the records (excluding blobs). */
-  if (!(record=(uchar*) my_alloca(isam_file->s->base.reclength)))
+  if (!(record=(uchar*) my_safe_alloca(isam_file->s->base.reclength,
+                                       MARIA_MAX_RECORD_ON_STACK)))
     return -1;
 
   end_count=huff_counts+isam_file->s->base.fields;
@@ -2778,7 +2779,8 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   if (verbose >= 2)
     printf("wrote %s records.\n", llstr((longlong) record_count, llbuf));
 
-  my_afree(record);
+  my_safe_afree(record, isam_file->s->base.reclength,
+                MARIA_MAX_RECORD_ON_STACK);
   mrg->ref_length=max_pack_length;
   mrg->min_pack_length=max_record_length ? min_record_length : 0;
   mrg->max_pack_length=max_record_length;
