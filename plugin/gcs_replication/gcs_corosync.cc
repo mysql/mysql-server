@@ -271,7 +271,13 @@ void view_change(cpg_handle_t handle, const struct cpg_name *name,
     at this point.
   */
   if (proto->get_local_process_id() == zero_process_id)
+  {
     proto->do_complete_local_member_init();
+    proto->get_client_info().logger_func(GCS_INFORMATION_LEVEL,
+                                         "Member '%s (%lu,%lu)' completed local initialization",
+                                         proto->get_client_uuid().c_str(),
+                                         proto->get_local_process_id().first, proto->get_local_process_id().second);
+  }
 
   /* CPG protocol must not deliver any VC after the one on which the member left. */
   assert(!proto->is_leaving);
@@ -336,7 +342,7 @@ void view_change(cpg_handle_t handle, const struct cpg_name *name,
     return;
   }
   /*
-    When the current VC is not bound to Totem ring change
+    When the current VC is not bound to Totem ring change, nor it's a Joiner
     the State Exchange is started right here.
   */
   if (!proto->pending_awaited_vector)
@@ -703,6 +709,9 @@ reset_view_and_compute_leaving(const cpg_address *total, size_t total_num,
   fill_member_set(joined, joined_num, ms_joined);
 
   is_leaving= fill_member_set(left, left_num, ms_left, local_process_id);
+
+  assert(is_leaving || ms_total.find(local_process_id) != ms_total.end());
+
   get_view().reset();
 }
 
@@ -835,6 +844,7 @@ void Protocol_corosync::update_awaited_vector(bool reset_arg)
     awaited_vector.erase(p_id);
   }
 
+  assert(is_leaving || ms_total.find(local_process_id) != ms_total.end());
   assert(awaited_vector.size() >= ms_total.size());
 }
 
@@ -918,10 +928,25 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
   assert(get_payload_code(ptr_msg) == PAYLOAD_STATE_EXCHANGE);
   if (view.is_installed())
   {
+    /*
+      A joiner member can receive duplicate state messages.  That can
+      happen when the member is booted up at time of an ongoing view
+      change which is interrupted by the joiner's appearance.  The
+      extra state messages are seen only by Joiner and can be safely
+      ignored as their latest version can't be different (asserted)
+      from what the Joiner has already received from those senders.
+
+      todo: the extra messages can be more controlled by specfying their awaited
+      numbers in the State message to make the Joiner to deter view installation
+      accordingly.
+    */
+    Client_log_level llevel=
+      last_view_id + 1 < view.get_view_id() ?
+                         GCS_WARNING_LEVEL : GCS_ERROR_LEVEL;
     char buf[1024]= {'0'};
 
     get_client_info().
-      logger_func(GCS_ERROR_LEVEL,
+      logger_func(llevel,
                   "Unexpected State message from (%lu,%lu)", p_id.first, p_id.second);
     if (ms_total.find(p_id) == ms_total.end())
       get_client_info().
@@ -933,11 +958,18 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
     {
       debug_unwelcome_state_message(buf, sizeof(buf), member_states[p_id], "The former message details: ");
       get_client_info().logger_func(GCS_INFORMATION_LEVEL, buf);
+      /*
+        The following assert states that even though a coming state
+        message is a duplicate of an older one, view-id - the most
+        essential part in them - is the same.  Uniqueness of view-id
+        is the warrant to ignore extrenous State messages from that sender.
+      */
+      assert(member_states[p_id]->view_id == ms_info->view_id);
     }
     debug_unwelcome_state_message(buf, sizeof(buf), ms_info, "The current message details: ");
     get_client_info().logger_func(GCS_INFORMATION_LEVEL, buf);
 
-    assert(0);
+    assert(llevel == GCS_WARNING_LEVEL);
   }
 
   if (!(ms_info->conf_id == last_seen_conf_id))
@@ -985,7 +1017,12 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
   }
   member_states[p_id]= ms_info;
 
-  /* Own state message sanity check */
+  /*
+     Own state message sanity check.
+     The assert verifies sanity of the local member state message through
+     comparison of what the member knows about itself get_client_info().get_uuid()
+     and what its (member_states[local_process_id]) state message shows up.
+  */
   assert(p_id != local_process_id ||
          member_states[local_process_id]->client_info.get_uuid() ==
          get_client_info().get_uuid());
@@ -1000,6 +1037,9 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
   if (--awaited_vector[p_id] == 0)
   {
     awaited_vector.erase(p_id);
+
+    assert(ms_total.find(p_id) != ms_total.end());
+    assert(member_states.find(p_id) != member_states.end());
   }
   if (awaited_vector.size() == 0)
   {
@@ -1009,11 +1049,12 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
     {
       if (last_view_id + 1 < view.get_view_id())
       {
-        get_client_info().logger_func(GCS_INFORMATION_LEVEL,
-                    "Member '%s (%lu,%lu)' joins from %llu view, "
-                    "distributed recovery must follow",
-                    get_client_uuid().c_str(),
-                    p_id.first, p_id.second, last_view_id);
+        get_client_info().
+          logger_func(GCS_INFORMATION_LEVEL,
+                      "Local member '%s (%lu,%lu)' joins from %llu view, "
+                      "distributed recovery must follow",
+                      get_client_uuid().c_str(),
+                      local_process_id.first, local_process_id.second, last_view_id);
 
         //TODO: Pedro's wl#6837 followup starts here...
       }
