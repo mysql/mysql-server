@@ -373,7 +373,7 @@ public:
   virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
   virtual void set_handler(handler *file_arg) {}
 
-  virtual void trace_quick_description(Opt_trace_context *trace)= 0;
+  void trace_quick_description(Opt_trace_context *trace);
 };
 
 
@@ -490,8 +490,6 @@ public:
   void set_handler(handler *file_arg) { file= file_arg; }
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
-
-  virtual void trace_quick_description(Opt_trace_context *trace);
 };
 
 
@@ -624,9 +622,6 @@ public:
 
   /* used to get rows collected in Unique */
   READ_RECORD read_record;
-
-  void trace_quick_description(Opt_trace_context *trace);
-
 };
 
 
@@ -695,8 +690,6 @@ public:
     return valid;
   }
 
-  void trace_quick_description(Opt_trace_context *trace);
-
   /*
     Merged quick select that uses Clustered PK, if there is one. This quick
     select is not used for row retrieval, it is used for row retrieval.
@@ -764,8 +757,6 @@ public:
     }
     return valid;
   }
-
-  void trace_quick_description(Opt_trace_context *trace);
 
   QUEUE queue;    /* Priority queue for merge operation */
   MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
@@ -893,7 +884,7 @@ public:
       str->append(STRING_WITH_LEN("scanning"));
   }
 
-  void trace_quick_description(Opt_trace_context *trace);
+  void add_info_string(String *str);
 
 };
 

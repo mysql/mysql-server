@@ -3606,7 +3606,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_FLOAT:
   {
     float value;
-    float4get(value,*row);
+    float4get(&value,*row);
     fetch_float_with_conversion(param, field, value, MY_GCVT_ARG_FLOAT);
     *row+= 4;
     break;
@@ -3614,7 +3614,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_DOUBLE:
   {
     double value;
-    float8get(value,*row);
+    float8get(&value,*row);
     fetch_float_with_conversion(param, field, value, MY_GCVT_ARG_DOUBLE);
     *row+= 8;
     break;
@@ -3721,7 +3721,7 @@ static void fetch_result_float(MYSQL_BIND *param,
                                uchar **row)
 {
   float value;
-  float4get(value,*row);
+  float4get(&value,*row);
   floatstore(param->buffer, value);
   *row+= 4;
 }
@@ -3731,7 +3731,7 @@ static void fetch_result_double(MYSQL_BIND *param,
                                 uchar **row)
 {
   double value;
-  float8get(value,*row);
+  float8get(&value,*row);
   doublestore(param->buffer, value);
   *row+= 8;
 }

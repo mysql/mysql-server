@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -493,15 +493,15 @@ String *Item_func_spatial_collection::val_str(String *str)
         if (n_points < 2 || len < 4 + n_points * POINT_DATA_SIZE)
           goto err;
         
-	float8get(x1, data);
+	float8get(&x1, data);
 	data+= SIZEOF_STORED_DOUBLE;
-	float8get(y1, data);
+	float8get(&y1, data);
 	data+= SIZEOF_STORED_DOUBLE;
 
 	data+= (n_points - 2) * POINT_DATA_SIZE;
 
-	float8get(x2, data);
-	float8get(y2, data + SIZEOF_STORED_DOUBLE);
+	float8get(&x2, data);
+	float8get(&y2, data + SIZEOF_STORED_DOUBLE);
 
 	if ((x1 != x2) || (y1 != y2) ||
 	    str->append(org_data, len, 512))

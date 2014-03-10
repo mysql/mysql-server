@@ -1358,6 +1358,18 @@ static void mysqld_exit(int exit_code)
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
 #endif
+#if defined(_WIN32)
+  if (Service.IsNT() && start_mode)
+  {
+    Service.Stop();
+  }
+  else
+  {
+    Service.SetShutdownEvent(0);
+    if (hEventShutdown)
+      CloseHandle(hEventShutdown);
+  }
+#endif
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -4761,16 +4773,6 @@ int mysqld_main(int argc, char **argv)
     sql_print_warning("Could not join signal_thread. error:%d", ret);
 #endif
 
-#if defined(_WIN32)
-  if (Service.IsNT() && start_mode)
-    Service.Stop();
-  else
-  {
-    Service.SetShutdownEvent(0);
-    if (hEventShutdown)
-      CloseHandle(hEventShutdown);
-  }
-#endif
   clean_up(1);
   mysqld_exit(0);
 }

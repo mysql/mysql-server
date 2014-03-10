@@ -4241,10 +4241,9 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     },
                     {
                       "access_type": "range",
-                      "range_description": {
-                        "type": "range",
-                        "index": "PRIMARY"
-                      } /* range_description */,
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
@@ -4299,10 +4298,9 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                             },
                             {
                               "access_type": "range",
-                              "range_description": {
-                                "type": "range",
-                                "index": "PRIMARY"
-                              } /* range_description */,
+                              "range_details": {
+                                "used_index": "PRIMARY"
+                              } /* range_details */,
                               "chosen": false,
                               "cause": "heuristic_index_cheaper"
                             }
@@ -4362,10 +4360,9 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                                     },
                                     {
                                       "access_type": "range",
-                                      "range_description": {
-                                        "type": "range",
-                                        "index": "PRIMARY"
-                                      } /* range_description */,
+                                      "range_details": {
+                                        "used_index": "PRIMARY"
+                                      } /* range_details */,
                                       "chosen": false,
                                       "cause": "heuristic_index_cheaper"
                                     }

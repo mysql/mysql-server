@@ -1338,7 +1338,8 @@ select * from t2;
 # view without primary key
 create view v2 (a,b) as select t1.b as a, t2.a as b from t1, t2;
 set updatable_views_with_limit=NO;
--- error ER_NON_UPDATABLE_TABLE
+# different errors in PS / non-PS mode:
+-- error ER_NON_UPDATABLE_TABLE, ER_VIEW_PREVENT_UPDATE
 update v2 set a= 10 where a=200 limit 1;
 set updatable_views_with_limit=DEFAULT;
 # just view selects
