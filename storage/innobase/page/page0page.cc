@@ -124,19 +124,25 @@ page_dir_find_owner_slot(
 
 		if (UNIV_UNLIKELY(slot == first_slot)) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Probable data corruption on page " ULINTPF "."
-				" Original record on that page; %s",
-				page_get_page_no(page),
-				page_is_comp(page) ? "(compact record)" :
-					rec_printer(rec).c_str());
+				"Probable data corruption on page %lu"
+				" Original record on that page;",
+				(ulong) page_get_page_no(page));
+
+			if (page_is_comp(page)) {
+				fputs("(compact record)", stderr);
+			} else {
+				rec_print_old(stderr, rec);
+			}
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Cannot find the dir slot for this record"
-				" on that page, %s",
-				page_is_comp(page) ? "(compact record)" :
-					rec_printer(
-						page + mach_decode_2(
-						rec_offs_bytes)).c_str());
+				" on that page;");
+			if (page_is_comp(page)) {
+				fputs("(compact record)", stderr);
+			} else {
+				rec_print_old(stderr, page
+					      + mach_decode_2(rec_offs_bytes));
+			}
 
 			buf_page_print(page, univ_page_size, 0);
 
@@ -1695,22 +1701,19 @@ page_rec_print(
 	const ulint*	offsets)/*!< in: record descriptor */
 {
 	ut_a(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
-	ib_logf(IB_LOG_LEVEL_INFO, "%s",
-		rec_printer(rec, offsets).c_str());
+	rec_print_new(stderr, rec, offsets);
 	if (page_rec_is_comp(rec)) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"n_owned: " ULINTPF "; heap_no: " ULINTPF ";"
-			" next rec: " ULINTPF,
-			rec_get_n_owned_new(rec),
-			rec_get_heap_no_new(rec),
-			rec_get_next_offs(rec, TRUE));
+			"n_owned: %lu; heap_no: %lu; next rec: %lu",
+			(ulong) rec_get_n_owned_new(rec),
+			(ulong) rec_get_heap_no_new(rec),
+			(ulong) rec_get_next_offs(rec, TRUE));
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"n_owned: " ULINTPF "; heap_no: " ULINTPF ";"
-			" next rec: " ULINTPF,
-			rec_get_n_owned_old(rec),
-			rec_get_heap_no_old(rec),
-			rec_get_next_offs(rec, FALSE));
+			"n_owned: %lu; heap_no: %lu; next rec: %lu",
+			(ulong) rec_get_n_owned_old(rec),
+			(ulong) rec_get_heap_no_old(rec),
+			(ulong) rec_get_next_offs(rec, FALSE));
 	}
 
 	page_rec_check(rec);
@@ -2509,20 +2512,16 @@ page_validate(
 			    (0 >= cmp_rec_rec(rec, old_rec,
 					      offsets, old_offsets, index))) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Records in wrong order on"
-					" space " ULINTPF ", page " ULINTPF
-					" index %s",
-					page_get_space_id(page),
-					page_get_page_no(page),
-					ut_get_name(NULL, FALSE,
-						index->name).c_str());
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Previous record %s",
-					rec_printer(old_rec,
-						    old_offsets).c_str());
-				ib_logf(IB_LOG_LEVEL_ERROR, "Record %s",
-					rec_printer(rec,
-						    offsets).c_str());
+					"Records in wrong order"
+					" on space %lu page %lu index %s",
+					(ulong) page_get_space_id(page),
+					(ulong) page_get_page_no(page),
+					index->name);
+				fputs("\nInnoDB: previous record ", stderr);
+				rec_print_new(stderr, old_rec, old_offsets);
+				fputs("\nInnoDB: record ", stderr);
+				rec_print_new(stderr, rec, offsets);
+				putc('\n', stderr);
 
 				goto func_exit;
 			}

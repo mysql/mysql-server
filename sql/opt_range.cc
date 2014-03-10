@@ -1408,6 +1408,16 @@ QUICK_SELECT_I::QUICK_SELECT_I()
    used_key_parts(0)
 {}
 
+void QUICK_SELECT_I::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_details");
+
+  String range_info;
+  range_info.set_charset(system_charset_info);
+  add_info_string(&range_info);
+  range_trace.add_utf8("used_index", range_info.ptr(), range_info.length());
+}
+
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc,
                                        bool *create_error)
@@ -11383,6 +11393,12 @@ void QUICK_ROR_UNION_SELECT::add_info_string(String *str)
   str->append(')');
 }
 
+void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str)
+{
+  str->append(STRING_WITH_LEN("index_for_group_by("));
+  str->append(index_info->name);
+  str->append(')');
+}
 
 void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names,
                                               String *used_lengths)
@@ -14401,74 +14417,6 @@ static inline void print_tree(String *out,
   }
 }
 
-void
-QUICK_RANGE_SELECT::trace_quick_description(Opt_trace_context *trace)
-{
-  Opt_trace_object range_trace(trace, "range_description");
-  range_trace.add_alnum("type", "range").
-    add_utf8("index", head->key_info[index].name);
-}
-
-void
-QUICK_INDEX_MERGE_SELECT::trace_quick_description(Opt_trace_context *trace)
-{
-  Opt_trace_object range_trace(trace, "range_description");
-  range_trace.add_alnum("type", "index_merge_union");
-  {
-    Opt_trace_array idx_trace(trace, "indexes");
-
-    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-    QUICK_RANGE_SELECT *quick;
-    while ((quick= it++))
-      idx_trace.add_utf8(quick->head->key_info[quick->index].name);
-
-    if (pk_quick_select)
-      idx_trace.add_utf8(pk_quick_select->head->
-                         key_info[pk_quick_select->index].name);
-
-  }
-}
-
-void
-QUICK_ROR_INTERSECT_SELECT::trace_quick_description(Opt_trace_context *trace)
-{
-  Opt_trace_object range_trace(trace, "range_description");
-  range_trace.add_alnum("type", "index_roworder_intersect");
-  {
-    Opt_trace_array idx_trace(trace, "indexes");
-
-    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-    QUICK_RANGE_SELECT *quick;
-    while ((quick= it++))
-      idx_trace.add_utf8(quick->head->key_info[quick->index].name);
-
-    if (cpk_quick)
-      idx_trace.add_utf8(cpk_quick->head->key_info[cpk_quick->index].name);
-  }
-}
-
-void
-QUICK_GROUP_MIN_MAX_SELECT::trace_quick_description(Opt_trace_context *trace)
-{
-  Opt_trace_object range_trace(trace, "range_description");
-  range_trace.add_alnum("type", "index_group").
-    add_utf8("index", index_info->name);
-}
-
-void
-QUICK_ROR_UNION_SELECT::trace_quick_description(Opt_trace_context *trace)
-{
-  Opt_trace_object range_trace(trace, "range_description");
-  range_trace.add_alnum("type", "index_roworder_union");
-  {
-    Opt_trace_array idx_trace(trace, "indexes");
-
-    List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-    QUICK_SELECT_I *quick;
-    while ((quick= it++))
-      idx_trace.add_utf8("index", quick->head->key_info[quick->index].name);
-  }
-}
 
 /*****************************************************************************
 ** Print a quick range for debugging

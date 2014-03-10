@@ -430,6 +430,7 @@ ut_print_buf(
 	putc(';', file);
 }
 
+#ifndef DBUG_OFF
 /*************************************************************//**
 Prints the contents of a memory buffer in hex. */
 
@@ -481,6 +482,7 @@ ut_print_buf(
 
 	ut_print_buf_hex(o, buf, len);
 }
+#endif /* !DBUG_OFF */
 
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.

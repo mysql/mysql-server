@@ -640,11 +640,11 @@ row_merge_buf_write(
 		ut_ad(b < &block[srv_sort_buf_size]);
 
 		DBUG_PRINT("ib_merge_sort",
-			   ("%p,fd=%d, " ULINTPF  " " ULINTPF ": %s",
-			    static_cast<void*>(b), of->fd,
-			    of->offset, i,
+			   ("%p,fd=%d,%lu %lu: %s",
+			    reinterpret_cast<const void*>(b), of->fd,
+			    ulong(of->offset), ulong(i),
 			    rec_printer(entry->fields,
-					n_fields).c_str()));
+					n_fields).str().c_str()));
 	}
 
 	/* Write an "end-of-chunk" marker. */
@@ -921,7 +921,7 @@ func_exit:
 		    reinterpret_cast<const void*>(b),
 		    reinterpret_cast<const void*>(block),
 		    fd, ulong(*foffs),
-		    rec_printer(*mrec, 0, offsets).c_str()));
+		    rec_printer(*mrec, 0, offsets).str().c_str()));
 	DBUG_RETURN(b);
 }
 
@@ -952,9 +952,9 @@ row_merge_write_rec_low(
 #endif /* DBUG_OFF */
 	DBUG_ASSERT(e == rec_offs_extra_size(offsets) + 1);
 	DBUG_PRINT("ib_merge_sort",
-		   ("%p,fd=%d, " ULINTPF ": %s",
-		    static_cast<void*>(b), fd, foffs,
-		    rec_printer(mrec, 0, offsets).c_str()));
+		   ("%p,fd=%d,%lu: %s",
+		    reinterpret_cast<const void*>(b), fd, ulong(foffs),
+		    rec_printer(mrec, 0, offsets).str().c_str()));
 
 	if (e < 0x80) {
 		*b++ = (byte) e;

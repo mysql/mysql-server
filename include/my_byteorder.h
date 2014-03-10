@@ -23,7 +23,6 @@
   for integer types, but 'get' (assume 'getter') for floating point types.
 */
 #if defined(__i386__) || defined(_WIN32)
-#define MY_BYTE_ORDER_ARCH_OPTIMIZED
 #include "byte_order_generic_x86.h"
 #elif defined(__x86_64__)
 #include "byte_order_generic_x86_64.h"
@@ -121,5 +120,24 @@ static inline void int8store(char *pT, ulonglong A)
 #else
 #include "little_endian.h"
 #endif
+
+#ifdef __cplusplus
+
+static inline void float4store(char *V, float M)
+{
+  float4store(static_cast<uchar*>(static_cast<void*>(V)), M);
+}
+
+static inline void float8get(double *V, const char *M)
+{
+  float8get(V, static_cast<const uchar*>(static_cast<const void*>(M)));
+}
+
+static inline void float8store(char *V, double M)
+{
+  float8store(static_cast<uchar*>(static_cast<void*>(V)), M);
+}
+
+#endif /* __cplusplus */
 
 #endif /* MY_BYTEORDER_INCLUDED */
