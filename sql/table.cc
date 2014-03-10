@@ -79,7 +79,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
                                Name_resolution_context *context);
 
-inline bool is_system_table_name(const char *name, uint length);
+inline bool is_system_table_name(const char *name, size_t length);
 
 static ulong get_form_pos(File file, uchar *head);
 
@@ -315,13 +315,13 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
 */
 
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
-                               uint key_length)
+                               size_t key_length)
 {
   MEM_ROOT mem_root;
   TABLE_SHARE *share= NULL;
   char *key_buff, *path_buff;
   char path[FN_REFLEN + 1];
-  uint path_length;
+  size_t path_length;
   Table_cache_element **cache_element_array;
   bool was_truncated= false;
   DBUG_ENTER("alloc_table_share");
@@ -418,7 +418,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
 */
 
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
-                          uint key_length, const char *table_name,
+                          size_t key_length, const char *table_name,
                           const char *path)
 {
   DBUG_ENTER("init_tmp_table_share");
@@ -565,7 +565,7 @@ void free_table_share(TABLE_SHARE *share)
   and should not contain user tables.
 */
 
-inline bool is_system_table_name(const char *name, uint length)
+inline bool is_system_table_name(const char *name, size_t length)
 {
   CHARSET_INFO *ci= system_charset_info;
 
@@ -696,7 +696,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
       goto err_not_open;
 
     /* Try unencoded 5.0 name */
-    uint length;
+    size_t length;
     strxnmov(path, sizeof(path)-1,
              mysql_data_home, "/", share->db.str, "/",
              share->table_name.str, reg_ext, NullS);
@@ -1465,7 +1465,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       /* tablespace */
       const char *tablespace=
         (const char*)next_chunk + format_section_header_size;
-      const uint tablespace_length= strlen(tablespace);
+      const size_t tablespace_length= strlen(tablespace);
       if (tablespace_length &&
           !(share->tablespace= strmake_root(&share->mem_root,
                                             tablespace, tablespace_length+1)))
@@ -2855,7 +2855,7 @@ ulong next_io_size(ulong pos)
     May fail with some multibyte charsets though.
 */
 
-void append_unescaped(String *res, const char *pos, uint length)
+void append_unescaped(String *res, const char *pos, size_t length)
 {
   const char *end= pos+length;
   res->append('\'');
@@ -2913,7 +2913,7 @@ File create_frm(THD *thd, const char *name, const char *db,
   ulong length;
   uchar fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
-  ulong key_comment_total_bytes= 0;
+  size_t key_comment_total_bytes= 0;
   uint i;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -3161,7 +3161,7 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
                                                 bool preserve_lettercase)
 {
   char *name= org_name->str;
-  uint name_length= org_name->length;
+  size_t name_length= org_name->length;
   bool check_for_path_chars;
   enum_ident_name_check ident_check_status;
 

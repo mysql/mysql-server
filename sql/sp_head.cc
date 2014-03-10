@@ -80,7 +80,7 @@ struct SP_TABLE
     we count length of key.
   */
   LEX_STRING qname;
-  uint db_length, table_name_length;
+  size_t db_length, table_name_length;
   bool temp;               /* true if corresponds to a temporary table */
   thr_lock_type lock_type; /* lock type used for prelocking */
   uint lock_count;
@@ -1664,7 +1664,7 @@ void sp_head::set_info(longlong created,
 }
 
 
-void sp_head::set_definer(const char *definer, uint definerlen)
+void sp_head::set_definer(const char *definer, size_t definerlen)
 {
   char user_name_holder[USERNAME_LENGTH + 1];
   LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };

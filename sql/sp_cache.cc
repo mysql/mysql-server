@@ -69,7 +69,7 @@ public:
     return my_hash_insert(&m_hashtable, (const uchar *)sp);
   }
 
-  sp_head *lookup(char *name, uint namelen)
+  sp_head *lookup(char *name, size_t namelen)
   {
     return (sp_head *) my_hash_search(&m_hashtable, (const uchar *)name,
                                       namelen);
