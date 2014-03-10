@@ -5397,7 +5397,7 @@ static my_bool binlog_log_query_handlerton(THD *thd,
 
 void ha_binlog_log_query(THD *thd, handlerton *hton,
                          enum_binlog_command binlog_command,
-                         const char *query, uint query_length,
+                         const char *query, size_t query_length,
                          const char *db, const char *table_name)
 {
   struct binlog_log_query_st b;
@@ -6908,9 +6908,9 @@ TYPELIB* ha_known_exts()
 }
 
 
-static bool stat_print(THD *thd, const char *type, uint type_len,
-                       const char *file, uint file_len,
-                       const char *status, uint status_len)
+static bool stat_print(THD *thd, const char *type, size_t type_len,
+                       const char *file, size_t file_len,
+                       const char *status, size_t status_len)
 {
   Protocol *protocol= thd->protocol;
   protocol->prepare_for_resend();

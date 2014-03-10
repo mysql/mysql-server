@@ -349,8 +349,8 @@ static void do_field_varbinary_pre50(Copy_field *copy)
   copy->from_field->val_str(&copy->tmp);
 
   /* Use the same function as in 4.1 to trim trailing spaces */
-  uint length= my_lengthsp_8bit(&my_charset_bin, copy->tmp.c_ptr_quick(),
-                                copy->from_field->field_length);
+  size_t length= my_lengthsp_8bit(&my_charset_bin, copy->tmp.c_ptr_quick(),
+                                  copy->from_field->field_length);
 
   copy->to_field->store(copy->tmp.c_ptr_quick(), length,
                         copy->tmp.charset());
@@ -426,11 +426,11 @@ static void do_cut_string_complex(Copy_field *copy)
   int well_formed_error;
   const CHARSET_INFO *cs= copy->from_field->charset();
   const uchar *from_end= copy->from_ptr + copy->from_length;
-  uint copy_length= cs->cset->well_formed_len(cs,
-                                              (char*) copy->from_ptr,
-                                              (char*) from_end, 
-                                              copy->to_length / cs->mbmaxlen,
-                                              &well_formed_error);
+  size_t copy_length= cs->cset->well_formed_len(cs,
+                                                (char*) copy->from_ptr,
+                                                (char*) from_end, 
+                                                copy->to_length / cs->mbmaxlen,
+                                                &well_formed_error);
   if (copy->to_length < copy_length)
     copy_length= copy->to_length;
   memcpy(copy->to_ptr, copy->from_ptr, copy_length);

@@ -140,7 +140,7 @@ PFS_sizing_data small_data=
   /* Min tables */
   200,
   /* Load factors */
-  0.90, 0.90, 0.90
+  0.90f, 0.90f, 0.90f
 };
 
 PFS_sizing_data medium_data=
@@ -156,7 +156,7 @@ PFS_sizing_data medium_data=
   /* Min tables */
   500,
   /* Load factors */
-  0.70, 0.80, 0.90
+  0.70f, 0.80f, 0.90f
 };
 
 PFS_sizing_data large_data=
@@ -172,7 +172,7 @@ PFS_sizing_data large_data=
   /* Min tables */
   10000,
   /* Load factors */
-  0.50, 0.65, 0.80
+  0.50f, 0.65f, 0.80f
 };
 
 static inline ulong apply_load_factor(ulong raw_value, float factor)

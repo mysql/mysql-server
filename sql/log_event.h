@@ -1360,7 +1360,7 @@ public:
   /* Placement version of the above operators */
   static void *operator new(size_t, void* ptr) { return ptr; }
   static void operator delete(void*, void*) { }
-  bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, ulong data_length);
+  bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t data_length);
 
 #ifdef MYSQL_SERVER
   bool write_header(IO_CACHE* file, ulong data_length);
@@ -2154,8 +2154,8 @@ public:
     we pass it with q_len, so we would not have to call strlen()
     otherwise, set it to 0, in which case, we compute it with strlen()
   */
-  uint32 q_len;
-  uint32 db_len;
+  size_t q_len;
+  size_t db_len;
   uint16 error_code;
   ulong thread_id;
   /*
@@ -5204,7 +5204,7 @@ public:
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }
 
   bool is_valid() const { return buf != NULL; }
-  int get_data_size() { return buf_size; }
+  int get_data_size() { return static_cast<int>(buf_size); }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -5252,7 +5252,7 @@ public:
 #endif
 
 private:
-  int buf_size;
+  size_t buf_size;
   const uchar *buf;
 };
 
@@ -5308,13 +5308,13 @@ inline void do_server_version_split(char* version, uchar split_versions[3])
  */
 size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
                                    const char* identifier,
-                                   uint length);
+                                   size_t length);
 #else
 size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
 #endif
 size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
                                           const char* identifier,
-                                          uint length);
+                                          size_t length);
 
 /**
   @} (end of group Replication)

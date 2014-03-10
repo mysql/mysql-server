@@ -376,7 +376,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
   if (lu)  // for GRANT
   {
     USER_CONN *uc;
-    uint temp_len=lu->user.length+lu->host.length+2;
+    size_t temp_len=lu->user.length+lu->host.length+2;
     char temp_user[USER_HOST_BUFF_SIZE];
 
     memcpy(temp_user,lu->user.str,lu->user.length);

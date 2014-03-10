@@ -2515,7 +2515,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       {
         /* Add column to tab separated string */
 	char *val= row[i];
-	int len= lengths[i];
+	size_t len= lengths[i];
 	
 	if (glob_replace_regex)
 	{
@@ -2610,7 +2610,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
-  { "<No error>", -1U, "" },
+  { "<No error>", (uint)-1, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
