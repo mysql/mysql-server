@@ -2574,7 +2574,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       if (strcmp (table_type, "VIEW") == 0)         /* view */
         print_comment(sql_file, 0,
-                      "\n--\n-- Temporary table structure for view %s\n--\n\n",
+                      "\n--\n-- Temporary view structure for view %s\n--\n\n",
                       result_table);
       else
         print_comment(sql_file, 0,
@@ -2601,7 +2601,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         char *scv_buff= NULL;
         my_ulonglong n_cols;
 
-        verbose_msg("-- It's a view, create dummy table for view\n");
+        verbose_msg("-- It's a view, create dummy view\n");
 
         /* save "show create" statement for later */
         if ((row= mysql_fetch_row(result)) && (scv_buff=row[1]))
@@ -2674,7 +2674,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           fprintf(sql_file,
                   "SET @saved_cs_client     = @@character_set_client;\n"
                   "SET character_set_client = utf8;\n"
-                  "/*!50001 CREATE TABLE %s (\n",
+                  "/*!50001 CREATE VIEW %s AS SELECT \n",
                   result_table);
 
           /*
@@ -2683,31 +2683,24 @@ static uint get_table_structure(char *table, char *db, char *table_type,
             there should be a _trailing_ comma.
           */
 
+
           row= mysql_fetch_row(result);
 
           /*
-            The actual column type doesn't matter anyway, since the table will
-            be dropped at run time.
-            We do tinyint to avoid hitting the row size limit.
+            A temporary view is created to resolve the view interdependencies.
+            This temporary view is dropped when the actual view is created.
           */
-          fprintf(sql_file, "  %s tinyint NOT NULL",
+
+          fprintf(sql_file, " 1 AS %s",
                   quote_name(row[0], name_buff, 0));
 
           while((row= mysql_fetch_row(result)))
           {
-            /* col name, col type */
-            fprintf(sql_file, ",\n  %s tinyint NOT NULL",
+            fprintf(sql_file, ",\n 1 AS %s",
                     quote_name(row[0], name_buff, 0));
           }
 
-          /*
-            Stand-in tables are always MyISAM tables as the default
-            engine might have a column-limit that's lower than the
-            number of columns in the view, and MyISAM support is
-            guaranteed to be in the server anyway.
-          */
-          fprintf(sql_file,
-                  "\n) ENGINE=MyISAM */;\n"
+          fprintf(sql_file,"*/;\n"
                   "SET character_set_client = @saved_cs_client;\n");
 
           check_io(sql_file);
@@ -5586,15 +5579,8 @@ static my_bool get_view_structure(char *table, char* db)
                 "\n--\n-- Final view structure for view %s\n--\n\n",
                 result_table);
 
-  /* Table might not exist if this view was dumped with --tab. */
-  fprintf(sql_file, "/*!50001 DROP TABLE IF EXISTS %s*/;\n", opt_quoted_table);
-  if (opt_drop)
-  {
-    fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
-            opt_quoted_table);
-    check_io(sql_file);
-  }
-
+  verbose_msg("-- Dropping the temporary view structure created\n");
+  fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);
 
   my_snprintf(query, sizeof(query),
               "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE, "
