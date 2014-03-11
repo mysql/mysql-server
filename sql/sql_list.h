@@ -330,11 +330,12 @@ public:
   friend class error_list;
   friend class error_list_iterator;
 
+#ifndef DBUG_OFF
   /*
     Debugging help: return N-th element in the list, or NULL if the list has
     less than N elements.
   */
-  inline void *nth_element(int n)
+  void *elem(int n)
   {
     list_node *node= first;
     void *data= NULL;
@@ -350,6 +351,8 @@ public:
     }
     return data;
   }
+#endif
+
 #ifdef LIST_EXTRA_DEBUG
   /*
     Check list invariants and print results into trace. Invariants are:
@@ -528,7 +531,9 @@ public:
     }
     empty();
   }
-  inline T *nth_element(int n) { return (T*)base_list::nth_element(n); }
+#ifndef DBUG_OFF
+  T *elem(int n) { return (T*)base_list::elem(n); }
+#endif
 };
 
 

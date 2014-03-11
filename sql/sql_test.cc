@@ -409,6 +409,15 @@ void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
 }
 /* purecov: end */
 
+/*
+  Debugging help: force List<...>::elem function not be removed as unused.
+*/
+Item* (List<Item>:: *dbug_list_item_elem_ptr)(int)= &List<Item>::elem;
+Item_equal* (List<Item_equal>:: *dbug_list_item_equal_elem_ptr)(int)=
+  &List<Item_equal>::elem;
+TABLE_LIST* (List<TABLE_LIST>:: *dbug_list_table_list_elem_ptr)(int) =
+  &List<TABLE_LIST>::elem;
+
 #endif
 
 typedef struct st_debug_lock
