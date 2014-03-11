@@ -1,0 +1,71 @@
+# ==== Purpose ====
+#
+# Check all the GTID functions defined in the auxiliary test script
+# include/gtid_utils.inc.
+#
+# ==== Implementation ====
+#
+# For each function in gtid_utils.inc, test a few values, try to
+# include boundary conditions etc.
+
+--source include/have_gtid.inc
+# Only need to test under one binlog format
+--source include/have_binlog_format_row.inc
+--source include/gtid_utils.inc
+
+eval SELECT GTID_IS_EQUAL('$uuida:1,$uuidb:3:2:1', '$uuidb:1-3,$uuida:1');
+eval SELECT GTID_IS_EQUAL('$uuida:1,$uuidb:3:2:1', '$uuidb:1:3,$uuida:1');
+
+eval SELECT GTID_IS_DISJOINT('$uuida:2', '$uuidb:2,$uuida:1:3');
+eval SELECT GTID_IS_DISJOINT('$uuida:2', '$uuidb:2,$uuida:1-3');
+
+eval SELECT GTID_IS_DISJOINT_UNION('$uuida:2,$uuidb:1', '$uuida:1:3', '$uuida:1-3,$uuidb:1');
+eval SELECT GTID_IS_DISJOINT_UNION('$uuida:2,$uuidb:1', '$uuida:1-3', '$uuida:1-3,$uuidb:1');
+eval SELECT GTID_IS_DISJOINT_UNION('$uuida:2,$uuidb:1', '$uuida:1', '$uuida:1-3,$uuidb:1');
+
+eval SELECT GTID_INTERSECTION('$uuida:1-3', '$uuida:5-7');
+eval SELECT GTID_INTERSECTION('$uuida:1-3:5-7', '$uuida:3-5');
+eval SELECT GTID_INTERSECTION('$uuida:1-3', '$uuida:1:2:3');
+eval SELECT GTID_INTERSECTION('$uuidb:1-3', '$uuida:1-3');
+
+eval SELECT GTID_UNION('$uuida:1:3', '$uuida:1:3');
+eval SELECT GTID_UNION('$uuida:1-3', '$uuida:1:3');
+eval SELECT GTID_UNION('$uuida:1:3', '$uuida:2:4');
+
+eval SELECT GTID_SYMMETRIC_DIFFERENCE('$uuida:1-3', '$uuida:3-5');
+eval SELECT GTID_SYMMETRIC_DIFFERENCE('$uuida:1-3', '$uuida:4-5');
+eval SELECT GTID_SYMMETRIC_DIFFERENCE('$uuida:1-3', '$uuidb:1-3');
+
+eval SELECT GTID_SUBTRACT_UUID('$uuida:1-3,$uuidb:1-3,$uuidc:1-3', '$uuidb');
+eval SELECT GTID_SUBTRACT_UUID('$uuida:1-3,$uuidc:1-3', '$uuidb');
+eval SELECT GTID_SUBTRACT_UUID('$uuidb:1-3', '$uuidb');
+eval SELECT GTID_SUBTRACT_UUID(CONCAT('$uuida:1-', 1 << 63 - 1), '$uuida');
+
+eval SELECT GTID_INTERSECTION_WITH_UUID('$uuida:1-3,$uuidb:1-3,$uuidc:1-3', '$uuidb');
+eval SELECT GTID_INTERSECTION_WITH_UUID('$uuida:1-3,$uuidc:1-3', '$uuidb');
+eval SELECT GTID_INTERSECTION_WITH_UUID('$uuidb:1-3', '$uuidb');
+
+eval SELECT GTID_COUNT('');
+eval SELECT GTID_COUNT('$uuida:1');
+eval SELECT GTID_COUNT('$uuida:1-3');
+eval SELECT GTID_COUNT('$uuida:1-3:4-5');
+eval SELECT GTID_COUNT('$uuida:1-3:5-5');
+eval SELECT GTID_COUNT('$uuida:1-3:5-4');
+eval SELECT GTID_COUNT('$uuida:1-3:5-4,$uuidb:1:3,');
+
+eval SELECT GTID_NEXT_GENERATED('$uuidb:1', '$uuida');
+eval SELECT GTID_NEXT_GENERATED('', '$uuida');
+eval SELECT GTID_NEXT_GENERATED('$uuida:1', '$uuida');
+eval SELECT GTID_NEXT_GENERATED('$uuida:2', '$uuida');
+eval SELECT GTID_NEXT_GENERATED('$uuida:1-3', '$uuida');
+eval SELECT GTID_NEXT_GENERATED('$uuida:5:1-3', '$uuida');
+eval SELECT GTID_NEXT_GENERATED('$uuida:1-3,$uuid1:1', '$uuida');
+eval SELECT GTID_NEXT_GENERATED('$uuida:2-3,$uuid1:1', '$uuida');
+
+eval SELECT GTID_NEXT_GENERATED_SET('$uuida:1', '$uuida', 0);
+eval SELECT GTID_NEXT_GENERATED_SET('$uuidb:1', '$uuida', 4);
+eval SELECT GTID_NEXT_GENERATED_SET('', '$uuida', 4);
+eval SELECT GTID_NEXT_GENERATED_SET('$uuida:2:4:6:8:10-11', '$uuida', 10);
+eval SELECT GTID_NEXT_GENERATED_SET('$uuida:1:3:5:7:9-11', '$uuida', 10);
+
+--source include/gtid_utils_end.inc
