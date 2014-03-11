@@ -1,0 +1,92 @@
+# ==== Purpose ====
+#
+# Test the behavior of slave when binlog_format=statement and a query
+# that updates a non-transactional table is killed on the master,
+# after being only half-way completed.
+#
+# The following should hold:
+# - The statement should be logged with error code ER_QUERY_INTERRUPTED.
+# - The slave should normally stop with an error.
+# - If the table or database is filtered out, the slave should not stop.
+#
+# To test this, we test three cases:
+#  1. Killed query on master generates error on slave.
+#  2. Killed query on master, on a filtered-out table, does not
+#     generate error on slave.
+#  3. Killed query on master, on a table in a filtered-out database,
+#     does not generate error on slave.
+#
+# ==== Implemenation ====
+#
+# For case 1, we extecute a statement and kill it in the middle, then
+# verify that the slave stops with the correct error.
+#
+# For cases 2 and 3, we execute a statement and kill it in the middle,
+# then verify that the slave replicates without problems.  In case 2,
+# the statement is executed when the current database is filtered-out.
+# In case 3, the statement modifies a table that is filtered-out.
+#
+# Slave filters are specified in rpl_kill_query.cnf
+#
+# The procedure to generate a killed statement is similar in all three
+# cases.  See extra/rpl_tests/rpl_kill_query.inc for details.
+#
+# ==== References ====
+#
+# BUG#18145032: NO EMPTY TRANSACTION IS CREATED FOR A FILTERED CREATE TEMPORARY TABLE WITH GTIDS
+# - Test created as part of this fix, since it touches the code for
+#   filtering.
+
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+--sync_slave_with_master
+--connection master
+
+--echo ==== Case 1: Killed query on master -> error on slave ====
+
+--let $database= db1
+--let $table= t1
+--source extra/rpl_tests/rpl_kill_query.inc
+
+--echo ---- Verify there is an error on slave ----
+--source include/sync_slave_io_with_master.inc
+--let $slave_sql_errno= 1317 # ER_QUERY_INTERRUPTED
+--source include/wait_for_slave_sql_error.inc
+
+--echo ---- Verify that nothing was inserted on slave -----
+--let $assert_text= Nothing should be inserted on slave
+--let $assert_cond= [slave:SELECT COUNT(*) FROM $database.t1] = 0
+--source include/assert.inc
+
+--echo ---- Clean up ----
+--source include/stop_slave_io.inc
+RESET SLAVE;
+DROP DATABASE db1;
+--source include/rpl_connection_master.inc
+RESET MASTER;
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+
+--echo ==== Case 2: Master kills query -> no error if slave filters by db ====
+
+--let $database= ignored_db
+--let $table= t1
+--source extra/rpl_tests/rpl_kill_query.inc
+
+--echo ---- Verify all was replicated ok ----
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+
+--echo ==== Case 3: Master kills query -> no error if slave filters by table ====
+
+--let $database= db1
+--let $table= ignored_table
+--source extra/rpl_tests/rpl_kill_query.inc
+
+--echo ---- Verify all was replicated ok ----
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc
