@@ -15,8 +15,8 @@ mysqld-bin.000001	#	Query	1	#	use `test`; create table test.myisamt3s1 (a int pr
 mysqld-bin.000001	#	Query	1	#	BEGIN
 mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.ndbt1)
 mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows_v1	1	#	table_id: #
-mysqld-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows	1	#	table_id: #
+mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	1	#	COMMIT
 reset master;
 Show + reset Binlog contents on Server 2
@@ -27,8 +27,8 @@ mysqld-bin.000001	#	Query	2	#	use `test`; create table test.myisamt3s2 (a int pr
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.ndbt1)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows	2	#	table_id: #
+mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	2	#	COMMIT
 reset master;
 Now perform MyIsam table change followed by 
@@ -39,7 +39,10 @@ The MyIsam change definitely will be in the local
 binlog as it occurred 'before' the lock
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	1	#	use `test`; insert into test.myisamt3s1 values (3,3)
+mysqld-bin.000001	#	Query	1	#	BEGIN
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.myisamt3s1)
+mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Query	1	#	COMMIT
 Show that Ndb and local tables are still 
 Read-Write from Server2
 use test;
@@ -51,8 +54,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.ndbt1)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows	2	#	table_id: #
+mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	2	#	COMMIT
 insert into myisamt3s2 values (5,5);
 Look at the Binlog events on Server 2 - contains
@@ -62,14 +65,20 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 mysqld-bin.000001	#	Query	2	#	BEGIN
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.ndbt1)
 mysqld-bin.000001	#	Table_map	2	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: #
-mysqld-bin.000001	#	Write_rows_v1	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows	2	#	table_id: #
+mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	2	#	COMMIT
-mysqld-bin.000001	#	Query	2	#	use `test`; insert into myisamt3s2 values (5,5)
+mysqld-bin.000001	#	Query	2	#	BEGIN
+mysqld-bin.000001	#	Table_map	2	#	table_id: # (test.myisamt3s2)
+mysqld-bin.000001	#	Write_rows	2	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Query	2	#	COMMIT
 Now look at the Binlog events on Server 1
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	1	#	use `test`; insert into test.myisamt3s1 values (3,3)
+mysqld-bin.000001	#	Query	1	#	BEGIN
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.myisamt3s1)
+mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Query	1	#	COMMIT
 Now remove the read lock at server 1
 unlock tables;
 Local event to ensure show binlog events sees
@@ -79,18 +88,21 @@ Show that server 1 binlog now contains all the relevant
 events.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	1	#	use `test`; insert into test.myisamt3s1 values (3,3)
 mysqld-bin.000001	#	Query	1	#	BEGIN
-mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.ndbt1)
-mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows_v1	1	#	table_id: #
-mysqld-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.myisamt3s1)
+mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	1	#	COMMIT
 mysqld-bin.000001	#	Query	1	#	BEGIN
 mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.ndbt1)
 mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows_v1	1	#	table_id: #
-mysqld-bin.000001	#	Write_rows_v1	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Write_rows	1	#	table_id: #
+mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Query	1	#	COMMIT
+mysqld-bin.000001	#	Query	1	#	BEGIN
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (test.ndbt1)
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
+mysqld-bin.000001	#	Write_rows	1	#	table_id: #
+mysqld-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	1	#	COMMIT
 Reset both binlogs;
 reset master;
