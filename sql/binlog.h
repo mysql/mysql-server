@@ -766,7 +766,7 @@ public:
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
   int close_crash_safe_index_file();
-  int add_log_to_index(uchar* log_file_name, int name_len,
+  int add_log_to_index(uchar* log_file_name, size_t name_len,
                        bool need_lock_index);
   int move_crash_safe_index_file_to_index_file(bool need_lock_index);
   int set_purge_index_file_name(const char *base_file_name);

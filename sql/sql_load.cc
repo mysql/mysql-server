@@ -802,7 +802,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
 #endif
 
 /****************************************************************************
-** Read of rows of fixed size + optional garage + optonal newline
+** Read of rows of fixed size + optional garbage + optional newline
 ****************************************************************************/
 
 static int
@@ -812,7 +812,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                   ulong skip_lines, bool ignore_check_option_errors)
 {
   List_iterator_fast<Item> it(fields_vars);
-  Item_field *sql_field;
   TABLE *table= table_list->table;
   bool err;
   DBUG_ENTER("read_fixed_length");
@@ -849,12 +848,15 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       break;
     }
 
-    /*
-      There is no variables in fields_vars list in this format so
-      this conversion is safe.
-    */
-    while ((sql_field= (Item_field*) it++))
+    Item *item;
+    while ((item= it++))
     {
+      /*
+        There is no variables in fields_vars list in this format so
+        this conversion is safe (no need to check for STRING_ITEM).
+      */
+      DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
+      Item_field *sql_field= static_cast<Item_field*>(item->real_item());
       Field *field= sql_field->field;                  
       if (field == table->next_number_field)
         table->auto_increment_field_not_null= TRUE;
@@ -1058,6 +1060,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 	}
         else if (item->type() == Item::STRING_ITEM)
         {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
@@ -1081,6 +1084,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
       else if (item->type() == Item::STRING_ITEM)
       {
+        DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *)item)->set_value((char*) pos, length,
                                                         read_info.read_charset);
       }
@@ -1139,6 +1143,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         }
         else if (item->type() == Item::STRING_ITEM)
         {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
@@ -1282,11 +1287,13 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       while(tag && strcmp(tag->field.c_ptr(), item->item_name.ptr()) != 0)
         tag= xmlit++;
       
+      item= item->real_item();
+
       if (!tag) // found null
       {
         if (item->type() == Item::FIELD_ITEM)
         {
-          Field *field= ((Item_field *) item)->field;
+          Field *field= (static_cast<Item_field*>(item))->field;
           field->reset();
           field->set_null();
           if (field == table->next_number_field)
@@ -1302,13 +1309,15 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           }
         }
         else
+        {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *) item)->set_null_value(cs);
+        }
         continue;
       }
 
       if (item->type() == Item::FIELD_ITEM)
       {
-
         Field *field= ((Item_field *)item)->field;
         field->set_notnull();
         if (field == table->next_number_field)
@@ -1316,9 +1325,12 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         field->store((char *) tag->value.ptr(), tag->value.length(), cs);
       }
       else
+      {
+        DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *) item)->set_value(
                                                  (char *) tag->value.ptr(), 
                                                  tag->value.length(), cs);
+      }
     }
     
     if (read_info.error)
@@ -1353,7 +1365,10 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                               thd->get_stmt_da()->current_row_for_condition());
         }
         else
+        {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
+        }
       }
     }
 

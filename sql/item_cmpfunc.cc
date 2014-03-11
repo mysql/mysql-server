@@ -429,10 +429,10 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     sql_mode_t orig_sql_mode= thd->variables.sql_mode;
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_maps[2];
-    ulonglong UNINIT_VAR(orig_field_val); /* original field value if valid */
+    ulonglong orig_field_val= 0; /* original field value if valid */
 
-    LINT_INIT(old_maps[0]);
-    LINT_INIT(old_maps[1]);
+    old_maps[0]= NULL;
+    old_maps[1]= NULL;
 
     if (table)
       dbug_tmp_use_all_columns(table, old_maps, 

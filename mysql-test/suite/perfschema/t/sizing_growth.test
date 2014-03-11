@@ -2,6 +2,12 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+
+# This test can't be run with query cache ON. It heavily
+# relies on the exact way in which statements are executed.
+--source include/have_query_cache_disabled.inc
+
+# 
 #
 # Important note:
 # this test is extremely sensitive to how threads are running inside the server,
@@ -37,6 +43,7 @@ select count(*) from performance_schema.mutex_instances
 
 select count(*) from performance_schema.rwlock_instances
   into @v0_rwlock_instances;
+
 
 select count(*) from performance_schema.cond_instances
   into @v0_cond_instances;
@@ -473,7 +480,7 @@ select if(
       (@rwlock_per_share <= 4)
   AND (@cond_per_share = 0)
   AND (@file_per_share <= 3)
-  AND (@mutex_per_con = 4)
+  AND (@mutex_per_con = 5)
   AND (@rwlock_per_con = 1)
   AND (@cond_per_con = 2)
   AND (@file_per_con = 0)

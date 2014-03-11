@@ -1604,7 +1604,7 @@ innobase_convert_from_table_id(
 {
 	uint	errors;
 
-	strconvert(cs, from, &my_charset_filename, to, (uint) len, &errors);
+	strconvert(cs, from, &my_charset_filename, to, len, &errors);
 }
 
 /**********************************************************************
@@ -1645,7 +1645,7 @@ innobase_convert_from_id(
 {
 	uint	errors;
 
-	strconvert(cs, from, system_charset_info, to, (uint) len, &errors);
+	strconvert(cs, from, system_charset_info, to, len, &errors);
 }
 
 /******************************************************************//**
@@ -1722,21 +1722,39 @@ innobase_get_charset(
 	return(thd_charset(mysql_thd));
 }
 
-/**********************************************************************//**
-Determines the current SQL statement.
-@return SQL statement string */
-
+/** Determines the current SQL statement.
+Thread unsafe, can only be called from the thread owning the THD.
+@param[in]	thd	MySQL thread handle
+@param[out]	length	Length of the SQL statement
+@return			SQL statement string */
 const char*
-innobase_get_stmt(
+innobase_get_stmt_unsafe(
 /*==============*/
-	THD*	thd,		/*!< in: MySQL thread handle */
-	size_t*	length)		/*!< out: length of the SQL statement */
+	THD*	thd,
+	size_t*	length)
 {
 	LEX_CSTRING stmt;
 
-	stmt = thd_query_string(thd);
+	stmt = thd_query_unsafe(thd);
 	*length = stmt.length;
 	return(stmt.str);
+}
+
+/** Determines the current SQL statement.
+Thread safe, can be called from any thread as the string is copied
+into the provided buffer.
+@param[in]	thd	MySQL thread handle
+@param[out]	buf	Buffer containing SQL statement
+@param[in]	buflen	Length of provided buffer
+@return			Length of the SQL statement */
+size_t
+innobase_get_stmt_safe(
+/*==============*/
+	THD*	thd,
+	char*	buf,
+	size_t	buflen)
+{
+	return(thd_query_safe(thd, buf, buflen));
 }
 
 /**********************************************************************//**
@@ -2519,7 +2537,7 @@ innobase_convert_identifier(
 	if (UNIV_UNLIKELY(!thd)) {
 		q = '"';
 	} else {
-		q = get_quote_char_for_identifier(thd, s, (int) idlen);
+		q = get_quote_char_for_identifier(thd, s, idlen);
 	}
 
 	if (q == EOF) {
@@ -7291,12 +7309,8 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		if (srv_stats.n_rows_read.is_fast()) {
-			srv_stats.n_rows_read.inc();
-		} else {
-			srv_stats.n_rows_read.add(
-				thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
-		}
+		srv_stats.n_rows_read.add(
+			thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -7558,12 +7572,8 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		if (srv_stats.n_rows_read.is_fast()) {
-			srv_stats.n_rows_read.inc();
-		} else {
-			srv_stats.n_rows_read.add(
-				thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
-		}
+		srv_stats.n_rows_read.add(
+			thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
@@ -9499,7 +9509,7 @@ ha_innobase::create(
 		dict_table_get_all_fts_indexes(innobase_table, fts->indexes);
 	}
 
-	stmt = innobase_get_stmt(thd, &stmt_len);
+	stmt = innobase_get_stmt_unsafe(thd, &stmt_len);
 
 	if (stmt) {
 		dberr_t	err = row_table_add_foreign_constraints(
@@ -11575,7 +11585,7 @@ get_foreign_key_info(
 	FOREIGN_KEY_INFO	f_key_info;
 	FOREIGN_KEY_INFO*	pf_key_info;
 	uint			i = 0;
-	ulint			len;
+	size_t			len;
 	char			tmp_buff[NAME_LEN+1];
 	char			name_buff[NAME_LEN+1];
 	const char*		ptr;
@@ -13127,7 +13137,7 @@ ha_innobase::get_foreign_dup_key(
 	} else {
 		p = err_index->table->name;
 	}
-	uint	len;
+	size_t	len;
 	len = filename_to_tablename(p, child_table_name, child_table_name_len);
 	child_table_name[len] = '\0';
 
@@ -16791,7 +16801,7 @@ innobase_convert_to_filename_charset(
 	CHARSET_INFO*	cs_from = system_charset_info;
 
 	return(strconvert(
-		cs_from, from, cs_to, to, static_cast<uint>(len), &errors));
+		cs_from, from, cs_to, to, len, &errors));
 }
 
 /**********************************************************************
@@ -16809,5 +16819,5 @@ innobase_convert_to_system_charset(
 	CHARSET_INFO*	cs2 = system_charset_info;
 
 	return(strconvert(
-		cs1, from, cs2, to, static_cast<uint>(len), errors));
+		cs1, from, cs2, to, len, errors));
 }

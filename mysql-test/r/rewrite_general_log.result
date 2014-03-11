@@ -102,8 +102,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ((@`a`) = 5) AS `@a=5`,(@b:=10) AS `@b:=10`,(@c:=20) AS `@c:=20`,(@d:=(40 + 5)) AS `@d:=40+5`,((@e:=80) + 5) AS `(@e:=80)+5`
+End of 5.6 tests!
+#
+# Bug#16467055: GRANT STATEMENTS LOGGED TWICE IN SLOW QUERY LOG
+#
+SET GLOBAL slow_query_log=1;
+SET GLOBAL log_output='TABLE';
+TRUNCATE mysql.slow_log;
+SELECT sql_text FROM mysql.slow_log;
+sql_text
+SET SESSION long_query_time=0
+GRANT ALL PRIVILEGES ON *.* TO 'test_user1'@'%' IDENTIFIED BY PASSWORD '*82DC221D557298F6CE9961037DB1C90604792F5C'
+Quit
+DROP USER test_user1;
+End of 5.7 tests!
 DROP TABLE test_log;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
-End of 5.6 tests!

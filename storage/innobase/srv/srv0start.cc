@@ -1275,11 +1275,6 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_start_has_been_called = TRUE;
 
-#ifdef UNIV_DEBUG
-	log_do_write = TRUE;
-#endif /* UNIV_DEBUG */
-	/*	yydebug = TRUE; */
-
 	srv_is_being_started = true;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 
@@ -1323,11 +1318,8 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
-
-		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
-
-		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 #ifndef _WIN32
+		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
@@ -1346,6 +1338,7 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "nosync")) {
 		srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
 #else
+		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
 		srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
 		srv_use_native_aio = FALSE;
@@ -2542,6 +2535,9 @@ innobase_shutdown_for_mysql(void)
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
+#ifndef HAVE_ATOMIC_BUILTINS
+	srv_conc_free();
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* 6. Free the thread management resoruces. */
 	os_thread_free();

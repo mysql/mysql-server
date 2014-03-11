@@ -206,6 +206,9 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "i2"
+                      } /* range_details */,
                       "rows": 47,
                       "cost": 67.81,
                       "chosen": true
@@ -355,6 +358,9 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "i2"
+                      } /* range_details */,
                       "rows": 47,
                       "cost": 67.81,
                       "chosen": true
@@ -619,6 +625,9 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "sort_union(i1,i2)"
+                      } /* range_details */,
                       "rows": 45,
                       "cost": 67.363,
                       "chosen": true
@@ -825,6 +834,9 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "index_for_group_by(i2_1)"
+                      } /* range_details */,
                       "rows": 103,
                       "cost": 91.8,
                       "chosen": true,
@@ -1059,6 +1071,9 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "index_for_group_by(i2_1)"
+                      } /* range_details */,
                       "rows": 103,
                       "cost": 91.8,
                       "chosen": true
@@ -1374,6 +1389,9 @@ GROUP BY key2	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "i2_1"
+                      } /* range_details */,
                       "rows": 5,
                       "cost": 21.124,
                       "chosen": true,
@@ -1637,6 +1655,9 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "i2_1"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
@@ -1932,6 +1953,9 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "union(i2,i3)"
+                      } /* range_details */,
                       "rows": 2,
                       "cost": 4.727,
                       "chosen": true
@@ -2317,6 +2341,9 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
                       "rows": 1,
                       "cost": 2.41,
                       "chosen": true
@@ -2534,6 +2561,9 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
                       "rows": 2,
                       "cost": 4.81,
                       "chosen": true
@@ -2747,6 +2777,9 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "i1b"
+                      } /* range_details */,
                       "rows": 2,
                       "cost": 3.81,
                       "chosen": true
@@ -3232,6 +3265,9 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "i2"
+                      } /* range_details */,
                       "rows": 42,
                       "cost": 59.81,
                       "chosen": true
@@ -3547,6 +3583,9 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "intersect(cola,colb)"
+                      } /* range_details */,
                       "rows": 24,
                       "cost": 59.759,
                       "chosen": true
@@ -3741,6 +3780,9 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "cola"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
@@ -4569,6 +4611,9 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "k1"
+                      } /* range_details */,
                       "rows": 2,
                       "cost": 3.81,
                       "chosen": true,
@@ -5305,6 +5350,9 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "v_idx"
+                      } /* range_details */,
                       "rows": 1,
                       "cost": 1.41,
                       "chosen": false
@@ -5615,6 +5663,9 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "intersect(v_idx,PRIMARY)"
+                      } /* range_details */,
                       "rows": 1,
                       "cost": 1.3,
                       "chosen": false
@@ -5872,6 +5923,9 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
                       "rows": 1,
                       "cost": 1.41,
                       "chosen": false
@@ -6132,6 +6186,9 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "k1"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }

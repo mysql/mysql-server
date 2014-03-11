@@ -744,7 +744,7 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
     values doesn't have to very accurate and the memory it points to is static,
     but we need to attempt a snapshot on the pointer values to avoid using NULL
     values. The pointer to thd->query however, doesn't point to static memory
-    and has to be protected by LOCK_thd_data or risk pointing to
+    and has to be protected by LOCK_thd_query or risk pointing to
     uninitialized memory.
   */
   const char *proc_info= thd->proc_info;
@@ -779,7 +779,7 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
     str.append(proc_info);
   }
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
+  mysql_mutex_lock(&thd->LOCK_thd_query);
 
   if (thd->query().str)
   {
@@ -791,7 +791,7 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
     str.append(thd->query().str, len);
   }
 
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  mysql_mutex_unlock(&thd->LOCK_thd_query);
 
   if (str.c_ptr_safe() == buffer)
     return buffer;
@@ -981,6 +981,7 @@ THD::THD(bool enable_plugins)
   get_transaction()->m_flags.enabled= true;
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
@@ -1592,6 +1593,8 @@ void THD::release_resources()
   DBUG_ASSERT(!query_plan.get_plan());
   mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_query);
+  mysql_mutex_unlock(&LOCK_thd_query);
 
   stmt_map.reset();                     /* close all prepared statements */
   if (!cleanup_done)
@@ -1640,6 +1643,8 @@ THD::~THD()
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_query);
+  mysql_mutex_unlock(&LOCK_thd_query);
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -1648,6 +1653,7 @@ THD::~THD()
   get_transaction()->free_memory(MYF(0));
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
+  mysql_mutex_destroy(&LOCK_thd_query);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif
@@ -2128,7 +2134,7 @@ LEX_STRING *THD::make_lex_string(LEX_STRING *lex_str,
 */
 
 bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
-			 const char *from, uint from_length,
+			 const char *from, size_t from_length,
 			 const CHARSET_INFO *from_cs)
 {
   DBUG_ENTER("convert_string");
@@ -3400,7 +3406,7 @@ void Statement::set_statement(Statement *stmt)
   id=             stmt->id;
   mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
-  set_query_inner(stmt->query());
+  set_query(stmt->query());
 }
 
 
@@ -3798,19 +3804,19 @@ String *Security_context::get_external_user()
 
 void Security_context::set_host(const char *str)
 {
-  uint len= str ? strlen(str) :  0;
+  size_t len= str ? strlen(str) :  0;
   host.set(str, len, system_charset_info);
 }
 
 void Security_context::set_ip(const char *str)
 {
-  uint len= str ? strlen(str) :  0;
+  size_t len= str ? strlen(str) :  0;
   ip.set(str, len, system_charset_info);
 }
 
 void Security_context::set_external_user(const char *str)
 {
-  uint len= str ? strlen(str) :  0;
+  size_t len= str ? strlen(str) :  0;
   external_user.set(str, len, system_charset_info);
 }
 
@@ -4018,12 +4024,41 @@ extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
 /**
   Get the current query string for the thread.
 
-  @param The MySQL internal thread pointer
+  @param thd   The MySQL internal thread pointer
+
   @return query string and length. May be non-null-terminated.
+
+  @note This function is not thread safe and should only be called
+        from the thread owning thd. @see thd_query_safe().
 */
-extern "C" LEX_CSTRING thd_query_string (MYSQL_THD thd)
+extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd)
 {
+  DBUG_ASSERT(current_thd == thd);
   return thd->query();
+}
+
+/**
+  Get the current query string for the thread.
+
+  @param thd     The MySQL internal thread pointer
+  @param buf     Buffer where the query string will be copied
+  @param buflen  Length of the buffer
+
+  @return Length of the query
+
+  @note This function is thread safe as the query string is
+        accessed under mutex protection and the string is copied
+        into the provided buffer. @see thd_query_unsafe().
+*/
+extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen)
+{
+  mysql_mutex_lock(&thd->LOCK_thd_query);
+  LEX_CSTRING query_string= thd->query();
+  size_t len= MY_MIN(buflen - 1, query_string.length);
+  strncpy(buf, query_string.str, len);
+  buf[len]= '\0';
+  mysql_mutex_unlock(&thd->LOCK_thd_query);
+  return len;
 }
 
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
@@ -4451,49 +4486,15 @@ void THD::set_command(enum enum_server_command command)
 void THD::set_query(const LEX_CSTRING& query_arg)
 {
   DBUG_ASSERT(this == current_thd);
-  mysql_mutex_lock(&LOCK_thd_data);
-  Statement::set_query_inner(query_arg);
-  mysql_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_lock(&LOCK_thd_query);
+  Statement::set_query(query_arg);
+  mysql_mutex_unlock(&LOCK_thd_query);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_thread_info)(query_arg.str, query_arg.length);
 #endif
 }
 
-/** Assign a new value to thd->query and thd->query_id.  */
-
-void THD::set_query_and_id(const char *query_arg,
-                           size_t query_length_arg,
-                           query_id_t new_query_id)
-{
-  DBUG_ASSERT(this == current_thd);
-  LEX_CSTRING tmp= { query_arg, query_length_arg };
-  mysql_mutex_lock(&LOCK_thd_data);
-  Statement::set_query_inner(tmp);
-  query_id= new_query_id;
-  mysql_mutex_unlock(&LOCK_thd_data);
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
-#endif
-}
-
-/** Assign a new value to thd->query_id.  */
-
-void THD::set_query_id(query_id_t new_query_id)
-{
-  mysql_mutex_lock(&LOCK_thd_data);
-  query_id= new_query_id;
-  mysql_mutex_unlock(&LOCK_thd_data);
-}
-
-/** Assign a new value to thd->mysys_var.  */
-void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
-{
-  mysql_mutex_lock(&LOCK_thd_data);
-  mysys_var= new_mysys_var;
-  mysql_mutex_unlock(&LOCK_thd_data);
-}
 
 /**
   Leave explicit LOCK TABLES or prelocked mode and restore value of

@@ -756,6 +756,9 @@ select `col
                   "considered_access_paths": [
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "index\n1\ta"
+                      } /* range_details */,
                       "rows": 1,
                       "cost": 1.41,
                       "chosen": true

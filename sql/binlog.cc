@@ -774,7 +774,7 @@ public:
   {
     my_off_t stmt_bytes= 0;
     my_off_t trx_bytes= 0;
-    DBUG_ASSERT(stmt_cache.has_xid() == 0 && trx_cache.has_xid() <= 1);
+    DBUG_ASSERT(stmt_cache.has_xid() == 0);
     if (int error= stmt_cache.flush(thd, &stmt_bytes, wrote_xid))
       return error;
     if (int error= trx_cache.flush(thd, &trx_bytes, wrote_xid))
@@ -3730,7 +3730,7 @@ err:
     -1   error
 */
 int MYSQL_BIN_LOG::add_log_to_index(uchar* log_name,
-                                    int log_name_len, bool need_lock_index)
+                                    size_t log_name_len, bool need_lock_index)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::add_log_to_index");
 
@@ -3906,7 +3906,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
 
   for (;;)
   {
-    uint length;
+    size_t length;
     my_off_t offset= my_b_tell(&index_file);
 
     DBUG_EXECUTE_IF("simulate_find_log_pos_error",
@@ -3969,7 +3969,7 @@ end:
 int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock_index)
 {
   int error= 0;
-  uint length;
+  size_t length;
   char fname[FN_REFLEN];
   char *full_fname= linfo->log_file_name;
 
@@ -5051,7 +5051,7 @@ err:
 
 void MYSQL_BIN_LOG::make_log_name(char* buf, const char* log_ident)
 {
-  uint dir_len = dirname_length(log_file_name); 
+  size_t dir_len = dirname_length(log_file_name); 
   if (dir_len >= FN_REFLEN)
     dir_len=FN_REFLEN-1;
   my_stpnmov(buf, log_file_name, dir_len);
@@ -5843,7 +5843,8 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
 
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     DBUG_RETURN(ER_ERROR_ON_WRITE);
-  uint length= my_b_bytes_in_cache(cache), group, carry, hdr_offs;
+  size_t length = my_b_bytes_in_cache(cache);
+  uint group, carry, hdr_offs;
   ulong remains= 0; // part of unprocessed yet netto length of the event
   long val;
   ulong end_log_pos_inc= 0; // each event processed adds BINLOG_CHECKSUM_LEN 2 t

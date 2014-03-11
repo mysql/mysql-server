@@ -80,7 +80,7 @@ struct SP_TABLE
     we count length of key.
   */
   LEX_STRING qname;
-  uint db_length, table_name_length;
+  size_t db_length, table_name_length;
   bool temp;               /* true if corresponds to a temporary table */
   thr_lock_type lock_type; /* lock type used for prelocking */
   uint lock_count;
@@ -753,6 +753,14 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
                                                 this->m_sp_share);
 #endif
 
+    /*
+      For now, we're mostly concerned with sp_instr_stmt, but that's
+      likely to change in the future, so we'll do it right from the
+      start.
+    */
+    if (thd->rewritten_query.length())
+      thd->rewritten_query.free();
+
     err_status= i->execute(thd, &ip);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
@@ -1063,7 +1071,7 @@ err_with_cleanup:
 bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                                Field *return_value_fld)
 {
-  ulonglong binlog_save_options;
+  ulonglong binlog_save_options= 0;
   bool need_binlog_call= FALSE;
   uint arg_no;
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
@@ -1077,7 +1085,6 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 
-  LINT_INIT(binlog_save_options);
   // Resetting THD::where to its default value
   thd->where= THD::DEFAULT_WHERE;
   /*
@@ -1665,7 +1672,7 @@ void sp_head::set_info(longlong created,
 }
 
 
-void sp_head::set_definer(const char *definer, uint definerlen)
+void sp_head::set_definer(const char *definer, size_t definerlen)
 {
   char user_name_holder[USERNAME_LENGTH + 1];
   LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };

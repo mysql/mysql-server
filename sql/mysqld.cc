@@ -598,7 +598,7 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file;
 char *lc_messages_dir_ptr, *log_error_file_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
-int mysql_unpacked_real_data_home_len;
+size_t mysql_unpacked_real_data_home_len;
 uint mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
 const key_map key_map_empty(0);
@@ -1357,6 +1357,18 @@ static void mysqld_exit(int exit_code)
   clean_up_error_log_mutex();
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
+#endif
+#if defined(_WIN32)
+  if (Service.IsNT() && start_mode)
+  {
+    Service.Stop();
+  }
+  else
+  {
+    Service.SetShutdownEvent(0);
+    if (hEventShutdown)
+      CloseHandle(hEventShutdown);
+  }
 #endif
   exit(exit_code); /* purecov: inspected */
 }
@@ -4761,16 +4773,6 @@ int mysqld_main(int argc, char **argv)
     sql_print_warning("Could not join signal_thread. error:%d", ret);
 #endif
 
-#if defined(_WIN32)
-  if (Service.IsNT() && start_mode)
-    Service.Stop();
-  else
-  {
-    Service.SetShutdownEvent(0);
-    if (hEventShutdown)
-      CloseHandle(hEventShutdown);
-  }
-#endif
   clean_up(1);
   mysqld_exit(0);
 }
@@ -5601,6 +5603,17 @@ static int show_starttime(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+static int show_max_used_connections_time(THD *thd, SHOW_VAR *var, char *buff)
+{
+  MYSQL_TIME max_used_connections_time;
+  var->type= SHOW_CHAR;
+  var->value= buff;
+  thd->variables.time_zone->gmt_sec_to_TIME(&max_used_connections_time,
+    Connection_handler_manager::max_used_connections_time);
+  my_datetime_to_str(&max_used_connections_time, buff, 0);
+  return 0;
+}
+
 static int show_num_thread_running(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONGLONG;
@@ -6242,10 +6255,11 @@ SHOW_VAR status_vars[]= {
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
-  {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections, SHOW_LONG},
   {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded), SHOW_LONG_STATUS},
   {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set), SHOW_LONG_STATUS},
   {"Max_statement_time_set_failed", (char*) offsetof(STATUS_VAR, max_statement_time_set_failed), SHOW_LONG_STATUS},
+  {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections, SHOW_LONG},
+  {"Max_used_connections_time",(char*) &show_max_used_connections_time, SHOW_FUNC},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},
@@ -7457,7 +7471,7 @@ static int fix_paths(void)
 
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
   mysql_unpacked_real_data_home_len=
-    (int) strlen(mysql_unpacked_real_data_home);
+    strlen(mysql_unpacked_real_data_home);
   if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
     --mysql_unpacked_real_data_home_len;
 
@@ -7687,7 +7701,7 @@ PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
-  key_LOCK_log_throttle_qni, key_LOCK_query_plan;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -7755,6 +7769,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
   { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
+  { &key_LOCK_thd_query, "THD::LOCK_thd_query", 0},
   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
   { &key_LOCK_sql_rand, "LOCK_sql_rand", PSI_FLAG_GLOBAL},

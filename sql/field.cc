@@ -2123,16 +2123,16 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
     Pointers used when digits move from the left of the '.' to the
     right of the '.' (explained below)
   */
-  const uchar *UNINIT_VAR(int_digits_tail_from);
+  const uchar *int_digits_tail_from= NULL;
   /* Number of 0 that need to be added at the left of the '.' (1E3: 3 zeros) */
-  uint UNINIT_VAR(int_digits_added_zeros);
+  uint int_digits_added_zeros= 0;
   /*
     Pointer used when digits move from the right of the '.' to the left
     of the '.'
   */
-  const uchar *UNINIT_VAR(frac_digits_head_end);
+  const uchar *frac_digits_head_end= NULL;
   /* Number of 0 that need to be added at the right of the '.' (for 1E-3) */
-  uint UNINIT_VAR(frac_digits_added_zeros);
+  uint frac_digits_added_zeros= 0;
   uchar *pos,*tmp_left_pos,*tmp_right_pos;
   /* Pointers that are used as limits (begin and end of the field buffer) */
   uchar *left_wall,*right_wall;
@@ -4369,7 +4369,7 @@ double Field_float::val_real(void)
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float4get(j,ptr);
+    float4get(&j,ptr);
   }
   else
 #endif
@@ -4383,7 +4383,7 @@ longlong Field_float::val_int(void)
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float4get(j,ptr);
+    float4get(&j,ptr);
   }
   else
 #endif
@@ -4401,7 +4401,7 @@ String *Field_float::val_str(String *val_buffer,
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float4get(nr,ptr);
+    float4get(&nr,ptr);
   }
   else
 #endif
@@ -4442,8 +4442,8 @@ int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr)
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float4get(a,a_ptr);
-    float4get(b,b_ptr);
+    float4get(&a,a_ptr);
+    float4get(&b,b_ptr);
   }
   else
 #endif
@@ -4463,7 +4463,7 @@ void Field_float::make_sort_key(uchar *to, size_t length)
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float4get(nr,ptr);
+    float4get(&nr,ptr);
   }
   else
 #endif
@@ -4659,11 +4659,11 @@ double Field_double::val_real(void)
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float8get(j,ptr);
+    float8get(&j,ptr);
   }
   else
 #endif
-    doubleget(j,ptr);
+    doubleget(&j,ptr);
   return j;
 }
 
@@ -4675,11 +4675,11 @@ longlong Field_double::val_int(void)
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float8get(j,ptr);
+    float8get(&j,ptr);
   }
   else
 #endif
-    doubleget(j,ptr);
+    doubleget(&j,ptr);
   /* Check whether we fit into longlong range */
   if (j <= (double) LONGLONG_MIN)
   {
@@ -4737,11 +4737,11 @@ String *Field_double::val_str(String *val_buffer,
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float8get(nr,ptr);
+    float8get(&nr,ptr);
   }
   else
 #endif
-    doubleget(nr,ptr);
+    doubleget(&nr,ptr);
   uint to_length= DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE;
   if (val_buffer->alloc(to_length))
   {
@@ -4776,14 +4776,14 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float8get(a,a_ptr);
-    float8get(b,b_ptr);
+    float8get(&a,a_ptr);
+    float8get(&b,b_ptr);
   }
   else
 #endif
   {
-    doubleget(a, a_ptr);
-    doubleget(b, b_ptr);
+    doubleget(&a, a_ptr);
+    doubleget(&b, b_ptr);
   }
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
@@ -4799,11 +4799,11 @@ void Field_double::make_sort_key(uchar *to, size_t length)
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float8get(nr, ptr);
+    float8get(&nr, ptr);
   }
   else
 #endif
-    doubleget(nr, ptr);
+    doubleget(&nr, ptr);
   if (length < 8)
   {
     uchar buff[8];
@@ -10292,8 +10292,8 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 		  TYPELIB *interval,
 		  const char *field_name)
 {
-  uchar *UNINIT_VAR(bit_ptr);
-  uchar UNINIT_VAR(bit_offset);
+  uchar *bit_ptr= NULL;
+  uchar bit_offset= 0;
   if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
   {
     bit_ptr= null_pos;
