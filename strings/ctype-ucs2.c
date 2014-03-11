@@ -966,7 +966,7 @@ my_fill_mb2(const CHARSET_INFO *cs, char *s, size_t slen, int fill)
 }
 
 
-static int
+static size_t
 my_vsnprintf_mb2(char *dst, size_t n, const char* fmt, va_list ap)
 {
   char *start=dst, *end= dst + n - 1;
@@ -2255,7 +2255,7 @@ my_mbcharlen_utf32(const CHARSET_INFO *cs  __attribute__((unused)) ,
 }
 
 
-static int
+static size_t
 my_vsnprintf_utf32(char *dst, size_t n, const char* fmt, va_list ap)
 {
   char *start= dst, *end= dst + n;

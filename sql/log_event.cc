@@ -369,7 +369,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   const char *handler_error= (ha_error ? HA_ERR(ha_error) : NULL);
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
-  uint len;
+  size_t len;
   Diagnostics_area::Sql_condition_iterator it=
     thd->get_stmt_da()->sql_conditions();
   const Sql_condition *err;
@@ -1192,7 +1192,7 @@ my_bool Log_event::need_checksum()
   DBUG_RETURN(ret);
 }
 
-bool Log_event::wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, ulong size)
+bool Log_event::wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t size)
 {
   if (need_checksum() && size != 0)
     crc= my_checksum(crc, buf, size);
@@ -2566,7 +2566,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   // Quoted length of the identifier can be twice the original length
   char quoted_db[1 + NAME_LEN * 2 + 2];
   char quoted_table[1 + NAME_LEN * 2 + 2];
-  int quoted_db_len, quoted_table_len;
+  size_t quoted_db_len, quoted_table_len;
   Table_map_log_event *map;
   table_def *td;
   const char *sql_command, *sql_clause1, *sql_clause2;
@@ -4142,7 +4142,7 @@ get_str_len_and_pointer(const Log_event::Byte **src,
 
 static void copy_str_and_move(const char **src, 
                               Log_event::Byte **dst, 
-                              uint len)
+                              size_t len)
 {
   memcpy(*dst, *src, len);
   *src= (const char *)*dst;
@@ -5295,7 +5295,7 @@ Log_event::enum_skip_reason
 Query_log_event::do_shall_skip(Relay_log_info *rli)
 {
   DBUG_ENTER("Query_log_event::do_shall_skip");
-  DBUG_PRINT("debug", ("query: %s; q_len: %d", query, q_len));
+  DBUG_PRINT("debug", ("query: %s; q_len: %d", query, static_cast<int>(q_len)));
   DBUG_ASSERT(query && q_len > 0);
 
   if (rli->slave_skip_counter > 0)
@@ -6135,7 +6135,7 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
                                  char **end, char **fn_start, char **fn_end)
 {
   char quoted_id[1 + NAME_LEN * 2 + 2];//quoted  length
-  int  quoted_id_len= 0;
+  size_t  quoted_id_len= 0;
   char *pos= buf;
 
   if (need_db && db && db_len)
@@ -7711,7 +7711,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
 {
   char *buf= 0;
   char quoted_id[1 + FN_REFLEN * 2 + 2];// quoted identifier
-  int id_len= my_strmov_quoted_identifier(this->thd, quoted_id, name, name_len);
+  size_t id_len= my_strmov_quoted_identifier(this->thd, quoted_id, name, name_len);
   quoted_id[id_len]= '\0';
   uint val_offset= 2 + id_len;
   uint event_len= val_offset;
@@ -7975,7 +7975,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   IO_CACHE *const head= &print_event_info->head_cache;
   char quoted_id[1 + NAME_LEN * 2 + 2];// quoted length of the identifier
   char name_id[NAME_LEN];
-  int quoted_len= 0;
+  size_t quoted_len= 0;
 
   if (!print_event_info->short_form)
   {
@@ -13826,7 +13826,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(
 
   buf= (const uchar *)buffer + common_header_len + post_header_len;
   buf_size= (const uchar *)buffer + event_len - buf;
-  DBUG_PRINT("info", ("data size of the event: %d", buf_size));
+  DBUG_PRINT("info", ("data size of the event: %d", static_cast<int>(buf_size)));
   DBUG_VOID_RETURN;
 }
 
@@ -13928,7 +13928,7 @@ char *Previous_gtids_log_event::get_str(
 bool Previous_gtids_log_event::write_data_body(IO_CACHE *file)
 {
   DBUG_ENTER("Previous_gtids_log_event::write_data_body");
-  DBUG_PRINT("info", ("size=%d", buf_size));
+  DBUG_PRINT("info", ("size=%d", static_cast<int>(buf_size)));
   bool ret= wrapper_my_b_safe_write(file, buf, buf_size);
   DBUG_RETURN(ret);
 }
@@ -14002,7 +14002,7 @@ Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
 */
 size_t my_strmov_quoted_identifier(THD* thd, char *buffer,
                                    const char* identifier,
-                                   uint length)
+                                   size_t length)
 {
   int q= thd ? get_quote_char_for_identifier(thd, identifier, length) : '`';
   return my_strmov_quoted_identifier_helper(q, buffer, identifier, length);
@@ -14018,11 +14018,11 @@ size_t my_strmov_quoted_identifier(char *buffer,  const char* identifier)
 
 size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
                                           const char* identifier,
-                                          uint length)
+                                          size_t length)
 {
   size_t written= 0;
   char quote_char;
-  uint id_length= (length) ? length : strlen(identifier);
+  size_t id_length= (length) ? length : strlen(identifier);
 
   if (q == EOF)
   {

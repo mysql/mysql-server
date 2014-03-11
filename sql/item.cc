@@ -8188,7 +8188,7 @@ void Item_trigger_field::setup_field(THD *thd,
     set field_idx properly.
   */
   (void) find_field_in_table(thd, table_triggers->get_subject_table(),
-                             field_name, (uint) strlen(field_name),
+                             field_name, strlen(field_name),
                              0, &field_idx);
   thd->mark_used_columns= save_mark_used_columns;
   triggers= table_triggers;

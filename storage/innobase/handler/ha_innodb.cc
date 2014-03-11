@@ -1682,7 +1682,7 @@ innobase_convert_from_table_id(
 {
 	uint	errors;
 
-	strconvert(cs, from, &my_charset_filename, to, (uint) len, &errors);
+	strconvert(cs, from, &my_charset_filename, to, len, &errors);
 }
 
 /**********************************************************************
@@ -1723,7 +1723,7 @@ innobase_convert_from_id(
 {
 	uint	errors;
 
-	strconvert(cs, from, system_charset_info, to, (uint) len, &errors);
+	strconvert(cs, from, system_charset_info, to, len, &errors);
 }
 
 /******************************************************************//**
@@ -2616,7 +2616,7 @@ innobase_convert_identifier(
 	if (UNIV_UNLIKELY(!thd)) {
 		q = '"';
 	} else {
-		q = get_quote_char_for_identifier(thd, s, (int) idlen);
+		q = get_quote_char_for_identifier(thd, s, idlen);
 	}
 
 	if (q == EOF) {
@@ -11984,7 +11984,7 @@ get_foreign_key_info(
 	FOREIGN_KEY_INFO	f_key_info;
 	FOREIGN_KEY_INFO*	pf_key_info;
 	uint			i = 0;
-	ulint			len;
+	size_t			len;
 	char			tmp_buff[NAME_LEN+1];
 	char			name_buff[NAME_LEN+1];
 	const char*		ptr;
@@ -13541,7 +13541,7 @@ ha_innobase::get_foreign_dup_key(
 	} else {
 		p = err_index->table->name;
 	}
-	uint	len;
+	size_t	len;
 	len = filename_to_tablename(p, child_table_name, child_table_name_len);
 	child_table_name[len] = '\0';
 
@@ -17206,7 +17206,7 @@ innobase_convert_to_filename_charset(
 	CHARSET_INFO*	cs_from = system_charset_info;
 
 	return(strconvert(
-		cs_from, from, cs_to, to, static_cast<uint>(len), &errors));
+		cs_from, from, cs_to, to, len, &errors));
 }
 
 /**********************************************************************
@@ -17224,5 +17224,5 @@ innobase_convert_to_system_charset(
 	CHARSET_INFO*	cs2 = system_charset_info;
 
 	return(strconvert(
-		cs1, from, cs2, to, static_cast<uint>(len), errors));
+		cs1, from, cs2, to, len, errors));
 }
