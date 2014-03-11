@@ -50,12 +50,11 @@
 --source include/have_gtid.inc
 --source include/not_valgrind.inc
 --let $rpl_extra_connections_per_server= 3
+--let $rpl_gtid_utils= 1
 --source include/master-slave.inc
 --source include/have_debug.inc
 
 --echo #### Initialize ####
-
---source include/gtid_utils.inc
 
 CREATE table t (a INT PRIMARY KEY) ENGINE = InnoDB;
 INSERT INTO t VALUES (1);
@@ -635,7 +634,5 @@ if (!$fixed_bug13687542)
 --eval $drop_stmt
 DROP TABLE stmts;
 DROP TABLE t;
-
---source include/gtid_utils_end.inc
 
 --source include/rpl_end.inc

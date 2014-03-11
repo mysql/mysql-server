@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2363,6 +2363,15 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   if (unlikely(thd->slave_thread))
   {
+    // Database filters.
+    if (lex->sql_command != SQLCOM_BEGIN &&
+        lex->sql_command != SQLCOM_COMMIT &&
+        lex->sql_command != SQLCOM_SAVEPOINT &&
+        lex->sql_command != SQLCOM_ROLLBACK &&
+        lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
+        !rpl_filter->db_ok(thd->db))
+      DBUG_RETURN(0);
+
     if (lex->sql_command == SQLCOM_DROP_TRIGGER)
     {
       /*
@@ -6237,11 +6246,29 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
               thd->variables.gtid_next.type == GTID_GROUP &&
               thd->owned_gtid.sidno != 0 &&
               (thd->lex->sql_command == SQLCOM_COMMIT ||
-               stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)))
+               stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
+               thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+               thd->lex->sql_command == SQLCOM_DROP_TABLE))
           {
-            // This is executed at the end of a DDL statement or after
-            // COMMIT.  It ensures that an empty group is logged if
-            // needed.
+            /*
+              This ensures that an empty transaction is logged if
+              needed. It is executed at the end of an implicitly or
+              explicitly committing statement, or after CREATE
+              TEMPORARY TABLE or DROP TEMPORARY TABLE.
+
+              CREATE/DROP TEMPORARY do not count as implicitly
+              committing according to stmt_causes_implicit_commit(),
+              but are written to the binary log as DDL (not between
+              BEGIN/COMMIT). Thus we need special cases for these
+              statements in the condition above. Hence the clauses for
+              for SQLCOM_CREATE_TABLE and SQLCOM_DROP_TABLE above.
+
+              Thus, for base tables, SQLCOM_[CREATE|DROP]_TABLE match
+              both the stmt_causes_implicit_commit clause and the
+              thd->lex->sql_command == SQLCOM_* clause; for temporary
+              tables they match only thd->lex->sql_command ==
+              SQLCOM_*.
+            */
             error= gtid_empty_group_log_and_cleanup(thd);
           }
           MYSQL_QUERY_EXEC_DONE(error);
@@ -6292,7 +6319,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 
 
 #ifdef HAVE_REPLICATION
-/*
+/**
   Usable by the replication SQL thread only: just parse a query to know if it
   can be ignored because of replicate-*-table rules.
 
@@ -6305,25 +6332,36 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
 {
   LEX *lex= thd->lex;
-  bool error= 0;
+  bool ignorable= false;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
+  DBUG_ASSERT(thd->slave_thread);
+
   Parser_state parser_state;
-  if (!(error= parser_state.init(thd, rawbuf, length)))
+  if (parser_state.init(thd, rawbuf, length) == 0)
   {
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
 
     thd->m_statement_psi= NULL;
-    if (!parse_sql(thd, & parser_state, NULL) &&
-        all_tables_not_ok(thd, lex->select_lex.table_list.first))
-      error= 1;                  /* Ignore question */
+    if (parse_sql(thd, & parser_state, NULL) == 0)
+    {
+      if (all_tables_not_ok(thd, lex->select_lex.table_list.first))
+        ignorable= true;
+      else if (lex->sql_command != SQLCOM_BEGIN &&
+               lex->sql_command != SQLCOM_COMMIT &&
+               lex->sql_command != SQLCOM_SAVEPOINT &&
+               lex->sql_command != SQLCOM_ROLLBACK &&
+               lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
+               !rpl_filter->db_ok(thd->db))
+        ignorable= true;
+    }
     thd->m_statement_psi= parent_locker;
     thd->end_statement();
   }
   thd->cleanup_after_query();
-  DBUG_RETURN(error);
+  DBUG_RETURN(ignorable);
 }
 #endif
 
