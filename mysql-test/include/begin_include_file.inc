@@ -74,6 +74,13 @@ if (!$_include_file_depth)
 if ($rpl_debug)
 {
   --echo $_include_file_indent==== BEGIN include/$include_filename ====
+  # Print this text (just once) to prevent checking in result files containing
+  # debug info.
+  if (!$printed_this_should_not_be_checked_in)
+  {
+    --echo DO_NOT_CHECK_IN_THIS_LINE: \$rpl_debug should only be used for debugging. Never check in a test that has $rpl_debug=1.
+    --let $printed_this_should_not_be_checked_in= 1
+  }
 }
 
 --let $_include_file_enabled_warnings= $ENABLED_WARNINGS$_include_file_enabled_warnings
