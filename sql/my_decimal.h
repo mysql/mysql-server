@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,10 +130,8 @@ public:
 
   my_decimal& operator=(const my_decimal &rhs)
   {
-#if !defined(DBUG_OFF)
-    foo1= test_value;
-    foo2= test_value;
-#endif
+    sanity_check();
+    rhs.sanity_check();
     if (this == &rhs)
       return *this;
     decimal_t::operator=(rhs);
@@ -162,10 +160,11 @@ public:
     sanity_check();
   }
 
-  void sanity_check()
+  void sanity_check() const
   {
     DBUG_ASSERT(foo1 == test_value);
     DBUG_ASSERT(foo2 == test_value);
+    DBUG_ASSERT(buf  == buffer);
   }
 
   void fix_buffer_pointer() { buf= buffer; }
