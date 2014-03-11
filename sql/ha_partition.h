@@ -49,6 +49,8 @@ enum partition_keywords
 /* offset to the engines array */
 #define PAR_ENGINES_OFFSET 12
 
+extern "C" int cmp_key_rowid_part_id(void *ptr, uchar *ref1, uchar *ref2);
+
 class ha_partition :public handler
 {
 private:
@@ -88,6 +90,22 @@ private:
   uchar *m_rec0;                        // table->record[0]
   const uchar *m_err_rec;               // record which gave error
   QUEUE m_queue;                        // Prio queue used by sorted read
+
+  /*
+    Length of an element in m_ordered_rec_buffer. The elements are composed of
+
+      [part_no] [table->record copy] [underlying_table_rowid]
+    
+    underlying_table_rowid is only stored when the table has no extended keys.
+  */
+  uint m_priority_queue_rec_len;
+
+  /*
+    If true, then sorting records by key value also sorts them by their
+    underlying_table_rowid.
+  */
+  bool m_using_extended_keys;
+
   /*
     Since the partition handler is a handler on top of other handlers, it
     is necessary to keep information about what the underlying handler
@@ -1172,6 +1190,9 @@ public:
       DBUG_ASSERT(h == m_file[i]->ht);
     return h;
   }
+
+
+  friend int cmp_key_rowid_part_id(void *ptr, uchar *ref1, uchar *ref2);
 };
 
 #endif /* HA_PARTITION_INCLUDED */
