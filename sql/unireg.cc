@@ -971,7 +971,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
   while ((field=it++))
   {
     char *pos= strmov((char*) buff,field->field_name);
-    *pos++=NAMES_SEP_CHAR;
+    * (uchar*) pos++= (uchar) NAMES_SEP_CHAR;
     if (i == create_fields.elements-1)
       *pos++=0;
     if (mysql_file_write(file, buff, (size_t) (pos-(char*) buff), MYF_RW))

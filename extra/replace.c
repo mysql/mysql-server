@@ -265,7 +265,7 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
 				     MYF(MY_WME))))
     {
-      my_free(pa->typelib.type_names);
+      my_free((void*) pa->typelib.type_names);
       DBUG_RETURN (-1);
     }
     pa->max_count=(PC_MALLOC-MALLOC_OVERHEAD)/(sizeof(uchar*)+
@@ -327,7 +327,7 @@ static void free_pointer_array(reg1 POINTER_ARRAY *pa)
   if (pa->typelib.count)
   {
     pa->typelib.count=0;
-    my_free(pa->typelib.type_names);
+    my_free((void*) pa->typelib.type_names);
     pa->typelib.type_names=0;
     my_free(pa->str);
   }

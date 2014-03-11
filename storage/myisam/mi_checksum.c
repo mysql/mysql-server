@@ -40,7 +40,7 @@ ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)
       length=_mi_calc_blob_length(column->length-
                                   portable_sizeof_char_ptr,
                                   buf);
-      memcpy(&pos, buf+column->length - portable_sizeof_char_ptr,
+      memcpy((void*) &pos, buf+column->length - portable_sizeof_char_ptr,
 	     sizeof(char*));
       break;
     }

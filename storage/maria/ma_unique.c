@@ -135,7 +135,7 @@ ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const uchar *record)
     else if (keyseg->flag & HA_BLOB_PART)
     {
       uint tmp_length= _ma_calc_blob_length(keyseg->bit_start,pos);
-      memcpy(&pos,pos+keyseg->bit_start,sizeof(char*));
+      memcpy((void*) &pos,pos+keyseg->bit_start,sizeof(char*));
       if (!length || length > tmp_length)
 	length=tmp_length;			/* The whole blob */
     }
@@ -231,8 +231,8 @@ my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const uchar *a, const uchar *b,
         set_if_smaller(a_length, keyseg->length);
         set_if_smaller(b_length, keyseg->length);
       }
-      memcpy(&pos_a, pos_a+keyseg->bit_start, sizeof(char*));
-      memcpy(&pos_b, pos_b+keyseg->bit_start, sizeof(char*));
+      memcpy((void*) &pos_a, pos_a+keyseg->bit_start, sizeof(char*));
+      memcpy((void*) &pos_b, pos_b+keyseg->bit_start, sizeof(char*));
     }
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT1 ||
         type == HA_KEYTYPE_VARTEXT2)
