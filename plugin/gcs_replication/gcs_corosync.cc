@@ -53,6 +53,11 @@ bool operator == (const Corosync_ring_id& lhs, const Corosync_ring_id& rhs)
   return lhs.nodeid == rhs.nodeid && lhs.seq == rhs.seq;
 }
 
+/*
+  Max number of tries when extracting the local id
+*/
+static int MAX_NUMBER_OF_ID_EXTRACTION_TENTATIVES= 10;
+
 
 /*** Callbacks related ***/
 
@@ -272,7 +277,10 @@ void view_change(cpg_handle_t handle, const struct cpg_name *name,
   */
   if (proto->get_local_process_id() == zero_process_id)
   {
-    proto->do_complete_local_member_init();
+    int init_result= proto->do_complete_local_member_init();
+    //fire in the unlikely case that we couldn't fetch the id
+    assert(!init_result);
+
     proto->get_client_info().logger_func(GCS_INFORMATION_LEVEL,
                                          "Member '%s (%lu,%lu)' completed local initialization",
                                          proto->get_client_uuid().c_str(),
@@ -885,13 +893,30 @@ void Protocol_corosync::do_leave_local_member()
   return;
 }
 
-void Protocol_corosync::do_complete_local_member_init()
+int Protocol_corosync::do_complete_local_member_init()
 {
-  uint32 local_nodeid;
+  uint32 local_nodeid= 0;
+  int id_extraction_iter= 0;
 
-  /* local id:s should be initialized before join message is sent */
-  cpg_local_get(handle, &local_nodeid);
-  local_process_id= Process_id(local_nodeid, getpid());
+  /*
+   Due to a corosync bug, the local_nodeid is not always available, being
+   however usually available at a second execution.
+  */
+  do
+  {
+    cpg_local_get(handle, &local_nodeid);
+    if (local_nodeid != 0)
+    {
+      /* local id:s should be initialized before join message is sent */
+      local_process_id= Process_id(local_nodeid, getpid());
+      break;
+    }
+    id_extraction_iter++;
+    usleep(100);
+  }
+  while (id_extraction_iter < MAX_NUMBER_OF_ID_EXTRACTION_TENTATIVES);
+
+  return !local_nodeid;
 }
 
 /*

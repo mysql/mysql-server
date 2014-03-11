@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -164,8 +164,12 @@ public:
   /*
     The method finalizes the local member initialization after its
     joining attempt is rewarded with CPG view-change.
+
+    @return Operation status
+      @retval 0      OK
+      @retval != 0   it was not possible to extract the local id
   */
-  void do_complete_local_member_init();
+  int do_complete_local_member_init();
 
   /*
     Following a notification on CPG membership or Totem ring change
