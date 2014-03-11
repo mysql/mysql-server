@@ -801,7 +801,7 @@ public:
 		st_sp_chistics *chistics,
                 sql_mode_t sql_mode);
 
-  void set_definer(const char *definer, uint definerlen);
+  void set_definer(const char *definer, size_t definerlen);
   void set_definer(const LEX_STRING *user_name, const LEX_STRING *host_name);
 
   /**

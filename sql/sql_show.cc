@@ -141,7 +141,7 @@ static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table);
 ** List all table types supported
 ***************************************************************************/
 
-static int make_version_string(char *buf, int buf_length, uint version)
+static size_t make_version_string(char *buf, size_t buf_length, uint version)
 {
   return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
@@ -653,7 +653,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     char uname[NAME_LEN + 1];                   /* Unencoded name */
     FILEINFO *file;
     LEX_STRING *file_name= 0;
-    uint file_name_len;
+    size_t file_name_len;
     char *ext;
 
     file=dirp->dir_entry+i;
@@ -1149,7 +1149,7 @@ static const char *require_quotes(const char *name, uint name_length)
 */
 
 void
-append_identifier(THD *thd, String *packet, const char *name, uint length)
+append_identifier(THD *thd, String *packet, const char *name, size_t length)
 {
   const char *name_end;
   char quote_char;
@@ -1203,7 +1203,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 */
 
 void
-append_identifier(THD *thd, String *packet, const char *name, uint length,
+append_identifier(THD *thd, String *packet, const char *name, size_t length,
                   const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
 {
         String to_name(name,length, from_cs);
@@ -1235,7 +1235,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length,
     #	  Quote character
 */
 
-int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
+int get_quote_char_for_identifier(THD *thd, const char *name, size_t length)
 {
   if (length &&
       !is_keyword(name,length) &&
@@ -1255,7 +1255,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 {
   if (filename && !(thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
   {
-    uint length= dirname_length(filename);
+    size_t length= dirname_length(filename);
     packet->append(' ');
     packet->append(dir_type);
     packet->append(STRING_WITH_LEN(" DIRECTORY='"));
@@ -2167,7 +2167,10 @@ public:
     if (inspect_thd->mysys_var)
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
     /* INFO */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     if (inspect_thd->query().str)
     {
       const size_t width= min(m_max_query_length,
@@ -2177,7 +2180,7 @@ public:
       thd_info->query_string=
         CSET_STRING(q, q ? width : 0, inspect_thd->charset());
     }
-    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
     /* MYSQL_TIME */
     thd_info->start_time= inspect_thd->start_time.tv_sec;
@@ -2346,7 +2349,10 @@ public:
     if (inspect_thd->mysys_var)
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
     /* INFO */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     if (inspect_thd->query().str)
     {
       const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
@@ -2355,7 +2361,7 @@ public:
                              inspect_thd->charset());
       table->field[7]->set_notnull();
     }
-    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
     /* MYSQL_TIME */
     if (inspect_thd->start_time.tv_sec)
@@ -3851,7 +3857,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   int not_used;
   my_hash_value_type hash_value;
   const char *key;
-  uint key_length;
+  size_t key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
   memset(&table_list, 0, sizeof(TABLE_LIST));

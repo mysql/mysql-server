@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,10 +61,10 @@ INSTANTIATE_TEST_CASE_P(Foo, Float4Test,
 TEST_P(Float4Test, PutAndGet)
 {
   float4store(buf, input);
-  float4get(output, buf);
+  float4get(&output, buf);
   EXPECT_EQ(input, output);
   floatstore(buf, input);
-  floatget(output, buf);
+  floatget(&output, buf);
   EXPECT_EQ(input, output);
 }
 
@@ -93,10 +93,10 @@ INSTANTIATE_TEST_CASE_P(Foo, Float8Test,
 TEST_P(Float8Test, PutAndGet)
 {
   float8store(buf, input);
-  float8get(output, buf);
+  float8get(&output, buf);
   EXPECT_EQ(input, output);
   doublestore(buf, input);
-  doubleget(output, buf);
+  doubleget(&output, buf);
   EXPECT_EQ(input, output);
 }
 

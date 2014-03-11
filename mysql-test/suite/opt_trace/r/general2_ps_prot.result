@@ -4241,6 +4241,9 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
@@ -4258,7 +4261,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "best_access_path": {
                       "considered_access_paths": [
                         {
-                          "access_type": "ref",
+                          "access_type": "eq_ref",
                           "index": "PRIMARY",
                           "rows": 1,
                           "cost": 1.2,
@@ -4295,6 +4298,9 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                             },
                             {
                               "access_type": "range",
+                              "range_details": {
+                                "used_index": "PRIMARY"
+                              } /* range_details */,
                               "chosen": false,
                               "cause": "heuristic_index_cheaper"
                             }
@@ -4315,7 +4321,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                             "best_access_path": {
                               "considered_access_paths": [
                                 {
-                                  "access_type": "ref",
+                                  "access_type": "eq_ref",
                                   "index": "PRIMARY",
                                   "rows": 1,
                                   "cost": 1.2,
@@ -4354,6 +4360,9 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                                     },
                                     {
                                       "access_type": "range",
+                                      "range_details": {
+                                        "used_index": "PRIMARY"
+                                      } /* range_details */,
                                       "chosen": false,
                                       "cause": "heuristic_index_cheaper"
                                     }
@@ -4376,7 +4385,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                                     "best_access_path": {
                                       "considered_access_paths": [
                                         {
-                                          "access_type": "ref",
+                                          "access_type": "eq_ref",
                                           "index": "PRIMARY",
                                           "rows": 1,
                                           "cost": 1.2,
@@ -4725,7 +4734,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                     "best_access_path": {
                       "considered_access_paths": [
                         {
-                          "access_type": "ref",
+                          "access_type": "eq_ref",
                           "index": "PRIMARY",
                           "rows": 1,
                           "cost": 24,

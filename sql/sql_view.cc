@@ -169,7 +169,7 @@ err:
 static bool make_valid_column_names(LEX *lex)
 {
   Item *item;
-  uint name_len;
+  size_t name_len;
   char buff[NAME_LEN];
   uint column_no= 1;
   DBUG_ENTER("make_valid_column_names");
@@ -243,7 +243,7 @@ static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
   const char *key;
-  uint key_length;
+  size_t key_length;
   LEX *lex= thd->lex;
   TABLE_LIST decoy;
 
@@ -1180,7 +1180,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
   TABLE_LIST *top_view= table->top_table();
   bool parse_status= true;
   bool result= true, view_is_mergeable;
-  TABLE_LIST *UNINIT_VAR(view_main_select_tables);
+  TABLE_LIST *view_main_select_tables= NULL;
 
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));

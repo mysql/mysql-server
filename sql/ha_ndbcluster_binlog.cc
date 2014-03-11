@@ -1404,7 +1404,7 @@ int ndbcluster_find_all_files(THD *thd)
   Ndb* ndb;
   char key[FN_REFLEN + 1];
   NDBDICT *dict;
-  int unhandled, retries= 5, skipped;
+  int unhandled= 0, retries= 5, skipped= 0;
   DBUG_ENTER("ndbcluster_find_all_files");
 
   if (!(ndb= check_ndb_in_thd(thd)))
@@ -1412,8 +1412,6 @@ int ndbcluster_find_all_files(THD *thd)
 
   dict= ndb->getDictionary();
 
-  LINT_INIT(unhandled);
-  LINT_INIT(skipped);
   do
   {
     NdbDictionary::Dictionary::List list;

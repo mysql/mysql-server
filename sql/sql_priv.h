@@ -128,7 +128,7 @@ template <class T> T available_buffer(const char* buf_start,
                                       const char* buf_current,
                                       T buf_len)
 {
-  return buf_len - (buf_current - buf_start);
+  return static_cast<T>(buf_len - (buf_current - buf_start));
 }
 
 /*

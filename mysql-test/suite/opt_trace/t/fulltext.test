@@ -1,0 +1,29 @@
+#Start server with MyISAM
+--source include/force_myisam_default.inc
+
+if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
+            + $VIEW_PROTOCOL > 0`)
+{
+   --skip Need normal protocol
+}
+
+--source include/have_optimizer_trace.inc
+
+LET $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
+EVAL SET optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
+SET @@session.optimizer_trace="enabled=on";
+
+--echo #
+--echo # BUG#18195373: OPTIMIZER TRACE SHOULD PRINT NAME OF
+--echo #               INDEX FOR RANGE ACCESS
+
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+INSERT INTO t1 VALUES('Testing how', 'full-text search'),
+                     ('is printed to the', 'optimizer trace.'),
+                     ('We need test coverage','of that too');
+
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("coverage");
+
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+DROP TABLE t1;

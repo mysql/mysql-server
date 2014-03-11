@@ -535,7 +535,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         SJ_TMP_TABLE *sjtbl;
         if (jt_rowid_offset) /* Temptable has at least one rowid */
         {
-          uint tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
+          size_t tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
           if (!(sjtbl= new (thd->mem_root) SJ_TMP_TABLE) ||
               !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
             DBUG_RETURN(TRUE); /* purecov: inspected */

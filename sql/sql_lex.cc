@@ -378,7 +378,7 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd,
   {
     thd->convert_string(&utf_txt,
                         &my_charset_utf8_general_ci,
-                        txt->str, (uint) txt->length,
+                        txt->str, txt->length,
                         txt_cs);
   }
   else
@@ -2973,6 +2973,17 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   else
     str->append(STRING_WITH_LEN("select "));
 
+  if (thd->is_error())
+  {
+    /*
+      It is possible that this query block had an optimization error, but the
+      caller didn't notice (caller evaluted this as a subquery and
+      Item::val*() don't have an error status). In this case the query block
+      may be broken and printing it may crash.
+    */
+    str->append(STRING_WITH_LEN("had some error"));
+    return;
+  }
   /*
    In order to provide info for EXPLAIN FOR CONNECTION units shouldn't
    be completely cleaned till the end of the query. This is valid only for

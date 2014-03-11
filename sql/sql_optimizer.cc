@@ -140,7 +140,6 @@ JOIN::optimize()
   if (optimized)
     DBUG_RETURN(0);
 
-  // We may do transformations (like semi-join):
   Prepare_error_tracker tracker(thd);
 
   optimized= true;
@@ -148,6 +147,22 @@ JOIN::optimize()
   DEBUG_SYNC(thd, "before_join_optimize");
 
   THD_STAGE_INFO(thd, stage_optimizing);
+
+  if (select_lex->first_execution)
+  {
+    /**
+      @todo
+      This query block didn't transform itself in SELECT_LEX::prepare(), so
+      belongs to a parent query block. That parent, or its parents, had to
+      transform us - it has not; maybe it is itself in prepare() and
+      evaluating the present query block as an Item_subselect. Such evaluation
+      in prepare() is expected to be a rare case to be eliminated in the
+      future ("SET x=(subq)" is one such case; because it locks tables before
+      prepare()).
+    */
+    if (select_lex->apply_local_transforms())
+      DBUG_RETURN(error= 1);
+  }
 
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -703,8 +703,11 @@ static size_t my_safe_vsnprintf(char *to, size_t size,
             my_safe_utoa(base, uval, &buff[sizeof(buff)-1]) :
             my_safe_itoa(base, ival, &buff[sizeof(buff)-1]);
 
-          /* Strip off "ffffffff" if we have 'x' format without 'll' */
-          if (*format == 'x' && !have_longlong && ival < 0)
+          /*
+            Strip off "ffffffff" if we have 'x' format without 'll'
+            Similarly for 'p' format on 32bit systems.
+          */
+          if (base == 16 && !have_longlong && ival < 0)
             val_as_str+= 8;
 
           while (*val_as_str && to < end)

@@ -2212,4 +2212,11 @@ SELECT straight_join t1.vc, t1.ik
 FROM t1 JOIN t1 AS t2 ON t1.vc=t2.vc LEFT JOIN t1 AS t3 ON t1.vc=t3.vc;
 vc	ik
 DROP TABLE t1;
+#
+# Bug #18345786 CRASH AROUND ST_JOIN_TABLE::AND_WITH_CONDITION
+#
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+SET @a:=(SELECT ROW(1, 2)=
+ROW((SELECT 1 FROM t1 LEFT JOIN t1 t2 ON 1), 1));
+DROP TABLE t1;
 set optimizer_switch=default;

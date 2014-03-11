@@ -1074,6 +1074,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     command= COM_SHUTDOWN;
   }
   thd->set_query_id(next_query_id());
+  thd->rewritten_query.free();
   thd_manager->inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
@@ -1149,7 +1150,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
     char *save_db= thd->db;
-    uint save_db_length= thd->db_length;
+    size_t save_db_length= thd->db_length;
     Security_context save_security_ctx= *thd->security_ctx;
 
     auth_rc= acl_authenticate(thd, packet_length);
@@ -1314,7 +1315,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       THD_STAGE_INFO(thd, stage_starting);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
-      thd->set_query_and_id(beginning_of_next_stmt, length, next_query_id());
+      thd->set_query(beginning_of_next_stmt, length);
+      thd->set_query_id(next_query_id());
       /*
         Count each statement from the client.
       */
@@ -1348,7 +1350,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       We have name + wildcard in packet, separated by endzero
     */
     arg_end= strend(packet);
-    uint arg_length= arg_end - packet;
+    size_t arg_length= static_cast<size_t>(arg_end - packet);
 
     /* Check given table name length. */
     if (arg_length >= packet_length || arg_length > NAME_LEN)
@@ -1862,7 +1864,6 @@ bool alloc_query(THD *thd, const char *packet, size_t packet_length)
   query[packet_length]= '\0';
 
   thd->set_query(query, packet_length);
-  thd->rewritten_query.free();                 // free here lest PS break
 
   /* Reclaim some memory */
   thd->packet.shrink(thd->variables.net_buffer_length);
@@ -3090,6 +3091,14 @@ end_with_restore_list:
       {
         DBUG_ASSERT(all_tables->view != 0);
         DBUG_PRINT("info", ("Switch to multi-update"));
+        if (select_lex->order_list.elements ||
+            select_lex->select_limit)
+        { // Clauses not supported by multi-update: can't switch.
+          my_error(ER_VIEW_PREVENT_UPDATE, MYF(0),
+                   all_tables->alias, "UPDATE", all_tables->alias);
+          res= true;
+          break;
+        }
         if (!thd->in_sub_stmt)
           thd->query_plan.set_query_plan(SQLCOM_UPDATE_MULTI, lex,
                                          !thd->stmt_arena->is_conventional());
@@ -5502,11 +5511,10 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                                              LEX_STRING *option)
 {
   TABLE_LIST *ptr;
-  TABLE_LIST *previous_table_ref; /* The table preceding the current one. */
+  TABLE_LIST *previous_table_ref= NULL; /* The table preceding the current one. */
   char *alias_str;
   LEX *lex= thd->lex;
   DBUG_ENTER("add_table_to_list");
-  LINT_INIT(previous_table_ref);
 
   if (!table)
     DBUG_RETURN(0);				// End of memory
@@ -6595,7 +6603,7 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 */
 
 bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
-                              uint max_byte_length)
+                              size_t max_byte_length)
 {
   if (str->length <= max_byte_length)
     return FALSE;
@@ -6623,7 +6631,7 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 
 
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
-                              uint max_char_length, const CHARSET_INFO *cs,
+                              size_t max_char_length, const CHARSET_INFO *cs,
                               bool no_error)
 {
   int well_formed_error;
@@ -6659,7 +6667,7 @@ C_MODE_START
 int test_if_data_home_dir(const char *dir)
 {
   char path[FN_REFLEN];
-  int dir_len;
+  size_t dir_len;
   DBUG_ENTER("test_if_data_home_dir");
 
   if (!dir)

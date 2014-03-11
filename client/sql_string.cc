@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -606,7 +606,7 @@ void String::qs_append(double d)
 void String::qs_append(double *d)
 {
   double ld;
-  float8get(ld, (char*) d);
+  float8get(&ld, (char*) d);
   qs_append(ld);
 }
 

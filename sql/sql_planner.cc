@@ -175,8 +175,6 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
 
     DBUG_PRINT("info", ("Considering ref access on key %s", keyinfo->name));
     Opt_trace_object trace_access_idx(trace);
-    trace_access_idx.add_alnum("access_type", "ref").
-      add_utf8("index", keyinfo->name);
 
     enum idx_type cur_keytype= (keyuse->keypart == FT_KEYPART) ?
       FULLTEXT : NOT_UNIQUE;
@@ -278,6 +276,13 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         else if ((keyinfo->flags & HA_NULL_PART_KEY) == 0)
           cur_keytype= UNIQUE;
       }
+
+      if (cur_keytype == UNIQUE || cur_keytype == CLUSTERED_PK)
+        trace_access_idx.add_alnum("access_type", "eq_ref");
+      else
+        trace_access_idx.add_alnum("access_type", "ref");
+
+      trace_access_idx.add_utf8("index", keyinfo->name);
 
       if (cur_keytype > best_found_keytype)
       {
@@ -590,6 +595,9 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     {
       // This is a full-text index
 
+      trace_access_idx.add_alnum("access_type", "fulltext").
+        add_utf8("index", keyinfo->name);
+
       if (best_found_keytype < NOT_UNIQUE)
       {
         trace_access_idx.add("chosen", false).
@@ -730,6 +738,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
   if (tab->quick)
   {
     trace_access_scan->add_alnum("access_type", "range");
+    tab->quick->trace_quick_description(&thd->opt_trace);
     /*
       For each record we:
       - read record range through 'quick'
@@ -930,8 +939,15 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
       best_read_cost <= tab->read_time)                           // (1b)
   {
     // "scan" means (full) index scan or (full) table scan.
-    trace_access_scan.add_alnum("access_type", tab->quick ? "range" : "scan").
-      add("cost", tab->read_time +
+    if (tab->quick)
+    {
+      trace_access_scan.add_alnum("access_type", "range");
+      tab->quick->trace_quick_description(trace);
+    }
+    else 
+      trace_access_scan.add_alnum("access_type", "scan");
+
+    trace_access_scan.add("cost", tab->read_time +
           cost_model->row_evaluate_cost(tab->found_records)).
       add("rows", tab->found_records).
       add("chosen", false).
@@ -941,8 +957,9 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
       tab->quick->index == best_ref->key &&                       // (2)
       (used_key_parts >= table->quick_key_parts[best_ref->key]))  // (2)
   {
-    trace_access_scan.add_alnum("access_type", "range").
-      add("chosen", false).
+    trace_access_scan.add_alnum("access_type", "range");
+    tab->quick->trace_quick_description(trace);
+    trace_access_scan.add("chosen", false).
       add_alnum("cause", "heuristic_index_cheaper");
   }
   else if ((table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&    //(3)
@@ -951,8 +968,15 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
        (tab->quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&//(3)
         best_ref->read_cost < tab->quick->read_time)))                    //(3)
   {
-    trace_access_scan.add_alnum("access_type", tab->quick ? "range" : "scan").
-      add("chosen", false).
+    if (tab->quick)
+    {
+      trace_access_scan.add_alnum("access_type", "range");
+      tab->quick->trace_quick_description(trace);
+    }
+    else 
+      trace_access_scan.add_alnum("access_type", "scan");
+
+    trace_access_scan.add("chosen", false).
       add_alnum("cause", "covering_index_better_than_full_scan");
   }
   else if ((table->force_index && best_ref && !tab->quick))    // (4)
@@ -2779,8 +2803,7 @@ bool Optimize_table_order::fix_semijoin_strategies()
       continue;
     }
 
-    uint first;
-    LINT_INIT(first);
+    uint first= 0;
     if (pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
     {
       TABLE_LIST *const sjm_nest= pos->table->emb_sj_nest;
@@ -3558,7 +3581,7 @@ void Optimize_table_order::advance_sj_state(
     pos->first_loosescan_table= MAX_TABLES; 
     pos->dupsweedout_tables= 0;
     pos->sjm_scan_need_tables= 0;
-    LINT_INIT(pos->sjm_scan_last_inner);
+    pos->sjm_scan_last_inner= 0;
   }
   else
   {

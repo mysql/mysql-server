@@ -317,9 +317,10 @@ void unlock_slave_threads(Master_info* mi)
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+
 static PSI_memory_key key_memory_rli_mts_coor;
 
-#ifdef HAVE_PSI_INTERFACE
 static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slave_worker;
 
 static PSI_thread_info all_slave_threads[]=
@@ -3970,7 +3971,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
 
     if (slave_trans_retries)
     {
-      int UNINIT_VAR(temp_err);
+      int temp_err= 0;
       bool silent= false;
       if (exec_res && !is_mts_worker(thd) /* no reexecution in MTS mode */ &&
           (temp_err= rli->has_temporary_error(thd, 0, &silent)) &&

@@ -1483,7 +1483,7 @@ a
 create view v2 (a,b) as select t1.b as a, t2.a as b from t1, t2;
 set updatable_views_with_limit=NO;
 update v2 set a= 10 where a=200 limit 1;
-ERROR HY000: The target table t1 of the UPDATE is not updatable
+Got one of the listed errors
 set updatable_views_with_limit=DEFAULT;
 select * from v3;
 a	b

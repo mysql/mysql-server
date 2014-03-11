@@ -35,6 +35,7 @@
 
 class JOIN;
 class Item_sum;
+class Opt_trace_context;
 
 typedef struct st_key_part {
   uint16           key,part;
@@ -371,6 +372,8 @@ public:
   */
   virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
   virtual void set_handler(handler *file_arg) {}
+
+  void trace_quick_description(Opt_trace_context *trace);
 };
 
 
@@ -880,6 +883,9 @@ public:
     if (is_index_scan)
       str->append(STRING_WITH_LEN("scanning"));
   }
+
+  void add_info_string(String *str);
+
 };
 
 

@@ -2460,12 +2460,11 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 {
   char *end = (char*)((query_end && *query_end) ?
 		      *query_end : query + strlen(query));
-  MYSQL_RES *res;
+  MYSQL_RES *res= NULL;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   DYNAMIC_STRING ds_query;
   DBUG_ENTER("var_query_set");
-  LINT_INIT(res);
 
   /* Only white space or ) allowed past ending ` */
   while (end > query && *end != '`')
@@ -2516,7 +2515,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       {
         /* Add column to tab separated string */
 	char *val= row[i];
-	int len= lengths[i];
+	size_t len= lengths[i];
 	
 	if (glob_replace_regex)
 	{
@@ -2611,7 +2610,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
-  { "<No error>", -1U, "" },
+  { "<No error>", (uint)-1, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
@@ -2706,7 +2705,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
 {
   long row_no;
   int col_no= -1;
-  MYSQL_RES* res;
+  MYSQL_RES* res= NULL;
   MYSQL* mysql= &cur_con->mysql;
 
   static DYNAMIC_STRING ds_query;
@@ -2719,7 +2718,6 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   };
 
   DBUG_ENTER("var_set_query_get_value");
-  LINT_INIT(res);
 
   strip_parentheses(command);
   DBUG_PRINT("info", ("query: %s", command->query));
@@ -4341,7 +4339,7 @@ void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
   MYSQL* mysql = &cur_con->mysql;
   for (;;)
   {
-    MYSQL_RES *UNINIT_VAR(res);
+    MYSQL_RES *res= NULL;
     MYSQL_ROW row;
     int done;
 
@@ -6155,7 +6153,7 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  char c, UNINIT_VAR(last_quote), last_char= 0;
+  char c, last_quote= 0, last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   my_bool have_slash= FALSE;
@@ -6330,7 +6328,7 @@ int read_line(char *buf, int size)
       {
         if (!(charlen= my_mbcharlen(charset_info, (unsigned char) c)))
         {
-          char c1= my_getc(cur_file->file);
+          int c1= my_getc(cur_file->file);
           if (c1 == EOF)
           {
             *p++= c;
