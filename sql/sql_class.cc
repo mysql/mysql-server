@@ -2134,7 +2134,7 @@ LEX_STRING *THD::make_lex_string(LEX_STRING *lex_str,
 */
 
 bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
-			 const char *from, uint from_length,
+			 const char *from, size_t from_length,
 			 const CHARSET_INFO *from_cs)
 {
   DBUG_ENTER("convert_string");
@@ -3804,19 +3804,19 @@ String *Security_context::get_external_user()
 
 void Security_context::set_host(const char *str)
 {
-  uint len= str ? strlen(str) :  0;
+  size_t len= str ? strlen(str) :  0;
   host.set(str, len, system_charset_info);
 }
 
 void Security_context::set_ip(const char *str)
 {
-  uint len= str ? strlen(str) :  0;
+  size_t len= str ? strlen(str) :  0;
   ip.set(str, len, system_charset_info);
 }
 
 void Security_context::set_external_user(const char *str)
 {
-  uint len= str ? strlen(str) :  0;
+  size_t len= str ? strlen(str) :  0;
   external_user.set(str, len, system_charset_info);
 }
 

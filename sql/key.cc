@@ -319,7 +319,7 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
                                 FIELDFLAG_PACK)))
     {
       const CHARSET_INFO *cs= key_part->field->charset();
-      uint char_length= key_part->length / cs->mbmaxlen;
+      size_t char_length= key_part->length / cs->mbmaxlen;
       const uchar *pos= table->record[0] + key_part->offset;
       if (length > char_length)
       {
@@ -385,7 +385,7 @@ void field_unpack(String *to, Field *field, const uchar *rec, uint max_length,
         which can break a multi-byte characters in the middle.
         Align, returning not more than "char_length" characters.
       */
-      uint charpos, char_length= max_length / cs->mbmaxlen;
+      size_t charpos, char_length= max_length / cs->mbmaxlen;
       if ((charpos= my_charpos(cs, tmp.ptr(),
                                tmp.ptr() + tmp.length(),
                                char_length)) < tmp.length())

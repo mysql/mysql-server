@@ -198,10 +198,10 @@ my_bool check_datetime_range(const MYSQL_TIME *ltime)
     In case of MYSQL_TIMESTAMP_DATETIME it cannot be bigger than 23.
   */
   return
-    ltime->year > 9999 || ltime->month > 12  || ltime->day > 31 || 
-    ltime->minute > 59 || ltime->second > 59 || ltime->second_part > 999999 ||
+    ltime->year > 9999U || ltime->month > 12U  || ltime->day > 31U || 
+    ltime->minute > 59U || ltime->second > 59U || ltime->second_part > 999999U ||
     (ltime->hour >
-     (ltime->time_type == MYSQL_TIMESTAMP_TIME ? TIME_MAX_HOUR : 23));
+     (ltime->time_type == MYSQL_TIMESTAMP_TIME ? TIME_MAX_HOUR : 23U));
 }
 
 

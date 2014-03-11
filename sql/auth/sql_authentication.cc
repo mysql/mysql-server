@@ -1468,8 +1468,8 @@ char *get_41_lenc_string(char **buffer,
 
 
 /* the packet format is described in send_client_reply_packet() */
-static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
-                                           uchar **buff, ulong pkt_len)
+static size_t parse_client_handshake_packet(MPVIO_EXT *mpvio,
+                                            uchar **buff, size_t pkt_len)
 {
 #ifndef EMBEDDED_LIBRARY
   NET *net= mpvio->net;
@@ -1582,7 +1582,7 @@ skip_to_ssl:
     if ((pkt_len= my_net_read(net)) == packet_error)
     {
       DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
-                 pkt_len));
+                           static_cast<ulong>(pkt_len)));
       return packet_error;
     }
     /* mark vio as encrypted */
@@ -1931,7 +1931,7 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
 static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
 {
   MPVIO_EXT *mpvio= (MPVIO_EXT *) param;
-  ulong pkt_len;
+  size_t pkt_len;
 
   DBUG_ENTER("server_mpvio_read_packet");
   if (mpvio->packets_written == 0)
