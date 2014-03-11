@@ -639,4 +639,43 @@ col1	col2	col3
 1	2	2013-03-11 16:33:04
 1	2	2013-03-11 16:33:24
 DROP TABLE t1;
+#
+# MDEV-5177: ha_partition and innodb index intersection produce fewer rows (MySQL Bug#70703)
+#
+create table t1 (
+a int not null,
+b int not null,
+pk int not null,
+primary key (pk),
+key(a),
+key(b)
+) engine=innodb partition by hash(pk) partitions 10;
+insert into t1 values (1,2,4);
+insert into t1 values (1,0,17);
+insert into t1 values (1,2,25);
+insert into t1 values (10,20,122);
+insert into t1 values (10,20,123);
+create table t2 (a int);
+insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t1 select 1,2, 200 + A.a + 10*B.a + 100*C.a from t2 A, t2 B, t2 C;
+insert into t1 select 10+A.a + 10*B.a + 100*C.a + 1000*D.a,
+10+A.a + 10*B.a + 100*C.a  + 1000*D.a, 
+2000 + A.a + 10*B.a + 100*C.a + 1000*D.a
+from t2 A, t2 B, t2 C ,t2 D;
+explain select * from t1 where a=1 and b=2 and  pk between 1 and 999999 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	PRIMARY,a,b	b,a	4,4	NULL	#	Using intersect(b,a); Using where; Using index
+create temporary table t3 as
+select * from t1 where a=1 and b=2 and  pk between 1 and 999 ;
+select count(*) from t3;
+count(*)
+802
+drop table t3;
+create temporary table t3 as
+select * from t1 ignore index(a,b)  where a=1 and b=2 and  pk between 1 and 999 ;
+select count(*) from t3;
+count(*)
+802
+drop table t3;
+drop table t1,t2;
 set global default_storage_engine=default;

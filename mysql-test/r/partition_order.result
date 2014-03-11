@@ -734,8 +734,8 @@ a	b
 7	1
 35	2
 3	3
-2	4
 30	4
+2	4
 4	5
 6	6
 select * from t1 force index (b) where b < 10 ORDER BY b;
@@ -744,16 +744,16 @@ a	b
 7	1
 35	2
 3	3
-2	4
 30	4
+2	4
 4	5
 6	6
 select * from t1 force index (b) where b < 10 ORDER BY b DESC;
 a	b
 6	6
 4	5
-30	4
 2	4
+30	4
 3	3
 35	2
 7	1
