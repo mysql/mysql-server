@@ -2631,7 +2631,6 @@ func_exit:
 	return(rec);
 }
 
-#ifdef UNIV_SYNC_DEBUG
 /** Removes a page from the level list of pages.
 @param[in]	space		space where removed
 @param[in]	page_size	page size
@@ -2640,16 +2639,6 @@ func_exit:
 @param[in,out]	mtr		mini-transaction */
 # define btr_level_list_remove(space,page_size,page,index,mtr)		\
 	btr_level_list_remove_func(space,page_size,page,index,mtr)
-#else /* UNIV_SYNC_DEBUG */
-/** Removes a page from the level list of pages.
-@param[in]	space		space where removed
-@param[in]	page_size	page size
-@param[in,out]	page		page to remove
-@param[in]	index		index tree
-@param[in,out]	mtr		mini-transaction */
-# define btr_level_list_remove(space,page_size,page,index,mtr)		\
-	btr_level_list_remove_func(space,page_size,page,mtr)
-#endif /* UNIV_SYNC_DEBUG */
 
 /** Removes a page from the level list of pages.
 @param[in]	space		space where removed
@@ -2663,9 +2652,7 @@ btr_level_list_remove_func(
 	ulint			space,
 	const page_size_t&	page_size,
 	page_t*			page,
-#ifdef UNIV_SYNC_DEBUG
 	const dict_index_t*	index,
-#endif /* UNIV_SYNC_DEBUG */
 	mtr_t*			mtr)
 {
 	ut_ad(page && mtr);
