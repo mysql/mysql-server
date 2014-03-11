@@ -164,15 +164,13 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
-int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 
-void append_identifier(THD *thd, String *packet, const char *name,
-		       uint length);
-void append_identifier(THD *thd, String *packet, const char *name, uint length,
+void append_identifier(THD *thd, String *packet, const char *name, size_t length);
+void append_identifier(THD *thd, String *packet, const char *name, size_t length,
                        const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs);
 inline void append_identifier(THD *thd, String *packet, Simple_cstring str)
 {
-  append_identifier(thd, packet, str.ptr(), static_cast<uint>(str.length()));
+  append_identifier(thd, packet, str.ptr(), str.length());
 }
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
@@ -215,7 +213,7 @@ const char* get_one_variable(THD *thd, SHOW_VAR *variable,
                              size_t *length);
 
 /* These functions were under INNODB_COMPATIBILITY_HOOKS */
-int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
+int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 
 /* Handle the ignored database directories list for SHOW/I_S. */
 bool ignore_db_dirs_init();

@@ -1149,7 +1149,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
     char *save_db= thd->db;
-    uint save_db_length= thd->db_length;
+    size_t save_db_length= thd->db_length;
     Security_context save_security_ctx= *thd->security_ctx;
 
     auth_rc= acl_authenticate(thd, packet_length);
@@ -1349,7 +1349,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       We have name + wildcard in packet, separated by endzero
     */
     arg_end= strend(packet);
-    uint arg_length= arg_end - packet;
+    size_t arg_length= static_cast<size_t>(arg_end - packet);
 
     /* Check given table name length. */
     if (arg_length >= packet_length || arg_length > NAME_LEN)
@@ -6603,7 +6603,7 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 */
 
 bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
-                              uint max_byte_length)
+                              size_t max_byte_length)
 {
   if (str->length <= max_byte_length)
     return FALSE;
@@ -6631,7 +6631,7 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 
 
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
-                              uint max_char_length, const CHARSET_INFO *cs,
+                              size_t max_char_length, const CHARSET_INFO *cs,
                               bool no_error)
 {
   int well_formed_error;
@@ -6667,7 +6667,7 @@ C_MODE_START
 int test_if_data_home_dir(const char *dir)
 {
   char path[FN_REFLEN];
-  int dir_len;
+  size_t dir_len;
   DBUG_ENTER("test_if_data_home_dir");
 
   if (!dir)
