@@ -1074,6 +1074,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     command= COM_SHUTDOWN;
   }
   thd->set_query_id(next_query_id());
+  thd->rewritten_query.free();
   thd_manager->inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
@@ -1863,7 +1864,6 @@ bool alloc_query(THD *thd, const char *packet, size_t packet_length)
   query[packet_length]= '\0';
 
   thd->set_query(query, packet_length);
-  thd->rewritten_query.free();                 // free here lest PS break
 
   /* Reclaim some memory */
   thd->packet.shrink(thd->variables.net_buffer_length);
