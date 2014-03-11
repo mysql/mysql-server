@@ -1,7 +1,7 @@
 drop table if exists t1,t2;
 Warnings:
-Note	1051	Unknown table 'test.t1'
-Note	1051	Unknown table 'test.t2'
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
 CREATE TABLE t1 (
 `sspo_id` int(11) NOT NULL AUTO_INCREMENT,
 `sspo_uid` int(11) NOT NULL DEFAULT '0',
