@@ -5113,18 +5113,19 @@ Returns the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool.
 @return modified page percentage ratio */
 
-ulint
+double
 buf_get_modified_ratio_pct(void)
 /*============================*/
 {
-	ulint		ratio;
+	double		ratio;
 	ulint		lru_len = 0;
 	ulint		free_len = 0;
 	ulint		flush_list_len = 0;
 
 	buf_get_total_list_len(&lru_len, &free_len, &flush_list_len);
 
-	ratio = (100 * flush_list_len) / (1 + lru_len + free_len);
+	ratio = static_cast<double>(100 * flush_list_len)
+		/ (1 + lru_len + free_len);
 
 	/* 1 + is there to avoid division by zero */
 
