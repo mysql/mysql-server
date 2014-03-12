@@ -18,6 +18,9 @@
 # no embeeded run
 --source include/not_embedded.inc
 # Skip test if zoneinfo folder do not exists on system.
+# Skip this test if binaries are built with -DWITH_ASAN=1
+--source include/not_asan.inc
+
 perl;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
 open ( OUTPUT, ">$dir/tmp/zoneinfocheck.inc") ;
