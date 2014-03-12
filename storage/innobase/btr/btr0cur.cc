@@ -5828,10 +5828,12 @@ alloc_another:
 							FIL_PAGE_NEXT);
 				}
 
-				page_zip_write_blob_ptr(
-					page_zip, rec, index, offsets,
-					big_rec_vec->fields[i].field_no,
-					alloc_mtr);
+				if (op != BTR_STORE_INSERT_BULK) {
+					page_zip_write_blob_ptr(
+						page_zip, rec, index, offsets,
+						big_rec_vec->fields[i].field_no,
+						alloc_mtr);
+				}
 
 next_zip_page:
 				prev_page_no = page_no;
