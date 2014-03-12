@@ -19,6 +19,7 @@
 
 #include "my_sys.h" // my_strerror()
 #include "my_base.h" // HA_ERR_KEY_NOT_FOUND
+#include "m_string.h" // native_strcasecmp
 #include <string.h>
 
 namespace my_error_unittest {
