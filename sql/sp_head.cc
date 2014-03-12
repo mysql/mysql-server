@@ -753,6 +753,14 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
                                                 this->m_sp_share);
 #endif
 
+    /*
+      For now, we're mostly concerned with sp_instr_stmt, but that's
+      likely to change in the future, so we'll do it right from the
+      start.
+    */
+    if (thd->rewritten_query.length())
+      thd->rewritten_query.free();
+
     err_status= i->execute(thd, &ip);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
