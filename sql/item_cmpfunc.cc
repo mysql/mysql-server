@@ -4148,15 +4148,23 @@ uchar *in_double::get_value(Item *item)
 
 in_decimal::in_decimal(uint elements)
   :in_vector(elements, sizeof(my_decimal),(qsort2_cmp) cmp_decimal, 0)
-{}
+{
+  if (base != NULL)
+  {
+    // Array placement new is not portable, so loop instead.
+    my_decimal *elt= static_cast<my_decimal*>(static_cast<void*>(base));
+    for (uint ix= 0; ix < elements; ++ix)
+    {
+      new (elt++) my_decimal;
+    }
+  }
+}
 
 
 void in_decimal::set(uint pos, Item *item)
 {
   /* as far as 'item' is constant, we can store reference on my_decimal */
   my_decimal *dec= ((my_decimal *)base) + pos;
-  dec->len= DECIMAL_BUFF_LENGTH;
-  dec->fix_buffer_pointer();
   my_decimal *res= item->val_decimal(dec);
   /* if item->val_decimal() is evaluated to NULL then res == 0 */ 
   if (!item->null_value && res != dec)
