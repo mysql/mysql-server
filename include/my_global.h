@@ -571,6 +571,8 @@ inline unsigned long long my_double2ulonglong(double d)
 #else
   #ifdef HAVE_LLVM_LIBCPP /* finite is deprecated in libc++ */
     #define my_isfinite(X) isfinite(X)
+  #elif defined _WIN32
+    #define my_isfinite(X) _finite(X)
   #else
     #define my_isfinite(X) finite(X)
   #endif

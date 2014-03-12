@@ -7687,7 +7687,7 @@ opt_user_password_expiration:
             if ($2 == 0 || $2 > UINT_MAX16)
             {
 	      char buf[MAX_BIGINT_WIDTH + 1];
-	      snprintf(buf, sizeof(buf), "%lu", $2);
+              my_snprintf(buf, sizeof(buf), "%lu", $2);
 	      my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
               MYSQL_YYABORT;
             }
@@ -11843,7 +11843,7 @@ delete_limit_clause:
 
 ulong_num:
           NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-        | HEX_NUM       { $$= (ulong) strtoll($1.str, (char**) 0, 16); }
+        | HEX_NUM       { $$= (ulong) my_strtoll($1.str, (char**) 0, 16); }
         | LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | DECIMAL_NUM   { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
@@ -11852,7 +11852,7 @@ ulong_num:
 
 real_ulong_num:
           NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-        | HEX_NUM       { $$= (ulong) strtoll($1.str, (char**) 0, 16); }
+        | HEX_NUM       { $$= (ulong) my_strtoll($1.str, (char**) 0, 16); }
         | LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | dec_num_error { MYSQL_YYABORT; }

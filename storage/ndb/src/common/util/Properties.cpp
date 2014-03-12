@@ -513,7 +513,7 @@ void
 PropertiesImpl::setCaseInsensitiveNames(bool value){
   m_insensitive = value;
   if(value)
-    compare = strcasecmp;
+    compare = native_strcasecmp;
   else
     compare = strcmp;
 }
