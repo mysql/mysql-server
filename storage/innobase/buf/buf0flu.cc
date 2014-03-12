@@ -2177,8 +2177,8 @@ af_get_pct_for_dirty()
 		}
 	} else if (dirty_pct >= srv_max_dirty_pages_pct_lwm) {
 		/* We should start flushing pages gradually. */
-		return((dirty_pct * 100)
-		       / (srv_max_buf_pool_modified_pct + 1));
+		return(static_cast<ulint>((dirty_pct * 100)
+		       / (srv_max_buf_pool_modified_pct + 1)));
 	}
 
 	return(0);
