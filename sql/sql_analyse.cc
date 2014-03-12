@@ -360,7 +360,7 @@ void field_real::add()
   else
   {
     buff[sizeof(buff)-1]=0;			// Safety
-    snprintf(buff, sizeof(buff)-1, "%-.*f", (int) decs, num);
+    my_snprintf(buff, sizeof(buff)-1, "%-.*f", (int) decs, num);
     length = (uint) strlen(buff);
 
     // We never need to check further than this

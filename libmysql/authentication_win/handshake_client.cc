@@ -338,11 +338,11 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     int opt_val= opt ? atoi(opt) : 0;
     if (opt && !opt_val)
     {
-      if (!strncasecmp("on", opt, 2))    opt_val= 2;
-      if (!strncasecmp("yes", opt, 3))   opt_val= 2;
-      if (!strncasecmp("true", opt, 4))  opt_val= 2;
-      if (!strncasecmp("debug", opt, 5)) opt_val= 4;
-      if (!strncasecmp("dbug", opt, 4))  opt_val= 4;
+      if (!_strnicmp("on", opt, 2))    opt_val= 2;
+      if (!_strnicmp("yes", opt, 3))   opt_val= 2;
+      if (!_strnicmp("true", opt, 4))  opt_val= 2;
+      if (!_strnicmp("debug", opt, 5)) opt_val= 4;
+      if (!_strnicmp("dbug", opt, 4))  opt_val= 4;
     }
     set_log_level(opt_val);
   }

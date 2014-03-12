@@ -5115,17 +5115,17 @@ void adjust_open_files_limit(ulong *requested_open_files)
 
     if (open_files_limit == 0)
     {
-      snprintf(msg, sizeof(msg),
-               "Changed limits: max_open_files: %lu (requested %lu)",
-               effective_open_files, request_open_files);
+      my_snprintf(msg, sizeof(msg),
+                  "Changed limits: max_open_files: %lu (requested %lu)",
+                  effective_open_files, request_open_files);
       buffered_logs.buffer(WARNING_LEVEL, msg);
     }
     else
     {
-      snprintf(msg, sizeof(msg),
-               "Could not increase number of max_open_files to "
-               "more than %lu (request: %lu)",
-               effective_open_files, request_open_files);
+      my_snprintf(msg, sizeof(msg),
+                  "Could not increase number of max_open_files to "
+                  "more than %lu (request: %lu)",
+                  effective_open_files, request_open_files);
       buffered_logs.buffer(WARNING_LEVEL, msg);
     }
   }
@@ -5145,9 +5145,9 @@ void adjust_max_connections(ulong requested_open_files)
   {
     char msg[1024];
 
-    snprintf(msg, sizeof(msg),
-             "Changed limits: max_connections: %lu (requested %lu)",
-             limit, max_connections);
+    my_snprintf(msg, sizeof(msg),
+                "Changed limits: max_connections: %lu (requested %lu)",
+                limit, max_connections);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 
     // This can be done unprotected since it is only called on startup.
@@ -5166,9 +5166,9 @@ void adjust_table_cache_size(ulong requested_open_files)
   {
     char msg[1024];
 
-    snprintf(msg, sizeof(msg),
-             "Changed limits: table_cache: %lu (requested %lu)",
-             limit, table_cache_size);
+    my_snprintf(msg, sizeof(msg),
+                "Changed limits: table_cache: %lu (requested %lu)",
+                limit, table_cache_size);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 
     table_cache_size= limit;

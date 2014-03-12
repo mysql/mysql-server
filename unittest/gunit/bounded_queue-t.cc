@@ -42,7 +42,7 @@ struct Test_element
   Test_element &operator=(int i)
   {
     val= i;
-    snprintf(text, array_size(text), "%4d", i);
+    my_snprintf(text, array_size(text), "%4d", i);
     return *this;
   }
 

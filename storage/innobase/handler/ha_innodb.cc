@@ -14910,9 +14910,9 @@ innodb_enable_monitor_at_startup(
 	and/or counter group name, and calling innodb_monitor_update()
 	if successfully updated. Please note that the "str" would be
 	changed by strtok_r() as it walks through it. */
-	for (char* option = strtok_r(str, sep, &last);
+	for (char* option = my_strtok_r(str, sep, &last);
 	     option;
-	     option = strtok_r(NULL, sep, &last)) {
+	     option = my_strtok_r(NULL, sep, &last)) {
 		ulint	ret;
 		char*	option_name;
 

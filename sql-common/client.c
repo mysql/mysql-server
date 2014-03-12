@@ -3738,14 +3738,14 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                       "_platform", MACHINE_TYPE);
 #ifdef _WIN32
-  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
+  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
 #else
-  snprintf(buff, buf_len, "%lu", (ulong) getpid());
+  my_snprintf(buff, buf_len, "%lu", (ulong) getpid());
 #endif
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
 
 #ifdef _WIN32
-  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
+  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
 

@@ -2349,8 +2349,8 @@ public:        /* !!! Public in this patch to allow old usage */
      */
     return !strncmp(query, "BEGIN", q_len) ||
       !strncmp(query, "COMMIT", q_len) ||
-      !strncasecmp(query, "SAVEPOINT", 9) ||
-      !strncasecmp(query, "ROLLBACK", 8);
+      !native_strncasecmp(query, "SAVEPOINT", 9) ||
+      !native_strncasecmp(query, "ROLLBACK", 8);
   }
   /*
     Prepare and commit sequence number. will be set to 0 if the event is not a
@@ -2367,8 +2367,8 @@ public:        /* !!! Public in this patch to allow old usage */
   {  
     return
       !strncmp(query, "COMMIT", q_len) ||
-      (!strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
-       && strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
+      (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
+       && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
   }
 };
 
