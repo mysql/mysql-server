@@ -2401,7 +2401,6 @@ row_merge_bulk_insert_index_tuples(
 	ulint			foffs = 0;
 	ulint*			offsets;
 	mrec_buf_t*		buf;
-	btr_bulk_t		btr_bulk;
 	DBUG_ENTER("row_merge_bulk_insert_index_tuples");
 
 	ut_ad(!srv_read_only_mode);
@@ -2425,11 +2424,10 @@ row_merge_bulk_insert_index_tuples(
 	if (!row_merge_read(fd, foffs, block)) {
 		error = DB_CORRUPTION;
 	} else {
+		BtrBulk	btr_bulk(index, trx_id);
+
 		buf = static_cast<mrec_buf_t*>(
 			mem_heap_alloc(heap, sizeof *buf));
-
-		/* Init btr bulk load. */
-		btr_bulk_load_init(&btr_bulk, index, trx_id);
 
 		for (;;) {
 			const mrec_t*	mrec;
@@ -2492,22 +2490,22 @@ row_merge_bulk_insert_index_tuples(
 
 			ut_ad(dtuple_validate(dtuple));
 
-			error = btr_bulk_load_insert(&btr_bulk, dtuple);
+			error = btr_bulk.insert(dtuple);
 
 			if (error != DB_SUCCESS) {
-				btr_bulk_load_deinit(&btr_bulk, false);
-				goto err_exit;
+				break;
 			}
 
 			mem_heap_empty(tuple_heap);
 		}
 
-		btr_bulk_load_deinit(&btr_bulk, true);
-		/* Validate index. */
-		ut_ad(btr_validate_index(index, NULL, false));
+		error = btr_bulk.finish(error);
+
+		if (error == DB_SUCCESS) {
+			ut_ad(btr_validate_index(index, NULL, false));
+		}
 	}
 
-err_exit:
 	mem_heap_free(tuple_heap);
 	mem_heap_free(heap);
 
@@ -3692,11 +3690,26 @@ wait_again:
 			);
 
 			if (error == DB_SUCCESS) {
+				bool	use_bulk_load = innobase_enable_bulk_load;
+#ifdef UNIV_DEBUG
+				const	ulint	bulk_load_record_threshhold = 1;
+#else
+				const	ulint	bulk_load_record_threshhold = 1000;
+#endif	/* UNIV_DEBUG */
+
 				start_time_ms = ut_time_ms();
 
-				/* Fixme: need a threshhold to use bulk load. */
-				if (merge_files[i].n_rec > 0
-				    && innobase_enable_bulk_load) {
+				/* We require page_zip_log_pages enabled for
+				compressed table.*/
+				if (merge_files[i].n_rec < bulk_load_record_threshhold
+				    || (dict_table_page_size(new_table).is_compressed()
+					&& !page_zip_log_pages)) {
+					use_bulk_load = false;
+				}
+
+				start_time_ms = ut_time_ms();
+
+				if (use_bulk_load) {
 					error = row_merge_bulk_insert_index_tuples(
 						trx->id, sort_idx, old_table,
 						merge_files[i].fd, block);
