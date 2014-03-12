@@ -3856,9 +3856,15 @@ rec_loop:
 	}
 
 	/* Step-6: Convert selected record to MySQL format and store it. */
-	if (!row_sel_store_mysql_rec(
-		buf, prebuilt, result_rec, TRUE, clust_index, offsets)) {
-		goto final_return;
+	if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
+		/* CHECK TABLE: fetch the row */
+		memcpy(buf + 4, result_rec - rec_offs_extra_size(offsets),
+		       rec_offs_size(offsets));
+		mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
+	} else if (!row_sel_store_mysql_rec(
+			buf, prebuilt, result_rec, TRUE,
+			clust_index, offsets)) {
+		goto next_rec;
 	}
 
 	/* Step-7: Store cursor position to fetch next record.
