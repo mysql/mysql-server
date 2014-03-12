@@ -1323,7 +1323,7 @@ int main(int argc,char *argv[])
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
-  snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
+  my_snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
 	   "Your MySQL connection id is %lu\nServer version: %s\n",
 	   mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
@@ -3370,7 +3370,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else
     {
       put_info("\nNothing found", INFO_INFO);
-      if (strncasecmp(server_cmd, "help 'contents'", 15) == 0)
+      if (native_strncasecmp(server_cmd, "help 'contents'", 15) == 0)
       {
          put_info("\nPlease check if 'help tables' are loaded.\n", INFO_INFO); 
          goto err;

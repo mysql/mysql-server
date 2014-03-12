@@ -248,7 +248,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
   char   buff[2048];
   size_t len;
 
-  len= snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
+  len= my_snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
 
   va_start(args, format);
   vsnprintf(buff + len, sizeof(buff) - len, format, args);

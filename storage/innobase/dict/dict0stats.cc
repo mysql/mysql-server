@@ -2641,16 +2641,16 @@ dict_stats_fetch_index_stats_step(
 #define PFX_LEN	10
 
 	if (stat_name_len == 4 /* strlen("size") */
-	    && strncasecmp("size", stat_name, stat_name_len) == 0) {
+	    && native_strncasecmp("size", stat_name, stat_name_len) == 0) {
 		index->stat_index_size = (ulint) stat_value;
 		arg->stats_were_modified = true;
 	} else if (stat_name_len == 12 /* strlen("n_leaf_pages") */
-		   && strncasecmp("n_leaf_pages", stat_name, stat_name_len)
+		   && native_strncasecmp("n_leaf_pages", stat_name, stat_name_len)
 		   == 0) {
 		index->stat_n_leaf_pages = (ulint) stat_value;
 		arg->stats_were_modified = true;
 	} else if (stat_name_len > PFX_LEN /* e.g. stat_name=="n_diff_pfx01" */
-		   && strncasecmp(PFX, stat_name, PFX_LEN) == 0) {
+		   && native_strncasecmp(PFX, stat_name, PFX_LEN) == 0) {
 
 		const char*	num_ptr;
 		unsigned long	n_pfx;

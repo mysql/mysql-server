@@ -1106,7 +1106,7 @@ my_xpath_keyword(MY_XPATH *x,
   size_t length= end-beg;
   for (k= keyword_names; k->name; k++)
   {
-    if (length == k->length && !strncasecmp(beg, k->name, length))
+    if (length == k->length && !native_strncasecmp(beg, k->name, length))
     {
       x->extra= k->extra;
       return k->tok;
@@ -1317,7 +1317,7 @@ my_xpath_function(const char *beg, const char *end)
     default: function_names= my_func_names;
   }
   for (k= function_names; k->name; k++)
-    if (k->create && length == k->length && !strncasecmp(beg, k->name, length))
+    if (k->create && length == k->length && !native_strncasecmp(beg, k->name, length))
       return k;
   return NULL;
 }

@@ -29,9 +29,9 @@ TEST(MyErrorTest, MyStrErrorSystem)
   const char *msg;
 
   msg= my_strerror(buf, sizeof(buf) - 1, 9999);
-  EXPECT_TRUE(!strcasecmp("unknown error", msg) ||
-              !strcasecmp("unknown error: 9999", msg) ||
-              !strcasecmp("unknown error 9999", msg))
+  EXPECT_TRUE(!native_strcasecmp("unknown error", msg) ||
+              !native_strcasecmp("unknown error: 9999", msg) ||
+              !native_strcasecmp("unknown error 9999", msg))
     << "msg<" << msg << ">";
 
   // try a proper error number
