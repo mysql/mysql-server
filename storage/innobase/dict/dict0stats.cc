@@ -1361,7 +1361,7 @@ dict_stats_scan_page(
 			(*n_diff)++;
 
 			if (scan_method == QUIT_ON_FIRST_NON_BORING) {
-				goto func_exit;
+				break;
 			}
 		}
 
@@ -1387,7 +1387,6 @@ dict_stats_scan_page(
 		next_rec = get_next(next_rec);
 	}
 
-func_exit:
 	/* offsets1,offsets2 should have been big enough */
 	ut_a(heap == NULL);
 	*out_rec = rec;
