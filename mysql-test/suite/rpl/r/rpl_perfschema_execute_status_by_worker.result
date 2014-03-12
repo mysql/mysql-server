@@ -8,8 +8,9 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes;");
 include/assert.inc [On master, the table should return an empty set.]
 
-# Setup MTS and performa testing on a fresh slave.
+# Setup MTS and perform testing on a fresh slave.
 
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=0;
