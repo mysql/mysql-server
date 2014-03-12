@@ -1374,7 +1374,7 @@ dict_stats_scan_page(
 			place where offsets_rec was pointing before
 			because we have just 2 placeholders where
 			data is actually stored:
-			offsets_onstack1 and offsets_onstack2 and we
+			offsets1 and offsets2 and we
 			are using them in circular fashion
 			(offsets[_next]_rec are just pointers to
 			those placeholders). */
