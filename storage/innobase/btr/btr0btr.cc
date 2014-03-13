@@ -3976,6 +3976,7 @@ btr_validate_level(
 	ulint		parent_page_no = FIL_NULL;
 	ulint		parent_right_page_no = FIL_NULL;
 	bool		rightmost_child = false;
+	bool		entry_eq = false;
 
 	mtr_start(&mtr);
 
@@ -4153,9 +4154,18 @@ loop:
 					  offsets, ULINT_UNDEFINED, &heap);
 		offsets2 = rec_get_offsets(right_rec, index,
 					   offsets2, ULINT_UNDEFINED, &heap);
-		if (cmp_rec_rec(rec, right_rec, offsets, offsets2,
-			        index) >= 0) {
+		
+		ulint	match_fields;
+		int	ret =
+			cmp_rec_rec(rec, right_rec, offsets,
+				    offsets2, index, &match_fields);
+		/* Check if left-page last record = right page first record. */
+		entry_eq = 
+			(match_fields == dict_index_get_n_unique(index)
+			 && dict_table_is_intrinsic(index->table))
+			? true : false;
 
+		if (ret >= 0) {
 			btr_validate_report2(index, level, block, right_block);
 
 			fputs("InnoDB: records in wrong order"
@@ -4206,11 +4216,18 @@ loop:
 		rightmost_child = page_rec_is_supremum(
 					page_rec_get_next(node_ptr));
 
-		btr_cur_position(
-			index, page_rec_get_prev(page_get_supremum_rec(page)),
-			block, &node_cur);
-		offsets = btr_page_get_father_node_ptr_for_validate(
+		if (!entry_eq) {
+			/* If last entry of the left page == first entry of
+			right page then one of it delete-marked and searching
+			for father node might lead to confusion.
+			Skip this verification. */
+			btr_cur_position(
+				index,
+				page_rec_get_prev(page_get_supremum_rec(page)),
+				block, &node_cur);
+			offsets = btr_page_get_father_node_ptr_for_validate(
 				offsets, heap, &node_cur, &mtr);
+		}
 
 		if (node_ptr != btr_cur_get_rec(&node_cur)
 		    || btr_node_ptr_get_child_page_no(node_ptr, offsets)

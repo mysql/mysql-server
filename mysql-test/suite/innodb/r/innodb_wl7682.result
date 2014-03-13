@@ -30,18 +30,30 @@ delete from t1 where keyc < 1000;
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c1 = 'aefafdf' where keyc < 1500;
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c2 = '141434' where keyc < 2000;
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 delete from t1;
 select count(*) from t1;
 count(*)
 0
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 alter table t1 add index sk(c1);
 begin;
 call populate_t1();
@@ -55,14 +67,23 @@ delete from t1 where keyc < 1000;
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c1 = 'aefafdf' where keyc < 1500;
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c2 = '141434' where keyc < 2000;
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 alter table t1 add column (t char(10));
 select * from t1 limit 5;
 keyc	c1	c2	t
@@ -75,6 +96,9 @@ delete from t1;
 select count(*) from t1;
 count(*)
 0
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 drop procedure populate_t1;
 drop table t1;
 Warnings:
@@ -487,24 +511,36 @@ Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c1 = 'aefafdf' where keyc < 1500;
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c2 = '141434' where keyc < 2000;
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 delete from t1;
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 0
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 alter table t1 add index sk(c1);
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
@@ -522,18 +558,27 @@ Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c1 = 'aefafdf' where keyc < 1500;
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c2 = '141434' where keyc < 2000;
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 alter table t1 add column (t char(10));
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
@@ -550,6 +595,9 @@ Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 0
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 drop procedure populate_t1;
 drop table t1;
 Warnings:
