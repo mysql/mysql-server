@@ -380,13 +380,19 @@ sub tell_root_password {
 ##############################################################################
 
 sub generate_random_password {
-  # On (at least) Linux and Solaris, a "random" device is available, use it:
-  # cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1
-  # Without LC_ALL, "tr" may not know the "alnum" character class -
-  # and there are user profiles which do not have this set.
-  #
-  my $password = `cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
-  chomp ($password);
+  # On Linux, Solaris, Max OS X and FreeBSD we have a random device available.
+  my $randfile = "/dev/urandom";
+  open(FD, $randfile) || die "Can't open $randfile for reading: $!";
+  my $password = "";
+  my $pass_len = 16;
+  my $c;
+  while (length($password) < $pass_len) {
+    $c = getc(FD);
+    if ($c =~ /\w/) {
+      $password .= $c;
+    }
+  }
+  close(FD); 
   return $password;
 }
 
