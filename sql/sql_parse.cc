@@ -2809,6 +2809,8 @@ case SQLCOM_PREPARE:
              table= table->next_global)
           if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
           {
+            lex->link_first_table_back(create_table, link_to_local);
+
             res= 1;
             my_error(ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT, MYF(0),
                      table->table_name, create_info.alias);

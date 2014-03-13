@@ -235,8 +235,8 @@ in the buffer pool to all database pages in the buffer pool smaller than
 the following number. But it is not guaranteed that the value stays below
 that during a time of heavy update/insert activity. */
 
-ulong	srv_max_buf_pool_modified_pct	= 75;
-ulong	srv_max_dirty_pages_pct_lwm	= 50;
+double	srv_max_buf_pool_modified_pct	= 75.0;
+double	srv_max_dirty_pages_pct_lwm	= 0.0;
 
 /* This is the percentage of log capacity at which adaptive flushing,
 if enabled, will kick in. */

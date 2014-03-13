@@ -250,6 +250,9 @@ public:
     /* Unsafe for SBR since result depends on a session variable */
     thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
 
+    /* Not safe to cache either */
+    thd->lex->set_uncacheable(UNCACHEABLE_SIDEEFFECT);
+
     if (item_list != NULL)
       arg_count= item_list->elements;
 
@@ -337,6 +340,8 @@ public:
   {
     /* it is unsafe for SBR since it uses crypto random from the ssl library */
     thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+    /* Not safe to cache either */
+    thd->lex->set_uncacheable(UNCACHEABLE_RAND);
     return new (thd->mem_root) Item_func_random_bytes(arg1);
   }
   static Create_func_random_bytes s_singleton;
