@@ -13539,8 +13539,8 @@ Rows_query_log_event::print(FILE *file,
       statement from being executed when binary log will be processed
       using 'mysqlbinlog --verbose --verbose'.
     */
-    for (token= strtok_r(rows_query_copy, "\n", &saveptr); token;
-         token= strtok_r(NULL, "\n", &saveptr))
+    for (token= my_strtok_r(rows_query_copy, "\n", &saveptr); token;
+         token= my_strtok_r(NULL, "\n", &saveptr))
       my_b_printf(head, "# %s\n", token);
     my_free(rows_query_copy);
     print_base64(body, print_event_info, true);

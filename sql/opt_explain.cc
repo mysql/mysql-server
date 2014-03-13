@@ -1431,7 +1431,7 @@ static void human_readable_size(char *buf, int buf_len, double data_size)
   for (i= 0; data_size > 1024 && i < 5; i++)
     data_size/= 1024;
   const char mult= i == 0 ? 0 : size[i];
-  snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
+  my_snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
   buf[buf_len - 1]= 0;
 }
 

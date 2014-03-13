@@ -317,37 +317,6 @@
 #cmakedefine SIGPIPE @SIGPIPE@
 #cmakedefine isnan @isnan@
 
-#cmakedefine alloca @alloca@
-#cmakedefine finite @finite@
-#cmakedefine popen @popen@
-#cmakedefine pclose @pclose@
-#cmakedefine strcasecmp @strcasecmp@
-#cmakedefine strncasecmp @strncasecmp@
-#cmakedefine strtoll @strtoll@
-#cmakedefine strtoull @strtoull@
-#cmakedefine snprintf @snprintf@
-#cmakedefine vsnprintf @vsnprintf@
-
-#cmakedefine access @access@
-#cmakedefine chdir @chdir@
-#cmakedefine chmod @chmod@
-#cmakedefine dup @dup@
-#cmakedefine fdopen @fdopen@
-#cmakedefine fileno @fileno@
-#cmakedefine getcwd @getcwd@
-#cmakedefine isatty @isatty@
-#cmakedefine mkdir @mkdir@
-#cmakedefine putenv @putenv@
-#cmakedefine read @read@
-#cmakedefine rmdir @rmdir@
-#cmakedefine strdup @strdup@
-#cmakedefine stricmp @stricmp@
-#cmakedefine tzset @tzset@
-#cmakedefine umask @umask@
-#cmakedefine unlink @unlink@
-
-#cmakedefine strtok_r @strtok_r@
-
 #cmakedefine ssize_t @ssize_t@
 
 /*
