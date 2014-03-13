@@ -123,7 +123,9 @@ SET GLOBAL slow_query_log=1;
 SET GLOBAL log_output='TABLE';
 TRUNCATE mysql.slow_log;
 --exec $MYSQL -e "SET SESSION long_query_time=0; GRANT ALL PRIVILEGES ON *.* TO test_user1 IDENTIFIED BY 'meow';"
-SELECT sql_text FROM mysql.slow_log;
+let $wait_condition= SELECT sql_text FROM mysql.slow_log;
+--source include/wait_condition.inc
+--eval $wait_condition
 DROP USER test_user1;
 
 
