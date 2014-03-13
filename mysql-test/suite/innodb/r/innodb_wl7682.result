@@ -444,6 +444,17 @@ a	b	c
 8	8	108
 100	100	200
 drop table t1;
+create temporary table t1
+(a int not null, d int not null, b varchar(198) not null, c char(179), 
+unique key (b(10), a, d), index (d), index(a), index (c(99), b(33)),
+index (b(5), c(10), a) ) engine=InnoDB;
+replace into t1 (a,d,b,c) values ('0','6','kjgclgrtfuyl','');
+replace into t1 (a,d,b,c) values ('0','6','0.73611461938','0.799541829209147');
+replace into t1 (a,d,b,c) values ('0','6','kjgclgrtfuyl','');
+replace into t1 (a,d,b,c) values ('0','6','0.519839844','0.389471635790457');
+update t1 set b = 'khFSeqh4XHukO' , d = '128869539', c = '-100141534.687515' where a = '0';
+ERROR 23000: Duplicate entry 'khFSeqh4XH-0-128869539' for key 'b'
+drop table t1;
 use test;
 create temporary table t1
 (keyc int, c1 blob, c2 char(100),
@@ -527,8 +538,6 @@ count(*)
 truncate t1;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 delete from t1 where keyc < 1000;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
@@ -536,8 +545,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 update t1 set c1 = 'aefafdf' where keyc < 1500;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
@@ -545,8 +552,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 update t1 set c2 = '141434' where keyc < 2000;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
@@ -554,8 +559,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 delete from t1;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 0
@@ -563,8 +566,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 alter table t1 add index sk(c1);
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 begin;
 call populate_t1();
 commit;
@@ -574,8 +575,6 @@ count(*)
 truncate t1;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 delete from t1 where keyc < 1000;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
@@ -583,8 +582,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 update t1 set c1 = 'aefafdf' where keyc < 1500;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
@@ -592,8 +589,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 update t1 set c2 = '141434' where keyc < 2000;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 1001
@@ -601,8 +596,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 alter table t1 add column (t char(10));
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select * from t1 limit 5;
 keyc	c1	c2	t
 1000	aefafdf	141434	NULL
@@ -611,8 +604,6 @@ keyc	c1	c2	t
 1003	aefafdf	141434	NULL
 1004	aefafdf	141434	NULL
 delete from t1;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 0
@@ -625,37 +616,19 @@ Warnings:
 Note	1051	Unknown table 'test.t1'
 Note	1051	Unknown table 'test.t2'
 Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
 Note	1305	FUNCTION test.func1 does not exist
 Warnings:
 Note	1051	Unknown table 'test.t3'
 Warnings:
 Note	1051	Unknown table 'test.t4'
 Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
 Note	1051	Unknown table 'test.t5'
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 Warnings:
 Note	1051	Unknown table 'test.t6'
 Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
 Note	1051	Unknown table 'test.t7'
 Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
 Note	1051	Unknown table 'test.t8'
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 Warnings:
 Note	1051	Unknown table 'test.t9'
 Note	1051	Unknown table 'test.t10'
@@ -663,26 +636,6 @@ Warnings:
 Warning	1831	Duplicate index 'col_varchar_key' defined on the table 'test.t9'. This is deprecated and will be disallowed in a future release.
 Warnings:
 Warning	1831	Duplicate index 'col_varchar_key' defined on the table 'test.t10'. This is deprecated and will be disallowed in a future release.
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
@@ -942,17 +895,9 @@ create temporary table t1 (
 a int, b int, c int,
 primary key pk(a), index sk(b), index sk2(c)) engine=innodb;
 insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 update t1 set c = 4 where c = 2;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 update t1 set b = 6 where b = 2;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 update t1 set a = 100 where a = 1;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 update t1 set a = 3 where a = 2;
 ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
 select * from t1;
@@ -962,8 +907,6 @@ a	b	c
 100	1	1
 begin;
 insert into t1 values (4, 4, 4), (5, 5, 5);
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 rollback;
 select * from t1;
 a	b	c
@@ -988,8 +931,6 @@ a	b	c
 100	1	1
 insert into t1 values (8, 8, 8), (100, 100, 100)
 on duplicate key update c = 100 + c;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select * from t1;
 a	b	c
 2	6	4
@@ -1001,16 +942,10 @@ a	b	c
 8	8	8
 100	1	101
 delete from t1;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 insert into t1 values (8, 8, 8), (100, 100, 100)
 on duplicate key update c = 100 + c;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 insert into t1 values (8, 8, 8), (100, 100, 100)
 on duplicate key update c = 100 + c;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1018,6 +953,17 @@ select * from t1;
 a	b	c
 8	8	108
 100	100	200
+drop table t1;
+create temporary table t1
+(a int not null, d int not null, b varchar(198) not null, c char(179), 
+unique key (b(10), a, d), index (d), index(a), index (c(99), b(33)),
+index (b(5), c(10), a) ) engine=InnoDB;
+replace into t1 (a,d,b,c) values ('0','6','kjgclgrtfuyl','');
+replace into t1 (a,d,b,c) values ('0','6','0.73611461938','0.799541829209147');
+replace into t1 (a,d,b,c) values ('0','6','kjgclgrtfuyl','');
+replace into t1 (a,d,b,c) values ('0','6','0.519839844','0.389471635790457');
+update t1 set b = 'khFSeqh4XHukO' , d = '128869539', c = '-100141534.687515' where a = '0';
+ERROR 23000: Duplicate entry 'khFSeqh4XH-0-128869539' for key 'b'
 drop table t1;
 use test;
 create temporary table t1
@@ -1043,8 +989,6 @@ test.t1	check	status	OK
 truncate t1;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 delete from t1 where keyc < 10;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 11
@@ -1052,8 +996,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 update t1 set c1 = 'aefafdf' where keyc < 15;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 11
@@ -1061,8 +1003,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 update t1 set c2 = '141434' where keyc < 20;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 11
@@ -1070,8 +1010,6 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 delete from t1;
-Warnings:
-Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 0
