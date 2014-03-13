@@ -4,7 +4,8 @@
 # 2. Basic DML operation on intrinsic table.
 # 3. Run different types of queries on intrinsic table.
 # 4. Multiple key DML
-# 5. Large column (blob/text) column DML
+# 5. Multiple + Cascade key DML (with auto-gen-clustered index)
+# 6. Large column (blob/text) column DML
 #
 ################################################################################
 
@@ -124,7 +125,25 @@ drop table t1;
 
 #-----------------------------------------------------------------------------
 #
-# 5. Large column (blob/text) column DML
+# 5. Multiple + Cascade key DML (with auto-gen-clustered index)
+#
+create temporary table t1
+	(a int not null, d int not null, b varchar(198) not null, c char(179), 
+	 unique key (b(10), a, d), index (d), index(a), index (c(99), b(33)),
+	 index (b(5), c(10), a) ) engine=InnoDB;
+#
+replace into t1 (a,d,b,c) values ('0','6','kjgclgrtfuyl','');
+replace into t1 (a,d,b,c) values ('0','6','0.73611461938','0.799541829209147');
+replace into t1 (a,d,b,c) values ('0','6','kjgclgrtfuyl','');
+replace into t1 (a,d,b,c) values ('0','6','0.519839844','0.389471635790457');
+--error ER_DUP_ENTRY
+update t1 set b = 'khFSeqh4XHukO' , d = '128869539', c = '-100141534.687515' where a = '0';
+#
+drop table t1;
+
+#-----------------------------------------------------------------------------
+#
+# 6. Large column (blob/text) column DML
 #
 use test;
 create temporary table t1
