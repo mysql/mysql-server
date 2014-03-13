@@ -2158,19 +2158,24 @@ row_del_upd_for_mysql_using_cursor(
 			node->table, node->update);
 	}
 
+	bool	auto_gen_index	= false;
 	for (dict_index_t* index = UT_LIST_GET_FIRST(node->table->indexes);
 	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
 		/* If it is clustered index then any update will affect it. */
 		if (dict_index_is_clust(index)) {
+			auto_gen_index = dict_index_is_auto_gen_clust(index);
 			update_index.push_back(true);
 			continue;
 		}
 
-		/* If it is delete operation then remove entry from all
-		indexes. */
-		if (node->is_delete) {
+		/* If it is
+		- delete operation OR
+		- index is auto-generated and which is going to get updated
+		  resulting in update of DB_ROW_ID
+		then all indexes will be affected. */
+		if (node->is_delete || auto_gen_index) {
 			update_index.push_back(true);
 			continue;
 		}
