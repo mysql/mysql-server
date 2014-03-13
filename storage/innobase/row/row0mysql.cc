@@ -1284,7 +1284,7 @@ row_explicit_rollback(
 	rec_offs_init(offsets_);
 
 	btr_cur_search_to_nth_level_with_no_latch(
-		index, 0, entry, PAGE_CUR_GE,
+		index, 0, entry, PAGE_CUR_LE,
 		&cursor, __FILE__, __LINE__, mtr);
 
 	offsets = rec_get_offsets(
@@ -1920,10 +1920,11 @@ row_delete_for_mysql_using_cursor(
 
 		btr_pcur_open(index, entry, PAGE_CUR_LE,
 			      BTR_MODIFY_LEAF, &pcur, &mtr);
-
+#if 0
 		ut_ad(!rec_get_deleted_flag(
 			btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
 			dict_table_is_comp(index->table)));
+#endif
 
 		if (page_rec_is_infimum(btr_pcur_get_rec(&pcur))
 		    || page_rec_is_supremum(btr_pcur_get_rec(&pcur))) {
