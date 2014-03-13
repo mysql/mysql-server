@@ -105,6 +105,7 @@ rollback;
 select * from t1;
 --error ER_DUP_ENTRY
 insert into t1 values (6, 6, 6), (7, 7, 7), (100, 100, 100);
+check table t1;
 select * from t1;
 #
 insert into t1 values (8, 8, 8), (100, 100, 100)
@@ -116,6 +117,7 @@ insert into t1 values (8, 8, 8), (100, 100, 100)
 	on duplicate key update c = 100 + c;
 insert into t1 values (8, 8, 8), (100, 100, 100)
 	on duplicate key update c = 100 + c;
+check table t1;
 select * from t1;
 #
 drop table t1;
