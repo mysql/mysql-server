@@ -382,7 +382,7 @@ sub tell_root_password {
 sub generate_random_password {
   # On Linux, Solaris, Max OS X and FreeBSD we have a random device available.
   my $randfile = "/dev/urandom";
-  open(FD, $randfile) || die "Can't open $randfile for reading: $!";
+  open(FD, $randfile) || return "";
   my $password = "";
   my $pass_len = 16;
   my $c;
