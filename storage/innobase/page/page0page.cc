@@ -2506,11 +2506,19 @@ page_validate(
 
 #ifndef UNIV_HOTBACKUP
 		/* Check that the records are in the ascending order */
-		if (UNIV_LIKELY(count >= PAGE_HEAP_NO_USER_LOW)
+		if (count >= PAGE_HEAP_NO_USER_LOW
 		    && !page_rec_is_supremum(rec)) {
-			if (UNIV_UNLIKELY
-			    (0 >= cmp_rec_rec(rec, old_rec,
-					      offsets, old_offsets, index))) {
+
+			int	ret = cmp_rec_rec(
+				rec, old_rec, offsets, old_offsets, index);
+			
+			/* Intrinsic table doesn't do inplace update and so
+			can have entry where-in consecutive entries are same. */
+			dict_table_t*	table = index->table;
+
+			if ((ret <= 0 && !dict_table_is_intrinsic(table))
+			    || (ret < 0 && dict_table_is_intrinsic(table))) {
+
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Records in wrong order"
 					" on space %lu page %lu index %s",
