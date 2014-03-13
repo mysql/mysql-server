@@ -1442,6 +1442,7 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   double examined_rows;
+  double access_method_fanout= tab->position->fanout;
   if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE ||
       ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
        select && select->quick))
@@ -1454,6 +1455,17 @@ bool Explain_join::explain_rows_and_filtered()
     DBUG_ASSERT(!(tab->type == JT_REF || tab->type == JT_REF_OR_NULL) ||
                 tab->filesort);
     examined_rows= rows2double(select->quick->records);
+
+    /*
+      Unlike the "normal" range access method, dynamic range access
+      method does not set
+      tab->position->fanout=select->quick->records. If this is EXPLAIN
+      FOR CONNECTION of a table with dynamic range,
+      tab->position->fanout reflects that fanout of table/index scan,
+      not the fanout of the current dynamic range scan.
+    */
+    if (tab->use_quick == QS_DYNAMIC_RANGE)
+      access_method_fanout= examined_rows;
   }
   else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL ||
            tab->type == JT_CONST || tab->type == JT_SYSTEM)
@@ -1467,7 +1479,7 @@ bool Explain_join::explain_rows_and_filtered()
   {
     float f= 0.0;
     if (examined_rows)
-      f= 100.0 * tab->position->fanout / examined_rows;
+      f= 100.0 * access_method_fanout / examined_rows;
     fmt->entry()->col_filtered.set(f);
   }
   // Print cost-related info
