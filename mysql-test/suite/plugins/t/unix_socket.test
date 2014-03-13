@@ -1,8 +1,4 @@
---source include/not_embedded.inc
-
-if (!$AUTH_SOCKET_SO) {
-  skip No auth_socket plugin;
-}
+--source include/have_unix_socket.inc
 
 let $plugindir=`SELECT @@global.plugin_dir`;
 

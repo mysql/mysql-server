@@ -1,0 +1,29 @@
+--source include/have_unix_socket.inc
+
+#
+# MDEV-3909 remote user enumeration
+# unix_socket tests
+#
+update mysql.user set plugin='unix_socket';
+flush privileges;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT $USER USER
+--error ER_PLUGIN_IS_NOT_LOADED
+connect (fail,localhost,$USER);
+
+--error ER_PLUGIN_IS_NOT_LOADED
+change_user $USER;
+
+eval install plugin unix_socket soname '$AUTH_SOCKET_SO';
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT $USER USER
+--error ER_ACCESS_DENIED_ERROR
+connect (fail,localhost,$USER);
+
+--error ER_ACCESS_DENIED_ERROR
+change_user $USER;
+
+update mysql.user set plugin='';
+flush privileges;
+uninstall plugin unix_socket;
+
