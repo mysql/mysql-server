@@ -1930,7 +1930,7 @@ row_delete_for_mysql_using_cursor(
 		entry to delete. */
 		while (rec_get_deleted_flag(
 			rec, dict_table_is_comp(index->table))) {
-#if UNIV_DEBUG 
+#ifdef UNIV_DEBUG 
 			ulint           offsets_[REC_OFFS_NORMAL_SIZE];
 			ulint*          offsets         = offsets_;
 			rec_offs_init(offsets_);
