@@ -462,24 +462,39 @@ commit;
 select count(*) from t1;
 count(*)
 20
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 truncate t1;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 delete from t1 where keyc < 10;
 select count(*) from t1;
 count(*)
 11
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c1 = 'aefafdf' where keyc < 15;
 select count(*) from t1;
 count(*)
 11
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c2 = '141434' where keyc < 20;
 select count(*) from t1;
 count(*)
 11
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 delete from t1;
 select count(*) from t1;
 count(*)
 0
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 drop procedure populate_t1;
 drop table t1;
 "Restarting in read only mode"
@@ -1022,6 +1037,9 @@ commit;
 select count(*) from t1;
 count(*)
 20
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 truncate t1;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 delete from t1 where keyc < 10;
@@ -1030,24 +1048,36 @@ Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 11
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c1 = 'aefafdf' where keyc < 15;
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 11
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 update t1 set c2 = '141434' where keyc < 20;
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 11
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 delete from t1;
 Warnings:
 Warning	1836	InnoDB: Running in read-only mode
 select count(*) from t1;
 count(*)
 0
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 drop procedure populate_t1;
 drop table t1;
 "Restarting Server in normal mode"
