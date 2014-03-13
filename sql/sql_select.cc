@@ -14976,7 +14976,20 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "distinct_key";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
-    keyinfo->rec_per_key=0;
+    /*
+      Needed by non-merged semi-joins: SJ-Materialized table must have a valid 
+      rec_per_key array, because it participates in join optimization. Since
+      the table has no data, the only statistics we can provide is "unknown",
+      i.e. zero values.
+
+      (For table record count, we calculate and set JOIN_TAB::found_records,
+       see get_delayed_table_estimates()).
+    */
+    size_t rpk_size= keyinfo->key_parts* sizeof(keyinfo->rec_per_key[0]);
+    if (!(keyinfo->rec_per_key= (ulong*) alloc_root(&table->mem_root, 
+                                                    rpk_size)))
+      goto err;
+    bzero(keyinfo->rec_per_key, rpk_size);
 
     /*
       Create an extra field to hold NULL bits so that unique indexes on
