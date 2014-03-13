@@ -1930,6 +1930,11 @@ row_delete_for_mysql_using_cursor(
 		entry to delete. */
 		while (rec_get_deleted_flag(
 			rec, dict_table_is_comp(index->table))) {
+
+			ut_a(btr_pcur_move_to_prev(&pcur, &mtr));
+
+			rec = btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur));
+
 #ifdef UNIV_DEBUG 
 			ulint           offsets_[REC_OFFS_NORMAL_SIZE];
 			ulint*          offsets         = offsets_;
@@ -1940,9 +1945,6 @@ row_delete_for_mysql_using_cursor(
 
 			ut_ad(!cmp_dtuple_rec(entry, rec, offsets));
 #endif
-			ut_a(btr_pcur_move_to_prev(&pcur, &mtr));
-
-			rec = btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur));
 		}
 
 		ut_ad(!rec_get_deleted_flag(
