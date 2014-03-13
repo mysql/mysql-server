@@ -15,6 +15,7 @@ let MYSQL_BASEDIR= `select @@basedir`;
 --source include/not_windows.inc
 # no embeeded run
 --source include/not_embedded.inc
+--source include/not_valgrind.inc
 
 # Case 1
 # pass #pid of running mysqld process and #time=10 sec
