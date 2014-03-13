@@ -3857,10 +3857,20 @@ rec_loop:
 
 	/* Step-6: Convert selected record to MySQL format and store it. */
 	if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
-		/* CHECK TABLE: fetch the row */
-		memcpy(buf + 4, result_rec - rec_offs_extra_size(offsets),
+
+		const rec_t*	ret_rec =
+			(index != clust_index
+			 && prebuilt->need_to_access_clustered)
+			? result_rec : rec;
+
+		offsets = rec_get_offsets(
+			ret_rec, index, offsets, ULINT_UNDEFINED, &heap);
+
+		memcpy(buf + 4, ret_rec - rec_offs_extra_size(offsets),
 		       rec_offs_size(offsets));
+
 		mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
+
 	} else if (!row_sel_store_mysql_rec(
 			buf, prebuilt, result_rec, TRUE,
 			clust_index, offsets)) {
