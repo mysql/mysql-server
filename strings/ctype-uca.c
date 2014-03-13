@@ -20653,7 +20653,7 @@ lex_cmp(MY_COLL_LEXEM *lexem, const char *pattern, size_t patternlen)
   size_t lexemlen= lexem->beg - lexem->prev;
   if (lexemlen < patternlen)
     return 1; /* Not a prefix */
-  return strncasecmp(lexem->prev, pattern, patternlen);
+  return native_strncasecmp(lexem->prev, pattern, patternlen);
 }
 
 

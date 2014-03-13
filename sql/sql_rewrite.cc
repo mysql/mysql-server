@@ -456,7 +456,7 @@ static void mysql_rewrite_change_master(THD *thd, String *rlb)
     else
     {
       char buf[64];
-      snprintf(buf, 64, "%f", lex->mi.heartbeat_period);
+      my_snprintf(buf, 64, "%f", lex->mi.heartbeat_period);
       rlb->append(buf);
     }
   }

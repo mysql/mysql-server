@@ -1432,7 +1432,7 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
 
   char buf[128];
 
-  snprintf(buf, sizeof(buf), summary_template, suppressed);
+  my_snprintf(buf, sizeof(buf), summary_template, suppressed);
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->start_utime=                thd->current_utime() - print_exec_time;
@@ -1801,8 +1801,8 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   }
 
   va_start(args, format);
-  snprintf(format2, sizeof (format2) - 1, "Plugin %.*s reported: '%s'", 
-           (int) plugin->name.length, plugin->name.str, format);
+  my_snprintf(format2, sizeof (format2) - 1, "Plugin %.*s reported: '%s'",
+              (int) plugin->name.length, plugin->name.str, format);
   error_log_print(lvl, format2, args);
   va_end(args);
   return 0;
