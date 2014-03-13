@@ -142,12 +142,17 @@ END|
 delimiter ;|
 #
 begin; call populate_t1(); commit; select count(*) from t1;
+check table t1;
 --error ER_ILLEGAL_HA
 truncate t1;
 delete from t1 where keyc < 10; select count(*) from t1;
+check table t1;
 update t1 set c1 = 'aefafdf' where keyc < 15; select count(*) from t1;
+check table t1;
 update t1 set c2 = '141434' where keyc < 20; select count(*) from t1;
+check table t1;
 delete from t1; select count(*) from t1;
+check table t1;
 drop procedure populate_t1;
 drop table t1;
 
