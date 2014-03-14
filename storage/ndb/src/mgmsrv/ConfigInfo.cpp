@@ -3473,6 +3473,15 @@ ConfigInfo::ConfigInfo()
        assert(param._min); // Enums typelib pointer is stored in _min
        assert(param._max == 0); // Enums can't have max
 
+       // Check that enum values start at 0 and are consecutively
+       // ascending for easier reverse engineering from value to string
+       Uint32 i = 0;
+       for (const Typelib* entry = ConfigInfo::getTypelibPtr(param);
+            entry->name != 0; entry++)
+       {
+         require(i++ == entry->value);
+       }
+
         Properties values(true); // case insensitive
         // Put the list of allowed enum values in pinfo
         for (const Typelib* entry = ConfigInfo::getTypelibPtr(param);
