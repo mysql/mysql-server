@@ -137,6 +137,9 @@
 #define PACK_TABLE_PAGE_WORDS (2048 - 32)
 #define PACK_TABLE_PAGES ((PACK_TABLE_WORDS + PACK_TABLE_PAGE_WORDS - 1) / PACK_TABLE_PAGE_WORDS)
 
+#define MAX_QUEUED_FRAG_CHECKPOINTS_PER_NODE 32
+#define MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE 32
+
 class Dbdih: public SimulatedBlock {
 #ifdef ERROR_INSERT
   typedef void (Dbdih::* SendFunction)(Signal*, Uint32, Uint32);
@@ -346,8 +349,8 @@ public:
     bool m_inclDihLcp;
     Uint8 copyCompleted; // 0 = NO :-), 1 = YES, 2 = yes, first WAITING
 
-    FragmentCheckpointInfo startedChkpt[2];
-    FragmentCheckpointInfo queuedChkpt[2];
+    FragmentCheckpointInfo startedChkpt[MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE];
+    FragmentCheckpointInfo queuedChkpt[MAX_QUEUED_FRAG_CHECKPOINTS_PER_NODE];
 
     Bitmask<1> m_nodefailSteps;
     Uint32 activeTabptr;

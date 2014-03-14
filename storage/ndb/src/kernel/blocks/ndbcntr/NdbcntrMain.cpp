@@ -1901,7 +1901,8 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   const bool tStarted = !failedStarted.isclear();
   const bool tStarting = !failedStarting.isclear();
 
-  if(tMasterFailed){
+  if (tMasterFailed)
+  {
     jam();
     /**
      * If master has failed choose qmgr president as master
@@ -1921,25 +1922,29 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   c_startedNodes.bitANDC(allFailed);
 
   const NodeState & st = getNodeState();
-  if(st.startLevel == st.SL_STARTING){
+  if (st.startLevel == st.SL_STARTING)
+  {
     jam();
 
     const Uint32 phase = st.starting.startPhase;
     
     const bool tStartConf = (phase > 2) || (phase == 2 && cndbBlocksCount > 0);
 
-    if(tMasterFailed){
+    if (tMasterFailed)
+    {
       progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED,
 		"Unhandled node failure during restart");
     }
     
-    if(tStartConf && tStarting){
+    if (tStartConf && tStarting)
+    {
       // One of other starting nodes has crashed...
       progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED,
 		"Unhandled node failure of starting node during restart");
     }
 
-    if(tStartConf && tStarted){
+    if (tStartConf && tStarted)
+    {
       // One of other started nodes has crashed...      
       progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED,
 		"Unhandled node failure of started node during restart");
