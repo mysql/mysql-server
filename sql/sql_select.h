@@ -1417,10 +1417,10 @@ class store_key_field: public store_key
  protected: 
   enum store_key_result copy_inner()
   {
-    TABLE *table= copy_field.to_field->table;
+    TABLE *table= copy_field.to_field()->table;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
                                                      table->write_set);
-    copy_field.do_copy(&copy_field);
+    copy_field.invoke_do_copy(&copy_field);
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null();
     return err != 0 ? STORE_KEY_FATAL : STORE_KEY_OK;
