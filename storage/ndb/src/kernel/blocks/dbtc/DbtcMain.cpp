@@ -16964,6 +16964,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
             MaxCascadingScansPerTransaction)
         {
           jam();
+          D("trans: cascading scans " << regApiPtr->cascading_scans_count);
           waitToExecutePendingTrigger(signal, *transPtr);
           // pause all trigger execution
           break;
@@ -17008,6 +17009,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
       {
         // Wait until transaction is ready to execute a trigger
         jam();
+        D("trans: apiConnectstate " << regApiPtr->apiConnectstate);
         waitToExecutePendingTrigger(signal, *transPtr);
       }
       else
@@ -17028,6 +17030,7 @@ Dbtc::waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr)
                   ApiConnectRecord::TF_TRIGGER_PENDING))
   {
     jam();
+    D("trans: send trigger pending");
     transPtr.p->m_flags |= ApiConnectRecord::TF_TRIGGER_PENDING;
     signal->theData[0] = TcContinueB::TRIGGER_PENDING;
     signal->theData[1] = transPtr.i;
@@ -17035,8 +17038,11 @@ Dbtc::waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr)
     signal->theData[3] = transPtr.p->transid[1];
     sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
   }
-  // else  
-  // We are already waiting for a pending trigger (CONTINUEB)
+  else
+  {
+    // We are already waiting for a pending trigger (CONTINUEB)
+    D("trans: trigger pending already");
+  }
 }
 
 void Dbtc::executeTrigger(Signal* signal,
@@ -17719,6 +17725,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   execSCAN_TABREQ(signal);
 
   transPtr->p->lqhkeyreqrec++; // Make sure that execution is stalled
+  D("trans: cascading scans++ " << transPtr->p->cascading_scans_count);
   ndbrequire(transPtr->p->cascading_scans_count < MaxCascadingScansPerTransaction);
   transPtr->p->cascading_scans_count++;
   return;
@@ -18178,6 +18185,7 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   ndbrequire(orgApiConnectPtr.p->lqhkeyreqrec > orgApiConnectPtr.p->lqhkeyconfrec);
   orgApiConnectPtr.p->lqhkeyreqrec--;
 
+  D("trans: cascading scans-- " << orgApiConnectPtr.p->cascading_scans_count);
   ndbrequire(orgApiConnectPtr.p->cascading_scans_count > 0);
   orgApiConnectPtr.p->cascading_scans_count--;
 
