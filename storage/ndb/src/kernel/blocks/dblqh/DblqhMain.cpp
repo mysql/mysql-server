@@ -2507,12 +2507,15 @@ Dblqh::dropTab_wait_usage(Signal* signal){
       jam();
       lcpDone = false;
     }
-    
-    if(lcpPtr.p->lcpQueued && 
-       lcpPtr.p->queuedFragment.lcpFragOrd.tableId == tabPtr.i)
+   
+    for (Uint32 i = 0; i < lcpPtr.p->numFragLcpsQueued; i++)
     {
-      jam();
-      lcpDone = false;
+      if (lcpPtr.p->queuedFragment[i].lcpFragOrd.tableId == tabPtr.i)
+      {
+        jam();
+        lcpDone = false;
+        break;
+      }
     }
   }
   
@@ -3022,14 +3025,14 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
   TlcpPtr.i = 0;
   ptrAss(TlcpPtr, lcpRecord);
   ndbout << "Information about LCP in this LQH" << endl
-	 << "  lcpState="<<TlcpPtr.p->lcpState<<endl
-	 << "   firstLcpLocAcc="<<TlcpPtr.p->firstLcpLocAcc<<endl
-	 << "   firstLcpLocTup="<<TlcpPtr.p->firstLcpLocTup<<endl
-	 << "   lcpAccptr="<<TlcpPtr.p->lcpAccptr<<endl
-	 << "   lastFragmentFlag="<<TlcpPtr.p->lastFragmentFlag<<endl
-	 << "   lcpQueued="<<TlcpPtr.p->lcpQueued<<endl
-	 << "   reportEmptyref="<< TlcpPtr.p->reportEmptyRef<<endl
-	 << "   reportEmpty="<<TlcpPtr.p->reportEmpty<<endl;
+	 << "  lcpState=" << TlcpPtr.p->lcpState << endl
+	 << "   firstLcpLocAcc=" << TlcpPtr.p->firstLcpLocAcc << endl
+	 << "   firstLcpLocTup=" << TlcpPtr.p->firstLcpLocTup << endl
+	 << "   lcpAccptr=" << TlcpPtr.p->lcpAccptr << endl
+	 << "   lastFragmentFlag=" << TlcpPtr.p->lastFragmentFlag << endl
+	 << "   numFragLcpsQueued=" << TlcpPtr.p->numFragLcpsQueued << endl
+	 << "   reportEmptyref=" << TlcpPtr.p->reportEmptyRef << endl
+	 << "   reportEmpty=" << TlcpPtr.p->reportEmpty << endl;
 #endif
 }//Dblqh::execTIME_SIGNAL()
 
@@ -14147,7 +14150,6 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
-  ndbrequire(!lcpPtr.p->lcpQueued);
 
   if (c_lcpId < lcpFragOrd->lcpId)
   {
@@ -14200,10 +14202,10 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
 
   if (lcpPtr.p->lcpState != LcpRecord::LCP_IDLE)
   {
-    ndbrequire(lcpPtr.p->lcpQueued == false);
-    lcpPtr.p->lcpQueued = true;
-    lcpPtr.p->queuedFragment.fragPtrI = fragptr.i;
-    lcpPtr.p->queuedFragment.lcpFragOrd = * lcpFragOrd;
+    Uint32 index = lcpPtr.p->numFragLcpsQueued;
+    lcpPtr.p->queuedFragment[index].fragPtrI = fragptr.i;
+    lcpPtr.p->queuedFragment[index].lcpFragOrd = * lcpFragOrd;
+    lcpPtr.p->numFragLcpsQueued++;
     return;
   }//if
   
@@ -14526,13 +14528,17 @@ void Dblqh::contChkpNextFragLab(Signal* signal)
   /* ------------------------------------------------------------------------
    *       WE ALSO RELEASE THE LOCAL LCP RECORDS.
    * ----------------------------------------------------------------------- */
-  if (lcpPtr.p->lcpQueued) {
+  if (lcpPtr.p->numFragLcpsQueued) {
     jam();
     /* ----------------------------------------------------------------------
      *  Transfer the state from the queued to the active LCP.
      * --------------------------------------------------------------------- */
-    lcpPtr.p->lcpQueued = false;
-    lcpPtr.p->currentFragment = lcpPtr.p->queuedFragment;
+    lcpPtr.p->currentFragment = lcpPtr.p->queuedFragment[0];
+    for (Uint32 i = 1; i < lcpPtr.p->numFragLcpsQueued; i++)
+    {
+      lcpPtr.p->queuedFragment[i - 1] = lcpPtr.p->queuedFragment[i];
+    }
+    lcpPtr.p->numFragLcpsQueued--;
     
     /* ----------------------------------------------------------------------
      *       START THE QUEUED LOCAL CHECKPOINT.
@@ -21054,7 +21060,7 @@ void Dblqh::initialiseLcpRec(Signal* signal)
     for (lcpPtr.i = 0; lcpPtr.i < clcpFileSize; lcpPtr.i++) {
       ptrAss(lcpPtr, lcpRecord);
       lcpPtr.p->lcpState = LcpRecord::LCP_IDLE;
-      lcpPtr.p->lcpQueued = false;
+      lcpPtr.p->numFragLcpsQueued = 0;
       lcpPtr.p->reportEmpty = false;
       lcpPtr.p->firstFragmentFlag = false;
       lcpPtr.p->lastFragmentFlag = false;
@@ -21491,7 +21497,7 @@ void Dblqh::initLcpSr(Signal* signal,
                       Uint32 fragId,
                       Uint32 fragPtr) 
 {
-  lcpPtr.p->lcpQueued = false;
+  lcpPtr.p->numFragLcpsQueued = 0;
   lcpPtr.p->currentFragment.fragPtrI = fragPtr;
   lcpPtr.p->currentFragment.lcpFragOrd.lcpNo = lcpNo;
   lcpPtr.p->currentFragment.lcpFragOrd.lcpId = lcpId;
@@ -23353,8 +23359,8 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	      TlcpPtr.p->currentFragment.fragPtrI);
     infoEvent("currentFragment.lcpFragOrd.tableId=%d",
 	      TlcpPtr.p->currentFragment.lcpFragOrd.tableId);
-    infoEvent(" lcpQueued=%d reportEmpty=%d",
-	      TlcpPtr.p->lcpQueued,
+    infoEvent(" numFragLcpsQueued=%d reportEmpty=%d",
+	      TlcpPtr.p->numFragLcpsQueued,
 	      TlcpPtr.p->reportEmpty);
     char buf[8*_NDB_NODE_BITMASK_SIZE+1];
     infoEvent(" m_EMPTY_LCP_REQ=%s",
@@ -25215,7 +25221,9 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
     Uint32 lag = bps ? m_sum_outstanding_bytes / bps : 30;
     if (false && lag >= 30)
     {
-      g_eventLogger->info("part: %u tick(%u) m_sample_completed_bytes: %u m_sample_sent_bytes: %u elapsed: %u kbps: %u lag: %u",
+      g_eventLogger->info("part: %u tick(%u) m_sample_completed_bytes: %u "
+                          "m_sample_sent_bytes: %u elapsed: %u kbps: %u lag:"
+                          " %u",
                           m_log_part_no,
                           now, m_sample_completed_bytes, m_sample_sent_bytes,
                           elapsed, bps/1000, lag);
@@ -25230,7 +25238,8 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
   if ((now / SLIDING_WINDOW_LEN) != (t / SLIDING_WINDOW_LEN))
   {
     Uint32 lag = m_curr_written_bytes ?
-      ((Uint64(m_sum_outstanding_bytes) / 1000) * Uint64(m_curr_elapsed_millis)) / m_curr_written_bytes:
+      ((Uint64(m_sum_outstanding_bytes) / 1000) *
+        Uint64(m_curr_elapsed_millis)) / m_curr_written_bytes :
       0;
 
     if (lag > maxlag)
@@ -25243,7 +25252,7 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
       m_lag_cnt += (lag / maxlag);
       if (tmp < maxlag_cnt && m_lag_cnt >= maxlag_cnt)
       {
-        retVal = -1; // start aborting transaction
+        retVal = -1; // start aborting transactions
       }
     }
     else
@@ -25253,7 +25262,7 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
        */
       if (m_lag_cnt >= maxlag_cnt)
       {
-        // stop aborting transcation
+        // stop aborting transactions
         retVal = 1;
       }
       m_lag_cnt = 0;
@@ -25270,7 +25279,8 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
     }
     else if (m_lag_cnt < maxlag_cnt && m_lag_cnt == save_lag_cnt)
     {
-      g_eventLogger->info("part: %u : time to complete: %u lag_cnt: %u => %u => retVal: %d",
+      g_eventLogger->info("part: %u : time to complete: %u lag_cnt:"
+                          " %u => %u => retVal: %d",
                           m_log_part_no,
                           lag,
                           save_lag_cnt,
@@ -25279,9 +25289,17 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
     }
     else
     {
-      g_eventLogger->info("part: %u : sum_outstanding: %ukb avg_written: %ukb avg_elapsed: %ums time to complete: %u lag_cnt: %u => %u retVal: %d",
-                          m_log_part_no, m_sum_outstanding_bytes / 1024, m_curr_written_bytes/1024, m_curr_elapsed_millis,
-             lag, save_lag_cnt, m_lag_cnt, retVal);
+      g_eventLogger->info("part: %u : sum_outstanding: %ukb avg_written:"
+                          " %ukb avg_elapsed: %ums time to complete:"
+                          " %u lag_cnt: %u => %u retVal: %d",
+                          m_log_part_no,
+                          m_sum_outstanding_bytes / 1024,
+                          m_curr_written_bytes/1024,
+                          m_curr_elapsed_millis,
+                          lag,
+                          save_lag_cnt,
+                          m_lag_cnt,
+                          retVal);
     }
 #endif
 
