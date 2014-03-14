@@ -1932,8 +1932,14 @@ row_delete_for_mysql_using_cursor(
 			rec, dict_table_is_comp(index->table))) {
 
 			ut_a(btr_pcur_move_to_prev(&pcur, &mtr));
-
 			rec = btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur));
+
+			while (page_rec_is_infimum(rec)
+			       || page_rec_is_supremum(rec)) {
+				ut_a(btr_pcur_move_to_prev(&pcur, &mtr));
+				rec = btr_cur_get_rec(
+					btr_pcur_get_btr_cur(&pcur));
+			}
 
 #ifdef UNIV_DEBUG 
 			ulint           offsets_[REC_OFFS_NORMAL_SIZE];
