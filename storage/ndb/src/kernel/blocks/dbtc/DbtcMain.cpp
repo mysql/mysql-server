@@ -1496,7 +1496,8 @@ void Dbtc::printState(Signal* signal, int place, bool force_trace)
   ndbout << " apiTimer = " << getApiConTimer(apiConnectptr.i)
 	 << " counter = " << apiConnectptr.p->counter
 	 << " lqhkeyconfrec = " << apiConnectptr.p->lqhkeyconfrec
-	 << " lqhkeyreqrec = " << apiConnectptr.p->lqhkeyreqrec << endl;
+	 << " lqhkeyreqrec = " << apiConnectptr.p->lqhkeyreqrec
+         << " cascading_scans = " << apiConnectptr.p->cascading_scans_count << endl;
   ndbout << "abortState = " << apiConnectptr.p->abortState 
 	 << " apiScanRec = " << apiConnectptr.p->apiScanRec
 	 << " returncode = " << apiConnectptr.p->returncode << endl;
@@ -2476,6 +2477,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->m_transaction_nodes.clear();
   regApiPtr->singleUserMode = 0;
   regApiPtr->m_pre_commit_pass = 0;
+  regApiPtr->cascading_scans_count = 0;
   // Trigger data
   ndbassert(regApiPtr->theFiredTriggers.isEmpty());
   releaseFiredTriggerData(&regApiPtr->theFiredTriggers);
@@ -13581,6 +13583,7 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   TlocalApiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
   ndbassert(TlocalApiConnectptr.p->m_transaction_nodes.isclear());
   ndbassert(TlocalApiConnectptr.p->apiScanRec == RNIL);
+  ndbassert(TlocalApiConnectptr.p->cascading_scans_count == 0);
   TlocalApiConnectptr.p->ndbapiBlockref = 0;
   TlocalApiConnectptr.p->transid[0] = 0;
   TlocalApiConnectptr.p->transid[1] = 0;
@@ -16957,6 +16960,15 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
       regApiPtr->theFiredTriggers.first(trigPtr);
       while (trigPtr.i != RNIL) {
         jam();
+        if (regApiPtr->cascading_scans_count >=
+            MaxCascadingScansPerTransaction)
+        {
+          jam();
+          D("trans: cascading scans " << regApiPtr->cascading_scans_count);
+          waitToExecutePendingTrigger(signal, *transPtr);
+          // pause all trigger execution
+          break;
+        }
         // Execute all ready triggers in parallel
         opPtr.i = trigPtr.p->fireingOperation;
         ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
@@ -16997,19 +17009,8 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
       {
         // Wait until transaction is ready to execute a trigger
         jam();
-        if (!tc_testbit(regApiPtr->m_flags,
-                        ApiConnectRecord::TF_TRIGGER_PENDING))
-        {
-          jam();
-          regApiPtr->m_flags |= ApiConnectRecord::TF_TRIGGER_PENDING;
-          signal->theData[0] = TcContinueB::TRIGGER_PENDING;
-          signal->theData[1] = transPtr->i;
-          signal->theData[2] = regApiPtr->transid[0];
-          signal->theData[3] = regApiPtr->transid[1];
-          sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
-        }
-        // else  
-        // We are already waiting for a pending trigger (CONTINUEB)
+        D("trans: apiConnectstate " << regApiPtr->apiConnectstate);
+        waitToExecutePendingTrigger(signal, *transPtr);
       }
       else
       {
@@ -17019,6 +17020,28 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
         ndbrequire(regApiPtr->apiConnectstate == CS_ABORTING);
       }
     }
+  }
+}
+
+void
+Dbtc::waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr)
+{
+  if (!tc_testbit(transPtr.p->m_flags,
+                  ApiConnectRecord::TF_TRIGGER_PENDING))
+  {
+    jam();
+    D("trans: send trigger pending");
+    transPtr.p->m_flags |= ApiConnectRecord::TF_TRIGGER_PENDING;
+    signal->theData[0] = TcContinueB::TRIGGER_PENDING;
+    signal->theData[1] = transPtr.i;
+    signal->theData[2] = transPtr.p->transid[0];
+    signal->theData[3] = transPtr.p->transid[1];
+    sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+  }
+  else
+  {
+    // We are already waiting for a pending trigger (CONTINUEB)
+    D("trans: trigger pending already");
   }
 }
 
@@ -17702,6 +17725,9 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   execSCAN_TABREQ(signal);
 
   transPtr->p->lqhkeyreqrec++; // Make sure that execution is stalled
+  D("trans: cascading scans++ " << transPtr->p->cascading_scans_count);
+  ndbrequire(transPtr->p->cascading_scans_count < MaxCascadingScansPerTransaction);
+  transPtr->p->cascading_scans_count++;
   return;
 
 oom:
@@ -18158,6 +18184,10 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   ndbrequire(orgApiConnectPtr.p->lqhkeyreqrec > 0);
   ndbrequire(orgApiConnectPtr.p->lqhkeyreqrec > orgApiConnectPtr.p->lqhkeyconfrec);
   orgApiConnectPtr.p->lqhkeyreqrec--;
+
+  D("trans: cascading scans-- " << orgApiConnectPtr.p->cascading_scans_count);
+  ndbrequire(orgApiConnectPtr.p->cascading_scans_count > 0);
+  orgApiConnectPtr.p->cascading_scans_count--;
 
   trigger_op_finished(signal, orgApiConnectPtr, triggerId, opPtr.p, errCode);
 }

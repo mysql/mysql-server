@@ -1,0 +1,67 @@
+-- source include/have_ndb.inc
+
+--echo # bug#18082045 - TESTFK CREATEDROPWITHDATA NEED HIGH MAXNOOFCONCURRENTSCANS
+
+create table t1 (
+  a1 int not null,
+  primary key using hash (a1)
+) engine ndb;
+
+create table t2 (
+  a2 int not null,
+  b2 int not null,
+  primary key using hash (a2),
+  key t2x1 (b2),
+  -- cascade is not essential to demo the bug
+  foreign key t2fk1 (b2) references t1 (a1) on delete cascade
+) engine ndb;
+
+# A full scan delete batch on t1 starts 64 parallel cascading scans
+# on t2 each with (hardcoded) 4 fragment scans.  Our .cnf limits these
+# to 64.  The 1024 rows here is more than enough to create such batches.
+
+--disable_query_log
+let $i=1024;
+while ($i)
+{
+  eval insert into t1 values ($i);
+  eval insert into t2 values ($i,$i);
+  dec $i;
+}
+--enable_query_log
+
+begin;
+delete from t1;
+rollback;
+select count(*) from t1;
+select count(*) from t2;
+
+delete from t1;
+select count(*) from t1;
+select count(*) from t2;
+
+# Using IN(...) we can create even more parallel cascading scans.
+# This becomes a batch of PK deletes where triggers are executed
+# at the end.
+
+--disable_query_log
+let $i=256;
+let $s=0;
+while ($i)
+{
+  eval insert into t1 values ($i);
+  eval insert into t2 values ($i,$i);
+  let $s=$s,$i;
+  dec $i;
+}
+--enable_query_log
+
+--eval begin; delete from t1 where a1 in ($s); rollback
+select count(*) from t1;
+select count(*) from t2;
+
+--eval delete from t1 where a1 in ($s)
+select count(*) from t1;
+select count(*) from t2;
+
+drop table t2, t1;
