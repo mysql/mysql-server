@@ -336,7 +336,7 @@ ule_simple_garbage_collection(ULE ule, txn_gc_info *gc_info) {
         // uxr with a txnid that is less than oldest_referenced_xid
         for (uint32_t i = 0; i < ule->num_cuxrs; i++) {
             curr_index = ule->num_cuxrs - i - 1;
-            if (ule->uxrs[curr_index].xid < gc_info->oldest_referenced_xid_for_simple_gc) {
+            if (ule->uxrs[curr_index].xid <= gc_info->oldest_referenced_xid_for_simple_gc) {
                 break;
             }
         }
