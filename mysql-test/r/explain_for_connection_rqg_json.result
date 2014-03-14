@@ -351,7 +351,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "access_type": "ALL",
 +            "access_type": "range",
              "possible_keys": [
-@@ -65,6 +65,12 @@
+@@ -65,3 +65,8 @@
              ],
 -            "rows_examined_per_scan": 20,
 +            "key": "col_varchar_key",
@@ -361,8 +361,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +            "key_length": "4",
 +            "rows_examined_per_scan": 5,
              "rows_produced_per_join": 4400,
--            "filtered": 100,
-+            "filtered": 400,
+@@ -69,2 +74,3 @@
              "range_checked_for_each_record": "index map: 0x20",
 +            "using_index": true,
              "cost_info": {
@@ -385,7 +384,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "access_type": "ALL",
 +            "access_type": "range",
              "possible_keys": [
-@@ -46,6 +46,12 @@
+@@ -46,3 +46,8 @@
              ],
 -            "rows_examined_per_scan": 20,
 +            "key": "col_int_key",
@@ -395,8 +394,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +            "key_length": "5",
 +            "rows_examined_per_scan": 8,
              "rows_produced_per_join": 400,
--            "filtered": 100,
-+            "filtered": 250,
+@@ -50,2 +55,3 @@
              "range_checked_for_each_record": "index map: 0x2",
 +            "using_index": true,
              "cost_info": {
@@ -409,7 +407,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "access_type": "ALL",
 +            "access_type": "range",
              "possible_keys": [
-@@ -41,6 +41,12 @@
+@@ -41,3 +41,8 @@
              ],
 -            "rows_examined_per_scan": 20,
 +            "key": "col_int_key",
@@ -419,8 +417,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +            "key_length": "5",
 +            "rows_examined_per_scan": 7,
              "rows_produced_per_join": 400,
--            "filtered": 100,
-+            "filtered": 285.71,
+@@ -45,2 +50,3 @@
              "range_checked_for_each_record": "index map: 0x2",
 +            "using_index": true,
              "cost_info": {
@@ -978,7 +975,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                      "access_type": "ALL",
 +                      "access_type": "range",
                        "possible_keys": [
-@@ -110,6 +110,13 @@
+@@ -110,3 +110,9 @@
                        ],
 -                      "rows_examined_per_scan": 20,
 +                      "key": "col_int_key",
@@ -989,8 +986,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +                      "key_length": "9",
 +                      "rows_examined_per_scan": 6,
                        "rows_produced_per_join": 400,
--                      "filtered": 100,
-+                      "filtered": 333.33,
+@@ -114,2 +120,3 @@
                        "range_checked_for_each_record": "index map: 0x3",
 +                      "using_index": true,
                        "cost_info": {
@@ -1013,7 +1009,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                      "access_type": "ALL",
 +                      "access_type": "range",
                        "possible_keys": [
-@@ -83,5 +83,10 @@
+@@ -83,3 +83,8 @@
                        ],
 -                      "rows_examined_per_scan": 20,
 +                      "key": "PRIMARY",
@@ -1023,9 +1019,6 @@ Diff: EXPLAIN NORMAL vs OTHER
 +                      "key_length": "4",
 +                      "rows_examined_per_scan": 1,
                        "rows_produced_per_join": 400,
--                      "filtered": 100,
-+                      "filtered": 2000,
-                       "range_checked_for_each_record": "index map: 0x1",
 @@ -120,2 +125,3 @@
              "filtered": 100,
 +            "using_where": true,

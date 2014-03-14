@@ -9085,7 +9085,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     
     for (Copy_field *copy_ptr=copy ; copy_ptr != copy_end ; copy_ptr++)
     {
-      copy_ptr->do_copy(copy_ptr);
+      copy_ptr->invoke_do_copy(copy_ptr);
     }
 
     error=to->file->ha_write_row(to->record[0]);
