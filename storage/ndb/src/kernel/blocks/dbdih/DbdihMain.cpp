@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2820,7 +2820,6 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
     sendSignal(ref, GSN_START_MECONF, signal, StartMeConf::SignalLength, JBB);
     startMe->startWord += wordPerSignal;
   }//for
-  c_nodeStartMaster.m_outstandingGsn = GSN_START_MECONF;
   nodeResetStart(signal);
 
   /**
@@ -5158,7 +5157,6 @@ void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
   case GSN_START_INFOREQ:
   case GSN_START_PERMCONF:
   case GSN_DICTSTARTREQ:
-  case GSN_START_MECONF:
   case GSN_COPY_GCIREQ:
     jam();
     break;
@@ -5468,7 +5466,7 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
     jam();
  
     /**
-     * Check if we'r waiting for the failed node's LQH to complete
+     * Check if we're waiting for the failed node's LQH to complete
      *
      * Note that this is ran "before" LCP master take over
      */
@@ -5636,8 +5634,7 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
     sendSignal(reference(), GSN_SUB_GCP_COMPLETE_ACK, signal,
 	       SubGcpCompleteAck::SignalLength, JBB);
   }
-}//Dbdih::handleGcpStateInMaster()
- 
+}
  
 void
 Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
@@ -7279,7 +7276,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       jam();
       /* ------------------------------------------------------------------- 
        * Everybody was in the active phase. We will restart sending 
-       * LCP_FRAGORD to the nodes from the new master. 
+       * LCP_FRAG_ORD to the nodes from the new master. 
        * We also need to set dihLcpStatus to ZACTIVE
        * in the master node since the master will wait for all nodes to 
        * complete before finalising the LCP process.
@@ -8429,12 +8426,12 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
             {
               nodePtr.p->queuedChkpt[newindex] = nodePtr.p->queuedChkpt[index];
             }
-            ++ newindex;
+            newindex++;
           }
           else
           {
+            /* Unqueueing by not moving back into queue */
             jam();
-            // g_eventLogger->info("Unqueuing %d", index);
   	  }
         }
         nodePtr.p->noOfQueuedChkpt = newindex;
@@ -13429,7 +13426,8 @@ void Dbdih::startNextChkpt(Signal* signal)
 	  // that is alive and that have not yet been started.
 	  //-------------------------------------------------------------------
 	  
-	  if (nodePtr.p->noOfStartedChkpt < 2) 
+          if (nodePtr.p->noOfStartedChkpt <
+              MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE)
 	  {
 	    jam();
 	    /**
@@ -13449,7 +13447,8 @@ void Dbdih::startNextChkpt(Signal* signal)
 	    
 	    sendLCP_FRAG_ORD(signal, nodePtr.p->startedChkpt[i]);
 	  } 
-	  else if (nodePtr.p->noOfQueuedChkpt < 2) 
+          else if (nodePtr.p->noOfQueuedChkpt <
+                   MAX_QUEUED_FRAG_CHECKPOINTS_PER_NODE)
 	  {
 	    jam();
 	    /**
@@ -13802,16 +13801,25 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
     
     const Uint32 outstanding = nodePtr.p->noOfStartedChkpt;
     ndbrequire(outstanding > 0);
-    if(nodePtr.p->startedChkpt[0].tableId != tableId ||
-       nodePtr.p->startedChkpt[0].fragId != fragId){
+    bool found = false;
+    for (Uint32 i = 0; i < outstanding; i++)
+    {
+      if (found)
+      {
+        jam();
+        nodePtr.p->startedChkpt[i - 1] = nodePtr.p->startedChkpt[i];
+        continue;
+      }
+      if(nodePtr.p->startedChkpt[i].tableId != tableId ||
+         nodePtr.p->startedChkpt[i].fragId != fragId)
+      {
+        jam();
+        continue;
+      }
       jam();
-      ndbrequire(outstanding > 1);
-      ndbrequire(nodePtr.p->startedChkpt[1].tableId == tableId);
-      ndbrequire(nodePtr.p->startedChkpt[1].fragId == fragId);
-    } else {
-      jam();
-      nodePtr.p->startedChkpt[0] = nodePtr.p->startedChkpt[1];
+      found = true;
     }
+    ndbrequire(found);
     nodePtr.p->noOfStartedChkpt--;
     checkStartMoreLcp(signal, nodeId);
   }
@@ -14014,21 +14022,25 @@ void Dbdih::checkStartMoreLcp(Signal* signal, Uint32 nodeId)
   nodePtr.i = nodeId;
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
   
-  ndbrequire(nodePtr.p->noOfStartedChkpt < 2);
+  ndbrequire(nodePtr.p->noOfStartedChkpt <
+             MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE);
   
   if (nodePtr.p->noOfQueuedChkpt > 0) {
     jam();
+    Uint32 startIndex = nodePtr.p->noOfStartedChkpt;
+    nodePtr.p->startedChkpt[startIndex] = nodePtr.p->queuedChkpt[0];
+    for (Uint32 i = 1; i < nodePtr.p->noOfQueuedChkpt; i++)
+    {
+      nodePtr.p->queuedChkpt[i - 1] = nodePtr.p->queuedChkpt[i];
+    }
     nodePtr.p->noOfQueuedChkpt--;
-    Uint32 i = nodePtr.p->noOfStartedChkpt;
-    nodePtr.p->startedChkpt[i] = nodePtr.p->queuedChkpt[0];
-    nodePtr.p->queuedChkpt[0] = nodePtr.p->queuedChkpt[1];
+    nodePtr.p->noOfStartedChkpt++;
     //-------------------------------------------------------------------
     // We can send a LCP_FRAGORD to the node ordering it to perform a
     // local checkpoint on this fragment replica.
     //-------------------------------------------------------------------
-    nodePtr.p->noOfStartedChkpt = i + 1;
     
-    sendLCP_FRAG_ORD(signal, nodePtr.p->startedChkpt[i]);
+    sendLCP_FRAG_ORD(signal, nodePtr.p->startedChkpt[startIndex]);
   }
 
   /* ----------------------------------------------------------------------- */

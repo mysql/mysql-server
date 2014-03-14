@@ -654,13 +654,15 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     const Uint64 resetElapsed = NdbTick_Elapsed(m_reset_disk_speed_time,now).milliSec();
     const Uint64 millisPassed = NdbTick_Elapsed(m_monitor_snapshot_start,now).milliSec();
     /* Dump measured disk write speed since last RESET_DISK_SPEED */
-    ndbout_c("m_curr_disk_write_speed: %u  m_words_written_this_period: %u  m_overflow_disk_write: %u",
+    ndbout_c("m_curr_disk_write_speed: %u  m_words_written_this_period:"
+             " %u  m_overflow_disk_write: %u",
               m_curr_disk_write_speed, m_words_written_this_period, m_overflow_disk_write);
     ndbout_c("m_reset_delay_used: %u  time since last RESET_DISK_SPEED: %llu millis",
              m_reset_delay_used, resetElapsed);
     /* Dump measured rate since last snapshot start */
     Uint64 byteRate = (4000 * m_monitor_words_written) / (millisPassed + 1);
-    ndbout_c("m_monitor_words_written : %llu, duration : %llu millis, rate : %llu bytes/s : (%u pct of config)",
+    ndbout_c("m_monitor_words_written : %llu, duration : %llu millis, rate :"
+             " %llu bytes/s : (%u pct of config)",
              m_monitor_words_written, millisPassed, 
              byteRate,
              (Uint32) (100 * byteRate / (4 * 10)) / m_curr_disk_write_speed);

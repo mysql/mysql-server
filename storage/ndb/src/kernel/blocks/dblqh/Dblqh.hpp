@@ -988,6 +988,7 @@ public:
    *       checkpoint that is ongoing. This record is also used as a
    *       system restart record.
    */
+#define MAX_QUEUED_LCP_FRAGMENTS 128
   struct LcpRecord {
     LcpRecord() { m_EMPTY_LCP_REQ.clear(); }
     
@@ -1013,8 +1014,8 @@ public:
     };
     FragOrd currentFragment;
     
-    bool   lcpQueued;
-    FragOrd queuedFragment;
+    Uint32  numFragLcpsQueued;
+    FragOrd queuedFragment[MAX_QUEUED_LCP_FRAGMENTS];
     
     bool   reportEmpty;
     NdbNodeBitmask m_EMPTY_LCP_REQ;
