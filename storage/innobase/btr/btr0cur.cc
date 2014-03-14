@@ -2784,6 +2784,13 @@ fail_err:
 
 		goto fail;
 	} else {
+
+		/* For intrinsic table we take a consistent path
+		to re-organize using pessmisitic delete. */
+		if (dict_table_is_intrinsic(index->table)) {
+			goto fail;
+		}
+
 		ut_ad(!reorg);
 
 		/* If the record did not fit, reorganize */
