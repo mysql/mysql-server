@@ -4845,9 +4845,13 @@ void ha_partition::position(const uchar *record)
   DBUG_ENTER("ha_partition::position");
 
   int2store(ref, m_last_part);
-  if (m_sec_sort_by_rowid)
+  /*
+    If m_sec_sort_by_rowid is set, then the ref is already stored in the
+    priority queue (m_queue) when doing ordered scans.
+  */
+  if (m_sec_sort_by_rowid && m_ordered_scan_ongoing)
   {
-    DBUG_ASSERT(m_ordered_scan_ongoing);
+    DBUG_ASSERT(m_queue.elements);
     DBUG_ASSERT(m_ordered_rec_buffer);
     DBUG_ASSERT(!m_curr_key_info[1]);
     /* We already have the ref. */

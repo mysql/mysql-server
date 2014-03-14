@@ -8781,7 +8781,7 @@ static bool check_record(THD *thd, List<Item> &fields, bool ignore_errors)
 
   @return Error status.
 */
-static bool check_record(THD *thd, Field **ptr)
+bool check_record(THD *thd, Field **ptr)
 {
   Field *field;
   while ((field = *ptr++) && !thd->is_error())
