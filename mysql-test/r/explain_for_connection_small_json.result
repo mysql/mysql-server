@@ -59,7 +59,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -          "access_type": "ALL",
 +          "access_type": "range",
            "possible_keys": [
-@@ -102,5 +102,10 @@
+@@ -102,3 +102,8 @@
            ],
 -          "rows_examined_per_scan": 7,
 +          "key": "PRIMARY",
@@ -69,9 +69,6 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "key_length": "4",
 +          "rows_examined_per_scan": 2,
            "rows_produced_per_join": 28,
--          "filtered": 100,
-+          "filtered": 350,
-           "range_checked_for_each_record": "index map: 0x1",
 QUERY: SELECT STRAIGHT_JOIN  (SELECT SUM(t4.a) FROM t4 WHERE t4.a IN (t1.b, t2.b))  FROM t3, t1, t2 WHERE t3.a=t1.a AND t3.a=t2.a 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan

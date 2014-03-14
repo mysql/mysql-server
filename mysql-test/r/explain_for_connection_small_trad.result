@@ -25,7 +25,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -4,2 +4,2 @@
  1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	NULL
 -1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	7	100.00	Range checked for each record (index map: 0x1)
-+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	4	NULL	2	350.00	Range checked for each record (index map: 0x1)
++1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Range checked for each record (index map: 0x1)
 QUERY: SELECT STRAIGHT_JOIN  (SELECT SUM(t4.a) FROM t4 WHERE t4.a IN (t1.b, t2.b))  FROM t3, t1, t2 WHERE t3.a=t1.a AND t3.a=t2.a 
 STATUS: EQUAL
 QUERY: SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b 
