@@ -2483,9 +2483,7 @@ void unlink_thd(THD *thd)
   thd_cleanup(thd);
   dec_connection_count(thd);
 
-  mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &thd->status_var);
-  mysql_mutex_unlock(&LOCK_status);
+  thd->add_status_to_global();
 
   mysql_mutex_lock(&LOCK_thread_count);
   thread_count--;

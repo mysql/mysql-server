@@ -1360,9 +1360,7 @@ void THD::init_for_queries()
 
 void THD::change_user(void)
 {
-  mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
-  mysql_mutex_unlock(&LOCK_status);
+  add_status_to_global();
 
   cleanup();
   reset_killed();

@@ -1,9 +1,17 @@
+#
+# Test very simply slave replication (to ensure it works at all)
+# In addition, test also:
+# MDEV-5829 STOP SLAVE resets global status variables
+#
+
 source include/master-slave.inc;
 
 create table t1 (n int);
 insert into t1 values(1);
 sync_slave_with_master; 
+show global status like 'com_insert';
 stop slave;
+show global status like 'com_insert';
 --source include/wait_for_slave_to_stop.inc
 start slave;
 --source include/wait_for_slave_to_start.inc
