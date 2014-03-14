@@ -26,6 +26,7 @@ Created 03/11/2014 Shaohua Wang
 #include "btr0bulk.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
+#include "ibuf0ibuf.h"
 
 char	innobase_enable_bulk_load;
 
@@ -311,6 +312,14 @@ void PageBulk::commit(bool	success)
 {
 	if (success) {
 		ut_ad(page_validate(m_page, m_index));
+
+		/* Set no free space left and no buffered changes in ibuf. */
+		if (!dict_index_is_clust(m_index)
+		    && !dict_table_is_temporary(m_index->table)
+		    && page_is_leaf(m_page)) {
+			ibuf_set_bitmap_for_bulk_load(
+				m_block, innobase_index_fill_factor == 100);
+        	}
 	}
 
 	mtr_commit(m_mtr);
