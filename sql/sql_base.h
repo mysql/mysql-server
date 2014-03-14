@@ -199,6 +199,8 @@ bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors, MY_BITMAP *bitmap,
                  MY_BITMAP *insert_into_fields_bitmap);
 
+bool check_record(THD *thd, Field **ptr);
+
 Field *
 find_field_in_tables(THD *thd, Item_ident *item,
                      TABLE_LIST *first_table, TABLE_LIST *last_table,

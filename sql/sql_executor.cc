@@ -3969,7 +3969,7 @@ copy_fields(Temp_table_param *param)
   DBUG_ASSERT((ptr != NULL && end >= ptr) || (ptr == NULL && end == NULL));
 
   for (; ptr < end; ptr++)
-    (*ptr->do_copy)(ptr);
+    ptr->invoke_do_copy(ptr);
 
   List_iterator_fast<Item> it(param->copy_funcs);
   Item_copy *item;
