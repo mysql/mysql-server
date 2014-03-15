@@ -785,8 +785,7 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
     decNoFree();
     return true;
   }
-  ptr.i = RNIL;
-  ptr.p = NULL;
+  ptr.setNull();
   return false;
 }
 
@@ -832,8 +831,7 @@ ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
     decNoFree();
     return true;
   }
-  ptr.i = RNIL;
-  ptr.p = NULL;
+  ptr.setNull();
   return false;
 }
 
