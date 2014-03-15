@@ -59,6 +59,7 @@ WOPool::seize_new_page(Ptr<void>& ptr)
     seize_in_page(ptr);
     return true;
   }
+  ptr.setNull();
   return false;
 }
 
