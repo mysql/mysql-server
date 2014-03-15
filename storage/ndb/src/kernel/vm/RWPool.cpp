@@ -115,7 +115,7 @@ seize_first:
   m_current_page_no = RNIL;
   m_current_pos = RWPage::RWPAGE_WORDS;
   m_current_first_free = REC_NIL;
-  
+  ptr.setNull(); 
   return false;
 }
 

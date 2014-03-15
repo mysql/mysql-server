@@ -136,6 +136,13 @@ struct Ptr
   inline void setNull()
   {
     i = RNIL;
+#ifndef NDB_NOT_NULLIFY_P_VALUE
+    /**
+     We set the pointer to a bad value to ensure that we quickly discover
+     problems with usage of incorrect pointer objects.
+     */
+    p = (T*)147;
+#endif
   }
 };
 
@@ -150,6 +157,9 @@ struct ConstPtr
   inline void setNull()
   {
     i = RNIL;
+#ifndef NDB_NOT_NULLIFY_P_VALUE
+    p = (T*)147;
+#endif
   }
 };
 
@@ -352,12 +362,17 @@ RecordPool<T, P>::seize(Ptr<T> & ptr)
 {
   Ptr<void> tmp;
   bool ret = m_pool.seize(tmp);
-  if(likely(ret))
+  if (likely(ret))
   {
     ptr.i = tmp.i;
     ptr.p = static_cast<T*>(tmp.p);
+    return ret;
   }
-  return ret;
+  else
+  {
+    ptr.setNull();
+    return ret;
+  }
 }
 
 template <typename T, typename P>
@@ -367,12 +382,17 @@ RecordPool<T, P>::seize(ArenaHead & ah, Ptr<T> & ptr)
 {
   Ptr<void> tmp;
   bool ret = m_pool.seize(ah, tmp);
-  if(likely(ret))
+  if (likely(ret))
   {
     ptr.i = tmp.i;
     ptr.p = static_cast<T*>(tmp.p);
+    return ret;
   }
-  return ret;
+  else
+  {
+    ptr.setNull();
+    return ret;
+  }
 }
 
 template <typename T, typename P>
