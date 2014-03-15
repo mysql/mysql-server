@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2008, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2008-2010 Sun Microsystems, Inc.
 # Use is subject to license terms.
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -4172,7 +4172,7 @@ sub mysqld_arguments ($$$$) {
   }
 
   mtr_add_arg($args, "%s--key_buffer_size=1M", $prefix);
-  mtr_add_arg($args, "%s--sort_buffer=256K", $prefix);
+  mtr_add_arg($args, "%s--sort_buffer_size=256K", $prefix);
   mtr_add_arg($args, "%s--max_heap_table_size=1M", $prefix);
 
   if ( $opt_ssl_supported )

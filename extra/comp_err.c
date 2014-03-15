@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates & Anjuta Widenius
-   Copyright (c) 2008-2011 Monty Program Ab 
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates & Anjuta Widenius
+   Copyright (c) 2008, 2013 Monty Program Ab 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include <my_getopt.h>
 #include <assert.h>
 #include <my_dir.h>
+#include <mysql_version.h>
 
 #define MAX_ROWS  1000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
@@ -177,6 +178,23 @@ int main(int argc, char *argv[])
       fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);
       DBUG_RETURN(1);
     }
+#if MYSQL_VERSION_ID >= 50100 && MYSQL_VERSION_ID < 50500
+/* Number of error messages in 5.1 - do not change this number! */
+#define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 641
+#elif MYSQL_VERSION_ID >= 50500 && MYSQL_VERSION_ID < 50600
+/* Number of error messages in 5.5 - do not change this number! */
+#define MYSQL_OLD_GA_ERROR_MESSAGE_COUNT 728
+#endif
+#if MYSQL_OLD_GA_ERROR_MESSAGE_COUNT
+    if (row_count != MYSQL_OLD_GA_ERROR_MESSAGE_COUNT)
+    {
+      fprintf(stderr, "Can only add new error messages to latest GA. ");
+      fprintf(stderr, "Use ER_UNKNOWN_ERROR instead.\n");
+      fprintf(stderr, "Expected %u messages, found %u.\n",
+              MYSQL_OLD_GA_ERROR_MESSAGE_COUNT, row_count);
+      DBUG_RETURN(1);
+    }
+#endif
     if (lang_head == NULL || error_head == NULL)
     {
       fprintf(stderr, "Failed to parse input file %s\n", TXTFILE);

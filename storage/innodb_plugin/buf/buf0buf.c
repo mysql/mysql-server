@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 51 Franklin St,
+Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -1615,7 +1615,6 @@ loop:
 		block = (buf_block_t*) buf_page_hash_get(space, offset);
 	}
 
-loop2:
 	if (block == NULL) {
 		/* Page not in buf_pool: needs to be read from file */
 
@@ -1664,6 +1663,7 @@ loop2:
 	if (must_read && (mode == BUF_GET_IF_IN_POOL
 			  || mode == BUF_PEEK_IF_IN_POOL)) {
 		/* The page is only being read to buffer */
+null_exit:
 		buf_pool_mutex_exit();
 
 		return(NULL);
@@ -1678,6 +1678,14 @@ loop2:
 
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
+		if (mode == BUF_PEEK_IF_IN_POOL) {
+			/* This mode is only used for dropping an
+			adaptive hash index.  There cannot be an
+			adaptive hash index for a compressed-only
+			page, so do not bother decompressing the page. */
+			goto null_exit;
+		}
+
 		bpage = &block->page;
 		/* Protect bpage->buf_fix_count. */
 		mutex_enter(&buf_pool_zip_mutex);
@@ -1697,6 +1705,11 @@ wait_until_unfixed:
 			goto loop;
 		}
 
+		/* Buffer-fix the block so that it cannot be evicted
+		or relocated while we are attempting to allocate an
+		uncompressed page. */
+		bpage->buf_fix_count++;
+
 		/* Allocate an uncompressed page. */
 		buf_pool_mutex_exit();
 		mutex_exit(&buf_pool_zip_mutex);
@@ -1706,32 +1719,19 @@ wait_until_unfixed:
 
 		buf_pool_mutex_enter();
 		mutex_enter(&block->mutex);
+		mutex_enter(&buf_pool_zip_mutex);
+		/* Buffer-fixing prevents the page_hash from changing. */
+		ut_ad(bpage == buf_page_hash_get(space, offset));
 
-		{
-			buf_page_t*	hash_bpage
-				= buf_page_hash_get(space, offset);
+		if (--bpage->buf_fix_count
+		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
 
-			if (UNIV_UNLIKELY(bpage != hash_bpage)) {
-				/* The buf_pool->page_hash was modified
-				while buf_pool_mutex was released.
-				Free the block that was allocated. */
-
-				buf_LRU_block_free_non_file_page(block);
-				mutex_exit(&block->mutex);
-
-				block = (buf_block_t*) hash_bpage;
-				goto loop2;
-			}
-		}
-
-		if (UNIV_UNLIKELY
-		    (bpage->buf_fix_count
-		     || buf_page_get_io_fix(bpage) != BUF_IO_NONE)) {
-
-			/* The block was buffer-fixed or I/O-fixed
-			while buf_pool_mutex was not held by this thread.
-			Free the block that was allocated and try again.
-			This should be extremely unlikely. */
+			mutex_exit(&buf_pool_zip_mutex);
+			/* The block was buffer-fixed or I/O-fixed while
+			buf_pool_mutex was not held by this thread.
+			Free the block that was allocated and retry.
+			This should be extremely unlikely, for example,
+			if buf_page_get_zip() was invoked. */
 
 			buf_LRU_block_free_non_file_page(block);
 			mutex_exit(&block->mutex);
@@ -1741,8 +1741,6 @@ wait_until_unfixed:
 
 		/* Move the compressed page from bpage to block,
 		and uncompress it. */
-
-		mutex_enter(&buf_pool_zip_mutex);
 
 		buf_relocate(bpage, &block->page);
 		buf_block_init_low(block);

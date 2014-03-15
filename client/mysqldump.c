@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2503,7 +2503,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
   len= my_snprintf(query_buff, sizeof(query_buff),
-                   "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+                   "SET SQL_QUOTE_SHOW_CREATE=%d",
                    (opt_quoted || opt_keywords));
   if (!create_options)
     strmov(query_buff+len,
@@ -2636,14 +2636,19 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
           row= mysql_fetch_row(result);
 
-          fprintf(sql_file, "  %s %s", quote_name(row[0], name_buff, 0),
-                  row[1]);
+          /*
+            The actual column type doesn't matter anyway, since the table will
+            be dropped at run time.
+            We do tinyint to avoid hitting the row size limit.
+          */
+          fprintf(sql_file, " %s tinyint NOT NULL",
+                  quote_name(row[0], name_buff, 0));
 
           while((row= mysql_fetch_row(result)))
           {
             /* col name, col type */
-            fprintf(sql_file, ",\n  %s %s",
-                    quote_name(row[0], name_buff, 0), row[1]);
+            fprintf(sql_file, ",\n  %s tinyint NOT NULL",
+                    quote_name(row[0], name_buff, 0));
           }
 
           /*
@@ -5058,7 +5063,7 @@ static my_bool get_view_structure(char *table, char* db)
   verbose_msg("-- Retrieving view structure for table %s...\n", table);
 
 #ifdef NOT_REALLY_USED_YET
-  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+  sprintf(insert_pat, "SET SQL_QUOTE_SHOW_CREATE=%d",
           (opt_quoted || opt_keywords));
 #endif
 

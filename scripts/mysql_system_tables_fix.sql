@@ -601,6 +601,9 @@ ALTER TABLE db MODIFY Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
 
+# Convering the host name to lower case for existing users
+UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct

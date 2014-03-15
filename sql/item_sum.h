@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2014, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1240,7 +1240,7 @@ class Item_func_group_concat : public Item_sum
 public:
   Item_func_group_concat(Name_resolution_context *context_arg,
                          bool is_distinct, List<Item> *is_select,
-                         SQL_I_List<ORDER> *is_order, String *is_separator);
+                         const SQL_I_List<ORDER> &is_order, String *is_separator);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat();

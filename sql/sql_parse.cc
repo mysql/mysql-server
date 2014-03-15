@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1124,6 +1124,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *user= (char*) packet, *packet_end= packet + packet_length;
     /* Safe because there is always a trailing \0 at the end of the packet */
     char *passwd= strend(user)+1;
+    uint user_length= passwd - user - 1;
 
     thd->change_user();
     thd->clear_error();                         // if errors from rollback
@@ -1137,6 +1138,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       for *passwd > 127 and become 2**32-127 after casting to uint.
     */
     char db_buff[SAFE_NAME_LEN+1];           // buffer to store db in utf8
+    char user_buff[USERNAME_LENGTH + 1];      // buffer to store user in utf8
     char *db= passwd;
     char *save_db;
     /*
@@ -1187,14 +1189,30 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
                  cs->csname);
         break;
-      }        
+      }
+
+      if (cs_number)
+      {
+        /*
+          We have checked charset earlier,
+          so thd_init_client_charset cannot fail.
+        */
+        if (thd_init_client_charset(thd, cs_number))
+          DBUG_ASSERT(0);
+        thd->update_charset();
+      }
     }
 
-    /* Convert database name to utf8 */
+    /* Convert database and user names to utf8 */
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info, db, db_length,
                              thd->charset(), &dummy_errors)]= 0;
     db= db_buff;
+
+    user_buff[copy_and_convert(user_buff,sizeof(user_buff)-1,
+                               system_charset_info, user, user_length,
+                               thd->charset(), &dummy_errors)]= 0;
+    user= user_buff;
 
     /* Save user and privileges */
     save_db_length= thd->db_length;
@@ -1228,19 +1246,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+      pthread_mutex_lock(&thd->LOCK_thd_data);
       x_free(save_db);
+      pthread_mutex_unlock(&thd->LOCK_thd_data);
       x_free(save_security_ctx.user);
-
-      if (cs_number)
-      {
-        /*
-          We have checked charset earlier,
-          so thd_init_client_charset cannot fail.
-        */
-        if (thd_init_client_charset(thd, cs_number))
-          DBUG_ASSERT(0);
-        thd->update_charset();
-      }
     }
     break;
   }

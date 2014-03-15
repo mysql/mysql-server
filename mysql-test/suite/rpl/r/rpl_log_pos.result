@@ -3,7 +3,7 @@ include/master-slave.inc
 create table if not exists t1 (n int);
 drop table t1;
 call mtr.add_suppression ("Slave I/O: Got fatal error 1236 from master when reading data from binary");
-call mtr.add_suppression ("Error in Log_event::read_log_event");
+CALL mtr.add_suppression("Failed to read an event from active binlog.*");
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>

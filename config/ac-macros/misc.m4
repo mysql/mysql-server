@@ -456,25 +456,27 @@ fi
 AC_DEFUN([MYSQL_STACK_DIRECTION],
  [AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
  [AC_TRY_RUN([#include <stdlib.h>
- /* Prevent compiler inline optimization, see bug#42213 */
- int (volatile *ptr_f)();
- int find_stack_direction ()
- {
-   static char *addr = 0;
-   auto char dummy;
-   if (addr == 0)
-     {
-       addr = &dummy;
-       return (*prt_f) ();
-     }
-   else
-     return (&dummy > addr) ? 1 : -1;
- }
- int main ()
- {
-   ptr_f = find_stack_direction;
-   exit ((*ptr_f)() < 0);
- }], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
+ /* Prevent compiler optimization by HP's compiler, see bug#42213 */
+#if defined(__HP_cc) || defined (__HP_aCC) || defined (__hpux)
+#pragma noinline
+#endif
+  /* Check stack direction (-1 down, 1 up) */
+  int f(int *a)
+  {
+    int b;
+    return(&b > a)?1:-1;
+  }
+  /*
+   Prevent compiler optimizations by calling function 
+   through pointer.
+  */
+  volatile int (*ptr_f)(int *) = f;
+  int main()
+  {
+    int a;
+    exit(ptr_f(&a) < 0);
+  }
+  ], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
    ac_cv_c_stack_direction=)])
  AC_DEFINE_UNQUOTED(STACK_DIRECTION, $ac_cv_c_stack_direction)
 ])dnl

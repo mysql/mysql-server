@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -42,6 +42,22 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "usr0sess.h"
 #include "ut0vec.h"
+#include "ha_prototypes.h"
+
+/*************************************************************************
+Checks if a table name contains the string TEMP_TABLE_PATH_PREFIX which
+denotes temporary tables in MySQL. */
+static
+ibool
+row_is_mysql_tmp_table_name(
+/*========================*/
+				/* out: TRUE if temporary table */
+	const char*     name)   /* in: table name in the form
+				'database/tablename' */
+{
+	return(strstr(name, TEMP_TABLE_PATH_PREFIX) != NULL);
+}
+
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -1425,17 +1441,46 @@ dict_create_add_foreign_to_dictionary(
 {
 	ulint		error;
 	ulint		i;
-
-	pars_info_t*	info = pars_info_create();
+	pars_info_t*	info;
 
 	if (foreign->id == NULL) {
 		/* Generate a new constraint id */
 		ulint	namelen	= strlen(table->name);
 		char*	id	= mem_heap_alloc(foreign->heap, namelen + 20);
-		/* no overflow if number < 1e13 */
-		sprintf(id, "%s_ibfk_%lu", table->name, (ulong) (*id_nr)++);
+
+		if (row_is_mysql_tmp_table_name(table->name)) {
+			sprintf(id, "%s_ibfk_%lu", table->name,
+				(ulong) (*id_nr)++);
+		} else {
+			char	table_name[MAX_TABLE_NAME_LEN + 20] = "";
+			uint	errors = 0;
+
+			strncpy(table_name, table->name,
+				MAX_TABLE_NAME_LEN + 20);
+
+			innobase_convert_to_system_charset(
+				strchr(table_name, '/') + 1,
+				strchr(table->name, '/') + 1,
+				MAX_TABLE_NAME_LEN, &errors);
+
+			if (errors) {
+				strncpy(table_name, table->name,
+					MAX_TABLE_NAME_LEN + 20);
+			}
+
+			sprintf(id, "%s_ibfk_%lu", table_name,
+				(ulong) (*id_nr)++);
+
+			if (innobase_check_identifier_length(
+				strchr(id,'/') + 1)) {
+				return(DB_IDENTIFIER_TOO_LONG);
+			}
+		}
 		foreign->id = id;
+
 	}
+
+	info = pars_info_create();
 
 	pars_info_add_str_literal(info, "id", foreign->id);
 

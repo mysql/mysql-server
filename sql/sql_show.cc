@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2011, Monty Program Ab
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1882,8 +1882,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ?
                                       tmp_sctx->host_or_ip :
                                       tmp_sctx->host ? tmp_sctx->host : "");
-        if ((thd_info->db=tmp->db))             // Safe test
-          thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
         pthread_mutex_lock(&tmp->LOCK_thd_data);
         if ((mysys_var= tmp->mysys_var))
@@ -1908,6 +1906,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         pthread_mutex_unlock(&tmp->LOCK_thd_data);
 
         thd_info->start_time= tmp->start_time;
+
         thd_info->query=0;
         /* Lock THD mutex that protects its data when looking at it. */
         pthread_mutex_lock(&tmp->LOCK_thd_data);
@@ -1916,7 +1915,11 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
           uint length= min(max_query_length, tmp->query_length());
           thd_info->query= (char*) thd->strmake(tmp->query(),length);
         }
+
+        if ((thd_info->db= tmp->db))             // Safe test
+          thd_info->db= thd->strdup(thd_info->db);
         pthread_mutex_unlock(&tmp->LOCK_thd_data);
+
         thread_infos.append(thd_info);
       }
     }
@@ -1971,7 +1974,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
     {
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
-      const char *val;
+      const char *val, *db;
 
       if ((!tmp->vio_ok() && !tmp->system_thread) ||
           (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
@@ -1996,13 +1999,6 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       else
         table->field[2]->store(tmp_sctx->host_or_ip,
                                strlen(tmp_sctx->host_or_ip), cs);
-      /* DB */
-      if (tmp->db)
-      {
-        table->field[3]->store(tmp->db, strlen(tmp->db), cs);
-        table->field[3]->set_notnull();
-      }
-
       if ((mysys_var= tmp->mysys_var))
         pthread_mutex_lock(&mysys_var->mutex);
       /* COMMAND */
@@ -2047,6 +2043,13 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                                min(PROCESS_LIST_INFO_WIDTH,
                                    tmp->query_length()), cs);
         table->field[7]->set_notnull();
+      }
+
+      /* DB */
+      if ((db= tmp->db))
+      {
+        table->field[3]->store(db, strlen(db), cs);
+        table->field[3]->set_notnull();
       }
       pthread_mutex_unlock(&tmp->LOCK_thd_data);
 

@@ -1,7 +1,7 @@
 /******************************************************
 Undo modify of a row
 
-(c) 1997 Innobase Oy
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 Created 2/27/1997 Heikki Tuuri
 *******************************************************/
@@ -94,7 +94,10 @@ row_undo_mod_clust_low(
 }
 
 /***************************************************************
-Removes a clustered index record after undo if possible. */
+Purges a clustered index record after undo if possible.
+This is attempted when the record was inserted by updating a
+delete-marked record and there no longer exist transactions
+that would see the delete-marked record. */
 static
 ulint
 row_undo_mod_remove_clust_low(
@@ -103,13 +106,16 @@ row_undo_mod_remove_clust_low(
 				we may run out of file space */
 	undo_node_t*	node,	/* in: row undo node */
 	que_thr_t*	thr __attribute__((unused)), /* in: query thread */
-	mtr_t*		mtr,	/* in: mtr */
+	mtr_t*		mtr,	/* in/out: mini-transaction */
 	ulint		mode)	/* in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
 	ibool		success;
+	byte*		db_trx_id;
+
+	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 
 	pcur = &(node->pcur);
 	btr_cur = btr_pcur_get_btr_cur(pcur);
@@ -123,11 +129,37 @@ row_undo_mod_remove_clust_low(
 
 	/* Find out if we can remove the whole clustered index record */
 
-	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
-	    && !row_vers_must_preserve_del_marked(node->new_trx_id, mtr)) {
+	if (row_vers_must_preserve_del_marked(node->new_trx_id, mtr)) {
+		return(DB_SUCCESS);
+	}
 
-		/* Ok, we can remove */
+	if (!btr_cur_get_index(btr_cur)->trx_id_offset) {
+		mem_heap_t*	heap	= NULL;
+		ulint		trx_id_col;
+		ulint*		offsets;
+		ulint		len;
+
+		trx_id_col = dict_index_get_sys_col_pos(
+			btr_cur_get_index(btr_cur), DATA_TRX_ID);
+		ut_ad(trx_id_col > 0);
+		ut_ad(trx_id_col != ULINT_UNDEFINED);
+
+		offsets = rec_get_offsets(
+			btr_cur_get_rec(btr_cur), btr_cur_get_index(btr_cur),
+			NULL, trx_id_col + 1, &heap);
+
+		db_trx_id = rec_get_nth_field(btr_cur_get_rec(btr_cur),
+					      offsets, trx_id_col, &len);
+		ut_ad(len == DATA_TRX_ID_LEN);
+		mem_heap_free(heap);
 	} else {
+		db_trx_id = btr_cur_get_rec(btr_cur)
+			+ btr_cur_get_index(btr_cur)->trx_id_offset;
+	}
+
+	if (ut_dulint_cmp(trx_read_trx_id(db_trx_id), node->new_trx_id)) {
+		/* The record must have been purged and then replaced
+		with a different one. */
 		return(DB_SUCCESS);
 	}
 

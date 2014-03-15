@@ -1,7 +1,24 @@
-/******************************************************
-Data dictionary memory object creation
+/*****************************************************************************
 
-(c) 1996 Innobase Oy
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/dict0mem.h
+Data dictionary memory object creation
 
 Created 1/8/1996 Heikki Tuuri
 *******************************************************/
@@ -300,7 +317,7 @@ This could result in rescursive calls and out of stack error eventually.
 DICT_FK_MAX_RECURSIVE_LOAD defines the maximum number of recursive loads,
 when exceeded, the child table will not be loaded. It will be loaded when
 the foreign constraint check needs to be run. */
-#define DICT_FK_MAX_RECURSIVE_LOAD	250
+#define DICT_FK_MAX_RECURSIVE_LOAD	20
 
 /** Similarly, when tables are chained together with foreign key constraints
 with on cascading delete/update clause, delete from parent table could

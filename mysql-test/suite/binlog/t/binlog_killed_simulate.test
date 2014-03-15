@@ -20,11 +20,9 @@ reset master;
 update t1 set a=2 /* will be "killed" after work has been done */;
 
 # a proof the query is binlogged with no error
-#todo: introduce a suite private macro that provides numeric values
-#      for some constants like the offset of the first real event
-#      that is different between severs versions.
+--let $binlog_load_data= query_get_value(SHOW BINLOG EVENTS, Pos, 2)
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open --start-position=106 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_load_data $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
@@ -48,11 +46,12 @@ reset master;
 load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "killed" in the middle */;
 
 
+--let $binlog_load_data= query_get_value(SHOW BINLOG EVENTS, Pos, 2)
 # a proof the query is binlogged with an error
-
 source include/show_binlog_events.inc;
 
---exec $MYSQL_BINLOG --force-if-open --start-position=98 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--mkdir $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571 --force-if-open --start-position=$binlog_load_data $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
@@ -64,6 +63,8 @@ eval select $error_code /* must return 0 to mean the killed query is in */;
 # cleanup for the sub-case
 remove_file $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog;
 
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571 *
+--rmdir $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571
 
 drop table t1,t2;
 

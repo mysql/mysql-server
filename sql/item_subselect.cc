@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /**
   @file
@@ -1079,8 +1079,15 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       if (upper_item)
         upper_item->set_sub_test(item);
     }
-    /* fix fields is already called for  left expression */
-    substitution= func->create(left_expr, subs);
+    /*
+      fix fields is already called for  left expression.
+      Note that real_item() should be used instead of
+      original left expression because left_expr can be
+      runtime created Ref item which is deleted at the end
+      of the statement. Thus one of 'substitution' arguments
+      can be broken in case of PS.
+    */ 
+    substitution= func->create(left_expr->real_item(), subs);
     DBUG_RETURN(RES_OK);
   }
 
@@ -1100,6 +1107,9 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       DBUG_RETURN(RES_ERROR);
     }
     thd->lex->current_select= current;
+
+    /* We will refer to upper level cache array => we have to save it for SP */
+    optimizer->keep_top_level_cache();
 
     /*
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
@@ -1274,8 +1284,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
         // select and is not outer anymore.
         item->walk(&Item::remove_dependence_processor, 0,
                            (uchar *) select_lex->outer_select());
-	item= func->create(left_expr, item);
-	// fix_field of item will be done in time of substituting
+        item= func->create(left_expr->real_item(), item);
+        /*
+          fix_field of substitution item will be done in time of
+          substituting.
+          Note that real_item() should be used instead of
+          original left expression because left_expr can be
+          runtime created Ref item which is deleted at the end
+          of the statement. Thus one of 'substitution' arguments
+          can be broken in case of PS.
+        */ 
 	substitution= item;
 	have_to_be_excluded= 1;
 	if (thd->lex->describe)

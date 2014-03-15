@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2013, Monty Program Ab.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,7 +199,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
       const_item_cache&=      item->const_item();
-      with_subselect|=        item->with_subselect;
+      with_subselect|=        item->has_subquery();
     }
   }
   fix_length_and_dec();
@@ -5335,6 +5335,13 @@ void Item_func_match::init_search(bool no_order)
 {
   DBUG_ENTER("Item_func_match::init_search");
 
+  /*
+    We will skip execution if the item is not fixed
+    with fix_field
+  */
+  if (!fixed)
+    DBUG_VOID_RETURN;
+
   /* Check if init_search() has been called before */
   if (ft_handler)
   {
@@ -5464,6 +5471,13 @@ bool Item_func_match::fix_index()
   Item_field *item;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
   uint max_cnt=0, mkeys=0, i;
+
+  /*
+    We will skip execution if the item is not fixed
+    with fix_field
+  */
+  if (!fixed)
+    return false;
 
   if (key == NO_SUCH_KEY)
     return 0;
