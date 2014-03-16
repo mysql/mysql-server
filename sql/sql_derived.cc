@@ -68,8 +68,10 @@ mysql_handle_derived(LEX *lex, uint phases)
 {
   bool res= FALSE;
   THD *thd= lex->thd;
+  DBUG_ENTER("mysql_handle_derived");
+  DBUG_PRINT("enter", ("phases: 0x%x", phases));
   if (!lex->derived_tables)
-    return FALSE;
+    DBUG_RETURN(FALSE);
 
   lex->thd->derived_tables_processing= TRUE;
 
@@ -127,7 +129,7 @@ mysql_handle_derived(LEX *lex, uint phases)
     }
   }
   lex->thd->derived_tables_processing= FALSE;
-  return res;
+  DBUG_RETURN(res);
 }
 
 /*
@@ -166,8 +168,10 @@ mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived, uint phases)
   THD *thd= lex->thd;
   uint8 allowed_phases= (derived->is_merged_derived() ? DT_PHASES_MERGE :
                          DT_PHASES_MATERIALIZE);
+  DBUG_ENTER("mysql_handle_single_derived");
+  DBUG_PRINT("enter", ("phases: 0x%x  allowed: 0x%x", phases, allowed_phases));
   if (!lex->derived_tables)
-    return FALSE;
+    DBUG_RETURN(FALSE);
 
   lex->thd->derived_tables_processing= TRUE;
 
@@ -189,7 +193,7 @@ mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived, uint phases)
       break;
   }
   lex->thd->derived_tables_processing= FALSE;
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -354,16 +358,17 @@ bool mysql_derived_merge(THD *thd, LEX *lex, TABLE_LIST *derived)
   uint tablenr;
   SELECT_LEX *parent_lex= derived->select_lex;
   Query_arena *arena, backup;
+  DBUG_ENTER("mysql_derived_merge");
 
   if (derived->merged)
-    return FALSE;
+    DBUG_RETURN(FALSE);
 
   if (dt_select->uncacheable & UNCACHEABLE_RAND)
   {
     /* There is random function => fall back to materialization. */
     derived->change_refs_to_fields();
     derived->set_materialized_derived();
-    return FALSE;
+    DBUG_RETURN(FALSE);
   }
 
  if (thd->lex->sql_command == SQLCOM_UPDATE_MULTI ||
@@ -467,7 +472,7 @@ bool mysql_derived_merge(THD *thd, LEX *lex, TABLE_LIST *derived)
 exit_merge:
   if (arena)
     thd->restore_active_arena(arena, &backup);
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -492,14 +497,15 @@ exit_merge:
 
 bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
+  DBUG_ENTER("mysql_derived_merge_for_insert");
   if (derived->merged_for_insert)
-    return FALSE;
+    DBUG_RETURN(FALSE);
   if (derived->is_materialized_derived())
-    return mysql_derived_prepare(thd, lex, derived);
+    DBUG_RETURN(mysql_derived_prepare(thd, lex, derived));
   if (!derived->is_multitable())
   {
     if (!derived->single_table_updatable())
-      return derived->create_field_translation(thd);
+      DBUG_RETURN(derived->create_field_translation(thd));
     if (derived->merge_underlying_list)
     {
       derived->table= derived->merge_underlying_list->table;
@@ -507,7 +513,7 @@ bool mysql_derived_merge_for_insert(THD *thd, LEX *lex, TABLE_LIST *derived)
       derived->merged_for_insert= TRUE;
     }
   }  
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -761,9 +767,10 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
   SELECT_LEX *save_current_select= lex->current_select;
 
   bool res= FALSE;
+  DBUG_ENTER("mysql_derived_optimize");
 
   if (unit->optimized)
-    return FALSE;
+    DBUG_RETURN(FALSE);
   lex->current_select= first_select;
 
   if (unit->is_union())
@@ -803,7 +810,7 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
   }
 err:
   lex->current_select= save_current_select;
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -825,11 +832,12 @@ err:
 
 bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
+  DBUG_ENTER("mysql_derived_create");
   TABLE *table= derived->table;
   SELECT_LEX_UNIT *unit= derived->get_unit();
 
   if (table->created)
-    return FALSE;
+    DBUG_RETURN(FALSE);
   select_union *result= (select_union*)unit->result;
   if (table->s->db_type() == TMP_ENGINE_HTON)
   {
@@ -839,13 +847,13 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
                                   &result->tmp_table_param.recinfo,
                                   (unit->first_select()->options |
                                    thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS)))
-      return(TRUE);
+      DBUG_RETURN(TRUE);
   }
   if (open_tmp_table(table))
-    return TRUE;
+    DBUG_RETURN(TRUE);
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -874,11 +882,12 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 
 bool mysql_derived_fill(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
+  DBUG_ENTER("mysql_derived_fill");
   SELECT_LEX_UNIT *unit= derived->get_unit();
   bool res= FALSE;
 
   if (unit->executed && !unit->uncacheable && !unit->describe)
-    return FALSE;
+    DBUG_RETURN(FALSE);
   /*check that table creation passed without problems. */
   DBUG_ASSERT(derived->table && derived->table->created);
   SELECT_LEX *first_select= unit->first_select();
@@ -920,7 +929,7 @@ bool mysql_derived_fill(THD *thd, LEX *lex, TABLE_LIST *derived)
     unit->cleanup();
   lex->current_select= save_current_select;
 
-  return res;
+  DBUG_RETURN(res);
 }
 
 
@@ -943,6 +952,7 @@ bool mysql_derived_fill(THD *thd, LEX *lex, TABLE_LIST *derived)
 
 bool mysql_derived_reinit(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
+  DBUG_ENTER("mysql_derived_reinit");
   st_select_lex_unit *unit= derived->get_unit();
 
   if (derived->table)
@@ -952,6 +962,6 @@ bool mysql_derived_reinit(THD *thd, LEX *lex, TABLE_LIST *derived)
   /* for derived tables & PS (which can't be reset by Item_subquery) */
   unit->reinit_exec_mechanism();
   unit->set_thd(thd);
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 

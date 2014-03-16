@@ -1889,6 +1889,27 @@ DROP VIEW v2;
 DROP TABLE t1,t2;
 
 --echo #
+--echo # MDEV-5686: degenerate disjunct in NOT IN subquery
+--echo #
+
+CREATE TABLE t1 (a int, b int, c varchar(3)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1,'CAN'),(2,2,'AUS');
+
+CREATE TABLE t2 (f int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3);
+
+EXPLAIN EXTENDED
+SELECT * FROM t2 
+  WHERE f NOT IN (SELECT b FROM t1
+                    WHERE 0 OR (c IN ('USA') OR c NOT IN ('USA')) AND a = b);
+
+SELECT * FROM t2 
+  WHERE f NOT IN (SELECT b FROM t1
+                    WHERE 0 OR (c IN ('USA') OR c NOT IN ('USA')) AND a = b);
+
+DROP TABLE t1,t2;
+
+--echo #
 --echo # MDEV-3899  Valgrind warnings (blocks are definitely lost) in filesort on IN subquery with SUM and DISTINCT
 --echo #
 

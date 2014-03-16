@@ -2083,9 +2083,11 @@ struct TABLE_LIST
   }
   inline void set_merged_derived()
   {
+    DBUG_ENTER("set_merged_derived");
     derived_type= ((derived_type & DTYPE_MASK) |
                    DTYPE_TABLE | DTYPE_MERGE);
     set_check_merged();
+    DBUG_VOID_RETURN;
   }
   inline bool is_materialized_derived()
   {
@@ -2093,9 +2095,11 @@ struct TABLE_LIST
   }
   void set_materialized_derived()
   {
+    DBUG_ENTER("set_materialized_derived");
     derived_type= ((derived_type & DTYPE_MASK) |
                    DTYPE_TABLE | DTYPE_MATERIALIZE);
     set_check_materialized();
+    DBUG_VOID_RETURN;
   }
   inline bool is_multitable()
   {

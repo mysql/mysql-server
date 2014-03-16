@@ -8360,6 +8360,8 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
     {
       tmp_field->init(field_arg->field->table);
       set_field(tmp_field);
+      // the index is important when read bits set
+      tmp_field->field_index= field_arg->field->field_index;
     }
   }
   return FALSE;
