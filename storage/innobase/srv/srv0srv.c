@@ -1922,21 +1922,32 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
 
 #ifdef UNIV_DEBUG
-	if (ut_dulint_cmp(trx_sys->max_trx_id, purge_sys->done_trx_no) < 0) {
-		export_vars.innodb_purge_trx_id_age = 0;
-	} else {
-		export_vars.innodb_purge_trx_id_age =
-		  ut_dulint_minus(trx_sys->max_trx_id, purge_sys->done_trx_no);
-	}
+	{
+		dulint	done_trx_no;
+		dulint	up_limit_id;
 
-	if (!purge_sys->view
-	    || ut_dulint_cmp(trx_sys->max_trx_id,
-			     purge_sys->view->up_limit_id) < 0) {
-		export_vars.innodb_purge_view_trx_id_age = 0;
-	} else {
-		export_vars.innodb_purge_view_trx_id_age =
-		  ut_dulint_minus(trx_sys->max_trx_id,
-				  purge_sys->view->up_limit_id);
+		rw_lock_s_lock(&purge_sys->latch);
+		done_trx_no	= purge_sys->done_trx_no;
+		up_limit_id	= purge_sys->view
+			? purge_sys->view->up_limit_id
+			: ut_dulint_zero;
+		rw_lock_s_unlock(&purge_sys->latch);
+
+		if (ut_dulint_cmp(trx_sys->max_trx_id, done_trx_no) < 0) {
+			export_vars.innodb_purge_trx_id_age = 0;
+		} else {
+			export_vars.innodb_purge_trx_id_age = ut_dulint_minus(
+				trx_sys->max_trx_id, done_trx_no);
+		}
+
+		if (ut_dulint_is_zero(up_limit_id)
+		    || ut_dulint_cmp(trx_sys->max_trx_id, up_limit_id) < 0) {
+			export_vars.innodb_purge_view_trx_id_age = 0;
+		} else {
+			export_vars.innodb_purge_view_trx_id_age =
+				ut_dulint_minus(trx_sys->max_trx_id,
+						up_limit_id);
+		}
 	}
 #endif /* UNIV_DEBUG */
 
@@ -2421,7 +2432,7 @@ loop:
 			by x100 (1purge/100msec), to speed up debug scripts
 			which should wait for purged. */
 
-			if (!skip_sleep) {
+			if (!skip_sleep && !srv_shutdown_state) {
 				os_thread_sleep(100000);
 			}
 
@@ -2437,7 +2448,7 @@ loop:
 			} while (n_pages_purged);
 		} else
 #endif /* UNIV_DEBUG */
-		if (!skip_sleep) {
+		if (!skip_sleep && !srv_shutdown_state) {
 
 			os_thread_sleep(1000000);
 		}

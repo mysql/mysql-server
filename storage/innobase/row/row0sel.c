@@ -33,6 +33,8 @@ Created 12/19/1997 Heikki Tuuri
 #include "read0read.h"
 #include "buf0lru.h"
 #include "ha_prototypes.h"
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -105,7 +107,8 @@ row_sel_sec_rec_is_for_clust_rec(
 			dict_col_get_clust_pos(col, clust_index), &clust_len);
 		sec_field = rec_get_nth_field(sec_rec, sec_offs, i, &sec_len);
 
-		if (ifield->prefix_len > 0 && clust_len != UNIV_SQL_NULL) {
+		if (ifield->prefix_len > 0 && clust_len != UNIV_SQL_NULL
+		    && sec_len != UNIV_SQL_NULL) {
 
 			clust_len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,
@@ -3758,7 +3761,9 @@ wait_table_again:
 	}
 
 rec_loop:
+	DEBUG_SYNC_C("row_search_rec_loop");
 	if (trx_is_interrupted(trx)) {
+		btr_pcur_store_position(pcur, &mtr);
 		err = DB_INTERRUPTED;
 		goto normal_return;
 	}

@@ -20,7 +20,7 @@ create table if not exists t1 (n int);
 drop table t1;
 
 call mtr.add_suppression ("Slave I/O: Got fatal error 1236 from master when reading data from binary");
-call mtr.add_suppression ("Error in Log_event::read_log_event");
+CALL mtr.add_suppression("Failed to read an event from active binlog.*");
 source include/show_master_status.inc;
 sync_slave_with_master;
 source include/stop_slave.inc;

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,12 +13,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SUBDIRS      = mytap . mysys examples strings
+SUBDIRS      = mytap . mysys examples strings my_decimal
 
 EXTRA_DIST = unit.pl
 CLEANFILES = unit
 
-unittests = mytap mysys strings @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@ ../dbug
+unittests = mytap mysys strings my_decimal @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@ ../dbug
 
 test:
 	perl unit.pl run $(unittests)

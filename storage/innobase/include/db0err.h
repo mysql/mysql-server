@@ -84,6 +84,7 @@ Created 5/24/1996 Heikki Tuuri
 					foreign keys as its prefix columns */
 #define DB_TABLE_IN_FK_CHECK    53	/* table is being used in foreign
 					key check */
+#define DB_IDENTIFIER_TOO_LONG	54	/* Identifier name too long */
 
 /* The following are partial failure codes */
 #define DB_FAIL			1000

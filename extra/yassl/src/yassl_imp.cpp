@@ -972,29 +972,192 @@ output_buffer& operator<<(output_buffer& output, const Data& data)
 }
 
 
+// check all bytes for equality 
+static int constant_compare(const byte* a, const byte* b, int len)
+{
+    int good = 0;
+    int bad  = 0;
+
+    for (int i = 0; i < len; i++) {
+        if (a[i] == b[i])
+            good++;
+        else
+            bad++;
+    }
+
+    if (good == len)
+        return 0;
+    else
+        return 0 - bad;  // failure
+}
+
+
+// check bytes for pad value
+static int pad_check(const byte* input, byte pad, int len)
+{
+    int good = 0;
+    int bad  = 0;
+
+    for (int i = 0; i < len; i++) {
+        if (input[i] == pad)
+            good++;
+        else
+            bad++;
+    }
+
+    if (good == len)
+        return 0;
+    else
+        return 0 - bad;  // failure
+}
+
+
+// get number of compression rounds
+static inline int get_rounds(int pLen, int padLen, int t)
+{
+    int  roundL1 = 1;  // round ups 
+    int  roundL2 = 1;
+
+    int L1 = COMPRESS_CONSTANT + pLen - t;
+    int L2 = COMPRESS_CONSTANT + pLen - padLen - 1 - t;
+
+    L1 -= COMPRESS_UPPER;
+    L2 -= COMPRESS_UPPER;
+
+    if ( (L1 % COMPRESS_LOWER) == 0)
+        roundL1 = 0;
+    if ( (L2 % COMPRESS_LOWER) == 0)
+        roundL2 = 0;
+
+    L1 /= COMPRESS_LOWER;
+    L2 /= COMPRESS_LOWER;
+
+    L1 += roundL1;
+    L2 += roundL2;
+
+    return L1 - L2;
+}
+
+
+// do compression rounds on dummy data
+static inline void compress_rounds(SSL& ssl, int rounds, const byte* dummy)
+{
+    if (rounds) {
+        Digest* digest = NULL;
+
+        MACAlgorithm ma = ssl.getSecurity().get_parms().mac_algorithm_;
+        if (ma == sha) 
+            digest = NEW_YS SHA;
+        else if (ma == md5)
+            digest = NEW_YS MD5;
+        else if (ma == rmd)
+            digest = NEW_YS RMD;
+        else
+            return;
+
+        for (int i = 0; i < rounds; i++)
+            digest->update(dummy, COMPRESS_LOWER);
+
+        ysDelete(digest);    
+    }
+}
+
+
+// timing resistant pad verification
+static int timing_verify(SSL& ssl, const byte* input, int padLen, int t,
+                         int pLen)
+{
+    byte verify[SHA_LEN];
+    byte dummy[MAX_PAD_SIZE];
+
+    memset(dummy, 1, sizeof(dummy));
+
+    if ( (t + padLen + 1) > pLen) {
+        pad_check(dummy, (byte)padLen, MAX_PAD_SIZE);
+        if (ssl.isTLS())
+            TLS_hmac(ssl, verify, input, pLen - t, application_data, 1);
+        else
+            hmac(ssl, verify, input, pLen - t, application_data, 1);
+        constant_compare(verify, input + pLen - t, t);
+
+        return -1;
+    }
+
+    if (pad_check(input + pLen - (padLen + 1), (byte)padLen, padLen + 1) != 0) {
+        pad_check(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
+        if (ssl.isTLS())
+            TLS_hmac(ssl, verify, input, pLen - t, application_data, 1);
+        else
+            hmac(ssl, verify, input, pLen - t, application_data, 1);
+        constant_compare(verify, input + pLen - t, t);
+
+        return -1;
+    }
+
+    pad_check(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
+    if (ssl.isTLS())
+        TLS_hmac(ssl, verify, input, pLen - padLen - 1 - t, application_data,1);
+    else
+        hmac(ssl, verify, input, pLen - padLen - 1 - t, application_data, 1);
+
+    compress_rounds(ssl, get_rounds(pLen, padLen, t), dummy);
+
+    if (constant_compare(verify, input + (pLen - padLen - 1 - t), t) != 0)
+        return -1;
+
+    return 0;
+}
+
+
 // Process handler for Data
 void Data::Process(input_buffer& input, SSL& ssl)
 {
     int msgSz = ssl.getSecurity().get_parms().encrypt_size_;
     int pad   = 0, padSz = 0;
     int ivExtra = 0;
+    int digestSz = ssl.getCrypto().get_digest().get_digestSize();
+    const byte* rawData = input.get_buffer() + input.get_current();
+    opaque verify[SHA_LEN];
 
     if (ssl.getSecurity().get_parms().cipher_type_ == block) {
         if (ssl.isTLSv1_1())  // IV
             ivExtra = ssl.getCrypto().get_cipher().get_blockSize();
         pad = *(input.get_buffer() + input.get_current() + msgSz -ivExtra - 1);
         padSz = 1;
+
+        if (ssl.isTLS()) {
+            if (timing_verify(ssl, rawData, pad,digestSz, msgSz-ivExtra) != 0) {
+                ssl.SetError(verify_error);
+                return;
+            }
+        }
+        else {   // SSLv3, some don't do this padding right
+            int sz3 = msgSz - digestSz - pad - 1; 
+            hmac(ssl, verify, rawData, sz3, application_data, true);
+            if (constant_compare(verify, rawData + sz3, digestSz) != 0) {
+                ssl.SetError(verify_error);
+                return;
+            }
+        } 
     }
-    int digestSz = ssl.getCrypto().get_digest().get_digestSize();
+    else {  // stream
+        int streamSz = msgSz - digestSz; 
+        if (ssl.isTLS())
+            TLS_hmac(ssl, verify, rawData, streamSz, application_data, true);
+        else
+            hmac(ssl, verify, rawData, streamSz, application_data, true);
+        if (constant_compare(verify, rawData + streamSz, digestSz) != 0) {
+            ssl.SetError(verify_error);
+            return;
+        }
+    }
+
     int dataSz = msgSz - ivExtra - digestSz - pad - padSz;
-    opaque verify[SHA_LEN];
 
     if (dataSz < 0) {
         ssl.SetError(bad_input);
         return;
     }
-
-    const byte* rawData = input.get_buffer() + input.get_current();
 
     // read data
     if (dataSz) {                               // could be compressed
@@ -1013,27 +1176,10 @@ void Data::Process(input_buffer& input, SSL& ssl)
             input.read(data->get_buffer(), dataSz);
             data->add_size(dataSz);
         }
-
-        if (ssl.isTLS())
-            TLS_hmac(ssl, verify, rawData, dataSz, application_data, true);
-        else
-            hmac(ssl, verify, rawData, dataSz, application_data, true);
     }
 
-    // read mac and skip fill
-    opaque mac[SHA_LEN];
-    input.read(mac, digestSz);
-    input.set_current(input.get_current() + pad + padSz);
-
-    // verify
-    if (dataSz) {
-        if (memcmp(mac, verify, digestSz)) {
-            ssl.SetError(verify_error);
-            return;
-        }
-    }
-    else 
-        ssl.get_SEQIncrement(true);  // even though no data, increment verify
+    // advance past mac and fill
+    input.set_current(input.get_current() + digestSz + pad + padSz);
 }
 
 

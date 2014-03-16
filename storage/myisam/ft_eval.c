@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2002 MySQL AB
+/* Copyright (c) 2000-2002, 2005-2007 MySQL AB
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -8,7 +8,7 @@
    GNU General Public License for more details.
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code
    added support for long options (my_getopt) 22.5.2002 by Jani Tolonen */

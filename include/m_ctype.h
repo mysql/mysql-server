@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -157,6 +157,8 @@ enum my_lex_states
 
 struct charset_info_st;
 
+
+extern int (*my_string_stack_guard)(int);
 
 /* See strings/CHARSET_INFO.txt for information about this structure  */
 struct my_collation_handler_st

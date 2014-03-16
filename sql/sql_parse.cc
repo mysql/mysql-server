@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1187,7 +1187,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
+      pthread_mutex_lock(&thd->LOCK_thd_data);
       x_free(save_db);
+      pthread_mutex_unlock(&thd->LOCK_thd_data);
       x_free(save_security_ctx.user);
     }
     break;

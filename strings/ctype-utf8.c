@@ -1,5 +1,5 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2009, 2011, Monty Program Ab
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Monty Program Ab.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1888,17 +1888,20 @@ MY_UNICASE_INFO *const my_unicase_turkish[256]=
 **	 1 if matched with wildcard
 */
 
-int my_wildcmp_unicode(CHARSET_INFO *cs,
-		       const char *str,const char *str_end,
-		       const char *wildstr,const char *wildend,
-		       int escape, int w_one, int w_many,
-		       MY_UNICASE_INFO *const *weights)
+static
+int my_wildcmp_unicode_impl(CHARSET_INFO *cs,
+                            const char *str,const char *str_end,
+                            const char *wildstr,const char *wildend,
+                            int escape, int w_one, int w_many,
+                            MY_UNICASE_INFO *const *weights, int recurse_level)
 {
   int result= -1;			/* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan, plane;
   my_charset_conv_mb_wc mb_wc= cs->cset->mb_wc;
   
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level))
+    return 1;
   while (wildstr != wildend)
   {
     while (1)
@@ -2024,15 +2027,27 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
           return -1;
         
         str+= scan;
-        result= my_wildcmp_unicode(cs, str, str_end, wildstr, wildend,
-                                   escape, w_one, w_many,
-                                   weights);
+        result= my_wildcmp_unicode_impl(cs, str, str_end, wildstr, wildend,
+                                        escape, w_one, w_many,
+                                        weights, recurse_level+1);
         if (result <= 0)
           return result;
       } 
     }
   }
   return (str != str_end ? 1 : 0);
+}
+
+int
+my_wildcmp_unicode(CHARSET_INFO *cs,
+                   const char *str,const char *str_end,
+                   const char *wildstr,const char *wildend,
+                   int escape, int w_one, int w_many,
+                   MY_UNICASE_INFO *const *weights)
+{
+  return my_wildcmp_unicode_impl(cs, str, str_end,
+                                 wildstr, wildend,
+                                 escape, w_one, w_many, weights, 1);
 }
 
 #endif

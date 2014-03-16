@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -1638,19 +1638,6 @@ recv_recover_page_func(
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
-	mutex_enter(&(recv_sys->mutex));
-
-	if (recv_max_page_lsn < page_lsn) {
-		recv_max_page_lsn = page_lsn;
-	}
-
-	recv_addr->state = RECV_PROCESSED;
-
-	ut_a(recv_sys->n_addrs);
-	recv_sys->n_addrs--;
-
-	mutex_exit(&(recv_sys->mutex));
-
 #ifndef UNIV_HOTBACKUP
 	if (modification_to_page) {
 		ut_a(block);
@@ -1665,6 +1652,20 @@ recv_recover_page_func(
 	mtr.modifications = FALSE;
 
 	mtr_commit(&mtr);
+
+	mutex_enter(&(recv_sys->mutex));
+
+	if (recv_max_page_lsn < page_lsn) {
+		recv_max_page_lsn = page_lsn;
+	}
+
+	recv_addr->state = RECV_PROCESSED;
+
+	ut_a(recv_sys->n_addrs);
+	recv_sys->n_addrs--;
+
+	mutex_exit(&(recv_sys->mutex));
+
 }
 
 #ifndef UNIV_HOTBACKUP

@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2013, Monty Program Ab.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 
 /**
@@ -1990,7 +1990,6 @@ void Item_func_interval::fix_length_and_dec()
             if (dec != &range->dec)
             {
               range->dec= *dec;
-              range->dec.fix_buffer_pointer();
             }
           }
           else
@@ -4263,7 +4262,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   
     with_sum_func=	    with_sum_func || item->with_sum_func;
     with_field=             with_field || item->with_field;
-    with_subselect|=        item->with_subselect;
+    with_subselect|=        item->has_subquery();
     if (item->maybe_null)
       maybe_null=1;
   }
@@ -4651,6 +4650,7 @@ Item *and_expressions(Item *a, Item *b, Item **org_item)
 longlong Item_func_isnull::val_int()
 {
   DBUG_ASSERT(fixed == 1);
+
   if (const_item() && !args[0]->maybe_null)
     return 0;
   return args[0]->is_null() ? 1: 0;
@@ -4937,7 +4937,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   with_field= args[0]->with_field || args[1]->with_field;
-  with_subselect|= args[0]->with_subselect | args[1]->with_subselect;
+  with_subselect|= args[0]->has_subquery() || args[1]->has_subquery();
   max_length= 1;
   decimals= 0;
 

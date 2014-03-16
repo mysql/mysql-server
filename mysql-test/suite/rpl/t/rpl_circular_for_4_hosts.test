@@ -20,6 +20,18 @@
 --source include/rpl_init.inc
 --echo
 
+#set auto inc variables at each server
+--let $_rpl_server= $rpl_server_count
+while ($_rpl_server)
+{
+  --let $rpl_connection_name= server_$_rpl_server
+  --source include/rpl_connection.inc
+  eval SET auto_increment_increment= $rpl_server_count;
+  eval SET auto_increment_offset= $_rpl_server;
+
+  --dec $_rpl_server
+}
+
 # Preparing data.
 --echo *** Preparing data ***
 --connection server_1

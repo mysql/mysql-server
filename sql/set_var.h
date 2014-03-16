@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /* Classes to support the SET command */
 
@@ -1340,13 +1340,23 @@ public:
     if (value_arg && value_arg->type() == Item::FIELD_ITEM)
     {
       Item_field *item= (Item_field*) value_arg;
-      if (!(value=new Item_string(item->field_name, 
-                  (uint) strlen(item->field_name),
-				  item->collation.collation)))
-	value=value_arg;			/* Give error message later */
+      if (item->field_name)
+      {
+        if (!(value= new Item_string(item->field_name,
+                                     (uint) strlen(item->field_name),
+                                     item->collation.collation)))
+	  value= value_arg;			/* Give error message later */
+      }
+      else
+      {
+        /* Both Item_field and Item_insert_value will return the type as
+        Item::FIELD_ITEM. If the item->field_name is NULL, we assume the
+        object to be Item_insert_value. */
+        value= value_arg;
+      }
     }
     else
-      value=value_arg;
+      value= value_arg;
   }
   int check(THD *thd);
   int update(THD *thd);

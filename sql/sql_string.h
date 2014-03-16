@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -296,6 +296,7 @@ public:
       DBUG_ASSERT(!s.uses_buffer_owned_by(this));
       free();
       Ptr=s.Ptr ; str_length=s.str_length ; Alloced_length=s.Alloced_length;
+      str_charset=s.str_charset;
     }
     return *this;
   }

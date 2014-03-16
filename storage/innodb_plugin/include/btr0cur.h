@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -635,6 +635,21 @@ btr_push_update_extern_fields(
 	const upd_t*	update,	/*!< in: update vector */
 	mem_heap_t*	heap)	/*!< in: memory heap */
 	__attribute__((nonnull));
+
+/***********************************************************//**
+Writes a redo log record of updating a record in-place. */
+UNIV_INTERN
+void
+btr_cur_update_in_place_log(
+/*========================*/
+	ulint		flags,		/*!< in: flags */
+	rec_t*		rec,		/*!< in: record */
+	dict_index_t*	index,		/*!< in: index where cursor
+					positioned */
+	const upd_t*	update,		/*!< in: update vector */
+	trx_t*		trx,		/*!< in: transaction */
+	roll_ptr_t	roll_ptr,	/*!< in: roll ptr */
+	mtr_t*		mtr);		/*!< in: mtr */
 
 /*######################################################################*/
 

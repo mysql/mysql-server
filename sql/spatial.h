@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 
 const uint SRID_SIZE= 4;
 const uint SIZEOF_STORED_DOUBLE= 8;
-const uint POINT_DATA_SIZE= SIZEOF_STORED_DOUBLE*2; 
+const uint POINT_DATA_SIZE= (SIZEOF_STORED_DOUBLE * 2); 
 const uint WKB_HEADER_SIZE= 1+4;
 const uint32 GET_SIZE_ERROR= ((uint32) -1);
 
@@ -328,7 +328,14 @@ protected:
   const char *get_mbr_for_points(MBR *mbr, const char *data, uint offset)
     const;
 
-  inline bool no_data(const char *cur_data, uint32 data_amount) const
+  /**
+     Check if there're enough data remaining as requested
+
+     @arg cur_data     pointer to the position in the binary form
+     @arg data_amount  number of points expected
+     @return           true if not enough data
+  */
+  inline bool no_data(const char *cur_data, size_t data_amount) const
   {
     return (cur_data + data_amount > m_data_end);
   }

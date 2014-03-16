@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2008 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -220,7 +219,11 @@ const int DEFAULT_TIMEOUT   = 500;  // Default Session timeout in seconds
 const int MAX_RECORD_SIZE   = 16384; // 2^14, max size by standard
 const int COMPRESS_EXTRA    = 1024;  // extra compression possible addition
 const int SESSION_FLUSH_COUNT = 256;  // when to flush session cache
-
+const int MAX_PAD_SIZE        = 256;  // max TLS padding size
+const int COMPRESS_CONSTANT   =  13;  // compression calculation constant
+const int COMPRESS_UPPER      =  55;  // compression calculation numerator
+const int COMPRESS_LOWER      =  64;  // compression calculation denominator
+const int COMPRESS_DUMMY_SIZE =  64;  // compression dummy round size 
 
 typedef uint8 Cipher;             // first byte is always 0x00 for SSLv3 & TLS
 

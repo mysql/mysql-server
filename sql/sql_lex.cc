@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2013, Monty Program Ab.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1995,6 +1995,11 @@ bool st_select_lex::add_order_to_list(THD *thd, Item *item, bool asc)
   return add_to_list(thd, order_list, item, asc);
 }
 
+
+bool st_select_lex::add_gorder_to_list(THD *thd, Item *item, bool asc)
+{
+  return add_to_list(thd, gorder_list, item, asc);
+}
 
 bool st_select_lex::add_item_to_list(THD *thd, Item *item)
 {

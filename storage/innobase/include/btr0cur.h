@@ -558,6 +558,19 @@ btr_push_update_extern_fields(
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	upd_t*		update);/* in: update vector or NULL */
 
+/***************************************************************
+Writes a redo log record of updating a record in-place. */
+
+void
+btr_cur_update_in_place_log(
+/*========================*/
+	ulint		flags,		/* in: flags */
+	rec_t*		rec,		/* in: record */
+	dict_index_t*	index,		/* in: index where cursor positioned */
+	upd_t*		update,		/* in: update vector */
+	trx_t*		trx,		/* in: transaction */
+	dulint		roll_ptr,	/* in: roll ptr */
+	mtr_t*		mtr);		/* in: mtr */
 
 /*######################################################################*/
 

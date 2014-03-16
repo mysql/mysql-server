@@ -607,6 +607,9 @@ UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
 ALTER TABLE user ADD plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL,  ADD auth_string TEXT NOT NULL;
 ALTER TABLE user MODIFY plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL;
 
+# Convering the host name to lower case for existing users
+UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
