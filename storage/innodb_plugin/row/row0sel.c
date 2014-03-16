@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -57,6 +57,13 @@ Created 12/19/1997 Heikki Tuuri
 #include "read0read.h"
 #include "buf0lru.h"
 #include "ha_prototypes.h"
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -212,7 +219,8 @@ row_sel_sec_rec_is_for_clust_rec(
 
 		len = clust_len;
 
-		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL) {
+		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL
+		    && sec_len != UNIV_SQL_NULL) {
 
 			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
 				len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -3907,7 +3915,9 @@ wait_table_again:
 	}
 
 rec_loop:
+	DEBUG_SYNC_C("row_search_rec_loop");
 	if (trx_is_interrupted(trx)) {
+		btr_pcur_store_position(pcur, &mtr);
 		err = DB_INTERRUPTED;
 		goto normal_return;
 	}

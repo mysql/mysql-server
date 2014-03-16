@@ -663,10 +663,10 @@ test.t1	check	Error	Incorrect information in file: './test/t1.frm'
 test.t1	check	error	Corrupt
 SELECT * FROM t1;
 ERROR HY000: File './test/t1.par' not found (Errcode: 2)
-# Note that it is currently impossible to drop a partitioned table
-# without the .par file
+# Note that we will remove the frm file when we detect that 
+# .par file has been deleted.
 DROP TABLE t1;
-ERROR HY000: File './test/t1.par' not found (Errcode: 2)
+ERROR 42S02: Unknown table 't1'
 #
 # Bug#49477: Assertion `0' failed in ha_partition.cc:5530
 # with temporary table and partitions

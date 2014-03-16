@@ -2,7 +2,13 @@
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
 
-# Note: The test is dependent on binlog positions
+##############################################################################
+# The test is dependent on binlog positions. The test is divided into two
+# sections. The first section checks START SLAVE UNTIL MASTER_LOG_FILE =
+# 'log_name', MASTER_LOG_POS = log_pos followed by a couple of failure
+# scenarios. The second section checks START SLAVE UNTIL RELAY_LOG_FILE =
+# 'log_name', RELAY_LOG_POS = log_pos.
+##############################################################################
 
 # Create some events on master
 connection master;
@@ -22,14 +28,8 @@ let $master_pos_create_t2= query_get_value(SHOW BINLOG EVENTS, Pos, 8);
 INSERT INTO t2 VALUES (1),(2);
 save_master_pos;
 # Save master log position for query INSERT INTO t2 VALUES (1),(2);
-let $master_pos_insert1_t2= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 12);
-sync_slave_with_master;
+let $master_pos_insert1_t2= query_get_value(SHOW MASTER STATUS, Position, 1);
 
-# Save relay log position for query INSERT INTO t2 VALUES (1),(2);
-let $relay_log_file= query_get_value(show slave status, Relay_Log_File,1);
-let $relay_pos_insert1_t2= query_get_value(show slave status, Relay_Log_Pos, 1);
-
-connection master;
 INSERT INTO t2 VALUES (3),(4);
 DROP TABLE t2;
 # Save master log position for query INSERT INTO t2 VALUES (1),(2);
@@ -66,17 +66,6 @@ SELECT * FROM t1;
 
 --let $slave_param= Exec_Master_Log_Pos
 --let $slave_param_value= $master_pos_drop_t1
---source include/check_slave_param.inc
-
-# Try replicate all up to and not including the second insert to t2;
---disable_query_log
-eval START SLAVE UNTIL RELAY_LOG_FILE='$relay_log_file', RELAY_LOG_POS=$relay_pos_insert1_t2;
---enable_query_log
---source include/wait_for_slave_sql_to_stop.inc
-SELECT * FROM t2;
-
---let $slave_param= Exec_Master_Log_Pos
---let $slave_param_value= $master_pos_insert1_t2
 --source include/check_slave_param.inc
 
 # clean up
@@ -119,9 +108,49 @@ START SLAVE;
 --replace_result 740 MASTER_LOG_POS
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=740;
 
---source include/stop_slave.inc
-# Clear slave IO error.
-RESET SLAVE;
+--source include/start_slave.inc
 
---let $rpl_only_running_threads= 1
+##############################################################################
+# The second section - checks START SLAVE UNTIL RELAY_LOG_FILE =# 'log_name',
+# RELAY_LOG_POS = log_pos. This section of the test does the following:
+# 1) At master, create a table and inserts a value. Let slave replicate this.
+# 2) Stop slave sql thread.
+# 3) Insert some more values at master. Note that io thread copies this insert
+# 4) Use start slave until to start the sql thread  and check if it
+#    stops at the correct position.
+##############################################################################
+
+--source include/rpl_reset.inc
+
+--connection master
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+
+--sync_slave_with_master
+--source include/stop_slave_sql.inc
+
+--connection master
+INSERT INTO t1 VALUES (2);
+--let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+INSERT INTO t1 VALUES (3);
+
+--source include/sync_slave_io_with_master.inc
+
+--let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File,1)
+--source include/get_relay_log_pos.inc
+
+--disable_query_log
+--eval start slave until relay_log_file='$relay_log_file', relay_log_pos=$relay_log_pos
+--enable_query_log
+--source include/wait_for_slave_sql_to_stop.inc
+
+--let $assert_cond= COUNT(*) = 2 FROM t1
+--let $assert_text= table t1 should have two rows.
+--source include/assert.inc
+
+#cleanup
+--source include/start_slave.inc
+--connection master
+DROP TABLE t1;
+--sync_slave_with_master
 --source include/rpl_end.inc

@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2013, Monty Program Ab.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -421,12 +421,17 @@ public:
 class Item_func_signed :public Item_int_func
 {
 public:
-  Item_func_signed(Item *a) :Item_int_func(a) {}
+  Item_func_signed(Item *a) :Item_int_func(a)
+  {
+    unsigned_flag= 0;
+  }
   const char *func_name() const { return "cast_as_signed"; }
   longlong val_int();
   longlong val_int_from_str(int *error);
   void fix_length_and_dec()
-  { max_length=args[0]->max_length; unsigned_flag=0; }
+  {
+    max_length= min(args[0]->max_length,MY_INT64_NUM_DECIMAL_DIGITS);
+  }
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
@@ -435,13 +440,11 @@ public:
 class Item_func_unsigned :public Item_func_signed
 {
 public:
-  Item_func_unsigned(Item *a) :Item_func_signed(a) {}
-  const char *func_name() const { return "cast_as_unsigned"; }
-  void fix_length_and_dec()
+  Item_func_unsigned(Item *a) :Item_func_signed(a)
   {
-    max_length= min(args[0]->max_length, DECIMAL_MAX_PRECISION + 2);
-    unsigned_flag=1;
+    unsigned_flag= 1;
   }
+  const char *func_name() const { return "cast_as_unsigned"; }
   longlong val_int();
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -1442,15 +1445,14 @@ public:
     :Item_func(b), cached_result_type(INT_RESULT),
      entry(NULL), entry_thread_id(0), name(a)
   {}
-  Item_func_set_user_var(Item_func_set_user_var *item)
-    :Item_func(item), cached_result_type(item->cached_result_type),
-     entry(item->entry), entry_thread_id(item->entry_thread_id),
-     value(item->value), decimal_buff(item->decimal_buff),
-     null_item(item->null_item), save_result(item->save_result),
-     name(item->name)
-  {
-    //fixed= 1;
-  }
+  Item_func_set_user_var(THD *thd, Item_func_set_user_var *item)
+    :Item_func(thd, item), cached_result_type(item->cached_result_type),
+    entry(item->entry), entry_thread_id(item->entry_thread_id),
+    value(item->value), decimal_buff(item->decimal_buff),
+    null_item(item->null_item), save_result(item->save_result),
+    name(item->name)
+  {}
+
   enum Functype functype() const { return SUSERVAR_FUNC; }
   double val_real();
   longlong val_int();

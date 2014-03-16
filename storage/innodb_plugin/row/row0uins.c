@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -336,13 +336,14 @@ row_undo_ins(
 			/* The database must have crashed after
 			inserting a clustered index record but before
 			writing all the externally stored columns of
-			that record.  Because secondary index entries
-			are inserted after the clustered index record,
-			we may assume that the secondary index record
-			does not exist.  However, this situation may
-			only occur during the rollback of incomplete
-			transactions. */
-			ut_a(trx_is_recv(node->trx));
+			that record, or a statement is being rolled
+			back because an error occurred while storing
+			off-page columns.
+
+			Because secondary index entries are inserted
+			after the clustered index record, we may
+			assume that the secondary index record does
+			not exist. */
 		} else {
 			log_free_check();
 			err = row_undo_ins_remove_sec(node->index, entry);

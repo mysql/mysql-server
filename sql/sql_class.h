@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   2009-2011 Monty Program Ab
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1479,6 +1479,7 @@ public:
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
+
   /* TRUE when the current top has SQL_LOG_BIN ON */
   bool sql_log_bin_toplevel;
   /* True when opt_userstat_running is set at start of query */
@@ -2357,6 +2358,12 @@ public:
   */
   bool set_db(const char *new_db, size_t new_db_len)
   {
+    /*
+      Acquiring mutex LOCK_thd_data as we either free the memory allocated
+      for the database and reallocate the memory for the new db or memcpy
+      the new_db to the db.
+    */
+    pthread_mutex_lock(&LOCK_thd_data);
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
       memcpy(db, new_db, new_db_len+1);
@@ -2366,6 +2373,7 @@ public:
       db= new_db ? my_strndup(new_db, new_db_len, MYF(MY_WME)) : NULL;
     }
     db_length= db ? new_db_len : 0;
+    pthread_mutex_unlock(&LOCK_thd_data);
     return new_db && !db;
   }
 
@@ -3089,7 +3097,9 @@ public:
   bool get(TABLE *table);
   static double get_use_cost(uint *buffer, uint nkeys, uint key_size,
                              ulonglong max_in_memory_size);
-  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size,
+
+  // Returns the number of bytes needed in imerge_cost_buf.
+  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
                                             ulonglong max_in_memory_size)
   {
     register ulonglong max_elems_in_tree=

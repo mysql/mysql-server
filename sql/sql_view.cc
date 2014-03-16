@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
 
 #define MYSQL_LEX 1
@@ -1135,9 +1135,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
   */
-  if (parser->parse((uchar*)table, thd->mem_root, view_parameters,
-                    required_view_parameters, &file_parser_dummy_hook))
-    goto err;
+  if ((result= parser->parse((uchar*)table, thd->mem_root,
+                             view_parameters, required_view_parameters,
+                             &file_parser_dummy_hook)))
+    goto end;
 
   /*
     check old format view .frm
@@ -1183,6 +1184,11 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
+  if (!table->view)
+  {
+    result= true;
+    goto end;
+  }
 
   {
     char old_db_buf[SAFE_NAME_LEN+1];

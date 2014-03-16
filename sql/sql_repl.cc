@@ -1,6 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -361,6 +361,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   int left_events = max_binlog_dump_events;
 #endif
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
+  bool is_active_binlog= false;
+  my_off_t prev_pos= pos;
+
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
@@ -484,7 +487,8 @@ impossible position";
        Try to find a Format_description_log_event at the beginning of
        the binlog
      */
-     if (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+     if (!(error = Log_event::read_log_event(&log, packet, log_lock,
+                                             log_file_name, &is_active_binlog)))
      {
        /*
          The packet has offsets equal to the normal offsets in a binlog
@@ -495,8 +499,14 @@ impossible position";
                    (*packet)[EVENT_TYPE_OFFSET+1]));
        if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
        {
-         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
-                                       LOG_EVENT_BINLOG_IN_USE_F);
+         /*
+           If a binlog is not active, but LOG_EVENT_BINLOG_IN_USE_F
+           flag is 1. That means it is not closed in normal way
+           (E.g server crash) and may include corrupted events.
+         */
+         binlog_can_be_corrupted= (!is_active_binlog) &&
+           test((*packet)[FLAGS_OFFSET+1] & LOG_EVENT_BINLOG_IN_USE_F);
+
          (*packet)[FLAGS_OFFSET+1] &= ~LOG_EVENT_BINLOG_IN_USE_F;
          /*
            mark that this event with "log_pos=0", so the slave
@@ -548,9 +558,11 @@ impossible position";
 
   while (!net->error && net->vio != 0 && !thd->killed)
   {
-    my_off_t prev_pos= pos;
-    while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+    while (!(error= Log_event::read_log_event(&log, packet, log_lock,
+                                              log_file_name,
+                                              &is_active_binlog)))
     {
+      DBUG_ASSERT(prev_pos < my_b_tell(&log));
       prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
@@ -583,8 +595,9 @@ impossible position";
 
       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
       {
-        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
-                                      LOG_EVENT_BINLOG_IN_USE_F);
+        binlog_can_be_corrupted= (!is_active_binlog) &&
+          test((*packet)[FLAGS_OFFSET+1] & LOG_EVENT_BINLOG_IN_USE_F);
+
         (*packet)[FLAGS_OFFSET+1] &= ~LOG_EVENT_BINLOG_IN_USE_F;
       }
       else if ((*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
@@ -623,12 +636,41 @@ impossible position";
       here we were reading binlog that was not closed properly (as a result
       of a crash ?). treat any corruption as EOF
     */
-    if (binlog_can_be_corrupted &&
+    if ((binlog_can_be_corrupted || is_active_binlog) &&
         error != LOG_READ_MEM && error != LOG_READ_EOF)
     {
+      test_for_non_eof_log_read_errors(error, &errmsg);
+
+      if (is_active_binlog)
+      {
+        sql_print_warning("Failed to read an event from active binlog(%s,%lu). "
+                          "error: %s. Dump thread will try to read it again.",
+                          log_file_name, (ulong)prev_pos, errmsg);
+      }
+      else
+      {
+        sql_print_warning("Failed to read an event from inactive binlog"
+                          "(%s, %lu). error: %s. Dump thread found the binlog "
+                          "was not rotated correctly. It will jump to next "
+                          "binlog directly.",
+                          log_file_name, (ulong) prev_pos, errmsg);
+      }
+      errmsg= NULL;
+
+      /*
+        If binlog is active, it will try to read the event again. Otherwise,
+        skip the corrupted events and switch to next binlog.
+      */
       my_b_seek(&log, prev_pos);
       error=LOG_READ_EOF;
     }
+
+    DBUG_EXECUTE_IF("wait_after_binlog_EOF",
+                    {
+                      const char act[]= "now wait_for signal.rotate_finished";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
 
     /*
       TODO: now that we are logging the offset, check to make sure
@@ -640,8 +682,11 @@ impossible position";
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       goto err;
 
-    if (!(flags & BINLOG_DUMP_NON_BLOCK) &&
-        mysql_bin_log.is_active(log_file_name))
+    /*
+      We should only move to the next binlog when the last read event
+      came from a already deactivated binlog.
+     */
+    if (!(flags & BINLOG_DUMP_NON_BLOCK) && is_active_binlog)
     {
       /*
 	Block until there is more data in the log
@@ -688,6 +733,8 @@ impossible position";
 	  /* we read successfully, so we'll need to send it to the slave */
 	  pthread_mutex_unlock(log_lock);
 	  read_packet = 1;
+	  DBUG_ASSERT(prev_pos < my_b_tell(&log));
+	  prev_pos= my_b_tell(&log);
 	  break;
 
 	case LOG_READ_EOF:
@@ -750,6 +797,7 @@ impossible position";
       thd_proc_info(thd, "Finished reading one binlog; switching to next binlog");
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case 0:
+        prev_pos= BIN_LOG_HEADER_SIZE;
 	break;
       case LOG_INFO_EOF:
         if (mysql_bin_log.is_active(log_file_name))
@@ -1725,6 +1773,8 @@ bool show_binlogs(THD* thd)
     if (protocol->write())
       goto err;
   }
+  if(index_file->error == -1)
+    goto err;
   mysql_bin_log.unlock_index();
   my_eof(thd);
   DBUG_RETURN(FALSE);

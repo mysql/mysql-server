@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2012 Oracle and/or its affiliates.
-   Copyright (c) 2009, 2013 Monty Program Ab.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /**
   @file
@@ -7427,7 +7427,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
-      if (order->item[0]->with_subselect && 
+      if (order->item[0]->has_subquery() && 
           !(join->select_lex->options & SELECT_DESCRIBE))
         order->item[0]->val_str(&order->item[0]->str_value);
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
@@ -9859,7 +9859,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   if (new_field)
     new_field->init(table);
     
-  if (copy_func && item->is_result_field())
+  if (copy_func && item->real_item()->is_result_field())
     *((*copy_func)++) = item;			// Save for copy_funcs
   if (modify_item)
     item->set_result_field(new_field);
@@ -14221,7 +14221,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
     if (best_key >= 0)
     {
-      if (table->quick_keys.is_set(best_key) && best_key != ref_key)
+      if (select &&
+          table->quick_keys.is_set(best_key) && best_key != ref_key)
       {
         key_map map;
         map.clear_all();       // Force the creation of quick select
@@ -16253,23 +16254,21 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
       if (field != NULL)
       {
         /*
-          Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise,
-          we would re-evaluate <expression>, and if expression were
-          a subquery, this would access already-unlocked tables.
-        */
+          Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise, we
+          would re-evaluate <expression>, and if expression were a subquery, this
+          would access already-unlocked tables.
+         */
         Item_func_set_user_var* suv=
-          new Item_func_set_user_var((Item_func_set_user_var*) item);
+          new Item_func_set_user_var(thd, (Item_func_set_user_var*) item);
         Item_field *new_field= new Item_field(field);
-        if (!suv || !new_field || suv->fix_fields(thd, (Item**)&suv))
+        if (!suv || !new_field)
           DBUG_RETURN(true);                  // Fatal error
-        ((Item *)suv)->name= item->name;
         /*
-          We are replacing the argument of Item_func_set_user_var after its
-          value has been read. The argument's null_value should be set by
-          now, so we must set it explicitly for the replacement argument
-          since the null_value may be read without any preceeding call to
-          val_*().
-        */
+          We are replacing the argument of Item_func_set_user_var after its value
+          has been read.  The argument's null_value should be set by now, so we
+          must set it explicitly for the replacement argument since the null_value
+          may be read without any preceeding call to val_*().
+         */
         new_field->update_null_value();
         List<Item> list;
         list.push_back(new_field);
@@ -16299,15 +16298,15 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
         ifield->db_name= iref->db_name;
       }
 #ifndef DBUG_OFF
-	if (!item_field->name)
-	{
-	  char buff[256];
-	  String str(buff,sizeof(buff),&my_charset_bin);
-	  str.length(0);
-          str.extra_allocation(1024);
-	  item->print(&str, QT_ORDINARY);
-	  item_field->name= sql_strmake(str.ptr(),str.length());
-	}
+      if (!item_field->name)
+      {
+        char buff[256];
+        String str(buff,sizeof(buff),&my_charset_bin);
+        str.length(0);
+        str.extra_allocation(1024);
+        item->print(&str, QT_ORDINARY);
+        item_field->name= sql_strmake(str.ptr(),str.length());
+      }
 #endif
     }
     else

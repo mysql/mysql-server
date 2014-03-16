@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# Copyright (c) 2000, 2010, Oracle and/or its affiliates.
-# Copyright (c) 2000-2011 Monty Program Ab, Jani Tolonen
+# Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2014 Monty Program Ab, Jani Tolonen
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public

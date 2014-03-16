@@ -1,0 +1,51 @@
+#
+# Whenever the mysql_binlog_send method (dump thread) reaches the
+# end of file when reading events from the binlog, before checking
+# if it should wait for more events, there was a test to check if
+# the file being read was still active, i.e, it was the last known
+# binlog. However, it was possible that something was written to
+# the binary log and then a rotation would happen, after EOF was
+# detected and before the check for active was performed. In this
+# case, the end of the binary log would not be read by the dump
+# thread, and this would cause the slave to lose updates.
+#
+# This test verifies that the problem has been fixed. It waits
+# during this window while forcing a rotation in the binlog.
+#
+--source include/have_debug.inc
+--source include/master-slave.inc
+
+--connection master
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+
+CREATE TABLE t (i INT);
+
+# When reaching the EOF the dump thread will wait before deciding if
+# it should move to a new binlong file.
+SET GLOBAL DEBUG= "d,wait_after_binlog_EOF";
+
+INSERT INTO t VALUES (1);
+
+--sleep 1
+
+# A insert and a rotate happens before the decision
+INSERT INTO t VALUES (2);
+FLUSH LOGS;
+
+SET DEBUG_SYNC= 'now SIGNAL signal.rotate_finished';
+
+--sync_slave_with_master
+
+# All the rows should be sent to the slave.
+--let $diff_tables=master:t,slave:t
+--source include/diff_tables.inc
+
+##Clean up
+--connection master
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET DEBUG_SYNC= 'RESET';
+
+DROP TABLE t;
+--source include/rpl_end.inc

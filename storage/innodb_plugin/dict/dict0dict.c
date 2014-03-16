@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -1092,21 +1092,77 @@ dict_table_rename_in_cache(
 		strcpy(foreign->foreign_table_name, table->name);
 
 		if (strchr(foreign->id, '/')) {
+			/* This is a >= 4.0.18 format id */
+
 			ulint	db_len;
 			char*	old_id;
+			char    old_name_cs_filename[MAX_TABLE_NAME_LEN+20];
+			uint    errors = 0;
 
-			/* This is a >= 4.0.18 format id */
+			/* All table names are internally stored in charset
+			my_charset_filename (except the temp tables and the
+			partition identifier suffix in partition tables). The
+			foreign key constraint names are internally stored
+			in UTF-8 charset.  The variable fkid here is used
+			to store foreign key constraint name in charset
+			my_charset_filename for comparison further below. */
+			char    fkid[MAX_TABLE_NAME_LEN+20];
+			ibool	on_tmp = FALSE;
+
+			/* The old table name in my_charset_filename is stored
+			in old_name_cs_filename */
+
+			strncpy(old_name_cs_filename, old_name,
+				MAX_TABLE_NAME_LEN);
+			if (strstr(old_name, TEMP_TABLE_PATH_PREFIX) == NULL) {
+
+				innobase_convert_to_system_charset(
+					strchr(old_name_cs_filename, '/') + 1,
+					strchr(old_name, '/') + 1,
+					MAX_TABLE_NAME_LEN, &errors);
+
+				if (errors) {
+					/* There has been an error to convert
+					old table into UTF-8.  This probably
+					means that the old table name is
+					actually in UTF-8. */
+					innobase_convert_to_filename_charset(
+						strchr(old_name_cs_filename,
+						       '/') + 1,
+						strchr(old_name, '/') + 1,
+						MAX_TABLE_NAME_LEN);
+				} else {
+					/* Old name already in
+					my_charset_filename */
+					strncpy(old_name_cs_filename, old_name,
+						MAX_TABLE_NAME_LEN);
+				}
+			}
+
+			strncpy(fkid, foreign->id, MAX_TABLE_NAME_LEN);
+
+			if (strstr(fkid, TEMP_TABLE_PATH_PREFIX) == NULL) {
+				innobase_convert_to_filename_charset(
+					strchr(fkid, '/') + 1,
+					strchr(foreign->id, '/') + 1,
+					MAX_TABLE_NAME_LEN+20);
+			} else {
+				on_tmp = TRUE;
+			}
 
 			old_id = mem_strdup(foreign->id);
 
-			if (ut_strlen(foreign->id) > ut_strlen(old_name)
+			if (ut_strlen(fkid) > ut_strlen(old_name_cs_filename)
 			    + ((sizeof dict_ibfk) - 1)
-			    && !memcmp(foreign->id, old_name,
-				       ut_strlen(old_name))
-			    && !memcmp(foreign->id + ut_strlen(old_name),
+			    && !memcmp(fkid, old_name_cs_filename,
+				       ut_strlen(old_name_cs_filename))
+			    && !memcmp(fkid + ut_strlen(old_name_cs_filename),
 				       dict_ibfk, (sizeof dict_ibfk) - 1)) {
 
 				/* This is a generated >= 4.0.18 format id */
+
+				char	table_name[MAX_TABLE_NAME_LEN] = "";
+				uint	errors = 0;
 
 				if (strlen(table->name) > strlen(old_name)) {
 					foreign->id = mem_heap_alloc(
@@ -1115,11 +1171,36 @@ dict_table_rename_in_cache(
 						+ strlen(old_id) + 1);
 				}
 
+				/* Convert the table name to UTF-8 */
+				strncpy(table_name, table->name,
+					MAX_TABLE_NAME_LEN);
+				innobase_convert_to_system_charset(
+					strchr(table_name, '/') + 1,
+					strchr(table->name, '/') + 1,
+					MAX_TABLE_NAME_LEN, &errors);
+
+				if (errors) {
+					/* Table name could not be converted
+					from charset my_charset_filename to
+					UTF-8. This means that the table name
+					is already in UTF-8 (#mysql#50). */
+					strncpy(table_name, table->name,
+						MAX_TABLE_NAME_LEN);
+				}
+
 				/* Replace the prefix 'databasename/tablename'
 				with the new names */
-				strcpy(foreign->id, table->name);
-				strcat(foreign->id,
-				       old_id + ut_strlen(old_name));
+				strcpy(foreign->id, table_name);
+				if (on_tmp) {
+					strcat(foreign->id,
+					       old_id + ut_strlen(old_name));
+				} else {
+					sprintf(strchr(foreign->id, '/') + 1,
+						"%s%s",
+						strchr(table_name, '/') +1,
+						strstr(old_id, "_ibfk_") );
+				}
+
 			} else {
 				/* This is a >= 4.0.18 format id where the user
 				gave the id name */
@@ -1415,6 +1496,10 @@ dict_index_too_big_for_tree(
 	/* maximum allowed size of a node pointer record */
 	ulint	page_ptr_max;
 
+	DBUG_EXECUTE_IF(
+		"ib_force_create_table",
+		return(FALSE););
+
 	comp = dict_table_is_comp(table);
 	zip_size = dict_table_zip_size(table);
 
@@ -1429,7 +1514,10 @@ dict_index_too_big_for_tree(
 		number in the page modification log.  The maximum
 		allowed node pointer size is half that. */
 		page_rec_max = page_zip_empty_size(new_index->n_fields,
-						   zip_size) - 1;
+						   zip_size);
+		if (page_rec_max) {
+			page_rec_max--;
+		}
 		page_ptr_max = page_rec_max / 2;
 		/* On a compressed page, there is a two-byte entry in
 		the dense page directory for every record.  But there
