@@ -21,6 +21,7 @@
 "use strict";
 
 var nosql      = require(global.parent_dir),
+    udebug     = require(path.join(api_dir, "unified_debug")).getLogger("LoaderJob.js"),
     machine    = require("./control_file.js"),
     Controller = require("./Controller.js").Controller;
 
@@ -44,12 +45,17 @@ function LoaderJobDestination() {
 };
 
 LoaderJobDestination.prototype.addColumnDefinition = function(name) {
+  assert(typeof name === 'string');
   var defn = new ColumnDefinition(name);
   this.columnDefinitions.push(defn);
   return defn;
 };
 
 LoaderJobDestination.prototype.createTableMapping = function() {
+  if(this.table.length === 0) {
+    throw new Error("No table specified in loader job.");
+  }
+
   var literalMapping, mapping;
   literalMapping = {
     table         : this.table,
@@ -69,15 +75,25 @@ LoaderJobDestination.prototype.createTableMapping = function() {
   return this.rowConstructor;
 };
 
-LoaderJobDestination.prototype.setColumnsFromObject = function(obj) {
-  this.columnDefinitions = [];
+LoaderJobDestination.prototype.setColumnsFromArray = function(columnArray) {
+  udebug.log("setColumnsFromArray length:", columnArray.length);
+  var i;
+  for(i = 0 ; i < columnArray.length ; i++) {
+    this.columnDefinitions.push(new ColumnDefinition(columnArray[i]));
+  }
+  this.createTableMapping();  // Causes the default TableHandler to be discarded
 };
 
+LoaderJobDestination.prototype.getTableHandler = function() {
+  // FIXME this uses undocumented path to access the dbTableHandler:
+  return this.rowConstructor.prototype.mynode.tableHandler;
+};
 
 // LoaderJob
-function LoaderJob(sqlText, plugin) {
-  this.plugin            = plugin;
+function LoaderJob() {
+  this.plugin            = null;
   this.destination       = new LoaderJobDestination();
+  this.ctlFileDescriptor = null;
   this.controller = {
     randomData           : false,
     badfile              : "",
@@ -87,12 +103,11 @@ function LoaderJob(sqlText, plugin) {
     workerId             : 0,
     nWorkers             : 1,
     skipRows             : 0,
-    inOneTransaction     : false,
-    columnsInHeader      : false
+    inOneTransaction     : false
   };
   this.dataSource = {
     file                 : "",
-    inline               : false,
+    useControlFile       : null,
     isJSON               : false,
     commentStart         : null,
     fieldSep             : "\t",
@@ -103,6 +118,7 @@ function LoaderJob(sqlText, plugin) {
     fieldQuoteOptional   : false,
     lineStartString      : "",
     lineEndString        : "\n",
+    columnsInHeader      : false
   };
   this.dataLoader = {
     replaceMode          : false,
@@ -110,9 +126,37 @@ function LoaderJob(sqlText, plugin) {
     doTruncate           : false
   };
   this.setInsertMode("APPEND");
-
-  this.initializeFromSQL(sqlText, plugin);
 }
+
+LoaderJob.prototype.setPlugin = function(plugin) {
+  this.plugin = plugin;
+};
+
+LoaderJob.prototype.initializeFromFile = function(filename) {
+  // Get the SQL text.  The control file may also contain data.
+  var ctlMaxReadLen, ctlReadBuffer, size, sqlText;
+  ctlMaxReadLen = 16 * 1024;
+  ctlReadBuffer = new Buffer(ctlMaxReadLen);
+  this.ctlFileDescriptor = fs.openSync(filename, 'r');
+  size = fs.readSync(this.ctlFileDescriptor, ctlReadBuffer, 0, ctlMaxReadLen);
+  sqlText = ctlReadBuffer.toString('utf8', 0, size);
+  this.initializeFromSQL(sqlText);
+
+  if(this.dataSource.useControlFile) {
+    this.dataSource.useControlFile.text = sqlText;
+  } else {
+    fs.closeSync(this.ctlFileDescriptor);
+  }
+};
+
+LoaderJob.prototype.BeginDataAtControlFileLine = function(lineNo) {
+  this.dataSource.useControlFile =
+  {
+    openFd     : this.ctlFileDescriptor,
+    text       : null,
+    inlineSkip : lineNo
+  };
+};
 
 LoaderJob.prototype.initializeFromSQL = function(text) {
   var tokens, tree, error;
@@ -127,11 +171,11 @@ LoaderJob.prototype.initializeFromSQL = function(text) {
     this.plugin.onSqlScan(error, tokens);
 
     error = null;
-    try {
+    // try {
       tree = machine.parse(tokens);
-    } catch(e) {
-      error = e;
-    }
+    // } catch(e) {
+    //   error = e;
+    // }
     this.plugin.onSqlParse(error, tree);
   }
 
@@ -144,8 +188,8 @@ LoaderJob.prototype.initializeFromSQL = function(text) {
   this.plugin.onLoaderJob(error, this);
 };
 
-LoaderJob.prototype.runInSession = function(session) {
-  var controller = new Controller(this, session);
+LoaderJob.prototype.run = function(session, finalCallback) {
+  var controller = new Controller(this, session, finalCallback);
   controller.run();
 };
 
@@ -297,7 +341,7 @@ LoaderJob.prototype.setLineEnd = function(str) {
 };
 
 LoaderJob.prototype.setColumnsInHeader = function() {
-  this.controller.columnsInHeader = true;
+  this.dataSource.columnsInHeader = true;
 };
 
 exports.LoaderJob = LoaderJob;

@@ -18,34 +18,36 @@
  02110-1301  USA
  */
 
-var DataSource = require("./DataSource.js"),
-    Loader     = require("./MysqljsLoader.js"),
+var unified_debug = require(path.join(api_dir, "unified_debug")),
+    udebug = unified_debug.getLogger("Controller.js"),
+    DbWriter     = require("./DbWriter.js").DbWriter,
     BadRecordLogger = require("./BadRecordLogger.js").BadRecordLogger,
+    DataSource = require("./DataSource.js"),
     RandomDataSource = DataSource.RandomDataSource,
-    FileDataSource = DataSource.FileDataSource,
-    MysqljsLoader = Loader.MysqljsLoader,
-    AtomicMysqljsLoader = Loader.AtomicMysqljsLoader;
+    FileDataSource = DataSource.FileDataSource;
+
 
 var theController;   // File-scope singleton
 
-function Controller(job, session) {
-  var tableHandler;
-
+function Controller(job, session, finalCallback) {
   this.session         = session;
   this.options         = job.controller;
   this.destination     = job.destination;
   this.plugin          = job.plugin;
+  this.finalCallback   = finalCallback;
   this.dataSource      = null;
-  this.loader          = null;
+  this.writer          = null;
   this.badRecordLogger = null;
-  this.rowsProcessed   = 0; // all rows processed by data source
-  this.rowsSkipped     = 0; // rows procesed by data source but skipped
-  this.rowsComplete    = 0; // all rows completed by loader (success or failure)
-  this.rowsError       = 0; // rows failed by loader
+  this.stats = {
+    rowsProcessed      : 0, // all rows processed by data source
+    rowsSkipped        : 0, // rows procesed by data source but skipped
+    rowsComplete       : 0, // all rows completed by loader (success or failure)
+    rowsError          : 0, // rows failed by loader
+    tickNumber         : 0
+  };
   this.shutdown        = 0;
   this.ticker          = null;  // interval timer
-  this.tickNumber      = 0;
-  this.firstRow        = true;
+  this.fatalError      = null;
 
   /* If the data source is maxLead rows ahead of the loader, pause it.
      When the difference shrinks to minLead, resume it.  
@@ -53,21 +55,17 @@ function Controller(job, session) {
   this.maxLead = 2000;
   this.minLead = 1000;
 
-  // note that this uses undocumented path to access the dbTableHandler:
-  tableHandler = this.destination.rowConstructor.prototype.mynode.tableHandler;
-
   /* Data Source */
   if(this.options.randomData) {
-    this.dataSource = new RandomDataSource(job.dataSource, tableHandler, this);
+    this.dataSource = new RandomDataSource(job, this);
   } else {
     this.dataSource = new FileDataSource(job, this);
   }
 
-  /* Data Loader */
+  /* Data Writer */
+  this.writer = new DbWriter(job.dataLoader, session, this);
   if(this.options.inOneTransaction) {
-    this.loader = new AtomicMysqljsLoader(job.dataLoader, session, this);
-  } else {
-    this.loader = new MysqljsLoader(job.dataLoader, session, this);
+    this.writer.beginAtomic();
   }
 
   /* Bad Record Logger */
@@ -84,10 +82,12 @@ function Controller(job, session) {
   // Sanity Checks
   if(this.options.inOneTransaction && this.options.randomData &&
      (! this.options.maxRows)) {
-    console.log("This job would attempt to build a single transaction"
-                + " of infinite size.");
-    process.exit();
+    this.fatalError = new Error("This job would attempt to build a single " +
+                                "transaction of infinite size.");
+    this.finalCallback(this.fatalError, null);
   }
+
+  process.on('exit', function() { udebug.log(theController.stats); });
 }
 
 Controller.prototype.run = function() {
@@ -100,15 +100,8 @@ Controller.prototype.run = function() {
 Controller.prototype.dsNewItem = function(record) {
   var handlerReturnCode;
 
-  /* Get column names from first row of data */
-  if(this.firstRow) {
-    if(this.options.columnsInHeader) {
-      this.destination.setColumnsFromObject(record.row);
-    }
-    this.firstRow = false;
-  }
-
-  this.rowsProcessed++;
+  /* Count all rows processed */
+  this.stats.rowsProcessed++;
 
   /* Set the default Domain Object Constructor */
   record.class = this.destination.rowConstructor;
@@ -117,12 +110,14 @@ Controller.prototype.dsNewItem = function(record) {
   handlerReturnCode = this.plugin.onReadRecord(record);
 
   /* Send the item to the loader */
-  if(handlerReturnCode !== false) {
-    this.loader.loadItem(record);
+  if(handlerReturnCode === false) {
+    this.stats.rowsSkipped++;
+  } else {
+    this.writer.loadItem(record);
   }
 
   /* Stop if we have hit the limit */
-  if(this.rowsProcessed === this.options.maxRows) {
+  if(this.stats.rowsProcessed === this.options.maxRows) {
     this.dataSource.end();
   }
   /* Skip the next record if this is one worker of many */
@@ -130,59 +125,79 @@ Controller.prototype.dsNewItem = function(record) {
     this.dataSource.skip(true);
   }
   /* If the data source is too far ahead of the loader, pause it */
-  if(! this.options.inOneTransaction) {
-    if(this.rowsProcessed - this.rowsComplete > this.maxLead) {
-      this.dataSource.pause();
-      this.loader.dataSourceIsPaused();
-    }
+  if(this.stats.rowsProcessed - this.stats.rowsComplete > this.maxLead) {
+    this.dataSource.pause();
+    this.writer.dataSourceIsPaused();
   }
 };
 
 Controller.prototype.dsDiscardedItem = function() {
-  this.rowsProcessed++;
-  this.rowsSkipped++;
+  this.stats.rowsProcessed++;
+  this.stats.rowsSkipped++;
 
   /* Stop if we have hit the limit */
-  if(this.rowsProcessed === this.options.maxRows) {
+  if(this.stats.rowsProcessed === this.options.maxRows) {
     this.dataSource.end();
   }
   /* Turn off skipping */
-  if((this.rowsSkipped >= this.options.skipRows)
-    && (this.rowsProcessed % this.options.nWorkers === this.options.workerId)) {
+  if((this.stats.rowsSkipped >= this.options.skipRows)
+    && (this.stats.rowsProcessed % this.options.nWorkers === this.options.workerId)) {
       this.dataSource.skip(false);
   }
 };
 
 /* SHUTDOWN SEQUENCE:
    DataSource sends dsFinished() to controller.
-   Controller sends end() to loader.
-   Loader sends final record to controller in loaderRecordComplete().
+   Controller sends end() to dbWriter.
+   DbWriter sends final record to controller in loaderRecordComplete().
+   Controller calls writer.endAtomic() [even if not in atomic mode].
+   DbWriter calls loaderTransactionDidCommit() or loaderTransactionDidRollback().
    Controller sends end() to BadRecordLogger.
    BadRecordLogger sends loggerFinished() to controller.
-   Controller calls plugin.onFinished(controller).
-   Plugin calls controller.pluginFinished().
+   Controller calls plugin.onFinished(controllerCallback).
+   Plugin calls its provided callback.
+   Controller shuts down.
 */
 Controller.prototype.dsFinished = function(err) {
+  udebug.log("dsFinished");
   if(err) {
-    console.log(err);
+    this.fatalError = err;
   }
   this.shutdown = 1;
-  this.loader.end();
+  this.writer.end();
+  this.commitIfComplete();
+};
+
+Controller.prototype.commitIfComplete = function() {
+  var rowsLeft = this.stats.rowsProcessed -
+                 (this.stats.rowsComplete + this.stats.rowsSkipped);
+  if(rowsLeft === 0) {
+    this.writer.endAtomic();
+  } else {
+    udebug.log("No shutdown yet - ", rowsLeft, "pending");
+  }
+};
+
+Controller.prototype.loaderTransactionDidCommit = function() {
+  this.badRecordLogger.end();
+}
+
+Controller.prototype.loaderTransactionDidRollback = function() {
+  this.fatalError = new Error("Transaction rolled back.  No records loaded.");
+  this.badRecordLogger.end();
 };
 
 Controller.prototype.loggerFinished = function() {
-  this.plugin.onFinished(this);
-};
-
-Controller.prototype.pluginFinished = function() {
-  this.finished();
+  this.plugin.onFinished(function() {
+    theController.finished();
+  });
 };
 
 Controller.prototype.loaderRecordComplete = function(record) {
-  this.rowsComplete++;
+  this.stats.rowsComplete++;
 
   if(record.error) {
-    this.rowsError++;
+    this.stats.rowsError++;
     this.badRecordLogger.logRecord(record);
     this.plugin.onRecordError(record);
   } else {
@@ -191,26 +206,24 @@ Controller.prototype.loaderRecordComplete = function(record) {
 
   /* Resume if paused */
   if(this.dataSource.isPaused() &&
-     (this.rowsProcessed - this.rowsComplete < this.minLead)) {
+     (this.stats.rowsProcessed - this.stats.rowsComplete < this.minLead)) {
      this.dataSource.resume();
   }
 
   /* Shut down if the last row was complete */
-  if(this.shutdown &&
-    (this.rowsComplete + this.rowsSkipped === this.rowsProcessed)) {
-      this.badRecordLogger.end();
+  if(this.shutdown) {
+    this.commitIfComplete();
   }
-  /* Set the interval timer for 50 msec. if using the non-atomic loader 
-     and the interval is not yet set
-  */
-  else if(! (this.ticker || this.options.inOneTransaction)) {
+
+  /* Set the interval timer for 50 msec. if not yet set */
+  else if(! (this.ticker)) {
     this.ticker = setInterval(function() { theController.onTick(); }, 50);
   }
 };
 
 Controller.prototype.loaderAborted = function(err) {
   if(err) {
-    console.log(err);
+    this.fatalError = err;
   }
   this.dataSource.end();
 };
@@ -219,30 +232,25 @@ Controller.prototype.finished = function() {
   if(this.ticker) {
     clearInterval(this.ticker);
   }
-  this.session.close().then(function() {
-    console.log("Rows processed:", theController.rowsProcessed,
-                "Skipped", theController.rowsSkipped,
-                "Loaded:", theController.rowsComplete - theController.rowsError,
-                "Failed:", theController.rowsError);
-    return theController.rowsError;
-  });
+  this.finalCallback(this.fatalError, this.stats);
 };
+
 
 Controller.prototype.onTick = function() {
   var avg;
-  this.tickNumber++;
+  this.stats.tickNumber++;
 
   /* Report status after 5 seconds */
-  if(this.tickNumber === 100) {
-    avg = Math.floor(this.rowsComplete / 5);
+  if(this.stats.tickNumber === 100) {
+    avg = Math.floor(this.stats.rowsComplete / 5);
     console.log("Loading", avg,"records per second.");
   }
 
   /* Loader has a tick handler */
-  this.loader.onTick();
+  this.writer.onTick();
 
   /* Plugin has a tick handler */
-  this.plugin.onTick();
+  this.plugin.onTick(this.stats);
 };
 
 

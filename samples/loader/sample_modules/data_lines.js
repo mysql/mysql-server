@@ -20,9 +20,22 @@
 
 exports.init = function(dataLoader) {
 
-  dataLoader.onScanLine = function(source, startPos, endPos) {
-    console.log("LINE:", source.substring(startPos, endPos));
-    return false;
+  dataLoader.onScanLine = function(lineNo, source, startPos, endPos) {
+    console.log("LINE", lineNo, ":", source.substring(startPos, endPos));
   }
+
+  dataLoader.onReadRecord = function(record) {
+    console.log("ROW", record.row);
+    // return false;
+  };
+
+  dataLoader.onRecordError = function(record) {
+    console.log("ERROR:", record.error);
+  };
+
+  dataLoader.onRecordStored = function(record) {
+    console.log("ROW STORED");
+  };
+
 
 };

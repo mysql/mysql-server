@@ -23,7 +23,9 @@
 var RandomRowGenerator = require("./RandomData.js").RandomRowGenerator,
     LineScanner = require("./Scanner.js").LineScanner,
     TextFieldScanner = require("./Scanner.js").TextFieldScanner,
-    util = require("util");
+    JsValueAdapter = require("./JsValueAdapter").JsValueAdapter,
+    util = require("util"),
+    udebug = require(path.join(api_dir,"unified_debug")).getLogger("DataSource.js");
 
 var theDataSource;
 var theController;
@@ -59,10 +61,11 @@ var theController;
 
 
 function AbstractDataSource() {
-  this.started    = 0;
-  this.running    = 0;
-  this.shutdown   = 0;
-  this.skipping   = false;
+  this.started    = 0;       // "has been started"
+  this.running    = 0;       // "is not currently paused"
+  this.shutdown   = 0;       // "has been told to shutdown"
+  this.skipping   = false;   // "should skip the next record", i.e.
+                             // call dsDiscardedItem() rather than dsNewItem()
 }
 
 AbstractDataSource.prototype.start = function() {
@@ -89,6 +92,7 @@ AbstractDataSource.prototype.skip = function(doSkip) {
 };
 
 AbstractDataSource.prototype.end = function() {
+  udebug.log("end");
   this.shutdown = 1;
   if(this.running) {
     this.running = 0;
@@ -100,24 +104,21 @@ AbstractDataSource.prototype.end = function() {
 
 ////////////////////////////// RandomDataSource    ///////////
 
-function RandomDataSource(options, tableHandler, controller) {
-  this.options    = options;
+function RandomDataSource(job, controller) {
+  this.options    = job.options;
   this.controller = controller;
-  this.generator  = new RandomRowGenerator(tableHandler);
+  this.generator  = new RandomRowGenerator(job.destination.getTableHandler());
 }
 
 util.inherits(RandomDataSource, AbstractDataSource);
 
-
-/* Record represents a single item of data from a DataSource.
-   RdsRecord is the variety of Record created by RandomDataSource.
-*/
-function RdsRecord(row) {
+/* Record Constructor */
+RandomDataSource.prototype.Record = function(row) {
   this.row    = row;
   this.error  = null;
-}
+};
 
-RdsRecord.prototype.logger = function(fd, callback) {
+RandomDataSource.prototype.Record.prototype.logger = function(fd, callback) {
   var message =
      "/* " + this.error.message + " */\n" +
      JSON.stringify(this.row) + "\n";
@@ -131,14 +132,16 @@ RandomDataSource.prototype.runIfReady = function() {
 };
 
 RandomDataSource.prototype.run = function() {
+  udebug.log("run");
   var newRow, record;
 
   while(this.running === 1) {
     newRow = this.generator.newRow();
+    // Note there is no onScanLine plugin for random data
     if(this.skipping) {
       this.controller.dsDiscardedItem();
     } else {
-      record = new RdsRecord(newRow);
+      record = new this.Record(newRow);
       this.controller.dsNewItem(record);
     }
   }
@@ -149,40 +152,35 @@ RandomDataSource.prototype.run = function() {
 };
 
 
-//////////////////////////////  FileDataSource     ///////////
+//////////////////////////////  BufferDescriptor     ///////////
 
-/* Version of Record created by FileDataSource
-*/
-
-function FdsRecord(lineScannerSpec) {
-  this.row    = null;
-  this.error  = null;
-  this.source = lineScannerSpec.source;
-  this.start  = lineScannerSpec.start;
-  this.end    = lineScannerSpec.end;
+function BufferDescriptor(source) {
+  this.source         = source;
+  this.lineStart      = 0;
+  this.lineEnd        = 0;
+  this.lineHasFields  = false;
+  this.atEnd          = false;
 }
 
-FdsRecord.prototype.logger = function(fd, callback) {
-  var message = "";
-  if(theDataSource.options.commentStart) {
-    message = theDataSource.options.commentStart +
-              this.error.message +
-              theDataSource.options.lineEndString;
-  }
-  message += this.source.substring(this.start, this.end);
-  var buffer = new Buffer(message);
-  fs.write(fd, buffer, 0, buffer.length, null, callback);
+BufferDescriptor.prototype.println = function() {
+  udebug.log(this.source.substring(this.lineStart, this.lineEnd));
 };
 
+//////////////////////////////  FileDataSource     ///////////
 
 function FileDataSource(job, controller) {
+  udebug.log("FileDataSource()");
   this.options      = job.dataSource;
-  this.columns      = job.columnDefinitions;
+  this.columns      = job.destination;
+  this.controller   = controller;
   this.fd           = null;
   this.bufferSize   = 16384;
-  this.scanSpec     = null;
+  this.bufferDesc   = null;
   this.lineScanner  = new LineScanner(this.options);
-  this.recopied    = 0;  // no. of characters left from previous read buffer
+  this.recopied     = 0;  // no. of characters left from previous read buffer
+  this.physLineNo   = 0;  // actual lines (not records) read from data file
+  this.valueAdapter = new JsValueAdapter(this.columns.getTableHandler(),
+                                         this.options.isJSON);
 
   theDataSource    = this;
   theController    = controller;
@@ -190,10 +188,12 @@ function FileDataSource(job, controller) {
   if(this.options.isJSON) {
     this.fieldScanner = new JSONFieldScanner(this.columns);
   } else {
-    this.fieldScanner = new TextFieldScanner(this.columns, this.options);
+    this.fieldScanner = new TextFieldScanner(this.options);
   }
 
-  if(this.options.file === "-") {
+  if(this.options.useControlFile) {
+    this.skipToBEGINDATA();
+  } else if(this.options.file === "-") {
     this.fd = 0;  // STDIN.  (Make buffer size smaller?)
     this.read();
   } else {
@@ -205,25 +205,51 @@ function FileDataSource(job, controller) {
 
 util.inherits(FileDataSource, AbstractDataSource);
 
+// Record Constructor
+FileDataSource.prototype.Record = function(bufferDescriptor, fields) {
+  this.row    = fields;
+  this.error  = null;
+  this.source = bufferDescriptor.source;
+  this.start  = bufferDescriptor.lineStart;
+  this.end    = bufferDescriptor.lineEnd;
+};
+
+FileDataSource.prototype.Record.prototype.logger = function(fd, callback) {
+  var message = "";
+  if(theDataSource.options.commentStart) {
+    message = theDataSource.options.commentStart +
+              this.error.message +
+              theDataSource.options.lineEndString;
+  }
+  message += this.source.substring(this.start, this.end);
+  var buffer = new Buffer(message);
+  fs.write(fd, buffer, 0, buffer.length, null, callback);
+};
+
 FileDataSource.prototype.onFileOpen = function(err, fd) {
+  udebug.log("onFileOpen fd:", fd);
   if(err) {
     theController.dsFinished(err);
   } else {
     this.fd = fd;
+    this.read();
   }
-  this.read();
 }
 
 // TODO: Handle the case of a single record that is larger than the buffer
+//       OR document this limitation and let the user select the buffer size
 FileDataSource.prototype.read = function() {
+  udebug.log("read");
   var buffer, readLen;
   buffer = new Buffer(this.bufferSize);
-  if(this.scanSpec && ! this.scanSpec.complete) {
-    /* Rewrite partial last record into new buffer */
-    this.recopied = buffer.write(this.scanSpec.source.substring(this.scanSpec.start));
+
+  /* Rewrite partial last record into new buffer */
+  if(this.bufferDesc && ! this.bufferDesc.lineEnd < this.bufferDesc.lineStart) {
+    this.recopied = buffer.write(this.bufferDesc.source.substring(this.bufferDesc.lineStart));
   } else {
     this.recopied = 0;
   }
+
   readLen = this.bufferSize - this.recopied;
   fs.read(this.fd, buffer, this.recopied, readLen, null, function(err, sz, buf) {
     theDataSource.onRead(err, sz, buf);
@@ -231,42 +257,83 @@ FileDataSource.prototype.read = function() {
 };
 
 FileDataSource.prototype.onRead = function(err, size, buffer) {
+  udebug.log("onRead size:", size);
   size += this.recopied;
   if(err) {
     theController.dsFinished(err);
   } else if(size === 0) {
-    theController.dsFinished();
+    udebug.log("onRead: EOF");
+    this.running = 0;
+    this.end();
   } else {
-    this.scanSpec = this.lineScanner.newSpec(buffer.toString('utf8', 0, size));
+    this.bufferDesc = new BufferDescriptor(buffer.toString('utf8', 0, size));
     this.runIfReady();
   }
+};
+
+FileDataSource.prototype.skipToBEGINDATA = function() {
+  var ctl, desc;
+  ctl = this.options.useControlFile;
+  desc = new BufferDescriptor(ctl.text, 0, ctl.text.length);
+  this.fd = ctl.openFd;
+  this.lineScanner.skipPhysicalLines(desc, ctl.inlineSkip);
+  this.physLineNo = ctl.inlineSkip;
+  udebug.log("skipToBEGINDATA skip to line:", this.physLineNo);
+  desc.lineStart = desc.lineEnd;  // Advance to the newline after BEGINDATA
+  this.bufferDesc = desc;
+  this.options.useControlFile.buffer = null; // discard reference
+  this.runIfReady();
 };
 
 FileDataSource.prototype.runIfReady = function() {
   if( this.started &&
       this.running &&
-      this.scanSpec)     { this.run(); }
+      this.bufferDesc)     { this.run(); }
 };
 
 FileDataSource.prototype.run = function() {
-  var spec = this.scanSpec;
-  while(this.running && ! spec.eof) {
-    this.lineScanner.scan(spec);
-    if(! spec.eof) {
-      theController.plugin.onScanLine(spec.source, spec.start, spec.end);
-      if(this.skipping) {
-        theController.dsDiscardedItem();
-      } else {
-        // TODO: run the FieldScanner
+  udebug.log("run");
+  var desc, extraLines, fields, row, record;
+  desc = this.bufferDesc;
+  extraLines = 0;
+
+  while(this.running && ! desc.atEnd) {
+    extraLines = this.lineScanner.scan(desc);  // Scan the line
+    this.physLineNo += (extraLines + 1);
+    if(this.options.columnsInHeader) {
+      if(desc.lineHasFields) {
+        this.options.columnsInHeader = null;  // reset from true to null
+        fields = this.fieldScanner.scan(desc);  // Extract the data fields
+        this.valueAdapter.useFieldSubset(fields);  // Using the existing tablehandler
+        this.columns.setColumnsFromArray(fields);  // Creates a new tableHandler on next write
       }
-      spec.start = spec.end + 1;
+    } else if (this.skipping) {
+      theController.dsDiscardedItem();
+    } else {
+      theController.plugin.onScanLine(this.physLineNo, desc.source,
+                                      desc.lineStart, desc.lineEnd);
+      if(desc.lineHasFields) {
+        fields = this.fieldScanner.scan(desc);    // Extract the data fields
+        row = this.valueAdapter.adapt(fields);
+        record = new this.Record(desc, row);
+        theController.dsNewItem(record);
+      }
     }
+    desc.lineStart = desc.lineEnd + 1;   // Advance to first char. of next line
   }
 
   if(this.shutdown) {
+    /* Controller has shut us down, e.g. because of DO N ROWS */
     theController.dsFinished();
-  } else if(this.scanSpec.eof) {
+  } else if(this.fd === null) {
+    /* We have been reading data from a string passed on the command line */
+    theController.dsFinished();
+  } else if(desc.atEnd) {
+    /* Read to the end of a read buffer; read again. */
     this.read();
+  } else {
+    /* Reaching this point is probably a bug */
+    console.log("why are we here?", this);
   }
 };
 
