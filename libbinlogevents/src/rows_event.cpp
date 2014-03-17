@@ -191,7 +191,7 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   uint8_t const post_header_len=
                 description_event->post_header_len[event_type - 1];
   const char *post_start= buf;
-  post_start+= RW_MAPID_OFFSET;
+  post_start+= ROWS_MAPID_OFFSET;
   if (post_header_len == 6)
   {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
@@ -203,7 +203,7 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   {
     memcpy(&m_table_id, post_start, 6);
     m_table_id= le64toh(m_table_id);
-    post_start+= RW_FLAGS_OFFSET;
+    post_start+= ROWS_FLAGS_OFFSET;
   }
 
   memcpy(&m_flags, post_start, sizeof(m_flags));
@@ -231,7 +231,7 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
     {
       switch(*pos++)
       {
-      case RW_V_EXTRAINFO_TAG:
+      case ROWS_V_EXTRAINFO_TAG:
       {
         /* Have an 'extra info' section, read it in */
         if ((end - pos) < EXTRA_ROW_INFO_HDR_BYTES)

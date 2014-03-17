@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights
+Copyright (c) 2011, 2013, 2014 Oracle and/or its affiliates. All rights
 reserved.
 
 This program is free software; you can redistribute it and/or
@@ -336,37 +336,6 @@ enum enum_group_type
 */
 namespace binary_log
 {
-/*
-  Reads string from buf.
-
-  Reads str from buf in the following format:
-   1. Read length stored on buf first index, as it only has 1 byte values
-      bigger than 255 where lost.
-   2. Set str pointer to buf second index.
-  Despite str contains the complete stored string, when it is read until
-  len its value will be truncated if original length was bigger than 255.
-
-  @param buf source pointer
-  @param buf_end
-  @param str destination pointer
-  @param len length to which the buffer should be read
-
-  @retval 1 error
-  @retval 0 success
-*/
-static inline int read_str_at_most_255_bytes(const char **buf,
-                                             const char *buf_end,
-                                             const char **str,
-                                             uint8_t *len)
-{
-  if (*buf + ((unsigned int) (unsigned char) **buf) >= buf_end)
-    return 1;
-  *len= (unsigned char) **buf;
-  *str= (*buf) + 1;
-  (*buf)+= (unsigned int)*len + 1;
-  return 0;
-}
-
 /**
    This flag only makes sense for Format_description_event. It is set
    when the event is written, and *reset* when a binlog file is

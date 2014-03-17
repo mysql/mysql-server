@@ -8759,7 +8759,7 @@ int Rows_log_event::get_data_size()
   {
     data_size= Binary_log_event::ROWS_HEADER_LEN_V2 +
       (m_extra_row_data ?
-       RW_V_TAG_LEN + m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET]:
+       ROWS_V_TAG_LEN + m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET]:
        0);
   }
   else
@@ -10807,8 +10807,8 @@ bool Rows_log_event::write_data_header(IO_CACHE *file)
                     int2store(buf + 4, m_flags);
                     return (wrapper_my_b_safe_write(file, buf, 6));
                   });
-  int6store(buf + RW_MAPID_OFFSET, m_table_id.id());
-  int2store(buf + RW_FLAGS_OFFSET, m_flags);
+  int6store(buf + ROWS_MAPID_OFFSET, m_table_id.id());
+  int2store(buf + ROWS_FLAGS_OFFSET, m_flags);
   int rc = 0;
   if (likely(!log_bin_use_v1_row_events))
   {
@@ -10822,11 +10822,11 @@ bool Rows_log_event::write_data_header(IO_CACHE *file)
     if (m_extra_row_data)
     {
       extra_data_len= m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET];
-      vhpayloadlen= RW_V_TAG_LEN + extra_data_len;
+      vhpayloadlen= ROWS_V_TAG_LEN + extra_data_len;
     }
 
     /* Var-size header len includes len itself */
-    int2store(buf + RW_VHLEN_OFFSET, vhlen + vhpayloadlen);
+    int2store(buf + ROWS_VHLEN_OFFSET, vhlen + vhpayloadlen);
     rc= wrapper_my_b_safe_write(file, buf, Binary_log_event::ROWS_HEADER_LEN_V2);
 
     /* Write var-sized payload, if any */
@@ -10834,8 +10834,8 @@ bool Rows_log_event::write_data_header(IO_CACHE *file)
         (rc == 0))
     {
       /* Add tag and extra row info */
-      uchar type_code= RW_V_EXTRAINFO_TAG;
-      rc= wrapper_my_b_safe_write(file, &type_code, RW_V_TAG_LEN);
+      uchar type_code= ROWS_V_EXTRAINFO_TAG;
+      rc= wrapper_my_b_safe_write(file, &type_code, ROWS_V_TAG_LEN);
       if (rc==0)
         rc= wrapper_my_b_safe_write(file, m_extra_row_data, extra_data_len);
     }

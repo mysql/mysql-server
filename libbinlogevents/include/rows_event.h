@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2013, Oracle and/or its affiliates. All rights
+Copyright (c) 2014 Oracle and/or its affiliates. All rights
 reserved.
 
 This program is free software; you can redistribute it and/or
@@ -69,12 +69,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define EXTRA_ROW_INFO_HDR_BYTES 2
 #define EXTRA_ROW_INFO_MAX_PAYLOAD (255 - EXTRA_ROW_INFO_HDR_BYTES)
 
-/** RW = "RoWs" */
-#define RW_MAPID_OFFSET    0
-#define RW_FLAGS_OFFSET    6
-#define RW_VHLEN_OFFSET    8
-#define RW_V_TAG_LEN       1
-#define RW_V_EXTRAINFO_TAG 0
+#define ROWS_MAPID_OFFSET    0
+#define ROWS_FLAGS_OFFSET    6
+#define ROWS_VHLEN_OFFSET    8
+#define ROWS_V_TAG_LEN       1
+#define ROWS_V_EXTRAINFO_TAG 0
 
 namespace binary_log
 {
@@ -531,24 +530,36 @@ public:
 
   <tr>
     <td>columns_before_image</td>
-    <td>vector of elements of type unsigned char</td>
-    <td>for UPDATE_ROWS_LOG_EVENT only. Bit-field indicating whether
-        each column is used in the UPDATE_ROWS_LOG_EVENT after-image;
+    <td>vector of elements of type uint8_t</td>
+    <td>Bit-field indicating whether each column is used
         one bit per column. For this field, the amount of storage
         required for N columns is INT((N + 7) / 8) bytes.</td>
   </tr>
 
   <tr>
     <td>columns_after_image</td>
-    <td>vector of elements of type unsigned char</td>
-    <td> Bit-field indicating whether  each column is used in the after-image;
-        one bit per column. For this field, the amount of storage
-        required for N columns is INT((N + 7) / 8) bytes.</td>
+    <td>vector of elements of type uint8_t</td>
+    <td>variable-sized (for UPDATE_ROWS_EVENT only).
+        Bit-field indicating whether each column is used in the
+        UPDATE_ROWS_EVENT and WRITE_ROWS_EVENT after-image; one bit per column.
+        For this field, the amount of storage required for N columns
+        is INT((N + 7) / 8) bytes.
+
+        @verbatim
+          +-------------------------------------------------------+
+          | Event Type | Cols_before_image | Cols_after_image     |
+          +-------------------------------------------------------+
+          |  DELETE    |   Deleted row     |    NULL              |
+          |  INSERT    |   NULL            |    Inserted row      |
+          |  UPDATE    |   Old     row     |    Updated row       |
+          +-------------------------------------------------------+
+        @end verbatim
+    </td>
   </tr>
 
   <tr>
     <td>row</td>
-    <td>vector of elements of type unsigned char</td>
+    <td>vector of elements of type uint8_t</td>
     <td> A sequence of zero or more rows. The end is determined by the size
          of the event. Each row has the following format:
            - A Bit-field indicating whether each field in the row is NULL.
@@ -562,6 +573,16 @@ public:
              previous field). In other words, the number of values listed here
              is equal to the number of zero bits in the previous field.
              (not counting padding bits in the last byte).
+             @verbatim
+                For example, if a INSERT statement inserts into 4 columns of a
+                table, N= 4 (in the formula above).
+                length of bitmask= (4 + 7) / 8 = 1
+                Number of fields in the row= 4.
+
+                        +------------------------------------------------+
+                        |Null_bit_mask(4)|field-1|field-2|field-3|field 4|
+                        +------------------------------------------------+
+             @endverbatim
     </td>
   </tr>
 */
@@ -590,6 +611,17 @@ public:
     COMPLETE_ROWS_F = (1U << 3)
   };
 
+  /**
+    Constructs an event directly. The members are assigned default values.
+
+    @param type_arg          Type of ROW_EVENT. Expected types are:
+                             - WRITE_ROWS_EVENT, WRITE_ROWS_EVENT_V1,
+                               PRE_GA_WRITE_ROWS_EVENT,
+                             - UPDATE_ROWS_EVENT, UPDATE_ROWS_EVENT_V1,
+                               PRE_GA_UPDATE_ROWS_EVENT,
+                             - DELETE_ROWS_EVENT, DELETE_ROWS_EVENT_V1,
+                               PRE_GA_DELETE_ROWS_EVENT
+  */
   Rows_event(Log_event_type type_arg)
   : Binary_log_event(type_arg),
     m_table_id(0), m_width(0), m_extra_row_data(0),
@@ -597,6 +629,16 @@ public:
   {
   }
 
+ /**
+   The constructor is responsible for decoding the event contained in
+   the buffer.
+
+   @param buf                Containes the serialized event
+   @param event_len          Length of the event, and number of bytes
+                             to be read from the buffer
+   @param description_event  An FDE event, used to get the proper
+                             binlog version
+ */
  Rows_event(const char *buf, unsigned int event_len,
              const Format_description_event *description_event);
 
@@ -616,11 +658,11 @@ protected:
 
   unsigned char* m_extra_row_data;
 
-
-public:
   std::vector<uint8_t> columns_before_image;
   std::vector<uint8_t> columns_after_image;
   std::vector<uint8_t> row;
+
+public:
   unsigned long long get_table_id()
   {
     return m_table_id.id();
@@ -661,6 +703,8 @@ public:
   void print_event_info(std::ostream& info);
   void print_long_info(std::ostream& info);
 #endif
+
+  template <class Iterator_value_type> friend class Row_event_iterator;
 };
 
 
@@ -683,7 +727,7 @@ public:
   };
 
   Write_rows_event()
-  : Rows_event(ENUM_END_EVENT)
+  : Rows_event(WRITE_ROWS_EVENT)
   {
   }
 };
@@ -711,7 +755,7 @@ public:
   };
 
   Update_rows_event()
-  : Rows_event(ENUM_END_EVENT)
+  : Rows_event(UPDATE_ROWS_EVENT)
   {
   }
 };
@@ -740,7 +784,7 @@ public:
   };
 
   Delete_rows_event()
-  : Rows_event(ENUM_END_EVENT)
+  : Rows_event(DELETE_ROWS_EVENT)
   {
   }
 };

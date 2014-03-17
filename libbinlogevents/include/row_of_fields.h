@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights
+Copyright (c) 2011, 2013, 2014 Oracle and/or its affiliates. All rights
 reserved.
 
 This program is free software; you can redistribute it and/or
@@ -29,6 +29,13 @@ using namespace binary_log;
 namespace binary_log
 {
 
+/**
+  @class Row_of_fields
+
+  A Row_of_fields is a standard vector of binary_log::Value objects.
+  Each row in a Row_event(INSERT/UPDATE/DELETE) may contain one or more fields.
+  The value and type of the field is contained in the object binary_log::Value.
+*/
 class Row_of_fields : public std::vector<Value >
 {
 public:

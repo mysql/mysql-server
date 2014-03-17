@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights
+Copyright (c) 2011, 2013, 2014 Oracle and/or its affiliates. All rights
 reserved.
 
 This program is free software; you can redistribute it and/or
@@ -29,6 +29,16 @@ namespace binary_log {
 class Rows_event;
 class Table_map_event;
 
+/**
+  @class Row_event_set
+
+  Each Row_event (INSERT/UPDATE/DELETE) contains may contain more than
+  one row in the event body. This class is used to access the rows contained
+  within one row event.
+
+  The class stores a Row event and the associated Table map event.
+  Each row is accessed using a forward input iterator, @ref Row_event_iterator
+*/
 class Row_event_set
 {
 public:
