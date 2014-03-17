@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2000, 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -436,9 +436,6 @@ void Dbspj::execSTTOR(Signal* signal)
   const Uint16 tphase = signal->theData[1];
   f_STTOR_REF = signal->getSendersBlockRef();
 
-  ndbout << "Dbspj::execSTTOR() inst:" << instance()
-         << " phase=" << tphase << endl;
-
   if (tphase == 1)
   {
     jam();
@@ -685,7 +682,6 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
   else if (type == 2)
   {
     jam();
-    ndbout_c("Finished with handling node-failure");
   }
 }
 
