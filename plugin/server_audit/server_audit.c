@@ -172,6 +172,10 @@ static char default_file_name[DEFAULT_FILENAME_LEN+1]= "server_audit.log";
 
 static void update_file_path(MYSQL_THD thd, struct st_mysql_sys_var *var,
                              void *var_ptr, const void *save);
+static void update_file_rotate_size(MYSQL_THD thd, struct st_mysql_sys_var *var,
+                                    void *var_ptr, const void *save);
+static void update_file_rotations(MYSQL_THD thd, struct st_mysql_sys_var *var,
+                                  void *var_ptr, const void *save);
 static void update_incl_users(MYSQL_THD thd, struct st_mysql_sys_var *var,
                               void *var_ptr, const void *save);
 static void update_excl_users(MYSQL_THD thd, struct st_mysql_sys_var *var,
@@ -230,11 +234,11 @@ static MYSQL_SYSVAR_STR(file_path, file_path, PLUGIN_VAR_RQCMDARG,
        "Path to the log file.", NULL, update_file_path, default_file_name);
 static MYSQL_SYSVAR_ULONGLONG(file_rotate_size, file_rotate_size,
        PLUGIN_VAR_RQCMDARG, "Maximum size of the log to start the rotation.",
-       NULL, NULL,
+       NULL, update_file_rotate_size,
        1000000, 100, ((long long) 0x7FFFFFFFFFFFFFFFLL), 1);
 static MYSQL_SYSVAR_UINT(file_rotations, rotations,
        PLUGIN_VAR_RQCMDARG, "Number of rotations before log is removed.",
-       NULL, NULL, 9, 0, 999, 1);
+       NULL, update_file_rotations, 9, 0, 999, 1);
 static MYSQL_SYSVAR_BOOL(file_rotate_now, rotate, PLUGIN_VAR_OPCMDARG,
        "Force log rotation now.", NULL, rotate_log, FALSE);
 static MYSQL_SYSVAR_BOOL(logging, logging,
@@ -1332,6 +1336,7 @@ exit_func:
     switch (after_action) {
     case AA_FREE_CONNECTION:
       my_hash_delete(&connection_hash, (uchar *) cn);
+      cn= 0;
       break;
     case AA_CHANGE_USER:
     {
@@ -1680,6 +1685,41 @@ exit_func:
 }
 
 
+static void update_file_rotations(MYSQL_THD thd  __attribute__((unused)),
+              struct st_mysql_sys_var *var  __attribute__((unused)),
+              void *var_ptr  __attribute__((unused)), const void *save)
+{
+  rotations= *(unsigned int *) save;
+  error_header();
+  fprintf(stderr, "Log file rotations was changed to '%d'.\n", rotations);
+
+  if (!logging || output_type != OUTPUT_FILE)
+    return;
+
+  flogger_mutex_lock(&lock_operations);
+  logfile->rotations= rotations;
+  flogger_mutex_unlock(&lock_operations);
+}
+
+
+static void update_file_rotate_size(MYSQL_THD thd  __attribute__((unused)),
+              struct st_mysql_sys_var *var  __attribute__((unused)),
+              void *var_ptr  __attribute__((unused)), const void *save)
+{
+  file_rotate_size= *(unsigned long long *) save;
+  error_header();
+  fprintf(stderr, "Log file rotate size was changed to '%lld'.\n",
+          file_rotate_size);
+
+  if (!logging || output_type != OUTPUT_FILE)
+    return;
+
+  flogger_mutex_lock(&lock_operations);
+  logfile->size_limit= file_rotate_size;
+  flogger_mutex_unlock(&lock_operations);
+}
+
+
 static void update_incl_users(MYSQL_THD thd,
               struct st_mysql_sys_var *var  __attribute__((unused)),
               void *var_ptr  __attribute__((unused)), const void *save)
@@ -1821,6 +1861,7 @@ static void update_mode(MYSQL_THD thd  __attribute__((unused)),
   flogger_mutex_unlock(&lock_operations);
 }
 
+
 static void update_syslog_ident(MYSQL_THD thd  __attribute__((unused)),
               struct st_mysql_sys_var *var  __attribute__((unused)),
               void *var_ptr  __attribute__((unused)), const void *save)
@@ -1828,8 +1869,15 @@ static void update_syslog_ident(MYSQL_THD thd  __attribute__((unused)),
   strncpy(syslog_ident_buffer, *(const char **) save,
           sizeof(syslog_ident_buffer));
   syslog_ident= syslog_ident_buffer;
+  error_header();
+  fprintf(stderr, "SYSYLOG ident was changed to '%s'\n", syslog_ident);
   flogger_mutex_lock(&lock_operations);
   mark_always_logged(thd);
+  if (logging && output_type == OUTPUT_SYSLOG)
+  {
+    stop_logging();
+    start_logging();
+  }
   flogger_mutex_unlock(&lock_operations);
 }
 
