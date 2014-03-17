@@ -65,6 +65,7 @@ UNIV_INTERN uint	ibuf_debug;
 #include "srv0start.h" /* SRV_LOG_SPACE_FIRST_ID */
 #include "m_string.h"
 #include "my_sys.h"
+#include "lock0lock.h"
 
 #include <ctype.h>
 
@@ -1331,6 +1332,7 @@ dict_table_remove_from_cache(
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+	ut_ad(lock_table_has_locks(table) == FALSE);
 
 #if 0
 	fputs("Removing table ", stderr);
@@ -1383,6 +1385,53 @@ dict_table_remove_from_cache(
 	dict_mem_table_free(table);
 }
 
+/**********************************************************************//**
+Test whether a table can be evicted from the LRU cache.
+@return TRUE if table can be evicted. */
+static
+ibool
+dict_table_can_be_evicted(
+/*======================*/
+	const dict_table_t*	table)	/*!< in: table to test */
+{
+	dict_index_t*	index;
+	dict_foreign_t*	foreign;
+	ibool		has_locks;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	/* bug 758788: A table may not have an active handle opened on it
+	   but may still have locks held on it across multiple statements
+	   within an individual transaction. So a table is not evictable if
+	   there are locks held on it */
+	has_locks = lock_table_has_locks(table);
+
+	if (table->n_mysql_handles_opened || table->is_corrupt || has_locks)
+		return(FALSE);
+
+	/* bug 758788: We are not allowed to free the in-memory index struct
+	   dict_index_t if there are any locks held on any of its indexes. */
+	for (index = dict_table_get_first_index(table); index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		rw_lock_t* lock = dict_index_get_lock(index);
+
+		if (rw_lock_is_locked(lock, RW_LOCK_SHARED)
+		    || rw_lock_is_locked(lock, RW_LOCK_EX)) {
+			return(FALSE);
+		} 
+	}
+
+	for (foreign = UT_LIST_GET_FIRST(table->foreign_list); foreign != NULL;
+	    foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+
+		if (foreign->referenced_table) {
+			return(FALSE);
+		}
+	}
+	return(TRUE);
+}
+
 /**************************************************************************
 Frees tables from the end of table_LRU if the dictionary cache occupies
 too much space. */
@@ -1394,51 +1443,65 @@ dict_table_LRU_trim(
 {
 	dict_table_t*	table;
 	dict_table_t*	prev_table;
-	dict_foreign_t*	foreign;
-	ulint		n_removed;
-	ulint		n_have_parent;
-	ulint		cached_foreign_tables;
+	ulint		dict_size;
+	ulint		max_depth;
+	ulint		max_evict;
+	ulint		visited;
+	ulint		evicted;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-retry:
-	n_removed = n_have_parent = 0;
+	if (srv_dict_size_limit == 0)
+		return;
+
+	/* Calculate this once here and then once on every eviction */
+	dict_size = (dict_sys->table_hash->n_cells
+		    + dict_sys->table_id_hash->n_cells)
+		      * sizeof(hash_cell_t) + dict_sys->size;
+
+	/* Just some magic numbers to help keep us from holding the dict mutex
+	   for too long as well as preventing constant full scans of the list in
+	   a memory pressure situation. */
+
+	/* Don't go scanning into the front 50% of the list, chances are very
+	   good that there is nothing to be evicted in there and if there is,
+	   it should quickly get pushed into the back 50% */
+	max_depth = UT_LIST_GET_LEN(dict_sys->table_LRU) / 2;
+
+	/* Don't try to evict any more than 10% of evictable tables at once. */
+	max_evict = UT_LIST_GET_LEN(dict_sys->table_LRU) / 10;
+
+	visited = evicted = 0;
+
 	table = UT_LIST_GET_LAST(dict_sys->table_LRU);
 
-	while ( srv_dict_size_limit && table
-		&& ((dict_sys->table_hash->n_cells
-		     + dict_sys->table_id_hash->n_cells) * sizeof(hash_cell_t)
-		    + dict_sys->size) > srv_dict_size_limit ) {
+	while (table && dict_size > srv_dict_size_limit
+	       && visited <= max_depth
+	       && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+
 		prev_table = UT_LIST_GET_PREV(table_LRU, table);
 
-		if (table == self || table->n_mysql_handles_opened || table->is_corrupt)
-			goto next_loop;
-
-		cached_foreign_tables = 0;
-		foreign = UT_LIST_GET_FIRST(table->foreign_list);
-		while (foreign != NULL) {
-			if (foreign->referenced_table)
-				cached_foreign_tables++;
-			foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
-		}
-
-		if (cached_foreign_tables == 0) {
+		if (table != self && dict_table_can_be_evicted(table)) {
 			dict_table_remove_from_cache(table);
-			n_removed++;
-		} else {
-			n_have_parent++;
+
+			evicted++;
+
+			if (evicted >= max_evict)
+				break;
+
+			/* Only need to recalculate this when something
+			   has been evicted */
+			dict_size = (dict_sys->table_hash->n_cells
+				    + dict_sys->table_id_hash->n_cells)
+				      * sizeof(hash_cell_t) + dict_sys->size;
 		}
-next_loop:
+
+		visited++;
+
 		table = prev_table;
 	}
-
-	if ( srv_dict_size_limit && n_have_parent && n_removed
-		&& ((dict_sys->table_hash->n_cells
-		     + dict_sys->table_id_hash->n_cells) * sizeof(hash_cell_t)
-		    + dict_sys->size) > srv_dict_size_limit )
-		goto retry;
 }
 
 /****************************************************************//**
