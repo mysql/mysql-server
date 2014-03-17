@@ -513,7 +513,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
     c_crashOnCorruptedTuple = val ? true : false;
   }
 
-}//Dbtup::execSIZEALT_REP()
+}
 
 void Dbtup::initRecords() 
 {
@@ -658,7 +658,6 @@ void Dbtup::execNDB_STTOR(Signal* signal)
     break;
   case ZSTARTPHASE3:
     jam();
-    startphase3Lab(signal, ~0, ~0);
     break;
   case ZSTARTPHASE4:
     jam();
@@ -674,10 +673,6 @@ void Dbtup::execNDB_STTOR(Signal* signal)
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUP_REF;
   sendSignal(cntrRef, GSN_NDB_STTORRY, signal, 1, JBB);
 }//Dbtup::execNDB_STTOR()
-
-void Dbtup::startphase3Lab(Signal* signal, Uint32 config1, Uint32 config2) 
-{
-}//Dbtup::startphase3Lab()
 
 void Dbtup::initializeDefaultValuesFrag()
 {

@@ -1022,6 +1022,9 @@ public:
 
     Uint32 m_error;
     Uint32 m_outstanding;
+
+    Uint64 m_no_of_records;
+    Uint64 m_no_of_bytes;
   }; // Size 76 bytes
   typedef Ptr<LcpRecord> LcpRecordPtr;
 
@@ -1071,6 +1074,32 @@ public:
     int tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt);
     void send_io(Uint32 bytes);
     void complete_io(Uint32 bytes);
+  };
+
+  /** 
+   * RedoWorkStats
+   *
+   * Structure for tracking the work performed to recover
+   * from redo
+   */
+  class RedoWorkStats
+  {
+  public:
+    Uint64 m_pagesRead;
+    
+    Uint64 m_opsPrepared;
+    Uint64 m_opsSkipped;
+    Uint64 m_opsExecuted;
+    Uint64 m_bytesExecuted;
+    Uint32 m_gcisExecuted;
+
+    RedoWorkStats()
+      :m_pagesRead(0),
+       m_opsSkipped(0),
+       m_opsExecuted(0),
+       m_bytesExecuted(0),
+       m_gcisExecuted(0)
+      {};
   };
 
   /**
@@ -1477,6 +1506,8 @@ public:
      * IO tracker...
      */
     struct IOTracker m_io_tracker;
+    
+    RedoWorkStats m_redoWorkStats;
   }; // Size 164 Bytes
   typedef Ptr<LogPartRecord> LogPartRecordPtr;
   
@@ -2647,7 +2678,6 @@ private:
   void initialiseRecordsLab(Signal* signal, Uint32 data, Uint32, Uint32);
   void startphase2Lab(Signal* signal, Uint32 config);
   void startphase3Lab(Signal* signal);
-  void startphase4Lab(Signal* signal);
   void startphase6Lab(Signal* signal);
   void moreconnectionsLab(Signal* signal);
   void scanReleaseLocksLab(Signal* signal);
@@ -2853,6 +2883,9 @@ public:
   void tupcommit_conf_callback(Signal* signal, Uint32 tcPtrI);
 private:
   void tupcommit_conf(Signal* signal, TcConnectionrec *,Fragrecord *);
+
+  void mark_end_of_lcp_restore(Signal* signal);
+  void log_fragment_copied(Signal* signal);
   
 // ----------------------------------------------------------------
 // These are variables handling the records. For most records one
@@ -3342,8 +3375,51 @@ public:
   Uint64 c_keyOverloadsSubscriber;
   
   Uint64 c_scanSlowDowns; 
-    
+  
+  /**
+     Startup logging:
 
+     c_fragmentsStarted:
+       Total number of fragments started as part of node restart
+     c_fragmentsStartedWithCopy:
+       Number of fragments started by complete copy where no useful LCP was
+       accessible for the fragment.
+     c_fragCopyFrag:
+       The current fragment id copied
+     c_fragCopyTable:
+       The current table id copied
+     c_fragCopyRowsIns:
+       The number of rows inserted in current fragment
+     c_fragCopyRowsDel:
+       The number of rows deleted in current fragment
+     c_fragBytesCopied:
+       The number of bytes sent over the wire to copy the current fragment
+
+     c_fragmentCopyStart:
+       Time of start of copy fragment
+     c_fragmentsCopied:
+       Number of fragments copied
+     c_totalCopyRowsIns:
+       Total number of rows inserted as part of copy process
+     c_totalCopyRowsDel:
+       Total number of rows deleted as part of copy process
+     c_totalBytesCopied:
+       Total number of bytes sent over the wire as part of the copy process
+  */
+  Uint32 c_fragmentsStarted;
+  Uint32 c_fragmentsStartedWithCopy;  /* Non trans -> 2PINR */
+
+  Uint32 c_fragCopyFrag;
+  Uint32 c_fragCopyTable;
+  Uint64 c_fragCopyRowsIns;
+  Uint64 c_fragCopyRowsDel;
+  Uint64 c_fragBytesCopied;
+
+  Uint64 c_fragmentCopyStart;
+  Uint32 c_fragmentsCopied;
+  Uint64 c_totalCopyRowsIns;
+  Uint64 c_totalCopyRowsDel;
+  Uint64 c_totalBytesCopied;
 
   inline bool getAllowRead() const {
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;

@@ -2884,8 +2884,6 @@ private:
 
   void initTab(Tablerec* regTabPtr);
 
-  void startphase3Lab(Signal* signal, Uint32 config1, Uint32 config2);
-
   void fragrefuseLab(Signal* signal, FragoperrecPtr fragOperPtr);
   void fragrefuse1Lab(Signal* signal, FragoperrecPtr fragOperPtr);
   void fragrefuse2Lab(Signal* signal, FragoperrecPtr fragOperPtr, FragrecordPtr regFragPtr);

@@ -2734,7 +2734,11 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   Pool_context pc;
   pc.m_block = this;
 
-  c_arenaAllocator.init(796, RT_DBDICT_SCHEMA_TRANS_ARENA, pc); // TODO: set size automagical? INFO: 796 is about 1/41 of a page, and bigger than CreateIndexRec (784 bytes)
+  c_arenaAllocator.init(796, RT_DBDICT_SCHEMA_TRANS_ARENA, pc);
+  /**
+    TODO: set size automagical? INFO: 796 is about 1/41 of a page,
+    and bigger than CreateIndexRec (784 bytes)
+  */
 
   c_attributeRecordPool.setSize(attributesize);
   c_attributeRecordHash.setSize(64);
@@ -2890,7 +2894,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   {
     g_trace = trace;
   }
-}//execSIZEALT_REP()
+}
 
 /* ---------------------------------------------------------------- */
 // Start phase signals sent by CNTR. We reply with NDB_STTORRY when
@@ -2936,6 +2940,7 @@ void Dbdict::execNDB_STTOR(Signal* signal)
     break;
   case 7:
     jam();
+    g_eventLogger->info("Foreign Key enabling Starting");
     enableFKs(signal, 0);
     break;
   default:
@@ -3003,6 +3008,8 @@ void Dbdict::initSchemaFile(Signal* signal)
   oldxsf->noOfPages = xsf->noOfPages;
   memcpy(&oldxsf->schemaPage[0], &xsf->schemaPage[0], xsf->schemaPage[0].FileSize);
 
+  g_eventLogger->info("Schema file initialisation Starting");
+
   if (c_initialStart || c_initialNodeRestart) {
     jam();
     ndbrequire(c_writeSchemaRecord.inUse == false);
@@ -3032,6 +3039,7 @@ void Dbdict::initSchemaFile(Signal* signal)
 void
 Dbdict::initSchemaFile_conf(Signal* signal, Uint32 callbackData, Uint32 rv){
   jam();
+  g_eventLogger->info("Schema file initialisation Completed");
   sendNDB_STTORRY(signal);
 }
 
@@ -3115,6 +3123,17 @@ Dbdict::activateIndexes(Signal* signal, Uint32 id)
   check_consistency();
 #endif
 out:
+
+  if (c_systemRestart)
+  {
+    infoEvent("Restore dictionary information from disk Completed");
+  }
+  else
+  {
+    g_eventLogger->info("Copying of dictionary information"
+                        " from master Completed");
+  }
+
   signal->theData[0] = reference();
   signal->theData[1] = c_restartRecord.m_senderData;
   sendSignal(c_restartRecord.returnBlockRef, GSN_DICTSTARTCONF,
@@ -3457,6 +3476,7 @@ Dbdict::enableFKs(Signal* signal, Uint32 id)
 
   c_restart_enable_fks = false;
   D("enableFKs done");
+  g_eventLogger->info("Foreign key enabling Completed");
   sendNDB_STTORRY(signal);
 }
 
@@ -3605,6 +3625,9 @@ void Dbdict::execDICTSTARTREQ(Signal* signal)
 
     CRASH_INSERTION(6000);
 
+    g_eventLogger->info("Copying of dictionary information"
+                        " from master Starting");
+
     BlockReference dictRef = calcDictBlockRef(c_masterNodeId);
     signal->theData[0] = getOwnNodeId();
     sendSignal(dictRef, GSN_GET_SCHEMA_INFOREQ, signal, 1, JBB);
@@ -3612,6 +3635,8 @@ void Dbdict::execDICTSTARTREQ(Signal* signal)
   }
   ndbrequire(c_systemRestart);
   ndbrequire(c_masterNodeId == getOwnNodeId());
+
+  infoEvent("Restore dictionary information from disk Starting");
 
   c_schemaRecord.m_callback.m_callbackData = 0;
   c_schemaRecord.m_callback.m_callbackFunction =
@@ -4557,7 +4582,8 @@ Dbdict::restartCreateObj(Signal* signal,
     c_readTableRecord.m_callback.m_callbackFunction =
       safe_cast(&Dbdict::restartCreateObj_readConf);
 
-    ndbout_c("restartCreateObj(%u) file: %u", tableId, file);
+    g_eventLogger->info("Restart recreating table with id = %u", tableId);
+
     startReadTableFile(signal, tableId);
   }
   else
@@ -15866,82 +15892,6 @@ void
 Dbdict::execCREATE_EVNT_REQ(Signal* signal)
 {
   jamEntry();
-
-#if 0
-  {
-    SafeCounterHandle handle;
-    {
-      SafeCounter tmp(c_counterMgr, handle);
-      tmp.init<CreateEvntRef>(CMVMI, GSN_DUMP_STATE_ORD, /* senderData */ 13);
-      tmp.clearWaitingFor();
-      tmp.setWaitingFor(3);
-      ndbrequire(!tmp.done());
-      ndbout_c("Allocted");
-    }
-    ndbrequire(!handle.done());
-    {
-      SafeCounter tmp(c_counterMgr, handle);
-      tmp.clearWaitingFor(3);
-      ndbrequire(tmp.done());
-      ndbout_c("Deallocted");
-    }
-    ndbrequire(handle.done());
-  }
-  {
-    NodeBitmask nodes;
-    nodes.clear();
-
-    nodes.set(2);
-    nodes.set(3);
-    nodes.set(4);
-    nodes.set(5);
-
-    {
-      Uint32 i = 0;
-      while((i = nodes.find(i)) != NodeBitmask::NotFound){
-	ndbout_c("1 Node id = %u", i);
-	i++;
-      }
-    }
-
-    NodeReceiverGroup rg(DBDICT, nodes);
-    RequestTracker rt2;
-    ndbrequire(rt2.done());
-    ndbrequire(!rt2.hasRef());
-    ndbrequire(!rt2.hasConf());
-    rt2.init<CreateEvntRef>(c_counterMgr, rg, GSN_CREATE_EVNT_REF, 13);
-
-    RequestTracker rt3;
-    rt3.init<CreateEvntRef>(c_counterMgr, rg, GSN_CREATE_EVNT_REF, 13);
-
-    ndbrequire(!rt2.done());
-    ndbrequire(!rt3.done());
-
-    rt2.reportRef(c_counterMgr, 2);
-    rt3.reportConf(c_counterMgr, 2);
-
-    ndbrequire(!rt2.done());
-    ndbrequire(!rt3.done());
-
-    rt2.reportConf(c_counterMgr, 3);
-    rt3.reportConf(c_counterMgr, 3);
-
-    ndbrequire(!rt2.done());
-    ndbrequire(!rt3.done());
-
-    rt2.reportConf(c_counterMgr, 4);
-    rt3.reportConf(c_counterMgr, 4);
-
-    ndbrequire(!rt2.done());
-    ndbrequire(!rt3.done());
-
-    rt2.reportConf(c_counterMgr, 5);
-    rt3.reportConf(c_counterMgr, 5);
-
-    ndbrequire(rt2.done());
-    ndbrequire(rt3.done());
-  }
-#endif
 
   CreateEvntReq *req = (CreateEvntReq*)signal->getDataPtr();
 

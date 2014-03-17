@@ -206,7 +206,7 @@ LinearPool<T, LogBase>::seize(Ptr<T>& ptr)
 {
   // look for free list on some level
   Ptr<Map> map_ptr;
-  map_ptr.setNull();
+  map_ptr.i = RNIL;
   Uint32 n = 0;
   while (n < m_levels) {
     if ((map_ptr.i = m_avail[n]) != RNIL)
@@ -261,7 +261,6 @@ LinearPool<T, LogBase>::seize_index(Ptr<T>& ptr, Uint32 index)
   Uint32 digits[MaxLevels];
   Uint32 n = 0;
   Uint32 tmp = index;
-  ptr.setNull();
   do {
     digits[n] = tmp & DigitMask;
     tmp >>= LogBase;
@@ -279,7 +278,7 @@ LinearPool<T, LogBase>::seize_index(Ptr<T>& ptr, Uint32 index)
   Uint32 digit;
   bool used;
   Ptr<Map> new_ptr;
-  new_ptr.setNull();
+  new_ptr.i = RNIL;
   while (true) {
     digit = digits[--n];
     used = BitmaskImpl::get(BitmaskSize, map_ptr.p->m_bitmask, digit);
