@@ -5828,6 +5828,7 @@ alloc_another:
 							FIL_PAGE_NEXT);
 				}
 
+				/* We compress a page when finish bulk insert.*/
 				if (op != BTR_STORE_INSERT_BULK) {
 					page_zip_write_blob_ptr(
 						page_zip, rec, index, offsets,
@@ -5888,6 +5889,13 @@ next_zip_page:
 						SYNC_NO_ORDER_CHECK);
 				}
 
+				/* We log record insert when finish bulk insert,
+				at this point, the record is not logged yet. */
+				if (op == BTR_STORE_INSERT_BULK) {
+					ut_ad(alloc_mtr == &mtr);
+					alloc_mtr = NULL;
+				}
+
 				mlog_write_ulint(field_ref + BTR_EXTERN_LEN, 0,
 						 MLOG_4BYTES, alloc_mtr);
 				mlog_write_ulint(field_ref
@@ -5912,6 +5920,10 @@ next_zip_page:
 							 FIL_PAGE_DATA,
 							 MLOG_4BYTES,
 							 alloc_mtr);
+				}
+
+				if (op == BTR_STORE_INSERT_BULK) {
+					alloc_mtr = &mtr;
 				}
 
 				prev_page_no = page_no;
