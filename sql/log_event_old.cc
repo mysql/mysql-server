@@ -1330,7 +1330,7 @@ Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
 
   const char *post_start= buf + common_header_len;
   DBUG_DUMP("post_header", (uchar*) post_start, post_header_len);
-  post_start+= RW_MAPID_OFFSET;
+  post_start+= ROWS_MAPID_OFFSET;
   if (post_header_len == 6)
   {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
@@ -1340,7 +1340,7 @@ Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
   else
   {
     m_table_id= (ulong) uint6korr(post_start);
-    post_start+= RW_FLAGS_OFFSET;
+    post_start+= ROWS_FLAGS_OFFSET;
   }
 
   m_flags= uint2korr(post_start);

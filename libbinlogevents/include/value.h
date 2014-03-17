@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights
+Copyright (c) 2011, 2013, 2014 Oracle and/or its affiliates. All rights
 reserved.
 
 This program is free software; you can redistribute it and/or
@@ -93,12 +93,14 @@ uint32_t
 max_display_length_for_field(enum_field_types sql_type, unsigned int metadata);
 
 /**
- * A value object class which encapsluate a tuple
- * (value type, metadata, storage)
- * and provide for views to this storage through a well defined interface.
- *
- * Can be used with a Converter to convert between different Values.
- */
+  @class Value
+
+  A value object class which encapsluate a tuple
+  (value type, metadata, storage)
+  and provide for views to this storage through a well defined interface.
+
+  Can be used with a Converter to convert between different Values.
+*/
 class Value
 {
 public:
