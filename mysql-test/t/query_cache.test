@@ -1425,7 +1425,6 @@ SET SESSION query_cache_type=@qc_type;
 --echo #
 
 CREATE TABLE t1(a INT);
-INSERT INTO t1 VALUES (1);
 FLUSH STATUS;
 
 --echo # Test that RANDOM_BYTES queries are not cached
