@@ -20,14 +20,14 @@
 
 
 /* 
-   dbloader gices user-created JavaScript modules extensive access to the 
+   dbloader gives user-created JavaScript modules extensive access to the
    process of loading data.  Some of the things modules can do include:
      * add new command-line options to dbloader
      * customize the specification of the loader job
      * access a raw line of data read from the data file
      * access a parsed record and modify its fields, route it to a
        different destination table, or reject it.
-     * receive callbacks for each row succesfully loaded to the database
+     * receive callbacks for each row successfully loaded to the database
        or for each error.
      
    A module must export an init() function which receives an instance of a
@@ -44,8 +44,10 @@ exports.init = function(dataLoader) {
   */
 
   /* addOptionHandler(shortForm, longForm, helpText, callback).
-     Callback will receive(argsArray, index) and should return e number of
-     parameters consumed starting at index.
+     Callback will receive (nextArg) and should return:
+       0 if no arguments were consumed (i.e. not even the option flag)
+       1 if the option flag was consumed
+       2 if both the option flag and next argument were consumed
   */
   // dataLoader.addOption("-x","--extra","do extra work",
   //     function(args,index) { return 1; });
@@ -63,7 +65,7 @@ exports.init = function(dataLoader) {
       to the database.  If you change record.class, you cause the record to be 
       stored in a different table.
 
-      If onReadRecord returns false, THE RECORD WILL NOT BE PERSISTED. 
+      If onReadRecord returns false, the record will not be persisted.
    */
    // dataLoader.onReadRecord = function(record) {
    // };
@@ -71,22 +73,29 @@ exports.init = function(dataLoader) {
 
   /* onScanLine() 
      Gives the plugin access to a line scanned from the data file.
+     Only lines that will be evaluated for data are delivered; not blank
+     lines, comment lines, or skipped lines.
+     lineNo is the physical line number in the source file.
+
      The line of data is the string from source[startPos] to source[endPos].
+
+     Note that in the random data generator (LOAD RANDOM DATA...) there is 
+     no call to onScanLine()
   */
-  // dataLoader.onScanLine = function(source, startPos, endPos) {
+  // dataLoader.onScanLine = function(lineNo, source, startPos, endPos) {
   // };
 
 
-  /* onTick()
+  /* onTick(stats)
      Gives the plugin access to the internal timer interval.
      This function will be called approximately once every 20 milliseconds.
   */
-  // dataLoader.onTick = function() {
+  // dataLoader.onTick = function(stats) {
   // };
 
 
   /* onRecordStored(record): 
-     Called when record has been succesfully stored.
+     Called when record has been successfully stored.
   */
   // dataLoader.onRecordStored = function(record) {
   // };
@@ -103,10 +112,10 @@ exports.init = function(dataLoader) {
   /* onFinished(controller)
      This will be called at the end of processing.  It gives the plugin a chance
      to asynchronously close any resources.  When processing is finished, the 
-     plugin must call controller.pluginFinished()
+     plugin must call the provided callback function.
   */
-// dataLoader.onFinished = function(controller) {
-//   controller.pluginFinished();
+// dataLoader.onFinished = function(callbackOnClosed) {
+//   callbackOnClosed();
 // };
 
 

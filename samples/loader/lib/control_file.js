@@ -35,7 +35,6 @@ var LoadDataStatement   = P.Nonterminal("visitLoadDataStatement"),
     RandomData          = P.Nonterminal("visitRandomData"),
     SpecificData        = P.Nonterminal("visitSpecificData"),
     FileData            = P.Nonterminal("visitFileData"),
-    DataEncoding        = P.Nonterminal("visitDataEncoding"),
     Charset             = P.Nonterminal("visitCharset"),
     CommonDataFormat    = P.Nonterminal("visitCommonDataFormat"),
     DataJSON            = P.Nonterminal("visitDataJSON"),
@@ -74,11 +73,12 @@ var LoadDataStatement   = P.Nonterminal("visitLoadDataStatement"),
 /* Productions */
 P.defineProductions(
   LoadDataStatement , P.Series( "LOAD",
+                                P.Option(CommonDataFormat),
                                 DataSource,
                                 P.Option(LogSpec),
                                 P.Option(InsertMode),
                                 Destination,
-                                P.Option(DataEncoding),
+                                P.Option(Charset),
                                 P.Option(FieldSpec),
                                 P.Option(LineSpec),
                                 P.Several(Options),
@@ -89,6 +89,11 @@ P.defineProductions(
 
   StringOrName     , P.Alts("{string}", "{name}"),
 
+  /* Common Data Format */
+  CommonDataFormat , P.Alts(DataJSON, DataCSV),
+  DataJSON         , P.Series("JSON"),
+  DataCSV          , P.Series("CSV"),
+
   /* Data Source */
   DataSource       , P.Alts(RandomData, SpecificData),
   RandomData       , P.Series("RANDOM", "DATA"),
@@ -96,11 +101,6 @@ P.defineProductions(
                                P.Option(FileData)),
   IgnoredOptions   , P.Alts("LOCAL", "CONCURRENT", "LOW_PRIORITY"),
   FileData         , P.Series("INFILE", "{string}"),
-  DataEncoding     , P.Alts(Charset, CommonDataFormat),
-  Charset          , P.Series("CHARACTER", "SET", StringOrName),
-  CommonDataFormat , P.Alts(DataJSON, DataCSV),
-  DataJSON         , P.Series("JSON"),
-  DataCSV          , P.Series("CSV"),
 
   /* Log Spec */
   LogSpec          , P.Series("BADFILE", "{string}"),
@@ -111,6 +111,9 @@ P.defineProductions(
   /* Destination Table */
   Destination      , P.Series("INTO", "TABLE", SQLObject),
   SQLObject        , P.Series(StringOrName, P.Option(".", StringOrName)),
+
+  /* Data Encoding */
+  Charset          , P.Series("CHARACTER", "SET", StringOrName),
 
   /* Field options. */
   FieldSpec        , P.Series(P.Alts("FIELDS","COLUMNS"), FieldOption,
@@ -148,7 +151,9 @@ P.defineProductions(
   ColumnList       , P.Series("(" , ColumnDefn, P.Several("," , ColumnDefn),
                               ")" ),
   ColumnDefn       , P.Series(StringOrName, P.Option(ColumnPosition)),
-  ColumnPosition   , P.Series("POSITION","(","{number}",":","{number}",")")
+  ColumnPosition   , P.Series("POSITION","(","{number}",":","{number}",")"),
+
+  BeginData        , P.Series("BEGINDATA")
 );
 
 
@@ -179,7 +184,8 @@ SqlVisitor.prototype.visitFileData = function(node, job) {
 
 // LOAD DATA ... BEGINDATA
 SqlVisitor.prototype.visitBeginData = function(node, job) {
-  job.dataSource.inline = true;
+  // Use the control file as the data file; skip all lines up to BEGINDATA
+  job.BeginDataAtControlFileLine(node.nonTerminal.parser.final_line);
 };
 
 // JSON
@@ -296,8 +302,15 @@ SqlVisitor.prototype.visitColumnsInHeader = function(node, job) {
 };
 
 // P.Series(StringOrName, P.Option(ColumnPosition))
+/* Visit child nodes twice: first to fetch the column name on a collector,
+   and then to pass the ColumnDefinition down to a ColumnPosition node.
+*/
 SqlVisitor.prototype.visitColumnDefn = function(node, job) {
-  var defn = job.addColumnDefinition(node.getToken(0));
+  var name, defn, collector;
+  collector = [];
+  node.visitChildNodes(this, collector);
+  name = collector[0];
+  defn = job.destination.addColumnDefinition(name);
   node.visitChildNodes(this, defn);
 };
 
@@ -305,7 +318,6 @@ SqlVisitor.prototype.visitColumnPosition = function(node, defn) {
   defn.startPos = node.getNumber(0);
   defn.endPos = node.getNumber(1);
 };
-
 
 SqlVisitor.prototype.visitInsertMode = function(node, job) {
   job.setInsertMode(node.getToken(0));

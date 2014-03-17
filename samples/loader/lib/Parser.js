@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -201,9 +201,10 @@ Parser.prototype.done = function() {
   if(this.index < this.tokens.length) {
     this.fail("Extra text after parsed statement.");
   }
+  this.final_line = this.tokens[this.tokens.length-1].line;
 };
 
-/* def(lhs, rhs) 
+/* def(lhs, rhs)
    Sets the stub NonTerminal on the left hand side
    to behave as the fully formed one from the right hand side
 */

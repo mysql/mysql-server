@@ -18,10 +18,13 @@
  02110-1301  USA
  */
 
+var udebug = require(path.join(api_dir, "unified_debug")).getLogger("BadRecordLogger.js");
+
 var theController, theBadRecordLogger;
 
 /* QuietLogger is a null logger */
 function QuietLogger(controller) {
+  udebug.log("QuietLogger Constructor");
   theController = controller;
 }
 
@@ -29,12 +32,14 @@ QuietLogger.prototype.logRecord = function(record) {
 };
 
 QuietLogger.prototype.end = function() {
+  udebug.log("end");
   theController.loggerFinished();
 };
 
 
 /* BadRecordLogger maintains the BADFILE */
 function BadRecordLogger(controller) {
+  udebug.log("BadRecordLogger Constructor");
   this.fileName   = controller.options.badfile;
   this.fd         = null;
   this.queue      = [];
@@ -91,6 +96,7 @@ BadRecordLogger.prototype.logRecord = function(record) {
 }
 
 BadRecordLogger.prototype.end = function() {
+  udebug.log("end", this.fd);
   if(this.fd > 2) {
     this.queue.push("CLOSE");
     this.runQueue();

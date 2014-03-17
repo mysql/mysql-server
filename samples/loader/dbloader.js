@@ -18,24 +18,6 @@
  02110-1301  USA
  */
 
-
-/*
-   NOTES
-
-   Why not get field names from the first line of CSV
-  
-   Get SQL Text from stdin
-
-   What to do if final line is missing line terminator?
-   Flag incomplete record at end of file.
-
-   Scanner & parser should recognize BEGINDATA on a line by itself as 
-   beginning of data.
-
-
-*/
-
-
 'use strict';
 
 global.debug = 0 ;  // FIXME, currently used by parser & scanner
@@ -99,14 +81,15 @@ FlagHandler.prototype.addOption = function(option) {
 }
 
 FlagHandler.prototype.processArguments = function() {
-  var i, len, opt, flag, consumed;
+  var i, len, opt, nextArg, flag, consumed;
   i = 2;
   len = process.argv.length;
   while(i < len) {
     opt = process.argv[i];
+    nextArg = (i + 1 < len) ? process.argv[i+1] : null;
     flag = this.flags[opt];
     if(flag) {
-      consumed = flag.callback(process.argv, i);
+      consumed = flag.callback(nextArg);
       if(consumed > 0) {
         i += consumed;
       } else {
@@ -127,54 +110,54 @@ function parse_command_line() {
     "plugin"  : new LoaderModule(handler)
   };
   handler.addOption(new Option(
-    "-n", "--ndb", "Use NDB adapter", function(args, index) {
+    "-n", "--ndb", "Use NDB adapter", function(nextArg) {
       options.adapter = "ndb";
       return 1;
     }));
   handler.addOption(new Option(
-   "-m", "--mysql", "Use MySQL adapter", function(args, index) {
+   "-m", "--mysql", "Use MySQL adapter", function(nextArg) {
       options.adapter = "mysql";
       return 1;
     }));
   handler.addOption(new Option(
-    null, "--stats", "collect statistics", function(args, index) {
+    null, "--stats", "collect statistics", function(nextArg) {
       options.stats = true;
       return 1;
     }));
   handler.addOption(new Option(
-    "-d", "--debug", "enable debugging output", function(args, index) {
+    "-d", "--debug", "enable debugging output", function(nextArg) {
       unified_debug.on();
       unified_debug.level_debug();
-      options.printStackTraces = true;
-    }));
+      return 1;
+      }));
   handler.addOption(new Option(
-    null, "-df", "enable debugging output from <source_file>", function(args, index) {
+    null, "-df", "enable debugging output from <source_file>", function(nextArg) {
       unified_debug.on();
       var client = require(path.join(build_dir,"ndb_adapter")).debug;
       unified_debug.register_client(client);
-      unified_debug.set_file_level(args[index+1], 5);
+      unified_debug.set_file_level(nextArg, 5);
       return 2;
     }));
   handler.addOption(new Option(
-    "-c", null, "<ndb_connect_string>", function(args, index) {
-      options.connect_string = args[index + 1];
+    "-c", null, "<ndb_connect_string>", function(nextArg) {
+      options.connect_string = nextArg;
       return 2;
     }));
   handler.addOption(new Option(
-    "-f", null, "<control_file>", function(args, index) {
-      options.control_file = args[index + 1];
+    "-f", null, "<control_file>", function(nextArg) {
+      options.control_file = nextArg;
       return 2;
     }));
   handler.addOption(new Option(
-    "-e", null, "<load_data_command_text>", function(args, index) {
-      options.control_text =args[index + 1];
+    "-e", null, "<load_data_command_text>", function(nextArg) {
+      options.control_text = nextArg;
       return 2;
     }));
   handler.addOption(new Option(
-    "-j", null, "<javascript_plugin_file>", function(args, index) {
+    "-j", null, "<javascript_plugin_file>", function(nextArg) {
       /* Here is the code that actually loads the user's module: */
       var modulePath;
-      options.plugin_file = args[index + 1];
+      options.plugin_file = nextArg;
       modulePath = options.plugin_file;
       // Assume the module path is relative to PWD unless it begins with / or .
       if(modulePath[0] !== "." && modulePath[0] !== "/") {
@@ -184,7 +167,7 @@ function parse_command_line() {
       return 2;
     }));
   handler.addOption(new Option(
-    "-h", "--help", "show usage", function(args, index) {
+    "-h", "--help", "show usage", function(nextArg) {
       usage(handler);
       process.exit(1);
     }));
@@ -205,22 +188,21 @@ function main() {
   // The User's custom plugin
   var plugin = cmdOptions.plugin;
 
-  // Get the SQL text
-  var sqlText;
-  if(cmdOptions.control_file) {
-    sqlText = fs.readFileSync(cmdOptions.control_file, 'utf8');
-  } else {
-    sqlText = cmdOptions.control_text;
-  }
-
   // Generate Loader Job
-  var job = new LoaderJob(sqlText, plugin);
+  var job = new LoaderJob();
+  job.setPlugin(plugin);
+
+  if(cmdOptions.control_file) {
+    job.initializeFromFile(cmdOptions.control_file);
+  } else {
+    job.initializeFromSQL(cmdOptions.control_text)
+  }
 
   // Create a TableMapping for the destination
   var mappedConstructors = [ job.destination.createTableMapping() ];
 
   // Add other mappings if defined by the plugin
-  var extMappings = plugin.createMappings();
+  var extMappings = job.plugin.createMappings();
   if(Array.isArray(extMappings)) {
     mappedConstructors = mappedConstructors.concat(extMappings);
   }
@@ -235,12 +217,25 @@ function main() {
 
   // Connect to the database and start the controller
   mynode.openSession(connectionProperties, mappedConstructors, function(err, session) {
-    if(err) throw err;
-    job.runInSession(session);
+    if(err) throw err; /*JSON.stringify(err); process.exit(1);*/
+    job.run(session, function onComplete(error, stats) {
+      session.close().then(function() {
+        var exitCode = 0;  // OK
+        if(error) {
+          console.log(error);
+          exitCode = 1;  // Failure
+        } else {
+          console.log("Rows processed:", stats.rowsProcessed,
+                      "Skipped", stats.rowsSkipped,
+                      "Loaded:", stats.rowsComplete - stats.rowsError,
+                      "Failed:", stats.rowsError);
+          if(stats.rowsError > 0) {  exitCode = 2;  }    // Rejected Rows
+        }
+        process.exit(exitCode);
+      });
+    });
   });
 }
-
-// TODO: Exit codes: 1=failure; 2=warnings (rejected rows), 0=OK
 
 main();
 

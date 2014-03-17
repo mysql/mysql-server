@@ -40,6 +40,8 @@
    BEGINDATA
 */
 
+var udebug = require(path.join(api_dir, "unified_debug")).getLogger("Scanner.js");
+
 function tokenize (source) {
   var operators = "(),;:.";   // Legal one-character operators
   var result = [];            // An array to hold the results
@@ -116,7 +118,7 @@ function tokenize (source) {
   
   Token.prototype.deliver = function(value) {
     this.value = value || this.str;
-    if(debug) console.log("Token deliver", this.type, this.value);
+    udebug.log("Token deliver", this.type, this.value);
     delete this.str;
     result.push(this);
   };
@@ -142,6 +144,10 @@ function tokenize (source) {
         tok.consume(c);
       }
       tok.deliver();
+      if(tok.value === "BEGINDATA") {
+        tok.type = 'begindata';
+        return result;
+      }
     }
 
     else if (c === '@') {                                        /* @VARIABLE */
@@ -248,6 +254,15 @@ function tokenize (source) {
 // Data File Scanners
 //
 
+/* From http://dev.mysql.com/doc/refman/5.5/en/load-data.html
+   The FIELD and LINE terminators can be strings
+   The escape sequences are:
+     \0 ASCII NULL, \b backspace, \n newline, \r return,
+     \t tab, \Z ASCII 26, \N SQL NULL
+   TODO: We currently only support a single character field separator.
+*/
+
+
 function Scanner(source, start, options) {
   this.source = source;
   this.i = start;
@@ -255,16 +270,21 @@ function Scanner(source, start, options) {
   this.opt = options;
   this.EOL = options.lineEndString;
   this.lineEndExtra = (this.EOL.length > 1);
+  this.lineCount = 0;
 }
 
 Scanner.prototype.advance = function(n) {
   assert(n > 0);
-  this.i += n;
-  if(this.i < this.source.length) {
+  var advanceTo = this.i + n;
+  while(this.i < advanceTo) {
+    if(this.c == '\n') { this.lineCount++; }
+    this.i += 1;
+    if(this.i >= this.source.length) {
+      this.i = this.source.length - 1;
+      this.c = '';
+      return;
+    }
     this.c = this.source.charAt(this.i);
-  } else {
-    this.i = this.source.length - 1;
-    this.c = '';
   }
 };
 
@@ -284,14 +304,22 @@ Scanner.prototype.isEsc = function() {
 };
 
 Scanner.prototype.isWhitespace = function() {
-  return (this.c <= ' ');      /// FIXME <= ' ' is too broad
+  // Always skip newlines; never skip field separators.
+  if(this.c === '\n' || this.c === '\r') {
+    return true;
+  }
+  if(this.opt.fieldSepOnWhitespace) {
+    return false;
+  }
+  if(this.c <= ' ' && this.c !== this.opt.fieldSep) {
+    return true;
+  }
+  return false;
 };
 
 Scanner.prototype.skipWhitespace = function() {
-  if(! this.opt.semanticWhitespace) {
-    while(this.c && this.isWhitespace()) {
-      this.advance(1);
-    }
+  while(this.c && this.isWhitespace()) {
+    this.advance(1);
   }
 };
 
@@ -305,6 +333,7 @@ Scanner.prototype.isFieldSeparator = function() {
 };
 
 Scanner.prototype.handleQuotedString = function(doEval) {
+  if(udebug.is_debug) { doEval = true; }
   var inquote, value, consume, scanner;
   if(doEval)  {
     scanner = this;
@@ -325,7 +354,7 @@ Scanner.prototype.handleQuotedString = function(doEval) {
       this.advance(2); /* SKIP PAST A QUOTE */
     }
     else if(this.c === this.opt.fieldQuoteEnd) {          /**** Closing quote */
-      this.advance(1); /* ADVANCE PAST CLOSING QUOTE CHAR */
+      // this.advance(1); /* ADVANCE PAST CLOSING QUOTE CHAR */
       inquote = false; /* TERMINATE LOOP */
     }
     else if(this.isEsc()) {                               /** Escape Sequence */
@@ -429,41 +458,33 @@ Scanner.prototype.getValueForFixedWidthField = function(column) {
 };
 
 
-/* The LineScanner scans a string read from an input buffer.
-   It is responsible for identifying the start and end of the 
-   next logical line containing data.
-
-   LineScannerSpec maintains state information for the LineScanner
-   with regards to a particular string source (i.e. one buffer of
-   data read from a file).
-*/
-function LineScannerSpec(source) {
-  this.source   = source;
-  this.start    = 0;
-  this.end      = 0;
-  this.complete = false;  // string from start to end contains a complete record
-  this.eof      = false;  // end of buffer reached
-};
+// Line Scanner
 
 function LineScanner(options) {
   this.options = options;
-  this.options.semanticWhitespace =
-    (options.fieldSepOnWhitespace || (options.fieldSep < ' '));
 };
 
-LineScanner.prototype.newSpec = function(source) {
-  return new LineScannerSpec(source);
-}
+/* 
+  Skip a fixed number of physical lines
+*/
+LineScanner.prototype.skipPhysicalLines = function(spec, n) {
+  var scanner = new Scanner(spec.source, spec.lineStart, this.options);
+  while(n-- > 0 && ! scanner.isAtEnd()) {
+    scanner.skipToEndOfLine();
+  }
+  spec.atEnd = scanner.isAtEnd();
+  spec.lineEnd = scanner.i;
+};
 
 /* scan():
    start in string spec.source at position spec.start.
    Skip over whitespace and comments.
-   Set spec.start to the beginning of the next record containing data.
-   If the buffer contains the end of the record, set spec.end;
-   otherwise, set spec.eof.
+   If the buffer contains the end of the record, set spec.lineEnd.
+   If the whole buffer has been read, set spec.atEnd.
+   Return the number of newline characters scanned.
 */
 LineScanner.prototype.scan = function(spec) {
-  var scanner = new Scanner(spec.source, spec.start, this.options);
+  var scanner = new Scanner(spec.source, spec.lineStart, this.options);
   var start, isEOL;
 
   /* Find start of line */
@@ -476,34 +497,49 @@ LineScanner.prototype.scan = function(spec) {
   } while(scanner.i > start);  // while making progress through the file
 
   scanner.skipLinePrefix();  // brings us to the end of prefix (if any)
-  spec.start = scanner.i;
+  spec.lineStart = scanner.i;
+  spec.lineHasFields = false;
 
-  /* Find end of line; set EOF if not reached */
+  /* Find end of line; set lineEnd if reached */
   do {
-    scanner.advance(1);
-    if(scanner.isStartQuote()) {
+    if(scanner.isFieldSeparator()) {
+      if(udebug.is_debug && (! spec.lineHasFields)) {
+        udebug.log("lineHasFields - true at pos:", scanner.i);
+      }
+      spec.lineHasFields = true;
+    } else if(scanner.isStartQuote()) {
       scanner.handleQuotedString(false);
     }
+    scanner.advance(1);
     isEOL = scanner.isEndOfLine();
   } while(scanner.c && ! isEOL);
 
-  spec.eof = scanner.isAtEnd();
-  spec.complete = isEOL;
-  spec.end = scanner.i;
+  spec.atEnd = scanner.isAtEnd();
+  if(isEOL) {
+    spec.lineEnd = scanner.i;
+  }
+  return scanner.lineCount;
 }
 
 
-/* The FieldScanner works on a line that has already been delimited by the
-   LineScanner.  It splits the line into fields and retuns an object 
-   containing those fields.
-*/
+// Text Field Scanner
 
-function TextFieldScanner(columns, options) {
-  this.columns = columns;
+function TextFieldScanner(options) {
   this.options = options;
 };
 
-
+TextFieldScanner.prototype.scan = function(spec) {
+  var scanner, result;
+  scanner = new Scanner(spec.source, spec.lineStart, this.options);
+  result = [];
+  while(! scanner.isEndOfLine()) {
+    if(! scanner.isFieldSeparator()) {
+      result.push(scanner.getValueForDelimitedField());
+    }
+    scanner.advance(1);
+  }
+  return result;
+};
 
 /* testFileType investigates a JSON file.
    We allow C and C++ style comments.
@@ -533,6 +569,5 @@ function testFileType(source) {
 
 
 exports.tokenize = tokenize;
-exports.LineScannerSpec = LineScannerSpec;
 exports.LineScanner = LineScanner;
 exports.TextFieldScanner = TextFieldScanner;

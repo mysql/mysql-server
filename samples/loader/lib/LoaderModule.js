@@ -76,17 +76,27 @@ LoaderModule.prototype.onReadRecord       = function(record) {
 
 /* onScanLine()
    Gives the plugin access to a line scanned from the data file.
+   Only lines that will be evaluated for data are delivered; not blank
+   lines, comment lines, or skipped lines.
+   lineNo is the physical line number in the source file.
+
    The line of data is the substring from source[startPos] to source[endPos].
 */
-LoaderModule.prototype.onScanLine         = function(source, startPos, endPos) {
+LoaderModule.prototype.onScanLine         = function(lineNo, source, startPos, endPos) {
 };
 
 
 /* onTick()
    Gives the plugin access to the internal timer interval.
    This function will be called approximately once every 20 milliseconds.
+   stats is an object containing these counters:
+     rowsProcessed   // all rows processed by data source
+     rowsSkipped     // rows procesed by data source but skipped
+     rowsComplete    // all rows completed by writer (success or failure)
+     rowsError       // rows failed by writer
+     tickNumber      // starts at zero
 */
-LoaderModule.prototype.onTick             = function() {
+LoaderModule.prototype.onTick             = function(stats) {
 };
 
 
@@ -108,13 +118,10 @@ LoaderModule.prototype.onRecordStored     = function(record) {
 /* onFinished(controller)
    This will be called at the end of processing.  It gives the plugin a chance
    to asynchronously close any resources.  When processing is finished, the 
-   plugin must call controller.pluginFinished()
-*/
-// dataLoader.onFinished = function(controller) {
-//   controller.pluginFinished();
-// };
-LoaderModule.prototype.onFinished         = function(controller) {
-  controller.pluginFinsihed();
+   plugin must call the provided callback function.
+  */
+LoaderModule.prototype.onFinished         = function(callbackOnClosed) {
+  callbackOnClosed();
 };
 
 
