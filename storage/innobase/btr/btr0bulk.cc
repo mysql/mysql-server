@@ -319,7 +319,7 @@ void PageBulk::commit(bool	success)
 		    && page_is_leaf(m_page)) {
 			ibuf_set_bitmap_for_bulk_load(
 				m_block, innobase_index_fill_factor == 100);
-        	}
+		}
 	}
 
 	mtr_commit(m_mtr);
@@ -541,6 +541,8 @@ bool PageBulk::needExt(dtuple_t*	tuple, ulint	rec_size)
 }
 
 /** Store external record
+Since the record is not logged yet, so we don't log update to the record.
+the blob data is logged first, then the record is logged in bulk mode.
 @param[in]	big_rec		external recrod
 @param[in]	offsets		record offsets
 @return	error code */
