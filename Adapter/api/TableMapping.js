@@ -1,6 +1,6 @@
-
+ 
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -117,10 +117,12 @@ function isValidTableMapping(tm) {
 }
 
 function buildMappingFromObject(mapping, literal, verifier) {
-  var p;
-  for(p in Object.keys(verifier)) {
-    if(typeof literal[p] !== 'undefined') {
-      mapping[p] = literal[p];
+  var p, keys, key;
+  keys = Object.keys(verifier);
+  for(p in keys) {
+    key = keys[p];
+    if(typeof literal[key] !== 'undefined') {
+      mapping[key] = literal[key];
     }
   }
 }
@@ -129,15 +131,16 @@ function buildMappingFromObject(mapping, literal, verifier) {
    though a literal one may have a "field" or "fields" object or array
 */
 function makeCanonical(tableMapping) {
-  if(tableMapping.fileds === null) {
-    tableMapping.fields = [];
-  }
-  else if(typeof tableMapping.fields === 'object') {
-    tableMapping.fields = [ tableMapping.fields ];
-  }
-  if(typeof tableMapping.field !== 'undefined') { 
-    tableMapping.fileds.concat(tableMapping.field);
+  if(tableMapping.field) {            // rename field => fields
+    tableMapping.fields = tableMapping.field;
     delete tableMapping.field;
+  }
+
+  if(! tableMapping.fileds) {
+    tableMapping.fields = [];        // create empty fields array if needed
+  }                             
+  else if(! Array.isArray(tableMapping.fields)) {
+    tableMapping.fields = [ tableMapping.fields ];
   }
 }
 
