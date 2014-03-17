@@ -506,7 +506,8 @@ RecordPool<T>::seize(Ptr<T>& ptr)
     ptr.p = static_cast<T*>(recP);
     return true;
   }
-  ptr.setNull();
+  ptr.i = RNIL;
+  ptr.p = 0;
   return false;
 }
 

@@ -1308,7 +1308,6 @@ mt_send_thread_main(void *thr_arg)
     (thr_send_thread_instance*)thr_arg;
 
   Uint32 instance_no = this_send_thread->m_instance_no;
-  ndbout_c("Send thread : %u is started", instance_no);
   g_send_threads->run_send_thread(instance_no);
   return NULL;
 }
@@ -1357,7 +1356,6 @@ thr_send_threads::start_send_threads()
 {
   for (Uint32 i = 0; i < globalData.ndbMtSendThreads; i++)
   {
-    ndbout_c("Start send thread: %u", i);
     m_send_threads[i].m_thread =
       NdbThread_Create(mt_send_thread_main,
                        (void **)&m_send_threads[i],
@@ -2182,7 +2180,6 @@ retry:
       struct thr_job_buffer *jb = seize_buffer(rep, thr_no, false);
       Uint32 * page = reinterpret_cast<Uint32*>(jb);
       tq->m_delayed_signals[i] = page;
-
       /**
        * Init page
        */

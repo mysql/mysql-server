@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5900,6 +5900,7 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
     return;
   }
 
+  OperationRecord & op = filePtr.p->operation;
   ptr.p->errorCode = 0;
   
   BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
@@ -5907,10 +5908,10 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
   conf->backupPtr = ptr.i;
   conf->tableId = tableId;
   conf->fragmentNo = fragmentId;
-  conf->noOfRecordsLow = 0;
-  conf->noOfRecordsHigh = 0;
-  conf->noOfBytesLow = 0;
-  conf->noOfBytesHigh = 0;
+  conf->noOfRecordsLow = (op.noOfRecords & 0xFFFFFFFF);
+  conf->noOfRecordsHigh = (op.noOfRecords >> 32);
+  conf->noOfBytesLow = (op.noOfBytes & 0xFFFFFFFF);
+  conf->noOfBytesHigh = (op.noOfBytes >> 32);
   sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
 	     BackupFragmentConf::SignalLength, JBB);
 }

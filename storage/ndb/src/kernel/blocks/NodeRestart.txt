@@ -64,7 +64,7 @@ START_TOREQ -> all DIH
 For each fragment
   ADD_FRAG_REQ -> local DICT -> LQHFRAGREQ -> starting LQH
 
-  CREATE_FRAGREQ -> all DIH
+  UPDATE_FRAG_STATEREQ -> all DIH
   
   COPY-DATA (LQHKEYREQ++)
 
@@ -72,7 +72,7 @@ For each fragment
   
   COPY_ACTIVEREQ -> starting LQH
 
-  CREATE_FRAGREQ -> all DIH
+  UPDATE_FRAG_STATEREQ -> all DIH
 
 START_COPYCONF -> 
 

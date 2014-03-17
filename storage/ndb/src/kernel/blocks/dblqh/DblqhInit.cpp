@@ -110,6 +110,21 @@ void Dblqh::initData()
   c_keyOverloadsSubscriber = 0;
   c_scanSlowDowns          = 0;
 
+  c_fragmentsStarted = 0;
+  c_fragmentsStartedWithCopy = 0;
+
+  c_fragCopyTable = 0;
+  c_fragCopyFrag = 0;
+  c_fragCopyRowsIns = 0;
+  c_fragCopyRowsDel = 0;
+  c_fragBytesCopied = 0;
+
+  c_fragmentCopyStart = 0;
+  c_fragmentsCopied = 0;
+  c_totalCopyRowsIns = 0;
+  c_totalCopyRowsDel = 0;
+  c_totalBytesCopied = 0;
+
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 

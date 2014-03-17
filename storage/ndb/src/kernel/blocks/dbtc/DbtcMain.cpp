@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -754,7 +754,7 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
 
   c_fk_hash.setSize(16);
   c_fk_pool.init(RT_DBDICT_FILE, pc); // TODO
-}//Dbtc::execSIZEALT_REP()
+}
 
 void Dbtc::execSTTOR(Signal* signal) 
 {
@@ -813,7 +813,7 @@ void Dbtc::execNDB_STTOR(Signal* signal)
   case ZINTSPH3:
   {
     jam();
-    intstartphase3x010Lab(signal);      /* SEIZE CONNECT RECORD IN EACH LQH*/
+    intstartphase3x010Lab(signal);
 
     /* Start transaction counters event reporting. */
     const Uint32 len = c_counters.build_continueB(signal);
@@ -914,7 +914,6 @@ void Dbtc::intstartphase1x010Lab(Signal* signal)
 
 /*****************************************************************************/
 /*                         I N T S T A R T P H A S E 3 X                     */
-/*                        PREPARE DISTRIBUTED CONNECTIONS                    */
 /*****************************************************************************/
 void Dbtc::intstartphase3x010Lab(Signal* signal) 
 {

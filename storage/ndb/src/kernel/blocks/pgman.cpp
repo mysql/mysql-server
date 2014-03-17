@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -224,8 +224,6 @@ Pgman::execSTTOR(Signal* signal)
       m_cleanup_loop_on = true;
     }
     break;
-  case 7:
-    break;
   default:
     break;
   }
@@ -239,10 +237,9 @@ Pgman::sendSTTORRY(Signal* signal)
   signal->theData[0] = 0;
   signal->theData[3] = 1;
   signal->theData[4] = 3;
-  signal->theData[5] = 7;
-  signal->theData[6] = 255; // No more start phases from missra
+  signal->theData[5] = 255; // No more start phases from missra
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : PGMAN_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
 }
 
 void
