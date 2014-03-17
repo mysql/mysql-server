@@ -119,3 +119,17 @@ lock_get_min_heap_no(
 						   FALSE)));
 	}
 }
+
+/*******************************************************************//**
+Check if there are any locks (table or rec) against table.
+@return	TRUE if table has either table or record locks. */
+UNIV_INLINE
+ibool
+lock_table_has_locks(
+/*=================*/
+	const dict_table_t*	table)	/*!< in: check if there are any locks
+					held on records in this table or on the
+					table itself */
+{
+	return(UT_LIST_GET_LEN(table->locks) > 0);
+}
