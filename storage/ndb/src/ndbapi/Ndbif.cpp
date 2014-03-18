@@ -430,6 +430,11 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
 	  }
 	} else {
 	  assert(tRec->getType()!=NdbReceiver::NDB_QUERY_OPERATION);
+          DBUG_EXECUTE_IF("ndb_delay_transid_ai", {
+            fprintf(stderr, "Ndb::handleReceivedSignal() (%p) taking a break before TRANSID_AI\n", this);
+            NdbSleep_MilliSleep(1000);
+            fprintf(stderr, "Ndb::handleReceivedSignal() resuming\n");
+          }); 
 	  com = tRec->execTRANSID_AI(tDataPtr + TransIdAI::HeaderLength, 
 				     tLen - TransIdAI::HeaderLength);
 	}
