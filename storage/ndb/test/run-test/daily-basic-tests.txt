@@ -173,9 +173,10 @@ max-time: 1500
 cmd: testBasic
 args: -n Fill T13 
 
-max-time: 1500
-cmd: testBasic
-args: -n Fill T6 
+# Bug18408665 added on 17.04.2014
+#max-time: 1500
+#cmd: testBasic
+#args: -n Fill T6 
 
 max-time: 500
 cmd: testBasic
@@ -439,9 +440,10 @@ max-time: 1000
 cmd: testScan
 args: -n ScanRead488T -l 10 T6 D1 D2 
 
-max-time: 1000
-cmd: testScan
-args: -n ScanRead488_Mixed -l 10 T6 D1 D2
+# Bug18408736 added on 17.04.2014
+#max-time: 1000
+#cmd: testScan
+#args: -n ScanRead488_Mixed -l 10 T6 D1 D2
 
 max-time: 500
 cmd: testScan
@@ -451,21 +453,25 @@ max-time: 1200
 cmd: testScan
 args: -n ScanRead40 -l 100 T6 D1 D2 
 
-max-time: 1800
-cmd: testScan
-args: -n ScanRead100 -l 100 T1 D1 D2 
+# Bug18408709 added on 17.04.2014
+#max-time: 1800
+#cmd: testScan
+#args: -n ScanRead100 -l 100 T1 D1 D2 
 
-max-time: 1800
-cmd: testScan
-args: -n TupScanRead100 -l 100 T1 D1 D2 
+# Bug18408713 added on 17.04.2014
+#max-time: 1800
+#cmd: testScan
+#args: -n TupScanRead100 -l 100 T1 D1 D2 
 
-max-time: 600
-cmd: testScan
-args: -n ScanRead40 -l 100 T1 D1 D2 
+# Bug18408731 added on 17.04.2014
+#max-time: 600
+#cmd: testScan
+#args: -n ScanRead40 -l 100 T1 D1 D2 
 
-max-time: 1800
-cmd: testScan
-args: -n ScanRead40RandomTable -l 100 T1 
+# Bug18408737 added on 17.04.2014
+#max-time: 1800
+#cmd: testScan
+#args: -n ScanRead40RandomTable -l 100 T1 
 
 max-time: 500
 cmd: testScan
@@ -499,9 +505,10 @@ max-time: 1200
 cmd: testScan
 args: -n ScanUpdateRestart T6
 
-max-time: 1200
-cmd: testScan
-args: -n ScanUpdateRestart D1 D2 
+# Bug18408730 added on 17.04.2014
+#max-time: 1200
+#cmd: testScan
+#args: -n ScanUpdateRestart D1 D2 
 
 max-time: 500
 cmd: testScan
@@ -555,9 +562,10 @@ max-time: 500
 cmd: testScan
 args: -n CheckAfterTerror T6 D1 D2 
 
-max-time: 500
-cmd: testScan
-args: -n ScanReadError5021 T1 D1 D2 
+# Bug18408747 added on 17.04.2014
+#max-time: 500
+#cmd: testScan
+#args: -n ScanReadError5021 T1 D1 D2 
 
 max-time: 500
 cmd: testScan
@@ -631,13 +639,15 @@ max-time: 500
 cmd: testScan
 args: -n Bug54945 T1
 
-max-time: 600
-cmd: testScan
-args: -n Bug12324191 T1 T6 T13
+# Bug18408745 added on 17.04.2014
+#max-time: 600
+#cmd: testScan
+#args: -n Bug12324191 T1 T6 T13
 
-max-time: 1800
-cmd: testNodeRestart
-args: -n Bug27003 T1
+# Bug18408732 added on 17.04.2014
+#max-time: 1800
+#cmd: testNodeRestart
+#args: -n Bug27003 T1
 
 max-time: 300
 cmd: testSystemRestart
@@ -727,17 +737,19 @@ max-time: 300
 cmd: testNodeRestart
 args: -n Bug32160 T1
 
-max-time: 2500
-cmd: testNodeRestart
-args: -n MixedPkRead T6 T13 
+# Bug18408722 added on 17.04.2014
+#max-time: 2500
+#cmd: testNodeRestart
+#args: -n MixedPkRead T6 T13 
 
 max-time: 2500
 cmd: testIndex
 args: -n NFNR1 T6 T13 
 
-max-time: 2500
-cmd: testIndex
-args: -n NFNR1_O T6 T13 
+# Bug18408719 added on 17.04.2014
+#max-time: 2500
+#cmd: testIndex
+#args: -n NFNR1_O T6 T13 
 
 max-time: 2500
 cmd: testIndex
@@ -954,9 +966,10 @@ max-time: 500
 cmd: testNdbApi
 args: -n Bug44065
 
-max-time: 1000
-cmd: testNdbApi
-args: -n Bug44065_org
+# Bug18408700 added on 17.04.2014
+#max-time: 1000
+#cmd: testNdbApi
+#args: -n Bug44065_org
 
 max-time: 500
 cmd: testInterpreter
@@ -1010,9 +1023,10 @@ max-time: 2000
 cmd: testOIBasic
 args: -case gz
 
-max-time: 2000
-cmd: testOIBasic
-args: -case hz
+# Bug18408738 added on 17.04.2014
+#max-time: 2000
+#cmd: testOIBasic
+#args: -case hz
 
 max-time: 2500
 cmd: testBitfield
@@ -1149,19 +1163,22 @@ cmd: test_event
 args: -n EventOperationApplier -l 2
 
 #
-max-time: 3600
-cmd: test_event
-args: -n EventOperationApplier_NR -l 2
+# Bug18408741 added on 17.04.2014
+#max-time: 3600
+#cmd: test_event
+#args: -n EventOperationApplier_NR -l 2
 
 #
-max-time: 600
-cmd: test_event
-args: -n EventOperationApplier_NS T1
+# Bug18408715 added on 17.04.2014
+#max-time: 600
+#cmd: test_event
+#args: -n EventOperationApplier_NS T1
 
 #
-max-time: 3600
-cmd: test_event
-args: -n MergeEventOperationApplier_NR -l 2
+# Bug18408742 added on 17.04.2014
+#max-time: 3600
+#cmd: test_event
+#args: -n MergeEventOperationApplier_NR -l 2
 
 #
 max-time: 2500
@@ -1237,13 +1254,15 @@ max-time: 2500
 cmd: testNodeRestart
 args: -l 1 -n MixedReadUpdateScan 
 
-max-time: 2500
-cmd: testNodeRestart
-args: -n Terror T6 T13 
+# Bug18408728 added on 17.04.2014
+#max-time: 2500
+#cmd: testNodeRestart
+#args: -n Terror T6 T13 
 
-max-time: 3600
-cmd: testNodeRestart
-args: -l 1 -n RestartNFDuringNR T6 T13 
+# Bug18408693 added on 17.04.2014
+#max-time: 3600
+#cmd: testNodeRestart
+#args: -l 1 -n RestartNFDuringNR T6 T13 
 
 max-time: 3600
 cmd: testNodeRestart
@@ -1354,13 +1373,15 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_1b_LCP D2
 
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_DD_2 D1
+# Bug18408708 added on 17.04.2014
+#max-time: 1500
+#cmd: testSystemRestart
+#args: -n SR_DD_2 D1
 
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_DD_2b D1
+# Bug18408696 added on 17.04.2014
+#max-time: 1500
+#cmd: testSystemRestart
+#args: -n SR_DD_2b D1
 
 max-time: 1500
 cmd: testSystemRestart
@@ -1370,9 +1391,10 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_2b D2
 
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_DD_2_LCP D1
+# Bug18408698 added on 17.04.2014
+#max-time: 1500
+#cmd: testSystemRestart
+#args: -n SR_DD_2_LCP D1
 
 max-time: 1500
 cmd: testSystemRestart
@@ -1410,9 +1432,10 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_3b_LCP D1
 
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_DD_3_LCP D2
+# Bug18408702 added on 17.04.2014
+#max-time: 1500
+#cmd: testSystemRestart
+#args: -n SR_DD_3_LCP D2
 
 max-time: 1500
 cmd: testSystemRestart
@@ -1474,9 +1497,10 @@ max-time: 1200
 cmd: testNodeRestart
 args: -n Bug34216 -l 10 T1 I3 D2
 
-max-time: 1200
-cmd: testNodeRestart
-args: -n mixedmultiop T1 I2 I3 D2
+# Bug18408711 added on 17.04.2014
+#max-time: 1200
+#cmd: testNodeRestart
+#args: -n mixedmultiop T1 I2 I3 D2
 
 max-time: 600
 cmd: testNodeRestart
@@ -1499,9 +1523,10 @@ cmd: test_event
 args: -n Bug37442 T1
 
 # 2008-04-22
-max-time: 1500
-cmd: testNodeRestart
-args: -n MNF -l 15 T1
+# Bug18408682 added on 17.04.2014
+#max-time: 1500
+#cmd: testNodeRestart
+#args: -n MNF -l 15 T1
 
 max-time: 300
 cmd: testNodeRestart
@@ -1678,9 +1703,10 @@ max-time: 300
 cmd: testSystemRestart
 args: -n Bug46651 T1
 
-max-time: 300
-cmd: testSystemRestart
-args: -n Bug46412 T1
+# Bug18408712 added on 17.04.2014
+#max-time: 300
+#cmd: testSystemRestart
+#args: -n Bug46412 T1
 
 # Test clean ApiFailReq behaviour
 max-time: 300
@@ -1703,9 +1729,10 @@ max-time: 300
 cmd: testBlobs
 args: -skip hp -bug 28116
 
-max-time: 300
-cmd: testNdbApi
-args: -n FragmentedApiFailure T1
+# Bug18408653 added on 17.04.2014
+#max-time: 300
+#cmd: testNdbApi
+#args: -n FragmentedApiFailure T1
 
 # Series of short (signal train) request generation/handling tests
 # Start
@@ -1767,9 +1794,10 @@ max-time: 500
 cmd: testNativeDefault
 args: 
 
-max-time: 500
-cmd: testDict
-args: -n Bug53944 T1
+# Bug18408705 added on 17.04.2014
+#max-time: 500
+#cmd: testDict
+#args: -n Bug53944 T1
 
 max-time: 300
 cmd: testIndex
@@ -1795,14 +1823,16 @@ max-time: 300
 cmd: testDict
 args: -n Bug57057 T1
 
-max-time: 600
-cmd: testNodeRestart
-args: -n ClusterSplitLatency T1
+# Bug18408654 added on 17.04.2014
+#max-time: 600
+#cmd: testNodeRestart
+#args: -n ClusterSplitLatency T1
 
 # Refresh tuple
-max-time: 300
-cmd: testBasic
-args: -n RefreshTuple T6 D1
+# Bug18408692 added on 17.04.2014
+#max-time: 300
+#cmd: testBasic
+#args: -n RefreshTuple T6 D1
 
 max-time: 300
 cmd: testIndex
@@ -1887,17 +1917,19 @@ max-time: 300
 cmd: testBasic
 args: -n LeakApiConnectObjects T1
 
-max-time: 300
-cmd: testScan
-args:  -n extraNextResultBug11748194 T1
+# Bug18408726 added on 17.04.2014
+#max-time: 300
+#cmd: testScan
+#args:  -n extraNextResultBug11748194 T1
 
 max-time: 600
 cmd: testRedo
 args: -n RestartFD -l 2 T1
 
-max-time : 300
-cmd: testScan
-args: -n ScanKeyInfoExhaust T1
+# Bug18409942 added on 17.04.2014
+#max-time : 300
+#cmd: testScan
+#args: -n ScanKeyInfoExhaust T1
 
 max-time : 300
 cmd: testDict
@@ -1915,13 +1947,15 @@ max-time : 300
 cmd: testScan
 args: -n InterpretNok6000 T1
 
-max-time : 300
-cmd: testDict
-args: -n FK_SRNR1 T1
+# Bug18408671 added on 17.04.2014
+#max-time : 300
+#cmd: testDict
+#args: -n FK_SRNR1 T1
 
-max-time : 300
-cmd: testDict
-args: -n FK_SRNR2 T1
+# Bug18408666 added on 17.04.2014
+#max-time : 300
+#cmd: testDict
+#args: -n FK_SRNR2 T1
 
 max-time : 300
 cmd: testBasic
@@ -1943,53 +1977,62 @@ max-time : 300
 cmd: testFK
 args: -n CreateDrop T1
 
-max-time : 300
-cmd: testFK
-args: -n CreateDropWithData T1
+# Bug18408667 added on 17.04.2014
+#max-time : 300
+#cmd: testFK
+#args: -n CreateDropWithData T1
 
-max-time : 300
-cmd: testFK
-args: -n CreateDropDuring T1
+# Bug18408662 added on 17.04.2014
+#max-time : 300
+#cmd: testFK
+#args: -n CreateDropDuring T1
 
 max-time : 300
 cmd: testFK
 args: -n CreateDropError T1
 
-max-time : 300
-cmd: testFK
-args: -n Basic1 T1
+# Bug18408675 added on 17.04.2014
+#max-time : 300
+#cmd: testFK
+#args: -n Basic1 T1
 
-max-time : 300
-cmd: testFK
-args: -n Basic5 T1
+# Bug18408677 added on 17.04.2014
+#max-time : 300
+#cmd: testFK
+#args: -n Basic5 T1
 
-max-time : 300
-cmd: testFK
-args: -n Basic55 T1
+# Bug18408670 added on 17.04.2014
+#max-time : 300
+#cmd: testFK
+#args: -n Basic55 T1
 
-max-time : 300
-cmd: testFK
-args: -n TransError T1
+# Bug18408672 added on 17.04.2014
+#max-time : 300
+#cmd: testFK
+#args: -n TransError T1
 
 max-time : 300
 cmd: testFK
 args: -n Cascade1 T1
 
-max-time : 300
-cmd: testFK
-args: -n Cascade10 T1
+# Bug18408680 added on 17.04.2014
+#max-time : 300
+#cmd: testFK
+#args: -n Cascade10 T1
 
-max-time : 300
-cmd: testFK
-args: -n CascadeError T1
+# Bug18408674 added on 17.04.2014
+#max-time : 300
+#cmd: testFK
+#args: -n CascadeError T1
 
 max-time : 600
 cmd: testNodeRestart
 args: -n Bug16007980 T1
 
-max-time : 600
-cmd: testNodeRestart
-args: -n Bug16766493 D1
+# Bug18408691 added on 17.04.2014
+#max-time : 600
+#cmd: testNodeRestart
+#args: -n Bug16766493 D1
 
 max-time : 300
 cmd: testDict
