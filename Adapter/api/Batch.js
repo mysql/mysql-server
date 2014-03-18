@@ -168,3 +168,7 @@ exports.Batch.prototype.isBatch = function() {
   return true;
 };
 
+exports.Batch.prototype.getSize = function() {
+  return this.operationContexts.length;
+};
+
