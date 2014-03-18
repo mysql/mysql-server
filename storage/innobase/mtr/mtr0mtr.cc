@@ -37,8 +37,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "mtr0mtr.ic"
 #endif /* UNIV_NONINL */
 
-/**
-Iterate over a memo block in reverse. */
+/** Iterate over a memo block in reverse. */
 template <typename Functor>
 struct Iterate {
 
@@ -50,8 +49,7 @@ struct Iterate {
 		/* Do nothing */
 	}
 
-	/**
-	@return false if the functor returns false. */
+	/** @return false if the functor returns false. */
 	bool operator()(mtr_buf_t::block_t* block)
 	{
 		const mtr_memo_slot_t*	start =
@@ -90,8 +88,7 @@ struct Find {
 		ut_a(object != NULL);
 	}
 
-	/**
-	@return false if the object was found. */
+	/** @return false if the object was found. */
 	bool operator()(mtr_memo_slot_t* slot)
 	{
 		if (m_object == slot->object && m_type == slot->type) {
@@ -112,8 +109,7 @@ struct Find {
 	const void*	m_object;
 };
 
-/**
-Releases latches and decrements the buffer fix count.
+/** Release latches and decrement the buffer fix count.
 @param slot	memo slot */
 static
 void
@@ -155,8 +151,7 @@ memo_slot_release(mtr_memo_slot_t* slot)
 	slot->object = NULL;
 }
 
-/**
-Unfix a page, does not release the latches on the page.
+/** Unfix a page, do not release the latches on the page.
 @param slot	memo slot */
 static
 void
@@ -181,8 +176,7 @@ memo_block_unfix(mtr_memo_slot_t* slot)
 		break;
 	}
 }
-/**
-Releases latches represented by a slot.
+/** Release latches represented by a slot.
 @param slot	memo slot */
 static
 void
@@ -229,12 +223,10 @@ memo_latch_release(mtr_memo_slot_t* slot)
 	}
 }
 
-/**
-Release the latches acquired by the mini-transaction. */
+/** Release the latches acquired by the mini-transaction. */
 struct ReleaseLatches {
 
-	/**
-	@return true always. */
+	/** @return true always. */
 	bool operator()(mtr_memo_slot_t* slot) const
 	{
 		if (slot->object != NULL) {
@@ -245,12 +237,9 @@ struct ReleaseLatches {
 	}
 };
 
-/**
-Release the latches and blocks acquired by the mini-transaction. */
+/** Release the latches and blocks acquired by the mini-transaction. */
 struct ReleaseAll {
-
-	/**
-	@return true always. */
+	/** @return true always. */
 	bool operator()(mtr_memo_slot_t* slot) const
 	{
 		if (slot->object != NULL) {
@@ -261,12 +250,9 @@ struct ReleaseAll {
 	}
 };
 
-/**
-Check that all slots have been handled. */
+/** Check that all slots have been handled. */
 struct DebugCheck {
-
-	/**
-	@return true always. */
+	/** @return true always. */
 	bool operator()(const mtr_memo_slot_t* slot) const
 	{
 		ut_a(slot->object == NULL);
@@ -274,10 +260,8 @@ struct DebugCheck {
 	}
 };
 
-/**
-Release a resource acquired by the mini-transaction. */
+/** Release a resource acquired by the mini-transaction. */
 struct ReleaseBlocks {
-
 	/** Release specific object */
 	ReleaseBlocks(lsn_t start_lsn, lsn_t end_lsn)
 		:
@@ -287,8 +271,7 @@ struct ReleaseBlocks {
 		/* Do nothing */
 	}
 
-	/**
-	Add the modified page to the buffer flush list. */
+	/** Add the modified page to the buffer flush list. */
 	void add_dirty_page_to_flush_list(mtr_memo_slot_t* slot) const
 	{
 		ut_ad(m_end_lsn > 0);
@@ -301,8 +284,7 @@ struct ReleaseBlocks {
 		buf_flush_note_modification(block, m_start_lsn, m_end_lsn);
 	}
 
-	/**
-	@return true always. */
+	/** @return true always. */
 	bool operator()(mtr_memo_slot_t* slot) const
 	{
 		if (slot->object != NULL) {
@@ -326,10 +308,9 @@ struct ReleaseBlocks {
 
 class mtr_t::Command {
 public:
-	/**
-	Command takes ownership of the m_impl member of mtr and is responsible
-	for deleting it.
-	@param mtr	mini-transaction instance */
+	/** Constructor.
+	Takes ownership of the mtr->m_impl, is responsible for deleting it.
+	@param[in,out]	mtr	mini-transaction */
 	explicit Command(mtr_t* mtr)
 		:
 		m_locks_released()
@@ -343,40 +324,36 @@ public:
 		m_sync = mtr->m_sync;
 	}
 
-	/**
-	Destructor */
+	/** Destructor */
 	~Command()
 	{
 		ut_ad(m_impl == 0);
 	}
 
-	/**
-	Write the redo log record, add dirty pages to the flush list and
+	/** Write the redo log record, add dirty pages to the flush list and
 	release the resources. */
 	void execute();
 
-	/**
-	Release the blocks used in this mini-transaction. */
+	/** Release the blocks used in this mini-transaction. */
 	void release_blocks();
 
-	/**
-	Release the latches acquired by the mini-transaction. */
+	/** Release the latches acquired by the mini-transaction. */
 	void release_latches();
 
-	/**
-	Release both the latches and blocks used in the mini-transaction. */
+	/** Release both the latches and blocks used in the mini-transaction. */
 	void release_all();
 
-	/**
-	Release the resources */
+	/** Release the resources */
 	void release_resources();
 
-private:
-	/**
-	Write the redo log record */
-	void write();
+	/** Append the redo log records to the redo log buffer. */
+	void finish_write();
 
 private:
+	/** Prepare to write the mini-transaction log to the redo log buffer.
+	@return whether finish_write() needs to be invoked */
+	bool prepare_write();
+
 	/** true if it is a sync mini-transaction. */
 	bool			m_sync;
 
@@ -394,8 +371,7 @@ private:
 	lsn_t			m_end_lsn;
 };
 
-/**
-Checks if a mini-transaction is dirtying a clean page.
+/** Check if a mini-transaction is dirtying a clean page.
 @return true if the mtr is dirtying a clean page. */
 
 bool
@@ -410,21 +386,17 @@ mtr_t::is_block_dirtied(const buf_block_t* block)
 	return(block->page.oldest_modification == 0);
 }
 
-/**
-Write the block contents to the REDO log */
+/** Write the block contents to the REDO log */
 struct mtr_write_log_t {
-	/**
-	@return true - never fails */
+	/** @return true - never fails */
 	bool operator()(const mtr_buf_t::block_t* block) const
 	{
 		log_write_low(block->begin(), block->used());
-
 		return(true);
 	}
 };
 
-/**
-Starts a mini-transaction.
+/** Start a mini-transaction.
 @param sync		true if it is a synchronous mini-transaction
 @param read_only	true if read only mini-transaction */
 
@@ -454,8 +426,7 @@ mtr_t::start(bool sync, bool read_only)
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
 }
 
-/**
-Release the resources */
+/** Release the resources */
 
 void
 mtr_t::Command::release_resources()
@@ -482,8 +453,7 @@ mtr_t::Command::release_resources()
 	m_impl = 0;
 }
 
-/**
-Commits a mini-transaction. */
+/** Commit a mini-transaction. */
 
 void
 mtr_t::commit()
@@ -510,8 +480,7 @@ mtr_t::commit()
 	}
 }
 
-/**
-Releases an object in the memo stack.
+/** Release an object in the memo stack.
 @return true if released */
 
 bool
@@ -535,58 +504,74 @@ mtr_t::memo_release(const void* object, ulint type)
 	return(false);
 }
 
-/**
-Write the redo log record */
+/** Prepare to write the mini-transaction log to the redo log buffer.
+@return whether finish_write() needs to be invoked */
 
-void
-mtr_t::Command::write()
+bool
+mtr_t::Command::prepare_write()
 {
-	byte*	data = m_impl->m_log.front()->begin();
+	switch (m_impl->m_log_mode) {
+	case MTR_LOG_SHORT_INSERTS:
+		ut_ad(0);
+		/* fall through (write no redo log) */
+	case MTR_LOG_NO_REDO:
+	case MTR_LOG_NONE:
+		ut_ad(m_impl->m_log.size() == 0);
+		log_mutex_enter();
+		m_end_lsn = m_start_lsn = log_sys->lsn;
+		return(false);
+	case MTR_LOG_ALL:
+		ut_ad(m_impl->m_n_log_recs > 0);
+		break;
+	}
+
+	const ulint	len = m_impl->m_log.size();
+
+	if (len > log_sys->buf_size / 2) {
+		log_buffer_extend((len + 1) * 2);
+	}
+
+	log_mutex_enter();
 
 	if (m_impl->m_n_log_recs > 1) {
 		mlog_catenate_ulint(
 			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
 	} else {
-		*data = (byte)((ulint) *data | MLOG_SINGLE_REC_FLAG);
+		*m_impl->m_log.front()->begin() |= MLOG_SINGLE_REC_FLAG;
 	}
 
-	bool	own_mutex;
+	return(true);
+}
+
+/** Append the redo log records to the redo log buffer. */
+
+void
+mtr_t::Command::finish_write()
+{
+	ut_ad(m_impl->m_log_mode == MTR_LOG_ALL);
+	ut_ad(log_mutex_own());
 
 	if (m_impl->m_log.is_small()) {
-		ulint	len = (m_impl->m_log_mode != MTR_LOG_NO_REDO)
-			? m_impl->m_log.front()->used() : 0;
+		const mtr_buf_t::block_t*	front = m_impl->m_log.front();
 
-		m_end_lsn = log_reserve_and_write_fast(data, len, &m_start_lsn);
+		m_end_lsn = log_reserve_and_write_fast(
+			front->begin(), front->used(), &m_start_lsn);
 
 		if (m_end_lsn > 0) {
 			return;
 		}
-
-		own_mutex = true;
-	} else {
-		own_mutex = false;
 	}
 
 	/* Open the database log for log_write_low */
-	m_start_lsn = log_reserve_and_open(m_impl->m_log.size(), own_mutex);
+	m_start_lsn = log_reserve_and_open(m_impl->m_log.size());
 
-	if (m_impl->m_log_mode == MTR_LOG_ALL) {
-		mtr_write_log_t	write_log;
-
-		m_impl->m_log.for_each_block(write_log);
-
-	} else {
-		ut_ad(m_impl->m_log_mode == MTR_LOG_NONE
-		      || m_impl->m_log_mode == MTR_LOG_NO_REDO);
-
-		/* Do nothing */
-	}
+	mtr_write_log_t	write_log;
+	m_impl->m_log.for_each_block(write_log);
 
 	m_end_lsn = log_close();
 }
 
-/**
-Release the latches and blocks acquired by this mini-transaction */
+/** Release the latches and blocks acquired by this mini-transaction */
 
 void
 mtr_t::Command::release_all()
@@ -600,8 +585,7 @@ mtr_t::Command::release_all()
 	m_locks_released = 1;
 }
 
-/**
-Release the latches acquired by this mini-transaction */
+/** Release the latches acquired by this mini-transaction */
 
 void
 mtr_t::Command::release_latches()
@@ -615,8 +599,7 @@ mtr_t::Command::release_latches()
 	m_locks_released = 1;
 }
 
-/**
-Release the blocks used in this mini-transaction */
+/** Release the blocks used in this mini-transaction */
 
 void
 mtr_t::Command::release_blocks()
@@ -627,14 +610,15 @@ mtr_t::Command::release_blocks()
 	m_impl->m_memo.for_each_block_in_reverse(iterator);
 }
 
-/**
-Write the redo log record, add dirty pages to the flush list and release
+/** Write the redo log record, add dirty pages to the flush list and release
 the resources. */
 
 void
 mtr_t::Command::execute()
 {
-	write();
+	if (prepare_write()) {
+		finish_write();
+	}
 
 	if (m_impl->m_made_dirty) {
 		log_flush_order_mutex_enter();
@@ -643,7 +627,7 @@ mtr_t::Command::execute()
 	/* It is now safe to release the log mutex because the
 	flush_order mutex will ensure that we are the first one
 	to insert into the flush list. */
-	log_release();
+	log_mutex_exit();
 
 	m_impl->m_mtr->m_commit_lsn = m_end_lsn;
 
@@ -659,9 +643,9 @@ mtr_t::Command::execute()
 }
 
 #ifdef UNIV_DEBUG
-/**
-Checks if memo contains the given item.
+/** Check if memo contains the given item.
 @return	true if contains */
+
 bool
 mtr_t::memo_contains(
 	mtr_buf_t*	memo,
@@ -674,8 +658,7 @@ mtr_t::memo_contains(
 	return(!memo->for_each_block_in_reverse(iterator));
 }
 
-/**
-Checks if memo contains the given page.
+/** Check if memo contains the given page.
 @param memo		info
 @param ptr		record
 @param type		type of
@@ -687,10 +670,8 @@ mtr_t::memo_contains_page(mtr_buf_t* memo, const byte* ptr, ulint type)
 	return(memo_contains(memo, buf_block_align(ptr), type));
 }
 
-/**
-Debug check for flags */
+/** Debug check for flags */
 struct FlaggedCheck {
-
 	FlaggedCheck(const void* ptr, ulint flags)
 		:
 		m_ptr(ptr),
@@ -712,8 +693,7 @@ struct FlaggedCheck {
 	ulint		m_flags;
 };
 
-/**
-Checks if memo contains the given item.
+/** Check if memo contains the given item.
 @param object		object to search
 @param flags		specify types of object (can be ORred) of
 			MTR_MEMO_PAGE_S_FIX ... values
@@ -731,8 +711,7 @@ mtr_t::memo_contains_flagged(const void* ptr, ulint flags) const
 	return(!m_impl.m_memo.for_each_block_in_reverse(iterator));
 }
 
-/**
-Checks if memo contains the given page.
+/** Check if memo contains the given page.
 @param ptr		buffer frame
 @param flags		specify types of object with OR of
 			MTR_MEMO_PAGE_S_FIX... values
@@ -746,8 +725,7 @@ mtr_t::memo_contains_page_flagged(
 	return(memo_contains_flagged(buf_block_align(ptr), flags));
 }
 
-/**
-Prints info of an mtr handle. */
+/** Print info of an mtr handle. */
 
 void
 mtr_t::print() const
