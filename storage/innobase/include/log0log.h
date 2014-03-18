@@ -788,12 +788,15 @@ struct log_t{
 					/*!< how far we have written the log
 					AND flushed to disk */
 	ulint		n_pending_flushes;/*!< number of currently
-					pending flushes */
+					pending flushes; incrementing is
+					protected by the log mutex;
+					may be decremented between
+					resetting and setting flush_event */
 	os_event_t	flush_event;	/*!< this event is in the reset state
 					when a flush is running; a thread
 					should wait for this without
 					owning the log mutex, but NOTE that
-					to set or reset this event, the
+					to set this event, the
 					thread MUST own the log mutex! */
 	ibool		one_flushed;	/*!< during a flush, this is
 					first FALSE and becomes TRUE

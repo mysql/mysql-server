@@ -2014,7 +2014,6 @@ logs_empty_and_mark_files_at_shutdown(void)
 	ulint			pending_io;
 	enum srv_thread_type	active_thd;
 	const char*		thread_name;
-	ibool			server_busy;
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Starting shutdown...");
 
@@ -2128,17 +2127,16 @@ loop:
 	}
 
 	log_mutex_enter();
-	server_busy = log_sys->n_pending_checkpoint_writes
-		      || log_sys->n_pending_flushes;
+	const ulint	n_write	= log_sys->n_pending_checkpoint_writes;
+	const ulint	n_flush	= log_sys->n_pending_flushes;
 	log_mutex_exit();
 
-	if (server_busy) {
+	if (n_write != 0 || n_flush != 0) {
 		if (srv_print_verbose_log && count > 600) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Pending checkpoint_writes: %lu."
-				" Pending log flush writes: %lu",
-				(ulong) log_sys->n_pending_checkpoint_writes,
-				(ulong) log_sys->n_pending_flushes);
+				"Pending checkpoint_writes: " ULINTPF "."
+				" Pending log flush writes: " ULINTPF,
+				n_write, n_flush);
 			count = 0;
 		}
 		goto loop;
@@ -2341,13 +2339,15 @@ log_print(
 	}
 
 	fprintf(file,
-		"%lu pending log flushes, %lu pending chkp writes\n"
-		"%lu log i/o's done, %.2f log i/o's/second\n",
-		(ulong) log_sys->n_pending_flushes,
-		(ulong) log_sys->n_pending_checkpoint_writes,
-		(ulong) log_sys->n_log_ios,
-		((double)(log_sys->n_log_ios - log_sys->n_log_ios_old)
-		 / time_elapsed));
+		ULINTPF " pending log flushes, "
+		ULINTPF " pending chkp writes\n"
+		ULINTPF " log i/o's done, %.2f log i/o's/second\n",
+		log_sys->n_pending_flushes,
+		log_sys->n_pending_checkpoint_writes,
+		log_sys->n_log_ios,
+		static_cast<double>(
+			log_sys->n_log_ios - log_sys->n_log_ios_old)
+		/ time_elapsed);
 
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
 	log_sys->last_printout_time = current_time;
