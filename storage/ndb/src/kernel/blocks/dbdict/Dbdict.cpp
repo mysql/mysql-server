@@ -27959,9 +27959,11 @@ Dbdict::trans_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
   case SchemaTrans::TS_SUBOP:
     ndbrequire(false);
   case SchemaTrans::TS_ROLLBACK_SP:
+    jam();
     trans_rollback_sp_recv_reply(signal, trans_ptr);
     return;
   case SchemaTrans::TS_FLUSH_PREPARE:
+    jam();
     trans_prepare_first(signal, trans_ptr);
     return;
   case SchemaTrans::TS_PREPARING:
@@ -27981,6 +27983,7 @@ Dbdict::trans_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
     trans_commit_first(signal, trans_ptr);
     return;
   case SchemaTrans::TS_COMMITTING:
+    jam();
     trans_commit_recv_reply(signal, trans_ptr);
     return;
   case SchemaTrans::TS_FLUSH_COMPLETE:
@@ -27988,9 +27991,11 @@ Dbdict::trans_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
     trans_complete_first(signal, trans_ptr);
     return;
   case SchemaTrans::TS_COMPLETING:
+    jam();
     trans_complete_recv_reply(signal, trans_ptr);
     return;
   case SchemaTrans::TS_ENDING:
+    jam();
     trans_end_recv_reply(signal, trans_ptr);
     return;
   case SchemaTrans::TS_STARTED:   // These states are waiting for client
@@ -28637,6 +28642,7 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
     return;
   case SchemaOp::OS_PREPARING:
   case SchemaOp::OS_PREPARED:
+    jam();
     break;
   case SchemaOp::OS_INITIAL:
   case SchemaOp::OS_PARSE_MASTER:
@@ -28766,6 +28772,7 @@ Dbdict::trans_rollback_sp_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
     /**
      * SP
      */
+    jam();
     trans_rollback_sp_done(signal, trans_ptr, op_ptr);
     return;
   }
@@ -28840,7 +28847,7 @@ Dbdict::trans_rollback_sp_done(Signal* signal,
                                SchemaTransPtr trans_ptr,
                                SchemaOpPtr op_ptr)
 {
-
+  jam();
   ErrorInfo error = trans_ptr.p->m_error;
   const OpInfo info = getOpInfo(op_ptr);
   (this->*(info.m_reply))(signal, op_ptr, error);
@@ -28869,6 +28876,7 @@ void Dbdict::check_partial_trans_commit_start(SchemaTransPtr trans_ptr,
      */
     jam();
     for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      jam();
       NodeRecordPtr nodePtr;
       if (trans_ptr.p->m_nodes.get(i))
       {
@@ -29122,13 +29130,16 @@ void Dbdict::check_partial_trans_commit_next(SchemaTransPtr trans_ptr,
       Check if any nodes should be skipped because they
       have already commited the operation
     */
+    jam();
     for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      jam();
       NodeRecordPtr nodePtr;
 #ifdef VM_TRACE
       ndbout_c("Node %u", i);
 #endif
       if (trans_ptr.p->m_nodes.get(i))
       {
+        jam();
         c_nodes.getPtr(nodePtr, i);
 #ifdef VM_TRACE
         ndbout_c("Checking node %u(%u), %u<%u", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->start_op, op_ptr.p->op_key);
@@ -29140,6 +29151,7 @@ void Dbdict::check_partial_trans_commit_next(SchemaTransPtr trans_ptr,
 #ifdef VM_TRACE
           ndbout_c("Skipping commit of operation %u on node %u", op_ptr.p->op_key, i);
 #endif
+          jam();
           nodes.clear(i);
           nodePtr.p->recoveryState = NodeRecord::RS_NORMAL;
         }
@@ -29211,6 +29223,7 @@ Dbdict::trans_commit_next(Signal* signal,
       failure where one of the slaves take over and need to know
       that transaction is to be committed.
     */
+    jam();
     rg.m_nodes.clear(getOwnNodeId());
 
     sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
@@ -29220,6 +29233,7 @@ Dbdict::trans_commit_next(Signal* signal,
   }
   else
   {
+    jam();
     /*
       New master had already committed operation
      */
@@ -29319,19 +29333,23 @@ Dbdict::check_partial_trans_complete_start(SchemaTransPtr trans_ptr,
       Check if any nodes should be skipped because they
       have already completed the operation
     */
+    jam();
     for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
+      jam();
       NodeRecordPtr nodePtr;
 #ifdef VM_TRACE
       ndbout_c("Node %u", i);
 #endif
       if (trans_ptr.p->m_nodes.get(i))
       {
+        jam();
         c_nodes.getPtr(nodePtr, i);
 #ifdef VM_TRACE
         ndbout_c("Checking node %u(%u,%u)", nodePtr.i, nodePtr.p->recoveryState, nodePtr.p->takeOverConf.trans_state);
 #endif
         if (nodePtr.p->takeOverConf.trans_state >= SchemaTrans::TS_FLUSH_COMPLETE)
         {
+          jam();
 #ifdef VM_TRACE
           ndbout_c("Skipping TS_FLUSH_COMPLETE of node %u", i);
 #endif
@@ -29649,7 +29667,9 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
   case SchemaTrans::TS_PREPARING:
     jam();
     if (trans_ptr.p->m_master_recovery_state == SchemaTrans::TRS_ROLLFORWARD)
+    {
       goto flush_commit;
+    }
     setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
     trans_abort_prepare_start(signal, trans_ptr);
     return;
@@ -29683,7 +29703,6 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
       /*
         Commit any uncommited operations
       */
-      jam();
       SchemaOpPtr op_ptr;
       c_schemaOpPool.getPtr(op_ptr, trans_ptr.p->m_curr_op_ptr_i);
       if (op_ptr.p->m_state < SchemaOp::OS_COMMITTED)
@@ -29891,6 +29910,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
       trans_log_schema_op_abort(op_ptr);
       if (!trans_ptr.p->m_isMaster)
       {
+        jam();
         trans_ptr.p->m_state = SchemaTrans::TS_ABORTING_PARSE;
         /**
          * Remove op (except at coordinator
@@ -29905,7 +29925,10 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
       op_ptr.p->m_state = SchemaOp::OS_ABORTING_PREPARE;
       (this->*(info.m_abortPrepare))(signal, op_ptr);
       if (!trans_ptr.p->m_isMaster)
+      {
+        jam();
         trans_ptr.p->m_state = SchemaTrans::TS_ABORTING_PREPARE;
+      }
       return;
     case SchemaTransImplReq::RT_COMMIT:
       jam();
@@ -30065,6 +30088,7 @@ Dbdict::slave_run_flush(Signal *signal,
   const Uint32 rt = DictSignal::getRequestType(req->requestInfo);
   const bool master = trans_ptr.p->m_isMaster;
 
+  jam();
   jamLine(trans_ptr.p->m_state);
   switch(rt){
   case SchemaTransImplReq::RT_FLUSH_PREPARE:
@@ -30115,6 +30139,7 @@ Dbdict::slave_run_flush(Signal *signal,
      * No state check here, cause we get here regardless if transaction
      *   succeded or not...
      */
+    jam();
     trans_ptr.p->m_state = SchemaTrans::TS_ENDING;
     do_flush = trans_ptr.p->m_flush_end;
     break;
@@ -30133,6 +30158,7 @@ Dbdict::slave_run_flush(Signal *signal,
      *   will be flushed on next schema trans
      *   or will be found in state COMMIT
      */
+    jam();
     slave_writeSchema_conf(signal, trans_ptr.p->trans_key, 0);
     return;
   }
@@ -30260,31 +30286,38 @@ Dbdict::update_op_state(SchemaOpPtr op_ptr)
 {
   switch(op_ptr.p->m_state){
   case SchemaOp::OS_PARSE_MASTER:
+    jam();
     break;
   case SchemaOp::OS_PARSING:
+    jam();
     op_ptr.p->m_state = SchemaOp::OS_PARSED;
     break;
   case SchemaOp::OS_PARSED:
     ndbrequire(false);
   case SchemaOp::OS_PREPARING:
+    jam();
     op_ptr.p->m_state = SchemaOp::OS_PREPARED;
     break;
   case SchemaOp::OS_PREPARED:
     ndbrequire(false);
   case SchemaOp::OS_ABORTING_PREPARE:
+    jam();
     op_ptr.p->m_state = SchemaOp::OS_ABORTED_PREPARE;
     break;
   case SchemaOp::OS_ABORTED_PREPARE:
     ndbrequire(false);
   case SchemaOp::OS_ABORTING_PARSE:
+    jam();
     break;
     //case SchemaOp::OS_ABORTED_PARSE:  // Not used, op released
   case SchemaOp::OS_COMMITTING:
+    jam();
     op_ptr.p->m_state = SchemaOp::OS_COMMITTED;
     break;
   case SchemaOp::OS_COMMITTED:
     ndbrequire(false);
   case SchemaOp::OS_COMPLETING:
+    jam();
     op_ptr.p->m_state = SchemaOp::OS_COMPLETED;
     break;
   case SchemaOp::OS_COMPLETED:
@@ -30295,6 +30328,7 @@ Dbdict::update_op_state(SchemaOpPtr op_ptr)
 void
 Dbdict::sendTransConf(Signal* signal, SchemaOpPtr op_ptr)
 {
+  jam();
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   update_op_state(op_ptr);
   sendTransConf(signal, trans_ptr);
@@ -30445,15 +30479,18 @@ Dbdict::trans_log_schema_op(SchemaOpPtr op_ptr,
   bool restart = op_ptr.p->m_restart;
   switch((SchemaFile::EntryState)newEntry->m_tableState){
   case SchemaFile::SF_CREATE:
+    jam();
     ndbrequire(restart || oldEntry->m_tableState == SchemaFile::SF_UNUSED);
     break;
   case SchemaFile::SF_ALTER:
+    jam();
     ndbrequire(restart || oldEntry->m_tableState == SchemaFile::SF_IN_USE);
     tmp = * oldEntry;
     tmp.m_info_words = newEntry->m_info_words;
     tmp.m_tableVersion = newEntry->m_tableVersion;
     break;
   case SchemaFile::SF_DROP:
+    jam();
     ndbrequire(restart || oldEntry->m_tableState == SchemaFile::SF_IN_USE);
     tmp = *oldEntry;
     tmp.m_tableState = SchemaFile::SF_DROP;
@@ -30508,12 +30545,15 @@ Dbdict::trans_log_schema_op_complete(SchemaOpPtr op_ptr)
     SchemaFile::TableEntry * entry = getTableEntry(xsf, objectId);
     switch((SchemaFile::EntryState)entry->m_tableState){
     case SchemaFile::SF_CREATE:
+      jam();
       entry->m_tableState = SchemaFile::SF_IN_USE;
       break;
     case SchemaFile::SF_ALTER:
+      jam();
       entry->m_tableState = SchemaFile::SF_IN_USE;
       break;
     case SchemaFile::SF_DROP:
+      jam();
       entry->m_tableState = SchemaFile::SF_UNUSED;
       break;
     default:
@@ -30540,6 +30580,7 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
   c_nodes.getPtr(ownNodePtr, getOwnNodeId());
 
   if (!(clientFlags & TransClient::TakeOver)) {
+    jam();
     receiverRef = trans_ptr.p->m_clientRef;
     transId = trans_ptr.p->m_transId;
   } else {
@@ -30619,9 +30660,13 @@ Dbdict::sendTransClientReply(Signal* signal, SchemaTransPtr trans_ptr)
       rep->senderRef = reference();
       rep->transId = transId;
       if (hasError(trans_ptr.p->m_error))
+      {
+        jam();
         getError(trans_ptr.p->m_error, rep);
+      }
       else
       {
+        jam();
         rep->errorCode = 0;
         rep->errorLine = 0;
         rep->errorNodeId = 0;
@@ -30721,6 +30766,7 @@ Dbdict::endSchemaTrans(Signal* signal, TxHandlePtr tx_ptr, Uint32 flags)
   const Uint32 clientFlags = tx_ptr.p->m_clientFlags;
   Uint32 transId = 0;
   if (!(clientFlags & TransClient::TakeOver)) {
+    jam();
     transId = tx_ptr.p->m_transId;
   } else {
     jam();
@@ -30812,7 +30858,10 @@ Dbdict::execSCHEMA_TRANS_END_REP(Signal* signal)
   ndbrequire(!tx_ptr.isNull());
 
   if (rep->errorCode != 0)
+  {
+    jam();
     setError(tx_ptr.p->m_error, rep);
+  }
   execute(signal, tx_ptr.p->m_callback, rep->errorCode);
 }
 
@@ -30858,6 +30907,7 @@ Dbdict::handleApiFail(Signal* signal,
         }
         else
         {
+          jam();
           takeOverTransClient(signal, trans_ptr);
         }
 
@@ -31202,6 +31252,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   DictHashMapInfo::HashMap hm; hm.init();
   if (handle.m_cnt)
   {
+    jam();
     SimpleProperties::UnpackStatus status;
 
     handle.getSection(objInfoPtr, CreateHashMapReq::INFO);
@@ -31406,6 +31457,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   }
   else if (op_ptr.p->m_restart)
   {
+    jam();
     impl_req->objectId = c_restartRecord.activeTable;
     impl_req->objectVersion=c_restartRecord.m_entry.m_tableVersion;
   }
@@ -31594,6 +31646,7 @@ Dbdict::createHashMap_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 bool
 Dbdict::createHashMap_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
+  jam();
   return false;
 }
 
@@ -31609,6 +31662,7 @@ Dbdict::createHashMap_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
   const CreateHashMapImplReq* impl_req = &createHashMapRecordPtr.p->m_request;
 
   if (!hasError(error)) {
+    jam();
     CreateHashMapConf* conf = (CreateHashMapConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = op_ptr.p->m_clientData;
@@ -31665,6 +31719,7 @@ Dbdict::createHashMap_prepare(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::createHashMap_writeObjConf(Signal* signal, Uint32 op_key, Uint32 ret)
 {
+  jam();
   SchemaOpPtr op_ptr;
   CreateHashMapRecPtr createHashMapRecordPtr;
   findSchemaOp(op_ptr, createHashMapRecordPtr, op_key);
@@ -32067,6 +32122,7 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
     }
     else
     {
+      jam();
       TableRecordPtr indexPtr;
       bool ok = find_object(indexPtr, triggerPtr.p->indexId);
       ndbrequire(ok);

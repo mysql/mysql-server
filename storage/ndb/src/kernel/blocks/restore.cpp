@@ -714,13 +714,16 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
     return;
   }
   
+  /**
+   * We send an immediate signal to continue the restore, at times this
+   * could lead to burning some extra CPU since we might still wait for
+   * input from the disk reading. This code is however only executed
+   * as part of restarts, so it should be ok to spend some extra CPU
+   * to ensure that restarts are quick.
+   */
   signal->theData[0] = RestoreContinueB::RESTORE_NEXT;
   signal->theData[1] = file_ptr.i;
-
-  if(len)
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-  else
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
 void

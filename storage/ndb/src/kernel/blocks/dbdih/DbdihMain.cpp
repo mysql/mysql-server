@@ -85,6 +85,8 @@
 
 #define JAM_FILE_ID 354
 
+static const Uint32 WaitTableStateChangeMillis = 10;
+
 extern EventLogger * g_eventLogger;
 
 #define SYSFILE ((Sysfile *)&sysfileData[0])
@@ -6341,7 +6343,8 @@ Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, TabRecordPtr tabPtr)
     signal->theData[0] = DihContinueB::ZINVALIDATE_NODE_LCP;
     signal->theData[1] = nodeId;
     signal->theData[2] = tabPtr.i;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 3);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                        WaitTableStateChangeMillis, 3);
     return;
   }//if  
 
@@ -6468,7 +6471,8 @@ void Dbdih::removeNodeFromTable(Signal* signal,
     signal->theData[0] = DihContinueB::ZREMOVE_NODE_FROM_TABLE;
     signal->theData[1] = nodeId;
     signal->theData[2] = tabPtr.i;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 3);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                        WaitTableStateChangeMillis, 3);
     return;
   }//if  
 
@@ -8702,7 +8706,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     {
       jam();
       SectionHandle handle(this, signal);
-      sendSignalWithDelay(reference(), GSN_ALTER_TAB_REQ, signal, 100,
+      sendSignalWithDelay(reference(), GSN_ALTER_TAB_REQ, signal, 10,
                           signal->getLength(), &handle);
       return;
     }
@@ -11372,7 +11376,8 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
       signal->theData[0] = DihContinueB::ZINIT_LCP;
       signal->theData[1] = senderRef;
       signal->theData[2] = tabPtr.i;
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20, 3);
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                          WaitTableStateChangeMillis, 3);
       return;
     }//if
 
@@ -11692,8 +11697,11 @@ Dbdih::getTabInfo(Signal* signal)
     jam();
     signal->theData[0] = DihContinueB::ZGET_TABINFO;
     signal->theData[1] = tabPtr.i;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB,
-                        signal, 100, signal->length());
+    sendSignalWithDelay(reference(),
+                        GSN_CONTINUEB,
+                        signal,
+                        WaitTableStateChangeMillis,
+                        signal->length());
     return;
   }
 
@@ -12740,7 +12748,8 @@ void Dbdih::copyNodeLab(Signal* signal, Uint32 tableId)
         jam();
         signal->theData[0] = DihContinueB::ZCOPY_NODE;
         signal->theData[1] = tabPtr.i;
-        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                            WaitTableStateChangeMillis, 2);
         return;
       }
       tabPtr.p->tabCopyStatus = TabRecord::CS_COPY_NODE_STATE;
@@ -18664,7 +18673,8 @@ Dbdih::waitDropTabWritingToFile(Signal* signal, TabRecordPtr tabPtr){
     jam();
     signal->theData[0] = DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE;
     signal->theData[1] = tabPtr.i;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                        WaitTableStateChangeMillis, 2);
     return;
   }
 
@@ -18673,7 +18683,8 @@ Dbdih::waitDropTabWritingToFile(Signal* signal, TabRecordPtr tabPtr){
     jam();
     signal->theData[0] = DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE;
     signal->theData[1] = tabPtr.i;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                        WaitTableStateChangeMillis, 2);
     return;
   }
 

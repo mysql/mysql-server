@@ -2295,6 +2295,7 @@ NdbDictInterface::execSignal(void* dictImpl,
 
   case GSN_NODE_FAILREP:
   {
+    DBUG_ENTER("NdbDictInterface::NODE_FAILREP");
     const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
                                            signal->getDataPtr());
     Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
@@ -2309,6 +2310,7 @@ NdbDictInterface::execSignal(void* dictImpl,
         tmp->m_impl->theWaiter.nodeFail(i);
       }
     }
+    DBUG_VOID_RETURN;
     break;
   }
   default:
@@ -2607,6 +2609,7 @@ void
 NdbDictInterface::execGET_TABINFO_REF(const NdbApiSignal * signal,
 				      const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execGET_TABINFO_REF");
   const GetTabInfoRef* ref = CAST_CONSTPTR(GetTabInfoRef, 
 					   signal->getDataPtr());
   
@@ -2621,7 +2624,9 @@ NdbDictInterface::execGET_TABINFO_REF(const NdbApiSignal * signal,
     m_error.code = (*(signal->getDataPtr() + 
                       GetTabInfoRef::OriginalErrorOffset));
   }
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************
@@ -3893,6 +3898,7 @@ void
 NdbDictInterface::execCREATE_TABLE_CONF(const NdbApiSignal * signal,
 					const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_TABLE_CONF");
   const CreateTableConf* const conf=
     CAST_CONSTPTR(CreateTableConf, signal->getDataPtr());
   m_buffer.grow(4 * 2); // 2 words
@@ -3900,33 +3906,42 @@ NdbDictInterface::execCREATE_TABLE_CONF(const NdbApiSignal * signal,
   data[0] = conf->tableId;
   data[1] = conf->tableVersion;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execCREATE_TABLE_REF(const NdbApiSignal * sig,
 				       const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_TABLE_REF");
   const CreateTableRef* ref = CAST_CONSTPTR(CreateTableRef, sig->getDataPtr());
   m_error.code= ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execALTER_TABLE_CONF(const NdbApiSignal * signal,
                                        const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execALTER_TABLE_CONF");
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execALTER_TABLE_REF(const NdbApiSignal * sig,
 				      const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execALTER_TABLE_REF");
   const AlterTableRef * ref = CAST_CONSTPTR(AlterTableRef, sig->getDataPtr());
   m_error.code= ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************
@@ -4281,6 +4296,7 @@ NdbDictInterface::execDROP_TABLE_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execDROP_TABLE_REF");
   const DropTableRef* ref = CAST_CONSTPTR(DropTableRef, signal->getDataPtr());
   m_error.code= ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
@@ -4528,18 +4544,23 @@ void
 NdbDictInterface::execCREATE_INDX_CONF(const NdbApiSignal * signal,
 				       const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_INDX_CONF");
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execCREATE_INDX_REF(const NdbApiSignal * sig,
 				      const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_INDX_REF");
   const CreateIndxRef* ref = CAST_CONSTPTR(CreateIndxRef, sig->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   if (m_error.code == ref->NotMaster)
     m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 // INDEX_STAT
@@ -4622,18 +4643,23 @@ void
 NdbDictInterface::execINDEX_STAT_CONF(const NdbApiSignal * signal,
 				      const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execINDEX_STAT_CONF");
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execINDEX_STAT_REF(const NdbApiSignal * signal,
 				     const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execINDEX_STAT_REF");
   const IndexStatRef* ref = CAST_CONSTPTR(IndexStatRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   if (m_error.code == ref->NotMaster)
     m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************
@@ -4821,18 +4847,23 @@ void
 NdbDictInterface::execDROP_INDX_CONF(const NdbApiSignal * signal,
 				       const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::DROP_INDX_CONF");
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execDROP_INDX_REF(const NdbApiSignal * signal,
 				      const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execDROP_INDX_REF");
   const DropIndxRef* ref = CAST_CONSTPTR(DropIndxRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   if (m_error.code == ref->NotMaster)
     m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************
@@ -5470,6 +5501,7 @@ NdbDictInterface::execSUB_START_REF(const NdbApiSignal * signal,
   const SubStartRef * const subStartRef=
     CAST_CONSTPTR(SubStartRef, signal->getDataPtr());
   m_error.code= subStartRef->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   if (m_error.code == SubStartRef::NotMaster)
     m_masterNodeId = subStartRef->m_masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
@@ -6417,10 +6449,13 @@ void
 NdbDictInterface::execWAIT_GCP_REF(const NdbApiSignal* signal,
                                    const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::WAIT_GCP_REF");
   const WaitGCPRef* ref = CAST_CONSTPTR(WaitGCPRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
 
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 NdbFilegroupImpl::NdbFilegroupImpl(NdbDictionary::Object::Type t)
@@ -7807,6 +7842,7 @@ void
 NdbDictInterface::execCREATE_FILE_CONF(const NdbApiSignal * signal,
 				       const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_FILE_CONF");
   const CreateFileConf* conf=
     CAST_CONSTPTR(CreateFileConf, signal->getDataPtr());
   m_buffer.grow(4 * 3); // 3 words
@@ -7816,17 +7852,21 @@ NdbDictInterface::execCREATE_FILE_CONF(const NdbApiSignal * signal,
   data[2] = conf->warningFlags;
   
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execCREATE_FILE_REF(const NdbApiSignal * signal,
 				      const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_FILE_REF");
   const CreateFileRef* ref = 
     CAST_CONSTPTR(CreateFileRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 int
@@ -7860,18 +7900,23 @@ void
 NdbDictInterface::execDROP_FILE_CONF(const NdbApiSignal * signal,
 					    const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execDROP_FILE_CONF");
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execDROP_FILE_REF(const NdbApiSignal * signal,
 					   const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execDROP_FILE_REF");
   const DropFileRef* ref = 
     CAST_CONSTPTR(DropFileRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 int
@@ -7976,6 +8021,7 @@ void
 NdbDictInterface::execCREATE_FILEGROUP_CONF(const NdbApiSignal * signal,
 					    const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("execCREATE_FILEGROUP_CONF");
   const CreateFilegroupConf* conf=
     CAST_CONSTPTR(CreateFilegroupConf, signal->getDataPtr());
   m_buffer.grow(4 * 3); // 3 words
@@ -7983,18 +8029,22 @@ NdbDictInterface::execCREATE_FILEGROUP_CONF(const NdbApiSignal * signal,
   data[0] = conf->filegroupId;
   data[1] = conf->filegroupVersion;
   data[2] = conf->warningFlags;
-  m_impl->theWaiter.signal(NO_WAIT);  
+  m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execCREATE_FILEGROUP_REF(const NdbApiSignal * signal,
 					   const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_FILEGROUP_REF");
   const CreateFilegroupRef* ref = 
     CAST_CONSTPTR(CreateFilegroupRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 int
@@ -8028,18 +8078,23 @@ void
 NdbDictInterface::execDROP_FILEGROUP_CONF(const NdbApiSignal * signal,
 					    const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execDROP_FILEGROUP_CONF");
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execDROP_FILEGROUP_REF(const NdbApiSignal * signal,
 					   const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execDROP_FILEGROUP_REF");
   const DropFilegroupRef* ref = 
     CAST_CONSTPTR(DropFilegroupRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -8562,11 +8617,14 @@ void
 NdbDictInterface::execCREATE_HASH_MAP_REF(const NdbApiSignal * signal,
                                           const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_HASH_MAP_REF");
   const CreateHashMapRef* ref =
     CAST_CONSTPTR(CreateHashMapRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -8574,6 +8632,7 @@ void
 NdbDictInterface::execCREATE_HASH_MAP_CONF(const NdbApiSignal * signal,
                                            const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_HASH_MAP_CONF");
   const CreateHashMapConf* conf=
     CAST_CONSTPTR(CreateHashMapConf, signal->getDataPtr());
   m_buffer.grow(4 * 2); // 2 words
@@ -8582,6 +8641,7 @@ NdbDictInterface::execCREATE_HASH_MAP_CONF(const NdbApiSignal * signal,
   data[1] = conf->objectVersion;
 
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -8754,16 +8814,20 @@ void
 NdbDictInterface::execCREATE_FK_REF(const NdbApiSignal * signal,
                                           const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_FK_REF");
   const CreateFKRef* ref = CAST_CONSTPTR(CreateFKRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execCREATE_FK_CONF(const NdbApiSignal * signal,
                                            const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execCREATE_FK_CONF");
   const CreateFKConf* conf= CAST_CONSTPTR(CreateFKConf, signal->getDataPtr());
   m_buffer.grow(4 * 2); // 2 words
   Uint32* data = (Uint32*)m_buffer.get_data();
@@ -8771,6 +8835,7 @@ NdbDictInterface::execCREATE_FK_CONF(const NdbApiSignal * signal,
   data[1] = conf->fkVersion;
 
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 int
@@ -8926,19 +8991,24 @@ void
 NdbDictInterface::execDROP_FK_CONF(const NdbApiSignal * signal,
                                    const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execDROP_FK_CONF");
   //DropTableConf* const conf = CAST_CONSTPTR(DropTableConf, signal->getDataPtr());
 
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execDROP_FK_REF(const NdbApiSignal * signal,
                                   const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execDROP_FK_REF");
   const DropFKRef* ref = CAST_CONSTPTR(DropFKRef, signal->getDataPtr());
   m_error.code= ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 template class Vector<NdbTableImpl*>;
@@ -9143,52 +9213,63 @@ void
 NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal * signal,
                                               const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF");
   const SchemaTransBeginConf* conf=
     CAST_CONSTPTR(SchemaTransBeginConf, signal->getDataPtr());
   assert(m_tx.m_transId == conf->transId);
   m_tx.m_transKey = conf->transKey;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF(const NdbApiSignal * signal,
                                              const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execSCHEMA_TRANS_BEGIN_REF");
   const SchemaTransBeginRef* ref =
     CAST_CONSTPTR(SchemaTransBeginRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execSCHEMA_TRANS_END_CONF(const NdbApiSignal * signal,
                                             const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execSCHEMA_TRANS_END_CONF");
 #ifndef NDEBUG
   const SchemaTransEndConf* conf=
     CAST_CONSTPTR(SchemaTransEndConf, signal->getDataPtr());
   assert(m_tx.m_transId == conf->transId);
 #endif
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execSCHEMA_TRANS_END_REF(const NdbApiSignal * signal,
                                            const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::execSCHEMA_TRANS_END_REF");
   const SchemaTransEndRef* ref =
     CAST_CONSTPTR(SchemaTransEndRef, signal->getDataPtr());
   m_error.code = ref->errorCode;
+  DBUG_PRINT("info", ("Error code = %d", m_error.code));
   m_tx.m_error.code = ref->errorCode;
   m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 void
 NdbDictInterface::execSCHEMA_TRANS_END_REP(const NdbApiSignal * signal,
                                            const LinearSectionPtr ptr[3])
 {
+  DBUG_ENTER("NdbDictInterface::SCHEMA_TRANS_END_REP");
   const SchemaTransEndRep* rep =
     CAST_CONSTPTR(SchemaTransEndRep, signal->getDataPtr());
   (rep->errorCode == 0) ?
@@ -9198,6 +9279,7 @@ NdbDictInterface::execSCHEMA_TRANS_END_REP(const NdbApiSignal * signal,
   m_tx.m_error.code = rep->errorCode;
   m_masterNodeId = rep->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
+  DBUG_VOID_RETURN;
 }
 
 const NdbDictionary::Column * NdbDictionary::Column::FRAGMENT = 0;
