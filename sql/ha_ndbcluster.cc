@@ -797,10 +797,14 @@ int ndb_to_mysql_error(const NdbError *ndberr)
   case HA_ERR_KEY_NOT_FOUND:
     return error;
 
-    /* Mapping missing, go with the ndb error code*/
+    /* Mapping missing, go with the ndb error code */
   case -1:
   case 0:
-    error= ndberr->code;
+    /* Never map to errors below HA_ERR_FIRST */
+    if (ndberr->code < HA_ERR_FIRST)
+      error= HA_ERR_INTERNAL_ERROR;
+    else
+      error= ndberr->code;
     break;
     /* Mapping exists, go with the mapped code */
   default:
