@@ -109,10 +109,8 @@ ndb_distribution	#
 ndb_eventbuffer_max_alloc	#
 ndb_extra_logging	#
 ndb_force_send	#
-ndb_index_stat_cache_entries	#
 ndb_index_stat_enable	#
 ndb_index_stat_option	#
-ndb_index_stat_update_freq	#
 ndb_log_apply_status	#
 ndb_log_bin	#
 ndb_log_binlog_index	#
