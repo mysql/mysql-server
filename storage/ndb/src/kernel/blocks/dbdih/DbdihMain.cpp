@@ -15706,7 +15706,7 @@ void Dbdih::initRestartInfo(Signal* signal)
                                   256);
     if (v && *v != 0)
     {
-      startGci = strtoull(v, NULL, 0);
+      startGci = my_strtoull(v, NULL, 0);
 
       ndbout_c("DbDih : Using value of %u from NDB_START_GCI",
                startGci);

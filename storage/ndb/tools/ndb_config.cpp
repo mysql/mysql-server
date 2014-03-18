@@ -452,7 +452,7 @@ Match::eval(const Iter& iter)
   } 
   else if(iter.get(m_key, &val64) == 0)
   {
-    if(strtoll(m_value.c_str(), (char **)NULL, 10) != (long long)val64)
+    if(my_strtoll(m_value.c_str(), (char **)NULL, 10) != (long long)val64)
       return 0;
   }
   else if(iter.get(m_key, &valc) == 0)
