@@ -404,7 +404,8 @@ static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_
 
 static inline uint get_key_parts(const KEY *key) {
 #if (50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
-    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
+    (100009 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     return key->user_defined_key_parts;
 #else
     return key->key_parts;
@@ -2061,8 +2062,13 @@ int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
     size_t frm_len = 0;
     int error = 0;
 
+#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
+    error = table_share->read_frm_image((const uchar**)&frm_data,&frm_len);
+    if (error) { goto cleanup; }
+#else    
     error = readfrm(frm_name,&frm_data,&frm_len);
     if (error) { goto cleanup; }
+#endif
     
     error = write_to_status(db,hatoku_frm_data,frm_data,(uint)frm_len, txn);
     if (error) { goto cleanup; }
@@ -2098,8 +2104,13 @@ int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
     memset(&key, 0, sizeof(key));
     memset(&stored_frm, 0, sizeof(&stored_frm));
     // get the frm data from MySQL
+#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
+    error = table_share->read_frm_image((const uchar**)&mysql_frm_data,&mysql_frm_len);
+    if (error) { goto cleanup; }
+#else
     error = readfrm(frm_name,&mysql_frm_data,&mysql_frm_len);
     if (error) { goto cleanup; }
+#endif
 
     key.data = &curr_key;
     key.size = sizeof(curr_key);
@@ -6390,68 +6401,16 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     DBUG_RETURN(to);
 }
 
-static inline enum row_type compression_method_to_row_type(enum toku_compression_method method) {
-    switch (method) {
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
-    case TOKU_NO_COMPRESSION:
-        return ROW_TYPE_TOKU_UNCOMPRESSED;
-    case TOKU_ZLIB_METHOD:
-    case TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD:
-        return ROW_TYPE_TOKU_ZLIB;
-    case TOKU_QUICKLZ_METHOD:
-        return ROW_TYPE_TOKU_QUICKLZ;
-    case TOKU_LZMA_METHOD:
-        return ROW_TYPE_TOKU_LZMA;
-    case TOKU_FAST_COMPRESSION_METHOD:
-        return ROW_TYPE_TOKU_FAST;
-    case TOKU_SMALL_COMPRESSION_METHOD:
-        return ROW_TYPE_TOKU_SMALL;
-#else
-    case TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD:
-#endif
-    case TOKU_DEFAULT_COMPRESSION_METHOD:
-        return ROW_TYPE_DEFAULT;
-    default:
-        assert(false);
-    }
-}
-
-static enum row_type get_row_type_for_key(DB *file) {
+static toku_compression_method get_compression_method(DB *file) {
     enum toku_compression_method method;
     int r = file->get_compression_method(file, &method);
     assert(r == 0);
-    return compression_method_to_row_type(method);
+    return method;
 }
 
-#if MYSQL_VERSION_ID >= 50521
 enum row_type ha_tokudb::get_row_type(void) const {
-#else
-enum row_thype ha_tokudb::get_row_type(void) {
-#endif
-    return get_row_type_for_key(share->file);
-}
-
-static inline enum toku_compression_method row_type_to_compression_method(enum row_type type) {
-    switch (type) {
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
-    case ROW_TYPE_TOKU_UNCOMPRESSED:
-        return TOKU_NO_COMPRESSION;
-    case ROW_TYPE_TOKU_ZLIB:
-        return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
-    case ROW_TYPE_TOKU_QUICKLZ:
-        return TOKU_QUICKLZ_METHOD;
-    case ROW_TYPE_TOKU_LZMA:
-        return TOKU_LZMA_METHOD;
-    case ROW_TYPE_TOKU_SMALL:
-        return TOKU_LZMA_METHOD;
-    case ROW_TYPE_TOKU_FAST:
-        return TOKU_QUICKLZ_METHOD;
-#endif
-    default:
-        DBUG_PRINT("info", ("Ignoring ROW_FORMAT not used by TokuDB, using TOKUDB_ZLIB by default instead"));
-    case ROW_TYPE_DEFAULT:
-        return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
-    }
+    toku_compression_method compression_method = get_compression_method(share->file);
+    return toku_compression_method_to_row_type(compression_method);
 }
 
 static int create_sub_table(
@@ -6460,7 +6419,7 @@ static int create_sub_table(
     DB_TXN* txn, 
     uint32_t block_size, 
     uint32_t read_block_size,
-    enum toku_compression_method compression_method,
+    toku_compression_method compression_method,
     bool is_hot_index
     ) 
 {
@@ -6686,7 +6645,7 @@ int ha_tokudb::create_secondary_dictionary(
     KEY_AND_COL_INFO* kc_info, 
     uint32_t keynr,
     bool is_hot_index,
-    enum row_type row_type
+    toku_compression_method compression_method
     ) 
 {
     int error;
@@ -6738,7 +6697,7 @@ int ha_tokudb::create_secondary_dictionary(
     block_size = get_tokudb_block_size(thd);
     read_block_size = get_tokudb_read_block_size(thd);
 
-    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), is_hot_index);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, compression_method, is_hot_index);
 cleanup:    
     tokudb_my_free(newname);
     tokudb_my_free(row_desc_buff);
@@ -6783,7 +6742,7 @@ static uint32_t create_main_key_descriptor(
 // create and close the main dictionarr with name of "name" using table form, all within
 // transaction txn.
 //
-int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, enum row_type row_type) {
+int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, toku_compression_method compression_method) {
     int error;
     DBT row_descriptor;
     uchar* row_desc_buff = NULL;
@@ -6829,34 +6788,11 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     read_block_size = get_tokudb_read_block_size(thd);
 
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), false);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, compression_method, false);
 cleanup:    
     tokudb_my_free(newname);
     tokudb_my_free(row_desc_buff);
     return error;
-}
-
-static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) {
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
-    switch (row_format) {
-    case SRV_ROW_FORMAT_UNCOMPRESSED:
-        return ROW_TYPE_TOKU_UNCOMPRESSED;
-    case SRV_ROW_FORMAT_ZLIB:
-        return ROW_TYPE_TOKU_ZLIB;
-    case SRV_ROW_FORMAT_QUICKLZ:
-        return ROW_TYPE_TOKU_QUICKLZ;
-    case SRV_ROW_FORMAT_LZMA:
-        return ROW_TYPE_TOKU_LZMA;
-    case SRV_ROW_FORMAT_SMALL:
-        return ROW_TYPE_TOKU_SMALL;
-    case SRV_ROW_FORMAT_FAST:
-        return ROW_TYPE_TOKU_FAST;
-    case SRV_ROW_FORMAT_DEFAULT:
-        return ROW_TYPE_DEFAULT;
-    }
-    assert(0);
-#endif
-    return ROW_TYPE_DEFAULT;
 }
 
 //
@@ -6882,15 +6818,19 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     KEY_AND_COL_INFO kc_info;
     tokudb_trx_data *trx = NULL;
     THD* thd = ha_thd();
-    bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
+
     memset(&kc_info, 0, sizeof(kc_info));
 
-    trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
+#if TOKU_INCLUDE_OPTION_STRUCTS
+    const srv_row_format_t row_format = (srv_row_format_t) form->s->option_struct->row_format;
+#else
+    const srv_row_format_t row_format = (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)
+        ? row_type_to_row_format(create_info->row_type)
+        : get_row_format(thd);
+#endif
+    const toku_compression_method compression_method = row_format_to_toku_compression_method(row_format);
 
-    const enum row_type row_type = ((create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)
-                                    ? create_info->row_type
-                                    : row_format_to_row_type(get_row_format(thd)));
-
+    bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
     if (create_from_engine) {
         // table already exists, nothing to do
         error = 0;
@@ -6918,6 +6858,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     newname = (char *)tokudb_my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
+    trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
     if (trx && trx->sub_sp_level && thd_sql_command(thd) == SQLCOM_CREATE_TABLE) {
         txn = trx->sub_sp_level;
     }
@@ -6975,7 +6916,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         );
     if (error) { goto cleanup; }
 
-    error = create_main_dictionary(name, form, txn, &kc_info, row_type);
+    error = create_main_dictionary(name, form, txn, &kc_info, compression_method);
     if (error) {
         goto cleanup;
     }
@@ -6983,7 +6924,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 
     for (uint i = 0; i < form->s->keys; i++) {
         if (i != primary_key) {
-            error = create_secondary_dictionary(name, form, &form->key_info[i], txn, &kc_info, i, false, row_type);
+            error = create_secondary_dictionary(name, form, &form->key_info[i], txn, &kc_info, i, false, compression_method);
             if (error) {
                 goto cleanup;
             }
@@ -7596,7 +7537,7 @@ int ha_tokudb::tokudb_add_index(
     //
     // get the row type to use for the indexes we're adding
     //
-    const enum row_type row_type = get_row_type_for_key(share->file);
+    toku_compression_method compression_method = get_compression_method(share->file);
 
     //
     // status message to be shown in "show process list"
@@ -7668,7 +7609,7 @@ int ha_tokudb::tokudb_add_index(
         }
 
 
-        error = create_secondary_dictionary(share->table_name, table_arg, &key_info[i], txn, &share->kc_info, curr_index, creating_hot_index, row_type);
+        error = create_secondary_dictionary(share->table_name, table_arg, &key_info[i], txn, &share->kc_info, curr_index, creating_hot_index, compression_method);
         if (error) { goto cleanup; }
 
         error = open_secondary_dictionary(
@@ -8062,7 +8003,7 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
     int error;
     bool is_pk = (keynr == primary_key);
 
-    const enum row_type row_type = get_row_type_for_key(share->key_file[keynr]);
+    toku_compression_method compression_method = get_compression_method(share->key_file[keynr]);
     error = share->key_file[keynr]->close(share->key_file[keynr], 0);
     assert(error == 0);
 
@@ -8093,7 +8034,7 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
     }
 
     if (is_pk) {
-        error = create_main_dictionary(share->table_name, table, txn, &share->kc_info, row_type);
+        error = create_main_dictionary(share->table_name, table, txn, &share->kc_info, compression_method);
     }
     else {
         error = create_secondary_dictionary(
@@ -8104,7 +8045,7 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
             &share->kc_info,
             keynr,
             false,
-            row_type
+            compression_method
             );
     }
     if (error) { goto cleanup; }

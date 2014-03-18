@@ -126,7 +126,14 @@ typedef struct savepoint_info {
     bool in_sub_stmt;
 } *SP_INFO, SP_INFO_T;
 
-#if defined(MARIADB_BASE_VERSION)
+#if TOKU_INCLUDE_OPTION_STRUCTS
+ha_create_table_option tokudb_table_options[] = {
+    HA_TOPTION_ENUM("compression", row_format,
+                    "TOKUDB_UNCOMPRESSED,TOKUDB_ZLIB,TOKUDB_QUICKLZ,"
+                    "TOKUDB_LZMA,TOKUDB_FAST,TOKUDB_SMALL", 0),
+    HA_TOPTION_END
+};
+
 ha_create_table_option tokudb_index_options[] = {
     HA_IOPTION_BOOL("clustering", clustering, 0),
     HA_IOPTION_END
@@ -162,8 +169,13 @@ static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid);
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint);
+#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
+static int tokudb_discover_table(handlerton *hton, THD* thd, TABLE_SHARE *ts);
+static int tokudb_discover_table_existence(handlerton *hton, const char *db, const char *name);
+#endif
 static int tokudb_discover(handlerton *hton, THD* thd, const char *db, const char *name, uchar **frmblob, size_t *frmlen);
-static int tokudb_discover2(handlerton *hton, THD* thd, const char *db, const char *name, bool translate_name,uchar **frmblob, size_t *frmlen);
+static int tokudb_discover2(handlerton *hton, THD* thd, const char *db, const char *name, bool translate_name, uchar **frmblob, size_t *frmlen);
+static int tokudb_discover3(handlerton *hton, THD* thd, const char *db, const char *name, char *path, uchar **frmblob, size_t *frmlen);
 handlerton *tokudb_hton;
 
 const char *ha_tokudb_ext = ".tokudb";
@@ -370,9 +382,14 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->savepoint_rollback = tokudb_rollback_to_savepoint;
     tokudb_hton->savepoint_release = tokudb_release_savepoint;
 
+#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
+    tokudb_hton->discover_table = tokudb_discover_table;
+    tokudb_hton->discover_table_existence = tokudb_discover_table_existence;
+#else
     tokudb_hton->discover = tokudb_discover;
 #if defined(MYSQL_HANDLERTON_INCLUDE_DISCOVER2)
     tokudb_hton->discover2 = tokudb_discover2;
+#endif
 #endif
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
@@ -390,7 +407,8 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->handle_fatal_signal = tokudb_handle_fatal_signal;
 #endif
 
-#if defined(MARIADB_BASE_VERSION)
+#if TOKU_INCLUDE_OPTION_STRUCTS
+    tokudb_hton->table_options = tokudb_table_options;
     tokudb_hton->index_options = tokudb_index_options;
 #endif
 
@@ -921,26 +939,68 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
     TOKUDB_DBUG_RETURN(error);
 }
 
+#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
+static int tokudb_discover_table(handlerton *hton, THD* thd, TABLE_SHARE *ts) {
+    uchar *frmblob = 0;
+    size_t frmlen;
+    int res= tokudb_discover3(hton, thd, ts->db.str, ts->table_name.str,
+                              ts->normalized_path.str, &frmblob, &frmlen);
+    if (!res)
+        res= ts->init_from_binary_frm_image(thd, true, frmblob, frmlen);
+    
+    my_free(frmblob);
+    // discover_table should returns HA_ERR_NO_SUCH_TABLE for "not exists"
+    return res == ENOENT ? HA_ERR_NO_SUCH_TABLE : res;
+}
+
+static int tokudb_discover_table_existence(handlerton *hton, const char *db, const char *name) {
+    uchar *frmblob = 0;
+    size_t frmlen;
+    int res= tokudb_discover(hton, current_thd, db, name, &frmblob, &frmlen);
+    my_free(frmblob);
+    return res != ENOENT;
+}
+#endif
+
 static int tokudb_discover(handlerton *hton, THD* thd, const char *db, const char *name, uchar **frmblob, size_t *frmlen) {
     return tokudb_discover2(hton, thd, db, name, true, frmblob, frmlen);
 }
 
 static int tokudb_discover2(handlerton *hton, THD* thd, const char *db, const char *name, bool translate_name,
                             uchar **frmblob, size_t *frmlen) {
-    TOKUDB_DBUG_ENTER("%s %s", db, name);
+    char path[FN_REFLEN + 1];
+    build_table_filename(path, sizeof(path) - 1, db, name, "", translate_name ? 0 : FN_IS_TMP);
+    return tokudb_discover3(hton, thd, db, name, path, frmblob, frmlen);
+}
+
+static int tokudb_discover3(handlerton *hton, THD* thd, const char *db, const char *name, char *path,
+                            uchar **frmblob, size_t *frmlen) {
+    TOKUDB_DBUG_ENTER("%s %s %s", db, name, path);
     int error;
     DB* status_db = NULL;
     DB_TXN* txn = NULL;
-    char path[FN_REFLEN + 1];
     HA_METADATA_KEY curr_key = hatoku_frm_data;
     DBT key, value;    
     memset(&key, 0, sizeof(key));
     memset(&value, 0, sizeof(&value));
-    
+    bool do_commit;
+
+#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
+        do_commit = false;
+        txn = trx->sub_sp_level;
+    } else {
+        error = txn_begin(db_env, 0, &txn, 0, thd);
+        if (error) { goto cleanup; }
+        do_commit = true;
+    }
+#else
     error = txn_begin(db_env, 0, &txn, 0, thd);
     if (error) { goto cleanup; }
+    do_commit = true;
+#endif
 
-    build_table_filename(path, sizeof(path) - 1, db, name, "", translate_name ? 0 : FN_IS_TMP);
     error = open_status_dictionary(&status_db, path, txn);
     if (error) { goto cleanup; }
 
@@ -967,7 +1027,7 @@ cleanup:
     if (status_db) {
         status_db->close(status_db,0);
     }
-    if (txn) {
+    if (do_commit && txn) {
         commit_txn(txn, 0);
     }
     TOKUDB_DBUG_RETURN(error);    

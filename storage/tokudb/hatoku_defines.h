@@ -106,6 +106,7 @@ PATENT RIGHTS GRANT:
 #if defined(MARIADB_BASE_VERSION)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
+#define TOKU_INCLUDE_OPTION_STRUCTS 1
 
 #elif 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
 // mysql 5.7 with no patches
@@ -169,6 +170,10 @@ PATENT RIGHTS GRANT:
 
 #if !defined(HA_CAN_WRITE_DURING_OPTIMIZE)
 #define HA_CAN_WRITE_DURING_OPTIMIZE 0
+#endif
+
+#if !defined(HA_OPTION_CREATE_FROM_ENGINE)
+#define HA_OPTION_CREATE_FROM_ENGINE 0
 #endif
 
 // In older (< 5.5) versions of MySQL and MariaDB, it is necessary to 
