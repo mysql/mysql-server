@@ -29,7 +29,7 @@
 
 #include "crypt_genhash_impl.h"
 
-#include "mysql/plugin.h"
+#include "m_string.h"
 
 /* Pre VS2010 compilers doesn't support stdint.h */
 #ifdef HAVE_STDINT_H

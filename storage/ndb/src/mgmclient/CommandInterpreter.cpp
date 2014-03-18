@@ -2446,15 +2446,15 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   {
     const char* arg = args[i].c_str();
 
-    if (strtoll(arg, NULL, 0) < 0 ||
-        strtoll(arg, NULL, 0) > 0xffffffff)
+    if (my_strtoll(arg, NULL, 0) < 0 ||
+        my_strtoll(arg, NULL, 0) > 0xffffffff)
     {
       ndbout_c("ERROR: Illegal value '%s' in argument to signal.\n"
                "(Value must be between 0 and 0xffffffff.)", arg);
       return -1;
     }
     assert(num_params < (int)max_params);
-    params[num_params] = (int)strtoll(arg, NULL, 0);
+    params[num_params] = (int)my_strtoll(arg, NULL, 0);
     num_params++;
   }
 
