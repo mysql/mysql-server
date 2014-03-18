@@ -28,6 +28,7 @@ Created 03/11/2014 Shaohua Wang
 #include "btr0cur.h"
 #include "ibuf0ibuf.h"
 
+/* Flag whether innodb enables bulk load. */
 char	innobase_enable_bulk_load;
 
 /* Innodb index fill factor during index build. */
@@ -91,10 +92,13 @@ void PageBulk::init()
 	}
 
 	new_block->check_index_page_at_flush = FALSE;
-	if (!dict_index_is_clust(m_index)) {
-		page_set_max_trx_id(new_block, NULL, m_trx_id, mtr);
-	}
 
+        if (dict_index_is_sec_or_ibuf(m_index)
+            && !dict_table_is_temporary(m_index->table)
+	    && page_is_leaf(new_page)) {
+		page_update_max_trx_id(new_block, new_page_zip, m_trx_id, mtr);
+	}
+	
 	m_mtr = mtr;
 	m_log = !dict_table_is_temporary(m_index->table);
 	m_block = new_block;
@@ -212,7 +216,7 @@ void PageBulk::finish()
 	page_header_set_ptr(m_page, NULL, PAGE_LAST_INSERT, m_cur_rec);
 
 	/* We need to log insert for non-compressed table,
-	and we have page_zip_log_pages for compressed table. */
+	and we have log compressed page for compressed table. */
 	log_insert = m_log && (m_page_zip == NULL);
 
 	if (log_insert) {
@@ -332,7 +336,7 @@ bool PageBulk::compress()
 {
 	bool	ret = true;
 
-	ut_ad(m_page_zip != NULL && page_zip_log_pages);
+	ut_ad(m_page_zip != NULL);
 
 	ulint   zip_level = page_zip_level;
 
