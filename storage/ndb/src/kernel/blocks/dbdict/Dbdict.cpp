@@ -7632,7 +7632,7 @@ Dbdict::dropTable_backup_mutex_locked(Signal* signal,
   if (tablePtr.p->m_read_locked)
   {
     jam();
-    setError(op_ptr, AlterTableRef::BackupInProgress, __LINE__);
+    setError(op_ptr, DropTableRef::BackupInProgress, __LINE__);
     sendTransRef(signal, op_ptr);
     return;
   }
@@ -8189,7 +8189,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
   if (tablePtr.p->m_read_locked)
   {
     jam();
-    setError(error, tablePtr.p->m_read_locked, __LINE__);
+    setError(error, AlterTableRef::BackupInProgress, __LINE__);
     return;
   }
 
@@ -9194,7 +9194,7 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
   if (tablePtr.p->m_read_locked)
   {
     jam();
-    setError(op_ptr, tablePtr.p->m_read_locked, __LINE__);
+    setError(op_ptr, AlterTableRef::BackupInProgress, __LINE__);
     sendTransRef(signal, op_ptr);
     return;
   }
