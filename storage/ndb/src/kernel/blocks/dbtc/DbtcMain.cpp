@@ -4472,10 +4472,10 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     SET_ERROR_INSERT_VALUE(8024);
     return;
   }//if
-  if (ERROR_INSERTED(8101))
+  if (ERROR_INSERTED(8107))
   {
     jam();
-    ndbout_c("Error 8101, timing out transaction");
+    ndbout_c("Error 8107, timing out transaction");
     timeOutFoundLab(signal, apiConnectptr.i, ZTIME_OUT_ERROR);
     return;
   }
