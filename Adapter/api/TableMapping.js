@@ -136,7 +136,7 @@ function makeCanonical(tableMapping) {
     delete tableMapping.field;
   }
 
-  if(! tableMapping.fileds) {
+  if(! tableMapping.fields) {
     tableMapping.fields = [];        // create empty fields array if needed
   }                             
   else if(! Array.isArray(tableMapping.fields)) {
