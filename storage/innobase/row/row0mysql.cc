@@ -1340,7 +1340,7 @@ row_insert_for_mysql_using_cursor(
 	appends row-id to make the record unique. */
 	dict_index_t*	clust_index = dict_table_get_first_index(node->table);
 
-	if (!dict_index_is_unique(clust_index)) {
+	if (dict_index_is_auto_gen_clust(clust_index)) {
 		row_id_t	row_id =
 			dict_table_get_table_localized_row_id(prebuilt->table);
 		dict_sys_write_row_id(node->row_id_buf, row_id);
