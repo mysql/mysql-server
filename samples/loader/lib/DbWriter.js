@@ -81,7 +81,6 @@ function DbWriter(options, session, controller) {
   this.session        = session;
   this.batchManager   = new BatchManager(this);
   this.batch          = this.session.createBatch();
-  this.batchSize      = 0;  // actual current size of this.batch
   this.currentOpCount = 0;
   this.priorOpCount   = 0;
   this.aborted        = 0;
@@ -102,13 +101,13 @@ DbWriter.prototype.beginAtomic = function() {
 };
 
 DbWriter.prototype.loadItem = function(record) {
-  this._store(this.batch, record);
-  if(++this.batchSize >= this.batchManager.getTargetSize()) {
+  this._store(record);
+  if(this.batch.getOperationCount() >= this.batchManager.getTargetSize()) {
     this.executeBatch();
   }
 };
 
-DbWriter.prototype._store = function(context, record) {
+DbWriter.prototype._store = function(record) {
   // Here we create a closure over { record } for each row inserted
 
   // Assess errors:
@@ -145,14 +144,13 @@ DbWriter.prototype._store = function(context, record) {
   }
 
   if(this.options.replaceMode) {
-    context.save(record.class, record.row, rowCallback);
+    this.batch.save(record.class, record.row, rowCallback);
   } else {
-    context.persist(record.class, record.row, rowCallback);
+    this.batch.persist(record.class, record.row, rowCallback);
   }
 }
 
 DbWriter.prototype.executeBatch = function() {
-  this.batchSize = 0;
   this.batch.execute(function(err) {
     // This is the batch callback
     udebug.log("batch complete");
