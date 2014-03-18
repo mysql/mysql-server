@@ -5603,7 +5603,81 @@ int testFragmentedSend(NDBT_Context* ctx, NDBT_Step* step){
   return fsc.runTest(&ss);
 }
 
+static int
+runReceiveTRANSIDAIAfterRollback(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* const ndb = GETNDB(step);
+  NdbRestarter restarter;
 
+  do { 
+    // fill table with 10 rows.
+    const NdbDictionary::Table * pTab = ctx->getTab();
+    HugoTransactions hugoTrans(*pTab);
+    if(hugoTrans.loadTable(ndb, 10) != 0) {
+      g_err << "Failed to load table" << endl;
+      break;
+    }
+    // do error injection in data nodes
+    if (restarter.insertErrorInAllNodes(8107) != 0){
+      g_err << "Failed to insert error 8107" << endl;
+      break;
+    }
+    if (restarter.insertErrorInAllNodes(4037) != 0){
+      g_err << "Failed to insert error 4037" << endl;
+      break;
+    }
+  
+    // do error injection in ndbapi
+    DBUG_SET_INITIAL("+d,ndb_delay_close_txn,ndb_delay_transid_ai");
+  
+    // start transaction
+    NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      g_err << "ndb->startTransaction() gave unexpected error : "
+            << ndb->getNdbError() << endl;
+      break;
+    }
+    NdbOperation* const op = trans->getNdbOperation(pTab);
+    if (op == NULL)
+    {
+      g_err << "trans->getNdbOperation() gave unexpected error : "
+            << trans->getNdbError() << endl;
+      break;
+    }
+  
+    // start primary key read with shared lock
+    HugoOperations hugoOps(*ctx->getTab());
+    if(hugoOps.startTransaction(ndb)) {
+      g_err << "hugoOps.startTransaction() gave unexpected error : " 
+            << hugoOps.getTransaction()->getNdbError() << endl;
+      break;
+    }
+    if(hugoOps.pkReadRecord(ndb, 1, 1, NdbOperation::LM_Read)) {
+      g_err << "hugoOps.pkReadRecord() gave unexpected error : " 
+            << hugoOps.getTransaction()->getNdbError() << endl;
+      break;
+    }
+    if(hugoOps.execute_Commit(ndb) != 0) {
+      g_err << "hugoOps.execute_Commit() gave unexpected error : " 
+            << hugoOps.getTransaction()->getNdbError() << endl;
+      break;
+    }
+  
+    // all ok, test passes 
+    ndb->closeTransaction(trans);
+  
+    // clean up 
+    DBUG_SET_INITIAL("-d,ndb_delay_close_txn,ndb_delay_transid_ai");
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_OK;
+  } while(0);
+
+  // clean up for error path 
+  DBUG_SET_INITIAL("-d,ndb_delay_close_txn,ndb_delay_transid_ai");
+  restarter.insertErrorInAllNodes(0);
+  return NDBT_FAILED;
+}
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -5880,6 +5954,15 @@ TESTCASE("NdbClusterConnectSR",
 TESTCASE("TestFragmentedSend",
          "Test fragmented send behaviour"){
   INITIALIZER(testFragmentedSend);
+}
+TESTCASE("ReceiveTRANSIDAIAfterRollback",
+         "Delay the delivery of TRANSID_AI results from the data node." \
+         "Abort a transaction with a timeout so that the "\
+         "transaction closing and TRANSID_AI processing are interleaved." \
+         "Confirm that this interleaving does not result in a core."
+){
+  STEP(runReceiveTRANSIDAIAfterRollback);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 
