@@ -168,7 +168,7 @@ exports.Batch.prototype.isBatch = function() {
   return true;
 };
 
-exports.Batch.prototype.getSize = function() {
+exports.Batch.prototype.getOperationCount = function() {
   return this.operationContexts.length;
 };
 
