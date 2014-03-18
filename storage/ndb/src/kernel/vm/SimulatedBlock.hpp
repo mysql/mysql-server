@@ -579,7 +579,11 @@ protected:
     Uint16 m_messageSize; // Size of each fragment
     Uint32 m_fragmentId;
     union {
-      Ptr<struct SectionSegment> m_segmented;
+      // Similar to Ptr<SectionSegment> but a POD, as needed in a union.
+      struct {
+        SectionSegment* p;
+        Uint32 i;
+      } m_segmented;
       LinearSectionPtr m_linear;
     } m_sectionPtr[3];
     LinearSectionPtr m_theDataSection;

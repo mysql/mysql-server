@@ -260,6 +260,7 @@ Lgman::execCONTINUEB(Signal* signal){
     break;
   }
   case LgmanContinueB::FIND_LOG_HEAD:
+  {
     jam();
     Ptr<Logfile_group> ptr;
     if(ptrI != RNIL)
@@ -274,6 +275,7 @@ Lgman::execCONTINUEB(Signal* signal){
       init_run_undo_log(signal);
     }
     break;
+  }
   case LgmanContinueB::EXECUTE_UNDO_RECORD:
     jam();
     execute_undo_record(signal);

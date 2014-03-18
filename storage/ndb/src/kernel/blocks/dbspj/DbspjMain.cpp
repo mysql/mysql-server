@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@
 
 #define DEBUG_CRASH() ndbassert(false)
 
-const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr = { 0, RNIL };
+const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr(0, RNIL );
 const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS, { 0 } };
 
 
@@ -707,7 +707,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
   const Uint32 keyPtrI = handle.m_ptr[LqhKeyReq::KeyInfoSectionNum].i;
 
   Uint32 err;
-  Ptr<Request> requestPtr = { 0, RNIL };
+  Ptr<Request> requestPtr(0, RNIL);
   do
   {
     ArenaHead ah;
@@ -1018,7 +1018,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   handle.getSection(attrPtr, ScanFragReq::AttrInfoSectionNum);
 
   Uint32 err;
-  Ptr<Request> requestPtr = { 0, RNIL };
+  Ptr<Request> requestPtr(0, RNIL);
   do
   {
     ArenaHead ah;
