@@ -5152,8 +5152,6 @@ dict_table_print(
 		index = UT_LIST_GET_NEXT(indexes, index);
 	}
 
-	table->stat_initialized = FALSE;
-
 	dict_table_stats_unlock(table, RW_X_LATCH);
 
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
