@@ -3699,11 +3699,7 @@ wait_again:
 
 				start_time_ms = ut_time_ms();
 
-				/* We require page_zip_log_pages enabled for
-				compressed table.*/
-				if (merge_files[i].n_rec < bulk_load_record_threshhold
-				    || (dict_table_page_size(new_table).is_compressed()
-					&& !page_zip_log_pages)) {
+				if (merge_files[i].n_rec < bulk_load_record_threshhold) {
 					use_bulk_load = false;
 				}
 
