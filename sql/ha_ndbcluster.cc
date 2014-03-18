@@ -194,32 +194,6 @@ static MYSQL_THDVAR_BOOL(
 );
 
 
-static MYSQL_THDVAR_ULONG(
-  index_stat_cache_entries,          /* name */
-  PLUGIN_VAR_NOCMDARG,
-  "Obsolete (ignored and will be removed later).",
-  NULL,                              /* check func. */
-  NULL,                              /* update func. */
-  32,                                /* default */
-  0,                                 /* min */
-  ULONG_MAX,                         /* max */
-  0                                  /* block */
-);
-
-
-static MYSQL_THDVAR_ULONG(
-  index_stat_update_freq,            /* name */
-  PLUGIN_VAR_NOCMDARG,
-  "Obsolete (ignored and will be removed later).",
-  NULL,                              /* check func. */
-  NULL,                              /* update func. */
-  20,                                /* default */
-  0,                                 /* min */
-  ULONG_MAX,                         /* max */
-  0                                  /* block */
-);
-
-
 static MYSQL_THDVAR_BOOL(
   table_no_logging,                  /* name */
   PLUGIN_VAR_NOCMDARG,
@@ -18329,8 +18303,6 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(optimization_delay),
   MYSQL_SYSVAR(index_stat_enable),
   MYSQL_SYSVAR(index_stat_option),
-  MYSQL_SYSVAR(index_stat_cache_entries),
-  MYSQL_SYSVAR(index_stat_update_freq),
   MYSQL_SYSVAR(table_no_logging),
   MYSQL_SYSVAR(table_temporary),
   MYSQL_SYSVAR(log_bin),
