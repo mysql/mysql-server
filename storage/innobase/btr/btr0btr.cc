@@ -4165,7 +4165,9 @@ loop:
 			 && dict_table_is_intrinsic(index->table))
 			? true : false;
 
-		if (ret >= 0) {
+		if ((ret >= 0 && !dict_table_is_intrinsic(index->table))
+		    || (ret > 0 && dict_table_is_intrinsic(index->table))) {
+
 			btr_validate_report2(index, level, block, right_block);
 
 			fputs("InnoDB: records in wrong order"
