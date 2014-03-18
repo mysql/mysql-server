@@ -28,6 +28,8 @@
 #include <signaldata/TcHbRep.hpp>
 #include <signaldata/TcRollbackRep.hpp>
 
+static const Uint64 InvalidTransactionId = ~Uint64(0);
+
 /*****************************************************************************
 NdbTransaction( Ndb* aNdb );
 
@@ -2009,6 +2011,7 @@ NdbTransaction::receiveTC_COMMITREF(const NdbApiSignal* aSignal)
     theCommitStatus = Aborted;
     theCompletionStatus = CompletedFailure;
     theReturnStatus = ReturnFailure;
+    theTransactionId = InvalidTransactionId; /* No further signals please */
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -2059,6 +2062,7 @@ NdbTransaction::receiveTCROLLBACKREF(const NdbApiSignal* aSignal)
     theCommitStatus = Aborted;
     theCompletionStatus = CompletedFailure;
     theReturnStatus = ReturnFailure;
+    theTransactionId = InvalidTransactionId; /* No further signals please */
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -2103,6 +2107,7 @@ transactions.
     /*	and we only need to report completion and return with the     */
     /*	error code to the application.				      */
     /**********************************************************************/
+    theTransactionId = InvalidTransactionId; /* No further signals please */
     theCompletionStatus = CompletedFailure;
     theCommitStatus = Aborted;
     theReturnStatus = ReturnFailure;
@@ -2234,6 +2239,7 @@ NdbTransaction::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
       been committed.
     */
     theCommitStatus = Committed;
+    theTransactionId = InvalidTransactionId; /* No further signals please */
     tOp = theFirstExecOpInList;
     while (tOp != NULL) {
       /*
@@ -2310,6 +2316,7 @@ NdbTransaction::receiveTCKEY_FAILREF(const NdbApiSignal* aSignal)
     }//if
     theReleaseOnClose = true;
     theCommitStatus = NdbTransaction::Aborted;
+    theTransactionId = InvalidTransactionId; /* No further signals please */
     return 0;
   } else {
 #ifdef VM_TRACE
