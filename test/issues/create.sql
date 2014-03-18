@@ -6,4 +6,7 @@ CREATE TABLE if not exists `towns` (
   PRIMARY KEY (`town`)
 );
 
-
+CREATE TABLE if not exists a (
+  id int not null primary key,
+  cint int
+);
