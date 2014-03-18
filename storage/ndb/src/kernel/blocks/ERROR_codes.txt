@@ -17,11 +17,11 @@ Next QMGR 938
 Next NDBCNTR 1004
 Next NDBFS 2000
 Next DBACC 3002
-Next DBTUP 4035
+Next DBTUP 4039
 Next DBLQH 5075
 Next DBDICT 6216
 Next DBDIH 7236
-Next DBTC 8107
+Next DBTC 8108
 Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
@@ -336,6 +336,12 @@ ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 8018: Throw away a COMMITTED signal
 8019: Throw away a COMPLETED signal
 
+ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTUP
+--------------------------------------------------
+4035: Randomly add a random delay to disk data access
+4037: Delay TRANSID_AI while sending packed result to API 
+4038: Delay data-node internal TRANSID_AI send for 10 millis
+
 TESTING TAKE-OVER FUNCTIONALITY IN DBTC
 ---------------------------------------
 
@@ -413,6 +419,7 @@ DBTC TCINDXREQ TESTING
 8104: simulate ZGET_DATAREC_ERROR (218) in fk_buildKeyInfo
 8105: prevent fix (bugXXX) to failed trigger op handling
 8106: simulate out of memory in fk_constructAttrInfoSetNull
+8107: Cause transaction abort with timeout error
 
 CMVMI
 -----
