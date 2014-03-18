@@ -99,7 +99,7 @@ PATENT RIGHTS GRANT:
 namespace toku {
 
 // initialize a lock request's internals
-void lock_request::create(uint64_t wait_time) {
+void lock_request::create(void) {
     m_txnid = TXNID_NONE;
     m_conflicting_txnid = TXNID_NONE;
     m_start_time = 0;
@@ -114,7 +114,6 @@ void lock_request::create(uint64_t wait_time) {
     m_complete_r = 0;
     m_state = state::UNINITIALIZED;
 
-    m_wait_time = wait_time;
     toku_cond_init(&m_wait_cond, nullptr);
 }
 
@@ -126,9 +125,7 @@ void lock_request::destroy(void) {
 }
 
 // set the lock request parameters. this API allows a lock request to be reused.
-void lock_request::set(locktree *lt, TXNID txnid,
-        const DBT *left_key, const DBT *right_key,
-        lock_request::type lock_type) {
+void lock_request::set(locktree *lt, TXNID txnid, const DBT *left_key, const DBT *right_key, lock_request::type lock_type, bool big_txn) {
     invariant(m_state != state::PENDING);
     m_lt = lt;
     m_txnid = txnid;
@@ -139,6 +136,7 @@ void lock_request::set(locktree *lt, TXNID txnid,
     m_type = lock_type;
     m_state = state::INITIALIZED;
     m_info = lt->get_lock_request_info();
+    m_big_txn = big_txn;
 }
 
 // get rid of any stored left and right key copies and
@@ -208,10 +206,10 @@ int lock_request::start(void) {
     txnid_set conflicts;
     conflicts.create();
     if (m_type == type::WRITE) {
-        r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, &conflicts);
+        r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, &conflicts, m_big_txn);
     } else {
         invariant(m_type == type::READ);
-        r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, &conflicts);
+        r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, &conflicts, m_big_txn);
     }
 
     // if the lock is not granted, save it to the set of lock requests
@@ -236,38 +234,50 @@ int lock_request::start(void) {
     return m_state == state::COMPLETE ? m_complete_r : r;
 }
 
-void lock_request::calculate_cond_wakeup_time(struct timespec *ts) {
-    struct timeval now;
-    int r = gettimeofday(&now, NULL);
-    invariant_zero(r);
-    int64_t sec = now.tv_sec + (m_wait_time / 1000);
-    int64_t usec = now.tv_usec + ((m_wait_time % 1000) * 1000);
-    int64_t d_sec = usec / 1000000;
-    int64_t d_usec = usec % 1000000;
-    ts->tv_sec = sec + d_sec;
-    ts->tv_nsec = d_usec * 1000;
+// sleep on the lock request until it becomes resolved or the wait time has elapsed.
+int lock_request::wait(uint64_t wait_time_ms) {
+    return wait(wait_time_ms, 0, nullptr);
 }
 
-// sleep on the lock request until it becomes resolved or the wait time has elapsed.
-int lock_request::wait(void) {
-    uint64_t t_start = toku_current_time_microsec();
+int lock_request::wait(uint64_t wait_time_ms, uint64_t killed_time_ms, int (*killed_callback)(void)) {
+    uint64_t t_now = toku_current_time_microsec();
+    uint64_t t_start = t_now;
+    uint64_t t_end = t_start + wait_time_ms * 1000;
+
     toku_mutex_lock(&m_info->mutex);
+
     while (m_state == state::PENDING) {
-        struct timespec ts;
-        calculate_cond_wakeup_time(&ts);
+
+        // compute next wait time
+        uint64_t t_wait;
+        if (killed_time_ms == 0) {
+            t_wait = t_end;
+        } else {
+            t_wait = t_now + killed_time_ms * 1000;
+            if (t_wait > t_end)
+                t_wait = t_end;
+        }
+        struct timespec ts = {};
+        ts.tv_sec = t_wait / 1000000;
+        ts.tv_nsec = (t_wait % 1000000) * 1000;
         int r = toku_cond_timedwait(&m_wait_cond, &m_info->mutex, &ts);
         invariant(r == 0 || r == ETIMEDOUT);
-        if (r == ETIMEDOUT && m_state == state::PENDING) {
+
+        t_now = toku_current_time_microsec();
+        if (m_state == state::PENDING && (t_now >= t_end || (killed_callback && killed_callback()))) {
             m_info->counters.timeout_count += 1;
+            
             // if we're still pending and we timed out, then remove our
             // request from the set of lock requests and fail.
             remove_from_lock_requests();
+            
             // complete sets m_state to COMPLETE, breaking us out of the loop
             complete(DB_LOCK_NOTGRANTED);
         }
     }
-    uint64_t t_end = toku_current_time_microsec();
-    uint64_t duration = t_end - t_start;
+
+    uint64_t t_real_end = toku_current_time_microsec();
+    uint64_t duration = t_real_end - t_start;
     m_info->counters.wait_count += 1;
     m_info->counters.wait_time += duration;
     if (duration >= 1000000) {
@@ -311,9 +321,9 @@ int lock_request::retry(void) {
 
     invariant(m_state == state::PENDING);
     if (m_type == type::WRITE) {
-        r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, nullptr);
+        r = m_lt->acquire_write_lock(m_txnid, m_left_key, m_right_key, nullptr, m_big_txn);
     } else {
-        r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, nullptr);
+        r = m_lt->acquire_read_lock(m_txnid, m_left_key, m_right_key, nullptr, m_big_txn);
     }
 
     // if the acquisition succeeded then remove ourselves from the

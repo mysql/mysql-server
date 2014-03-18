@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 let $engine='tokudb';
 
 --disable_warnings

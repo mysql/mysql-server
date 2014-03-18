@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that varchar(X) to varchar(X) not null is not supported (different type)
 
 --disable_warnings

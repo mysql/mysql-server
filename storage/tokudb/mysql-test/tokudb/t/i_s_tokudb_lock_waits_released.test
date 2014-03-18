@@ -31,7 +31,9 @@ send insert into t values (1);
 
 # should find the presence of a lock on 1st transaction
 connection default;
-real_sleep 1; # give some time for conn_b to block
+let $wait_condition= select count(*)=1 from information_schema.processlist where info='insert into t values (1)' and state='update';
+source include/wait_condition.inc;
+
 replace_column 1 TRX_ID 2 MYSQL_ID; 
 select * from information_schema.tokudb_locks;
 
@@ -77,6 +79,9 @@ send replace into t values (1);
 
 # should find the presence of a lock on 1st transaction
 connection default;
+let $wait_condition= select count(*)=1 from information_schema.processlist where info='replace into t values (1)' and state='update';
+source include/wait_condition.inc;
+
 replace_column 1 TRX_ID 2 MYSQL_ID; 
 select * from information_schema.tokudb_locks;
 

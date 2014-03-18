@@ -1,3 +1,4 @@
+set default_storage_engine='tokudb';
 drop table if exists t;
 create table t (u tinytext, v text);
 insert into t values ('hi', 'there');

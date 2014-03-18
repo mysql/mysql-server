@@ -412,7 +412,7 @@ static void test (const char *directory, bool is_error) {
 					       bt_compare_functions,
 					       "tempxxxxxx",
 					       *lsnp,
-                                               TXNID_NONE, true, 0, false);
+                                               nullptr, true, 0, false);
 	assert(r==0);
     }
 

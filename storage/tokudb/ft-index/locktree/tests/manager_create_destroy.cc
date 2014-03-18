@@ -109,7 +109,6 @@ void manager_unit_test::test_create_destroy(void) {
     invariant(mgr.m_escalation_count == 0);
     invariant(mgr.m_escalation_time == 0);
     invariant(mgr.m_escalation_latest_result == 0);
-    invariant(mgr.m_lock_wait_time_ms == locktree::manager::DEFAULT_LOCK_WAIT_TIME);
 
     invariant(mgr.m_locktree_map.size() == 0);
     invariant(mgr.m_lt_create_callback == create_callback);

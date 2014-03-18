@@ -103,15 +103,16 @@ static int
 pe_callback (
     void *ftnode_pv __attribute__((__unused__)), 
     PAIR_ATTR bytes_to_free __attribute__((__unused__)), 
-    PAIR_ATTR* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
+    void* extraargs __attribute__((__unused__)),
+    void (*finalize)(PAIR_ATTR bytes_freed, void *extra),
+    void *finalize_extra
     ) 
 {
-    *bytes_freed = make_pair_attr(1);
     if (check_pe_callback) {
         pe_callback_called = true;
     }
     usleep(4*1024*1024);
+    finalize(make_pair_attr(1), finalize_extra);
     return 0;
 }
 

@@ -52,7 +52,7 @@ if [[ $mysqlbuild =~ (.*)-(tokudb\-.*)-(linux)-(x86_64) ]] ; then
     system=${BASH_REMATCH[3]}
     arch=${BASH_REMATCH[4]}
 else
-    exit 1
+    echo $mysqlbuild is not a tokudb build
 fi
 
 if [ -d $mysql_basedir/lib/mysql ] ; then
@@ -114,41 +114,46 @@ if [ -z $engine ] ; then
     # run the tests
     pushd $mysql_basedir/mysql-test
     if [ $? = 0 ] ; then
- 
-        if [[ $mysqlbuild =~ mysql-5.6 ]] || [[ $mysqlbuild =~ mariadb-10 ]] || [[ $mysqlbuild =~ Percona ]] ; then
-            ./mysql-test-run.pl --suite=$teststorun_original --big-test --mysqld=--loose-tokudb-debug=3072 --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
-                --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
+        if [[ $mysqlbuild =~ tokudb ]] ; then
+            # run standard tests
+            if [[ $mysqlbuild =~ 5\\.5 ]] ; then
+                ./mysql-test-run.pl --suite=$teststorun_original --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
+                    --mysqld=--default-storage-engine=myisam --mysqld=--sql-mode="" \
+                    --mysqld=--loose-tokudb_debug=3072 \
+                    --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
+            else
+                ./mysql-test-run.pl --suite=$teststorun_original --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
+                    --mysqld=--loose-tokudb_debug=3072 \
+                    --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
+            fi
+
+            # run tokudb tests
+            ./mysql-test-run.pl --suite=$teststorun_tokudb --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
+                --mysqld=--loose-tokudb_debug=3072 \
+                --parallel=$parallel >>$testresultsdir/$tracefile 2>&1  
+            # setup for engines tests
+            engine="tokudb"
         else
             ./mysql-test-run.pl --suite=$teststorun_original --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
-                --mysqld=--default-storage-engine=myisam --mysqld=--sql-mode="" \
-                --mysqld=--loose-tokudb_debug=3072 --mysqld=--loose-tokudb_hide_default_row_format=1 \
                 --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
         fi
-        
-        if [[ $mysqlbuild =~ Percona ]] ; then
-            ./mysql-test-run.pl --suite=$teststorun_tokudb --big-test --mysqld=--plugin-load=tokudb=ha_tokudb.so --mysqld=--loose-tokudb_debug=3072 --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
-                --parallel=$parallel >>$testresultsdir/$tracefile 2>&1  
-        else
-            ./mysql-test-run.pl --suite=$teststorun_tokudb --big-test --max-test-fail=0 --force --retry=1 --testcase-timeout=60 \
-                --mysqld=--default-storage-engine=tokudb \
-                --mysqld=--loose-tokudb_debug=3072 --mysqld=--loose-tokudb_hide_default_row_format=1 \
-                --parallel=$parallel >>$testresultsdir/$tracefile 2>&1  
-        fi
-        exitcode=$?
         popd
     fi
-    
-    engine="tokudb"
 fi
 
 if [ ! -z $engine ] ; then
     teststorun="engines/funcs,engines/iuds"
     pushd $mysql_basedir/mysql-test
     if [ $? = 0 ] ; then
-        ./mysql-test-run.pl --suite=$teststorun --force --retry-failure=0 --max-test-fail=0 --nowarnings --testcase-timeout=60 \
-            --mysqld=--default-storage-engine=$engine --mysqld=--loose-tokudb_hide_default_row_format=1 \
-            --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
-        exitcode=$?
+        if [[ $mysqlbuild =~ 5\\.6 ]] ; then
+            ./mysql-test-run.pl --suite=$teststorun --force --retry-failure=0 --max-test-fail=0 --nowarnings --testcase-timeout=60 \
+                --mysqld=--default-storage-engine=$engine --mysqld=--default-tmp-storage-engine=$engine \
+                --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
+        else
+            ./mysql-test-run.pl --suite=$teststorun --force --retry-failure=0 --max-test-fail=0 --nowarnings --testcase-timeout=60 \
+                --mysqld=--default-storage-engine=$engine \
+                --parallel=$parallel >>$testresultsdir/$tracefile 2>&1
+        fi
         popd
     fi
 fi
@@ -168,7 +173,7 @@ while read line ; do
 done <$testresultsdir/$tracefile
 
 # commit the results
-if [ $exitcode = 0 -a $tests_failed = 0 ] ; then
+if [ $tests_failed = 0 ] ; then
     testresult="PASS=$tests_passed"
 else
     testresult="FAIL=$tests_failed PASS=$tests_passed"

@@ -1,4 +1,4 @@
-#--source include/have_tokudb.inc
+--source include/have_tokudb.inc
 #
 #test update multiple
 #

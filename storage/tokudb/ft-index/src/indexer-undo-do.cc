@@ -615,7 +615,16 @@ indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xi
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            toku_ft_send_delete(db_struct_i(hotdb)->ft_handle, hotkey, xids, TXNID_NONE, make_gc_info(true));
+            FT_HANDLE ft_h = db_struct_i(hotdb)->ft_handle;
+            TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+            txn_manager_state txn_state_for_gc(txn_manager);
+
+            TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
+            txn_gc_info gc_info(&txn_state_for_gc,
+                                oldest_referenced_xid_estimate,
+                                oldest_referenced_xid_estimate,
+                                true);
+            toku_ft_send_delete(db_struct_i(hotdb)->ft_handle, hotkey, xids, &gc_info);
         }
     }
     return result;
@@ -651,7 +660,16 @@ indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *ho
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            toku_ft_send_insert(db_struct_i(hotdb)->ft_handle, hotkey, hotval, xids, FT_INSERT, TXNID_NONE, make_gc_info(true));
+            FT_HANDLE ft_h = db_struct_i(hotdb)->ft_handle;
+            TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+            txn_manager_state txn_state_for_gc(txn_manager);
+
+            TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
+            txn_gc_info gc_info(&txn_state_for_gc,
+                                oldest_referenced_xid_estimate,
+                                oldest_referenced_xid_estimate,
+                                true);
+            toku_ft_send_insert(db_struct_i(hotdb)->ft_handle, hotkey, hotval, xids, FT_INSERT, &gc_info);
         }
     }
     return result;
@@ -670,8 +688,18 @@ indexer_ft_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
             result = indexer->i->test_commit_any(indexer, hotdb, hotkey, xids);
         } else {
             result = toku_ydb_check_avail_fs_space(indexer->i->env);
-            if (result == 0)
-                toku_ft_send_commit_any(db_struct_i(hotdb)->ft_handle, hotkey, xids, TXNID_NONE, make_gc_info(true));
+            if (result == 0) {
+                FT_HANDLE ft_h = db_struct_i(hotdb)->ft_handle;
+                TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
+                txn_manager_state txn_state_for_gc(txn_manager);
+
+                TXNID oldest_referenced_xid_estimate = toku_ft_get_oldest_referenced_xid_estimate(ft_h);
+                txn_gc_info gc_info(&txn_state_for_gc,
+                                    oldest_referenced_xid_estimate,
+                                    oldest_referenced_xid_estimate,
+                                    true);
+                toku_ft_send_commit_any(db_struct_i(hotdb)->ft_handle, hotkey, xids, &gc_info);
+            }
         }
     }
     return result;

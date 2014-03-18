@@ -91,17 +91,22 @@ PATENT RIGHTS GRANT:
 #if TOKU_INCLUDE_ALTER_56
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-#define TOKU_ALTER_RENAME ALTER_RENAME_56
-#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
 #define TOKU_ALTER_RENAME ALTER_RENAME
+#define DYNAMIC_ARRAY_ELEMENTS_TYPE size_t
+#elif (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+      (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
+#define TOKU_ALTER_RENAME ALTER_RENAME
+#define DYNAMIC_ARRAY_ELEMENTS_TYPE int
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
 #define TOKU_ALTER_RENAME ALTER_RENAME_56
+#define DYNAMIC_ARRAY_ELEMENTS_TYPE int
 #else
 #error
 #endif
 
 #include "ha_tokudb_alter_common.cc"
 #include <sql_array.h>
+#include <sql_base.h>
 
 // The tokudb alter context contains the alter state that is set in the check if supported method and used
 // later when the alter operation is executed.
@@ -211,7 +216,7 @@ static bool change_length_is_supported(TABLE *table, TABLE *altered_table, Alter
 static bool change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx);
 
 // The ha_alter_info->handler_flags can not be trusted.  This function maps the bogus handler flags to something we like.
-static ulong fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+static ulong fix_handler_flags(THD *thd, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     ulong handler_flags = ha_alter_info->handler_flags;
 
     // workaround for fill_alter_inplace_info bug (#5193)
@@ -220,7 +225,7 @@ static ulong fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace
     // column addition later.
     if (handler_flags & (Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::DROP_COLUMN)) {
         if (handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX)) {
-            if (tables_have_same_keys(table, altered_table, false, false)) {
+            if (tables_have_same_keys(table, altered_table, THDVAR(thd, alter_print_error) != 0, false)) {
                 handler_flags &= ~(Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX);
             }
         }
@@ -277,9 +282,9 @@ static bool only_flags(ulong bits, ulong mask) {
 //                           must set WRITE_ALLOW_WRITE lock type in the external lock method to avoid deadlocks
 //                           with the MDL lock and the table lock
 enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
-    TOKUDB_DBUG_ENTER("check_if_supported_alter");
+    TOKUDB_HANDLER_DBUG_ENTER("");
 
-    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE) {
         print_alter_info(altered_table, ha_alter_info);
     }
 
@@ -289,7 +294,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
     // setup context
     tokudb_alter_ctx *ctx = new tokudb_alter_ctx;
     ha_alter_info->handler_ctx = ctx;
-    ctx->handler_flags = fix_handler_flags(table, altered_table, ha_alter_info);
+    ctx->handler_flags = fix_handler_flags(thd, table, altered_table, ha_alter_info);
     ctx->table_kc_info = &share->kc_info;
     ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
     memset(ctx->altered_table_kc_info, 0, sizeof (KEY_AND_COL_INFO));
@@ -300,8 +305,9 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
     // add or drop index
     if (only_flags(ctx->handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX + 
                    Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
-        if ((ha_alter_info->index_add_count > 0 || ha_alter_info->index_drop_count > 0) &&
-            !tables_have_same_keys(table, altered_table, false, false) &&
+        if (table->s->null_bytes == altered_table->s->null_bytes && 
+            (ha_alter_info->index_add_count > 0 || ha_alter_info->index_drop_count > 0) &&
+            !tables_have_same_keys(table, altered_table, THDVAR(thd, alter_print_error) != 0, false) &&
             is_disjoint_add_drop(ha_alter_info)) {
 
             if (ctx->handler_flags & (Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
@@ -325,7 +331,8 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
     } else
     // column default
     if (only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
-        result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+        if (table->s->null_bytes == altered_table->s->null_bytes)
+            result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
     } else
     // column rename
     if (ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_NAME &&
@@ -339,9 +346,11 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         // now need to verify that one and only one column
         // has changed only its name. If we find anything to
         // the contrary, we don't allow it, also check indexes
-        bool cr_supported = column_rename_supported(table, altered_table, (ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_ORDER) != 0);
-        if (cr_supported)
-            result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+        if (table->s->null_bytes == altered_table->s->null_bytes) {
+            bool cr_supported = column_rename_supported(table, altered_table, (ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_ORDER) != 0);
+            if (cr_supported)
+                result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+        }
     } else    
     // add column
     if (ctx->handler_flags & Alter_inplace_info::ADD_COLUMN &&
@@ -352,7 +361,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         uint32_t num_added_columns = 0;
         int r = find_changed_columns(added_columns, &num_added_columns, table, altered_table);
         if (r == 0) {
-            if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+            if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE) {
                 for (uint32_t i = 0; i < num_added_columns; i++) {
                     uint32_t curr_added_index = added_columns[i];
                     Field* curr_added_field = altered_table->field[curr_added_index];
@@ -371,7 +380,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         uint32_t num_dropped_columns = 0;
         int r = find_changed_columns(dropped_columns, &num_dropped_columns, altered_table, table);
         if (r == 0) {
-            if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+            if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE) {
                 for (uint32_t i = 0; i < num_dropped_columns; i++) {
                     uint32_t curr_dropped_index = dropped_columns[i];
                     Field* curr_dropped_field = table->field[curr_dropped_index];
@@ -408,17 +417,23 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         // alter auto_increment
         if (only_flags(create_info->used_fields, HA_CREATE_USED_AUTO)) {
             // do a sanity check that the table is what we think it is
-            if (tables_have_same_keys_and_columns(table, altered_table, true)) {
+            if (tables_have_same_keys_and_columns(table, altered_table, THDVAR(thd, alter_print_error) != 0)) {
                 result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
             }
         }
         // alter row_format
         else if (only_flags(create_info->used_fields, HA_CREATE_USED_ROW_FORMAT)) {
             // do a sanity check that the table is what we think it is
-            if (tables_have_same_keys_and_columns(table, altered_table, true)) {
+            if (tables_have_same_keys_and_columns(table, altered_table, THDVAR(thd, alter_print_error) != 0)) {
                 result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
             }
         }
+    }
+
+    if (result != HA_ALTER_INPLACE_NOT_SUPPORTED && table->s->null_bytes != altered_table->s->null_bytes &&
+        (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE)) {
+        TOKUDB_HANDLER_TRACE("q %s", thd->query());
+        TOKUDB_HANDLER_TRACE("null bytes %u -> %u", table->s->null_bytes, altered_table->s->null_bytes);
     }
 
     // turn a not supported result into an error if the slow alter table (copy) is disabled
@@ -426,13 +441,13 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
         print_error(HA_ERR_UNSUPPORTED, MYF(0));
         result = HA_ALTER_ERROR;
     }
-    
+
     DBUG_RETURN(result);
 }
 
 // Prepare for the alter operations
 bool ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
-    TOKUDB_DBUG_ENTER("prepare_inplace_alter_table");
+    TOKUDB_HANDLER_DBUG_ENTER("");
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     assert(transaction); // transaction must exist after table is locked
     ctx->alter_txn = transaction;
@@ -442,7 +457,7 @@ bool ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_
 
 // Execute the alter operations.
 bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
-    TOKUDB_DBUG_ENTER("inplace_alter_table");
+    TOKUDB_HANDLER_DBUG_ENTER("");
 
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
@@ -468,7 +483,7 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
 
         // Set the new compression
         enum toku_compression_method method = row_type_to_compression_method(create_info->option_struct->row_format);
-        uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+        uint32_t curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
         for (uint32_t i = 0; i < curr_num_DBs; i++) {
             db = share->key_file[i];
             error = db->change_compression_method(db, method);
@@ -492,7 +507,8 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
     if (error == 0 && ctx->reset_card)
         tokudb::set_card_from_status(share->status_block, ctx->alter_txn, table->s, altered_table->s);
 
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
     if (error == 0 && (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL)) {
         error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
     }
@@ -510,7 +526,7 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
 int ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
 
     // sort keys in add index order
-    KEY *key_info = (KEY*) my_malloc(sizeof (KEY) * ha_alter_info->index_add_count, MYF(MY_WME));
+    KEY *key_info = (KEY*) tokudb_my_malloc(sizeof (KEY) * ha_alter_info->index_add_count, MYF(MY_WME));
     for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
         KEY *key = &key_info[i];
         *key = ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
@@ -529,7 +545,7 @@ int ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *h
         last_dup_key = MAX_KEY;
     }
 
-    my_free(key_info);
+    tokudb_my_free(key_info);
     
     if (error == 0)
         ctx->reset_card = true;
@@ -591,7 +607,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
     uint32_t max_column_extra_size;
     uint32_t num_column_extra;
     uint32_t num_columns = 0;
-    uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    uint32_t curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
 
     uint32_t columns[table->s->fields + altered_table->s->fields]; // set size such that we know it is big enough for both cases
     memset(columns, 0, sizeof(columns));
@@ -619,7 +635,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
         4 + num_columns*(1+1+4+1+1+4) + altered_table->s->reclength + // max dynamic row_mutator
         (4 + share->kc_info.num_blobs) + // max static blob size
         (num_columns*(1+4+1+4)); // max dynamic blob size
-    column_extra = (uchar *)my_malloc(max_column_extra_size, MYF(MY_WME));
+    column_extra = (uchar *)tokudb_my_malloc(max_column_extra_size, MYF(MY_WME));
     if (column_extra == NULL) { error = ENOMEM; goto cleanup; }
     
     for (uint32_t i = 0; i < curr_num_DBs; i++) {
@@ -629,7 +645,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
         if (error)
             goto cleanup;
         error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
-        my_free(row_descriptor.data);
+        tokudb_my_free(row_descriptor.data);
         if (error)
             goto cleanup;
         
@@ -660,7 +676,7 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
 
     error = 0;
  cleanup:
-    my_free(column_extra);
+    tokudb_my_free(column_extra);
     return error;
 }
 
@@ -668,18 +684,41 @@ int ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplac
 // If commit then write the new frm data to the status using the alter transaction.
 // If abort then abort the alter transaction and try to rollback the non-transactional changes.
 bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit) {
-    TOKUDB_DBUG_ENTER("commit_inplace_alter_table");
+    TOKUDB_HANDLER_DBUG_ENTER("");
     
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     bool result = false; // success
+    THD *thd = ha_thd();
+    MDL_ticket *ticket = table->mdl_ticket;
+    if (ticket->get_type() != MDL_EXCLUSIVE) {
+        // get exclusive lock no matter what
+#if defined(MARIADB_BASE_VERSION)
+        killed_state saved_killed_state = thd->killed;
+        thd->killed = NOT_KILLED;
+        while (wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) && thd->killed)
+            thd->killed = NOT_KILLED;
+        assert(ticket->get_type() == MDL_EXCLUSIVE);
+        if (thd->killed == NOT_KILLED)
+            thd->killed = saved_killed_state;
+#else
+        THD::killed_state saved_killed_state = thd->killed;
+        thd->killed = THD::NOT_KILLED;
+        while (wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) && thd->killed)
+            thd->killed = THD::NOT_KILLED;
+        assert(ticket->get_type() == MDL_EXCLUSIVE);
+        if (thd->killed == THD::NOT_KILLED)
+            thd->killed = saved_killed_state;
+#endif
+    }
 
     if (commit) {
-#if 50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
         if (ha_alter_info->group_commit_ctx) {
             ha_alter_info->group_commit_ctx = NULL;
         }
 #endif
-#if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
+#if (50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599)
         if (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL) {
             int error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
             if (error) {
@@ -693,7 +732,6 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
 
     if (!commit) {
         // abort the alter transaction NOW so that any alters are rolled back. this allows the following restores to work.
-        THD *thd = ha_thd();
         tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
         assert(ctx->alter_txn == trx->stmt);
         assert(trx->tokudb_lock_count > 0);
@@ -720,7 +758,7 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
             restore_drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count);
         }
         if (ctx->compression_changed) {
-            uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+            uint32_t curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
             for (uint32_t i = 0; i < curr_num_DBs; i++) {
                 DB *db = share->key_file[i];
                 int error = db->change_compression_method(db, ctx->orig_compression_method);
@@ -745,7 +783,7 @@ int ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_in
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
-    uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    uint32_t curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
     for (uint32_t i = 0; i < curr_num_DBs; i++) {
         // change to a new descriptor
         DBT row_descriptor; memset(&row_descriptor, 0, sizeof row_descriptor);
@@ -753,7 +791,7 @@ int ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_in
         if (error)
             break;
         error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
-        my_free(row_descriptor.data);
+        tokudb_my_free(row_descriptor.data);
         if (error)
             break;
 
@@ -766,7 +804,7 @@ int ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_in
             // make the expand variable offsets message
             DBT expand; memset(&expand, 0, sizeof expand);
             expand.size = sizeof (uchar) + sizeof offset_start + sizeof offset_end;
-            expand.data = my_malloc(expand.size, MYF(MY_WME));
+            expand.data = tokudb_my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
                 error = ENOMEM;
                 break;
@@ -783,7 +821,7 @@ int ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_in
 
             // and broadcast it into the tree
             error = share->key_file[i]->update_broadcast(share->key_file[i], ctx->alter_txn, &expand, DB_IS_RESETTING_OP);
-            my_free(expand.data);
+            tokudb_my_free(expand.data);
             if (error)
                 break;
         }
@@ -834,7 +872,7 @@ static bool change_length_is_supported(TABLE *table, TABLE *altered_table, Alter
         return false;
     if (ctx->changed_fields.elements() > 1)
         return false; // only support one field change
-    for (int ai = 0; ai < ctx->changed_fields.elements(); ai++) {
+    for (DYNAMIC_ARRAY_ELEMENTS_TYPE ai = 0; ai < ctx->changed_fields.elements(); ai++) {
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
@@ -856,7 +894,7 @@ static bool is_sorted(Dynamic_array<uint> &a) {
     bool r = true;
     if (a.elements() > 0) {
         uint lastelement = a.at(0);
-        for (int i = 1; i < a.elements(); i++)
+        for (DYNAMIC_ARRAY_ELEMENTS_TYPE i = 1; i < a.elements(); i++)
             if (lastelement > a.at(i))
                 r = false;
     }
@@ -867,7 +905,7 @@ int ha_tokudb::alter_table_expand_columns(TABLE *altered_table, Alter_inplace_in
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     assert(is_sorted(ctx->changed_fields)); // since we build the changed_fields array in field order, it must be sorted
-    for (int ai = 0; error == 0 && ai < ctx->changed_fields.elements(); ai++) {
+    for (DYNAMIC_ARRAY_ELEMENTS_TYPE ai = 0; error == 0 && ai < ctx->changed_fields.elements(); ai++) {
         uint expand_field_num = ctx->changed_fields.at(ai);
         error = alter_table_expand_one_column(altered_table, ha_alter_info, expand_field_num);
     }
@@ -927,7 +965,7 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
         assert(0);
     }
 
-    uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    uint32_t curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
     for (uint32_t i = 0; i < curr_num_DBs; i++) {
         // change to a new descriptor
         DBT row_descriptor; memset(&row_descriptor, 0, sizeof row_descriptor);
@@ -935,7 +973,7 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
         if (error)
             break;
         error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
-        my_free(row_descriptor.data);
+        tokudb_my_free(row_descriptor.data);
         if (error)
             break;
 
@@ -955,7 +993,7 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
             expand.size = sizeof operation + sizeof new_offset + sizeof old_length + sizeof new_length;
             if (operation == UPDATE_OP_EXPAND_CHAR || operation == UPDATE_OP_EXPAND_BINARY)
                 expand.size += sizeof pad_char;
-            expand.data = my_malloc(expand.size, MYF(MY_WME));
+            expand.data = tokudb_my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
                 error = ENOMEM;
                 break;
@@ -984,7 +1022,7 @@ int ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace
 
             // and broadcast it into the tree
             error = share->key_file[i]->update_broadcast(share->key_file[i], ctx->alter_txn, &expand, DB_IS_RESETTING_OP);
-            my_free(expand.data);
+            tokudb_my_free(expand.data);
             if (error)
                 break;
         }
@@ -1006,7 +1044,7 @@ int ha_tokudb::alter_table_expand_blobs(TABLE *altered_table, Alter_inplace_info
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
-    uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    uint32_t curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
     for (uint32_t i = 0; i < curr_num_DBs; i++) {
         // change to a new descriptor
         DBT row_descriptor; memset(&row_descriptor, 0, sizeof row_descriptor);
@@ -1014,7 +1052,7 @@ int ha_tokudb::alter_table_expand_blobs(TABLE *altered_table, Alter_inplace_info
         if (error)
             break;
         error = share->key_file[i]->change_descriptor(share->key_file[i], ctx->alter_txn, &row_descriptor, 0);
-        my_free(row_descriptor.data);
+        tokudb_my_free(row_descriptor.data);
         if (error)
             break;
 
@@ -1125,7 +1163,7 @@ static bool change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_i
         return false;
     if (ctx->changed_fields.elements() > 1)
         return false; // only support one field change
-    for (int ai = 0; ai < ctx->changed_fields.elements(); ai++) {
+    for (DYNAMIC_ARRAY_ELEMENTS_TYPE  ai = 0; ai < ctx->changed_fields.elements(); ai++) {
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
@@ -1144,7 +1182,7 @@ int ha_tokudb::new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inpl
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     row_descriptor->size = get_max_desc_size(ctx->altered_table_kc_info, altered_table);
-    row_descriptor->data = (uchar *) my_malloc(row_descriptor->size, MYF(MY_WME));
+    row_descriptor->data = (uchar *) tokudb_my_malloc(row_descriptor->size, MYF(MY_WME));
     if (row_descriptor->data == NULL) {
         error = ENOMEM;
     } else {

@@ -67,10 +67,12 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       dump-env
       env_loader_memory
       env-put-multiple
+      env_nproc
       env_startup
       execute-updates
       filesize
       get_key_after_bytes_unit
+      get_last_key
       helgrind1
       helgrind2
       helgrind3
@@ -105,6 +107,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       loader-stress-del
       loader-stress-test
       loader-tpch-load
+      locktree_escalation_stalls
       lock-pressure
       manyfiles
       maxsize-for-loader
@@ -146,6 +149,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       recover-2483
       recover-3113
       recover-5146
+      recover-child-rollback
       recover-compare-db
       recover-compare-db-descriptor
       recover-del-multiple
@@ -252,10 +256,12 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_abort1
       test_abort4
       test_abort5
+      test_bad_implicit_promotion
       test_blobs_leaf_split
       test_bulk_fetch
       test_compression_methods
       test_cmp_descriptor
+      test_cursor_interrupt
       test_cursor_with_read_txn
       test_db_change_pagesize
       test_db_change_xxx
@@ -264,6 +270,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_db_descriptor_named_db
       test_db_txn_locks_read_uncommitted
       test_get_max_row_size
+      test_insert_many_gc
       test_iterate_live_transactions
       test_iterate_pending_lock_requests
       test_large_update_broadcast_small_cachetable
@@ -578,7 +585,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
 
       foreach(oldver 4.2.0 5.0.8 5.2.7 6.0.0 6.1.0 6.5.1 6.6.3)
         set(versiondir ${TOKUDB_DATA}/old-stress-test-envs/${oldver})
-        if (NOT EXISTS "${versiondir}/" AND NOT WARNED_ABOUT_DATA)
+        if (NOT EXISTS "${versiondir}/" AND NOT WARNED_ABOUT_DATA AND CMAKE_PROJECT_NAME STREQUAL TokuDB)
           message(WARNING "Test data for upgrade tests for version ${oldver} doesn't exist, check out ${versiondir}/*-2000-dir first or upgrade stress tests may fail.")
           set(WARNED_ABOUT_DATA 1)
         endif ()
@@ -612,7 +619,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     endif ()
   endforeach(src)
 
-  if (NOT EXISTS "${TOKUDB_DATA}/test_5902/" AND NOT WARNED_ABOUT_DATA)
+  if (NOT EXISTS "${TOKUDB_DATA}/test_5902/" AND NOT WARNED_ABOUT_DATA AND CMAKE_PROJECT_NAME STREQUAL TokuDB)
     message(WARNING "Test data for dump-env.tdb doesn't exist, check out ${TOKUDB_DATA}/test_5902 first or dump-env.tdb may fail.")
     set(WARNED_ABOUT_DATA 1)
   endif ()
@@ -653,7 +660,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   endforeach(num)
 
   set(old_loader_upgrade_data "${TOKUDB_DATA}/env_preload.4.2.0.emptydictionaries.cleanshutdown")
-  if (NOT EXISTS "${old_loader_upgrade_data}/" AND NOT WARNED_ABOUT_DATA)
+  if (NOT EXISTS "${old_loader_upgrade_data}/" AND NOT WARNED_ABOUT_DATA AND CMAKE_PROJECT_NAME STREQUAL TokuDB)
     message(WARNING "Test data for loader upgrade tests doesn't exist, check out ${old_loader_upgrade_data} first, or loader-stress-test3.tdb may fail.")
     set(WARNED_ABOUT_DATA 1)
   endif ()

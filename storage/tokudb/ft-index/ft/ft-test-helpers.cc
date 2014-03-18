@@ -142,7 +142,6 @@ int toku_testsetup_leaf(FT_HANDLE brt, BLOCKNUM *blocknum, int n_children, char 
 int toku_testsetup_nonleaf (FT_HANDLE brt, int height, BLOCKNUM *blocknum, int n_children, BLOCKNUM *children, char **keys, int *keylens) {
     FTNODE node;
     assert(testsetup_initialized);
-    assert(n_children<=FT_FANOUT);
     toku_create_new_ftnode(brt, &node, height, n_children);
     int i;
     for (i=0; i<n_children; i++) {
@@ -222,6 +221,7 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, const char 
                                     toku_fill_dbt(&valdbt, val, vallen) } } };
 
     static size_t zero_flow_deltas[] = { 0, 0 };
+    txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
     toku_ft_node_put_cmd (
         brt->ft->compare_fun,
         brt->ft->update_fun,
@@ -230,7 +230,7 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, const char 
         -1,
         &cmd,
         true,
-        make_gc_info(true),
+        &gc_info,
         zero_flow_deltas,
         NULL
         );

@@ -169,17 +169,18 @@ static int
 pe_callback (
     void *ftnode_pv, 
     PAIR_ATTR UU(bytes_to_free), 
-    PAIR_ATTR* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
+    void* extraargs __attribute__((__unused__)),
+    void (*finalize)(PAIR_ATTR bytes_freed, void *extra),
+    void *finalize_extra
     ) 
 {
-    *bytes_freed = make_pair_attr(bytes_to_free.size-1);
     usleep(1*1024*1024);
     if (verbose) printf("calling pe_callback\n");
     expected_bytes_to_free--;
     int* CAST_FROM_VOIDP(foo, ftnode_pv);
     int blah = *foo;
     *foo = blah-1;
+    finalize(make_pair_attr(bytes_to_free.size-1), finalize_extra);
     return 0;
 }
 
@@ -187,11 +188,12 @@ static int
 other_pe_callback (
     void *ftnode_pv __attribute__((__unused__)), 
     PAIR_ATTR bytes_to_free __attribute__((__unused__)), 
-    PAIR_ATTR* bytes_freed __attribute__((__unused__)), 
-    void* extraargs __attribute__((__unused__))
+    void* extraargs __attribute__((__unused__)),
+    void (*finalize)(PAIR_ATTR bytes_freed, void *extra),
+    void *finalize_extra
     ) 
 {
-    *bytes_freed = bytes_to_free;
+    finalize(bytes_to_free, finalize_extra);
     return 0;
 }
 

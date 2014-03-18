@@ -449,6 +449,8 @@ static uint64_t toku_fsync_time;
 static uint64_t toku_long_fsync_threshold = 1000000;
 static uint64_t toku_long_fsync_count;
 static uint64_t toku_long_fsync_time;
+static uint64_t toku_long_fsync_eintr_count;
+static int toku_fsync_debug = 0;
 
 void toku_set_func_fsync(int (*fsync_function)(int)) {
     t_fsync = fsync_function;
@@ -458,6 +460,7 @@ void toku_set_func_fsync(int (*fsync_function)(int)) {
 static void file_fsync_internal (int fd) {
     uint64_t tstart = toku_current_time_microsec();
     int r = -1;
+    uint64_t eintr_count = 0;
     while (r != 0) {
 	if (t_fsync) {
 	    r = t_fsync(fd);
@@ -466,6 +469,7 @@ static void file_fsync_internal (int fd) {
         }
 	if (r) {
             assert(get_error_errno() == EINTR);
+            eintr_count++;
 	}
     }
     toku_sync_fetch_and_add(&toku_fsync_count, 1);
@@ -474,6 +478,26 @@ static void file_fsync_internal (int fd) {
     if (duration >= toku_long_fsync_threshold) {
         toku_sync_fetch_and_add(&toku_long_fsync_count, 1);
         toku_sync_fetch_and_add(&toku_long_fsync_time, duration);
+        toku_sync_fetch_and_add(&toku_long_fsync_eintr_count, eintr_count);
+        if (toku_fsync_debug) {
+            const int tstr_length = 26;
+            char tstr[tstr_length];
+            time_t t = time(0);
+#if __linux__
+            char fdname[256];
+            snprintf(fdname, sizeof fdname, "/proc/%d/fd/%d", getpid(), fd);
+            char lname[256];
+            ssize_t s = readlink(fdname, lname, sizeof lname);
+            if (0 < s && s < (ssize_t) sizeof lname)
+                lname[s] = 0;
+            fprintf(stderr, "%.24s toku_file_fsync %s fd=%d %s duration=%" PRIu64 " usec eintr=%" PRIu64 "\n", 
+                    ctime_r(&t, tstr), __FUNCTION__, fd, s > 0 ? lname : "?", duration, eintr_count);
+#else
+            fprintf(stderr, "%.24s toku_file_fsync  %s fd=%d duration=%" PRIu64 " usec eintr=%" PRIu64 "\n", 
+                    ctime_r(&t, tstr), __FUNCTION__, fd, duration, eintr_count);
+#endif
+            fflush(stderr);
+        }
     }
 }
 

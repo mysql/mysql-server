@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # do a lot of longblob insertions up to 32MB-4 in size with seq primary key
 --source include/big_test.inc
 

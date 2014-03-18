@@ -319,8 +319,8 @@ toku_loader_create_loader(DB_ENV *env,
         }
         TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
         rval = toku_ft_loader_open(&loader->i->ft_loader,
-                                 loader->i->env->i->cachetable,
-                                 loader->i->env->i->generate_row_for_put,
+                                 env->i->cachetable,
+                                 env->i->generate_row_for_put,
                                  src_db,
                                  N,
                                  brts, dbs,
@@ -330,7 +330,7 @@ toku_loader_create_loader(DB_ENV *env,
                                  load_lsn,
                                  ttxn,
                                  puts_allowed,
-                                 loader->i->env->i->loader_memory_size,
+                                 env->get_loader_memory_size(env),
                                  compress_intermediates);
         if ( rval!=0 ) {
             toku_free(new_inames_in_env);

@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 extern handlerton *tokudb_hton;
 
 extern DB_ENV *db_env;
-extern DB *metadata_db;
 
 enum srv_row_format_enum {
     SRV_ROW_FORMAT_UNCOMPRESSED = 0,
@@ -181,6 +180,14 @@ static MYSQL_THDVAR_BOOL(create_index_online,
 static bool get_create_index_online(THD* thd) {
     return (THDVAR(thd, create_index_online) != 0);
 }
+
+static MYSQL_THDVAR_BOOL(alter_print_error,
+    0,
+    "Print errors for alter table operations",
+    NULL, 
+    NULL,
+    false
+);
 
 static MYSQL_THDVAR_BOOL(disable_prefetching,
     0,
@@ -339,11 +346,52 @@ static MYSQL_THDVAR_UINT(lock_timeout_debug, 0, "TokuDB lock timeout debug", NUL
 
 static MYSQL_THDVAR_STR(last_lock_timeout, PLUGIN_VAR_MEMALLOC, "last TokuDB lock timeout", NULL /*check*/, NULL /*update*/, NULL /*default*/);
 
-static MYSQL_THDVAR_BOOL(hide_default_row_format, 0, "hide the default row format", NULL /*check*/, NULL /*update*/, false);
+static MYSQL_THDVAR_BOOL(hide_default_row_format, 0, "hide the default row format", NULL /*check*/, NULL /*update*/, true);
+
+static const uint64_t DEFAULT_TOKUDB_LOCK_TIMEOUT = 4000; /*milliseconds*/
+
+static MYSQL_THDVAR_ULONGLONG(lock_timeout, 0, "TokuDB lock timeout", NULL, NULL, DEFAULT_TOKUDB_LOCK_TIMEOUT, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
+
+static uint64_t tokudb_get_lock_wait_time_callback(uint64_t default_wait_time) {
+    THD *thd = current_thd;
+    uint64_t wait_time = THDVAR(thd, lock_timeout);
+    return wait_time;
+}
+
+static MYSQL_THDVAR_ULONGLONG(loader_memory_size,
+    0,
+    "TokuDB loader memory size",
+    NULL, 
+    NULL, 
+    100*1000*1000, /*default*/
+    0, /*min*/
+    ~0ULL, /*max*/
+    1 /*blocksize*/
+);
+
+static uint64_t tokudb_get_loader_memory_size_callback(void) {
+    THD *thd = current_thd;
+    uint64_t memory_size = THDVAR(thd, loader_memory_size);
+    return memory_size;
+}
+
+static const uint64_t DEFAULT_TOKUDB_KILLED_TIME = 4000; 
+
+static MYSQL_THDVAR_ULONGLONG(killed_time, 0, "TokuDB killed time", NULL, NULL, DEFAULT_TOKUDB_KILLED_TIME, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
+
+static uint64_t tokudb_get_killed_time_callback(uint64_t default_killed_time) {
+    THD *thd = current_thd;
+    uint64_t killed_time = THDVAR(thd, killed_time);
+    return killed_time;
+}
+
+static int tokudb_killed_callback(void) {
+    THD *thd = current_thd;
+    return thd->killed;
+}
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
-extern pthread_mutex_t tokudb_meta_mutex;
 extern uint32_t tokudb_write_status_frequency;
 extern uint32_t tokudb_read_status_frequency;
 

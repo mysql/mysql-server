@@ -1,0 +1,58 @@
+set default_storage_engine=tokudb;
+drop table if exists test_enum;
+CREATE TABLE test_enum (col1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, col2 ENUM('value1','value2','value3') NULL);
+INSERT INTO test_enum (col2) VALUES ('value1'),('value1'),('value3');
+SELECT * FROM test_enum;
+col1	col2
+1	value1
+2	value1
+3	value3
+set tokudb_disable_hot_alter=0;
+set tokudb_disable_slow_alter=1;
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value2','value3');
+SELECT * FROM test_enum;
+col1	col2
+1	value1
+2	value1
+3	value3
+drop table test_enum;
+CREATE TABLE test_enum (col1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, col2 ENUM('value1','value2','value3') NULL);
+INSERT INTO test_enum (col2) VALUES ('value1'),('value1'),('value3');
+SELECT * FROM test_enum;
+col1	col2
+1	value1
+2	value1
+3	value3
+set tokudb_disable_hot_alter=0;
+set tokudb_disable_slow_alter=1;
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value3');
+set tokudb_disable_hot_alter=1;
+set tokudb_disable_slow_alter=0;
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value3');
+SELECT * FROM test_enum;
+col1	col2
+1	value1
+2	value1
+3	value3
+drop table test_enum;
+CREATE TABLE test_enum (col1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT, col2 ENUM('value1','value2','value3') NULL);
+INSERT INTO test_enum (col2) VALUES ('value1'),('value1'),('value3');
+SELECT * FROM test_enum;
+col1	col2
+1	value1
+2	value1
+3	value3
+set tokudb_disable_hot_alter=0;
+set tokudb_disable_slow_alter=1;
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value2','value4');
+Warnings:
+Warning	1265	Data truncated for column 'col2' at row 3
+set tokudb_disable_hot_alter=1;
+set tokudb_disable_slow_alter=0;
+ALTER TABLE test_enum MODIFY COLUMN col2 ENUM('value1','value2','value4');
+SELECT * FROM test_enum;
+col1	col2
+1	value1
+2	value1
+3	
+drop table test_enum;

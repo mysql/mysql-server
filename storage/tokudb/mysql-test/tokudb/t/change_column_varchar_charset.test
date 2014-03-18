@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that varchar change with different charset is not supported inplace
 
 --disable_warnings

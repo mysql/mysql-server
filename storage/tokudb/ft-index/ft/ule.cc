@@ -115,7 +115,8 @@ PATENT RIGHTS GRANT:
 #include "txn_manager.h"
 #include "ule-internal.h"
 #include <util/status.h>
-
+#include <util/scoped_malloc.h>
+#include <util/partitioned_counter.h>
 
 #define ULE_DEBUG 0
 
@@ -132,26 +133,42 @@ static LE_STATUS_S le_status;
 
 #define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(le_status, k, c, t, "le: " l, inc)
 
-static void
-status_init(void) {
+void toku_ule_status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
     STATUS_INIT(LE_MAX_COMMITTED_XR,   nullptr, UINT64, "max committed xr", TOKU_ENGINE_STATUS);
     STATUS_INIT(LE_MAX_PROVISIONAL_XR, nullptr, UINT64, "max provisional xr", TOKU_ENGINE_STATUS);
     STATUS_INIT(LE_EXPANDED,           nullptr, UINT64, "expanded", TOKU_ENGINE_STATUS);
     STATUS_INIT(LE_MAX_MEMSIZE,        nullptr, UINT64, "max memsize", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_APPLY_GC_BYTES_IN,  nullptr, PARCOUNT, "size of leafentries before garbage collection (during message application)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_APPLY_GC_BYTES_OUT, nullptr, PARCOUNT, "size of leafentries after garbage collection (during message application)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_NORMAL_GC_BYTES_IN, nullptr, PARCOUNT, "size of leafentries before garbage collection (outside message application)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_NORMAL_GC_BYTES_OUT,nullptr, PARCOUNT, "size of leafentries after garbage collection (outside message application)", TOKU_ENGINE_STATUS);
     le_status.initialized = true;
 }
 #undef STATUS_INIT
 
-void
-toku_le_get_status(LE_STATUS statp) {
-    if (!le_status.initialized)
-        status_init();
+void toku_ule_status_destroy(void) {
+    for (int i = 0; i < LE_STATUS_NUM_ROWS; ++i) {
+        if (le_status.status[i].type == PARCOUNT) {
+            destroy_partitioned_counter(le_status.status[i].value.parcount);
+        }
+    }
+}
+
+void toku_le_get_status(LE_STATUS statp) {
     *statp = le_status;
 }
 
 #define STATUS_VALUE(x) le_status.status[x].value.num
+#define STATUS_INC(x, d)                                                            \
+    do {                                                                            \
+        if (le_status.status[x].type == PARCOUNT) {                                 \
+            increment_partitioned_counter(le_status.status[x].value.parcount, d);   \
+        } else {                                                                    \
+            toku_sync_fetch_and_add(&le_status.status[x].value.num, d);             \
+        }                                                                           \
+    } while (0)
 
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -308,18 +325,18 @@ xid_reads_committed_xid(TXNID tl1, TXNID xc, const xid_omt_t &snapshot_txnids, c
 // so we get rid of them.
 //
 static void
-ule_simple_garbage_collection(ULE ule, TXNID oldest_referenced_xid, GC_INFO gc_info) {
+ule_simple_garbage_collection(ULE ule, txn_gc_info *gc_info) {
     uint32_t curr_index = 0;
     uint32_t num_entries;
     if (ule->num_cuxrs == 1) {
         goto done;
     }
-    if (gc_info.mvcc_needed) {
+    if (gc_info->mvcc_needed) {
         // starting at the top of the committed stack, find the first
         // uxr with a txnid that is less than oldest_referenced_xid
         for (uint32_t i = 0; i < ule->num_cuxrs; i++) {
             curr_index = ule->num_cuxrs - i - 1;
-            if (ule->uxrs[curr_index].xid < oldest_referenced_xid) {
+            if (ule->uxrs[curr_index].xid < gc_info->oldest_referenced_xid_for_simple_gc) {
                 break;
             }
         }
@@ -440,6 +457,25 @@ ule_garbage_collect(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &ref
 done:;
 }
 
+static size_t ule_packed_memsize(ULE ule) {
+// Returns: The size 'ule' would be when packed into a leafentry, or 0 if the
+//          topmost committed value is a delete.
+    if (ule->num_cuxrs == 1 && ule->num_puxrs == 0) {
+        UXR uxr = ule_get_innermost_uxr(ule);
+        if (uxr_is_delete(uxr)) {
+            return 0;
+        }
+    }
+    return le_memsize_from_ule(ule);
+}
+
+// Heuristics to control when we decide to initialize
+// txn manager state (possibly expensive) and run gc.
+enum {
+    ULE_MIN_STACK_SIZE_TO_FORCE_GC = 5,
+    ULE_MIN_MEMSIZE_TO_FORCE_GC = 1024 * 1024
+};
+
 /////////////////////////////////////////////////////////////////////////////////
 // This is the big enchilada.  (Bring Tums.)  Note that this level of abstraction 
 // has no knowledge of the inner structure of either leafentry or msg.  It makes
@@ -459,26 +495,21 @@ toku_le_apply_msg(FT_MSG   msg,
                   LEAFENTRY old_leafentry, // NULL if there was no stored data.
                   bn_data* data_buffer, // bn_data storing leafentry, if NULL, means there is no bn_data
                   uint32_t idx, // index in data_buffer where leafentry is stored (and should be replaced
-                  TXNID oldest_referenced_xid,
-                  GC_INFO gc_info,
+                  txn_gc_info *gc_info,
                   LEAFENTRY *new_leafentry_p,
                   int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
+    invariant_notnull(gc_info);
+    paranoid_invariant_notnull(new_leafentry_p);
     ULE_S ule;
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
     uint64_t oldmemsize = 0;
     uint32_t keylen = ft_msg_get_keylen(msg);
     LEAFENTRY copied_old_le = NULL;
-    bool old_le_malloced = false;
+    size_t old_le_size = old_leafentry ? leafentry_memsize(old_leafentry) : 0;
+    toku::scoped_malloc copied_old_le_buf(old_le_size);
     if (old_leafentry) {
-        size_t old_le_size = leafentry_memsize(old_leafentry);
-        if (old_le_size > 100*1024) { // completely arbitrary limit
-            CAST_FROM_VOIDP(copied_old_le, toku_malloc(old_le_size));
-            old_le_malloced = true;
-        }
-        else {
-            CAST_FROM_VOIDP(copied_old_le, alloca(old_le_size));
-        }
+        CAST_FROM_VOIDP(copied_old_le, copied_old_le_buf.get());
         memcpy(copied_old_le, old_leafentry, old_le_size);
     }
 
@@ -490,7 +521,35 @@ toku_le_apply_msg(FT_MSG   msg,
         oldnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
-    ule_simple_garbage_collection(&ule, oldest_referenced_xid, gc_info);
+
+    // - we may be able to immediately promote the newly-apllied outermost provisonal uxr
+    // - either way, run simple gc first, and then full gc if there are still some committed uxrs.
+    ule_try_promote_provisional_outermost(&ule, gc_info->oldest_referenced_xid_for_implicit_promotion);
+    ule_simple_garbage_collection(&ule, gc_info);
+    txn_manager_state *txn_state_for_gc = gc_info->txn_state_for_gc;
+    size_t size_before_gc = 0;
+    if (ule.num_cuxrs > 1 && txn_state_for_gc != nullptr && // there is garbage to clean, and our caller gave us state..
+            // ..and either the state is pre-initialized, or the committed stack is large enough
+            (txn_state_for_gc->initialized || ule.num_cuxrs >= ULE_MIN_STACK_SIZE_TO_FORCE_GC ||
+            // ..or the ule's raw memsize is sufficiently large
+            (size_before_gc = ule_packed_memsize(&ule)) >= ULE_MIN_MEMSIZE_TO_FORCE_GC)) {
+        // ..then it's worth running gc, possibly initializing the txn manager state, if it isn't already
+        if (!txn_state_for_gc->initialized) {
+            txn_state_for_gc->init();
+        }
+
+        size_before_gc = size_before_gc != 0 ? size_before_gc : // it's already been calculated above
+                         ule_packed_memsize(&ule);
+        ule_garbage_collect(&ule,
+                            txn_state_for_gc->snapshot_xids,
+                            txn_state_for_gc->referenced_xids,
+                            txn_state_for_gc->live_root_txns
+                            );
+        size_t size_after_gc = ule_packed_memsize(&ule);
+
+        STATUS_INC(LE_APPLY_GC_BYTES_IN, size_before_gc);
+        STATUS_INC(LE_APPLY_GC_BYTES_OUT, size_after_gc);
+    }
     int rval = le_pack(
         &ule, // create packed leafentry
         data_buffer,
@@ -501,17 +560,14 @@ toku_le_apply_msg(FT_MSG   msg,
         new_leafentry_p
         );
     invariant_zero(rval);
-    if (new_leafentry_p) {
+    if (*new_leafentry_p) {
         newnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
-    if (old_le_malloced) {
-        toku_free(copied_old_le);
-    }
 }
 
-bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_referenced_xid_known) {
+bool toku_le_worth_running_garbage_collection(LEAFENTRY le, txn_gc_info *gc_info) {
 // Effect: Quickly determines if it's worth trying to run garbage collection on a leafentry
 // Return: True if it makes sense to try garbage collection, false otherwise.
 // Rationale: Garbage collection is likely to clean up under two circumstances:
@@ -527,7 +583,8 @@ bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_referen
     } else {
         paranoid_invariant(le->u.mvcc.num_cxrs == 1);
     }
-    return le->u.mvcc.num_pxrs > 0 && le_outermost_uncommitted_xid(le) < oldest_referenced_xid_known;
+    return le->u.mvcc.num_pxrs > 0 &&
+           le_outermost_uncommitted_xid(le) < gc_info->oldest_referenced_xid_for_implicit_promotion;
 }
 
 // Garbage collect one leaf entry, using the given OMT's.
@@ -554,26 +611,21 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
                         uint32_t idx,
                         void* keyp,
                         uint32_t keylen,
+                        txn_gc_info *gc_info,
                         LEAFENTRY *new_leaf_entry,
-                        const xid_omt_t &snapshot_xids,
-                        const rx_omt_t &referenced_xids,
-                        const xid_omt_t &live_root_txns,
-                        TXNID oldest_referenced_xid_known,
                         int64_t * numbytes_delta_p) {
+    // We shouldn't want to run gc without having provided a snapshot of the txn system.
+    invariant_notnull(gc_info);
+    invariant_notnull(gc_info->txn_state_for_gc);
+    paranoid_invariant_notnull(new_leaf_entry);
     ULE_S ule;
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
     LEAFENTRY copied_old_le = NULL;
-    bool old_le_malloced = false;
+    size_t old_le_size = old_leaf_entry ? leafentry_memsize(old_leaf_entry) : 0;
+    toku::scoped_malloc copied_old_le_buf(old_le_size);
     if (old_leaf_entry) {
-        size_t old_le_size = leafentry_memsize(old_leaf_entry);
-        if (old_le_size > 100*1024) { // completely arbitrary limit
-            CAST_FROM_VOIDP(copied_old_le, toku_malloc(old_le_size));
-            old_le_malloced = true;
-        }
-        else {
-            CAST_FROM_VOIDP(copied_old_le, alloca(old_le_size));
-        }
+        CAST_FROM_VOIDP(copied_old_le, copied_old_le_buf.get());
         memcpy(copied_old_le, old_leaf_entry, old_le_size);
     }
 
@@ -584,14 +636,24 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
 
     // Before running garbage collection, try to promote the outermost provisional
     // entries to committed if its xid is older than the oldest possible live xid.
-    // 
+    //
     // The oldest known refeferenced xid is a lower bound on the oldest possible
     // live xid, so we use that. It's usually close enough to get rid of most
     // garbage in leafentries.
-    TXNID oldest_possible_live_xid = oldest_referenced_xid_known;
-    ule_try_promote_provisional_outermost(&ule, oldest_possible_live_xid);
-    ule_garbage_collect(&ule, snapshot_xids, referenced_xids, live_root_txns);
-    
+    ule_try_promote_provisional_outermost(&ule, gc_info->oldest_referenced_xid_for_implicit_promotion);
+    // No need to run simple gc here if we're going straight for full gc.
+    if (ule.num_cuxrs > 1) {
+        size_t size_before_gc = ule_packed_memsize(&ule);
+        ule_garbage_collect(&ule,
+                            gc_info->txn_state_for_gc->snapshot_xids,
+                            gc_info->txn_state_for_gc->referenced_xids,
+                            gc_info->txn_state_for_gc->live_root_txns);
+        size_t size_after_gc = ule_packed_memsize(&ule);
+
+        STATUS_INC(LE_APPLY_GC_BYTES_IN, size_before_gc);
+        STATUS_INC(LE_APPLY_GC_BYTES_OUT, size_after_gc);
+    }
+
     int r = le_pack(
         &ule,
         data_buffer,
@@ -602,14 +664,11 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
         new_leaf_entry
         );
     assert(r == 0);
-    if (new_leaf_entry) {
+    if (*new_leaf_entry) {
         newnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
     ule_cleanup(&ule);
-    if (old_le_malloced) {
-        toku_free(copied_old_le);
-    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////

@@ -116,6 +116,9 @@ public:
     // make sure deadlocks are detected when a lock request starts
     void test_start_deadlock(void);
 
+    // test that the get_wait_time callback works
+    void test_wait_time_callback(void);
+
 private:
     // releases a single range lock and retries all lock requests.
     // this is kind of like what the ydb layer does, except that

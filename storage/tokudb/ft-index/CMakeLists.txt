@@ -18,10 +18,12 @@ include(TokuMergeLibs)
 set(LIBTOKUPORTABILITY "tokuportability" CACHE STRING "Name of libtokuportability.so")
 set(LIBTOKUDB "tokufractaltree" CACHE STRING "Name of libtokufractaltree.so")
 
-if(USE_VALGRIND)
-include_directories(
-  ${VALGRIND_INCLUDE_DIR}
-  )
+set(INSTALL_LIBDIR "lib" CACHE STRING "where to install libs")
+
+if (USE_VALGRIND AND NOT VALGRIND_INCLUDE_DIR MATCHES NOTFOUND)
+  include_directories(
+    ${VALGRIND_INCLUDE_DIR}
+    )
 endif()
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include

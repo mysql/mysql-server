@@ -115,13 +115,6 @@ struct mempool {
  */
 void toku_mempool_zero(struct mempool *mp);
 
-/* Copy constructor.  Fill in empty mempool struct with new values, allocating
- * a new buffer and filling the buffer with data from from data_source.
- * Any time a new mempool is needed, allocate 1/4 more space
- * than is currently needed.
- */
-void toku_mempool_copy_construct(struct mempool *mp, const void * const data_source, const size_t data_size);
-
 /* initialize the memory pool with the base address and size of a
    contiguous chunk of memory */
 void toku_mempool_init(struct mempool *mp, void *base, size_t free_offset, size_t size);

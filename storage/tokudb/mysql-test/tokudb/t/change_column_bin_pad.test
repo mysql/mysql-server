@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that binary pad is zero
 --disable_warnings
 DROP TABLE IF EXISTS s,t;

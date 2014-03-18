@@ -232,6 +232,7 @@ struct arg {
     bool do_prepare;
     bool prelock_updates;
     bool track_thread_performance;
+    bool wrap_in_parent;
 };
 
 static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cli_args) {
@@ -246,6 +247,7 @@ static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cl
     arg->do_prepare = false;
     arg->prelock_updates = false;
     arg->track_thread_performance = true;
+    arg->wrap_in_parent = false;
 }
 
 enum operation_type {
@@ -568,6 +570,7 @@ static void *worker(void *arg_v) {
     arg->random_data = &random_data;
     DB_ENV *env = arg->env;
     DB_TXN *txn = nullptr;
+    DB_TXN *ptxn = nullptr;
     if (verbose) {
         toku_pthread_t self = toku_pthread_self();
         uintptr_t intself = (uintptr_t) self;
@@ -575,11 +578,13 @@ static void *worker(void *arg_v) {
     }
     if (arg->cli->single_txn) {
         r = env->txn_begin(env, 0, &txn, arg->txn_flags); CKERR(r);
+    } else if (arg->wrap_in_parent) {
+        r = env->txn_begin(env, 0, &ptxn, arg->txn_flags); CKERR(r);
     }
     while (run_test) {
         lock_worker_op(we);
         if (!arg->cli->single_txn) {
-            r = env->txn_begin(env, 0, &txn, arg->txn_flags); CKERR(r);
+            r = env->txn_begin(env, ptxn, &txn, arg->txn_flags); CKERR(r);
         }
         r = arg->operation(txn, arg, arg->operation_extra, we->counters);
         if (r==0 && !arg->cli->single_txn && arg->do_prepare) {
@@ -616,6 +621,9 @@ static void *worker(void *arg_v) {
     if (arg->cli->single_txn) {
         int flags = get_commit_flags(arg->cli);
         int chk_r = txn->commit(txn, flags); CKERR(chk_r);
+    } else if (arg->wrap_in_parent) {
+        int flags = get_commit_flags(arg->cli);
+        int chk_r = ptxn->commit(ptxn, flags); CKERR(chk_r);
     }
     if (verbose) {
         toku_pthread_t self = toku_pthread_self();
@@ -1150,7 +1158,9 @@ static void scan_op_worker(void *arg) {
 static int UU() scan_op_no_check_parallel(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     const int num_cores = toku_os_get_number_processors();
     const int num_workers = arg->cli->num_DBs < num_cores ? arg->cli->num_DBs : num_cores;
-    KIBBUTZ kibbutz = toku_kibbutz_create(num_workers);
+    KIBBUTZ kibbutz = NULL;
+    int r = toku_kibbutz_create(num_workers, &kibbutz);
+    assert(r == 0);
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         struct scan_op_worker_info *XCALLOC(info);
         info->db = arg->dbp[i];
@@ -1621,7 +1631,8 @@ static int UU() hot_op(DB_TXN *UU(txn), ARG UU(arg), void* UU(operation_extra), 
     int r;
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         DB* db = arg->dbp[i];
-        r = db->hot_optimize(db, NULL, NULL, hot_progress_callback, nullptr);
+        uint64_t loops_run;
+        r = db->hot_optimize(db, NULL, NULL, hot_progress_callback, nullptr, &loops_run);
         if (run_test) {
             CKERR(r);
         }
@@ -2102,7 +2113,9 @@ static int fill_tables_default(DB_ENV *env, DB **dbs, struct cli_args *args, boo
     // be used for internal engine work (ie: flushes, loader threads, etc).
     const int max_num_workers = (num_cores + 1) / 2;
     const int num_workers = args->num_DBs < max_num_workers ? args->num_DBs : max_num_workers;
-    KIBBUTZ kibbutz = toku_kibbutz_create(num_workers);
+    KIBBUTZ kibbutz = NULL;
+    int r = toku_kibbutz_create(num_workers, &kibbutz);
+    assert(r == 0);
     for (int i = 0; i < args->num_DBs; i++) {
         struct fill_table_worker_info *XCALLOC(info);
         info->env = env;

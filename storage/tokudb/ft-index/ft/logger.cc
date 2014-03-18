@@ -422,8 +422,12 @@ wait_till_output_available (TOKULOGGER logger)
 // Exit: Holds the output_condition_lock and logger->output_is_available
 // 
 {
+    tokutime_t t0 = toku_time_now();
     while (!logger->output_is_available) {
         toku_cond_wait(&logger->output_condition, &logger->output_condition_lock);
+    }
+    if (tokutime_to_seconds(toku_time_now() - t0) >= 0.100) {
+        logger->num_wait_buf_long++;
     }
 }
 
@@ -1397,6 +1401,7 @@ status_init(void) {
     STATUS_INIT(LOGGER_BYTES_WRITTEN,               LOGGER_WRITES_BYTES, UINT64,  "writes (bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LOGGER_UNCOMPRESSED_BYTES_WRITTEN,  LOGGER_WRITES_UNCOMPRESSED_BYTES, UINT64,  "writes (uncompressed bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(LOGGER_TOKUTIME_WRITES,             LOGGER_WRITES_SECONDS, TOKUTIME,  "writes (seconds)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(LOGGER_WAIT_BUF_LONG,               LOGGER_WAIT_LONG, UINT64,  "count", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     logger_status.initialized = true;
 }
 #undef STATUS_INIT
@@ -1414,6 +1419,7 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS statp) {
         // No compression on logfiles so the uncompressed size is just number of bytes written
         STATUS_VALUE(LOGGER_UNCOMPRESSED_BYTES_WRITTEN)  = logger->bytes_written_to_disk;
         STATUS_VALUE(LOGGER_TOKUTIME_WRITES) = logger->time_spent_writing_to_disk;
+        STATUS_VALUE(LOGGER_WAIT_BUF_LONG) = logger->num_wait_buf_long;
     }
     *statp = logger_status;
 }

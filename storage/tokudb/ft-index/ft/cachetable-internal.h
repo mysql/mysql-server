@@ -458,7 +458,7 @@ private:
 //
 class checkpointer {
 public:
-    void init(pair_list *_pl, TOKULOGGER _logger, evictor *_ev, cachefile_list *files);
+    int init(pair_list *_pl, TOKULOGGER _logger, evictor *_ev, cachefile_list *files);
     void destroy();
     void set_checkpoint_period(uint32_t new_period);
     uint32_t get_checkpoint_period();
@@ -480,6 +480,8 @@ private:
     cachefile_list *m_cf_list;
     pair_list *m_list;
     evictor *m_ev;
+    bool m_checkpointer_cron_init;
+    bool m_checkpointer_init;
     
     // variable used by the checkpoint thread to know
     // when all work induced by cloning on client threads is done
@@ -512,7 +514,7 @@ const int EVICTION_PERIOD = 1;
 //
 class evictor {
 public:
-    void init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, KIBBUTZ _kibbutz, uint32_t eviction_period);
+    int init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, KIBBUTZ _kibbutz, uint32_t eviction_period);
     void destroy();
     void add_pair_attr(PAIR_ATTR attr);
     void remove_pair_attr(PAIR_ATTR attr);    
@@ -522,7 +524,7 @@ public:
     uint64_t reserve_memory(double fraction, uint64_t upper_bound);
     void release_reserved_memory(uint64_t reserved_memory);
     void run_eviction_thread();
-    void do_partial_eviction(PAIR p, bool pair_mutex_held);
+    void do_partial_eviction(PAIR p);
     void evict_pair(PAIR p, bool checkpoint_pending);
     void wait_for_cache_pressure_to_subside();
     void signal_eviction_thread();
@@ -597,6 +599,10 @@ private:
 
     // this variable is ONLY used for testing purposes
     uint64_t m_num_eviction_thread_runs;
+
+    bool m_ev_thread_init;
+    bool m_evictor_init;
+
     friend class evictor_test_helpers;
     friend class evictor_unit_test;
 };
@@ -608,7 +614,7 @@ private:
 //
 class cleaner {
 public:
-    void init(uint32_t cleaner_iterations, pair_list* _pl, CACHETABLE _ct);
+    int init(uint32_t cleaner_iterations, pair_list* _pl, CACHETABLE _ct);
     void destroy(void);
     uint32_t get_iterations(void);
     void set_iterations(uint32_t new_iterations);
@@ -625,6 +631,8 @@ private:
                                   // minimum period of 1s so if you want
                                   // more frequent cleaner runs you must
                                   // use this)
+    bool m_cleaner_cron_init;
+    bool m_cleaner_init;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -5,7 +5,8 @@ function usage() {
     echo "[--SCALE=$SCALE] [--ENGINE=$ENGINE]"
     echo "[--dbgen=$dbgen] [--load=$load] [--check=$check] [--compare=$compare] [--query=$query]"
     echo "[--mysqlbuild=$mysqlbuild] [--commit=$commit]"
-    echo "[--testinstance=$testinstance] [--tokudb_load_save_space=$tokudb_load_save_space]"
+    echo "[--testinstance=$testinstance]"
+    echo "[--tokudb_load_save_space=$tokudb_load_save_space] [--tokudb_row_format=$tokudb_row_format] [--tokudb_loader_memory_size=$tokudb_loader_memory_size]"
 }
 
 function retry() {
@@ -46,6 +47,8 @@ system=`uname -s | tr [:upper:] [:lower:]`
 arch=`uname -m | tr [:upper:] [:lower:]`
 testinstance=
 tokudb_load_save_space=0
+tokudb_row_format=
+tokudb_loader_memory_size=
 svn_server=https://svn.tokutek.com/tokudb
 svn_branch=.
 svn_revision=HEAD
@@ -105,6 +108,8 @@ fi
 
 runfile=$testresultsdir/$dbname
 if [ $tokudb_load_save_space != 0 ] ; then runfile=$runfile-compress; fi
+if [ "$tokudb_row_format" != "" ] ; then runfile=$runfile-$tokudb_row_format; fi
+if [ "$tokudb_loader_memory_size" != "" ] ; then runfile=$runfile-$tokudb_loader_memory_size; fi
 runfile=$runfile-$mysqlbuild-$mysqlserver
 rm -rf $runfile
 
@@ -210,13 +215,24 @@ if [ $load != 0 -a $testresult = "PASS" ] ; then
     if [ $exitcode -ne 0 ] ; then testresult="FAIL"; fi
 fi
 
+# get the current loader memory size
+if [ $load != 0 -a $testresult = "PASS" ] ; then
+    let default_loader_memory_size="$(mysql -S $mysqlsocket -u $mysqluser -e'select @@tokudb_loader_memory_size' --silent --skip-column-names)"
+    exitcode=$?
+    echo `date` get tokudb_loader_memory_size $exitcode >>$runfile
+    if [ $exitcode -ne 0 ] ; then testresult="FAIL"; fi
+    if [ "$tokudb_loader_memory_size" = "" ] ; then tokudb_loader_memory_size=$default_loader_memory_size; fi
+fi
+
 # load the data
 if [ $load != 0 -a $testresult = "PASS" ] ; then
     for tblname in $TABLES ; do
         echo `date` load table $tblname >>$runfile
         ls -l $tpchdir/data/tpch${SCALE}G/$tblname.tbl >>$runfile
         start=$(date +%s)
-        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set session tokudb_load_save_space=$tokudb_load_save_space; load data infile '$tpchdir/data/tpch${SCALE}G/$tblname.tbl' into table $tblname fields terminated by '|'" >>$runfile 2>&1
+        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set tokudb_loader_memory_size=$tokudb_loader_memory_size;\
+            set tokudb_load_save_space=$tokudb_load_save_space;\
+            load data infile '$tpchdir/data/tpch${SCALE}G/$tblname.tbl' into table $tblname fields terminated by '|';" >>$runfile 2>&1
         exitcode=$?
         let loadtime=$(date +%s)-$start
         echo `date` load table $tblname $exitcode loadtime=$loadtime>>$runfile
@@ -228,7 +244,10 @@ if [ $check != 0 -a $testresult = "PASS" ] ; then
     for tblname in lineitem ; do
         echo `date` add clustering index $tblname >>$runfile
         start=$(date +%s)
-        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set session tokudb_create_index_online=0;create clustering index i_shipdate on lineitem (l_shipdate)" >>$runfile 2>&1
+        mysql -S $mysqlsocket -u $mysqluser -D $dbname -e "set tokudb_loader_memory_size=$tokudb_loader_memory_size;\
+            set tokudb_load_save_space=$tokudb_load_save_space;\
+            set tokudb_create_index_online=0;\
+            create clustering index i_shipdate on lineitem (l_shipdate);" >>$runfile 2>&1
         exitcode=$?
         let loadtime=$(date +%s)-$start
         echo `date` add clustering index $tblname $exitcode loadtime=$loadtime >>$runfile
@@ -304,7 +323,7 @@ if [ $compare != 0 -a $testresult = "PASS" ] ; then
                 echo `date` $d $result >>$runfile
             done
             if [ $testresult = "PASS" ] ; then
-                     # remove the dump files
+                # remove the dump files
                 rm -f $datadir/$dbname/dump*
             fi
         fi

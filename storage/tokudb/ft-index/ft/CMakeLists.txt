@@ -8,7 +8,7 @@ set_source_files_properties(
   PROPERTIES GENERATED TRUE)
 
 add_executable(logformat logformat.cc)
-target_link_libraries(logformat ${LIBTOKUPORTABILITY})
+target_link_libraries(logformat ${LIBTOKUPORTABILITY}_static)
 
 add_custom_command(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_code.cc"

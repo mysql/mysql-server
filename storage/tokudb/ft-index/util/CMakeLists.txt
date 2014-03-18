@@ -1,8 +1,11 @@
 set(util_srcs
+  context
+  frwlock
   kibbutz
   mempool
   partitioned_counter
   threadpool
+  scoped_malloc
   )
 
 add_library(util SHARED ${util_srcs})
@@ -19,6 +22,7 @@ if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
   install(
     FILES partitioned_counter.h
     DESTINATION include
+    COMPONENT tokukv_headers
     )
 endif ()
 

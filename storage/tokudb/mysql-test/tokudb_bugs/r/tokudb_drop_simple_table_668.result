@@ -1,15 +1,16 @@
+set default_storage_engine='tokudb';
 create table tc (id int, x int, primary key(id), key(x));
-select * from information_schema.tokudb_file_map;
-dictionary_name	internal_file_name	database	table	dictionary
-./test/ta-main	./_test_ta_main_8_17.tokudb	test	ta	main
-./test/ta-status	./_test_ta_status_7_17.tokudb	test	ta	status
-./test/tb-key-b	./_test_tb_key_b_e_17.tokudb	test	tb	key-b
-./test/tb-main	./_test_tb_main_d_17.tokudb	test	tb	main
-./test/tb-status	./_test_tb_status_c_17.tokudb	test	tb	status
-./test/tc-key-x	./_test_tc_key_x_12_3_18.tokudb	test	tc	key-x
-./test/tc-main	./_test_tc_main_12_2_18.tokudb	test	tc	main
-./test/tc-status	./_test_tc_status_12_1_18.tokudb	test	tc	status
-tokudb_meta	./tokudb_meta_3_17.tokudb			
+select dictionary_name from information_schema.tokudb_file_map;
+dictionary_name
+./test/ta-main
+./test/ta-status
+./test/tb-key-b
+./test/tb-main
+./test/tb-status
+./test/tc-key-x
+./test/tc-main
+./test/tc-status
+tokudb_meta
 drop table ta;
 select dictionary_name from information_schema.tokudb_file_map;
 dictionary_name

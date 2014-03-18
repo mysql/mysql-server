@@ -1,0 +1,91 @@
+# test case for Tokutek/ft-engine/issue/157
+# a bug in tokudb::index_next_same did not set table->status, so the
+# indexsubselect::exec function would assert.
+
+source include/have_tokudb.inc;
+source include/have_innodb.inc;
+
+disable_warnings;
+drop table if exists C, CC, D;
+enable_warnings;
+
+CREATE TABLE `C` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_key` (`col_varchar_key`)
+) ENGINE=InnoDB;
+
+INSERT INTO `C` VALUES (1,'v','v'),(2,'v','v'),(3,'c','c'),(4,NULL,NULL),(5,'x','x');
+
+CREATE TABLE `CC` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_key` (`col_varchar_key`)
+) ENGINE=InnoDB;
+
+INSERT INTO `CC` VALUES (10,'x','x');
+
+CREATE TABLE `D` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_key` (`col_varchar_key`)
+) ENGINE=InnoDB;
+
+INSERT INTO `D` VALUES (10,'u');
+
+SELECT
+  alias1.col_varchar_key, alias2.col_varchar_key
+ FROM
+  (CC AS alias1
+     INNER JOIN D AS alias2
+     ON (alias2.pk = alias1.pk))
+ WHERE
+  alias2.col_varchar_key NOT IN
+    (SELECT col_varchar_key
+       FROM C
+       WHERE col_varchar_nokey = alias1.col_varchar_key);
+
+SELECT
+  alias1.col_varchar_key, alias2.col_varchar_key
+ FROM
+  (CC AS alias1
+     INNER JOIN D AS alias2
+     ON (alias2.pk = alias1.pk))
+ WHERE
+  alias2.col_varchar_key NOT IN
+    (SELECT col_varchar_key
+       FROM C FORCE INDEX(col_varchar_key)
+       WHERE col_varchar_nokey = alias1.col_varchar_key);
+
+alter table C engine=TokuDB;
+
+SELECT
+  alias1.col_varchar_key, alias2.col_varchar_key
+ FROM
+  (CC AS alias1
+     INNER JOIN D AS alias2
+     ON (alias2.pk = alias1.pk))
+ WHERE
+  alias2.col_varchar_key NOT IN
+    (SELECT col_varchar_key
+       FROM C
+       WHERE col_varchar_nokey = alias1.col_varchar_key);
+
+SELECT
+  alias1.col_varchar_key, alias2.col_varchar_key
+ FROM
+  (CC AS alias1
+     INNER JOIN D AS alias2
+     ON (alias2.pk = alias1.pk))
+ WHERE
+  alias2.col_varchar_key NOT IN
+    (SELECT col_varchar_key
+       FROM C FORCE INDEX(col_varchar_key)
+       WHERE col_varchar_nokey = alias1.col_varchar_key);
+
+drop table if exists C, CC, D;

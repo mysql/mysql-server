@@ -111,6 +111,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2013 Tokutek Inc.  All r
 #include <sys/types.h>
 
 #include <util/status.h>
+#include <util/context.h>
 
 #include <ft/ft-flusher.h>
 #include <ft/cachetable.h>
@@ -365,8 +366,8 @@ env_fs_init(DB_ENV *env) {
 static int
 env_fs_init_minicron(DB_ENV *env) {
     int r = toku_minicron_setup(&env->i->fs_poller, env->i->fs_poll_time*1000, env_fs_poller, env); 
-    assert(r == 0);
-    env->i->fs_poller_is_init = true;
+    if (r == 0)
+        env->i->fs_poller_is_init = true;
     return r;
 }
 
@@ -402,11 +403,12 @@ env_change_fsync_log_period(DB_ENV* env, uint32_t period_ms) {
     }
 }
 
-static void
+static int
 env_fsync_log_cron_init(DB_ENV *env) {
     int r = toku_minicron_setup(&env->i->fsync_log_cron, env->i->fsync_log_period_ms, env_fsync_log_on_minicron, env);
-    assert(r == 0);
-    env->i->fsync_log_cron_is_init = true;
+    if (r == 0)
+        env->i->fsync_log_cron_is_init = true;
+    return r;
 }
 
 static void
@@ -994,7 +996,11 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
 
     if (env->i->cachetable==NULL) {
         // If we ran recovery then the cachetable should be set here.
-        toku_cachetable_create(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
+        r = toku_cachetable_create(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
+        if (r != 0) {
+            r = toku_ydb_do_error(env, r, "Cant create a cachetable\n");
+            goto cleanup;
+        }
     }
 
     toku_cachetable_set_env_dir(env->i->cachetable, env->i->dir);
@@ -1009,7 +1015,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
             bool create_new_rollback_file = newenv | upgrade_in_progress;
             r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
             if (r != 0) {
-                r = toku_ydb_do_error(env, r, "cant open rollback");
+                r = toku_ydb_do_error(env, r, "Cant open rollback\n");
                 goto cleanup;
             }
         }
@@ -1027,7 +1033,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         assert_zero(r);
         r = toku_db_open_iname(env->i->persistent_environment, txn, toku_product_name_strings.environmentdictionary, DB_CREATE, mode);
         if (r != 0) {
-            r = toku_ydb_do_error(env, r, "cant open persistent env");
+            r = toku_ydb_do_error(env, r, "Cant open persistent env\n");
             goto cleanup;
         }
         if (newenv) {
@@ -1065,20 +1071,29 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         assert_zero(r);
         r = toku_db_open_iname(env->i->directory, txn, toku_product_name_strings.fileopsdirectory, DB_CREATE, mode);
         if (r != 0) {
-            r = toku_ydb_do_error(env, r, "cant open %s", toku_product_name_strings.fileopsdirectory);
+            r = toku_ydb_do_error(env, r, "Cant open %s\n", toku_product_name_strings.fileopsdirectory);
             goto cleanup;
         }
     }
     if (using_txns) {
         r = locked_txn_commit(txn, 0);
         assert_zero(r);
+        txn = NULL;
     }
     cp = toku_cachetable_get_checkpointer(env->i->cachetable);
     r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, STARTUP_CHECKPOINT);
     assert_zero(r);
     env_fs_poller(env);          // get the file system state at startup
-    env_fs_init_minicron(env);
-    env_fsync_log_cron_init(env);
+    r = env_fs_init_minicron(env);
+    if (r != 0) {
+        r = toku_ydb_do_error(env, r, "Cant create fs minicron\n");
+        goto cleanup;
+    }
+    r = env_fsync_log_cron_init(env);
+    if (r != 0) {
+        r = toku_ydb_do_error(env, r, "Cant create fsync log minicron\n");
+        goto cleanup;
+    }
 cleanup:
     if (r!=0) {
         if (txn) {
@@ -1708,15 +1723,17 @@ env_set_redzone(DB_ENV *env, int redzone) {
     return r;
 }
 
-static int
-env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
-    *lock_timeout_msec = env->i->ltm.get_lock_wait_time();
+static int env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
+    uint64_t t = env->i->default_lock_timeout_msec;
+    if (env->i->get_lock_timeout_callback)
+        t = env->i->get_lock_timeout_callback(t);
+    *lock_timeout_msec = t;
     return 0;
 }
 
-static int
-env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_msec) {
-    env->i->ltm.set_lock_wait_time(lock_timeout_msec);
+static int env_set_lock_timeout(DB_ENV *env, uint64_t default_lock_timeout_msec, uint64_t (*get_lock_timeout_callback)(uint64_t default_lock_timeout_msec)) {
+    env->i->default_lock_timeout_msec = default_lock_timeout_msec;
+    env->i->get_lock_timeout_callback = get_lock_timeout_callback;
     return 0;
 }
 
@@ -1900,6 +1917,7 @@ env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
     num_rows += FS_STATUS_NUM_ROWS;
     num_rows += INDEXER_STATUS_NUM_ROWS;
     num_rows += LOADER_STATUS_NUM_ROWS;
+    num_rows += CTX_STATUS_NUM_ROWS;
 #if 0
     // enable when upgrade is supported
     num_rows += FT_UPGRADE_STATUS_NUM_ROWS;
@@ -2083,6 +2101,15 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             for (int i = 0; i < FS_STATUS_NUM_ROWS && row < maxrows; i++) {
                 if (fsstat.status[i].include & include_flags) {
                     engstat[row++] = fsstat.status[i];
+                }
+            }
+        }
+        {
+            struct context_status ctxstatus;
+            toku_context_get_status(&ctxstatus);
+            for (int i = 0; i < CTX_STATUS_NUM_ROWS && row < maxrows; i++) {
+                if (ctxstatus.status[i].include & include_flags) {
+                    engstat[row++] = ctxstatus.status[i];
                 }
             }
         }
@@ -2416,12 +2443,21 @@ env_iterate_live_transactions(DB_ENV *env,
     return toku_txn_manager_iter_over_live_root_txns(txn_manager, iter_txns_callback, &e);
 }
 
-static void env_set_loader_memory_size(DB_ENV *env, uint64_t loader_memory_size) {
-    env->i->loader_memory_size = loader_memory_size;
+static void env_set_loader_memory_size(DB_ENV *env, uint64_t (*get_loader_memory_size_callback)(void)) {
+    env->i->get_loader_memory_size_callback = get_loader_memory_size_callback;
 }
 
 static uint64_t env_get_loader_memory_size(DB_ENV *env) {
-    return env->i->loader_memory_size;
+    uint64_t memory_size = 0;
+    if (env->i->get_loader_memory_size_callback)
+        memory_size = env->i->get_loader_memory_size_callback();
+    return memory_size;
+}
+
+static void env_set_killed_callback(DB_ENV *env, uint64_t default_killed_time_msec, uint64_t (*get_killed_time_callback)(uint64_t default_killed_time_msec), int (*killed_callback)(void)) {
+    env->i->default_killed_time_msec = default_killed_time_msec;
+    env->i->get_killed_time_callback = get_killed_time_callback;
+    env->i->killed_callback = killed_callback;
 }
 
 static int 
@@ -2499,6 +2535,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     USENV(change_fsync_log_period);
     USENV(set_loader_memory_size);
     USENV(get_loader_memory_size);
+    USENV(set_killed_callback);
 #undef USENV
     
     // unlocked methods

@@ -1,9 +1,4 @@
-if (`select @@tokudb_version <= "7.1.0"`)
-{
-  --skip Not fixed in TokuDB 7.1.0 or earlier
-}
-
-#--source include/have_tokudb.inc
+--source include/have_tokudb.inc
 SET DEFAULT_STORAGE_ENGINE='tokudb';
 #
 # Bug #22169: Crash with count(distinct)
@@ -30,7 +25,7 @@ while ($1)
 }
 
 insert into t1 values (5,52,18,5,5,5,2,5,5);
---error ER_DUP_KEY
+--error ER_DUP_ENTRY
 create unique index foo on t1 (c,r);
 
 

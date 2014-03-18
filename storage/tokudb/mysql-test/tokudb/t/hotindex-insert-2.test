@@ -1,5 +1,6 @@
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
+source include/have_tokudb.inc;
 # test that deletes work when hot indexing is on with replace into optimization
 # test is checking #3406
 

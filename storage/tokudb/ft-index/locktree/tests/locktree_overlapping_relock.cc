@@ -121,15 +121,15 @@ void locktree_unit_test::test_overlapping_relock(void) {
     // do something. at the end of the test, we release 100, 100.
     const TXNID the_other_txnid = 9999;
     const DBT *hundred = get_dbt(100);
-    r = lt->acquire_write_lock(the_other_txnid, hundred, hundred, nullptr);
+    r = lt->acquire_write_lock(the_other_txnid, hundred, hundred, nullptr, false);
     invariant(r == 0);
 
     for (int test_run = 0; test_run < 2; test_run++) {
         // test_run == 0 means test with read lock
         // test_run == 1 means test with write lock
 #define ACQUIRE_LOCK(txn, left, right, conflicts) \
-        test_run == 0 ? lt->acquire_read_lock(txn, left, right, conflicts) \
-                      : lt->acquire_write_lock(txn, left, right, conflicts)
+        test_run == 0 ? lt->acquire_read_lock(txn, left, right, conflicts, false) \
+            : lt->acquire_write_lock(txn, left, right, conflicts, false)
 
         // lock [1,1] and [2,2]. then lock [1,2].
         // ensure only [1,2] exists in the tree

@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # Tokutek
 # Test that replace into and insert ignore insertions 
 # work under various index schemas. 

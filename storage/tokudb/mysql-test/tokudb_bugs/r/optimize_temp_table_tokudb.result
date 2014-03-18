@@ -1,0 +1,6 @@
+drop table if exists t;
+create temporary table t (x int) engine=tokudb;
+optimize table t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	status	OK
+drop table t;

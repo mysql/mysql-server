@@ -15,3 +15,8 @@ hcr_text: No online ALTER in MariaDB 5.5
 hcr_time: No online ALTER in MariaDB 5.5
 hot_row_format_alter: No online ALTER in MariaDB 5.5
 other_alter: No online ALTER in MariaDB 5.5
+null_bytes_add_key:No online ALTER in MariaDB 5.5
+null_bytes_col_rename:No online ALTER in MariaDB 5.5
+null_bytes_drop_default:No online ALTER in MariaDB 5.5
+null_bytes_drop_key:No online ALTER in MariaDB 5.5
+mod_enum: No online ALTER in MariaDB 5.5

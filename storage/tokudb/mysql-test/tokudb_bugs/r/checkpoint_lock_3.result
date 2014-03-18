@@ -1,15 +1,15 @@
 SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 # Establish connection conn1 (user = root)
-select DB, command, state, info from information_schema.processlist where id!= connection_id();
+select DB, command, state, info from information_schema.processlist where id != connection_id();
 DB	command	state	info
 test	Sleep		NULL
 flush logs;
-select DB, command, state, info from information_schema.processlist where id!= connection_id();
+select DB, command, state, info from information_schema.processlist where id != connection_id();
 DB	command	state	info
 test	Sleep		NULL
 set tokudb_checkpoint_lock=1;
 flush logs;;
-select DB, command, state, info from information_schema.processlist where id!= connection_id();
+select DB, command, state, info from information_schema.processlist where id != connection_id();
 DB	command	state	info
 test	Sleep		NULL
 set tokudb_checkpoint_lock=0;

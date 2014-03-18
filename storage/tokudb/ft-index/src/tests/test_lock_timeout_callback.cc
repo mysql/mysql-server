@@ -149,7 +149,7 @@ int test_main(int UU(argc), char *const UU(argv[])) {
 
     r = db_env_create(&env, 0); CKERR(r);
     r = env->open(env, TOKU_TEST_FILENAME, env_flags, 0755); CKERR(r);
-    r = env->set_lock_timeout(env, 1000);
+    r = env->set_lock_timeout(env, 1000, nullptr);
     r = env->set_lock_timeout_callback(env, lock_not_granted);
 
     r = db_create(&db, env, 0); CKERR(r);

@@ -157,11 +157,12 @@ function parse_mysqlbuild() {
         else
             git_tag=HEAD
             # setup _tree defaults
-            if [ -z $mysql_tree ] ; then mysql_tree=$mysql_version; fi
+            if [ -z $mysql_tree ] ; then mysql_tree=$mysql_distro-$mysql_version; fi
             if [ -z $jemalloc_tree ] ; then jemalloc_tree=$jemalloc_version; fi
         fi
-        # 5.6 is temp in  another repo
-        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_distro=mysql56; fi
+        mysql_repo=$mysql_distro
+        # 5.6 is in another repo
+        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_repo=mysql56; fi
     else
         exitcode=1
     fi
@@ -174,7 +175,8 @@ function parse_mysql() {
     if [[ $mysql =~ ^(mysql|mariadb)-(.*)$ ]] ; then
         mysql_distro=${BASH_REMATCH[1]}
         mysql_version=${BASH_REMATCH[2]}
-        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_distro=mysql56; fi
+        mysql_repo=$mysql_distro
+        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_repo=mysql56; fi
         exitcode=0
     else
         exitcode=1

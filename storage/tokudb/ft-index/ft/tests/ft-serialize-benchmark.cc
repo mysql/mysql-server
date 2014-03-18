@@ -189,7 +189,8 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     brt_h->compare_fun = long_key_cmp;
@@ -319,7 +320,8 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     brt_h->compare_fun = long_key_cmp;

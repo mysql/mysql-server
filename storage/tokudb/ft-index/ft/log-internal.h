@@ -177,6 +177,7 @@ struct tokulogger {
     uint64_t num_writes_to_disk;         // how many times did we write to disk?
     uint64_t bytes_written_to_disk;        // how many bytes have been written to disk?
     tokutime_t time_spent_writing_to_disk; // how much tokutime did we spend writing to disk?
+    uint64_t num_wait_buf_long;            // how many times we waited >= 100ms for the in buf
 
     void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
     void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
@@ -209,15 +210,12 @@ struct txn_roll_info {
     // the spilled rollback head is the block number of the first rollback node
     // that makes up the rollback log chain
     BLOCKNUM spilled_rollback_head;
-    uint32_t spilled_rollback_head_hash;
     // the spilled rollback is the block number of the last rollback node that
     // makes up the rollback log chain. 
     BLOCKNUM spilled_rollback_tail;
-    uint32_t spilled_rollback_tail_hash;
     // the current rollback node block number we may use. if this is ROLLBACK_NONE,
     // then we need to create one and set it here before using it.
     BLOCKNUM current_rollback; 
-    uint32_t current_rollback_hash;
 };
 
 struct tokutxn {
@@ -249,7 +247,6 @@ struct tokutxn {
     DB_TXN *container_db_txn; // reference to DB_TXN that contains this tokutxn
     xid_omt_t *live_root_txn_list; // the root txns live when the root ancestor (self if a root) started.
     XIDS xids; // Represents the xid list
-    TXNID oldest_referenced_xid;
 
     TOKUTXN snapshot_next;
     TOKUTXN snapshot_prev;

@@ -107,6 +107,7 @@ PATENT RIGHTS GRANT:
 #include "indexer.h"
 #include <portability/toku_atomic.h>
 #include <util/status.h>
+#include <ft/le-cursor.h>
 
 static YDB_DB_LAYER_STATUS_S ydb_db_layer_status;
 #ifdef STATUS_VALUE
@@ -688,6 +689,29 @@ toku_db_get_compression_method(DB *db, enum toku_compression_method *compression
     return 0;
 }
 
+static int 
+toku_db_change_fanout(DB *db, unsigned int fanout) {
+    HANDLE_PANICKED_DB(db);
+    if (!db_opened(db)) return EINVAL;
+    toku_ft_handle_set_fanout(db->i->ft_handle, fanout);
+    return 0;
+}
+
+static int 
+toku_db_set_fanout(DB *db, unsigned int fanout) {
+    HANDLE_PANICKED_DB(db);
+    if (db_opened(db)) return EINVAL;
+    toku_ft_handle_set_fanout(db->i->ft_handle, fanout);
+    return 0;
+}
+
+static int 
+toku_db_get_fanout(DB *db, unsigned int *fanout) {
+    HANDLE_PANICKED_DB(db);
+    toku_ft_handle_get_fanout(db->i->ft_handle, fanout);
+    return 0;
+}
+
 static int
 toku_db_get_fractal_tree_info64(DB *db, uint64_t *num_blocks_allocated, uint64_t *num_blocks_in_use, uint64_t *size_allocated, uint64_t *size_in_use) {
     HANDLE_PANICKED_DB(db);
@@ -898,13 +922,13 @@ toku_db_optimize(DB *db) {
 static int
 toku_db_hot_optimize(DB *db, DBT* left, DBT* right,
                      int (*progress_callback)(void *extra, float progress),
-                     void *progress_extra)
+                     void *progress_extra, uint64_t* loops_run)
 {
     HANDLE_PANICKED_DB(db);
     int r = 0;
     r = toku_ft_hot_optimize(db->i->ft_handle, left, right,
                               progress_callback,
-                              progress_extra);
+                              progress_extra, loops_run);
 
     return r;
 }
@@ -917,6 +941,55 @@ locked_db_optimize(DB *db) {
     int r = toku_db_optimize(db);
     toku_multi_operation_client_unlock();
     return r;
+}
+
+
+struct last_key_extra {
+    YDB_CALLBACK_FUNCTION func;
+    void* extra;
+};
+
+static int
+db_get_last_key_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen UU(), bytevec val UU(), void *extra, bool lock_only) {
+    if (!lock_only) {
+        DBT keydbt;
+        toku_fill_dbt(&keydbt, key, keylen);
+        struct last_key_extra * CAST_FROM_VOIDP(info, extra);
+        info->func(&keydbt, NULL, info->extra);
+    }
+    return 0;
+}
+
+static int
+toku_db_get_last_key(DB * db, DB_TXN *txn, YDB_CALLBACK_FUNCTION func, void* extra) {
+    int r;
+    LE_CURSOR cursor = nullptr;
+    struct last_key_extra last_extra = { .func = func, .extra = extra };
+
+    r = toku_le_cursor_create(&cursor, db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
+    if (r != 0) { goto cleanup; }
+
+    // Goes in reverse order.  First key returned is last in dictionary.
+    r = toku_le_cursor_next(cursor, db_get_last_key_callback, &last_extra);
+    if (r != 0) { goto cleanup; }
+
+cleanup:
+    if (cursor) {
+        toku_le_cursor_close(cursor);
+    }
+    return r;
+}
+
+static int
+autotxn_db_get_last_key(DB* db, YDB_CALLBACK_FUNCTION func, void* extra) {
+    bool changed; int r;
+    DB_TXN *txn = nullptr;
+    // Cursors inside require transactions, but this is _not_ a transactional function.
+    // Create transaction in a wrapper and then later close it.
+    r = toku_db_construct_autotxn(db, &txn, &changed, false);
+    if (r!=0) return r;
+    r = toku_db_get_last_key(db, txn, func, extra);
+    return toku_db_destruct_autotxn(txn, r, changed);
 }
 
 static int
@@ -1034,6 +1107,9 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     USDB(set_compression_method);
     USDB(get_compression_method);
     USDB(change_compression_method);
+    USDB(set_fanout);
+    USDB(get_fanout);
+    USDB(change_fanout);
     USDB(set_flags);
     USDB(get_flags);
     USDB(fd);
@@ -1061,6 +1137,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
     result->update = autotxn_db_update;
     result->update_broadcast = autotxn_db_update_broadcast;
     result->change_descriptor = autotxn_db_change_descriptor;
+    result->get_last_key = autotxn_db_get_last_key;
     
     // unlocked methods
     result->get = autotxn_db_get;

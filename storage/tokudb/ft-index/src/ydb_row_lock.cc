@@ -231,10 +231,8 @@ void toku_db_txn_escalate_callback(TXNID txnid, const toku::locktree *lt, const 
 // Return when the range lock is acquired or the default lock tree timeout has expired.  
 int toku_db_get_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key,
         toku::lock_request::type lock_type) {
-    uint64_t wait_time = txn->mgrp->i->ltm.get_lock_wait_time();
     toku::lock_request request;
-    request.create(wait_time);
-
+    request.create();
     int r = toku_db_start_range_lock(db, txn, left_key, right_key, lock_type, &request);
     if (r == DB_LOCK_NOTGRANTED) {
         r = toku_db_wait_range_lock(db, txn, &request);
@@ -249,7 +247,7 @@ int toku_db_start_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT
         toku::lock_request::type lock_type, toku::lock_request *request) {
     DB_TXN *txn_anc = txn_oldest_ancester(txn);
     TXNID txn_anc_id = txn_anc->id64(txn_anc);
-    request->set(db->i->lt, txn_anc_id, left_key, right_key, lock_type);
+    request->set(db->i->lt, txn_anc_id, left_key, right_key, lock_type, toku_is_big_txn(txn_anc));
 
     const int r = request->start();
     if (r == 0) {
@@ -270,8 +268,14 @@ int toku_db_wait_range_lock(DB *db, DB_TXN *txn, toku::lock_request *request) {
     DB_TXN *txn_anc = txn_oldest_ancester(txn);
     const DBT *left_key = request->get_left_key();
     const DBT *right_key = request->get_right_key();
-
-    const int r = request->wait();
+    DB_ENV *env = db->dbenv;
+    uint64_t wait_time_msec = env->i->default_lock_timeout_msec;
+    if (env->i->get_lock_timeout_callback)
+        wait_time_msec = env->i->get_lock_timeout_callback(wait_time_msec);
+    uint64_t killed_time_msec = env->i->default_killed_time_msec;
+    if (env->i->get_killed_time_callback)
+        killed_time_msec = env->i->get_killed_time_callback(killed_time_msec);
+    const int r = request->wait(wait_time_msec, killed_time_msec, env->i->killed_callback);
     if (r == 0) {
         db_txn_note_row_lock(db, txn_anc, left_key, right_key);
     } else if (r == DB_LOCK_NOTGRANTED) {
@@ -296,11 +300,9 @@ void toku_db_grab_write_lock (DB *db, DBT *key, TOKUTXN tokutxn) {
     TXNID txn_anc_id = txn_anc->id64(txn_anc);
 
     // This lock request must succeed, so we do not want to wait
-    const uint64_t lock_wait_time = 0;
     toku::lock_request request;
-
-    request.create(lock_wait_time);
-    request.set(db->i->lt, txn_anc_id, key, key, toku::lock_request::type::WRITE);
+    request.create();
+    request.set(db->i->lt, txn_anc_id, key, key, toku::lock_request::type::WRITE, toku_is_big_txn(txn_anc));
     int r = request.start();
     invariant_zero(r);
     db_txn_note_row_lock(db, txn_anc, key, key);

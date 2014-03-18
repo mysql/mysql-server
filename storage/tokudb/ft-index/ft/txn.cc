@@ -239,7 +239,6 @@ toku_txn_begin_with_xid (
         }
         else {
             parent->child_manager->start_child_txn_for_recovery(txn, parent, xid);
-            txn->oldest_referenced_xid = parent->oldest_referenced_xid;
         }
     }
     else {
@@ -255,7 +254,6 @@ toku_txn_begin_with_xid (
         }
         else {
             parent->child_manager->start_child_txn(txn, parent);
-            txn->oldest_referenced_xid = parent->oldest_referenced_xid;
             toku_txn_manager_handle_snapshot_create_for_child_txn(
                 txn, 
                 logger->txn_manager, 
@@ -308,11 +306,8 @@ static void toku_txn_create_txn (
         .num_rollentries_processed = 0,
         .rollentry_raw_count = 0,
         .spilled_rollback_head = ROLLBACK_NONE,
-        .spilled_rollback_head_hash = 0,
         .spilled_rollback_tail = ROLLBACK_NONE,
-        .spilled_rollback_tail_hash = 0,
         .current_rollback = ROLLBACK_NONE,
-        .current_rollback_hash = 0,
     };
 
 static txn_child_manager tcm;
@@ -330,7 +325,6 @@ static txn_child_manager tcm;
         .container_db_txn = container_db_txn,
         .live_root_txn_list = nullptr,
         .xids = NULL,
-        .oldest_referenced_xid = TXNID_NONE,
         .snapshot_next = NULL,
         .snapshot_prev = NULL,
         .begin_was_logged = false,
@@ -405,17 +399,9 @@ toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
     txn->roll_info.num_rollback_nodes = info->num_rollback_nodes;
     txn->roll_info.num_rollentries = info->num_rollentries;
 
-    CACHEFILE rollback_cachefile = txn->logger->rollback_cachefile;
-
     txn->roll_info.spilled_rollback_head = info->spilled_rollback_head;
-    txn->roll_info.spilled_rollback_head_hash = toku_cachetable_hash(rollback_cachefile,
-                                                           txn->roll_info.spilled_rollback_head);
     txn->roll_info.spilled_rollback_tail = info->spilled_rollback_tail;
-    txn->roll_info.spilled_rollback_tail_hash = toku_cachetable_hash(rollback_cachefile,
-                                                           txn->roll_info.spilled_rollback_tail);
     txn->roll_info.current_rollback = info->current_rollback;
-    txn->roll_info.current_rollback_hash = toku_cachetable_hash(rollback_cachefile,
-                                                      txn->roll_info.current_rollback);
     return 0;
 }
 

@@ -105,7 +105,7 @@ void bn_data::init_zero() {
 
 void bn_data::initialize_empty() {
     toku_mempool_zero(&m_buffer_mempool);
-    m_buffer.create();
+    m_buffer.create_no_array();
 }
 
 void bn_data::initialize_from_data(uint32_t num_entries, unsigned char *buf, uint32_t data_size) {
@@ -230,11 +230,11 @@ static int move_it (const KLPAIR &klpair, const uint32_t idx, struct omt_compres
 // Compress things, and grow the mempool if needed.
 void bn_data::omt_compress_kvspace(size_t added_size, void **maybe_free) {
     uint32_t total_size_needed = toku_mempool_get_used_space(&m_buffer_mempool) + added_size;
-    if (total_size_needed+total_size_needed >= m_buffer_mempool.size) {
-        m_buffer_mempool.size = total_size_needed+total_size_needed;
-    }
+    // set the new mempool size to be twice of the space we actually need.
+    // On top of the 25% that is padded within toku_mempool_construct (which we
+    // should consider getting rid of), that should be good enough.
     struct mempool new_kvspace;
-    toku_mempool_construct(&new_kvspace, m_buffer_mempool.size);
+    toku_mempool_construct(&new_kvspace, 2*total_size_needed);
     uint32_t numvals = omt_size();
     KLPAIR *XMALLOC_N(numvals, newvals);
     struct omt_compressor_state oc = { &new_kvspace, newvals };

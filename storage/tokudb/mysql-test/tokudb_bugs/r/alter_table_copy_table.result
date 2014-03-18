@@ -1,0 +1,8 @@
+drop table if exists t;
+set tokudb_disable_hot_alter=ON;
+set default_storage_engine=tokudb;
+create table t (id int, x char(2), primary key (id), unique key (x));
+insert into t values (1,'aa'),(2,'ab');
+alter table t modify x char(1);
+ERROR 23000: Duplicate entry 'a' for key 'x'
+drop table t;

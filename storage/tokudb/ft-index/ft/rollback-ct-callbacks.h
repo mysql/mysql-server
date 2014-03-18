@@ -107,10 +107,11 @@ void toku_rollback_pe_est_callback(
     );
 int toku_rollback_pe_callback (
     void *rollback_v, 
-    PAIR_ATTR UU(old_attr), 
-    PAIR_ATTR* new_attr, 
-    void* UU(extraargs)
-    ) ;
+    PAIR_ATTR old_attr, 
+    void* UU(extraargs),
+    void (*finalize)(PAIR_ATTR new_attr, void * extra),
+    void *finalize_extra
+    );
 bool toku_rollback_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) ;
 int toku_rollback_pf_callback(void* UU(ftnode_pv),  void* UU(disk_data), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep));
 void toku_rollback_clone_callback(void* value_data, void** cloned_value_data, long* clone_size, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);

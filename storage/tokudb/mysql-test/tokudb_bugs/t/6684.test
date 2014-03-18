@@ -1,3 +1,4 @@
+--source include/have_tokudb.inc
 use test;
 
 drop table if exists site;

@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that varchar changed with column rename work
 
 --disable_warnings
