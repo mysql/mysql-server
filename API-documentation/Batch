@@ -331,10 +331,10 @@ save(String tableName, Object values, [callback], [...]);
 isBatch();
 
 /** How many operations are currently defined in this batch?
- * @return current size of batch
+ * @return number of operations in batch
  * IMMEDIATE
  */
-getSize();
+getOperationCount();
 
 /** execute()
  * ASYNC
