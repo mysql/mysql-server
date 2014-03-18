@@ -31,6 +31,7 @@ void Dbtup::execSEND_PACKED(Signal* signal)
   Uint16 hostId;
   Uint32 i;
   Uint32 TpackedListIndex= cpackedListIndex;
+  bool present = false;
   jamEntry();
   for (i= 0; i < TpackedListIndex; i++) {
     jam();
@@ -39,6 +40,26 @@ void Dbtup::execSEND_PACKED(Signal* signal)
     Uint32 TpacketTA= hostBuffer[hostId].noOfPacketsTA;
     if (TpacketTA != 0) {
       jam();
+
+      if (ERROR_INSERTED(4037))
+      {
+        /* Delay a SEND_PACKED signal for 10 calls to execSEND_PACKED */
+        jam();
+        if (!present)
+        {
+          /* First valid packed data in this pass */
+          jam();
+          present = true;
+          cerrorPackedDelay++;
+          
+          if ((cerrorPackedDelay % 10) != 0)
+          {
+            /* Skip it */
+            jam();
+            return;
+          }
+        }
+      }
       BlockReference TBref= numberToRef(API_PACKED, hostId);
       Uint32 TpacketLen= hostBuffer[hostId].packetLenTA;
       MEMCOPY_NO_WORDS(&signal->theData[0],
@@ -298,7 +319,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       LinearSectionPtr ptr[3];
       ptr[0].p= &signal->theData[3];
       ptr[0].sz= ToutBufIndex;
-      if (ERROR_INSERTED(4035))
+      if (ERROR_INSERTED(4038))
       {
         /* Copy data to Seg-section for delayed send */
         Uint32 sectionIVal = RNIL;

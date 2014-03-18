@@ -3522,9 +3522,9 @@ int runTryGetEvent(NDBT_Context* ctx, NDBT_Step* step)
         return NDBT_FAILED;
       }
       g_err << "Got event successfully" << endl;
-      g_err << "Inserting errors 8101 + 4035" << endl;
-      restarter.insertErrorInAllNodes(8101);
-      restarter.insertErrorInAllNodes(4035);      
+      g_err << "Inserting errors 8107 + 4038" << endl;
+      restarter.insertErrorInAllNodes(8107);
+      restarter.insertErrorInAllNodes(4038);      
     }
     else
     {

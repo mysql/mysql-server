@@ -1016,6 +1016,11 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
   tCon = theTransactionList;
   theRemainingStartTransactions++;
   
+  DBUG_EXECUTE_IF("ndb_delay_close_txn", {
+    fprintf(stderr, "Ndb::closeTransaction() (%p) taking a break\n", this);
+    NdbSleep_MilliSleep(1000);
+    fprintf(stderr, "Ndb::closeTransaction() resuming\n");
+  });
   DBUG_PRINT("info",("close trans: 0x%lx  transid: 0x%lx",
                      (long) aConnection,
                      (long) aConnection->getTransactionId()));
