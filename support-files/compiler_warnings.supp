@@ -49,7 +49,7 @@ ibuf/ibuf0ibuf.c: null argument where non-null required: 700-1000
 fsp0fsp\.c: result of 32-bit shift implicitly converted to 64 bits
 log/log0log\.c : passing arg 1 of `atomic_add_64_nv' from incompatible pointer type
 log/log0online\.c : passing arg 1 of `atomic_add_64_nv' from incompatible pointer type
-buf/buf0buf\.c : warning: label ~loop2~ defined but not used
+buf/buf0buf\.c : warning: label.*loop2.* defined but not used
 
 #
 # bdb is not critical to keep up to date
