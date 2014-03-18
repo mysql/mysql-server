@@ -306,7 +306,7 @@ parse_size(const char * src)
 {
   Uint64 num = 0;
   char * endptr = 0;
-  num = strtoll(src, &endptr, 10);
+  num = my_strtoll(src, &endptr, 10);
 
   if (endptr)
   {
