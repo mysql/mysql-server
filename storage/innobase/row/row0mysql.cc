@@ -1916,13 +1916,45 @@ row_delete_for_mysql_using_cursor(
 		entry = row_build_index_entry(
 			node->row, node->ext, index, heap);
 
-		btr_pcur_t		pcur;
-		rec_t*			rec;
+		btr_pcur_t	pcur;
+		rec_t*		rec;
+		int		ret;
+		buf_block_t*	block;
+		ulint           offsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*          offsets         = offsets_;
+		rec_offs_init(offsets_);
 
-		btr_pcur_open(index, entry, PAGE_CUR_LE,
+		/* Locate the cursor just to starting series of record
+		that we are interested in. For intrinsic table there
+		is no inplace update and so 2 same entries except one
+		with delete-marked flag set can occur in consective
+		fashion and so this logic of traversal. */
+		btr_pcur_open(index, entry, PAGE_CUR_L,
 			      BTR_MODIFY_LEAF, &pcur, &mtr);
 
-		rec = btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur));
+		do {
+			ut_a(btr_pcur_move_to_next(&pcur, &mtr));
+
+			rec = btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur));
+
+			while (page_rec_is_infimum(rec)
+			    || page_rec_is_supremum(rec)) {
+				ut_a(btr_pcur_move_to_next(&pcur, &mtr));
+
+				rec = btr_cur_get_rec(
+					btr_pcur_get_btr_cur(&pcur));
+
+				block = btr_pcur_get_block(&pcur);
+				block->made_dirty_with_no_latch = true;
+			}
+
+			offsets = rec_get_offsets(
+				rec, index, offsets, ULINT_UNDEFINED, &heap);
+
+			ret = cmp_dtuple_rec(entry, rec, offsets);
+		} while (ret < 0);	
+
+		ut_ad(ret == 0);
 
 		/* For intrinsic table UPDATE are not done inplace
 		and so there cursor could be placed on delete-marked
@@ -1931,14 +1963,19 @@ row_delete_for_mysql_using_cursor(
 		while (rec_get_deleted_flag(
 			rec, dict_table_is_comp(index->table))) {
 
-			ut_a(btr_pcur_move_to_prev(&pcur, &mtr));
+			ut_a(btr_pcur_move_to_next(&pcur, &mtr));
 			rec = btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur));
 
 			while (page_rec_is_infimum(rec)
 			       || page_rec_is_supremum(rec)) {
-				ut_a(btr_pcur_move_to_prev(&pcur, &mtr));
+
+				ut_a(btr_pcur_move_to_next(&pcur, &mtr));
+
 				rec = btr_cur_get_rec(
 					btr_pcur_get_btr_cur(&pcur));
+
+				block = btr_pcur_get_block(&pcur);
+				block->made_dirty_with_no_latch = true;
 			}
 
 #ifdef UNIV_DEBUG 
@@ -1956,6 +1993,8 @@ row_delete_for_mysql_using_cursor(
 		ut_ad(!rec_get_deleted_flag(
 			btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
 			dict_table_is_comp(index->table)));
+
+		ut_ad(btr_pcur_get_block(&pcur)->made_dirty_with_no_latch);
 
 		if (page_rec_is_infimum(btr_pcur_get_rec(&pcur))
 		    || page_rec_is_supremum(btr_pcur_get_rec(&pcur))) {
