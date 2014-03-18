@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # verify that trickle loads or bulk loads can not insert values > 32MB
 
 SET DEFAULT_STORAGE_ENGINE='tokudb';

@@ -3857,7 +3857,7 @@ public:
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *args)
   {
-    return arg->walk(processor, walk_subquery, args) ||
+    return (arg && arg->walk(processor, walk_subquery, args)) ||
       (this->*processor)(args);
   }
 

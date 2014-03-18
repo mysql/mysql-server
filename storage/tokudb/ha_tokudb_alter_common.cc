@@ -423,7 +423,7 @@ static uint32_t fill_dynamic_row_mutator(
                 pos++;
             }
         }
-        if (src_kc_info->field_lengths[curr_index] != 0) {
+        if (is_fixed_field(src_kc_info, curr_index)) {
             // we have a fixed field being dropped
             // store the offset and the number of bytes
             pos[0] = COL_FIXED;
@@ -446,7 +446,7 @@ static uint32_t fill_dynamic_row_mutator(
                 pos += num_bytes;
             }
         }
-        else if (src_kc_info->length_bytes[curr_index] != 0) {
+        else if (is_variable_field(src_kc_info, curr_index)) {
             pos[0] = COL_VAR;
             pos++;
             //store the index of the variable column
@@ -516,10 +516,7 @@ static uint32_t fill_dynamic_blob_row_mutator(
     for (uint32_t i = 0; i < num_columns; i++) {
         uint32_t curr_field_index = columns[i];
         Field* curr_field = src_table->field[curr_field_index];
-        if (src_kc_info->field_lengths[curr_field_index] == 0 && 
-            src_kc_info->length_bytes[curr_field_index]== 0
-            ) 
-        {
+        if (is_blob_field(src_kc_info, curr_field_index)) { 
             // find out which blob it is
             uint32_t blob_index = src_kc_info->num_blobs;
             for (uint32_t j = 0; j < src_kc_info->num_blobs; j++) {
@@ -547,10 +544,6 @@ static uint32_t fill_dynamic_blob_row_mutator(
                 pos += len_bytes;
             }
         }
-        else {
-            // not a blob, continue
-            continue;
-        }
     }
     return pos-buf;
 }
@@ -568,7 +561,7 @@ uint32_t ha_tokudb::fill_row_mutator(
     bool is_add
     ) 
 {
-    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
+    if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE) {
         printf("*****some info:*************\n");
         printf(
             "old things: num_null_bytes %d, num_offset_bytes %d, fixed_field_size %d, fixed_field_size %d\n",

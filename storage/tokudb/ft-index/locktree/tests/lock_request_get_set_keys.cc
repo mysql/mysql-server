@@ -98,8 +98,7 @@ namespace toku {
 // when appropriate and plays nice with +/- infinity.
 void lock_request_unit_test::test_get_set_keys(void) {
     lock_request request;
-    const uint64_t lock_wait_time = 10;
-    request.create(lock_wait_time);
+    request.create();
 
     locktree *const null_lt = nullptr;
 
@@ -112,20 +111,20 @@ void lock_request_unit_test::test_get_set_keys(void) {
 
     // request should not copy dbts for neg/pos inf, so get_left
     // and get_right should return the same pointer given
-    request.set(null_lt, txnid_a, neg_inf, pos_inf, lock_request::type::WRITE);
+    request.set(null_lt, txnid_a, neg_inf, pos_inf, lock_request::type::WRITE, false);
     invariant(request.get_left_key() == neg_inf);
     invariant(request.get_right_key() == pos_inf);
 
     // request should make copies of non-infinity-valued keys.
-    request.set(null_lt, txnid_a, neg_inf, one, lock_request::type::WRITE);
+    request.set(null_lt, txnid_a, neg_inf, one, lock_request::type::WRITE, false);
     invariant(request.get_left_key() == neg_inf);
     invariant(request.get_right_key() == one);
 
-    request.set(null_lt, txnid_a, two, pos_inf, lock_request::type::WRITE);
+    request.set(null_lt, txnid_a, two, pos_inf, lock_request::type::WRITE, false);
     invariant(request.get_left_key() == two);
     invariant(request.get_right_key() == pos_inf);
 
-    request.set(null_lt, txnid_a, one, two, lock_request::type::WRITE);
+    request.set(null_lt, txnid_a, one, two, lock_request::type::WRITE, false);
     invariant(request.get_left_key() == one);
     invariant(request.get_right_key() == two);
 

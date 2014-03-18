@@ -1939,6 +1939,17 @@ retry:
   DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
   for (TABLE_LIST *tl= table_list;;)
   {
+    if (tl &&
+        tl->select_lex && tl->select_lex->master_unit() &&
+        tl->select_lex->master_unit()->executed)
+    {
+      /*
+        There is no sense to check tables of already executed parts
+        of the query
+      */
+      tl= tl->next_global;
+      continue;
+    }
     /*
       Table is unique if it is present only once in the global list
       of tables and once in the list of table locks.

@@ -127,6 +127,10 @@ typedef struct hot_optimize_context {
 //
 class TOKUDB_SHARE {
 public:
+    void init(void);
+    void destroy(void);
+
+public:
     char *table_name;
     uint table_name_length, use_count;
     pthread_mutex_t mutex;
@@ -184,6 +188,11 @@ public:
     bool replace_into_fast;
     rw_lock_t num_DBs_lock;
     uint32_t num_DBs;
+
+    pthread_cond_t m_openclose_cond;
+    enum { CLOSED, OPENING, OPENED, CLOSING, ERROR } m_state;
+    int m_error;
+    int m_initialize_count;
 };
 
 typedef struct st_filter_key_part_info {
@@ -319,7 +328,6 @@ private:
     // transaction used by ha_tokudb's cursor
     //
     DB_TXN *transaction;
-    bool is_fast_alter_running;
 
     // external_lock will set this true for read operations that will be closely followed by write operations.
     bool use_write_locks; // use write locks for reads
@@ -348,6 +356,7 @@ private:
     //
     uint hidden_primary_key;
     bool key_read, using_ignore;
+    bool using_ignore_no_key;
 
     //
     // After a cursor encounters an error, the cursor will be unusable
@@ -443,10 +452,7 @@ private:
     int write_auto_inc_create(DB* db, ulonglong val, DB_TXN* txn);
     void init_auto_increment();
     bool can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_INFO* kc_info, uint pk);
-    int initialize_share(
-        const char* name,
-        int mode
-        );
+    int initialize_share(const char* name, int mode);
 
     void set_query_columns(uint keynr);
     int prelock_range (const key_range *start_key, const key_range *end_key);
@@ -597,12 +603,12 @@ public:
     THR_LOCK_DATA **store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type);
 
     int get_status(DB_TXN* trans);
-    void init_hidden_prim_key_info();
+    void init_hidden_prim_key_info(DB_TXN *txn);
     inline void get_auto_primary_key(uchar * to) {
-        pthread_mutex_lock(&share->mutex);
+        tokudb_pthread_mutex_lock(&share->mutex);
         share->auto_ident++;
         hpk_num_to_char(to, share->auto_ident);
-        pthread_mutex_unlock(&share->mutex);
+        tokudb_pthread_mutex_unlock(&share->mutex);
     }
     virtual void get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values);
     bool is_optimize_blocking();
@@ -752,8 +758,8 @@ public:
 private:
     int read_full_row(uchar * buf);
     int __close();
-    int get_next(uchar* buf, int direction, DBT* key_to_compare);
-    int read_data_from_range_query_buff(uchar* buf, bool need_val);
+    int get_next(uchar* buf, int direction, DBT* key_to_compare, bool do_key_read);
+    int read_data_from_range_query_buff(uchar* buf, bool need_val, bool do_key_read);
     // for ICP, only in MariaDB and MySQL 5.6
 #if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
     enum icp_result toku_handler_index_cond_check(Item* pushed_idx_cond);
@@ -776,11 +782,35 @@ private:
     bool check_upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values);
     int send_upsert_message(THD *thd, List<Item> &update_fields, List<Item> &update_values, DB_TXN *txn);
 #endif
+public:
+    // mysql sometimes retires a txn before a cursor that references the txn is closed.
+    // for example, commit is sometimes called before index_end.  the following methods
+    // put the handler on a list of handlers that get cleaned up when the txn is retired.
+    void cleanup_txn(DB_TXN *txn);
+private:
+    LIST trx_handler_list;
+    void add_to_trx_handler_list();
+    void remove_from_trx_handler_list();
+
+private:
+    int map_to_handler_error(int error);
 };
+
+#if defined(MARIADB_BASE_VERSION)
+struct ha_index_option_struct {
+    bool clustering;
+};
+
+static inline bool key_is_clustering(const KEY *key) {
+    return (key->flags & HA_CLUSTERING) || (key->option_struct && key->option_struct->clustering);
+}
+
+#else
 
 static inline bool key_is_clustering(const KEY *key) {
     return key->option_struct && key->option_struct->clustering;
 }
+#endif
 
 #endif
 

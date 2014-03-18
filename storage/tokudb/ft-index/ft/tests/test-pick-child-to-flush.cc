@@ -369,8 +369,7 @@ doit (void) {
     assert_zero(r);    
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     for (int i = 0; i < 20; i++) {
-        PAIR_ATTR attr;
-        toku_ftnode_pe_callback(node, make_pair_attr(0xffffffff), &attr, t->ft);
+        toku_ftnode_pe_callback(node, make_pair_attr(0xffffffff), t->ft, def_pe_finalize_impl, nullptr);
     }
     assert(BP_STATE(node,0) == PT_COMPRESSED);
     toku_unpin_ftnode(t->ft, node);

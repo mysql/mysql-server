@@ -122,7 +122,7 @@ uint32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct);
 // create and initialize a cache table
 // size_limit is the upper limit on the size of the size of the values in the table
 // pass 0 if you want the default
-void toku_cachetable_create(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER);
+int toku_cachetable_create(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER);
 
 // Create a new cachetable.
 // Effects: a new cachetable is created and initialized.
@@ -223,11 +223,15 @@ typedef void (*CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK)(void *ftnode_pv, void* 
 
 // The cachetable calls the partial eviction callback is to possibly try and partially evict pieces
 // of the PAIR. The callback determines the strategy for what to evict. The callback may choose to free
-// nothing, or may choose to free as much as possible.
-// old_attr is the PAIR_ATTR of the PAIR when the callback is called. 
-// new_attr is set to the new PAIR_ATTR after the callback executes partial eviction
-// Requires a write lock to be held on the PAIR in the cachetable while this function is called
-typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *ftnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *write_extraargs);
+// nothing, or may choose to free as much as possible. When the partial eviction callback is finished,
+// it must call finalize with the new PAIR_ATTR and the given finalize_extra. After this point, the
+// write lock will be released on the PAIR and it is no longer safe to operate on any of the passed arguments.
+// This is useful for doing expensive cleanup work outside of the PAIR's write lock (such as destroying objects, etc)
+//
+// on entry, requires a write lock to be held on the PAIR in the cachetable while this function is called
+// on exit, the finalize continuation is called
+typedef int (*CACHETABLE_PARTIAL_EVICTION_CALLBACK)(void *ftnode_pv, PAIR_ATTR old_attr, void *write_extraargs,
+                                                    void (*finalize)(PAIR_ATTR new_attr, void *extra), void *finalize_extra);
 
 // The cachetable calls this function to determine if get_and_pin call requires a partial fetch. If this function returns true, 
 // then the cachetable will subsequently call CACHETABLE_PARTIAL_FETCH_CALLBACK to perform

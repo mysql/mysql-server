@@ -260,8 +260,7 @@ doit (bool keep_other_bn_in_memory) {
     assert(node->n_children == 2);
     // a hack to get the basement nodes evicted
     for (int i = 0; i < 20; i++) {
-        PAIR_ATTR attr;
-        toku_ftnode_pe_callback(node, make_pair_attr(0xffffffff), &attr, brt->ft);
+        toku_ftnode_pe_callback(node, make_pair_attr(0xffffffff), brt->ft, def_pe_finalize_impl, nullptr);
     }
     // this ensures that when we do the lookups below,
     // that the data is read off disk

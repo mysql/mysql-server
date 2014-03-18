@@ -95,6 +95,7 @@ PATENT RIGHTS GRANT:
 #include <toku_pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <util/context.h>
 
 //TODO: update comment, this is from rwlock.h
 
@@ -106,24 +107,24 @@ public:
     void init(toku_mutex_t *const mutex);
     void deinit(void);
 
-    inline void write_lock(bool expensive);
-    inline bool try_write_lock(bool expensive);
-    inline void write_unlock(void);
+    void write_lock(bool expensive);
+    bool try_write_lock(bool expensive);
+    void write_unlock(void);
     // returns true if acquiring a write lock will be expensive
-    inline bool write_lock_is_expensive(void);
+    bool write_lock_is_expensive(void);
 
-    inline void read_lock(void);
-    inline bool try_read_lock(void);
-    inline void read_unlock(void);
+    void read_lock(void);
+    bool try_read_lock(void);
+    void read_unlock(void);
     // returns true if acquiring a read lock will be expensive
-    inline bool read_lock_is_expensive(void);
+    bool read_lock_is_expensive(void);
 
-    inline uint32_t users(void) const;
-    inline uint32_t blocked_users(void) const;
-    inline uint32_t writers(void) const;
-    inline uint32_t blocked_writers(void) const;
-    inline uint32_t readers(void) const;
-    inline uint32_t blocked_readers(void) const;
+    uint32_t users(void) const;
+    uint32_t blocked_users(void) const;
+    uint32_t writers(void) const;
+    uint32_t blocked_writers(void) const;
+    uint32_t readers(void) const;
+    uint32_t blocked_readers(void) const;
 
 private:
     struct queue_item {
@@ -131,11 +132,11 @@ private:
         struct queue_item *next;
     };
 
-    inline bool queue_is_empty(void) const;
-    inline void enq_item(queue_item *const item);
-    inline toku_cond_t *deq_item(void);
-    inline void maybe_signal_or_broadcast_next(void);
-    inline void maybe_signal_next_writer(void);
+    bool queue_is_empty(void) const;
+    void enq_item(queue_item *const item);
+    toku_cond_t *deq_item(void);
+    void maybe_signal_or_broadcast_next(void);
+    void maybe_signal_next_writer(void);
 
     toku_mutex_t *m_mutex;
 
@@ -154,6 +155,12 @@ private:
     // is expensive
     // if there are currently no waiting readers, then set to false
     bool m_read_wait_expensive;
+    // thread-id of the current writer
+    int m_current_writer_tid;
+    // context id describing the context of the current writer blocking
+    // new readers (either because this writer holds the write lock or
+    // is the first to want the write lock).
+    context_id m_blocking_writer_context_id;
     
     toku_cond_t m_wait_read;
     queue_item m_queue_item_read;
@@ -168,6 +175,6 @@ ENSURE_POD(frwlock);
 } // namespace toku
 
 // include the implementation here
-#include "frwlock.cc"
+// #include "frwlock.cc"
 
 #endif // UTIL_FRWLOCK_H

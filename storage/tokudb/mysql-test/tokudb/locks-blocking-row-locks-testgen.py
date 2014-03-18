@@ -44,7 +44,6 @@ def mysqlgen_reload_table():
 def mysqlgen_cleanup():
     print "# clean it all up"
     print "drop table t;"
-    print "set global tokudb_lock_timeout=4000;"
     print ""
 write_point_queries = [
         ("select for update", mysqlgen_select_for_update),
@@ -65,7 +64,10 @@ mysqlgen_prepare()
 mysqlgen_reload_table()
 for timeout in timeouts:
     print "# testing with timeout %s" % timeout
-    print "set global tokudb_lock_timeout=%s;" % timeout
+    print "connection conn1;"
+    print "set session tokudb_lock_timeout=%s;" % timeout
+    print "connection conn2;"
+    print "set session tokudb_lock_timeout=%s;" % timeout
     print ""
     print "# testing each point query vs each point query"
     for ta, qa in write_point_queries:

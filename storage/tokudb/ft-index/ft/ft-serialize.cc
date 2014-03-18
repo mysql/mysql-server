@@ -404,6 +404,7 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
             .nodesize = nodesize,
             .basementnodesize = basementnodesize,
             .compression_method = compression_method,
+            .fanout = FT_DEFAULT_FANOUT, // fanout is not serialized, must be set at startup
             .highest_unused_msn_for_upgrade = highest_unused_msn_for_upgrade,
             .max_msn_in_ft = max_msn_in_ft,
             .time_of_last_optimize_begin = time_of_last_optimize_begin,
@@ -461,6 +462,7 @@ serialize_ft_min_size (uint32_t version) {
     size_t size = 0;
 
     switch(version) {
+    case FT_LAYOUT_VERSION_25:
     case FT_LAYOUT_VERSION_24:
     case FT_LAYOUT_VERSION_23:
     case FT_LAYOUT_VERSION_22:

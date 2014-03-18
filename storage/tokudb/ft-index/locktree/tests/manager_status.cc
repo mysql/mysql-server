@@ -130,16 +130,16 @@ void manager_unit_test::test_status(void) {
     const DBT *one = get_dbt(1);
 
     // txn a write locks one
-    r = lt->acquire_write_lock(txnid_a, one, one, nullptr);
+    r = lt->acquire_write_lock(txnid_a, one, one, nullptr, false);
     assert(r == 0);
 
     // txn b tries to write lock one, conflicts, waits, and fails to lock one
     lock_request request_b;
-    request_b.create(1000);
-    request_b.set(lt, txnid_b, one, one, lock_request::type::WRITE);
+    request_b.create();
+    request_b.set(lt, txnid_b, one, one, lock_request::type::WRITE, false);
     r = request_b.start();
     assert(r == DB_LOCK_NOTGRANTED);
-    r = request_b.wait();
+    r = request_b.wait(1000);
     assert(r == DB_LOCK_NOTGRANTED);
     request_b.destroy();
 

@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that varchar expansion is done inplace while varchar shrinkage is not
 
 --disable_warnings

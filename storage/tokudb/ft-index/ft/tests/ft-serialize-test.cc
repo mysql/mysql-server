@@ -187,8 +187,7 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
         // if read_none, get rid of the compressed bp's
         if (bft == read_none) {
             if ((*dn)->height == 0) {
-                PAIR_ATTR attr;
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, brt_h);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
                 // assert all bp's are on disk
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     if ((*dn)->height == 0) {
@@ -213,14 +212,14 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                 }
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, brt_h);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     // assert all bp's are still available, because we touched the clock
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                     // now assert all should be evicted
                     assert(BP_SHOULD_EVICT(*dn, i));
                 }
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), &attr, brt_h);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_COMPRESSED);
                 }
@@ -306,7 +305,8 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     toku_blocktable_create_new(&brt_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
@@ -449,7 +449,8 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     toku_blocktable_create_new(&brt_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
@@ -586,7 +587,8 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     toku_blocktable_create_new(&brt_h->blocktable);
@@ -733,7 +735,8 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     toku_blocktable_create_new(&brt_h->blocktable);
@@ -881,7 +884,8 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     toku_blocktable_create_new(&brt_h->blocktable);
@@ -1009,7 +1013,8 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     toku_blocktable_create_new(&brt_h->blocktable);
@@ -1134,7 +1139,8 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     toku_blocktable_create_new(&brt_h->blocktable);

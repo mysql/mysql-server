@@ -96,12 +96,15 @@ PATENT RIGHTS GRANT:
 
 #include <toku_portability.h>
 #include <toku_assert.h>
-#include <portability/toku_fair_rwlock.h>
 #include <portability/toku_pthread.h>
 #include <portability/toku_time.h>
 #include <util/frwlock.h>
 #include <util/rwlock.h>
 #include "rwlock_condvar.h"
+
+// We need to manually intialize partitioned counters so that the
+// ones automatically incremented by the frwlock get handled properly.
+#include <util/partitioned_counter.h>
 
 toku_mutex_t mutex;
 toku::frwlock w;
@@ -288,6 +291,12 @@ static void test_write_cheapness(void) {
 }
 
 int main (int UU(argc), const char* UU(argv[])) {
+    // Ultra ugly. We manually init/destroy partitioned counters
+    // and context because normally toku_ft_layer_init() does that
+    // for us, but we don't want to initialize everything.
+    partitioned_counters_init();
     test_write_cheapness();
+    toku_context_status_destroy();
+    partitioned_counters_destroy();
     return 0;
 }

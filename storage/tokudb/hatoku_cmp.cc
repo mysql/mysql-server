@@ -98,7 +98,7 @@ PATENT RIGHTS GRANT:
 // in a TokuDB table. The non-valid fields are those
 // that have been deprecated since before 5.1, and can
 // only exist through upgrades of old versions of MySQL
-bool field_valid_for_tokudb_table(Field* field) {
+static bool field_valid_for_tokudb_table(Field* field) {
     bool ret_val = false;
     enum_field_types mysql_type = field->real_type();
     switch (mysql_type) {
@@ -117,7 +117,9 @@ bool field_valid_for_tokudb_table(Field* field) {
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_FLOAT:
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
+    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
@@ -149,7 +151,7 @@ exit:
     return ret_val;
 }
 
-void get_var_field_info(
+static void get_var_field_info(
     uint32_t* field_len, // output: length of field
     uint32_t* start_offset, // output, length of offset where data starts
     uint32_t var_field_index, //input, index of var field we want info on
@@ -193,7 +195,7 @@ void get_var_field_info(
     *field_len = data_end_offset - data_start_offset;
 }
 
-void get_blob_field_info(
+static void get_blob_field_info(
     uint32_t* start_offset, 
     uint32_t len_of_offsets,
     const uchar* var_field_data_ptr, 
@@ -229,7 +231,7 @@ void get_blob_field_info(
 
 // this function is pattern matched from 
 // InnoDB's get_innobase_type_from_mysql_type
-TOKU_TYPE mysql_to_toku_type (Field* field) {
+static TOKU_TYPE mysql_to_toku_type (Field* field) {
     TOKU_TYPE ret_val = toku_type_unknown;
     enum_field_types mysql_type = field->real_type();
     switch (mysql_type) {
@@ -264,7 +266,9 @@ TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_FLOAT:
         ret_val = toku_type_float;
         goto exit;
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
+    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
@@ -424,8 +428,8 @@ static inline int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, ui
             ret_val = a_num-b_num;
             goto exit;
         case (3):
-            a_num = uint3korr(a_buf);
-            b_num = uint3korr(b_buf);
+            a_num = tokudb_uint3korr(a_buf);
+            b_num = tokudb_uint3korr(b_buf);
             ret_val = a_num-b_num;
             goto exit;
         case (4):
@@ -614,7 +618,7 @@ exit:
 //
 // partially copied from below
 //
-uchar* pack_toku_varbinary_from_desc(
+static uchar* pack_toku_varbinary_from_desc(
     uchar* to_tokudb, 
     const uchar* from_desc, 
     uint32_t key_part_length, //number of bytes to use to encode the length in to_tokudb
@@ -659,7 +663,7 @@ static inline uchar* pack_toku_varbinary(
         length = uint2korr(from_mysql);
         break;
     case (3):
-        length = uint3korr(from_mysql);
+        length = tokudb_uint3korr(from_mysql);
         break;
     case (4):
         length = uint4korr(from_mysql);
@@ -773,7 +777,7 @@ static inline uchar* pack_toku_blob(
         length = uint2korr(from_mysql);
         break;
     case (3):
-        length = uint3korr(from_mysql);
+        length = tokudb_uint3korr(from_mysql);
         break;
     case (4):
         length = uint4korr(from_mysql);
@@ -854,7 +858,7 @@ static inline uchar* unpack_toku_blob(
 //
 // partially copied from below
 //
-uchar* pack_toku_varstring_from_desc(
+static uchar* pack_toku_varstring_from_desc(
     uchar* to_tokudb, 
     const uchar* from_desc, 
     uint32_t key_part_length, //number of bytes to use to encode the length in to_tokudb
@@ -928,7 +932,7 @@ static inline uchar* pack_toku_varstring(
         length = uint2korr(from_mysql);
         break;
     case (3):
-        length = uint3korr(from_mysql);
+        length = tokudb_uint3korr(from_mysql);
         break;
     case (4):
         length = uint4korr(from_mysql);
@@ -1034,7 +1038,7 @@ static inline int tokudb_compare_two_hidden_keys(
 //              created in create_toku_key_descriptor_for_key. The first
 //              byte points to the TOKU_TYPE.
 //
-uint32_t skip_field_in_descriptor(uchar* row_desc) {
+static uint32_t skip_field_in_descriptor(uchar* row_desc) {
     uchar* row_desc_pos = row_desc;
     TOKU_TYPE toku_type = (TOKU_TYPE)row_desc_pos[0];
     row_desc_pos++;
@@ -1069,7 +1073,7 @@ uint32_t skip_field_in_descriptor(uchar* row_desc) {
 // to store the descriptor. Number of bytes used MUST match number of bytes
 // we would skip in skip_field_in_descriptor
 //
-int create_toku_key_descriptor_for_key(KEY* key, uchar* buf) {
+static int create_toku_key_descriptor_for_key(KEY* key, uchar* buf) {
     uchar* pos = buf;
     uint32_t num_bytes_in_field = 0;
     uint32_t charset_num = 0;
@@ -1174,7 +1178,7 @@ int create_toku_key_descriptor_for_key(KEY* key, uchar* buf) {
 // to the descriptor, we can.
 // 
 //
-int create_toku_key_descriptor(
+static int create_toku_key_descriptor(
     uchar* buf, 
     bool is_first_hpk, 
     KEY* first_key, 
@@ -1350,7 +1354,7 @@ static inline int compare_toku_field(
 // packs a field from a  MySQL buffer into a tokudb buffer.
 // Used for inserts/updates
 //
-uchar* pack_toku_key_field(
+static uchar* pack_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
@@ -1443,7 +1447,7 @@ exit:
 // use 2 bytes to encode the length, regardless of the field
 // So varchar(4) will still use 2 bytes to encode the field
 //
-uchar* pack_key_toku_key_field(
+static uchar* pack_key_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
@@ -1566,7 +1570,7 @@ exit:
 }
 
 
-int tokudb_compare_two_keys(
+static int tokudb_compare_two_keys(
     const void* new_key_data, 
     const uint32_t new_key_size, 
     const void*  saved_key_data,
@@ -1700,7 +1704,7 @@ static int simple_memcmp(const DBT *keya, const DBT *keyb) {
 }
 
 // comparison function to be used by the fractal trees.
-int tokudb_cmp_dbt_key(DB* file, const DBT *keya, const DBT *keyb) {
+static int tokudb_cmp_dbt_key(DB* file, const DBT *keya, const DBT *keyb) {
     int cmp;
     if (file->cmp_descriptor->dbt.size == 0) {
         cmp = simple_memcmp(keya, keyb);
@@ -1728,7 +1732,7 @@ int tokudb_cmp_dbt_key(DB* file, const DBT *keya, const DBT *keyb) {
 }
 
 //TODO: QQQ Only do one direction for prefix.
-int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
+static int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
     // calls to this function are done by the handlerton, and are
     // comparing just the keys as MySQL would compare them.
     bool read_string = false;
@@ -1848,7 +1852,7 @@ static int tokudb_cmp_dbt_key_parts(DB *file, const DBT *keya, const DBT *keyb, 
             max_parts);
 }
 
-uint32_t create_toku_main_key_pack_descriptor (
+static uint32_t create_toku_main_key_pack_descriptor (
     uchar* buf
     ) 
 {
@@ -1876,10 +1880,6 @@ exit:
     return pos - buf;
 }
 
-#define COL_FIX_FIELD 0x11
-#define COL_VAR_FIELD 0x22
-#define COL_BLOB_FIELD 0x33
-
 #define COL_HAS_NO_CHARSET 0x44
 #define COL_HAS_CHARSET 0x55
 
@@ -1897,7 +1897,7 @@ exit:
     pos += sizeof(uint32_t);
 
 
-uint32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
+static uint32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];
@@ -1942,7 +1942,7 @@ uint32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* t
     return pos - buf;
 }
 
-uint32_t pack_desc_pk_offset_info(
+static uint32_t pack_desc_pk_offset_info(
     uchar* buf, 
     KEY_AND_COL_INFO* kc_info, 
     TABLE_SHARE* table_share, 
@@ -1991,7 +1991,7 @@ uint32_t pack_desc_pk_offset_info(
     return pos - buf;
 }
 
-uint32_t pack_desc_offset_info(uchar* buf, KEY_AND_COL_INFO* kc_info, uint pk_index, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
+static uint32_t pack_desc_offset_info(uchar* buf, KEY_AND_COL_INFO* kc_info, uint pk_index, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];
@@ -2040,7 +2040,7 @@ uint32_t pack_desc_offset_info(uchar* buf, KEY_AND_COL_INFO* kc_info, uint pk_in
     return pos - buf;
 }
 
-uint32_t pack_desc_key_length_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
+static uint32_t pack_desc_key_length_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];
@@ -2075,7 +2075,7 @@ uint32_t pack_desc_key_length_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_
     return pos - buf;
 }
 
-uint32_t pack_desc_char_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
+static uint32_t pack_desc_char_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];
@@ -2112,7 +2112,7 @@ uint32_t pack_desc_char_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE*
     return pos - buf;
 }
 
-uint32_t pack_some_row_info (
+static uint32_t pack_some_row_info (
     uchar* buf,
     uint pk_index,
     TABLE_SHARE* table_share,
@@ -2141,7 +2141,7 @@ uint32_t pack_some_row_info (
     return pos - buf;
 }
 
-uint32_t get_max_clustering_val_pack_desc_size(
+static uint32_t get_max_clustering_val_pack_desc_size(
     TABLE_SHARE* table_share
     ) 
 {
@@ -2168,7 +2168,7 @@ uint32_t get_max_clustering_val_pack_desc_size(
     return ret_val;
 }
 
-uint32_t create_toku_clustering_val_pack_descriptor (
+static uint32_t create_toku_clustering_val_pack_descriptor (
     uchar* buf,
     uint pk_index,
     TABLE_SHARE* table_share,
@@ -2227,7 +2227,7 @@ uint32_t create_toku_clustering_val_pack_descriptor (
     last_col = 0;
     for (uint i = 0; i < table_share->fields; i++) {
         bool col_filtered = bitmap_is_set(&kc_info->key_filters[keynr],i);
-        if (kc_info->field_lengths[i] == 0) {
+        if (!is_fixed_field(kc_info, i)) {
             //
             // not a fixed field, continue
             //
@@ -2274,7 +2274,7 @@ uint32_t create_toku_clustering_val_pack_descriptor (
     last_col = 0;
     for (uint i = 0; i < table_share->fields; i++) {
         bool col_filtered = bitmap_is_set(&kc_info->key_filters[keynr],i);
-        if (kc_info->length_bytes[i] == 0) {
+        if (!is_variable_field(kc_info, i)) {
             //
             // not a var field, continue
             //
@@ -2322,7 +2322,7 @@ exit:
     return pos - buf;
 }
 
-uint32_t pack_clustering_val_from_desc(
+static uint32_t pack_clustering_val_from_desc(
     uchar* buf,
     void* row_desc,
     uint32_t row_desc_size,
@@ -2476,7 +2476,7 @@ uint32_t pack_clustering_val_from_desc(
 }
 
 
-uint32_t get_max_secondary_key_pack_desc_size(
+static uint32_t get_max_secondary_key_pack_desc_size(
     KEY_AND_COL_INFO* kc_info
     ) 
 {
@@ -2515,7 +2515,7 @@ uint32_t get_max_secondary_key_pack_desc_size(
     return ret_val;
 }
 
-uint32_t create_toku_secondary_key_pack_descriptor (
+static uint32_t create_toku_secondary_key_pack_descriptor (
     uchar* buf,
     bool has_hpk,
     uint pk_index,
@@ -2681,7 +2681,7 @@ uint32_t create_toku_secondary_key_pack_descriptor (
     return pos - buf;
 }
 
-uint32_t skip_key_in_desc(
+static uint32_t skip_key_in_desc(
     uchar* row_desc
     ) 
 {
@@ -2717,7 +2717,7 @@ exit:
 }
 
 
-uint32_t max_key_size_from_desc(
+static uint32_t max_key_size_from_desc(
     void* row_desc,
     uint32_t row_desc_size
     ) 
@@ -2802,7 +2802,7 @@ uint32_t max_key_size_from_desc(
     return max_size;
 }
 
-uint32_t pack_key_from_desc(
+static uint32_t pack_key_from_desc(
     uchar* buf,
     void* row_desc,
     uint32_t row_desc_size,
@@ -3140,19 +3140,11 @@ uint32_t pack_key_from_desc(
     return (uint32_t)(packed_key_pos - buf); // 
 }
 
-bool fields_have_same_name(
-    Field* a,
-    Field* b
-    )
-{
+static bool fields_have_same_name(Field* a, Field* b) {
     return strcmp(a->field_name, b->field_name) == 0;
 }
 
-bool fields_are_same_type(
-    Field* a, 
-    Field* b
-    )
-{
+static bool fields_are_same_type(Field* a, Field* b) {
     bool retval = true;
     enum_field_types a_mysql_type = a->real_type();
     enum_field_types b_mysql_type = b->real_type();
@@ -3209,8 +3201,22 @@ bool fields_are_same_type(
             goto cleanup;
         }
         break;
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_ENUM: {
+        Field_enum *a_enum = static_cast<Field_enum *>(a);
+        if (!a_enum->eq_def(b)) {
+            retval = false;
+            goto cleanup;
+        }
+        break;
+    }   
+    case MYSQL_TYPE_SET: {
+        Field_set *a_set = static_cast<Field_set *>(a);
+        if (!a_set->eq_def(b)) {
+            retval = false;
+            goto cleanup;
+        }
+        break;
+    }
     case MYSQL_TYPE_BIT:
         // length
         if (a->pack_length() != b->pack_length()) {
@@ -3224,7 +3230,9 @@ bool fields_are_same_type(
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_TIMESTAMP:
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
+    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
@@ -3313,12 +3321,7 @@ cleanup:
     return retval;
 }
 
-
-bool are_two_fields_same(
-    Field* a,
-    Field* b
-    )
-{
+static bool are_two_fields_same(Field* a, Field* b) {
     return fields_have_same_name(a, b) && fields_are_same_type(a, b);
 }
 

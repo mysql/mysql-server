@@ -2,6 +2,7 @@
 
 source include/have_tokudb.inc;
 source include/have_partition.inc;
+set default_storage_engine='tokudb';
 
 # capture the datadir
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
@@ -32,7 +33,7 @@ EOF
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-create table tc (a int, b int, c int, primary key(a), key(b)) partition by hash(a) partitions 2;
+create table tc (a int, b int, c int, primary key(a), key(b)) engine=tokudb partition by hash(a) partitions 2;
 
 # check that the tokudb meta data gets dropped when the table is dropped
 select dictionary_name from information_schema.tokudb_file_map;

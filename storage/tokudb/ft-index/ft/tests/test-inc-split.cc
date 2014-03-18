@@ -130,10 +130,10 @@ const char *fname = TOKU_TEST_FILENAME;
 
 static void
 doit (int ksize __attribute__((__unused__))) {
-    BLOCKNUM cnodes[FT_FANOUT], bnode, anode;
+    BLOCKNUM cnodes[16], bnode, anode;
 
-    char *keys[FT_FANOUT-1];
-    int keylens[FT_FANOUT-1];
+    char *keys[16-1];
+    int keylens[16-1];
     int i;
     int r;
     
@@ -144,7 +144,7 @@ doit (int ksize __attribute__((__unused__))) {
 
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
 
-    for (i=0; i<FT_FANOUT; i++) {
+    for (i=0; i<16; i++) {
 	r=toku_testsetup_leaf(t, &cnodes[i], 1, NULL, NULL);
 	assert(r==0);
 	char key[KSIZE+10];
@@ -156,16 +156,16 @@ doit (int ksize __attribute__((__unused__))) {
     }
 
     // Now we have a bunch of leaves, all of which are with 100 bytes of full.
-    for (i=0; i+1<FT_FANOUT; i++) {
+    for (i=0; i+1<16; i++) {
 	char key[TOKU_PSIZE];
 	keylens[i]=1+snprintf(key, TOKU_PSIZE, "%08d", (i+1)*10000);
 	keys[i]=toku_strdup(key);
     }
 
-    r = toku_testsetup_nonleaf(t, 1, &bnode, FT_FANOUT, cnodes, keys, keylens);
+    r = toku_testsetup_nonleaf(t, 1, &bnode, 16, cnodes, keys, keylens);
     assert(r==0);
 
-    for (i=0; i+1<FT_FANOUT; i++) {
+    for (i=0; i+1<16; i++) {
 	toku_free(keys[i]);
     }
 

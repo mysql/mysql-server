@@ -272,6 +272,22 @@ SELECT NAME_CONST('a', -(1)) OR 1;
 NAME_CONST('a', -(1)) OR 1
 1
 #
+#MDEV-5446: Assertion `!table || (!table->read_set ||
+#bitmap_is_set(table->read_set, field_index))' fails on
+#EXPLAIN EXTENDED with VALUES function
+#
+CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,10);
+CREATE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN EXTENDED SELECT VALUES(b) FROM v1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select values(10) AS `VALUES(b)` from dual
+drop view v1;
+drop table t1;
+End of 5.3 tests
+# 
 # Bug #52165: Assertion failed: file .\dtoa.c, line 465
 # 
 CREATE TABLE t1 (a SET('a'), b INT);

@@ -88,7 +88,6 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-volatile int ha_tokudb_analyze_wait = 0; // debug
 
 struct analyze_progress_extra {
     THD *thd;
@@ -128,15 +127,15 @@ static int analyze_progress(void *v_extra, uint64_t rows) {
 }
 
 int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::analyze");
-    while (ha_tokudb_analyze_wait) sleep(1); // debug concurrency issues
+    TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
     uint64_t rec_per_key[table_share->key_parts];
     int result = HA_ADMIN_OK;
     DB_TXN *txn = transaction;
-    if (!txn)
+    if (!txn) {
         result = HA_ADMIN_FAILED;
+    }
+    uint total_key_parts = 0;
     if (result == HA_ADMIN_OK) {
-        uint next_key_part = 0;
         // compute cardinality for each key
         for (uint i = 0; result == HA_ADMIN_OK && i < table_share->keys; i++) {
             KEY *key_info = &table_share->key_info[i];
@@ -148,26 +147,26 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
             bool is_unique = false;
             if (i == primary_key || (key_info->flags & HA_NOSAME))
                 is_unique = true;
-            int error = tokudb::analyze_card(share->key_file[i], txn, is_unique, num_key_parts, &rec_per_key[next_key_part],
+            int error = tokudb::analyze_card(share->key_file[i], txn, is_unique, num_key_parts, &rec_per_key[total_key_parts],
                                              tokudb_cmp_dbt_key_parts, analyze_progress, &analyze_progress_extra);
             if (error != 0 && error != ETIME) {
                 result = HA_ADMIN_FAILED;
             } else {
                 // debug
                 if (tokudb_debug & TOKUDB_DEBUG_ANALYZE) {
-                    fprintf(stderr, "ha_tokudb::analyze %s.%s.%s ", 
-                            table_share->db.str, table_share->table_name.str, i == primary_key ? "primary" : table_share->key_info[i].name);
+                    TOKUDB_HANDLER_TRACE("%s.%s.%s", 
+                                         table_share->db.str, table_share->table_name.str, i == primary_key ? "primary" : table_share->key_info[i].name);
                     for (uint j = 0; j < num_key_parts; j++) 
-                        fprintf(stderr, "%lu ", rec_per_key[next_key_part+j]);
-                    fprintf(stderr, "\n");
+                        TOKUDB_HANDLER_TRACE("%lu", rec_per_key[total_key_parts+j]);
                 }
             }
-            next_key_part += num_key_parts;
+            total_key_parts += num_key_parts;
         } 
     }
-    if (result == HA_ADMIN_OK)
-        tokudb::set_card_in_status(share->status_block, txn, table_share->key_parts, rec_per_key);    
-    TOKUDB_DBUG_RETURN(result);
+    if (result == HA_ADMIN_OK) {
+        tokudb::set_card_in_status(share->status_block, txn, total_key_parts, rec_per_key);
+    }
+    TOKUDB_HANDLER_DBUG_RETURN(result);
 }
 
 static int hot_poll_fun(void *extra, float progress) {
@@ -192,15 +191,12 @@ static int hot_poll_fun(void *extra, float progress) {
     return 0;
 }
 
-volatile int ha_tokudb_optimize_wait = 0; // debug
-
 // flatten all DB's in this table, to do so, peform hot optimize on each db
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
-    while (ha_tokudb_optimize_wait) sleep(1); // debug
+    TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
 
     int error;
-    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
 
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
     // each DB is its own stage. as HOT goes through each db, we'll
@@ -224,7 +220,8 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
         hc.ha = this;
         hc.current_table = i;
         hc.num_tables = curr_num_DBs;
-        error = db->hot_optimize(db, NULL, NULL, hot_poll_fun, &hc);
+        uint64_t loops_run;
+        error = db->hot_optimize(db, NULL, NULL, hot_poll_fun, &hc, &loops_run);
         if (error) {
             goto cleanup;
         }
@@ -237,7 +234,7 @@ cleanup:
     thd_progress_end(thd);
 #endif
 
-    TOKUDB_DBUG_RETURN(error);
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 struct check_context {
@@ -265,13 +262,10 @@ static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
     }
 }
 
-volatile int ha_tokudb_check_wait = 0; // debug
-
 int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
-    TOKUDB_DBUG_ENTER("check");
-    while (ha_tokudb_check_wait) sleep(1); // debug
+    TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
 
-    const char *old_proc_info = thd->proc_info;
+    const char *old_proc_info = tokudb_thd_get_proc_info(thd);
     thd_proc_info(thd, "tokudb::check");
 
     int result = HA_ADMIN_OK;
@@ -289,13 +283,13 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     if (r != 0)
         result = HA_ADMIN_INTERNAL_ERROR;
     if (result == HA_ADMIN_OK) {
-        uint32_t num_DBs = table_share->keys + test(hidden_primary_key);
+        uint32_t num_DBs = table_share->keys + tokudb_test(hidden_primary_key);
         snprintf(write_status_msg, sizeof write_status_msg, "%s primary=%d num=%d", share->table_name, primary_key, num_DBs);
         if (tokudb_debug & TOKUDB_DEBUG_CHECK) {
             ha_tokudb_check_info(thd, table, write_status_msg);
             time_t now = time(0);
             char timebuf[32];
-            fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
+            TOKUDB_HANDLER_TRACE("%.24s %s", ctime_r(&now, timebuf), write_status_msg);
         }
         for (uint i = 0; i < num_DBs; i++) {
             DB *db = share->key_file[i];
@@ -306,7 +300,7 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
                 ha_tokudb_check_info(thd, table, write_status_msg);
                 time_t now = time(0);
                 char timebuf[32];
-                fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
+                TOKUDB_HANDLER_TRACE("%.24s %s", ctime_r(&now, timebuf), write_status_msg);
             }
             struct check_context check_context = { thd };
             r = db->verify_with_progress(db, ha_tokudb_check_progress, &check_context, (tokudb_debug & TOKUDB_DEBUG_CHECK) != 0, keep_going);
@@ -316,7 +310,7 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
                 ha_tokudb_check_info(thd, table, write_status_msg);
                 time_t now = time(0);
                 char timebuf[32];
-                fprintf(stderr, "%.24s ha_tokudb::check %s\n", ctime_r(&now, timebuf), write_status_msg);
+                TOKUDB_HANDLER_TRACE("%.24s %s", ctime_r(&now, timebuf), write_status_msg);
             }
             if (result == HA_ADMIN_OK && r != 0) {
                 result = HA_ADMIN_CORRUPT;
@@ -326,5 +320,5 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
         }
     }
     thd_proc_info(thd, old_proc_info);
-    TOKUDB_DBUG_RETURN(result);
+    TOKUDB_HANDLER_DBUG_RETURN(result);
 }

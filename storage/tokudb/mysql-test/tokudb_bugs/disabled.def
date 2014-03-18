@@ -10,3 +10,6 @@ fileops-3: Not for 5.5
 fileops-4: Not for 5.5
 xa-2: Not for 5.5
 6053: N/A
+
+checkpoint_lock_2: test can not work when the checkpoint_safe_lock is a fair rwlock
+

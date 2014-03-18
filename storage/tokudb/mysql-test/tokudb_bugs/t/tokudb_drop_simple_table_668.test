@@ -1,6 +1,7 @@
 # verify that we can drop simple tokudb tables created in tokudb 6.6.8
 
 source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
 
 # capture the datadir
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
@@ -34,7 +35,7 @@ EOF
 create table tc (id int, x int, primary key(id), key(x));
 
 # check that the tokudb meta data gets dropped when the table is dropped
-select * from information_schema.tokudb_file_map;
+select dictionary_name from information_schema.tokudb_file_map;
 drop table ta;
 select dictionary_name from information_schema.tokudb_file_map;
 drop table tb;

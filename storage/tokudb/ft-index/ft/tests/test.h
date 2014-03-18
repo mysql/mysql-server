@@ -239,16 +239,20 @@ def_pe_est_callback(
 }
 
 static UU() int 
-def_pe_callback (
+def_pe_callback(
     void *ftnode_pv __attribute__((__unused__)), 
     PAIR_ATTR bytes_to_free __attribute__((__unused__)), 
-    PAIR_ATTR* bytes_freed, 
-    void* extraargs __attribute__((__unused__))
-    ) 
+    void* extraargs __attribute__((__unused__)),
+    void (*finalize)(PAIR_ATTR bytes_freed, void *extra),
+    void *finalize_extra
+    )
 {
-    *bytes_freed = bytes_to_free;
+    finalize(bytes_to_free, finalize_extra);
     return 0;
 }
+
+static UU() void
+def_pe_finalize_impl(PAIR_ATTR UU(bytes_freed), void *UU(extra)) { }
 
 static UU() bool def_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
   return false;

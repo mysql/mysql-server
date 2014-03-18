@@ -136,6 +136,8 @@ typedef struct fifo *FIFO;
 
 int toku_fifo_create(FIFO *);
 
+void toku_fifo_resize(FIFO fifo, size_t new_size);
+
 void toku_fifo_free(FIFO *);
 
 int toku_fifo_n_entries(FIFO);

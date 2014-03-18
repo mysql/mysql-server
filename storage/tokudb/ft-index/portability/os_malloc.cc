@@ -93,7 +93,6 @@ PATENT RIGHTS GRANT:
 
 #include <toku_portability.h>
 #include <stdlib.h>
-//#include <jemalloc/include/jemalloc/jemalloc.h>
 #if defined(HAVE_MALLOC_H)
 # include <malloc.h>
 #elif defined(HAVE_SYS_MALLOC_H)

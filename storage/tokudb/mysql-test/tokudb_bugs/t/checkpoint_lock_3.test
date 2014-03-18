@@ -7,9 +7,9 @@ connect (conn1,localhost,root,,);
 
 connection default;
 --sleep 2
-select DB, command, state, info from information_schema.processlist where id!= connection_id();
+select DB, command, state, info from information_schema.processlist where id != connection_id();
 flush logs;
-select DB, command, state, info from information_schema.processlist where id!= connection_id();
+select DB, command, state, info from information_schema.processlist where id != connection_id();
 
 connection conn1;
 set tokudb_checkpoint_lock=1;
@@ -19,7 +19,7 @@ connection default;
 
 connection conn1;
 --sleep 2
-select DB, command, state, info from information_schema.processlist where id!= connection_id();
+select DB, command, state, info from information_schema.processlist where id != connection_id();
 set tokudb_checkpoint_lock=0;
 
 connection default;

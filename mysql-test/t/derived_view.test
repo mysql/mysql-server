@@ -1704,6 +1704,33 @@ ORDER BY gallery_name ASC
 drop table galleries, pictures;
 
 --echo #
+--echo # MDEV-5740: Assertion 
+--echo #`!derived->first_select()->exclude_from_table_unique_test ||
+--echo #derived->outer_select()-> exclude_from_table_unique_test'
+--echo #failed on 2nd execution of PS with derived_merge
+--echo #
+
+set @save_optimizer_switch5740=@@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on';
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (3),(4);
+
+PREPARE stmt FROM '
+  INSERT INTO t1 SELECT * FROM t2 UNION SELECT * FROM (SELECT * FROM t1) AS sq  
+';
+EXECUTE stmt;
+select * from t1;
+EXECUTE stmt;
+select * from t1;
+deallocate prepare stmt;
+
+drop table t1,t2;
+set optimizer_switch=@save_optimizer_switch5740;
+
+--echo #
 --echo # end of 5.3 tests
 --echo #
 

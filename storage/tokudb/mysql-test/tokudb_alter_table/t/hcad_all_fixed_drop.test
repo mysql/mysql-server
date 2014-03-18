@@ -1,6 +1,6 @@
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
-#--source include/have_tokudb.inc
+--source include/have_tokudb.inc
 SET DEFAULT_STORAGE_ENGINE='tokudb'; 
 
 --disable_warnings 

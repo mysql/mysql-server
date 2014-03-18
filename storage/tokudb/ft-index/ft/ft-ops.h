@@ -114,6 +114,8 @@ PATENT RIGHTS GRANT:
 // When lock_only is true, the callback only does optional lock tree locking.
 typedef int(*FT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
 
+typedef bool(*FT_CHECK_INTERRUPT_CALLBACK)(void* extra);
+
 int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int nodesize, int basementnodesize, enum toku_compression_method compression_method, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*)) __attribute__ ((warn_unused_result));
 
 // effect: changes the descriptor for the ft of the given handle.
@@ -135,6 +137,8 @@ void toku_ft_handle_set_basementnodesize(FT_HANDLE, unsigned int basementnodesiz
 void toku_ft_handle_get_basementnodesize(FT_HANDLE, unsigned int *basementnodesize);
 void toku_ft_handle_set_compression_method(FT_HANDLE, enum toku_compression_method);
 void toku_ft_handle_get_compression_method(FT_HANDLE, enum toku_compression_method *);
+void toku_ft_handle_set_fanout(FT_HANDLE, unsigned int fanout);
+void toku_ft_handle_get_fanout(FT_HANDLE, unsigned int *fanout);
 
 void toku_ft_set_bt_compare(FT_HANDLE, ft_compare_func);
 ft_compare_func toku_ft_get_bt_compare (FT_HANDLE brt);
@@ -239,9 +243,12 @@ void toku_ft_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn);
 // Effect: Delete a key from a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 void toku_ft_maybe_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging);
 
-void toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, TXNID oldest_referenced_xid, GC_INFO gc_info);
-void toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids, TXNID oldest_referenced_xid, GC_INFO gc_info);
-void toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids, TXNID oldest_referenced_xids, GC_INFO gc_info);
+TXNID toku_ft_get_oldest_referenced_xid_estimate(FT_HANDLE ft_h);
+TXN_MANAGER toku_ft_get_txn_manager(FT_HANDLE ft_h);
+
+void toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, txn_gc_info *gc_info);
+void toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids, txn_gc_info *gc_info);
+void toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids, txn_gc_info *gc_info);
 
 int toku_close_ft_handle_nolsn (FT_HANDLE, char **error_string)  __attribute__ ((warn_unused_result));
 
@@ -258,6 +265,7 @@ void toku_ft_cursor_set_leaf_mode(FT_CURSOR);
 // the cursor duing a one query.
 void toku_ft_cursor_set_temporary(FT_CURSOR);
 void toku_ft_cursor_remove_restriction(FT_CURSOR);
+void toku_ft_cursor_set_check_interrupt_cb(FT_CURSOR ftcursor, FT_CHECK_INTERRUPT_CALLBACK cb, void *extra);
 int toku_ft_cursor_is_leaf_mode(FT_CURSOR);
 void toku_ft_cursor_set_range_lock(FT_CURSOR, const DBT *, const DBT *, bool, bool, int);
 
@@ -346,5 +354,8 @@ int toku_ft_strerror_r(int error, char *buf, size_t buflen);
 
 extern bool garbage_collection_debug;
 
+// This is a poor place to put global options like these.
 void toku_ft_set_direct_io(bool direct_io_on);
+void toku_ft_set_compress_buffers_before_eviction(bool compress_buffers);
+
 #endif

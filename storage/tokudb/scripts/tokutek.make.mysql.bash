@@ -7,12 +7,12 @@ function usage() {
 
 # copy build files to amazon s3
 function copy_to_s3() {
-    local s3_build_bucket=$1; local s3_release_bucket=$2
+    local s3_build_bucket=$1; shift
+    local mysql_distro=$1; shift
     local ts=$(date +%s)
     local ymd=$(date +%Y%m%d -d @$ts)
-    local ym=$(date +%Y%m -d @$ts)
     local exitcode=0; local r=0
-    for f in $(find . -maxdepth 1 \( -name '*.tar.gz*' -o -name '*.rpm*' \) ) ; do
+    for f in $(find . -maxdepth 1 \( -name $mysql_distro-$mysql_version'*.tar.gz*' -o -name $mysql_distro-$mysql_version'*.rpm*' \) ) ; do
         f=$(basename $f)
         echo `date` s3put $s3_build_bucket $f
         s3put $s3_build_bucket $f $f
@@ -24,21 +24,18 @@ function copy_to_s3() {
         r=$?
         echo `date` s3put $s3_build_bucket-date $ymd/$f $r
         if [ $r != 0 ] ; then exitcode=1; fi
-        # copy to partition by date
-        s3mkbucket $s3_build_bucket-$ym
-        s3copykey $s3_build_bucket-$ym $f $s3_build_bucket $f
     done
     if [[ $git_tag =~ tokudb-.* ]] ; then
-        s3mkbucket $s3_release_bucket-$git_tag
+        s3mkbucket $git_tag
         if [ $r != 0 ] ; then 
             exitcode=1
         else
-            for f in $(find . -maxdepth 1 \( -name '*.tar.gz*' -o -name '*.rpm*' \) ) ; do
+            for f in $(find . -maxdepth 1 \( -name $mysql_distro-$mysql_version'*.tar.gz*' -o -name $mysql_distro-$mysql_version'*.rpm*' \) ) ; do
                 f=$(basename $f)
-                echo `date` s3copykey $s3_release_bucket-$git_tag $f
-                s3copykey $s3_release_bucket-$git_tag $f $s3_build_bucket $f
+                echo `date` s3copykey $git_tag $f
+                s3copykey $git_tag $f $s3_build_bucket $f
                 r=$?
-                echo `date` s3copykey $s3_release_bucket-$git_tag $f $r
+                echo `date` s3copykey $git_tag $f $r
                 if [ $r != 0 ] ; then exitcode=1; fi
             done
         fi
@@ -49,7 +46,6 @@ function copy_to_s3() {
 mysqlbuild=
 s3=1
 s3_build_bucket=tokutek-mysql-build
-s3_release_bucket=tokutek-mysql
 system=$(uname -s | tr '[:upper:]' '[:lower:]')
 arch=$(uname -m | tr '[:upper:]' '[:lower:]')
 
@@ -89,7 +85,7 @@ bash -x $HOME/github/ft-engine/scripts/make.mysql.bash $make_args
 if [ $? != 0 ] ; then exitcode=1; fi
 
 # generate md5 sums
-for f in $(find $mysql_distro/build.* -maxdepth 1 \( -name '*.tar.gz' -o -name '*.rpm' \) ) ; do
+for f in $(find $mysql_distro-$mysql_version/build.* -maxdepth 1 \( -name '*.tar.gz' -o -name '*.rpm' \) ) ; do
     newf=$(basename $f)
     ln $f $newf
     if [ $? != 0 ] ; then exitcode=1; fi
@@ -99,7 +95,7 @@ done
 
 # copy to s3
 if [ $s3 != 0 ] ; then
-    copy_to_s3 $s3_build_bucket $s3_release_bucket
+    copy_to_s3 $s3_build_bucket $mysql_distro
     if [ $? != 0 ] ; then exitcode=1; fi
 fi
 

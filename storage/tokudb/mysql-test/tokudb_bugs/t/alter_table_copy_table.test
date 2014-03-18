@@ -1,0 +1,12 @@
+# test that a uniqueness violation during an alter table operation returns a duplicate key error
+source include/have_tokudb.inc;
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+set tokudb_disable_hot_alter=ON;
+set default_storage_engine=tokudb;
+create table t (id int, x char(2), primary key (id), unique key (x));
+insert into t values (1,'aa'),(2,'ab');
+--error 1062
+alter table t modify x char(1);
+drop table t;

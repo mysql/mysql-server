@@ -124,13 +124,13 @@ void locktree_unit_test::test_single_txnid_optimization(void) {
         buffer.create();
 
 #define lock_and_append_point_for_txnid_a(key) \
-        r = lt->acquire_write_lock(txnid_a, key, key, nullptr); \
+        r = lt->acquire_write_lock(txnid_a, key, key, nullptr, false);   \
         invariant_zero(r); \
         buffer.append(key, key);
 
 #define maybe_point_locks_for_txnid_b(i) \
         if (where == i) { \
-            r = lt->acquire_write_lock(txnid_b, one, one, nullptr); \
+            r = lt->acquire_write_lock(txnid_b, one, one, nullptr, false);    \
             invariant_zero(r); \
         }
 

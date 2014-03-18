@@ -114,23 +114,6 @@ void toku_mempool_zero(struct mempool *mp) {
     memset(mp, 0, sizeof(*mp));
 }
 
-/* Copy constructor.  Any time a new mempool is needed, allocate 1/4 more space
- * than is currently needed.
- */
-void toku_mempool_copy_construct(struct mempool *mp, const void * const data_source, const size_t data_size) {
-    // printf("mempool_copy %p %p %lu\n", mp, data_source, data_size);
-    if (data_size) {
-        paranoid_invariant(data_source);
-        toku_mempool_construct(mp, data_size);
-        memcpy(mp->base, data_source, data_size);
-        mp->free_offset = data_size;                     // address of first available memory for new data
-    }
-    else {
-        toku_mempool_zero(mp);
-        //        fprintf(stderr, "Empty mempool created (copy constructor)\n");
-    }
-}
-
 // TODO 4050 this is dirty, try to replace all uses of this
 void toku_mempool_init(struct mempool *mp, void *base, size_t free_offset, size_t size) {
     // printf("mempool_init %p %p %lu\n", mp, base, size);

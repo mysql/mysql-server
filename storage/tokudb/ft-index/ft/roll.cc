@@ -96,6 +96,7 @@ PATENT RIGHTS GRANT:
 #include "ft.h"
 #include "ft-ops.h"
 #include "log-internal.h"
+//#include "txn_manager.h"
 #include "xids.h"
 #include "rollback-apply.h"
 
@@ -114,6 +115,10 @@ PATENT RIGHTS GRANT:
 // When a transaction is committed, should we send a FT_COMMIT message
 // for each FT_DELETE_ANY message sent earlier by the transaction?
 #define TOKU_DO_COMMIT_CMD_DELETE 1
+
+// When a transaction is committed, should we send a FT_COMMIT message
+// for each FT_UPDATE message sent earlier by the transaction?
+#define TOKU_DO_COMMIT_CMD_UPDATE 0
 
 int
 toku_commit_fdelete (FILENUM    filenum,
@@ -261,7 +266,16 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                                           ? toku_fill_dbt(&data_dbt, data->data, data->len)
                                           : toku_init_dbt(&data_dbt) } } };
 
-        toku_ft_root_put_cmd(h, &ftcmd, txn->oldest_referenced_xid, make_gc_info(!txn->for_recovery));
+        TXN_MANAGER txn_manager = toku_logger_get_txn_manager(txn->logger);
+        txn_manager_state txn_state_for_gc(txn_manager);
+
+        TXNID oldest_referenced_xid_estimate = toku_txn_manager_get_oldest_referenced_xid_estimate(txn_manager);
+        txn_gc_info gc_info(&txn_state_for_gc,
+                            oldest_referenced_xid_estimate,
+                            // no messages above us, we can implicitly promote uxrs based on this xid
+                            oldest_referenced_xid_estimate,
+                            !txn->for_recovery);
+        toku_ft_root_put_cmd(h, &ftcmd, &gc_info);
         if (reset_root_xid_that_created) {
             TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
             toku_reset_root_xid_that_created(h, new_root_xid_that_created);
@@ -296,11 +310,15 @@ toku_rollback_cmdinsert (FILENUM    filenum,
 
 int
 toku_commit_cmdupdate(FILENUM    filenum,
-                      BYTESTRING key,
+                      BYTESTRING UU(key),
                       TOKUTXN    txn,
-                      LSN        oplsn)
+                      LSN        UU(oplsn))
 {
+#if TOKU_DO_COMMIT_CMD_UPDATE
     return do_insertion(FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, false);
+#else
+    return do_nothing_with_filenum(txn, filenum);
+#endif
 }
 
 int
@@ -365,9 +383,7 @@ static int
 toku_apply_rollinclude (TXNID_PAIR      xid,
                         uint64_t   num_nodes,
                         BLOCKNUM   spilled_head,
-                        uint32_t   spilled_head_hash __attribute__((__unused__)),
                         BLOCKNUM   spilled_tail,
-                        uint32_t   spilled_tail_hash,
                         TOKUTXN    txn,
                         LSN        oplsn,
                         apply_rollback_item func) {
@@ -375,7 +391,6 @@ toku_apply_rollinclude (TXNID_PAIR      xid,
     struct roll_entry *item;
 
     BLOCKNUM next_log      = spilled_tail;
-    uint32_t next_log_hash = spilled_tail_hash;
     uint64_t last_sequence = num_nodes;
 
     bool found_head = false;
@@ -383,7 +398,7 @@ toku_apply_rollinclude (TXNID_PAIR      xid,
     while (next_log.b != ROLLBACK_NONE.b) {
         //pin log
         ROLLBACK_LOG_NODE log;
-        toku_get_and_pin_rollback_log(txn, next_log, next_log_hash, &log);
+        toku_get_and_pin_rollback_log(txn, next_log, &log);
         toku_rollback_verify_contents(log, xid, last_sequence - 1);
         last_sequence = log->sequence;
         
@@ -400,16 +415,13 @@ toku_apply_rollinclude (TXNID_PAIR      xid,
             assert(log->sequence == 0);
         }
         next_log      = log->previous;
-        next_log_hash = log->previous_hash;
         {
             //Clean up transaction structure to prevent
             //toku_txn_close from double-freeing
             spilled_tail      = next_log;
-            spilled_tail_hash = next_log_hash;
             if (found_head) {
                 assert(next_log.b == ROLLBACK_NONE.b);
                 spilled_head      = next_log;
-                spilled_head_hash = next_log_hash;
             }
         }
         toku_rollback_log_unpin_and_remove(txn, log);
@@ -421,15 +433,13 @@ int
 toku_commit_rollinclude (TXNID_PAIR      xid,
                          uint64_t   num_nodes,
                          BLOCKNUM   spilled_head,
-                         uint32_t   spilled_head_hash,
                          BLOCKNUM   spilled_tail,
-                         uint32_t   spilled_tail_hash,
                          TOKUTXN    txn,
                          LSN        oplsn) {
     int r;
     r = toku_apply_rollinclude(xid, num_nodes,
-                               spilled_head, spilled_head_hash,
-                               spilled_tail, spilled_tail_hash,
+                               spilled_head,
+                               spilled_tail,
                                txn, oplsn,
                                toku_commit_rollback_item);
     return r;
@@ -439,15 +449,13 @@ int
 toku_rollback_rollinclude (TXNID_PAIR      xid,
                            uint64_t   num_nodes,
                            BLOCKNUM   spilled_head,
-                           uint32_t   spilled_head_hash,
                            BLOCKNUM   spilled_tail,
-                           uint32_t   spilled_tail_hash,
                            TOKUTXN    txn,
                            LSN        oplsn) {
     int r;
     r = toku_apply_rollinclude(xid, num_nodes,
-                               spilled_head, spilled_head_hash,
-                               spilled_tail, spilled_tail_hash,
+                               spilled_head,
+                               spilled_tail,
                                txn, oplsn,
                                toku_abort_rollback_item);
     return r;

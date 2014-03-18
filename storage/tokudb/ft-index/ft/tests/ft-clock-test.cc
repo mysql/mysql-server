@@ -154,12 +154,12 @@ test1(int fd, FT brt_h, FTNODE *dn) {
     // should sweep and NOT get rid of anything
     PAIR_ATTR attr;
     memset(&attr,0,sizeof(attr));
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
     }
     // should sweep and get compress all
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
     for (int i = 0; i < (*dn)->n_children; i++) {
         if (!is_leaf) {
             assert(BP_STATE(*dn,i) == PT_COMPRESSED);
@@ -172,12 +172,12 @@ test1(int fd, FT brt_h, FTNODE *dn) {
     bool req = toku_ftnode_pf_req_callback(*dn, &bfe_all);
     assert(req);
     toku_ftnode_pf_callback(*dn, ndd, &bfe_all, fd, &size);
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
     }
     // should sweep and get compress all
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
     for (int i = 0; i < (*dn)->n_children; i++) {
         if (!is_leaf) {
             assert(BP_STATE(*dn,i) == PT_COMPRESSED);
@@ -190,15 +190,15 @@ test1(int fd, FT brt_h, FTNODE *dn) {
     req = toku_ftnode_pf_req_callback(*dn, &bfe_all);
     assert(req);
     toku_ftnode_pf_callback(*dn, ndd, &bfe_all, fd, &size);
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
     }
     (*dn)->dirty = 1;
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
     for (int i = 0; i < (*dn)->n_children; i++) {
         assert(BP_STATE(*dn,i) == PT_AVAIL);
     }
@@ -252,11 +252,11 @@ test2(int fd, FT brt_h, FTNODE *dn) {
     assert(!BP_SHOULD_EVICT(*dn, 1));
     PAIR_ATTR attr;
     memset(&attr,0,sizeof(attr));
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(*dn, 0) == (is_leaf) ? PT_ON_DISK : PT_COMPRESSED);
     assert(BP_STATE(*dn, 1) == PT_AVAIL);
     assert(BP_SHOULD_EVICT(*dn, 1));
-    toku_ftnode_pe_callback(*dn, attr, &attr, brt_h);
+    toku_ftnode_pe_callback(*dn, attr, brt_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(*dn, 1) == (is_leaf) ? PT_ON_DISK : PT_COMPRESSED);
 
     bool req = toku_ftnode_pf_req_callback(*dn, &bfe_subset);
@@ -355,7 +355,8 @@ test_serialize_nonleaf(void) {
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     toku_blocktable_create_new(&brt_h->blocktable);
@@ -438,7 +439,8 @@ test_serialize_leaf(void) {
                  TXNID_NONE,
                  4*1024*1024,
                  128*1024,
-                 TOKU_DEFAULT_COMPRESSION_METHOD);
+                 TOKU_DEFAULT_COMPRESSION_METHOD,
+                 16);
     brt->ft = brt_h;
     
     toku_blocktable_create_new(&brt_h->blocktable);

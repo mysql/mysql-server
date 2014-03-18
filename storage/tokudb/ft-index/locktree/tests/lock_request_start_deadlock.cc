@@ -111,48 +111,48 @@ void lock_request_unit_test::test_start_deadlock(void) {
     lock_request request_a;
     lock_request request_b;
     lock_request request_c;
-    request_a.create(lock_wait_time);
-    request_b.create(lock_wait_time);
-    request_c.create(lock_wait_time);
+    request_a.create();
+    request_b.create();
+    request_c.create();
 
     const DBT *one = get_dbt(1);
     const DBT *two = get_dbt(2);
 
     // start and succeed 1,1 for A and 2,2 for B.
-    request_a.set(lt, txnid_a, one, one, lock_request::type::WRITE);
+    request_a.set(lt, txnid_a, one, one, lock_request::type::WRITE, false);
     r = request_a.start();
     invariant_zero(r);
-    request_b.set(lt, txnid_b, two, two, lock_request::type::WRITE);
+    request_b.set(lt, txnid_b, two, two, lock_request::type::WRITE, false);
     r = request_b.start();
     invariant_zero(r);
 
     // txnid A should not be granted a lock on 2,2, so it goes pending.
-    request_a.set(lt, txnid_a, two, two, lock_request::type::WRITE);
+    request_a.set(lt, txnid_a, two, two, lock_request::type::WRITE, false);
     r = request_a.start();
     invariant(r == DB_LOCK_NOTGRANTED);
 
     // if txnid B wants a lock on 1,1 it should deadlock with A
-    request_b.set(lt, txnid_b, one, one, lock_request::type::WRITE);
+    request_b.set(lt, txnid_b, one, one, lock_request::type::WRITE, false);
     r = request_b.start();
     invariant(r == DB_LOCK_DEADLOCK);
 
     // txnid C should not deadlock on either of these - it should just time out.
-    request_c.set(lt, txnid_c, one, one, lock_request::type::WRITE);
+    request_c.set(lt, txnid_c, one, one, lock_request::type::WRITE, false);
     r = request_c.start();
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = request_c.wait();
+    r = request_c.wait(lock_wait_time);
     invariant(r == DB_LOCK_NOTGRANTED);
-    request_c.set(lt, txnid_c, two, two, lock_request::type::WRITE);
+    request_c.set(lt, txnid_c, two, two, lock_request::type::WRITE, false);
     r = request_c.start();
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = request_c.wait();
+    r = request_c.wait(lock_wait_time);
     invariant(r == DB_LOCK_NOTGRANTED);
 
     // release locks for A and B, then wait on A's request which should succeed
     // since B just unlocked and should have completed A's pending request.
     release_lock_and_retry_requests(lt, txnid_a, one, one);
     release_lock_and_retry_requests(lt, txnid_b, two, two);
-    r = request_a.wait();
+    r = request_a.wait(lock_wait_time);
     invariant_zero(r);
     release_lock_and_retry_requests(lt, txnid_a, two, two);
 

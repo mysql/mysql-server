@@ -156,7 +156,6 @@ typedef struct st_multi_col_pack_info {
     uint32_t len_of_offsets; //length of the offset bytes in a packed row
 } MULTI_COL_PACK_INFO;
 
-
 typedef struct st_key_and_col_info {
     //
     // bitmaps for each key. key_filters[i] is associated with the i'th dictionary
@@ -181,8 +180,11 @@ typedef struct st_key_and_col_info {
     //   length_bytes[i] is 0
     //   'i' shows up in blob_fields
     //
+    void *multi_ptr;
+    enum { TOKUDB_FIXED_FIELD, TOKUDB_VARIABLE_FIELD, TOKUDB_BLOB_FIELD};
+    uint8_t *field_types;
     uint16_t* field_lengths; //stores the field lengths of fixed size fields (1<<16 - 1 max), 
-    uchar* length_bytes; // stores the length of lengths of varchars and varbinaries
+    uint8_t* length_bytes; // stores the length of lengths of varchars and varbinaries
     uint32_t* blob_fields; // list of indexes of blob fields, 
     uint32_t num_blobs; // number of blobs in the table
     //
@@ -198,9 +200,21 @@ typedef struct st_key_and_col_info {
     uint32_t num_offset_bytes; //number of bytes needed to encode the offset
 } KEY_AND_COL_INFO;
 
-bool field_valid_for_tokudb_table(Field* field);
+static bool is_fixed_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
+    return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_FIXED_FIELD;
+}
 
-void get_var_field_info(
+static bool is_variable_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
+    return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_VARIABLE_FIELD;
+}
+
+static bool is_blob_field(KEY_AND_COL_INFO *kcinfo, uint field_num) {
+    return kcinfo->field_types[field_num] == KEY_AND_COL_INFO::TOKUDB_BLOB_FIELD;
+}
+
+static bool field_valid_for_tokudb_table(Field* field);
+
+static void get_var_field_info(
     uint32_t* field_len, 
     uint32_t* start_offset, 
     uint32_t var_field_index, 
@@ -208,7 +222,7 @@ void get_var_field_info(
     uint32_t num_offset_bytes
     );
 
-void get_blob_field_info(
+static void get_blob_field_info(
     uint32_t* start_offset, 
     uint32_t len_of_offsets,
     const uchar* var_field_data_ptr, 
@@ -229,7 +243,7 @@ static inline uint32_t get_blob_field_len(
         length = uint2korr(from_tokudb);
         break;
     case (3):
-        length = uint3korr(from_tokudb);
+        length = tokudb_uint3korr(from_tokudb);
         break;
     case (4):
         length = uint4korr(from_tokudb);
@@ -263,7 +277,8 @@ static inline const uchar* unpack_toku_field_blob(
 }
 
 static inline uint get_null_offset(TABLE* table, Field* field) {
-#if 50606 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+#if (50606 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
+    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
     return field->null_offset(table->record[0]);
 #else
     return (uint) ((uchar*) field->null_ptr - (uchar*) table->record[0]);
@@ -284,16 +299,16 @@ typedef enum {
 } TOKU_TYPE;
 
 
-TOKU_TYPE mysql_to_toku_type (Field* field);
+static TOKU_TYPE mysql_to_toku_type (Field* field);
 
-uchar* pack_toku_varbinary_from_desc(
+static uchar* pack_toku_varbinary_from_desc(
     uchar* to_tokudb, 
     const uchar* from_desc, 
     uint32_t key_part_length, //number of bytes to use to encode the length in to_tokudb
     uint32_t field_length //length of field
     );
 
-uchar* pack_toku_varstring_from_desc(
+static uchar* pack_toku_varstring_from_desc(
     uchar* to_tokudb, 
     const uchar* from_desc, 
     uint32_t key_part_length, //number of bytes to use to encode the length in to_tokudb
@@ -302,21 +317,21 @@ uchar* pack_toku_varstring_from_desc(
     );
 
 
-uchar* pack_toku_key_field(
+static uchar* pack_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
     uint32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
     );
 
-uchar* pack_key_toku_key_field(
+static uchar* pack_key_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
     uint32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
     );
 
-uchar* unpack_toku_key_field(
+static uchar* unpack_toku_key_field(
     uchar* to_mysql,
     uchar* from_tokudb,
     Field* field,
@@ -337,6 +352,10 @@ uchar* unpack_toku_key_field(
 #define COL_ZERO 0 
 #define COL_POS_INF 1
 
+#define COL_FIX_FIELD 0x11
+#define COL_VAR_FIELD 0x22
+#define COL_BLOB_FIELD 0x33
+
 //
 // information for hidden primary keys
 //
@@ -356,7 +375,7 @@ static inline ulonglong hpk_char_to_num(uchar* val) {
     return uint8korr(val);
 }
 
-int tokudb_compare_two_keys(
+static int tokudb_compare_two_keys(
     const void* new_key_data, 
     const uint32_t new_key_size, 
     const void*  saved_key_data,
@@ -367,10 +386,10 @@ int tokudb_compare_two_keys(
     bool* read_string
     );
 
-int tokudb_cmp_dbt_key(DB* db, const DBT *keya, const DBT *keyb);
+static int tokudb_cmp_dbt_key(DB* db, const DBT *keya, const DBT *keyb);
 
 //TODO: QQQ Only do one direction for prefix.
-int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb);
+static int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb);
 
 static int tokudb_compare_two_key_parts(
     const void* new_key_data, 
@@ -384,7 +403,7 @@ static int tokudb_compare_two_key_parts(
 
 static int tokudb_cmp_dbt_key_parts(DB *file, const DBT *keya, const DBT *keyb, uint max_parts);
 
-int create_toku_key_descriptor(
+static int create_toku_key_descriptor(
     uchar* buf, 
     bool is_first_hpk, 
     KEY* first_key, 
@@ -393,15 +412,15 @@ int create_toku_key_descriptor(
     );
 
 
-uint32_t create_toku_main_key_pack_descriptor (
+static uint32_t create_toku_main_key_pack_descriptor (
     uchar* buf
     );
 
-uint32_t get_max_clustering_val_pack_desc_size(
+static uint32_t get_max_clustering_val_pack_desc_size(
     TABLE_SHARE* table_share
     );
 
-uint32_t create_toku_clustering_val_pack_descriptor (
+static uint32_t create_toku_clustering_val_pack_descriptor (
     uchar* buf,
     uint pk_index,
     TABLE_SHARE* table_share,
@@ -418,18 +437,18 @@ static inline bool is_key_clustering(
     return (row_desc_size > 0);
 }
 
-uint32_t pack_clustering_val_from_desc(
+static uint32_t pack_clustering_val_from_desc(
     uchar* buf,
     void* row_desc,
     uint32_t row_desc_size,
     const DBT* pk_val
     );
 
-uint32_t get_max_secondary_key_pack_desc_size(
+static uint32_t get_max_secondary_key_pack_desc_size(
     KEY_AND_COL_INFO* kc_info
     );
 
-uint32_t create_toku_secondary_key_pack_descriptor (
+static uint32_t create_toku_secondary_key_pack_descriptor (
     uchar* buf,
     bool has_hpk,
     uint pk_index,
@@ -449,13 +468,13 @@ static inline bool is_key_pk(
     return buf[0];
 }
 
-uint32_t max_key_size_from_desc(
+static uint32_t max_key_size_from_desc(
     void* row_desc,
     uint32_t row_desc_size
     );
 
 
-uint32_t pack_key_from_desc(
+static uint32_t pack_key_from_desc(
     uchar* buf,
     void* row_desc,
     uint32_t row_desc_size,
@@ -463,17 +482,17 @@ uint32_t pack_key_from_desc(
     const DBT* pk_val
     );
 
-bool fields_have_same_name(
+static bool fields_have_same_name(
     Field* a,
     Field* b
     );
 
-bool fields_are_same_type(
+static bool fields_are_same_type(
     Field* a, 
     Field* b
     );
 
-bool are_two_fields_same(
+static bool are_two_fields_same(
     Field* a,
     Field* b
     );

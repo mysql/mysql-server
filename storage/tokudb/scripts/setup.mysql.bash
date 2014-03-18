@@ -10,8 +10,10 @@ shutdown=1
 install=1
 startup=1
 s3bucket=tokutek-mysql-build
-builtins="mysqlbuild shutdown install startup s3bucket"
+sleeptime=60
+builtins="mysqlbuild shutdown install startup s3bucket sleeptime"
 mysqld_args="--user=mysql --core-file --core-file-size=unlimited"
+sudo=/usr/bin/sudo
 defaultsfile=""
 if [ -f /etc/$(whoami).my.cnf ] ; then
     defaultsfile=/etc/$(whoami).my.cnf
@@ -50,9 +52,8 @@ if [[ $mysqlbuild =~ (.*)-(tokudb\-.*)-(linux)-(x86_64) ]] ; then
     system=${BASH_REMATCH[3]}
     arch=${BASH_REMATCH[4]}
 else
-    exit 1
+    echo $mysqlbuild is not a tokudb build
 fi
-mysqltarball=$mysqlbuild.tar.gz
 
 if [ ! -d downloads ] ; then mkdir downloads; fi
 
@@ -60,6 +61,16 @@ pushd downloads
 if [ $? != 0 ] ; then exit 1; fi
 
 basedir=$PWD
+
+mysqltarball=$mysqlbuild.tar.gz
+
+if [ -f $mysqlbuild.tar.gz ] ; then
+    compression=-z
+    mysqltarball=$mysqlbuild.tar.gz
+elif [ -f $mysqlbuild.tar.bz2 ] ; then
+    compression=-j
+    mysqltarball=$mysqlbuild.tar.bz2
+fi
 
 # get the release
 if [ ! -f $mysqltarball ] ; then
@@ -79,14 +90,20 @@ if [ $? -ne 0 ] ; then
     if [ $? -ne 0 ] ; then exit 1; fi
 fi
 
+# set ldpath
+ldpath=""
+if [ -d /usr/local/gcc-4.7/lib64 ] ; then
+    echo skip ldpath="export LD_LIBRARY_PATH=/usr/local/gcc-4.7/lib64:\$LD_LIBRARY_PATH;"
+fi
+
 # shutdown mysql
 if [ $shutdown -ne 0 ] ; then
     if [ -x /etc/init.d/mysql ] ; then
-        sudo setsid /etc/init.d/mysql stop
+        $sudo setsid /etc/init.d/mysql stop
     else
         /usr/local/mysql/bin/mysqladmin shutdown
     fi
-    sleep 60
+    sleep $sleeptime
 fi
 
 pushd /usr/local
@@ -107,35 +124,42 @@ fi
 
 if [ ! -d $mysqlbuild ] || [ $install -ne 0 ] ; then
     rm mysql
-    if [ -d $mysqlbuild ] ; then sudo rm -rf $mysqlbuild; fi
+    if [ -d $mysqlbuild ] ; then $sudo rm -rf $mysqlbuild; fi
 
-    tar xzf $basedir/$mysqltarball
+    tar -x $compression -f $basedir/$mysqltarball
     if [ $? -ne 0 ] ; then exit 1; fi
     ln -s $mysqldir /usr/local/mysql
+    if [ $? -ne 0 ] ; then exit 1; fi
+    ln -s $mysqldir /usr/local/$mysqlbuild
+    if [ $? -ne 0 ] ; then exit 1; fi
 
     installdb=$mysqlbuild/bin/mysql_install_db
     if [ ! -f $installdb ] ; then
         installdb=$mysqlbuild/scripts/mysql_install_db
     fi
 
-    sudo chown -R mysql $mysqlbuild/data
-    sudo chgrp -R mysql $mysqlbuild/data
+    $sudo chown -R mysql $mysqlbuild/data
+    $sudo chgrp -R mysql $mysqlbuild/data
 
     # 5.6 debug build needs this 
     if [ ! -f $mysqlbuild/bin/mysqld ] && [ -f $mysqlbuild/bin/mysqld-debug ] ; then
 	ln $mysqlbuild/bin/mysqld-debug $mysqlbuild/bin/mysqld
     fi
 
-    if [ -z "$defaultsfile" ] ; then
-        sudo $installdb --user=mysql --basedir=$PWD/$mysqlbuild --datadir=$PWD/$mysqlbuild/data
+    if [ -z "$defaultsfile" ] ; then 
+        default_arg=""
     else
-        sudo $installdb --defaults-file=$defaultsfile --user=mysql --basedir=$PWD/$mysqlbuild --datadir=$PWD/$mysqlbuild/data
+        default_arg="--defaults-file=$defaultsfile"
     fi
+    $sudo bash -c "$ldpath $installdb $default_arg --user=mysql --basedir=$PWD/$mysqlbuild --datadir=$PWD/$mysqlbuild/data"
     if [ $? -ne 0 ] ; then exit 1; fi
-    
 else
     # create link
+    rm /usr/local/mysql
     ln -s $mysqldir /usr/local/mysql
+    if [ $? -ne 0 ] ; then exit 1; fi
+    rm /usr/local/$mysqlbuild
+    ln -s $mysqldir /usr/local/$mysqlbuild
     if [ $? -ne 0 ] ; then exit 1; fi
 fi
 popd
@@ -149,11 +173,16 @@ if [ $startup -ne 0 ] ; then
     echo ulimit -n 10240 exitcode $exitcode
 
     if [ -x /etc/init.d/mysql ] ; then
-        sudo setsid /etc/init.d/mysql start
+        $sudo setsid /etc/init.d/mysql start
     else
-        sudo -b /usr/local/mysql/bin/mysqld_safe $mysqld_args >/dev/null 2>&1 &
+        if [ -z "$defaultsfile" ] ; then
+            default_arg=""
+        else
+            default_arg="--defaults-file=$defaultsfile"
+        fi
+        $sudo -b bash -c "$ldpath /usr/local/mysql/bin/mysqld_safe $default_arg $mysqld_args" >/dev/null 2>&1 &
     fi
-    sleep 60
+    sleep $sleeptime
 
     # add mysql grants
     /usr/local/mysql/bin/mysql -u root -e "grant all on *.* to tokubuild@localhost"

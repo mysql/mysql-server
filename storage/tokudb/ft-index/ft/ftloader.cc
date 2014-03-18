@@ -561,7 +561,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
     }
     bl->compress_intermediates = compress_intermediates;
     if (0) { // debug
-        fprintf(stderr, "%s Reserved memory=%ld\n", __FUNCTION__, bl->reserved_memory);
+        fprintf(stderr, "%s Reserved memory=%" PRId64 "\n", __FUNCTION__, bl->reserved_memory);
     }
 
     bl->src_db = src_db;
@@ -2405,7 +2405,8 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
                                          int which_db,
                                          uint32_t target_nodesize,
                                          uint32_t target_basementnodesize,
-                                         enum toku_compression_method target_compression_method)
+                                         enum toku_compression_method target_compression_method,
+                                         uint32_t target_fanout)
 // Effect: Consume a sequence of rowsets work from a queue, creating a fractal tree.  Closes fd.
 {
     // set the number of fractal tree writer threads so that we can partition memory in the merger
@@ -2434,7 +2435,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
 
     // TODO: (Zardosht/Yoni/Leif), do this code properly
     struct ft ft;
-    toku_ft_init(&ft, (BLOCKNUM){0}, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize, target_compression_method);
+    toku_ft_init(&ft, (BLOCKNUM){0}, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize, target_compression_method, target_fanout);
 
     struct dbout out;
     ZERO_STRUCT(out);
@@ -2680,18 +2681,19 @@ int toku_loader_write_brt_from_q_in_C (FTLOADER                bl,
                                        int                      which_db,
                                        uint32_t                 target_nodesize,
                                        uint32_t                 target_basementnodesize,
-                                       enum toku_compression_method target_compression_method)
+                                       enum toku_compression_method target_compression_method,
+                                       uint32_t                 target_fanout)
 // This is probably only for testing.
 {
     target_nodesize = target_nodesize == 0 ? default_loader_nodesize : target_nodesize;
     target_basementnodesize = target_basementnodesize == 0 ? default_loader_basementnodesize : target_basementnodesize;
-    return toku_loader_write_ft_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize, target_compression_method);
+    return toku_loader_write_ft_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize, target_compression_method, target_fanout);
 }
 
 
 static void* fractal_thread (void *ftav) {
     struct fractal_thread_args *fta = (struct fractal_thread_args *)ftav;
-    int r = toku_loader_write_ft_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize, fta->target_compression_method);
+    int r = toku_loader_write_ft_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize, fta->target_compression_method, fta->target_fanout);
     fta->errno_result = r;
     return NULL;
 }
@@ -2727,13 +2729,15 @@ static int loader_do_i (FTLOADER bl,
             r = get_error_errno(); goto error;
         }
 
-        uint32_t target_nodesize, target_basementnodesize;
+        uint32_t target_nodesize, target_basementnodesize, target_fanout;
         enum toku_compression_method target_compression_method;
         r = dest_db->get_pagesize(dest_db, &target_nodesize);
         invariant_zero(r);
         r = dest_db->get_readpagesize(dest_db, &target_basementnodesize);
         invariant_zero(r);
         r = dest_db->get_compression_method(dest_db, &target_compression_method);
+        invariant_zero(r);
+        r = dest_db->get_fanout(dest_db, &target_fanout);
         invariant_zero(r);
 
         // This structure must stay live until the join below.
@@ -2748,6 +2752,7 @@ static int loader_do_i (FTLOADER bl,
                                            target_nodesize,
                                            target_basementnodesize,
                                            target_compression_method,
+                                           target_fanout
         };
 
         r = toku_pthread_create(bl->fractal_threads+which_db, NULL, fractal_thread, (void*)&fta);
@@ -2920,7 +2925,9 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
                      .xids = lbuf->xids,
                      .u = { .id = { &thekey, &theval } } };
     uint64_t workdone=0;
-    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, TXNID_NONE, make_gc_info(true), &workdone, stats_to_update);
+    // there's no mvcc garbage in a bulk-loaded FT, so there's no need to pass useful gc info
+    txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
+    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, &gc_info, &workdone, stats_to_update);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {

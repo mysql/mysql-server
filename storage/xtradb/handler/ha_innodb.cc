@@ -8837,17 +8837,6 @@ innobase_rename_table(
 	error = row_rename_table_for_mysql(
 		norm_from, norm_to, trx, lock_and_commit);
 
-	if (error != DB_SUCCESS) {
-		FILE* ef = dict_foreign_err_file;
-
-		DBUG_PRINT("info", ("rename failed: %d", error));
-		fputs("InnoDB: Renaming table ", ef);
-		ut_print_name(ef, trx, TRUE, norm_from);
-		fputs(" to ", ef);
-		ut_print_name(ef, trx, TRUE, norm_to);
-		fputs(" failed!\n", ef);
-	}
-
 	if (lock_and_commit) {
 		row_mysql_unlock_data_dictionary(trx);
 

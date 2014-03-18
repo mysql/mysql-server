@@ -1,3 +1,4 @@
+set default_storage_engine='tokudb';
 drop table if exists t2970;
 Warnings:
 Note	1051	Unknown table 't2970'

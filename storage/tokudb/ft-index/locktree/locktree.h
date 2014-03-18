@@ -105,6 +105,11 @@ PATENT RIGHTS GRANT:
 #include "wfg.h"
 #include "range_buffer.h"
 
+#define TOKU_LOCKTREE_ESCALATOR_LAMBDA 0
+#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
+#include <functional>
+#endif
+
 enum {
     LTM_SIZE_CURRENT = 0,
     LTM_SIZE_LIMIT,
@@ -164,15 +169,13 @@ public:
     //          If the locktree cannot create more locks, return TOKUDB_OUT_OF_LOCKS.
     // note: Read locks cannot be shared between txnids, as one would expect.
     //       This is for simplicity since read locks are rare in MySQL.
-    int acquire_read_lock(TXNID txnid,
-            const DBT *left_key, const DBT *right_key, txnid_set *conflicts);
+    int acquire_read_lock(TXNID txnid, const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn);
 
     // effect: Attempts to grant a write lock for the range of keys between [left_key, right_key].
     // returns: If the lock cannot be granted, return DB_LOCK_NOTGRANTED, and populate the
     //          given conflicts set with the txnids that hold conflicting locks in the range.
     //          If the locktree cannot create more locks, return TOKUDB_OUT_OF_LOCKS.
-    int acquire_write_lock(TXNID txnid,
-            const DBT *left_key, const DBT *right_key, txnid_set *conflicts);
+    int acquire_write_lock(TXNID txnid, const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn);
 
     // effect: populate the conflicts set with the txnids that would preventing
     //         the given txnid from getting a lock on [left_key, right_key]
@@ -215,6 +218,25 @@ public:
     // since the lock_request object is opaque 
     struct lt_lock_request_info *get_lock_request_info(void);
 
+    class manager;
+
+    // the escalator coordinates escalation on a set of locktrees for a bunch of threads
+    class escalator {
+    public:
+        void create(void);
+        void destroy(void);
+#if TOKU_LOCKTREE_ESCALATOR_LAMBDA
+        void run(manager *mgr, std::function<void (void)> escalate_locktrees_fun);
+#else
+        void run(manager *mgr, void (*escalate_locktrees_fun)(void *extra), void *extra);
+#endif
+    private:
+        toku_mutex_t m_escalator_mutex;
+        toku_cond_t m_escalator_done;
+        bool m_escalator_running;
+    };
+    ENSURE_POD(escalator);
+
     // The locktree manager manages a set of locktrees,
     // one for each open dictionary. Locktrees are accessed through
     // the manager, and when they are no longer needed, they can
@@ -235,10 +257,6 @@ public:
         size_t get_max_lock_memory(void);
 
         int set_max_lock_memory(size_t max_lock_memory);
-
-        uint64_t get_lock_wait_time(void);
-
-        void set_lock_wait_time(uint64_t lock_wait_time);
 
         // effect: Get a locktree from the manager. If a locktree exists with the given
         //         dict_id, it is referenced and then returned. If one did not exist, it
@@ -265,6 +283,7 @@ public:
         class memory_tracker {
         public:
             void set_manager(manager *mgr);
+            manager *get_manager(void);
 
             // effect: Determines if too many locks or too much memory is being used,
             //         Runs escalation on the manager if so.
@@ -272,6 +291,8 @@ public:
             //          if there are not enough resources and lock escalation failed to free up
             //          enough resources for a new lock.
             int check_current_lock_constraints(void);
+
+            bool over_big_threshold(void);
 
             void note_mem_used(uint64_t mem_used);
 
@@ -297,6 +318,7 @@ public:
         // rationale: to get better stress test coverage, we want a way to
         //            deterministicly trigger lock escalation.
         void run_escalation_for_test(void);
+        void run_escalation(void);
 
         void get_status(LTM_STATUS status);
 
@@ -311,9 +333,22 @@ public:
                                                      void *extra);
         int iterate_pending_lock_requests(lock_request_iterate_callback cb, void *extra);
 
+        int check_current_lock_constraints(bool big_txn);
+
+        // Escalate locktrees touched by a txn
+        void escalate_lock_trees_for_txn(TXNID, locktree *lt);
+
+        // Escalate all locktrees
+        void escalate_all_locktrees(void);
+
+        // Escalate a set of locktrees
+        void escalate_locktrees(locktree **locktrees, int num_locktrees);
+
+        // Add time t to the escalator's wait time statistics
+        void add_escalator_wait_time(uint64_t t);
+
     private:
         static const uint64_t DEFAULT_MAX_LOCK_MEMORY = 64L * 1024 * 1024;
-        static const uint64_t DEFAULT_LOCK_WAIT_TIME = 0;
 
         // tracks the current number of locks and lock memory
         uint64_t m_max_lock_memory;
@@ -321,9 +356,6 @@ public:
         memory_tracker m_mem_tracker;
 
         struct lt_counters m_lt_counters;
-
-        // lock wait time for blocking row locks, in ms
-        uint64_t m_lock_wait_time_ms;
 
         // the create and destroy callbacks for the locktrees
         lt_create_cb m_lt_create_callback;
@@ -356,23 +388,14 @@ public:
         // requires: Manager's mutex is held
         void locktree_map_remove(locktree *lt);
 
-        // effect: Runs escalation on all locktrees.
-        void run_escalation(void);
-
         static int find_by_dict_id(locktree *const &lt, const DICTIONARY_ID &dict_id);
 
         void escalator_init(void);
 
         void escalator_destroy(void);
 
-        // effect: Add time t to the escalator's wait time statistics
-        void add_escalator_wait_time(uint64_t t);
-
-        // effect: escalate's the locks in each locktree
-        // requires: manager's mutex is held
-        void escalate_all_locktrees(void);
-
         // statistics about lock escalation.
+        toku_mutex_t m_escalation_mutex;
         uint64_t m_escalation_count;
         tokutime_t m_escalation_time;
         uint64_t m_escalation_latest_result;
@@ -381,22 +404,16 @@ public:
         uint64_t m_long_wait_escalation_count;
         uint64_t m_long_wait_escalation_time;
 
-        toku_mutex_t m_escalator_mutex;
-        toku_cond_t m_escalator_work;    // signal the escalator to run
-        toku_cond_t m_escalator_done;    // signal that escalation is done
-        bool m_escalator_killed;
-        toku_pthread_t m_escalator_id;
+        escalator m_escalator;
 
         friend class manager_unit_test;
-
-    public:
-        void escalator_work(void);
     };
     ENSURE_POD(manager);
 
     manager::memory_tracker *get_mem_tracker(void) const;
 
 private:
+    manager *m_mgr;
     manager::memory_tracker *m_mem_tracker;
 
     DICTIONARY_ID m_dict_id;
@@ -414,7 +431,6 @@ private:
 
     uint32_t m_reference_count;
 
-    // the locktree stores locks in a concurrent, non-overlapping rangetree
     concurrent_tree *m_rangetree;
 
     void *m_userdata;
@@ -586,7 +602,7 @@ private:
             const DBT *left_key, const DBT *right_key, txnid_set *conflicts);
 
     int try_acquire_lock(bool is_write_request, TXNID txnid,
-            const DBT *left_key, const DBT *right_key, txnid_set *conflicts);
+            const DBT *left_key, const DBT *right_key, txnid_set *conflicts, bool big_txn);
 
     void escalate(manager::lt_escalate_cb after_escalate_callback, void *extra);
 

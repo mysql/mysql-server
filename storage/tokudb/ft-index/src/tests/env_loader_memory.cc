@@ -91,14 +91,21 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 #include <db.h>
 
+static uint64_t my_loader_memory_size;
+
+static uint64_t get_loader_memory_size(void) {
+    return my_loader_memory_size;
+}
+
 int test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
     int r;
     DB_ENV *env;
     r = db_env_create(&env, 0);
     assert_zero(r);
+    env->set_loader_memory_size(env, get_loader_memory_size);
     for (uint64_t n = 0 ; n < 10000000000; n += 1000000000) {
-        env->set_loader_memory_size(env, n);
+        my_loader_memory_size = n;
         assert(env->get_loader_memory_size(env) == n);
     }
     r = env->close(env, 0);

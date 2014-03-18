@@ -102,6 +102,9 @@ PATENT RIGHTS GRANT:
 #include "txn_manager.h"
 #include <util/mempool.h>
 
+void toku_ule_status_init(void);
+void toku_ule_status_destroy(void);
+
 // opaque handles used by outside world (i.e. indexer)
 typedef struct ule *ULEHANDLE;	
 typedef struct uxr *UXRHANDLE;

@@ -89,6 +89,8 @@ PATENT RIGHTS GRANT:
 #ident "$Id$"
 
 #include <toku_portability.h>
+#include <util/scoped_malloc.h>
+
 #include <zlib.h>
 #include <lzma.h>
 
@@ -241,10 +243,10 @@ void toku_decompress (Bytef       *dest,   uLongf destLen,
     }
     case TOKU_QUICKLZ_METHOD:
         if (sourceLen>1) {
-            qlz_state_decompress *XCALLOC(qsd);
+            toku::scoped_calloc state_buf(sizeof(qlz_state_decompress));
+            qlz_state_decompress *qsd = reinterpret_cast<qlz_state_decompress *>(state_buf.get());
             uLongf actual_destlen = qlz_decompress((char*)source+1, dest, qsd);
             assert(actual_destlen == destLen);
-            toku_free(qsd);
         } else {
             // length 1 means there is no data, so do nothing.
             assert(destLen==0);

@@ -207,6 +207,7 @@ enum {
         TOKUDB_BAD_CHECKSUM            = -100015,
         TOKUDB_HUGE_PAGES_ENABLED      = -100016,
         TOKUDB_OUT_OF_RANGE            = -100017,
+        TOKUDB_INTERRUPTED             = -100018,
         DONTUSE_I_JUST_PUT_THIS_HERE_SO_I_COULD_HAVE_A_COMMA_AFTER_EACH_ITEM
 };
 
@@ -359,6 +360,7 @@ static void print_defines (void) {
     dodefine(TOKUDB_BAD_CHECKSUM);
     dodefine(TOKUDB_HUGE_PAGES_ENABLED);
     dodefine(TOKUDB_OUT_OF_RANGE);
+    dodefine(TOKUDB_INTERRUPTED);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");
@@ -449,7 +451,7 @@ static void print_db_env_struct (void) {
                              "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
                              "int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max)",
                              "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
-                             "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec)",
+                             "int (*set_lock_timeout)                     (DB_ENV *env, uint64_t default_lock_wait_time_msec, uint64_t (*get_lock_wait_time_cb)(uint64_t default_lock_wait_time))",
                              "int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec)",
                              "int (*set_lock_timeout_callback)            (DB_ENV *env, lock_timeout_callback callback)",
                              "int (*txn_xa_recover)                       (DB_ENV*, TOKU_XA_XID list[/*count*/], long count, /*out*/ long *retp, uint32_t flags)",
@@ -459,8 +461,9 @@ static void print_db_env_struct (void) {
                              "void (*change_fsync_log_period)             (DB_ENV*, uint32_t)",
                              "int (*iterate_live_transactions)            (DB_ENV *env, iterate_transactions_callback callback, void *extra)",
                              "int (*iterate_pending_lock_requests)        (DB_ENV *env, iterate_requests_callback callback, void *extra)",
-                             "void (*set_loader_memory_size)(DB_ENV *env, uint64_t loader_memory_size)",
+                             "void (*set_loader_memory_size)(DB_ENV *env, uint64_t (*get_loader_memory_size_callback)(void))",
                              "uint64_t (*get_loader_memory_size)(DB_ENV *env)",
+                             "void (*set_killed_callback)(DB_ENV *env, uint64_t default_killed_time_msec, uint64_t (*get_killed_time_callback)(uint64_t default_killed_time_msec), int (*killed_callback)(void))",
                              NULL};
 
         sort_and_dump_fields("db_env", true, extra);
@@ -529,7 +532,7 @@ static void print_db_struct (void) {
 			 "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, uint32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
 			 "int (*getf_set)(DB*, DB_TXN*, uint32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
 			 "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
-			 "int (*hot_optimize)(DB*, DBT*, DBT*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra)",
+			 "int (*hot_optimize)(DB*, DBT*, DBT*, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, uint64_t* loops_run)",
 			 "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
 			 "int (*change_pagesize)(DB*,uint32_t)",
 			 "int (*change_readpagesize)(DB*,uint32_t)",
@@ -538,6 +541,9 @@ static void print_db_struct (void) {
 			 "int (*change_compression_method)(DB*,TOKU_COMPRESSION_METHOD)",
 			 "int (*get_compression_method)(DB*,TOKU_COMPRESSION_METHOD*)",
 			 "int (*set_compression_method)(DB*,TOKU_COMPRESSION_METHOD)",
+			 "int (*change_fanout)(DB *db, uint32_t fanout)",
+			 "int (*get_fanout)(DB *db, uint32_t *fanout)",
+			 "int (*set_fanout)(DB *db, uint32_t fanout)",
 			 "int (*set_indexer)(DB*, DB_INDEXER*)",
 			 "void (*get_indexer)(DB*, DB_INDEXER**)",
 			 "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
@@ -546,6 +552,7 @@ static void print_db_struct (void) {
 			 "int (*get_fractal_tree_info64)(DB*,uint64_t*,uint64_t*,uint64_t*,uint64_t*)",
 			 "int (*iterate_fractal_tree_block_map)(DB*,int(*)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*),void*)",
                          "const char *(*get_dname)(DB *db)",
+                         "int (*get_last_key)(DB *db, YDB_CALLBACK_FUNCTION func, void* extra)",
 			 NULL};
     sort_and_dump_fields("db", true, extra);
 }
@@ -602,6 +609,7 @@ static void print_dbc_struct (void) {
 	"int (*c_getf_set_range)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_getf_set_range_reverse)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_set_bounds)(DBC*, const DBT*, const DBT*, bool pre_acquire, int out_of_range_error)",
+    "void (*c_set_check_interrupt_callback)(DBC*, bool (*)(void*), void *)",
 	"void (*c_remove_restriction)(DBC*)",
 	NULL};
     sort_and_dump_fields("dbc", false, extra);
@@ -729,9 +737,9 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("   CHARSTR,        // interpret as char * \n");
     printf("   UNIXTIME,       // interpret as time_t \n");
     printf("   TOKUTIME,       // interpret as tokutime_t \n");
-    printf("   PARCOUNT       // interpret as PARTITIONED_COUNTER\n");
+    printf("   PARCOUNT,       // interpret as PARTITIONED_COUNTER\n");
+    printf("   DOUBLE          // interpret as double\n");
     printf("} toku_engine_status_display_type; \n");
-
 
     printf("typedef enum {\n");
     printf("   TOKU_ENGINE_STATUS             = (1ULL<<0),  // Include when asking for engine status\n");
@@ -821,6 +829,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("int toku_set_trace_file (const char *fname) %s;\n", VISIBLE);
     printf("int toku_close_trace_file (void) %s;\n", VISIBLE);
     printf("void db_env_set_direct_io (bool direct_io_on) %s;\n", VISIBLE);
+    printf("void db_env_set_compress_buffers_before_eviction (bool compress_buffers) %s;\n", VISIBLE);
     printf("void db_env_set_func_fsync (int (*)(int)) %s;\n", VISIBLE);
     printf("void db_env_set_func_free (void (*)(void*)) %s;\n", VISIBLE);
     printf("void db_env_set_func_malloc (void *(*)(size_t)) %s;\n", VISIBLE);

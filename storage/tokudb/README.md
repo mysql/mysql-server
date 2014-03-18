@@ -24,25 +24,33 @@ working MySQL or MariaDB with Tokutek patches, and with the TokuDB storage
 engine, called `make.mysql.bash`.  This script will download copies of the
 needed source code from github and build everything.
 
-To build MySQL with TokuDB 7.0.4:
+To build MySQL with TokuDB 7.1.0:
 ```sh
-scripts/make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.4-linux-x86_64
+scripts/make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.1.0-linux-x86_64
 ```
 
-To build MariaDB with TokuDB 7.0.4:
+To build MariaDB with TokuDB 7.1.0:
 ```sh
-scripts/make.mysql.bash --mysqlbuild=mariadb-5.5.30-tokudb-7.0.4-linux-x86_64
+scripts/make.mysql.bash --mysqlbuild=mariadb-5.5.30-tokudb-7.1.0-linux-x86_64
 ```
 
 Before you start, make sure you have a C++11-compatible compiler (GCC >=
 4.7 is recommended), as well as CMake >=2.8.8, and the libraries and
-header files for valgrind,zlib, and Berkeley DB.  On Centos, `yum install
-valgrind-devel zlib-devel libdb-devel`, on Ubuntu, `apt-get install
-valgrind zlib1g-dev libdb-dev`.
+header files for valgrind,zlib, and Berkeley DB.
+
+On CentOS, `yum install valgrind-devel zlib-devel libdb-devel`
+
+On Ubuntu, `apt-get install valgrind zlib1g-dev libdb-dev`
 
 You can set the compiler by passing `--cc` and `--cxx` to the script, to
 select one that's new enough.  The default is `scripts/make.mysql.bash
 --cc=gcc47 --cxx=g++47`, which may not exist on your system.
+
+To build a debug MySQL with TokuDB using the head of the Tokutek github
+repositories, run this:
+```sh
+scripts/make.mysql.debug.env.bash
+```
 
 
 Contributing

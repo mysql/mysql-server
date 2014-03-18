@@ -288,6 +288,7 @@ struct fractal_thread_args {
     uint32_t                 target_nodesize;
     uint32_t                 target_basementnodesize;
     enum toku_compression_method target_compression_method;
+    uint32_t                 target_fanout;
 };
 
 void toku_ft_loader_set_n_rows(FTLOADER bl, uint64_t n_rows);
@@ -319,7 +320,8 @@ int toku_loader_write_brt_from_q_in_C (FTLOADER                bl,
                                        int                      which_db,
                                        uint32_t                 target_nodesize,
                                        uint32_t                 target_basementnodesize,
-                                       enum toku_compression_method target_compression_method);
+                                       enum toku_compression_method target_compression_method,
+                                       uint32_t                 fanout);
 
 int ft_loader_mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, ft_compare_func, FTLOADER, struct rowset *);
 

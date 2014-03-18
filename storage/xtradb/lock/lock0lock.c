@@ -3832,6 +3832,8 @@ lock_table_remove_low(
 	trx = lock->trx;
 	table = lock->un_member.tab_lock.table;
 
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
 	/* Remove the table from the transaction's AUTOINC vector, if
 	the lock that is being release is an AUTOINC lock. */
 	if (lock_get_mode(lock) == LOCK_AUTO_INC) {

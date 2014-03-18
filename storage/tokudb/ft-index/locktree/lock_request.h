@@ -125,16 +125,15 @@ public:
         WRITE
     };
 
-    // effect: Initializes a lock request with a given wait time.
-    void create(uint64_t wait_time);
+    // effect: Initializes a lock request.
+    void create(void);
 
     // effect: Destroys a lock request.
     void destroy(void);
 
     // effect: Resets the lock request parameters, allowing it to be reused.
     // requires: Lock request was already created at some point
-    void set(locktree *lt, TXNID txnid,
-            const DBT *left_key, const DBT *right_key, type lock_type);
+    void set(locktree *lt, TXNID txnid, const DBT *left_key, const DBT *right_key, type lock_type, bool big_txn);
 
     // effect: Tries to acquire a lock described by this lock request.
     // returns: The return code of locktree::acquire_[write,read]_lock()
@@ -144,7 +143,8 @@ public:
     // effect: Sleeps until either the request is granted or the wait time expires.
     // returns: The return code of locktree::acquire_[write,read]_lock()
     //          or simply DB_LOCK_NOTGRANTED if the wait time expired.
-    int wait(void);
+    int wait(uint64_t wait_time_ms);
+    int wait(uint64_t wait_time_ms, uint64_t killed_time_ms, int (*killed_callback)(void));
 
     // return: left end-point of the lock range
     const DBT *get_left_key(void) const;
@@ -196,8 +196,9 @@ private:
     int m_complete_r;
     state m_state;
 
-    uint64_t m_wait_time;
     toku_cond_t m_wait_cond;
+
+    bool m_big_txn;
 
     // the lock request info state stored in the
     // locktree that this lock request is for.
@@ -234,8 +235,6 @@ private:
     bool deadlock_exists(const txnid_set &conflicts);
 
     void copy_keys(void);
-
-    void calculate_cond_wakeup_time(struct timespec *ts);
 
     static int find_by_txnid(lock_request * const &request, const TXNID &txnid);
 

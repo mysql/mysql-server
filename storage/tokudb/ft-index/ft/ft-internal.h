@@ -117,15 +117,10 @@ PATENT RIGHTS GRANT:
 #include <util/omt.h>
 #include "bndata.h"
 
-#ifndef FT_FANOUT
-#define FT_FANOUT 16
-#endif
-enum { TREE_FANOUT = FT_FANOUT };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
-enum { FT_CMD_OVERHEAD = (2 + sizeof(MSN))     // the type plus freshness plus MSN
-};
-
-enum { FT_DEFAULT_NODE_SIZE = 1 << 22 };
+enum { FT_CMD_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
+enum { FT_DEFAULT_FANOUT = 16 };
+enum { FT_DEFAULT_NODE_SIZE = 4 * 1024 * 1024 };
 enum { FT_DEFAULT_BASEMENT_NODE_SIZE = 128 * 1024 };
 
 //
@@ -234,15 +229,13 @@ long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
 void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
-void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID oldest_referenced_xid);
+void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID parent_oldest_referenced_xid_known);
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) __attribute__((const, nonnull));
 bool toku_ft_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);
 
-
-enum reactivity get_nonleaf_reactivity (FTNODE node);
-enum reactivity get_node_reactivity (FTNODE node, uint32_t nodesize);
+enum reactivity get_nonleaf_reactivity(FTNODE node, unsigned int fanout);
+enum reactivity get_node_reactivity(FT ft, FTNODE node);
 uint32_t get_leaf_num_entries(FTNODE node);
-
 
 // data of an available partition of a leaf ftnode
 struct ftnode_leaf_basement_node {
@@ -336,7 +329,7 @@ struct ftnode {
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     int    dirty;
     uint32_t fullhash;
-    int n_children; //for internal nodes, if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced.
+    int n_children; //for internal nodes, if n_children==fanout+1 then the tree needs to be rebalanced.
                     // for leaf nodes, represents number of basement nodes
     unsigned int    totalchildkeylens;
     DBT *childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
@@ -509,6 +502,7 @@ struct ft_header {
     unsigned int nodesize; 
     unsigned int basementnodesize;
     enum toku_compression_method compression_method;
+    unsigned int fanout;
 
     // Current Minimum MSN to be used when upgrading pre-MSN BRT's.
     // This is decremented from our currnt MIN_MSN so as not to clash
@@ -590,6 +584,7 @@ struct ft_options {
     unsigned int nodesize;
     unsigned int basementnodesize;
     enum toku_compression_method compression_method;
+    unsigned int fanout;
     unsigned int flags;
     ft_compare_func compare_fun;
     ft_update_func update_fun;
@@ -632,7 +627,7 @@ int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* nd
 int toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized_log, bool is_serialized,
                                     FT h, bool for_checkpoint);
 void toku_serialize_rollback_log_to_memory_uncompressed(ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized);
-int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash, ROLLBACK_LOG_NODE *logp, FT h);
+int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT h);
 int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra* bfe);
 int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fetch_extra *bfe);
 int toku_deserialize_ftnode_from (int fd, BLOCKNUM off, uint32_t /*fullhash*/, FTNODE *ftnode, FTNODE_DISK_DATA* ndd, struct ftnode_fetch_extra* bfe);
@@ -735,7 +730,8 @@ void toku_ftnode_checkpoint_complete_callback(void *value_data);
 void toku_ftnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *ftnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone);
 int toku_ftnode_fetch_callback (CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
 void toku_ftnode_pe_est_callback(void* ftnode_pv, void* disk_data, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
-int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *extraargs);
+int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *extraargs,
+                            void (*finalize)(PAIR_ATTR new_attr, void *extra), void *finalize_extra);
 bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
 int toku_ftnode_pf_callback(void* ftnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
 int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *extraargs);
@@ -787,6 +783,8 @@ struct ft_cursor {
     int out_of_range_error;
     int direction;
     TOKUTXN ttxn;
+    FT_CHECK_INTERRUPT_CALLBACK interrupt_cb;
+    void *interrupt_cb_extra;
 };
 
 //
@@ -1029,7 +1027,7 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM, enum ft_msg_type,
 void toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t);
 
 // toku_ft_root_put_cmd() accepts non-constant cmd because this is where we set the msn
-void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd, TXNID oldest_referenced_xid, GC_INFO gc_info);
+void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd, txn_gc_info *gc_info);
 
 void
 toku_get_node_for_verify(
@@ -1067,6 +1065,10 @@ typedef enum {
     LE_MAX_PROVISIONAL_XR,
     LE_EXPANDED,
     LE_MAX_MEMSIZE,
+    LE_APPLY_GC_BYTES_IN,
+    LE_APPLY_GC_BYTES_OUT,
+    LE_NORMAL_GC_BYTES_IN,
+    LE_NORMAL_GC_BYTES_OUT,
     LE_STATUS_NUM_ROWS
 } le_status_entry;
 
@@ -1101,6 +1103,9 @@ typedef enum {
     FT_DISK_FLUSH_NONLEAF_BYTES_FOR_CHECKPOINT,// number of nonleaf nodes flushed to disk for checkpoint
     FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,// number of nonleaf nodes flushed to disk for checkpoint
     FT_DISK_FLUSH_NONLEAF_TOKUTIME_FOR_CHECKPOINT,// number of nonleaf nodes flushed to disk for checkpoint
+    FT_DISK_FLUSH_LEAF_COMPRESSION_RATIO,      // effective compression ratio for leaf bytes flushed to disk
+    FT_DISK_FLUSH_NONLEAF_COMPRESSION_RATIO,   // effective compression ratio for nonleaf bytes flushed to disk
+    FT_DISK_FLUSH_OVERALL_COMPRESSION_RATIO,   // effective compression ratio for all bytes flushed to disk
     FT_PARTIAL_EVICTIONS_NONLEAF,              // number of nonleaf node partial evictions
     FT_PARTIAL_EVICTIONS_NONLEAF_BYTES,        // number of nonleaf node partial evictions
     FT_PARTIAL_EVICTIONS_LEAF,                 // number of leaf node partial evictions
@@ -1196,8 +1201,7 @@ toku_ft_bn_apply_cmd_once (
     const FT_MSG cmd,
     uint32_t idx,
     LEAFENTRY le,
-    TXNID oldest_referenced_xid,
-    GC_INFO gc_info,
+    txn_gc_info *gc_info,
     uint64_t *workdonep,
     STAT64INFO stats_to_update
     );
@@ -1209,8 +1213,7 @@ toku_ft_bn_apply_cmd (
     DESCRIPTOR desc,
     BASEMENTNODE bn,
     FT_MSG cmd,
-    TXNID oldest_referenced_xid,
-    GC_INFO gc_info,
+    txn_gc_info *gc_info,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
@@ -1223,7 +1226,7 @@ toku_ft_leaf_apply_cmd (
     FTNODE node,
     int target_childnum,
     FT_MSG cmd,
-    GC_INFO gc_info,
+    txn_gc_info *gc_info,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
@@ -1237,7 +1240,7 @@ toku_ft_node_put_cmd (
     int target_childnum,
     FT_MSG cmd,
     bool is_fresh,
-    GC_INFO gc_info,
+    txn_gc_info *gc_info,
     size_t flow_deltas[],
     STAT64INFO stats_to_update
     );

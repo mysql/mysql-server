@@ -252,7 +252,7 @@ static uint32_t blob_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info, uint i
 // of where conditions (conds).  The function returns 0 if the update is handled in the storage engine.
 // Otherwise, an error is returned.
 int ha_tokudb::fast_update(THD *thd, List<Item> &update_fields, List<Item> &update_values, Item *conds) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::fast_update");
+    TOKUDB_HANDLER_DBUG_ENTER("");
     int error = 0;
 
     if (tokudb_debug & TOKUDB_DEBUG_UPSERT) {
@@ -287,7 +287,7 @@ check_error:
     }
 
 return_error:
-    TOKUDB_DBUG_RETURN(error);
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 // Return true if an expression is a simple int expression or a simple function of +- int expression.
@@ -549,7 +549,7 @@ static bool is_strict_mode(THD *thd) {
 #if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
     return thd->is_strict_mode();
 #else
-    return test(thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
+    return tokudb_test(thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
 #endif
 }
 
@@ -837,7 +837,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
 
     rw_rdlock(&share->num_DBs_lock);
 
-    if (share->num_DBs > table->s->keys + test(hidden_primary_key)) { // hot index in progress
+    if (share->num_DBs > table->s->keys + tokudb_test(hidden_primary_key)) { // hot index in progress
         error = ENOTSUP; // run on the slow path
     } else {
         // send the update message    
@@ -856,7 +856,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
 // An upsert consists of a row and a list of update expressions (update_fields[i] = update_values[i]).
 // The function returns 0 if the upsert is handled in the storage engine.  Otherwise, an error code is returned.
 int ha_tokudb::upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::upsert");
+    TOKUDB_HANDLER_DBUG_ENTER("");
 
     int error = 0;
 
@@ -890,7 +890,7 @@ check_error:
     }
 
 return_error:
-    TOKUDB_DBUG_RETURN(error);
+    TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 // Check if an upsert can be handled by this storage engine.  Return trus if it can.
@@ -990,7 +990,7 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
 
     rw_rdlock(&share->num_DBs_lock);
 
-    if (share->num_DBs > table->s->keys + test(hidden_primary_key)) { // hot index in progress
+    if (share->num_DBs > table->s->keys + tokudb_test(hidden_primary_key)) { // hot index in progress
         error = ENOTSUP; // run on the slow path
     } else {
         // send the upsert message

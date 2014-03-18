@@ -1,3 +1,4 @@
+set default_storage_engine='tokudb';
 drop table if exists t;
 set sql_mode=traditional;
 create table t (id tinyint unsigned not null auto_increment, key(id));

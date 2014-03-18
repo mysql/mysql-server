@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that char change with different charset is not hot
 
 --disable_warnings

@@ -97,6 +97,7 @@ PATENT RIGHTS GRANT:
 #include <util/threadpool.h>
 #include "ft.h"
 #include <util/status.h>
+#include <util/scoped_malloc.h>
 
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 
@@ -217,12 +218,12 @@ toku_maybe_preallocate_in_file (int fd, int64_t size, int64_t expected_size, int
     }
     if (to_write > 0) {
         assert(to_write%512==0);
-        char *XMALLOC_N_ALIGNED(512, to_write, wbuf);
+        toku::scoped_malloc_aligned wbuf_aligned(to_write, 512);
+        char *wbuf = reinterpret_cast<char *>(wbuf_aligned.get());
         memset(wbuf, 0, to_write);
         toku_off_t start_write = alignup64(file_size, stripe_width);
         invariant(start_write >= file_size);
         toku_os_full_pwrite(fd, wbuf, to_write, start_write);
-        toku_free(wbuf);
         *new_size = start_write + to_write;
     }
     else {
@@ -356,10 +357,13 @@ serialize_nonleaf_childinfo(NONLEAF_CHILDINFO bnc, struct wbuf *wb)
 //
 static void
 serialize_ftnode_partition(FTNODE node, int i, struct sub_block *sb) {
-    assert(sb->uncompressed_size == 0);
-    assert(sb->uncompressed_ptr == NULL);
-    sb->uncompressed_size = serialize_ftnode_partition_size(node,i);
-    sb->uncompressed_ptr = toku_xmalloc(sb->uncompressed_size);
+    if (sb->uncompressed_ptr == NULL) {
+        assert(sb->uncompressed_size == 0);
+        sb->uncompressed_size = serialize_ftnode_partition_size(node,i);
+        sb->uncompressed_ptr = toku_xmalloc(sb->uncompressed_size);
+    } else {
+        assert(sb->uncompressed_size > 0);
+    }
     //
     // Now put the data into sb->uncompressed_ptr
     //
@@ -549,13 +553,21 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
 
     // Create an array of OMTVALUE's that store all the pointers to all the data.
     // Each element in leafpointers is a pointer to a leaf.
-    LEAFENTRY *XMALLOC_N(num_alloc, leafpointers);
+    toku::scoped_malloc leafpointers_buf(sizeof(LEAFENTRY) * num_alloc);
+    LEAFENTRY *leafpointers = reinterpret_cast<LEAFENTRY *>(leafpointers_buf.get());
     leafpointers[0] = NULL;
-    const void **XMALLOC_N(num_alloc, key_pointers);
-    uint32_t *XMALLOC_N(num_alloc, key_sizes);
+
+    toku::scoped_malloc key_pointers_buf(sizeof(void *) * num_alloc);
+    const void **key_pointers = reinterpret_cast<const void **>(key_pointers_buf.get());
+    key_pointers[0] = NULL;
+
+    toku::scoped_malloc key_sizes_buf(sizeof(uint32_t) * num_alloc);
+    uint32_t *key_sizes = reinterpret_cast<uint32_t *>(key_sizes_buf.get());
 
     // Capture pointers to old mempools' buffers (so they can be destroyed)
-    BASEMENTNODE *XMALLOC_N(num_orig_basements, old_bns);
+    toku::scoped_malloc old_bns_buf(sizeof(BASEMENTNODE) * num_orig_basements);
+    BASEMENTNODE *old_bns = reinterpret_cast<BASEMENTNODE *>(old_bns_buf.get());
+    old_bns[0] = NULL;
 
     uint32_t curr_le = 0;
     for (uint32_t i = 0; i < num_orig_basements; i++) {
@@ -568,22 +580,26 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     // Create an array that will store indexes of new pivots.
     // Each element in new_pivots is the index of a pivot key.
     // (Allocating num_le of them is overkill, but num_le is an upper bound.)
-    uint32_t *XMALLOC_N(num_alloc, new_pivots);
+    toku::scoped_malloc new_pivots_buf(sizeof(uint32_t) * num_alloc);
+    uint32_t *new_pivots = reinterpret_cast<uint32_t *>(new_pivots_buf.get());
     new_pivots[0] = 0;
 
     // Each element in le_sizes is the size of the leafentry pointed to by leafpointers.
-    size_t *XMALLOC_N(num_alloc, le_sizes);
+    toku::scoped_malloc le_sizes_buf(sizeof(size_t) * num_alloc);
+    size_t *le_sizes = reinterpret_cast<size_t *>(le_sizes_buf.get());
     le_sizes[0] = 0;
 
     // Create an array that will store the size of each basement.
     // This is the sum of the leaf sizes of all the leaves in that basement.
     // We don't know how many basements there will be, so we use num_le as the upper bound.
-    size_t *XMALLOC_N(num_alloc, bn_sizes);
+    toku::scoped_malloc bn_sizes_buf(sizeof(size_t) * num_alloc);
+    size_t *bn_sizes = reinterpret_cast<size_t *>(bn_sizes_buf.get());
     bn_sizes[0] = 0;
 
     // TODO 4050: All these arrays should be combined into a single array of some bn_info struct (pivot, msize, num_les).
     // Each entry is the number of leafentries in this basement.  (Again, num_le is overkill upper baound.)
-    uint32_t *XMALLOC_N(num_alloc, num_les_this_bn);
+    toku::scoped_malloc num_les_this_bn_buf(sizeof(uint32_t) * num_alloc);
+    uint32_t *num_les_this_bn = reinterpret_cast<uint32_t *>(num_les_this_bn_buf.get());
     num_les_this_bn[0] = 0;
     
     // Figure out the new pivots.  
@@ -696,14 +712,6 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
     for (uint32_t i = 0; i < num_orig_basements; i++) {
         destroy_basement_node(old_bns[i]);
     }
-    toku_free(key_pointers);
-    toku_free(key_sizes);
-    toku_free(leafpointers);
-    toku_free(old_bns);
-    toku_free(new_pivots);
-    toku_free(le_sizes);
-    toku_free(bn_sizes);
-    toku_free(num_les_this_bn);
 }  // end of rebalance_ftnode_leaf()
 
 struct serialize_times {
@@ -737,32 +745,30 @@ toku_create_compressed_partition_from_available(
     SUB_BLOCK sb
     )
 {
-    struct serialize_times st;
-    memset(&st, 0, sizeof(st));
+    tokutime_t t0 = toku_time_now();
 
-    serialize_and_compress_partition(node, childnum, compression_method, sb, &st);
-    toku_ft_status_update_serialize_times(node, st.serialize_time, st.compress_time);
+    // serialize
+    sb->uncompressed_size = serialize_ftnode_partition_size(node, childnum);
+    toku::scoped_malloc uncompressed_buf(sb->uncompressed_size);
+    sb->uncompressed_ptr = uncompressed_buf.get();
+    serialize_ftnode_partition(node, childnum, sb);
 
-    //
-    // now we have an sb that would be ready for being written out,
-    // but we are not writing it out, we are storing it in cache for a potentially
-    // long time, so we need to do some cleanup
-    //
-    // The buffer created above contains metadata in the first 8 bytes, and is overallocated
-    // It allocates a bound on the compressed length (evaluated before compression) as opposed
-    // to just the amount of the actual compressed data. So, we create a new buffer and copy
-    // just the compressed data.
-    //
-    uint32_t compressed_size = toku_dtoh32(*(uint32_t *)sb->compressed_ptr);
-    void* compressed_data = toku_xmalloc(compressed_size);
-    memcpy(compressed_data, (char *)sb->compressed_ptr + 8, compressed_size);
-    toku_free(sb->compressed_ptr);
-    sb->compressed_ptr = compressed_data;
-    sb->compressed_size = compressed_size;
-    if (sb->uncompressed_ptr) {
-        toku_free(sb->uncompressed_ptr);
-        sb->uncompressed_ptr = NULL;
-    }
+    tokutime_t t1 = toku_time_now();
+
+    // compress. no need to pad with extra bytes for sizes/xsum - we're not storing them
+    set_compressed_size_bound(sb, compression_method);
+    sb->compressed_ptr = toku_xmalloc(sb->compressed_size_bound);
+    sb->compressed_size = compress_nocrc_sub_block(
+        sb,
+        sb->compressed_ptr,
+        sb->compressed_size_bound,
+        compression_method
+        );
+    sb->uncompressed_ptr = NULL;
+
+    tokutime_t t2 = toku_time_now();
+
+    toku_ft_status_update_serialize_times(node, t1 - t0, t2 - t1);
 }
 
 static void
@@ -882,7 +888,8 @@ int toku_serialize_ftnode_to_memory(FTNODE node,
     // Each partition represents a compressed sub block
     // For internal nodes, a sub block is a message buffer
     // For leaf nodes, a sub block is a basement node
-    struct sub_block *XMALLOC_N(npartitions, sb);
+    toku::scoped_malloc sb_buf(sizeof(struct sub_block) * npartitions);
+    struct sub_block *sb = reinterpret_cast<struct sub_block *>(sb_buf.get());
     XREALLOC_N(npartitions, *ndd);
     struct sub_block sb_node_info;
     for (int i = 0; i < npartitions; i++) {
@@ -983,7 +990,6 @@ int toku_serialize_ftnode_to_memory(FTNODE node,
 
     assert(0 == (*n_bytes_to_write)%512);
     assert(0 == ((unsigned long long)(*bytes_to_write))%512);
-    toku_free(sb);
     return 0;
 }
 
@@ -1055,6 +1061,7 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         XMALLOC_N(n_in_this_buffer, fresh_offsets);
         XMALLOC_N(n_in_this_buffer, broadcast_offsets);
     }
+    toku_fifo_resize(bnc->buffer, rbuf->size + 64);
     for (int i = 0; i < n_in_this_buffer; i++) {
         bytevec key; ITEMLEN keylen;
         bytevec val; ITEMLEN vallen;
@@ -1171,9 +1178,9 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
 NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     NONLEAF_CHILDINFO XMALLOC(cn);
     int r = toku_fifo_create(&cn->buffer); assert_zero(r);
-    cn->fresh_message_tree.create();
-    cn->stale_message_tree.create();
-    cn->broadcast_list.create();
+    cn->fresh_message_tree.create_no_array();
+    cn->stale_message_tree.create_no_array();
+    cn->broadcast_list.create_no_array();
     memset(cn->flow, 0, sizeof cn->flow);
     return cn;
 }
@@ -1545,7 +1552,6 @@ deserialize_ftnode_partition(
         rb.ndone += data_size;
     }
     assert(rb.ndone == rb.size);
-    toku_free(sb->uncompressed_ptr);
 exit:
     return r;
 }
@@ -1563,6 +1569,8 @@ decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_s
         r = deserialize_ftnode_partition(&curr_sb, node, child, desc, cmp);
     }
     *decompress_time = t1 - t0;
+
+    toku_free(curr_sb.uncompressed_ptr);
     return r;
 }
 
@@ -2451,7 +2459,8 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     uint32_t pad_at_beginning = (node_offset+curr_offset)%512;
     uint32_t padded_size = roundup_to_multiple(512, pad_at_beginning + curr_size);
 
-    uint8_t *XMALLOC_N_ALIGNED(512, padded_size, raw_block);
+    toku::scoped_malloc_aligned raw_block_buf(padded_size, 512);
+    uint8_t *raw_block = reinterpret_cast<uint8_t *>(raw_block_buf.get());
     rbuf_init(&rb, pad_at_beginning+raw_block, curr_size);
     tokutime_t t0 = toku_time_now();
 
@@ -2465,17 +2474,25 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
 
     tokutime_t t1 = toku_time_now();
 
-    // decompress
+    // read sub block
     struct sub_block curr_sb;
     sub_block_init(&curr_sb);
-    r = read_and_decompress_sub_block(&rb, &curr_sb);
+    r = read_compressed_sub_block(&rb, &curr_sb);
+    if (r != 0) {
+        return r;
+    }
+    invariant(curr_sb.compressed_ptr != NULL);
+
+    // decompress
+    toku::scoped_malloc uncompressed_buf(curr_sb.uncompressed_size);
+    curr_sb.uncompressed_ptr = uncompressed_buf.get();
+    toku_decompress((Bytef *) curr_sb.uncompressed_ptr, curr_sb.uncompressed_size,
+                    (Bytef *) curr_sb.compressed_ptr, curr_sb.compressed_size);
 
     // deserialize
     tokutime_t t2 = toku_time_now();
-    if (r == 0) {
-        // at this point, sb->uncompressed_ptr stores the serialized node partition
-        r = deserialize_ftnode_partition(&curr_sb, node, childnum, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
-    }
+
+    r = deserialize_ftnode_partition(&curr_sb, node, childnum, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
 
     tokutime_t t3 = toku_time_now();
 
@@ -2490,7 +2507,6 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     bfe->bytes_read = rlen;
     bfe->io_time = io_time;
 
-    toku_free(raw_block);
     return r;
 }
 
@@ -2501,8 +2517,9 @@ toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fet
     assert(BP_STATE(node, childnum) == PT_COMPRESSED);
     SUB_BLOCK curr_sb = BSB(node, childnum);
 
+    toku::scoped_malloc uncompressed_buf(curr_sb->uncompressed_size);
     assert(curr_sb->uncompressed_ptr == NULL);
-    curr_sb->uncompressed_ptr = toku_xmalloc(curr_sb->uncompressed_size);
+    curr_sb->uncompressed_ptr = uncompressed_buf.get();
 
     setup_available_ftnode_partition(node, childnum);
     BP_STATE(node,childnum) = PT_AVAIL;
@@ -2763,8 +2780,7 @@ toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBA
 }
 
 static int
-deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, uint32_t fullhash, ROLLBACK_LOG_NODE *log_p,
-                                    FT h, struct rbuf *rb) {
+deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, ROLLBACK_LOG_NODE *log_p, struct rbuf *rb) {
     ROLLBACK_LOG_NODE MALLOC(result);
     int r;
     if (result==NULL) {
@@ -2793,13 +2809,7 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, uint32_t fullhash, ROLLBA
         r = toku_db_badformat();
         goto died0;
     }
-    result->hash    = toku_cachetable_hash(h->cf, result->blocknum);
-    if (result->hash != fullhash) {
-        r = toku_db_badformat();
-        goto died0;
-    }
     result->previous       = rbuf_blocknum(rb);
-    result->previous_hash  = toku_cachetable_hash(h->cf, result->previous);
     result->rollentry_resident_bytecount = rbuf_ulonglong(rb);
 
     size_t arena_initial_size = rbuf_ulonglong(rb);
@@ -2840,13 +2850,13 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, uint32_t fullhash, ROLLBA
 }
 
 static int
-deserialize_rollback_log_from_rbuf_versioned (uint32_t version, BLOCKNUM blocknum, uint32_t fullhash,
+deserialize_rollback_log_from_rbuf_versioned (uint32_t version, BLOCKNUM blocknum,
                                               ROLLBACK_LOG_NODE *log,
-                                              FT h, struct rbuf *rb) {
+                                              struct rbuf *rb) {
     int r = 0;
     ROLLBACK_LOG_NODE rollback_log_node = NULL;
     invariant(version==FT_LAYOUT_VERSION); //Rollback log nodes do not survive version changes.
-    r = deserialize_rollback_log_from_rbuf(blocknum, fullhash, &rollback_log_node, h, rb);
+    r = deserialize_rollback_log_from_rbuf(blocknum, &rollback_log_node, rb);
     if (r==0) {
         *log = rollback_log_node;
     }
@@ -3022,8 +3032,7 @@ cleanup:
 
 // Read rollback log node from file into struct.  Perform version upgrade if necessary.
 int
-toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash,
-                                    ROLLBACK_LOG_NODE *logp, FT h) {
+toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT h) {
     int layout_version = 0;
     int r;
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
@@ -3037,7 +3046,6 @@ toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash
         ROLLBACK_LOG_NODE XMALLOC(log);
         rollback_empty_log_init(log);
         log->blocknum.b = blocknum.b;
-        log->hash = fullhash;
         r = 0;
         *logp = log;
         goto cleanup;
@@ -3054,7 +3062,7 @@ toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash
         }
     }
 
-    r = deserialize_rollback_log_from_rbuf_versioned(layout_version, blocknum, fullhash, logp, h, &rb);
+    r = deserialize_rollback_log_from_rbuf_versioned(layout_version, blocknum, logp, &rb);
 
 cleanup:
     if (rb.buf) toku_free(rb.buf);

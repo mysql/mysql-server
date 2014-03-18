@@ -1,3 +1,4 @@
+source include/have_tokudb.inc;
 # test that update only take write locks
 # t1 scans all of the rows in a table and updates 1 of them
 # t1 grabs a write range lock on -infinity +infinity
