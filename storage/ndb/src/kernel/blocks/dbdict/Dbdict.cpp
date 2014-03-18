@@ -865,6 +865,7 @@ Dbdict::packFilegroupIntoPages(SimpleProperties::Writer & w,
 
   switch(fg.FilegroupType){
   case DictTabInfo::Tablespace:
+  {
     //fg.TS_DataGrow = group.m_grow_spec;
     fg.TS_ExtentSize = fg_ptr.p->m_tablespace.m_extent_size;
     fg.TS_LogfileGroupId = fg_ptr.p->m_tablespace.m_default_logfile_group_id;
@@ -872,6 +873,7 @@ Dbdict::packFilegroupIntoPages(SimpleProperties::Writer & w,
     ndbrequire(find_object(lfg_ptr, fg.TS_LogfileGroupId));
     fg.TS_LogfileGroupVersion = lfg_ptr.p->m_version;
     break;
+  }
   case DictTabInfo::LogfileGroup:
     fg.LF_UndoBufferSize = fg_ptr.p->m_logfilegroup.m_undo_buffer_size;
     fg.LF_UndoFreeWordsHi= undo_free_hi;
@@ -3071,9 +3073,9 @@ Dbdict::activateIndexes(Signal* signal, Uint32 id)
     break;
   }
 
-  TableRecordPtr indexPtr;
   for (; id < c_noOfMetaTables; id++)
   {
+    TableRecordPtr indexPtr;
     bool ok = find_object(indexPtr, id);
     if (!ok)
     {
@@ -4745,10 +4747,12 @@ Dbdict::restartDropObj(Signal* signal,
   case DictTabInfo::HashIndex:
   case DictTabInfo::UniqueOrderedIndex:
   case DictTabInfo::OrderedIndex:
+  {
     DropTableRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
     ndbrequire(false);
     break;
+  }
   case DictTabInfo::Undofile:
   case DictTabInfo::Datafile:
   {
@@ -5065,7 +5069,7 @@ void
 Dbdict::release_object(Uint32 obj_ptr_i, DictObject* obj_ptr_p){
   jam();
   RopeHandle obj_name = obj_ptr_p->m_name;
-  DictObjectPtr ptr = { obj_ptr_p, obj_ptr_i };
+  DictObjectPtr ptr(obj_ptr_p, obj_ptr_i);
 
   LocalRope name(c_rope_pool, obj_name);
   name.erase();
@@ -10870,8 +10874,8 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     if (reqListIndexes && !DictTabInfo::isIndex(type))
       goto flush;
 
-    TableRecordPtr tablePtr;
     if (DictTabInfo::isTable(type) || DictTabInfo::isIndex(type)){
+      TableRecordPtr tablePtr;
       c_tableRecordPool_.getPtr(tablePtr, iter.curr.p->m_object_ptr_i);
 
       if(reqListIndexes && (reqTableId != tablePtr.p->primaryTableId))
@@ -29788,6 +29792,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
 
   ErrorInfo error;
   SchemaTransPtr trans_ptr;
+  SchemaOpPtr op_ptr;
   const Uint32 trans_key = req->transKey;
   if (!findSchemaTrans(trans_ptr, trans_key))
   {
@@ -29856,7 +29861,6 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     break;
   }
 
-  SchemaOpPtr op_ptr;
   if (!findSchemaOp(op_ptr, req->opKey))
   {
     jam();

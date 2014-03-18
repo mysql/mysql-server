@@ -1119,6 +1119,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   jam();
   OperationrecPtr nextOp;
   OperationrecPtr loPtr;
+  OperationrecPtr tmp;
   nextOp.i = lastOp.p->nextParallelQue;
   loPtr.i = lastOp.p->m_lock_owner_ptr_i;
   Uint32 opbits = lastOp.p->m_op_bits;
@@ -1209,7 +1210,6 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   /**
    * We must check if there are many transactions in parallel queue...
    */
-  OperationrecPtr tmp;
   tmp= loPtr;
   while (tmp.i != RNIL)
   {

@@ -498,7 +498,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
        */
       break;
     }
-    Ptr<GlobalPage> page_ptr, next_page_ptr = { 0, 0 };
+    Ptr<GlobalPage> page_ptr(0,0), next_page_ptr(0,0);
     m_global_page_pool.getPtr(page_ptr, file_ptr.p->m_current_page_ptr_i);
     List::Iterator it;
     
