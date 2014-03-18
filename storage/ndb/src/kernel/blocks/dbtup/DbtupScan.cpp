@@ -780,6 +780,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       // get TUP real page
       jam();
       {
+        PagePtr pagePtr;
         if (pos.m_realpid_mm == RNIL) {
           jam();
           pos.m_realpid_mm = getRealpidCheck(fragPtr.p, key.m_page_no);
@@ -796,7 +797,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             break; // incr loop count
           }
         }
-        PagePtr pagePtr;
 	c_page_pool.getPtr(pagePtr, pos.m_realpid_mm);
 
     nopage:

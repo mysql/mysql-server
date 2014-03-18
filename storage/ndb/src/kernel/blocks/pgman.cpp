@@ -1677,7 +1677,7 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
   thrjam(jamBuf);
 
 #ifdef VM_TRACE
-  Ptr<Page_request> tmp = { &page_req, RNIL};
+  Ptr<Page_request> tmp(&page_req, RNIL);
 
   D(">get_page");
   D(ptr);

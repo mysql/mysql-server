@@ -320,6 +320,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     nodeFailCheckTransactions(signal, Tdata0, Tdata1);
     return;
   case TcContinueB::TRIGGER_PENDING:
+  {
     jam();
     ApiConnectRecordPtr transPtr;
     transPtr.i = Tdata0;
@@ -348,6 +349,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
       executeTriggers(signal, &transPtr);
     }
     return;
+  }
   case TcContinueB::DelayTCKEYCONF:
     jam();
     apiConnectptr.i = Tdata0;
@@ -1073,6 +1075,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
         apiConnectptr.p->apiFailState = ZTRUE;
         break;
       case CS_START_SCAN:
+      {
         /*********************************************************************/
         // The api record was performing a scan operation. We need to check 
         // on the scan state. Since completing a scan process might involve
@@ -1090,6 +1093,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
 	
         TloopCount += 64;
         break;
+      }
       case CS_CONNECTED:
       case CS_REC_COMMITTING:
       case CS_RECEIVING:
@@ -16852,6 +16856,7 @@ Dbtc::trigger_op_finished(Signal* signal,
     c_theDefinedTriggers.getPtr(trigPtr, trigPtrI);
     switch(trigPtr.p->triggerType){
     case TriggerType::FK_PARENT:
+    {
       if (errCode == ZNOT_FOUND)
       {
         break; // good!
@@ -16892,6 +16897,7 @@ Dbtc::trigger_op_finished(Signal* signal,
       apiConnectptr = regApiPtr;
       abortErrorLab(signal);
       return;
+    }
     default:
       (void)1;
     }

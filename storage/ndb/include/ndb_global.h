@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,12 +151,6 @@ extern "C" {
 
 #ifndef PATH_MAX
 #define PATH_MAX 1024
-#endif
-
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS)
-#define LINT_SET_PTR = {0,0}
-#else
-#define LINT_SET_PTR
 #endif
 
 #ifndef MIN
