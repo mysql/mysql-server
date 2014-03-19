@@ -32,26 +32,22 @@ class sp_name;
 
 /*
   Cache usage scenarios:
-  1. Application-wide init:
-    sp_cache_init();
+  1. SP execution in thread:
+  1.1 While holding sp_head* pointers:
 
-  2. SP execution in thread:
-  2.1 While holding sp_head* pointers:
-  
     // look up a routine in the cache (no checks if it is up to date or not)
-    sp_cache_lookup(); 
-    
+    sp_cache_lookup();
+
     sp_cache_insert();
     sp_cache_invalidate();
-  
-  2.2 When not holding any sp_head* pointers:
+
+  1.2 When not holding any sp_head* pointers:
     sp_cache_flush_obsolete();
-  
-  3. Before thread exit:
+
+  2. Before thread exit:
     sp_cache_clear();
 */
 
-void sp_cache_init();
 void sp_cache_clear(sp_cache **cp);
 void sp_cache_insert(sp_cache **cp, sp_head *sp);
 sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name);
