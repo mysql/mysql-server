@@ -487,7 +487,7 @@ max-time: 3600
 cmd: testNodeRestart
 args: -n RestartNodeDuringLCP T6
 
-# Bug18408691 added on 17.04.2014
+# Bug18379566 added on 17.04.2014
 max-time : 600
 cmd: testNodeRestart
 args: -n Bug16007980 T1
