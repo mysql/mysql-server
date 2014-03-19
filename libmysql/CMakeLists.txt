@@ -262,6 +262,36 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     mysql_get_charset_by_csname
     mysql_net_realloc
 
+    # And even more so on Debian, libmyodbc. Argh!
+    alloc_dynamic
+    alloc_root
+    delete_dynamic
+    dynstr_append
+    dynstr_append_mem
+    dynstr_append_os_quoted
+    dynstr_free
+    dynstr_realloc
+    free_root
+    get_dynamic
+    init_dynamic_array2
+    init_dynamic_string
+    int2str
+    list_add
+    list_delete
+    my_end
+    my_free
+    my_malloc
+    my_memdup
+    my_realloc
+    my_strdup
+    set_dynamic
+    strdup_root
+    strend
+    strfill
+    strmake
+    strmake_root
+    strxmov
+
     # PHP's mysqli.so requires this (via the ER() macro)
     mysql_client_errors
 
@@ -276,6 +306,10 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 
     # pure-ftpd requires this
     my_make_scrambled_password
+
+    # pam_mysql.so on Debian
+    make_scrambled_password
+    make_scrambled_password_323
 
     # hydra requires this
     scramble
