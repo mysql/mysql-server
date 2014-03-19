@@ -252,6 +252,7 @@ functions).  The page number parameter was originally written as 0. @{ */
 #endif /* UNIV_DEBUG */
 
 enum mtr_state_t {
+	MTR_STATE_INIT = 0,
 	MTR_STATE_ACTIVE = 12231,
 	MTR_STATE_COMMITTING = 56456,
 	MTR_STATE_COMMITTED = 34676
