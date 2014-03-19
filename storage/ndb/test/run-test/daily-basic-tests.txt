@@ -1456,7 +1456,7 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_3b_LCP D1
 
-# Bug18408649 added on 17.04.2014
+# Bug18408702 added on 17.04.2014
 #max-time: 1500
 #cmd: testSystemRestart
 #args: -n SR_DD_3_LCP D2
@@ -2060,7 +2060,7 @@ args: -n Cascade1 T1
 #cmd: testFK
 #args: -n CascadeError T1
 #
-# Bug18408691 added on 17.04.2014
+# Bug18379566 added on 17.04.2014
 #max-time : 600
 #cmd: testNodeRestart
 #args: -n Bug16007980 T1
