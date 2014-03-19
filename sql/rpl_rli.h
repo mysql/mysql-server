@@ -30,6 +30,7 @@
 struct RPL_TABLE_LIST;
 class Master_info;
 class Mts_submode;
+class Commit_order_manager;
 extern uint sql_slave_skip_counter;
 
 /*******************************************************************************
@@ -973,10 +974,26 @@ public:
   void adapt_to_master_version(Format_description_log_event *fdle);
   uchar slave_version_split[3]; // bytes of the slave server version
 
+  Commit_order_manager *get_commit_order_manager()
+  {
+    return commit_order_mngr;
+  }
+
+  void set_commit_order_manager(Commit_order_manager *mngr)
+  {
+    commit_order_mngr= mngr;
+  }
+
 protected:
   Format_description_log_event *rli_description_event;
 
 private:
+  /*
+    Commit order manager to order commits made by its workers. In context of
+    Multi Source Replication each worker will be ordered by the coresponding
+    corrdinator's order manager.
+   */
+  Commit_order_manager* commit_order_mngr;
 
   /**
     Delay slave SQL thread by this amount, compared to master (in

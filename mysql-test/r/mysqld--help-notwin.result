@@ -910,6 +910,9 @@ The following options may be given as the first argument:
  Max size of Slave Worker queues holding yet not applied
  events.The least possible value must be not less than the
  master side max_allowed_packet.
+ --slave-preserve-commit-order 
+ Force slave workers to make commits in the same order as
+ on the master. Disabled by default.
  --slave-rows-search-algorithms=name 
  Set of searching algorithms that the slave will use while
  searching for records from the storage engine to either
@@ -1308,6 +1311,7 @@ slave-net-timeout 3600
 slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
+slave-preserve-commit-order FALSE
 slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE

@@ -1,3 +1,18 @@
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
 #ifndef RPL_RLI_PDB_H
 
 #define RPL_RLI_PDB_H
@@ -402,6 +417,7 @@ public:
   ulonglong get_master_log_pos() { return master_log_pos; };
   ulonglong set_master_log_pos(ulong val) { return master_log_pos= val; };
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
+  void rollback_positions(Slave_job_group *ptr_g);
   bool reset_recovery_info();
   /**
      Different from the parent method in that this does not delete
