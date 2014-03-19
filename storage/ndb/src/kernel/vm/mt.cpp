@@ -5703,8 +5703,8 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
     SignalT<25> signal;
     const SignalHeader *s = signalSequence[seq_end].ptr;
     unsigned siglen = (sizeof(*s)>>2) + s->theLength;
-    if (siglen > 25)
-      siglen = 25;              // Sanity check
+    if (siglen > MAX_SIGNAL_SIZE)
+      siglen = MAX_SIGNAL_SIZE;              // Sanity check
     memcpy(&signal.header, s, 4*siglen);
     // instance number in trace file is confusing if not MT LQH
     if (globalData.ndbMtLqhWorkers == 0)
