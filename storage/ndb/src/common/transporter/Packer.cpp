@@ -1,5 +1,5 @@
-/*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,14 @@ Uint32 MAX_RECEIVED_SIGNALS = 1024;
 #else
 #define MAX_RECEIVED_SIGNALS 1024
 #endif
+
+static
+void dump_corrupt_message(const char file[], unsigned line, const Uint32 * msg, size_t len)
+{
+  ndbout << "ERROR: " << file << ": " << line << ": Corrupt message detected!" << endl;
+  ndbout << "-- Message --" << endl;
+  ndbout.hexdump(msg, len) << flush;
+}
 
 Uint32
 TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
@@ -60,6 +68,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       if(messageLenBytes == 0 || messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE){
         DEBUG("Message Size = " << messageLenBytes);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
         return usedData;
       }//if
       
@@ -74,6 +83,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	
 	if(checkSumComputed != checkSumSent){
 	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
           return usedData;
 	}//if
       }//if
@@ -113,6 +123,12 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
 
+      if (sectionData != readPtr + messageLen32)
+      {
+        report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
+        return usedData;
+      }
       recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
       readPtr     += messageLen32;
@@ -142,6 +158,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       if(messageLenBytes == 0 || messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE){
 	DEBUG("Message Size = " << messageLenBytes);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
         return usedData;
       }//if
       
@@ -158,6 +175,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  
 	  //theTransporters[remoteNodeId]->disconnect();
 	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
           return usedData;
 	}//if
       }//if
@@ -199,6 +217,12 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
+        if (sectionData != readPtr + messageLen32)
+        {
+          report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
+          return usedData;
+        }
 	recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
@@ -243,6 +267,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       {
         DEBUG("Message Size(words) = " << messageLen32);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
         return readPtr;
       }//if
       
@@ -253,6 +278,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	
 	if(checkSumComputed != checkSumSent){
 	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
 	  return readPtr;
 	}//if
       }//if
@@ -291,6 +317,12 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
       
+      if (sectionData != readPtr + messageLen32)
+      {
+        report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
+        return readPtr;
+      }
       recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
       readPtr += messageLen32;
@@ -315,6 +347,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       {
 	DEBUG("Message Size(words) = " << messageLen32);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
         return readPtr;
       }//if
       
@@ -327,6 +360,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  
 	  //theTransporters[remoteNodeId]->disconnect();
 	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
 	  return readPtr;
 	}//if
       }//if
@@ -368,6 +402,12 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
+        if (sectionData != readPtr + messageLen32)
+        {
+          report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
+          return readPtr;
+        }
 	recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
