@@ -147,7 +147,6 @@ parse_server_arguments() {
 		    datadir_set=1
 	;;
       --pid-file=*) mysqld_pid_file_path=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
-      --socket=*) socket=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
       --service-startup-timeout=*) service_startup_timeout=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
     esac
   done
@@ -254,12 +253,10 @@ wait_for_gone () {
 
 wait_for_ready () {
 
-  test -n "$socket" && sockopt="--socket=$socket"
-
   i=0
   while test $i -ne $service_startup_timeout ; do
 
-    if $bindir/mysqladmin $sockopt ping >/dev/null 2>&1; then
+    if $bindir/mysqladmin ping >/dev/null 2>&1; then
       log_success_msg
       return 0
     fi
