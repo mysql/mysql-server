@@ -59,6 +59,7 @@
 #include "debug_sync.h"
 #include "rpl_mts_submode.h"
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include "rpl_slave_commit_order_manager.h"
 
 using std::min;
 using std::max;
@@ -221,6 +222,9 @@ static int terminate_slave_thread(THD *thd,
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 int slave_worker_exec_job(Slave_worker * w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
+
+static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
+
 /*
   Function to set the slave's max_allowed_packet based on the value
   of slave_max_allowed_packet.
@@ -4675,6 +4679,7 @@ pthread_handler_t handle_slave_worker(void *arg)
     sql_print_error("Failed during slave worker initialization");
     goto err;
   }
+  thd->rli_slave= w;
   thd->init_for_queries(w);
   thd_manager->add_thd(thd);
   thd_added= true;
@@ -5586,6 +5591,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   const char *errmsg;
   bool mts_inited= false;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  Commit_order_manager *commit_order_mngr= NULL;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -5623,6 +5629,13 @@ pthread_handler_t handle_slave_sql(void *arg)
    rli->current_mts_submode= new Mts_submode_logical_clock();
  else
    rli->current_mts_submode= new Mts_submode_database();
+
+
+  if (opt_slave_preserve_commit_order && rli->opt_slave_parallel_workers > 0 &&
+      opt_bin_log && opt_log_slave_updates)
+    commit_order_mngr= new Commit_order_manager(rli->opt_slave_parallel_workers);
+
+  rli->set_commit_order_manager(commit_order_mngr);
 
   mysql_mutex_unlock(&rli->info_thd_lock);
 
@@ -5969,6 +5982,12 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   THD_CHECK_SENTRY(thd);
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= NULL;
+  if (commit_order_mngr)
+  {
+    delete commit_order_mngr;
+    rli->set_commit_order_manager(NULL);
+  }
+
   mysql_mutex_unlock(&rli->info_thd_lock);
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
 
@@ -7867,6 +7886,8 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 {
   int slave_errno= 0;
   int thread_mask;
+  bool error_reported= false;
+
   DBUG_ENTER("start_slave");
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
@@ -8057,6 +8078,12 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                               "In the event of a transient failure, the slave will "
                               "not retry the transaction and will stop.");
         }
+        if (!slave_errno)
+        {
+          slave_errno= check_slave_sql_config_conflict(thd, mi->rli);
+          if (slave_errno)
+            error_reported= true;
+        }
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos || thd->lex->mi.gtid)
         push_warning(thd, Sql_condition::SL_NOTE, ER_UNTIL_COND_IGNORED,
@@ -8090,7 +8117,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
   if (slave_errno)
   {
-    if (net_report)
+    if (net_report && !error_reported)
       my_message(slave_errno, ER(slave_errno), MYF(0));
     DBUG_RETURN(1);
   }
@@ -8993,6 +9020,38 @@ err:
   unlock_slave_threads(mi);
   DBUG_RETURN(true);
 }
+
+/**
+  Check if there is any slave SQL config conflict.
+
+  @param[in] thd The THD object of current session.
+  @param[in] rli The slave's rli object.
+
+  @return 0 is returned if there is no conflict, otherwise 1 is returned.
+ */
+static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
+{
+  if (opt_slave_preserve_commit_order && opt_mts_slave_parallel_workers > 0)
+  {
+    if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
+    {
+      my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
+               "when slave_parallel_type is DATABASE");
+      return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
+    }
+
+    if ((!opt_bin_log || !opt_log_slave_updates) &&
+        mts_parallel_option == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+    {
+      my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
+               "unless the binlog and log_slave update options are "
+               "both enabled");
+      return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
+    }
+  }
+  return 0;
+}
+
 /**
   @} (end of group Replication)
 */

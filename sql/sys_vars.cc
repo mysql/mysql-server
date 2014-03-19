@@ -2810,7 +2810,7 @@ static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
+static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
   if (check_not_null_not_empty(self, thd, var))
@@ -2854,9 +2854,17 @@ static Sys_var_enum Mts_parallel_type(
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
        mts_parallel_type_names,
        DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_update_mts_type),
+       NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
+static Sys_var_mybool Sys_slave_preserve_commit_order(
+       "slave_preserve_commit_order",
+       "Force slave workers to make commits in the same order as on the master. "
+       "Disabled by default.",
+       GLOBAL_VAR(opt_slave_preserve_commit_order), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_slave_stopped),
+       ON_UPDATE(NULL));
 #endif
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)

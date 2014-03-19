@@ -37,6 +37,10 @@
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 
+#ifdef HAVE_REPLICATION
+#include "rpl_slave_commit_order_manager.h"
+#endif
+
 using std::max;
 using std::min;
 using std::string;
@@ -1478,6 +1482,16 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
   DBUG_PRINT("debug", ("Enqueue 0x%llx to queue for stage %d",
                        (ulonglong) thd, stage));
   bool leader= m_queue[stage].append(thd);
+
+#ifdef HAVE_REPLICATION
+  if (stage == FLUSH_STAGE && has_commit_order_manager(thd))
+  {
+    Slave_worker *worker= dynamic_cast<Slave_worker *>(thd->rli_slave);
+    Commit_order_manager *mngr= worker->get_commit_order_manager();
+
+    mngr->unregister_trx(worker);
+  }
+#endif
 
   /*
     The stage mutex can be NULL if we are enrolling for the first
@@ -7337,6 +7351,28 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     anything more since it is possible that a thread entered and
     appointed itself leader for the flush phase.
   */
+
+#ifdef HAVE_REPLICATION
+  if (has_commit_order_manager(thd))
+  {
+    Slave_worker *worker= dynamic_cast<Slave_worker *>(thd->rli_slave);
+    Commit_order_manager *mngr= worker->get_commit_order_manager();
+
+    if (mngr->wait_for_its_turn(worker, all))
+    {
+      DBUG_PRINT("info", ("thd has seen an error signal from old thread"));
+
+      thd->get_stmt_da()->set_overwrite_status(true);
+      my_error(ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR, MYF(0));
+      thd->commit_error= THD::CE_COMMIT_ERROR;
+      DBUG_RETURN(thd->commit_error);
+    }
+
+    if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
+      DBUG_RETURN(finish_commit(thd));
+  }
+  else
+#endif
   if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
   {
     DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
