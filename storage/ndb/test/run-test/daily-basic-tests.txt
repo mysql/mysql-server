@@ -295,11 +295,10 @@ max-time: 500
 cmd: testBasic
 args: -n InsertError2 T1
 
-# Bug18401439 added on 17.04.2014
-#max-time: 600
-#cmd: testTimeout
-#args: T1 
-#
+max-time: 600
+cmd: testTimeout
+args: T1 
+
 max-time: 500
 cmd: testBasic
 args: -n Bug25090 T1
@@ -722,11 +721,10 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug28023 T6 D2
 
-# Bug18401338 added on 17.04.2014
-#max-time: 3000
-#cmd: testNodeRestart
-#args: -n Bug25984 T1
-#
+max-time: 3000
+cmd: testNodeRestart
+args: -n Bug25984 T1
+
 max-time: 300
 cmd: testNodeRestart
 args: -n Bug32160 T1
@@ -974,11 +972,10 @@ args: T1
 #cmd: testOperations
 #args:
 #
-# Bug18401553 added on 17.04.2014
-#max-time: 7200
-#cmd: testTransactions
-#args:
-#
+max-time: 7200
+cmd: testTransactions
+args:
+
 max-time: 3000
 cmd: testRestartGci
 args: T6 D1
@@ -1389,11 +1386,10 @@ args: -n SR_DD_2b D1
 #cmd: testSystemRestart
 #args: -n SR_DD_2 D2
 #
-# Bug18401400 added on 17.04.2014
-#max-time: 1500
-#cmd: testSystemRestart
-#args: -n SR_DD_2b D2
-#
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2b D2
+
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_2_LCP D1
@@ -1403,11 +1399,10 @@ args: -n SR_DD_2_LCP D1
 #cmd: testSystemRestart
 #args: -n SR_DD_2b_LCP D1
 #
-# Bug18401419 added on 17.04.2014
-#max-time: 1500
-#cmd: testSystemRestart
-#args: -n SR_DD_2_LCP D2
-#
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_2_LCP D2
+
 # Bug18408639 added on 17.04.2014
 #max-time: 1500
 #cmd: testSystemRestart
@@ -1417,7 +1412,7 @@ args: -n SR_DD_2_LCP D1
 #max-time: 1500
 #cmd: testSystemRestart
 #args: -n SR_DD_3 D1
-
+#
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_3b D1
@@ -1697,11 +1692,10 @@ max-time: 600
 cmd: testNodeRestart
 args: -n Bug57767 T2
 
-# Bug18401576 added on 17.04.2014
-#max-time: 300
-#cmd: testSystemRestart
-#args: -n Bug45154 D1
-#
+max-time: 300
+cmd: testSystemRestart
+args: -n Bug45154 D1
+
 max-time: 300
 cmd: testDict
 args: -n Bug36702 D1

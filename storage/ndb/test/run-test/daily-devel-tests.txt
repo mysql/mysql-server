@@ -118,21 +118,6 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_1b_LCP D2
 
-# Bug18401400 added on 17.04.2014
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_DD_2b D2
-
-# Bug18401419 added on 17.04.2014
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_DD_2_LCP D2
-
-# Bug18401576 added on 17.04.2014
-max-time: 300
-cmd: testSystemRestart
-args: -n Bug45154 D1
-
 # Bug18401154 added on 17.04.2014
 max-time: 600
 cmd: testSystemRestart
@@ -157,11 +142,6 @@ args: -n Bug57522 T1
 max-time: 5000
 cmd: testNodeRestart
 args: -n GCP -l 1 T1
-
-# Bug18401338 added on 17.04.2014
-max-time: 3000
-cmd: testNodeRestart
-args: -n Bug25984 T1
 
 # Bug18401568 added on 17.04.2014
 #EOF 2008-08-20
@@ -205,20 +185,10 @@ max-time: 600
 cmd: testBasic
 args: -n Bug54986 D2
 
-# Bug18401439 added on 17.04.2014
-max-time: 600
-cmd: testTimeout
-args: T1
-
 # Bug18401475 added on 17.04.2014
 max-time: 1000
 cmd: test_event
 args: -l 10 -n Bug27169 T1
-
-# Bug18401553 added on 17.04.2014
-max-time: 7200
-cmd: testTransactions
-args:
 
 # Bug18401623 added on 17.04.2014
 max-time: 5000
