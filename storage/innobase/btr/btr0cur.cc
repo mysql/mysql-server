@@ -3326,7 +3326,9 @@ btr_cur_update_in_place(
 	index = cursor->index;
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
+	ut_ad(trx_id > 0
+	      || (flags & BTR_KEEP_SYS_FLAG)
+	      || dict_table_is_intrinsic(index->table));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
@@ -3486,9 +3488,11 @@ btr_cur_optimistic_update(
 	page = buf_block_get_frame(block);
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
-	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
+	ut_ad(trx_id > 0
+	      || (flags & BTR_KEEP_SYS_FLAG)
+	      || dict_table_is_intrinsic(index->table));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 	/* This is intended only for leaf page updates */
 	ut_ad(page_is_leaf(page));
 	/* The insert buffer tree should never be updated in place. */
@@ -3501,7 +3505,6 @@ btr_cur_optimistic_update(
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(btr_page_get_index_id(page) == index->id);
-	ut_ad(!dict_table_is_intrinsic(index->table));
 
 	*offsets = rec_get_offsets(rec, index, *offsets,
 				   ULINT_UNDEFINED, heap);
@@ -3641,8 +3644,9 @@ any_extern:
 	/* Ok, we may do the replacement. Store on the page infimum the
 	explicit locks on rec, before deleting rec (see the comment in
 	btr_cur_pessimistic_update). */
-
-	lock_rec_store_on_page_infimum(block, rec);
+	if (!dict_table_is_intrinsic(index->table)) {
+		lock_rec_store_on_page_infimum(block, rec);
+	}
 
 	btr_search_update_hash_on_delete(cursor);
 
@@ -3650,7 +3654,8 @@ any_extern:
 
 	page_cur_move_to_prev(page_cursor);
 
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
+	if (!(flags & BTR_KEEP_SYS_FLAG)
+	    && !dict_table_is_intrinsic(index->table)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -3663,8 +3668,9 @@ any_extern:
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
 	/* Restore the old explicit lock state on the record */
-
-	lock_rec_restore_from_page_infimum(block, rec, block);
+	if (!dict_table_is_intrinsic(index->table)) {
+		lock_rec_restore_from_page_infimum(block, rec, block);
+	}
 
 	page_cur_move_to_next(page_cursor);
 	ut_ad(err == DB_SUCCESS);
@@ -3791,14 +3797,17 @@ btr_cur_pessimistic_update(
 
 	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
 					MTR_MEMO_X_LOCK |
-					MTR_MEMO_SX_LOCK));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+					MTR_MEMO_SX_LOCK)
+	      || dict_table_is_intrinsic(index->table));
+	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
+	ut_ad(trx_id > 0
+	      || (flags & BTR_KEEP_SYS_FLAG)
+	      || dict_table_is_intrinsic(index->table));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
 	ut_ad(thr_get_trx(thr)->id == trx_id
@@ -3879,15 +3888,19 @@ btr_cur_pessimistic_update(
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, entry_heap);
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
+	if (!(flags & BTR_KEEP_SYS_FLAG)
+	    && !dict_table_is_intrinsic(index->table)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
 					      trx_id);
 	}
 
+	/* UNDO logging is also turned-off during normal operation on intrinsic
+	table so condition needs to ensure that table is not intrinsic. */
 	if ((flags & BTR_NO_UNDO_LOG_FLAG)
-	    && rec_offs_any_extern(*offsets)) {
+	    && rec_offs_any_extern(*offsets)
+	    && !dict_table_is_intrinsic(index->table)) {
 		/* We are in a transaction rollback undoing a row
 		update: we must free possible externally stored fields
 		which got new values in the update, if they are not
@@ -3949,8 +3962,9 @@ btr_cur_pessimistic_update(
 	btr_root_raise_and_insert. Therefore we cannot in the lock system
 	delete the lock structs set on the root page even if the root
 	page carries just node pointers. */
-
-	lock_rec_store_on_page_infimum(block, rec);
+	if (!dict_table_is_intrinsic(index->table)) {
+		lock_rec_store_on_page_infimum(block, rec);
+	}
 
 	btr_search_update_hash_on_delete(cursor);
 
@@ -3969,8 +3983,10 @@ btr_cur_pessimistic_update(
 	if (rec) {
 		page_cursor->rec = rec;
 
-		lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
-						   rec, block);
+		if (!dict_table_is_intrinsic(index->table)) {
+			lock_rec_restore_from_page_infimum(
+				btr_cur_get_block(cursor), rec, block);
+		}
 
 		if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
 			/* The new inserted record owns its possible externally
@@ -4097,15 +4113,17 @@ btr_cur_pessimistic_update(
 					     rec, index, *offsets, mtr);
 	}
 
-	lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
-					   rec, block);
+	if (!dict_table_is_intrinsic(index->table)) {
+		lock_rec_restore_from_page_infimum(
+			btr_cur_get_block(cursor), rec, block);
+	}
 
 	/* If necessary, restore also the correct lock state for a new,
 	preceding supremum record created in a page split. While the old
 	record was nonexistent, the supremum might have inherited its locks
 	from a wrong record. */
 
-	if (!was_first) {
+	if (!was_first && !dict_table_is_intrinsic(index->table)) {
 		btr_cur_pess_upd_restore_supremum(btr_cur_get_block(cursor),
 						  rec, mtr);
 	}
@@ -4514,12 +4532,17 @@ btr_cur_compress_if_useful(
 				cursor position even if compression occurs */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
+	if (dict_table_is_intrinsic(cursor->index->table)) {
+		return (FALSE);
+	}
+
 	ut_ad(mtr_memo_contains_flagged(
 		mtr, dict_index_get_lock(btr_cur_get_index(cursor)),
 		MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK)
 	      || dict_table_is_intrinsic(cursor->index->table));
-	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_is_block_fix(
+		mtr, btr_cur_get_block(cursor),
+		MTR_MEMO_PAGE_X_FIX, cursor->index->table));
 
 	return(btr_cur_compress_recommendation(cursor, mtr)
 	       && btr_compress(cursor, adjust, mtr));

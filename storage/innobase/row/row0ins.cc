@@ -307,6 +307,12 @@ row_ins_sec_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 		}
 
+		if (dict_table_is_intrinsic(cursor->index->table)) {
+			/* Structure of index about the change. Invalidate
+			cached cursor. */
+			cursor->index->last_sel_cur->invalid = true;
+		}
+
 		err = btr_cur_pessimistic_update(
 			flags | BTR_KEEP_SYS_FLAG, cursor,
 			offsets, &offsets_heap,
@@ -388,6 +394,13 @@ row_ins_clust_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 
 		}
+
+		if (dict_table_is_intrinsic(cursor->index->table)) {
+			/* Structure of index about the change. Invalidate
+			cached cursor. */
+			cursor->index->last_sel_cur->invalid = true;
+		}
+
 		err = btr_cur_pessimistic_update(
 			flags | BTR_KEEP_POS_FLAG,
 			cursor, offsets, offsets_heap, heap,
@@ -2327,10 +2340,13 @@ row_ins_clust_index_entry_low(
 	ulint		n_uniq,	/*!< in: 0 or index->n_uniq */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	que_thr_t*	thr)	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
+	bool		dup_chk_only)
+				/*!< in: if true, just do duplicate check
+				and return. don't execute actual insert. */
 {
 	btr_cur_t	cursor;
-	dberr_t		err;
+	dberr_t		err		= DB_SUCCESS;
 	big_rec_t*	big_rec		= NULL;
 	mtr_t		mtr;
 	mem_heap_t*	offsets_heap	= NULL;
@@ -2433,11 +2449,15 @@ err_exit:
 		}
 	}
 
+	if (dup_chk_only) {
+		mtr_commit(&mtr);
+		goto func_exit;
+	}
+
 	/* Modifying existing entry is avoided for intrinsic table considering
 	the frequency and if something fails rollback is not possible given that
 	there is no UNDO log. */
-	if (!dict_table_is_intrinsic(index->table)
-	    && row_ins_must_modify_rec(&cursor)) {
+	if (row_ins_must_modify_rec(&cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
@@ -2794,7 +2814,10 @@ row_ins_sec_index_entry_low(
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	trx_id_t	trx_id,	/*!< in: PAGE_MAX_TRX_ID during
 				row_log_table_apply(), or 0 */
-	que_thr_t*	thr)	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
+	bool		dup_chk_only)
+				/*!< in: if true, just do duplicate check
+				and return. don't execute actual insert. */
 {
 	DBUG_ENTER("row_ins_sec_index_entry_low");
 
@@ -2998,8 +3021,11 @@ row_ins_sec_index_entry_low(
 
 	ut_ad(thr_get_trx(thr)->error_state == DB_SUCCESS);
 
-	if (!dict_table_is_intrinsic(index->table)
-	    && row_ins_must_modify_rec(&cursor)) {
+	if (dup_chk_only) {
+		goto func_exit;
+	}
+
+	if (row_ins_must_modify_rec(&cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
@@ -3123,7 +3149,10 @@ row_ins_clust_index_entry(
 	dict_index_t*	index,	/*!< in: clustered index */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
-	ulint		n_ext)	/*!< in: number of externally stored columns */
+	ulint		n_ext,	/*!< in: number of externally stored columns */
+	bool		dup_chk_only)
+				/*!< in: if true, just do duplicate check
+				and return. don't execute actual insert. */
 {
 	dberr_t	err;
 	ulint	n_uniq;
@@ -3142,7 +3171,6 @@ row_ins_clust_index_entry(
 	n_uniq = dict_index_is_unique(index) ? index->n_uniq : 0;
 
 	/* Try first optimistic descent to the B-tree */
-
 	if (!dict_table_is_intrinsic(index->table)) {
 		log_free_check();
 	}
@@ -3153,7 +3181,8 @@ row_ins_clust_index_entry(
 			0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
 	} else {
 		err = row_ins_clust_index_entry_low(
-			0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
+			0, BTR_MODIFY_LEAF, index, n_uniq, entry,
+			n_ext, thr, dup_chk_only);
 	}
 
 
@@ -3166,7 +3195,6 @@ row_ins_clust_index_entry(
 	}
 
 	/* Try then pessimistic descent to the B-tree */
-
 	if (!dict_table_is_intrinsic(index->table)) {
 		log_free_check();
 	} else {
@@ -3179,7 +3207,8 @@ row_ins_clust_index_entry(
 			0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr);
 	} else {
 		err = row_ins_clust_index_entry_low(
-			0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr);
+			0, BTR_MODIFY_TREE, index, n_uniq, entry,
+			n_ext, thr, dup_chk_only);
 	}
 
 	DBUG_RETURN(err);
@@ -3197,7 +3226,10 @@ row_ins_sec_index_entry(
 /*====================*/
 	dict_index_t*	index,	/*!< in: secondary index */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
-	que_thr_t*	thr)	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
+	bool		dup_chk_only)
+				/*!< in: if true, just do duplicate check
+				and return. don't execute actual insert. */
 {
 	dberr_t		err;
 	mem_heap_t*	offsets_heap;
@@ -3229,7 +3261,8 @@ row_ins_sec_index_entry(
 	}
 
 	err = row_ins_sec_index_entry_low(
-		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, 0, thr);
+		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, 0, thr,
+		dup_chk_only);
 	if (err == DB_FAIL) {
 		mem_heap_empty(heap);
 
@@ -3243,7 +3276,8 @@ row_ins_sec_index_entry(
 
 		err = row_ins_sec_index_entry_low(
 			0, BTR_MODIFY_TREE, index,
-			offsets_heap, heap, entry, 0, thr);
+			offsets_heap, heap, entry, 0, thr,
+			dup_chk_only);
 	}
 
 	mem_heap_free(heap);
