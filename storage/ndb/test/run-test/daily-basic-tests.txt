@@ -1461,10 +1461,11 @@ args: -n SR_DD_3b_LCP D1
 #cmd: testSystemRestart
 #args: -n SR_DD_3_LCP D2
 #
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR_DD_3b_LCP D2
-
+# Bug18408649 added on 17.04.2014
+#max-time: 1500
+#cmd: testSystemRestart
+#args: -n SR_DD_3b_LCP D2
+#
 max-time: 1500
 cmd: testSystemRestart
 args: -n Bug41915 D2
