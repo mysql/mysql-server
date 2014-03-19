@@ -2512,12 +2512,7 @@ page_validate(
 			int	ret = cmp_rec_rec(
 				rec, old_rec, offsets, old_offsets, index);
 			
-			/* Intrinsic table doesn't do inplace update and so
-			can have entry where-in consecutive entries are same. */
-			dict_table_t*	table = index->table;
-
-			if ((ret <= 0 && !dict_table_is_intrinsic(table))
-			    || (ret < 0 && dict_table_is_intrinsic(table))) {
+			if (ret <= 0) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Records in wrong order"
