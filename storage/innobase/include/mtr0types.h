@@ -144,12 +144,12 @@ enum mlog_id_t {
 	MLOG_DUMMY_RECORD = 32,
 
 	/** log record about an .ibd file creation */
-	MLOG_FILE_CREATE = 33,
+	//MLOG_FILE_CREATE = 33,
 
-	/** log record about an .ibd file rename */
-	MLOG_FILE_RENAME = 34,
+	/** rename databasename/tablename (no .ibd file name suffix) */
+	//MLOG_FILE_RENAME = 34,
 
-	/** log record about an .ibd file deletion */
+	/** delete a tablespace file that starts with (space_id,page_no) */
 	MLOG_FILE_DELETE = 35,
 
 	/** mark a compact index record as the predefined minimum record */
@@ -188,7 +188,7 @@ enum mlog_id_t {
 	MLOG_COMP_PAGE_REORGANIZE = 46,
 
 	/** log record about creating an .ibd file, with format */
-	MLOG_FILE_CREATE2 = 47,
+	//MLOG_FILE_CREATE2 = 47,
 
 	/** write the node pointer of a record on a compressed
 	non-leaf B-tree page */
@@ -210,8 +210,17 @@ enum mlog_id_t {
 	/** reorganize a compressed page */
 	MLOG_ZIP_PAGE_REORGANIZE = 53,
 
+	/** rename a tablespace file that starts with (space_id,page_no) */
+	MLOG_FILE_RENAME2 = 54,
+
+	/** note the first use of a tablespace file since checkpoint */
+	MLOG_FILE_NAME = 55,
+
+	/** note that all buffered log was written since a checkpoint */
+	MLOG_CHECKPOINT = 56,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = 53
+	MLOG_BIGGEST_TYPE = 56
 };
 
 /* @} */
@@ -239,13 +248,6 @@ enum mtr_memo_type_t {
 
 	MTR_MEMO_SX_LOCK = 256
 };
-
-/** @name Flags for MLOG_FILE operations
-(stored in the page number parameter, called log_flags in the
-functions).  The page number parameter was originally written as 0. @{ */
-#define MLOG_FILE_FLAG_TEMP	1	/*!< identifies TEMPORARY TABLE in
-					MLOG_FILE_CREATE, MLOG_FILE_CREATE2 */
-/* @} */
 
 #ifdef UNIV_DEBUG
 # define MTR_MAGIC_N		54551

@@ -14155,6 +14155,7 @@ innodb_make_page_dirty(
 
 	if (block) {
 		byte* page = block->frame;
+		fsp_names_write(space_id, &mtr);
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Dirtying page:%lu of space:%lu",
 			page_get_page_no(page),
@@ -15133,7 +15134,9 @@ checkpoint_now_set(
 						check function */
 {
 	if (*(my_bool*) save) {
-		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
+		while (log_sys->last_checkpoint_lsn
+		       + 1 /* MLOG_CHECKPOINT */
+		       < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}

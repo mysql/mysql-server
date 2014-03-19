@@ -638,6 +638,14 @@ xdes_calc_descriptor_page(
 	const page_size_t&	page_size,
 	ulint			offset);
 
+/** Schedule MLOG_FILE_NAME to be written.
+@param[in]	id	tablespace identifier
+@param[in,out]	mtr	mini-transaction */
+UNIV_INLINE
+void
+fsp_names_write(
+	ulint	id,
+	mtr_t*	mtr);
 #endif /* !UNIV_INNOCHECKSUM */
 
 #ifndef UNIV_NONINL

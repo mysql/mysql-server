@@ -165,6 +165,9 @@ struct mtr_t {
 		value MTR_LOG_ALL */
 		mtr_log_t	m_log_mode;
 
+		/** MLOG_FILE_NAME tablespace associated with the mini-transaction,
+		or TRX_SYS_SPACE if none yet */
+		ulint		m_named_space;
 #ifdef UNIV_DEBUG
 		/** State of the transaction */
 		mtr_state_t	m_state;
@@ -200,6 +203,11 @@ struct mtr_t {
 
 	/** Commit the mini-transaction. */
 	void commit();
+
+	/** Commit a mini-transaction that did not modify any pages.
+	The caller must invoke log_mutex_enter() and log_mutex_exit().
+	This is to be used at log_checkpoint(). */
+	void commit_checkpoint();
 
 	/** Return current size of the buffer.
 	@return	savepoint */
@@ -240,6 +248,19 @@ struct mtr_t {
 	@param mode	 logging mode
 	@return	old mode */
 	inline mtr_log_t set_log_mode(mtr_log_t mode);
+
+	/** Set the tablespace associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	tablespace */
+	void set_named_space(ulint space);
+
+#ifdef UNIV_DEBUG
+	/** Check the tablespace associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	tablespace
+	@return whether the mini-transaction is associated with the space */
+	bool is_named_space(ulint space) const;
+#endif /* UNIV_DEBUG */
 
 	/** Read 1 - 4 bytes from a file page buffered in the buffer pool.
 	@param ptr	pointer from where to read

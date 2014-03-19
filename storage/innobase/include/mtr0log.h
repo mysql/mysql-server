@@ -90,20 +90,6 @@ mlog_write_initial_log_record(
 	mlog_id_t	type,	/*!< in: log item type: MLOG_1BYTE, ... */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /********************************************************//**
-Writes a log record about an .ibd file create/delete/rename.
-@return new value of log_ptr */
-UNIV_INLINE
-byte*
-mlog_write_initial_log_record_for_file_op(
-/*======================================*/
-	mlog_id_t	type,	/*!< in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
-				MLOG_FILE_RENAME */
-	ulint		space_id,/*!< in: space id, if applicable */
-	ulint		page_no,/*!< in: page number (not relevant currently) */
-	byte*		log_ptr,/*!< in: pointer to mtr log which has been
-				opened */
-	mtr_t*		mtr);	/*!< in/out: mtr */
-/********************************************************//**
 Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 UNIV_INLINE
 void
@@ -165,6 +151,23 @@ mlog_close(
 	mtr_t*		mtr,	/*!< in: mtr */
 	byte*		ptr);	/*!< in: buffer space from ptr up was
 				not used */
+
+/** Writes a log record about an operation.
+@param[in]	type		redo log record type
+@param[in]	space_id	tablespace identifier
+@param[in]	page_no		page number
+@param[in,out]	log_ptr		current end of mini-transaction log
+@param[in,out]	mtr		mini-transaction
+@return	end of mini-transaction log */
+UNIV_INLINE
+byte*
+mlog_write_initial_log_record_low(
+	mlog_id_t	type,
+	ulint		space_id,
+	ulint		page_no,
+	byte*		log_ptr,
+	mtr_t*		mtr);
+
 /********************************************************//**
 Writes the initial part of a log record (3..11 bytes).
 If the implementation of this function is changed, all
