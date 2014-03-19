@@ -60,6 +60,9 @@ XML_TAG::XML_TAG(int l, String f, String v)
 }
 
 
+#define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
+#define PUSH(A) *(stack_pos++)=(A)
+
 class READ_INFO {
   File	file;
   uchar	*buffer,			/* Buffer for read text */
@@ -117,6 +120,15 @@ public:
     either the table or THD value
   */
   void set_io_cache_arg(void* arg) { cache.arg = arg; }
+
+  /**
+    skip all data till the eof.
+  */
+  void skip_data_till_eof()
+  {
+    while (GET != my_b_EOF)
+      ;
+  }
 };
 
 static int read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
@@ -553,8 +565,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (error)
   {
     if (read_file_from_client)
-      while (!read_info.next_line())
-	;
+      read_info.skip_data_till_eof();
 
 #ifndef EMBEDDED_LIBRARY
     if (mysql_bin_log.is_open())
@@ -1524,9 +1535,6 @@ READ_INFO::~READ_INFO()
 }
 
 
-#define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
-#define PUSH(A) *(stack_pos++)=(A)
-
 /**
   The logic here is similar with my_mbcharlen, except for GET and PUSH
 
@@ -1549,6 +1557,7 @@ READ_INFO::~READ_INFO()
       PUSH(chr1);                                                             \
     }                                                                         \
   } while (0)
+
 
 inline int READ_INFO::terminator(const char *ptr,uint length)
 {
