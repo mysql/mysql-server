@@ -2565,7 +2565,6 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_mutex_destroy(&LOCK_binlog_end_pos);
     mysql_mutex_destroy(&LOCK_xids);
     mysql_cond_destroy(&update_cond);
-    my_atomic_rwlock_destroy(&m_prep_xids_lock);
     mysql_cond_destroy(&m_prep_xids_cond);
     stage_manager.deinit();
   }
@@ -2585,7 +2584,6 @@ void MYSQL_BIN_LOG::init_pthread_objects()
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
-  my_atomic_rwlock_init(&m_prep_xids_lock);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond, NULL);
   stage_manager.init(
 #ifdef HAVE_PSI_INTERFACE
@@ -6876,9 +6874,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   int flush_error= 1;
   mysql_mutex_assert_owner(&LOCK_log);
 
-  my_atomic_rwlock_rdlock(&opt_binlog_max_flush_queue_time_lock);
   const ulonglong max_udelay= my_atomic_load32(&opt_binlog_max_flush_queue_time);
-  my_atomic_rwlock_rdunlock(&opt_binlog_max_flush_queue_time_lock);
   const ulonglong start_utime= max_udelay > 0 ? my_micro_time() : 0;
 
   /*
@@ -9322,7 +9318,6 @@ void THD::issue_unsafe_warnings()
 
  Logical_clock::Logical_clock()
 {
-  my_atomic_rwlock_init(&m_state_lock);
   init();
 }
 
@@ -9337,11 +9332,9 @@ int64
 {
   int64 retval;
   DBUG_ENTER("Logical_clock::step_clock");
-  my_atomic_rwlock_wrlock(&m_state_lock);
   retval= my_atomic_add64(&state, 1);
   if (retval == (INT_MAX64 - 1))
     init();
-  my_atomic_rwlock_wrunlock(&m_state_lock);
   DBUG_RETURN(retval);
 }
 
@@ -9354,18 +9347,8 @@ int64
 {
   int64 retval= 0;
   DBUG_ENTER("Logical_clock::get_timestamp");
-  my_atomic_rwlock_rdlock(&m_state_lock);
   retval= my_atomic_load64(&state);
-  my_atomic_rwlock_rdunlock(&m_state_lock);
   DBUG_RETURN(retval);
-}
-
-/**
-  Destructor for Logical clock.
-*/
-Logical_clock::~Logical_clock()
-{
-  my_atomic_rwlock_destroy(&m_state_lock);
 }
 
 /**

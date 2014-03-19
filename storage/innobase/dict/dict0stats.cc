@@ -1288,7 +1288,7 @@ returned n_diff can either be 0 (empty page), 1 (the whole page has all keys
 equal) or 2 (the function found a non-boring record and returned).
 @return offsets1 or offsets2 (the offsets of *out_rec),
 or NULL if the page is empty and does not contain user records. */
-UNIV_INLINE __attribute__((nonnull))
+UNIV_INLINE
 ulint*
 dict_stats_scan_page(
 /*=================*/
@@ -1361,7 +1361,7 @@ dict_stats_scan_page(
 			(*n_diff)++;
 
 			if (scan_method == QUIT_ON_FIRST_NON_BORING) {
-				goto func_exit;
+				break;
 			}
 		}
 
@@ -1374,7 +1374,7 @@ dict_stats_scan_page(
 			place where offsets_rec was pointing before
 			because we have just 2 placeholders where
 			data is actually stored:
-			offsets_onstack1 and offsets_onstack2 and we
+			offsets1 and offsets2 and we
 			are using them in circular fashion
 			(offsets[_next]_rec are just pointers to
 			those placeholders). */
@@ -1387,7 +1387,6 @@ dict_stats_scan_page(
 		next_rec = get_next(next_rec);
 	}
 
-func_exit:
 	/* offsets1,offsets2 should have been big enough */
 	ut_a(heap == NULL);
 	*out_rec = rec;
@@ -1707,7 +1706,7 @@ dict_stats_analyze_index_for_n_prefix(
 			btr_pcur_get_btr_cur(&pcur), n_prefix, mtr);
 
 		/* We adjust n_diff_on_leaf_page here to avoid counting
-		one record twice - once as the last on some page and once
+		one value twice - once as the last on some page and once
 		as the first on another page. Consider the following example:
 		Leaf level:
 		page: (2,2,2,2,3,3)

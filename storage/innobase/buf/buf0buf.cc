@@ -520,24 +520,24 @@ buf_page_is_corrupted(
 
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_INNOCHECKSUM)
 	if (check_lsn && recv_lsn_checks_on) {
-		lsn_t	current_lsn;
+		lsn_t		current_lsn;
+		const lsn_t	page_lsn
+			= mach_read_from_8(read_buf + FIL_PAGE_LSN);
 
 		/* Since we are going to reset the page LSN during the import
 		phase it makes no sense to spam the log with error messages. */
 
-		if (log_peek_lsn(&current_lsn)
-		    && current_lsn
-		    < mach_read_from_8(read_buf + FIL_PAGE_LSN)) {
-
+		if (log_peek_lsn(&current_lsn) && current_lsn < page_lsn) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Page %lu log sequence number"
-				" " LSN_PF
+				"Page " ULINTPF ":" ULINTPF
+				" log sequence number " LSN_PF
 				" is in the future! Current system"
 				" log sequence number " LSN_PF ".",
-				(ulong) mach_read_from_4(
+				mach_read_from_4(
+					read_buf + FIL_PAGE_SPACE_ID),
+				mach_read_from_4(
 					read_buf + FIL_PAGE_OFFSET),
-				(lsn_t) mach_read_from_8(
-					read_buf + FIL_PAGE_LSN),
+				page_lsn,
 				current_lsn);
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Your database may be corrupt or"

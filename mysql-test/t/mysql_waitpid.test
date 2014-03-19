@@ -17,6 +17,27 @@ let MYSQL_BASEDIR= `select @@basedir`;
 --source include/not_embedded.inc
 --source include/not_valgrind.inc
 
+perl;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+open ( OUTPUT, ">$dir/tmp/mysql_waitpid_binary_check.inc") ;
+$binary_file = $ENV{'MYSQL_BASEDIR'}."/bin/mysql_waitpid";
+if (-e $binary_file) {
+    print OUTPUT "let \$binary_exists = 1;\n";
+}else {
+    print OUTPUT "let \$binary_exists = 0;\n";
+}
+close (OUTPUT);
+EOF
+#Read variables set from above  perl 
+--source  $MYSQLTEST_VARDIR/tmp/mysql_waitpid_binary_check.inc
+# skip run if binary do not exits
+if (!$binary_exists) {
+   --skip Test requires mysql_waitpid binary in MYSQL_BASEDIR/bin/ path
+}
+#Remove the temp file
+--remove_file $MYSQLTEST_VARDIR/tmp/mysql_waitpid_binary_check.inc
+    
+
 # Case 1
 # pass #pid of running mysqld process and #time=10 sec
 # mysql_waitpid will wait 10 sec fro mysql to terminate 
