@@ -1441,6 +1441,9 @@ buf_pool_init_instance(
 
 	buf_pool->watch = (buf_page_t*) ut_zalloc(
 		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
+	for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
+		buf_pool->watch[i].buf_pool_index = buf_pool->instance_no;
+	}
 
 	/* All fields are initialized by ut_zalloc(). */
 
