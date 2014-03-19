@@ -22,6 +22,8 @@
 --source include/not_asan.inc
 --source include/not_valgrind.inc
 
+let MYSQL_BASEDIR= `select @@basedir`; 
+
 perl;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
 open ( OUTPUT, ">$dir/tmp/zoneinfocheck.inc") ;
@@ -52,10 +54,20 @@ if (defined($path[1])) {
 }else{
    print OUTPUT "let \$zoneinfo_exists = 0;\n";
 }
+$binary_file = $ENV{'MYSQL_BASEDIR'}."/bin/mysql_tzinfo_to_sql";
+if (-e $binary_file) {
+    print OUTPUT "let \$binary_exists = 1;\n";
+}else {
+    print OUTPUT "let \$binary_exists = 0;\n";
+}
 close (OUTPUT);
 EOF
 #Read variables set from perl (i.e zoneinfo_exists and zoneinfo_path)
 --source  $MYSQLTEST_VARDIR/tmp/zoneinfocheck.inc
+# skip run if binary do not exits
+if (!$binary_exists) {
+   --skip Test requires mysql_tzinfo_to_sql binary in MYSQL_BASEDIR/bin/ path
+}
 # Skip test if zoneinfo folder is not present
 if (!$zoneinfo_exists) {
    --skip Test requires zoneinfo files on system

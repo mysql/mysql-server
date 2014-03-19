@@ -858,12 +858,7 @@ CHECK_CXX_SOURCE_COMPILES("
   "
   HAVE_SOLARIS_STYLE_GETHOST)
 
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-IF(WITH_ATOMIC_OPS STREQUAL "rwlocks")
-  SET(MY_ATOMIC_MODE_RWLOCK 1 CACHE BOOL "Use pthread rwlocks for atomic ops")
-ELSEIF(WITH_ATOMIC_OPS STREQUAL "smp")
-ELSEIF(NOT WITH_ATOMIC_OPS)
-  CHECK_CXX_SOURCE_COMPILES("
+CHECK_CXX_SOURCE_COMPILES("
   int main()
   {
     int foo= -10; int bar= 10;
@@ -887,22 +882,6 @@ ELSEIF(NOT WITH_ATOMIC_OPS)
     return 0;
   }"
   HAVE_GCC_ATOMIC_BUILTINS)
-  IF(NOT HAVE_GCC_ATOMIC_BUILTINS)
-    MESSAGE(WARNING
-    "Unsupported version of GCC/Clang is used which does not support Atomic "
-    "Builtins. Using pthread rwlocks instead.")
-  ENDIF(NOT HAVE_GCC_ATOMIC_BUILTINS)
-ELSE()
-  MESSAGE(FATAL_ERROR "${WITH_ATOMIC_OPS} is not a valid value for WITH_ATOMIC_OPS!")
-ENDIF()
-ENDIF()
-
-SET(WITH_ATOMIC_LOCKS "${WITH_ATOMIC_LOCKS}" CACHE STRING
-"Implement atomic operations using pthread rwlocks or atomic CPU
-instructions for multi-processor or uniprocessor
-configuration. By default gcc built-in sync functions are used,
-if available and 'smp' configuration otherwise.")
-MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK)
 
 IF(WITH_VALGRIND)
   SET(VALGRIND_HEADERS "valgrind/memcheck.h;valgrind/valgrind.h")
