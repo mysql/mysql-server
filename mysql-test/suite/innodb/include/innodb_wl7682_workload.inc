@@ -6,6 +6,7 @@
 # 4. Multiple key DML
 # 5. Multiple + Cascade key DML (with auto-gen-clustered index)
 # 6. Large column (blob/text) column DML
+# 7. Repeated insertion of same key.
 #
 ################################################################################
 
@@ -174,5 +175,49 @@ delete from t1; select count(*) from t1;
 check table t1;
 drop procedure populate_t1;
 drop table t1;
+
+
+#-----------------------------------------------------------------------------
+#
+# 7. Repeated insertion of same key.
+#
+create temporary table t1 (
+	c1 char(255), c2 char(255), c3 char(255),
+	primary key pk (c1, c2, c3)) engine=innodb;
+insert into t1 values ('a', 'b', 'c');
+insert into t1 values ('a1', 'b1', 'c1');
+insert into t1 values ('a2', 'b2', 'c2');
+insert into t1 values ('a3', 'b3', 'c3');
+insert into t1 values ('a4', 'b4', 'c4');
+insert into t1 values ('a5', 'b5', 'c5');
+insert into t1 values ('a6', 'b6', 'c6');
+insert into t1 values ('a7', 'b7', 'c7');
+insert into t1 values ('a8', 'b8', 'c8');
+insert into t1 values ('a9', 'b9', 'c9');
+#
+delete from t1 where c1 = 'a2';
+insert into t1 values ('a2', 'b2', 'c2');
+delete from t1 where c1 = 'a2';
+insert into t1 values ('a2', 'b2', 'c2');
+delete from t1 where c1 = 'a2';
+insert into t1 values ('a2', 'b2', 'c2');
+delete from t1 where c1 = 'a2';
+insert into t1 values ('a2', 'b2', 'c2');
+check table t1;
+#
+drop table t1;
+#
+#
+create temporary table t1 (
+	i int, j int, primary key pk(i), unique index sk(j)) engine = innodb;
+insert into t1 values (1, 1), (2, 2), (3, 3), (4, 4);
+select * from t1;
+delete from t1 where i = 2;
+--error ER_DUP_ENTRY
+update t1 set i = 3, j = 4 where i = 3;
+select * from t1;
+check table t1;
+drop table t1;
+
 
 
