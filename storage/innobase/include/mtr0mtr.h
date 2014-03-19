@@ -190,7 +190,9 @@ struct mtr_t {
 		mtr_t*		m_mtr;
 	};
 
-	mtr_t() { }
+	mtr_t()
+		: m_impl()
+	{ m_impl.m_state = MTR_STATE_INIT; }
 
 	~mtr_t() { }
 
