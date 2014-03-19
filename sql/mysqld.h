@@ -20,7 +20,7 @@
 #include "sql_bitmap.h"                         /* Bitmap */
 #include "my_decimal.h"                         /* my_decimal */
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
-#include "my_atomic.h"                     /* my_atomic_rwlock_t */
+#include "my_atomic.h"                     /* my_atomic_add64 */
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
 #include "sql_list.h"                      /* I_List */
@@ -742,8 +742,6 @@ extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
-extern my_atomic_rwlock_t slave_open_temp_tables_lock;
-extern my_atomic_rwlock_t opt_binlog_max_flush_queue_time_lock;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
@@ -858,15 +856,11 @@ enum enum_query_type
 /* query_id */
 typedef int64 query_id_t;
 extern query_id_t global_query_id;
-extern my_atomic_rwlock_t global_query_id_lock;
 
 /* increment query_id and return it.  */
 inline __attribute__((warn_unused_result)) query_id_t next_query_id()
 {
-  query_id_t id;
-  my_atomic_rwlock_wrlock(&global_query_id_lock);
-  id= my_atomic_add64(&global_query_id, 1);
-  my_atomic_rwlock_wrunlock(&global_query_id_lock);
+  query_id_t id= my_atomic_add64(&global_query_id, 1);
   return (id+1);
 }
 
