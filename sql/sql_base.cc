@@ -217,9 +217,7 @@ static void modify_slave_open_temp_tables(THD *thd, int inc)
 {
   if (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
   {
-    my_atomic_rwlock_wrlock(&slave_open_temp_tables_lock);
     my_atomic_add32(&slave_open_temp_tables, inc);
-    my_atomic_rwlock_wrunlock(&slave_open_temp_tables_lock);
   }
   else
   {

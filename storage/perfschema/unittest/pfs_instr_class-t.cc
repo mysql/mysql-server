@@ -720,8 +720,6 @@ void test_instruments_reset()
 
 void do_all_tests()
 {
-  PFS_atomic::init();
-
   test_no_registration();
   test_mutex_registration();
   test_rwlock_registration();
@@ -732,8 +730,6 @@ void do_all_tests()
   test_table_registration();
   test_memory_registration();
   test_instruments_reset();
-
-  PFS_atomic::cleanup();
 }
 
 int main(int, char **)
