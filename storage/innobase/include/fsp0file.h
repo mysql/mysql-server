@@ -178,8 +178,9 @@ public:
 
 	/** Open a data file in read-only mode to check if it exists
 	so that it can be validated.
+	@param[in]	strict	whether to issue error messages
 	@return DB_SUCCESS or error code */
-	virtual dberr_t open_read_only()
+	virtual dberr_t open_read_only(bool strict)
 		__attribute__((warn_unused_result));
 
 	/** Open a data file in read-write mode during start-up so that
@@ -478,8 +479,9 @@ public:
 
 	/** Open a handle to the file linked to in an InnoDB Symbolic Link file
 	in read-only mode so that it can be validated.
+	@param[in]	strict	whether to issue error messages
 	@return DB_SUCCESS or error code */
-	dberr_t open_read_only()
+	dberr_t open_read_only(bool strict)
 		__attribute__((warn_unused_result));
 
 	/** Opens a handle to the file linked to in an InnoDB Symbolic Link

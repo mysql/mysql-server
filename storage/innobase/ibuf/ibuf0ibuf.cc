@@ -763,6 +763,8 @@ ibuf_bitmap_page_set_bits(
 	ut_a((bit != IBUF_BITMAP_BUFFERED) || (val != FALSE)
 	     || (0 == ibuf_count_get(page_id)));
 #endif
+	fsp_names_write(page_id.space(), mtr);
+
 	bit_offset = (page_id.page_no() % page_size.physical())
 		* IBUF_BITS_PER_PAGE + bit;
 
@@ -916,8 +918,17 @@ ibuf_set_free_bits_func(
 	bitmap_page = ibuf_bitmap_get_map_page(block->page.id,
 					       block->page.size, &mtr);
 
-	/* Avoid logging while fixing up truncate of table. */
-	if (srv_is_tablespace_truncated(block->page.id.space())) {
+	switch (fil_space_get_type(block->page.id.space())) {
+	case FIL_TYPE_LOG:
+		ut_ad(0);
+		break;
+	case FIL_TYPE_TABLESPACE:
+		/* Avoid logging while fixing up truncate of table. */
+		if (!srv_is_tablespace_truncated(block->page.id.space())) {
+			break;
+		}
+		/* fall through */
+	case FIL_TYPE_TEMPORARY:
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
 
@@ -4004,6 +4015,7 @@ ibuf_insert_to_index_page(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!buf_block_align(page)->index);
+	ut_ad(mtr->is_named_space(block->page.id.space()));
 
 	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
 			  != (ibool)!!page_is_comp(page))) {
@@ -4669,6 +4681,8 @@ loop:
 	if (block != NULL) {
 		ibool success;
 
+		fsp_names_write(page_id.space(), &mtr);
+
 		success = buf_page_get_known_nowait(
 			RW_X_LATCH, block,
 			BUF_KEEP_OLD, __FILE__, __LINE__, &mtr);
@@ -4783,6 +4797,7 @@ loop:
 				ibuf_btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
 				ibuf_mtr_start(&mtr);
+				fsp_names_write(page_id.space(), &mtr);
 
 				success = buf_page_get_known_nowait(
 					RW_X_LATCH, block,

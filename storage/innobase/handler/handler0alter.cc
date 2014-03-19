@@ -5939,6 +5939,7 @@ ha_innobase::commit_inplace_alter_table(
 	/* Commit or roll back the changes to the data dictionary. */
 
 	if (fail) {
+failed:
 		trx_rollback_for_mysql(trx);
 	} else if (!new_clustered) {
 		trx_commit_for_mysql(trx);
@@ -5955,11 +5956,15 @@ ha_innobase::commit_inplace_alter_table(
 			/* Generate the redo log for the file
 			operations that will be performed in
 			commit_cache_rebuild(). */
-			fil_mtr_rename_log(ctx->old_table->space,
-					   ctx->old_table->name,
-					   ctx->new_table->space,
-					   ctx->new_table->name,
-					   ctx->tmp_name, &mtr);
+			if (!fil_mtr_rename_log(ctx->old_table,
+						ctx->new_table,
+						ctx->tmp_name, &mtr)) {
+				/* Out of memory. */
+				mtr.set_log_mode(MTR_LOG_NO_REDO);
+				mtr_commit(&mtr);
+				fail = true;
+				goto failed;
+			}
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
 		}

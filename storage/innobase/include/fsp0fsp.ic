@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -255,4 +255,17 @@ xdes_calc_descriptor_page(
 	return(ut_2pow_round(offset, page_size.physical()));
 }
 
+/** Schedule MLOG_FILE_NAME to be written.
+@param[in]	id	tablespace identifier
+@param[in,out]	mtr	mini-transaction */
+UNIV_INLINE
+void
+fsp_names_write(
+	ulint	id,
+	mtr_t*	mtr)
+{
+	if (mtr != NULL) {
+		mtr->set_named_space(id);
+	}
+}
 #endif /* !UNIV_INNOCHECKSUM */

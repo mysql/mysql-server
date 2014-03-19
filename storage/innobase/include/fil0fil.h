@@ -201,6 +201,16 @@ extern ulint	fil_n_pending_tablespace_flushes;
 extern ulint	fil_n_file_opened;
 
 #ifndef UNIV_HOTBACKUP
+/** Look up a tablespace by space id.
+The caller should hold page latches on this tablepace already.
+@param[in]	id	tablespace identifier
+@return	tablespace object */
+
+fil_space_t*
+fil_space_get(
+	ulint	id)
+	__attribute__((warn_unused_result));
+
 /*******************************************************************//**
 Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
@@ -249,36 +259,40 @@ fsp_is_temporary(ulint id)
 __attribute__((warn_unused_result, pure));
 # endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
-/*******************************************************************//**
-Appends a new file to the chain of files of a space. File must be closed.
+
+/** Append a file to the chain of files of a space.
+@param[in]	name	file name of a file that is not open
+@param[in]	size	file size in entire database blocks
+@param[in,out]	space	tablespace from fil_space_create()
+@param[in]	is_raw	whether this is a raw device or partition
 @return pointer to the file name, or NULL on error */
 
 char*
 fil_node_create(
-/*============*/
-	const char*	name,	/*!< in: file name (file must be closed) */
-	ulint		size,	/*!< in: file size in database blocks, rounded
-				downwards to an integer */
-	fil_space_t*	space,	/*!< in,out: space where to append */
-	bool		is_raw)	/*!< in: true if a raw device or
-				a raw disk partition */
+	const char*	name,
+	ulint		size,
+	fil_space_t*	space,
+	bool		is_raw)
 	__attribute__((warn_unused_result));
-
-/** Creates a space memory object and puts it to the 'fil system' hash table.
-If there is an error, prints an error message to the .err log.
-@param[in]	space	name
-@param[in]	id	space id
-@param[in]	flags	space flags
-@param[in]	purpose	space type
-@retval pointer to the tablespace
-@retval NULL on failure */
+/** Create a space memory object and put it to the fil_system hash table.
+Error messages are issued to the server log.
+@param[in]	name	tablespace name
+@param[in]	id	tablespace identifier
+@param[in]	flags	tablespace flags
+@param[in]	purpose	tablespace purpose
+@param[out]	dup	assigned to existing tablespace with the same id,
+if one exists
+@return pointer to created tablespace, to be filled in with fil_node_create()
+@retval NULL on failure (such as when the same tablespace exists) */
 
 fil_space_t*
 fil_space_create(
 	const char*	name,
 	ulint		id,
 	ulint		flags,
-	fil_type_t	purpose);
+	fil_type_t	purpose,
+	fil_space_t**	dup = 0)
+	__attribute__((warn_unused_result));
 
 /*******************************************************************//**
 Assigns a new space id for a new single-table tablespace. This works simply by
@@ -290,6 +304,19 @@ bool
 fil_assign_new_space_id(
 /*====================*/
 	ulint*	space_id);	/*!< in/out: space id */
+
+/** Frees a space object from the tablespace memory cache.
+Closes the files in the chain but does not delete them.
+There must not be any pending i/o's or flushes on the files.
+@param[in]	id		tablespace identifier
+@param[in]	x_latched	whether the caller holds X-mode space->latch
+@return true if success */
+
+bool
+fil_space_free(
+	ulint		id,
+	bool		x_latched);
+
 /*******************************************************************//**
 Returns the path from the first fil_node_t found for the space ID sent.
 The caller is responsible for freeing the memory allocated here for the
@@ -452,36 +479,32 @@ fil_recreate_tablespace(
 						TRUNCATE log record */
 	lsn_t			recv_lsn);	/*!< in: the end LSN of
 						the log record */
-/*******************************************************************//**
-Parses the body of a log record written about an .ibd file operation. That is,
-the log record part after the standard (type, space id, page no) header of the
-log record.
+/** Parse the body of a log record written about a file operation.
 
 If desired, also replays the delete or rename operation if the .ibd file
-exists and the space id in it matches. Replays the create operation if a file
-at that path does not exist yet. If the database directory for the file to be
-created does not exist, then we create the directory, too.
+exists and the space id in it matches.
 
 Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
 datadir that we should use in replaying the file operations.
+
+InnoDB recovery does not replay MLOG_FILE_DELETE; MySQL Enterprise Backup does.
+
+@param[in]	type		redo log entry type
+@param[in]	ptr		redo log record body
+@param[in]	end_ptr		end of buffer
+@param[in]	space_id	tablespace identifier
+@param[in]	replay		whether to apply the record
 @return end of log record, or NULL if the record was not completely
 contained between ptr and end_ptr */
 
 byte*
 fil_op_log_parse_or_replay(
-/*=======================*/
-	byte*		ptr,		/*!< in/out: buffer containing the log
-					record body, or an initial segment
-					of it, if the record does not fire
-					completely between ptr and end_ptr */
-	const byte*	end_ptr,	/*!< in: buffer end */
-	mlog_id_t	type,		/*!< in: the type of this log record */
-	ulint		space_id,	/*!< in: the space id of the tablespace
-					in question */
-	ulint		log_flags,	/*!< in: redo log flags
-					(stored in the page number parameter) */
-	bool		parse_only);	/*!< in: if true, parse the
-					log record don't replay it. */
+	mlog_id_t	type,
+	byte*		ptr,
+	const byte*	end_ptr,
+	ulint		space_id,
+	bool		replay)
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.
@@ -558,27 +581,23 @@ fil_discard_tablespace(
 	ulint	id)	/*!< in: space id */
 	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
-/*******************************************************************//**
-Renames a single-table tablespace. The tablespace must be cached in the
-tablespace memory cache.
+
+/** Rename a single-table tablespace.
+The tablespace must exist in the memory cache.
+@param[in]	id		tablespace identifier
+@param[in]	old_path	old file name
+@param[in]	new_name	new table name in the
+databasename/tablename format
+@param[in]	new_path_in	new file name,
+or NULL if it is located in the normal data directory
 @return true if success */
 
 bool
 fil_rename_tablespace(
-/*==================*/
-	const char*	old_name_in,	/*!< in: old table name in the
-					standard databasename/tablename
-					format of InnoDB, or NULL if we
-					do the rename based on the space
-					id only */
-	ulint		id,		/*!< in: space id */
-	const char*	new_name,	/*!< in: new table name in the
-					standard databasename/tablename
-					format of InnoDB */
-	const char*	new_path);	/*!< in: new full datafile path
-					if the tablespace is remotely
-					located, or NULL if it is located
-					in the normal data directory. */
+	ulint		id,
+	const char*	old_path,
+	const char*	new_name,
+	const char*	new_path_in);
 
 /*******************************************************************//**
 Allocates and builds a file name from a path, a table or tablespace name
@@ -658,6 +677,32 @@ fil_open_single_table_tablespace(
 	const char*	path_in)
 	__attribute__((warn_unused_result));
 
+enum fil_load_status {
+	/** The tablespace file(s) were found and valid. */
+	FIL_LOAD_OK,
+	/** The name no longer matches space_id */
+	FIL_LOAD_ID_CHANGED,
+	/** The file(s) were not found */
+	FIL_LOAD_NOT_FOUND,
+	/** The file(s) were not valid */
+	FIL_LOAD_INVALID
+};
+
+/** Open a tablespace file and add it to the InnoDB data structures.
+@param[in]	space_id	tablespace ID
+@param[in]	filename	databasename/tablename.ibd
+@param[in]	filename_len	the length of the filename, in bytes
+@param[out]	space		the tablespace, or NULL on error
+@return status of the operation */
+
+enum fil_load_status
+fil_load_single_table_tablespace(
+	ulint		space_id,
+	const char*	filename,
+	ulint		filename_len,
+	fil_space_t*&	space)
+	__attribute__((warn_unused_result));
+
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************************//**
 A fault-tolerant function that tries to read the next file name in the
@@ -675,18 +720,6 @@ fil_file_readdir_next_file(
 	os_file_dir_t	dir,	/*!< in: directory stream */
 	os_file_stat_t*	info);	/*!< in/out: buffer where the
 				info is returned */
-/********************************************************************//**
-At the server startup, if we need crash recovery, scans the database
-directories under the MySQL datadir, looking for .ibd files. Those files are
-single-table tablespaces. We need to know the space id in each of them so that
-we know into which file we should look to check the contents of a page stored
-in the doublewrite buffer, also to know where to apply log records where the
-space id is != 0.
-@return DB_SUCCESS or error number */
-
-dberr_t
-fil_load_single_table_tablespaces(void);
-/*===================================*/
 /*******************************************************************//**
 Returns true if a single-table tablespace does not exist in the memory cache,
 or is being deleted there.
@@ -1030,21 +1063,43 @@ fil_get_space_names(
 				/*!< in/out: Vector for collecting the names. */
 	__attribute__((warn_unused_result));
 
-/****************************************************************//**
-Generate redo logs for swapping two .ibd files */
+/** Generate redo log for swapping two .ibd files
+@param[in]	old_table	old table
+@param[in]	new_table	new table
+@param[in]	tmp_name	temporary table name
+@param[in,out]	mtr		mini-transaction
+@return	whether the operation succeeded */
+
+bool
+fil_mtr_rename_log(
+	const dict_table_t*	old_table,
+	const dict_table_t*	new_table,
+	const char*		tmp_name,
+	mtr_t*			mtr)
+	__attribute__((warn_unused_result));
+
+/** Write a MLOG_FILE_NAME record for a non-predefined tablespace if
+it is the first time since fil_names_clear().
+@param[in]	space	tablespace
+@param[in,out]	mtr	mini-transaction */
 
 void
-fil_mtr_rename_log(
-/*===============*/
-	ulint		old_space_id,	/*!< in: tablespace id of the old
-					table. */
-	const char*	old_name,	/*!< in: old table name */
-	ulint		new_space_id,	/*!< in: tablespace id of the new
-					table */
-	const char*	new_name,	/*!< in: new table name */
-	const char*	tmp_name,	/*!< in: temp table name used while
-					swapping */
-	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+fil_names_write(
+	fil_space_t*	space,
+	mtr_t*		mtr);
+
+/** On a log checkpoint, reset fil_names_write() flags
+and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
+@param[in]	lsn		checkpoint LSN
+@param[in]	do_write	whether to always write MLOG_CHECKPOINT
+@return whether anything was written to the redo log
+@retval false	if no flags were set and nothing written
+@retval true	if anything was written to the redo log */
+
+bool
+fil_names_clear(
+	lsn_t	lsn,
+	bool	do_write);
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 /**

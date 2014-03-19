@@ -27,6 +27,7 @@ Created 11/26/1995 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "buf0flu.h"
+#include "fsp0sysspace.h"
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
@@ -421,6 +422,7 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_made_dirty = false;
 	m_impl.m_n_log_recs = 0;
 	m_impl.m_n_freed_pages = 0;
+	m_impl.m_named_space = TRX_SYS_SPACE;
 
 	ut_d(m_impl.m_state = MTR_STATE_ACTIVE);
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
@@ -480,6 +482,89 @@ mtr_t::commit()
 	}
 }
 
+/** Commit a mini-transaction that did not modify any pages.
+The caller must invoke log_mutex_enter() and log_mutex_exit().
+This is to be used at log_checkpoint(). */
+
+void
+mtr_t::commit_checkpoint()
+{
+	ut_ad(log_mutex_own());
+	ut_ad(is_active());
+	ut_ad(!is_inside_ibuf());
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(get_log_mode() == MTR_LOG_ALL);
+	ut_ad(!m_impl.m_made_dirty);
+	ut_ad(m_impl.m_memo.size() == 0);
+	ut_ad(!srv_read_only_mode);
+	ut_d(m_impl.m_state = MTR_STATE_COMMITTING);
+
+	/* This is a dirty read, for debugging. */
+	ut_ad(!recv_no_log_write);
+
+	switch (m_impl.m_n_log_recs) {
+	case 0:
+		break;
+	case 1:
+		*m_impl.m_log.front()->begin() |= MLOG_SINGLE_REC_FLAG;
+		break;
+	default:
+		mlog_catenate_ulint(
+			&m_impl.m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
+	}
+
+	mlog_catenate_ulint(&m_impl.m_log, MLOG_CHECKPOINT, MLOG_1BYTE);
+
+	Command	cmd(this);
+	cmd.finish_write();
+	cmd.release_resources();
+
+	DBUG_PRINT("ib_log",
+		   ("MLOG_CHECKPOINT written at " LSN_PF, log_sys->lsn));
+}
+
+/** Set the tablespace associated with the mini-transaction
+(needed for generating a MLOG_FILE_NAME record)
+@param[in]	space	tablespace */
+
+void
+mtr_t::set_named_space(ulint space)
+{
+	if (is_predefined_tablespace(space)) {
+		return;
+	}
+
+	/* TRX_SYS_SPACE is one of the predefined tablespaces
+	that is always open during redo log apply.
+	MLOG_FILE_NAME only keeps track of user-created tablespaces. */
+	ut_ad(m_impl.m_named_space == TRX_SYS_SPACE
+	      || m_impl.m_named_space == space);
+	m_impl.m_named_space = space;
+}
+
+#ifdef UNIV_DEBUG
+/** Check the tablespace associated with the mini-transaction
+(needed for generating a MLOG_FILE_NAME record)
+@param[in]	space	tablespace
+@return whether the mini-transaction is associated with the space */
+
+bool
+mtr_t::is_named_space(ulint space) const
+{
+	switch (get_log_mode()) {
+	case MTR_LOG_NONE:
+	case MTR_LOG_NO_REDO:
+		return(true);
+	case MTR_LOG_ALL:
+	case MTR_LOG_SHORT_INSERTS:
+		break;
+	}
+
+	return(m_impl.m_named_space == space
+	       || is_predefined_tablespace(space));
+}
+#endif /* UNIV_DEBUG */
+
 /** Release an object in the memo stack.
 @return true if released */
 
@@ -531,7 +616,16 @@ mtr_t::Command::prepare_write()
 		log_buffer_extend((len + 1) * 2);
 	}
 
+	fil_space_t*	space
+		= is_predefined_tablespace(m_impl->m_named_space)
+		? NULL
+		: fil_space_get(m_impl->m_named_space);
+
 	log_mutex_enter();
+
+	if (space != NULL) {
+		fil_names_write(space, m_impl->m_mtr);
+	}
 
 	if (m_impl->m_n_log_recs > 1) {
 		mlog_catenate_ulint(
