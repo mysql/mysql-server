@@ -7609,6 +7609,8 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
                   DBUG_SUICIDE(););
 
   error= do_commit(thd);
+  if (error)
+    w->rollback_positions(ptr_group);
 err:
   return error;
 }

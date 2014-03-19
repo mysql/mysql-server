@@ -1,0 +1,2 @@
+--slave-parallel-workers=4 --slave-parallel-type='logical_clock'
+--slave-transaction-retries=0 --slave-preserve-commit-order=1

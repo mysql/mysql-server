@@ -7135,6 +7135,11 @@ ER_DUP_LIST_ENTRY
 ER_SQL_MODE_NO_EFFECT
   eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
 
+ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
+  eng "Slave worker has stopped after at least one previous worker encountered an error when slave-preserve-commit-order was enabled. To preserve commit order, the last transaction executed by this thread has not been committed. When restarting the slave after fixing any failed threads, you should fix this worker as well."
+
+ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER
+  eng "slave_preserve_commit_order is not supported %s."
 #
 #  End of 5.7 error messages.
 #

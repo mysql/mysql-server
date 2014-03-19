@@ -29,6 +29,7 @@
 #include "rpl_slave.h"
 #include "rpl_rli_pdb.h"
 #include "rpl_info_factory.h"
+#include "rpl_slave_commit_order_manager.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
@@ -102,6 +103,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    mts_group_status(MTS_NOT_IN_GROUP),
    current_mts_submode(0),
    reported_unsafe_warning(false), rli_description_event(NULL),
+   commit_order_mngr(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false)
 {
