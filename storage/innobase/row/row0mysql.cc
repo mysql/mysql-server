@@ -1351,60 +1351,6 @@ row_insert_for_mysql_using_cursor(
 	trx_write_trx_id(node->trx_id_buf, trx_id);
 
 	/* Step-4: Iterate over all the indexes and insert entries. */
-#if 0
-	ulint	inserted_upto = 1;
-	bool	clust_index_updated = false;
-
-	/* In majority of cases primary key is not defined on intrinsic tables
-	but it is must given that InnoDB is clustered index.
-	But before insert is done to this key it would be good to insert to
-	other indexes and ensure there is no duplicate violation which if found
-	can save insert and rollback to the clustered index.
-	Insert to the clustered index is done only after inserts to all other
-	indexes are successfully completed */
-	node->entry = UT_LIST_GET_FIRST(node->entry_list);
-	dict_index_t* index = UT_LIST_GET_FIRST(node->table->indexes);
-
-	for (index = UT_LIST_GET_NEXT(indexes, index),
-	     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
-	     index != NULL && err == DB_SUCCESS;
-	     index = UT_LIST_GET_NEXT(indexes, index),
-	     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry)) {
-
-		node->index = index;
-		row_ins_index_entry_set_vals(
-			node->index, node->entry, node->row);
-
-		ut_ad(!dict_index_is_clust(index));
-		err = row_ins_sec_index_entry(node->index, node->entry, thr);
-
-		if (err == DB_SUCCESS) {
-			inserted_upto++;
-		}
-	}
-
-	/* Now insert to clustered index if inserts to all other indexes
-	are successful. */
-	if (err == DB_SUCCESS) {
-
-		dict_index_t* index = UT_LIST_GET_FIRST(node->table->indexes);
-		node->entry = UT_LIST_GET_FIRST(node->entry_list);
-		node->index = index;
-
-		row_ins_index_entry_set_vals(
-			node->index, node->entry, node->row);
-
-		ut_ad(dict_index_is_clust(index));
-
-		err = row_ins_clust_index_entry(
-			node->index, node->entry, thr, 0);
-
-		if (err == DB_SUCCESS) {
-			clust_index_updated = true;
-		}
-	}
-
-#endif
 	ulint		inserted_upto = 0;
 	dict_index_t*	index;
 	for (index = UT_LIST_GET_FIRST(node->table->indexes),
