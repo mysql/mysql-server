@@ -520,3 +520,15 @@ LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug11735141.txt' INTO TABLE t1;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1;
 End of 5.1 tests
+#
+# Bug#11759519 INFINITE HANG WITH 100% CPU USAGE WITH LOAD DATA LOCAL AND IMPORT ERRORS
+#
+SET @old_mode= @@sql_mode;
+CREATE TABLE t1 (fld1 INT);
+SET sql_mode='strict_all_tables';
+# Without fix, load data hangs forever.
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
+FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
+Got one of the listed errors
+SET @@sql_mode= @old_mode;
+DROP TABLE t1;
