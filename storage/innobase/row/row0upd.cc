@@ -862,15 +862,15 @@ row_upd_build_difference_binary(
 
 	/* This function is used only for a clustered index */
 	ut_a(dict_index_is_clust(index));
-	ut_ad(!dict_table_is_intrinsic(index->table));
 
 	update = upd_create(dtuple_get_n_fields(entry), heap);
 
 	n_diff = 0;
 
 	trx_id_pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
-	ut_ad(dict_index_get_sys_col_pos(index, DATA_ROLL_PTR)
-	      == trx_id_pos + 1);
+	ut_ad(dict_table_is_intrinsic(index->table)
+	      || (dict_index_get_sys_col_pos(index, DATA_ROLL_PTR)
+			== trx_id_pos + 1));
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -887,10 +887,17 @@ row_upd_build_difference_binary(
 
 		/* NOTE: we compare the fields as binary strings!
 		(No collation) */
+		if (no_sys) {
+			/* TRX_ID */
+			if (i == trx_id_pos) {
+				continue;
+			}
 
-		if (no_sys && (i == trx_id_pos || i == trx_id_pos + 1)) {
-
-			continue;
+			/* DB_ROLL_PTR */
+			if (i == trx_id_pos + 1
+			    && !dict_table_is_intrinsic(index->table)) {
+				continue;
+			}
 		}
 
 		if (!dfield_is_ext(dfield)
