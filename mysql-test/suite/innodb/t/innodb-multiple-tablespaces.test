@@ -53,6 +53,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace [0-9]+ was not found at .*, and innodb_force_recovery was set");
 --enable_query_log
 
 --echo #

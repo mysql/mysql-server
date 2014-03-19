@@ -2013,8 +2013,8 @@ files_checked:
 
 			In a crash recovery, we check that the info in data
 			dictionary is consistent with what we already know
-			about space id's from the call of
-			fil_load_single_table_tablespaces().
+			about space id's from the calls to
+			fil_load_single_table_tablespace().
 
 			In a normal startup, we create the space objects for
 			every table in the InnoDB data dictionary that has
@@ -2023,9 +2023,7 @@ files_checked:
 			We also determine the maximum tablespace id used. */
 			dict_check_t	dict_check;
 
-			if (recv_needed_recovery) {
-				dict_check = DICT_CHECK_ALL_LOADED;
-			} else if (n_recovered_trx) {
+			if (recv_needed_recovery || n_recovered_trx) {
 				dict_check = DICT_CHECK_SOME_LOADED;
 			} else {
 				dict_check = DICT_CHECK_NONE_LOADED;

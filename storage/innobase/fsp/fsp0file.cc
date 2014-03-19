@@ -86,9 +86,10 @@ Datafile::open_or_create()
 
 /** Open a data file in read-only mode to check if it exists so that it
 can be validated.
+@param[in]	strict	whether to issue error messages
 @return DB_SUCCESS or error code */
 dberr_t
-Datafile::open_read_only()
+Datafile::open_read_only(bool strict)
 {
 	bool	success = false;
 	ut_ad(m_handle == OS_FILE_CLOSED);
@@ -104,19 +105,18 @@ Datafile::open_read_only()
 		innodb_data_file_key, m_filepath, m_open_flags,
 		OS_FILE_READ_ONLY, &success);
 
-	if (!success) {
+	if (success) {
+		m_exists = true;
+		return(DB_SUCCESS);
+	} else if (strict) {
 		m_last_os_error = os_file_get_last_error(true);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot open datafile for read-only: '%s'",
 			m_filepath);
-
-		return(DB_CANNOT_OPEN_FILE);
 	}
 
-	m_exists = true;
-
-	return(DB_SUCCESS);
+	return(DB_CANNOT_OPEN_FILE);
 }
 
 /** Open a data file in read-write mode during start-up so that
@@ -652,13 +652,13 @@ Datafile::restore_from_doublewrite(
 	return(DB_SUCCESS);
 }
 
-
 /** Opens a handle to the file linked to in an InnoDB Symbolic Link file
 in read-only mode so that it can be validated.
+@param[in]	strict	whether to issue error messages
 @return DB_SUCCESS if remote linked tablespace file is found and opened. */
 
 dberr_t
-RemoteDatafile::open_read_only()
+RemoteDatafile::open_read_only(bool strict)
 {
 	ut_ad(m_filepath == NULL);
 
@@ -669,9 +669,9 @@ RemoteDatafile::open_read_only()
 		return(DB_ERROR);
 	}
 
-	dberr_t err = Datafile::open_read_only();
+	dberr_t err = Datafile::open_read_only(strict);
 
-	if (err != DB_SUCCESS) {
+	if (err != DB_SUCCESS && strict) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 

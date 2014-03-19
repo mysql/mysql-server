@@ -2891,6 +2891,7 @@ row_ins_index_entry_big_rec_func(
 
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(index->table, &mtr);
+	fsp_names_write(index->space, &mtr);
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 				    BTR_MODIFY_TREE, &cursor, 0,
