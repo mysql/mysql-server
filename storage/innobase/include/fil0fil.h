@@ -1078,15 +1078,25 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	__attribute__((warn_unused_result));
 
-/** Write a MLOG_FILE_NAME record for a non-predefined tablespace if
-it is the first time since fil_names_clear().
-@param[in]	space	tablespace
-@param[in,out]	mtr	mini-transaction */
+/** Write a MLOG_FILE_NAME record for a non-predefined tablespace.
+@param[in]	space_id	tablespace identifier
+@param[in,out]	mtr		mini-transaction
+@return	tablespace */
 
-void
+fil_space_t*
 fil_names_write(
-	fil_space_t*	space,
-	mtr_t*		mtr);
+	ulint		space_id,
+	mtr_t*		mtr)
+	__attribute__((warn_unused_result));
+
+/** Note that a non-predefined persistent tablespace has been modified.
+@param[in,out]	space	tablespace
+@return whether this is the first dirtying since fil_names_clear() */
+
+bool
+fil_names_dirty(
+	fil_space_t*	space)
+	__attribute__((warn_unused_result));
 
 /** On a log checkpoint, reset fil_names_write() flags
 and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.

@@ -308,7 +308,7 @@ public:
 	@param pos	position of element in bytes from start
 	@return	pointer to element */
 	template <typename Type>
-	Type at(ulint pos)
+	Type atx(ulint pos)
 	{
 		block_t*	block = const_cast<block_t*>(find(pos));
 
