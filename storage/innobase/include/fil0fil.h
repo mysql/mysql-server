@@ -201,16 +201,6 @@ extern ulint	fil_n_pending_tablespace_flushes;
 extern ulint	fil_n_file_opened;
 
 #ifndef UNIV_HOTBACKUP
-/** Look up a tablespace by space id.
-The caller should hold page latches on this tablepace already.
-@param[in]	id	tablespace identifier
-@return	tablespace object */
-
-fil_space_t*
-fil_space_get(
-	ulint	id)
-	__attribute__((warn_unused_result));
-
 /*******************************************************************//**
 Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the

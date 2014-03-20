@@ -520,23 +520,6 @@ fil_space_get_by_name(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Look up a tablespace by space id.
-The caller should hold page latches on this tablepace already.
-@param[in]	id	tablespace identifier
-@return	tablespace object */
-
-fil_space_t*
-fil_space_get(
-	ulint	id)
-{
-	mutex_enter(&fil_system->mutex);
-	fil_space_t*	space = fil_space_get_by_id(id);
-	ut_ad(space != NULL);
-	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
-	mutex_exit(&fil_system->mutex);
-	return(space);
-}
-
 /*******************************************************************//**
 Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
