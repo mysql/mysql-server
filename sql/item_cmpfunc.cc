@@ -2299,6 +2299,13 @@ void Item_func_interval::fix_length_and_dec()
 {
   uint rows= row->cols();
   
+  //The number of columns in one argument is limited to one
+  for (uint i= 0; i < rows; i++)
+  {
+    if (row->element_index(i)->check_cols(1))
+      return;
+  }
+
   use_decimal_comparison= ((row->element_index(0)->result_type() ==
                             DECIMAL_RESULT) ||
                            (row->element_index(0)->result_type() ==
