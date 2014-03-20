@@ -2114,6 +2114,19 @@ recv_parse_log_rec(
 	}
 
 	switch (*ptr) {
+#ifdef UNIV_LOG_LSN_DEBUG
+	case MLOG_LSN:
+		new_ptr = mlog_parse_initial_log_record(
+			ptr, end_ptr, type, space, page_no);
+		if (new_ptr != NULL) {
+			const lsn_t	lsn = static_cast<lsn_t>(
+				*space) << 32 | *page_no;
+			ut_a(lsn == recv_sys->recovered_lsn);
+		}
+
+		*type = static_cast<mlog_id_t>(*ptr);
+		return(new_ptr - ptr);
+#endif /* UNIV_LOG_LSN_DEBUG */
 	case MLOG_MULTI_REC_END:
 	case MLOG_DUMMY_RECORD:
 	case MLOG_CHECKPOINT:
@@ -2134,13 +2147,6 @@ recv_parse_log_rec(
 
 		return(0);
 	}
-
-#ifdef UNIV_LOG_LSN_DEBUG
-	if (*type == MLOG_LSN) {
-		lsn_t	lsn = (lsn_t) *space << 32 | *page_no;
-		ut_a(lsn == recv_sys->recovered_lsn);
-	}
-#endif /* UNIV_LOG_LSN_DEBUG */
 
 	new_ptr = recv_parse_or_apply_log_rec_body(
 		*type, new_ptr, end_ptr, *space, *page_no, apply, NULL, NULL);
@@ -2296,6 +2302,9 @@ loop:
 			return(true);
 		}
 		/* fall through */
+#ifdef UNIV_LOG_LSN_DEBUG
+	case MLOG_LSN:
+#endif /* UNIV_LOG_LSN_DEBUG */
 	case MLOG_DUMMY_RECORD:
 		single_rec = true;
 		break;
