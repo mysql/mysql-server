@@ -88,6 +88,7 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+
 namespace tokudb {
     uint compute_total_key_parts(TABLE_SHARE *table_share) {
         uint total_key_parts = 0;
@@ -114,7 +115,7 @@ namespace tokudb {
     }
     
     // Put the cardinality counters into the status dictionary.
-    void set_card_in_status(DB *status_db, DB_TXN *txn, uint rec_per_keys, uint64_t rec_per_key[]) {
+    int set_card_in_status(DB *status_db, DB_TXN *txn, uint rec_per_keys, uint64_t rec_per_key[]) {
         // encode cardinality into the buffer
         tokudb::buffer b;
         size_t s;
@@ -126,7 +127,7 @@ namespace tokudb {
         }
         // write cardinality to status
         int error = write_to_status(status_db, hatoku_cardinality, b.data(), b.size(), txn);
-        assert(error == 0);
+        return error;
     }
 
     // Get the cardinality counters from the status dictionary.
@@ -158,9 +159,9 @@ namespace tokudb {
     }
 
     // Delete the cardinality counters from the status dictionary.
-    void delete_card_from_status(DB *status_db, DB_TXN *txn) {
+    int delete_card_from_status(DB *status_db, DB_TXN *txn) {
         int error = remove_from_status(status_db, hatoku_cardinality, txn);
-        assert(error == 0);
+        return error;
     }
 
     bool find_index_of_key(const char *key_name, TABLE_SHARE *table_share, uint *index_offset_ptr) {
@@ -175,7 +176,7 @@ namespace tokudb {
 
     // Altered table cardinality = select cardinality data from current table cardinality for keys that exist 
     // in the altered table and the current table.
-    void set_card_from_status(DB *status_db, DB_TXN *txn, TABLE_SHARE *table_share, TABLE_SHARE *altered_table_share) {
+    int set_card_from_status(DB *status_db, DB_TXN *txn, TABLE_SHARE *table_share, TABLE_SHARE *altered_table_share) {
         int error;
         // read existing cardinality data from status
         uint table_total_key_parts = tokudb::compute_total_key_parts(table_share);
@@ -206,9 +207,10 @@ namespace tokudb {
             }
         }
         if (error == 0)
-            set_card_in_status(status_db, txn, altered_table_total_key_parts, altered_rec_per_key);
+            error = set_card_in_status(status_db, txn, altered_table_total_key_parts, altered_rec_per_key);
         else
-            delete_card_from_status(status_db, txn);
+            error = delete_card_from_status(status_db, txn);
+        return error;
     }
 
     // Compute records per key for all key parts of the ith key of the table.
