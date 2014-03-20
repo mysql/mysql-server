@@ -1248,14 +1248,23 @@ int Update_rows_log_event_old::do_exec_row(TABLE *table)
 **************************************************************************/
 
 #ifndef MYSQL_CLIENT
+/**
+  The event header and footer is constructed before constructing an object of
+  a specific event type. The header and footer are constructed in the base
+  class, Binary_log_event. They are accessed using the const methods header()
+  and footer() defined in Binary_log_event.
+
+  This constructor calls the header() and footer() methods to initialize
+  Log_event::common_header and Log_event::common_footer respectively.
+*/
 Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
                                        MY_BITMAP const *cols,
                                        bool using_trans)
   : Log_event(thd_arg, 0,
               using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                             Log_event::EVENT_STMT_CACHE,
-              Log_event::EVENT_NORMAL_LOGGING, this->header(),
-              this->footer()),
+              Log_event::EVENT_NORMAL_LOGGING, header(),
+              footer()),
     m_row_count(0),
     m_table(tbl_arg),
     m_table_id(tid),
@@ -1307,7 +1316,7 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 Old_rows_log_event::
 Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
                    const Format_description_event *description_event)
-  : Log_event(this->header(), this->footer(), true),
+  : Log_event(header(), footer(), true),
     Binary_log_event(&buf, description_event->binlog_version,
                      description_event->server_version),
     m_row_count(0),

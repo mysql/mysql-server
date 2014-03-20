@@ -16,8 +16,8 @@
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/sql/conn_handler
-  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/regex
   ${ZLIB_INCLUDE_DIR}
@@ -293,7 +293,6 @@ SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
-ADD_DEPENDENCIES(binlog binlogevents_static)
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
