@@ -28,6 +28,7 @@
 //    mysql adapter stores a 0
 
 var nosql = require('../..');
+var udebug = unified_debug.getLogger("issues/2014-03-18Test.js");
 
 var t1 = new harness.ConcurrentTest("WriteStringToIntCol");
 
@@ -35,7 +36,7 @@ t1.run = function() {
   fail_openSession(t1, function(session, testCase) {
     session.persist("a", { id: 2, cint: "foo"}, function(err) {
       if(err) {
-        console.log(err);
+        udebug.log(err);
         t1.pass();
       } else {
         t1.fail("should have error");
