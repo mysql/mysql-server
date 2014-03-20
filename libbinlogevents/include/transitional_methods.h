@@ -29,14 +29,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define TRANSITIONAL_METHODS_INCLUDED
 #include <stdlib.h>
 #include <string.h>
-#ifdef min //definition of min() and max() in std and libmysqlclient
-           //can be/are different
-#undef min
-#endif
-#ifdef max
-#undef max
-#endif
-
 /**
   In case the variable is updated,
   make sure to update it in $MYSQL_SOURCE_DIR/my_global.h.

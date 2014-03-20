@@ -172,15 +172,7 @@ Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
   return ret;
 }
 
-/**
-  Log_event_header constructor
 
-  @param buf                  the buffer containing the complete information
-                              including the event and the header data
-
-  @param description_event    first constructor of Format_description_event,
-                              used to extract the binlog_version
-*/
 Log_event_header::
 Log_event_header(const char* buf, uint16_t binlog_version)
 : data_written(0), log_pos(0)
@@ -377,14 +369,6 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
 }
 
 
-/**
-  This ctor will create a new object of Log_event_header, and initialize
-  the variable m_header, which in turn will be used to initialize Log_event's
-  member common_header.
-  It will also advance the buffer after decoding the header(it is done through
-  the constructor of Log_event_header) and
-  will be pointing to the start of event data
-*/
 Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version,
                                    const char *server_version)
 : m_header(*buf, binlog_version)
@@ -401,12 +385,6 @@ Binary_log_event::~Binary_log_event()
 {
 }
 
-/**
-   Empty ctor of Start_event_v3 called when we call the
-   ctor of FDE which takes binlog_version as the parameter
-   It will initialize the server_version by global variable
-   server_version
-*/
 Start_event_v3::Start_event_v3(Log_event_type type_code_arg)
 : Binary_log_event(type_code_arg),
   created(0), binlog_version(BINLOG_VERSION),
@@ -414,22 +392,6 @@ Start_event_v3::Start_event_v3(Log_event_type type_code_arg)
 {
 }
 
-/**
-  Format_description_log_event 1st constructor.
-
-    This constructor can be used to create the event to write to the binary log
-    (when the server starts or when FLUSH LOGS), or to create artificial events
-    to parse binlogs from MySQL 3.23 or 4.x.
-    When in a client, only the 2nd use is possible.
-
-  @param binlog_ver             the binlog version for which we want to build
-                                an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
-                                x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
-                                old 4.0 (binlog version 2) is not supported;
-                                it should not be used for replication with
-                                5.0.
-  @param server_ver             a string containing the server version.
-*/
 Format_description_event::Format_description_event(uint8_t binlog_ver,
                                                    const char* server_ver)
 : Start_event_v3(FORMAT_DESCRIPTION_EVENT), event_type_permutation(0)
@@ -602,7 +564,6 @@ bool Format_description_event::is_version_before_checksum() const
   return get_product_version() < checksum_version_product;
 }
 
-
 Start_event_v3::Start_event_v3(const char* buf,
                                const Format_description_event *description_event)
   :Binary_log_event(&buf, description_event->binlog_version,
@@ -621,40 +582,6 @@ Start_event_v3::Start_event_v3(const char* buf,
   dont_set_created= 1;
 }
 
-/**
-  The problem with this constructor is that the fixed header may have a
-  length different from this version, but we don't know this length as we
-  have not read the Format_description_log_event which says it, yet. This
-  length is in the post-header of the event, but we don't know where the
-  post-header starts.
-
-  So this type of event HAS to:
-  - either have the header's length at the beginning (in the header, at a
-  fixed position which will never be changed), not in the post-header. That
-  would make the header be "shifted" compared to other events.
-  - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
-  versions, so that we know for sure.
-
-  I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
-  it is sent before Format_description_log_event).
-
-  The layout of the event data part  in  Format_description_event
-  <pre>
-        +=====================================+
-        | event  | binlog_version   19 : 2    | = 4
-        | data   +----------------------------+
-        |        | server_version   21 : 50   |
-        |        +----------------------------+
-        |        | create_timestamp 71 : 4    |
-        |        +----------------------------+
-        |        | header_length    75 : 1    |
-        |        +----------------------------+
-        |        | post-header      76 : n    | = array of n bytes, one byte per
-        |        | lengths for all            |   event type that the server knows
-        |        | event types                |   about
-        +=====================================+
-  </pre>
-*/
 Format_description_event::
 Format_description_event(const char* buf, unsigned int event_len,
                          const Format_description_event* description_event)
@@ -803,26 +730,7 @@ Format_description_event::~Format_description_event()
     delete[] post_header_len;
 }
 
-/********************************************************************
-           Rotate_event methods
-*********************************************************************/
-/**
-  The variable part of the Rotate event contains the name of the next binary
-  log file,  and the position of the first event in the next binary log file.
 
-  <pre>
-  The buffer layout is as follows:
-  +-----------------------------------------------------------------------+
-  | common_header | post_header | position og the first event | file name |
-  +-----------------------------------------------------------------------+
-  </pre>
-
-  @param buf Buffer contain event data in the layout specified above
-  @param event_len The length of the event written in the log file
-  @param description_event FDE used to extract the post header length, which
-                           depends on the binlog version
-  @param head Header information of the event
-*/
 Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event)
 : Binary_log_event(&buf, description_event->binlog_version,
@@ -862,25 +770,6 @@ Rotate_event::Rotate_event(const char* buf, unsigned int event_len,
 }
 
 
-/******************************************************************
-            Intvar_event methods
-*******************************************************************/
-/**
-  Constructor receives a packet from the MySQL master or the binary
-  log and decodes it to create an Intvar_event.
-
-  @param buf Buffer containing header and event data.
-  @param description_event FDE corresponding to the binlog version of the
-                               log file being read currently.
-
-  The post header for the event is empty. Buffer layout for the variable
-  data part is as follows:
-  <pre>
-    +--------------------------------+
-    | type (4 bytes) | val (8 bytes) |
-    +--------------------------------+
-  </pre>
-*/
 Intvar_event::Intvar_event(const char* buf,
                            const Format_description_event* description_event)
 : Binary_log_event(&buf, description_event->binlog_version,
@@ -911,12 +800,7 @@ Xid_event(const char* buf,
   memcpy((char*) &xid, buf, 8);
 }
 
-/**
-  Written every time a statement uses the RAND() function; precedes other
-  events for the statement. Indicates the seed values to use for generating a
-  random number with RAND() in the next statement. This is written only before
-  a QUERY_EVENT and is not used with row-based logging
-*/
+
 Rand_event::Rand_event(const char* buf,
                        const Format_description_event* description_event)
   :Binary_log_event(&buf, description_event->binlog_version,
@@ -935,12 +819,7 @@ Rand_event::Rand_event(const char* buf,
   seed2= le64toh(seed2);
 }
 
-/**
-  Written every time a statement uses a user variable, precedes other
-  events for the statement. Indicates the value to use for the
-  user variable in the next statement. This is written only before a
-  QUERY_EVENT and is not used with row-based logging.
-*/
+
 User_var_event::
 User_var_event(const char* buf, unsigned int event_len,
                const Format_description_event* description_event)
@@ -1050,20 +929,16 @@ err:
     name= 0;
 }
 
-/**
-  The ctor of Rows_query_event,
-  Here we are copying the exact query executed in RBR, to a
-  char array m_rows_query
-*/
+
 Rows_query_event::
 Rows_query_event(const char *buf, unsigned int event_len,
-                 const Format_description_event *descr_event)
- : Ignorable_event(buf, descr_event)
+                 const Format_description_event *description_event)
+ : Ignorable_event(buf, description_event)
 {
   uint8_t const common_header_len=
-    descr_event->common_header_len;
+    description_event->common_header_len;
   uint8_t const post_header_len=
-    descr_event->post_header_len[ROWS_QUERY_LOG_EVENT-1];
+    description_event->post_header_len[ROWS_QUERY_LOG_EVENT-1];
 
   /*
    m_rows_query length is stored using only one byte, but that length is
@@ -1081,22 +956,7 @@ Rows_query_event::~Rows_query_event()
   if(m_rows_query)
      bapi_free(m_rows_query);
 }
-/**
-  ctor of Gtid_event
-  Each transaction has a coordinate in the form of a pair:
-  GTID = (SID, GNO)
-  GTID stands for Global Transaction IDentifier, SID for Source Identifier,
-  and GNO for Group Number.
 
-  SID is a 128-bit number that identifies the place where the transaction was
-  first committed. SID is normally the SERVER_UUID of a server, but may be
-  something different if the transaction was generated by something else than
-  a MySQL server. For example, for NDB it identifies the cluster (which may be
-  attached to multiple servers).
-
-  GNO is a 64-bit sequence number: 1 for the first transaction committed on SID,
-  2 for the second transaction, and so on. No transaction can have GNO 0
-*/
 
 Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
                        const Format_description_event *description_event)
@@ -1150,20 +1010,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
   return;
 }
 
-/**
-  Constructor of Incident_event
-  The buffer layout is as follows:
-  <pre>
-  +-----------------------------------------------------+
-  | Incident_number | message_length | Incident_message |
-  +-----------------------------------------------------+
-  </pre>
 
-  Incident number codes are listed in binlog_evnet.h.
-  The only code currently used is INCIDENT_LOST_EVENTS, which indicates that
-  there may be lost events (a "gap") in the replication stream that requires
-  databases to be resynchronized.
-*/
 Incident_event::Incident_event(const char *buf, unsigned int event_len,
                                const Format_description_event *descr_event)
 : Binary_log_event(&buf, descr_event->binlog_version,
@@ -1207,10 +1054,6 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
   return;
 }
 
-/**
-  Constructor of Previous_gtid_event
-  Decodes the gtid_executed in the last binlog file
-*/
 
 Previous_gtids_event::
 Previous_gtids_event(const char *buffer, unsigned int event_len,
@@ -1230,11 +1073,6 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
 /******************************************************************************
                      Query_event methods
 ******************************************************************************/
-/**
-  The simplest constructor that could possibly work.  This is used for
-  creating static objects that have a special meaning and are invisible
-  to the log.
-*/
 Query_event::Query_event(Log_event_type type_arg)
 : Binary_log_event(type_arg),
   query(0), db(0), user(0), user_len(0), host(0), host_len(0),
@@ -1242,10 +1080,6 @@ Query_event::Query_event(Log_event_type type_arg)
 {
 }
 
-/**
-  The constructor used by MySQL master to create a query event, to be
-  written to the binary log.
-*/
 Query_event::Query_event(const char* query_arg, const char* catalog_arg,
                          const char* db_arg, uint32_t query_length,
                          unsigned long thread_id_arg,
@@ -1333,25 +1167,14 @@ Query_event::code_name(int code)
 */
 #define CHECK_SPACE(PTR,END,CNT)                      \
   do {                                                \
-    assert((PTR) + (CNT) <= (END));              \
+    assert((PTR) + (CNT) <= (END));                   \
     if ((PTR) + (CNT) > (END)) {                      \
       query= 0;                                       \
-      return;                               \
+      return;                                         \
     }                                                 \
   } while (0)
 
 
-/**
-  The constructor receives a packet from the MySQL master or the binary
-  log and decodes it to create a Query event.
-
-  @param buf                Containing the event header and data
-  @param even_len           The length upto ehich buf contains Query event data
-  @param description_event  FDE specific to the binlog version
-
-  @param event_type         Required to determine whether the event type is
-                            QUERY_EVENT or EXECUTE_LOAD_QUERY_EVENT
-*/
 Query_event::Query_event(const char* buf, unsigned int event_len,
                          const Format_description_event *description_event,
                          Log_event_type event_type)

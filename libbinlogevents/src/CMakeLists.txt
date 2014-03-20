@@ -7,6 +7,7 @@ SET (REPLICATION_SOURCES
      rows_event.cpp
      value.cpp
      binlog_event.cpp
+     decoder.cpp
     )
 
 

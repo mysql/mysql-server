@@ -45,13 +45,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "cassert"
 #include <zlib.h> //for checksum calculations
 #include <stdint.h>
-#ifdef min //definition of min() and max() in std and libmysqlclient
-           //can be/are different
-#undef min
-#endif
-#ifdef max
-#undef max
-#endif
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
