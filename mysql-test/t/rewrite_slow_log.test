@@ -112,8 +112,6 @@ TRUNCATE mysql.slow_log;
 let $wait_condition= SELECT "slow -->", sql_text FROM mysql.slow_log WHERE sql_text LIKE "%TO 'u16467055'%";
 --source include/wait_condition.inc
 
---eval $wait_condition
-
 DROP USER u16467055;
 
 
