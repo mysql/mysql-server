@@ -347,13 +347,14 @@ public:
 	/** Release the resources */
 	void release_resources();
 
-	/** Append the redo log records to the redo log buffer. */
-	void finish_write();
+	/** Append the redo log records to the redo log buffer.
+	@param[in]	len	number of bytes to write */
+	void finish_write(ulint len);
 
 private:
 	/** Prepare to write the mini-transaction log to the redo log buffer.
-	@return whether finish_write() needs to be invoked */
-	bool prepare_write();
+	@return number of bytes to write in finish_write() */
+	ulint prepare_write();
 
 	/** true if it is a sync mini-transaction. */
 	bool			m_sync;
@@ -389,11 +390,23 @@ mtr_t::is_block_dirtied(const buf_block_t* block)
 
 /** Write the block contents to the REDO log */
 struct mtr_write_log_t {
-	/** @return true - never fails */
+	/** Number of bytes to write */
+	mutable ulint	m_len;
+
+	/** Constructor */
+	explicit mtr_write_log_t(ulint len) : m_len (len) {}
+
+	/** Append a block to the redo log buffer.
+	@return whether the appending should continue */
 	bool operator()(const mtr_buf_t::block_t* block) const
 	{
-		log_write_low(block->begin(), block->used());
-		return(true);
+		ut_ad(m_len > 0);
+
+		ulint	len = ut_min(m_len, block->used());
+
+		log_write_low(block->begin(), len);
+		m_len -= len;
+		return(m_len > 0);
 	}
 };
 
@@ -516,7 +529,7 @@ mtr_t::commit_checkpoint()
 	mlog_catenate_ulint(&m_impl.m_log, MLOG_CHECKPOINT, MLOG_1BYTE);
 
 	Command	cmd(this);
-	cmd.finish_write();
+	cmd.finish_write(m_impl.m_log.size());
 	cmd.release_resources();
 
 	DBUG_PRINT("ib_log",
@@ -590,9 +603,9 @@ mtr_t::memo_release(const void* object, ulint type)
 }
 
 /** Prepare to write the mini-transaction log to the redo log buffer.
-@return whether finish_write() needs to be invoked */
+@return number of bytes to write in finish_write() */
 
-bool
+ulint
 mtr_t::Command::prepare_write()
 {
 	switch (m_impl->m_log_mode) {
@@ -606,11 +619,13 @@ mtr_t::Command::prepare_write()
 		m_end_lsn = m_start_lsn = log_sys->lsn;
 		return(false);
 	case MTR_LOG_ALL:
-		ut_ad(m_impl->m_n_log_recs > 0);
 		break;
 	}
 
-	const ulint	len = m_impl->m_log.size();
+	ulint	len	= m_impl->m_log.size();
+	ulint	n_recs	= m_impl->m_n_log_recs;
+	ut_ad(len > 0);
+	ut_ad(n_recs > 0);
 
 	if (len > log_sys->buf_size / 2) {
 		log_buffer_extend((len + 1) * 2);
@@ -619,37 +634,49 @@ mtr_t::Command::prepare_write()
 	fil_space_t*	space
 		= is_predefined_tablespace(m_impl->m_named_space)
 		? NULL
-		: fil_space_get(m_impl->m_named_space);
+		: fil_names_write(m_impl->m_named_space, m_impl->m_mtr);
 
 	log_mutex_enter();
 
-	if (space != NULL) {
-		fil_names_write(space, m_impl->m_mtr);
-	}
-
-	if (m_impl->m_n_log_recs > 1) {
+	if (space != NULL && fil_names_dirty(space)) {
+		ut_ad(m_impl->m_n_log_recs > n_recs);
 		mlog_catenate_ulint(
 			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
-	} else {
+		len = m_impl->m_log.size();
+	} else if (n_recs <= 1) {
 		*m_impl->m_log.front()->begin() |= MLOG_SINGLE_REC_FLAG;
+	} else if (space != NULL) {
+		byte* tail = m_impl->m_log.at<byte*>(len++);
+		ut_ad(*tail == MLOG_FILE_NAME);
+		*tail = MLOG_MULTI_REC_END;
+	} else {
+		mlog_catenate_ulint(
+			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
+		len++;
 	}
 
-	return(true);
+	ut_ad(len <= m_impl->m_log.size());
+	return(len);
 }
 
-/** Append the redo log records to the redo log buffer. */
+/** Append the redo log records to the redo log buffer
+@param len	number of bytes to write */
 
 void
-mtr_t::Command::finish_write()
+mtr_t::Command::finish_write(
+	ulint	len)
 {
 	ut_ad(m_impl->m_log_mode == MTR_LOG_ALL);
 	ut_ad(log_mutex_own());
+	ut_ad(m_impl->m_log.size() >= len);
+	ut_ad(len > 0);
 
 	if (m_impl->m_log.is_small()) {
 		const mtr_buf_t::block_t*	front = m_impl->m_log.front();
+		ut_ad(len <= front->used());
 
 		m_end_lsn = log_reserve_and_write_fast(
-			front->begin(), front->used(), &m_start_lsn);
+			front->begin(), len, &m_start_lsn);
 
 		if (m_end_lsn > 0) {
 			return;
@@ -657,9 +684,9 @@ mtr_t::Command::finish_write()
 	}
 
 	/* Open the database log for log_write_low */
-	m_start_lsn = log_reserve_and_open(m_impl->m_log.size());
+	m_start_lsn = log_reserve_and_open(len);
 
-	mtr_write_log_t	write_log;
+	mtr_write_log_t	write_log(len);
 	m_impl->m_log.for_each_block(write_log);
 
 	m_end_lsn = log_close();
@@ -710,8 +737,8 @@ the resources. */
 void
 mtr_t::Command::execute()
 {
-	if (prepare_write()) {
-		finish_write();
+	if (ulint len = prepare_write()) {
+		finish_write(len);
 	}
 
 	if (m_impl->m_made_dirty) {
