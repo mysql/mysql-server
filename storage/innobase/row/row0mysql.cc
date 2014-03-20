@@ -1302,6 +1302,15 @@ row_explicit_rollback(
 	}
 	ut_ad(err == DB_SUCCESS);
 
+	/* Void call just to set mtr modification flag
+	to true failing which block is not scheduled for flush*/
+	byte* log_ptr = mlog_open(mtr, 0);
+	ut_ad(log_ptr == NULL);
+	if (log_ptr != NULL) {
+		/* To keep complier happy. */
+		mlog_close(mtr, log_ptr);
+	}
+
 	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
@@ -2065,6 +2074,8 @@ row_update_for_mysql_using_cursor(
 			err = row_ins_clust_index_entry(
 				index, entry, thr,
 				node->upd_ext ? node->upd_ext->n_ext : 0);
+			/* Commit the open mtr as we are processing UPDATE. */
+			index->last_ins_cur->release();
 		} else {
 			err = row_ins_sec_index_entry(index, entry, thr);
 		}
