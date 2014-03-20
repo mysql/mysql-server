@@ -190,7 +190,9 @@ struct fil_space_t {
 				/*!< LSN of the most recent fil_names_write().
 				Reset to 0 by fil_names_clear().
 				If and only if this is not 0, the
-				tablespace will be in named_spaces. */
+				tablespace will be in named_spaces.
+				Protected by log_sys->mutex and
+				sometimes by fil_system->mutex. */
 	bool		stop_ios;/*!< true if we want to rename the
 				.ibd file of tablespace and want to
 				stop temporarily posting of new i/o
@@ -1257,6 +1259,12 @@ fil_space_free_low(
 		UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 	}
 
+	/* Theoretically, fil_names_dirty() could update max_lsn while
+	holding only log_sys->mutex, which we are not holding! This
+	read should be OK, because fil_names_dirty() can only be
+	called when there are buffer-fixed pages for this tablespace
+	(in which case it would be an error to free the tablespace
+	object in the first place). */
 	if (space->max_lsn != 0) {
 		UT_LIST_REMOVE(fil_system->named_spaces, space);
 	}
@@ -6284,8 +6292,6 @@ fil_names_write_low(
 	const fil_space_t*	space,
 	mtr_t*			mtr)
 {
-	ut_ad(log_mutex_own());
-	ut_ad(mutex_own(&fil_system->mutex));
 	ut_ad(!is_predefined_tablespace(space->id));
 
 	ulint	first_page_no = 0;
@@ -6298,30 +6304,62 @@ fil_names_write_low(
 	}
 }
 
-/** Write a MLOG_FILE_NAME record for a non-predefined tablespace if
-it is the first time since fil_names_clear().
-@param[in]	space	tablespace
-@param[in,out]	mtr	mini-transaction */
+/** Write a MLOG_FILE_NAME record for a non-predefined tablespace.
+@param[in]	space_id	tablespace identifier
+@param[in,out]	mtr		mini-transaction
+@return	tablespace */
 
-void
+fil_space_t*
 fil_names_write(
-	fil_space_t*	space,
+	ulint		space_id,
 	mtr_t*		mtr)
+{
+	mutex_enter(&fil_system->mutex);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
+	ut_ad(space != NULL);
+	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
+	mutex_exit(&fil_system->mutex);
+
+	/* We assume that files are not being added to or removed from
+	a tablepace for which buffer-fixed pages exist in the buffer pool. */
+	fil_names_write_low(space, mtr);
+
+	return(space);
+}
+
+
+/** Note that a non-predefined persistent tablespace has been modified.
+@param[in,out]	space	tablespace
+@return whether this is the first dirtying since fil_names_clear() */
+
+bool
+fil_names_dirty(
+	fil_space_t*	space)
 {
 	ut_ad(log_mutex_own());
 	ut_ad(!is_predefined_tablespace(space->id));
 
-	mutex_enter(&fil_system->mutex);
+	/* This is the only place where max_lsn can be updated
+	from 0 to nonzero. These changes are protected by
+	log_sys->mutex. */
+	const bool	was_clean	= space->max_lsn == 0;
 
-	if (space->max_lsn == 0) {
+	if (was_clean) {
+		/* This should only happen once for each tablespace
+		after a log checkpoint. */
+		mutex_enter(&fil_system->mutex);
+		/* Setting max_lsn to nonzero or back to 0
+		should be protected by log_sys->mutex, which
+		we are holding. Thus, it must still be 0. */
+		ut_ad(space->max_lsn == 0);
 		UT_LIST_ADD_LAST(fil_system->named_spaces, space);
-		fil_names_write_low(space, mtr);
+		mutex_exit(&fil_system->mutex);
 	}
 
 	ut_ad(space->max_lsn <= log_sys->lsn);
 	space->max_lsn = log_sys->lsn;
 
-	mutex_exit(&fil_system->mutex);
+	return(was_clean);
 }
 
 /** On a log checkpoint, reset fil_names_write() flags
