@@ -42,13 +42,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include "cassert"
 #include <zlib.h> //for checksum calculations
 #include <stdint.h>
-#ifdef min //definition of min() and max() in std and libmysqlclient
-           //can be/are different
-#undef min
-#endif
-#ifdef max
-#undef max
-#endif
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
@@ -90,31 +83,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    - a different Start_event, which includes info about the binary log
    (sizes of headers); this info is included for better compatibility if the
    master's MySQL version is different from the slave's.
-   - all events have a unique ID (the triplet (server_id, timestamp at server
-   start, other) to be sure an event is not executed more than once in a
-   multimaster setup, example:
-   @verbatim
-                M1
-              /   \
-             v     v
-             M2    M3
-             \     /
-              v   v
-                S
-   @endverbatim
-   if a query is run on M1, it will arrive twice on S, so we need that S
-   remembers the last unique ID it has processed, to compare and know if the
-   event should be skipped or not. Example of ID: we already have the server id
-   (4 bytes), plus:
-   timestamp_when_the_master_started (4 bytes), a counter (a sequence number
-   which increments every time we write an event to the binlog) (3 bytes).
-   Q: how do we handle when the counter is overflowed and restarts from 0 ?
-
-   - Query and Load (Create or Execute) events may have a more precise
-     timestamp (with microseconds), number of matched/affected/warnings rows
-     and fields of session variables: SQL_MODE,
-     FOREIGN_KEY_CHECKS, UNIQUE_CHECKS, SQL_AUTO_IS_NULL, the collations and
-     charsets, the PASSWORD() version (old/new/...).
 */
 #define BINLOG_VERSION    4
 
@@ -227,12 +195,13 @@ enum enum_group_type
     transactional updates, a single mixed statement would generate two
     different transactions.
 
-    Problematic case: If a transaction updates two transactional
-    tables on the master, but one of the tables is non-transactional
-    on the slave (uses a different engine on slave vs master), then
-    the transaction would be split into two transactions on the slave.
-    That would make it impossible to assign GTIDs correctly on the
-    slave, as GTIDs must be unique.
+    Problematic case: Consider a transaction, Tx1, that updates two
+    transactional tables on the master, t1 and t2. Then slave (s1) later
+    replays Tx1. However, t2 is a non-transactional table at s1. As such, s1
+    will report an error because it cannot split Tx1 into two different
+    transactions. Had no error been reported, then Tx1 would be split into Tx1
+    and Tx2, potentially causing severe harm in case some form of fail-over
+    procedure is later engaged by s1.
 
     To detect this case on the slave and generate an appropriate error
     message rather than causing an inconsistency in the GTID state, we
@@ -276,7 +245,7 @@ enum enum_group_type
 
 /**
   G_COMMIT_TS status variable stores the logical timestamp when the transaction
-  entered the commit phase. This wll be used to apply transactions in parallel
+  entered the commit phase. This will be used to apply transactions in parallel
   on the slave.
  */
 #define G_COMMIT_TS  1
@@ -327,6 +296,9 @@ enum enum_group_type
 
 
 #define SEQ_UNINIT -1
+
+/** Setting this flag will mark an event as Ignorable */
+#define LOG_EVENT_IGNORABLE_F 0x80
 
 /**
   @namespace binary_log
@@ -743,6 +715,15 @@ public:
     when.tv_sec= 0;
     when.tv_usec= 0;
   }
+  /**
+  Log_event_header constructor
+
+  @param buf                  the buffer containing the complete information
+                              including the event and the header data
+
+  @param description_event    first constructor of Format_description_event,
+                              used to extract the binlog_version
+  */
   Log_event_header(const char* buf, uint16_t binlog_version);
 
   ~Log_event_header() {}
@@ -864,6 +845,10 @@ public:
     ROWS_HEADER_LEN_V2= 10
   }; // end enum_post_header_length
 protected:
+  /**
+    This constructor is used to initialize the type_code of header object
+    m_header
+  */
   Binary_log_event(Log_event_type type_code= ENUM_END_EVENT)
   : m_header(type_code)
   {
@@ -873,6 +858,18 @@ protected:
     */
   }
 
+  /**
+    This ctor will create a new object of Log_event_header, and initialize
+    the variable m_header, which in turn will be used to initialize Log_event's
+    member common_header.
+    It will also advance the buffer after decoding the header(it is done through
+    the constructor of Log_event_header) and
+    will be pointing to the start of event data
+
+    @param buf              Contains the serialized event
+    @param binlog_version   The binary log format version
+    @param server_version   The MySQL server's version
+  */
   Binary_log_event(const char **buf, uint16_t binlog_version,
                    const char *server_version);
 public:
@@ -1493,6 +1490,10 @@ public:
   */
   int64_t commit_seq_no;
 
+  /**
+    The constructor used by MySQL master to create a query event, to be
+    written to the binary log.
+  */
   Query_event(const char* query_arg, const char* catalog_arg,
               const char* db_arg, uint32_t query_length,
               unsigned long thread_id_arg,
@@ -1504,9 +1505,25 @@ public:
               int errcode,
               unsigned int db_arg_len, unsigned int catalog_arg_len);
 
+  /**
+    The constructor receives a packet from the MySQL master or the binary
+    log and decodes it to create a Query event.
+
+    @param buf                Containing the event header and data
+    @param even_len           The length upto ehich buf contains Query event data
+    @param description_event  FDE specific to the binlog version
+
+    @param event_type         Required to determine whether the event type is
+                              QUERY_EVENT or EXECUTE_LOAD_QUERY_EVENT
+  */
   Query_event(const char* buf, unsigned int event_len,
               const Format_description_event *description_event,
               Log_event_type event_type);
+  /**
+    The simplest constructor that could possibly work.  This is used for
+    creating static objects that have a special meaning and are invisible
+    to the log.
+  */
   Query_event(Log_event_type type_arg= QUERY_EVENT);
   virtual ~Query_event()
   {
@@ -1594,10 +1611,30 @@ public:
     R_IDENT_OFFSET= 8
   };
 
+  /**
+    This is the minimal constructor, it will set the type code as ROTATE_EVENT.
+  */
   Rotate_event()
   : Binary_log_event(ROTATE_EVENT)
   {
   }
+
+  /**
+    The variable part of the Rotate event contains the name of the next binary
+    log file,  and the position of the first event in the next binary log file.
+
+    <pre>
+    The buffer layout is as follows:
+    +-----------------------------------------------------------------------+
+    | common_header | post_header | position og the first event | file name |
+    +-----------------------------------------------------------------------+
+    </pre>
+
+    @param buf               Buffer contain event data in the layout specified above
+    @param event_len         The length of the event written in the log file
+    @param description_event FDE used to extract the post header length, which
+                             depends on the binlog version
+  */
   Rotate_event(const char* buf, unsigned int event_len,
                const Format_description_event *description_event);
 
@@ -1699,11 +1736,28 @@ class Start_event_v3: public Binary_log_event
   bool dont_set_created;
   protected:
   /**
-     The constructor below will be  used only by Format_description_event
-     constructor
+    Empty ctor of Start_event_v3 called when we call the
+    ctor of FDE which takes binlog_version and server_version as the parameter
   */
   Start_event_v3(Log_event_type type_code= START_EVENT_V3);
   public:
+  /**
+    This event occurs at the beginning of v1 or v3 binary log files.
+    In MySQL 4.0 and 4.1, such events are written only to the first binary log file
+    that mysqld creates after startup. Log files created subsequently (when someone
+    issues a FLUSH LOGS statement or the current binary log file becomes too large)
+    do not contain this event.
+
+    @param buf                Contains the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
+
   Start_event_v3(const char* buf,
                  const Format_description_event* description_event);
 #ifndef HAVE_MYSYS
@@ -1786,8 +1840,69 @@ public:
    mapping is done using event_type_permutation
   */
   const uint8_t *event_type_permutation;
+  /**
+    Format_description_log_event 1st constructor.
+
+    This constructor can be used to create the event to write to the binary log
+    (when the server starts or when FLUSH LOGS), or to create artificial events
+    to parse binlogs from MySQL 3.23 or 4.x.
+    When in a client, only the 2nd use is possible.
+
+    @param binlog_ver             the binlog version for which we want to build
+                                  an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
+                                  x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
+                                  old 4.0 (binlog version 2) is not supported;
+                                  it should not be used for replication with
+                                  5.0.
+    @param server_ver             The MySQL server's version.
+  */
   Format_description_event(uint8_t binlog_ver,
                            const char* server_ver);
+  /**
+    The problem with this constructor is that the fixed header may have a
+    length different from this version, but we don't know this length as we
+    have not read the Format_description_log_event which says it, yet. This
+    length is in the post-header of the event, but we don't know where the
+    post-header starts.
+
+    So this type of event HAS to:
+    - either have the header's length at the beginning (in the header, at a
+    fixed position which will never be changed), not in the post-header. That
+    would make the header be "shifted" compared to other events.
+    - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
+    versions, so that we know for sure.
+
+    I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
+    it is sent before Format_description_log_event).
+
+    The layout of the event data part  in  Format_description_event
+    <pre>
+          +=====================================+
+          | event  | binlog_version   19 : 2    | = 4
+          | data   +----------------------------+
+          |        | server_version   21 : 50   |
+          |        +----------------------------+
+          |        | create_timestamp 71 : 4    |
+          |        +----------------------------+
+          |        | header_length    75 : 1    |
+          |        +----------------------------+
+          |        | post-header      76 : n    | = array of n bytes, one byte per
+          |        | lengths for all            |   event type that the server knows
+          |        | event types                |   about
+          +=====================================+
+    </pre>
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+    @note The description_event passed to this constructor was created
+          through another constructor of FDE class
+  */
   Format_description_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event);
 
@@ -1818,10 +1933,28 @@ public:
 class Stop_event: public Binary_log_event
 {
 public:
+  /**
+    It is the minimal constructor, and all it will do is set the type_code as
+    STOP_EVENT in the header object in Binary_log_event.
+  */
   Stop_event() : Binary_log_event(STOP_EVENT)
   {
   }
   //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  /**
+    A Stop_event is occurs under these circumstances:
+       A master writes the event to the binary log when it shuts down
+       A slave writes the event to the relay log when it shuts down or when a
+       RESET SLAVE statement is executed
+    @param buf                Contains the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Stop_event(const char* buf,
              const Format_description_event *description_event)
   : Binary_log_event(&buf, description_event->binlog_version,
@@ -1927,6 +2060,11 @@ public:
     UV_NAME_LEN_SIZE= 4,
     UV_CHARSET_NUMBER_SIZE= 4
   };
+
+  /**
+    This ctor will initialize the instance variablesi and the type_code,
+    it will be used only by the server code.
+  */
   User_var_event(const char *name_arg, unsigned int name_len_arg, char *val_arg,
                  unsigned long val_len_arg, Value_type type_arg,
                  unsigned int charset_number_arg, unsigned char flags_arg)
@@ -1937,6 +2075,22 @@ public:
   {
   }
 
+  /**
+    Written every time a statement uses a user variable, precedes other
+    events for the statement. Indicates the value to use for the
+    user variable in the next statement. This is written only before a
+    QUERY_EVENT and is not used with row-based logging.
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   User_var_event(const char* buf, unsigned int event_len,
                  const Format_description_event *description_event);
   const char *name;
@@ -1992,13 +2146,30 @@ class Ignorable_event: public Binary_log_event
 {
 public:
   //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+  /**
+    We create an object of Ignorable_log_event for unrecognized sub-class, while
+    decoding. So that we just update the position and continue.
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Ignorable_event(const char *buf, const Format_description_event *descr_event)
   :Binary_log_event(&buf, descr_event->binlog_version,
                     descr_event->server_version)
   {
   }
 
-  // For the thd ctor of Ignorable_log_event
+  /**
+    The minimal constructor and all it will do is set the type_code as
+    IGNORABLE_LOG_EVENT in the header object in Binary_log_event.
+  */
   Ignorable_event(Log_event_type type_arg= IGNORABLE_LOG_EVENT)
   : Binary_log_event(type_arg)
   {
@@ -2043,8 +2214,27 @@ public:
 class Rows_query_event: public virtual Ignorable_event
 {
 public:
+  /**
+    It is used to write the original query in the binlog file in case of RBR
+    when the session flag binlog_rows_query_log_events is set.
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
+
   Rows_query_event(const char *buf, unsigned int event_len,
                    const Format_description_event *descr_event);
+  /**
+    It is the minimal constructor, and all it will do is set the type_code as
+    ROWS_QUERY_LOG_EVENT in the header object in Binary_log_event.
+  */
   Rows_query_event()
   : Ignorable_event(ROWS_QUERY_LOG_EVENT)
   {
@@ -2142,9 +2332,34 @@ public:
     }
   }
 
+  /**
+    Constructor receives a packet from the MySQL master or the binary
+    log and decodes it to create an Intvar_event.
+
+    @param buf                Contains the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+
+    The post header for the event is empty. Buffer layout for the variable
+    data part is as follows:
+    <pre>
+      +--------------------------------+
+      | type (4 bytes) | val (8 bytes) |
+      +--------------------------------+
+    </pre>
+  */
   Intvar_event(const char* buf,
                const Format_description_event *description_event);
-
+  /**
+   The minimal constructor for Intvar_event it initializes the instance variables
+   type & val and set the type_code as INTVAR_EVENT in the header object in
+   Binary_log_event
+  */
   Intvar_event(uint8_t type_arg, uint64_t val_arg)
   : Binary_log_event(INTVAR_EVENT), type(type_arg), val(val_arg)
   {
@@ -2153,7 +2368,7 @@ public:
   ~Intvar_event() {}
 
   /*
-    is_valid() is event specific sanity checks to determine that the
+    is_valid is event specific sanity checks to determine that the
     object is correctly initialized. This is redundant here, because
     no new allocation is done in the constructor of the event.
     Else, they contain the value indicating whether the event was
@@ -2225,12 +2440,40 @@ public:
   {
     return message;
   }
-
+  /**
+    This will create an Incident_event with an empty message and set the
+    type_code as INCIDENT_EVENT in the header object in Binary_log_event.
+  */
   Incident_event(enum_incident incident_arg)
   : Binary_log_event(INCIDENT_EVENT), incident(incident_arg), message(NULL),
     message_length(0)
   {
   }
+
+  /**
+    Constructor of Incident_event
+    The buffer layout is as follows:
+    <pre>
+    +-----------------------------------------------------+
+    | Incident_number | message_length | Incident_message |
+    +-----------------------------------------------------+
+    </pre>
+
+    Incident number codes are listed in binlog_evnet.h.
+    The only code currently used is INCIDENT_LOST_EVENTS, which indicates that
+    there may be lost events (a "gap") in the replication stream that requires
+    databases to be resynchronized.
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Incident_event(const char *buf, unsigned int event_len,
                  const Format_description_event *description_event);
 #ifndef HAVE_MYSYS
@@ -2275,10 +2518,28 @@ The Body has the following component:
 class Xid_event: public Binary_log_event
 {
 public:
-  Xid_event()
-  : Binary_log_event(XID_EVENT)
+  /**
+   The minimal constructor of Xid_event, it initializes the instance variable xid
+   and set the type_code as XID_EVENT in the header object in Binary_log_event
+  */
+  Xid_event(uint64_t xid_arg)
+  : Binary_log_event(XID_EVENT),
+    xid(xid_arg)
   {
   }
+
+  /**
+    An XID event is generated for a commit of a transaction that modifies one or
+    more tables of an XA-capable storage engine
+    @param buf                Contains the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Xid_event(const char *buf, const Format_description_event *fde);
   uint64_t xid;
 #ifndef HAVE_MYSYS
@@ -2336,12 +2597,32 @@ class Rand_event: public Binary_log_event
     RAND_SEED1_OFFSET= 0,
     RAND_SEED2_OFFSET= 8
   };
+  /**
+    This will initialize the instance variables seed1 & seed2, and set the
+    type_code as RAND_EVENT in the header object in Binary_log_event
+  */
   Rand_event(unsigned long long seed1_arg, unsigned long long seed2_arg)
   : Binary_log_event(RAND_EVENT)
   {
     seed1= seed1_arg;
     seed2= seed2_arg;
   }
+
+  /**
+    Written every time a statement uses the RAND() function; precedes other
+    events for the statement. Indicates the seed values to use for generating a
+    random number with RAND() in the next statement. This is written only before
+    a QUERY_EVENT and is not used with row-based logging
+
+    @param buf                Contains the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Rand_event(const char* buf,
              const Format_description_event *description_event);
 #ifndef HAVE_MYSYS
@@ -2373,18 +2654,6 @@ class Rand_event: public Binary_log_event
     <td>type</td>
     <td>enum_group_type</td>
     <td>Group type of the groups created while transaction</td>
-  </tr>
-  <tr>
-    <td>bytes_to_copy</td>
-    <td>size_t</td>
-    <td>Number of bytes to copy from the buffer, this is
-        used as the size of array uuid_buf</td>
-  </tr>
-  <tr>
-    <td>uuid_buf</th>
-    <td>unsigned char array</td>
-    <td>This stores the Uuid of the server on which transaction
-        is originated</td>
   </tr>
   <tr>
     <td>rpl_gtid_sidno</td>
@@ -2491,8 +2760,44 @@ class Gtid_event: public Binary_log_event
 {
 public:
   int64_t commit_seq_no;
+  /**
+    ctor of Gtid_event
+    Each transaction has a coordinate in the form of a pair:
+    GTID = (SID, GNO)
+    GTID stands for Global Transaction IDentifier, SID for Source Identifier,
+    and GNO for Group Number.
+
+    SID is a 128-bit number that identifies the place where the transaction was
+    first committed. SID is normally the SERVER_UUID of a server, but may be
+    something different if the transaction was generated by something else than
+    a MySQL server. For example, for NDB it identifies the cluster (which may be
+    attached to multiple servers).
+
+    GNO is a 64-bit sequence number: 1 for the first transaction committed on SID,
+    2 for the second transaction, and so on. No transaction can have GNO 0
+
+
+    The layout of the buffer is as follows
+    +-------------+-------------+------------+------------+--------------+
+    | commit flag | ENCODED SID | ENCODED GNO| G_COMMIT_TS| commit_seq_no|
+    +-------------+-------------+------------+------------+--------------+
+
+    @param buffer             Contains the serialized event.
+    @param event_len          Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
+
   Gtid_event(const char *buffer, uint32_t event_len,
              const Format_description_event *descr_event);
+  /**
+    It is the minimal constructor which sets the commit_flag.
+  */
   Gtid_event(bool commit_flag_arg)
   : commit_flag(commit_flag_arg)
   {
@@ -2555,9 +2860,25 @@ public:
 class Previous_gtids_event : public Binary_log_event
 {
 public:
+  /**
+    Decodes the gtid_executed in the last binlog file
+
+    @param buffer             Contains the serialized event.
+    @param event_len          Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Previous_gtids_event(const char *buf, unsigned int event_len,
                        const Format_description_event *descr_event);
-  //called by the constructor with Gtid_set parameter
+  /**
+    This is the minimal constructor, and set the
+    type_code as PREVIOUS_GTIDS_LOG_EVENT in the header object in Binary_log_event
+  */
   Previous_gtids_event()
   : Binary_log_event(PREVIOUS_GTIDS_LOG_EVENT)
   {
@@ -2610,6 +2931,22 @@ protected:
 class Heartbeat_event: public Binary_log_event
 {
 public:
+  /**
+    Sent by a master to a slave to let the slave know that the master is
+    still alive. Events of this type do not appear in the binary or relay logs.
+    They are generated on a master server by the thread that dumps events and
+    sent straight to the slave without ever being written to the binary log.
+
+    @param buf                Contains the serialized event.
+    @param event_len          Length of the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Heartbeat_event(const char* buf, unsigned int event_len,
                   const Format_description_event *description_event);
 
@@ -2634,11 +2971,30 @@ protected:
 class Unknown_event: public Binary_log_event
 {
 public:
+  /**
+   This is the minimal constructor, and set the type_code as
+   UNKNOWN_EVENT in the header object in Binary_log_event
+  */
   Unknown_event()
   : Binary_log_event(UNKNOWN_EVENT)
   {
   }
   //buf is advanced in Binary_log_event constructor to point to beginning of post-header
+
+  /**
+    This event type should never occur. It is never written to a binary log.
+    If an event is read from a binary log that cannot be recognized as something
+    else, it is treated as Unknown_event.
+
+    @param buf                Contains the serialized event.
+    @param description_event  An FDE event, used to get the following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+  */
   Unknown_event(const char* buf,
                 const Format_description_event *description_event)
   : Binary_log_event(&buf,

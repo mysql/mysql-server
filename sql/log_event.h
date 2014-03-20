@@ -1800,11 +1800,11 @@ class Xid_log_event: public Xid_event, public Log_event
 
 #ifdef MYSQL_SERVER
   Xid_log_event(THD* thd_arg, my_xid x)
-  : Log_event(thd_arg, 0,
+  : Xid_event(x),
+    Log_event(thd_arg, 0,
               Log_event::EVENT_TRANSACTIONAL_CACHE,
               Log_event::EVENT_NORMAL_LOGGING, header(), footer())
   {
-    xid= x;
     is_valid= true;
   }
 #ifdef HAVE_REPLICATION
