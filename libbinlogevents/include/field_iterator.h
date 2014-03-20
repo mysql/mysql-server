@@ -75,9 +75,38 @@ public:
 
   bool operator!=(const Row_event_iterator& x) const;
 
+  /**
+    This method checks if the bit at a paricular index in the bitmap
+    is set or unset. The method is called while decoding a row
+    for the row_event.
+
+    @param bitmap Bitmap pf columns in the row received in a row event
+    @param index  Index representing the column number queried, starting
+                  from 0
+    @return 1     If the column can be null
+            0     If the column cannot be null
+  */
   bool is_null(unsigned char *bitmap, int index);
 
+  /**
+    This method returns the amount of memory required to store the metadata,
+    in bytes. Metadata of a field depends on the field type(and not the
+    field value).
+
+    @param field_type The input column type
+    @return           number of bytes required to store metadata information
+                      
+  */
   int lookup_metadata_field_size(enum_field_types field_type);
+
+  /**
+    Returns the metadata information of a column.
+
+    @param map    Table_map_event. It contains the information of the col type.
+    @param col_no The index of the column for which the metadata info is needed.
+                  The count starts from 0.
+    @return       The metadata value. 
+  */
   uint32_t extract_metadata(const Table_map_event *map, int col_no);
 
   //Row_iterator end() const;

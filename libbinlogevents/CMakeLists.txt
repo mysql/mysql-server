@@ -1,41 +1,53 @@
+# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+
 INCLUDE(configure.cmake)
 # General settings
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
+SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
+SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
 
 # Locate Google Test package and enable tests if it is found
-find_package(GTest ${GTEST_VERSION} QUIET)
+FIND_PACKAGE(GTest ${GTEST_VERSION} QUIET)
 
 # Options for building
-option(WITH_SERVER_TESTS
-  "Build the unit test suite with tests requiring a server"
-  OFF)
+OPTION(WITH_SERVER_TESTS
+       "Build the unit test suite with tests requiring a server" OFF)
 
-if(GTEST_FOUND)
-  message(STATUS "Tests from subdirectory 'tests' added")
-  enable_testing(true)
-  include_directories(${GTEST_INCLUDE_DIRS})
-endif(GTEST_FOUND)
+IF(GTEST_FOUND)
+  ENABLE_TESTING(TRUE)
+  INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS})
+ENDIF()
 
-find_package(ZLIB REQUIRED)
-message(status "The zlib paths are ${ZLIB_INCLUDE_DIR} and ${ZLIB_INCLUDE_DIRS}")
-INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-# ZLIB_INCLUDE_DIR points to ${CMAKE_SOURCE_DIR}/zlib, when compiled with
-# MySQL server version (< 5.7). It is NULL otherwise.
-  ${ZLIB_INCLUDE_DIR}
-)
+FIND_PACKAGE(ZLIB REQUIRED)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+                    # ZLIB_INCLUDE_DIR points to ${CMAKE_SOURCE_DIR}/zlib,
+                    # when compiled with MySQL server version (< 5.7).
+                    # It is NULL otherwise.
+                    ${ZLIB_INCLUDE_DIR})
 
 
 CONFIGURE_FILE(config.h.cmake
                ${CMAKE_SOURCE_DIR}/libbinlogevents/include/config.h)
 
-add_subdirectory(src)
+ADD_SUBDIRECTORY(src)
 
 # Configure installation
-if (NOT HAVE_MYSYS)
-install(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h")
-endif (NOT HAVE_MYSYS)
-include(InstallRequiredSystemLibraries)
+IF(NOT HAVE_MYSYS)
+  INSTALL(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h")
+ENDIF ()
 
+INCLUDE(InstallRequiredSystemLibraries)
