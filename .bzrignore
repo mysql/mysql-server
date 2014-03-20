@@ -8,3 +8,4 @@ perftest/jscrund.config
 test/disabled-tests.conf
 config.gypi
 config.waf
+benchmark_logs
