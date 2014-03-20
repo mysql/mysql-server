@@ -5137,7 +5137,8 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 Format_description_log_event::
 Format_description_log_event(uint8_t binlog_ver, const char* server_ver)
 : Start_event_v3(FORMAT_DESCRIPTION_EVENT),
-  Format_description_event(binlog_ver, server_ver == 0 ? ::server_version : server_ver)
+  Format_description_event(binlog_ver,  (binlog_ver <= 3 || server_ver != 0) ?
+                           server_ver : ::server_version)
 {
   is_valid= header_is_valid() && version_is_valid();
   /*
