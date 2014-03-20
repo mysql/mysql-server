@@ -63,10 +63,6 @@ SET SESSION long_query_time= 0;
 SET GLOBAL slow_query_log  = 1;
 SET GLOBAL log_output      = 'TABLE';
 TRUNCATE mysql.slow_log;
-SELECT "slow -->", sql_text FROM mysql.slow_log WHERE sql_text LIKE "%TO 'u16467055'%";
-slow -->	sql_text
-slow -->	GRANT ALL PRIVILEGES ON *.* TO 'u16467055'@'%' IDENTIFIED BY PASSWORD '*82DC221D557298F6CE9961037DB1C90604792F5C'
-slow -->	SELECT "slow -->", sql_text FROM mysql.slow_log WHERE sql_text LIKE "%TO 'u16467055'%"
 DROP USER u16467055;
 End of 5.7 tests!
 SET SESSION long_query_time=    @old_long_query_time;
