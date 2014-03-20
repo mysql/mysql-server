@@ -133,7 +133,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
 
-      if (sectionData != readPtr + messageLen32)
+      if (sectionData != readPtr)
       {
         report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
@@ -230,7 +230,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
-        if (sectionData != readPtr + messageLen32)
+        if (sectionData != readPtr)
         {
           report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
           dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
@@ -330,7 +330,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
       
-      if (sectionData != readPtr + messageLen32)
+      if (sectionData != readPtr)
       {
         report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
         dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
@@ -415,7 +415,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
-        if (sectionData != readPtr + messageLen32)
+        if (sectionData != readPtr)
         {
           report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
           dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
