@@ -1420,6 +1420,7 @@ row_insert_for_mysql_using_cursor(
 		srv_stats.n_rows_inserted.inc();
 	}
 
+	thr_get_trx(thr)->error_state = DB_SUCCESS;
 	return(err);
 }
 
@@ -2106,10 +2107,12 @@ row_del_upd_for_mysql_using_cursor(
 	cursors_t		delete_entries;
 	dict_index_t*		clust_index;
 	index_update_t		update_index;
+	que_thr_t*		thr = NULL;
 
 	/* Step-0: If there is cached insert position commit it before
 	starting delete/update action as this can result in btree structure
 	to change. */
+	thr = que_fork_get_first_thr(prebuilt->upd_graph);
 	clust_index = dict_table_get_first_index(prebuilt->table);
 	clust_index->last_ins_cur->release();
 
@@ -2144,14 +2147,14 @@ row_del_upd_for_mysql_using_cursor(
 	/* Step-4: Complete UPDATE operation by inserting new row with
 	updated data. */
 	err = row_update_for_mysql_using_cursor(
-		node, delete_entries,
-		que_fork_get_first_thr(prebuilt->upd_graph), update_index);
+		node, delete_entries, thr, update_index);
 
 	if (err == DB_SUCCESS) {
 		srv_stats.n_rows_updated.inc();
 	}
 
 del_upd_exit:
+	thr_get_trx(thr)->error_state = DB_SUCCESS;
 	cursors_t::iterator	end = delete_entries.end();
 	for (cursors_t::iterator it = delete_entries.begin(); it != end; ++it) {
 		btr_pcur_close(&(*it));

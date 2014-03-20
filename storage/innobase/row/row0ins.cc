@@ -2985,6 +2985,7 @@ row_ins_sec_index_entry_low(
 	}
 
 	if (dict_index_is_unique(index)
+	    && !dict_table_is_intrinsic(index->table)
 	    && thr_get_trx(thr)->duplicates
 	    && thr_get_trx(thr)->isolation_level >= TRX_ISO_REPEATABLE_READ) {
 
