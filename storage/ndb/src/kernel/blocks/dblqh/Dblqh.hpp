@@ -2392,6 +2392,7 @@ private:
 
   // Statement blocks
 
+  void timer_handling(Signal *signal);
   void init_acc_ptr_list(ScanRecord*);
   bool seize_acc_ptr_list(ScanRecord*, Uint32, Uint32);
   void release_acc_ptr_list(ScanRecord*);
@@ -3112,6 +3113,12 @@ private:
 /* ------------------------------------------------------------------------- */
   Uint8 cnoActiveCopy;
   UintR cactiveCopy[4];
+/* ------------------------------------------------------------------------- */
+/* These variable is used to keep track of what time we have reported so far */
+/* in the TIME_SIGNAL handling.                                              */
+/* ------------------------------------------------------------------------- */
+  NDB_TICKS c_latestTIME_SIGNAL;
+  Uint64 c_elapsed_time_millis;
 
 /* ------------------------------------------------------------------------- */
 /*THESE VARIABLES CONTAIN THE BLOCK REFERENCES OF THE OTHER NDB BLOCKS.      */

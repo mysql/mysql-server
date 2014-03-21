@@ -4438,6 +4438,53 @@ SimulatedBlock::ndbinfo_send_scan_conf(Signal* signal,
              signal_length, JBB);
 }
 
+void SimulatedBlock::init_elapsed_time(Signal *signal,
+                                       NDB_TICKS &latestTIME_SIGNAL)
+{
+  const NDB_TICKS currentTime = NdbTick_getCurrentTicks();
+  signal->theData[0] = Uint32(currentTime.getUint64() >> 32);
+  signal->theData[1] = Uint32(currentTime.getUint64() & 0xFFFFFFFF);
+  latestTIME_SIGNAL = currentTime;
+  sendSignal(reference(), GSN_TIME_SIGNAL, signal, 2, JBB);
+}
+
+void SimulatedBlock::sendTIME_SIGNAL(Signal *signal,
+                                     const NDB_TICKS currentTime,
+                                     Uint32 delay)
+{
+  signal->theData[0] = Uint32(currentTime.getUint64() >> 32);
+  signal->theData[1] = Uint32(currentTime.getUint64() & 0xFFFFFFFF);
+  sendSignalWithDelay(reference(), GSN_TIME_SIGNAL, signal, delay, 2);
+}
+
+/*
+  This function is used to handle TIME_SIGNAL. This signal is intended to
+  be used sort of like a drum beat. We should execute some timer calls
+  every so often. However the OS can easily make the delayed signals to
+  be delayed if the OS is occupied with other things. We will never report
+  sleeps for longer than twice the expected delay. We rely on the delayed
+  signal scheduler to ensure that we run time a bit faster for a while
+  after long sleeps.
+
+  This function will return the elapsed time since last time we called it.
+*/
+Uint64
+SimulatedBlock::elapsed_time(Signal *signal,
+                             const NDB_TICKS currentTime,
+                             NDB_TICKS &latestTIME_SIGNAL,
+                             Uint32 expected_delay)
+{
+  const Uint64 elapsed_time =
+    NdbTick_Elapsed(latestTIME_SIGNAL, currentTime).milliSec();
+  latestTIME_SIGNAL = currentTime;
+
+  if (elapsed_time > Uint64(2 * expected_delay))
+  {
+    return Uint64(2 * expected_delay);
+  }
+  return elapsed_time;
+}
+
 #ifdef VM_TRACE
 void
 SimulatedBlock::assertOwnThread()
