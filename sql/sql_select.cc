@@ -2015,9 +2015,18 @@ void JOIN_TAB::init_join_cache()
     DBUG_ASSERT(0);
 
   }
+  DBUG_EXECUTE_IF("jb_alloc_with_prev_fail",
+                  if (prev_cache)
+                  {
+                    DBUG_SET("+d,jb_alloc_fail");
+                    DBUG_SET("-d,jb_alloc_with_prev_fail");
+                  });
   if (!op || op->init())
   {
     use_join_cache= JOIN_CACHE::ALG_NONE;
+    // Unlink cache
+    if (prev_cache)
+      prev_cache->next_cache= NULL;
     op= NULL;
   }
   else
