@@ -749,7 +749,8 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
               row_vPtr= oldRowPtr;
             break;
           case NEW:
-            row_vPtr= newRowPtr;
+            if (op_type != DELETE_ROW)
+              row_vPtr= newRowPtr;
           }
           if (row_vPtr == NULL ||
               (m_col_nullable[m_data_pos[i]] &&

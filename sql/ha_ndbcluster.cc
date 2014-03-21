@@ -4770,9 +4770,11 @@ handle_conflict_op_error(NdbTransaction* trans,
     const NdbRecord* data_rec= ex_data.data_rec;
     const uchar* old_row= ex_data.old_row;
     const uchar* new_row= ex_data.new_row;
+#ifndef DBUG_OFF
     const uchar* row=
       (ex_data.op_type == DELETE_ROW)?
       ex_data.old_row : ex_data.new_row;
+#endif
     enum_conflicting_op_type causing_op_type= ex_data.op_type;
     const MY_BITMAP *write_set= ex_data.write_set;
 
