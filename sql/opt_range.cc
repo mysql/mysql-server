@@ -22,6 +22,10 @@
 
 */
 
+// Needed by the unit tests
+#ifndef OPT_RANGE_CC_INCLUDED
+#define OPT_RANGE_CC_INCLUDED
+
 /*
   This file contains:
 
@@ -1712,6 +1716,7 @@ end:
     original value to not pollute other scans.
   */
   head->column_bitmaps_set(save_read_set, save_write_set);
+  bitmap_clear_all(&head->tmp_set);
 
   DBUG_RETURN(0);
 
@@ -2634,7 +2639,10 @@ void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
 }
 
 /*
-  Test if a key can be used in different ranges
+  Test if a key can be used in different ranges, and create the QUICK
+  access method (range, index merge etc) that is estimated to be
+  cheapest unless table/index scan is even cheaper (exception: @see
+  parameter force_quick_range).
 
   SYNOPSIS
     SQL_SELECT::test_quick_select()
@@ -14645,3 +14653,4 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 
 
 #endif /* !DBUG_OFF */
+#endif /* OPT_RANGE_CC_INCLUDED */

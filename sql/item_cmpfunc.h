@@ -439,6 +439,11 @@ public:
   longlong val_int();
   void top_level_item() {}
   Item *neg_transformer(THD *thd);
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 class Item_func_not :public Item_bool_func
@@ -450,6 +455,11 @@ public:
   const char *func_name() const { return "not"; }
   Item *neg_transformer(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 class Item_maxmin_subselect;
@@ -617,6 +627,11 @@ public:
   Item *negated_item();
   virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
   virtual Item* equality_substitution_transformer(uchar *arg);
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 class Item_func_equal :public Item_bool_rowready_func2
@@ -631,6 +646,11 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<=>"; }
   Item *neg_transformer(THD *thd) { return 0; }
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 
@@ -644,8 +664,12 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return ">="; }
   Item *negated_item();
-};
 
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
+};
 
 class Item_func_gt :public Item_bool_rowready_func2
 {
@@ -657,6 +681,11 @@ public:
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return ">"; }
   Item *negated_item();
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 
@@ -670,6 +699,10 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<="; }
   Item *negated_item();
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 
@@ -683,6 +716,10 @@ public:
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return "<"; }
   Item *negated_item();
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 
@@ -696,6 +733,11 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_KEY; } 
   const char *func_name() const { return "<>"; }
   Item *negated_item();
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 
@@ -761,6 +803,11 @@ public:
   bool is_bool_func() { return 1; }
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 
@@ -1467,6 +1514,11 @@ public:
   const char *func_name() const { return " IN "; }
   bool is_bool_func() { return 1; }
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 private:
   /**
      Usable if <in value list> is made only of constants. Returns true if one
@@ -1474,6 +1526,31 @@ private:
      IN ( (-5, (12,NULL)), ... ).
   */
   bool list_contains_null();
+  /**
+    Utility function to help calculate the total filtering effect of
+    IN predicates. This function calculates the filtering effect from
+    a single field (or field reference) on the left hand side of the
+    expression.
+
+    @param fieldref          Field (or field reference) on left hand side of
+                             IN, i.e., this function should be called for 
+                             each fi in "(f1,...,fn) IN (values)"
+    @param filter_for_table  The table we are calculating filter effect for
+    @param fields_to_ignore  Fields in 'filter_for_table' that should not
+                             be part of the filter calculation. The filtering
+                             effect of these fields are already part of the
+                             calculation somehow (e.g. because there is a
+                             predicate "col = <const>", and the optimizer
+                             has decided to do ref access on 'col').
+    @param rows_in_table     The number of rows in table 'filter_for_table'
+
+    @return                  the filtering effect (between 0 and 1) 'the_field'
+                             participates with in this IN predicate.
+  */
+  float get_single_col_filtering_effect(Item_ident *fieldref,
+                                        table_map filter_for_table,
+                                        const MY_BITMAP *fields_to_ignore,
+                                        double rows_in_table);
 };
 
 class cmp_item_row :public cmp_item
@@ -1544,6 +1621,11 @@ public:
       }
     }
   }
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd);
@@ -1600,6 +1682,11 @@ public:
   const CHARSET_INFO *compare_collation()
   { return args[0]->collation.collation; }
   void top_level_item() { abort_on_null=1; }
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 
@@ -1643,6 +1730,11 @@ public:
                  using "expr LIKE pat ESCAPE 'escape_char'" syntax
   */
   bool escape_was_used_in_parsing() const { return escape_used_in_parsing; }
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 
@@ -1864,6 +1956,11 @@ public:
   virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
 
   virtual Item* equality_substitution_transformer(uchar *arg);
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 }; 
 
 class COND_EQUAL: public Sql_alloc
@@ -1919,6 +2016,11 @@ public:
     return item;
   }
   Item *neg_transformer(THD *thd);
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 inline bool is_cond_and(Item *item)
@@ -1948,6 +2050,11 @@ public:
     return item;
   }
   Item *neg_transformer(THD *thd);
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 };
 
 inline bool is_cond_or(Item *item)

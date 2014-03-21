@@ -5487,6 +5487,15 @@ FROM t2 AS table1
     )
 ;
 
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+--enable_result_log
+--enable_query_log
+
+--replace_result 20.00 25.00
 eval EXPLAIN $query;
 eval $query;
 
