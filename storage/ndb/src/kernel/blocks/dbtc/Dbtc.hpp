@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1471,6 +1471,7 @@ private:
   void routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord *, 
 			      Uint32 gsn, Uint32 len);
   void execTCKEY_FAILREFCONF_R(Signal* signal);
+  void timer_handling(Signal *signal);
   void checkStartTimeout(Signal* signal);
   void checkStartFragTimeout(Signal* signal);
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
@@ -1914,17 +1915,23 @@ private:
   UintR cnoParallelTakeOver;
   TimeOutCheckState ctimeOutCheckFragActive;
 
-  UintR ctimeOutCheckFragCounter;
-  UintR ctimeOutCheckCounter;
-  UintR ctimeOutValue;
-  UintR ctimeOutCheckDelay;
+  Uint32 ctimeOutCheckFragCounter;
+  Uint32 ctimeOutCheckCounter;
+  Uint32 ctimeOutValue;
+  Uint32 ctimeOutCheckDelay;
+  Uint32 ctimeOutCheckDelayScan;
   Uint32 ctimeOutCheckHeartbeat;
   Uint32 ctimeOutCheckLastHeartbeat;
   Uint32 ctimeOutMissedHeartbeats;
+  Uint32 ctimeOutCheckHeartbeatScan;
+  Uint32 ctimeOutCheckLastHeartbeatScan;
+  Uint32 ctimeOutMissedHeartbeatsScan;
   Uint32 c_appl_timeout_value;
 
-  SystemStartState csystemStart;
   TimeOutCheckState ctimeOutCheckActive;
+
+  Uint64 c_elapsed_time_millis;
+  NDB_TICKS c_latestTIME_SIGNAL;
 
   BlockReference capiFailRef;
   UintR cpackedListIndex;
