@@ -1442,7 +1442,7 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   double examined_rows;
-  double access_method_fanout= tab->position->fanout;
+  double access_method_fanout= tab->position->rows_fetched;
   if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE ||
       ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
        select && select->quick))
@@ -1469,18 +1469,21 @@ bool Explain_join::explain_rows_and_filtered()
   }
   else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL ||
            tab->type == JT_CONST || tab->type == JT_SYSTEM)
-    examined_rows= rows2double(tab->rowcount);
+    examined_rows= tab->rowcount;
   else
-    examined_rows= tab->position->fanout;
+    examined_rows= tab->position->rows_fetched;
 
   fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
 
   /* Add "filtered" field */
   {
-    float f= 0.0;
+    float filter= 0.0;
     if (examined_rows)
-      f= 100.0 * access_method_fanout / examined_rows;
-    fmt->entry()->col_filtered.set(f);
+    {
+      filter= 100.0 * (access_method_fanout / examined_rows) *
+        tab->position->filter_effect;
+    }
+    fmt->entry()->col_filtered.set(filter);
   }
   // Print cost-related info
   double prefix_rows= tab->position->prefix_record_count;

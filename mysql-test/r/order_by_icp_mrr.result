@@ -342,7 +342,7 @@ a	b	c
 1	NULL	b
 explain select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	9	NULL	8	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	9	NULL	8	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` < 3) and (`test`.`t1`.`b` > 0)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 explain select * from t1 where a = 2 and b >0 order by a desc,b desc;
@@ -437,7 +437,7 @@ a	b	c
 1	1	b
 explain select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	4	NULL	6	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	4	NULL	6	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` < 2) and (`test`.`t1`.`b` <= 1)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 select * from t1 where a < 2 and b <= 1 order by a desc, b desc;
@@ -463,7 +463,7 @@ a	b	c
 1	1	
 explain select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	8	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	a	a	8	NULL	10	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` between 1 and 3) and (`test`.`t1`.`b` <= 1)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 select * from t1 where a between 1 and 3 and b <= 1 order by a desc, b desc;
@@ -530,8 +530,8 @@ gid	sid	uid
 103853	5	250
 EXPLAIN select t1.gid, t2.sid, t3.uid from t3, t2, t1 where t2.gid = t1.gid and t2.uid = t3.uid order by t1.gid, t3.uid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	2	test.t2.uid	1	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	index	PRIMARY	PRIMARY	2	NULL	6	100.00	Using index; Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.gid	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`gid` AS `gid`,`test`.`t2`.`sid` AS `sid`,`test`.`t3`.`uid` AS `uid` from `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`gid` = `test`.`t2`.`gid`) and (`test`.`t2`.`uid` = `test`.`t3`.`uid`)) order by `test`.`t1`.`gid`,`test`.`t3`.`uid`
@@ -543,9 +543,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`gid` AS `gid`,`test`.`t3`.`uid` AS `uid` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`gid` = `test`.`t3`.`uid`) order by `test`.`t1`.`gid`,`test`.`t3`.`skr`
 EXPLAIN SELECT t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	NULL	index	PRIMARY	PRIMARY	2	NULL	6	100.00	Using index; Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	PRIMARY,uid	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.gid	1	100.00	Using index
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	2	test.t2.uid	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`gid` AS `gid`,`test`.`t2`.`sid` AS `sid`,`test`.`t3`.`uid` AS `uid` from `test`.`t2` join `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`gid` = `test`.`t2`.`gid`) and (`test`.`t2`.`uid` = `test`.`t3`.`uid`)) order by `test`.`t3`.`uid`,`test`.`t1`.`gid`
 EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t3.skr,t1.gid;
@@ -1539,7 +1539,7 @@ INSERT INTO t1 VALUES (1, 10), (2, NULL);
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	2	50.00	Using index condition; Using where; Using filesort
+1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	2	37.50	Using index condition; Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `col` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))) order by `test`.`t1`.`c`
 # Must return 1 row
@@ -1550,7 +1550,7 @@ col
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-x	x	x	NULL	ref	a_c,a	x	x	x	x	50.00	x
+x	x	x	NULL	ref	a_c,a	x	x	x	x	37.50	x
 Warnings:
 x	x	x
 # Must return 1 row
@@ -1570,7 +1570,7 @@ WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	b	4	const	4	100.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ref	a,b,c	a	40	test.t1.a,const	11	100.00	Using index condition
+1	SIMPLE	t2	NULL	ref	a,b,c	a	40	test.t1.a,const	11	79.85	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'DE') and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`b` = 14) and (5.1 < `test`.`t2`.`c`)) order by `test`.`t2`.`c` limit 1
 SELECT d FROM t1, t2
@@ -1583,10 +1583,10 @@ SELECT d FROM t3 AS t1, t2 AS t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a,b,c	c	5	NULL	420	33.10	Using index condition; Using where
-1	SIMPLE	t1	NULL	ref	a	a	39	test.t2.a,const	10	100.00	Using index
+1	SIMPLE	t1	NULL	index	a	a	39	NULL	991	0.50	Using where; Using index; Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ref	a,b,c	a	40	test.t1.a,const	11	79.85	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`d` AS `d` from `test`.`t3` `t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'DE') and (`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = 14) and (5.1 < `test`.`t2`.`c`)) order by `test`.`t2`.`c` limit 1
+Note	1003	/* select#1 */ select `test`.`t2`.`d` AS `d` from `test`.`t3` `t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'DE') and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`b` = 14) and (5.1 < `test`.`t2`.`c`)) order by `test`.`t2`.`c` limit 1
 SELECT d FROM t3 AS t1, t2 AS t2 
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
@@ -2620,10 +2620,10 @@ GROUP BY t1.a
 ORDER by c
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	a	a	8	NULL	10	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	10.00	Using where; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	index	a	a	8	NULL	10	10.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `c`,`test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = 1)) group by `test`.`t1`.`a` order by `c` limit 2
+Note	1003	/* select#1 */ select count(0) AS `c`,`test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = 1)) group by `test`.`t1`.`a` order by `c` limit 2
 DROP TABLE t1, t2;
 #
 # Bug #59110: Memory leak of QUICK_SELECT_I allocated memory 
@@ -2724,13 +2724,13 @@ test.t1	analyze	status	OK
 EXPLAIN
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	1	55.56	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`)))
 EXPLAIN
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	2	50.00	Using index condition; Using where; Using filesort
+1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	2	27.78	Using index condition; Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))) order by `test`.`t1`.`c`
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
@@ -2740,7 +2740,7 @@ NULL
 EXPLAIN
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	2	50.00	Using index condition; Using where; Using filesort
+1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	2	27.78	Using index condition; Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))) order by `test`.`t1`.`c` desc
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;

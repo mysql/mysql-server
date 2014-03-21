@@ -1817,18 +1817,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
 
   if (tab->type == JT_SYSTEM)
-  {
-    if ((error=join_read_system(tab)))
-    {						// Info for DESCRIBE
-      tab->info= ET_CONST_ROW_NOT_FOUND;
-      /* Mark for EXPLAIN that the row was not found */
-      pos->fanout= 0.0;
-      pos->prefix_record_count= 0.0;
-      pos->ref_depend_map= 0;
-      if (!table->pos_in_table_list->outer_join || error > 0)
-	DBUG_RETURN(error);
-    }
-  }
+    error= join_read_system(tab);
   else
   {
     if (!table->key_read && table->covering_keys.is_set(tab->ref.key) &&
@@ -1840,17 +1829,21 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     }
     error=join_read_const(tab);
     table->set_keyread(FALSE);
-    if (error)
-    {
-      tab->info= ET_UNIQUE_ROW_NOT_FOUND;
-      /* Mark for EXPLAIN that the row was not found */
-      pos->fanout= 0.0;
-      pos->prefix_record_count= 0.0;
-      pos->ref_depend_map= 0;
-      if (!table->pos_in_table_list->outer_join || error > 0)
-	DBUG_RETURN(error);
-    }
   }
+
+  if (error)
+  {
+    tab->info= (tab->type == JT_SYSTEM) ? ET_CONST_ROW_NOT_FOUND :
+      ET_UNIQUE_ROW_NOT_FOUND;
+    /* Mark for EXPLAIN that the row was not found */
+    pos->filter_effect= 1.0;
+    pos->rows_fetched= 0.0;
+    pos->prefix_record_count= 0.0;
+    pos->ref_depend_map= 0;
+    if (!table->pos_in_table_list->outer_join || error > 0)
+      DBUG_RETURN(error);
+  }
+    
 
   if (tab->join_cond() && !table->null_row)
   {

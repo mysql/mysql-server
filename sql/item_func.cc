@@ -754,6 +754,108 @@ Item *Item_func::get_tmp_table_item(THD *thd)
   return copy_or_same(thd);
 }
 
+bool Item_func::contributes_to_filter(table_map read_tables,
+                                      table_map filter_for_table,
+                                      const MY_BITMAP *fields_to_ignore) const
+{
+  DBUG_ASSERT((read_tables & filter_for_table) == 0);
+  /*
+    Multiple equality (Item_equal) should not call this function
+    because it would reject valid comparisons.
+  */
+  DBUG_ASSERT(functype() != MULT_EQUAL_FUNC);
+
+   /*
+     To contribute to filering effect, the condition must refer to
+     exactly one unread table: the table filtering is currently
+     calculated for.
+   */
+   if ((used_tables() & ~read_tables) != filter_for_table)
+     return false;
+
+  /*
+    Whether or not this Item_func has an operand that is a field in
+    'filter_for_table' that is not in 'fields_to_ignore'.
+  */
+  bool found_usable_field= false;
+
+  /*
+    Whether or not this Item_func has an operand that can be used as
+    available value. arg_count==1 for Items with implicit values like
+    "field IS NULL".
+  */
+  bool found_comparable= (arg_count == 1);
+
+  for (uint i= 0; i < arg_count; i++)
+  {
+    const Item::Type arg_type= args[i]->real_item()->type();
+
+    if (arg_type == Item::SUBSELECT_ITEM)
+    {
+      if (args[i]->const_item())
+      {
+        // Constant subquery, i.e., not a dependent subquery. 
+        found_comparable= true;
+        continue;
+      }
+
+      /*
+        This is either "fld OP <dependent_subquery>" or "fld BETWEEN X
+        and Y" where either X or Y is a dependent subquery. Filtering
+        effect should not be calculated for this item because the cost
+        of evaluating the dependent subquery is currently not
+        calculated and its accompanying filtering effect is too
+        uncertain. See WL#7384.
+      */
+      return false;
+    } // ... if subquery.
+
+    const table_map used_tabs= args[i]->used_tables();
+
+    if (arg_type == Item::FIELD_ITEM && (used_tabs == filter_for_table))
+    {
+      /*
+        The qualifying table of args[i] is filter_for_table. args[i]
+        may be a field or a reference to a field, e.g. through a
+        view.
+      */
+      Item_field *fld= static_cast<Item_field*>(args[i]->real_item());
+
+      /*
+        Use args[i] as value if
+        1) this field shall be ignored, or 
+        2) a usable field has already been found (meaning that
+        this is "filter_for_table.colX OP filter_for_table.colY").
+      */
+      if (bitmap_is_set(fields_to_ignore, fld->field->field_index) || // 1)
+          found_usable_field)                                         // 2)
+      {
+        found_comparable= true;
+        continue;
+      }
+
+      /*
+        This field shall contribute to filtering effect if a
+        value is found for it
+      */
+      found_usable_field= true;
+    } // if field.
+    else
+    {
+      /*
+        It's not a subquery. May be a function, a constant, an outer
+        reference, a field of another table...
+
+        Already checked that this predicate does not refer to tables
+        later in the join sequence. Verify it:
+      */
+      DBUG_ASSERT(!(used_tabs & (~read_tables & ~filter_for_table)));
+      found_comparable= true;
+    }
+  }
+  return (found_comparable && found_usable_field);
+}
+
 double Item_int_func::val_real()
 {
   DBUG_ASSERT(fixed == 1);
@@ -6262,6 +6364,22 @@ void Item_func_match::init_search(bool no_order)
   DBUG_VOID_RETURN;
 }
 
+
+float Item_func_match::get_filtering_effect(table_map filter_for_table,
+                                            table_map read_tables,
+                                            const MY_BITMAP *fields_to_ignore,
+                                            double rows_in_table)
+{
+  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+    return COND_FILTER_ALLPASS;
+
+  /*
+    MATCH () ... AGAINST" is similar to "LIKE '...'" which has the
+    same selectivity as "col BETWEEN ...".
+  */
+  return get_cond_filter_default_probability(rows_in_table,
+                                             COND_FILTER_BETWEEN);
+}
 
 bool Item_func_match::fix_fields(THD *thd, Item **ref)
 {

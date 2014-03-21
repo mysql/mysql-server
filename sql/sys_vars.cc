@@ -2238,7 +2238,7 @@ static const char *optimizer_switch_names[]=
   "block_nested_loop", "batched_key_access",
   "materialization", "semijoin", "loosescan", "firstmatch",
   "subquery_materialization_cost_based",
-  "use_index_extensions", "default", NullS
+  "use_index_extensions", "condition_fanout_filter", "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
@@ -2248,8 +2248,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        "index_condition_pushdown, mrr, mrr_cost_based"
        ", materialization, semijoin, loosescan, firstmatch,"
        " subquery_materialization_cost_based"
-       ", block_nested_loop, batched_key_access, use_index_extensions"
-       "} and val is one of {on, off, default}",
+       ", block_nested_loop, batched_key_access, use_index_extensions, "
+       "condition_fanout_filter} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL));
