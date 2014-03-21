@@ -277,6 +277,8 @@ select * from t2 order by a;
 --echo --------------------------------------------
 
 --connection slave
+flush logs;
+--sync_slave_with_master master
 --echo Slave contents
 select * from t1 order by a;
 select * from t2 order by a;
@@ -356,6 +358,10 @@ SET NAMES latin1;
 --let $pattern=%suspicious % column op_type %
 --let $limit=1
 --source suite/ndb_rpl/t/show_mysqld_warnings.inc
+
+--connection slave
+flush logs;
+--sync_slave_with_master master
 
 # Cleanup
 --connection master
