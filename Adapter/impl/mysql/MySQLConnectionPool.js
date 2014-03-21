@@ -61,6 +61,14 @@ function getDriverProperties(props) {
     // by default, use utf-8 multibyte for character encoding
     driver.charset = 'UTF8MB4';
   }
+
+  if (typeof props.mysql_sql_mode !== 'undefined') {
+    driver.sql_mode = props.mysql_sql_mode;
+  } else {
+    // default to STRICT_ALL_TABLES
+    driver.sql_mode = 'STRICT_ALL_TABLES';
+  }
+
   // allow multiple statements in one query (used to set character set)
   driver.multipleStatements = true;
   return driver;
@@ -255,7 +263,12 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
     '\';SET character_set_connection=\'' + charset +
     '\';SET character_set_results=\'' + charset + 
     '\';';
-
+  var sqlModeQuery = '';
+  // set SQL_MODE if specified in driverproperties
+  if (typeof connectionPool.driverproperties.sql_mode !== 'undefined') {
+    sqlModeQuery = 'SET SQL_MODE = \'' + connectionPool.driverproperties.mysql_sql_mode + '\';';
+  }
+  udebug.log('SQL_MODE set to \'' + connectionPool.driverproperties.sql_mode + '\'');
   function charsetComplete(err) {
     callback(err, newDBSession);
   }
@@ -284,7 +297,7 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
           ' pooledConnections:', connectionPool.pooledConnections.length,
           ' openConnections: ', countOpenConnections(connectionPool));
       // set character set server variables      
-      pooledConnection.query(charsetQuery, charsetComplete);
+      pooledConnection.query(charsetQuery + sqlModeQuery, charsetComplete);
     };
     // create a new connection
     pooledConnection = mysql.createConnection(this.driverproperties);
