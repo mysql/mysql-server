@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -202,7 +202,11 @@ do_change_version(atrt_config& config, SqlResultSet& command,
      * So when upgrading..we need to change LD_LIBRARY_PATH
      * So I hate 5.5...
      */
+#if defined(__MACH__)
+    ssize_t p0 = proc.m_proc.m_env.indexOf(" DYLD_LIBRARY_PATH=");
+#else
     ssize_t p0 = proc.m_proc.m_env.indexOf(" LD_LIBRARY_PATH=");
+#endif
     ssize_t p1 = proc.m_proc.m_env.indexOf(' ', p0 + 1);
 
     BaseString part0 = proc.m_proc.m_env.substr(0, p0);
@@ -217,7 +221,11 @@ do_change_version(atrt_config& config, SqlResultSet& command,
     BaseString libname(lib.substr(pos));
     char * exe = find_bin_path(new_prefix, libname.c_str());
     char * dir = dirname(exe);
+#if defined(__MACH__)
+    proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", dir);
+#else
     proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", dir);
+#endif
     free(exe);
     free(dir);
   }

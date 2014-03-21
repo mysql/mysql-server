@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -290,7 +290,11 @@ load_process(atrt_config& config, atrt_cluster& cluster,
      * Use path from libmysqlclient.so
      */
     char * dir = dirname(g_libmysqlclient_so_path);
+#if defined(__MACH__)
+    proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", dir);
+#else
     proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", dir);
+#endif
     free(dir);
   }
 
