@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -347,7 +347,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   tcFailRecord = 0;
   c_apiConTimer = 0;
   c_apiConTimer_line = 0;
-  csystemStart = SSS_FALSE;
   m_deferred_enabled = ~Uint32(0);
   m_max_writes_per_trans = ~Uint32(0);
 }//Dbtc::Dbtc()

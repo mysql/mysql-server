@@ -97,6 +97,7 @@
 
 #define JAM_FILE_ID 353
 
+#define TC_TIME_SIGNAL_DELAY 50
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -750,6 +751,7 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   m_max_writes_per_trans = val;
 
   ctimeOutCheckDelay = 50; // 500ms
+  ctimeOutCheckDelayScan = 40; // 400ms
 
   Pool_context pc;
   pc.m_block = this;
@@ -824,9 +826,12 @@ void Dbtc::execNDB_STTOR(Signal* signal)
     return;
   }
   case ZINTSPH6:
+  {
     jam();
-    csystemStart = SSS_TRUE;
+    c_elapsed_time_millis = 0;
+    init_elapsed_time(signal, c_latestTIME_SIGNAL);
     break;
+  }
   default:
     jam();
     break;
@@ -885,12 +890,14 @@ Dbtc::set_no_parallel_takeover(Uint32 noParallelTakeOver)
 /* ***************************************************************************/
 void Dbtc::startphase1x010Lab(Signal* signal) 
 {
-  csystemStart = SSS_FALSE;
   ctimeOutCheckCounter = 0;
   ctimeOutCheckFragCounter = 0;
   ctimeOutMissedHeartbeats = 0;
   ctimeOutCheckHeartbeat = 0;
   ctimeOutCheckLastHeartbeat = 0;
+  ctimeOutMissedHeartbeatsScan = 0;
+  ctimeOutCheckHeartbeatScan = 0;
+  ctimeOutCheckLastHeartbeatScan = 0;
   ctimeOutCheckActive = TOCS_FALSE;
   ctimeOutCheckFragActive = TOCS_FALSE;
   sttorryLab(signal);
@@ -7815,16 +7822,49 @@ int Dbtc::releaseAndAbort(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dbtc::execTIME_SIGNAL(Signal* signal) 
 {
-  
   jamEntry();
-  ctcTimer++;
-  if (csystemStart != SSS_TRUE) {
+
+  const NDB_TICKS currentTime = NdbTick_getCurrentTicks();
+  Uint64 num_ms_elapsed = elapsed_time(signal,
+                                       currentTime,
+                                       c_latestTIME_SIGNAL,
+                                       Uint32(TC_TIME_SIGNAL_DELAY));
+  sendTIME_SIGNAL(signal, currentTime, Uint32(TC_TIME_SIGNAL_DELAY));
+
+  /**
+   * The code here will make calls to timer_handling that appears to happen
+   * every 10ms but in reality they come in batches of up to 10 10ms
+   * intervals. The timer_handling will check if a new scan of PK timeouts
+   * is to start, this happens after an idle check period of 500ms. So
+   * we actually need only check this a divisor of 500 ms and 400ms. 400ms
+   * is how long we are idle between scans to check for scan timeouts.
+   * The reason to separate those is to make sure that they don't run
+   * at the same time as much.
+   * 
+   * One reason to run the updates of the timer_handling as often as once
+   * per 50ms is that it is also then that we update the timer that is used
+   * to check for timeouts on transaction. So 50ms is the granularity of
+   * when we see timeouts.
+   *
+   * The reason for keeping the 10ms appearance of timer_handling is to
+   * decrease changes in this part of the code. This could be changed
+   * in the future.
+   */
+  c_elapsed_time_millis += num_ms_elapsed;
+  while (c_elapsed_time_millis > Uint64(10))
+  {
     jam();
-    return;
-  }//if
+    c_elapsed_time_millis -= Uint64(10);
+    timer_handling(signal);
+  }
+}//execTIME_SIGNAL()
+
+void Dbtc::timer_handling(Signal *signal)
+{
+  ctcTimer++;
   checkStartTimeout(signal);
   checkStartFragTimeout(signal);
-}//Dbtc::execTIME_SIGNAL()
+}
 
 /*------------------------------------------------*/
 /* Start timeout handling if not already going on */
@@ -7837,9 +7877,22 @@ void Dbtc::checkStartTimeout(Signal* signal)
     // Check heartbeat of timeout loop
     if(ctimeOutCheckHeartbeat > ctimeOutCheckLastHeartbeat){
       jam();
-      ctimeOutMissedHeartbeats = 0;      
+      ctimeOutMissedHeartbeats = 0;
     }else{
       jam();
+      /**
+       * This code simply checks that the scan for PK timeouts haven't
+       * lost itself, a sort of watchdog for that code. If that would
+       * occur we would no longer have any timeout handling of
+       * transactions which would render the system useless. This is
+       * to protect ourselves for future bugs in the code that we
+       * might introduce by mistake.
+       * 
+       * 100 is simply an arbitrary number that needs to be bigger
+       * than the maximum number of calls to timer_handling that
+       * we can have in one call to execTIME_SIGNAL. This is
+       * currently 10 but could change in the future.
+       */
       ctimeOutMissedHeartbeats++;
       if (ctimeOutMissedHeartbeats > 100){
 	jam();
@@ -7859,9 +7912,10 @@ void Dbtc::checkStartTimeout(Signal* signal)
   }//if
   ctimeOutCheckActive = TOCS_TRUE;
   ctimeOutCheckCounter = 0;
+  ctimeOutMissedHeartbeats = 0;
   timeOutLoopStartLab(signal, 0); // 0 is first api connect record
   return;
-}//Dbtc::execTIME_SIGNAL()
+}//checkStartTimeout()
 
 /*----------------------------------------------------------------*/
 /* Start fragment (scan) timeout handling if not already going on */
@@ -7871,9 +7925,29 @@ void Dbtc::checkStartFragTimeout(Signal* signal)
   ctimeOutCheckFragCounter++;
   if (ctimeOutCheckFragActive == TOCS_TRUE) {
     jam();
+    // Check heartbeat of scan timeout loop
+    if(ctimeOutCheckHeartbeatScan > ctimeOutCheckLastHeartbeatScan)
+    {
+      jam();
+      ctimeOutMissedHeartbeatsScan = 0;
+    }
+    else
+    {
+      /**
+       * Exactly the same code as for PK timeouts, but here to check the
+       * scan for scan timeouts. Same comments apply as above.
+       */
+      jam();
+      ctimeOutMissedHeartbeatsScan++;
+      if (ctimeOutMissedHeartbeatsScan > 100){
+	jam();
+	systemErrorLab(signal, __LINE__);
+      }
+    }
+    ctimeOutCheckLastHeartbeatScan = ctimeOutCheckHeartbeatScan;
     return;
   }//if
-  if (ctimeOutCheckFragCounter < ctimeOutCheckDelay) {
+  if (ctimeOutCheckFragCounter < ctimeOutCheckDelayScan) {
     jam();
     /*------------------------------------------------------------------*/
     /*       NO TIME-OUT CHECKED THIS TIME. WAIT MORE.                  */
@@ -7884,6 +7958,7 @@ void Dbtc::checkStartFragTimeout(Signal* signal)
   // Go through the fragment records and look for timeout in a scan.
   ctimeOutCheckFragActive = TOCS_TRUE;
   ctimeOutCheckFragCounter = 0;
+  ctimeOutMissedHeartbeatsScan = 0;
   timeOutLoopStartFragLab(signal, 0); // 0 means first scan record
 }//checkStartFragTimeout()
 
@@ -8445,6 +8520,8 @@ void Dbtc::timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr)
   UintR texpiredTime[8];
   UintR TloopCount = 0;
   Uint32 TtcTimer = ctcTimer;
+
+  ctimeOutCheckHeartbeatScan = TtcTimer;
 
   while ((TscanConPtr + 8) < cscanFragrecFileSize) {
     jam();
