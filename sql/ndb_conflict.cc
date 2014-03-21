@@ -227,7 +227,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
                     col_name,
                     NDB_EXCEPTIONS_TABLE_COLUMN_PREFIX);
         *msg= msg_buf;
-        DBUG_RETURN(-1);
+        DBUG_RETURN(false);
       }
     }
     k= i - fixed_cols;
