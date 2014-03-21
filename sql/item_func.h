@@ -354,6 +354,60 @@ public:
   {
     return functype() == *(Functype *) arg;
   }
+
+protected:
+
+  /**
+    Whether or not an item should contribute to the filtering effect
+    (@see get_filtering_effect()). First it verifies that table
+    requirements are satisfied as follows:
+
+     1) The item must refer to a field in 'filter_for_table' in some
+        way. This reference may be indirect through any number of
+        intermediate items. For example, this item may be an
+        Item_cond_and which refers to an Item_func_eq which refers to
+        the field.
+     2) The item must not refer to other tables than those already
+        read and the table in 'filter_for_table'
+
+    Then it contines to other properties as follows:
+
+    Item_funcs represent "<operand1> OP <operand2> [OP ...]". If the
+    Item_func is to contribute to the filtering effect, then
+
+    1) one of the operands must be a field from 'filter_for_table' that is not
+       in 'fields_to_ignore', and
+    2) depending on the Item_func type filtering effect is calculated
+       for, one or all [1] of the other operand(s) must be an available
+       value, i.e.:
+       - a constant, or
+       - a constant subquery, or
+       - a field value read from a table in 'read_tables', or
+       - a second field in 'filter_for_table', or
+       - a function that only refers to constants or tables in
+         'read_tables', or
+       - special case: an implicit value like NULL in the case of
+         "field IS NULL". Such Item_funcs have arg_count==1.
+
+    [1] "At least one" for multiple equality (X = Y = Z = ...), "all"
+    for the rest (e.g. BETWEEN)
+
+    @param read_tables       Tables earlier in the join sequence.
+                             Predicates for table 'filter_for_table' that
+                             rely on values from these tables can be part of
+                             the filter effect.
+    @param filter_for_table  The table we are calculating filter effect for
+
+    @return false if some of the requirements are broken, true otherwise
+
+    @note: This function only applies to items doing comparison, i.e.
+    boolean predicates. Unfortunately, some of those items do not
+    inherit from Item_bool_func so the member function has to be
+    placed in Item_func.
+  */
+  bool contributes_to_filter(table_map read_tables,
+                             table_map filter_for_table,
+                             const MY_BITMAP *fields_to_ignore) const;
 };
 
 
@@ -1957,6 +2011,10 @@ public:
       FTS_DOCID_IN_RESULT;
   }
 
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 private:
   /**
      Check whether storage engine for given table, 

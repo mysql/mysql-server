@@ -27,6 +27,8 @@
 #include "sql_array.h"
 #include "table_trigger_field_support.h"  // Table_trigger_field_support
 
+#include <algorithm>                    // std::max
+
 class Protocol;
 struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
@@ -34,6 +36,47 @@ class Item_field;
 class user_var_entry;
 
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
+
+/**
+  Default condition filtering (selectivity) values used by
+  get_filtering_effect() and friends when better estimates
+  (statistics) are not available for a predicate.
+*/
+/**
+  For predicates that are always satisfied. Must be 1.0 or the filter
+  calculation logic will break down.
+*/
+#define COND_FILTER_ALLPASS 1.0f
+/// Filtering effect for equalities: col1 = col2
+#define COND_FILTER_EQUALITY 0.0050f
+/// Filtering effect for inequalities: col1 > col2
+#define COND_FILTER_INEQUALITY 0.3333f
+/// Filtering effect for between: col1 BETWEEN a AND b
+#define COND_FILTER_BETWEEN 0.1111f
+
+/**
+  Returns the probability for the predicate "col OP <val>" to be true
+  for a row in the case where no index statistics or range estimates
+  are available for 'col'.
+
+  The probability depends on the number of rows in the table: it is by
+  default 'default_filter', but never lower than 1/rows_in_table
+
+  @param rows_in_table  The number of rows in the table
+  @param default_filter The default filter for the predicate   
+
+  @return the estimated filtering effect for this predicate
+*/
+
+inline float
+get_cond_filter_default_probability(double rows_in_table,
+                                    float default_filter)
+{
+  DBUG_ASSERT(rows_in_table >= 1);
+  return std::max(static_cast<float>(1/rows_in_table),
+                  default_filter);
+}
+
 
 static inline uint32
 char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
@@ -1090,6 +1133,36 @@ public:
   virtual bool val_bool();
   virtual String *val_nodeset(String*) { return 0; }
 
+  /**
+    Calculate the filter contribution that is relevant for table
+    'filter_for_table' for this item.
+
+    @param filter_for_table  The table we are calculating filter effect for
+    @param read_tables       Tables earlier in the join sequence.
+                             Predicates for table 'filter_for_table' that
+                             rely on values from these tables can be part of
+                             the filter effect.
+    @param fields_to_ignore  Fields in 'filter_for_table' that should not
+                             be part of the filter calculation. The filtering
+                             effect of these fields is already part of the
+                             calculation somehow (e.g. because there is a
+                             predicate "col = <const>", and the optimizer
+                             has decided to do ref access on 'col').
+    @param rows_in_table     The number of rows in table 'filter_for_table'
+
+    @return                  the filtering effect (between 0 and 1) this
+                             Item contributes with.
+  */
+  virtual float get_filtering_effect(table_map filter_for_table,
+                                     table_map read_tables,
+                                     const MY_BITMAP *fields_to_ignore,
+                                     double rows_in_table)
+  {
+    // Filtering effect cannot be calculated for a table already read.
+    DBUG_ASSERT((read_tables & filter_for_table) == 0);
+    return COND_FILTER_ALLPASS;
+  }
+
 protected:
   /* Helper functions, see item_sum.cc */
   String *val_string_from_real(String *str);
@@ -1174,7 +1247,6 @@ protected:
     Convert a non-temporal type to time
   */
   bool get_time_from_non_temporal(MYSQL_TIME *ltime);
-
 
 public:
 
@@ -1460,8 +1532,19 @@ public:
   virtual bool remove_dependence_processor(uchar * arg) { return false; }
   virtual bool remove_fixed(uchar * arg) { fixed= 0; return false; }
   virtual bool cleanup_processor(uchar *arg);
-  virtual bool collect_item_field_processor(uchar * arg) { return false; }
+  virtual bool collect_item_field_processor(uchar * arg) { return 0; }
+
+  /**
+    Item::walk function. Set bit in table->tmp_set for all fields in
+    table 'arg' that are referred to by the Item.
+  */
   virtual bool add_field_to_set_processor(uchar * arg) { return false; }
+
+  /**
+    Item::walk function. Set bit in table->cond_set for all fields of
+    all tables that are referred to by the Item.
+  */
+  virtual bool add_field_to_cond_set_processor(uchar *unused) {return false; }
 
   /**
      Visitor interface for removing all column expressions (Item_field) in
@@ -2288,7 +2371,8 @@ public:
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
-  bool add_field_to_set_processor(uchar * arg);
+  bool add_field_to_set_processor(uchar *arg);
+  bool add_field_to_cond_set_processor(uchar *unused);
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
@@ -2348,6 +2432,11 @@ public:
 
   /// Pushes the item to select_lex->non_agg_fields() and updates its marker.
   bool push_to_non_agg_fields(st_select_lex *select_lex);
+
+  float get_filtering_effect(table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table);
 
   friend class Item_default_value;
   friend class Item_insert_value;
