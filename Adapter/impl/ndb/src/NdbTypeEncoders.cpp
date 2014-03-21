@@ -36,8 +36,17 @@
 
 using namespace v8;
 
-Handle<String> 
-  K_sign, K_year, K_month, K_day, K_hour, K_minute, K_second, K_microsec, K_fsp;
+Handle<String>    /* keys of MySQLTime (Adapter/impl/common/MySQLTime.js) */
+  K_sign, 
+  K_year, 
+  K_month, 
+  K_day, 
+  K_hour, 
+  K_minute, 
+  K_second, 
+  K_microsec, 
+  K_fsp,
+  K_valid;
 
 #define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
 
@@ -181,6 +190,7 @@ void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
   K_second = Persistent<String>::New(String::NewSymbol("second"));
   K_microsec = Persistent<String>::New(String::NewSymbol("microsec"));
   K_fsp = Persistent<String>::New(String::NewSymbol("fsp"));
+  K_valid = Persistent<String>::New(String::NewSymbol("valid"));
 }
 
 
@@ -982,6 +992,9 @@ TimeHelper::TimeHelper(Handle<Value> mysqlTime) :
 
   if(mysqlTime->IsObject()) {
     Local<Object> obj = mysqlTime->ToObject();
+    if(obj->Has(K_valid) && ! (obj->Get(K_valid)->BooleanValue())) {
+      return; // return with this.valid still set to false.
+    }
     if(obj->Has(K_sign))  { sign  = obj->Get(K_sign)->Int32Value(); nkeys++; }
     if(obj->Has(K_year))  { year  = obj->Get(K_year)->Int32Value(); nkeys++; }
     if(obj->Has(K_month)) { month = obj->Get(K_month)->Int32Value(); nkeys++; }
@@ -990,7 +1003,7 @@ TimeHelper::TimeHelper(Handle<Value> mysqlTime) :
     if(obj->Has(K_minute)){ minute= obj->Get(K_minute)->Int32Value(); nkeys++; }
     if(obj->Has(K_second)){ second= obj->Get(K_second)->Int32Value(); nkeys++; }
     if(obj->Has(K_microsec)){ microsec = obj->Get(K_microsec)->Int32Value(); nkeys++; }
-   }
+  }
   valid = (nkeys > 0);
 }
 
