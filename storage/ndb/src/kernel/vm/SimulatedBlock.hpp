@@ -232,6 +232,22 @@ public:
   void synchronize_path(Signal*, const Uint32 blocks[],
                         const Callback&, JobBufferLevel = JBB);
 
+  /**
+   * These methods are used to assist blocks to use the TIME_SIGNAL to
+   * generate drum beats with a regular delay. elapsed_time will report
+   * back the elapsed time since last call but will never report more
+   * than max delay. max_delay = 2 * delay here.
+   */
+  void init_elapsed_time(Signal *signal,
+                         NDB_TICKS &latestTIME_SIGNAL);
+  void sendTIME_SIGNAL(Signal *signal,
+                       const NDB_TICKS currentTime,
+                       Uint32 delay);
+  Uint64 elapsed_time(Signal *signal,
+                      const NDB_TICKS currentTime,
+                      NDB_TICKS &latestTIME_SIGNAL,
+                      Uint32 max_delay);
+
 private:
   struct SyncThreadRecord
   {
