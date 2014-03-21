@@ -300,21 +300,30 @@ log_reserve_and_write_fast(
 	ulint		len,
 	lsn_t*		start_lsn)
 {
-	ulint		data_len;
-#ifdef UNIV_LOG_LSN_DEBUG
-	/* length of the LSN pseudo-record */
-	ulint		lsn_len;
-#endif /* UNIV_LOG_LSN_DEBUG */
-
 	ut_ad(log_mutex_own());
+	ut_ad(len > 0);
 
 #ifdef UNIV_LOG_LSN_DEBUG
-	lsn_len = 1
+	/* Append a MLOG_LSN record after mtr_commit(), except when
+	the last byte could be a MLOG_CHECKPOINT marker. We have special
+	handling when the log consists of only a single MLOG_CHECKPOINT
+	marker byte since the latest checkpoint, and appending the
+	MLOG_LSN would ruin that.
+
+	Note that a longer redo log record could happen to end in a
+	MLOG_CHECKPOINT byte, and we could be omitting MLOG_LSN
+	without reason. This is OK, because writing the MLOG_LSN is
+	just a 'best effort', aimed at finding log corruption due to
+	bugs in the redo log writing logic. */
+	const ulint	lsn_len
+		= static_cast<const char*>(str)[len - 1] == MLOG_CHECKPOINT
+		? 0
+		: 1
 		+ mach_get_compressed_size(log_sys->lsn >> 32)
 		+ mach_get_compressed_size(log_sys->lsn & 0xFFFFFFFFUL);
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	data_len = len
+	const ulint	data_len = len
 #ifdef UNIV_LOG_LSN_DEBUG
 		+ lsn_len
 #endif /* UNIV_LOG_LSN_DEBUG */
@@ -331,7 +340,7 @@ log_reserve_and_write_fast(
 	*start_lsn = log_sys->lsn;
 
 #ifdef UNIV_LOG_LSN_DEBUG
-	{
+	if (lsn_len) {
 		/* Write the LSN pseudo-record. */
 		byte* b = &log_sys->buf[log_sys->buf_free];
 
@@ -346,10 +355,9 @@ log_reserve_and_write_fast(
 		::memcpy(b, str, len);
 
 		len += lsn_len;
-	}
-#else /* UNIV_LOG_LSN_DEBUG */
-	::memcpy(log_sys->buf + log_sys->buf_free, str, len);
+	} else
 #endif /* UNIV_LOG_LSN_DEBUG */
+	::memcpy(log_sys->buf + log_sys->buf_free, str, len);
 
 	log_block_set_data_len(
                 reinterpret_cast<byte*>(ut_align_down(
