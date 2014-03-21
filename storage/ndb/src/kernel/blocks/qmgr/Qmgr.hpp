@@ -526,7 +526,6 @@ private:
   Uint16 cnoFailedNodes;
   Uint16 cnoPrepFailedNodes;
   Uint16 cnoCommitFailedNodes;
-  Uint16 cactivateApiCheck;
   Uint16 c_allow_api_connect;
   UintR chbApiDelay;
 
@@ -537,7 +536,6 @@ private:
 
   QmgrState ctoStatus;
   bool cHbSent;
-  NDB_TICKS clatestTransactionCheck;
 
   Timer interface_check_timer;
   Timer hb_check_timer;

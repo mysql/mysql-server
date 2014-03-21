@@ -292,7 +292,6 @@ void Qmgr::execSTTOR(Signal* signal)
     recompute_version_info(NodeInfo::MGM);
     return;
   case 7:
-    cactivateApiCheck = 1;
     if (cpresident == getOwnNodeId())
     {
       switch(arbitRec.method){
@@ -2678,30 +2677,6 @@ void Qmgr::timerHandlingLab(Signal* signal)
     apiHbHandlingLab(signal, TcurrentTime);
   }
 
-  if (cactivateApiCheck != 0) {
-    jam();
-    if (!NdbTick_IsValid(clatestTransactionCheck)) {
-      //-------------------------------------------------------------
-      // Initialise the Transaction check timer.
-      //-------------------------------------------------------------
-      clatestTransactionCheck = TcurrentTime;
-    }//if
-    int counter = 0;
-    while (NdbTick_Elapsed(clatestTransactionCheck,TcurrentTime).milliSec() > 10) {
-      jam();
-      clatestTransactionCheck = NdbTick_AddMilliseconds(clatestTransactionCheck,10);
-      sendSignal(DBTC_REF, GSN_TIME_SIGNAL, signal, 1, JBB);
-      sendSignal(DBLQH_REF, GSN_TIME_SIGNAL, signal, 1, JBB);          
-      counter++;
-      if (counter > 1) {
-	jam();
-	break;
-      } else {
-	;
-      }//if
-    }//while
-  }//if
-  
   //--------------------------------------------------
   // Resend this signal with 10 milliseconds delay.
   //--------------------------------------------------
