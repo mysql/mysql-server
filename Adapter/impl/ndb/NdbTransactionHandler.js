@@ -321,17 +321,9 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
   }
 
   function prepareOperations() {
-    if(udebug.is_debug()) udebug.log("executeNonScan prepareOperations", self.moniker);
+    udebug.log("executeNonScan prepareOperations", self.moniker);
     var i, op, fatalError;
     pendingOperationSet = ndboperation.prepareOperations(self.ndbtx, dbOperationList);
-
-    for(i = 0 ; i < dbOperationList.length; i++) {
-      op = dbOperationList[i];
-      if(op.error) {
-        callback(new ndboperation.DBOperationError(op.error), self);
-        return;  /* is that correct? */
-      }
-    }
     executeNdbTransaction();
   }
 
