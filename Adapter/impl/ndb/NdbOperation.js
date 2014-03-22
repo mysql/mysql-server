@@ -41,11 +41,12 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
 
 var storeNativeConstructorInMapping;
 
-/* Constructors.
-   All of these use prototypes directly from the documentation.
-*/
-var DBResult = function() {};
-DBResult.prototype = doc.DBResult;
+var DBResult = function() {
+  this.success   = null;
+  this.error     = null;
+  this.value     = null;
+  this.insert_id = null;
+};
 
 // DBOperationError
 var errorClassificationMap = {
@@ -104,7 +105,7 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   }
   
   /* NDB Impl-specific properties */
-  this.error        = null;
+  this.encoderError = null;
   this.query        = null;
   this.ndbScanOp    = null;
   this.needAutoInc   = false;
@@ -371,14 +372,14 @@ DBOperation.prototype.buildOpHelper = function(helper) {
         helper[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
       }
       else { 
-        this.error = encodeRowBuffer(this);
+        this.encoderError = encodeRowBuffer(this);
       }
     }
   }
 
   helper[OpHelper.opcode]       = code;
   helper[OpHelper.is_value_obj] = isVOwrite;
-  helper[OpHelper.is_valid]     = this.error ? false : true;
+  helper[OpHelper.is_valid]     = this.encoderError ? false : true;
 };
 
 
@@ -637,14 +638,16 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
   udebug.log("buildOperationResult");
   var result_code;
 
-  /* TRUE from getOperationError() means "NdbOperation is null"  */
-  if(op_ndb_error === true) {
+  if(op.encoderError) {
+    op.result.success = false;
+    op.result.error = op.encoderError;
+  }
+  else if(op_ndb_error === true) {   // TRUE here means "NdbOperation is null"
     op.result.success = false;
     op.result.error = new IndirectError(transactionHandler.error);
     return;
   }
-
-  if(op_ndb_error === null) {   /* null means "No Error" */
+  else if(op_ndb_error === null) {   /* null means "No Error" */
     result_code = 0;
   }
   else {
@@ -709,8 +712,7 @@ function completeExecutedOps(dbTxHandler, execMode, operations) {
     op = operations.operationList[n];
 
     if(! op.isScanOperation()) {
-      op_err = op.error ? op.error :
-                          operations.pendingOperationSet.getOperationError(n);
+      op_err = operations.pendingOperationSet.getOperationError(n);
       releaseKeyBuffer(op);
       buildOperationResult(dbTxHandler, op, op_err, execMode);
       releaseRowBuffer(op);
