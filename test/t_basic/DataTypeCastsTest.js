@@ -45,6 +45,14 @@ function shouldFail(test, promise) {
   promise.then(makeFail(test, "Should fail"), makePass(test));
 };
 
+function shouldGetError(test, sqlstate, promise) {
+  var message = "should get error " + sqlstate;
+  promise.then(makeFail(test, message), function(error) {
+    if(error.sqlstate === sqlstate) test.pass();
+    else test.fail(message);
+  })
+};
+
 /* Writing a string to an int column should succeed if the string 
    can be cast to a legal int value for the column.
 */
@@ -120,4 +128,16 @@ t7.run = function() {
   });
 }
 
-module.exports.tests = [ t1 , t2 , t3 , t4 , t5 , t6 , t7 ];
+
+/* Writing a string that's too long should give error SQLState 22001
+*/
+var t8 = new harness.ConcurrentTest("WriteTooLongString");
+t8.run = function() {
+  fail_openSession(t8, function(session) {
+    shouldGetError(t8, "22001", 
+      session.persist("t_basic", { id:308, magic:308, 
+                                   name:"abcdefghijklmnopqrstuv ABCDEFGHIJK"}));
+  });
+}
+
+module.exports.tests = [ t1 , t2 , t3 , t4 , t5 , t6 , t7 , t8 ];

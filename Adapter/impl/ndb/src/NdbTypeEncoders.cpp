@@ -48,6 +48,12 @@ Handle<String>    /* keys of MySQLTime (Adapter/impl/common/MySQLTime.js) */
   K_fsp,
   K_valid;
 
+Handle<Value>   /* SQLState Error Codes */
+  K_22000_DataError,
+  K_22001_StringTooLong,
+  K_22003_OutOfRange,
+  K_22008_InvalidDatetime;
+
 #define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
 
 #define DECLARE_ENCODER(TYPE) \
@@ -191,6 +197,10 @@ void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
   K_microsec = Persistent<String>::New(String::NewSymbol("microsec"));
   K_fsp = Persistent<String>::New(String::NewSymbol("fsp"));
   K_valid = Persistent<String>::New(String::NewSymbol("valid"));
+  K_22000_DataError = Persistent<String>::New(String::NewSymbol("22000"));
+  K_22001_StringTooLong = Persistent<String>::New(String::NewSymbol("22001"));
+  K_22003_OutOfRange = Persistent<String>::New(String::NewSymbol("22003"));
+  K_22008_InvalidDatetime = Persistent<String>::New(String::NewSymbol("22008"));
 }
 
 
@@ -283,15 +293,6 @@ inline void writeUnsignedMedium(uint8_t * cbuf, uint32_t mval) {
   cbuf[2] = (uint8_t) (mval >> 16);
 }
 
-Handle<Value> outOfRange(const char * column) { 
-  HandleScope scope;
-  Local<String> message = 
-    String::Concat(String::New("Invalid value for column "),
-                   String::New(column));
-  Local<Value> error = message;
-  return scope.Close(error);
-}
-
 /* bigendian utilities, used with the wl#946 temporal types.
    Derived from ndb/src/comon/util/NdbSqlUtil.cpp
 */
@@ -364,7 +365,7 @@ Handle<Value> IntWriter(const NdbDictionary::Column * col,
   if(valid) {
     *ipos = value->Int32Value();
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22003_OutOfRange;
 }                        
 
 
@@ -384,7 +385,7 @@ Handle<Value> UnsignedIntWriter(const NdbDictionary::Column * col,
   if(valid) {
     *ipos = value->Uint32Value();
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22003_OutOfRange;
 }
 
 
@@ -408,7 +409,7 @@ Handle<Value> smallintWriter(const NdbDictionary::Column * col,
     valid = checkValue<INTSZ>(chkv);
     if(valid) *ipos = chkv;
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22003_OutOfRange;
 }
 
 
@@ -430,7 +431,7 @@ Handle<Value> MediumWriter(const NdbDictionary::Column * col,
     valid = checkMedium(chkv);
     if(valid) writeSignedMedium(cbuf, chkv);
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22003_OutOfRange;
 }                        
 
 Handle<Value> MediumUnsignedReader(const NdbDictionary::Column *col, 
@@ -451,7 +452,7 @@ Handle<Value> MediumUnsignedWriter(const NdbDictionary::Column * col,
     valid = checkUnsignedMedium(chkv);
     if(valid) writeUnsignedMedium(cbuf, chkv);
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22003_OutOfRange;
 }                        
 
 
@@ -534,7 +535,7 @@ Handle<Value> bigintWriter(const NdbDictionary::Column *col,
     value->ToString()->WriteAscii(strbuf, 0, 32);
     valid = stringToBigint(strbuf, ipos);
   } 
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22003_OutOfRange;
 }
 
 
@@ -555,7 +556,7 @@ Handle<Value> fpWriter(const NdbDictionary::Column * col,
   if(valid) {
     STORE_ALIGNED_DATA(FPT, value->NumberValue(), buffer+offset);
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22003_OutOfRange;
 }
 
 
@@ -581,7 +582,7 @@ Handle<Value> BinaryWriter(const NdbDictionary::Column * col,
       memset(buffer+offset+ncopied, 0, col_len - ncopied); // padding
     }
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22000_DataError;
 }
 
 template<typename LENGTHTYPE>
@@ -608,7 +609,7 @@ Handle<Value> varbinaryWriter(const NdbDictionary::Column * col,
     char * data = buffer+offset+sizeof(data_len);
     memmove(data, node::Buffer::Data(obj), data_len);
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22000_DataError;
 }
 
 /****** String types ********/
@@ -856,12 +857,10 @@ Handle<Value> CharWriter(const NdbDictionary::Column * col,
                             Handle<Value> value, 
                             char *buffer, size_t offset) {
   HandleScope scope;  
-  bool valid = true;
   Handle<String> strval = value->ToString();
   CharsetWriter * writer = getWriterForColumn(col);
   writer(col, strval, buffer+offset, true);
-
-  return valid ? writerOK : outOfRange(col->getName());
+  return writerOK;
 }
 
 
@@ -923,14 +922,14 @@ template<typename LENGTHTYPE>
 Handle<Value> varcharWriter(const NdbDictionary::Column * col,
                             Handle<Value> value, 
                             char *buffer, size_t offset) {  
-  HandleScope scope;  
-  bool valid = true;
+  HandleScope scope;
   Handle<String> strval = value->ToString();
   CharsetWriter * writer = getWriterForColumn(col);
 
   LENGTHTYPE len = writer(col, strval, buffer+offset+sizeof(len), false);
   STORE_ALIGNED_DATA(LENGTHTYPE, len, buffer+offset);
-  return valid ? writerOK : outOfRange(col->getName());
+
+  return (strval->Length() > col->getLength()) ? K_22001_StringTooLong : writerOK;
 }
 
 
@@ -1049,7 +1048,7 @@ Handle<Value> TimestampWriter(const NdbDictionary::Column * col,
   if(valid) {
     *tpos = Date::Cast(*value)->NumberValue() / 1000;
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22008_InvalidDatetime;
 }
 
 
@@ -1078,7 +1077,7 @@ Handle<Value> Timestamp2Writer(const NdbDictionary::Column * col,
     pack_bigendian(timeSeconds, buffer+offset, 4);
     writeFraction(col, timeMilliseconds * 1000, buffer+offset+4);
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22008_InvalidDatetime;
 }
 
 /* Datetime 
@@ -1109,7 +1108,7 @@ Handle<Value> DatetimeWriter(const NdbDictionary::Column * col,
     dtval += tm.second;
     STORE_ALIGNED_DATA(uint64_t, dtval, buffer+offset);
   }
-  return tm.valid ? writerOK : outOfRange(col->getName());  
+  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
 }    
 
 
@@ -1159,7 +1158,7 @@ Handle<Value> Datetime2Writer(const NdbDictionary::Column * col,
     pack_bigendian(packedValue, buffer+offset, 5);
     writeFraction(col, tm.microsec, buffer+offset+5);
   }
-  return tm.valid ? writerOK : outOfRange(col->getName());  
+  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
 }
 
 
@@ -1180,7 +1179,7 @@ Handle<Value> YearWriter(const NdbDictionary::Column * col,
     valid = checkValue<uint8_t>(chkv);
     if(valid) STORE_ALIGNED_DATA(uint8_t, chkv, buffer+offset);
   }
-  return valid ? writerOK : outOfRange(col->getName());
+  return valid ? writerOK : K_22008_InvalidDatetime;
 }
 
 
@@ -1207,7 +1206,7 @@ Handle<Value> TimeWriter(const NdbDictionary::Column * col,
     writeSignedMedium((int8_t *) buffer+offset, dtval);
   }  
   
-  return tm.valid ? writerOK : outOfRange(col->getName());  
+  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
 }
 
 
@@ -1283,7 +1282,7 @@ Handle<Value> Time2Writer(const NdbDictionary::Column * col,
     pack_bigendian(packedValue, buffer+offset, buf_size);
   }
   
-  return tm.valid ? writerOK : outOfRange(col->getName());  
+  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
 }
 
 
@@ -1309,6 +1308,6 @@ Handle<Value> DateWriter(const NdbDictionary::Column * col,
     writeUnsignedMedium((uint8_t *) buffer+offset, encodedDate);
   }  
   
-  return tm.valid ? writerOK : outOfRange(col->getName());  
+  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
 }
 

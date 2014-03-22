@@ -54,25 +54,26 @@ var errorClassificationMap = {
   "UnknownResultError"  : "08000"
 };
 
-function DBOperationError(ndb_error) {
-  var mappedCode;
-  if(ndb_error) {
-    this.ndb_error = ndb_error;
-    mappedCode = errorClassificationMap[ndb_error.classification];
-    this.message = ndb_error.message + " [" + ndb_error.code + "]";
+function DBOperationError(ndbError) {
+  this.ndb_error = null;
+  this.message   = "";
+  this.sqlstate  = "NDB00";
+  this.cause     = null;
+  
+  if(ndbError) {
+    this.initFromNdbError(ndbError);
   }
-  else {
-    this.ndb_error = null;
-    this.message = null;
-  }
-  this.sqlstate = mappedCode || "NDB00";
-  this.cause = null;
 }
 
-DBOperationError.prototype = doc.DBOperationError;
-exports.DBOperationError = DBOperationError;
+DBOperationError.prototype.initFromNdbError = function(ndb_error) {
+  this.ndb_error = ndb_error;
+  this.message   = ndb_error.message + " [" + ndb_error.code + "]";
+  this.sqlstate  = errorClassificationMap[ndb_error.classification];
+}
+
 
 function IndirectError(dbOperationErr) {
+  udebug.log("Adding indirect error from", dbOperationErr);
   this.message = "Error";
   this.sqlstate = dbOperationErr.sqlstate;
   this.ndb_error = null;
@@ -132,32 +133,55 @@ function releaseKeyBuffer(op) {
 }
 
 
+var DataErrors = { 
+  "22000" : "Data error",
+  "22001" : "String too long",
+  "22003" : "Numeric value out of range",
+  "22008" : "Invalid datetime"
+};
+
 function encodeFieldsInBuffer(fields, nfields, metadata, 
                               ndbRecord, buffer, definedColumnList) {
-  var i, value, err, errors, offset;
-  errors = {};
+  var i, column, value, encoderError, error, offset;
+  error = null;
+
+  function addError() {
+    udebug.log("encoderWrite error:", encoderError);
+    function message() {
+      return DataErrors[encoderError]  + " [" + column.name + "]";
+    }
+
+    if(error) {   // More than one column error, so use the generic code
+      error.sqlstate = "22000"; 
+      error.message += "; " + message();
+    } else {
+      error = new DBOperationError();
+      error.sqlstate = encoderError;
+      error.message = message();
+    }
+  }
+
+  /* encodeFieldsInBuffer starts here */
   for(i = 0 ; i < nfields ; i++) {
+    column = metadata[i];
     value = fields[i];
     if(typeof value !== 'undefined') {
-      definedColumnList.push(metadata[i].columnNumber);
+      definedColumnList.push(column.columnNumber);
       offset = ndbRecord.getColumnOffset(i);
       if(value === null) {
         ndbRecord.setNull(i, buffer);
       }
       else {
         ndbRecord.setNotNull(i, buffer);
-        if(metadata[i].typeConverter && metadata[i].typeConverter.ndb) {
-          value = metadata[i].typeConverter.ndb.toDB(value);
+        if(column.typeConverter && column.typeConverter.ndb) {
+          value = column.typeConverter.ndb.toDB(value);
         }
-        err = adapter.impl.encoderWrite(metadata[i], value, buffer, offset);
-        if(err) { 
-          if(udebug.is_debug()) udebug.log("encoderWrite:", err);
-          errors[metadata[i].name] = err;
-        }
+        encoderError = adapter.impl.encoderWrite(column, value, buffer, offset);
+        if(encoderError) { addError(); }
       }
     }
   }
-  return Object.keys(errors).length ? errors : null;
+  return error;
 }
 
 
@@ -370,7 +394,7 @@ function prepareOperations(ndbTransaction, dbOperationList) {
     specs = new Array(length);
     for(n = 0 ; n < dbOperationList.length ; n++) {
       specs[n] = new HelperSpec();
-      dbOperationList[n].buildOpHelper(specs[n], ndbTransaction);
+      dbOperationList[n].buildOpHelper(specs[n]);
     }
   }
   return adapter.impl.DBOperationHelper(length, specs, ndbTransaction);
@@ -685,7 +709,8 @@ function completeExecutedOps(dbTxHandler, execMode, operations) {
     op = operations.operationList[n];
 
     if(! op.isScanOperation()) {
-      op_err = operations.pendingOperationSet.getOperationError(n);
+      op_err = op.error ? op.error :
+                          operations.pendingOperationSet.getOperationError(n);
       releaseKeyBuffer(op);
       buildOperationResult(dbTxHandler, op, op_err, execMode);
       releaseRowBuffer(op);
@@ -816,6 +841,7 @@ function newScanOperation(tx, QueryTree, properties) {
 
 
 exports.DBOperation         = DBOperation;
+exports.DBOperationError    = DBOperationError;
 exports.newReadOperation    = newReadOperation;
 exports.newInsertOperation  = newInsertOperation;
 exports.newDeleteOperation  = newDeleteOperation;
