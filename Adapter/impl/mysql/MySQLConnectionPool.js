@@ -266,9 +266,9 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   var sqlModeQuery = '';
   // set SQL_MODE if specified in driverproperties
   if (typeof connectionPool.driverproperties.sql_mode !== 'undefined') {
-    sqlModeQuery = 'SET SQL_MODE = \'' + connectionPool.driverproperties.mysql_sql_mode + '\';';
+    sqlModeQuery = 'SET SQL_MODE = \'' + connectionPool.driverproperties.sql_mode + '\';';
   }
-  udebug.log('SQL_MODE set to \'' + connectionPool.driverproperties.sql_mode + '\'');
+  udebug.log(sqlModeQuery);
   function charsetComplete(err) {
     callback(err, newDBSession);
   }
