@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "adapter_global.h"
 #include "NdbTypeEncoders.h"
@@ -281,6 +282,16 @@ inline bool checkUnsignedMedium(int r) {
   return (r >= 0 && r < 16277216);
 }
 
+template <typename INTSZ> bool checkNumber(double);
+
+template<> inline bool checkNumber<int>(double d) {
+  return(isfinite(d) && d >= -2147483648.0 && d <= 2147483648.0);
+}
+
+template<> inline bool checkNumber<uint32_t>(double d) {
+  return(isfinite(d) && d >= 0 && d < 4294967296.0);
+}
+
 inline void writeSignedMedium(int8_t * cbuf, int mval) {
   cbuf[0] = (int8_t) (mval);
   cbuf[1] = (int8_t) (mval >> 8);
@@ -361,9 +372,14 @@ Handle<Value> IntWriter(const NdbDictionary::Column * col,
                         Handle<Value> value, 
                         char *buffer, size_t offset) {
   int *ipos = (int *) (buffer+offset);
-  bool valid = value->IsInt32();
-  if(valid) {
+  bool valid = true;
+  if(value->IsInt32()) {
     *ipos = value->Int32Value();
+  }
+  else {
+    double dval = value->ToNumber()->Value();
+    *ipos = static_cast<int>(rint(dval));
+    valid = checkNumber<int>(dval);
   }
   return valid ? writerOK : K_22003_OutOfRange;
 }                        
@@ -380,10 +396,14 @@ Handle<Value> UnsignedIntReader(const NdbDictionary::Column *col,
 Handle<Value> UnsignedIntWriter(const NdbDictionary::Column * col,
                                 Handle<Value> value, 
                                 char *buffer, size_t offset) {
+  bool valid = true;
   uint32_t *ipos = (uint32_t *) (buffer+offset);
-  bool valid = value->IsUint32();
-  if(valid) {
+  if(value->IsUint32()) {
     *ipos = value->Uint32Value();
+  } else {
+    double dval = value->ToNumber()->Value();
+    *ipos = static_cast<uint32_t>(rint(dval));
+    valid = checkNumber<uint32_t>(dval);
   }
   return valid ? writerOK : K_22003_OutOfRange;
 }
@@ -403,11 +423,14 @@ template <typename INTSZ>
 Handle<Value> smallintWriter(const NdbDictionary::Column * col,
                              Handle<Value> value, char *buffer, size_t offset) {
   INTSZ *ipos = (INTSZ *) (buffer+offset);
-  bool valid = value->IsInt32();
-  if(valid) {
-    int chkv = value->Int32Value();
-    valid = checkValue<INTSZ>(chkv);
-    if(valid) *ipos = chkv;
+  bool valid = true;
+  if(value->IsInt32()) {
+    *ipos = value->Int32Value();
+    valid = checkValue<INTSZ>(*ipos);
+  } else {
+    double dval = value->ToNumber()->Value();
+    *ipos = static_cast<INTSZ> (dval);
+    valid = (isfinite(dval) && checkValue<INTSZ>(*ipos));
   }
   return valid ? writerOK : K_22003_OutOfRange;
 }
@@ -425,12 +448,19 @@ Handle<Value> MediumReader(const NdbDictionary::Column *col,
 Handle<Value> MediumWriter(const NdbDictionary::Column * col,
                            Handle<Value> value, char *buffer, size_t offset) {  
   int8_t *cbuf = (int8_t *) (buffer+offset);
-  bool valid = value->IsInt32();
-  if(valid) {
-    int chkv = value->Int32Value();
+  bool valid;
+  double dval;
+  int chkv;
+  if(value->IsInt32()) {
+    chkv = value->Int32Value();
     valid = checkMedium(chkv);
-    if(valid) writeSignedMedium(cbuf, chkv);
+  } else {
+    dval = value->ToNumber()->Value();
+    chkv = static_cast<int>(rint(dval));
+    valid = (isfinite(dval) && checkMedium(chkv));
   }
+
+  if(valid) writeSignedMedium(cbuf, chkv);
   return valid ? writerOK : K_22003_OutOfRange;
 }                        
 
@@ -446,12 +476,18 @@ Handle<Value> MediumUnsignedWriter(const NdbDictionary::Column * col,
                                    Handle<Value> value, 
                                    char *buffer, size_t offset) {
   uint8_t *cbuf = (uint8_t *) (buffer+offset);
-  bool valid = value->IsInt32();
-  if(valid) {
-    int chkv = value->Int32Value();
+  bool valid;
+  double dval;
+  int chkv;
+  if(value->IsInt32()) {
+    chkv = value->Int32Value();
     valid = checkUnsignedMedium(chkv);
-    if(valid) writeUnsignedMedium(cbuf, chkv);
+  } else {
+    dval = value->ToNumber()->Value();
+    chkv = static_cast<int>(rint(dval));
+    valid = (isfinite(dval) && checkUnsignedMedium(chkv));
   }
+  if(valid) writeUnsignedMedium(cbuf, chkv);
   return valid ? writerOK : K_22003_OutOfRange;
 }                        
 
