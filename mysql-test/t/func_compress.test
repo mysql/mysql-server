@@ -115,3 +115,24 @@ DROP TABLE t1;
 set @@global.max_allowed_packet=default;
 --enable_result_log
 --enable_query_log
+
+
+--echo #
+--echo # Start of 5.3 tests
+--echo #
+
+--echo #
+--echo # MDEV-5783 Assertion `0' failed in make_sortkey(SORTPARAM*, uchar*, uchar*) on ORDER BY HEX(UNCOMPRESSED_LENGTH(pk))
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(2);
+SELECT UNCOMPRESSED_LENGTH(pk) FROM t1;
+# ORDER is not strict, so disable results
+--disable_result_log
+SELECT * FROM t1 ORDER BY HEX(UNCOMPRESSED_LENGTH(pk));
+--enable_result_log
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.3 tests
+--echo #
