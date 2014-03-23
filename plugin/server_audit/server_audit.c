@@ -84,6 +84,9 @@ static void closelog() {}
 #include <typelib.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
+#ifndef RTLD_DEFAULT
+#define RTLD_DEFAULT NULL
+#endif
 
 #undef my_init_dynamic_array_ci
 #define init_dynamic_array2 loc_init_dynamic_array2
@@ -110,6 +113,20 @@ static void closelog() {}
 #define pop_dynamic loc_pop_dynamic
 #define delete_dynamic loc_delete_dynamic
 uchar *loc_alloc_dynamic(DYNAMIC_ARRAY *array);
+#ifdef my_strnncoll
+#undef my_strnncoll
+#define my_strnncoll(s, a, b, c, d) (my_strnncoll_binary((s), (a), (b), (c), (d), 0))
+#endif
+
+static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
+    const uchar *s, size_t slen,
+    const uchar *t, size_t tlen,
+    my_bool t_is_prefix)
+{
+  size_t len=min(slen,tlen);
+  int cmp= memcmp(s,t,len);
+  return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
+}
 
 #include "../../mysys/array.c"
 #include "../../mysys/hash.c"
@@ -1451,11 +1468,11 @@ static int server_audit_init(void *p __attribute__((unused)))
   serv_ver= server_version;
 #endif /*_WIN32*/
 
-  my_hash_init_ptr= dlsym(NULL, "_my_hash_init");
+  my_hash_init_ptr= dlsym(RTLD_DEFAULT, "_my_hash_init");
   if (!my_hash_init_ptr)
   {
     maria_above_5= 1;
-    my_hash_init_ptr= dlsym(NULL, "my_hash_init2");
+    my_hash_init_ptr= dlsym(RTLD_DEFAULT, "my_hash_init2");
   }
 
   if (!serv_ver || !my_hash_init_ptr)
@@ -1513,15 +1530,17 @@ static int server_audit_init(void *p __attribute__((unused)))
   /* so we warn users if both Query Cashe and TABLE events enabled.      */
   if (!started_mysql && FILTER(EVENT_TABLE))
   {
-    ulonglong *qc_size= (ulonglong *) dlsym(NULL, "query_cache_size");
+    ulonglong *qc_size= (ulonglong *) dlsym(RTLD_DEFAULT, "query_cache_size");
     if (qc_size == NULL || *qc_size != 0)
     {
       struct loc_system_variables *g_sys_var=
-        (struct loc_system_variables *) dlsym(NULL, "global_system_variables");
+        (struct loc_system_variables *) dlsym(RTLD_DEFAULT,
+                                          "global_system_variables");
       if (g_sys_var && g_sys_var->query_cache_type != 0)
       {
         error_header();
-        fprintf(stderr, "Query cache is enabled with the TABLE events. Some table reads can be veiled.");
+        fprintf(stderr, "Query cache is enabled with the TABLE events."
+                        " Some table reads can be veiled.");
       }
     }
   }
