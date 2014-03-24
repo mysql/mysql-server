@@ -23,7 +23,6 @@
 var RandomRowGenerator = require("./RandomData.js").RandomRowGenerator,
     LineScanner = require("./Scanner.js").LineScanner,
     TextFieldScanner = require("./Scanner.js").TextFieldScanner,
-    JsValueAdapter = require("./JsValueAdapter").JsValueAdapter,
     util = require("util"),
     udebug = require(path.join(api_dir,"unified_debug")).getLogger("DataSource.js");
 
@@ -179,8 +178,6 @@ function FileDataSource(job, controller) {
   this.lineScanner  = new LineScanner(this.options);
   this.recopied     = 0;  // no. of characters left from previous read buffer
   this.physLineNo   = 0;  // actual lines (not records) read from data file
-  this.valueAdapter = new JsValueAdapter(this.columns.getTableHandler(),
-                                         this.options.isJSON);
 
   theDataSource    = this;
   theController    = controller;
@@ -304,7 +301,6 @@ FileDataSource.prototype.run = function() {
       if(desc.lineHasFields) {
         this.options.columnsInHeader = null;  // reset from true to null
         fields = this.fieldScanner.scan(desc);  // Extract the data fields
-        this.valueAdapter.useFieldSubset(fields);  // Using the existing tablehandler
         this.columns.setColumnsFromArray(fields);  // Creates a new tableHandler on next write
       }
     } else if (this.skipping) {
@@ -314,7 +310,6 @@ FileDataSource.prototype.run = function() {
                                       desc.lineStart, desc.lineEnd);
       if(desc.lineHasFields) {
         fields = this.fieldScanner.scan(desc);    // Extract the data fields
-        row = this.valueAdapter.adapt(fields);
         record = new this.Record(desc, row);
         theController.dsNewItem(record);
       }
