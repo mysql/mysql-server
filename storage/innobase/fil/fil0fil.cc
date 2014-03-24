@@ -4046,7 +4046,7 @@ fil_space_read_name_and_filepath(
 
 /** Open a tablespace file and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
-@param[in]	filename	databasename/tablename.ibd
+@param[in,out]	filename	databasename/tablename.ibd
 @param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
@@ -4054,7 +4054,7 @@ fil_space_read_name_and_filepath(
 enum fil_load_status
 fil_load_single_table_tablespace(
 	ulint		space_id,
-	const char*	filename,
+	char*		filename,
 	ulint		filename_len,
 	fil_space_t*&	space)
 {
@@ -4071,9 +4071,9 @@ fil_load_single_table_tablespace(
 
 	/* Strip the file name prefix and suffix, leaving
 	only databasename/tablename. */
-	const char* tablename = filename;
-	const char* dbname = filename;
-	const char* end = filename + filename_len;
+	const char*	tablename	= filename;
+	char*		dbname		= filename;
+	const char*	end		= filename + filename_len;
 
 	while (const char* t = static_cast<const char*>(
 		       memchr(tablename, OS_PATH_SEPARATOR,
@@ -4081,10 +4081,14 @@ fil_load_single_table_tablespace(
 		tablename = t + 1;
 	}
 
-	while (const char* d = static_cast<const char*>(
+	while (char* d = static_cast<char*>(
 		       memchr(dbname, OS_PATH_SEPARATOR,
 			      tablename - dbname))) {
 		if (++d == tablename) {
+#ifdef _WIN32
+			/* space->name uses '/', not OS_PATH_SEPARATOR. */
+			d[-1] = '/';
+#endif /* _WIN32 */
 			break;
 		}
 		dbname = d;
