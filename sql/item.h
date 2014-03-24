@@ -1,7 +1,8 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -723,6 +724,11 @@ public:
   my_bool fixed;                        /* If item fixed with fix_fields */
   DTCollation collation;
   Item_result cmp_context;              /* Comparison context */
+  /*
+    If this item was created in runtime memroot,it cannot be used for
+    substitution in subquery transformation process
+   */
+  bool runtime_item;
  protected:
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
@@ -1346,6 +1352,11 @@ public:
   virtual Item *copy_andor_structure(THD *thd, bool real_items= false)
   { return real_items ? real_item() : this; }
   virtual Item *real_item() { return this; }
+  virtual Item *substitutional_item()
+  {
+    return  runtime_item ? real_item() : this;
+  }
+  virtual void set_runtime_created() { runtime_item= true; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   static const CHARSET_INFO *default_charset();

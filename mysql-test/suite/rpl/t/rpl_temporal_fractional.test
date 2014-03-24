@@ -18,12 +18,12 @@ INSERT INTO t1 VALUES (@ts, @ts, @ts, @ts, @ts, @ts, @ts);
 INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
 INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
 --query_vertical SELECT * FROM t1
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 --query_vertical SELECT * FROM t1
 connection master;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 
 connection master;
@@ -42,12 +42,12 @@ INSERT INTO t1 VALUES (@ts, @ts, @ts, @ts, @ts, @ts, @ts);
 INSERT INTO t1 VALUES (NOW(), NOW(), NOW(), NOW(), NOW(), NOW(), NOW());
 INSERT INTO t1 VALUES (NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6), NOW(6));
 --query_vertical SELECT * FROM t1
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 --query_vertical SELECT * FROM t1
 connection master;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 
 connection master;
@@ -66,12 +66,12 @@ INSERT INTO t1 VALUES (@t, @t, @t, @t, @t, @t, @t);
 INSERT INTO t1 VALUES (CURTIME(), CURTIME(), CURTIME(), CURTIME(), CURTIME(), CURTIME(), CURTIME());
 INSERT INTO t1 VALUES (CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6), CURTIME(6));
 --query_vertical SELECT * FROM t1
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 --query_vertical SELECT * FROM t1
 connection master;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 --source include/rpl_end.inc

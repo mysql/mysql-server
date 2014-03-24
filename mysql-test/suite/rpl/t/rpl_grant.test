@@ -1,5 +1,6 @@
 # Tests of grants and users
 
+source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 source include/not_embedded.inc;
 
@@ -11,7 +12,7 @@ CREATE USER dummy1@localhost, dummy2@localhost;
 
 SELECT user, host FROM mysql.user WHERE user like 'dummy%';
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user like 'dummy%';
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
@@ -32,7 +33,7 @@ DROP USER dummy1@localhost, dummy2@localhost;
 
 SELECT user, host FROM mysql.user WHERE user like 'dummy%';
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user like 'dummy%';
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
@@ -80,7 +81,7 @@ call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the mas
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 --source include/start_slave_sql.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 ## assert that grants are the same on master and on slave for $dbuser
 --connection master
@@ -88,7 +89,7 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
@@ -103,7 +104,7 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
@@ -126,7 +127,7 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 --source include/start_slave_sql.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
@@ -149,7 +150,7 @@ DELIMITER ;|
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
@@ -175,7 +176,7 @@ DELIMITER ;|
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 --source include/start_slave_sql.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
@@ -201,7 +202,7 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 --source include/start_slave_sql.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
@@ -221,7 +222,7 @@ REVOKE EXECUTE ON PROCEDURE b54866_p FROM 'fake_user'@'localhost';
 REVOKE EXECUTE ON FUNCTION b54866_f FROM 'fake_user'@'localhost';
 -- error ER_REVOKE_GRANTS
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo ##########
 --echo ########## Cleanup
@@ -231,7 +232,7 @@ DROP PROCEDURE b54866_p;
 DROP FUNCTION b54866_f;
 --eval DROP USER '$dbuser'@'localhost'
 --eval DROP DATABASE $dbname
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 #
 # BUG#11827392: 60082: EVEN THOUGH IT FAILS, 'CREATE USER' STATEMENT SI STILL BINLOGGED. 
@@ -256,7 +257,7 @@ DROP FUNCTION b54866_f;
 
 --error ER_PLUGIN_IS_NOT_LOADED
 CREATE USER foo IDENTIFIED WITH 'my_plugin';
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --connection master
 

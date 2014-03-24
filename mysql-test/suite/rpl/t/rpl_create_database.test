@@ -14,7 +14,7 @@ source include/master-slave.inc;
 DROP DATABASE IF EXISTS mysqltest_prometheus;
 DROP DATABASE IF EXISTS mysqltest_sisyfos;
 DROP DATABASE IF EXISTS mysqltest_bob;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # This database is not replicated
 DROP DATABASE IF EXISTS mysqltest_bob;
 --enable_warnings
@@ -43,7 +43,7 @@ USE mysqltest_sisyfos;
 ALTER DATABASE mysqltest_bob CHARACTER SET latin1;
 
 SHOW DATABASES LIKE 'mysql%';
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SHOW DATABASES LIKE 'mysql%';
 
 connection master;
@@ -56,7 +56,7 @@ USE mysqltest_sisyfos;
 CREATE TABLE t2 (a INT);
 let $VERSION=`select version()`;
 SHOW DATABASES LIKE 'mysql%';
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SHOW DATABASES LIKE 'mysql%';
 USE mysqltest_prometheus;
 SHOW TABLES;
@@ -67,7 +67,7 @@ connection master;
 DROP DATABASE IF EXISTS mysqltest_prometheus;
 DROP DATABASE IF EXISTS mysqltest_sisyfos;
 DROP DATABASE IF EXISTS mysqltest_bob;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests
 --source include/rpl_end.inc

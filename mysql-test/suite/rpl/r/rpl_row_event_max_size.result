@@ -30,6 +30,7 @@ master-bin.000001	#	Query	1	#	BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	COMMIT
+include/sync_slave_sql_with_master.inc
 # On slave, test the row event data is replicated when the value of
 # the bigger one of max_allowed_packet and binlog_row_event_max_size
 # is larger than the required size.
@@ -43,17 +44,20 @@ SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 2;
 LENGTH(data1)	LENGTH(data2)
 1048576	1048576
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 # Test it will cause ER_MASTER_FATAL_ERROR_READING_BINLOG when the value
 # of the bigger one of max_allowed_packet and binlog_row_event_max_size
 # is lower than the the required size.
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
 data2 LONGBLOB, data3 LONGBLOB, PRIMARY KEY(a));
+include/sync_slave_sql_with_master.inc
 INSERT INTO t1 (data1, data2, data3) VALUES (repeat('a', @@global.max_allowed_packet), repeat('a', @@global.max_allowed_packet), repeat('a', @@global.max_allowed_packet));
 SELECT LENGTH(data1), LENGTH(data2), LENGTH(data3) FROM t1 WHERE a = 1;
 LENGTH(data1)	LENGTH(data2)	LENGTH(data3)
 4194304	4194304	4194304
 drop table t1;
+include/sync_slave_sql_with_master.inc
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
 call mtr.add_suppression("Found invalid event in binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");

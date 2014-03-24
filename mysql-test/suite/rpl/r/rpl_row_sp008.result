@@ -25,10 +25,12 @@ a
 
 < ---- Slave selects-- >
 ------------------------
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t2;
 a
 2
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
