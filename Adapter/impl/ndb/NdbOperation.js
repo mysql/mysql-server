@@ -73,15 +73,12 @@ DBOperationError.prototype.initFromNdbError = function(ndb_error) {
 }
 
 
-function IndirectError(dbOperationErr) {
-  udebug.log("Adding indirect error from", dbOperationErr);
-  this.message = "Error";
-  this.sqlstate = dbOperationErr.sqlstate;
-  this.ndb_error = null;
-  this.cause = dbOperationErr;
+function IndirectError(cause) {
+  udebug.log("Adding indirect error from", cause);
+  this.cause = cause;
+  this.message = "Cascading Error";
+  this.sqlstate = cause.sqlstate;
 }
-IndirectError.prototype = doc.DBOperationError;
-
 
 var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   assert(tx);
@@ -636,47 +633,35 @@ function getScanResults(scanop, userCallback) {
 
 function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
   udebug.log("buildOperationResult");
-  var result_code;
 
+  /* Summarize Operation Error */
   if(op.encoderError) {
+    udebug.log("Operation has encoder error");
     op.result.success = false;
     op.result.error = op.encoderError;
-  }
-  else if(op_ndb_error === true) {   // TRUE here means "NdbOperation is null"
+  } else if(op_ndb_error === null) {
+    op.result.success = true;
+  } else {
     op.result.success = false;
-    op.result.error = new IndirectError(transactionHandler.error);
-    return;
-  }
-  else if(op_ndb_error === null) {   /* null means "No Error" */
-    result_code = 0;
-  }
-  else {
-    result_code = op_ndb_error.code;
+    if(op_ndb_error !== true) {  // TRUE here means NdbOperation is null
+      op.result.error = new DBOperationError(op_ndb_error);
+    }
   }
 
+  /* Handle Transaction Error */
   if(execMode !== ROLLBACK) {
-    /* Error Handling */
-    if(result_code === 0) {
+    if(op.result.success) {
       if(transactionHandler.error) {
         /* This operation has no error, but the transaction failed. */
         udebug.log("Case txErr + opOK", transactionHandler.moniker);
         op.result.success = false;
         op.result.error = new IndirectError(transactionHandler.error);      
       }
-      else {
-        udebug.log("Case txOK + opOK", transactionHandler.moniker);
-        op.result.success = true;
-      }
     }
     else {
       /* This operation has an error. */
-      op.result.success = false;
-      op.result.error = new DBOperationError(op_ndb_error);
       if(transactionHandler.error) {
         udebug.log("Case txErr + OpErr", transactionHandler.moniker);
-        if(! transactionHandler.error.cause) {
-          transactionHandler.error.cause = op.result.error;
-        }
       }
       else {
         if(op.opcode === opcodes.OP_READ || execMode === NOCOMMIT) {
@@ -694,7 +679,6 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
       buildValueObject(op);
     } 
   }
-  stats.incr( [ "result_code", result_code ] );
   if(udebug.is_detail()) udebug.log("buildOperationResult finished:", op.result);
 }
 

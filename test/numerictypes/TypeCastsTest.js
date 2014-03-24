@@ -20,17 +20,20 @@
 
 "use strict";
 
-
-/* These tests use primary keys 300-399 */
+/* You could also test that writing a negative value to a "float unsigned"
+   or "double unsigned" column returns an error, but those tests are not 
+   included here because NDBAPI has no way to distinguish between signed 
+   and unsigned versions of floating point columns.
+*/
 
 /*  
- id int NOT NULL,
-  tposint int unsigned,
+  id int NOT NULL,
   tfloat float NOT NULL,
-  tposfloat float unsigned,
   tdouble double,
   tnumber decimal(11,3),
-  tposnumber decimal(11,3) unsigned
+  tposint int unsigned,
+  tposnumber decimal(11,3) unsigned,
+  tposbigint bigint unsigned
 */
 function makePass(testCase) {
   return function() { testCase.pass(); }
@@ -54,93 +57,73 @@ function shouldGetError(test, sqlstate, promise) {
 
 
 // Write numbers to all columns
-var t1 = new harness.ConcurrentTest("writeNumericTypes");
+var t1 = new harness.ConcurrentTest("writeNumbers");
 t1.run = function() {
   fail_openSession(t1, function(session) {
     shouldSucceed(t1, 
       session.persist("numerictypes",
-                      { id: 301, tposint: 301, tfloat: -301.1,
-                        tposfloat: 301.1, tdouble: 301.10000000, 
-                        tnumber: -301.101, tposnumber: 301.101 }));
+                      { id: 301, tfloat: -301.1, tdouble: 301.10000000, 
+                        tnumber: -301.101, tposint: 301, 
+                        tposnumber: 301.101, tposbigint: 301 }));
   });
 }
 
-// Write a string to a float column; should succeed
-var t2 = new harness.ConcurrentTest("writeStringToFloatCol");
+// Write strings to all columns 
+var t2 = new harness.ConcurrentTest("writeStrings");
 t2.run = function() {
   fail_openSession(t2, function(session) {
-    shouldSucceed(t2, 
-      session.persist("numerictypes", { id: 302, tfloat: "302.15" }));
-  });
-}
-
-
-// Write string to double column: OK
-var t3 = new harness.ConcurrentTest("writeStringToDoubleCol");
-t3.run = function() {
-  fail_openSession(t3, function(session) {
-    shouldSucceed(t3,
-      session.persist("numerictypes", 
-                      { id: 303, tfloat: 303, tdouble: "303.1000000" }));
-  });
-}
-
-// Write string to decimal column: OK
-var t4 = new harness.ConcurrentTest("writeStringToDecimalCol");
-t4.run = function() {
-  fail_openSession(t4, function(session) {
-    shouldSucceed(t4,
-      session.persist("numerictypes", 
-                      { id: 304, tfloat: 304, tdecimal: "-12345678.123" }));
-  });
-}
-
-// Write positive int to unsigned float column: OK
-var t5 = new harness.ConcurrentTest("writeIntToUnsignedFloat");
-t5.run = function() {
-  fail_openSession(t5, function(session) {
-    shouldSucceed(t5,
-      session.persist("numerictypes", { id: 305, tfloat: 305, tposfloat: 305 }));
-  });
-}
-
-
-// Write negative int to unsigned float column: should fail with 22003
-var t6 = new harness.ConcurrentTest("writeNegativeToUnsignedFloat");
-t6.run = function() {
-  fail_openSession(t6, function(session) {
-    shouldGetError(t6, "22003",
-      session.persist("numerictypes", { id: 306, tfloat: 306, tposfloat: -306 }));
+    shouldSucceed(t2,
+      session.persist("numerictypes",
+                      { id: "302", tfloat: "-302.2", tdouble: "302.2000000",
+                        tnumber: "-302.202", tposint: "302", 
+                        tposnumber: "302.202", tposbigint: "302"}));
   });
 }
 
 // Write negative value to unsigned decimal column: 22003
-var t7 = new harness.ConcurrentTest("writeNegativeToUnsignedDecimal");
-t7.run = function() {
-  fail_openSession(t7, function(session) {
-    shouldGetError(t7, "22003",
+var t3 = new harness.ConcurrentTest("writeNegativeToUnsignedDecimal");
+t3.run = function() {
+  fail_openSession(t3, function(session) {
+    shouldGetError(t3, "22003",
       session.persist("numerictypes", { id: 307, tfloat: 307, tposnumber: -307 }));
   });
 }
 
-// Write string containing negative value to unsigned float: 22003
-var t8 = new harness.ConcurrentTest("writeStringNegativeToUnsignedFloat");
-t8.run = function() {
-  fail_openSession(t7, function(session) {
-    shouldGetError(t8, "22003",
-      session.persist("numerictypes", { id: 308, tfloat: 308, tposfloat: "-308"}));
-  });
-}
-
-
 // Write string containing negative value to unsigned decimal:  22003 
-var t9 = new harness.ConcurrentTest("writeStringNegativeToUnsignedDecimal");
-t9.run = function() {
-  fail_openSession(t9, function(session) {
-    shouldGetError(t9, "22003", 
+var t4 = new harness.ConcurrentTest("writeStringNegativeToUnsignedDecimal");
+t4.run = function() {
+  fail_openSession(t4, function(session) {
+    shouldGetError(t4, "22003", 
       session.persist("numerictypes", { id: 309, tfloat: 309, tposnumber: "-309"}));
   });
 }
 
+// Write decimal value that will get truncated due to precision.
+// In SQL strict mode, this succeeds but generates a warning.
+var t5 = new harness.ConcurrentTest("writeTruncatedDecimal");
+t5.run = function() {
+  fail_openSession(t5, function(session) {
+    shouldSucceed(t5,
+      session.persist("numerictypes", { id: 310, tfloat:310, tnumber: 310.0001}));
+  });
+}
 
-module.exports.tests = [ t1,t2,t3,t4,t5,t6,t7,t8,t9 ] ;
+// Write negative value to unsigned bigint:  22003
+var t6 = new harness.ConcurrentTest("writeNegativeToUnsignedBigint");
+t6.run = function() {
+  fail_openSession(t6, function(session) {
+    shouldGetError(t6, "22003",
+      session.persist("numerictypes", { id: 306, tfloat: 306, tposbigint: -306 }));
+  });
+}
+
+// Write string containing negative value to unsigned bigint:  22003
+var t7 = new harness.ConcurrentTest("writeStringNegativeToUnsignedBigint");
+t7.run = function() {
+  fail_openSession(t7, function(session) {
+    shouldGetError(t7, "22003",
+      session.persist("numerictypes", { id: 307, tfloat: 307, tposbigint: "-307" }));
+  });
+}
+
+module.exports.tests = [ t1,t2,t3,t4,t5,t6,t7 ] ;
