@@ -30,24 +30,24 @@
   magic int not null,
 */
 function makePass(testCase) {
-  return function() { testCase.pass(); }
+  return function() { testCase.pass(); };
 }
 
 function makeFail(testCase, message) {
-  return function() { testCase.fail(message); }
+  return function() { testCase.fail(message); };
 }
 
 function shouldSucceed(test, promise) {
   promise.then(makePass(test), makeFail(test, "Should succeed"));
-};
+}
 
 function shouldGetError(test, sqlstate, promise) {
   var message = "should get error " + sqlstate;
   promise.then(makeFail(test, message), function(error) {
     test.errorIfNotEqual("SQLState", sqlstate, error.sqlstate);
     test.failOnError();
-  })
-};
+  });
+}
 
 /* Writing a string to an int column should succeed if the string 
    can be cast to a legal int value for the column.
@@ -58,7 +58,7 @@ t1.run = function() {
     shouldSucceed(t1, 
       session.persist("t_basic", { id: 301, age: 1, magic: 301}));
   });
-}
+};
 
 /* Writing a string to an int column should fail with 22003 
    if the string cannot be cast to an int.
@@ -69,7 +69,7 @@ t2.run = function() {
     shouldGetError(t2, "22003",
       session.persist("t_basic", { id: 302, age: "young", magic: 302}));
   });
-}
+};
 
 /* Writing a string to an int column should fail with error 22003
    if the string can be cast to an int but the int is not valid for the column.
@@ -80,7 +80,7 @@ t3.run = function() {
     shouldGetError(t3, "22003",
       session.persist("t_basic", { id: 303, age: "-8589934592", magic: 303}));
   });
-}
+};
 
 /* If you write a decimal number to an int column, MySQL rounds 
    it to the nearest int 
@@ -91,7 +91,7 @@ t4.run = function() {
     shouldSucceed(t4,
       session.persist("t_basic", { id:304, age: 14.6, magic: 304}));
   });
-}
+};
 
 /* If you write a string containing a decimal number to an int column,
    MySQL converts it to a number and then rounds the number to an int.
@@ -102,7 +102,7 @@ t5.run = function() {
     shouldSucceed(t5,
       session.persist("t_basic", { id:305, age: "15.6", magic: 305}));
   });
-}
+};
 
 /* Writing a positive int to a string column should succeed. 
 */
@@ -112,7 +112,7 @@ t6.run = function() {
     shouldSucceed(t6, 
       session.persist("t_basic", { id:306, name: 306, magic: 306}));
   });
-}
+};
 
 /* Writing a negative number to a string column should succeed.
 */
@@ -122,7 +122,7 @@ t7.run = function() {
     shouldSucceed(t7,
       session.persist("t_basic", { id: 307, name: -307.14, magic: 307 }));
   });
-}
+};
 
 
 /* Writing a string that's too long should give error SQLState 22001
@@ -134,6 +134,6 @@ t8.run = function() {
       session.persist("t_basic", { id:308, magic:308, 
                                    name:"abcdefghijklmnopqrstuv ABCDEFGHIJK"}));
   });
-}
+};
 
 module.exports.tests = [ t1 , t2 , t3 , t4 , t5 , t6 , t7 , t8 ];

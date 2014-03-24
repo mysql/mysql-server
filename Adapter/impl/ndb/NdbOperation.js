@@ -70,8 +70,7 @@ DBOperationError.prototype.initFromNdbError = function(ndb_error) {
   this.ndb_error = ndb_error;
   this.message   = ndb_error.message + " [" + ndb_error.code + "]";
   this.sqlstate  = errorClassificationMap[ndb_error.classification];
-}
-
+};
 
 function IndirectError(cause) {
   udebug.log("Adding indirect error from", cause);
