@@ -108,6 +108,8 @@ DECLARE_ENCODER(Time2);
 DECLARE_ENCODER(Date);
 
 DECLARE_ENCODER(Decimal);
+EncoderWriter UnsignedDecimalWriter;
+ENCODER(UnsignedDecimalEncoder, DecimalReader, UnsignedDecimalWriter);
 
 const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & UnsupportedTypeEncoder,               // 0
@@ -140,7 +142,7 @@ const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & TimestampEncoder,                     // 27 TIMESTAMP
   & UnsupportedTypeEncoder,               // 28 OLDDECIMAL UNSIGNED
   & DecimalEncoder,                       // 29 DECIMAL
-  & DecimalEncoder                        // 30 DECIMAL UNSIGNED
+  & UnsignedDecimalEncoder                // 30 DECIMAL UNSIGNED
 #if NDB_TYPE_MAX > 31
   ,
   & Time2Encoder,                         // 31 TIME2
@@ -602,6 +604,17 @@ Handle<Value> DecimalWriter(const NdbDictionary::Column *col,
 }
 
 
+// Unsigned Decimal.  Writer adds boundary checking.
+Handle<Value> UnsignedDecimalWriter(const NdbDictionary::Column *col,
+                                    Handle<Value> value, char *buffer, 
+                                    size_t offset) {
+  HandleScope scope;
+  return value->NumberValue() >= 0 ?
+    DecimalWriter(col, value, buffer, offset) :
+    K_22003_OutOfRange;
+}
+
+
 // Templated encoder for float and double
 template<typename FPT> 
 Handle<Value> fpReader(const NdbDictionary::Column *col, 
@@ -615,9 +628,10 @@ template<typename FPT>
 Handle<Value> fpWriter(const NdbDictionary::Column * col,
                        Handle<Value> value, 
                        char *buffer, size_t offset) {
-  bool valid = value->IsNumber();
+  double dval = value->ToNumber()->NumberValue();
+  bool valid = isfinite(dval);
   if(valid) {
-    STORE_ALIGNED_DATA(FPT, value->NumberValue(), buffer+offset);
+    STORE_ALIGNED_DATA(FPT, dval, buffer+offset);
   }
   return valid ? writerOK : K_22003_OutOfRange;
 }
