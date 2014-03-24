@@ -2249,11 +2249,13 @@ float Item_func_ne::get_filtering_effect(table_map filter_for_table,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
-  return 1.0f - get_cond_filter_default_probability(rows_in_table,
-                                                    COND_FILTER_EQUALITY);
+  return 1.0f - fld->get_cond_filter_default_probability(rows_in_table,
+                                                         COND_FILTER_EQUALITY);
 }
 
 longlong Item_func_ne::val_int()
@@ -2268,11 +2270,13 @@ float Item_func_equal::get_filtering_effect(table_map filter_for_table,
                                             const MY_BITMAP *fields_to_ignore,
                                             double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
-  return get_cond_filter_default_probability(rows_in_table,
-                                             COND_FILTER_EQUALITY);
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_EQUALITY);
 }
 
 float Item_func_ge::get_filtering_effect(table_map filter_for_table,
@@ -2280,11 +2284,13 @@ float Item_func_ge::get_filtering_effect(table_map filter_for_table,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
-  return get_cond_filter_default_probability(rows_in_table,
-                                             COND_FILTER_INEQUALITY);
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_INEQUALITY);
 }
 
 float Item_func_lt::get_filtering_effect(table_map filter_for_table,
@@ -2292,11 +2298,13 @@ float Item_func_lt::get_filtering_effect(table_map filter_for_table,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
-  return get_cond_filter_default_probability(rows_in_table,
-                                             COND_FILTER_INEQUALITY);
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_INEQUALITY);
 }
 
 float Item_func_le::get_filtering_effect(table_map filter_for_table,
@@ -2304,11 +2312,13 @@ float Item_func_le::get_filtering_effect(table_map filter_for_table,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
-  return get_cond_filter_default_probability(rows_in_table,
-                                             COND_FILTER_INEQUALITY);
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_INEQUALITY);
 }
 
 float Item_func_gt::get_filtering_effect(table_map filter_for_table,
@@ -2316,11 +2326,13 @@ float Item_func_gt::get_filtering_effect(table_map filter_for_table,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
-  return get_cond_filter_default_probability(rows_in_table,
-                                             COND_FILTER_INEQUALITY);
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_INEQUALITY);
 }
 
 longlong Item_func_ge::val_int()
@@ -2761,11 +2773,14 @@ Item_func_between::get_filtering_effect(table_map filter_for_table,
                                         const MY_BITMAP *fields_to_ignore,
                                         double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
   const float filter=
-    get_cond_filter_default_probability(rows_in_table, COND_FILTER_BETWEEN);
+    fld->get_cond_filter_default_probability(rows_in_table,
+                                             COND_FILTER_BETWEEN);
 
   return negated ? 1.0f - filter : filter;
 }
@@ -4545,8 +4560,9 @@ Item_func_in::get_single_col_filtering_effect(Item_ident *fieldref,
                     (fieldref->real_item())->field->field_index))  // 2)
     return COND_FILTER_ALLPASS;
 
-  return get_cond_filter_default_probability(rows_in_table,
-                                             COND_FILTER_EQUALITY);
+  const Item_field *fld= (Item_field*)fieldref->real_item();
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_EQUALITY);
 
 }
 
@@ -5636,11 +5652,13 @@ float Item_func_isnull::get_filtering_effect(table_map filter_for_table,
                                              const MY_BITMAP *fields_to_ignore,
                                              double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
-  return get_cond_filter_default_probability(rows_in_table,
-                                             COND_FILTER_EQUALITY);
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_EQUALITY);
 }
 
 longlong Item_func_isnull::val_int()
@@ -5708,11 +5726,13 @@ Item_func_isnotnull::get_filtering_effect(table_map filter_for_table,
                                           const MY_BITMAP *fields_to_ignore,
                                           double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
-  return 1.0f - get_cond_filter_default_probability(rows_in_table,
-                                                    COND_FILTER_EQUALITY);
+  return 1.0f - fld->get_cond_filter_default_probability(rows_in_table,
+                                                         COND_FILTER_EQUALITY);
 }
 
 longlong Item_func_isnotnull::val_int()
@@ -5735,7 +5755,9 @@ float Item_func_like::get_filtering_effect(table_map filter_for_table,
                                            const MY_BITMAP *fields_to_ignore,
                                            double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
   /*
@@ -5753,8 +5775,8 @@ float Item_func_like::get_filtering_effect(table_map filter_for_table,
     look through the whole string searching for wildcards and since
     LIKE is mostly used for wildcards this isn't checked.
   */
-  return get_cond_filter_default_probability(rows_in_table,
-                                             COND_FILTER_BETWEEN);
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_BETWEEN);
 }
 
 longlong Item_func_like::val_int()
@@ -6798,8 +6820,8 @@ float Item_equal::get_filtering_effect(table_map filter_for_table,
           of the fields that must be ignored
         */
         float cur_filter=
-          get_cond_filter_default_probability(rows_in_table,
-                                              COND_FILTER_EQUALITY);
+          cur_field->get_cond_filter_default_probability(rows_in_table,
+                                                         COND_FILTER_EQUALITY);
 
         // Use index statistics if available for this field
         if (!cur_field->field->key_start.is_clear_all())
@@ -7173,9 +7195,11 @@ float Item_func_eq::get_filtering_effect(table_map filter_for_table,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
 {
-  if (!contributes_to_filter(read_tables, filter_for_table, fields_to_ignore))
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
     return COND_FILTER_ALLPASS;
 
-  return get_cond_filter_default_probability(rows_in_table,
-                                             COND_FILTER_EQUALITY);
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_EQUALITY);
 }

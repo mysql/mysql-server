@@ -7082,6 +7082,38 @@ float Item_field::get_filtering_effect(table_map filter_for_table,
                                                     COND_FILTER_EQUALITY);
 }
 
+float
+Item_field::get_cond_filter_default_probability(double max_distinct_values,
+                                                float default_filter) const
+{
+  DBUG_ASSERT(max_distinct_values >= 1.0);
+
+  // Some field types have a limited number of possible values
+  const enum_field_types fld_type= field->real_type();
+  switch (fld_type)
+  {
+  case MYSQL_TYPE_ENUM:
+  {
+    // ENUM can only have the values defined in the typelib
+    const uint enum_values= static_cast<Field_enum*>(field)->typelib->count;
+    max_distinct_values= std::min(static_cast<double>(enum_values),
+                                  max_distinct_values);
+    break;
+  }
+  case MYSQL_TYPE_BIT:
+  {
+    // BIT(N) can have no more than 2^N distinct values
+    const double combos=
+      pow(2.0, static_cast<Field_bit*>(field)->field_length);
+    max_distinct_values= std::min(combos, max_distinct_values);
+    break;
+  }
+  default:
+    break;
+  }
+  return std::max(static_cast<float>(1/max_distinct_values), default_filter);
+}
+
 Item_ref::Item_ref(Name_resolution_context *context_arg,
                    Item **item, const char *table_name_arg,
                    const char *field_name_arg,
