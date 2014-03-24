@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1158,6 +1158,8 @@ void sendCertificateRequest(SSL& ssl, BufferOutput buffer)
 void sendCertificateVerify(SSL& ssl, BufferOutput buffer)
 {
     if (ssl.GetError()) return;
+
+    if(ssl.getCrypto().get_certManager().sendBlankCert()) return;
 
     CertificateVerify  verify;
     verify.Build(ssl);

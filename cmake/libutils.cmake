@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -158,6 +158,7 @@ MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
   IF(OSLIBS)
     LIST(REMOVE_DUPLICATES OSLIBS)
     TARGET_LINK_LIBRARIES(${TARGET} ${OSLIBS})
+    MESSAGE(STATUS "Library ${TARGET} depends on OSLIBS ${OSLIBS}")
   ENDIF()
 
   # Make the generated dummy source file depended on all static input
