@@ -4046,7 +4046,8 @@ fil_space_read_name_and_filepath(
 
 /** Open a tablespace file and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
-@param[in,out]	filename	databasename/tablename.ibd
+@param[in,out]	filename	databasename/tablename.ibd;
+will be normalized to use '/' between databasename and tablename
 @param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
