@@ -1960,6 +1960,9 @@ row_delete_for_mysql_using_cursor(
 				btr_cur_t* btr_cur = btr_pcur_get_btr_cur(
 					&(*it));
 
+				ut_ad(btr_cur_get_block(
+					btr_cur)->made_dirty_with_no_latch);
+
 				btr_rec_set_deleted_flag(
 					btr_cur_get_rec(btr_cur),
 					buf_block_get_page_zip(
