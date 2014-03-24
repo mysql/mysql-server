@@ -618,3 +618,86 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ref	col1_idx	col1_idx	5	const	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	0.78	Using where; Using join buffer (Block Nested Loop)
 DROP TABLE t1,t2;
+#
+# Bug#18438671: MAKE USE OF DATATYPE CONSTRAINTS WHEN CALCULATING
+#               FILTERING EFFECT
+#
+CREATE TABLE t1(
+day_of_week enum('0','1','2','3','4','5','6'),
+bit1 bit(1),
+bit3 bit(3)
+) ENGINE=myisam;
+INSERT INTO t1 VALUES (1+RAND()*7, RAND()*2, RAND()*8),
+(1+RAND()*7, RAND()*2, RAND()*8);
+INSERT INTO t1 SELECT 1+RAND()*7, RAND()*2, RAND()*8 FROM t1;
+INSERT INTO t1 SELECT 1+RAND()*7, RAND()*2, RAND()*8 FROM t1;
+INSERT INTO t1 SELECT 1+RAND()*7, RAND()*2, RAND()*8 FROM t1;
+INSERT INTO t1 SELECT 1+RAND()*7, RAND()*2, RAND()*8 FROM t1;
+INSERT INTO t1 SELECT 1+RAND()*7, RAND()*2, RAND()*8 FROM t1;
+INSERT INTO t1 SELECT 1+RAND()*7, RAND()*2, RAND()*8 FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE bit1 =  b'1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`bit1` = 0x01)
+EXPLAIN SELECT * FROM t1 WHERE bit1 <=>b'1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`bit1` <=> 0x01)
+EXPLAIN SELECT * FROM t1 WHERE bit1 >  b'0';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`bit1` > 0x00)
+EXPLAIN SELECT * FROM t1 WHERE bit1 >= b'0';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`bit1` >= 0x00)
+EXPLAIN SELECT * FROM t1 WHERE bit1 <  b'0';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`bit1` < 0x00)
+EXPLAIN SELECT * FROM t1 WHERE bit1 <= b'0';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`bit1` <= 0x00)
+EXPLAIN SELECT * FROM t1 WHERE bit3 =  b'1';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	12.50	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`bit3` = 0x01)
+EXPLAIN SELECT * FROM t1 WHERE day_of_week;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	85.71	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where `test`.`t1`.`day_of_week`
+EXPLAIN SELECT * FROM t1 WHERE day_of_week =  1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	14.29	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`day_of_week` = 1)
+EXPLAIN SELECT * FROM t1 WHERE day_of_week IN (1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	14.29	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`day_of_week` = 1)
+EXPLAIN SELECT * FROM t1 WHERE day_of_week IN (1,2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	28.57	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`day_of_week` in (1,2))
+EXPLAIN SELECT * FROM t1 WHERE day_of_week LIKE 'foo';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	14.29	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`day_of_week` like 'foo')
+EXPLAIN SELECT * FROM t1 WHERE NOT day_of_week = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	85.71	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (`test`.`t1`.`day_of_week` <> 1)
+DROP TABLE t1;
