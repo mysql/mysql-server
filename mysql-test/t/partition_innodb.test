@@ -683,3 +683,23 @@ ALTER TABLE t1 ADD UNIQUE KEY (b);
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#16943907: FLUSH TABLES FOR EXPORT: ASSERTION IN HA_PARTITION::EXTRA
+--echo #
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
+PARTITION BY HASH (a) PARTITIONS 2;
+FLUSH TABLES t1 FOR EXPORT;
+--echo # List of files after EXPORT (should include a .cfg file for each part).
+--replace_result #p# #P#
+--list_files $MYSQLD_DATADIR/test/ t1*
+UNLOCK TABLES;
+--echo # List of files after UNLOCK (no .cfg files).
+--replace_result #p# #P#
+--list_files $MYSQLD_DATADIR/test/ t1*
+--error ER_ILLEGAL_HA
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_ILLEGAL_HA
+ALTER TABLE t1 IMPORT TABLESPACE;
+DROP TABLE t1;
+USE test;

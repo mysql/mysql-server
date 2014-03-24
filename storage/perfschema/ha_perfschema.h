@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #define HA_PERFSCHEMA_H
 
 #include "handler.h"                            /* class handler */
+#include "table.h"
+#include "sql_class.h"
 
 /**
   @file storage/perfschema/ha_perfschema.h
@@ -199,6 +201,39 @@ public:
   virtual void print_error(int error, myf errflags);
 
 private:
+  /**
+     Check if the caller is a replication thread or the caller is called
+     by a client thread executing base64 encoded BINLOG'... statement.
+
+     In theory, performance schema tables are not supposed to be replicated.
+     This is true and enforced starting with MySQL 5.6.10.
+     In practice, in previous versions such as MySQL 5.5 (GA) or earlier 5.6
+     (non GA) DML on performance schema tables could end up written in the binlog,
+     both in STATEMENT and ROW format.
+     While these records are not supposed to be there, they are found when:
+     - performing replication from a 5.5 master to a 5.6 slave during
+       upgrades
+     - performing replication from 5.5 (performance_schema enabled)
+       to a 5.6 slave
+     - performing point in time recovery in 5.6 with old archived logs.
+
+     This API detects when the code calling the performance schema storage
+     engine is a slave thread or whether the code calling isthe client thread
+     executing a BINLOG'.. statement.
+
+     This API acts as a late filter for the above mentioned cases.
+
+     For ROW format, @see Rows_log_event::do_apply_event()
+
+  */
+  bool is_executed_by_slave() const
+  {
+    DBUG_ASSERT(table != NULL);
+    DBUG_ASSERT(table->in_use != NULL);
+    return table->in_use->slave_thread;
+
+  }
+
   /** MySQL lock */
   THR_LOCK_DATA m_thr_lock;
   /** Performance schema table share for this table handler. */

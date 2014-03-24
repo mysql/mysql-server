@@ -19,7 +19,7 @@ create table t2 (a int(11) not null auto_increment primary key,
 
 insert into t2(c) values (null);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 drop table t1, t2;

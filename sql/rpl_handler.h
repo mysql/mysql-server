@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -215,7 +215,8 @@ public:
 
   typedef Binlog_transmit_observer Observer;
   int transmit_start(THD *thd, ushort flags,
-                     const char *log_file, my_off_t log_pos);
+                     const char *log_file, my_off_t log_pos,
+                     bool *observe_transmission);
   int transmit_stop(THD *thd, ushort flags);
   int reserve_header(THD *thd, ushort flags, String *packet);
   int before_send_event(THD *thd, ushort flags,

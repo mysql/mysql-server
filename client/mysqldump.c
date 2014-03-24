@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,7 +109,8 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_slave_apply= 0, 
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
-                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0;
+                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
+                opt_secure_auth= 1;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -508,6 +509,9 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, 
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tab",'T',
    "Create tab-separated textfile for each table to given path. (Create .sql "
@@ -1519,6 +1523,8 @@ static int connect_to_db(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
+  if (!opt_secure_auth)
+    mysql_options(&mysql_connection,MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);

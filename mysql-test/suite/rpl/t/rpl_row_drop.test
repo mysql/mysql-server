@@ -8,14 +8,14 @@ CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
 CREATE TEMPORARY TABLE t2 (a int, b int);
 SHOW TABLES;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo **** On Slave ****
 SHOW TABLES;
 connection master;
 --echo **** On Master ****
 DROP TABLE t2;        # Dropping the temporary table
 SHOW TABLES;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo **** On Slave ****
 SHOW TABLES;          # There should be two tables on the slave
 
@@ -23,7 +23,7 @@ connection master;
 --echo **** On Master ****
 CREATE TEMPORARY TABLE t2 (a int, b int);
 SHOW TABLES;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo **** On Slave ****
 SHOW TABLES;
 connection master;
@@ -32,7 +32,7 @@ connection master;
 DROP TABLE t1,t2;
 source include/show_binlog_events.inc;
 SHOW TABLES;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo **** On Slave ****
 SHOW TABLES;
 
@@ -40,7 +40,7 @@ SHOW TABLES;
 --disable_warnings
 connection master;
 DROP TABLE IF EXISTS t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --enable_warnings
 --enable_query_log
 --source include/rpl_end.inc

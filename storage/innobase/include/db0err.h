@@ -128,6 +128,8 @@ enum dberr_t {
 	DB_FTS_EXCEED_RESULT_CACHE_LIMIT,	/*!< FTS query memory
 					exceeds result cache limit */
 	DB_TEMP_FILE_WRITE_FAILURE,	/*!< Temp file write failure */
+	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
+					/*< Too many words in a phrase */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

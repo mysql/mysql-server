@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -175,6 +175,20 @@ extern ulint	fil_n_pending_tablespace_flushes;
 
 /** Number of files currently open */
 extern ulint	fil_n_file_opened;
+
+struct fsp_open_info {
+	ibool		success;	/*!< Has the tablespace been opened? */
+	const char*	check_msg;	/*!< fil_check_first_page() message */
+	ibool		valid;		/*!< Is the tablespace valid? */
+	os_file_t	file;		/*!< File handle */
+	char*		filepath;	/*!< File path to open */
+	lsn_t		lsn;		/*!< Flushed LSN from header page */
+	ulint		id;		/*!< Space ID */
+	ulint		flags;		/*!< Tablespace flags */
+#ifdef UNIV_LOG_ARCHIVE
+	ulint		arch_log_no;	/*!< latest archived log file number */
+#endif /* UNIV_LOG_ARCHIVE */
+};
 
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
@@ -986,6 +1000,18 @@ fil_mtr_rename_log(
 					swapping */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 	__attribute__((nonnull));
+
+/*******************************************************************//**
+Finds the given page_no of the given space id from the double write buffer,
+and copies it to the corresponding .ibd file.
+@return true if copy was successful, or false. */
+bool
+fil_user_tablespace_restore_page(
+/*==============================*/
+	fsp_open_info*	fsp,		/* in: contains space id and .ibd
+					file information */
+	ulint		page_no);	/* in: page_no to obtain from double
+					write buffer */
 
 #endif /* !UNIV_INNOCHECKSUM */
 #endif /* fil0fil_h */

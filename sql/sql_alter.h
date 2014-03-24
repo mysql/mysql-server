@@ -1,4 +1,5 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,6 +75,7 @@ public:
   static const uint ALTER_CONVERT               = 1L << 10;
 
   // Set for FORCE
+  // Set for ENGINE(same engine)
   // Set by mysql_recreate_table()
   static const uint ALTER_RECREATE              = 1L << 11;
 

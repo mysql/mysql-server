@@ -266,6 +266,7 @@ a	b
 101	101
 102	102
 103	103
+include/sync_slave_sql_with_master.inc
 
 SHOW TABLES LIKE 't%';
 Tables_in_test (t%)
@@ -435,6 +436,7 @@ UPDATE t12 SET c='';
 UPDATE t13 SET c='';
 ALTER TABLE t3 ORDER BY a;
 ALTER TABLE t13 ORDER BY a;
+include/sync_slave_sql_with_master.inc
 
 
 
@@ -446,4 +448,5 @@ DROP FUNCTION IF EXISTS f1;
 DROP FUNCTION IF EXISTS f2;
 DROP EVENT IF EXISTS e1;
 DROP EVENT IF EXISTS e11;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

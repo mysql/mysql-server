@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3599,20 +3599,6 @@ fil_report_bad_tablespace(
 		(ulong) expected_id, (ulong) expected_flags);
 }
 
-struct fsp_open_info {
-	ibool		success;	/*!< Has the tablespace been opened? */
-	const char*	check_msg;	/*!< fil_check_first_page() message */
-	ibool		valid;		/*!< Is the tablespace valid? */
-	os_file_t	file;		/*!< File handle */
-	char*		filepath;	/*!< File path to open */
-	lsn_t		lsn;		/*!< Flushed LSN from header page */
-	ulint		id;		/*!< Space ID */
-	ulint		flags;		/*!< Tablespace flags */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint		arch_log_no;	/*!< latest archived log file number */
-#endif /* UNIV_LOG_ARCHIVE */
-};
-
 /********************************************************************//**
 Tries to open a single-table tablespace and optionally checks that the
 space id in it is correct. If this does not succeed, print an error message
@@ -4103,7 +4089,7 @@ fil_user_tablespace_find_space_id(
 		ut_free(buf);
 
 		ib_logf(IB_LOG_LEVEL_INFO, "Page size: %lu, Possible space_id "
-			"count:%lu", page_size, verify.size());
+			"count:%lu", page_size, (ulint) verify.size());
 
 		const ulint pages_corrupted = 3;
 		for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
@@ -4133,53 +4119,53 @@ fil_user_tablespace_find_space_id(
 }
 
 /*******************************************************************//**
-Finds the page 0 of the given space id from the double write buffer, and
-copies it to the corresponding .ibd file.
+Finds the given page_no of the given space id from the double write buffer,
+and copies it to the corresponding .ibd file.
 @return true if copy was successful, or false. */
-static
 bool
-fil_user_tablespace_restore_page0(
+fil_user_tablespace_restore_page(
 /*==============================*/
-	fsp_open_info*	fsp)	/* in: contains space id and .ibd file
-				information */
+	fsp_open_info*	fsp,		/* in: contains space id and .ibd
+					file information */
+	ulint		page_no)	/* in: page_no to obtain from double
+					write buffer */
 {
 	bool	err;
 	ulint	flags;
 	ulint	zip_size;
-	ulint	page_no;
 	ulint	page_size;
 	ulint	buflen;
 	byte*	page;
 
-	ib_logf(IB_LOG_LEVEL_INFO, "Restoring first page of tablespace %lu",
-		fsp->id);
+	ib_logf(IB_LOG_LEVEL_INFO, "Restoring page %lu of tablespace %lu",
+		page_no, fsp->id);
 
-	if (fsp->id == 0) {
-		err = false;
-		goto out;
-	}
-
-	// find if double write buffer has page0 of given space id
-	page = recv_sys->dblwr.find_first_page(fsp->id);
+	// find if double write buffer has page_no of given space id
+	page = recv_sys->dblwr.find_page(fsp->id, page_no);
 
 	if (!page) {
+                ib_logf(IB_LOG_LEVEL_WARN, "Doublewrite does not have "
+			"page_no=%lu of space: %lu", page_no, fsp->id);
 		err = false;
 		goto out;
 	}
 
         flags = mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
 	zip_size = fsp_flags_get_zip_size(flags);
-	page_no = page_get_page_no(page);
 	page_size = fsp_flags_get_page_size(flags);
 
-	ut_ad(page_no == 0);
+	ut_ad(page_no == page_get_page_no(page));
 
 	buflen = zip_size ? zip_size: page_size;
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Writing %lu bytes into file: %s",
 		buflen, fsp->filepath);
 
-	err = os_file_write(fsp->filepath, fsp->file, page, 0, buflen);
+	err = os_file_write(fsp->filepath, fsp->file, page,
+			    (zip_size ? zip_size : page_size) * page_no,
+			    buflen);
+
+	os_file_flush(fsp->file);
 out:
 	return(err);
 }
@@ -4217,7 +4203,9 @@ check_first_page:
 				return;
 			}
 			restore_attempted = true;
-			if (!fil_user_tablespace_restore_page0(fsp)) {
+
+			if (fsp->id > 0
+			    && !fil_user_tablespace_restore_page(fsp, 0)) {
 				return;
 			}
 			goto check_first_page;

@@ -18,6 +18,7 @@ end;$$
 ==== enable the binary log, then call the procedure ====
 call test_procedure(1234);
 [on slave]
+include/sync_slave_sql_with_master.inc
 select * from t1 order by id;
 id
 1234
