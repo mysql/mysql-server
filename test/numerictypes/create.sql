@@ -15,6 +15,16 @@ create table if not exists integraltypes (
 
 );
 
+create table if not exists numerictypes (
+  id int NOT NULL,
+  tposint int unsigned,
+  tfloat float NOT NULL,
+  tposfloat float unsigned,
+  tdouble double,
+  tnumber decimal(11,3),
+  tposnumber decimal(11,3) unsigned
+);
+
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(0, 0, 0, 0, 0, 0);
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(1, 1, 1, 1, 1, 1);
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(2, 2, 2, 2, 2, 2);
@@ -25,3 +35,10 @@ insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) v
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(7, 7, 7, 7, 7, 7);
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(8, 8, 8, 8, 8, 8);
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(9, 9, 9, 9, 9, 9);
+
+insert into numerictypes values (1, 1, -1.0, 1.0, 1.0, -1.001, 1.001);
+insert into numerictypes values (2, 2, -2.0, 2.0, 2.0, -2.020, 2.020);
+insert into numerictypes values (3, 3, -3.0, 3.0, 3.0, -3.300, 3.300);
+insert into numerictypes values (4, 4, -4.0, 4.0, 4.0, NULL, NULL);
+insert into numerictypes values (5, 5, -5.0, 5.0, 5.0, NULL, NULL);
+
