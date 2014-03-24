@@ -98,7 +98,7 @@ connection slave;
 source include/start_slave.inc;
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # assertion: assert that the slave got the updates even
 #            if the file was removed before the slave started,

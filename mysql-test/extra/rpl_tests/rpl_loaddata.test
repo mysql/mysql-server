@@ -45,7 +45,7 @@ create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60))
 insert into t3 select * from t2;
 --enable_warnings
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 select * from t1;
 select * from t3;
@@ -57,7 +57,7 @@ drop table t2;
 drop table t3;
 create table t1(a int, b int, unique(b));
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # See if slave stops when there's a duplicate entry for key error in LOAD DATA
 
@@ -238,7 +238,7 @@ connect (conn2,localhost,root,,*NO-ONE*);
 -- disconnect conn2
 -- connection master
 
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 -- eval use $db1
 
 let $diff_tables= master:$db1.t1, slave:$db1.t1;
@@ -249,7 +249,7 @@ source include/diff_tables.inc;
 -- eval DROP DATABASE $db1
 -- eval DROP DATABASE $db2
 
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 
 # BUG#49479: LOAD DATA INFILE is binlogged without escaping field names
 -- source include/rpl_reset.inc
@@ -260,7 +260,7 @@ CREATE TABLE t1 (`key` TEXT, `text` TEXT);
 LOAD DATA INFILE '../../std_data/loaddata2.dat' REPLACE INTO TABLE `t1` FIELDS TERMINATED BY ',';
 SELECT * FROM t1;
 
--- sync_slave_with_master
+-- source include/sync_slave_sql_with_master.inc
 -- connection master
 DROP TABLE t1;
 

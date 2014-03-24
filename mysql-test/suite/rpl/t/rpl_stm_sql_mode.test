@@ -21,5 +21,5 @@ DROP TABLE t1;
 -- echo # assertion: sync slave with master makes slave not to stop with
 -- echo #            duplicate key error (because it has received event
 -- echo #            with expected error code).
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

@@ -17,6 +17,7 @@ name	age	id
 Andy	31	00000001
 Jacob	2	00000002
 Caleb	1	00000003
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY id;
 name	age	id
 Andy	31	00000001

@@ -3,6 +3,7 @@
 #  For details look into extra/rpl_tests/rpl_lower_case_table_names.test
 # 
 
+-- source include/not_gtid_enabled.inc
 -- source include/have_innodb.inc
 -- source include/not_windows.inc
 -- source include/have_binlog_format_row.inc
