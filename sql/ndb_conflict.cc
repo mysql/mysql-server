@@ -533,6 +533,7 @@ ExceptionsTableWriter::init(const NdbDictionary::Table* mainTable,
   {
     char error_details[ FN_REFLEN ];
     uint error_details_len= sizeof(error_details);
+    error_details[0]= '\0';
     int ncol= mainTable->getNoOfColumns();
     int nkey= mainTable->getNoOfPrimaryKeys();
     int xncol= exceptionsTable->getNoOfColumns();
