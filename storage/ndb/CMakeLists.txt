@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -57,8 +57,9 @@ ENDMACRO()
 
 # Temporarily remove -Werror from compiler flags until
 # storage/ndb/ can be built with it
-STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-STRING(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
 
 IF (MYSQL_VERSION_ID LESS 50500)
   # Use same compiler defines as MySQL Server for debug compile
