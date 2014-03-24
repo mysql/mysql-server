@@ -17,6 +17,7 @@
 # BUG#12133 master.index file keeps mysqld from starting if bin log has been moved
 # BUG#42576 Relay logs in relay-log.info&localhost-relay-bin.index not processed after move
 
+source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 # There is no need to run this test case on all binlog format
 source include/have_binlog_format_row.inc;

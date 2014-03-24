@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1603,13 +1604,13 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       upper_item->set_subselect(this);
     /*
       fix fields is already called for  left expression.
-      Note that real_item() should be used instead of
-      original left expression because left_expr can be
-      runtime created Ref item which is deleted at the end
+      Note that real_item() should be used for all the runtime
+      created Ref items instead of original left expression
+      because these items would be deleted at the end
       of the statement. Thus one of 'substitution' arguments
       can be broken in case of PS.
     */
-    substitution= func->create(left_expr->real_item(), subs);
+    substitution= func->create(left_expr->substitutional_item(), subs);
     DBUG_RETURN(RES_OK);
   }
 
@@ -1903,13 +1904,13 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
         /*
           fix_field of substitution item will be done in time of
           substituting.
-          Note that real_item() should be used instead of
-          original left expression because left_expr can be
-          runtime created Ref item which is deleted at the end
+          Note that real_item() should be used for all the runtime
+          created Ref items instead of original left expression
+          because these items would be deleted at the end
           of the statement. Thus one of 'substitution' arguments
           can be broken in case of PS.
-        */
-	substitution= func->create(left_expr->real_item(), orig_item);
+         */
+	substitution= func->create(left_expr->substitutional_item(), orig_item);
 	have_to_be_excluded= 1;
 	if (thd->lex->describe)
 	{

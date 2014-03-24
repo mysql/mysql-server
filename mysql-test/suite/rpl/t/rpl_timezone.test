@@ -45,7 +45,7 @@ select @@time_zone;
 insert into t1 values ('20050101000000', NULL), ('20050611093902',NULL);
 insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
 SELECT * FROM t1 ORDER BY n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #set time_zone='UTC';
 SELECT * FROM t1 ORDER BY n;
 
@@ -56,7 +56,7 @@ delete from t1;
 set time_zone='Europe/Moscow';
 insert into t1 values ('20040101000000',NULL), ('20040611093902',NULL);
 SELECT * FROM t1 ORDER BY n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 set time_zone='Europe/Moscow';
 SELECT * FROM t1 ORDER BY n;
 connection master;
@@ -73,7 +73,7 @@ delete from t1;
 set time_zone='UTC';
 load data infile '../../std_data/rpl_timezone2.dat' into table t1;
 SELECT * FROM t1 ORDER BY n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 set time_zone='UTC';
 SELECT * FROM t1 ORDER BY n;
 set time_zone='Europe/Moscow';
@@ -93,7 +93,7 @@ set time_zone='MET';
 --disable_warnings ONCE
 insert into t2 (select * from t1);
 SELECT * FROM t1 ORDER BY n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY n;
 
 #
@@ -103,7 +103,7 @@ connection master;
 delete from t2;
 set timestamp=1000072000;
 insert into t2 values (current_timestamp,NULL), (current_date,NULL), (current_time,NULL);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY n;
 
 #
@@ -114,7 +114,7 @@ delete from t2;
 insert into t2 values (from_unixtime(1000000000),NULL),
                       (unix_timestamp('2001-09-09 03:46:40'),NULL);
 SELECT * FROM t2 ORDER BY n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # We should get same result on slave as on master
 SELECT * FROM t2 ORDER BY n;
 
@@ -133,13 +133,13 @@ set time_zone='UTC';
 insert into t2 values(convert_tz('2004-01-01 00:00:00','MET',@@time_zone),NULL);
 insert into t2 values(convert_tz('2005-01-01 00:00:00','MET','Japan'),NULL);
 SELECT * FROM t2 ORDER BY n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY n;
 
 # Clean up
 connection master;
 drop table t1, t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 
 # Restore original timezone
@@ -160,7 +160,7 @@ SET @@session.time_zone='Japan';
 UPDATE t1 SET b= '1970-01-01 08:59:59' WHERE a= 1;
 SELECT * FROM t1 ORDER BY a;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SET @@session.time_zone='Japan';
 # must procdure the same result as the SELECT on the master
 SELECT * FROM t1 ORDER BY a;
@@ -169,7 +169,7 @@ SET @@session.time_zone = default;
 connection master;
 DROP TABLE t1;
 SET @@session.time_zone = default;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 
 # Bug#41719 delayed INSERT into timestamp col needs set time_zone for concurrent binlogging

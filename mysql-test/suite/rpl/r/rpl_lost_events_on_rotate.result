@@ -10,6 +10,7 @@ INSERT INTO t VALUES (1);
 INSERT INTO t VALUES (2);
 FLUSH LOGS;
 SET DEBUG_SYNC= 'now SIGNAL signal.rotate_finished';
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t,slave:t]
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET DEBUG_SYNC= 'RESET';

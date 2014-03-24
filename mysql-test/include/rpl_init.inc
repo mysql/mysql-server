@@ -245,6 +245,10 @@ if ($rpl_check_server_ids)
 
 # $rpl_master_list must be set so that include/rpl_change_topology.inc
 # knows which servers are initialized and not.
+if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+{
+  --let $use_gtids=1
+}
 --let $rpl_master_list= `SELECT REPEAT('x', $rpl_server_count * LENGTH($rpl_server_count))`
 --source include/rpl_change_topology.inc
 

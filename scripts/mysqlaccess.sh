@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -2393,7 +2393,8 @@ sub Print_Header {
     print "$MySQLaccess::script Version $MySQLaccess::VERSION\n"
          ."By RUG-AIV, by Yves Carlier (Yves.Carlier\@rug.ac.be)\n"
          ."Changes by Steve Harvey (sgh\@vex.net)\n"
-         ."This software comes with ABSOLUTELY NO WARRANTY.\n";
+         ."This software comes with ABSOLUTELY NO WARRANTY.\n"
+	 ."\nWarning: $MySQLaccess::script is deprecated and will be removed in a future version.\n";
     }
     if ($MySQLaccess::CGI) { #CGI-BIN mode
     print "content-type: text/html\n\n" 
@@ -2407,6 +2408,7 @@ sub Print_Header {
          ."By RUG-AIV, by Yves Carlier (<a href=mailto:Yves.Carlier\@rug.ac.be>Yves.Carlier\@rug.ac.be</a>)<BR>\n"
          ."Changes by Steve Harvey (<a href=mailto:sgh\@vex.net>sgh\@vex.net</a>)<BR>\n"
          ."This software comes with ABSOLUTELY NO WARRANTY.<BR>\n"
+         ."<BR>\nWarning: $MySQLaccess::script is deprecated and will be removed in a future version.<BR>\n"
          ."</ADDRESS>\n</CENTER>\n"
          ."<HR>\n";
     Print_Taskbar();
