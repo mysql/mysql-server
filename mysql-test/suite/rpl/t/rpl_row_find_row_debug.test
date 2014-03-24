@@ -1,9 +1,9 @@
 #
 # Bug#11760927: 53375: RBR + NO PK => HIGH LOAD ON SLAVE (TABLE SCAN/CPU) => SLAVE FAILURE
 #
---source include/master-slave.inc
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
+--source include/master-slave.inc
 
 # SETUP
 # - setup log_warnings and debug 

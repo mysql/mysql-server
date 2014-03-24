@@ -1,6 +1,6 @@
 --source include/not_embedded.inc
---source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
 
 #
 # BUG#13427949: CHANGE MASTER TO USER='' (EMPTY USER) CAUSES ERRORS ON VALGRING 
