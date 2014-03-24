@@ -177,7 +177,8 @@ template <class T> bool valid_buffer_range(T jump,
 #define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
 #define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED       (1ULL << 14)
 #define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 15)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 16)
+#define OPTIMIZER_SWITCH_COND_FANOUT_FILTER        (1ULL << 16)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 17)
 
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -193,7 +194,8 @@ template <class T> bool valid_buffer_range(T jump,
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
                                   OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
-                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
+                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS | \
+                                  OPTIMIZER_SWITCH_COND_FANOUT_FILTER)
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should

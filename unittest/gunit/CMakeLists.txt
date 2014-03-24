@@ -284,6 +284,7 @@ SET(SERVER_TESTS
   handler
   insert_delayed
   item
+  item_filter
   item_func_now_local
   item_timefunc
   item_like

@@ -1658,6 +1658,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
+      bitmap_clear_all(&table->tmp_set);
     }
   }
   
