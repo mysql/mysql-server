@@ -372,13 +372,13 @@ my_cs_have_contractions(CHARSET_INFO *cs)
 static inline my_bool
 my_cs_can_be_contraction_head(CHARSET_INFO *cs, my_wc_t wc)
 {
-  return ((const char *)cs->contractions)[0x40*0x40 + (wc & 0xFF)];
+  return ((const char *) cs->contractions)[0x40 * 0x40 * 2 + (wc & 0xFF)];
 }
 
 static inline my_bool
 my_cs_can_be_contraction_tail(CHARSET_INFO *cs, my_wc_t wc)
 {
-  return ((const char *)cs->contractions)[0x40*0x40 + (wc & 0xFF)];
+  return ((const char *) cs->contractions)[0x40 * 0x40 * 2 + (wc & 0xFF)];
 }
 
 static inline uint16*

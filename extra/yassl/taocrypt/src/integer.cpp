@@ -55,7 +55,9 @@
         #include <emmintrin.h>
     #endif
 #elif defined(_MSC_VER) && defined(_M_IX86)
-    #pragma message("You do not seem to have the Visual C++ Processor Pack ")
+/*    #pragma message("You do not seem to have the Visual C++ Processor Pack ")
+     #pragma message("installed, so use of SSE2 intrinsics will be disabled.")
+*/
     #pragma message("installed, so use of SSE2 intrinsics will be disabled.")
 #elif defined(__GNUC__) && defined(__i386__)
 /*   #warning You do not have GCC 3.3 or later, or did not specify the -msse2 \
@@ -73,7 +75,7 @@ template <class T>
 CPP_TYPENAME AlignedAllocator<T>::pointer AlignedAllocator<T>::allocate(
                                            size_type n, const void *)
 {
-    if (n > max_size())
+    if (n > this->max_size())
         return 0;
     if (n == 0)
         return 0;

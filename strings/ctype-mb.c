@@ -697,7 +697,7 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
   char *max_end= max_str + res_length;
   size_t maxcharlen= res_length / cs->mbmaxlen;
   const char *contraction_flags= cs->contractions ? 
-              ((const char*) cs->contractions) + 0x40*0x40 : NULL;
+              (const char *) (cs->contractions + 0x40*0x40) : NULL;
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
