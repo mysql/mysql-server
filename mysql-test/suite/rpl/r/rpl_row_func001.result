@@ -21,10 +21,12 @@ select * from test.t1;
 a
 1
 2
+include/sync_slave_sql_with_master.inc
 select * from test.t1;
 a
 1
 2
 DROP FUNCTION test.f1;
 DROP TABLE test.t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

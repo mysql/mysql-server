@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -395,6 +395,26 @@ public:
   {
     compute_statistics();
     truncate(0);
+
+    /*
+      If IOCACHE has a file associated, change its size to 0.
+      It is safer to do it here, since we are certain that one
+      asked the cache to go to position 0 with truncate.
+    */
+    if(cache_log.file != -1)
+    {
+      int error= 0;
+      if((error= my_chsize(cache_log.file, 0, 0, MYF(MY_WME))))
+        sql_print_warning("Unable to resize binlog IOCACHE auxilary file");
+
+      DBUG_EXECUTE_IF("show_io_cache_size",
+                      {
+                        ulong file_size= my_seek(cache_log.file,
+                                               0L,MY_SEEK_END,MYF(MY_WME+MY_FAE));
+                        sql_print_error("New size:%ld", file_size);
+                      });
+    }
+
     flags.incident= false;
     flags.with_xid= false;
     flags.immediate= false;
@@ -6848,7 +6868,14 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   /*
     Stage #2: Syncing binary log file to disk
   */
-  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log, &LOCK_sync))
+  bool need_LOCK_log= (get_sync_period() == 1);
+
+  /*
+    LOCK_log is not released when sync_binlog is 1. It guarantees that the
+    events are not be replicated by dump threads before they are synced to disk.
+  */
+  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue,
+                   need_LOCK_log ? NULL : &LOCK_log, &LOCK_sync))
   {
     DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
                           thd->thread_id, thd->commit_error));
@@ -6857,9 +6884,13 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   THD *final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
   if (flush_error == 0 && total_bytes > 0)
   {
+    DEBUG_SYNC(thd, "before_sync_binlog_file");
     std::pair<bool, bool> result= sync_binlog_file(false);
     flush_error= result.first;
   }
+
+  if (need_LOCK_log)
+    mysql_mutex_unlock(&LOCK_log);
 
   /*
     Stage #3: Commit all transactions in order.
@@ -6918,7 +6949,6 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       need the mutex. Otherwise causes various deadlocks.
     */
 
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
     DEBUG_SYNC(thd, "ready_to_do_rotation");
     bool check_purge= false;
     mysql_mutex_lock(&LOCK_log);

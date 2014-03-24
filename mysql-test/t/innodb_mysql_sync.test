@@ -592,6 +592,205 @@ DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
 
 
+--echo #
+--echo #BUG#13975225:ONLINE OPTIMIZE TABLE FOR INNODB TABLES
+--echo #
+
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+connect(con1,localhost,root,,);
+
+--echo #Setting up INNODB table.
+CREATE TABLE t1(fld1 INT, fld2 INT, fld3 INT) ENGINE= INNODB;
+INSERT INTO t1 VALUES (155, 45, 55);
+
+--echo #Concurrent INSERT, UPDATE, SELECT and DELETE is supported 
+--echo #during OPTIMIZE TABLE operation for INNODB tables.
+--enable_connect_log
+--connection default
+--echo #OPTIMIZE TABLE operation.
+--send OPTIMIZE TABLE t1
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+--echo # With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (10, 11, 12);
+UPDATE t1 SET fld1= 20 WHERE fld1= 155;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--connection default
+--reap
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+
+--echo #Concurrent INSERT, UPDATE, SELECT and DELETE is supported
+--echo #during OPTIMIZE TABLE operation for Partitioned table.
+
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+--echo #Setup PARTITIONED table.
+CREATE TABLE t1(fld1 INT) ENGINE= INNODB PARTITION BY HASH(fld1) PARTITIONS 4;
+INSERT INTO t1 VALUES(10);
+
+--echo #OPTIMIZE TABLE operation.
+--send OPTIMIZE TABLE t1
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+--echo # With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (30);
+UPDATE t1 SET fld1= 20 WHERE fld1= 10;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--connection default
+--reap
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+
+--echo #ALTER TABLE FORCE and ALTER TABLE ENGINE uses online rebuild
+--echo #of the table.
+
+CREATE TABLE t1(fld1 INT, fld2 INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(10, 20);
+
+--enable_info
+ALTER TABLE t1 FORCE;
+ALTER TABLE t1 ENGINE=INNODB;
+
+--echo #ALTER TABLE FORCE, ALTER TABLE ENGINE and OPTIMIZE TABLE uses
+--echo #table copy when the old_alter_table enabled.
+SET SESSION old_alter_table= TRUE;
+ALTER TABLE t1 FORCE;
+ALTER TABLE t1 ENGINE= INNODB;
+
+SET DEBUG_SYNC= 'alter_table_copy_after_lock_upgrade SIGNAL upgraded';
+--echo #OPTIMIZE TABLE operation using table copy.
+--send OPTIMIZE TABLE t1
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+INSERT INTO t1 VALUES(10, 20);
+
+--connection default
+--reap
+SET DEBUG_SYNC= 'RESET';
+SET SESSION old_alter_table= FALSE;
+
+--echo #ALTER TABLE FORCE and ALTER TABLE ENGINE uses table copy
+--echo #when ALGORITHM COPY is used.
+ALTER TABLE t1 FORCE, ALGORITHM= COPY;
+ALTER TABLE t1 ENGINE= INNODB, ALGORITHM= COPY;
+--disable_info
+
+#cleanup
+DROP TABLE t1;
+
+--echo #OPTIMIZE TABLE on a table with FULLTEXT index uses
+--echo #ALTER TABLE FORCE using COPY algorithm here. This
+--echo #test case ensures the COPY table debug sync point is hit.
+
+SET DEBUG_SYNC= 'alter_table_copy_after_lock_upgrade SIGNAL upgraded';
+
+--echo #Setup a table with FULLTEXT index.
+--connection default
+CREATE TABLE t1(fld1 CHAR(10), FULLTEXT(fld1)) ENGINE= INNODB;
+INSERT INTO t1 VALUES("String1");
+
+--echo #OPTIMIZE TABLE operation.
+--send OPTIMIZE TABLE t1
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+INSERT INTO t1 VALUES("String2");
+
+--connection default
+--reap
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+
+--echo #Test which demonstrates that ALTER TABLE, OPTIMIZE PARTITION
+--echo #takes OPTIMIZE TABLE code path, hence does an online rebuild
+--echo #of the table with the patch. 
+
+--connection default
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+--echo #Setup PARTITIONED table.
+CREATE TABLE t1(fld1 INT) ENGINE= INNODB PARTITION BY HASH(fld1) PARTITIONS 4;
+INSERT INTO t1 VALUES(10);
+
+--echo #OPTIMIZE ALL PARTITIONS operation.
+--send ALTER TABLE t1 OPTIMIZE PARTITION ALL
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+--echo # With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (30);
+UPDATE t1 SET fld1= 20 WHERE fld1= 10;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--connection default
+--reap
+SET DEBUG_SYNC= 'RESET';
+
+--echo #OPTIMIZE PER PARTITION operation.
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+--send ALTER TABLE t1 OPTIMIZE PARTITION p0
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+--echo # With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (30);
+UPDATE t1 SET fld1= 20 WHERE fld1= 10;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--connection default
+--reap
+SET DEBUG_SYNC= 'RESET';
+
+--echo # Test case for Bug#11938817 (ALTER BEHAVIOR DIFFERENT THEN DOCUMENTED).
+--enable_info
+--echo # This should not do anything
+ALTER TABLE t1;
+--disable_info
+
+#Note that sync point is activated in the online rebuild code path.
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuild';
+
+--echo # Check that we rebuild the table
+--send ALTER TABLE t1 engine=innodb
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR rebuild';
+
+--connection default
+--reap
+
+SET DEBUG_SYNC= 'RESET';
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuild';
+
+--echo # Check that we rebuild the table
+--send ALTER TABLE t1 FORCE
+
+--connection con1
+SET DEBUG_SYNC= 'now WAIT_FOR rebuild';
+
+--connection default
+--reap
+
+--disable_connect_log
+--disconnect con1
+
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

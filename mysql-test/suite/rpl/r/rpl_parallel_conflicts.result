@@ -14,6 +14,7 @@ create database d3;
 create table d1.t1 (a int auto_increment primary key) engine=innodb;
 create table d2.t1 (a int auto_increment primary key) engine=innodb;
 create table d3.t1 (a int auto_increment primary key) engine=innodb;
+include/sync_slave_sql_with_master.inc
 begin;
 insert into d2.t1 values (1);
 begin;
@@ -73,6 +74,7 @@ rollback;
 drop database d1;
 drop database d2;
 drop database d3;
+include/sync_slave_sql_with_master.inc
 drop view coord_wait_list;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 include/rpl_end.inc

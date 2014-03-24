@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -65,6 +65,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD
 	| Alter_inplace_info::ALTER_COLUMN_ORDER
 	| Alter_inplace_info::DROP_COLUMN
 	| Alter_inplace_info::ADD_COLUMN
+	| Alter_inplace_info::RECREATE_TABLE
 	/*
 	| Alter_inplace_info::ALTER_COLUMN_TYPE
 	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
@@ -870,7 +871,7 @@ innobase_get_foreign_key_info(
 			/* Check whether there exist such
 			index in the the index create clause */
 			if (!index && !innobase_find_equiv_index(
-				    column_names, i,
+				    column_names, static_cast<uint>(i),
 				    ha_alter_info->key_info_buffer,
 				    ha_alter_info->index_add_buffer,
 				    ha_alter_info->index_add_count)) {
@@ -977,6 +978,12 @@ innobase_get_foreign_key_info(
 			}
 
 			referenced_num_col = i;
+		} else {
+			/* Not possible to add a foreign key without a
+			referenced column */
+			mutex_exit(&dict_sys->mutex);
+			my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), tbl_namep);
+			goto err_exit;
 		}
 
 		if (!innobase_init_foreign(
@@ -1096,16 +1103,16 @@ innobase_col_to_mysql(
 		/* These column types should never be shipped to MySQL. */
 		ut_ad(0);
 
-	case DATA_FIXBINARY:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 	case DATA_DECIMAL:
 		/* Above are the valid column types for MySQL data. */
 		ut_ad(flen == len);
 		/* fall through */
+	case DATA_FIXBINARY:
 	case DATA_CHAR:
 		/* We may have flen > len when there is a shorter
-		prefix on a CHAR column. */
+		prefix on the CHAR and BINARY column. */
 		ut_ad(flen >= len);
 #else /* UNIV_DEBUG */
 	default:

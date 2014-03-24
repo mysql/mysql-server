@@ -820,6 +820,8 @@ ut_strerr(
 		return("FTS query exceeds result cache limit");
 	case DB_TEMP_FILE_WRITE_FAILURE:
 		return("Temp file write failure");
+	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
+		return("Too many words in a FTS phrase or proximity search");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

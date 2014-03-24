@@ -1,0 +1,43 @@
+#
+# Bug#14668683 ASSERT REC_GET_DELETED_FLAG(REC, PAGE_IS_COMP(PAGE))
+#
+create table t1(f1 char(1) primary key, f2 int not null, f3 blob)
+engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` char(1) NOT NULL,
+  `f2` int(11) NOT NULL,
+  `f3` blob,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values ('a', 0, repeat('b',8102));
+select f1 from t1;
+f1
+a
+update t1 set f1='A';
+select f1 from t1;
+f1
+A
+drop table t1;
+#
+# Another test case
+#
+create table t1 (f1 char(1), f2 longblob, f3 blob, primary key(f1))
+charset=utf8 engine=innodb;
+replace into t1 set f1=0xa3;
+Warnings:
+Warning	1366	Incorrect string value: '\xA3' for column 'f1' at row 1
+select f1 from t1;
+f1
+
+update t1 set f1=0x6a;
+update t1 set f3=repeat(0xb1,8103);
+update t1 set f1=0x4a;
+update t1 set f1=0x82;
+Warnings:
+Warning	1366	Incorrect string value: '\x82' for column 'f1' at row 1
+select f1 from t1;
+f1
+
+drop table t1;

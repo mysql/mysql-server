@@ -1,5 +1,6 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+--source include/not_gtid_enabled.inc
 
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
@@ -69,7 +70,7 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 
 connection master;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 set global slave_type_conversions = @saved_slave_type_conversions;
 

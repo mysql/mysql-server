@@ -50,3 +50,4 @@ connection slave;
 DROP TABLE t_end;
 DROP PROCEDURE show_slave_status;
 DROP PROCEDURE read_gtid_executed;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
