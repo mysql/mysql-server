@@ -54,7 +54,7 @@ Handle<Value>   /* SQLState Error Codes */
   K_22000_DataError,
   K_22001_StringTooLong,
   K_22003_OutOfRange,
-  K_22008_InvalidDatetime;
+  K_22007_InvalidDatetime;
 
 #define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
 
@@ -206,7 +206,7 @@ void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
   K_22000_DataError = Persistent<String>::New(String::NewSymbol("22000"));
   K_22001_StringTooLong = Persistent<String>::New(String::NewSymbol("22001"));
   K_22003_OutOfRange = Persistent<String>::New(String::NewSymbol("22003"));
-  K_22008_InvalidDatetime = Persistent<String>::New(String::NewSymbol("22008"));
+  K_22007_InvalidDatetime = Persistent<String>::New(String::NewSymbol("22007"));
 }
 
 
@@ -1123,8 +1123,9 @@ Handle<Value> TimestampWriter(const NdbDictionary::Column * col,
   bool valid = value->IsDate();
   if(valid) {
     *tpos = Date::Cast(*value)->NumberValue() / 1000;
+    valid = (*tpos >= 0);   // MySQL does not accept dates before 1970
   }
-  return valid ? writerOK : K_22008_InvalidDatetime;
+  return valid ? writerOK : K_22007_InvalidDatetime;
 }
 
 
@@ -1152,8 +1153,9 @@ Handle<Value> Timestamp2Writer(const NdbDictionary::Column * col,
     timeMilliseconds %= 1000;
     pack_bigendian(timeSeconds, buffer+offset, 4);
     writeFraction(col, timeMilliseconds * 1000, buffer+offset+4);
+    valid = (timeSeconds >= 0);   // MySQL does not accept dates before 1970
   }
-  return valid ? writerOK : K_22008_InvalidDatetime;
+  return valid ? writerOK : K_22007_InvalidDatetime;
 }
 
 /* Datetime 
@@ -1184,7 +1186,7 @@ Handle<Value> DatetimeWriter(const NdbDictionary::Column * col,
     dtval += tm.second;
     STORE_ALIGNED_DATA(uint64_t, dtval, buffer+offset);
   }
-  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
+  return tm.valid ? writerOK : K_22007_InvalidDatetime;  
 }    
 
 
@@ -1234,7 +1236,7 @@ Handle<Value> Datetime2Writer(const NdbDictionary::Column * col,
     pack_bigendian(packedValue, buffer+offset, 5);
     writeFraction(col, tm.microsec, buffer+offset+5);
   }
-  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
+  return tm.valid ? writerOK : K_22007_InvalidDatetime;  
 }
 
 
@@ -1255,7 +1257,7 @@ Handle<Value> YearWriter(const NdbDictionary::Column * col,
     valid = checkValue<uint8_t>(chkv);
     if(valid) STORE_ALIGNED_DATA(uint8_t, chkv, buffer+offset);
   }
-  return valid ? writerOK : K_22008_InvalidDatetime;
+  return valid ? writerOK : K_22007_InvalidDatetime;
 }
 
 
@@ -1282,7 +1284,7 @@ Handle<Value> TimeWriter(const NdbDictionary::Column * col,
     writeSignedMedium((int8_t *) buffer+offset, dtval);
   }  
   
-  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
+  return tm.valid ? writerOK : K_22007_InvalidDatetime;  
 }
 
 
@@ -1358,7 +1360,7 @@ Handle<Value> Time2Writer(const NdbDictionary::Column * col,
     pack_bigendian(packedValue, buffer+offset, buf_size);
   }
   
-  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
+  return tm.valid ? writerOK : K_22007_InvalidDatetime;  
 }
 
 
@@ -1384,6 +1386,6 @@ Handle<Value> DateWriter(const NdbDictionary::Column * col,
     writeUnsignedMedium((uint8_t *) buffer+offset, encodedDate);
   }  
   
-  return tm.valid ? writerOK : K_22008_InvalidDatetime;  
+  return tm.valid ? writerOK : K_22007_InvalidDatetime;  
 }
 

@@ -134,7 +134,7 @@ var DataErrors = {
   "22000" : "Data error",
   "22001" : "String too long",
   "22003" : "Numeric value out of range",
-  "22008" : "Invalid datetime"
+  "22007" : "Invalid datetime"
 };
 
 function encodeFieldsInBuffer(fields, nfields, metadata, 
