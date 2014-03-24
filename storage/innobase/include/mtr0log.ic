@@ -182,6 +182,10 @@ mlog_write_initial_log_record_low(
 	mtr_t*		mtr)
 {
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
+	ut_ad(type == MLOG_FILE_NAME
+	      || type == MLOG_FILE_DELETE
+	      || type == MLOG_FILE_RENAME2
+	      || mtr->is_named_space(space_id));
 
 	mach_write_to_1(log_ptr, type);
 	log_ptr++;

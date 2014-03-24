@@ -2754,6 +2754,7 @@ btr_cur_upd_lock_and_undo(
 	index = cursor->index;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(mtr->is_named_space(index->space));
 
 	if (!dict_index_is_clust(index)) {
 		ut_ad(dict_index_is_online_ddl(index)
@@ -4003,8 +4004,7 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(buf_block_get_frame(block) == page_align(rec));
 	ut_ad(page_is_leaf(page_align(rec)));
-
-	ut_ad(dict_index_is_clust(index));
+	ut_ad(mtr->is_named_space(index->space));
 
 	if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
 		/* While cascading delete operations, this becomes possible. */
