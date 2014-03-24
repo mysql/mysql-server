@@ -50,7 +50,8 @@ static int g_fd;
 */
 static size_t file_size;
 static char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
-            *opt_login_path= "client", *opt_socket= NULL, *opt_port= NULL;
+  *opt_login_path= const_cast<char*>("client"),
+  *opt_socket= NULL, *opt_port= NULL;
 
 static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
