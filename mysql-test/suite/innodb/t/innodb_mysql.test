@@ -474,7 +474,7 @@ EXPLAIN SELECT * FROM t1 WHERE b=1 AND c=1 ORDER BY a;
 EXPLAIN SELECT * FROM t1 FORCE INDEX(i2) WHERE b=1 and c=1 ORDER BY a;
 # With 4k pages, the 'rows' column in the output below is either 120 or 138,
 # not 128 as it is with 8k and 16k. Bug#12602606
---replace_result 128 {checked} 120 {checked} 138 {checked}
+--replace_column 10 # 11 #
 EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
 
 DROP TABLE t1;
