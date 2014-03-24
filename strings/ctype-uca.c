@@ -8046,7 +8046,7 @@ static my_bool create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t))
     if (!(cs->contractions= (uint16*) (*alloc)(size)))
         return 1;
     bzero((void*)cs->contractions, size);
-    contraction_flags= ((char*) cs->contractions) + 0x40*0x40;
+    contraction_flags= (char *) (cs->contractions + 0x40*0x40);
     for (i=0; i < rc; i++)
     {
       if (rule[i].curr[1])

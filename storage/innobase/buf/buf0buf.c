@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2479,11 +2479,11 @@ wait_until_unfixed:
 		UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
 		buf_pool->n_pend_unzip++;
+		mutex_exit(&buf_pool->zip_mutex);
 		buf_pool_mutex_exit(buf_pool);
 
 		access_time = buf_page_is_accessed(&block->page);
 		mutex_exit(&block->mutex);
-		mutex_exit(&buf_pool->zip_mutex);
 
 		buf_page_free_descriptor(bpage);
 
