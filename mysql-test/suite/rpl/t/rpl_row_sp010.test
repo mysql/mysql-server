@@ -39,7 +39,7 @@ delimiter ;|
 CALL test.p2();
 SELECT * FROM test.t1 ORDER BY a;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 show tables;
 
 connection master;
@@ -59,7 +59,7 @@ delimiter ;|
 CALL test.p4();
 SELECT * FROM test.t2 ORDER BY a;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t2 ORDER BY a;
 
 # Cleanup
@@ -71,7 +71,7 @@ DROP PROCEDURE IF EXISTS test.p3;
 DROP PROCEDURE IF EXISTS test.p4;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 5.0 test case
 --source include/rpl_end.inc

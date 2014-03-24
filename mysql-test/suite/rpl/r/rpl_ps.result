@@ -18,12 +18,14 @@ set @var2= 'insert into t1 values (concat("from-var-", ?))';
 prepare stmt2 from @var2;
 set @var1='from-master-3';
 execute stmt2 using @var1;
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY n;
 n
 from-master-1
 from-master-2-'',
 from-var-from-master-3
 drop table t1;
+include/sync_slave_sql_with_master.inc
 stop slave;
 include/wait_for_slave_to_stop.inc
 
@@ -43,6 +45,7 @@ EXECUTE stmt_d_1;
 use mysqltest1;
 EXECUTE stmt_d_1;
 # Connection: slave
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 db_name	db_col_name
 test	latin1_swedish_ci

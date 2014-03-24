@@ -10,7 +10,7 @@ CREATE TABLE t1 (a INT, b LONG);
 INSERT INTO t1 VALUES (1,1), (2,2);
 INSERT INTO t1 VALUES (3,UUID()), (4,UUID());
 source include/show_binlog_events.inc;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo **** On Slave ****
 source include/show_binlog_events.inc;
 

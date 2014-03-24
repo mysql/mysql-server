@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -2919,10 +2919,7 @@ btr_cur_del_mark_set_clust_rec(
 	trx = thr_get_trx(thr);
 
 	if (dict_index_is_online_ddl(index)) {
-		row_log_table_delete(
-			rec, index, offsets, false,
-			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
-					+ rec));
+		row_log_table_delete(rec, index, offsets, NULL);
 	}
 
 	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);
@@ -4506,7 +4503,7 @@ btr_store_big_rec_extern_fields(
 
 			c_stream.next_in = (Bytef*)
 				big_rec_vec->fields[i].data;
-			c_stream.avail_in = extern_len;
+			c_stream.avail_in = static_cast<uInt>(extern_len);
 		}
 
 		for (;;) {
@@ -4597,7 +4594,7 @@ alloc_another:
 				c_stream.next_out = page
 					+ FIL_PAGE_DATA;
 				c_stream.avail_out
-					= page_zip_get_size(page_zip)
+					= static_cast<uInt>(page_zip_get_size(page_zip))
 					- FIL_PAGE_DATA;
 
 				err = deflate(&c_stream, Z_FINISH);
@@ -5260,7 +5257,7 @@ btr_copy_zblob_prefix(
 	z_stream	d_stream;
 
 	d_stream.next_out = buf;
-	d_stream.avail_out = len;
+	d_stream.avail_out = static_cast<uInt>(len);
 	d_stream.next_in = Z_NULL;
 	d_stream.avail_in = 0;
 
@@ -5322,7 +5319,7 @@ btr_copy_zblob_prefix(
 		}
 
 		d_stream.next_in = bpage->zip.data + offset;
-		d_stream.avail_in = zip_size - offset;
+		d_stream.avail_in = static_cast<uInt>(zip_size - offset);
 
 		err = inflate(&d_stream, Z_NO_FLUSH);
 		switch (err) {

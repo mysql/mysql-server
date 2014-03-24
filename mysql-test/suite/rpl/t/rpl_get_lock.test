@@ -22,7 +22,7 @@ while ($1)
   dec $1;
 }
 enable_query_log;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select get_lock("lock",3);
 select * from t1;
 # There is no point in testing REPLICATIION of the IS_*_LOCK
@@ -39,7 +39,7 @@ select is_free_lock("lock2");
 select is_free_lock(NULL);
 connection master1;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 
 --source include/rpl_end.inc

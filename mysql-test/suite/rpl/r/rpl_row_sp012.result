@@ -20,6 +20,7 @@ CREATE PROCEDURE test.p3 () SQL SECURITY INVOKER CALL test.p1();
 GRANT EXECUTE ON PROCEDURE p1 TO user1@localhost;
 GRANT EXECUTE ON PROCEDURE p2 TO user1@localhost;
 GRANT EXECUTE ON PROCEDURE p3 TO user1@localhost;
+include/sync_slave_sql_with_master.inc
 
 <********  Master user1 p3 & p2 calls *******>
 ----------------------------------------------
@@ -56,4 +57,5 @@ DROP PROCEDURE IF EXISTS test.p2;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP USER user1@localhost;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

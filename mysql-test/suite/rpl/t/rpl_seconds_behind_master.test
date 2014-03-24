@@ -34,7 +34,7 @@ call mtr.add_suppression('Unsafe statement binlogged in statement format since B
 
 connection master;
 create table t1 (f1 int);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 connection master;
 let $start= `SELECT UNIX_TIMESTAMP()`;
@@ -73,7 +73,7 @@ source include/assert.inc;
 
 unlock tables;
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 lock table t1 write;
 connection master;
 let $start= `SELECT UNIX_TIMESTAMP()`;
@@ -112,7 +112,7 @@ source include/assert.inc;
 unlock tables;
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # BUG#52166 test case 
@@ -145,7 +145,7 @@ sync_slave_with_master;
 # clear at the slave that it must show 0 and not 3600
 SET GLOBAL DEBUG= '+d,dec_event_time_by_1_hour';
 CREATE TABLE t1 (a INT);
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 # ok, now wait for the SQL thread to sleep
 let $wait_timeout= 60; # Override default of 30 seconds with 60.
@@ -202,7 +202,7 @@ UNLOCK TABLES;
 
 -- connection master
 DROP TABLE t1;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- connection master
 
 SET @@global.debug= @old_debug;

@@ -61,8 +61,7 @@
 connection master;
 CREATE TABLE t1(a INT PRIMARY KEY);
 --echo [on slave]
-sync_slave_with_master;
-
+--source include/sync_slave_sql_with_master.inc
 
 --echo ==== Test: SQL thread sees 'INSERT' of existing key ====
 
@@ -121,7 +120,7 @@ DELETE FROM t1;
 INSERT INTO t1 VALUES (1);
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 DELETE FROM t1 WHERE a = 1;
 
 --echo ---- On master, remove the row that does not exist on slave ----
@@ -171,4 +170,4 @@ connection master;
 DROP TABLE t1;
 
 --echo [on slave]
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc

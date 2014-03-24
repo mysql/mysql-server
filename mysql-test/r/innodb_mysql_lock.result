@@ -199,7 +199,10 @@ ERROR 23000: Duplicate entry '1' for key 'b'
 # Also check that copy algorithm is used
 ALTER IGNORE TABLE t1 ADD UNIQUE INDEX (b);
 affected rows: 3
-info: Records: 3  Duplicates: 2  Warnings: 0
+info: Records: 3  Duplicates: 2  Warnings: 1
+Warnings:
+Warning	1681	'IGNORE' is deprecated and will be removed in a future release.
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1681	'IGNORE' is deprecated and will be removed in a future release.
 DROP TABLE t1;
