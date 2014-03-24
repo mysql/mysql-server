@@ -33,6 +33,7 @@
 #include "node_buffer.h"
 
 #include "ndb_util/CharsetMap.hpp"
+#include "ndb_util/decimal_utils.hpp"
 #include "EncoderCharset.h"
 
 using namespace v8;
@@ -106,6 +107,8 @@ DECLARE_ENCODER(Time);
 DECLARE_ENCODER(Time2);
 DECLARE_ENCODER(Date);
 
+DECLARE_ENCODER(Decimal);
+
 const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & UnsupportedTypeEncoder,               // 0
   & TinyIntEncoder,                       // 1  TINY INT
@@ -136,8 +139,8 @@ const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & YearEncoder,                          // 26 YEAR
   & TimestampEncoder,                     // 27 TIMESTAMP
   & UnsupportedTypeEncoder,               // 28 OLDDECIMAL UNSIGNED
-  & UnsupportedTypeEncoder,               // 29 DECIMAL
-  & UnsupportedTypeEncoder                // 30 DECIMAL UNSIGNED
+  & DecimalEncoder,                       // 29 DECIMAL
+  & DecimalEncoder                        // 30 DECIMAL UNSIGNED
 #if NDB_TYPE_MAX > 31
   ,
   & Time2Encoder,                         // 31 TIME2
@@ -574,6 +577,30 @@ Handle<Value> bigintWriter(const NdbDictionary::Column *col,
   return valid ? writerOK : K_22003_OutOfRange;
 }
 
+// Decimal.  JS Value to and from decimal types is treated as a string.
+Handle<Value> DecimalReader(const NdbDictionary::Column *col,
+                            char *buffer, size_t offset) {
+  HandleScope scope;
+  char strbuf[96];
+  int scale = col->getScale();
+  int prec  = col->getPrecision();
+  int len = scale + prec + 3;
+  decimal_bin2str(buffer + offset, col->getSizeInBytes(),
+                  prec, scale, strbuf, len);
+  return scope.Close(String::New(strbuf));
+}
+
+Handle<Value> DecimalWriter(const NdbDictionary::Column *col,
+                            Handle<Value> value, char *buffer, size_t offset) {
+  HandleScope scope;
+  char strbuf[96];
+  int length = value->ToString()->WriteAscii(strbuf, 0, 96);
+  int status = decimal_str2bin(strbuf, length, 
+                               col->getPrecision(), col->getScale(), 
+                               buffer + offset, col->getSizeInBytes());
+  return status ? K_22003_OutOfRange : writerOK;
+}
+
 
 // Templated encoder for float and double
 template<typename FPT> 
@@ -594,7 +621,6 @@ Handle<Value> fpWriter(const NdbDictionary::Column * col,
   }
   return valid ? writerOK : K_22003_OutOfRange;
 }
-
 
 /****** Binary & Varbinary *******/
 
