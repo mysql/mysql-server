@@ -89,6 +89,12 @@
 #define IF_WIN(A,B) B
 #endif
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#define IF_PARTITIONING(A,B) A
+#else
+#define IF_PARTITIONING(A,B) B
+#endif
+
 #ifndef EMBEDDED_LIBRARY
 #ifdef WITH_NDB_BINLOG
 #define HAVE_NDB_BINLOG 1

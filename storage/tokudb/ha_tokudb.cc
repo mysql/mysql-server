@@ -1650,7 +1650,7 @@ int ha_tokudb::initialize_share(
         goto exit;
 #else
     // verify frm data for non-partitioned tables
-    if (table->part_info == NULL) {
+    if (IF_PARTITIONING(table->part_info, NULL) == NULL) {
         error = verify_frm_data(table->s->path.str, txn);
         if (error)
             goto exit;
@@ -6934,7 +6934,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     if (error) { goto cleanup; }
 #else
     // only for tables that are not partitioned
-    if (form->part_info == NULL) {
+    if (IF_PARTITIONING(form->part_info, NULL) == NULL) {
         error = write_frm_data(status_block, txn, form->s->path.str);
         if (error) { goto cleanup; }
     }
