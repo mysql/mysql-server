@@ -437,10 +437,13 @@ btr_pcur_open_low(
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
 	if (dict_table_is_intrinsic(index->table)) {
+		ut_ad((latch_mode & BTR_MODIFY_LEAF)
+		      || (latch_mode & BTR_SEARCH_LEAF));
 		/* Use by delete path so set the make dirty to true. */
 		btr_cur_search_to_nth_level_with_no_latch(
 			index, level, tuple, mode, btr_cursor,
-			file, line, mtr);
+			file, line, mtr,
+			((latch_mode & BTR_MODIFY_LEAF) ? true : false));
 	} else {
 		btr_cur_search_to_nth_level(
 			index, level, tuple, mode, latch_mode,
@@ -490,9 +493,12 @@ btr_pcur_open_with_no_init_func(
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
 	if (dict_table_is_intrinsic(index->table)) {
+		ut_ad((latch_mode & BTR_MODIFY_LEAF)
+		      || (latch_mode & BTR_SEARCH_LEAF));
 		btr_cur_search_to_nth_level_with_no_latch(
 			index, 0, tuple, mode, btr_cursor,
-			file, line, mtr, false);
+			file, line, mtr,
+			((latch_mode & BTR_MODIFY_LEAF) ? true : false));
 	} else {
 		btr_cur_search_to_nth_level(
 			index, 0, tuple, mode, latch_mode, btr_cursor,
