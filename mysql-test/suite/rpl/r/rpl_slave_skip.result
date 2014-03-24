@@ -41,8 +41,8 @@ a	b
 SELECT * FROM t2;
 c	d
 1	2
-2	8
-3	18
+2	16
+3	54
 **** On Slave ****
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
 include/wait_for_slave_sql_to_stop.inc

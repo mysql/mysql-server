@@ -8953,6 +8953,8 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   /* restore read/write set for the rest of execution */
   table->column_bitmaps_set_no_signal(old_read_set,
                                       old_write_set);
+  
+  bitmap_clear_all(&table->tmp_set);
 
   return error;
 }
@@ -9005,6 +9007,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
   table->column_bitmaps_set_no_signal(old_read_set,
                                       old_write_set);
 
+  bitmap_clear_all(&table->tmp_set);
   return error;
 }
 
@@ -9033,8 +9036,8 @@ void THD::binlog_prepare_row_images(TABLE *table)
       the read_set already.
     */
     DBUG_ASSERT(table->read_set != &table->tmp_set);
-
-    bitmap_clear_all(&table->tmp_set);
+    // Verify it's not used
+    DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
 
     switch(thd->variables.binlog_row_image)
     {

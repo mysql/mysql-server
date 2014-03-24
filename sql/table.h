@@ -1015,6 +1015,15 @@ public:
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+  /*
+    Bitmap of fields that one or more query condition refers to. Only
+    used if optimizer_condition_fanout_filter is turned 'on'.
+    Currently, only the WHERE clause and ON clause of inner joins is
+    taken into account but not ON conditions of outer joins.
+    Furthermore, HAVING conditions apply to groups and are therefore
+    not useful as table condition filters.
+  */
+  MY_BITMAP     cond_set;
 
   /**
     Bitmap of table fields (columns), which are explicitly set in the

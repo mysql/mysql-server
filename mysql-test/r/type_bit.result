@@ -236,7 +236,7 @@ a+0	b+0
 127	403
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	2	NULL	27	100.00	Using where; Using index; Using filesort
+1	SIMPLE	t1	NULL	range	a	a	2	NULL	27	33.33	Using where; Using index; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`a` + 0) AS `a+0`,(`test`.`t1`.`b` + 0) AS `b+0` from `test`.`t1` where ((`test`.`t1`.`a` > 40) and (`test`.`t1`.`b` > 200)) order by (`test`.`t1`.`a` + 0)
 select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
@@ -772,7 +772,7 @@ CREATE TABLE t1 (a BIT(7), b BIT(9), KEY(a, b));
 INSERT INTO t1 VALUES(0, 0), (5, 3), (5, 6), (6, 4), (7, 0);
 EXPLAIN SELECT a+0, b+0 FROM t1 WHERE a > 4 and b < 7 ORDER BY 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	2	NULL	4	100.00	Using where; Using index; Using filesort
+1	SIMPLE	t1	NULL	range	a	a	2	NULL	4	33.33	Using where; Using index; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`a` + 0) AS `a+0`,(`test`.`t1`.`b` + 0) AS `b+0` from `test`.`t1` where ((`test`.`t1`.`a` > 4) and (`test`.`t1`.`b` < 7)) order by (`test`.`t1`.`b` + 0)
 DROP TABLE t1;

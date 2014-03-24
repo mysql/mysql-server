@@ -3603,7 +3603,7 @@ row_import_for_mysql(
 	fil_space_set_imported() to declare it a persistent tablespace. */
 
 	err = fil_open_single_table_tablespace(
-		true, true, FIL_TYPE_TEMPORARY, table->space,
+		true, true, FIL_TYPE_IMPORT, table->space,
 		dict_tf_to_fsp_flags(table->flags),
 		table->name, filepath);
 

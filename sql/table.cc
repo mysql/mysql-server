@@ -2304,7 +2304,7 @@ partititon_err:
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 4)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 5)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -2312,8 +2312,10 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
   bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  bitmap_init(&outparam->cond_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
   bitmap_init(&outparam->def_fields_set_during_insert,
-              (my_bitmap_map*) (bitmaps + bitmap_size * 3), share->fields,
+              (my_bitmap_map*) (bitmaps + bitmap_size * 4), share->fields,
               FALSE);
   outparam->default_column_bitmaps();
 
@@ -5120,6 +5122,8 @@ void TABLE::clear_column_bitmaps()
 
   bitmap_clear_all(&def_fields_set_during_insert);
   fields_set_during_insert= &def_fields_set_during_insert;
+
+  bitmap_clear_all(&tmp_set);
 }
 
 
@@ -6342,6 +6346,8 @@ bool TABLE::update_const_key_parts(Item *conds)
 
 bool TABLE::check_read_removal(uint index)
 {
+  bool retval= false;
+
   DBUG_ENTER("check_read_removal");
   DBUG_ASSERT(file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL);
   DBUG_ASSERT(index != MAX_KEY);
@@ -6353,11 +6359,15 @@ bool TABLE::check_read_removal(uint index)
   // Full index must be used
   bitmap_clear_all(&tmp_set);
   mark_columns_used_by_index_no_reset(index, &tmp_set);
-  if (!bitmap_cmp(&tmp_set, read_set))
-    DBUG_RETURN(false);
 
-  // Start read removal in handler
-  DBUG_RETURN(file->start_read_removal());
+  if (bitmap_cmp(&tmp_set, read_set))
+  {
+    // Start read removal in handler
+    retval= file->start_read_removal();
+  }
+
+  bitmap_clear_all(&tmp_set);
+  DBUG_RETURN(retval);
 }
 
 
