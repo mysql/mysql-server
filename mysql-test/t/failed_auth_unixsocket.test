@@ -20,6 +20,7 @@ eval install plugin unix_socket soname '$AUTH_SOCKET_SO';
 --error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
 connect (fail,localhost,$USER);
 
+--replace_result $USER USER
 --error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
 change_user $USER;
 
