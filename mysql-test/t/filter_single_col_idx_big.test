@@ -43,5 +43,6 @@ analyze table t1;
 analyze table t2;
 
 --source include/cond_filter_queries.inc
-
 --enable_warnings
+
+DROP TABLE t1,t2;

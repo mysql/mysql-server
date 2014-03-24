@@ -300,6 +300,3 @@ SELECT * FROM t1 JOIN t2 ON t1.col3=t2.col1_idx WHERE t2.col1_idx>20;
 --echo
 EXPLAIN 
 SELECT * FROM t1 JOIN t2 ON t1.col3=t2.col1_idx WHERE t2.col1_idx=20;
-
-
-DROP TABLE t1,t2;

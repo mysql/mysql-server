@@ -398,16 +398,18 @@ protected:
                              the filter effect.
     @param filter_for_table  The table we are calculating filter effect for
 
-    @return false if some of the requirements are broken, true otherwise
+    @return Item_field that participates in the predicate if none of the
+            requirements are broken, NULL otherwise
 
     @note: This function only applies to items doing comparison, i.e.
     boolean predicates. Unfortunately, some of those items do not
     inherit from Item_bool_func so the member function has to be
     placed in Item_func.
   */
-  bool contributes_to_filter(table_map read_tables,
-                             table_map filter_for_table,
-                             const MY_BITMAP *fields_to_ignore) const;
+  const Item_field*
+    contributes_to_filter(table_map read_tables,
+                          table_map filter_for_table,
+                          const MY_BITMAP *fields_to_ignore) const;
 };
 
 
