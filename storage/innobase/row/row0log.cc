@@ -1590,6 +1590,7 @@ row_log_table_apply_delete_low(
 		const dtuple_t*	entry = row_build_index_entry(
 			row, save_ext, index, heap);
 		mtr_start(mtr);
+		fsp_names_write(index->space, mtr);
 		btr_pcur_open(index, entry, PAGE_CUR_LE,
 			      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
 			      pcur, mtr);
@@ -1674,6 +1675,7 @@ row_log_table_apply_delete(
 	}
 
 	mtr_start(&mtr);
+	fsp_names_write(index->space, &mtr);
 	btr_pcur_open(index, old_pk, PAGE_CUR_LE,
 		      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
 		      &pcur, &mtr);
@@ -1817,6 +1819,7 @@ row_log_table_apply_update(
 	}
 
 	mtr_start(&mtr);
+	fsp_names_write(index->space, &mtr);
 	btr_pcur_open(index, old_pk, PAGE_CUR_LE,
 		      BTR_MODIFY_TREE, &pcur, &mtr);
 #ifdef UNIV_DEBUG
@@ -2073,6 +2076,7 @@ func_exit_committed:
 		}
 
 		mtr_start(&mtr);
+		fsp_names_write(index->space, &mtr);
 
 		if (ROW_FOUND != row_search_index_entry(
 			    index, entry, BTR_MODIFY_TREE, &pcur, &mtr)) {
@@ -2099,6 +2103,7 @@ func_exit_committed:
 			entry, trx_id, thr);
 
 		mtr_start(&mtr);
+		fsp_names_write(index->space, &mtr);
 	}
 
 	goto func_exit;
@@ -2937,6 +2942,7 @@ row_log_apply_op_low(
 		    rec_printer(entry).str().c_str()));
 
 	mtr_start(&mtr);
+	fsp_names_write(index->space, &mtr);
 
 	/* We perform the pessimistic variant of the operations if we
 	already hold index->lock exclusively. First, search the
@@ -2993,6 +2999,7 @@ row_log_apply_op_low(
 				Lock the index tree exclusively. */
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
+				fsp_names_write(index->space, &mtr);
 				btr_cur_search_to_nth_level(
 					index, 0, entry, PAGE_CUR_LE,
 					BTR_MODIFY_TREE, &cursor, 0,
@@ -3095,6 +3102,7 @@ insert_the_rec:
 				Lock the index tree exclusively. */
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
+				fsp_names_write(index->space, &mtr);
 				btr_cur_search_to_nth_level(
 					index, 0, entry, PAGE_CUR_LE,
 					BTR_MODIFY_TREE, &cursor, 0,
