@@ -2864,6 +2864,23 @@ fil_delete_tablespace(
 	/* If it is a delete then also delete any generated files, otherwise
 	when we drop the database the remove directory will fail. */
 	{
+#ifndef UNIV_HOTBACKUP
+		/* Before deleting the file, write a log record about
+		it, so that InnoDB crash recovery will expect the file
+		to be gone. */
+		mtr_t		mtr;
+
+		/* When replaying the operation in MySQL Enterprise
+		Backup, we do not try to write any log record. */
+		mtr_start(&mtr);
+		fil_op_write_log(MLOG_FILE_DELETE, id, 0, path, NULL, &mtr);
+		mtr_commit(&mtr);
+		/* Even if we got killed shortly after deleting the
+		tablespace file, the record must have already been
+		written to the redo log. */
+		log_write_up_to(mtr.commit_lsn(), true);
+#endif /* UNIV_HOTBACKUP */
+
 		char*	cfg_name = fil_make_filepath(path, NULL, CFG, false);
 		if (cfg_name != NULL) {
 			os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
@@ -2903,25 +2920,6 @@ fil_delete_tablespace(
 		tablespace instance from the cache. */
 
 		err = DB_IO_ERROR;
-	}
-
-	if (err == DB_SUCCESS) {
-#ifndef UNIV_HOTBACKUP
-		/* Write a log record about the deletion of the .ibd
-		file, so that ibbackup can replay it in the
-		--apply-log phase. We use a dummy mtr and the familiar
-		log write mechanism. */
-		mtr_t		mtr;
-
-		/* When replaying the operation in ibbackup, do not try
-		to write any log record */
-		mtr_start(&mtr);
-
-		fil_op_write_log(MLOG_FILE_DELETE, id, 0, path, NULL, &mtr);
-		mtr_commit(&mtr);
-#endif /* UNIV_HOTBACKUP */
-
-		err = DB_SUCCESS;
 	}
 
 	::ut_free(path);
@@ -4169,15 +4167,17 @@ will_not_choose:
 	if (df_default.is_valid() && df_remote.is_valid()) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Tablespaces for %s have been found in two places;"
-			" Location 1: SpaceID: %lu  LSN: %lu  File: %s;"
-			" Location 2: SpaceID: %lu  LSN: %lu  File: %s;"
+			" Location 1: SpaceID: " ULINTPF " LSN: " LSN_PF
+			" File: %s;"
+			" Location 2: SpaceID: " ULINTPF " LSN: " LSN_PF
+			" File: %s;"
 			" You must delete one of them.",
 			name,
-			ulong(df_default.space_id()),
-			ulong(df_default.flushed_lsn()),
+			df_default.space_id(),
+			df_default.flushed_lsn(),
 			df_default.filepath(),
-			ulong(df_remote.space_id()),
-			ulong(df_remote.flushed_lsn()),
+			df_remote.space_id(),
+			df_remote.flushed_lsn(),
 			df_remote.filepath());
 
 		df_default.close();
@@ -4321,11 +4321,12 @@ will_not_choose:
 		if (space_id == df->space_id()) {
 			/* Multiple files with the same space_id! */
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Tablespaces for SpaceID %lu have been found in two places;"
+				"Tablespaces for SpaceID " ULINTPF
+				" have been found in two places;"
 				" Location 1: File: %s;"
-				" Location 2: LSN: %lu  File: %s;"
+				" Location 2: LSN: " LSN_PF " File: %s;"
 				" You must delete one of them.",
-				ulong(space_id),
+				space_id,
 				space->name,
 				df->flushed_lsn(), df->filepath());
 			df->close();
