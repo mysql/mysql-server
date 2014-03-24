@@ -195,7 +195,7 @@ checkFile(suites_dir, "lint", "LintTest.js");
 checkFile(suites_dir, "", "driver.js");
 checkFile(suites_dir, "lib", "harness.js");
 checkDirectory(suites_dir, "spi");
-checkDirectory(suites_dir, "integraltypes");
+checkDirectory(suites_dir, "numerictypes");
 checkDirectory(suites_dir, "stringtypes");
 checkDirectory(suites_dir, "autoincrement");
 // checkDirectory(suites_dir, "multidb");  
@@ -245,7 +245,7 @@ ignore("SmokeTest.js", 10, "Expected \'{\' and instead saw \'test\'.");
 ignore("CharsetTest.js", 27, "Missing \'new\'.");
 ignore("CharsetTest.js", 26, "Missing \'new\'.", 14);
 
-//integraltypes
+//numerictypes
 ignore("QueryKeywordTest.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 ignore("lib.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 
