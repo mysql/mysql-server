@@ -46,7 +46,7 @@ c varchar(2000),
 primary key (a,b)) engine=ndb;
 MySQLD error output for server 1.1 matching pattern %Exceptions table %
 relevant
-[warning] ndb slave: exceptions table t1$ex has wrong definition (column 1): 
+[warning] ndb slave: exceptions table t1$ex has wrong definition (column 1): 
 drop table test.t1$EX, test.t1;
 create table test.t1$EX
 (NDB$SERVER_ID         int unsigned,
