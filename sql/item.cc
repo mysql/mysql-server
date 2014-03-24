@@ -909,6 +909,13 @@ bool Item_field::add_field_to_set_processor(uchar *arg)
   DBUG_RETURN(FALSE);
 }
 
+bool Item_field::add_field_to_cond_set_processor(uchar *unused)
+{
+  DBUG_ENTER("Item_field::add_field_to_cond_set_processor");
+  DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
+  bitmap_set_bit(&field->table->cond_set, field->field_index);
+  DBUG_RETURN(false);
+}
 
 bool Item_field::remove_column_from_bitmap(uchar *argument)
 {
@@ -7057,6 +7064,23 @@ void Item_field::print(String *str, enum_query_type query_type)
   Item_ident::print(str, query_type);
 }
 
+/**
+  Calculate condition filtering effect for "WHERE field", which
+  implicitly means "WHERE field <> 0". The filtering effect is
+  therefore identical to that of Item_func_ne.
+*/
+float Item_field::get_filtering_effect(table_map filter_for_table,
+                                       table_map read_tables,
+                                       const MY_BITMAP *fields_to_ignore,
+                                       double rows_in_table)
+{
+  if (used_tables() != filter_for_table ||
+      bitmap_is_set(fields_to_ignore, field->field_index))
+    return COND_FILTER_ALLPASS;
+
+  return 1.0f - get_cond_filter_default_probability(rows_in_table,
+                                                    COND_FILTER_EQUALITY);
+}
 
 Item_ref::Item_ref(Name_resolution_context *context_arg,
                    Item **item, const char *table_name_arg,

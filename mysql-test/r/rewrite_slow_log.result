@@ -55,7 +55,17 @@ CHANGE MASTER TO MASTER_PASSWORD = <secret>
 SET PASSWORD FOR `test_user4`@`localhost`=<secret>
 ------ done ------
 DROP TABLE test_log;
-SET GLOBAL slow_query_log_file= @old_slow_query_log_file;
-SET GLOBAL slow_query_log=      @old_slow_query_log;
-SET GLOBAL log_output=          @old_log_output;
 End of 5.6 tests!
+#
+# Bug#16467055: GRANT STATEMENTS LOGGED TWICE IN SLOW QUERY LOG
+#
+SET SESSION long_query_time= 0;
+SET GLOBAL slow_query_log  = 1;
+SET GLOBAL log_output      = 'TABLE';
+TRUNCATE mysql.slow_log;
+DROP USER u16467055;
+End of 5.7 tests!
+SET SESSION long_query_time=    @old_long_query_time;
+SET GLOBAL  slow_query_log_file=@old_slow_query_log_file;
+SET GLOBAL  slow_query_log=     @old_slow_query_log;
+SET GLOBAL  log_output=         @old_log_output;

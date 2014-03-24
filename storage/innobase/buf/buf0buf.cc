@@ -1447,6 +1447,9 @@ buf_pool_init_instance(
 
 	buf_pool->watch = (buf_page_t*) ut_zalloc(
 		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
+	for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
+		buf_pool->watch[i].buf_pool_index = buf_pool->instance_no;
+	}
 
 	/* All fields are initialized by ut_zalloc(). */
 
@@ -1981,7 +1984,7 @@ buf_pool_watch_remove(
 }
 
 /** Stop watching if the page has been read in.
-buf_pool_watch_set(space,offset) must have returned NULL before.
+buf_pool_watch_set(same_page_id) must have returned NULL before.
 @param[in]	page_id	page id */
 void
 buf_pool_watch_unset(
@@ -2026,8 +2029,8 @@ buf_pool_watch_unset(
 }
 
 /** Check if the page has been read in.
-This may only be called after buf_pool_watch_set(space,offset)
-has returned NULL and before invoking buf_pool_watch_unset(space,offset).
+This may only be called after buf_pool_watch_set(same_page_id)
+has returned NULL and before invoking buf_pool_watch_unset(same_page_id).
 @param[in]	page_id	page id
 @return FALSE if the given page was not read in, TRUE if it was */
 ibool
