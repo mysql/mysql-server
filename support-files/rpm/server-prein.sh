@@ -3,6 +3,7 @@
 
 installed=`rpm -q --whatprovides mysql-server 2> /dev/null`
 if [ $? -eq 0 -a -n "$installed" ]; then
+  installed=`echo "$installed"|sed -n -1p`
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
   myvendor='%{mysql_vendor}'
