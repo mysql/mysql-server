@@ -7103,8 +7103,8 @@ Item_field::get_cond_filter_default_probability(double max_distinct_values,
   case MYSQL_TYPE_BIT:
   {
     // BIT(N) can have no more than 2^N distinct values
-    const double combos=
-      pow(2.0, static_cast<Field_bit*>(field)->field_length);
+    const uint bits= static_cast<Field_bit*>(field)->field_length;
+    const double combos= pow(2.0, (int)bits);
     max_distinct_values= std::min(combos, max_distinct_values);
     break;
   }
