@@ -259,6 +259,7 @@ the read requests for the whole area.
 #if (!(defined(UNIV_HOTBACKUP) || defined(UNIV_INNOCHECKSUM)))
 /** Value in microseconds */
 static const int WAIT_FOR_READ	= 100;
+static const int WAIT_FOR_WRITE = 100;
 /** Number of attemtps made to read in a page in the buffer pool */
 static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 
@@ -2872,6 +2873,25 @@ got_block:
 		buf_page_t*	bpage;
 
 	case BUF_BLOCK_FILE_PAGE:
+		bpage = &block->page;
+		if (dirty_with_no_latch
+		    && rw_latch == RW_NO_LATCH
+		    && fsp_is_system_temporary(page_id.space())) {
+			/* Request to just pin the page that belongs
+			to intrinsic table. No latch are acquired for intrinsic
+			tables. */
+			if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+				/* This suggest that page is being flushed.
+				Avoid returning reference to this page.
+				Instead wait for flush action to complete.
+				For normal page this sync is done using SX
+				lock but for intrinsic there is no latching. */
+				buf_block_unfix(fix_block);
+				os_thread_sleep(WAIT_FOR_WRITE);
+				goto loop;
+
+			}
+		}
 		break;
 
 	case BUF_BLOCK_ZIP_PAGE:
