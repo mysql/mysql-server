@@ -270,7 +270,7 @@ ha_create_table_option tokudb_table_options[]=
 {
   HA_TOPTION_ENUM("compression", row_format,
                   "TOKUDB_UNCOMPRESSED,TOKUDB_ZLIB,TOKUDB_QUICKLZ,"
-                  "TOKUDB_LZMA,TOKUDB_FAST,TOKUDB_SMALL", 0),
+                  "TOKUDB_LZMA,TOKUDB_FAST,TOKUDB_SMALL", 1),
   HA_TOPTION_END
 };
 
