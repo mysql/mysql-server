@@ -661,21 +661,49 @@ ExceptionsTableWriter::writeRow(NdbTransaction* trans,
         if (m_op_type_pos)
         {
           uint32 op_type_val= op_type;
-          if (ex_op->setValue((Uint32)m_op_type_pos,
-                              (const char *)&(op_type_val)))
+          if (m_ex_tab->getColumn(m_op_type_pos)->getType()
+              == NDBCOL::Char)
           {
-            err= ex_op->getNdbError();
-            break;
+            /* Defined as ENUM */
+            if (ex_op->setValue((char)m_op_type_pos,
+                                (const char *)&(op_type_val)))
+            {
+              err= ex_op->getNdbError();
+              break;
+            }
+          }
+          else
+          {
+            if (ex_op->setValue((Uint32)m_op_type_pos,
+                                (const char *)&(op_type_val)))
+            {
+              err= ex_op->getNdbError();
+              break;
+            }
           }
         }
         if (m_conflict_cause_pos)
         {
           uint32 conflict_cause_val= conflict_cause;
-          if (ex_op->setValue((Uint32)m_conflict_cause_pos,
-                              (const char *)&(conflict_cause_val)))
+          if (m_ex_tab->getColumn(m_conflict_cause_pos)->getType()
+              == NDBCOL::Char)
           {
-            err= ex_op->getNdbError();
-            break;
+            /* Defined as ENUM */
+            if (ex_op->setValue((char)m_conflict_cause_pos,
+                                (const char *)&(conflict_cause_val)))
+            {
+              err= ex_op->getNdbError();
+              break;
+            }
+          }
+          else
+          {
+            if (ex_op->setValue((Uint32)m_conflict_cause_pos,
+                                (const char *)&(conflict_cause_val)))
+            {
+              err= ex_op->getNdbError();
+              break;
+            }
           }
         }
         if (m_orig_transid_pos != 0)
