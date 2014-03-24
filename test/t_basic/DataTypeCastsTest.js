@@ -41,15 +41,11 @@ function shouldSucceed(test, promise) {
   promise.then(makePass(test), makeFail(test, "Should succeed"));
 };
 
-function shouldFail(test, promise) {
-  promise.then(makeFail(test, "Should fail"), makePass(test));
-};
-
 function shouldGetError(test, sqlstate, promise) {
   var message = "should get error " + sqlstate;
   promise.then(makeFail(test, message), function(error) {
-    if(error.sqlstate === sqlstate) test.pass();
-    else test.fail(message);
+    test.errorIfNotEqual("SQLState", sqlstate, error.sqlstate);
+    test.failOnError();
   })
 };
 
@@ -64,24 +60,24 @@ t1.run = function() {
   });
 }
 
-/* Writing a string to an int column should fail if the string 
-   cannot be cast to an int.
+/* Writing a string to an int column should fail with 22003 
+   if the string cannot be cast to an int.
 */
 var t2 = new harness.ConcurrentTest("WriteStringToIntCol:2");
 t2.run = function() {
   fail_openSession(t2, function(session) {
-    shouldFail(t2, 
+    shouldGetError(t2, "22003",
       session.persist("t_basic", { id: 302, age: "young", magic: 302}));
   });
 }
 
-/* Writing a string to an int column should fail if the string can
-   be cast to an int but the int is not valid for the column.
+/* Writing a string to an int column should fail with error 22003
+   if the string can be cast to an int but the int is not valid for the column.
 */
 var t3 = new harness.ConcurrentTest("WriteStringToIntCol:3");
 t3.run = function() {
   fail_openSession(t3, function(session) {
-    shouldFail(t3, 
+    shouldGetError(t3, "22003",
       session.persist("t_basic", { id: 303, age: "-8589934592", magic: 303}));
   });
 }
