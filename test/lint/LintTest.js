@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-/*global fs,util,harness,path,adapter_dir,suites_dir,spi_doc_dir */
-
 "use strict";
 
 var skipTests = false;
@@ -225,13 +223,10 @@ ignore("LintTest.js",14,"Expected a conditional expression and instead saw an as
 ignore("TableMapping.js",3,"The body of a for in should be wrapped in an if statement to filter unwanted properties from the prototype.");
 ignore("stats.js",13,"Expected '{' and instead saw 'r'.");
 ignore("MySQLDictionary.js",7,"Missing 'break' after 'case'.");
+
 ignore("UserContext.js", 33, "Unexpected \'\\.\'.");
-ignore("UserContext.js", 5, "Unexpected \'else\' after \'return\'.");
-ignore("UserContext.js", 5, "Unexpected \'else\' after \'return\'.");
 ignore("UserContext.js", 7, "Confusing use of \'!\'.");
-ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
-ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
-ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
+
 ignore("NdbTransactionHandler.js", 32, "Expected \'{\' and instead saw \'scans\'.");
 ignore("NdbScanFilter.js", 34, "Expected \'{\' and instead saw \'return\'.");
 

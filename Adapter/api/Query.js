@@ -740,7 +740,6 @@ var QueryHandler = function(dbTableHandler, predicate) {
   var i, index;
   for (i = 1; i < indexes.length; ++i) {
     index = indexes[i];
-     ('QueryHandler<ctor> for index', JSON.stringify(index));
     if (index.isUnique) {
       // create a candidate index for unique index
       uniqueCandidateIndex = new CandidateIndex(dbTableHandler, i);

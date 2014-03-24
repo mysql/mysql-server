@@ -36,24 +36,24 @@
   tposbigint bigint unsigned
 */
 function makePass(testCase) {
-  return function() { testCase.pass(); }
+  return function() { testCase.pass(); };
 }
 
 function makeFail(testCase, message) {
-  return function() { testCase.fail(message); }
+  return function() { testCase.fail(message); };
 }
 
 function shouldSucceed(test, promise) {
   promise.then(makePass(test), makeFail(test, "Should succeed"));
-};
+}
 
 function shouldGetError(test, sqlstate, promise) {
   var message = "should get error " + sqlstate;
   promise.then(makeFail(test, message), function(error) {
     test.errorIfNotEqual("SQLState", sqlstate, error.sqlstate);
     test.failOnError();
-  })
-};
+  });
+}
 
 
 // Write numbers to all columns
@@ -66,7 +66,7 @@ t1.run = function() {
                         tnumber: -301.101, tposint: 301, 
                         tposnumber: 301.101, tposbigint: 301 }));
   });
-}
+};
 
 // Write strings to all columns 
 var t2 = new harness.ConcurrentTest("writeStrings");
@@ -78,7 +78,7 @@ t2.run = function() {
                         tnumber: "-302.202", tposint: "302", 
                         tposnumber: "302.202", tposbigint: "302"}));
   });
-}
+};
 
 // Write negative value to unsigned decimal column: 22003
 var t3 = new harness.ConcurrentTest("writeNegativeToUnsignedDecimal");
@@ -87,7 +87,7 @@ t3.run = function() {
     shouldGetError(t3, "22003",
       session.persist("numerictypes", { id: 307, tfloat: 307, tposnumber: -307 }));
   });
-}
+};
 
 // Write string containing negative value to unsigned decimal:  22003 
 var t4 = new harness.ConcurrentTest("writeStringNegativeToUnsignedDecimal");
@@ -96,7 +96,7 @@ t4.run = function() {
     shouldGetError(t4, "22003", 
       session.persist("numerictypes", { id: 309, tfloat: 309, tposnumber: "-309"}));
   });
-}
+};
 
 // Write decimal value that will get truncated due to precision.
 // In SQL strict mode, this succeeds but generates a warning.
@@ -106,7 +106,7 @@ t5.run = function() {
     shouldSucceed(t5,
       session.persist("numerictypes", { id: 310, tfloat:310, tnumber: 310.0001}));
   });
-}
+};
 
 // Write negative value to unsigned bigint:  22003
 var t6 = new harness.ConcurrentTest("writeNegativeToUnsignedBigint");
@@ -115,7 +115,7 @@ t6.run = function() {
     shouldGetError(t6, "22003",
       session.persist("numerictypes", { id: 306, tfloat: 306, tposbigint: -306 }));
   });
-}
+};
 
 // Write string containing negative value to unsigned bigint:  22003
 var t7 = new harness.ConcurrentTest("writeStringNegativeToUnsignedBigint");
@@ -124,6 +124,6 @@ t7.run = function() {
     shouldGetError(t7, "22003",
       session.persist("numerictypes", { id: 307, tfloat: 307, tposbigint: "-307" }));
   });
-}
+};
 
 module.exports.tests = [ t1,t2,t3,t4,t5,t6,t7 ] ;
