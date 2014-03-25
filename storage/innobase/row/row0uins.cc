@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -109,7 +109,8 @@ row_undo_ins_remove_clust_rec(
 		mem_heap_t*	heap	= NULL;
 		const ulint*	offsets	= rec_get_offsets(
 			rec, index, NULL, ULINT_UNDEFINED, &heap);
-		row_log_table_delete(rec, index, offsets, NULL);
+		row_log_table_delete(
+			rec, index, offsets, true, node->trx->id);
 		mem_heap_free(heap);
 	}
 

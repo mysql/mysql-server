@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS t1;
 
 --echo **** Testing WL#3228 changes. ****
 --echo *** Create "wider" table on slave ***
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
 RESET SLAVE;
@@ -105,7 +105,7 @@ INSERT INTO t1 () VALUES (
 SELECT * FROM t1 ORDER BY a;
 
 --echo *** Select data from slave to compare ***
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # Replace values in columns that display differently between SBR & RBR
 --replace_column 5 # 8 #
@@ -136,8 +136,7 @@ CREATE TABLE t1 (
   d CHAR(5)
 );
 
---let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master slave;
 
 --echo Alter varchar table on slave
 ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(100);
@@ -156,8 +155,7 @@ SELECT * FROM t1;
 --replace_result default DEFAULT
 SHOW CREATE TABLE t1;
 
---let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master slave;
 
 --echo Insert some values and select them on slave
 SELECT * FROM t1;
@@ -185,9 +183,9 @@ CREATE TABLE t1 (
   e BIT(11)
 );
 
---echo Create bit table on slave
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master slave;
 
+--echo Create bit table on slave
 DROP TABLE t1;
 CREATE TABLE t1 (
   a BIT(16),
@@ -212,10 +210,7 @@ SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
 --replace_result default DEFAULT
 SHOW CREATE TABLE t1;
 
---let $sync_slave_connection= slave
---source include/sync_slave_sql_with_master.inc
-
-
+sync_slave_with_master slave;
 
 --echo Insert some values and select them on master
 SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
@@ -225,7 +220,7 @@ SHOW CREATE TABLE t1;
 --echo *** Cleanup  ***
 connection master;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 
