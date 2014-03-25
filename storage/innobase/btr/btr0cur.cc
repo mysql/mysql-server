@@ -5919,11 +5919,9 @@ btr_store_big_rec_extern_fields(
 	/* All pointers to externally stored columns in the record
 	must either be zero or they must be pointers to inherited
 	columns, owned by this record or an earlier record version. */
-	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
-		if (!rec_offs_nth_extern(offsets, i)) {
-			continue;
-		}
-		field_ref = btr_rec_get_field_ref(rec, offsets, i);
+	for (i = 0; i < big_rec_vec->n_fields; i++) {
+		field_ref = btr_rec_get_field_ref(
+			rec, offsets, big_rec_vec->fields[i].field_no);
 
 		ut_a(!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
 		/* Either this must be an update in place,
