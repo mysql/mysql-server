@@ -1,6 +1,5 @@
 # see if --replicate-ignore-db works
 
---source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 
 --disable_warnings
@@ -13,7 +12,7 @@ create database mysqltest2;
 use mysqltest1;
 create table t1 (a int);
 insert into t1 values(1);
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 --error 1146
 select * from mysqltest1.t1;
 
@@ -21,12 +20,12 @@ connection master;
 use mysqltest2;
 create table t1 (a int);
 insert into t1 values(1);
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 select * from mysqltest2.t1;
 
 # cleanup
 connection master;
 drop database mysqltest1;
 drop database mysqltest2;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 --source include/rpl_end.inc

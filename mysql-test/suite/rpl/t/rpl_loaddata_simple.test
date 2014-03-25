@@ -3,7 +3,7 @@
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 SELECT * FROM t1 ORDER BY word;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # Check
 SELECT * FROM t1 ORDER BY word;
@@ -11,5 +11,5 @@ SELECT * FROM t1 ORDER BY word;
 # Cleanup
 connection master;
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 --source include/rpl_end.inc

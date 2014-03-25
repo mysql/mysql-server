@@ -15,7 +15,6 @@ set spv=spv+1;
 end while;
 end//
 call p1();
-include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
 a
 1
@@ -39,7 +38,6 @@ call p2();
 SELECT * FROM t2 ORDER BY a;
 a
 4
-include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY a;
 a
 4
@@ -101,7 +99,6 @@ master:	7
 master:	8
 master:	10
 master:	11
-include/sync_slave_sql_with_master.inc
 SELECT 'slave:',a FROM t1 ORDER BY a;
 slave:	a
 slave:	1
@@ -132,7 +129,6 @@ SELECT 'master:',a FROM t1 ORDER BY a;
 master:	a
 master:	1
 master:	2
-include/sync_slave_sql_with_master.inc
 SELECT 'slave:',a FROM t1 ORDER BY a;
 slave:	a
 slave:	1
@@ -147,7 +143,6 @@ f1(?)
 SELECT 'master:',a FROM t1 ORDER BY a;
 master:	a
 master:	123
-include/sync_slave_sql_with_master.inc
 SELECT 'slave:',a FROM t1 ORDER BY a;
 slave:	a
 slave:	123
@@ -169,7 +164,6 @@ master:	6
 master:	6
 master:	15
 master:	15
-include/sync_slave_sql_with_master.inc
 SELECT 'slave:',a FROM t1 ORDER BY a;
 slave:	a
 slave:	6
@@ -221,7 +215,6 @@ master	100
 master	101
 master	101
 master	102
-include/sync_slave_sql_with_master.inc
 SELECT 'slave', a FROM t1 ORDER BY a;
 slave	a
 slave	10
@@ -237,7 +230,6 @@ drop table t1;
 drop function f1;
 drop function f2;
 drop procedure p1;
-include/sync_slave_sql_with_master.inc
 create table t2 (b BIT(7));
 create procedure sp_bug26199(bitvalue BIT(7))
 begin
@@ -268,7 +260,6 @@ E
 7F
 7F
 27
-include/sync_slave_sql_with_master.inc
 select hex(b) from t2;
 hex(b)
 E
@@ -280,6 +271,5 @@ drop table t2;
 drop procedure sp_bug26199;
 drop function sf_bug26199;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
-include/sync_slave_sql_with_master.inc
 end of the tests
 include/rpl_end.inc

@@ -3,13 +3,12 @@
 #  - Verify that the pre-WL#344 format of relay_log.info can still be
 #    parsed.
 
---source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--sync_slave_with_master
 
 --echo ==== Check that we still understand the old format of relay-log.info ====
 --source include/stop_slave.inc
