@@ -108,5 +108,5 @@ connection master;
 DROP EVENT ev1;
 DROP EVENT ev2;
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 --source include/rpl_end.inc

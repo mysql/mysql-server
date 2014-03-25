@@ -869,9 +869,7 @@ func_exit:
 	mutex_exit(&psort_info->mutex);
 
 	if (UT_LIST_GET_LEN(psort_info->fts_doc_list) > 0) {
-		/* child can exit either with error or told by parent. */
-		ut_ad(error != DB_SUCCESS
-		      || psort_info->state == FTS_PARENT_EXITING);
+		ut_ad(error != DB_SUCCESS);
 	}
 
 	/* Free fts doc list in case of error. */
@@ -1193,7 +1191,7 @@ row_fts_sel_tree_propagate(
 
 	sel_tree[parent] = selected;
 
-	return(static_cast<int>(parent));
+	return(parent);
 }
 
 /*********************************************************************//**
@@ -1213,8 +1211,8 @@ row_fts_sel_tree_update(
 	ulint	i;
 
 	for (i = 1; i <= height; i++) {
-		propagated = static_cast<ulint>(row_fts_sel_tree_propagate(
-			static_cast<int>(propagated), sel_tree, mrec, offsets, index));
+		propagated = row_fts_sel_tree_propagate(
+			propagated, sel_tree, mrec, offsets, index);
 	}
 
 	return(sel_tree[0]);
@@ -1238,8 +1236,8 @@ row_fts_build_sel_tree_level(
 	ulint	i;
 	ulint	num_item;
 
-	start = static_cast<ulint>((1 << level) - 1);
-	num_item = static_cast<ulint>(1 << level);
+	start = (1 << level) - 1;
+	num_item = (1 << level);
 
 	for (i = 0; i < num_item;  i++) {
 		child_left = sel_tree[(start + i) * 2 + 1];
@@ -1314,9 +1312,8 @@ row_fts_build_sel_tree(
 		sel_tree[i + start] = i;
 	}
 
-	for (i = static_cast<int>(treelevel) - 1; i >= 0; i--) {
-		row_fts_build_sel_tree_level(
-			sel_tree, static_cast<ulint>(i), mrec, offsets, index);
+	for (i = treelevel - 1; i >=0; i--) {
+		row_fts_build_sel_tree_level(sel_tree, i, mrec, offsets, index);
 	}
 
 	return(treelevel);
@@ -1501,7 +1498,7 @@ row_fts_merge_insert(
 					    mrec[i], mrec[min_rec],
 					    offsets[i], offsets[min_rec],
 					    index, NULL) < 0) {
-					min_rec = static_cast<int>(i);
+					min_rec = i;
 				}
 			}
 		} else {

@@ -54,11 +54,11 @@ END|
 delimiter ;|
 
 CALL p2();
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 connection master;
 CALL p1();
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 connection master;
 
@@ -79,6 +79,6 @@ DROP PROCEDURE p2;
 
 diff_files $MYSQLTEST_VARDIR/tmp/sp006_master.sql $MYSQLTEST_VARDIR/tmp/sp006_slave.sql;
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # End of 5.1 test case

@@ -9,7 +9,6 @@ DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP TRIGGER IF EXISTS tr1;
 DROP FUNCTION IF EXISTS f1;
-include/sync_slave_sql_with_master.inc
 CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY);
 CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY);
 CREATE PROCEDURE p1()
@@ -114,7 +113,6 @@ id
 10
 SELECT * FROM t2;
 id
-include/sync_slave_sql_with_master.inc
 # Result on slave
 SELECT * FROM t1;
 id
@@ -179,7 +177,6 @@ id
 17
 18
 19
-include/sync_slave_sql_with_master.inc
 # Result on slave
 SELECT * FROM t1;
 id
@@ -212,5 +209,4 @@ DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS tr1;
-include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

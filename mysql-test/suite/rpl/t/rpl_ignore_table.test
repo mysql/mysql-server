@@ -1,4 +1,3 @@
-source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 
 #

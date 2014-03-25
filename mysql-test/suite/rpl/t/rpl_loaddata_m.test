@@ -28,7 +28,7 @@ LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE mysqltest.t1;
 SELECT COUNT(*) FROM mysqltest.t1;
 
 # Now lets check the slave to see what we have :-)
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 SHOW DATABASES;
 
@@ -45,7 +45,7 @@ SELECT COUNT(*) FROM mysqltest.t1;
 connection master;
 DROP DATABASE mysqltest;
 DROP TABLE IF EXISTS test.t1;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # End of test
 --source include/rpl_end.inc

@@ -95,7 +95,7 @@ while ($k)
 --enable_warnings
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc 
+sync_slave_with_master; 
 
 #
 # 2. Case of invoked routines
@@ -161,7 +161,7 @@ while ($k)
 
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # B. Triggers
 
@@ -205,7 +205,7 @@ while ($k)
 --enable_query_log
 
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 #
 # Consistency check
@@ -241,7 +241,7 @@ while ($n)
 
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 #
 # Over MAX_DBS_IN_QUERY_MTS
@@ -302,7 +302,7 @@ while ($k)
 --enable_warnings
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # Todo: to impelement a stress test for sync_slave_with_master
 #       specifically in parallel mode.
@@ -344,7 +344,7 @@ while ($n)
 
 --enable_query_log
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;

@@ -13,11 +13,11 @@ let $1=`select @query`;
 eval $1;
 enable_query_log;
 # I have seen the slave crash either now or at shutdown
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 connection master;
 drop table t1;
 drop table t2;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # End of 4.1 tests
 --source include/rpl_end.inc
