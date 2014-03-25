@@ -127,3 +127,23 @@ NULL	825307441
 EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
 DROP TABLE t1;
 End of 5.0 tests
+#
+# Start of 5.3 tests
+#
+#
+# MDEV-5783 Assertion `0' failed in make_sortkey(SORTPARAM*, uchar*, uchar*) on ORDER BY HEX(UNCOMPRESSED_LENGTH(pk))
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(2);
+SELECT UNCOMPRESSED_LENGTH(pk) FROM t1;
+UNCOMPRESSED_LENGTH(pk)
+NULL
+NULL
+Warnings:
+Warning	1259	ZLIB: Input data corrupted
+Warning	1259	ZLIB: Input data corrupted
+SELECT * FROM t1 ORDER BY HEX(UNCOMPRESSED_LENGTH(pk));
+DROP TABLE t1;
+#
+# End of 5.3 tests
+#

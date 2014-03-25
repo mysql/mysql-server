@@ -1745,6 +1745,24 @@ EXECUTE stmt;
 DROP TABLE t1, t2;
 DROP VIEW v2;
 
+--echo #
+--echo # MDEV-5811: Server crashes in best_access_path with materialization+semijoin and big_tables=ON
+--echo #
+SET @tmp_mdev5811= @@big_tables;
+SET big_tables = ON;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (3),(4);
+
+SELECT * FROM t1 AS t1_1, t1 AS t1_2 
+  WHERE ( t1_1.a, t1_2.a ) IN ( SELECT MAX(b), MIN(b) FROM t2 );
+
+DROP TABLE t1,t2;
+SET big_tables=@tmp_mdev5811;
+
 --echo # End of 5.3 tests
 
 
