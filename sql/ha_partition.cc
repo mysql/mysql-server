@@ -5765,12 +5765,6 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     error= file->ha_index_next_same(rec_buf, m_start_key.key,
                                     m_start_key.length);
 
-  if (!m_using_extended_keys)
-  {
-    file->position(rec_buf);
-    memcpy(rec_buf + m_rec_length, file->ref, file->ref_length);
-  }
-
   if (error)
   {
     if (error == HA_ERR_END_OF_FILE)
@@ -5788,6 +5782,13 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     }
     DBUG_RETURN(error);
   }
+
+  if (!m_using_extended_keys)
+  {
+    file->position(rec_buf);
+    memcpy(rec_buf + m_rec_length, file->ref, file->ref_length);
+  }
+
   queue_replace_top(&m_queue);
   return_top_record(buf);
   DBUG_PRINT("info", ("Record returned from partition %u", m_top_entry));
