@@ -135,6 +135,9 @@ void toku_do_assert_expected_fail(uintptr_t/*expr*/, uintptr_t /*expected*/, con
 // #define GCOV
 
 extern void (*do_assert_hook)(void); // Set this to a function you want called after printing the assertion failure message but before calling abort().  By default this is NULL.
+// copied here from ydb-internal.h to avoid inclusion hell, the void * is really a DB_ENV but we don't have that type here
+typedef void (*toku_env_err_func)(const void * env, int error, const char *fmt, ...);
+void db_env_do_backtrace_errfunc(toku_env_err_func errfunc, const void *env);
 void db_env_do_backtrace(FILE *outf);
 
 #if defined(GCOV) || TOKU_WINDOWS
