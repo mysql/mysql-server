@@ -83,7 +83,7 @@ connection master;
 # Hence, before a client thread set @@global.debug we have to ensure that:
 # (a) the slave threads are stopped, or (b) the slave threads are in
 # sync and waiting.
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 eval set global debug= '$debug_saved';
 

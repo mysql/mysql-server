@@ -27,7 +27,7 @@ call mtr.add_suppression("Got fatal error 1236 from master when reading data fro
 
 --let $master_uuid= `SELECT @@SERVER_UUID`
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
---source include/sync_slave_sql_with_master.inc
+--sync_slave_with_master
 --source include/stop_slave.inc
 
 --connection master
@@ -90,7 +90,7 @@ RESET MASTER;
 --echo === Sync slave with master (connection master/slave) ====
 --connection master
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
+--sync_slave_with_master
 
 --connection master
 --source include/gtid_utils_end.inc

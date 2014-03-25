@@ -25,12 +25,8 @@ enable_query_log;
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
 # (otherwise RESET MASTER may come too early).
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 reset master;
-connection slave;
---source include/stop_slave.inc
-RESET MASTER;
---source include/start_slave.inc
 connection master;
 
 create table t1(n char(30));
@@ -55,7 +51,7 @@ select * from t1 where n = '<nonexistant>';
 connection master1; # see if variable is reset in binlog when thread changes
 insert into t1 values (@a),(@a),(@a*5);
 SELECT * FROM t1 ORDER BY n;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 SELECT * FROM t1 ORDER BY n;
 connection master;
 insert into t1 select * FROM (select @var1 union  select @var2) AS t2;
@@ -114,7 +110,7 @@ CREATE TRIGGER test.insert_bi BEFORE INSERT
     END|
 DELIMITER ;|
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 connection master;
 
 # Set @var and call the procedure, repeat with different values
@@ -129,7 +125,7 @@ CALL test.insert();
 SELECT * FROM t20;
 SELECT * FROM t21;
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 --echo On slave: Check the tables for correct data and it matches master
 
@@ -175,7 +171,7 @@ INSERT INTO t1 VALUES (square());
 
 SELECT * FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 --echo On slave: Retrieve the values from the table and verify they are the same as on master
 
@@ -219,7 +215,7 @@ CREATE FUNCTION f2() returns int deterministic BEGIN
 END |
 DELIMITER ;|
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 connection master;
 
 # Set an @var to a value and insert data into a table using the first function.
@@ -233,7 +229,7 @@ INSERT INTO t1 values(f2());
 
 --echo On master: Retrieve the values from the table
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 connection master;
 
 SELECT * from t1;
@@ -276,7 +272,7 @@ CREATE trigger t1_bi before INSERT on t1 for each row BEGIN
 END |
 DELIMITER ;|
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 connection master;
 
 # Set the @var to a value then insert data into first table.
@@ -289,7 +285,7 @@ INSERT INTO t1 values (5);
 SELECT * from t1;
 SELECT * from t2;
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 --echo On slave: Check the tables for correct data and it matches master
 
@@ -307,7 +303,7 @@ create table t1(a int, b int);
 prepare s1 from 'insert into t1 values (@x:=@x+1, ?)';
 set @x=1; execute s1 using @x;
 select * from t1;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 connection slave;
 select * from t1;
 connection master;
@@ -326,7 +322,7 @@ set @x='1.1';
 execute s1 using @x;
 --enable_warnings
 select * from t1;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 connection slave;
 select * from t1;
 connection master;
@@ -357,7 +353,7 @@ FUNCTION f2() RETURNS INT BEGIN
 END|
 DELIMITER ;|
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 connection master;
 
 # Set the variable and execute the functions.
@@ -370,7 +366,7 @@ SELECT f1(), f2();
 INSERT INTO t1 VALUES(f1());
 SELECT * FROM t1;
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 --echo On slave: Check the table for correct data and it matches master
 
@@ -384,6 +380,6 @@ DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 --source include/rpl_end.inc

@@ -27,7 +27,7 @@ SELECT * FROM a;
 insert into a values(2),(3);
 delete alias FROM a alias where alias.i=2;
 select * from a;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 use mysqltest_to;
 select * from a;

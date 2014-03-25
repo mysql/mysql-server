@@ -140,7 +140,7 @@ SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 
 # Cleanup
 DROP DATABASE track;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 --echo End of 5.1 tests
 --source include/rpl_end.inc
