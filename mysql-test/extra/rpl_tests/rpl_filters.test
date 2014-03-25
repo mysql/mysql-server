@@ -12,10 +12,11 @@ INSERT INTO t2 VALUES (1);
 -- echo # On master
 -- source include/show_binlog_events.inc
 
--- source include/sync_slave_sql_with_master.inc
+-- sync_slave_with_master
 -- echo # On slave
 -- source include/show_binlog_events.inc
 
 -- connection master
 DROP DATABASE mydb;
--- source include/sync_slave_sql_with_master.inc
+-- sync_slave_with_master
+

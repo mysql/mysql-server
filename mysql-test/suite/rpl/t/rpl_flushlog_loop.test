@@ -19,19 +19,16 @@ show variables like 'relay_log%';
 CREATE TABLE t1 (a INT KEY) ENGINE= MyISAM;
 let $wait_binlog_event= CREATE TABLE t1;
 --source include/wait_for_binlog_event.inc
---let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master server_2;
 
 connection server_1;
 INSERT INTO t1 VALUE(1);
 FLUSH LOGS;
---let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master server_2;
 
 INSERT INTO t1 VALUE(2);
 let $slave_param_value= query_get_value(SHOW MASTER STATUS, Position, 1);
---let $sync_slave_connection= server_1
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master server_1;
 
 #
 # Check that the master server's slave threads are still running and show
@@ -44,8 +41,7 @@ let $slave_param_value= query_get_value(SHOW MASTER STATUS, Position, 1);
 --disable_query_log
 connection server_1;
 DROP TABLE t1;
---let $sync_slave_connection= server_2
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master server_2;
 --enable_query_log
 
 --source include/rpl_end.inc

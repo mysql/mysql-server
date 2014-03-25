@@ -4,11 +4,11 @@ begin;
 insert into t1 values(1);
 flush tables with read lock;
 commit;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 # cleanup
 connection master;
 unlock tables;
 drop table t1;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 # End of 4.1 tests

@@ -511,26 +511,27 @@ void RIPEMD160::Transform()
 void RIPEMD160::AsmTransform(const byte* data, word32 times)
 {
 #ifdef __GNUC__
-    #define AS1(x)    #x ";"
-    #define AS2(x, y) #x ", " #y ";"
+    #define AS1(x)    asm(#x);
+    #define AS2(x, y) asm(#x ", " #y);
 
     #define PROLOG()  \
-    __asm__ __volatile__ \
-    ( \
-        ".intel_syntax noprefix;" \
-        "push ebx;" \
-        "push ebp;"
+        asm(".intel_syntax noprefix"); \
+        AS2(    movd  mm3, edi                      )   \
+        AS2(    movd  mm4, ebx                      )   \
+        AS2(    movd  mm5, esi                      )   \
+        AS2(    movd  mm6, ebp                      )   \
+        AS2(    mov   ecx, DWORD PTR [ebp +  8]     )   \
+        AS2(    mov   edi, DWORD PTR [ebp + 12]     )   \
+        AS2(    mov   edx, DWORD PTR [ebp + 16]     )
 
     #define EPILOG()  \
-        "pop ebp;" \
-        "pop ebx;" \
-               "emms;" \
-               ".att_syntax;" \
-            : \
-            : "c" (this), "D" (data), "d" (times) \
-            : "%esi", "%eax", "memory", "cc" \
-    );
-
+        AS2(    movd  ebp, mm6                  )   \
+        AS2(    movd  esi, mm5                  )   \
+        AS2(    movd  ebx, mm4                  )   \
+        AS2(    mov   esp, ebp                  )   \
+        AS2(    movd  edi, mm3                  )   \
+        AS1(    emms                            )   \
+        asm(".att_syntax");
 #else
     #define AS1(x)    __asm x
     #define AS2(x, y) __asm x, y
@@ -568,11 +569,7 @@ void RIPEMD160::AsmTransform(const byte* data, word32 times)
     AS2(    sub   esp, 24               )   // make room for tmp a1 - e1
     AS2(    movd  mm1, esi              )   // store digest_
     
-#ifdef _MSC_VER
-    AS1( loopStart: )  // loopStart
-#else
-    AS1( 0: )          // loopStart for some gas (need numeric for jump back
-#endif
+AS1( loopStart: )
 
     AS2(    movd  mm2, edx              )   // store times_
 
@@ -824,14 +821,8 @@ void RIPEMD160::AsmTransform(const byte* data, word32 times)
     AS2(    movd  edx, mm2              )   // times
     AS2(    movd  edi, mm0              )   // data, already advanced
     AS1(    dec   edx                   )
-#ifdef _MSC_VER
-    AS1(    jnz   loopStart )  // loopStart
-#else
-    AS1(    jnz   0b )         // loopStart
-#endif
+    AS1(    jnz   loopStart             )
 
-    // inline adjust
-    AS2(    add   esp, 24               )   // fix room on stack
 
     EPILOG()
 }

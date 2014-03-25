@@ -1,1 +1,0 @@
---replicate-do-db=MYDB --replicate-do-table=mýdb.ţ1 --replicate-do-table=mydb.T2 --lower_case_table_names=1

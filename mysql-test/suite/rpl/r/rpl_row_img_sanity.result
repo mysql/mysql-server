@@ -36,7 +36,6 @@ INSERT INTO t(c1,c3) VALUES (1, 'a');
 UPDATE t SET c1=2 WHERE c1=1;;
 DELETE FROM t;;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 SET @img_types= 'MINIMAL NOBLOB FULL';
 CON: 'master', IMG: 'MINIMAL', RESTART SLAVE: 'N'
 Variable_name	Value
@@ -50,7 +49,6 @@ ITERATIONS: row_img: MINIMAL, indexes: UK-NOT-NULL
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK-NOT-NULL'
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -63,12 +61,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: MINIMAL, indexes: PK
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'PK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -81,12 +77,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: MINIMAL, indexes: UK
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -99,12 +93,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: MINIMAL, indexes: K
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'K'
 CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -117,12 +109,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: MINIMAL, indexes: NONE
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'NONE'
 CREATE TABLE t (c1 int, c2 int, c3 blob);
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -135,7 +125,6 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 CON: 'master', IMG: 'NOBLOB', RESTART SLAVE: 'N'
 Variable_name	Value
 binlog_row_image	NOBLOB
@@ -148,7 +137,6 @@ ITERATIONS: row_img: NOBLOB, indexes: UK-NOT-NULL
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK-NOT-NULL'
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -161,12 +149,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: NOBLOB, indexes: PK
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'PK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -179,12 +165,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: NOBLOB, indexes: UK
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -197,12 +181,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: NOBLOB, indexes: K
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'K'
 CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -215,12 +197,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: NOBLOB, indexes: NONE
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'NONE'
 CREATE TABLE t (c1 int, c2 int, c3 blob);
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -233,7 +213,6 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 CON: 'master', IMG: 'FULL', RESTART SLAVE: 'N'
 Variable_name	Value
 binlog_row_image	FULL
@@ -246,7 +225,6 @@ ITERATIONS: row_img: FULL, indexes: UK-NOT-NULL
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK-NOT-NULL'
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -259,12 +237,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: FULL, indexes: PK
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'PK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -277,12 +253,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: FULL, indexes: UK
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'UK'
 CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -295,12 +269,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: FULL, indexes: K
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'K'
 CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -313,12 +285,10 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ITERATIONS: row_img: FULL, indexes: NONE
 include/rpl_reset.inc
 CREATING TABLE IN master WITH INDEX 'NONE'
 CREATE TABLE t (c1 int, c2 int, c3 blob);
-include/sync_slave_sql_with_master.inc
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
@@ -331,7 +301,6 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 SET @img_types= 'MINIMAL NOBLOB FULL';
 CON: 'master', IMG: 'MINIMAL', RESTART SLAVE: 'N'
 Variable_name	Value
@@ -343,13 +312,9 @@ Variable_name	Value
 binlog_row_image	MINIMAL
 ITERATIONS: row_img: MINIMAL
 include/rpl_reset.inc
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 ####### MINIMAL PARTICULAR SCENARIO ######
-include/sync_slave_sql_with_master.inc
 ####### MINIMAL OTHER PARTICULAR SCENARIO ######
-include/sync_slave_sql_with_master.inc
 CON: 'master', IMG: 'NOBLOB', RESTART SLAVE: 'N'
 Variable_name	Value
 binlog_row_image	NOBLOB
@@ -360,11 +325,8 @@ Variable_name	Value
 binlog_row_image	NOBLOB
 ITERATIONS: row_img: NOBLOB
 include/rpl_reset.inc
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 ####### NOBLOB PARTICULAR SCENARIO ######
-include/sync_slave_sql_with_master.inc
 CON: 'master', IMG: 'FULL', RESTART SLAVE: 'N'
 Variable_name	Value
 binlog_row_image	FULL
@@ -375,8 +337,6 @@ Variable_name	Value
 binlog_row_image	FULL
 ITERATIONS: row_img: FULL
 include/rpl_reset.inc
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 ################## SPECIAL CASES #########################
 include/rpl_reset.inc
@@ -412,7 +372,6 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ###################################
 # PK (does not contain blob, but blob is updated)
 ###################################
@@ -430,7 +389,6 @@ Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future rele
 UPDATE t SET c3='b' WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ###################################
 # AUTOINC columns
 ###################################
@@ -454,7 +412,6 @@ binlog_row_image	MINIMAL
 CREATE TABLE t (c1 int NOT NULL AUTO_INCREMENT, c2 int, c3 blob, primary key(c1,c2));
 INSERT INTO t(c2) VALUES (2);
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ##################################################################
 # Test that slave does not write more columns than the ones it has 
 ##################################################################
@@ -482,7 +439,6 @@ CREATE TABLE t (c1 int, c2 int, primary key(c1));
 INSERT INTO t(c2,c3) VALUES (2,'aaaaa');
 UPDATE t SET c2=3, c3='bbbbb' WHERE c2=2;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ##################################################################
 # Test that slave fills default columns in its own columns
 ##################################################################
@@ -518,7 +474,6 @@ c1	c2
 1	NULL
 2	NULL
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ##################################################################
 # Test that slave uses partial BI when master contains more columns
 ##################################################################
@@ -552,7 +507,6 @@ SELECT * FROM t;
 c1	c2	c3
 1	4	3
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ##################################################################
 # Test that if master has binlog_row_image=MINIMAL and slave has 
 # NOBLOB or FULL, it will log the expected columns
@@ -582,7 +536,6 @@ INSERT INTO t VALUES (1, 2, 3);
 UPDATE t SET c2= 4 WHERE c1=1;
 DELETE FROM t WHERE c2=4;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 CON: 'master', IMG: 'MINIMAL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'MINIMAL';
@@ -608,7 +561,6 @@ INSERT INTO t VALUES (1, 2, 3);
 UPDATE t SET c2= 4 WHERE c1=1;
 DELETE FROM t WHERE c2=4;
 DROP TABLE t;
-include/sync_slave_sql_with_master.inc
 ################################################################
 # Test that the slave stop with error if no usable data is on BI
 ################################################################

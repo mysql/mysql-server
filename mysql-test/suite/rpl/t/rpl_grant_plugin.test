@@ -32,7 +32,7 @@ if (`SELECT @@GLOBAL.GTID_MODE != 'OFF'`)
 --let $assert_cond= `SELECT "$logged_query" LIKE "%$query"`
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+-- sync_slave_with_master
 -- connection master
 
 --let $query= GRANT ALL PRIVILEGES ON `test`.* TO 'b59708_user2'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'CN=analyst, OU=division1, O=oracle, C=US'
@@ -43,7 +43,7 @@ if (`SELECT @@GLOBAL.GTID_MODE != 'OFF'`)
 --let $assert_text= Logged query must match the one issued.
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+-- sync_slave_with_master
 -- connection master
 
 ## testing with escaped characters
@@ -55,14 +55,14 @@ if (`SELECT @@GLOBAL.GTID_MODE != 'OFF'`)
 --let $assert_text= Logged query must match the one issued but properly escaped.
 --source include/assert.inc
 
---source include/sync_slave_sql_with_master.inc
+-- sync_slave_with_master
 -- connection master
 
 DROP USER b59708_user1;
 DROP USER b59708_user2;
 DROP USER 'b59708_user\''@'localhost\'';
 
---source include/sync_slave_sql_with_master.inc
+-- sync_slave_with_master
 -- connection master
 
 --enable_query_log

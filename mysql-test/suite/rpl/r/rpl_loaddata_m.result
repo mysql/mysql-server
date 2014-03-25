@@ -17,7 +17,6 @@ LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE mysqltest.t1;
 SELECT COUNT(*) FROM mysqltest.t1;
 COUNT(*)
 2
-include/sync_slave_sql_with_master.inc
 SHOW DATABASES;
 Database
 information_schema
@@ -38,5 +37,4 @@ COUNT(*)
 2
 DROP DATABASE mysqltest;
 DROP TABLE IF EXISTS test.t1;
-include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
