@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -111,28 +111,28 @@ FUNCTION(INSTALL_SCRIPT)
 ENDFUNCTION()
 
 # Install symbolic link to CMake target. 
-# We do 'cd path; ln -s target_name link_name'
-# We also add an INSTALL target for "${path}/${link_name}"
-MACRO(INSTALL_SYMLINK target target_name link_name destination component)
+# the link is created in the same directory as target
+# and extension will be the same as for target file.
+MACRO(INSTALL_SYMLINK linkname target destination component)
 IF(UNIX)
   GET_TARGET_PROPERTY(location ${target} LOCATION)
   GET_FILENAME_COMPONENT(path ${location} PATH)
-
-  SET(output ${path}/${link_name})
+  GET_FILENAME_COMPONENT(name ${location} NAME)
+  SET(output ${path}/${linkname})
   ADD_CUSTOM_COMMAND(
     OUTPUT ${output}
     COMMAND ${CMAKE_COMMAND} ARGS -E remove -f ${output}
     COMMAND ${CMAKE_COMMAND} ARGS -E create_symlink 
-      ${target_name} 
-      ${link_name}
+      ${name} 
+      ${linkname}
     WORKING_DIRECTORY ${path}
     DEPENDS ${target}
     )
   
-  ADD_CUSTOM_TARGET(symlink_${link_name}
+  ADD_CUSTOM_TARGET(symlink_${linkname}
     ALL
     DEPENDS ${output})
-  SET_TARGET_PROPERTIES(symlink_${link_name} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+  SET_TARGET_PROPERTIES(symlink_${linkname} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
   IF(CMAKE_GENERATOR MATCHES "Xcode")
     # For Xcode, replace project config with install config
     STRING(REPLACE "${CMAKE_CFG_INTDIR}" 
