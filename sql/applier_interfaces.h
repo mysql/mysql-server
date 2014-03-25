@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,8 +117,18 @@ public:
 
   ~PipelineEvent()
   {
-    if (this->errBuff)
-      delete this->errBuff;
+    if (packet != NULL)
+    {
+      delete packet;
+    }
+    if (log_event != NULL)
+    {
+       delete log_event;
+    }
+    if (errBuff != NULL)
+    {
+      delete[] errBuff;
+    }
   }
 
   /**
@@ -152,6 +162,30 @@ public:
          return error;
      *out_event= log_event;
      return 0;
+  }
+
+  /**
+    Sets the pipeline event's log event.
+
+    @note This methods assume you have called reset_pipeline_event
+
+    @param[in]  in_event    the given log event
+  */
+  void set_LogEvent(Log_event *in_event)
+  {
+     log_event= in_event;
+  }
+
+  /**
+    Sets the pipeline event's packet.
+
+    @note This methods assume you have called reset_pipeline_event
+
+    @param[in]  in_packet    the given packet
+  */
+  void set_Packet(Packet *in_packet)
+  {
+     packet= in_packet;
   }
 
   /**
@@ -197,6 +231,36 @@ public:
     return event_context;
   }
 
+  /**
+    Resets all variables in the event for reuse.
+    Possible existing events/packets are deleted.
+    The context flag is reset to UNDEFINED.
+    Error messages are deleted.
+
+    Format description events, are NOT deleted.
+    This is due to the fact that they are given, and do not belong to the
+    pipeline event.
+  */
+  void reset_pipeline_event()
+  {
+    if (packet != NULL)
+    {
+      delete packet;
+      packet = NULL;
+    }
+    if (log_event != NULL)
+    {
+      delete log_event;
+      log_event = NULL;
+    }
+    event_context= UNDEFINED;
+    if(errBuff)
+    {
+      delete[] errBuff;
+      errBuff= NULL;
+    }
+  }
+
 private:
 
   /**
@@ -211,9 +275,6 @@ private:
   int convert_packet_to_log_event()
   {
     int error= 0;
-
-    if (!errBuff)
-      errBuff= new char[MAX_SLAVE_ERRMSG];
 
     uint event_len= uint4korr(((uchar*)(packet->payload)) + EVENT_LEN_OFFSET);
     log_event= Log_event::read_log_event((const char*)packet->payload, event_len,
@@ -248,7 +309,12 @@ private:
     IO_CACHE cache;
     String packet_data;
 
-    //The cache if for this event only so we know what size it needs.
+    /*
+      The cache is for this event only so we know what size it needs.
+      Some events however can have their data_writen field set to 0,
+      being my_default_record_cache_size the default size used for the cache
+      TODO: See we can optimize this
+    */
     open_cached_file(&cache, mysql_tmpdir, "pipeline_cache",
                      log_event->data_written, MYF(MY_WME));
     if ((error= log_event->write(&cache)))
@@ -279,7 +345,7 @@ private:
   Log_event                    *log_event;
   enum_event_modifier          event_context;
   //Error buffer used on conversions
-  const char                   *errBuff;
+  const char                         *errBuff;
   //Format description event used on conversions
   Format_description_log_event *format_descriptor;
 };
@@ -295,10 +361,25 @@ class Continuation
 {
 public:
 
- Continuation() :ready(false), error_code(0)
+ Continuation() :ready(false), error_code(0), transaction_discarded(false)
   {
-    mysql_mutex_init(key_mutex, &lock, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond, &cond, NULL);
+#ifdef HAVE_PSI_INTERFACE
+    PSI_mutex_info continuation_mutexes[]=
+    {
+      { &cont_mutex_key, "LOCK_continuation", 0}
+    };
+    PSI_cond_info continuation_conds[]=
+    {
+      { &cont_cond_key, "COND_continuation", 0}
+    };
+
+    const char* category= "pipeline";
+    mysql_mutex_register(category, continuation_mutexes,1);
+    mysql_cond_register(category, continuation_conds, 1);
+#endif /* HAVE_PSI_INTERFACE */
+
+    mysql_mutex_init(cont_mutex_key, &lock, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(cont_cond_key, &cond, NULL);
   }
 
   ~Continuation()
@@ -383,8 +464,8 @@ private:
   bool          transaction_discarded;
 
 #ifdef HAVE_PSI_INTERFACE
-  PSI_mutex_key key_mutex;
-  PSI_cond_key  key_cond;
+  PSI_mutex_key cont_mutex_key;
+  PSI_cond_key  cont_cond_key;
 #endif
 };
 

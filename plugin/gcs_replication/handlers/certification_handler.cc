@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "../observer_trans.h"
 #include <gcs_replication.h>
 
-Certifier* cert_map;
+Certifier* cert_map= NULL;
 Certification_handler::Certification_handler(): seq_number(0)
 {}
 
@@ -36,6 +36,8 @@ Certification_handler::initialize()
 int
 Certification_handler::terminate()
 {
+  if(cert_map != NULL)
+    delete cert_map;
   return 0;
 }
 
@@ -141,11 +143,9 @@ Certification_handler::inject_gtid(PipelineEvent *pevent, Continuation *cont)
                                           gle_old->is_using_trans_cache(),
                                           spec);
 
-  // Pass it to next handler.
-  Format_description_log_event *fde= NULL;
-  pevent->get_FormatDescription(&fde);
-  delete pevent;
-  pevent= new PipelineEvent(gle, fde);
+  pevent->reset_pipeline_event();
+  pevent->set_LogEvent(gle);
+
   next(pevent, cont);
 
   DBUG_RETURN(0);

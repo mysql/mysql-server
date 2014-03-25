@@ -37,7 +37,9 @@ int log_message(enum plugin_log_level level, const char *format, ...);
 
 
 static void register_gcs_psi_keys(PSI_mutex_info gcs_mutexes[],
-                                  PSI_cond_info gcs_conds[]);
+                                  int mutex_count,
+                                  PSI_cond_info gcs_conds[],
+                                  int cond_count);
 
 template <typename T>
 class Synchronized_queue
@@ -56,7 +58,7 @@ public:
       { &key_mutex, "LOCK_sync_queue_wait", 0}
     };
 
-    register_gcs_psi_keys(queue_mutexes, queue_conds);
+    register_gcs_psi_keys(queue_mutexes, 1, queue_conds, 1);
 
     mysql_mutex_init(key_mutex, &lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_cond, &cond, NULL);
@@ -109,21 +111,23 @@ private:
   Register the psi keys for mutexes and conditions
 
   @param[in]  gcs_mutexes    PSI mutex info
+  @param[in]  mutex_count    The number of elements in gcs_mutexes
   @param[in]  gcs_conds      PSI condition info
+  @param[in]  cond_count     The number of elements in gcs_conds
 */
 static void register_gcs_psi_keys(PSI_mutex_info gcs_mutexes[],
-                                  PSI_cond_info gcs_conds[])
+                                  int mutex_count,
+                                  PSI_cond_info gcs_conds[],
+                                  int cond_count)
 {
   const char* category= "gcs";
   if (gcs_mutexes != NULL)
   {
-    int count= array_elements(gcs_mutexes);
-    mysql_mutex_register(category, gcs_mutexes, count);
+    mysql_mutex_register(category, gcs_mutexes, mutex_count);
   }
-  if (gcs_conds)
+  if (gcs_conds != NULL)
   {
-    int count= array_elements(gcs_conds);
-    mysql_cond_register(category, gcs_conds, count);
+    mysql_cond_register(category, gcs_conds, cond_count);
   }
 }
 

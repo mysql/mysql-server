@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ static PSI_mutex_info validation_mutexes[]=
 
 void init_validation_structures(void)
 {
-  register_gcs_psi_keys(validation_mutexes, validation_conditions);
+  register_gcs_psi_keys(validation_mutexes, 1, validation_conditions, 1);
   mysql_mutex_init(key_LOCK_cond_map, &LOCK_cond_map, MY_MUTEX_INIT_FAST);
 }
 

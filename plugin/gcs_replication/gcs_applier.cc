@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,9 +30,10 @@ static void *launch_handler_thread(void* arg)
 
 Applier_module::Applier_module()
   :applier_running(false), applier_aborted(false), incoming(NULL),
-   pipeline(NULL), stop_wait_timeout(LONG_TIMEOUT)
+   pipeline(NULL), fde_evt(BINLOG_VERSION), stop_wait_timeout(LONG_TIMEOUT)
 {
 
+#ifdef HAVE_PSI_INTERFACE
   PSI_cond_info applier_conds[]=
   {
     { &run_key_cond, "COND_applier_run", 0}
@@ -43,7 +44,10 @@ Applier_module::Applier_module()
     { &run_key_mutex, "LOCK_applier_run", 0}
   };
 
-  register_gcs_psi_keys(applier_mutexes, applier_conds);
+  register_gcs_psi_keys(applier_mutexes, 1,
+                        applier_conds, 1);
+#endif /* HAVE_PSI_INTERFACE */
+
   mysql_mutex_init(run_key_mutex, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(run_key_cond, &run_cond, 0);
 }
@@ -157,8 +161,6 @@ Applier_module::applier_thread_handle()
     uchar* payload= packet->payload;
     uchar* payload_end= packet->payload+packet->len;
 
-    Format_description_log_event* fde_evt=
-      new Format_description_log_event(BINLOG_VERSION);
     Continuation* cont= new Continuation();
 
     while ((payload != payload_end) && !error)
@@ -168,7 +170,7 @@ Applier_module::applier_thread_handle()
       Packet* new_packet= new Packet(payload,event_len);
       payload= payload + event_len;
 
-      PipelineEvent* pevent= new PipelineEvent(new_packet, fde_evt);
+      PipelineEvent* pevent= new PipelineEvent(new_packet, &fde_evt);
       pipeline->handle(pevent, cont);
 
       if ((error= cont->wait()))
@@ -176,7 +178,9 @@ Applier_module::applier_thread_handle()
 
       delete pevent;
     }
+
     delete packet;
+    delete cont;
   }
 
   log_message(MY_INFORMATION_LEVEL, "The applier thread was killed");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,13 @@ int get_pipeline(Handler_pipeline_type pipeline_type,
 
   Handler_id* handler_list= NULL;
   int num_handlers= get_pipeline_configuration(pipeline_type, &handler_list);
-  DBUG_RETURN(configure_pipeline(pipeline, handler_list, num_handlers));
+  int error= configure_pipeline(pipeline, handler_list, num_handlers);
+  if(handler_list != NULL)
+  {
+    delete[] handler_list;
+  }
+  //when there are no handlers, the pipeline is not valid
+  DBUG_RETURN(error || num_handlers == 0);
 }
 
 int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
@@ -109,6 +115,7 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
         {
           log_message(MY_ERROR_LEVEL,
                       "An handler, marked as unique, is already in use.");
+          delete handler;
           DBUG_RETURN(1);
         }
 
@@ -121,6 +128,7 @@ int configure_pipeline(EventHandler** pipeline, Handler_id handler_list[],
           log_message(MY_ERROR_LEVEL,
                       "An handler role, that was marked as unique, "
                       "is already in use.");
+          delete handler;
           DBUG_RETURN(1);
         }
 

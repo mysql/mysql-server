@@ -871,7 +871,7 @@ const char* Log_event::get_type_str()
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
-  :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg),
+  :log_pos(0), temp_buf(0), exec_time(0), data_written(0), flags(flags_arg),
   event_cache_type(cache_type_arg),
   event_logging_type(logging_type_arg),
   crc(0), thd(thd_arg), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
@@ -890,7 +890,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
 
 Log_event::Log_event(enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
-  :temp_buf(0), exec_time(0), flags(0), event_cache_type(cache_type_arg),
+  :temp_buf(0), exec_time(0), data_written(0), flags(0),
+  event_cache_type(cache_type_arg),
   event_logging_type(logging_type_arg), crc(0), thd(0),
   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
@@ -14032,7 +14033,7 @@ Transaction_context_log_event::Transaction_context_log_event(const char *buffer,
 
 err:
   // Make is_valid() return false.
-  my_free(server_uuid);
+  my_free((void*) server_uuid);
   server_uuid= NULL;
   DBUG_VOID_RETURN;
 }
@@ -14052,7 +14053,7 @@ void Transaction_context_log_event::clear_set(std::list<const char*> *set)
   for (std::list<const char*>::iterator it=set->begin();
        it != set->end();
        ++it)
-    my_free((char*)*it);
+    my_free((void*)*it);
   set->clear();
   DBUG_VOID_RETURN;
 }

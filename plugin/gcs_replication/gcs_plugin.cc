@@ -378,7 +378,11 @@ int configure_and_start_applier()
     applier->setup_applier_module((Handler_pipeline_type)handler_pipeline_type,
                                   gcs_applier_thread_timeout);
   if (error)
+  {
+    //Delete the possible existing pipeline
+    applier->terminate_applier_pipeline();
     DBUG_RETURN(error);
+  }
 
   if ((error= applier->initialize_applier_thread()))
   {

@@ -233,7 +233,7 @@ void add_pke_to_list(TABLE *table, THD *thd)
                                    MYF(MY_WME));
 
       strmake(pk_value, str.c_ptr_safe(), str.length());
-      const char *lenStr = my_safe_itoa(10, (str.length()), &buf[sizeof(buf)-1]);
+      const char *lenStr = my_safe_itoa(10, (str.length()), &buf[length-1]);
       pke.append(lenStr);
       pke.append(pk_value);
       my_free(buf);
@@ -244,7 +244,7 @@ void add_pke_to_list(TABLE *table, THD *thd)
     DBUG_PRINT("info", ("The hashed value is %s for %lu", pk,
                         thd->thread_id));
     uint temp_1= calc_hash<const char *>(pk);
-    delete pk_value;
+    delete[] pk_value;
     thd->add_write_set(temp_1);
   }
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,18 +160,25 @@ private:
   PSI_mutex_key run_key_mutex;
   PSI_cond_key  run_key_cond;
 #endif
-  //Applier running flag
+  /** Applier running flag */
   bool applier_running;
-  //Applier abort flag
+  /** Applier abort flag */
   bool applier_aborted;
 
-  //The incoming event queue
+  /** The incoming event queue */
   Synchronized_queue<Packet *> *incoming;
 
-  //The applier pipeline for event execution
+  /** The applier pipeline for event execution */
   EventHandler *pipeline;
 
-  //Applier timeout on shutdown
+  /**
+    The Format description event used for Pipeline Events
+    One event is enough for now as we assume that the cluster is homogeneous.
+    If heterogeneous sources are used, then different format description events
+    can be used to describe each source.
+  */
+  Format_description_log_event fde_evt;
+  /** Applier timeout on shutdown */
   ulong stop_wait_timeout;
 };
 

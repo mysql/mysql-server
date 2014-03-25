@@ -1324,7 +1324,7 @@ public:
 #else // ifdef MYSQL_SERVER
   Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
-  : temp_buf(0), flags(0), event_cache_type(cache_type_arg),
+  : temp_buf(0), data_written(0), flags(0), event_cache_type(cache_type_arg),
     event_logging_type(logging_type_arg)
   { }
     /* avoid having to link mysqlbinlog against libpthread */
