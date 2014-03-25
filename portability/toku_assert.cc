@@ -135,7 +135,6 @@ void (*do_assert_hook)(void) = NULL;
 
 void db_env_do_backtrace_errfunc(toku_env_err_func errfunc, const void *env) {
     // backtrace
-#if !TOKU_WINDOWS
     int n = backtrace(backtrace_pointers, N_POINTERS);
     errfunc(env, 0, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert);
     char **syms = backtrace_symbols(backtrace_pointers, n);
@@ -145,7 +144,6 @@ void db_env_do_backtrace_errfunc(toku_env_err_func errfunc, const void *env) {
         }
         free(syms);
     }
-#endif
 
     if (engine_status_num_rows && toku_maybe_get_engine_status_text_p) {
 	int buffsize = engine_status_num_rows * 128;  // assume 128 characters per row (gross overestimate, should be safe)
