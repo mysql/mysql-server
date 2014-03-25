@@ -233,6 +233,7 @@ static DB_ENV * volatile most_recent_env;   // most recently opened env, used fo
 
 static int env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt);
 static int toku_maybe_get_engine_status_text (char* buff, int buffsize);  // for use by toku_assert
+static int toku_maybe_err_engine_status (void);
 static void toku_maybe_set_env_panic(int code, const char * msg);               // for use by toku_assert
 
 int 
@@ -1108,7 +1109,7 @@ cleanup:
         most_recent_env = env;
         uint64_t num_rows;
         env_get_engine_status_num_rows(env, &num_rows);
-        toku_assert_set_fpointers(toku_maybe_get_engine_status_text, toku_maybe_set_env_panic, num_rows);
+        toku_assert_set_fpointers(toku_maybe_get_engine_status_text, toku_maybe_err_engine_status, toku_maybe_set_env_panic, num_rows);
     }
     return r;
 }
@@ -2223,6 +2224,83 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     return r;
 }
 
+// prints engine status using toku_env_err line-by-line
+static int
+env_err_engine_status(DB_ENV * env) {
+    uint32_t stringsize = 1024;
+    uint64_t panic;
+    char panicstring[stringsize];
+    uint64_t num_rows;
+    uint64_t max_rows;
+    fs_redzone_state redzone_state;
+
+    toku_env_err(env, 0, "BUILD_ID = %d", BUILD_ID);
+
+    (void) env_get_engine_status_num_rows (env, &max_rows);
+    TOKU_ENGINE_STATUS_ROW_S mystat[max_rows];
+    int r = env->get_engine_status (env, mystat, max_rows, &num_rows, &redzone_state, &panic, panicstring, stringsize, TOKU_ENGINE_STATUS);
+
+    if (r) {
+        toku_env_err(env, 0, "Engine status not available: ");
+        if (!env) {
+            toku_env_err(env, 0, "no environment");
+        }
+        else if (!(env->i)) {
+            toku_env_err(env, 0, "environment internal struct is null");
+        }
+        else if (!env_opened(env)) {
+            toku_env_err(env, 0, "environment is not open");
+        }
+    }
+    else {
+        if (panic) {
+            toku_env_err(env, 0, "Env panic code: %" PRIu64, panic);
+            if (strlen(panicstring)) {
+                invariant(strlen(panicstring) <= stringsize);
+                toku_env_err(env, 0, "Env panic string: %s", panicstring);
+            }
+        }
+
+        for (uint64_t row = 0; row < num_rows; row++) {
+            switch (mystat[row].type) {
+            case FS_STATE:
+                toku_env_err(env, 0, "%s: %" PRIu64, mystat[row].legend, mystat[row].value.num);
+                break;
+            case UINT64:
+                toku_env_err(env, 0, "%s: %" PRIu64, mystat[row].legend, mystat[row].value.num);
+                break;
+            case CHARSTR:
+                toku_env_err(env, 0, "%s: %s", mystat[row].legend, mystat[row].value.str);
+                break;
+            case UNIXTIME:
+                {
+                    char tbuf[26];
+                    format_time((time_t*)&mystat[row].value.num, tbuf);
+                    toku_env_err(env, 0, "%s: %s", mystat[row].legend, tbuf);
+                }
+                break;
+            case TOKUTIME:
+                {
+                    double t = tokutime_to_seconds(mystat[row].value.num);
+                    toku_env_err(env, 0, "%s: %.6f", mystat[row].legend, t);
+                }
+                break;
+            case PARCOUNT:
+                {
+                    uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
+                    toku_env_err(env, 0, "%s: %" PRIu64, mystat[row].legend, v);
+                }
+                break;
+            default:
+                toku_env_err(env, 0, "%s: UNKNOWN STATUS TYPE: %d", mystat[row].legend, mystat[row].type);
+                break;
+            }
+        }
+    }
+
+    return r;
+}
+
 // intended for use by toku_assert logic, when env is not known
 static int 
 toku_maybe_get_engine_status_text (char * buff, int buffsize) {
@@ -2234,6 +2312,19 @@ toku_maybe_get_engine_status_text (char * buff, int buffsize) {
     else {
         r = EOPNOTSUPP;
         snprintf(buff, buffsize, "Engine status not available: disabled by user.  This should only happen in test programs.\n");
+    }
+    return r;
+}
+
+static int
+toku_maybe_err_engine_status (void) {
+    DB_ENV * env = most_recent_env;
+    int r;
+    if (engine_status_enable && env != NULL) {
+        r = env_err_engine_status(env);
+    }
+    else {
+        r = EOPNOTSUPP;
     }
     return r;
 }

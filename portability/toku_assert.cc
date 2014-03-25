@@ -125,12 +125,15 @@ toku_assert_init(void)
 
 // Function pointers are zero by default so asserts can be used by brt-layer tests without an environment.
 static int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = 0;
+static int (*toku_maybe_err_engine_status_p)(void) = 0;
 static void (*toku_maybe_set_env_panic_p)(int code, const char* msg) = 0;
 
-void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int), 
+void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int),
+                               int (*toku_maybe_err_engine_status_pointer)(void),
 			       void (*toku_maybe_set_env_panic_pointer)(int, const char*),
                                uint64_t num_rows) {
     toku_maybe_get_engine_status_text_p = toku_maybe_get_engine_status_text_pointer;
+    toku_maybe_err_engine_status_p = toku_maybe_err_engine_status_pointer;
     toku_maybe_set_env_panic_p = toku_maybe_set_env_panic_pointer;
     engine_status_num_rows = num_rows;
 }
@@ -152,11 +155,8 @@ void db_env_do_backtrace_errfunc(toku_env_err_func errfunc, const void *env) {
     }
 #endif
 
-    if (engine_status_num_rows && toku_maybe_get_engine_status_text_p) {
-	int buffsize = engine_status_num_rows * 128;  // assume 128 characters per row (gross overestimate, should be safe)
-	char buff[buffsize];
-	toku_maybe_get_engine_status_text_p(buff, buffsize);
-	errfunc(env, 0, "Engine status:\n%s\n", buff);
+    if (engine_status_num_rows && toku_maybe_err_engine_status_p) {
+	toku_maybe_err_engine_status_p();
     } else {
 	errfunc(env, 0, "Engine status function not available\n");
     }
