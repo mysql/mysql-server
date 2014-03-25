@@ -262,7 +262,35 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     mysql_get_charset_by_csname
     mysql_net_realloc
 
-    # And even more so on Debian, libmyodbc. Argh!
+    # PHP's mysqli.so requires this (via the ER() macro)
+    mysql_client_errors
+
+    # Also export the non-renamed variants
+    # (in case someone wants to rebuild mysqli-php or something similar)
+    # See MDEV-4127
+    default_charset_info
+    get_charset
+    get_charset_by_csname
+    net_realloc
+    client_errors
+
+    # pure-ftpd requires this
+    my_make_scrambled_password
+
+    # hydra requires this
+    scramble
+
+    # ODB requires this: https://bugzilla.redhat.com/show_bug.cgi?id=846602
+    THR_KEY_mysys
+
+    # DBD::mysql requires this
+    is_prefix
+  )
+
+ 
+  # And even more so on Debian
+  SET(CLIENT_API_5_5_EXTRA
+    # libmyodbc. Argh!
     alloc_dynamic
     alloc_root
     delete_dynamic
@@ -292,34 +320,10 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     strmake_root
     strxmov
 
-    # PHP's mysqli.so requires this (via the ER() macro)
-    mysql_client_errors
-
-    # Also export the non-renamed variants
-    # (in case someone wants to rebuild mysqli-php or something similar)
-    # See MDEV-4127
-    default_charset_info
-    get_charset
-    get_charset_by_csname
-    net_realloc
-    client_errors
-
-    # pure-ftpd requires this
-    my_make_scrambled_password
-
-    # pam_mysql.so on Debian
+    # pam_mysql.so
     make_scrambled_password
     make_scrambled_password_323
-
-    # hydra requires this
-    scramble
-
-    # ODB requires this: https://bugzilla.redhat.com/show_bug.cgi?id=846602
-    THR_KEY_mysys
-
-    # DBD::mysql requires this
-    is_prefix
-  )  
+  )
 
   # Linker script to version symbols in Fedora- and Debian- compatible way, MDEV-5529
   SET(VERSION_SCRIPT_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/libmysql_versions.ld.in)
@@ -337,7 +341,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   ENDFOREACH()
       
   SET (CLIENT_API_5_5_LIST)
-  FOREACH (f ${CLIENT_API_FUNCTIONS_5_5})
+  FOREACH (f ${CLIENT_API_FUNCTIONS_5_5} ${CLIENT_API_5_5_EXTRA})
     SET(CLIENT_API_5_5_LIST "${CLIENT_API_5_5_LIST}\t${f};\n")
   ENDFOREACH()
 
@@ -398,7 +402,9 @@ IF(UNIX)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_5_1_EXTRA} COMPONENT SharedLibraries)
+  MERGE_LIBRARIES(libmysql SHARED ${LIBS}
+    EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_5_1_EXTRA} ${CLIENT_API_5_5_EXTRA}
+    COMPONENT SharedLibraries)
   IF(UNIX)
     # libtool compatability
     IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)
