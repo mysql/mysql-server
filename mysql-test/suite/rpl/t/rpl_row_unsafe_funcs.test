@@ -24,13 +24,13 @@ INSERT INTO t2 SELECT 2, ROW_COUNT();
 #must return 1 and 3
 SELECT b FROM t2 ORDER BY a;
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 #must return 1 and 3
 SELECT b FROM t2 ORDER BY a;
 
 connection master;
 DROP TABLE t1, t2;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 connection master;
 --source include/rpl_end.inc

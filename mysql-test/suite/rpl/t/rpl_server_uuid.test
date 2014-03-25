@@ -26,7 +26,7 @@ CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@glo
 
 --let $master_datadir=`SELECT @@DATADIR`
 # Sync suppressions
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 --let $slave_datadir=`SELECT @@DATADIR`
 
 connection server_3;
@@ -119,8 +119,7 @@ eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
 --source include/check_slave_no_error.inc
 
 connection master;
---let $sync_slave_connection= server_3
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master server_3;
 --source include/stop_slave.inc
 
 connection master;

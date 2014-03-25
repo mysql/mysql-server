@@ -56,7 +56,7 @@ CALL simpleproc3();
 
 select * from t1;
 
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 
 use test1;
 select * from t1;

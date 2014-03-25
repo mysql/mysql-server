@@ -35,4 +35,3 @@ FLUSH LOGS;
 ==== --read-from-remote-master with --include-gtid ====
 FLUSH LOGS;
 DROP TABLE t1;
-CHANGE MASTER TO MASTER_AUTO_POSITION=0;

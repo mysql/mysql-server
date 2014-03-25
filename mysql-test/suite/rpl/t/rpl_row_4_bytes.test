@@ -23,12 +23,12 @@ insert into t1 values("GUI");
 insert into t2 values("LIL");
 insert into t2 values("ABE");
 insert into t2 values("ANG");
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 use mysqltest1;
 select * from t1 order by a;
 select * from t2 order by a;
 
 connection master;
 DROP DATABASE mysqltest1;
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 --source include/rpl_end.inc

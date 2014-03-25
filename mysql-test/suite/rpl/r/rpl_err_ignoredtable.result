@@ -8,7 +8,6 @@ create table t4 (a int primary key);
 insert into t1 values (1),(1);
 Got one of the listed errors
 insert into t4 values (1),(2);
-include/sync_slave_sql_with_master.inc
 show tables like 't1';
 Tables_in_test (t1)
 show tables like 't4';
@@ -19,7 +18,6 @@ a
 1
 2
 drop table t1;
-include/sync_slave_sql_with_master.inc
 select get_lock('crash_lock%20C', 10);
 get_lock('crash_lock%20C', 10)
 1
@@ -34,7 +32,6 @@ select (@id := id) - id from t3;
 kill @id;
 drop table t2,t3;
 insert into t4 values (3),(4);
-include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t4 ORDER BY a;
 a
 1
@@ -42,5 +39,4 @@ a
 3
 4
 DROP TABLE test.t4;
-include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

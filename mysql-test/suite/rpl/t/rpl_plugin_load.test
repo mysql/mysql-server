@@ -32,7 +32,7 @@ eval SELECT $after_pos - $before_pos AS Delta;
 --echo Verify that example engine is installed.
 SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 # Wait for slave to catch up with master.
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 #
     --echo connection slave: Verify that example engine is not installed.
     connection slave;
@@ -53,7 +53,7 @@ eval SELECT $after_pos - $before_pos AS Delta;
 --echo Verify that example engine is not installed.
 SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 # Wait for slave to catch up with master.
---source include/sync_slave_sql_with_master.inc
+sync_slave_with_master;
 #
 # Cleanup
 --source include/rpl_end.inc
