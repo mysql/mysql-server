@@ -1019,7 +1019,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
-  float *rec_per_key_float;
+  rec_per_key_t *rec_per_key_float;
   handler *handler_file= 0;
   KEY	*keyinfo;
   KEY_PART_INFO *key_part;
@@ -1148,7 +1148,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!multi_alloc_root(&share->mem_root, 
                         &keyinfo, n_length + uint2korr(disk_buff + 4),
                         &rec_per_key, sizeof(ulong) * total_key_parts,
-                        &rec_per_key_float, sizeof(float) * total_key_parts,
+                        &rec_per_key_float,
+                        sizeof(rec_per_key_t) * total_key_parts,
                         NULL))
     goto err;                                   /* purecov: inspected */
 
@@ -5529,12 +5530,13 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   */
   const size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count;
   ulong *rec_per_key;
-  float *rec_per_key_float;
+  rec_per_key_t *rec_per_key_float;
 
   if(!multi_alloc_root(&mem_root,
                        &key_buf, key_buf_size,
                        &rec_per_key, sizeof(ulong) * key_part_count,
-                       &rec_per_key_float, sizeof(float) * key_part_count,
+                       &rec_per_key_float,
+                       sizeof(rec_per_key_t) * key_part_count,
                        NULL))
     return true;                                /* purecov: inspected */
 
