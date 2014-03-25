@@ -148,7 +148,7 @@ void db_env_do_backtrace_errfunc(toku_env_err_func errfunc, const void *env) {
         for (char **symstr = syms; symstr != NULL && (symstr - syms) < n; ++symstr) {
             errfunc(env, 0, *symstr);
         }
-        //free(syms);
+        free(syms);
     }
 #endif
 
