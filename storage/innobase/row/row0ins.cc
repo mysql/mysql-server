@@ -307,12 +307,6 @@ row_ins_sec_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 		}
 
-		if (dict_table_is_intrinsic(cursor->index->table)) {
-			/* Structure of index about the change. Invalidate
-			cached cursor. */
-			cursor->index->last_sel_cur->invalid = true;
-		}
-
 		err = btr_cur_pessimistic_update(
 			flags | BTR_KEEP_SYS_FLAG, cursor,
 			offsets, &offsets_heap,
@@ -393,12 +387,6 @@ row_ins_clust_index_entry_by_modify(
 
 			return(DB_LOCK_TABLE_FULL);
 
-		}
-
-		if (dict_table_is_intrinsic(cursor->index->table)) {
-			/* Structure of index about the change. Invalidate
-			cached cursor. */
-			cursor->index->last_sel_cur->invalid = true;
 		}
 
 		err = btr_cur_pessimistic_update(
@@ -2463,6 +2451,12 @@ err_exit:
 		existing record */
 		mem_heap_t*	entry_heap	= mem_heap_create(1024);
 
+		/* If the existing record is being modified and the new record
+		is doesn't fit the provided slot then existing record is added
+		to free list and new record is inserted. This also means
+		cursor that we have cached for SELECT is now invalid. */
+		index->last_sel_cur->invalid = true;
+
 		err = row_ins_clust_index_entry_by_modify(
 			flags, mode, &cursor, &offsets, &offsets_heap,
 			entry_heap, &big_rec, entry, thr, &mtr);
@@ -3027,6 +3021,12 @@ row_ins_sec_index_entry_low(
 	}
 
 	if (row_ins_must_modify_rec(&cursor)) {
+		/* If the existing record is being modified and the new record
+		is doesn't fit the provided slot then existing record is added
+		to free list and new record is inserted. This also means
+		cursor that we have cached for SELECT is now invalid. */
+		index->last_sel_cur->invalid = true;
+
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
