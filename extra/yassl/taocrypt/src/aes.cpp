@@ -52,7 +52,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
             in  += BLOCK_SIZE;
         }
     else if (mode_ == CBC) {
-        if (dir_ == ENCRYPTION) {
+        if (dir_ == ENCRYPTION)
             while (blocks--) {
                 r_[0] ^= *(word32*)in;
                 r_[1] ^= *(word32*)(in +  4);
@@ -65,8 +65,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
-        }
-    else {
+        else
             while (blocks--) {
                 AsmDecrypt(in, out, (void*)Td0);
                 
@@ -79,7 +78,6 @@ void AES::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
-       }
    }
 }
 
@@ -454,31 +452,27 @@ void AES::decrypt(const byte* inBlock, const byte* xorBlock,
 
 #if defined(DO_AES_ASM)
     #ifdef __GNUC__
-        #define AS1(x)    #x ";"
-        #define AS2(x, y) #x ", " #y ";"
+        #define AS1(x)    asm(#x);
+        #define AS2(x, y) asm(#x ", " #y);
 
         #define PROLOG()  \
-        __asm__ __volatile__ \
-        ( \
-            ".intel_syntax noprefix;" \
-            "push ebx;" \
-            "push ebp;" \
-            "movd mm7, ebp;" \
-            "movd mm4, eax;" \
-            "mov  ebp, edx;"  \
-            "sub  esp, 4;"
+            asm(".intel_syntax noprefix"); \
+            AS2(    movd  mm3, edi                      )   \
+            AS2(    movd  mm4, ebx                      )   \
+            AS2(    sub   esp, 4                        )   \
+            AS2(    movd  mm7, ebp                      )   \
+            AS2(    mov   [ebp - 4], esi                )   \
+            AS2(    mov   ecx, DWORD PTR [ebp +  8]     )   \
+            AS2(    mov   esi, DWORD PTR [ebp + 12]     )   \
+            AS2(    mov   ebp, DWORD PTR [ebp + 20]     )
 
         #define EPILOG()  \
-            "add esp, 4;" \
-            "pop ebp;" \
-            "pop ebx;" \
-                   "emms;" \
-                   ".att_syntax;" \
-                : \
-                : "c" (this), "S" (inBlock), "d" (boxes), "a" (outBlock) \
-                : "%edi", "memory", "cc" \
-        );
-
+            AS2(    mov  esi, [ebp - 4]             )   \
+            AS2(    mov  esp, ebp                   )   \
+            AS2(    movd ebx, mm4                   )   \
+            AS2(    movd edi, mm3                   )   \
+            AS1(    emms                            )   \
+            asm(".att_syntax");
     #else
         #define AS1(x)    __asm x
         #define AS2(x, y) __asm x, y
@@ -510,8 +504,6 @@ void AES::decrypt(const byte* inBlock, const byte* xorBlock,
 
 #ifdef _MSC_VER
     __declspec(naked) 
-#else
-    __attribute__ ((noinline))
 #endif
 void AES::AsmEncrypt(const byte* inBlock, byte* outBlock, void* boxes) const
 {
@@ -545,11 +537,7 @@ void AES::AsmEncrypt(const byte* inBlock, byte* outBlock, void* boxes) const
     AS2(    xor   ecx, DWORD PTR [edi +  8]          )   // s2
     AS2(    xor   edx, DWORD PTR [edi + 12]          )   // s3
 
-#ifdef _MSC_VER
-    AS1( loop1: )  // loop1
-#else
-    AS1(1:  )      // loop1
-#endif
+    AS1(loop1:                                                          )
             /* Put0 (mm0) =  
                 Te0[get0,rs 24] ^
                 Te1[get1,rs 16] ^
@@ -664,11 +652,7 @@ void AES::AsmEncrypt(const byte* inBlock, byte* outBlock, void* boxes) const
     AS1(    dec   edi                                                   )
     AS2(    movd  mm5, edi                                              )
 
-#ifdef _MSC_VER
-    AS1(    jnz   loop1)  // loop1
-#else
-    AS1(    jnz   1b )    // loop1
-#endif
+    AS1(    jnz   loop1                                                 )
 
             // last round
             /*
@@ -815,9 +799,9 @@ void AES::AsmEncrypt(const byte* inBlock, byte* outBlock, void* boxes) const
 
             // store
     #ifdef __GNUC__
-        AS2(    movd esi, mm4                       )   //  outBlock
+        AS2(    mov esi, DWORD PTR [ebp + 16]       )   //  outBlock
     #else
-        AS2(    mov  esi, DWORD PTR [ebp + 12]      )   //  outBlock
+        AS2(    mov esi, DWORD PTR [ebp + 12]       )   //  outBlock
     #endif
 
     AS1(    bswap ecx                                                   )
@@ -834,9 +818,7 @@ void AES::AsmEncrypt(const byte* inBlock, byte* outBlock, void* boxes) const
 
 
 #ifdef _MSC_VER
-    __declspec(naked)
-#else
-    __attribute__ ((noinline)) 
+    __declspec(naked) 
 #endif
 void AES::AsmDecrypt(const byte* inBlock, byte* outBlock, void* boxes) const
 {
@@ -871,11 +853,7 @@ void AES::AsmDecrypt(const byte* inBlock, byte* outBlock, void* boxes) const
     AS2(    xor   edx, DWORD PTR [edi + 12]          )   // s3
 
 
-#ifdef _MSC_VER
-    AS1( loop2: )  // loop2
-#else
-    AS1(2:  )      // loop2
-#endif
+    AS1(loop2:                                                          )
        /*   Put0 (mm0) =
             Td0[GETBYTE(get0, rs24)] ^
             Td1[GETBYTE(get3, rs16)] ^
@@ -986,11 +964,7 @@ void AES::AsmDecrypt(const byte* inBlock, byte* outBlock, void* boxes) const
     AS1(    dec   edi                                                   )
     AS2(    movd  mm5, edi                                              )
 
-#ifdef _MSC_VER
-    AS1(    jnz   loop2)  // loop2
-#else
-    AS1(    jnz   2b )    // loop2
-#endif
+    AS1(    jnz   loop2                                                 )
 
             // last round
             /*
@@ -1140,9 +1114,9 @@ void AES::AsmDecrypt(const byte* inBlock, byte* outBlock, void* boxes) const
 
             // store
     #ifdef __GNUC__
-        AS2(    movd esi, mm4                        )   //  outBlock
+        AS2(    mov esi, DWORD PTR [ebp + 16]       )   //  outBlock
     #else
-        AS2(    mov esi,  DWORD PTR [ebp + 12]       )   //  outBlock
+        AS2(    mov esi, DWORD PTR [ebp + 12]       )   //  outBlock
     #endif
     AS2(    mov DWORD PTR [esi],      eax                               )
     AS2(    mov DWORD PTR [esi +  4], ebx                               )

@@ -3711,9 +3711,7 @@ public:
 /**
   Skip the increase of the global query id counter. Commonly set for
   commands that are stateless (won't cause any change on the server
-  internal states). This is made obsolete as query id is incremented for
-  ping and statistics commands as well because of race condition 
-  (Bug#58785).
+  internal states).
 */
 #define CF_SKIP_QUERY_ID        (1U << 0)
 

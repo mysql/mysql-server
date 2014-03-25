@@ -28,8 +28,8 @@ IF(UNIX)
 
   FOREACH(fedfile my.cnf my_config.h mysql_config.sh
           mysqld.service mysql-systemd-start mysql.conf
-          filter-requires.sh filter-provides.sh mysql.init
-          mysql-5.5-libmysqlclient-symbols.patch)
+          filter-requires.sh filter-provides.sh
+          mysql-embedded-check.c mysql.init)
     CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
   ENDFOREACH()
 ENDIF()

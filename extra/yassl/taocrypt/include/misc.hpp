@@ -124,22 +124,15 @@ void CleanUp();
 
 
 // no gas on these systems ?, disable for now
-#if defined(__sun__)
-    #undef  TAOCRYPT_DISABLE_X86ASM
+#if defined(__sun__) || defined (__APPLE__)
     #define TAOCRYPT_DISABLE_X86ASM
 #endif
 
 // icc problem with -03 and integer, disable for now
 #if defined(__INTEL_COMPILER)
-    #undef  TAOCRYPT_DISABLE_X86ASM
     #define TAOCRYPT_DISABLE_X86ASM
 #endif
 
-// indpedent of build system, unless ia32 asm is enabled disable it
-#if !defined(TAOCRYPT_ENABLE_X86ASM)
-    #undef  TAOCRYPT_DISABLE_X86ASM
-    #define TAOCRYPT_DISABLE_X86ASM
-#endif
 
 // Turn on ia32 ASM for Big Integer
 // CodeWarrior defines _MSC_VER
