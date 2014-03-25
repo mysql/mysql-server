@@ -4797,7 +4797,8 @@ char *get_arg(char *line, my_bool get_next_arg)
   }
   for (start=ptr ; *ptr; ptr++)
   {
-    if (*ptr == '\\' && ptr[1]) // escaped character
+    // if it is a quoted string do not remove backslash
+    if (!quoted && *ptr == '\\' && ptr[1]) // escaped character
     {
       // Remove the backslash
       my_stpmov(ptr, ptr+1);
