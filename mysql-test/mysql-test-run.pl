@@ -417,6 +417,7 @@ sub main {
     );
   mtr_error("Could not create testcase server port: $!") unless $server;
   my $server_port = $server->sockport();
+  mtr_report("Using server port $server_port");
 
   if ($opt_resfile) {
     resfile_init("$opt_vardir/mtr-results.txt");
@@ -474,17 +475,15 @@ sub main {
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
 
-  if (!IS_WINDOWS) { 
-    # Wait for children to exit
-    foreach my $pid (keys %children)
-    {
-      my $ret_pid= waitpid($pid, 0);
-      if ($ret_pid != $pid){
-        mtr_report("Unknown process $ret_pid exited");
-      }
-      else {
-        delete $children{$ret_pid};
-      }
+  # Wait for childs to exit
+  foreach my $pid (keys %children)
+  {
+    my $ret_pid= waitpid($pid, 0);
+    if ($ret_pid != $pid){
+      mtr_report("Unknown process $ret_pid exited");
+    }
+    else {
+      delete $children{$ret_pid};
     }
   }
 
