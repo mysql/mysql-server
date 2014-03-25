@@ -138,6 +138,39 @@ void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(
 bool toku_gdb_dump_on_assert = false;
 void (*do_assert_hook)(void) = NULL;
 
+void db_env_do_backtrace_errfunc(toku_env_err_func errfunc, const void *env) {
+    // backtrace
+#if !TOKU_WINDOWS
+    int n = backtrace(backtrace_pointers, N_POINTERS);
+    errfunc(env, 0, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert);
+    char **syms = backtrace_symbols(backtrace_pointers, n);
+    if (syms) {
+        for (char **symstr = syms; symstr != NULL && (symstr - syms) < n; ++symstr) {
+            errfunc(env, 0, *symstr);
+        }
+        //free(syms);
+    }
+#endif
+
+    if (engine_status_num_rows && toku_maybe_get_engine_status_text_p) {
+	int buffsize = engine_status_num_rows * 128;  // assume 128 characters per row (gross overestimate, should be safe)
+	char buff[buffsize];
+	toku_maybe_get_engine_status_text_p(buff, buffsize);
+	errfunc(env, 0, "Engine status:\n%s\n", buff);
+    } else {
+	errfunc(env, 0, "Engine status function not available\n");
+    }
+    errfunc(env, 0, "Memory usage:\n");
+    if (malloc_stats_f) {
+        malloc_stats_f();
+    }
+
+    if (do_assert_hook) do_assert_hook();
+    if (toku_gdb_dump_on_assert) {
+        toku_try_gdb_stack_trace(nullptr);
+    }
+}
+
 void db_env_do_backtrace(FILE *outf) {
     // backtrace
 #if !TOKU_WINDOWS
