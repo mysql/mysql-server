@@ -2084,7 +2084,9 @@ row_update_for_mysql_using_cursor(
 			err = row_ins_sec_index_entry(index, entry, thr);
 		}
 
-		ut_ad(err == DB_SUCCESS);
+		/* Too big record is valid error and suggestion is to use
+		bigger page-size or different format. */
+		ut_ad(err == DB_SUCCESS || err == DB_TOO_BIG_RECORD);
 	}
 
 func_exit:
