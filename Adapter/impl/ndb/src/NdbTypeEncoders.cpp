@@ -1155,10 +1155,12 @@ Handle<Value> TimestampWriter(const NdbDictionary::Column * col,
                               Handle<Value> value, 
                               char *buffer, size_t offset) {
   uint32_t *tpos = (uint32_t *) (buffer+offset);
+  double dval;
   bool valid = value->IsDate();
   if(valid) {
-    *tpos = Date::Cast(*value)->NumberValue() / 1000;
-    valid = (*tpos >= 0);   // MySQL does not accept dates before 1970
+    dval = Date::Cast(*value)->NumberValue() / 1000;
+    valid = (dval >= 0);   // MySQL does not accept dates before 1970
+    *tpos = static_cast<uint32_t>(dval);
   }
   return valid ? writerOK : K_22007_InvalidDatetime;
 }
