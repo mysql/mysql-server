@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #include "ndb_binlog_extra_row_info.h"
 
 #ifdef HAVE_NDB_BINLOG
+#include "ndb_mi.h"
+extern st_ndb_slave_state g_ndb_slave_state;
 
 #define NDBTAB NdbDictionary::Table
 #define NDBCOL NdbDictionary::Column
@@ -971,19 +973,81 @@ st_ndb_slave_state::atTransactionCommit()
    Called by Slave SQL thread when applying an event to the
    ndb_apply_status table
 */
-void
+int
 st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
                                        Uint32 row_server_id,
                                        Uint64 row_epoch,
                                        bool is_row_server_id_local)
 {
+  DBUG_ENTER("atApplyStatusWrite");
   if (row_server_id == master_server_id)
   {
+#ifdef HAVE_NDB_BINLOG
+    DBUG_PRINT("info", ("ndb_apply_status write from upstream master."
+                        "ServerId %u, Epoch %llu/%llu (%llu) "
+                        "Current master server epoch %llu/%llu (%llu)",
+                        row_server_id,
+                        row_epoch >> 32,
+                        row_epoch & 0xffffffff,
+                        row_epoch,
+                        current_master_server_epoch >> 32,
+                        current_master_server_epoch & 0xffffffff,
+                        current_master_server_epoch));
     /*
        WRITE_ROW to ndb_apply_status injected by MySQLD
        immediately upstream of us.
        Record epoch
     */
+    DBUG_PRINT("info", ("mi_slave_run_id=%u, ndb_slave_state_run_id=%u",
+                        ndb_mi_get_slave_run_id(),
+                        g_ndb_slave_state.sql_run_id));
+
+    bool first_value_since_slave_start = (ndb_mi_get_slave_run_id() !=
+                                          g_ndb_slave_state.sql_run_id);
+
+    
+    if (row_epoch < current_master_server_epoch)
+    {
+      char msgBuf[1024];
+      const uint msgBufLen = sizeof(msgBuf);
+      
+      my_snprintf(msgBuf, msgBufLen,
+                  "applying epoch %llu/%llu "
+                  "(%llu) from Master ServerId %u which is lower than previously "
+                  "applied epoch %llu/%llu (%llu).  "
+                  "Group Master Log : %s  Group Master Log Pos : %llu",
+                  row_epoch >> 32,
+                  row_epoch & 0xffffffff,
+                  row_epoch,
+                  master_server_id,
+                  current_master_server_epoch >> 32,
+                  current_master_server_epoch & 0xffffffff,
+                  current_master_server_epoch,
+                  ndb_mi_get_group_master_log_name(),
+                  ndb_mi_get_group_master_log_pos());
+      
+      if (first_value_since_slave_start)
+      {
+        /* 
+         * Warn, though don't stop as we may have had a CHANGE MASTER 
+         * asking us to re-apply old data
+         */
+        sql_print_warning("NDB Slave : At SQL thread start %s.  "
+                          "Check slave positioning.",
+                          msgBuf);
+        /* Carry on... */    
+      }
+      else
+      {
+        /* Error, should not see old epoch data without CHANGE MASTER */
+        sql_print_warning("NDB Slave : ERROR.  SQL thread stopped as %s.",
+                          msgBuf);
+        
+        DBUG_RETURN(HA_ERR_ROWS_EVENT_APPLY);
+      }
+    }
+#endif
+
     current_master_server_epoch = row_epoch;
     assert(! is_row_server_id_local);
   }
@@ -1003,6 +1067,7 @@ st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
       current_max_rep_epoch = row_epoch;
     }
   }
+  DBUG_RETURN(0);
 }
 
 /**
@@ -1023,6 +1088,13 @@ st_ndb_slave_state::atResetSlave()
 
   retry_trans_count = 0;
   max_rep_epoch = 0;
+
+  /* Reset current master server epoch
+   * This avoids warnings when replaying a lower
+   * epoch number after a RESET SLAVE - in this
+   * case we assume the user knows best.
+   */
+  current_master_server_epoch = 0;
 }
 
 

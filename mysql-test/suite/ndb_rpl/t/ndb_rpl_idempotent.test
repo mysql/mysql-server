@@ -73,6 +73,9 @@ eval CHANGE MASTER TO
 
 source include/check_slave_no_error.inc;
 
+insert into mtr.test_suppressions values
+  ("NDB Slave : At SQL thread start applying epoch .*");
+
 # start the slave again
 # -> same events should have been applied again
 # e.g. inserting rows that already there
