@@ -9,6 +9,9 @@ id	INT,
 title	VARCHAR(100)
 ) ENGINE=InnoDB;
 LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10000
 CREATE INDEX idx_id ON t1(id);
 CREATE INDEX idx_title ON t1(title);
 # Shutdown and restart mysqld
@@ -57,6 +60,9 @@ id	INT,
 title	VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10000
 CREATE INDEX idx_id ON t1(id);
 CREATE INDEX idx_title ON t1(title);
 # Shutdown and restart mysqld
@@ -168,6 +174,9 @@ LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINAT
 SET SESSION debug="+d,crash_commit_before";
 CREATE INDEX idx_title ON t1(title);
 ERROR HY000: Lost connection to MySQL server during query
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10000
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -200,6 +209,9 @@ LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINAT
 SET SESSION debug="+d,crash_commit_before";
 CREATE INDEX idx_title ON t1(title);
 ERROR HY000: Lost connection to MySQL server during query
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10000
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK

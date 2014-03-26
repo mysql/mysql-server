@@ -36,6 +36,8 @@ CREATE TABLE t1(
 LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 -- enable_warnings
 
+SELECT COUNT(*) FROM t1;
+
 CREATE INDEX idx_id ON t1(id);
 
 CREATE INDEX idx_title ON t1(title);
@@ -76,6 +78,8 @@ CREATE TABLE t1(
 -- disable_warnings
 LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 -- enable_warnings
+
+SELECT COUNT(*) FROM t1;
 
 CREATE INDEX idx_id ON t1(id);
 
@@ -188,6 +192,8 @@ CREATE INDEX idx_title ON t1(title);
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
+SELECT COUNT(*) FROM t1;
+
 CHECK TABLE t1;
 
 EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
@@ -227,6 +233,8 @@ CREATE INDEX idx_title ON t1(title);
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
+
+SELECT COUNT(*) FROM t1;
 
 CHECK TABLE t1;
 
