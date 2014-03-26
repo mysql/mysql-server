@@ -207,8 +207,10 @@
 
 #define CFG_DB_AT_RESTART_SKIP_INDEXES   633
 
-#define CFG_DB_SERVER_PORT               634
-#define CFG_DB_TCPBIND_INADDR_ANY        635
+/* 634 used for CFG_FB_AT_RESTART_SKIP_FKS */
+
+#define CFG_DB_SERVER_PORT               635
+#define CFG_DB_TCPBIND_INADDR_ANY        636
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
