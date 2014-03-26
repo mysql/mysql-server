@@ -1,0 +1,118 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+use test;
+create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
+reset master;
+insert into mtr.test_suppressions values
+("NDB Slave : At SQL thread start applying epoch .*");
+STOP SLAVE;
+CHANGE MASTER TO MASTER_LOG_POS=4;
+START SLAVE;
+Capture current count of epoch decline warnings
+insert into test.t1 values (1, repeat('B', 1000));
+insert into test.t1 values (2, repeat('B', 1000));
+insert into test.t1 values (3, repeat('B', 1000));
+insert into test.t1 values (4, repeat('B', 1000));
+insert into test.t1 values (5, repeat('B', 1000));
+insert into test.t1 values (6, repeat('B', 1000));
+Expect that we have at least 2 epochs logged.
+select count(1) > 1 from 
+(select distinct epoch from mysql.ndb_binlog_index) as logged_epochs;
+count(1) > 1
+1
+Any slave positioning warnings?
+Should be none
+select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+warn_count
+0
+select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+err_count
+0
+Now stop and manually replay old binlog.
+stop slave;
+change master to master_log_pos=4;
+start slave;
+Any slave positioning warnings?
+Should be one
+select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+warn_count
+1
+select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+err_count
+0
+Repeat
+stop slave;
+change master to master_log_pos=4;
+start slave;
+Any slave positioning warnings?
+Should be two
+select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+warn_count
+2
+select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+err_count
+0
+Now try re-positioning after RESET SLAVE
+STOP SLAVE;
+RESET SLAVE;
+include/rpl_start_slaves.inc
+Any slave positioning warnings?
+Should be two, e.g. no extras after the RESET SLAVE
+This avoids warnings when slave context has been explicitly reset
+select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+warn_count
+2
+select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+err_count
+0
+Now get unexpected epoch back-step using fault injection
+on the Master.
+insert into mtr.test_suppressions values
+("NDB Binlog injector repeating gcis .*");
+set @old_debug = @@global.debug;
+set global debug="";
+set global debug="+d,ndb_binlog_injector_repeat_gcis";
+show variables like 'debug';
+Variable_name	Value
+debug	d,ndb_binlog_injector_repeat_gcis
+Let's make some epochs
+insert into test.t1 values (7, repeat('E', 1000));
+insert into test.t1 values (8, repeat('E', 1000));
+insert into test.t1 values (9, repeat('E', 1000));
+insert into test.t1 values (10, repeat('E', 1000));
+insert into test.t1 values (11, repeat('E', 1000));
+insert into test.t1 values (12, repeat('E', 1000));
+insert into mtr.test_suppressions values
+("NDB Slave : ERROR.  SQL thread stopped as applying epoch .*"),
+("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*"),
+("Slave: Got error 173 .*");
+Check that slave stopped with an error
+include/wait_for_slave_sql_error.inc [errno=1296]
+Let's look at the warnings and errors now...
+select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+warn_count
+2
+select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+err_count
+1
+Now check that we can manually restart the slave
+set global debug = @old_debug;
+reset master;
+stop slave;
+change master to master_log_pos=4;
+start slave;
+insert into test.t1 values (13, repeat('A', 1000));
+Check slave warnings now, should be no extras
+e.g. 2 warnings, 1 error
+select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+warn_count
+2
+select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+err_count
+1
+drop table test.server_error_log;
+drop table test.t1;
+include/rpl_end.inc
