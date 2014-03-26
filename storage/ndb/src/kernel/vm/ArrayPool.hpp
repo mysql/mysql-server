@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,17 @@ template <class T> class Array;
 template <class T>
 class ArrayPool {
 public:
-  ArrayPool();
+  typedef void (CallBack)(ArrayPool<T>& pool);
+
+  /* 
+    'seizeErrorHandler' is called in case of out of memory errors. Observe 
+    that the pool is not locked when seizeErrorHandler is called.
+    A function reference rather than a virtual function is used here, because 
+    a virtual function would require explicit instantiations of ArrayPool for 
+    all T types. That would again require all T types to define the nextChunk, 
+    lastChunk and chunkSize fields. This is curently not the case.
+  */
+  explicit ArrayPool(CallBack& seizeErrorHandler=noOpCallBack);
   ~ArrayPool();
   
   /**
@@ -274,11 +284,19 @@ protected:
   Uint32 *theAllocatedBitmask;
 #endif
   void * alloc_ptr;
+  // Call this function if a seize request fails.
+  CallBack& seizeErrHand;
+
+private:
+  // Default handler for 'seize' errors.
+  static void noOpCallBack(ArrayPool<T>& pool){};
 };
 
 template <class T>
 inline
-ArrayPool<T>::ArrayPool(){
+ArrayPool<T>::ArrayPool(CallBack& seizeErrorHandler):
+  seizeErrHand(seizeErrorHandler)
+{
   firstFree = RNIL;
   size = 0;
   noOfFree = 0;
@@ -787,6 +805,7 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
   }
   ptr.i = RNIL;
   ptr.p = NULL;
+  (seizeErrHand)(*this);
   return false;
 }
 
@@ -834,6 +853,7 @@ ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
   }
   ptr.i = RNIL;
   ptr.p = NULL;
+  (seizeErrHand)(*this);
   return false;
 }
 
@@ -870,6 +890,7 @@ ArrayPool<T>::seizeN(Uint32 n){
     curr = theArray[curr].nextPool;
   }
   if(sz != n){
+    (seizeErrHand)(*this);
     return RNIL;
   }
   const Uint32 base = curr - n;
@@ -1167,6 +1188,7 @@ ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
   }
 
   ptr.p = NULL;
+  (seizeErrHand)(*this);
   return false;
 }
 
@@ -1248,6 +1270,7 @@ ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
     DUMP("LOCKED", "\n");
     return true;
   }
+  (seizeErrHand)(*this);
   return false;
 }
 
