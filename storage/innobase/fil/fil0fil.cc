@@ -4116,7 +4116,7 @@ fil_load_single_table_tablespace(
 				"Ignoring data file %s with space ID "
 				ULINTPF ","
 				" which used to be space ID " ULINTPF ".",
-				name, space->id, space_id);
+				filename, space->id, space_id);
 			space = NULL;
 		}
 
@@ -4197,6 +4197,18 @@ will_not_choose:
 
 	Datafile*	df = df_default.is_open() ? &df_default : &df_remote;
 
+	if (df->space_id() != space_id) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Ignoring data file %s with space ID "
+			ULINTPF ","
+			" which used to be space ID " ULINTPF ".",
+			df->filepath(), df->space_id(), space_id);
+
+		df->close();
+		::ut_free(name);
+		return(FIL_LOAD_ID_CHANGED);
+	}
+
 	/* Get and test the file size. */
 	os_offset_t	size = os_file_get_size(df->handle());
 
@@ -4208,6 +4220,7 @@ will_not_choose:
 			"Could not measure the size of single-table"
 			" tablespace file %s", df->filepath());
 
+		df->close();
 		goto no_good_file;
 	}
 
@@ -4221,6 +4234,7 @@ will_not_choose:
 			"The size of single-table tablespace file %s"
 			" is only " UINT64PF ", should be at least %lu!",
 			df->filepath(), size, minimum_size);
+		df->close();
 		goto no_good_file;
 #else
 		df->set_space_id(ULINT_UNDEFINED);
