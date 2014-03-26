@@ -1,0 +1,36 @@
+
+#
+#  2014-03-26 - Added
+#
+
+--source include/have_innodb.inc
+
+#
+# show the global and session values;
+#
+select @@global.innodb_enable_bulk_load;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_enable_bulk_load;
+show global variables like 'innodb_enable_bulk_load';
+show session variables like 'innodb_enable_bulk_load';
+select * from information_schema.global_variables where variable_name='innodb_enable_bulk_load';
+select * from information_schema.session_variables where variable_name='innodb_enable_bulk_load';
+
+#
+# test default, min, max value
+#
+let $innodb_enable_bulk_load_orig=`select @@innodb_enable_bulk_load`;
+
+set global innodb_enable_bulk_load=0;
+select @@innodb_enable_bulk_load;
+
+set global innodb_enable_bulk_load=1;
+select @@innodb_enable_bulk_load;
+
+set global innodb_enable_bulk_load=off;
+select @@innodb_enable_bulk_load;
+
+set global innodb_enable_bulk_load=on;
+select @@innodb_enable_bulk_load;
+
+eval set global innodb_enable_bulk_load=$innodb_enable_bulk_load_orig;

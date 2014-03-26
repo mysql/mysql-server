@@ -2381,13 +2381,13 @@ err_exit:
 }
 
 /********************************************************************//**
-Read sorted file containing index data tuples and insert these data
+Read sorted file containing index data tuples and bulk load these data
 tuples to the index
 @return DB_SUCCESS or error number */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
-row_merge_bulk_insert_index_tuples(
-/*==========================*/
+row_merge_bulk_load_index(
+/*======================*/
 	trx_id_t		trx_id, /*!< in: transaction identifier */
 	dict_index_t*		index,	/*!< in: index */
 	const dict_table_t*	old_table,/*!< in: old table */
@@ -3706,7 +3706,7 @@ wait_again:
 				start_time_ms = ut_time_ms();
 
 				if (use_bulk_load) {
-					error = row_merge_bulk_insert_index_tuples(
+					error = row_merge_bulk_load_index(
 						trx->id, sort_idx, old_table,
 						merge_files[i].fd, block);
 				} else {

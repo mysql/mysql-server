@@ -1,0 +1,285 @@
+SELECT @@innodb_enable_bulk_load;
+@@innodb_enable_bulk_load
+1
+# Test Case 1: Test Restart
+# Test Default Row Format
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB;
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+# Shutdown and restart mysqld
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE id = 8051;
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE id = 15517;
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE id = 74607;
+class	id	title
+SELECT * FROM t1 WHERE title = 'Big cats';
+class	id	title
+DROP TABLE t1;
+# Test Compressed Table
+SET GLOBAL innodb_file_per_table=1;
+SET GLOBAL innodb_file_format=Barracuda;
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+# Shutdown and restart mysqld
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE id = 8051;
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE id = 15517;
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE id = 74607;
+class	id	title
+SELECT * FROM t1 WHERE title = 'Big cats';
+class	id	title
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=DEFAULT;
+SET GLOBAL innodb_file_format=DEFAULT;
+# Test Blob
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(1, REPEAT('a',10000), 'a'),
+(2, REPEAT('b',20000), 'b'),
+(3, REPEAT('c',40000), 'c'),
+(4, REPEAT('d',60000), 'd');
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+ALTER TABLE t1 DROP COLUMN c;
+# Shutdown and restart mysqld
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=1;
+SET GLOBAL innodb_file_format=Barracuda;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+INSERT INTO t1 VALUES
+(1, REPEAT('a',10000), 'a'),
+(2, REPEAT('b',20000), 'b'),
+(3, REPEAT('c',40000), 'c'),
+(4, REPEAT('d',60000), 'd');
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+ALTER TABLE t1 DROP COLUMN c;
+# Shutdown and restart mysqld
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=DEFAULT;
+SET GLOBAL innodb_file_format=DEFAULT;
+# Test Case 2: Test Crash Recovery
+# Test Default Row Format
+CREATE TABLE t1(
+class   INT,
+id      INT,
+title   VARCHAR(100)
+) ENGINE=InnoDB;
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+SET SESSION debug="+d,crash_commit_before";
+CREATE INDEX idx_title ON t1(title);
+ERROR HY000: Lost connection to MySQL server during query
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE title = 'Big cats';
+class	id	title
+DROP TABLE t1;
+# Test Compress Table
+SET GLOBAL innodb_file_per_table=1;
+SET GLOBAL innodb_file_format=Barracuda;
+CREATE TABLE t1(
+class   INT,
+id      INT,
+title   VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+SET SESSION debug="+d,crash_commit_before";
+CREATE INDEX idx_title ON t1(title);
+ERROR HY000: Lost connection to MySQL server during query
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE title = 'Big cats';
+class	id	title
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=DEFAULT;
+SET GLOBAL innodb_file_format=DEFAULT;
+# Test Blob
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(1, REPEAT('a',10000), 'a'),
+(2, REPEAT('b',20000), 'b'),
+(3, REPEAT('c',40000), 'c'),
+(4, REPEAT('d',60000), 'd');
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+SET SESSION debug="+d,crash_commit_before";
+ALTER TABLE t1 DROP COLUMN c;
+ERROR HY000: Lost connection to MySQL server during query
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=1;
+SET GLOBAL innodb_file_format=Barracuda;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+INSERT INTO t1 VALUES
+(1, REPEAT('a',10000), 'a'),
+(2, REPEAT('b',20000), 'b'),
+(3, REPEAT('c',40000), 'c'),
+(4, REPEAT('d',60000), 'd');
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+SET SESSION debug="+d,crash_commit_before";
+ALTER TABLE t1 DROP COLUMN c;
+ERROR HY000: Lost connection to MySQL server during query
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=DEFAULT;
+SET GLOBAL innodb_file_format=DEFAULT;
