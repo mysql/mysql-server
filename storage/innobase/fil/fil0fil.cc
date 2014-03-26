@@ -1278,6 +1278,24 @@ fil_space_free_low(
 	return(true);
 }
 
+/** Frees a space object from the tablespace memory cache.
+Closes the files in the chain but does not delete them.
+There must not be any pending i/o's or flushes on the files.
+@param[in]	id		tablespace identifier
+@param[in]	x_latched	whether the caller holds X-mode space->latch
+@return true if success */
+
+bool
+fil_space_free(
+	ulint		id,
+	bool		x_latched)
+{
+	mutex_enter(&fil_system->mutex);
+	bool freed = fil_space_free_low(id, x_latched);
+	mutex_exit(&fil_system->mutex);
+	return(freed);
+}
+
 /** Create a space memory object and put it to the fil_system hash table.
 Error messages are issued to the server log.
 @param[in]	name	tablespace name
@@ -1436,24 +1454,6 @@ fil_assign_new_space_id(
 	mutex_exit(&fil_system->mutex);
 
 	return(success);
-}
-
-/** Frees a space object from the tablespace memory cache.
-Closes the files in the chain but does not delete them.
-There must not be any pending i/o's or flushes on the files.
-@param[in]	id		tablespace identifier
-@param[in]	x_latched	whether the caller holds X-mode space->latch
-@return true if success */
-
-bool
-fil_space_free(
-	ulint		id,
-	bool		x_latched)
-{
-	mutex_enter(&fil_system->mutex);
-	bool freed = fil_space_free_low(id, x_latched);
-	mutex_exit(&fil_system->mutex);
-	return(freed);
 }
 
 /*******************************************************************//**
@@ -4104,11 +4104,8 @@ fil_load_single_table_tablespace(
 	df_default.init(name, 0, 0);
 	df_remote.init(name, 0, 0);
 
-	/* There may be both .ibd and .isl file in the directory.
-	And it is possible that the .isl file refers to a different
-	.ibd file.  If so, we open and compare them the first time
-	one of them is sent to this function.  So if this table has
-	already been loaded, there is nothing to do.*/
+	/* If the space is already in the file system cache with the
+	correct space ID, then there is nothing to do. */
 	mutex_enter(&fil_system->mutex);
 	space = fil_space_get_by_name(name);
 	mutex_exit(&fil_system->mutex);
