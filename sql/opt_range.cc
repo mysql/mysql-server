@@ -13636,7 +13636,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
       }
       else if (result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE)
         result= 0; /* There is a result in any case. */
-      my_afree(key_buf);
+      my_afree(tmp_key_buff);
     }
   }
 
