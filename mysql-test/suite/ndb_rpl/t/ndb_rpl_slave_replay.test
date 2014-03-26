@@ -18,8 +18,7 @@ reset master;
 --connection slave
 # Add a suppression for the warning that will appear in the
 # Slave's .err file
-insert into mtr.test_suppressions values
-  ("NDB Slave : At SQL thread start applying epoch .*");
+call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
 
 STOP SLAVE;
 CHANGE MASTER TO MASTER_LOG_POS=4;
@@ -150,8 +149,7 @@ select count(1) - @init_err_count as err_count from test.server_error_log where 
 --connection master
 --echo Now get unexpected epoch back-step using fault injection
 --echo on the Master.
-insert into mtr.test_suppressions values
-  ("NDB Binlog injector repeating gcis .*");
+call mtr.add_suppression("NDB Binlog injector repeating gcis .*");
 
 set @old_debug = @@global.debug;
 set global debug="";
@@ -198,10 +196,9 @@ show binlog events;
 
 --connection slave
 
-insert into mtr.test_suppressions values
-  ("NDB Slave : ERROR.  SQL thread stopped as applying epoch .*"),
-  ("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*"),
-  ("Slave: Got error 173 .*");
+call mtr.add_suppression("NDB Slave : ERROR.  SQL thread stopped as applying epoch .*");
+call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave: Got error 173 .*");
 
 --echo Check that slave stopped with an error
 --let $slave_sql_errno=1296
