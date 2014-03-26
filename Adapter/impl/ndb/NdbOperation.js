@@ -134,7 +134,8 @@ var DataErrors = {
   "22000" : "Data error",
   "22001" : "String too long",
   "22003" : "Numeric value out of range",
-  "22007" : "Invalid datetime"
+  "22007" : "Invalid datetime",
+  "HY000" : "Incorrect numeric value"
 };
 
 function encodeFieldsInBuffer(fields, nfields, metadata, 
@@ -183,6 +184,11 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
 
 
 function encodeKeyBuffer(op) {
+  var oneCol = op.indexHandler.singleColumn;
+  if(oneCol) {
+    return adapter.impl.encoderWrite(oneCol, op.keys[0], op.buffers.key, 
+                                     op.index.record.getColumnOffset(0));
+  }
   return encodeFieldsInBuffer(op.keys, 
                               op.indexHandler.getMappedFieldCount(),
                               op.indexHandler.getColumnMetadata(),
