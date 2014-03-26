@@ -2108,6 +2108,7 @@ fil_op_write_log(
 
 	switch (type) {
 	case MLOG_FILE_RENAME2:
+		ut_ad(strchr(new_path, OS_PATH_SEPARATOR));
 		len = ::strlen(new_path) + 1;
 		log_ptr = mlog_open(mtr, 2 + len);
 		ut_a(log_ptr);
@@ -2509,7 +2510,8 @@ fil_op_log_parse_or_replay(
 			/* Create the database directory for the new name, if
 			it does not exist yet */
 
-			const char*	namend	= strrchr(new_name, '/');
+			const char*	namend	= strrchr(
+				new_name, OS_PATH_SEPARATOR);
 			ut_a(namend);
 			char*		dir	= static_cast<char*>(
 				ut_malloc(namend - new_name + 1));
@@ -2521,7 +2523,8 @@ fil_op_log_parse_or_replay(
 			ut_a(success);
 			ulint		dirlen	= 0;
 
-			if (const char* dirend = strrchr(dir, '/')) {
+			if (const char* dirend = strrchr(dir,
+							 OS_PATH_SEPARATOR)) {
 				dirlen = dirend - dir + 1;
 			}
 
@@ -3154,10 +3157,17 @@ fil_rename_tablespace_in_mem(
 	::ut_free(node->name);
 
 	space->name = mem_strdup(new_name);
+#if OS_PATH_SEPARATOR != '/'
+	for (char* c = space->name; *c; c++) {
+		if (*c == OS_PATH_SEPARATOR) {
+	 		*c = '/';
+		}
+	}
+#endif
 	node->name = mem_strdup(new_path);
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
-		    ut_fold_string(new_name), space);
+		    ut_fold_string(space->name), space);
 	return(true);
 }
 
