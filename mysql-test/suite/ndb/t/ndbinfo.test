@@ -20,7 +20,8 @@ USE ndbinfo;
 SELECT node_id, memory_type, used>0 AND used < total/20 AS used_ok, 
   used_pages>0 AND used_pages < total_pages/20 AS used_pages_ok, 
   total, total_pages 
-  FROM ndbinfo.memoryusage WHERE memory_type="Long message buffer";
+  FROM ndbinfo.memoryusage WHERE memory_type="Long message buffer"
+  ORDER BY node_id;
 
 # Current usage may vary. Therefor the test only checks that if falls in the 
 # <0%,5%> range.
@@ -28,7 +29,8 @@ SELECT node_id, block_number, block_instance, pool_name,
   used>0 AND used < total/20 AS used_ok, 
   total, high>=used AND high < total/20 AS high_ok, entry_size, config_param1, 
   config_param2, config_param3, config_param4  
-  FROM ndbinfo.ndb$pools WHERE pool_name="Long message buffer";
+  FROM ndbinfo.ndb$pools WHERE pool_name="Long message buffer"
+  ORDER BY node_id;
 
 SHOW CREATE TABLE ndb$tables;
 
