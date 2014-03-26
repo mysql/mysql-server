@@ -1586,6 +1586,11 @@ innobase_start_or_create_for_mysql(void)
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
+#ifdef UNIV_SYNC_DEBUG
+	/* Switch latching order checks on in sync0debug.cc */
+	sync_check_enable();
+#endif /* UNIV_SYNC_DEBUG */
+
 	/* Create i/o-handler threads: */
 
 	for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
@@ -1910,10 +1915,6 @@ files_checked:
 
 		create_log_files_rename(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
-#ifdef UNIV_SYNC_DEBUG
-		/* Switch latching order checks on in sync0debug.cc. */
-		sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
 
 	} else {
 
@@ -2124,11 +2125,6 @@ files_checked:
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
-
-#ifdef UNIV_SYNC_DEBUG
-		/* Switch latching order checks on in sync0debug.cc */
-		sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
 
 		recv_recovery_rollback_active();
 
