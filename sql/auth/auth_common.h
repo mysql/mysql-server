@@ -388,7 +388,7 @@ bool acl_check_host(const char *host, const char *ip);
 void append_user(THD *thd, String *str, LEX_USER *user,
                  bool comma, bool ident);
 int check_change_password(THD *thd, const char *host, const char *user,
-                           char *password, uint password_len);
+                          const char *password, uint password_len);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
 bool mysql_create_user(THD *thd, List <LEX_USER> &list);

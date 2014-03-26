@@ -64,14 +64,14 @@ void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
-bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
+bool check_string_byte_length(const LEX_CSTRING &str, const char *err_msg,
                               size_t max_byte_length);
-bool check_string_char_length(LEX_STRING *str, const char *err_msg,
+bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
                               size_t max_char_length, const CHARSET_INFO *cs,
                               bool no_error);
 const CHARSET_INFO* merge_charset_and_collation(const CHARSET_INFO *cs,
                                                 const CHARSET_INFO *cl);
-bool check_host_name(LEX_STRING *str);
+bool check_host_name(const LEX_CSTRING &str);
 bool check_identifier_name(LEX_STRING *str, uint max_char_length,
                            uint err_code, const char *param_for_err_msg);
 bool mysql_test_parse_for_slave(THD *thd);

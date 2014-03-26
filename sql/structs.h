@@ -296,7 +296,11 @@ typedef struct st_lex_alter {
 } LEX_ALTER;
 
 typedef struct	st_lex_user {
-  LEX_STRING user, host, password, plugin, auth;
+  LEX_CSTRING user;
+  LEX_CSTRING host;
+  LEX_CSTRING password;
+  LEX_CSTRING plugin;
+  LEX_CSTRING auth;
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;

@@ -203,8 +203,10 @@ void udf_init()
 
       On windows we must check both FN_LIBCHAR and '/'.
     */
+
+    LEX_CSTRING name_cstr= {name_cstr.str, name_cstr.length};
     if (check_valid_path(dl_name, strlen(dl_name)) ||
-        check_string_char_length(&name, "", NAME_CHAR_LEN,
+        check_string_char_length(name_cstr, "", NAME_CHAR_LEN,
                                  system_charset_info, 1))
     {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
@@ -452,7 +454,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);
   }
-  if (check_string_char_length(&udf->name, "", NAME_CHAR_LEN,
+  LEX_CSTRING udf_name_cstr= {udf->name.str, udf->name.length};
+  if (check_string_char_length(udf_name_cstr, "", NAME_CHAR_LEN,
                                system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), udf->name.str);
