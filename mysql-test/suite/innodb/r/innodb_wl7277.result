@@ -1,0 +1,336 @@
+SELECT @@innodb_enable_bulk_load;
+@@innodb_enable_bulk_load
+1
+# Test Case 1: Test Row Format
+# ROW_FORMAT=REDUNDANT
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10000
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE id = 8051;
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE id = 15517;
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE id = 74607;
+class	id	title
+SELECT * FROM t1 WHERE title = 'Big cats';
+class	id	title
+DROP TABLE t1;
+# ROW_FORMAT=COMPACT
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE id = 8051;
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE id = 15517;
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE id = 74607;
+class	id	title
+SELECT * FROM t1 WHERE title = 'Big cats';
+class	id	title
+DROP TABLE t1;
+# Test Case 2: Test Fill Factor
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB;
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+# FILL_FACTOR=75
+SET GLOBAL innodb_index_fill_factor = 50;
+CREATE INDEX idx_title ON t1(title);
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+index_name	stat_name	stat_value	sample_size	stat_description
+idx_title	n_diff_pfx01	9713	37	title
+idx_title	n_diff_pfx02	10000	37	title,DB_ROW_ID
+idx_title	n_leaf_pages	37	NULL	Number of leaf pages in the index
+idx_title	size	97	NULL	Number of pages in the index
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE title = 'ITSO';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'ITSO')
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+# FILL_FACTOR=50
+SET GLOBAL innodb_index_fill_factor = 75;
+DROP INDEX idx_title ON t1;
+CREATE INDEX idx_title ON t1(title);
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+index_name	stat_name	stat_value	sample_size	stat_description
+idx_title	n_diff_pfx01	9713	24	title
+idx_title	n_diff_pfx02	10000	24	title,DB_ROW_ID
+idx_title	n_leaf_pages	24	NULL	Number of leaf pages in the index
+idx_title	size	25	NULL	Number of pages in the index
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE title = 'ITSO';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'ITSO')
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+# FILL_FACTOR=100
+SET GLOBAL innodb_index_fill_factor = 100;
+DROP INDEX idx_title ON t1;
+CREATE INDEX idx_title ON t1(title);
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+index_name	stat_name	stat_value	sample_size	stat_description
+idx_title	n_diff_pfx01	9713	18	title
+idx_title	n_diff_pfx02	10000	18	title,DB_ROW_ID
+idx_title	n_leaf_pages	18	NULL	Number of leaf pages in the index
+idx_title	size	19	NULL	Number of pages in the index
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE title = 'ITSO';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'ITSO')
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+SET GLOBAL innodb_index_fill_factor = DEFAULT;
+DROP TABLE t1;
+# Test Case 3: Test Compressed Table
+SET GLOBAL innodb_file_per_table=1;
+SET GLOBAL innodb_file_format=Barracuda;
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+index_name	stat_name	stat_value	sample_size	stat_description
+idx_title	n_diff_pfx01	9713	18	title
+idx_title	n_diff_pfx02	10000	18	title,DB_ROW_ID
+idx_title	n_leaf_pages	18	NULL	Number of leaf pages in the index
+idx_title	size	19	NULL	Number of pages in the index
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE id = 8051;
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE id = 15517;
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE id = 74607;
+class	id	title
+SELECT * FROM t1 WHERE title = 'Big cats';
+class	id	title
+DROP TABLE t1;
+# Test Page Split
+CREATE TABLE t1(
+class	INT,
+id	INT,
+title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+CREATE INDEX idx_id ON t1(id);
+CREATE INDEX idx_title ON t1(title);
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+index_name	stat_name	stat_value	sample_size	stat_description
+idx_title	n_diff_pfx01	9713	36	title
+idx_title	n_diff_pfx02	10000	36	title,DB_ROW_ID
+idx_title	n_leaf_pages	36	NULL	Number of leaf pages in the index
+idx_title	size	97	NULL	Number of pages in the index
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+SELECT * FROM t1 WHERE id = 10;
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+class	id	title
+557	10	AccessibleComputing
+SELECT * FROM t1 WHERE id = 8051;
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+class	id	title
+33344753	8051	History of Dominica
+SELECT * FROM t1 WHERE id = 15517;
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE title = 'ITSO';
+class	id	title
+68999668	15517	ITSO
+SELECT * FROM t1 WHERE id = 74607;
+class	id	title
+SELECT * FROM t1 WHERE title = 'Big cats';
+class	id	title
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=DEFAULT;
+SET GLOBAL innodb_file_format=DEFAULT;
+# Test Case 4: Test Blob
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+(1, REPEAT('a',10000), 'a'),
+(2, REPEAT('b',20000), 'b'),
+(3, REPEAT('c',40000), 'c'),
+(4, REPEAT('d',60000), 'd');
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=1;
+SET GLOBAL innodb_file_format=Barracuda;
+CREATE TABLE t1(
+a INT PRIMARY KEY,
+b TEXT,
+c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+INSERT INTO t1 VALUES
+(1, REPEAT('a',10000), 'a'),
+(2, REPEAT('b',20000), 'b'),
+(3, REPEAT('c',40000), 'c'),
+(4, REPEAT('d',60000), 'd');
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+ALTER TABLE t1 DROP COLUMN c;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT CHAR_LENGTH(b) FROM t1;
+CHAR_LENGTH(b)
+10000
+20000
+40000
+60000
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=DEFAULT;
+SET GLOBAL innodb_file_format=DEFAULT;

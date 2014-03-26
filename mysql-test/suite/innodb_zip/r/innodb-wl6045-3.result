@@ -148,7 +148,7 @@ Filename::tab#.ibd
 #::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
 #::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
 #::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
-#::       #		|		Freshly allocated page		|	-
+#::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
 #::       #		|		Freshly allocated page		|	-
 [5]: Page type dump for with shortform for tab1.ibd
 
@@ -163,7 +163,7 @@ Filename::tab#.ibd
 #::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
 #::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
 #::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
-#::       #		|		Freshly allocated page		|	-
+#::       #		|		Index page			|	index id=#, page level=#, No. of records=#, garbage=#, -
 #::       #		|		Freshly allocated page		|	-
 [6]: check the valid lower bound values for option
 # allow-mismatches,page,start-page,end-page

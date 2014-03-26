@@ -220,6 +220,11 @@ private:
 
 	/* The pad space for compressed page */
 	ulint		m_pad_space;
+
+#ifdef UNIV_DEBUG
+	/* Total data in the page */
+	ulint		m_total_data;
+#endif
 };
 
 typedef std::vector<PageBulk*>	page_bulk_vector;
