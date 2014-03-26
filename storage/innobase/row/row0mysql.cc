@@ -2087,6 +2087,11 @@ row_update_for_mysql_using_cursor(
 		/* Too big record is valid error and suggestion is to use
 		bigger page-size or different format. */
 		ut_ad(err == DB_SUCCESS || err == DB_TOO_BIG_RECORD);
+
+		if (err == DB_TOO_BIG_RECORD) {
+			row_delete_for_mysql_using_cursor(
+				node, delete_entries, true, update_index);
+		}
 	}
 
 func_exit:
