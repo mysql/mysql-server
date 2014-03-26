@@ -228,8 +228,6 @@ basement nodes, bulk fetch,  and partial fetch:
 
 #include <stdint.h>
 
-static const uint32_t this_version = FT_LAYOUT_VERSION;
-
 /* Status is intended for display to humans to help understand system behavior.
  * It does not need to be perfectly thread-safe.
  */
@@ -5852,14 +5850,6 @@ toku_ft_cursor_peek(FT_CURSOR cursor, const DBT **pkey, const DBT **pval)
     *pkey = &cursor->key;
     *pval = &cursor->val;
 }
-
-//We pass in toku_dbt_fake to the search functions, since it will not pass the
-//key(or val) to the heaviside function if key(or val) is NULL.
-//It is not used for anything else,
-//the actual 'extra' information for the heaviside function is inside the
-//wrapper.
-static const DBT __toku_dbt_fake = {};
-static const DBT* const toku_dbt_fake = &__toku_dbt_fake;
 
 bool toku_ft_cursor_uninitialized(FT_CURSOR c) {
     return ft_cursor_not_set(c);
