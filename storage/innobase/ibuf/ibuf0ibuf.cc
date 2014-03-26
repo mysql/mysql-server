@@ -528,9 +528,9 @@ ibuf_init_at_db_start(void)
 
 	mtr_start(&mtr);
 
-	mutex_enter(&ibuf_mutex);
-
 	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, NULL), &mtr);
+
+	mutex_enter(&ibuf_mutex);
 
 	header_page = ibuf_header_page_get(&mtr);
 
