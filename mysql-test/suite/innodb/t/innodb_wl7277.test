@@ -3,6 +3,7 @@
 #
 
 -- source include/have_innodb.inc
+-- source include/have_innodb_16k.inc
 
 # Test scenarios:
 # 1. Test different row format;
@@ -61,6 +62,8 @@ CREATE TABLE t1(
 LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 -- enable_warnings
 
+SELECT COUNT(*) FROM t1;
+
 CREATE INDEX idx_id ON t1(id);
 
 CREATE INDEX idx_title ON t1(title);
@@ -94,6 +97,8 @@ CREATE TABLE t1(
 -- disable_warnings
 LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 -- enable_warnings
+
+SELECT COUNT(*) FROM t1;
 
 -- echo # FILL_FACTOR=75
 SET GLOBAL innodb_index_fill_factor = 50;
@@ -155,6 +160,8 @@ CREATE TABLE t1(
 LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 -- enable_warnings
 
+SELECT COUNT(*) FROM t1;
+
 CREATE INDEX idx_id ON t1(id);
 
 CREATE INDEX idx_title ON t1(title);
@@ -191,6 +198,8 @@ CREATE TABLE t1(
 -- disable_warnings
 LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 -- enable_warnings
+
+SELECT COUNT(*) FROM t1;
 
 CREATE INDEX idx_id ON t1(id);
 
