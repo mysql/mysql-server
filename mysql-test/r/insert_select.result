@@ -61,6 +61,7 @@ WHERE numeropost=9 ORDER BY numreponse ASC;
 show variables like '%bulk%';
 Variable_name	Value
 bulk_insert_buffer_size	8388608
+innodb_enable_bulk_load	ON
 INSERT INTO t1 (numeropost,icone,contenu,pseudo,date,signature,ip)
 SELECT 1718,icone,contenu,pseudo,date,signature,ip FROM t2
 WHERE numeropost=9 ORDER BY numreponse ASC;

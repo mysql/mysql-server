@@ -54,9 +54,17 @@ void PageBulk::init()
 	}
 
 	if (m_page_no == FIL_NULL) {
+		mtr_t	alloc_mtr;
+
+		/* We write allocation log first, because we don't grantee
+		pages are committed following the allocation order. */
+		mtr_start(&alloc_mtr);
+
 		/* Allocate a new page. */
 		new_block = btr_page_alloc(m_index, 0, FSP_NO_DIR, m_level,
-					   mtr, mtr);
+					   &alloc_mtr, mtr);
+
+		mtr_commit(&alloc_mtr);
 
 		new_page = buf_block_get_frame(new_block);
 		new_page_zip = buf_block_get_page_zip(new_block);
@@ -85,10 +93,11 @@ void PageBulk::init()
 		new_page = buf_block_get_frame(new_block);
 		new_page_zip = buf_block_get_page_zip(new_block);
 		new_page_no = page_get_page_no(new_page);
+		ut_ad(m_page_no == new_page_no);
 
 		ut_ad(page_dir_get_n_heap(new_page) == PAGE_HEAP_NO_USER_LOW);
 
-		btr_page_set_level(new_page, NULL, m_level, mtr);
+		btr_page_set_level(new_page, new_page_zip, m_level, mtr);
 	}
 
 	new_block->check_index_page_at_flush = FALSE;
@@ -98,7 +107,7 @@ void PageBulk::init()
 	    && page_is_leaf(new_page)) {
 		page_update_max_trx_id(new_block, new_page_zip, m_trx_id, mtr);
 	}
-	
+
 	m_mtr = mtr;
 	m_log = !dict_table_is_temporary(m_index->table);
 	m_block = new_block;
@@ -115,6 +124,12 @@ void PageBulk::init()
 	m_heap_top = page_header_get_ptr(new_page, PAGE_HEAP_TOP);
 	m_heap_no = page_dir_get_n_heap(new_page);
 	m_rec_no = page_header_get_field(new_page, PAGE_N_RECS);
+
+#ifdef UNIV_DEBUG
+	m_total_data = 0;
+	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
+			    m_page + UNIV_PAGE_SIZE - 1);
+#endif
 }
 
 /** Insert a record in the page.
@@ -133,6 +148,8 @@ void PageBulk::insert(
 
 	ut_ad(m_heap_no == m_rec_no + PAGE_HEAP_NO_USER_LOW);
 
+	rec_size = rec_offs_size(offsets);
+
 #ifdef UNIV_DEBUG
 	/** Check whether records are in order. */
 	if (!page_rec_is_infimum(m_cur_rec)) {
@@ -144,24 +161,26 @@ void PageBulk::insert(
 		ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index)
 		      > 0);
 	}
+
+	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
+			    m_page + UNIV_PAGE_SIZE - 1);
+
+	m_total_data += rec_size;
 #endif
 
 	rec_size = rec_offs_size(offsets);
 
-	/* 1. Get the insert space. (page_mem_alloc_heap)*/
-	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP, m_heap_top + rec_size);
-
-	/* 2. Create the record. */
+	/* 1. Create the record. */
 	insert_rec = rec_copy(m_heap_top, rec, offsets);
 	rec_offs_make_valid(insert_rec, m_index, offsets);
 
-	/* 3. Insert the record in the linked list. */
+	/* 2. Insert the record in the linked list. */
 	next_rec = page_rec_get_next(m_cur_rec);
 
 	page_rec_set_next(insert_rec, next_rec);
 	page_rec_set_next(m_cur_rec, insert_rec);
 
-	/* 4. Set the n_owned field in the inserted record to zero,
+	/* 3. Set the n_owned field in the inserted record to zero,
 	and set the heap_no field. */
 	if (m_is_comp) {
 		rec_set_n_owned_new(insert_rec, NULL, 0);
@@ -171,10 +190,13 @@ void PageBulk::insert(
 		rec_set_heap_no_old(insert_rec, m_heap_no);
 	}
 
-	/* 5. Update page_bulk. */
+	/* 4. Set member variables. */
 	slot_size = page_dir_calc_reserved_space(m_rec_no + 1)
 		- page_dir_calc_reserved_space(m_rec_no);
+
 	ut_ad(m_free_space >= rec_size + slot_size);
+	ut_ad(m_heap_top < m_page + UNIV_PAGE_SIZE);
+
 	m_free_space -= rec_size + slot_size;
 	m_heap_top += rec_size;
 	m_heap_no += 1;
@@ -184,7 +206,8 @@ void PageBulk::insert(
 
 /** Finish a page
 Scan all records to set page dirs, and set page header members,
-redo log all inserts. */
+redo log all inserts.
+Note: we refer to page_copy_rec_list_end_to_created_page. */
 void PageBulk::finish()
 {
 	rec_t*		insert_rec;
@@ -201,19 +224,19 @@ void PageBulk::finish()
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets = offsets_;
 
-	rec_offs_init(offsets_);
-
-	/* Set n recs */
 	ut_ad(m_heap_no > PAGE_HEAP_NO_USER_LOW);
 	ut_ad(m_heap_no == m_rec_no + PAGE_HEAP_NO_USER_LOW);
-	page_header_set_field(m_page, NULL, PAGE_N_RECS, m_rec_no);
-	page_dir_set_n_heap(m_page, NULL, m_heap_no);
-	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP, m_heap_top);
 
-	/* Update the last insert info. */
-	page_header_set_field(m_page, NULL, PAGE_DIRECTION, PAGE_RIGHT);
-	page_header_set_field(m_page, NULL, PAGE_N_DIRECTION, 0);
-	page_header_set_ptr(m_page, NULL, PAGE_LAST_INSERT, m_cur_rec);
+	rec_offs_init(offsets_);
+
+#ifdef UNIV_DEBUG
+	ut_ad(m_total_data + page_dir_calc_reserved_space(m_rec_no)
+	      <= page_get_free_space_of_empty(m_is_comp));
+
+	/* To pass the debug tests we have to set these dummy values
+	in the debug version */
+	page_dir_set_n_slots(m_page, NULL, UNIV_PAGE_SIZE / 2);
+#endif
 
 	/* We need to log insert for non-compressed table,
 	and we have log compressed page for compressed table. */
@@ -228,20 +251,13 @@ void PageBulk::finish()
 		log_mode = mtr_set_log_mode(m_mtr, MTR_LOG_SHORT_INSERTS);
 	}
 
-#ifdef UNIV_DEBUG
-	/* To pass the debug tests we have to set these dummy values
-	in the debug version */
-	page_dir_set_n_slots(m_page, NULL, UNIV_PAGE_SIZE / 2);
-#endif
-
-	/* Set owner & dir here. */
+	/* Set owner & dir. */
 	count = 0;
 	slot_index = 0;
 	n_recs = 0;
 	prev_rec = page_get_infimum_rec(m_page);
 	insert_rec = page_rec_get_next(prev_rec);
 
-	/* We refer to page_copy_rec_list_end_to_created_page */
 	do {
 
 		count++;
@@ -288,11 +304,6 @@ void PageBulk::finish()
 		slot_index--;
 	}
 
-	slot = page_dir_get_nth_slot(m_page, 1 + slot_index);
-	page_dir_slot_set_rec(slot, page_get_supremum_rec(m_page));
-	page_dir_slot_set_n_owned(slot, NULL, count + 1);
-	page_dir_set_n_slots(m_page, NULL, 2 + slot_index);
-
 	if (log_insert) {
 		log_data_len = m_mtr->get_log()->size() - log_data_len;
 
@@ -305,6 +316,19 @@ void PageBulk::finish()
 		/* Restore the log mode */
 		mtr_set_log_mode(m_mtr, log_mode);
 	}
+
+	slot = page_dir_get_nth_slot(m_page, 1 + slot_index);
+	page_dir_slot_set_rec(slot, page_get_supremum_rec(m_page));
+	page_dir_slot_set_n_owned(slot, NULL, count + 1);
+
+	page_dir_set_n_slots(m_page, NULL, 2 + slot_index);
+	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP, m_heap_top);
+	page_dir_set_n_heap(m_page, NULL, m_heap_no);
+	page_header_set_field(m_page, NULL, PAGE_N_RECS, m_rec_no);
+
+	page_header_set_ptr(m_page, NULL, PAGE_LAST_INSERT, m_cur_rec);
+	page_header_set_field(m_page, NULL, PAGE_DIRECTION, PAGE_RIGHT);
+	page_header_set_field(m_page, NULL, PAGE_N_DIRECTION, 0);
 
 	m_block->check_index_page_at_flush = TRUE;
 }
@@ -560,6 +584,11 @@ dberr_t PageBulk::storeExt(const big_rec_t* big_rec, const ulint* offsets)
 /** Release block by commiting mtr */
 void PageBulk::release()
 {
+#ifdef UNIV_DEBUG
+	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
+			    m_heap_top - m_total_data);
+#endif
+
 	mtr_commit(m_mtr);
 }
 
@@ -578,6 +607,11 @@ void PageBulk::lock()
 
 	m_block = btr_block_get(page_id, page_size, RW_X_LATCH, m_index, m_mtr);
 	m_page = buf_block_get_frame(m_block);
+
+#ifdef UNIV_DEBUG
+	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
+			    m_page + UNIV_PAGE_SIZE - 1);
+#endif
 }
 
 /** Split a page
@@ -700,7 +734,7 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 
 	if (level + 1 > m_page_bulks->size()) {
 		PageBulk* new_page_bulk = new PageBulk(m_index, m_trx_id,
-						   FIL_NULL, level);
+						       FIL_NULL, level);
 
 		m_page_bulks->push_back(new_page_bulk);
 		ut_ad(level + 1 == m_page_bulks->size());
@@ -778,6 +812,8 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 		ut_ad(page_bulk->getLevel() == 0);
 
 		err = page_bulk->storeExt(big_rec, offsets);
+
+		dtuple_convert_back_big_rec(m_index, tuple, big_rec);
 	}
 
 	return(err);
@@ -787,7 +823,7 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 @param[in]	success		whether bulk load is successful */
 dberr_t BtrBulk::finish(dberr_t	err)
 {
-	ulint		last_page_no;
+	ulint		last_page_no = FIL_NULL;
 
 	if (m_page_bulks->size() == 0) {
 		return(err);
@@ -846,6 +882,12 @@ dberr_t BtrBulk::finish(dberr_t	err)
 		err = pageCommit(&root_page_bulk, NULL, false);
 		ut_ad(err == DB_SUCCESS);
 	}
+
+#ifdef UNIV_DEBUG
+	dict_sync_check check(true);
+
+	ut_ad(!sync_check_iterate(check));
+#endif
 
 	return(err);
 }

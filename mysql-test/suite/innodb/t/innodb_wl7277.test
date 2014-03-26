@@ -1,0 +1,271 @@
+#
+# wl#7277: InnoDB: Bulk Load for Create Index
+#
+
+-- source include/have_innodb.inc
+
+# Test scenarios:
+# 1. Test different row format;
+# 2. Test different fill factor;
+# 3. Test compress table;
+# 4. Test blob.
+
+# Make sure bulk load is enabled.
+SELECT @@innodb_enable_bulk_load;
+
+-- echo # Test Case 1: Test Row Format
+-- echo # ROW_FORMAT=REDUNDANT
+CREATE TABLE t1(
+	class	INT,
+	id	INT,
+	title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
+
+-- disable_warnings
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+-- enable_warnings
+
+SELECT COUNT(*) FROM t1;
+
+CREATE INDEX idx_id ON t1(id);
+
+CREATE INDEX idx_title ON t1(title);
+
+CHECK TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+
+SELECT * FROM t1 WHERE id = 8051;
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+
+SELECT * FROM t1 WHERE id = 15517;
+SELECT * FROM t1 WHERE title = 'ITSO';
+
+SELECT * FROM t1 WHERE id = 74607;
+SELECT * FROM t1 WHERE title = 'Big cats';
+
+DROP TABLE t1;
+
+-- echo # ROW_FORMAT=COMPACT
+CREATE TABLE t1(
+	class	INT,
+	id	INT,
+	title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPACT;
+
+-- disable_warnings
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+-- enable_warnings
+
+CREATE INDEX idx_id ON t1(id);
+
+CREATE INDEX idx_title ON t1(title);
+
+CHECK TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+
+SELECT * FROM t1 WHERE id = 8051;
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+
+SELECT * FROM t1 WHERE id = 15517;
+SELECT * FROM t1 WHERE title = 'ITSO';
+
+SELECT * FROM t1 WHERE id = 74607;
+SELECT * FROM t1 WHERE title = 'Big cats';
+
+DROP TABLE t1;
+
+-- echo # Test Case 2: Test Fill Factor
+CREATE TABLE t1(
+	class	INT,
+	id	INT,
+	title	VARCHAR(100)
+) ENGINE=InnoDB;
+
+-- disable_warnings
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+-- enable_warnings
+
+-- echo # FILL_FACTOR=75
+SET GLOBAL innodb_index_fill_factor = 50;
+
+CREATE INDEX idx_title ON t1(title);
+
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+	FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+
+CHECK TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE title = 'ITSO';
+SELECT * FROM t1 WHERE title = 'ITSO';
+
+-- echo # FILL_FACTOR=50
+SET GLOBAL innodb_index_fill_factor = 75;
+
+DROP INDEX idx_title ON t1;
+CREATE INDEX idx_title ON t1(title);
+
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+	FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+
+CHECK TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE title = 'ITSO';
+SELECT * FROM t1 WHERE title = 'ITSO';
+
+-- echo # FILL_FACTOR=100
+SET GLOBAL innodb_index_fill_factor = 100;
+
+DROP INDEX idx_title ON t1;
+
+CREATE INDEX idx_title ON t1(title);
+
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+	FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+
+CHECK TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE title = 'ITSO';
+SELECT * FROM t1 WHERE title = 'ITSO';
+
+SET GLOBAL innodb_index_fill_factor = DEFAULT;
+
+DROP TABLE t1;
+
+-- echo # Test Case 3: Test Compressed Table
+SET GLOBAL innodb_file_per_table=1;
+SET GLOBAL innodb_file_format=Barracuda;
+
+CREATE TABLE t1(
+	class	INT,
+	id	INT,
+	title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+
+-- disable_warnings
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+-- enable_warnings
+
+CREATE INDEX idx_id ON t1(id);
+
+CREATE INDEX idx_title ON t1(title);
+
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+	FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+
+CHECK TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+
+SELECT * FROM t1 WHERE id = 8051;
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+
+SELECT * FROM t1 WHERE id = 15517;
+SELECT * FROM t1 WHERE title = 'ITSO';
+
+SELECT * FROM t1 WHERE id = 74607;
+SELECT * FROM t1 WHERE title = 'Big cats';
+
+DROP TABLE t1;
+
+-- echo # Test Page Split
+CREATE TABLE t1(
+	class	INT,
+	id	INT,
+	title	VARCHAR(100)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+
+-- disable_warnings
+LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
+-- enable_warnings
+
+CREATE INDEX idx_id ON t1(id);
+
+CREATE INDEX idx_title ON t1(title);
+
+SELECT index_name, stat_name, stat_value, sample_size, stat_description
+	FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+
+CHECK TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+
+SELECT * FROM t1 WHERE id = 8051;
+SELECT * FROM t1 WHERE title = 'History of Dominica';
+
+SELECT * FROM t1 WHERE id = 15517;
+SELECT * FROM t1 WHERE title = 'ITSO';
+
+SELECT * FROM t1 WHERE id = 74607;
+SELECT * FROM t1 WHERE title = 'Big cats';
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_file_per_table=DEFAULT;
+SET GLOBAL innodb_file_format=DEFAULT;
+
+-- echo # Test Case 4: Test Blob
+CREATE TABLE t1(
+	a INT PRIMARY KEY,
+	b TEXT,
+	c TEXT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+	(1, REPEAT('a',10000), 'a'),
+	(2, REPEAT('b',20000), 'b'),
+	(3, REPEAT('c',40000), 'c'),
+	(4, REPEAT('d',60000), 'd');
+
+SELECT CHAR_LENGTH(b) FROM t1;
+
+ALTER TABLE t1 DROP COLUMN c;
+
+CHECK TABLE t1;
+
+SELECT CHAR_LENGTH(b) FROM t1;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_file_per_table=1;
+SET GLOBAL innodb_file_format=Barracuda;
+
+CREATE TABLE t1(
+	a INT PRIMARY KEY,
+	b TEXT,
+	c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+
+INSERT INTO t1 VALUES
+	(1, REPEAT('a',10000), 'a'),
+	(2, REPEAT('b',20000), 'b'),
+	(3, REPEAT('c',40000), 'c'),
+	(4, REPEAT('d',60000), 'd');
+
+SELECT CHAR_LENGTH(b) FROM t1;
+
+ALTER TABLE t1 DROP COLUMN c;
+
+CHECK TABLE t1;
+
+SELECT CHAR_LENGTH(b) FROM t1;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_file_per_table=DEFAULT;
+SET GLOBAL innodb_file_format=DEFAULT;
