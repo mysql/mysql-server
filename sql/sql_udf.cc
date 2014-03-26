@@ -204,7 +204,7 @@ void udf_init()
       On windows we must check both FN_LIBCHAR and '/'.
     */
 
-    LEX_CSTRING name_cstr= {name_cstr.str, name_cstr.length};
+    LEX_CSTRING name_cstr= {name.str, name.length};
     if (check_valid_path(dl_name, strlen(dl_name)) ||
         check_string_char_length(name_cstr, "", NAME_CHAR_LEN,
                                  system_charset_info, 1))
