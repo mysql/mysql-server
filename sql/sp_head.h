@@ -802,7 +802,7 @@ public:
                 sql_mode_t sql_mode);
 
   void set_definer(const char *definer, size_t definerlen);
-  void set_definer(const LEX_STRING *user_name, const LEX_STRING *host_name);
+  void set_definer(const LEX_CSTRING &user_name, const LEX_CSTRING &host_name);
 
   /**
     Do some minimal optimization of the code:

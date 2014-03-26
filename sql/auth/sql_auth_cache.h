@@ -92,7 +92,7 @@ public:
   uint8 salt_len;
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
-  LEX_STRING plugin;
+  LEX_CSTRING plugin;
   LEX_STRING auth_string;
   bool password_expired;
   bool can_authenticate;
@@ -175,17 +175,17 @@ public:
     with_grant= grant->with_grant;
   }
 
-  static int store_pk(TABLE *table, 
-                      const LEX_STRING *host, 
-                      const LEX_STRING *user,
-                      const LEX_STRING *proxied_host, 
-                      const LEX_STRING *proxied_user);
+  static int store_pk(TABLE *table,
+                      const LEX_CSTRING &host,
+                      const LEX_CSTRING &user,
+                      const LEX_CSTRING &proxied_host,
+                      const LEX_CSTRING &proxied_user);
 
   static int store_data_record(TABLE *table,
-                               const LEX_STRING *host,
-                               const LEX_STRING *user,
-                               const LEX_STRING *proxied_host,
-                               const LEX_STRING *proxied_user,
+                               const LEX_CSTRING &host,
+                               const LEX_CSTRING &user,
+                               const LEX_CSTRING &proxied_host,
+                               const LEX_CSTRING &proxied_user,
                                bool with_grant,
                                const char *grantor);
 };

@@ -339,7 +339,9 @@ redo:
     return is_temp_table ? 
       ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
-  if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
+  LEX_CSTRING cstring_name= {name->str, name->length};
+  if ((plugin= my_plugin_lock_by_name(thd, cstring_name,
+                                      MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
     handlerton *hton= plugin_data(plugin, handlerton *);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
