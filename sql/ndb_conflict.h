@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -403,10 +403,10 @@ struct st_ndb_slave_state
   void atTransactionAbort();
   void atResetSlave();
 
-  void atApplyStatusWrite(Uint32 master_server_id,
-                          Uint32 row_server_id,
-                          Uint64 row_epoch,
-                          bool is_row_server_id_local);
+  int atApplyStatusWrite(Uint32 master_server_id,
+                         Uint32 row_server_id,
+                         Uint64 row_epoch,
+                         bool is_row_server_id_local);
 
   void resetPerAttemptCounters();
 
