@@ -39,8 +39,10 @@ var SessionFactory = function(key, dbConnectionPool, properties, mappings, delet
 };
 
 SessionFactory.prototype.inspect = function() {
+  var numberOfMappings = this.mappings? this.mappings.length: 0;
+  var numberOfSessions = this.sessions? this.sessions.length: 0;
   return "[[API SessionFactory with key:" + this.key + ", " + 
-  this.mappings.length + " mappings, " + this.sessions.length + " sessions.]]\n";
+  numberOfMappings + " mappings, " + numberOfSessions + " sessions.]]\n";
 };
 
 //openSession(Function(Object error, Session session, ...) callback, ...);
