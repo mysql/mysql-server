@@ -236,6 +236,8 @@
   # explain_for_connection.inc. Condition filtering is not 100% stable for the query
   # below, so to avoid test errors due to small differences it has to be turned off.
   set optimizer_switch='condition_fanout_filter=off';
+  analyze table t1;
+  analyze table t2;
 
   let $point=   planned_single_update;let $query=  UPDATE t1 SET b = CONCAT(b, ', max(a) in t2: ', (SELECT MAX(a) FROM t2)) WHERE a = 5 ;
   --source include/explain_for_connection.inc
