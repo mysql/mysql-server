@@ -582,13 +582,15 @@ function DBIndexHandler(parent, dbIndex) {
     this.fieldNumberToFieldMap[i]  = parent.columnNumberToFieldMap[colNo];
     this.fieldNumberToColumnMap[i] = parent.dbTable.columns[colNo];
   }
+  
+  if(i === 1) {    // One-column index
+    this.singleColumn = this.fieldNumberToColumnMap[0];
+  } else {
+    this.singleColumn = null;
+  }
 }
 
 DBIndexHandler.prototype = {
-  tableHandler           : null,
-  dbIndex                : null,
-  fieldNumberToColumnMap : null,
-  fieldNumberToFieldMap  : null,
   getMappedFieldCount    : proto.getMappedFieldCount,    // inherited
   get                    : proto.get,                    // inherited
   getFields              : proto.getFields,              // inherited
