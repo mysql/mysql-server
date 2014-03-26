@@ -3,8 +3,7 @@ include/master-slave.inc
 use test;
 create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
 reset master;
-insert into mtr.test_suppressions values
-("NDB Slave : At SQL thread start applying epoch .*");
+call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
 STOP SLAVE;
 CHANGE MASTER TO MASTER_LOG_POS=4;
 START SLAVE;
@@ -67,8 +66,7 @@ err_count
 0
 Now get unexpected epoch back-step using fault injection
 on the Master.
-insert into mtr.test_suppressions values
-("NDB Binlog injector repeating gcis .*");
+call mtr.add_suppression("NDB Binlog injector repeating gcis .*");
 set @old_debug = @@global.debug;
 set global debug="";
 set global debug="+d,ndb_binlog_injector_repeat_gcis";
@@ -82,10 +80,9 @@ insert into test.t1 values (9, repeat('E', 1000));
 insert into test.t1 values (10, repeat('E', 1000));
 insert into test.t1 values (11, repeat('E', 1000));
 insert into test.t1 values (12, repeat('E', 1000));
-insert into mtr.test_suppressions values
-("NDB Slave : ERROR.  SQL thread stopped as applying epoch .*"),
-("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*"),
-("Slave: Got error 173 .*");
+call mtr.add_suppression("NDB Slave : ERROR.  SQL thread stopped as applying epoch .*");
+call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]
 Let's look at the warnings and errors now...
