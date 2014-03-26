@@ -243,7 +243,7 @@ static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2)
 static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 		       ulong max_records)
 {
-  uint i,recbuffer,records_in_block;
+  ulong i,recbuffer,records_in_block;
 
   /*
     If not min_records and max_records are given, optimize for 1000 rows
@@ -271,7 +271,7 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
     The + 1 is there to ensure that we get at least 1 row per level (for
     the exceptional case of very long rows)
   */
-  if (records_in_block*recbuffer >
+  if ((ulonglong) records_in_block*recbuffer >
       (my_default_record_cache_size-sizeof(HP_PTRS)*HP_MAX_LEVELS))
     records_in_block= (my_default_record_cache_size - sizeof(HP_PTRS) *
                        HP_MAX_LEVELS) / recbuffer + 1;

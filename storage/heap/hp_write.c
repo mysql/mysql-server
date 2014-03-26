@@ -400,7 +400,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 static HASH_INFO *hp_find_free_hash(HP_SHARE *info,
 				     HP_BLOCK *block, ulong records)
 {
-  uint block_pos;
+  ulong block_pos;
   size_t length;
 
   if (records < block->last_allocated)

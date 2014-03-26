@@ -14,6 +14,7 @@ set global server_audit_logging=on;
 connect (con1,localhost,root,,mysql);
 connection default;
 disconnect con1;
+--sleep 2
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
 connect (con1,localhost,no_such_user,,mysql);

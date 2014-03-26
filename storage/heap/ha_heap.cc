@@ -225,7 +225,7 @@ void ha_heap::update_key_stats()
       else
       {
         ha_rows hash_buckets= file->s->keydef[i].hash_buckets;
-        uint no_records= hash_buckets ? (uint) (file->s->records/hash_buckets) : 2;
+        ha_rows no_records= hash_buckets ? (file->s->records/hash_buckets) : 2;
         if (no_records < 2)
           no_records= 2;
         key->rec_per_key[key->key_parts-1]= no_records;
@@ -256,6 +256,7 @@ int ha_heap::write_row(uchar * buf)
        We can perform this safely since only one writer at the time is
        allowed on the table.
     */
+    records_changed= 0;
     file->s->key_stat_version++;
   }
   return res;
@@ -274,6 +275,7 @@ int ha_heap::update_row(const uchar * old_data, uchar * new_data)
        We can perform this safely since only one writer at the time is
        allowed on the table.
     */
+    records_changed= 0;
     file->s->key_stat_version++;
   }
   return res;
@@ -290,6 +292,7 @@ int ha_heap::delete_row(const uchar * buf)
        We can perform this safely since only one writer at the time is
        allowed on the table.
     */
+    records_changed= 0;
     file->s->key_stat_version++;
   }
   return res;
@@ -740,8 +743,8 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
   if (share->max_rows && share->max_rows < max_rows)
     max_rows= share->max_rows;
 
-  hp_create_info->max_records= (ulong) max_rows;
-  hp_create_info->min_records= (ulong) share->min_rows;
+  hp_create_info->max_records= (ulong) min(max_rows, ULONG_MAX);
+  hp_create_info->min_records= (ulong) min(share->min_rows, ULONG_MAX);
   hp_create_info->keys= share->keys;
   hp_create_info->reclength= share->reclength;
   hp_create_info->keydef= keydef;
