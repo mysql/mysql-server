@@ -98,7 +98,7 @@ t4.run = function() {
   });
 };
 
-// Write decimal value that will get truncated due to precision.
+// Write decimal value that will get rounded due to precision.
 // In SQL strict mode, this succeeds but generates a warning.
 var t5 = new harness.ConcurrentTest("writeTruncatedDecimal");
 t5.run = function() {

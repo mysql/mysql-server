@@ -149,7 +149,7 @@ function releaseKeyBuffer(op) {
 
 function encodeFieldsInBuffer(fields, nfields, metadata, 
                               ndbRecord, buffer, definedColumnList) {
-  var i, column, value, encoderError, error, offset;
+  var i, column, value, encoderError, error;
   error = null;
 
   function addError() {
@@ -169,7 +169,6 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
     value = fields[i];
     if(typeof value !== 'undefined') {
       definedColumnList.push(column.columnNumber);
-      offset = ndbRecord.getColumnOffset(i);
       if(value === null) {
         ndbRecord.setNull(i, buffer);
       }
@@ -178,7 +177,7 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
         if(column.typeConverter && column.typeConverter.ndb) {
           value = column.typeConverter.ndb.toDB(value);
         }
-        encoderError = adapter.impl.encoderWrite(column, value, buffer, offset);
+        encoderError = ndbRecord.encoderWrite(i, buffer, value);
         if(encoderError) { addError(); }
       }
     }
@@ -190,8 +189,7 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
 function encodeKeyBuffer(op) {
   var oneCol = op.indexHandler.singleColumn;  // single-column index
   if(oneCol && op.keys[0]) {  // ... and value is not undefined or null
-    return adapter.impl.encoderWrite(oneCol, op.keys[0], op.buffers.key, 
-                                     op.index.record.getColumnOffset(0));
+    return op.index.record.encoderWrite(0, op.buffers.key, op.keys[0]);
   }
   return encodeFieldsInBuffer(op.keys, 
                               op.indexHandler.getMappedFieldCount(),
@@ -479,7 +477,7 @@ DBOperation.prototype.isScanOperation = function() {
 
 function readResultRow(op) {
   udebug.log("readResultRow");
-  var i, offset, value;
+  var i, value;
   var dbt             = op.tableHandler;
   var record          = dbt.dbTable.record;
   var nfields         = dbt.getMappedFieldCount();
@@ -487,12 +485,11 @@ function readResultRow(op) {
   var resultRow       = dbt.newResultObject();
   
   for(i = 0 ; i < nfields ; i++) {
-    offset  = record.getColumnOffset(i);
     if(record.isNull(i, op.buffers.row)) {
       value = col[i].defaultValue;
     }
     else {
-      value = adapter.impl.encoderRead(col[i], op.buffers.row, offset);
+      value = record.encoderRead(i, op.buffers.row);
       if(col[i].typeConverter && col[i].typeConverter.ndb) {
         value = col[i].typeConverter.ndb.fromDB(value);
       }

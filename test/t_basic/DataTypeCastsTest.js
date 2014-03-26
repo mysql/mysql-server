@@ -52,7 +52,7 @@ function shouldGetError(test, sqlstate, promise) {
 /* Writing a string to an int column should succeed if the string 
    can be cast to a legal int value for the column.
 */
-var t1 = new harness.ConcurrentTest("WriteStringToIntCol:1");
+var t1 = new harness.ConcurrentTest("WriteStringToIntCol");
 t1.run = function() {
   fail_openSession(t1, function(session) {
     shouldSucceed(t1, 
@@ -63,10 +63,10 @@ t1.run = function() {
 /* Writing a string to an int column should fail with 22003 
    if the string cannot be cast to an int.
 */
-var t2 = new harness.ConcurrentTest("WriteStringToIntCol:2");
+var t2 = new harness.ConcurrentTest("WriteAlphaStringToIntCol");
 t2.run = function() {
   fail_openSession(t2, function(session) {
-    shouldGetError(t2, "22003",
+    shouldGetError(t2, "HY000",
       session.persist("t_basic", { id: 302, age: "young", magic: 302}));
   });
 };

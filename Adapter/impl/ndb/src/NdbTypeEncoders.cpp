@@ -54,7 +54,8 @@ Handle<Value>   /* SQLState Error Codes */
   K_22000_DataError,
   K_22001_StringTooLong,
   K_22003_OutOfRange,
-  K_22007_InvalidDatetime;
+  K_22007_InvalidDatetime,
+  K_HY000;
 
 #define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
 
@@ -207,6 +208,7 @@ void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
   K_22001_StringTooLong = Persistent<String>::New(String::NewSymbol("22001"));
   K_22003_OutOfRange = Persistent<String>::New(String::NewSymbol("22003"));
   K_22007_InvalidDatetime = Persistent<String>::New(String::NewSymbol("22007"));
+  K_HY000 = Persistent<String>::New(String::NewSymbol("HY000"));
 }
 
 
@@ -261,40 +263,71 @@ memcpy(buf, &tmp_value, sizeof(tmp_value));
       *****                                         *****
          *****              Utilities            *****/
 
-template <typename INTSZ> bool checkValue(int);
+/* File-scope global return from succesful write encoders: 
+*/
+Handle<Value> writerOK = Undefined();
 
-template<> inline bool checkValue<int8_t>(int r) {
+template <typename INTSZ> Handle<Value> checkNumber(double);
+
+template<> inline Handle<Value> checkNumber<int>(double d) {
+  if(isfinite(d)) {
+    return (d >= -2147483648.0 && d <= 2147483648.0) ? writerOK : K_22003_OutOfRange;
+  }
+  return K_HY000;
+}
+
+template<> inline Handle<Value> checkNumber<uint32_t>(double d) {
+  if(isfinite(d)) {
+    return (d >= 0 && d < 4294967296.0) ? writerOK : K_22003_OutOfRange;
+  }
+  return K_HY000;
+}
+
+template <typename INTSZ> bool checkIntValue(int);
+
+template <typename INTSZ> inline Handle<Value> getStatusForValue(double d) {
+  if(isfinite(d)) {
+    return checkIntValue<INTSZ>(d) ? writerOK : K_22003_OutOfRange;
+  }
+  return K_HY000;
+}
+
+template<> inline bool checkIntValue<int8_t>(int r) {
   return (r >= -128 && r < 128);
 }
 
-template<> inline bool checkValue<uint8_t>(int r) {
+template<> inline bool checkIntValue<uint8_t>(int r) {
   return (r >= 0 && r < 256);
 }
 
-template<> inline bool checkValue<int16_t>(int r) {
+template<> inline bool checkIntValue<int16_t>(int r) {
   return (r >= -32768 && r < 32768);
 }
 
-template<> inline bool checkValue<uint16_t>(int r) {
+template<> inline bool checkIntValue<uint16_t>(int r) {
   return (r >= 0 && r < 65536);
 }
 
-inline bool checkMedium(int r) {
-  return (r >= -8338608 && r < 8338608);
+inline Handle<Value> checkMedium(int r) {
+  return (r >= -8338608 && r < 8338608) ? writerOK :  K_22003_OutOfRange;
 }
 
-inline bool checkUnsignedMedium(int r) {
-  return (r >= 0 && r < 16277216);
+inline Handle<Value> getStatusForMedium(double dval) {
+  if(isfinite(dval)) {
+    return checkMedium(static_cast<int>(dval));
+  }
+  return K_HY000;
 }
 
-template <typename INTSZ> bool checkNumber(double);
-
-template<> inline bool checkNumber<int>(double d) {
-  return(isfinite(d) && d >= -2147483648.0 && d <= 2147483648.0);
+inline Handle<Value> checkUnsignedMedium(int r) {
+  return (r >= 0 && r < 16277216) ? writerOK :  K_22003_OutOfRange;
 }
 
-template<> inline bool checkNumber<uint32_t>(double d) {
-  return(isfinite(d) && d >= 0 && d < 4294967296.0);
+inline Handle<Value> getStatusForUnsignedMedium(double dval) {
+  if(isfinite(dval)) {
+    return checkUnsignedMedium(static_cast<int>(dval));
+  }
+  return K_HY000;
 }
 
 inline void writeSignedMedium(int8_t * cbuf, int mval) {
@@ -338,10 +371,6 @@ void pack_bigendian(uint64_t val, char * buf, unsigned int len) {
   }
 }
 
-/* File-scope global return from succesful write encoders: 
-*/
-Handle<Value> writerOK = Undefined();
-
 
 /*************************************************************
    ******                                              *****
@@ -377,16 +406,18 @@ Handle<Value> IntWriter(const NdbDictionary::Column * col,
                         Handle<Value> value, 
                         char *buffer, size_t offset) {
   int *ipos = (int *) (buffer+offset);
-  bool valid = true;
+  Handle<Value> status;
+
   if(value->IsInt32()) {
     *ipos = value->Int32Value();
+    status = writerOK;
   }
   else {
     double dval = value->ToNumber()->Value();
     *ipos = static_cast<int>(rint(dval));
-    valid = checkNumber<int>(dval);
+    status = checkNumber<int>(dval);
   }
-  return valid ? writerOK : K_22003_OutOfRange;
+  return status;
 }                        
 
 
@@ -401,16 +432,17 @@ Handle<Value> UnsignedIntReader(const NdbDictionary::Column *col,
 Handle<Value> UnsignedIntWriter(const NdbDictionary::Column * col,
                                 Handle<Value> value, 
                                 char *buffer, size_t offset) {
-  bool valid = true;
+  Handle<Value> status;
   uint32_t *ipos = (uint32_t *) (buffer+offset);
   if(value->IsUint32()) {
     *ipos = value->Uint32Value();
+    status = writerOK;
   } else {
     double dval = value->ToNumber()->Value();
     *ipos = static_cast<uint32_t>(rint(dval));
-    valid = checkNumber<uint32_t>(dval);
+    status = checkNumber<uint32_t>(dval);
   }
-  return valid ? writerOK : K_22003_OutOfRange;
+  return status;
 }
 
 
@@ -428,16 +460,16 @@ template <typename INTSZ>
 Handle<Value> smallintWriter(const NdbDictionary::Column * col,
                              Handle<Value> value, char *buffer, size_t offset) {
   INTSZ *ipos = (INTSZ *) (buffer+offset);
-  bool valid = true;
+  Handle<Value> status;
   if(value->IsInt32()) {
     *ipos = value->Int32Value();
-    valid = checkValue<INTSZ>(*ipos);
+    status = checkIntValue<INTSZ>(*ipos) ? writerOK : K_22003_OutOfRange;
   } else {
     double dval = value->ToNumber()->Value();
-    *ipos = static_cast<INTSZ> (dval);
-    valid = (isfinite(dval) && checkValue<INTSZ>(*ipos));
+    *ipos = static_cast<INTSZ>(dval);
+    status = getStatusForValue<INTSZ>(dval);
   }
-  return valid ? writerOK : K_22003_OutOfRange;
+  return status;
 }
 
 
@@ -453,20 +485,20 @@ Handle<Value> MediumReader(const NdbDictionary::Column *col,
 Handle<Value> MediumWriter(const NdbDictionary::Column * col,
                            Handle<Value> value, char *buffer, size_t offset) {  
   int8_t *cbuf = (int8_t *) (buffer+offset);
-  bool valid;
+  Handle<Value> status;
   double dval;
   int chkv;
   if(value->IsInt32()) {
     chkv = value->Int32Value();
-    valid = checkMedium(chkv);
+    status = checkMedium(chkv);
   } else {
     dval = value->ToNumber()->Value();
     chkv = static_cast<int>(rint(dval));
-    valid = (isfinite(dval) && checkMedium(chkv));
+    status = getStatusForMedium(dval);
   }
+  writeSignedMedium(cbuf, chkv);
 
-  if(valid) writeSignedMedium(cbuf, chkv);
-  return valid ? writerOK : K_22003_OutOfRange;
+  return status;
 }                        
 
 Handle<Value> MediumUnsignedReader(const NdbDictionary::Column *col, 
@@ -481,19 +513,19 @@ Handle<Value> MediumUnsignedWriter(const NdbDictionary::Column * col,
                                    Handle<Value> value, 
                                    char *buffer, size_t offset) {
   uint8_t *cbuf = (uint8_t *) (buffer+offset);
-  bool valid;
+  Handle<Value> status;
   double dval;
   int chkv;
   if(value->IsInt32()) {
     chkv = value->Int32Value();
-    valid = checkUnsignedMedium(chkv);
+    status = checkUnsignedMedium(chkv);
   } else {
     dval = value->ToNumber()->Value();
     chkv = static_cast<int>(rint(dval));
-    valid = (isfinite(dval) && checkUnsignedMedium(chkv));
+    status = getStatusForUnsignedMedium(dval);
   }
-  if(valid) writeUnsignedMedium(cbuf, chkv);
-  return valid ? writerOK : K_22003_OutOfRange;
+  writeUnsignedMedium(cbuf, chkv);
+  return status;
 }                        
 
 
@@ -596,6 +628,9 @@ Handle<Value> DecimalWriter(const NdbDictionary::Column *col,
                             Handle<Value> value, char *buffer, size_t offset) {
   HandleScope scope;
   char strbuf[96];
+  if(! (isfinite(value->NumberValue()))) {
+    return K_HY000;
+  } 
   int length = value->ToString()->WriteAscii(strbuf, 0, 96);
   int status = decimal_str2bin(strbuf, length, 
                                col->getPrecision(), col->getScale(), 
@@ -1254,7 +1289,7 @@ Handle<Value> YearWriter(const NdbDictionary::Column * col,
   bool valid = value->IsInt32();
   if(valid) {
     int chkv = value->Int32Value() - 1900;
-    valid = checkValue<uint8_t>(chkv);
+    valid = checkIntValue<uint8_t>(chkv);
     if(valid) STORE_ALIGNED_DATA(uint8_t, chkv, buffer+offset);
   }
   return valid ? writerOK : K_22007_InvalidDatetime;
