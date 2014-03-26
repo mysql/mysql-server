@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1944,6 +1944,12 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
         sizeof(GlobalPage),
         0,
         { CFG_DB_DATA_MEM,0,0,0 }},
+      { "Long message buffer",
+        g_sectionSegmentPool.getUsed(),
+        g_sectionSegmentPool.getSize(),
+        sizeof(SectionSegment),
+        g_sectionSegmentPool.getUsedHi(),
+        { CFG_DB_LONG_SIGNAL_BUFFER,0,0,0 }},
       { NULL, 0,0,0,0,{ 0,0,0,0 }}
     };
 
