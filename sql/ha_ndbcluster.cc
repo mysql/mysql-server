@@ -4839,10 +4839,15 @@ int ha_ndbcluster::write_row(uchar *record)
            sizeof(row_server_id));
     memcpy(&row_epoch, table->field[1]->ptr + (record - table->record[0]),
            sizeof(row_epoch));
-    g_ndb_slave_state.atApplyStatusWrite(master_server_id,
-                                         row_server_id,
-                                         row_epoch,
-                                         is_serverid_local(row_server_id));
+    int rc = g_ndb_slave_state.atApplyStatusWrite(master_server_id,
+                                                  row_server_id,
+                                                  row_epoch,
+                                                  is_serverid_local(row_server_id));
+    if (rc != 0)
+    {
+      /* Stop Slave */
+      DBUG_RETURN(rc);
+    }
   }
 #endif /* HAVE_NDB_BINLOG */
   DBUG_RETURN(ndb_write_row(record, FALSE, FALSE));
