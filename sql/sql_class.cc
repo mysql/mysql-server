@@ -1391,14 +1391,13 @@ void THD::cleanup(void)
 #endif
 
   mysql_ha_cleanup(this);
+  locked_tables_list.unlock_locked_tables(this);
 
   close_temporary_tables(this);
 
   transaction.xid_state.xa_state= XA_NOTR;
   trans_rollback(this);
   xid_cache_delete(&transaction.xid_state);
-
-  locked_tables_list.unlock_locked_tables(this);
 
   DBUG_ASSERT(open_tables == NULL);
   /*
