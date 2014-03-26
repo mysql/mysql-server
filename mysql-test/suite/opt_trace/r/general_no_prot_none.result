@@ -7141,7 +7141,7 @@ i   int,
 d   double
 );
 insert into t1 values ("a", 1), ("b", 2) |
-insert into t2 values ("a", 1, 1.0), ("b", 2, 2.0), ("c", 3, 3.0) |
+insert into t2 values ("a", 1, 1.0), ("b", 2, 2.0), ("c", 3, 3.0), ("d", 4, 4.0) |
 create function f1() returns int
 begin
 declare ret int;
@@ -7161,6 +7161,7 @@ freturn 3 ret@0	{
 }	0	0
 select s, f1() from t2 order by s desc|
 s	f1()
+d	3
 c	3
 b	3
 a	3
@@ -7373,7 +7374,7 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
               {
                 "table": "`t2`",
                 "table_scan": {
-                  "rows": 3,
+                  "rows": 4,
                   "cost": 2
                 } /* table_scan */
               }
@@ -7388,17 +7389,17 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "rows_to_scan": 3,
+                      "rows_to_scan": 4,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 2.6212,
+                      "cost": 2.8283,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 2.6212,
+                "cost_for_plan": 2.8283,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -8308,7 +8309,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               {
                 "table": "`t2`",
                 "table_scan": {
-                  "rows": 3,
+                  "rows": 4,
                   "cost": 2
                 } /* table_scan */
               }
@@ -8323,17 +8324,17 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "rows_to_scan": 3,
+                      "rows_to_scan": 4,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 2.6212,
+                      "cost": 2.8283,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 2.6212,
+                "cost_for_plan": 2.8283,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -9840,6 +9841,7 @@ s	i	d
 a	1	1
 b	2	2
 c	3	3
+d	4	4
 3	100	200
 3	100	200
 3	100	200
@@ -10192,7 +10194,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               {
                 "table": "`t2`",
                 "table_scan": {
-                  "rows": 7,
+                  "rows": 8,
                   "cost": 2
                 } /* table_scan */
               }
@@ -10207,17 +10209,17 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "rows_to_scan": 7,
+                      "rows_to_scan": 8,
                       "access_type": "scan",
                       "resulting_rows": 1,
-                      "cost": 3.4496,
+                      "cost": 3.6566,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 3.4496,
+                "cost_for_plan": 3.6566,
                 "chosen": true
               }
             ] /* considered_execution_plans */

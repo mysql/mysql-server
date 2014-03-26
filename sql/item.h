@@ -54,30 +54,6 @@ typedef Bounds_checked_array<Item*> Ref_ptr_array;
 /// Filtering effect for between: col1 BETWEEN a AND b
 #define COND_FILTER_BETWEEN 0.1111f
 
-/**
-  Returns the probability for the predicate "col OP <val>" to be true
-  for a row in the case where no index statistics or range estimates
-  are available for 'col'.
-
-  The probability depends on the number of rows in the table: it is by
-  default 'default_filter', but never lower than 1/rows_in_table
-
-  @param rows_in_table  The number of rows in the table
-  @param default_filter The default filter for the predicate   
-
-  @return the estimated filtering effect for this predicate
-*/
-
-inline float
-get_cond_filter_default_probability(double rows_in_table,
-                                    float default_filter)
-{
-  DBUG_ASSERT(rows_in_table >= 1);
-  return std::max(static_cast<float>(1/rows_in_table),
-                  default_filter);
-}
-
-
 static inline uint32
 char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
 {
@@ -2437,6 +2413,27 @@ public:
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table);
+
+  /**
+    Returns the probability for the predicate "col OP <val>" to be
+    true for a row in the case where no index statistics or range
+    estimates are available for 'col'.
+
+    The probability depends on the number of rows in the table: it is by
+    default 'default_filter', but never lower than 1/max_distinct_values
+    (e.g. number of rows in the table, or the number of distinct values
+    possible for the datatype if the field provides that kind of
+    information).
+
+    @param max_distinct_values The maximum number of distinct values,
+                               typically the number of rows in the table
+    @param default_filter      The default filter for the predicate
+
+    @return the estimated filtering effect for this predicate
+  */
+
+  float get_cond_filter_default_probability(double max_distinct_values,
+                                            float default_filter) const;
 
   friend class Item_default_value;
   friend class Item_insert_value;

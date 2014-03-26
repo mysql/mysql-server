@@ -1919,7 +1919,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	100.00	Using where
 1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.id4	1	33.33	Using where
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t1.id2	1	100.00	NULL
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	5.00	Using where
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`num3` AS `num3`,`test`.`t3`.`text1` AS `text1`,`test`.`t3`.`id4` AS `id4`,`test`.`t2`.`id3` AS `id3`,`test`.`t4`.`dummy` AS `dummy` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` where ((`test`.`t2`.`id3` = `test`.`t1`.`id3`) and (`test`.`t3`.`id4` = `test`.`t2`.`id4`) and (`test`.`t5`.`enum2` = 'Active') and (`test`.`t4`.`id2` = `test`.`t1`.`id2`) and (`test`.`t5`.`id2` = `test`.`t1`.`id2`) and (`test`.`t5`.`id1` = `test`.`t1`.`id1`) and (`test`.`t3`.`text1` < 'D'))
 SELECT STRAIGHT_JOIN t1.id1, t1.num3, t3.text1, t3.id4, t2.id3, t4.dummy
