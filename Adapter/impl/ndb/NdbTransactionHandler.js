@@ -118,7 +118,7 @@ function runExecAfterOpenQueue(dbTxHandler) {
 function attachErrorToTransaction(dbTxHandler, err) {
   if(err) {
     dbTxHandler.success = false;
-    dbTxHandler.error = new ndboperation.DBOperationError(err.ndb_error);
+    dbTxHandler.error = new ndboperation.DBOperationError().fromNdbError(err.ndb_error);
     /* Special handling for duplicate value in unique index: */
     if(err.ndb_error.code === 893) {
       dbTxHandler.error.cause = dbTxHandler.error;
@@ -293,7 +293,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
     if(udebug.is_debug()) udebug.log(self.moniker, "executeScan executeScanNoCommit");
     if(! ndbScanOp) {
       fatalError = self.ndbtx.getNdbError();
-      callback(new ndboperation.DBOperationError(fatalError), self);
+      callback(new ndboperation.DBOperationError().fromNdbError(fatalError), self);
       return;  /* is that correct? */
     }
 
@@ -365,7 +365,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
       ndbsession.closeNdbTransaction(self, self.nTxRecords);
       if(udebug.is_debug()) udebug.log("execute onStartTx [ERROR].", err);
       if(callback) {
-        err = new ndboperation.DBOperationError(err.ndb_error);
+        err = new ndboperation.DBOperationError().fromNdbError(err.ndb_error);
         callback(err, self);
       }
       return;
