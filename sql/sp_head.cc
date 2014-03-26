@@ -965,12 +965,13 @@ bool sp_head::execute_trigger(THD *thd,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_ctx= NULL;
-
+  LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
+  LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
 
   if (m_chistics->suid != SP_IS_NOT_SUID &&
       m_security_ctx.change_security_context(thd,
-                                             &m_definer_user,
-                                             &m_definer_host,
+                                             definer_user,
+                                             definer_host,
                                              &m_db,
                                              &save_ctx))
     DBUG_RETURN(true);
@@ -1673,26 +1674,27 @@ void sp_head::set_info(longlong created,
 void sp_head::set_definer(const char *definer, size_t definerlen)
 {
   char user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
+  LEX_CSTRING user_name= { user_name_holder, USERNAME_LENGTH };
 
   char host_name_holder[HOSTNAME_LENGTH + 1];
-  LEX_STRING host_name= { host_name_holder, HOSTNAME_LENGTH };
+  LEX_CSTRING host_name= { host_name_holder, HOSTNAME_LENGTH };
 
-  parse_user(definer, definerlen, user_name.str, &user_name.length,
-             host_name.str, &host_name.length);
+  parse_user(definer, definerlen,
+             user_name_holder, &user_name.length,
+             host_name_holder, &host_name.length);
 
-  set_definer(&user_name, &host_name);
+  set_definer(user_name, host_name);
 }
 
 
-void sp_head::set_definer(const LEX_STRING *user_name,
-                          const LEX_STRING *host_name)
+void sp_head::set_definer(const LEX_CSTRING &user_name,
+                          const LEX_CSTRING &host_name)
 {
-  m_definer_user.str= strmake_root(mem_root, user_name->str, user_name->length);
-  m_definer_user.length= user_name->length;
+  m_definer_user.str= strmake_root(mem_root, user_name.str, user_name.length);
+  m_definer_user.length= user_name.length;
 
-  m_definer_host.str= strmake_root(mem_root, host_name->str, host_name->length);
-  m_definer_host.length= host_name->length;
+  m_definer_host.str= strmake_root(mem_root, host_name.str, host_name.length);
+  m_definer_host.length= host_name.length;
 }
 
 
@@ -2126,10 +2128,12 @@ bool sp_head::check_show_access(THD *thd, bool *full_access)
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 {
   *save_ctx= NULL;
+  LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
+  LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
 
   if (m_chistics->suid != SP_IS_NOT_SUID &&
       m_security_ctx.change_security_context(thd,
-                                             &m_definer_user, &m_definer_host,
+                                             definer_user, definer_host,
                                              &m_db, save_ctx))
   {
     return true;
