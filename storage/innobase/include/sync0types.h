@@ -193,7 +193,7 @@ V
 Memory pool mutex */
 
 /** Latching order levels. If you modify these, you have to also update
-sync_thread_add_level(). */
+SyncDebug::check_order(). */
 
 enum latch_level_t {
 	SYNC_UNKNOWN = 0,
@@ -283,6 +283,8 @@ enum latch_level_t {
 	SYNC_TRX_I_S_LAST_READ,
 
 	SYNC_TRX_I_S_RWLOCK,
+
+	SYNC_RECV_WRITER,
 
 	/** Level is varying. Only used with buffer pool page locks, which
 	do not have a fixed level, but instead have their level set after
@@ -375,7 +377,9 @@ struct dict_sync_check : public sync_check_functor_t {
 		if (!m_dict_mutex_allowed
 		    || (latch.m_level != SYNC_DICT
 			&& latch.m_level != SYNC_DICT_OPERATION
-			&& latch.m_level != SYNC_FTS_CACHE)) {
+			&& latch.m_level != SYNC_FTS_CACHE
+			/* This only happens in recv_apply_hashed_log_recs. */
+			&& latch.m_level != SYNC_RECV_WRITER)) {
 
 			m_result = true;
 

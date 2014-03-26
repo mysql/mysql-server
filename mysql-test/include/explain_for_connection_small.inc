@@ -231,10 +231,19 @@
   UPDATE t1 SET a = 13 + 99, b = CONCAT(b, ', updated 3') WHERE a = 99 ;
   UPDATE t1 SET a = a + 1, b = CONCAT(b, ', updated 4 -> p9') WHERE a = 112 ;
   UPDATE t1 SET b = CONCAT(b, ', same as min(a) + 2 in t2') WHERE a = (SELECT MIN(a) + 2 FROM t2) ;
+
+  # It's very hard to --replace_column etc for these queries which are executed via
+  # explain_for_connection.inc. Condition filtering is not 100% stable for the query
+  # below, so to avoid test errors due to small differences it has to be turned off.
+  set optimizer_switch='condition_fanout_filter=off';
+
   let $point=   planned_single_update;let $query=  UPDATE t1 SET b = CONCAT(b, ', max(a) in t2: ', (SELECT MAX(a) FROM t2)) WHERE a = 5 ;
   --source include/explain_for_connection.inc
   let $point=   before_reset_query_plan;let $query=  UPDATE t1, t2 SET t1.b = CONCAT(t1.b, ', t2.b:', t2.b), t2.b = CONCAT(t2.b, ', t1.b:', t1.b) WHERE t2.b = t1.b and t2.a = 4 ;
   --source include/explain_for_connection.inc
+
+  set optimizer_switch='condition_fanout_filter=on';
+
   DROP TABLE t1,t2;
 
 

@@ -104,6 +104,8 @@ use world;
 
 show variables like 'join_buffer_size';
 
+# Somewhat unstable filtering numbers
+--replace_regex /88.18/87.57/
 EXPLAIN
 SELECT city.Name, country.Name FROM city,country
   WHERE city.country=country.Code AND 
