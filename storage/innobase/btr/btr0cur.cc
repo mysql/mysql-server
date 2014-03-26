@@ -5950,6 +5950,34 @@ btr_store_big_rec_extern_fields(
 
 		ut_a(extern_len > 0);
 
+		/* For intrinsic table reserve extent.
+		This logic should be enabled for normal table too
+		but for now enabling it for intrinsic table only.
+		For normal table things are anyways extended because of UNDO
+		log involvement. */
+		ulint	n_reserved = 0;
+		if (dict_table_is_intrinsic(index->table)) {
+			bool	success;
+			mtr_t	reserve_mtr;
+
+			mtr_start(&reserve_mtr);
+			dict_disable_redo_if_temporary(
+				index->table, &reserve_mtr);
+
+			ulint	n_extents = ((extern_len / UNIV_PAGE_SIZE)
+				 / FSP_EXTENT_SIZE) + 1;
+
+			success = fsp_reserve_free_extents(
+				&n_reserved, index->space,
+				n_extents, FSP_NORMAL, &reserve_mtr);
+
+			if (!success) {
+				return(DB_OUT_OF_FILE_SPACE);
+			}
+
+			mtr_commit(&reserve_mtr);
+		}
+
 		prev_page_no = FIL_NULL;
 
 		if (page_zip) {
@@ -6244,6 +6272,11 @@ next_zip_page:
 		DBUG_EXECUTE_IF("btr_store_big_rec_extern",
 				error = DB_OUT_OF_FILE_SPACE;
 				goto func_exit;);
+
+		if (n_reserved > 0) {
+			fil_space_release_free_extents(
+				index->space, n_reserved);
+		}
 	}
 
 func_exit:
