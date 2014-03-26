@@ -4065,11 +4065,6 @@ fil_load_single_table_tablespace(
 
 	space = NULL;
 
-	/* The caller assured that the extension is ".ibd" or ".isl". */
-	ut_ad(filename_len > 4);
-	ut_ad(0 == memcmp(filename + filename_len - 4, DOT_IBD, 4)
-	      || 0 == memcmp(filename + filename_len - 4, DOT_ISL, 4));
-
 	/* Strip the file name prefix and suffix, leaving
 	only databasename/tablename. */
 	const char*	tablename	= filename;
@@ -4296,18 +4291,6 @@ will_not_choose:
 	if (space != NULL) {
 		ut_ad(space->id == df->space_id());
 		ut_ad(dup == NULL);
-
-		if (space_id != df->space_id()) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Ignoring data file %s with space ID "
-				ULINTPF ","
-				" which used to be space ID " ULINTPF ".",
-				name, space->id, space_id);
-			df->close();
-			fil_space_free(space->id, false);
-			space = NULL;
-			goto func_exit;
-		}
 	} else if (dup != NULL) {
 		space = dup;
 
@@ -4323,20 +4306,18 @@ will_not_choose:
 			goto func_exit;
 		}
 
-		if (space_id == df->space_id()) {
-			/* Multiple files with the same space_id! */
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Tablespaces for SpaceID " ULINTPF
-				" have been found in two places;"
-				" Location 1: File: %s;"
-				" Location 2: LSN: " LSN_PF " File: %s;"
-				" You must delete one of them.",
-				space_id,
-				space->name,
-				df->flushed_lsn(), df->filepath());
-			df->close();
-			goto will_not_choose;
-		}
+		/* Multiple files with the same space_id! */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Tablespaces for SpaceID " ULINTPF
+			" have been found in two places;"
+			" Location 1: File: %s;"
+			" Location 2: LSN: " LSN_PF " File: %s;"
+			" You must delete one of them.",
+			space_id,
+			space->chain.start->name,
+			df->flushed_lsn(), df->filepath());
+		df->close();
+		goto will_not_choose;
 	} else {
 		df->close();
 		goto will_not_choose;
