@@ -85,6 +85,12 @@ public:
 };
 
 /**
+  Data type for records per key estimates that are stored in the 
+  KEY::rec_per_key_float[] array.
+*/
+typedef float rec_per_key_t;
+
+/**
   If an entry for a key part in KEY::rec_per_key_float[] has this value,
   then the storage engine has not provided a value for it and the rec_per_key
   value for this key part is unknown.
@@ -142,13 +148,8 @@ private:
     used. Otherwise the value in rec_per_key will be used.
     @todo In the next release the rec_per_key array above should be
     removed and only this should be used.
-
-    This variable is made protected instead of private in order to be
-    able to delete the array in the unit test (@see Fake_KEY). If the
-    KEY struct is re-written to manage the memory for this array, this
-    should be changed to private.
   */
-  float *rec_per_key_float;
+  rec_per_key_t *rec_per_key_float;
 public:
   union {
     int  bdb_return_if_eq;
@@ -187,7 +188,7 @@ public:
       @retval != REC_PER_KEY_UNKNOWN record per key estimate
   */
 
-  float records_per_key(uint key_part_no) const
+  rec_per_key_t records_per_key(uint key_part_no) const
   {
     DBUG_ASSERT(key_part_no < actual_key_parts);
 
@@ -199,7 +200,8 @@ public:
       return rec_per_key_float[key_part_no];
 
     return (rec_per_key[key_part_no] != 0) ? 
-      static_cast<float>(rec_per_key[key_part_no]) : REC_PER_KEY_UNKNOWN;
+      static_cast<rec_per_key_t>(rec_per_key[key_part_no]) :
+      REC_PER_KEY_UNKNOWN;
   }
 
   /**
@@ -210,7 +212,7 @@ public:
     @param rec_per_key_est new records per key estimate
   */
 
-  void set_records_per_key(uint key_part_no, float rec_per_key_est)
+  void set_records_per_key(uint key_part_no, rec_per_key_t rec_per_key_est)
   {
     DBUG_ASSERT(key_part_no < actual_key_parts);
     DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN || 
@@ -234,7 +236,7 @@ public:
   */
   
   void set_rec_per_key_array(ulong *rec_per_key_arg,
-                             float *rec_per_key_float_arg)
+                             rec_per_key_t *rec_per_key_float_arg)
   {
     rec_per_key= rec_per_key_arg;
     rec_per_key_float= rec_per_key_float_arg;
