@@ -55,23 +55,41 @@ var errorClassificationMap = {
   "UnknownResultError"  : "08000"
 };
 
-function DBOperationError(ndbError) {
+var sqlStateMessages = { 
+  "22000" : "Data error",
+  "22001" : "String too long",
+  "22003" : "Numeric value out of range",
+  "22007" : "Invalid datetime",
+  "HY000" : "Incorrect numeric value",
+  "WCTOR" : 
+      "A Domain Object Constructor has overwritten persistent properties "+
+      "that were read from the database.  The Domain Object Constructor "+
+      "is called with no arguments and its ``this'' parameter set to the "+
+      "newly read object."
+};
+
+
+function DBOperationError() {
   this.ndb_error = null;
   this.message   = "";
   this.sqlstate  = "NDB00";
   this.cause     = null;
-  
-  if(ndbError) {
-    this.initFromNdbError(ndbError);
-  }
 }
 
-DBOperationError.prototype.initFromNdbError = function(ndb_error) {
+DBOperationError.prototype.fromNdbError = function(ndb_error) {
   this.ndb_error = ndb_error;
   this.message   = ndb_error.message + " [" + ndb_error.code + "]";
   this.sqlstate  = errorClassificationMap[ndb_error.classification];
+  return this;
 };
 
+DBOperationError.prototype.fromSqlState = function(sqlstate) {
+  this.sqlstate = sqlstate;
+  this.message = sqlStateMessages[sqlstate];
+  return this;
+};
+  
+  
 function IndirectError(cause) {
   udebug.log("Adding indirect error from", cause);
   this.cause = cause;
@@ -129,15 +147,6 @@ function releaseKeyBuffer(op) {
   }
 }
 
-
-var DataErrors = { 
-  "22000" : "Data error",
-  "22001" : "String too long",
-  "22003" : "Numeric value out of range",
-  "22007" : "Invalid datetime",
-  "HY000" : "Incorrect numeric value"
-};
-
 function encodeFieldsInBuffer(fields, nfields, metadata, 
                               ndbRecord, buffer, definedColumnList) {
   var i, column, value, encoderError, error, offset;
@@ -145,17 +154,12 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
 
   function addError() {
     udebug.log("encoderWrite error:", encoderError);
-    function message() {
-      return DataErrors[encoderError]  + " [" + column.name + "]";
-    }
-
     if(error) {   // More than one column error, so use the generic code
       error.sqlstate = "22000"; 
-      error.message += "; " + message();
+      error.message += "; [" + column.name + "]";
     } else {
-      error = new DBOperationError();
-      error.sqlstate = encoderError;
-      error.message = message();
+      error = new DBOperationError().fromSqlState(encoderError);
+      error.message += " [" + column.name + "]";
     }
   }
 
@@ -184,8 +188,8 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
 
 
 function encodeKeyBuffer(op) {
-  var oneCol = op.indexHandler.singleColumn;
-  if(oneCol) {
+  var oneCol = op.indexHandler.singleColumn;  // single-column index
+  if(oneCol && op.keys[0]) {  // ... and value is not undefined or null
     return adapter.impl.encoderWrite(oneCol, op.keys[0], op.buffers.key, 
                                      op.index.record.getColumnOffset(0));
   }
@@ -521,14 +525,7 @@ function buildValueObject(op) {
       DOC.call(op.result.value);
       nWritesPost = adapter.impl.getValueObjectWriteCount(op.result.value);
       if(nWritesPost > nWritesPre) {
-        err = new DBOperationError();
-        err.message =
-         "A Domain Object Constructor has overwritten persistent properties "+
-         "that were read from the database.  The Domain Object Constructor "+
-         "is called with no arguments and its ``this'' parameter set to the "+
-         "newly read object.";
-        err.sqlstate = "WCTOR";
-        op.result.error = err;
+        op.result.error = new DBOperationError().fromSqlState("WCTOR");
         op.result.success = false;
       }
     }
@@ -649,7 +646,7 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
   } else {
     op.result.success = false;
     if(op_ndb_error !== true) {  // TRUE here means NdbOperation is null
-      op.result.error = new DBOperationError(op_ndb_error);
+      op.result.error = new DBOperationError().fromNdbError(op_ndb_error);
     }
   }
 
