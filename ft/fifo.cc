@@ -102,7 +102,6 @@ struct fifo {
     int   memory_used;  // How many bytes are in use?
 };
 
-const int fifo_initial_size = 4096;
 static void fifo_init(struct fifo *fifo) {
     fifo->n_items_in_fifo = 0;
     fifo->memory       = 0;
