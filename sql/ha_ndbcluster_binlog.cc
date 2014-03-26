@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -6706,6 +6706,18 @@ injectApplyStatusWriteRow(injector::transaction& trans,
     DBUG_RETURN(false);
   }
 
+  longlong gci_to_store = (longlong) gci;
+  DBUG_EXECUTE_IF("ndb_binlog_injector_repeat_gcis",
+                  {
+                    ulonglong gciHi = ((gci_to_store >> 32) 
+                                       & 0xffffffff);
+                    ulonglong gciLo = (gci_to_store & 0xffffffff);
+                    gciHi = (gciHi % 3);
+                    sql_print_warning("NDB Binlog injector repeating gcis (%llu -> %llu)",
+                                      gci_to_store, (gciHi << 32) + gciLo);
+                    gci_to_store = (gciHi << 32) + gciLo;
+                  });
+
   /* Build row buffer for generated ndb_apply_status
      WRITE_ROW event
      First get the relevant table structure.
@@ -6734,7 +6746,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
   empty_record(apply_status_table);
 
   apply_status_table->field[0]->store((longlong)::server_id, true);
-  apply_status_table->field[1]->store((longlong)gci, true);
+  apply_status_table->field[1]->store((longlong)gci_to_store, true);
   apply_status_table->field[2]->store("", 0, &my_charset_bin);
   apply_status_table->field[3]->store((longlong)0, true);
   apply_status_table->field[4]->store((longlong)0, true);
@@ -7274,6 +7286,18 @@ restart_cluster_failure:
         DBUG_ASSERT(pOp->getEventType() == NdbDictionary::Event::TE_ALTER ||
                     ! IS_NDB_BLOB_PREFIX(pOp->getEvent()->getTable()->getName()));
         DBUG_ASSERT(gci <= ndb_latest_received_binlog_epoch);
+
+        /* Update our thread-local debug settings based on the global */
+#ifndef DBUG_OFF
+        /* Get value of global...*/
+        {
+          char buf[256];
+          DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
+          //  fprintf(stderr, "Ndb Binlog Injector, setting debug to %s\n",
+          //          buf);
+          DBUG_SET(buf);
+        }
+#endif
 
         /* initialize some variables for this epoch */
 
