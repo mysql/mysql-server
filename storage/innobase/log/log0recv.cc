@@ -284,9 +284,11 @@ fil_name_parse(
 				exit(1);
 			}
 			break;
+
 		case FIL_LOAD_ID_CHANGED:
 			ut_ad(space == NULL);
 			break;
+
 		case FIL_LOAD_NOT_FOUND:
 			/* No matching tablespace was found; maybe it
 			was renamed, and we will find a subsequent
@@ -306,8 +308,8 @@ fil_name_parse(
 					recv_sys->recovered_lsn,
 					name, space_id);
 			}
-
 			break;
+
 		case FIL_LOAD_INVALID:
 			ut_ad(space == NULL);
 			if (srv_force_recovery == 0) {

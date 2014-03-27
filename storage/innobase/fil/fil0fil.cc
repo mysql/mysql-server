@@ -3160,7 +3160,7 @@ fil_rename_tablespace_in_mem(
 #if OS_PATH_SEPARATOR != '/'
 	for (char* c = space->name; *c; c++) {
 		if (*c == OS_PATH_SEPARATOR) {
-	 		*c = '/';
+			*c = '/';
 		}
 	}
 #endif
@@ -3291,7 +3291,7 @@ fil_rename_tablespace(
 	fil_node_t*	node;
 	ulint		count		= 0;
 	char*		old_name	= NULL;
-	const char*	new_path 	= new_path_in;
+	const char*	new_path	= new_path_in;
 	ut_a(id != 0);
 
 	if (new_path == NULL) {
