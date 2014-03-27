@@ -1040,8 +1040,13 @@ buf_flush_page(
 	if (!is_uncompressed) {
 		flush = TRUE;
 		rw_lock = NULL;
-	} else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST)) {
+	} else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST)
+		   || (!no_fix_count
+		       && fsp_is_system_temporary(bpage->id.space()))) {
 		/* This is a heuristic, to avoid expensive SX attempts. */
+		/* For table residing in temporary tablespace sync is done
+		using IO_FIX and so before scheduling for flush ensure that
+		page is not fixed. */
 		flush = FALSE;
 	} else {
 		rw_lock = &reinterpret_cast<buf_block_t*>(bpage)->lock;
