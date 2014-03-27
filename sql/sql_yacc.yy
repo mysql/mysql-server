@@ -5423,8 +5423,8 @@ have_partitioning:
           /* empty */
           {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-            LEX_STRING partition_name={C_STRING_WITH_LEN("partition")};
-            if (!plugin_is_ready(&partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
+            const LEX_CSTRING partition_name={C_STRING_WITH_LEN("partition")};
+            if (!plugin_is_ready(partition_name, MYSQL_STORAGE_ENGINE_PLUGIN))
             {
               my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                       "--skip-partition");
@@ -7399,7 +7399,8 @@ fulltext_key_opt:
           all_key_opt
         | WITH PARSER_SYM IDENT_sys
           {
-            if (plugin_is_ready(&$3, MYSQL_FTPARSER_PLUGIN))
+            LEX_CSTRING plugin_name= {$3.str, $3.length};
+            if (plugin_is_ready(plugin_name, MYSQL_FTPARSER_PLUGIN))
               Lex->key_create_info.parser_name= $3;
             else
             {
@@ -12953,7 +12954,7 @@ show_param:
             LEX *lex=Lex;
             lex->sql_command= SQLCOM_SHOW_GRANTS;
             lex->grant_user=$3;
-            lex->grant_user->password=null_lex_str;
+            lex->grant_user->password= NULL_CSTR;
           }
         | CREATE DATABASE opt_if_not_exists ident
           {
@@ -14345,24 +14346,26 @@ user:
             THD *thd= YYTHD;
             if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
-            $$->user= $1;
-            $$->host.str= (char *) "%";
-            $$->host.length= 1;
-            $$->password= null_lex_str; 
-            $$->plugin= empty_lex_str;
-            $$->auth= empty_lex_str;
-            $$->uses_identified_by_clause= false;
-            $$->uses_identified_with_clause= false;
-            $$->uses_identified_by_password_clause= false;
-            $$->uses_authentication_string_clause= false;
 
             /*
               Trim whitespace as the values will go to a CHAR field
               when stored.
             */
-            trim_whitespace(system_charset_info, &$$->user);
+            trim_whitespace(system_charset_info, &$1);
 
-            if (check_string_char_length(&$$->user, ER(ER_USERNAME),
+            $$->user.str= $1.str;
+            $$->user.length= $1.length;
+            $$->host.str= "%";
+            $$->host.length= 1;
+            $$->password= NULL_CSTR;
+            $$->plugin= EMPTY_CSTR;
+            $$->auth= EMPTY_CSTR;
+            $$->uses_identified_by_clause= false;
+            $$->uses_identified_with_clause= false;
+            $$->uses_identified_by_password_clause= false;
+            $$->uses_authentication_string_clause= false;
+
+            if (check_string_char_length($$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
                                          system_charset_info, 0))
               MYSQL_YYABORT;
@@ -14372,33 +14375,38 @@ user:
             THD *thd= YYTHD;
             if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
-            $$->user= $1;
-            $$->host= $3;
-            $$->password= null_lex_str; 
-            $$->plugin= empty_lex_str;
-            $$->auth= empty_lex_str;
+
+            /*
+              Trim whitespace as the values will go to a CHAR field
+              when stored.
+            */
+            trim_whitespace(system_charset_info, &$1);
+            trim_whitespace(system_charset_info, &$3);
+
+            $$->user.str= $1.str;
+            $$->user.length= $1.length;
+            $$->host.str= $3.str;
+            $$->host.length= $3.length;
+            $$->password= NULL_CSTR;
+            $$->plugin= EMPTY_CSTR;
+            $$->auth= EMPTY_CSTR;
             $$->uses_identified_by_clause= false;
             $$->uses_identified_with_clause= false;
             $$->uses_identified_by_password_clause= false;
             $$->uses_authentication_string_clause= false;
 
-            if (check_string_char_length(&$$->user, ER(ER_USERNAME),
+            if (check_string_char_length($$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
                                          system_charset_info, 0) ||
-                check_host_name(&$$->host))
+                check_host_name($$->host))
               MYSQL_YYABORT;
             /*
               Convert hostname part of username to lowercase.
               It's OK to use in-place lowercase as long as
               the character set is utf8.
             */
-            my_casedn_str(system_charset_info, $$->host.str);
-            /*
-              Trim whitespace as the values will go to a CHAR field
-              when stored.
-            */
-            trim_whitespace(system_charset_info, &$$->user);
-            trim_whitespace(system_charset_info, &$$->host);
+            my_casedn_str(system_charset_info, $3.str);
+            $$->host.str= $3.str;
           }
         | CURRENT_USER optional_braces
           {
@@ -14859,7 +14867,7 @@ start_option_value_list:
             if (!user)
               MYSQL_YYABORT;
 
-            user->host= null_lex_str;
+            user->host= NULL_CSTR;
             user->user.str= thd->security_ctx->user;
             user->user.length= strlen(thd->security_ctx->user);
 
@@ -15835,7 +15843,9 @@ grant_list:
 grant_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
-            $$=$1; $1->password=$4;
+            $$=$1;
+            $1->password.str= $4.str;
+            $1->password.length= $4.length;
             if (Lex->sql_command == SQLCOM_REVOKE)
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -15852,14 +15862,15 @@ grant_user:
             Lex->contains_plaintext_password= true;
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
-          { 
+          {
             if (Lex->sql_command == SQLCOM_REVOKE)
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
-            $$= $1; 
-            $1->password= $5; 
+            $$= $1;
+            $1->password.str= $5.str;
+            $1->password.length= $5.length;
             if (!strcmp($5.str, ""))
             {
               String *password= new (YYTHD->mem_root) String ((const char *)"",
@@ -15879,8 +15890,9 @@ grant_user:
               MYSQL_YYABORT;
             }
             $$= $1;
-            $1->plugin= $4;
-            $1->auth= empty_lex_str;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth= EMPTY_CSTR;
             $1->uses_identified_with_clause= true;
           }
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
@@ -15891,15 +15903,17 @@ grant_user:
               MYSQL_YYABORT;
             }
             $$= $1;
-            $1->plugin= $4;
-            $1->auth= $6;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth.str= $6.str;
+            $1->auth.length= $6.length;
             $1->uses_identified_with_clause= true;
             $1->uses_authentication_string_clause= true;
           }
         | user
           {
             $$= $1;
-            $1->password= null_lex_str;
+            $1->password= NULL_CSTR;
           }
         ;
 

@@ -3863,8 +3863,8 @@ end_with_restore_list:
         } 
         else if (is_acl_user(user->host.str, user->user.str) &&
                  user->password.str &&
-                 check_change_password (thd, user->host.str, user->user.str, 
-                                        user->password.str, 
+                 check_change_password (thd, user->host.str, user->user.str,
+                                        user->password.str,
                                         user->password.length))
           goto error;
       }
@@ -4193,9 +4193,9 @@ end_with_restore_list:
       */
       if (thd->slave_thread && is_acl_user(definer->host.str, definer->user.str))
       {
-        security_context.change_security_context(thd, 
-                                                 &thd->lex->definer->user,
-                                                 &thd->lex->definer->host,
+        security_context.change_security_context(thd,
+                                                 thd->lex->definer->user,
+                                                 thd->lex->definer->host,
                                                  &thd->lex->sphead->m_db,
                                                  &backup);
         restore_backup_context= true;
@@ -5410,7 +5410,9 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   uint8 datetime_precision= decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
 
-  if (check_string_char_length(field_name, "", NAME_CHAR_LEN,
+  LEX_CSTRING field_name_cstr= {field_name->str, field_name->length};
+
+  if (check_string_char_length(field_name_cstr, "", NAME_CHAR_LEN,
                                system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), field_name->str); /* purecov: inspected */
@@ -6501,9 +6503,9 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->host.str= (char *) sctx->priv_host;
   definer->host.length= strlen(definer->host.str);
 
-  definer->password= null_lex_str;
-  definer->plugin= empty_lex_str;
-  definer->auth= empty_lex_str;
+  definer->password= NULL_CSTR;
+  definer->plugin= EMPTY_CSTR;
+  definer->auth= EMPTY_CSTR;
   definer->uses_identified_with_clause= false;
   definer->uses_identified_by_clause= false;
   definer->uses_authentication_string_clause= false;
@@ -6560,8 +6562,10 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
   if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
-  definer->user= *user_name;
-  definer->host= *host_name;
+  definer->user.str= user_name->str;
+  definer->user.length= user_name->length;
+  definer->host.str= host_name->str;
+  definer->host.length= host_name->length;
   definer->password.str= NULL;
   definer->password.length= 0;
   definer->uses_authentication_string_clause= false;
@@ -6642,13 +6646,13 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
     The function is not used in existing code but can be useful later?
 */
 
-bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
+bool check_string_byte_length(const LEX_CSTRING &str, const char *err_msg,
                               size_t max_byte_length)
 {
-  if (str->length <= max_byte_length)
+  if (str.length <= max_byte_length)
     return FALSE;
 
-  my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_byte_length);
+  my_error(ER_WRONG_STRING_LENGTH, MYF(0), str.str, err_msg, max_byte_length);
 
   return TRUE;
 }
@@ -6670,20 +6674,20 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 */
 
 
-bool check_string_char_length(LEX_STRING *str, const char *err_msg,
+bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
                               size_t max_char_length, const CHARSET_INFO *cs,
                               bool no_error)
 {
   int well_formed_error;
-  uint res= cs->cset->well_formed_len(cs, str->str, str->str + str->length,
+  uint res= cs->cset->well_formed_len(cs, str.str, str.str + str.length,
                                       max_char_length, &well_formed_error);
 
-  if (!well_formed_error &&  str->length == res)
+  if (!well_formed_error &&  str.length == res)
     return FALSE;
 
   if (!no_error)
   {
-    ErrConvString err(str->str, str->length, cs);
+    ErrConvString err(str.str, str.length, cs);
     my_error(ER_WRONG_STRING_LENGTH, MYF(0), err.ptr(), err_msg, max_char_length);
   }
   return TRUE;
@@ -6751,10 +6755,10 @@ C_MODE_END
                       has invalid symbols
 */
 
-bool check_host_name(LEX_STRING *str)
+bool check_host_name(const LEX_CSTRING &str)
 {
-  const char *name= str->str;
-  const char *end= str->str + str->length;
+  const char *name= str.str;
+  const char *end= str.str + str.length;
   if (check_string_byte_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
     return TRUE;
 
