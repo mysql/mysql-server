@@ -49,12 +49,12 @@ public:
   /* 
     'seizeErrorHandler' is called in case of out of memory errors. Observe 
     that the pool is not locked when seizeErrorHandler is called.
-    A function reference rather than a virtual function is used here, because 
+    A function pointer rather than a virtual function is used here, because 
     a virtual function would require explicit instantiations of ArrayPool for 
     all T types. That would again require all T types to define the nextChunk, 
     lastChunk and chunkSize fields. This is curently not the case.
   */
-  explicit ArrayPool(CallBack& seizeErrorHandler=noOpCallBack);
+  explicit ArrayPool(CallBack* seizeErrorHandler=NULL);
   ~ArrayPool();
   
   /**
@@ -285,16 +285,12 @@ protected:
 #endif
   void * alloc_ptr;
   // Call this function if a seize request fails.
-  CallBack& seizeErrHand;
-
-private:
-  // Default handler for 'seize' errors.
-  static void noOpCallBack(ArrayPool<T>& pool){};
+  CallBack* const seizeErrHand;
 };
 
 template <class T>
 inline
-ArrayPool<T>::ArrayPool(CallBack& seizeErrorHandler):
+ArrayPool<T>::ArrayPool(CallBack* seizeErrorHandler):
   seizeErrHand(seizeErrorHandler)
 {
   firstFree = RNIL;
@@ -805,7 +801,10 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
   }
   ptr.i = RNIL;
   ptr.p = NULL;
-  (seizeErrHand)(*this);
+  if (seizeErrHand != NULL)
+  {
+    (*seizeErrHand)(*this);
+  }
   return false;
 }
 
@@ -853,7 +852,10 @@ ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
   }
   ptr.i = RNIL;
   ptr.p = NULL;
-  (seizeErrHand)(*this);
+  if (seizeErrHand != NULL)
+  {
+    (*seizeErrHand)(*this);
+  }
   return false;
 }
 
@@ -890,7 +892,10 @@ ArrayPool<T>::seizeN(Uint32 n){
     curr = theArray[curr].nextPool;
   }
   if(sz != n){
-    (seizeErrHand)(*this);
+    if (seizeErrHand != NULL)
+    {
+      (*seizeErrHand)(*this);
+    }
     return RNIL;
   }
   const Uint32 base = curr - n;
@@ -1188,7 +1193,10 @@ ArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
   }
 
   ptr.p = NULL;
-  (seizeErrHand)(*this);
+  if (seizeErrHand != NULL)
+  {
+    (*seizeErrHand)(*this);
+  }
   return false;
 }
 
@@ -1270,7 +1278,10 @@ ArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
     DUMP("LOCKED", "\n");
     return true;
   }
-  (seizeErrHand)(*this);
+  if (seizeErrHand != NULL)
+  {
+    (*seizeErrHand)(*this);
+  }
   return false;
 }
 
