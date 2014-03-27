@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -881,6 +881,17 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_range.assign(org.m_range);
 
   m_fragmentType = org.m_fragmentType;
+  if (m_fragmentType == NdbDictionary::Object::HashMapPartition)
+  {
+    m_hash_map_id = org.m_hash_map_id;
+    m_hash_map_version = org.m_hash_map_version;
+    m_hash_map.assign(org.m_hash_map);
+  }
+  else
+  {
+    m_hash_map_id = RNIL;
+    m_hash_map_version = ~0;
+  }
   /*
     m_columnHashMask, m_columnHash, m_hashValueMask, m_hashpointerValue
     is state calculated by computeAggregates and buildColumnHash
@@ -3461,6 +3472,16 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
       goto invalid_alter_table;
     AlterTableReq::setAddFragFlag(change_mask, true);
   }
+  else
+  { // Changing hash map only supported if adding fragments
+    if (impl.m_fragmentType == NdbDictionary::Object::HashMapPartition &&
+        (impl.m_hash_map_id != old_impl.m_hash_map_id ||
+         impl.m_hash_map_version != old_impl.m_hash_map_version))
+    {
+      goto invalid_alter_table;
+    }
+  }
+
 
   /*
     Check for new columns.
