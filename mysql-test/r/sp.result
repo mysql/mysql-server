@@ -7746,33 +7746,33 @@ DROP FUNCTION f4;
 CREATE TABLE t1(a INT);
 CREATE PROCEDURE p(p INT)
 SET p = DEFAULT|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 2
 CREATE PROCEDURE p()
 BEGIN
 DECLARE v INT;
 SET v = DEFAULT;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
 END' at line 4
 CREATE PROCEDURE p()
 BEGIN
 DECLARE v INT DEFAULT 1;
 SET v = DEFAULT;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
 END' at line 4
 CREATE PROCEDURE p()
 BEGIN
 DECLARE v INT DEFAULT (SELECT * FROM t1);
 SET v = DEFAULT;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
 END' at line 4
 CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
 BEGIN
 SET NEW.a = DEFAULT;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
 END' at line 3
 
 # Check that setting system variables to DEFAULT still works in SP.
