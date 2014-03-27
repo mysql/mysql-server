@@ -2930,7 +2930,8 @@ btr_cur_pessimistic_insert(
 		return(err);
 	}
 
-	if (!(flags & BTR_NO_UNDO_LOG_FLAG)) {
+	if (!(flags & BTR_NO_UNDO_LOG_FLAG)
+	    || dict_table_is_intrinsic(index->table)) {
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the insert will not fail because
 		of lack of space */
@@ -3859,7 +3860,8 @@ btr_cur_pessimistic_update(
 
 		ulint	n_extents = cursor->tree_height / 16 + 3;
 
-		if (flags & BTR_NO_UNDO_LOG_FLAG) {
+		if ((flags & BTR_NO_UNDO_LOG_FLAG)
+		    && !dict_table_is_intrinsic(index->table)) {
 			reserve_flag = FSP_CLEANING;
 		} else {
 			reserve_flag = FSP_NORMAL;
