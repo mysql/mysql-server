@@ -253,4 +253,9 @@ DROP DATABASE bug58090;
 Executing mysqlslap with password.
 mysqlslap: [Warning] Using a password on the command line interface can be insecure.
 
+#
+# Bug#18430704 : MYSQLSLAP CRASHES BY FLOATING POINT EXCEPTION
+#
+mysqlslap: [Warning] option 'iterations': unsigned value 0 adjusted to 1
+
 End of tests

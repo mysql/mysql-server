@@ -1029,8 +1029,8 @@ THD::THD(bool enable_plugins)
 
   m_internal_handler= NULL;
   m_binlog_invoker= FALSE;
-  memset(&invoker_user, 0, sizeof(invoker_user));
-  memset(&invoker_host, 0, sizeof(invoker_host));
+  memset(&m_invoker_user, 0, sizeof(m_invoker_user));
+  memset(&m_invoker_host, 0, sizeof(m_invoker_host));
 
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
@@ -2079,6 +2079,20 @@ void THD::cleanup_after_query()
 #endif
 }
 
+LEX_CSTRING *
+make_lex_string_root(MEM_ROOT *mem_root,
+                     LEX_CSTRING *lex_str, const char* str, size_t length,
+                     bool allocate_lex_string)
+{
+  if (allocate_lex_string)
+    if (!(lex_str= (LEX_CSTRING *)alloc_root(mem_root, sizeof(LEX_CSTRING))))
+      return 0;
+  if (!(lex_str->str= strmake_root(mem_root, str, length)))
+    return 0;
+  lex_str->length= length;
+  return lex_str;
+}
+
 
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
@@ -2093,6 +2107,18 @@ make_lex_string_root(MEM_ROOT *mem_root,
   lex_str->length= length;
   return lex_str;
 }
+
+
+
+LEX_CSTRING *THD::make_lex_string(LEX_CSTRING *lex_str,
+                                 const char* str, size_t length,
+                                 bool allocate_lex_string)
+{
+  return make_lex_string_root (mem_root, lex_str, str,
+                               length, allocate_lex_string);
+}
+
+
 
 /**
   Create a LEX_STRING in this connection.
@@ -3879,8 +3905,8 @@ void Security_context::set_host(const char * str, size_t len)
 bool
 Security_context::
 change_security_context(THD *thd,
-                        LEX_STRING *definer_user,
-                        LEX_STRING *definer_host,
+                        const LEX_CSTRING &definer_user,
+                        const LEX_CSTRING &definer_host,
                         LEX_STRING *db,
                         Security_context **backup)
 {
@@ -3888,19 +3914,22 @@ change_security_context(THD *thd,
 
   DBUG_ENTER("Security_context::change_security_context");
 
-  DBUG_ASSERT(definer_user->str && definer_host->str);
+  DBUG_ASSERT(definer_user.str && definer_host.str);
 
   *backup= NULL;
-  needs_change= (strcmp(definer_user->str, thd->security_ctx->priv_user) ||
-                 my_strcasecmp(system_charset_info, definer_host->str,
+  needs_change= (strcmp(definer_user.str, thd->security_ctx->priv_user) ||
+                 my_strcasecmp(system_charset_info, definer_host.str,
                                thd->security_ctx->priv_host));
   if (needs_change)
   {
-    if (acl_getroot(this, definer_user->str, definer_host->str,
-                                definer_host->str, db->str))
+    if (acl_getroot(this,
+                    const_cast<char*>(definer_user.str),
+                    const_cast<char*>(definer_host.str),
+                    const_cast<char*>(definer_host.str),
+                    db->str))
     {
-      my_error(ER_NO_SUCH_USER, MYF(0), definer_user->str,
-               definer_host->str);
+      my_error(ER_NO_SUCH_USER, MYF(0), definer_user.str,
+               definer_host.str);
       DBUG_RETURN(TRUE);
     }
     *backup= thd->security_ctx;
@@ -4529,8 +4558,8 @@ void THD::get_definer(LEX_USER *definer)
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   if (slave_thread && has_invoker())
   {
-    definer->user = invoker_user;
-    definer->host= invoker_host;
+    definer->user= m_invoker_user;
+    definer->host= m_invoker_host;
     definer->password.str= NULL;
     definer->password.length= 0;
     definer->plugin.str= (char *) "";

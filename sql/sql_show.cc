@@ -1900,7 +1900,7 @@ void
 view_store_options(THD *thd, TABLE_LIST *table, String *buff)
 {
   append_algorithm(table, buff);
-  append_definer(thd, buff, &table->definer.user, &table->definer.host);
+  append_definer(thd, buff, table->definer.user, table->definer.host);
   if (table->view_suid)
     buff->append(STRING_WITH_LEN("SQL SECURITY DEFINER "));
   else
@@ -1948,13 +1948,13 @@ static void append_algorithm(TABLE_LIST *table, String *buff)
     definer_host  [in] host name part of definer
 */
 
-void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
-                    const LEX_STRING *definer_host)
+void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
+                    const LEX_CSTRING &definer_host)
 {
   buffer->append(STRING_WITH_LEN("DEFINER="));
-  append_identifier(thd, buffer, definer_user->str, definer_user->length);
+  append_identifier(thd, buffer, definer_user.str, definer_user.length);
   buffer->append('@');
-  append_identifier(thd, buffer, definer_host->str, definer_host->length);
+  append_identifier(thd, buffer, definer_host.str, definer_host.length);
   buffer->append(' ');
 }
 
@@ -3436,13 +3436,13 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
 
     if (with_i_schema)
     {
-      LEX_STRING *name;
+      LEX_STRING *name= NULL;
       ST_SCHEMA_TABLE *schema_table=
         find_schema_table(thd, lookup_field_vals->table_value.str);
       if (schema_table && !schema_table->hidden)
       {
-        if (!(name= 
-              thd->make_lex_string(NULL, schema_table->table_name,
+        if (!(name=
+              thd->make_lex_string(name, schema_table->table_name,
                                    strlen(schema_table->table_name), TRUE)) ||
             table_names->push_back(name))
           return 1;

@@ -1010,8 +1010,8 @@ public:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
-                          LEX_STRING *definer_user,
-                          LEX_STRING *definer_host,
+                          const LEX_CSTRING &definer_user,
+                          const LEX_CSTRING &definer_host,
                           LEX_STRING *db,
                           Security_context **backup);
 
@@ -3024,6 +3024,9 @@ public:
     return !stmt_arena->is_stmt_prepare();
   }
 
+  LEX_CSTRING *make_lex_string(LEX_CSTRING *lex_str,
+                              const char *str, size_t length,
+                              bool allocate_lex_string);
   LEX_STRING *make_lex_string(LEX_STRING *lex_str,
                               const char* str, size_t length,
                               bool allocate_lex_string);
@@ -3710,12 +3713,14 @@ public:
   void get_definer(LEX_USER *definer);
   void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
   {
-    invoker_user= *user;
-    invoker_host= *host;
+    m_invoker_user.str= user->str;
+    m_invoker_user.length= user->length;
+    m_invoker_host.str= host->str;
+    m_invoker_host.length= host->length;
   }
-  LEX_STRING get_invoker_user() { return invoker_user; }
-  LEX_STRING get_invoker_host() { return invoker_host; }
-  bool has_invoker() { return invoker_user.length > 0; }
+  LEX_CSTRING get_invoker_user() const { return m_invoker_user; }
+  LEX_CSTRING get_invoker_host() const { return m_invoker_host; }
+  bool has_invoker() { return m_invoker_user.length > 0; }
 
   void mark_transaction_to_rollback(bool all);
 
@@ -3758,7 +3763,8 @@ private:
     TRIGGER or VIEW statements.
 
     Current user will be binlogged into Query_log_event if current_user_used
-    is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
+    is TRUE; It will be stored into m_invoker_host and m_invoker_user by SQL
+    thread.
    */
   bool m_binlog_invoker;
 
@@ -3768,8 +3774,8 @@ private:
     TRIGGER or VIEW statements or current user in account management
     statements if it is not NULL.
    */
-  LEX_STRING invoker_user;
-  LEX_STRING invoker_host;
+  LEX_CSTRING m_invoker_user;
+  LEX_CSTRING m_invoker_host;
 
 private:
   /**
@@ -3877,6 +3883,10 @@ my_eof(THD *thd)
 LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
                      LEX_STRING *lex_str, const char* str, size_t length,
+                     bool allocate_lex_string);
+LEX_CSTRING *
+make_lex_string_root(MEM_ROOT *mem_root,
+                     LEX_CSTRING *lex_str, const char* str, size_t length,
                      bool allocate_lex_string);
 
 inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,

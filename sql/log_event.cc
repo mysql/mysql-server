@@ -3679,8 +3679,8 @@ bool Query_log_event::write(IO_CACHE* file)
 
   if (thd && thd->need_binlog_invoker())
   {
-    LEX_STRING invoker_user;
-    LEX_STRING invoker_host;
+    LEX_CSTRING invoker_user;
+    LEX_CSTRING invoker_host;
     memset(&invoker_user, 0, sizeof(invoker_user));
     memset(&invoker_host, 0, sizeof(invoker_host));
 

@@ -4030,8 +4030,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (log_output_options & LOG_TABLE)
   {
     /* Fall back to log files if the csv engine is not loaded. */
-    LEX_STRING csv_name={C_STRING_WITH_LEN("csv")};
-    if (!plugin_is_ready(&csv_name, MYSQL_STORAGE_ENGINE_PLUGIN))
+    LEX_CSTRING csv_name={C_STRING_WITH_LEN("csv")};
+    if (!plugin_is_ready(csv_name, MYSQL_STORAGE_ENGINE_PLUGIN))
     {
       sql_print_error("CSV engine is not present, falling back to the "
                       "log files");
