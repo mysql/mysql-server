@@ -116,6 +116,9 @@ typedef struct YYLTYPE
   const char *end;   // the 1st byte after the token in the preprocessed buffer
   const char *raw_start; // token start in the raw buffer
   const char *raw_end;   // the 1st byte after the token in the raw buffer
+
+  bool is_empty() const { return start == end; }
+
 } YYLTYPE;
 
 #define YYLTYPE_IS_DECLARED 1 // signal Bison that we have our own YYLTYPE
@@ -141,9 +144,9 @@ typedef struct YYLTYPE
       }                                                             \
       else                                                          \
       {                                                             \
-        (Current).start=     YYRHSLOC(Rhs, 0).start;                \
+        (Current).start=                                            \
         (Current).end=       YYRHSLOC(Rhs, 0).end;                  \
-        (Current).raw_start= YYRHSLOC(Rhs, 0).raw_start;            \
+        (Current).raw_start=                                        \
         (Current).raw_end=   YYRHSLOC(Rhs, 0).raw_end;              \
       }                                                             \
     while (YYID (0))

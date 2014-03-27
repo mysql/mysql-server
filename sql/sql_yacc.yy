@@ -16564,10 +16564,10 @@ trigger_tail:
             lex->raw_trg_on_table_name_begin= @5.raw_start;
             lex->raw_trg_on_table_name_end= @7.raw_start;
 
-            if (@10.start == @9.start)
+            if (@10.is_empty())
             {
               /*
-                @10.start == @9.start when a clause PRECEDES/FOLLOWS is absent.
+                @10.is_empty() is true when a clause PRECEDES/FOLLOWS is absent.
               */
               lex->trg_ordering_clause_begin= NULL;
               lex->trg_ordering_clause_end= NULL;
