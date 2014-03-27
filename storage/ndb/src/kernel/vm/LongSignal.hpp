@@ -61,7 +61,7 @@ private:
   static void handleOutOfSegments(ArrayPool<SectionSegment>& pool);
 public:
   SectionSegmentPool() : 
-    ArrayPool<SectionSegment>(handleOutOfSegments){}
+    ArrayPool<SectionSegment>(&handleOutOfSegments){}
 };
 
 /**
