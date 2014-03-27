@@ -18,6 +18,7 @@ n	d
 select * from test.t2;
 n	f
 1	0
+include/sync_slave_sql_with_master.inc
 select * from test.t1;
 n	d
 1	1.234
