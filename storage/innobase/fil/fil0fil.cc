@@ -1302,8 +1302,6 @@ Error messages are issued to the server log.
 @param[in]	id	tablespace identifier
 @param[in]	flags	tablespace flags
 @param[in]	purpose	tablespace purpose
-@param[out]	dup	assigned to existing tablespace with the same id,
-if one exists
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval NULL on failure (such as when the same tablespace exists) */
 
@@ -1312,8 +1310,7 @@ fil_space_create(
 	const char*	name,
 	ulint		id,
 	ulint		flags,
-	fil_type_t	purpose,
-	fil_space_t**	dup)
+	fil_type_t	purpose)
 {
 	fil_space_t*	space;
 
@@ -1346,9 +1343,6 @@ fil_space_create(
 			name, id, space->name);
 
 		mutex_exit(&fil_system->mutex);
-		if (dup) {
-			*dup = space;
-		}
 		return(NULL);
 	}
 
@@ -4127,7 +4121,13 @@ fil_load_single_table_tablespace(
 	/* Check for a link file which locates a remote tablespace. */
 	if (df_remote.open_read_only(false) == DB_SUCCESS) {
 		/* Read and validate the first page of the remote tablespace */
-		if (df_remote.validate_for_recovery() != DB_SUCCESS) {
+		switch (df_remote.validate_for_recovery()) {
+		case DB_SUCCESS:
+			break;
+		case DB_TABLESPACE_EXISTS:
+			df_remote.close();
+			goto no_good_file;
+		default:
 			df_remote.close();
 		}
 	}
@@ -4136,7 +4136,14 @@ fil_load_single_table_tablespace(
 	df_default.make_filepath(NULL);
 	if (df_default.open_read_only(false) == DB_SUCCESS) {
 		/* Read and validate the first page of the default tablespace */
-		if (df_default.validate_for_recovery() != DB_SUCCESS) {
+		switch (df_default.validate_for_recovery()) {
+		case DB_SUCCESS:
+			break;
+		case DB_TABLESPACE_EXISTS:
+			df_remote.close();
+			df_default.close();
+			goto no_good_file;
+		default:
 			df_default.close();
 		}
 	}
@@ -4304,41 +4311,11 @@ will_not_choose:
 	}
 	mutex_exit(&fil_system->mutex);
 #endif /* UNIV_HOTBACKUP */
-	fil_space_t*	dup = NULL;
-
 	space = fil_space_create(
-		name, df->space_id(), df->flags(), FIL_TYPE_TABLESPACE, &dup);
+		name, df->space_id(), df->flags(), FIL_TYPE_TABLESPACE);
 
 	if (space != NULL) {
 		ut_ad(space->id == df->space_id());
-		ut_ad(dup == NULL);
-	} else if (dup != NULL) {
-		space = dup;
-
-		ut_ad(space->id == df->space_id());
-		ut_ad(space->flags == df->flags());
-		ut_ad(space->purpose == FIL_TYPE_TABLESPACE
-		      || space->purpose == FIL_TYPE_TEMPORARY);
-
-		if (!strcmp(space->name, name)) {
-			/* The same tablespace name was already reported.
-			Maybe it was renamed back and forth. */
-			df->close();
-			goto func_exit;
-		}
-
-		/* Multiple files with the same space_id! */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Tablespaces for SpaceID " ULINTPF
-			" have been found in two places;"
-			" Location 1: File: %s;"
-			" Location 2: LSN: " LSN_PF " File: %s;"
-			" You must delete one of them.",
-			space_id,
-			space->chain.start->name,
-			df->flushed_lsn(), df->filepath());
-		df->close();
-		goto will_not_choose;
 	} else {
 		df->close();
 		goto will_not_choose;
@@ -4353,8 +4330,9 @@ will_not_choose:
 		ut_error;
 	}
 
+#ifdef UNIV_HOTBACKUP
 func_exit:
-#ifndef UNIV_HOTBACKUP
+#else
 	ut_ad(!mutex_own(&fil_system->mutex));
 #endif
 	::ut_free(name);

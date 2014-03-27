@@ -1,0 +1,29 @@
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t3(a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (42),(9),(101);
+RENAME TABLE t1 TO t2;
+UPDATE t2 SET a=347 where a=42;
+# Fault 0 (no real fault): Orphan file with duplicate space_id.
+# Fault 1: Two dirty files with the same space_id.
+# Fault 2: Wrong space_id in a dirty file, and a missing file.
+# Fault 3: Wrong space_id in a dirty file, and no missing file.
+# Normal restart after removing the injected faults.
+SELECT * FROM t2;
+a
+9
+101
+347
+SHOW TABLES;
+Tables_in_test
+t2
+t3
+DROP TABLE t2,t3;
+CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
+ERROR HY000: Tablespace for table '`test`.`t0`' exists. Please DISCARD the tablespace before IMPORT.
+CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
+DROP TABLE t0;
+call mtr.add_suppression("InnoDB: Operating system error number [0-9]* in a file operation");
+call mtr.add_suppression("InnoDB: Error number [0-9]* means 'File exists'");
+call mtr.add_suppression("InnoDB: Cannot create file '.*t0.ibd'");
+call mtr.add_suppression("InnoDB: The file '.*t0\.ibd' already exists");
