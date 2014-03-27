@@ -3243,7 +3243,8 @@ extern void lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);
-extern int MYSQLlex(void *arg, void *arg2, void *yythd);
+extern int MYSQLlex(union YYSTYPE *yylval, struct YYLTYPE *yylloc,
+                    class THD *thd);
 
 extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 

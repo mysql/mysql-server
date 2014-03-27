@@ -35,7 +35,7 @@
 #include "parse_location.h"
 #include <mysql/psi/mysql_statement.h>
 
-static int lex_one_token(void *arg, void *yythd);
+static int lex_one_token(YYSTYPE *yylval, THD *thd);
 
 /*
   We are using pointer to this variable for distinguishing between assignment
@@ -1190,9 +1190,9 @@ bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 /*
   yylex() function implementation for the main parser
 
-  @param arg    [out]   semantic value of the token being parsed (yylval)
-  @param arg2   [out]   "location" of the token being parsed (yylloc)
-  @param yythd          THD
+  @param yylval         [out]  semantic value of the token being parsed (yylval)
+  @param yylloc         [out]  "location" of the token being parsed (yylloc)
+  @param thd            THD
 
   @return               token number
 
@@ -1204,12 +1204,9 @@ bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 				(which can't be followed by a signed number)
 */
 
-int MYSQLlex(void *arg, void *arg2, void *yythd)
+int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd)
 {
-  THD *thd= (THD *)yythd;
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
-  YYSTYPE *yylval=(YYSTYPE*) arg;
-  YYLTYPE *yylloc=(YYLTYPE*) arg2;
   int token;
 
   if (lip->lookahead_token >= 0)
@@ -1230,7 +1227,7 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
     return token;
   }
 
-  token= lex_one_token(arg, yythd);
+  token= lex_one_token(yylval, thd);
   yylloc->cpp.start= lip->get_cpp_tok_start();
   yylloc->raw.start= lip->get_tok_start();
 
@@ -1243,7 +1240,7 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
       to transform the grammar into a LALR(1) grammar,
       which sql_yacc.yy can process.
     */
-    token= lex_one_token(arg, yythd);
+    token= lex_one_token(yylval, thd);
     switch(token) {
     case CUBE_SYM:
       yylloc->cpp.end= lip->get_cpp_ptr();
@@ -1277,16 +1274,14 @@ int MYSQLlex(void *arg, void *arg2, void *yythd)
   return token;
 }
 
-static int lex_one_token(void *arg, void *yythd)
+static int lex_one_token(YYSTYPE *yylval, THD *thd)
 {
   uchar c= 0;
   bool comment_closed;
   int tokval, result_state;
   uint length;
   enum my_lex_states state;
-  THD *thd= (THD *)yythd;
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
-  YYSTYPE *yylval=(YYSTYPE*) arg;
   const CHARSET_INFO *cs= thd->charset();
   const uchar *state_map= cs->state_map;
   const uchar *ident_map= cs->ident_map;
