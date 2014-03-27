@@ -3916,14 +3916,14 @@ inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
 class sql_exchange :public Sql_alloc
 {
 public:
+  Field_separators field;
+  Line_separators line;
   enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
-  char *file_name;
-  const String *field_term, *enclosed, *line_term, *line_start, *escaped;
-  bool opt_enclosed;
+  const char *file_name;
   bool dumpfile;
   ulong skip_lines;
   const CHARSET_INFO *cs;
-  sql_exchange(char *name, bool dumpfile_flag,
+  sql_exchange(const char *name, bool dumpfile_flag,
                enum_filetype filetype_arg= FILETYPE_CSV);
   bool escaped_given(void);
 };
@@ -4619,6 +4619,9 @@ public:
     else
       db= db_arg;
   }
+  inline Table_ident(LEX_STRING db_arg, LEX_STRING table_arg)
+    :db(db_arg), table(table_arg), sel(NULL)
+  {}
   inline Table_ident(LEX_STRING table_arg) 
     :table(table_arg), sel(NULL)
   {
@@ -4944,29 +4947,10 @@ public:
   virtual void abort_result_set();
 };
 
-class my_var : public Sql_alloc  {
-public:
-  LEX_STRING s;
-#ifndef DBUG_OFF
-  /*
-    Routine to which this Item_splocal belongs. Used for checking if correct
-    runtime context is used for variable handling.
-  */
-  sp_head *sp;
-#endif
-  bool local;
-  uint offset;
-  enum_field_types type;
-  my_var (LEX_STRING& j, bool i, uint o, enum_field_types t)
-    :s(j), local(i), offset(o), type(t)
-  {}
-  ~my_var() {}
-};
-
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
 public:
-  List<my_var> var_list;
+  List<PT_select_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
@@ -5098,7 +5082,7 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex->current_select()->add_item_to_list(thd, item);
+  return thd->lex->select_lex->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
@@ -5106,19 +5090,14 @@ inline bool add_value_to_list(THD *thd, Item *value)
   return thd->lex->value_list.push_back(value);
 }
 
-inline bool add_order_to_list(THD *thd, Item *item, bool asc)
+inline void add_order_to_list(THD *thd, ORDER *order)
 {
-  return thd->lex->current_select()->add_order_to_list(thd, item, asc);
+  thd->lex->select_lex->add_order_to_list(order);
 }
 
-inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
+inline void add_group_to_list(THD *thd, ORDER *order)
 {
-  return thd->lex->current_select()->add_gorder_to_list(thd, item, asc);
-}
-
-inline bool add_group_to_list(THD *thd, Item *item, bool asc)
-{
-  return thd->lex->current_select()->add_group_to_list(thd, item, asc);
+  thd->lex->select_lex->add_group_to_list(order);
 }
 
 /*************************************************************************/

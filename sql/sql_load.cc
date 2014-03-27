@@ -189,9 +189,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char name[FN_REFLEN];
   File file;
   int error= 0;
-  const String *field_term= ex->field_term;
-  const String *escaped=    ex->escaped;
-  const String *enclosed=   ex->enclosed;
+  const String *field_term= ex->field.field_term;
+  const String *escaped=    ex->field.escaped;
+  const String *enclosed=   ex->field.enclosed;
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
@@ -231,7 +231,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   /* Report problems with non-ascii separators */
   if (!escaped->is_ascii() || !enclosed->is_ascii() ||
       !field_term->is_ascii() ||
-      !ex->line_term->is_ascii() || !ex->line_start->is_ascii())
+      !ex->line.line_term->is_ascii() || !ex->line.line_start->is_ascii())
   {
     push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
@@ -375,7 +375,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     else if (item->type() == Item::STRING_ITEM)
       use_vars= 1;
   }
-  if (use_blobs && !ex->line_term->length() && !field_term->length())
+  if (use_blobs && !ex->line.line_term->length() && !field_term->length())
   {
     my_message(ER_BLOBS_AND_NO_TERMINATED,ER(ER_BLOBS_AND_NO_TERMINATED),
 	       MYF(0));
@@ -465,7 +465,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   READ_INFO read_info(file,tot_length,
                       ex->cs ? ex->cs : thd->variables.collation_database,
-		      *field_term,*ex->line_start, *ex->line_term, *enclosed,
+		      *field_term,*ex->line.line_start, *ex->line.line_term,
+                      *enclosed,
 		      info.escape_char, read_file_from_client, is_fifo);
   if (read_info.error)
   {
@@ -488,7 +489,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
   /* Skip lines if there is a line terminator */
-  if (ex->line_term->length() && ex->filetype != FILETYPE_XML)
+  if (ex->line.line_term->length() && ex->filetype != FILETYPE_XML)
   {
     /* ex->skip_lines needs to be preserved for logging */
     while (skip_lines > 0)

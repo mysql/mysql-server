@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,6 +114,8 @@
   Note! Reserved for use in MySQL Cluster
 */
 #define OPTION_ALLOW_BATCH              (ULL(1) << 36) // THD, intern (slave)
+
+#define SELECT_MAX_STATEMENT_TIME       (ULL(1) << 37) // SELECT, user
 
 /*
   Check how many bytes are available on buffer.
