@@ -66,6 +66,7 @@ insert into t4(id, data) VALUES
 (1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
 (6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
 
+alter online table t1 add column c int unsigned default null;
 alter online table t1 reorganize partition;
 alter online table t2 reorganize partition;
 alter online table t5 max_rows=100000000;
