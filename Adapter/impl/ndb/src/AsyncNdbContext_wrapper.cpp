@@ -60,13 +60,12 @@ Handle<Value> createAsyncNdbContext(const Arguments &args) {
                  abortOption,
                  forceSend,
                  execCompleteCallback,
-                 execSentCallback)
-   ASYNC.
-   The sending of the transaction to Ndb will happen in a UV worker thread.
+                 OPTIONAL execSentCallback)
+   SYNC OR ASYNC
 */
 Handle<Value> executeAsynch(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);  
-  REQUIRE_ARGS_LENGTH(6);
+  HandleScope scope;
+  DEBUG_MARKER(UDEB_DEBUG);
 
   /* TODO: The JsValueConverter constructor for arg4 creates a 
      Persistent<Function> from a Local<Value>, but is there 
@@ -74,9 +73,15 @@ Handle<Value> executeAsynch(const Arguments &args) {
   */  
   typedef NativeMethodCall_5_<int, AsyncNdbContext, NdbTransaction *,
                               int, int, int, Persistent<Function> > NCALL;
-  NCALL * ncallptr = new NCALL(& AsyncNdbContext::executeAsynch, args);
-  ncallptr->runAsync();
-  return Undefined();
+  if(args.Length() == 6) {
+    NCALL * ncallptr = new NCALL(& AsyncNdbContext::executeAsynch, args);
+    ncallptr->runAsync();
+    return Undefined();
+  } else {
+    NCALL ncall(& AsyncNdbContext::executeAsynch, args);
+    ncall.run();
+    return scope.Close(ncall.jsReturnVal());
+  }
 }
 
 /* shutdown() 
