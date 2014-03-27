@@ -6746,7 +6746,7 @@ bool check_host_name(const LEX_CSTRING &str)
 }
 
 
-extern int MYSQLparse(void *thd); // from sql_yacc.cc
+extern int MYSQLparse(class THD *thd); // from sql_yacc.cc
 
 
 /**
