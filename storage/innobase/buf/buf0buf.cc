@@ -2877,12 +2877,7 @@ got_block:
 
 	case BUF_BLOCK_FILE_PAGE:
 		bpage = &block->page;
-		if (dirty_with_no_latch
-		    && rw_latch == RW_NO_LATCH
-		    && fsp_is_system_temporary(page_id.space())) {
-			/* Request to just pin the page that belongs
-			to intrinsic table. No latch are acquired for intrinsic
-			tables. */
+		if (fsp_is_system_temporary(page_id.space())) {
 			if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
 				/* This suggest that page is being flushed.
 				Avoid returning reference to this page.
