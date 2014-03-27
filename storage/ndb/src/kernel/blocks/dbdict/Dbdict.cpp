@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8440,6 +8440,20 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       count = 2 + (1 + c_fragData[0]) * c_fragData[1];
       c_fragDataLen = sizeof(Uint16)*count;
     }
+  }
+  else if (AlterTableReq::getReorgFragFlag(impl_req->changeMask))
+  { // Reorg without adding fragments are not supported
+    jam();
+    setError(error, AlterTableRef::UnsupportedChange, __LINE__);
+    return;
+  }
+
+  if (tablePtr.p->hashMapObjectId != newTablePtr.p->hashMapObjectId &&
+      !AlterTableReq::getReorgFragFlag(impl_req->changeMask))
+  { // Change in hashmap without reorg is not supported
+    jam();
+    setError(error, AlterTableRef::UnsupportedChange, __LINE__);
+    return;
   }
 
   D("alterTable_parse " << V(newTablePtr.i) << hex << V(newTablePtr.p->tableVersion));
