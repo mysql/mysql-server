@@ -55,7 +55,7 @@ typedef struct YYLTYPE
 */
 #define YYLLOC_DEFAULT(Current, Rhs, N)                             \
     do                                                              \
-      if (YYID (N))                                                 \
+      if (N)                                                        \
       {                                                             \
         (Current).cpp.start= YYRHSLOC(Rhs, 1).cpp.start;            \
         (Current).cpp.end=   YYRHSLOC(Rhs, N).cpp.end;              \
@@ -69,6 +69,6 @@ typedef struct YYLTYPE
         (Current).raw.start=                                        \
         (Current).raw.end=   YYRHSLOC(Rhs, 0).raw.end;              \
       }                                                             \
-    while (YYID (0))
+    while (0)
 
 #endif /* PARSE_LOCATION_INCLUDED */
