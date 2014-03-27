@@ -8752,6 +8752,20 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       c_fragDataLen = sizeof(Uint16)*count;
     }
   }
+  else if (AlterTableReq::getReorgFragFlag(impl_req->changeMask))
+  { // Reorg without adding fragments are not supported
+    jam();
+    setError(error, AlterTableRef::UnsupportedChange, __LINE__);
+    return;
+  }
+
+  if (tablePtr.p->hashMapObjectId != newTablePtr.p->hashMapObjectId &&
+      !AlterTableReq::getReorgFragFlag(impl_req->changeMask))
+  { // Change in hashmap without reorg is not supported
+    jam();
+    setError(error, AlterTableRef::UnsupportedChange, __LINE__);
+    return;
+  }
 
   D("alterTable_parse " << V(newTablePtr.i) << hex << V(newTablePtr.p->tableVersion));
 
