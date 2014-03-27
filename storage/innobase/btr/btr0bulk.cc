@@ -122,7 +122,6 @@ void PageBulk::init()
 	m_pad_space =
 		UNIV_PAGE_SIZE - dict_index_zip_pad_optimal_page_size(m_index);
 	m_heap_top = page_header_get_ptr(new_page, PAGE_HEAP_TOP);
-	m_heap_no = page_dir_get_n_heap(new_page);
 	m_rec_no = page_header_get_field(new_page, PAGE_N_RECS);
 
 #ifdef UNIV_DEBUG
@@ -145,8 +144,6 @@ void PageBulk::insert(
 	rec_t*		insert_rec;
 	rec_t*		next_rec;
 	ulint		slot_size;
-
-	ut_ad(m_heap_no == m_rec_no + PAGE_HEAP_NO_USER_LOW);
 
 	rec_size = rec_offs_size(offsets);
 
@@ -184,10 +181,12 @@ void PageBulk::insert(
 	and set the heap_no field. */
 	if (m_is_comp) {
 		rec_set_n_owned_new(insert_rec, NULL, 0);
-		rec_set_heap_no_new(insert_rec, m_heap_no);
+		rec_set_heap_no_new(insert_rec,
+			PAGE_HEAP_NO_USER_LOW + m_rec_no);
 	} else {
 		rec_set_n_owned_old(insert_rec, 0);
-		rec_set_heap_no_old(insert_rec, m_heap_no);
+		rec_set_heap_no_old(insert_rec,
+			PAGE_HEAP_NO_USER_LOW + m_rec_no);
 	}
 
 	/* 4. Set member variables. */
@@ -199,7 +198,6 @@ void PageBulk::insert(
 
 	m_free_space -= rec_size + slot_size;
 	m_heap_top += rec_size;
-	m_heap_no += 1;
 	m_rec_no += 1;
 	m_cur_rec = insert_rec;
 }
@@ -224,8 +222,7 @@ void PageBulk::finish()
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets = offsets_;
 
-	ut_ad(m_heap_no > PAGE_HEAP_NO_USER_LOW);
-	ut_ad(m_heap_no == m_rec_no + PAGE_HEAP_NO_USER_LOW);
+	ut_ad(m_rec_no > 0);
 
 	rec_offs_init(offsets_);
 
@@ -323,7 +320,7 @@ void PageBulk::finish()
 
 	page_dir_set_n_slots(m_page, NULL, 2 + slot_index);
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP, m_heap_top);
-	page_dir_set_n_heap(m_page, NULL, m_heap_no);
+	page_dir_set_n_heap(m_page, NULL, PAGE_HEAP_NO_USER_LOW + m_rec_no);
 	page_header_set_field(m_page, NULL, PAGE_N_RECS, m_rec_no);
 
 	page_header_set_ptr(m_page, NULL, PAGE_LAST_INSERT, m_cur_rec);
@@ -509,7 +506,6 @@ void PageBulk::copyOut(rec_t*	split_rec)
 		+ page_dir_calc_reserved_space(m_rec_no)
 		- page_dir_calc_reserved_space(n);
 	ut_ad(m_free_space > 0);
-	m_heap_no = n + PAGE_HEAP_NO_USER_LOW;
 	m_rec_no = n;
 }
 
