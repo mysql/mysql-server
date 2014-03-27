@@ -2960,7 +2960,7 @@ recv_init_crash_recovery_spaces(void)
 				i->first, i->second.name.c_str());
 			if (err == DB_SUCCESS) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					" Set innodb_force_recovery=1"
+					"Set innodb_force_recovery=1"
 					" to ignore this and to"
 					" permanently lose all changes"
 					" to the tablespace.");

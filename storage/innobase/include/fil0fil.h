@@ -270,8 +270,6 @@ Error messages are issued to the server log.
 @param[in]	id	tablespace identifier
 @param[in]	flags	tablespace flags
 @param[in]	purpose	tablespace purpose
-@param[out]	dup	assigned to existing tablespace with the same id,
-if one exists
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval NULL on failure (such as when the same tablespace exists) */
 
@@ -280,8 +278,7 @@ fil_space_create(
 	const char*	name,
 	ulint		id,
 	ulint		flags,
-	fil_type_t	purpose,
-	fil_space_t**	dup = 0)
+	fil_type_t	purpose)
 	__attribute__((warn_unused_result));
 
 /*******************************************************************//**

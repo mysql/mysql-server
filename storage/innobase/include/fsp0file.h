@@ -234,8 +234,10 @@ public:
 	/** Checks the consistency of the first page of a datafile when the
 	tablespace is opened.  This occurs before the fil_space_t is created
 	so the Space ID found here must not already be open.
-	@retval DB_SUCCESS on success, else DB_ERROR
-		m_is_valid is also set true on success, else false. */
+	m_is_valid is set true on success, else false.
+	@retval DB_SUCCESS on if the datafile is valid
+	@retval DB_CORRUPTION if the datafile is not readable
+	@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
 	dberr_t validate_first_page()
 		__attribute__((warn_unused_result));
 

@@ -25,8 +25,7 @@ Created 2013-7-26 by Kevin Lewis
 
 #include "ha_prototypes.h"
 
-#include "fsp0file.h"
-#include "fsp0fsp.h"
+#include "fsp0sysspace.h"
 #include "os0file.h"
 #include "page0page.h"
 #include "srv0start.h"
@@ -288,6 +287,7 @@ in order for this function to validate it.
 @param[in]	flags	The expected tablespace flags.
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
+
 dberr_t
 Datafile::validate_to_dd(
 	ulint	space_id,
@@ -335,20 +335,23 @@ corrupt and needs to be restored from the doublewrite buffer, we will
 reopen it in write mode and ry to restore that page.
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
+
 dberr_t
 Datafile::validate_for_recovery()
 {
 	dberr_t err;
 
 	ut_ad(is_open());
-
-	if (srv_read_only_mode) {
-		return(DB_ERROR);
-	}
+	ut_ad(!srv_read_only_mode);
 
 	err = validate_first_page();
-	if (err != DB_SUCCESS) {
 
+	switch (err) {
+	case DB_SUCCESS:
+	case DB_TABLESPACE_EXISTS:
+		break;
+
+	default:
 		/* Re-open the file in read-write mode  Attempt to restore
 		page 0 from doublewrite and read the space ID from a survey
 		of the first few pages. */
@@ -387,8 +390,11 @@ Datafile::validate_for_recovery()
 /** Checks the consistency of the first page of a datafile when the
 tablespace is opened.  This occurs before the fil_space_t is created
 so the Space ID found here must not already be open.
-@retval DB_SUCCESS on if the datafile is valid, else DB_ERROR
-	m_is_valid is also set true on success, else false. */
+m_is_valid is set true on success, else false.
+@retval DB_SUCCESS on if the datafile is valid
+@retval DB_CORRUPTION if the datafile is not readable
+@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
+
 dberr_t
 Datafile::validate_first_page()
 {
@@ -458,26 +464,27 @@ Datafile::validate_first_page()
 			ulong(m_space_id), ulong(m_flags),
 			TROUBLESHOOT_DATADICT_MSG);
 		m_is_valid = false;
+		free_first_page();
+		return(DB_CORRUPTION);
 	} else if (fil_space_read_name_and_filepath(
-		    m_space_id, &prev_name, &prev_filepath)) {
+			   m_space_id, &prev_name, &prev_filepath)) {
 		/* Make sure the space_id has not already been opened. */
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Attempted to open a previously opened tablespace. "
 			" Previous tablespace %s at filepath: %s uses"
-			" space ID: %lu . Cannot open tablespace %s at"
-			" filepath: %s which also uses space ID: %lu ",
-			prev_name, prev_filepath, ulong(m_space_id),
-			m_name, m_filepath, ulong(m_space_id));
+			" space ID: " ULINTPF ". Cannot open tablespace %s at"
+			" filepath: %s which uses the same space ID.",
+			prev_name, prev_filepath, m_space_id,
+			m_name, m_filepath);
 
 		::ut_free(prev_name);
 		::ut_free(prev_filepath);
 
 		m_is_valid = false;
-	}
-
-	if (!m_is_valid) {
 		free_first_page();
-		return(DB_CORRUPTION);
+		return(is_predefined_tablespace(m_space_id)
+		       ? DB_CORRUPTION
+		       : DB_TABLESPACE_EXISTS);
 	}
 
 	return(DB_SUCCESS);

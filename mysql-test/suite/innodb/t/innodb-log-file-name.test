@@ -1,0 +1,107 @@
+# WL#7142 InnoDB: Simplify tablespace discovery during crash recovery
+# Test the detection of duplicate tablespaces.
+
+--source include/have_innodb.inc
+
+SET GLOBAL innodb_file_per_table=ON;
+
+let MYSQLD_DATADIR= `select @@datadir`;
+
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t3(a INT PRIMARY KEY) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (42),(9),(101);
+RENAME TABLE t1 TO t2;
+UPDATE t2 SET a=347 where a=42;
+
+# Kill the server to inject faults.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 0
+
+--source include/wait_until_disconnected.inc
+
+--echo # Fault 0 (no real fault): Orphan file with duplicate space_id.
+--copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t0.ibd
+
+--echo # Fault 1: Two dirty files with the same space_id.
+--copy_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t1.ibd
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+let $mysqld=$MYSQLD_CMD --loose-console > $SEARCH_FILE 2>&1;
+
+# TODO: This could fail to refuse startup, in case there was a log
+# checkpoint after the INSERT.
+--error 1
+--exec $mysqld
+
+let SEARCH_PATTERN= InnoDB: Attempted to open a previously opened tablespace.*t1\.ibd.*t2\.ibd;
+--source include/search_pattern_in_file.inc
+
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--remove_file $SEARCH_FILE
+
+# TODO: This could fail to refuse startup, in case there was a log
+# checkpoint after the CREATE TABLE t3.
+--echo # Fault 2: Wrong space_id in a dirty file, and a missing file.
+--move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQLD_DATADIR/test/t1.ibd
+
+--error 1
+--exec $mysqld
+
+let SEARCH_PATTERN= InnoDB: Ignoring data file .*t1.ibd with space ID \d+, which used to be space ID;
+--source include/search_pattern_in_file.inc
+
+let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t3.ibd;
+--source include/search_pattern_in_file.inc
+
+--move_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t3.ibd
+--remove_file $SEARCH_FILE
+
+--echo # Fault 3: Wrong space_id in a dirty file, and no missing file.
+# Swap t2.ibd and t3.ibd.
+--move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQLD_DATADIR/test/t.ibd
+--move_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t3.ibd
+--move_file $MYSQLD_DATADIR/test/t.ibd $MYSQLD_DATADIR/test/t2.ibd
+
+--error 1
+--exec $mysqld
+
+let SEARCH_PATTERN= InnoDB: Ignoring data file .*t[23].ibd with space ID \d+, which used to be space ID;
+--source include/search_pattern_in_file.inc
+
+let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t1.ibd\.
+.*InnoDB: Set innodb_force_recovery=1 to ignore this and to permanently lose all changes to the tablespace\.
+.*InnoDB: Tablespace \d+ was not found at .*t3.ibd\.;
+--source include/search_pattern_in_file.inc
+
+# Swap back t2.ibd and t3.ibd.
+--move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQLD_DATADIR/test/t.ibd
+--move_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t3.ibd
+--move_file $MYSQLD_DATADIR/test/t.ibd $MYSQLD_DATADIR/test/t2.ibd
+
+--remove_file $SEARCH_FILE
+
+--echo # Normal restart after removing the injected faults.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SELECT * FROM t2;
+SHOW TABLES;
+DROP TABLE t2,t3;
+
+--error ER_TABLESPACE_EXISTS
+CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
+
+# Remove the orphan file from fault 0.
+--remove_file $MYSQLD_DATADIR/test/t0.ibd
+
+CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
+DROP TABLE t0;
+
+call mtr.add_suppression("InnoDB: Operating system error number [0-9]* in a file operation");
+call mtr.add_suppression("InnoDB: Error number [0-9]* means 'File exists'");
+call mtr.add_suppression("InnoDB: Cannot create file '.*t0.ibd'");
+call mtr.add_suppression("InnoDB: The file '.*t0\.ibd' already exists");
