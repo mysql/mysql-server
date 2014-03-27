@@ -4027,7 +4027,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
           DBUG_RETURN(true);                  // Fatal error
         List<Item> list;
         list.push_back(new_field);
-        suv->set_arguments(list);
+        suv->set_arguments(list, true);
         item_field= suv;
       }
       else

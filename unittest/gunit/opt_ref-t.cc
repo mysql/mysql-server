@@ -137,8 +137,7 @@ Item_row *make_item_row(Item *a, Item *b)
   */
   List<Item> items;
   items.push_front(b);
-  items.push_front(a);
-  return new Item_row(items);
+  return new Item_row(POS(), a, items);
 }
 
 TEST_F(OptRefTest, addKeyFieldsFromInOneRow)
@@ -149,10 +148,13 @@ TEST_F(OptRefTest, addKeyFieldsFromInOneRow)
     an expression in to (a, b) = (0, 0), which gets rewritten into a =
     0 AND b = 0 before the ref optimizer runs.
    */
-  List<Item> all_args;
-  all_args.push_front(make_item_row(item_zero, item_zero));
-  all_args.push_front(make_item_row(item_field_t1_a, item_field_t1_b));
-  Item_func_in *cond= new Item_func_in(all_args);
+  PT_item_list *all_args=
+    new (current_thd->mem_root) PT_item_list;
+  all_args->push_front(make_item_row(item_zero, item_zero));
+  all_args->push_front(make_item_row(item_field_t1_a, item_field_t1_b));
+  Item *cond= new Item_func_in(POS(), all_args, false);
+  Parse_context pc(thd(), thd()->lex->current_select());
+  EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   call_add_key_fields(cond);
 
@@ -168,11 +170,14 @@ TEST_F(OptRefTest, addKeyFieldsFromInOneRow)
 TEST_F(OptRefTest, addKeyFieldsFromInTwoRows)
 {
   // We simulate the where condition (col_a, col_b) IN ((0, 0), (1, 1))
-  List<Item> all_args;
-  all_args.push_front(make_item_row(item_one, item_one));
-  all_args.push_front(make_item_row(item_zero, item_zero));
-  all_args.push_front(make_item_row(item_field_t1_a, item_field_t1_b));
-  Item_func_in *cond= new Item_func_in(all_args);
+  PT_item_list *all_args=
+    new (current_thd->mem_root) PT_item_list;
+  all_args->push_front(make_item_row(item_one, item_one));
+  all_args->push_front(make_item_row(item_zero, item_zero));
+  all_args->push_front(make_item_row(item_field_t1_a, item_field_t1_b));
+  Item *cond= new Item_func_in(POS(), all_args, false);
+  Parse_context pc(thd(), thd()->lex->current_select());
+  EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   call_add_key_fields(cond);
 
@@ -186,10 +191,13 @@ TEST_F(OptRefTest, addKeyFieldsFromInTwoRows)
 TEST_F(OptRefTest, addKeyFieldsFromInOneRowWithCols)
 {
   // We simulate the where condition (t1.a, t1.b) IN ((t2.a, t2.b))
-  List<Item> all_args;
-  all_args.push_front(make_item_row(item_field_t2_a, item_field_t2_b));
-  all_args.push_front(make_item_row(item_field_t1_a, item_field_t1_b));
-  Item_func_in *cond= new Item_func_in(all_args);
+  PT_item_list *all_args=
+    new (current_thd->mem_root) PT_item_list;
+  all_args->push_front(make_item_row(item_field_t2_a, item_field_t2_b));
+  all_args->push_front(make_item_row(item_field_t1_a, item_field_t1_b));
+  Item *cond= new Item_func_in(POS(), all_args, false);
+  Parse_context pc(thd(), thd()->lex->current_select());
+  EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   call_add_key_fields(cond);
 
