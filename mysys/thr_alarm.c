@@ -68,7 +68,15 @@ void init_thr_alarm(uint max_alarms)
   sigfillset(&full_signal_set);			/* Neaded to block signals */
   mysql_mutex_init(key_LOCK_alarm, &LOCK_alarm, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_alarm, &COND_alarm, NULL);
-  my_sigset(thr_client_alarm, thread_alarm);
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= thread_alarm;
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(thr_client_alarm, &l_s, NULL);
+  }
   sigemptyset(&s);
   sigaddset(&s, thr_server_alarm);
   alarm_thread=pthread_self();
@@ -431,9 +439,6 @@ static void thread_alarm(int sig __attribute__((unused)))
 #ifdef MAIN
   printf("thread_alarm\n"); fflush(stdout);
 #endif
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-  my_sigset(sig,thread_alarm);		/* int. thread system calls */
-#endif
 }
 
 
@@ -619,18 +624,6 @@ static void *test_thread(void *arg)
   mysql_mutex_unlock(&LOCK_thread_count);
   free((uchar*) arg);
   return 0;
-}
-
-
-static void print_signal_warning(int sig)
-{
-  printf("Warning: Got signal %d from thread %s\n",sig,my_thread_name());
-  fflush(stdout);
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-  my_sigset(sig,print_signal_warning);		/* int. thread system calls */
-#endif
-  if (sig == SIGALRM)
-    alarm(2);					/* reschedule alarm */
 }
 
 

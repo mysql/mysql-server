@@ -258,11 +258,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
-/* Does the system remember a signal handler after a signal ? */
-#if !defined(HAVE_SIGACTION)
-#define SIGNAL_HANDLER_RESET_ON_DELIVERY
-#endif
-
 #ifndef SO_EXT
 #ifdef _WIN32
 #define SO_EXT ".dll"
