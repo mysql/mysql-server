@@ -33,6 +33,7 @@ release_lock("test")
 SELECT * FROM test.t1;
 a
 5
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 a
 5
