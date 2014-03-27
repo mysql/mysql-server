@@ -1,3 +1,7 @@
+if (`select plugin_auth_version <= "5.5.37-MariaDB-34.0" from information_schema.plugins where plugin_name='innodb'`)
+{
+  --skip Not fixed in XtraDB as of 5.5.37-MariaDB-34.0 or earlier
+}
 
 #
 # 2010-01-27 - Added
@@ -40,10 +44,28 @@ set global innodb_thread_sleep_delay=1.1;
 set global innodb_thread_sleep_delay=1e1;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_thread_sleep_delay="foo";
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_thread_sleep_delay=18446744073709551616;
 
 set global innodb_thread_sleep_delay=-7;
 select @@global.innodb_thread_sleep_delay;
 select * from information_schema.global_variables where variable_name='innodb_thread_sleep_delay';
+
+#
+# correct/overflowed values
+#
+set global innodb_thread_sleep_delay=0;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=1000;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=1000000;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=1000001;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=4294967295;
+select @@global.innodb_thread_sleep_delay;
+set global innodb_thread_sleep_delay=555;
+select @@global.innodb_thread_sleep_delay;
 
 #
 # cleanup

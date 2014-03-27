@@ -953,12 +953,9 @@ x509* PemToDer(FILE* file, CertType type, EncryptedInfo* info)
                     info->set = true;
                 }
             }
-            // get blank line
-            if (fgets(line,sizeof(line), file) == 0)
-            {
-              /* Impossible case */
-            }
             begin = ftell(file);
+            if (fgets(line,sizeof(line), file)) // get blank line
+              begin = ftell(file);
         }
           
     }

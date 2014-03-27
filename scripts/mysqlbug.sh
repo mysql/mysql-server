@@ -1,5 +1,6 @@
 #!/bin/sh
 # Copyright (C) 2000-2002, 2004 MySQL AB
+# Use is subject to license terms
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

@@ -733,3 +733,28 @@ DROP TABLE t1, t2, t3;
 --echo # End of 5.1 tests
 --echo #
 
+--echo #
+--echo # Bug#17075846 : unquoted file names for variable values are
+--echo #                accepted but parsed incorrectly
+--echo #
+--error ER_WRONG_TYPE_FOR_VAR 
+SET default_storage_engine=a.myisam;
+--error ER_WRONG_TYPE_FOR_VAR 
+SET default_storage_engine = .a.MyISAM;
+--error ER_WRONG_TYPE_FOR_VAR 
+SET default_storage_engine = a.b.MyISAM;
+--error ER_WRONG_TYPE_FOR_VAR 
+SET default_storage_engine = `a`.MyISAM;
+--error ER_WRONG_TYPE_FOR_VAR 
+SET default_storage_engine = `a`.`MyISAM`; 
+--error ER_UNKNOWN_STORAGE_ENGINE 
+set default_storage_engine = "a.MYISAM";
+--error ER_UNKNOWN_STORAGE_ENGINE 
+set default_storage_engine = 'a.MYISAM';
+--error ER_UNKNOWN_STORAGE_ENGINE 
+set default_storage_engine = `a.MYISAM`;
+CREATE TABLE t1 (s VARCHAR(100));
+--ERROR ER_BAD_FIELD_ERROR
+CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW
+SET default_storage_engine = NEW.INNODB;
+DROP TABLE t1;

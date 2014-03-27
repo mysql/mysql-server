@@ -53,9 +53,8 @@ void Blowfish::Process(byte* out, const byte* in, word32 sz)
             out += BLOCK_SIZE;
             in  += BLOCK_SIZE;
         }
-    else if (mode_ == CBC)
-    {
-        if (dir_ == ENCRYPTION)
+    else if (mode_ == CBC) {
+        if (dir_ == ENCRYPTION) {
             while (blocks--) {
                 r_[0] ^= *(word32*)in;
                 r_[1] ^= *(word32*)(in + 4);
@@ -67,7 +66,8 @@ void Blowfish::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
-        else
+        }
+        else {
             while (blocks--) {
                 AsmProcess(in, out);
                 
@@ -79,6 +79,7 @@ void Blowfish::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
+        }
     }
 }
 
@@ -223,23 +224,26 @@ void Blowfish::ProcessAndXorBlock(const byte* in, const byte* xOr, byte* out)
 
 #if defined(DO_BLOWFISH_ASM)
     #ifdef __GNUC__
-        #define AS1(x)    asm(#x);
-        #define AS2(x, y) asm(#x ", " #y);
+        #define AS1(x)    #x ";"
+        #define AS2(x, y) #x ", " #y ";"
 
         #define PROLOG()  \
-            asm(".intel_syntax noprefix"); \
-            AS2(    movd  mm3, edi                      )   \
-            AS2(    movd  mm4, ebx                      )   \
-            AS2(    movd  mm5, esi                      )   \
-            AS2(    mov   ecx, DWORD PTR [ebp +  8]     )   \
-            AS2(    mov   esi, DWORD PTR [ebp + 12]     )
-
+        __asm__ __volatile__ \
+        ( \
+            ".intel_syntax noprefix;" \
+            "push ebx;" \
+            "push ebp;" \
+            "movd mm3, eax;"
         #define EPILOG()  \
-            AS2(    movd esi, mm5                  )   \
-            AS2(    movd ebx, mm4                  )   \
-            AS2(    movd edi, mm3                  )   \
-            AS1(    emms                           )   \
-            asm(".att_syntax");
+            "pop ebp;" \
+            "pop ebx;" \
+                   "emms;" \
+                   ".att_syntax;" \
+                : \
+                : "c" (this), "S" (inBlock), "a" (outBlock) \
+                : "%edi", "%edx", "memory", "cc" \
+        );
+
     #else
         #define AS1(x)    __asm x
         #define AS2(x, y) __asm x, y
@@ -287,7 +291,9 @@ void Blowfish::ProcessAndXorBlock(const byte* in, const byte* xOr, byte* out)
 
 
 #ifdef _MSC_VER
-    __declspec(naked) 
+    __declspec(naked)
+#else
+    __attribute__ ((noinline))
 #endif
 void Blowfish::AsmProcess(const byte* inBlock, byte* outBlock) const
 {
@@ -336,7 +342,7 @@ void Blowfish::AsmProcess(const byte* inBlock, byte* outBlock) const
     #endif
 
     #ifdef __GNUC__
-        AS2(    mov   edi, [ebp + 16]           ) // outBlock
+        AS2(    movd  edi, mm3                  ) // outBlock
     #else
         AS2(    mov   edi, [ebp + 12]           ) // outBlock
     #endif

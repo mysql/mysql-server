@@ -500,6 +500,7 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
   */
   if (run_tool(tool_executable_name,
                &ds_tmp, /* Get output from command, discard*/
+               "--no-defaults",
                "--help",
                "2>&1",
                IF_WIN("> NUL", "> /dev/null"),

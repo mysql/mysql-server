@@ -365,7 +365,7 @@ my $hostname = hostname();
 my $resolved;
 if ( !$opt->{'cross-bootstrap'} and !$opt->{rpm} and !$opt->{force} )
 {
-  my $resolveip =  $bindir/resolveip;
+  my $resolveip = "$extra_bindir/resolveip";
 
   $resolved = `$resolveip $hostname 2>&1`;
   if ( $? != 0 )
@@ -375,14 +375,14 @@ if ( !$opt->{'cross-bootstrap'} and !$opt->{rpm} and !$opt->{force} )
     {
       error($opt,
             "Neither host '$hostname' nor 'localhost' could be looked up with",
-            "$bindir/resolveip",
+            "$resolveip",
             "Please configure the 'hostname' command to return a correct",
             "hostname.",
             "If you want to solve this at a later stage, restart this script",
             "with the --force option");
     }
     warning($opt,
-            "The host '$hostname' could not be looked up with resolveip.",
+            "The host '$hostname' could not be looked up with $resolveip.",
             "This probably means that your libc libraries are not 100 % compatible",
             "with this binary MySQL version. The MySQL daemon, mysqld, should work",
             "normally with the exception that host name resolving will not work.",

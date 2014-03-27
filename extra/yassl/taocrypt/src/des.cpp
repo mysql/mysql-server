@@ -1,5 +1,6 @@
 /*
    Copyright (C) 2000-2007 MySQL AB
+   Use is subject to license terms
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -473,7 +474,7 @@ void DES_EDE3::ProcessAndXorBlock(const byte* in, const byte* xOr,
 
    uses ecx
 */
-#define AsmIPERM() {\
+#define AsmIPERM() \
     AS2(    rol   ebx, 4                        )   \
     AS2(    mov   ecx, eax                      )   \
     AS2(    xor   ecx, ebx                      )   \
@@ -504,7 +505,7 @@ void DES_EDE3::ProcessAndXorBlock(const byte* in, const byte* xOr,
     AS2(    and   ecx, 0xaaaaaaaa               )   \
     AS2(    xor   eax, ecx                      )   \
     AS2(    rol   eax, 1                        )   \
-    AS2(    xor   ebx, ecx                      ) }
+    AS2(    xor   ebx, ecx                      )
 
 
 /* Uses FPERM algorithm from above
@@ -514,7 +515,7 @@ void DES_EDE3::ProcessAndXorBlock(const byte* in, const byte* xOr,
 
    uses ecx
 */
-#define AsmFPERM()    {\
+#define AsmFPERM()    \
     AS2(    ror  ebx, 1                     )    \
     AS2(    mov  ecx, eax                   )    \
     AS2(    xor  ecx, ebx                   )    \
@@ -545,7 +546,7 @@ void DES_EDE3::ProcessAndXorBlock(const byte* in, const byte* xOr,
     AS2(    and  ecx, 0xf0f0f0f0            )    \
     AS2(    xor  eax, ecx                   )    \
     AS2(    xor  ebx, ecx                   )    \
-    AS2(    ror  eax, 4                     ) }
+    AS2(    ror  eax, 4                     )
 
 
 
@@ -641,32 +642,34 @@ void DES_EDE3::ProcessAndXorBlock(const byte* in, const byte* xOr,
 
 
 #ifdef _MSC_VER
-    __declspec(naked) 
+    __declspec(naked)
+#else
+    __attribute__ ((noinline)) 
 #endif
 void DES_EDE3::AsmProcess(const byte* in, byte* out, void* box) const
 {
 #ifdef __GNUC__
-    #define AS1(x)    asm(#x);
-    #define AS2(x, y) asm(#x ", " #y);
-
-    asm(".intel_syntax noprefix");
+    #define AS1(x)    #x ";"
+    #define AS2(x, y) #x ", " #y ";"
 
     #define PROLOG()  \
-        AS2(    movd  mm3, edi                      )   \
-        AS2(    movd  mm4, ebx                      )   \
-        AS2(    movd  mm5, esi                      )   \
-        AS2(    movd  mm6, ebp                      )   \
-        AS2(    mov   edx, DWORD PTR [ebp +  8]     )   \
-        AS2(    mov   esi, DWORD PTR [ebp + 12]     )   \
-        AS2(    mov   ebp, DWORD PTR [ebp + 20]     )
-
-    // ebp restored at end
-    #define EPILOG()    \
-        AS2(    movd  edi, mm3                      )   \
-        AS2(    movd  ebx, mm4                      )   \
-        AS2(    movd  esi, mm5                      )   \
-        AS1(    emms                                )   \
-        asm(".att_syntax");
+    __asm__ __volatile__ \
+    ( \
+        ".intel_syntax noprefix;" \
+        "push ebx;" \
+        "push ebp;" \
+        "movd mm6, ebp;" \
+        "movd mm7, ecx;" \
+        "mov  ebp, eax;"
+    #define EPILOG()  \
+        "pop ebp;" \
+        "pop ebx;" \
+               "emms;" \
+               ".att_syntax;" \
+            :  \
+            : "d" (this), "S" (in), "a" (box), "c" (out) \
+            : "%edi", "memory", "cc" \
+    );
 
 #else
     #define AS1(x)      __asm x
@@ -756,7 +759,7 @@ void DES_EDE3::AsmProcess(const byte* in, byte* out, void* box) const
     AS1(    bswap eax                           )
 
 #ifdef __GNUC__
-    AS2(    mov   esi, DWORD PTR [ebp +  16]    )   // outBlock
+    AS2(    movd  esi, mm7   )   // outBlock
 #else
     AS2(    mov   esi, DWORD PTR [ebp +  12]    )   // outBlock
 #endif

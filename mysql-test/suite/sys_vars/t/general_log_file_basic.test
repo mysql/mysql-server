@@ -53,7 +53,7 @@ SELECT @@global.general_log_file;
 #        Change the value of general_log_file to a invalid value      #
 #######################################################################
 
-# Assumed text if no quotes or numbers.
+--error ER_WRONG_TYPE_FOR_VAR
 SET @@global.general_log_file = mytest.log;
 --error ER_WRONG_TYPE_FOR_VAR
 SET @@global.general_log_file = 12;

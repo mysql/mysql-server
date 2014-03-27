@@ -1,3 +1,8 @@
+if (`select plugin_auth_version <= "5.5.37-MariaDB-34.0" from information_schema.plugins where plugin_name='innodb'`)
+{
+  --skip Not fixed in XtraDB as of 5.5.37-MariaDB-34.0 or earlier
+}
+
 --source include/have_innodb.inc
 # embedded server ignores 'delayed', so skip this
 -- source include/not_embedded.inc
@@ -666,3 +671,16 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #14049391	 INNODB MISCALCULATES AUTO-INCREMENT
+--echo #	AFTER CHANGING AUTO_INCREMENT_INCREMEMENT
+--echo #
+CREATE TABLE t ( i INT AUTO_INCREMENT, KEY(i) ) ENGINE=InnoDB;
+SET auto_increment_increment = 300;
+INSERT INTO t VALUES (NULL), (NULL);
+SHOW CREATE TABLE t;
+SET auto_increment_increment = 50;
+INSERT INTO t VALUES (NULL);
+SELECT * FROM t;
+SHOW CREATE TABLE t;
+DROP TABLE t;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #define HA_PERFSCHEMA_H
 
 #include "handler.h"                            /* class handler */
+#include "table.h"
+#include "sql_class.h"
 
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface /* gcc class implementation */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1199,21 +1199,37 @@ output_buffer& operator<<(output_buffer& output, const HandShakeBase& hs)
 
 Certificate::Certificate(const x509* cert) : cert_(cert) 
 {
-    set_length(cert_->get_length() + 2 * CERT_HEADER); // list and cert size
+    if (cert)
+      set_length(cert_->get_length() + 2 * CERT_HEADER); // list and cert size
+    else
+      set_length(CERT_HEADER); // total blank cert size, just list header
 }
 
 
 const opaque* Certificate::get_buffer() const
 {
-    return cert_->get_buffer(); 
+    if (cert_)
+      return cert_->get_buffer();
+
+    return NULL;
 }
 
 
 // output operator for Certificate
 output_buffer& operator<<(output_buffer& output, const Certificate& cert)
 {
-    uint sz = cert.get_length() - 2 * CERT_HEADER;
+    uint sz = cert.get_length();
     opaque tmp[CERT_HEADER];
+
+    if ((int)sz > CERT_HEADER)
+      sz -= 2 * CERT_HEADER;  // actual cert, not including headers
+    else {
+      sz = 0;                 // blank cert case
+      c32to24(sz, tmp);
+      output.write(tmp, CERT_HEADER);
+
+      return output;
+    }
 
     c32to24(sz + CERT_HEADER, tmp);
     output.write(tmp, CERT_HEADER);
@@ -1264,9 +1280,11 @@ void Certificate::Process(input_buffer& input, SSL& ssl)
             ssl.SetError(YasslError(bad_input));
             return;
         }
-        x509* myCert;
-        cm.AddPeerCert(myCert = NEW_YS x509(cert_sz));
-        input.read(myCert->use_buffer(), myCert->get_length());
+        if (cert_sz) {
+          x509* myCert;
+          cm.AddPeerCert(myCert = NEW_YS x509(cert_sz));
+          input.read(myCert->use_buffer(), myCert->get_length());
+        }
 
         list_sz -= cert_sz + CERT_HEADER;
     }
@@ -1969,9 +1987,9 @@ void CertificateRequest::Process(input_buffer&, SSL& ssl)
 {
     CertManager& cm = ssl.useCrypto().use_certManager();
 
-    // make sure user provided cert and key before sending and using
-    if (cm.get_cert() && cm.get_privateKey())
-        cm.setSendVerify();
+    cm.setSendVerify();
+    if (cm.get_cert() == NULL || cm.get_privateKey() == NULL)
+      cm.setSendBlankCert();  // send blank cert, OpenSSL requires now
 }
 
 

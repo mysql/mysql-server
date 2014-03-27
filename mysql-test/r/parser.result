@@ -618,3 +618,28 @@ DROP TABLE t1, t2, t3;
 #
 # End of 5.1 tests
 #
+#
+# Bug#17075846 : unquoted file names for variable values are
+#                accepted but parsed incorrectly
+#
+SET default_storage_engine=a.myisam;
+ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
+SET default_storage_engine = .a.MyISAM;
+ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
+SET default_storage_engine = a.b.MyISAM;
+ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
+SET default_storage_engine = `a`.MyISAM;
+ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
+SET default_storage_engine = `a`.`MyISAM`;
+ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
+set default_storage_engine = "a.MYISAM";
+ERROR 42000: Unknown storage engine 'a.MYISAM'
+set default_storage_engine = 'a.MYISAM';
+ERROR 42000: Unknown storage engine 'a.MYISAM'
+set default_storage_engine = `a.MYISAM`;
+ERROR 42000: Unknown storage engine 'a.MYISAM'
+CREATE TABLE t1 (s VARCHAR(100));
+CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW
+SET default_storage_engine = NEW.INNODB;
+ERROR 42S22: Unknown column 'INNODB' in 'NEW'
+DROP TABLE t1;

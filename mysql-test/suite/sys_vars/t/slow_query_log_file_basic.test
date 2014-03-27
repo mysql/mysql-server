@@ -51,7 +51,7 @@ SELECT @@global.slow_query_log_file;
 #      Change the value of slow_query_log_file to a invalid value     #
 #######################################################################
 
-# Assumed text if no quotes or numbers.
+--error ER_WRONG_TYPE_FOR_VAR
 SET @@global.slow_query_log_file = mytest.log;
 --error ER_WRONG_TYPE_FOR_VAR
 SET @@global.slow_query_log_file = 12;

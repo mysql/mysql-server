@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1169,12 +1169,12 @@ int rsa_test()
     RSAES_Encryptor enc(priv);
     byte message[] = "Everyone gets Friday off.";
     const word32 len = (word32)strlen((char*)message);
-    byte cipher[64];
+    byte cipher[512];
     enc.Encrypt(message, len, cipher, rng);
 
     RSAES_Decryptor dec(priv);
-    byte plain[64];
-    dec.Decrypt(cipher, sizeof(plain), plain, rng);
+    byte plain[512];
+    dec.Decrypt(cipher, priv.FixedCiphertextLength(), plain, rng);
 
     if (memcmp(plain, message, len))
         return -70;
@@ -1246,11 +1246,11 @@ int dh_test()
 int dsa_test()
 {
     Source source;
-    FileSource("../certs/dsa512.der", source);
+    FileSource("../certs/dsa1024.der", source);
     if (source.size() == 0) {
-        FileSource("../../certs/dsa512.der", source);  // for testsuite
+        FileSource("../../certs/dsa1024.der", source);  // for testsuite
         if (source.size() == 0) {
-            FileSource("../../../certs/dsa512.der", source); // win32 Debug dir
+            FileSource("../../../certs/dsa1024.der", source); // win32 Debug dir
             if (source.size() == 0)
                 err_sys("where's your certs dir?", -89);
         }
