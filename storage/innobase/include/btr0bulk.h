@@ -206,9 +206,6 @@ private:
 	/* The heap top in page for next insert */
 	byte*		m_heap_top;
 
-	/* Heap no */
-	ulint		m_heap_no;
-
 	/* User record no */
 	ulint		m_rec_no;
 
