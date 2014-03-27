@@ -517,6 +517,14 @@ btr_pcur_move_backward_from_page(
 
 	prev_page_no = btr_page_get_prev(page, mtr);
 
+	if (dict_table_is_intrinsic(
+		btr_cur_get_index(btr_pcur_get_btr_cur(cursor))->table)) {
+		/* For intrinsic table we don't do optimistic
+		restore and so there is no left block that
+		is pinned that needs to be released. */
+		goto restore_done;
+	}
+
 	if (prev_page_no == FIL_NULL) {
 	} else if (btr_pcur_is_before_first_on_page(cursor)) {
 
@@ -538,6 +546,7 @@ btr_pcur_move_backward_from_page(
 		btr_leaf_page_release(prev_block, latch_mode, mtr);
 	}
 
+restore_done:
 	cursor->latch_mode = latch_mode;
 
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
