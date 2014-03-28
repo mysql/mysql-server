@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -109,6 +109,13 @@ to insert record only. It is used to optimize block->lock range.*/
 to delete record only. It is used to optimize block->lock range.*/
 #define BTR_LATCH_FOR_DELETE	65536
 
+/** In the case of BTR_SEARCH_LEAF or BTR_MODIFY_LEAF, the caller is
+already holding an X latch on the index tree */
+#define BTR_ALREADY_X_LATCHED	(BTR_LATCH_FOR_DELETE << 1)
+
+#define BTR_ALREADY_LATCHED	(BTR_ALREADY_S_LATCHED	\
+				 | BTR_ALREADY_X_LATCHED)
+
 #define BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)	\
 	((latch_mode) & ~(BTR_INSERT			\
 			  | BTR_DELETE_MARK		\
@@ -117,6 +124,7 @@ to delete record only. It is used to optimize block->lock range.*/
 			  | BTR_IGNORE_SEC_UNIQUE	\
 			  | BTR_ALREADY_S_LATCHED	\
 			  | BTR_LATCH_FOR_INSERT	\
+			  | BTR_ALREADY_X_LATCHED	\
 			  | BTR_LATCH_FOR_DELETE))
 
 #define BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode)	\
