@@ -16,7 +16,7 @@ CREATE TABLE t1 (a int);
 PREPARE x FROM 'INSERT INTO t1 VALUES (1), (2)';
 EXECUTE x;
 SELECT * FROM t1 ORDER BY 1;
---resetconnection
+--reset_connection
 --echo resetconnection;
 # below execute should report error
 --error ER_UNKNOWN_STMT_HANDLER
@@ -29,7 +29,7 @@ EXECUTE x;
 CREATE TEMPORARY TABLE temp1(a int);
 INSERT INTO temp1 VALUES (1),(2),(3),(4);
 SELECT * FROM temp1 ORDER BY 1;
---resetconnection
+--reset_connection
 --echo resetconnection;
 # should report temp1 does not exists error
 --error ER_NO_SUCH_TABLE
@@ -41,7 +41,7 @@ SELECT * FROM temp1 ORDER BY 1;
 
 set @a:=1;
 SELECT @a;
---resetconnection
+--reset_connection
 --echo resetconnection;
 # should report NULL
 SELECT @a;
@@ -51,7 +51,7 @@ SELECT @a;
 --echo
 
 # set variables to default
---resetconnection
+--reset_connection
 SHOW SESSION VARIABLES like 'autocommit';
 SHOW SESSION VARIABLES like 'tx_isolation';
 SHOW SESSION VARIABLES like 'character_set_client';
@@ -66,7 +66,7 @@ SHOW SESSION VARIABLES like 'tx_isolation';
 SHOW SESSION VARIABLES like 'character_set_client';
 SHOW SESSION VARIABLES like 'character_set_connection';
 SHOW SESSION VARIABLES like 'max_join_size';
---resetconnection
+--reset_connection
 --echo resetconnection;
 SHOW SESSION VARIABLES like 'autocommit';
 SHOW SESSION VARIABLES like 'tx_isolation';
@@ -94,7 +94,7 @@ DELETE FROM newt;
 DROP TABLE newt;
 SHOW STATUS like 'Table_open_cache_hits';
 SHOW STATUS like 'Opened_tables';
---resetconnection
+--reset_connection
 --echo resetconnection;
 SHOW STATUS like 'Table_open_cache_hits';
 SHOW STATUS like 'Opened_tables';
@@ -107,9 +107,9 @@ SHOW STATUS like 'Opened_tables';
 
 LOCK TABLE t1 WRITE;
 SELECT * FROM t1 ORDER BY 1;
---resetconnection
+--reset_connection
 SET GLOBAL DEBUG='d,debug_test_cleanup_connection';
---resetconnection
+--reset_connection
 --echo resetconnection;
 SET GLOBAL DEBUG='';
 
@@ -122,12 +122,12 @@ SHOW SESSION VARIABLES like 'last_insert_id';
 INSERT INTO t2 VALUES (NULL);
 INSERT INTO t2 VALUES (NULL);
 SHOW SESSION VARIABLES like 'last_insert_id';
---resetconnection
+--reset_connection
 --echo resetconnection;
 SHOW SESSION VARIABLES like 'last_insert_id';
 INSERT INTO t2 VALUES (NULL), (NULL);
 SHOW SESSION VARIABLES like 'last_insert_id';
---resetconnection
+--reset_connection
 --echo resetconnection;
 SHOW SESSION VARIABLES like 'last_insert_id';
 DROP TABLE t2;
@@ -144,7 +144,7 @@ DROP DATABASE wl6797;
 grant all privileges on *.* to  'user_wl6797'@'localhost';
 ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
 --error 1
---exec echo "connect(con1, localhost, user_wl6797, , test); --resetconnection " | $MYSQL_TEST 2>&1
+--exec echo "connect(con1, localhost, user_wl6797, , test); --reset_connection " | $MYSQL_TEST 2>&1
 connection default;
 DROP USER user_wl6797@localhost;
 
