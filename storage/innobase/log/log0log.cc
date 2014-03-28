@@ -1757,13 +1757,14 @@ log_checkpoint(
 	MLOG_CHECKPOINT marker, recovery would be unable to discard
 	the redo log (some pages would contain changes that are newer
 	than the checkpoint). */
-	lsn_t	flush_lsn = oldest_lsn;
+	lsn_t		flush_lsn	= oldest_lsn;
+	const bool	do_write
+		= (srv_shutdown_state == SRV_SHUTDOWN_NONE
+		   || flush_lsn != log_sys->lsn)
+		&& flush_lsn
+		> log_sys->last_checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT;
 
-	if (fil_names_clear(oldest_lsn,
-			    (srv_shutdown_state == SRV_SHUTDOWN_NONE
-			     || flush_lsn != log_sys->lsn)
-			    && flush_lsn > log_sys->last_checkpoint_lsn
-			    + SIZE_OF_MLOG_CHECKPOINT)) {
+	if (fil_names_clear(flush_lsn, do_write)) {
 		flush_lsn = log_sys->lsn;
 	}
 
