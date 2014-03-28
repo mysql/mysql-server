@@ -170,7 +170,19 @@ public:
 		return(*this);
 	}
 
-	/** Initialize the name, size and order of this datafile */
+	/** Initialize the name, size and order of this datafile
+	@param[in]	name		space name, shutdown() will ::free() it
+	@param[in]	filepath	file name, or NULL if not determined
+	@param[in]	size		size in database pages
+	@param[in]	order		ordinal position or the datafile
+	in the tablespace */
+	void init(char* name, const char* filepath, ulint size, ulint order);
+
+	/** Initialize the name, size and order of this datafile
+	@param[in]	name	tablespace name, will be copied
+	@param[in]	size	size in database pages
+	@param[in]	order	ordinal position or the datafile
+	in the tablespace */
 	void init(const char* name, ulint size, ulint order);
 
 	/** Release the resources. */
