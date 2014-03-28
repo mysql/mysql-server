@@ -28,6 +28,7 @@
 #include "sql_parse.h"                          // check_stack_overrun
 #include "sql_time.h"                  // make_truncated_value_warning
 #include "opt_trace.h"
+#include "parse_tree_helpers.h"
 
 #include <algorithm>
 using std::min;
@@ -2401,6 +2402,32 @@ bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const
 }
 
 
+bool Item_func_interval::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (row == NULL || // OOM in constructor
+      super::itemize(pc, res))
+    return true;
+  DBUG_ASSERT(row == args[0]); // row->itemize() is not needed
+  return false;
+}
+
+
+Item_row *Item_func_interval::alloc_row(const POS &pos, MEM_ROOT *mem_root,
+                                        Item *expr1, Item *expr2,
+                                        PT_item_list *opt_expr_list)
+{
+  List<Item> *list= opt_expr_list ? &opt_expr_list->value
+                                  : new (mem_root) List<Item>;
+  if (list == NULL)
+    return NULL;
+  list->push_front(expr2);
+  row= new (mem_root) Item_row(pos, expr1, *list);
+  return row;
+}
+
+
 void Item_func_interval::fix_length_and_dec()
 {
   uint rows= row->cols();
@@ -3858,6 +3885,10 @@ void Item_func_case::cleanup()
 /**
   Coalesce - return first not NULL argument.
 */
+
+Item_func_coalesce::Item_func_coalesce(const POS &pos, PT_item_list *list)
+  : Item_func_numhybrid(pos, list)
+{}
 
 String *Item_func_coalesce::str_op(String *str)
 {
@@ -5778,6 +5809,27 @@ float Item_func_like::get_filtering_effect(table_map filter_for_table,
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_BETWEEN);
 }
+
+
+bool Item_func_like::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res) ||
+      (escape_item != NULL && escape_item->itemize(pc, &escape_item)))
+    return true;
+
+  if (escape_item == NULL)
+  {
+    THD *thd= pc->thd;
+    escape_item=
+      ((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) ?
+       new (pc->mem_root) Item_string("", 0, &my_charset_latin1) :
+       new (pc->mem_root) Item_string("\\", 1, &my_charset_latin1));
+  }
+  return escape_item == NULL;
+}
+
 
 longlong Item_func_like::val_int()
 {

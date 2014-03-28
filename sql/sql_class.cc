@@ -64,6 +64,7 @@
 #include "connection_handler_manager.h"   // Connection_handler_manager
 #include "mysqld_thd_manager.h"           // Global_THD_manager
 #include "sql_timer.h"                          // thd_timer_destroy
+#include "parse_tree_nodes.h"
 
 #include <mysql/psi/mysql_statement.h>
 #include "mysql/psi/mysql_ps.h"
@@ -2414,22 +2415,23 @@ static const String default_xml_row_term("<row>", default_charset_info);
 static const String my_empty_string("",default_charset_info);
 
 
-sql_exchange::sql_exchange(char *name, bool flag,
+sql_exchange::sql_exchange(const char *name, bool flag,
                            enum enum_filetype filetype_arg)
-  :file_name(name), opt_enclosed(0), dumpfile(flag), skip_lines(0)
+  :file_name(name), dumpfile(flag), skip_lines(0)
 {
+  field.opt_enclosed= 0;
   filetype= filetype_arg;
-  field_term= &default_field_term;
-  enclosed=   line_start= &my_empty_string;
-  line_term=  filetype == FILETYPE_CSV ?
+  field.field_term= &default_field_term;
+  field.enclosed= line.line_start= &my_empty_string;
+  line.line_term= filetype == FILETYPE_CSV ?
               &default_line_term : &default_xml_row_term;
-  escaped=    &default_escaped;
+  field.escaped= &default_escaped;
   cs= NULL;
 }
 
 bool sql_exchange::escaped_given(void)
 {
-  return escaped != &default_escaped;
+  return field.escaped != &default_escaped;
 }
 
 
@@ -2689,16 +2691,19 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
         non_string_results= TRUE;
     }
   }
-  if (exchange->escaped->numchars() > 1 || exchange->enclosed->numchars() > 1)
+  if (exchange->field.escaped->numchars() > 1 ||
+      exchange->field.enclosed->numchars() > 1)
   {
     my_error(ER_WRONG_FIELD_TERMINATORS, MYF(0));
     return TRUE;
   }
-  if (exchange->escaped->length() > 1 || exchange->enclosed->length() > 1 ||
-      !my_isascii(exchange->escaped->ptr()[0]) ||
-      !my_isascii(exchange->enclosed->ptr()[0]) ||
-      !exchange->field_term->is_ascii() || !exchange->line_term->is_ascii() ||
-      !exchange->line_start->is_ascii())
+  if (exchange->field.escaped->length() > 1 ||
+      exchange->field.enclosed->length() > 1 ||
+      !my_isascii(exchange->field.escaped->ptr()[0]) ||
+      !my_isascii(exchange->field.enclosed->ptr()[0]) ||
+      !exchange->field.field_term->is_ascii() ||
+      !exchange->line.line_term->is_ascii() ||
+      !exchange->line.line_start->is_ascii())
   {
     /*
       Current LOAD DATA INFILE recognizes field/line separators "as is" without
@@ -2714,31 +2719,32 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   }
-  field_term_length=exchange->field_term->length();
+  field_term_length=exchange->field.field_term->length();
   field_term_char= field_term_length ?
-                   (int) (uchar) (*exchange->field_term)[0] : INT_MAX;
-  if (!exchange->line_term->length())
-    exchange->line_term=exchange->field_term;	// Use this if it exists
-  field_sep_char= (exchange->enclosed->length() ?
-                  (int) (uchar) (*exchange->enclosed)[0] : field_term_char);
-  if (exchange->escaped->length() && (exchange->escaped_given() ||
+                   (int) (uchar) (*exchange->field.field_term)[0] : INT_MAX;
+  if (!exchange->line.line_term->length())
+    exchange->line.line_term=exchange->field.field_term;// Use this if it exists
+  field_sep_char= (exchange->field.enclosed->length() ?
+                  (int) (uchar) (*exchange->field.enclosed)[0] :
+                  field_term_char);
+  if (exchange->field.escaped->length() && (exchange->escaped_given() ||
       !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
-    escape_char= (int) (uchar) (*exchange->escaped)[0];
+    escape_char= (int) (uchar) (*exchange->field.escaped)[0];
   else
     escape_char= -1;
   is_ambiguous_field_sep= MY_TEST(strchr(ESCAPE_CHARS, field_sep_char));
   is_unsafe_field_sep= MY_TEST(strchr(NUMERIC_CHARS, field_sep_char));
-  line_sep_char= (exchange->line_term->length() ?
-                 (int) (uchar) (*exchange->line_term)[0] : INT_MAX);
+  line_sep_char= (exchange->line.line_term->length() ?
+                 (int) (uchar) (*exchange->line.line_term)[0] : INT_MAX);
   if (!field_term_length)
-    exchange->opt_enclosed=0;
-  if (!exchange->enclosed->length())
-    exchange->opt_enclosed=1;			// A little quicker loop
-  fixed_row_size= (!field_term_length && !exchange->enclosed->length() &&
+    exchange->field.opt_enclosed=0;
+  if (!exchange->field.enclosed->length())
+    exchange->field.opt_enclosed=1;                     // A little quicker loop
+  fixed_row_size= (!field_term_length && !exchange->field.enclosed->length() &&
 		   !blob_flag);
-  if ((is_ambiguous_field_sep && exchange->enclosed->is_empty() &&
+  if ((is_ambiguous_field_sep && exchange->field.enclosed->is_empty() &&
        (string_results || is_unsafe_field_sep)) ||
-      (exchange->opt_enclosed && non_string_results &&
+      (exchange->field.opt_enclosed && non_string_results &&
        field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
   {
     push_warning(thd, Sql_condition::SL_WARNING,
@@ -2779,14 +2785,15 @@ bool select_export::send_data(List<Item> &items)
   uint used_length=0,items_left=items.elements;
   List_iterator_fast<Item> li(items);
 
-  if (my_b_write(&cache,(uchar*) exchange->line_start->ptr(),
-		 exchange->line_start->length()))
+  if (my_b_write(&cache,(uchar*) exchange->line.line_start->ptr(),
+		 exchange->line.line_start->length()))
     goto err;
   while ((item=li++))
   {
     Item_result result_type=item->result_type();
-    bool enclosed = (exchange->enclosed->length() &&
-                     (!exchange->opt_enclosed || result_type == STRING_RESULT));
+    bool enclosed = (exchange->field.enclosed->length() &&
+                     (!exchange->field.opt_enclosed ||
+                      result_type == STRING_RESULT));
     res=item->str_result(&tmp);
     if (res && !my_charset_same(write_cs, res->charset()) &&
         !my_charset_same(write_cs, &my_charset_bin))
@@ -2842,8 +2849,8 @@ bool select_export::send_data(List<Item> &items)
     }
     if (res && enclosed)
     {
-      if (my_b_write(&cache,(uchar*) exchange->enclosed->ptr(),
-		     exchange->enclosed->length()))
+      if (my_b_write(&cache,(uchar*) exchange->field.enclosed->ptr(),
+		     exchange->field.enclosed->length()))
 	goto err;
     }
     if (!res)
@@ -3065,19 +3072,19 @@ bool select_export::send_data(List<Item> &items)
     }
     if (res && enclosed)
     {
-      if (my_b_write(&cache, (uchar*) exchange->enclosed->ptr(),
-                     exchange->enclosed->length()))
+      if (my_b_write(&cache, (uchar*) exchange->field.enclosed->ptr(),
+                     exchange->field.enclosed->length()))
         goto err;
     }
     if (--items_left)
     {
-      if (my_b_write(&cache, (uchar*) exchange->field_term->ptr(),
+      if (my_b_write(&cache, (uchar*) exchange->field.field_term->ptr(),
                      field_term_length))
         goto err;
     }
   }
-  if (my_b_write(&cache,(uchar*) exchange->line_term->ptr(),
-		 exchange->line_term->length()))
+  if (my_b_write(&cache,(uchar*) exchange->line.line_term->ptr(),
+		 exchange->line.line_term->length()))
     goto err;
   DBUG_RETURN(0);
 err:
@@ -3666,10 +3673,10 @@ Statement_map::~Statement_map()
 
 bool select_dumpvar::send_data(List<Item> &items)
 {
-  List_iterator_fast<my_var> var_li(var_list);
+  List_iterator_fast<PT_select_var> var_li(var_list);
   List_iterator<Item> it(items);
   Item *item;
-  my_var *mv;
+  PT_select_var *mv;
   DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
@@ -3684,9 +3691,9 @@ bool select_dumpvar::send_data(List<Item> &items)
   }
   while ((mv= var_li++) && (item= it++))
   {
-    if (mv->local)
+    if (mv->is_local())
     {
-      if (thd->sp_runtime_ctx->set_variable(thd, mv->offset, &item))
+      if (thd->sp_runtime_ctx->set_variable(thd, mv->get_offset(), &item))
 	    DBUG_RETURN(true);
     }
     else
@@ -3699,7 +3706,7 @@ bool select_dumpvar::send_data(List<Item> &items)
         optimization and execution.
        */
       Item_func_set_user_var *suv=
-        new Item_func_set_user_var(mv->s, item, true);
+        new Item_func_set_user_var(mv->name, item, true);
       if (suv->fix_fields(thd, 0))
         DBUG_RETURN(true);
       suv->save_item_result(item);
