@@ -3439,6 +3439,9 @@ bool handler::is_fatal_error(int error)
     case HA_ERR_LOCK_WAIT_TIMEOUT:
     case HA_ERR_LOCK_DEADLOCK:
       DBUG_RETURN(false);
+
+    case HA_ERR_NULL_IN_SPATIAL:
+      DBUG_RETURN(false);
   }
 
   // Default is that an error is fatal
