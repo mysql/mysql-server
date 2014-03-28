@@ -4110,20 +4110,15 @@ fil_load_single_table_tablespace(
 	ulint		filename_len,
 	fil_space_t*&	space)
 {
-	char*		name;
-	Datafile	df_default;
-	RemoteDatafile	df_remote;
+	Datafile	file;
 
-	space = NULL;
-
-	name = fil_path_to_space_name(filename, filename_len);
-	df_default.init(name, 0, 0);
-	df_remote.init(name, 0, 0);
+	file.init(fil_path_to_space_name(filename, filename_len),
+		  filename, 0, 0);
 
 	/* If the space is already in the file system cache with the
 	correct space ID, then there is nothing to do. */
 	mutex_enter(&fil_system->mutex);
-	space = fil_space_get_by_name(name);
+	space = fil_space_get_by_name(file.name());
 	mutex_exit(&fil_system->mutex);
 
 	if (space != NULL) {
@@ -4136,45 +4131,66 @@ fil_load_single_table_tablespace(
 			space = NULL;
 		}
 
-		::ut_free(name);
 		return(space != NULL ? FIL_LOAD_OK : FIL_LOAD_ID_CHANGED);
 	}
 
-	/* Check for a link file which locates a remote tablespace. */
-	if (df_remote.open_read_only(false) == DB_SUCCESS) {
-		/* Read and validate the first page of the remote tablespace */
-		switch (df_remote.validate_for_recovery()) {
-		case DB_SUCCESS:
-			break;
-		case DB_TABLESPACE_EXISTS:
-			df_remote.close();
-			goto no_good_file;
-		default:
-			df_remote.close();
-		}
-	}
-
-	/* Try to open the tablespace in the datadir. */
-	df_default.make_filepath(NULL);
-	if (df_default.open_read_only(false) == DB_SUCCESS) {
-		/* Read and validate the first page of the default tablespace */
-		switch (df_default.validate_for_recovery()) {
-		case DB_SUCCESS:
-			break;
-		case DB_TABLESPACE_EXISTS:
-			df_remote.close();
-			df_default.close();
-			goto no_good_file;
-		default:
-			df_default.close();
-		}
-	}
-
-	if (!df_default.is_open() && !df_remote.is_open()) {
-		::ut_free(name);
+	if (file.open_read_only(false) != DB_SUCCESS) {
 		return(FIL_LOAD_NOT_FOUND);
+	}
 
-no_good_file:
+	ut_ad(file.is_open());
+
+	os_offset_t	size;
+
+	/* Read and validate the first page of the default tablespace */
+	switch (file.validate_for_recovery()) {
+		os_offset_t	minimum_size;
+	case DB_SUCCESS:
+		if (file.space_id() != space_id) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Ignoring data file '%s' with"
+				" space ID " ULINTPF ","
+				" which used to be"
+				" space ID " ULINTPF ".",
+				filename, file.space_id(), space_id);
+			return(FIL_LOAD_ID_CHANGED);
+		}
+
+		/* Get and test the file size. */
+		size = os_file_get_size(file.handle());
+
+		/* Every .ibd file is created >= 4 pages in size. Smaller files
+		cannot be ok. */
+		minimum_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
+
+		if (size == static_cast<os_offset_t>(-1)) {
+			/* The following call prints an error message */
+			os_file_get_last_error(true);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Could not measure the size of single-table"
+				" tablespace file '%s'", filename);
+		} else if (size < minimum_size) {
+#ifndef UNIV_HOTBACKUP
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The size of single-table tablespace file '%s'"
+				" is only " UINT64PF
+				", should be at least " UINT64PF "!",
+				filename, size, minimum_size);
+#else
+			/* In MEB, we work around this error. */
+			file.set_space_id(ULINT_UNDEFINED);
+			file.set_flags(0);
+			break;
+#endif /* !UNIV_HOTBACKUP */
+		} else {
+			/* Everything is fine so far. */
+			break;
+		}
+
+		/* Fall through to error handling */
+
+	case DB_TABLESPACE_EXISTS:
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"We do not continue the crash recovery, because"
 			" the table may become corrupt if we cannot apply"
@@ -4195,105 +4211,37 @@ no_good_file:
 			" innodb_force_recovery > 0 in my.cnf and force"
 			" InnoDB to continue crash recovery here.");
 
-will_not_choose:
-		::ut_free(name);
 		return(FIL_LOAD_INVALID);
+
+	default:
+		return(FIL_LOAD_NOT_FOUND);
 	}
 
-	if (df_default.is_valid() && df_remote.is_valid()) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Tablespaces for %s have been found in two places;"
-			" Location 1: SpaceID: " ULINTPF " LSN: " LSN_PF
-			" File: %s;"
-			" Location 2: SpaceID: " ULINTPF " LSN: " LSN_PF
-			" File: %s;"
-			" You must delete one of them.",
-			name,
-			df_default.space_id(),
-			df_default.flushed_lsn(),
-			df_default.filepath(),
-			df_remote.space_id(),
-			df_remote.flushed_lsn(),
-			df_remote.filepath());
-
-		df_default.close();
-		df_remote.close();
-		goto will_not_choose;
-	}
-
-	/* At this point, only one tablespace is open */
-	ut_a(df_default.is_open() == !df_remote.is_open());
-
-	Datafile*	df = df_default.is_open() ? &df_default : &df_remote;
-
-	if (df->space_id() != space_id) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Ignoring data file %s with space ID "
-			ULINTPF ","
-			" which used to be space ID " ULINTPF ".",
-			df->filepath(), df->space_id(), space_id);
-
-		df->close();
-		::ut_free(name);
-		return(FIL_LOAD_ID_CHANGED);
-	}
-
-	/* Get and test the file size. */
-	os_offset_t	size = os_file_get_size(df->handle());
-
-	if (size == (os_offset_t) -1) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Could not measure the size of single-table"
-			" tablespace file %s", df->filepath());
-
-		df->close();
-		goto no_good_file;
-	}
-
-	/* Every .ibd file is created >= 4 pages in size. Smaller files
-	cannot be ok. */
-	ulong	minimum_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
-
-	if (size < minimum_size) {
-#ifndef UNIV_HOTBACKUP
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The size of single-table tablespace file %s"
-			" is only " UINT64PF ", should be at least %lu!",
-			df->filepath(), size, minimum_size);
-		df->close();
-		goto no_good_file;
-#else
-		df->set_space_id(ULINT_UNDEFINED);
-		fsf->set_flags(0);
-#endif /* !UNIV_HOTBACKUP */
-	}
+	ut_ad(space == NULL);
 
 #ifdef UNIV_HOTBACKUP
-	if (df->space_id() == ULINT_UNDEFINED || df->space_id() == 0) {
+	if (file.space_id() == ULINT_UNDEFINED || file.space_id() == 0) {
 		char*	new_path;
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Renaming tablespace %s of id %lu, to"
+			"Renaming tablespace '%s' of id " ULINTPF ", to"
 			" %s_ibbackup_old_vers_<timestamp> because its size"
 			INT64PF " is too small (< 4 pages 16 kB each), or the"
 			" space id in the file header is not sensible. This can"
 			" happen in an ibbackup run, and is not dangerous.",
-			df->name(), df->space_id(), df->name(), size);
-		df->close();
+			filename, file.space_id(), file.name(), size);
+		file.close();
 
-		new_path = fil_make_ibbackup_old_name(df->filepath());
+		new_path = fil_make_ibbackup_old_name(filename);
 
 		bool	success = os_file_rename(
-			innodb_data_file_key, df->filepath(), new_path);
+			innodb_data_file_key, filename, new_path);
 
 		ut_a(success);
 
 		::ut_free(new_path);
 
-		goto func_exit;
+		return(FIL_LOAD_ID_CHANGED);
 	}
 
 	/* A backup may contain the same space several times, if the space got
@@ -4304,61 +4252,49 @@ will_not_choose:
 	destroy valuable data. */
 
 	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(df->space_id());
+	space = fil_space_get_by_id(space_id);
+	mutex_exit(&fil_system->mutex);
 
 	if (space != NULL) {
-		char*	new_path;
-
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Renaming data file %s with space ID %lu, to"
+			"Renaming data file '%s' with space ID " ULINTPF " to"
 			" %s_ibbackup_old_vers_<timestamp> because space %s"
 			" with the same id was scanned earlier. This can happen"
 			" if you have renamed tables during an ibbackup run.",
-			df->name(), df->space_id(), df->name(), space->name);
-		df->close();
+			filename, space_id, file.name(), space->name);
+		file.close();
 
-		new_path = fil_make_ibbackup_old_name(df->filepath());
-
-		mutex_exit(&fil_system->mutex);
+		char*	new_path = fil_make_ibbackup_old_name(filename);
 
 		bool	success = os_file_rename(
-			innodb_data_file_key, df->filepath(), new_path);
+			innodb_data_file_key, filename, new_path);
 
 		ut_a(success);
 
 		::ut_free(new_path);
-
-		goto func_exit;
+		return(FIL_LOAD_OK);
 	}
-	mutex_exit(&fil_system->mutex);
 #endif /* UNIV_HOTBACKUP */
-	space = fil_space_create(
-		name, df->space_id(), df->flags(), FIL_TYPE_TABLESPACE);
 
-	if (space != NULL) {
-		ut_ad(space->id == df->space_id());
-	} else {
-		df->close();
-		goto will_not_choose;
+	space = fil_space_create(
+		file.name(), space_id, file.flags(), FIL_TYPE_TABLESPACE);
+
+	if (space == NULL) {
+		return(FIL_LOAD_INVALID);
 	}
+
+	ut_ad(space->id == file.space_id());
+	ut_ad(space->id == space_id);
 
 	/* We do not use the size information we have about the file, because
 	the rounding formula for extents and pages is somewhat complex; we
 	let fil_node_open() do that task. */
 
-	if (!fil_node_create(df->filepath(), 0, space, false)) {
-		ut_a(space != NULL);
+	if (!fil_node_create(filename, 0, space, false)) {
 		ut_error;
 	}
 
-#ifdef UNIV_HOTBACKUP
-func_exit:
-#else
-	ut_ad(!mutex_own(&fil_system->mutex));
-#endif
-	::ut_free(name);
-	return(space != NULL ? FIL_LOAD_OK : FIL_LOAD_ID_CHANGED);
+	return(FIL_LOAD_OK);
 }
 
 /***********************************************************************//**

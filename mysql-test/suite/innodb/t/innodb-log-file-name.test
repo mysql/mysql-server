@@ -48,7 +48,7 @@ let SEARCH_PATTERN= InnoDB: Attempted to open a previously opened tablespace.*t1
 --error 1
 --exec $mysqld
 
-let SEARCH_PATTERN= InnoDB: Ignoring data file .*t1.ibd with space ID \d+, which used to be space ID;
+let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t1.ibd' with space ID \d+, which used to be space ID;
 --source include/search_pattern_in_file.inc
 
 let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t3.ibd;
@@ -66,10 +66,10 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t3.ibd;
 --error 1
 --exec $mysqld
 
-let SEARCH_PATTERN= InnoDB: Ignoring data file .*t[23].ibd with space ID \d+, which used to be space ID;
+let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t[23].ibd' with space ID \d+, which used to be space ID;
 --source include/search_pattern_in_file.inc
 
-let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t1.ibd\.
+let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t1.ibd\.
 .*InnoDB: Set innodb_force_recovery=1 to ignore this and to permanently lose all changes to the tablespace\.
 .*InnoDB: Tablespace \d+ was not found at .*t3.ibd\.;
 --source include/search_pattern_in_file.inc
