@@ -7096,6 +7096,10 @@ ER_OLD_TEMPORALS_UPGRADED
 
 ER_INNODB_FORCED_RECOVERY
   eng "Operation not allowed when innodb_forced_recovery > 0."
+
+ER_AES_INVALID_IV
+  eng "The initialization vector supplied to %s is too short. Must be at least %d bytes long"
+  bg "Инициализационния вектор подаден на %s е прекалено къс. Трябва да е поне %d байта"
 #
 #  End of 5.6 error messages.
 #

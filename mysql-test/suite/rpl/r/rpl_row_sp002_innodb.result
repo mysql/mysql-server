@@ -46,6 +46,7 @@ a	f
 
 < -- test 1 select slave after p1 -- >
 --------------------------------------
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 a	t
 1	texas
@@ -79,6 +80,7 @@ a	f
 
 < -- test 1 select slave after p2 -- >
 --------------------------------------
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 a	t
 4	to
@@ -137,6 +139,7 @@ a	f
 
 < -- test 2 select Slave after p1 -- >
 --------------------------------------
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 a	t
 1	texas
@@ -178,6 +181,7 @@ a	f
 
 < -- test 1 select Slave after p2 -- >
 --------------------------------------
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 a	t
 1	texas
@@ -212,6 +216,7 @@ START TRANSACTION;
 ROLLBACK;
 select * from test.t3;
 a	t
+include/sync_slave_sql_with_master.inc
 select * from test.t3;
 a	t
 START TRANSACTION;
@@ -219,6 +224,7 @@ COMMIT;
 select * from test.t3;
 a	t
 98	NONE
+include/sync_slave_sql_with_master.inc
 select * from test.t3;
 a	t
 98	NONE

@@ -19,14 +19,14 @@ create table t4 (a int primary key);
 insert into t1 values (1),(1);
 insert into t4 values (1),(2);
 # as the t1 table is ignored on the slave, the slave should be able to sync
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # check that the table has been ignored, because otherwise the test is nonsense
 show tables like 't1';
 show tables like 't4';
 SELECT * FROM test.t4 ORDER BY a;
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # Now test that even critical errors (connection killed)
 # are ignored if rules allow it.
@@ -56,12 +56,12 @@ connection master;
 reap;
 --enable_warnings
 connection master1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t4 ORDER BY a;
 
 connection master1;
 DROP TABLE test.t4;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # End of 4.1 tests
 # Adding comment for force manual merge 5.0 -> wl1012. delete me if needed
 

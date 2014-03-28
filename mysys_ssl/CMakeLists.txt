@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,6 +34,17 @@ IF(WITH_SSL STREQUAL "bundled" AND HAVE_VISIBILITY_HIDDEN)
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 ENDIF()
 
+IF(WITH_SSL STREQUAL "bundled")
+  SET(MYSYS_AES_IMPLEMENTATION my_aes_yassl.cc)
+  if (HAVE_VISIBILITY_HIDDEN)
+    SET_SOURCE_FILES_PROPERTIES(
+      my_aes_yassl.cc
+      PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  ENDIF()
+ELSE()
+  SET(MYSYS_AES_IMPLEMENTATION my_aes_openssl.cc)
+ENDIF()
+
 SET(MYSYS_SSL_SOURCES
     crypt_genhash_impl.cc
     my_default.cc
@@ -44,6 +55,7 @@ SET(MYSYS_SSL_SOURCES
     my_md5.cc
     my_rnd.cc
     my_murmur3.cc
+    ${MYSYS_AES_IMPLEMENTATION}
    )
 
 ADD_CONVENIENCE_LIBRARY(mysys_ssl ${MYSYS_SSL_SOURCES})

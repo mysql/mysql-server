@@ -41,7 +41,7 @@ SELECT * FROM test.t2;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t2;
 
 # Cleanup
@@ -50,7 +50,7 @@ connection master;
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 5.0 test case
 --source include/rpl_end.inc

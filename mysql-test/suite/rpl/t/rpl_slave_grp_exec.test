@@ -51,7 +51,7 @@ DELIMITER ;|
 INSERT INTO t3 VALUES(1, 'AA');
 INSERT INTO t2 VALUES(1, 'AA');
 INSERT INTO t1 VALUES(1, 'AA');
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 RENAME TABLE t3 TO t3_bak;
 
@@ -101,7 +101,7 @@ RENAME TABLE t3_bak TO t3;
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo
 
 
@@ -113,7 +113,7 @@ TRUNCATE t3;
 ALTER TABLE t1 ADD PRIMARY KEY (a);
 ALTER TABLE t2 ADD PRIMARY KEY (a);
 ALTER TABLE t3 ADD PRIMARY KEY (a);
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 RENAME TABLE t3 TO t3_bak;
 
 --connection master
@@ -157,7 +157,7 @@ RENAME TABLE t3_bak TO t3;
 TRUNCATE t1;
 TRUNCATE t2;
 TRUNCATE t3;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --echo
 
 
@@ -169,7 +169,7 @@ TRUNCATE t3;
 ALTER TABLE t1 ENGINE=InnoDB;
 ALTER TABLE t2 ENGINE=InnoDB;
 ALTER TABLE t3 ENGINE=InnoDB;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --connection slave
 RENAME TABLE t3 TO t3_bak;
@@ -215,7 +215,7 @@ source include/start_slave.inc;
 --echo *** Clean up ***
 --connection master
 DROP TABLE t1,t2,t3;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 # End of 5.1 test
 --source include/rpl_end.inc

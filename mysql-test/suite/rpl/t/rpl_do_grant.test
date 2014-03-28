@@ -1,6 +1,7 @@
 # Works in statement-based and row-based binlogging.
 # Test that GRANT and other user management commands are replicated to the slave
 
+-- source include/not_gtid_enabled.inc
 -- source include/master-slave.inc
 
 # do not be influenced by other tests.

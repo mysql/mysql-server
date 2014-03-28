@@ -1,7 +1,7 @@
 #ifndef ATOMIC_NOLOCK_INCLUDED
 #define ATOMIC_NOLOCK_INCLUDED
 
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved. reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved. reserved.
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -27,7 +27,7 @@
   neither Visual C++ or gcc we still choose the Solaris
   implementation on Solaris (mainly for SunStudio compilers).
 */
-#  if defined(_MSV_VER)
+#  if defined(_MSC_VER)
 #    include "generic-msvc.h"
 #  elif __GNUC__
 #    if defined(HAVE_SOLARIS_ATOMIC)

@@ -1,0 +1,364 @@
+--echo #
+--echo # Bug #17335427 INNODB CAN NOT USE THE DOUBLEWRITE BUFFER PROPERLY
+--echo # Bug #18144349 INNODB CANNOT USE THE DOUBLEWRITE BUFFER FOR THE FIRST
+--echo # PAGE OF SYSTEM TABLESPACE
+--echo #
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/not_embedded.inc
+--source include/not_valgrind.inc
+
+--disable_query_log
+call mtr.add_suppression("InnoDB: Database page .* contained only zeroes.");
+call mtr.add_suppression("Header page consists of zero bytes");
+call mtr.add_suppression("Checksum mismatch in tablespace");
+call mtr.add_suppression("but the innodb_page_size start-up parameter is");
+call mtr.add_suppression("Database page corruption");
+call mtr.add_suppression("innodb-page-size mismatch in tablespace");
+--enable_query_log
+
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+let MYSQLD_DATADIR=`select @@datadir`;
+
+show variables like 'innodb_doublewrite';
+show variables like 'innodb_fil_make_page_dirty_debug';
+show variables like 'innodb_saved_page_number_debug';
+
+create table t1 (f1 int primary key, f2 blob) engine=innodb;
+
+start transaction;
+insert into t1 values(1, repeat('#',12));
+insert into t1 values(2, repeat('+',12));
+insert into t1 values(3, repeat('/',12));
+insert into t1 values(4, repeat('-',12));
+insert into t1 values(5, repeat('.',12));
+commit work;
+
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if first page of user
+--echo # tablespace is full of zeroes.
+
+select space from information_schema.innodb_sys_tables
+where name = 'test/t1' into @space_id;
+
+--echo # Wait for purge to complete
+--source include/wait_innodb_all_purged.inc
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+
+--echo # Make the first page dirty for table t1
+set global innodb_saved_page_number_debug = 0;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug='+d,crash_commit_before';
+--error 2013
+insert into t1 values (6, repeat('%', 12));
+--source include/wait_until_disconnected.inc
+
+--echo # Make the first page (page_no=0) of the user tablespace
+--echo # full of zeroes.
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}test/t1.ibd";
+open(FILE, "+<", $fname) or die;
+binmode FILE;
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'});
+close FILE;
+EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Server must be started successfully, and table t1 must be fine...
+check table t1;
+select f1, f2 from t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if first page of user
+--echo # tablespace is corrupted.
+
+select space from information_schema.innodb_sys_tables
+where name = 'test/t1' into @space_id;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+
+--echo # Make the first page dirty for table t1
+set global innodb_saved_page_number_debug = 0;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug='+d,crash_commit_before';
+--error 2013
+insert into t1 values (6, repeat('%', 12));
+--source include/wait_until_disconnected.inc
+
+--echo # Corrupt the first page (page_no=0) of the user tablespace.
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}test/t1.ibd";
+open(FILE, "+<", $fname) or die;
+binmode FILE;
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'}/2);
+close FILE;
+EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Server must be started successfully, and table t1 must be fine...
+check table t1;
+select f1, f2 from t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if 2nd page of user
+--echo # tablespace is full of zeroes.
+
+select space from information_schema.innodb_sys_tables
+where name = 'test/t1' into @space_id;
+
+--echo # Make the 2nd page dirty for table t1
+set global innodb_saved_page_number_debug = 1;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug='+d,crash_commit_before';
+--error 2013
+insert into t1 values (6, repeat('%', 400));
+--source include/wait_until_disconnected.inc
+
+--echo # Make the 2nd page (page_no=1) of the tablespace all zeroes.
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}test/t1.ibd";
+open(FILE, "+<", $fname) or die;
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'}, SEEK_SET);
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'});
+close FILE;
+EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Server must be started successfully, and table t1 must be fine...
+check table t1;
+select f1, f2 from t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if 2nd page of user
+--echo # tablespace is corrupted.
+
+select space from information_schema.innodb_sys_tables
+where name = 'test/t1' into @space_id;
+
+--echo # Make the 2nd page dirty for table t1
+set global innodb_saved_page_number_debug = 1;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug='+d,crash_commit_before';
+--error 2013
+insert into t1 values (6, repeat('%', 400));
+--source include/wait_until_disconnected.inc
+
+--echo # Corrupt the 2nd page (page_no=1) of the user tablespace.
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}test/t1.ibd";
+open(FILE, "+<", $fname) or die;
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'}, SEEK_SET);
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'}/2);
+close FILE;
+EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Server must be started successfully, and table t1 must be fine...
+check table t1;
+select f1, f2 from t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if first page of
+--echo # system tablespace is full of zeroes.
+
+--echo # Make the first page dirty for system tablespace
+set global innodb_saved_page_number_debug = 0;
+set global innodb_fil_make_page_dirty_debug = 0;
+
+--echo # Ensure that the dirty page of system tablespace is also flushed.
+set global innodb_buf_flush_list_now = 1;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug='+d,crash_commit_before';
+--error 2013
+insert into t1 values (6, repeat('%', 400));
+--source include/wait_until_disconnected.inc
+
+--echo # Make the first page (page_no=0) of the system tablespace
+--echo # all zeroes.
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}ibdata1";
+open(FILE, "+<", $fname) or die;
+binmode FILE;
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'});
+close FILE;
+EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Server must be started successfully, and table t1 must be fine...
+check table t1;
+select f1, f2 from t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if first page of
+--echo # system tablespace is corrupted.
+
+--echo # Make the first page dirty for system tablespace
+set global innodb_saved_page_number_debug = 0;
+set global innodb_fil_make_page_dirty_debug = 0;
+
+--echo # Ensure that the dirty page of system tablespace is also flushed.
+set global innodb_buf_flush_list_now = 1;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug='+d,crash_commit_before';
+--error 2013
+insert into t1 values (6, repeat('%', 400));
+--source include/wait_until_disconnected.inc
+
+--echo # Corrupt the first page (page_no=0) of the system tablespace.
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}ibdata1";
+open(FILE, "+<", $fname) or die;
+binmode FILE;
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'}/2);
+close FILE;
+EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Server must be started successfully, and table t1 must be fine...
+check table t1;
+select f1, f2 from t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if 2nd page of
+--echo # system tablespace is full of zeroes.
+
+--echo # Make the second page dirty for system tablespace
+set global innodb_saved_page_number_debug = 1;
+set global innodb_fil_make_page_dirty_debug = 0;
+
+--echo # Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug='+d,crash_commit_before';
+--error 2013
+insert into t1 values (6, repeat('%', 400));
+--source include/wait_until_disconnected.inc
+
+--echo # Make the 2nd page (page_no=1) of the system tablespace
+--echo # all zeroes.
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}ibdata1";
+open(FILE, "+<", $fname) or die;
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'}, SEEK_SET);
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'});
+close FILE;
+EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Server must be started successfully, and table t1 must be fine...
+check table t1;
+select f1, f2 from t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+--echo # Test Begin: Test if recovery works if 2nd page of
+--echo # system tablespace is corrupted.
+
+--echo # Make the second page dirty for system tablespace
+set global innodb_saved_page_number_debug = 1;
+set global innodb_fil_make_page_dirty_debug = 0;
+
+--echo # Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug='+d,crash_commit_before';
+--error 2013
+insert into t1 values (6, repeat('%', 400));
+--source include/wait_until_disconnected.inc
+
+--echo # Make the 2nd page (page_no=1) of the system tablespace
+--echo # all zeroes.
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}ibdata1";
+open(FILE, "+<", $fname) or die;
+binmode FILE;
+seek(FILE, $ENV{'INNODB_PAGE_SIZE'}, SEEK_SET);
+print FILE chr(0) x ($ENV{'INNODB_PAGE_SIZE'}/2);
+close FILE;
+EOF
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Server must be started successfully, and table t1 must be fine...
+check table t1;
+select f1, f2 from t1;
+
+--echo # Test End
+--echo # ---------------------------------------------------------------
+
+drop table t1;
+

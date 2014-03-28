@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2883,9 +2883,9 @@ bool show_slave_status(THD* thd, Master_info* mi)
     // Last_SQL_Error_Timestamp
     protocol->store(mi->rli->last_error().timestamp, &my_charset_bin);
     // Master_Ssl_Crl
-    protocol->store(mi->ssl_ca, &my_charset_bin);
+    protocol->store(mi->ssl_crl, &my_charset_bin);
     // Master_Ssl_Crlpath
-    protocol->store(mi->ssl_capath, &my_charset_bin);
+    protocol->store(mi->ssl_crlpath, &my_charset_bin);
     // Retrieved_Gtid_Set
     protocol->store(io_gtid_set_buffer, &my_charset_bin);
     // Executed_Gtid_Set
@@ -5301,11 +5301,6 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   rli->checkpoint_seqno= 0;
   rli->mts_last_online_stat= my_time(0);
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
-  /*
-    dyn memory to consume by Coordinator per event
-  */
-  init_alloc_root(&rli->mts_coor_mem_root, NAME_LEN,
-                  (MAX_DBS_IN_EVENT_MTS / 2) * NAME_LEN);
 
   if (init_hash_workers(n))  // MTS: mapping_db_to_worker
   {
@@ -5461,7 +5456,6 @@ end:
   delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
   rli->deinit_workers();
   rli->slave_parallel_workers= 0;
-  free_root(&rli->mts_coor_mem_root, MYF(0));
   *mts_inited= false;
 }
 
@@ -6832,9 +6826,13 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->ssl_ca[0]?mi->ssl_ca:0,
                   mi->ssl_capath[0]?mi->ssl_capath:0,
                   mi->ssl_cipher[0]?mi->ssl_cipher:0);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRL, 
+#ifdef HAVE_YASSL
+    mi->ssl_crl[0]= '\0';
+    mi->ssl_crlpath[0]= '\0';
+#endif
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL,
                   mi->ssl_crl[0] ? mi->ssl_crl : 0);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, 
+    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
                   mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &mi->ssl_verify_server_cert);
@@ -6960,107 +6958,6 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
   DBUG_RETURN(connect_to_master(thd, mysql, mi, 1, suppress_warnings));
 }
 
-
-MYSQL *rpl_connect_master(MYSQL *mysql)
-{
-  THD *thd= current_thd;
-  char password[MAX_PASSWORD_LENGTH + 1];
-  int password_size= sizeof(password);
-  Master_info *mi= my_pthread_getspecific_ptr(Master_info*, RPL_MASTER_INFO);
-  if (!mi)
-  {
-    sql_print_error("'rpl_connect_master' must be called in slave I/O thread context.");
-    return NULL;
-  }
-
-  bool allocated= false;
-  
-  if (!mysql)
-  {
-    if(!(mysql= mysql_init(NULL)))
-    {
-      sql_print_error("rpl_connect_master: failed in mysql_init()");
-      return NULL;
-    }
-    allocated= true;
-  }
-
-  /*
-    XXX: copied from connect_to_master, this function should not
-    change the slave status, so we cannot use connect_to_master
-    directly
-    
-    TODO: make this part a seperate function to eliminate duplication
-  */
-  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
-  mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
-
-  if (mi->bind_addr[0])
-  {
-    DBUG_PRINT("info",("bind_addr: %s", mi->bind_addr));
-    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
-  }
-
-#ifdef HAVE_OPENSSL
-  if (mi->ssl)
-  {
-    mysql_ssl_set(mysql,
-                  mi->ssl_key[0]?mi->ssl_key:0,
-                  mi->ssl_cert[0]?mi->ssl_cert:0,
-                  mi->ssl_ca[0]?mi->ssl_ca:0,
-                  mi->ssl_capath[0]?mi->ssl_capath:0,
-                  mi->ssl_cipher[0]?mi->ssl_cipher:0);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRL, 
-                  mi->ssl_crl[0] ? mi->ssl_crl : 0);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, 
-                  mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
-    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                  &mi->ssl_verify_server_cert);
-  }
-#endif
-
-  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
-  /* This one is not strictly needed but we have it here for completeness */
-  mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
-
-  if (mi->is_start_plugin_auth_configured())
-  {
-    DBUG_PRINT("info", ("Slaving is using MYSQL_DEFAULT_AUTH %s",
-                        mi->get_start_plugin_auth()));
-    mysql_options(mysql, MYSQL_DEFAULT_AUTH, mi->get_start_plugin_auth());
-  }
-
-  if (mi->is_start_plugin_dir_configured())
-  {
-    DBUG_PRINT("info", ("Slaving is using MYSQL_PLUGIN_DIR %s",
-                        mi->get_start_plugin_dir()));
-    mysql_options(mysql, MYSQL_PLUGIN_DIR, mi->get_start_plugin_dir());
-  }
-  /* Set MYSQL_PLUGIN_DIR in case master asks for an external authentication plugin */
-  else if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
-    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
-
-  if (!mi->is_start_user_configured())
-    sql_print_warning("%s", ER(ER_INSECURE_CHANGE_MASTER));
-
-  const char *user= mi->get_user();
-  if (user == NULL
-      || user[0] == 0
-      || mi->get_password(password, &password_size)
-      || io_slave_killed(thd, mi)
-      || !mysql_real_connect(mysql, mi->host, user,
-                             password, 0, mi->port, 0, 0))
-  {
-    if (!io_slave_killed(thd, mi))
-      sql_print_error("rpl_connect_master: error connecting to master: %s (server_error: %d)",
-                      mysql_error(mysql), mysql_errno(mysql));
-    
-    if (allocated)
-      mysql_close(mysql);                       // this will free the object
-    return NULL;
-  }
-  return mysql;
-}
 
 /*
   Called when we notice that the current "hot" log got rotated under our feet.

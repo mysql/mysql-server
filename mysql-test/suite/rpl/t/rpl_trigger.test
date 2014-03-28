@@ -56,7 +56,7 @@ insert into t2 values(NULL,0),(500,0);
 select a,b, truncate(rand_value,4) from t1;
 select * from t2;
 select a,name, old_a, old_b, truncate(rand_value,4) from t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --disable_query_log
 select "--- On slave --" as "";
 --enable_query_log
@@ -120,7 +120,7 @@ SELECT trigger_name, definer
 FROM information_schema.triggers
 WHERE trigger_name = 't1_first';
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --disable_query_log
 select "--- On slave --" as "";
 --enable_query_log
@@ -179,7 +179,7 @@ create database other;
 use other;
 insert into test.t1 values (1);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 use test;
@@ -226,7 +226,7 @@ while ($rnd)
     dec $i;
   }
 
-  sync_slave_with_master;
+  --source include/sync_slave_sql_with_master.inc
 #connection slave;
   eval select * from t1$rnd;
   delimiter |;
@@ -265,7 +265,7 @@ while ($rnd)
     dec $i;
   }
   
-  sync_slave_with_master;
+  --source include/sync_slave_sql_with_master.inc
 #connection slave;
   eval SELECT * from t1$rnd /* must be f1 $max_rows ... 1 */;
   eval SELECT * from t3$rnd /* must be f3 $max_rows * 100 ...  100 */;
@@ -277,7 +277,7 @@ while ($rnd)
   
   connection master;
   eval drop table t1$rnd;
-  sync_slave_with_master;
+  --source include/sync_slave_sql_with_master.inc
   connection master;
   
   dec $rnd;
@@ -409,7 +409,7 @@ DROP TABLE IF EXISTS t2;
 --echo
 --echo ---> Synchronizing slave with master...
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo ---> connection: master
@@ -441,7 +441,7 @@ SELECT * FROM t2;
 --echo
 --echo ---> Synchronizing slave with master...
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo ---> connection: master
 
@@ -463,7 +463,7 @@ SELECT * FROM t2;
 DROP TABLE t1;
 DROP TABLE t2;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --connection master
 
 #
@@ -493,13 +493,13 @@ drop trigger if exists t1_bi;
 insert into t1 values (3, "c");
 
 select * from t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1;
 
 connection master;
 
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # Bug#40116: Uncommited changes are replicated and stay on slave after
@@ -525,7 +525,7 @@ set autocommit = 0;
 insert into t1 values ( 1 );
 --enable_warnings
 rollback;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 let $diff_tables= master:t1, slave:t1;
 --source include/diff_tables.inc
@@ -535,7 +535,7 @@ let $diff_tables= master:log, slave:log;
 
 connection master;
 drop table t1, log;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # End of tests

@@ -26,7 +26,7 @@ connection master;
 GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 --replace_column 2 ####
 CHANGE MASTER TO master_user='rpl', master_password='rpl';
@@ -38,7 +38,7 @@ connection master;
 CREATE TABLE t1 (n INT);
 INSERT INTO t1 VALUES (1);
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 
 --echo ==== Delete new replication user ====
@@ -48,7 +48,7 @@ DROP USER rpl@127.0.0.1;
 FLUSH PRIVILEGES;
 
 --echo [on slave]
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo ==== Restart slave without privileges =====
 # (slave.err will contain access denied error for this START SLAVE command)

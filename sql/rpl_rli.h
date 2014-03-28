@@ -535,13 +535,6 @@ public:
   bool mts_recovery_group_seen_begin;
 
   /*
-    Coordinator's specific mem-root to hold various temporary data while
-    the current group is being schedulled. The root is shunk to default size
-    at the end of the group distribution.
-  */
-  MEM_ROOT mts_coor_mem_root;
-
-  /*
     While distibuting events basing on their properties MTS
     Coordinator changes its mts group status.
     Transition normally flowws to follow `=>' arrows on the diagram:

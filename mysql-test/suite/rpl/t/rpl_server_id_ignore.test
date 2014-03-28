@@ -58,7 +58,7 @@ start slave;
 connection master;
 
 #connection slave;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 let $slave_relay_pos0= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
 
 connection master;
@@ -103,7 +103,7 @@ start slave;
 connection master;
 
 #connection slave;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo *** must have caught create table ***
 show tables;
 
@@ -111,7 +111,7 @@ show tables;
 connection master;
 drop table t1;
 #connection slave
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo end of the tests
 
