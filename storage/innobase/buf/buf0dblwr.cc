@@ -830,13 +830,13 @@ try_again:
 
 	if (buf_dblwr->first_free == 0) {
 
+		mutex_exit(&buf_dblwr->mutex);
+
 		/* Wake possible simulated aio thread as there could be
 		system temporary tablespace pages active for flushing.
 		Note: system temporary tablespace pages are not scheduled
 		for doublewrite. */
 		os_aio_simulated_wake_handler_threads();
-
-		mutex_exit(&buf_dblwr->mutex);
 
 		return;
 	}

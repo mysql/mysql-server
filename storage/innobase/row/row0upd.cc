@@ -1634,7 +1634,9 @@ row_upd_sec_index_entry(
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
 	ut_a(entry);
 
-	log_free_check();
+	if (!dict_table_is_intrinsic(index->table)) {
+		log_free_check();
+	}
 
 	DEBUG_SYNC_C_IF_THD(trx->mysql_thd,
 			    "before_row_upd_sec_index_entry");
@@ -2516,7 +2518,9 @@ row_upd(
 	switch (node->state) {
 	case UPD_NODE_UPDATE_CLUSTERED:
 	case UPD_NODE_INSERT_CLUSTERED:
-		log_free_check();
+		if (!dict_table_is_intrinsic(node->table)) {
+			log_free_check();
+		}
 		err = row_upd_clust_step(node, thr);
 
 		if (err != DB_SUCCESS) {
