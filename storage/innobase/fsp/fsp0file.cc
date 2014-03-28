@@ -30,15 +30,45 @@ Created 2013-7-26 by Kevin Lewis
 #include "page0page.h"
 #include "srv0start.h"
 
-/** Initialize the name, size and order of this datafile */
+/** Initialize the name, size and order of this datafile
+@param[in]	name		space name, shutdown() will ::free() it
+@param[in]	filepath	file name, or NULL if not determined
+@param[in]	size		size in database pages
+@param[in]	order		ordinal position or the datafile
+in the tablespace */
+
 void
-Datafile::init(const char* name, ulint size, ulint order)
+Datafile::init(
+	char*		name,
+	const char*	filepath,
+	ulint		size,
+	ulint		order)
 {
 	ut_ad(m_name == NULL);
-	m_name = mem_strdup(name);
+	m_name = name;
 	ut_ad(m_name != NULL);
+
+	if (filepath != NULL) {
+		m_filepath = mem_strdup(filepath);
+	}
+
 	m_size = size;
 	m_order = order;
+}
+
+/** Initialize the name, size and order of this datafile
+@param[in]	name	tablespace name, will be copied
+@param[in]	size	size in database pages
+@param[in]	order	ordinal position or the datafile
+in the tablespace */
+
+void
+Datafile::init(
+	const char*	name,
+	ulint		size,
+	ulint		order)
+{
+	init(mem_strdup(name), NULL, size, order);
 }
 
 /** Release the resources. */
@@ -48,10 +78,8 @@ Datafile::shutdown()
 {
 	close();
 
-	if (m_name != NULL) {
-		::free(m_name);
-		m_name = NULL;
-	}
+	::free(m_name);
+	m_name = NULL;
 
 	free_filepath();
 
