@@ -102,12 +102,11 @@ my_bool	net_flush(NET *net);
 
 #define STATE_DATA(M) (MYSQL_EXTENSION_PTR(M)->state_change)
 
-#define ADD_INFO(M, element)                                                    \
-{                                                                      \
-  M= &STATE_DATA(mysql);                                               \
-  M->info_list[SESSION_TRACK_SYSTEM_VARIABLES].head_node=              \
-    list_add(M->info_list[SESSION_TRACK_SYSTEM_VARIABLES].head_node,   \
-	     element);                                                 \
+#define ADD_INFO(M, element, type)                                             \
+{                                                                              \
+  M= &STATE_DATA(mysql);                                                       \
+  M->info_list[type].head_node= list_add(M->info_list[type].head_node,         \
+                                         element);                             \
 }
 
 #define native_password_plugin_name "mysql_native_password"
@@ -780,7 +779,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
           /*
             Check if the changed variable was charset. In that case we need to
@@ -813,7 +812,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
           if (is_charset == 1)
           {
@@ -858,7 +857,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SCHEMA);
 
 	  if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
 		                       data->length + 1, MYF(MY_WME))))
@@ -900,7 +899,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-          ADD_INFO(info, element);
+          ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
 
           break;
         default:
