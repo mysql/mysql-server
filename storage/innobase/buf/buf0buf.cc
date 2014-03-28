@@ -324,6 +324,19 @@ buf_pool_get_oldest_modification(void)
 
 		bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 
+		/* We don't let log-checkpoint halt because pages
+		from system temporary are not yet flushed to the disk.
+		Anyway, object residing in system temporary doesn't generate
+		REDO logging and is not needed too. */
+		if (bpage != NULL) {
+			while (fsp_is_system_temporary(bpage->id.space())) {
+				bpage = UT_LIST_GET_PREV(list, bpage);
+				if (bpage == NULL) {
+					break;
+				}
+			}
+		}
+
 		if (bpage != NULL) {
 			ut_ad(bpage->in_flush_list);
 			lsn = bpage->oldest_modification;
