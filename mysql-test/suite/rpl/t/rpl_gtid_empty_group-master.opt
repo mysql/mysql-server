@@ -1,1 +1,1 @@
---gtid-mode=on --enforce-gtid-consistency --log-slave-updates --binlog-ignore-db=db_ignore_master
+--binlog-ignore-db=db_ignore_master

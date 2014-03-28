@@ -129,7 +129,7 @@
 # Some preparations
 ###############################################################
 # The sync_slave_with_master is needed to make the xids deterministic.
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo
 --echo -------- switch to master -------
@@ -148,7 +148,7 @@ eval CREATE TABLE mysqltest1.t1 (f1 BIGINT) ENGINE=$engine_type;
 # slave uses MyISAM for the table mysqltest.t1.
 # This is not valid in case of suite/rpl_ndb/rpl_ndb_ddl.test which sources
 # also this script.
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 if (`SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
      WHERE TABLE_SCHEMA = 'mysqltest1' AND TABLE_NAME = 't1'
@@ -186,7 +186,7 @@ eval CREATE TEMPORARY TABLE mysqltest1.t23 (f1 BIGINT) ENGINE=$temp_engine_type;
 #
 SET AUTOCOMMIT = 0;
 use mysqltest1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo
 --echo -------- switch to slave --------
 connection slave;
@@ -326,7 +326,7 @@ let $my_master_commit= true;
 let $my_slave_commit= true;
 --source include/rpl_stmt_seq.inc
 SELECT * FROM mysqltest1.t7;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo
 --echo -------- switch to slave --------
 connection slave;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,6 +50,19 @@ Created 1/20/1994 Heikki Tuuri
 
 /** Time stamp */
 typedef time_t	ib_time_t;
+
+/* In order to call a piece of code, when a function returns or when the
+scope ends, use this utility class.  It will invoke the given function
+object in its destructor. */
+template<typename F>
+struct ut_when_dtor {
+	ut_when_dtor(F& p) : f(p) {}
+	~ut_when_dtor() {
+		f();
+	}
+private:
+	F& f;
+};
 
 #ifndef UNIV_HOTBACKUP
 # if defined(HAVE_PAUSE_INSTRUCTION)

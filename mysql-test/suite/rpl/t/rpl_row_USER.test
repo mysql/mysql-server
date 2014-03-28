@@ -42,7 +42,7 @@ delimiter ;|
 CALL mysqltest1.p1();
 connection master;
 SELECT * FROM mysqltest1.t1 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM mysqltest1.t1 ORDER BY a;
 
 connection master;
@@ -55,7 +55,7 @@ REVOKE ALL ON mysqltest1.* FROM ''@'localhost%';
 DROP USER tester@'%';
 DROP USER ''@'localhost%';
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 5.0 test case
 --source include/rpl_end.inc

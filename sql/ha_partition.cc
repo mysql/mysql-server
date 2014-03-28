@@ -362,6 +362,7 @@ void ha_partition::init_handler_variables()
   part_share= NULL;
   m_new_partitions_share_refs.empty();
   m_part_ids_sorted_by_num_of_records= NULL;
+  m_sec_sort_by_rowid= false;
 
 #ifdef DONT_HAVE_TO_BE_INITALIZED
   m_start_key.flag= 0;
@@ -4783,9 +4784,32 @@ void ha_partition::position(const uchar *record)
   DBUG_ASSERT(bitmap_is_set(&(m_part_info->read_partitions), m_last_part));
   DBUG_ENTER("ha_partition::position");
 
-  file->position(record);
   int2store(ref, m_last_part);
-  memcpy((ref + PARTITION_BYTES_IN_POS), file->ref, file->ref_length);
+  /*
+    If m_sec_sort_by_rowid is set, then the ref is already stored in the
+    priority queue (m_queue) when doing ordered scans.
+  */
+  if (m_sec_sort_by_rowid && m_ordered_scan_ongoing)
+  {
+    DBUG_ASSERT(m_queue.elements);
+    DBUG_ASSERT(m_ordered_rec_buffer);
+    DBUG_ASSERT(!m_curr_key_info[1]);
+    /* We already have the ref. */
+    memcpy(ref + PARTITION_BYTES_IN_POS,
+           queue_top(&m_queue) + PARTITION_BYTES_IN_POS,
+	   file->ref_length);
+#ifndef DBUG_OFF
+    /* Verify that the position is correct! */
+    file->position(record);
+    DBUG_ASSERT(!memcmp(ref + PARTITION_BYTES_IN_POS, file->ref,
+                        file->ref_length));
+#endif
+  }
+  else
+  {
+    file->position(record);
+    memcpy((ref + PARTITION_BYTES_IN_POS), file->ref, file->ref_length);
+  }
   pad_length= m_ref_length - PARTITION_BYTES_IN_POS - file->ref_length;
   if (pad_length)
     memset((ref + PARTITION_BYTES_IN_POS + file->ref_length), 0, pad_length);
@@ -4879,6 +4903,37 @@ int ha_partition::rnd_pos_by_record(uchar *record)
     subset of the partitions are used, then only use those partitions.
 */
 
+/** Compare key and rowid.
+  Helper function for sorting records in the priority queue.
+  a/b points to table->record[0] rows which must have the
+  key fields set. The bytes before a and b store the handler::ref.
+  This is used for comparing/sorting rows first according to
+  KEY and if same KEY, by handler::ref (rowid).
+
+  @param key_info  Null terminated array of index information
+  @param a         Pointer to record+ref in first record
+  @param b         Pointer to record+ref in second record
+
+  @return Return value is SIGN(first_rec - second_rec)
+    @retval  0                  Keys are equal
+    @retval -1                  second_rec is greater than first_rec
+    @retval +1                  first_rec is greater than second_rec
+*/
+
+static int key_and_ref_cmp(void* key_info, uchar *a, uchar *b)
+{
+  int cmp= key_rec_cmp(key_info, a, b);
+  if (cmp)
+    return cmp;
+  /*
+    We must compare by handler::ref, which is added before the record,
+    in the priority queue.
+  */
+  KEY **key = (KEY**)key_info;
+  uint ref_length= (*key)->table->file->ref_length;
+  return (*key)->table->file->cmp_ref(a - ref_length, b - ref_length);
+}
+
 
 /**
   Setup the ordered record buffer and the priority queue.
@@ -4895,8 +4950,21 @@ bool ha_partition::init_record_priority_queue()
   {
     uint alloc_len;
     uint used_parts= bitmap_bits_set(&m_part_info->read_partitions);
-    /* Allocate record buffer for each used partition. */
-    alloc_len= used_parts * (m_rec_length + PARTITION_BYTES_IN_POS);
+    /*
+      Allocate record buffer for each used partition.
+      If we need to do a secondary sort by PK, then it is already in the
+      record, so we only need to allocate for part id and a full record per
+      partition.
+      Otherwise we do a secondary sort by rowid (handler::ref) and must
+      allocate for ref (includes part id) and full record per partition.
+      We don't know yet if we need to do secondary sort by rowid, so we must
+      allocate space for it.
+    */
+    if (m_curr_key_info[1])
+      m_rec_offset= PARTITION_BYTES_IN_POS;
+    else
+      m_rec_offset= m_ref_length;
+    alloc_len= used_parts * (m_rec_offset + m_rec_length);
     /* Allocate a key for temporary use when setting up the scan. */
     alloc_len+= table_share->max_key_length;
 
@@ -4907,6 +4975,8 @@ bool ha_partition::init_record_priority_queue()
       We set-up one record per partition and each record has 2 bytes in
       front where the partition id is written. This is used by ordered
       index_read.
+      If we need to also sort by rowid (handler::ref), then m_curr_key_info[1]
+      is NULL and we add the rowid before the record.
       We also set-up a reference to the first record for temporary use in
       setting up the scan.
     */
@@ -4918,12 +4988,18 @@ bool ha_partition::init_record_priority_queue()
     {
       DBUG_PRINT("info", ("init rec-buf for part %u", i));
       int2store(ptr, i);
-      ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
+      ptr+= m_rec_offset + m_rec_length;
     }
     m_start_key.key= (const uchar*)ptr;
-    /* Initialize priority queue, initialized to reading forward. */
-    if (init_queue(&m_queue, used_parts, (uint) PARTITION_BYTES_IN_POS,
-                   0, key_rec_cmp, (void*)m_curr_key_info))
+    /*
+      Initialize priority queue, initialized to reading forward.
+      Start by only sort by KEY, HA_EXTRA_SECONDARY_SORT_ROWID
+      will be given if we should sort by handler::ref too.
+    */
+    if (init_queue(&m_queue, used_parts, m_rec_offset,
+                   0,
+                   key_rec_cmp,
+                   (void*)m_curr_key_info))
     {
       my_free(m_ordered_rec_buffer);
       m_ordered_rec_buffer= NULL;
@@ -4979,7 +5055,18 @@ int ha_partition::index_init(uint inx, bool sorted)
   m_part_spec.start_part= NO_CURRENT_PART_ID;
   m_start_key.length= 0;
   m_ordered= sorted;
+  m_sec_sort_by_rowid= false;
   m_curr_key_info[0]= table->key_info+inx;
+  m_curr_key_info[1]= NULL;
+  /*
+    There are two cases where it is not enough to only sort on the key:
+    1) For clustered indexes, the optimizer assumes that all keys
+       have the rest of the PK columns appended to the KEY, so it will
+       sort by PK as secondary sort key.
+    2) Rowid-Order-Retrieval access methods, like index_merge_intersect
+       and index_merge_union. These methods requires the index to be sorted
+       on rowid (handler::ref) as secondary sort key.
+  */
   if (m_pkey_is_clustered && table->s->primary_key != MAX_KEY)
   {
     /*
@@ -4990,8 +5077,6 @@ int ha_partition::index_init(uint inx, bool sorted)
     m_curr_key_info[1]= table->key_info+table->s->primary_key;
     m_curr_key_info[2]= NULL;
   }
-  else
-    m_curr_key_info[1]= NULL;
 
   if (init_record_priority_queue())
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -5057,6 +5142,7 @@ int ha_partition::index_end()
 
   active_index= MAX_KEY;
   m_part_spec.start_part= NO_CURRENT_PART_ID;
+  m_sec_sort_by_rowid= false;
   for (i= bitmap_get_first_set(&m_part_info->read_partitions);
        i < m_tot_parts;
        i= bitmap_get_next_set(&m_part_info->read_partitions, i))
@@ -5837,7 +5923,7 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
        i < m_part_spec.start_part;
        i= bitmap_get_next_set(&m_part_info->read_partitions, i))
   {
-    part_rec_buf_ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
+    part_rec_buf_ptr+= m_rec_offset + m_rec_length;
   }
   DBUG_PRINT("info", ("m_part_spec.start_part %u first_used_part %u",
                       m_part_spec.start_part, i));
@@ -5848,7 +5934,7 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
     DBUG_PRINT("info", ("reading from part %u (scan_type: %u)",
                         i, m_index_scan_type));
     DBUG_ASSERT(i == uint2korr(part_rec_buf_ptr));
-    uchar *rec_buf_ptr= part_rec_buf_ptr + PARTITION_BYTES_IN_POS;
+    uchar *rec_buf_ptr= part_rec_buf_ptr + m_rec_offset;
     int error;
     handler *file= m_file[i];
 
@@ -5892,6 +5978,12 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
     if (!error)
     {
       found= TRUE;
+      if (m_sec_sort_by_rowid)
+      {
+        file->position(rec_buf_ptr);
+        memcpy(part_rec_buf_ptr + PARTITION_BYTES_IN_POS,
+               file->ref, file->ref_length);
+      }
       /*
         Initialize queue without order first, simply insert
       */
@@ -5908,7 +6000,7 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
       m_key_not_found= true;
       saved_error= error;
     }
-    part_rec_buf_ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
+    part_rec_buf_ptr+= m_rec_offset + m_rec_length;
   }
   if (found)
   {
@@ -5918,6 +6010,12 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
     */
     queue_set_max_at_top(&m_queue, reverse_order);
     queue_set_cmp_arg(&m_queue, (void*)m_curr_key_info);
+    DBUG_ASSERT(m_queue.elements == 0);
+    /*
+      If PK, we should not sort by rowid, since that is already done
+      through the KEY setup.
+    */
+    DBUG_ASSERT(!m_curr_key_info[1] || !m_sec_sort_by_rowid);
     m_queue.elements= j;
     queue_fix(&m_queue);
     return_top_record(buf);
@@ -5944,7 +6042,7 @@ void ha_partition::return_top_record(uchar *buf)
 {
   uint part_id;
   uchar *key_buffer= queue_top(&m_queue);
-  uchar *rec_buffer= key_buffer + PARTITION_BYTES_IN_POS;
+  uchar *rec_buffer= key_buffer + m_rec_offset;
 
   part_id= uint2korr(key_buffer);
   memcpy(buf, rec_buffer, m_rec_length);
@@ -5983,16 +6081,25 @@ int ha_partition::handle_ordered_index_scan_key_not_found()
         This partition is used and did return HA_ERR_KEY_NOT_FOUND
         in index_read_map.
       */
-      curr_rec_buf= part_buf + PARTITION_BYTES_IN_POS;
+      curr_rec_buf= part_buf + m_rec_offset;
       error= m_file[i]->ha_index_next(curr_rec_buf);
       /* HA_ERR_KEY_NOT_FOUND is not allowed from index_next! */
       DBUG_ASSERT(error != HA_ERR_KEY_NOT_FOUND);
       if (!error)
+      {
+        if (m_sec_sort_by_rowid)
+        {
+          m_file[i]->position(curr_rec_buf);
+          memcpy(part_buf + PARTITION_BYTES_IN_POS,
+                 m_file[i]->ref,
+                 m_file[i]->ref_length);
+        }
         queue_insert(&m_queue, part_buf);
+      }
       else if (error != HA_ERR_END_OF_FILE && error != HA_ERR_KEY_NOT_FOUND)
         DBUG_RETURN(error);
     }
-    part_buf+= m_rec_length + PARTITION_BYTES_IN_POS;
+    part_buf+= m_rec_offset + m_rec_length;
   }
   DBUG_ASSERT(curr_rec_buf);
   bitmap_clear_all(&m_key_not_found_partitions);
@@ -6026,7 +6133,7 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
 {
   int error;
   uint part_id= m_top_entry;
-  uchar *rec_buf= queue_top(&m_queue) + PARTITION_BYTES_IN_POS;
+  uchar *rec_buf= queue_top(&m_queue) + m_rec_offset;
   handler *file;
   DBUG_ENTER("ha_partition::handle_ordered_next");
   
@@ -6089,6 +6196,12 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     }
     DBUG_RETURN(error);
   }
+  if (m_sec_sort_by_rowid)
+  {
+    file->position(rec_buf);
+    memcpy(rec_buf - m_rec_offset + PARTITION_BYTES_IN_POS,
+           file->ref, file->ref_length);
+  }
   queue_replaced(&m_queue);
   return_top_record(buf);
   DBUG_PRINT("info", ("Record returned from partition %u", m_top_entry));
@@ -6113,7 +6226,7 @@ int ha_partition::handle_ordered_prev(uchar *buf)
 {
   int error;
   uint part_id= m_top_entry;
-  uchar *rec_buf= queue_top(&m_queue) + PARTITION_BYTES_IN_POS;
+  uchar *rec_buf= queue_top(&m_queue) + m_rec_offset;
   handler *file= m_file[part_id];
   DBUG_ENTER("ha_partition::handle_ordered_prev");
 
@@ -6132,6 +6245,12 @@ int ha_partition::handle_ordered_prev(uchar *buf)
       }
     }
     DBUG_RETURN(error);
+  }
+  if (m_sec_sort_by_rowid)
+  {
+    file->position(rec_buf);
+    memcpy(rec_buf - m_rec_offset + PARTITION_BYTES_IN_POS,
+           file->ref, file->ref_length);
   }
   queue_replaced(&m_queue);
   return_top_record(buf);
@@ -6520,8 +6639,10 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   7) Operations only used by federated tables for query processing
   8) Operations only used by NDB
   9) Operations only used by MERGE
+  10) Operations only used by InnoDB
+  11) Operations only used by partitioning
 
-  The partition handler need to handle category 1), 2) and 3).
+  The partition handler need to handle category 1), 2), 3), 10) and 11).
 
   1) Operations used by most handlers
   -----------------------------------
@@ -6806,6 +6927,18 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   HA_EXTRA_IS_ATTACHED_CHILDREN:
   HA_EXTRA_DETACH_CHILDREN:
     Special actions for MERGE tables. Ignore.
+
+  10) Operations only used by InnoDB
+  ----------------------------------
+  HA_EXTRA_EXPORT:
+    Prepare table for export
+    (e.g. quiesce the table and write table metadata).
+
+  11) Operations only used by partitioning
+  ------------------------------
+  HA_EXTRA_SECONDARY_SORT_ROWID:
+    INDEX_MERGE type of execution, needs to do secondary sort by
+    ROWID (handler::ref).
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -6946,6 +7079,25 @@ int ha_partition::extra(enum ha_extra_function operation)
   */
   case HA_EXTRA_MARK_AS_LOG_TABLE:
     DBUG_RETURN(ER_UNSUPORTED_LOG_ENGINE);
+    /* Category 10), used by InnoDB handlers */
+  case HA_EXTRA_EXPORT:
+    DBUG_RETURN(loop_extra(operation));
+    /* Category 11) Operations only used by partitioning. */
+  case HA_EXTRA_SECONDARY_SORT_ROWID:
+  {
+    /* index_init(sorted=true) must have been called! */
+    DBUG_ASSERT(m_ordered);
+    DBUG_ASSERT(m_ordered_rec_buffer);
+    /* No index_read call must have been done! */
+    DBUG_ASSERT(m_queue.elements == 0);
+    /* If not PK is set as secondary sort, do secondary sort by rowid/ref. */
+    if (!m_curr_key_info[1])
+    {
+      m_sec_sort_by_rowid= true;
+      queue_set_compare(&m_queue, key_and_ref_cmp);
+    }
+    break;
+  }
   default:
   {
     /* Temporary crash to discover what is wrong */

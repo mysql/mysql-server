@@ -228,7 +228,8 @@ SELECT COUNT(*) FROM t13;
 SELECT a,b FROM t13 ORDER BY a;
 SELECT a,b FROM v11 ORDER BY a;
 
---sync_slave_with_master slave
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
 
 # Check replicated objects
 --echo
@@ -276,7 +277,8 @@ UPDATE t13 SET c='';
 ALTER TABLE t3 ORDER BY a;
 ALTER TABLE t13 ORDER BY a;
 
---sync_slave_with_master slave
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
 
 # Compare a data from master and slave
 --echo
@@ -306,7 +308,8 @@ DROP FUNCTION IF EXISTS f2;
 DROP EVENT IF EXISTS e1;
 DROP EVENT IF EXISTS e11;
 
---sync_slave_with_master slave
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
 
 # End 5.1 test case
 --source include/rpl_end.inc

@@ -5,9 +5,9 @@
 # when setting lower_case_table_name > 0
 #
 
+-- source include/not_gtid_enabled.inc
 -- source include/master-slave.inc
 -- source include/have_binlog_format_statement.inc
 
 -- source extra/rpl_tests/rpl_filters.test
-
 --source include/rpl_end.inc
