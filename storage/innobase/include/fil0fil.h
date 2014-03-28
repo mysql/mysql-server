@@ -1086,7 +1086,7 @@ fil_names_dirty(
 	fil_space_t*	space)
 	__attribute__((warn_unused_result));
 
-/** On a log checkpoint, reset fil_names_write() flags
+/** On a log checkpoint, reset fil_names_dirty() flags
 and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
 @param[in]	lsn		checkpoint LSN
 @param[in]	do_write	whether to always write MLOG_CHECKPOINT
