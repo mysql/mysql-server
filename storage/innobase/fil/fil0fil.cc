@@ -4047,11 +4047,58 @@ fil_space_read_name_and_filepath(
 	return(success);
 }
 
+/** Convert a file name to a tablespace name.
+@param[in]	filename	directory/databasename/tablename.ibd
+@param[in]	filename_len	length of the file name, in bytes
+@return database/tablename string, to be freed with ut_free() */
+static
+char*
+fil_path_to_space_name(
+	const char*	filename,
+	ulint		filename_len)
+{
+	/* Strip the file name prefix and suffix, leaving
+	only databasename/tablename. */
+	const char*	end		= filename + filename_len;
+#ifdef HAVE_MEMRCHR
+	const char*	tablename	= 1 + static_cast<const char*>(
+		memrchr(filename, OS_PATH_SEPARATOR,
+			filename_len));
+	const char*	dbname		= 1 + static_cast<const char*>(
+		memrchr(filename, OS_PATH_SEPARATOR,
+			tablename - filename - 1));
+#else /* HAVE_MEMRCHR */
+	const char*	tablename	= filename;
+	const char*	dbname		= NULL;
+
+	while (const char* t = static_cast<const char*>(
+		       memchr(tablename, OS_PATH_SEPARATOR,
+			      end - tablename))) {
+		dbname = tablename;
+		tablename = t + 1;
+	}
+#endif /* HAVE_MEMRCHR */
+
+	ut_ad(dbname != NULL);
+	ut_ad(tablename > dbname);
+	ut_ad(tablename < end);
+	ut_ad(end - tablename > 4);
+	ut_ad(!memcmp(end - 4, DOT_IBD, 4));
+
+	char*	name = mem_strdupl(dbname, end - dbname - 4);
+
+	ut_ad(name[tablename - filename - 1] == OS_PATH_SEPARATOR);
+#if OS_PATH_SEPARATOR != '/'
+	/* space->name uses '/', not OS_PATH_SEPARATOR. */
+	name[tablename - filename - 1] = '/';
+#endif
+
+	return(name);
+}
 
 /** Open a tablespace file and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
-@param[in,out]	filename	databasename/tablename.ibd;
-will be normalized to use '/' between databasename and tablename
+@param[in]	filename	path/to/databasename/tablename.ibd
 @param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
@@ -4059,7 +4106,7 @@ will be normalized to use '/' between databasename and tablename
 enum fil_load_status
 fil_load_single_table_tablespace(
 	ulint		space_id,
-	char*		filename,
+	const char*	filename,
 	ulint		filename_len,
 	fil_space_t*&	space)
 {
@@ -4069,32 +4116,7 @@ fil_load_single_table_tablespace(
 
 	space = NULL;
 
-	/* Strip the file name prefix and suffix, leaving
-	only databasename/tablename. */
-	const char*	tablename	= filename;
-	char*		dbname		= filename;
-	const char*	end		= filename + filename_len;
-
-	while (const char* t = static_cast<const char*>(
-		       memchr(tablename, OS_PATH_SEPARATOR,
-			      end - tablename))) {
-		tablename = t + 1;
-	}
-
-	while (char* d = static_cast<char*>(
-		       memchr(dbname, OS_PATH_SEPARATOR,
-			      tablename - dbname))) {
-		if (++d == tablename) {
-#ifdef _WIN32
-			/* space->name uses '/', not OS_PATH_SEPARATOR. */
-			d[-1] = '/';
-#endif /* _WIN32 */
-			break;
-		}
-		dbname = d;
-	}
-
-	name = mem_strdupl(dbname, end - dbname - 4);
+	name = fil_path_to_space_name(filename, filename_len);
 	df_default.init(name, 0, 0);
 	df_remote.init(name, 0, 0);
 
