@@ -187,7 +187,7 @@ struct fil_space_t {
 				page because it actually was for the
 				previous incarnation of the space */
 	lsn_t		max_lsn;
-				/*!< LSN of the most recent fil_names_write().
+				/*!< LSN of the most recent fil_names_dirty().
 				Reset to 0 by fil_names_clear().
 				If and only if this is not 0, the
 				tablespace will be in named_spaces.
@@ -6331,7 +6331,7 @@ fil_names_dirty(
 	return(was_clean);
 }
 
-/** On a log checkpoint, reset fil_names_write() flags
+/** On a log checkpoint, reset fil_names_dirty() flags
 and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
 @param[ịn]	lsn		checkpoint LSN
 @param[in]	do_write	whether to always write MLOG_CHECKPOINT
