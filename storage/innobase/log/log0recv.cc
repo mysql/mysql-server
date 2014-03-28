@@ -266,8 +266,7 @@ fil_name_parse(
 					" but it was found at '%s'."
 					" This looks like a duplicate."
 					" To proceed, delete the file.",
-					space_id, f.name.c_str(),
-					fname.name.c_str());
+					space_id, f.name.c_str(), name);
 				exit(1);
 			} else if (f.space == NULL
 				   || f.space == space) {
@@ -277,10 +276,9 @@ fil_name_parse(
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Tablespace " ULINTPF
 					" has been found in two places:"
-					" %s and %s."
+					" '%s' and '%s'."
 					" You must delete one of them.",
-					space_id, f.name.c_str(),
-					fname.name.c_str());
+					space_id, f.name.c_str(), name);
 				exit(1);
 			}
 			break;
