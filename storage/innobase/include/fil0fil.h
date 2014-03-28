@@ -677,8 +677,7 @@ enum fil_load_status {
 
 /** Open a tablespace file and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
-@param[in,out]	filename	databasename/tablename.ibd;
-will be normalized to use '/' between databasename and tablename
+@param[in]	filename	path/to/databasename/tablename.ibd
 @param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
@@ -686,7 +685,7 @@ will be normalized to use '/' between databasename and tablename
 enum fil_load_status
 fil_load_single_table_tablespace(
 	ulint		space_id,
-	char*		filename,
+	const char*	filename,
 	ulint		filename_len,
 	fil_space_t*&	space)
 	__attribute__((warn_unused_result));
