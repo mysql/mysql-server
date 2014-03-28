@@ -273,7 +273,7 @@ enum PT_join_table_type
   JTT_RIGHT             = 0x10,
 
   JTT_NATURAL_LEFT      = JTT_NATURAL | JTT_LEFT,
-  JTT_NATURAL_RIGHT     = JTT_NATURAL | JTT_RIGHT,
+  JTT_NATURAL_RIGHT     = JTT_NATURAL | JTT_RIGHT
 };
 
 
