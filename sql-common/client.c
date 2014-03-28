@@ -102,12 +102,11 @@ my_bool	net_flush(NET *net);
 
 #define STATE_DATA(M) (MYSQL_EXTENSION_PTR(M)->state_change)
 
-#define ADD_INFO(M, element)                                                    \
-{                                                                      \
-  M= &STATE_DATA(mysql);                                               \
-  M->info_list[SESSION_TRACK_SYSTEM_VARIABLES].head_node=              \
-    list_add(M->info_list[SESSION_TRACK_SYSTEM_VARIABLES].head_node,   \
-	     element);                                                 \
+#define ADD_INFO(M, element, type)                                             \
+{                                                                              \
+  M= &STATE_DATA(mysql);                                                       \
+  M->info_list[type].head_node= list_add(M->info_list[type].head_node,         \
+                                         element);                             \
 }
 
 #define native_password_plugin_name "mysql_native_password"
@@ -168,8 +167,8 @@ char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
-static void mysql_close_free_options(MYSQL *mysql);
-static void mysql_close_free(MYSQL *mysql);
+void mysql_close_free_options(MYSQL *mysql);
+void mysql_close_free(MYSQL *mysql);
 static void mysql_prune_stmt_list(MYSQL *mysql);
 
 CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
@@ -780,7 +779,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
           /*
             Check if the changed variable was charset. In that case we need to
@@ -813,7 +812,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
           if (is_charset == 1)
           {
@@ -858,7 +857,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SCHEMA);
 
 	  if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
 		                       data->length + 1, MYF(MY_WME))))
@@ -900,7 +899,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-          ADD_INFO(info, element);
+          ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
 
           break;
         default:
@@ -3738,14 +3737,14 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                       "_platform", MACHINE_TYPE);
 #ifdef _WIN32
-  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
+  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
 #else
-  snprintf(buff, buf_len, "%lu", (ulong) getpid());
+  my_snprintf(buff, buf_len, "%lu", (ulong) getpid());
 #endif
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
 
 #ifdef _WIN32
-  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
+  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
 
@@ -4505,7 +4504,7 @@ mysql_select_db(MYSQL *mysql, const char *db)
   If handle is alloced by mysql connect free it.
 *************************************************************************/
 
-static void mysql_close_free_options(MYSQL *mysql)
+void mysql_close_free_options(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close_free_options");
 
@@ -4541,6 +4540,7 @@ static void mysql_close_free_options(MYSQL *mysql)
   {
     my_free(mysql->options.extension->plugin_dir);
     my_free(mysql->options.extension->default_auth);
+    my_free(mysql->options.extension->server_public_key_path);
     my_hash_free(&mysql->options.extension->connection_attributes);
     my_free(mysql->options.extension);
   }
@@ -4549,12 +4549,21 @@ static void mysql_close_free_options(MYSQL *mysql)
 }
 
 
-static void mysql_close_free(MYSQL *mysql)
+/*
+  Free all memory allocated in a MYSQL handle but preserve
+  current options if any.
+*/
+
+void mysql_close_free(MYSQL *mysql)
 {
   my_free(mysql->host_info);
   my_free(mysql->user);
   my_free(mysql->passwd);
   my_free(mysql->db);
+
+  /* Free extension if any */
+  if (mysql->extension)
+    mysql_extension_free(mysql->extension);
 
 #if defined(EMBEDDED_LIBRARY) || MYSQL_VERSION_ID >= 50100
   my_free(mysql->info_buffer);
@@ -4565,6 +4574,7 @@ static void mysql_close_free(MYSQL *mysql)
   mysql->user= NULL;
   mysql->passwd= NULL;
   mysql->db= NULL;
+  mysql->extension= NULL;
 }
 
 
@@ -4660,9 +4670,6 @@ void STDCALL mysql_close(MYSQL *mysql)
       simple_command(mysql,COM_QUIT,(uchar*) 0,0,1);
       end_server(mysql);			/* Sets mysql->net.vio= 0 */
     }
-    if (mysql->extension)
-      mysql_extension_free(mysql->extension);
-    mysql->extension= NULL;
     mysql_close_free_options(mysql);
     mysql_close_free(mysql);
     mysql_detach_stmt_list(&mysql->stmts, "mysql_close");

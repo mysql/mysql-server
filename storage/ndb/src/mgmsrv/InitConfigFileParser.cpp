@@ -420,7 +420,7 @@ bool InitConfigFileParser::convertStringToUint64(const char* s,
 
   errno = 0;
   char* p;
-  Int64 v = strtoll(s, &p, log10base);
+  Int64 v = my_strtoll(s, &p, log10base);
   if (errno != 0)
     return false;
   
@@ -551,7 +551,7 @@ InitConfigFileParser::parseDefaultSectionHeader(const char* line) const {
   if (no != 2) return NULL;
 
   // Not correct keyword at end
-  if (!strcasecmp(token2, "DEFAULT") == 0) return NULL;
+  if (!native_strcasecmp(token2, "DEFAULT") == 0) return NULL;
 
   const char *token1_alias= m_info->getAlias(token1);
   if (token1_alias == 0)

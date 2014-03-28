@@ -1011,8 +1011,8 @@ public:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
-                          LEX_STRING *definer_user,
-                          LEX_STRING *definer_host,
+                          const LEX_CSTRING &definer_user,
+                          const LEX_CSTRING &definer_host,
                           LEX_STRING *db,
                           Security_context **backup);
 
@@ -3042,12 +3042,15 @@ public:
     return !stmt_arena->is_stmt_prepare();
   }
 
+  LEX_CSTRING *make_lex_string(LEX_CSTRING *lex_str,
+                              const char *str, size_t length,
+                              bool allocate_lex_string);
   LEX_STRING *make_lex_string(LEX_STRING *lex_str,
                               const char* str, size_t length,
                               bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
-		      const char *from, uint from_length,
+		      const char *from, size_t from_length,
 		      const CHARSET_INFO *from_cs);
 
   bool convert_string(String *s, const CHARSET_INFO *from_cs,
@@ -3728,12 +3731,14 @@ public:
   void get_definer(LEX_USER *definer);
   void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
   {
-    invoker_user= *user;
-    invoker_host= *host;
+    m_invoker_user.str= user->str;
+    m_invoker_user.length= user->length;
+    m_invoker_host.str= host->str;
+    m_invoker_host.length= host->length;
   }
-  LEX_STRING get_invoker_user() { return invoker_user; }
-  LEX_STRING get_invoker_host() { return invoker_host; }
-  bool has_invoker() { return invoker_user.length > 0; }
+  LEX_CSTRING get_invoker_user() const { return m_invoker_user; }
+  LEX_CSTRING get_invoker_host() const { return m_invoker_host; }
+  bool has_invoker() { return m_invoker_user.length > 0; }
 
   void mark_transaction_to_rollback(bool all);
 
@@ -3776,7 +3781,8 @@ private:
     TRIGGER or VIEW statements.
 
     Current user will be binlogged into Query_log_event if current_user_used
-    is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
+    is TRUE; It will be stored into m_invoker_host and m_invoker_user by SQL
+    thread.
    */
   bool m_binlog_invoker;
 
@@ -3786,8 +3792,8 @@ private:
     TRIGGER or VIEW statements or current user in account management
     statements if it is not NULL.
    */
-  LEX_STRING invoker_user;
-  LEX_STRING invoker_host;
+  LEX_CSTRING m_invoker_user;
+  LEX_CSTRING m_invoker_host;
 
 private:
   /**
@@ -3896,6 +3902,10 @@ LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
                      LEX_STRING *lex_str, const char* str, size_t length,
                      bool allocate_lex_string);
+LEX_CSTRING *
+make_lex_string_root(MEM_ROOT *mem_root,
+                     LEX_CSTRING *lex_str, const char* str, size_t length,
+                     bool allocate_lex_string);
 
 inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
                                    const char *src, size_t src_len)
@@ -3924,14 +3934,14 @@ inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
 class sql_exchange :public Sql_alloc
 {
 public:
+  Field_separators field;
+  Line_separators line;
   enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
-  char *file_name;
-  const String *field_term, *enclosed, *line_term, *line_start, *escaped;
-  bool opt_enclosed;
+  const char *file_name;
   bool dumpfile;
   ulong skip_lines;
   const CHARSET_INFO *cs;
-  sql_exchange(char *name, bool dumpfile_flag,
+  sql_exchange(const char *name, bool dumpfile_flag,
                enum_filetype filetype_arg= FILETYPE_CSV);
   bool escaped_given(void);
 };
@@ -4627,6 +4637,9 @@ public:
     else
       db= db_arg;
   }
+  inline Table_ident(LEX_STRING db_arg, LEX_STRING table_arg)
+    :db(db_arg), table(table_arg), sel(NULL)
+  {}
   inline Table_ident(LEX_STRING table_arg) 
     :table(table_arg), sel(NULL)
   {
@@ -4952,29 +4965,10 @@ public:
   virtual void abort_result_set();
 };
 
-class my_var : public Sql_alloc  {
-public:
-  LEX_STRING s;
-#ifndef DBUG_OFF
-  /*
-    Routine to which this Item_splocal belongs. Used for checking if correct
-    runtime context is used for variable handling.
-  */
-  sp_head *sp;
-#endif
-  bool local;
-  uint offset;
-  enum_field_types type;
-  my_var (LEX_STRING& j, bool i, uint o, enum_field_types t)
-    :s(j), local(i), offset(o), type(t)
-  {}
-  ~my_var() {}
-};
-
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
 public:
-  List<my_var> var_list;
+  List<PT_select_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
@@ -5106,7 +5100,7 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex->current_select()->add_item_to_list(thd, item);
+  return thd->lex->select_lex->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
@@ -5114,19 +5108,14 @@ inline bool add_value_to_list(THD *thd, Item *value)
   return thd->lex->value_list.push_back(value);
 }
 
-inline bool add_order_to_list(THD *thd, Item *item, bool asc)
+inline void add_order_to_list(THD *thd, ORDER *order)
 {
-  return thd->lex->current_select()->add_order_to_list(thd, item, asc);
+  thd->lex->select_lex->add_order_to_list(order);
 }
 
-inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
+inline void add_group_to_list(THD *thd, ORDER *order)
 {
-  return thd->lex->current_select()->add_gorder_to_list(thd, item, asc);
-}
-
-inline bool add_group_to_list(THD *thd, Item *item, bool asc)
-{
-  return thd->lex->current_select()->add_group_to_list(thd, item, asc);
+  thd->lex->select_lex->add_group_to_list(order);
 }
 
 /*************************************************************************/

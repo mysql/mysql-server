@@ -327,7 +327,6 @@ public:
   Checkable_rwlock()
   {
 #ifndef DBUG_OFF
-    my_atomic_rwlock_init(&atomic_lock);
     lock_state= 0;
 #else
     is_write_lock= false;
@@ -341,9 +340,6 @@ public:
   /// Destroy this Checkable_lock.
   ~Checkable_rwlock()
   {
-#ifndef DBUG_OFF
-    my_atomic_rwlock_destroy(&atomic_lock);
-#endif
     mysql_rwlock_destroy(&rwlock);
   }
 
@@ -353,9 +349,7 @@ public:
     mysql_rwlock_rdlock(&rwlock);
     assert_no_wrlock();
 #ifndef DBUG_OFF
-    my_atomic_rwlock_wrlock(&atomic_lock);
     my_atomic_add32(&lock_state, 1);
-    my_atomic_rwlock_wrunlock(&atomic_lock);
 #endif
   }
   /// Acquire the write lock.
@@ -364,9 +358,7 @@ public:
     mysql_rwlock_wrlock(&rwlock);
     assert_no_lock();
 #ifndef DBUG_OFF
-    my_atomic_rwlock_wrlock(&atomic_lock);
     my_atomic_store32(&lock_state, -1);
-    my_atomic_rwlock_wrunlock(&atomic_lock);
 #else
     is_write_lock= true;
 #endif
@@ -376,7 +368,6 @@ public:
   {
     assert_some_lock();
 #ifndef DBUG_OFF
-    my_atomic_rwlock_wrlock(&atomic_lock);
     int val= my_atomic_load32(&lock_state);
     if (val > 0)
       my_atomic_add32(&lock_state, -1);
@@ -384,7 +375,6 @@ public:
       my_atomic_store32(&lock_state, 0);
     else
       DBUG_ASSERT(0);
-    my_atomic_rwlock_wrunlock(&atomic_lock);
 #else
     is_write_lock= false;
 #endif
@@ -432,16 +422,10 @@ private:
     >0 - read locked by that many threads
   */
   volatile int32 lock_state;
-  /// Lock to protect my_atomic_* operations on lock_state.
-  mutable my_atomic_rwlock_t atomic_lock;
   /// Read lock_state atomically and return the value.
   inline int32 get_state() const
   {
-    int32 ret;
-    my_atomic_rwlock_rdlock(&atomic_lock);
-    ret= my_atomic_load32(const_cast<volatile int32*>(&lock_state));
-    my_atomic_rwlock_rdunlock(&atomic_lock);
-    return ret;
+    return my_atomic_load32(const_cast<volatile int32*>(&lock_state));
   }
 #else
   bool is_write_lock;

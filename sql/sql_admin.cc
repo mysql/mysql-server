@@ -68,7 +68,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!(table= table_list->table))
   {
     const char *key;
-    uint key_length;
+    size_t key_length;
     /*
       If the table didn't exist, we have a shared metadata lock
       on it that is left from mysql_admin_table()'s attempt to 

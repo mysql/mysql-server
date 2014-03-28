@@ -36,6 +36,7 @@
 #include <mysql/plugin_validate_password.h>
 #include <mysql/plugin_gcs_rpl.h>
 #include "my_default.h"
+#include "debug_sync.h"
 
 #include <algorithm>
 
@@ -157,6 +158,12 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 /* support for Services */
 
 #include "sql_plugin_services.h"
+
+/*
+  A mutex LOCK_plugin_delete must be acquired before calling plugin_del
+  function. 
+*/
+mysql_mutex_t LOCK_plugin_delete;
 
 /*
   A mutex LOCK_plugin must be acquired before accessing the
@@ -477,8 +484,9 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     This is done to ensure that only approved libraries from the
     plugin directory are used (to make this even remotely secure).
   */
+  LEX_CSTRING dl_cstr= {dl->str, dl->length};
   if (check_valid_path(dl->str, dl->length) ||
-      check_string_char_length((LEX_STRING *) dl, "", NAME_CHAR_LEN,
+      check_string_char_length(dl_cstr, "", NAME_CHAR_LEN,
                                system_charset_info, 1) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN)
   {
@@ -691,7 +699,8 @@ static void plugin_dl_del(const LEX_STRING *dl)
 }
 
 
-static struct st_plugin_int *plugin_find_internal(const LEX_STRING *name, int type)
+static struct st_plugin_int *plugin_find_internal(const LEX_CSTRING &name,
+                                                  int type)
 {
   uint i;
   DBUG_ENTER("plugin_find_internal");
@@ -705,20 +714,22 @@ static struct st_plugin_int *plugin_find_internal(const LEX_STRING *name, int ty
     for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
     {
       struct st_plugin_int *plugin= (st_plugin_int *)
-        my_hash_search(&plugin_hash[i], (const uchar *)name->str, name->length);
+        my_hash_search(&plugin_hash[i],
+                       reinterpret_cast<const uchar*>(name.str), name.length);
       if (plugin)
         DBUG_RETURN(plugin);
     }
   }
   else
     DBUG_RETURN((st_plugin_int *)
-        my_hash_search(&plugin_hash[type], (const uchar *)name->str,
-                       name->length));
+        my_hash_search(&plugin_hash[type],
+                       reinterpret_cast<const uchar*>(name.str),
+                       name.length));
   DBUG_RETURN(0);
 }
 
 
-static SHOW_COMP_OPTION plugin_status(const LEX_STRING *name, int type)
+static SHOW_COMP_OPTION plugin_status(const LEX_CSTRING &name, int type)
 {
   SHOW_COMP_OPTION rc= SHOW_OPTION_NO;
   struct st_plugin_int *plugin;
@@ -735,7 +746,7 @@ static SHOW_COMP_OPTION plugin_status(const LEX_STRING *name, int type)
 }
 
 
-bool plugin_is_ready(const LEX_STRING *name, int type)
+bool plugin_is_ready(const LEX_CSTRING &name, int type)
 {
   bool rc= FALSE;
   if (plugin_status(name, type) == SHOW_OPTION_YES)
@@ -746,8 +757,8 @@ bool plugin_is_ready(const LEX_STRING *name, int type)
 
 SHOW_COMP_OPTION plugin_status(const char *name, size_t len, int type)
 {
-  LEX_STRING plugin_name= { (char *) name, len };
-  return plugin_status(&plugin_name, type);
+  LEX_CSTRING plugin_name= { name, len };
+  return plugin_status(plugin_name, type);
 }
 
 
@@ -802,7 +813,7 @@ plugin_ref plugin_lock(THD *thd, plugin_ref *ptr)
 }
 
 
-plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name, int type)
+plugin_ref plugin_lock_by_name(THD *thd, const LEX_CSTRING &name, int type)
 {
   LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc= NULL;
@@ -851,7 +862,8 @@ static bool plugin_add(MEM_ROOT *tmp_root,
   struct st_plugin_int tmp;
   struct st_mysql_plugin *plugin;
   DBUG_ENTER("plugin_add");
-  if (plugin_find_internal(name, MYSQL_ANY_PLUGIN))
+  LEX_CSTRING name_cstr= {name->str, name->length};
+  if (plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN))
   {
     report_error(report, ER_UDF_EXISTS, name->str);
     DBUG_RETURN(TRUE);
@@ -965,6 +977,7 @@ static void plugin_del(struct st_plugin_int *plugin)
 {
   DBUG_ENTER("plugin_del(plugin)");
   mysql_mutex_assert_owner(&LOCK_plugin);
+  mysql_mutex_assert_owner(&LOCK_plugin_delete);
   /* Free allocated strings before deleting the plugin. */
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
   mysql_del_sys_var_chain(plugin->system_vars);
@@ -1016,10 +1029,13 @@ static void reap_plugins(void)
     plugin_deinitialize(plugin, true);
   }
 
+  mysql_mutex_lock(&LOCK_plugin_delete);
   mysql_mutex_lock(&LOCK_plugin);
 
   while ((plugin= *(--reap)))
     plugin_del(plugin);
+
+  mysql_mutex_unlock(&LOCK_plugin_delete);
 
   my_afree(reap);
 }
@@ -1221,10 +1237,12 @@ static inline void convert_underscore_to_dash(char *str, int len)
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_plugin;
+static PSI_mutex_key key_LOCK_plugin_delete;
 
 static PSI_mutex_info all_plugin_mutexes[]=
 {
-  { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_GLOBAL}
+  { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_GLOBAL},
+  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_GLOBAL}
 };
 
 
@@ -1291,6 +1309,7 @@ int plugin_init(int *argc, char **argv, int flags)
       goto err;
 
   mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_plugin_delete, &LOCK_plugin_delete, MY_MUTEX_INIT_FAST);
 
   if (my_init_dynamic_array(&plugin_dl_array,
                             sizeof(struct st_plugin_dl *),16,16) ||
@@ -1444,8 +1463,10 @@ int plugin_init(int *argc, char **argv, int flags)
         plugin_ptr->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
       reaped_mandatory_plugin= TRUE;
     plugin_deinitialize(plugin_ptr, true);
+    mysql_mutex_lock(&LOCK_plugin_delete);
     mysql_mutex_lock(&LOCK_plugin);
     plugin_del(plugin_ptr);
+    mysql_mutex_unlock(&LOCK_plugin_delete);
   }
 
   mysql_mutex_unlock(&LOCK_plugin);
@@ -1764,10 +1785,11 @@ void plugin_shutdown(void)
       }
 
     /*
-      It's perfectly safe not to lock LOCK_plugin, as there're no
-      concurrent threads anymore. But some functions called from here
-      use mysql_mutex_assert_owner(), so we lock the mutex to satisfy it
+      It's perfectly safe not to lock LOCK_plugin, LOCK_plugin_delete, as
+      there're no concurrent threads anymore. But some functions called from
+      here use mysql_mutex_assert_owner(), so we lock the mutex to satisfy it
     */
+    mysql_mutex_lock(&LOCK_plugin_delete);
     mysql_mutex_lock(&LOCK_plugin);
 
     /*
@@ -1790,9 +1812,11 @@ void plugin_shutdown(void)
     cleanup_variables(NULL, &global_system_variables);
     cleanup_variables(NULL, &max_system_variables);
     mysql_mutex_unlock(&LOCK_plugin);
+    mysql_mutex_unlock(&LOCK_plugin_delete);
 
     initialized= 0;
     mysql_mutex_destroy(&LOCK_plugin);
+    mysql_mutex_destroy(&LOCK_plugin_delete);
 
     my_afree(plugins);
   }
@@ -1829,6 +1853,8 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   int error, argc=orig_argc;
   char **argv=orig_argv;
   struct st_plugin_int *tmp;
+  LEX_CSTRING name_cstr= {name->str, name->length};
+
   DBUG_ENTER("mysql_install_plugin");
 
   if (opt_noacl)
@@ -1868,6 +1894,7 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
 
   mysql_mutex_lock(&LOCK_plugin);
+  DEBUG_SYNC(thd, "acquired_LOCK_plugin");
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
   if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL))
@@ -1881,7 +1908,7 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
     free_defaults(argv);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
-  if (error || !(tmp= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
+  if (error || !(tmp= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)))
     goto err;
 
   if (tmp->state == PLUGIN_IS_DISABLED)
@@ -1936,6 +1963,8 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   TABLE *table;
   TABLE_LIST tables;
   struct st_plugin_int *plugin;
+  LEX_CSTRING name_cstr={name->str, name->length};
+
   DBUG_ENTER("mysql_uninstall_plugin");
 
   if (opt_noacl)
@@ -1982,7 +2011,7 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
 
   mysql_mutex_lock(&LOCK_plugin);
-  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)) ||
+  if (!(plugin= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)) ||
       plugin->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_DYING))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
@@ -3925,7 +3954,7 @@ void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root)
   @param type     type of the plugin (0-MYSQL_MAX_PLUGIN_TYPE_NUM)
   @return plugin, or NULL if not found
 */
-struct st_plugin_int *plugin_find_by_type(LEX_STRING *plugin, int type)
+struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type)
 {
   st_plugin_int *ret;
   DBUG_ENTER("plugin_find_by_type");

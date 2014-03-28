@@ -93,41 +93,34 @@ CHECK TABLE t1;
 INSERT INTO t3 VALUES
        (1,REPEAT('d',7000),REPEAT('e',100)),
        (2,REPEAT('g',7000),REPEAT('h',100));
-SET DEBUG_SYNC='before_row_upd_extern SIGNAL have_latch WAIT_FOR go';
+SET DEBUG_SYNC='blob_write_middle SIGNAL go_sel WAIT_FOR go_upd';
 # This should move column b off-page.
 --send
 UPDATE t3 SET c=REPEAT('f',3000) WHERE a=1;
 
+--echo # Connection con1:
 connect (con1,localhost,root,,);
-SET DEBUG_SYNC='now WAIT_FOR have_latch';
+SET DEBUG_SYNC='now WAIT_FOR go_sel';
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT @@tx_isolation;
+SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
+set debug_sync='now SIGNAL go_upd';
 
-# this one should block
--- send
+--echo # Connection default:
+connection default;
+--echo # reap UPDATE t3 SET c=REPEAT('f',3000) WHERE a=1;
+reap;
+
+--echo # Connection con1:
+connection con1;
 SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
 
-connect (con2,localhost,root,,);
-
-# Check that the above SELECT is blocked
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state in ('Sending data', 'Opening tables') and
-        info = 'SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3';
---source include/wait_condition.inc
-
-SET DEBUG_SYNC='now SIGNAL go';
-
-connection con1;
-reap;
 disconnect con1;
 
 connection default;
-reap;
-
 CHECK TABLE t1,t2,t3;
 
-connection con2;
+connect (con2,localhost,root,,);
 BEGIN;
 INSERT INTO t2 VALUES (347);
 connection default;

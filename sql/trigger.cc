@@ -97,8 +97,8 @@ public:
 
 static bool reconstruct_definer_clause(MEM_ROOT *mem_root,
                                        const LEX_USER *lex_definer,
-                                       LEX_STRING *definer_user,
-                                       LEX_STRING *definer_host,
+                                       LEX_CSTRING *definer_user,
+                                       LEX_CSTRING *definer_host,
                                        LEX_STRING *definer)
 {
   if (lex_definer)
@@ -120,8 +120,8 @@ static bool reconstruct_definer_clause(MEM_ROOT *mem_root,
 
   /* non-SUID trigger. */
 
-  *definer_user= NULL_STR;
-  *definer_host= NULL_STR;
+  *definer_user= NULL_CSTR;
+  *definer_host= NULL_CSTR;
   *definer= EMPTY_STR;
 
   return false;
@@ -187,14 +187,14 @@ static bool reconstruct_create_trigger_statement(THD *thd,
     new MySQL versions).
   */
 
-  LEX_STRING definer_user;
-  LEX_STRING definer_host;
+  LEX_CSTRING definer_user;
+  LEX_CSTRING definer_host;
 
   if (reconstruct_definer_clause(mem_root, lex->definer,
                                  &definer_user, &definer_host, definer))
     return true;
 
-  append_definer(thd, dd_query, &definer_user, &definer_host);
+  append_definer(thd, dd_query, definer_user, definer_host);
 
   if (binlog_query->append(*dd_query))
     return true; //OOM

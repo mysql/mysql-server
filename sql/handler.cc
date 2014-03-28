@@ -410,7 +410,9 @@ redo:
     return is_temp_table ? 
       ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
-  if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
+  LEX_CSTRING cstring_name= {name->str, name->length};
+  if ((plugin= my_plugin_lock_by_name(thd, cstring_name,
+                                      MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
     handlerton *hton= plugin_data(plugin, handlerton *);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
@@ -3513,6 +3515,9 @@ bool handler::is_fatal_error(int error)
     case HA_ERR_LOCK_WAIT_TIMEOUT:
     case HA_ERR_LOCK_DEADLOCK:
       DBUG_RETURN(false);
+
+    case HA_ERR_NULL_IN_SPATIAL:
+      DBUG_RETURN(false);
   }
 
   // Default is that an error is fatal
@@ -5473,7 +5478,7 @@ static my_bool binlog_log_query_handlerton(THD *thd,
 
 void ha_binlog_log_query(THD *thd, handlerton *hton,
                          enum_binlog_command binlog_command,
-                         const char *query, uint query_length,
+                         const char *query, size_t query_length,
                          const char *db, const char *table_name)
 {
   struct binlog_log_query_st b;
@@ -6984,9 +6989,9 @@ TYPELIB* ha_known_exts()
 }
 
 
-static bool stat_print(THD *thd, const char *type, uint type_len,
-                       const char *file, uint file_len,
-                       const char *status, uint status_len)
+static bool stat_print(THD *thd, const char *type, size_t type_len,
+                       const char *file, size_t file_len,
+                       const char *status, size_t status_len)
 {
   Protocol *protocol= thd->protocol;
   protocol->prepare_for_resend();

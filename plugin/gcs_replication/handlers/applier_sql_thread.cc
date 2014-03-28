@@ -75,7 +75,7 @@ int Applier_sql_thread::terminate_sql_thread()
     init_thread_mask(&thread_mask,mi,0 /* not inverse*/);
     lock_slave_threads(mi);
 
-    if ((error= terminate_slave_threads(mi, thread_mask, false))){
+    if ((error= terminate_slave_threads(mi, thread_mask, LONG_TIMEOUT, false))){
       log_message(MY_ERROR_LEVEL, "Error when stopping the applier SQL thread");
     }
 

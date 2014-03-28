@@ -18,7 +18,7 @@
 
 #include "my_global.h"   // ulonglong
 #include "my_pthread.h"  // mysql_mutex_t
-#include "my_atomic.h"   // my_atomic_rwlock_t
+#include "my_atomic.h"   // my_atomic_add32
 
 #include <set>
 #include <functional>
@@ -139,12 +139,18 @@ public:
   /**
     Increments thread running statistic variable.
   */
-  void inc_thread_running();
+  void inc_thread_running()
+  {
+    my_atomic_add32(&num_thread_running, 1);
+  }
 
   /**
     Decrements thread running statistic variable.
   */
-  void dec_thread_running();
+  void dec_thread_running()
+  {
+    my_atomic_add32(&num_thread_running, -1);
+  }
 
   /**
     Retrieves thread created statistic variable.
@@ -163,7 +169,10 @@ public:
     Returns the current thread id counter value and increments it.
     @return my_thread_id Returns the thread id counter value
   */
-  my_thread_id get_inc_thread_id();
+  my_thread_id get_inc_thread_id()
+  {
+    return static_cast<my_thread_id>(my_atomic_add64(&thread_id, 1));
+  }
 
   /**
     Retrieves thread id counter value.
@@ -228,11 +237,6 @@ private:
   mysql_mutex_t LOCK_thd_remove;
   // Mutex used to guard thread_created statistics variable.
   mysql_mutex_t LOCK_thread_created;
-
-  // Guards thread_running statistics.
-  my_atomic_rwlock_t thread_running_lock;
-  // Guards thread_id
-  my_atomic_rwlock_t thread_id_lock;
 
   // Count of active threads which are running queries in the system.
   int num_thread_running;          // Protected by thread_running_lock.

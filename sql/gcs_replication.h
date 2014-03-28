@@ -38,7 +38,7 @@ public:
   uint get_gcs_nodes_number();
 
 private:
-  LEX_STRING plugin_name;
+  LEX_CSTRING plugin_name;
   plugin_ref plugin;
   st_mysql_gcs_rpl* plugin_handle;
   int gcs_init();

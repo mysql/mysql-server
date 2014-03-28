@@ -30,7 +30,7 @@ seq_num_map::iterator seq_num_iterator;
 Gcs_replication_handler::Gcs_replication_handler() :
   plugin(NULL), plugin_handle(NULL)
 {
-  plugin_name.str= (char*) "gcs_replication_plugin";
+  plugin_name.str= "gcs_replication_plugin";
   plugin_name.length= 22;
 }
 
@@ -93,7 +93,7 @@ bool Gcs_replication_handler::is_gcs_rpl_running()
 
 int Gcs_replication_handler::gcs_init()
 {
-  plugin= my_plugin_lock_by_name(0, &plugin_name, MYSQL_GCS_RPL_PLUGIN);
+  plugin= my_plugin_lock_by_name(0, plugin_name, MYSQL_GCS_RPL_PLUGIN);
   if (plugin)
   {
     plugin_handle= (st_mysql_gcs_rpl *) plugin_decl(plugin)->info;

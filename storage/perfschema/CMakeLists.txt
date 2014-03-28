@@ -16,6 +16,7 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
+                    ${CMAKE_BINARY_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include
                     ${SSL_INCLUDE_DIRS})
@@ -141,7 +142,6 @@ cursor_by_user.cc
 ha_perfschema.cc
 pfs.cc
 pfs_account.cc
-pfs_atomic.cc
 pfs_autosize.cc
 pfs_check.cc
 pfs_column_values.cc

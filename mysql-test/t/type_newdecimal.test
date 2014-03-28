@@ -1589,7 +1589,7 @@ DROP TABLE t1;
 --echo #
 
 # this threw memory warnings on Windows. Also make sure future changes
-# don't change these results, as per usual.
+# dont change these results, as per usual.
 SET SQL_MODE='';
 CREATE TABLE t1(f1 DECIMAL(44,24)) ENGINE=MYISAM;
 INSERT INTO t1 SET f1 = -64878E-85;
@@ -1632,3 +1632,14 @@ DROP TABLE t1;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+--echo #
+--echo # Bug#18335446 DECIMAL_ROUND: ASSERTION FAILED: FROM->LEN == TO->LEN
+--echo #
+CREATE TABLE t1 (b INT, KEY(b));
+
+INSERT INTO t1 VALUES (1),(2);
+UPDATE  IGNORE t1 SET b = 1
+WHERE b NOT IN (NULL, -3333333333333333333333);
+
+DROP TABLE t1;
