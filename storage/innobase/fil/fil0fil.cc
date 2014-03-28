@@ -4107,7 +4107,7 @@ fil_load_single_table_tablespace(
 	if (space != NULL) {
 		if (space->id != space_id) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Ignoring data file %s with space ID "
+				"Ignoring data file '%s' with space ID "
 				ULINTPF ","
 				" which used to be space ID " ULINTPF ".",
 				filename, space->id, space_id);
