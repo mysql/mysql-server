@@ -17,6 +17,10 @@
 
 
 #include "semisync_master.h"
+#if defined(ENABLED_DEBUG_SYNC)
+#include "debug_sync.h"
+#include "sql_class.h"
+#endif
 
 #define TIME_THOUSAND 1000
 #define TIME_MILLION  1000000
@@ -623,7 +627,11 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     PSI_stage_info old_stage;
 
     set_timespec(start_ts, 0);
-
+#if defined(ENABLED_DEBUG_SYNC)
+    /* debug sync may not be initialized for a master */
+    if (current_thd->debug_sync_control)
+      DEBUG_SYNC(current_thd, "rpl_semisync_master_commit_trx_before_lock");
+#endif
     /* Acquire the mutex. */
     lock();
 
@@ -762,7 +770,6 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
     }
 
-  l_end:
     /*
       At this point, the binlog file and position of this transaction
       must have been removed from ActiveTranx.
@@ -770,7 +777,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     assert(!getMasterEnabled() ||
            !active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
                                              trx_wait_binlog_pos));
-    
+  l_end:
     /* Update the status counter. */
     if (is_on())
       rpl_semi_sync_master_yes_transactions++;

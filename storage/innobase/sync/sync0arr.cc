@@ -1010,7 +1010,7 @@ sync_array_print_long_waits(
 
 		os_thread_sleep(30000000);
 
-		srv_print_innodb_monitor = old_val;
+		srv_print_innodb_monitor = static_cast<my_bool>(old_val);
 		fprintf(stderr,
 			"InnoDB: ###### Diagnostic info printed"
 			" to the standard error stream\n");

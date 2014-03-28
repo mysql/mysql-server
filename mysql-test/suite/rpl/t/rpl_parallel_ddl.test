@@ -155,7 +155,7 @@ connection slave;
 source include/start_slave.inc;
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # Consistency check
@@ -236,7 +236,7 @@ eval rename table $tables_2_rename d$n.t$m to d$n1.t$m;
 # Hunting after bug#13033076.
 # Let's see if rename leaves any garbage after its run
 #
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 while ($n)
 {
@@ -320,7 +320,7 @@ while ($n)
   --disconnect con4
 
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 

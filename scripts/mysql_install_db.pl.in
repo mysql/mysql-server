@@ -34,13 +34,37 @@
 #
 ##############################################################################
 
-use Fcntl;
-use File::Basename;
-use File::Copy;
-use Getopt::Long;
-use Sys::Hostname;
-use Data::Dumper;
 use strict;
+use warnings;
+
+#############################################################################
+#
+# Check if all needed modules are available, exit if something is missing.
+#############################################################################
+#
+
+BEGIN {
+  my @req_mods = ('Fcntl', 'File::Basename', 'File::Copy', 'Getopt::Long',
+                  'Sys::Hostname', 'Data::Dumper');
+  my @missing_mods;
+  my $req;
+  foreach $req (@req_mods) {
+    eval 'require ' . $req;
+    if ($@) {
+      push(@missing_mods, $req);
+    } else {
+      $req->import();
+    }
+  }
+  # this avoids the confusing "BEGIN failed--compilation aborted" message
+  local $SIG{__DIE__} = sub {warn @_; exit 1};
+
+  if (@missing_mods) {
+    my $msg = "FATAL ERROR: please install the following Perl modules " .
+              "before executing $0:\n" . join("\n",@missing_mods)."\n";
+    die $msg;
+  }
+}
 
 Getopt::Long::Configure("pass_through");
 
@@ -356,13 +380,19 @@ sub tell_root_password {
 ##############################################################################
 
 sub generate_random_password {
-  # On (at least) Linux and Solaris, a "random" device is available, use it:
-  # cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1
-  # Without LC_ALL, "tr" may not know the "alnum" character class -
-  # and there are user profiles which do not have this set.
-  #
-  my $password = `cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
-  chomp ($password);
+  # On Linux, Solaris, Max OS X and FreeBSD we have a random device available.
+  my $randfile = "/dev/urandom";
+  open(FD, $randfile) || return "";
+  my $password = "";
+  my $pass_len = 16;
+  my $c;
+  while (length($password) < $pass_len) {
+    $c = getc(FD);
+    if ($c =~ /\w/) {
+      $password .= $c;
+    }
+  }
+  close(FD); 
   return $password;
 }
 
@@ -428,17 +458,19 @@ my $copy_cfg_file;
 # This will be the default config file
 # ----------------------------------------------------------------------
 
-$config_file= "$basedir/my.cnf";
+my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
 
-my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
-				  "share","share/mysql","support-files");
--e $cfg_template or cannot_find_file("my-default.cnf");
+$config_file= "$basedir/my.$cnfext";
+
+my $cfg_template= find_in_basedir($opt,"file","my-default.$cnfext",
+				  ".", "share","share/mysql","support-files");
+-e $cfg_template or cannot_find_file("my-default.$cnfext");
 
 $copy_cfg_file= $config_file;
 my $failed_write_cfg= 0;
 if (-e $copy_cfg_file)
 {
-  $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
+  $copy_cfg_file =~ s/my.$cnfext/my-new.$cnfext/;
   # Too early to print warning here, the user may not notice
 }
 open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
@@ -871,7 +903,7 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
 	      "The new default config file was created as $copy_cfg_file,",
 	      "please compare it with your file and take the changes you need.");
     }
-    foreach my $cfg ( "/etc/my.cnf", "/etc/mysql/my.cnf" )
+    foreach my $cfg ( "/etc/my.$cnfext", "/etc/mysql/my.$cnfext" )
     {
       check_sys_cfg_file ($opt, $cfg);
     }

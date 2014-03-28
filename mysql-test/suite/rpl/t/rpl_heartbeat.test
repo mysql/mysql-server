@@ -124,7 +124,7 @@ connection master;
 create table t1 (f1 int);
 
 #connection slave;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 let $slave_param= Relay_Log_File;
 let $slave_param_value= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
@@ -181,7 +181,7 @@ connection master;
 drop table t1;
 
 #connection slave;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 set @@global.slave_net_timeout= @restore_slave_net_timeout;
 
 --source include/rpl_end.inc

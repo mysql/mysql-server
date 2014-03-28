@@ -30,6 +30,7 @@ SET del_count = del_count - 2;
 END WHILE;
 END|
 CALL test.proc_norm();
+include/sync_slave_sql_with_master.inc
 DROP PROCEDURE test.proc_norm;
 DROP TABLE test.regular_tbl;
 include/rpl_end.inc

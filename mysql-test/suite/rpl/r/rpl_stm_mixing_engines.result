@@ -12530,12 +12530,15 @@ CREATE TABLE `t1` (
 `c4` int(10) unsigned NOT NULL, 
 `c5` int(10) unsigned DEFAULT NULL, 
 PRIMARY KEY (`c1`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+include/sync_slave_sql_with_master.inc
 ALTER TABLE `t1` Engine=InnoDB;
 SET AUTOCOMMIT=0;
 INSERT INTO t1 (c1,c2,c3,c4,c5) VALUES (1, 1, 'X', 1, NULL);
 COMMIT;
 ROLLBACK;
 SET AUTOCOMMIT=1;
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE `t1`;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

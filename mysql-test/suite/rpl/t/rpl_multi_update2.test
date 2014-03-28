@@ -4,6 +4,7 @@
 # Added comments section and to skip when ndb is      #
 # Default engine.                                     #
 #######################################################
+--source include/not_gtid_enabled.inc
 --source include/not_ndb_default.inc
 --source include/master-slave.inc
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT');

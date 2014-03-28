@@ -25,7 +25,7 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 send INSERT INTO t2 SELECT * FROM t1;

@@ -270,7 +270,7 @@ srv_conc_enter_innodb_with_atomics(
 		    && sleep_in_us > srv_adaptive_max_sleep_delay) {
 
 			sleep_in_us = srv_adaptive_max_sleep_delay;
-			srv_thread_sleep_delay = sleep_in_us;
+			srv_thread_sleep_delay = static_cast<ulong>(sleep_in_us);
 		}
 
 		os_thread_sleep(sleep_in_us);

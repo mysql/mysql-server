@@ -72,5 +72,6 @@ event_id	visit_id	timestamp	src	data	visits_events_id
 20000	21231038	2007-09-18 03:59:02		Downloads/MySQL-4.1/mysql-4.1.12a-win32.zip	33712207
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 DROP DATABASE track;
+include/sync_slave_sql_with_master.inc
 End of 5.1 tests
 include/rpl_end.inc
