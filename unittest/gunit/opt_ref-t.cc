@@ -22,6 +22,7 @@
 #include "fake_table.h"
 #include "mock_field_long.h"
 #include "sql_optimizer.cc"
+#include "parse_tree_helpers.h"
 
 
 // Unit tests of the ref optimizer.
