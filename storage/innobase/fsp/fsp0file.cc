@@ -135,7 +135,9 @@ Datafile::open_read_only(bool strict)
 	if (success) {
 		m_exists = true;
 		return(DB_SUCCESS);
-	} else if (strict) {
+	}
+
+	if (strict) {
 		m_last_os_error = os_file_get_last_error(true);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
