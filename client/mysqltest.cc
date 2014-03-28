@@ -490,7 +490,7 @@ const char *command_names[]=
   "remove_files_wildcard",
   "send_eval",
   "output",
-  "resetconnection",
+  "reset_connection",
 
   0
 };
