@@ -2134,6 +2134,9 @@ recv_parse_log_rec(
 	case MLOG_DUMMY_RECORD:
 	case MLOG_CHECKPOINT:
 		*type = static_cast<mlog_id_t>(*ptr);
+#if SIZE_OF_MLOG_CHECKPOINT != 1
+# error
+#endif
 		return(1);
 	case MLOG_MULTI_REC_END | MLOG_SINGLE_REC_FLAG:
 	case MLOG_DUMMY_RECORD | MLOG_SINGLE_REC_FLAG:
