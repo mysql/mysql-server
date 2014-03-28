@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
+# Rebuild on OL5/RHEL5 needs following rpmbuild options:
+#  rpmbuild --define 'dist .el5' --define 'rhel 5' --define 'el5 1' mysql.spec
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
@@ -28,6 +30,7 @@
 %{!?runselftest:%global runselftest 0}
 
 %{!?with_systemd:                %global systemd 0}
+%{?el7:                          %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
@@ -35,11 +38,31 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
 
-%global libmysqld_so_major    0
-%global libmysqld_so_long     0.0.1
-
 # Version for compat libs
+%if 0%{?rhel} == 5
+%global compatver             5.0.96
+%global compatlib             15
+%global compatsrc             http://downloads.mysql.com/archives/mysql-5.0/mysql-%{compatver}.tar.gz
+%endif
+
+%if 0%{?rhel} == 6
 %global compatver             5.1.72
+%global compatlib             16
+%global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.1/mysql-%{compatver}.tar.gz
+%endif
+
+# multiarch
+%global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
+
+# Hack to support el5 where __isa_bits not defined. Note: supports i386 and x86_64 only, sorry.
+%if x%{?__isa_bits} == x
+%ifarch %{ix86}
+%global __isa_bits            32
+%endif
+%ifarch x86_64
+%global __isa_bits            64
+%endif
+%endif
 
 %global src_dir               %{src_base}-%{version}
 
@@ -50,9 +73,6 @@
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
 %endif
 
-# multiarch
-%global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
-
 %if 0%{?commercial}
 %global license_files_server  %{src_dir}/LICENSE.mysql
 %global license_type          Commercial
@@ -61,12 +81,11 @@
 %global license_type          GPLv2
 %endif
 
-
 Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @VERSION@
-Release:        1%{?dist}
+Release:        4%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -77,25 +96,35 @@ Source2:        mysqld.service
 Source3:        mysql.conf
 Source4:        my_config.h
 Source5:        mysql_config.sh
-Source6:        mysql-embedded-check.c
-Source7:        https://cdn.mysql.com/Downloads/MySQL-5.5/mysql-%{compatver}.tar.gz
+%if 0%{?compatlib}
+Source7:        %{compatsrc}
+%endif
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
+Patch0:         mysql-5.5-libmysqlclient-symbols.patch
 BuildRequires:  cmake
 BuildRequires:  perl
+%{?el7:BuildRequires: perl(Time::HiRes)}
+%{?el7:BuildRequires: perl(Env)}
 BuildRequires:  time
 BuildRequires:  libaio-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %if 0%{?systemd}
-BuildRequires:  systemd-units
+BuildRequires:  systemd
 %endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
+%if 0%{?rhel} > 6
+# For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
+%global __requires_exclude ^perl\\((hostnames|lib::mtr|lib::v1|mtr_|My::)
+%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
+%else
 # https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
 %global __perl_provides %{SOURCE90}
 %global __perl_requires %{SOURCE91}
+%endif
 
 %description
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -132,6 +161,7 @@ Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mysql-server < %{version}-%{release}
+Obsoletes:      mariadb-server
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 %if 0%{?systemd}
@@ -174,9 +204,12 @@ Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
 %else
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      mariadb
+%if 0%{?rhel} > 5
 Obsoletes:      mysql < %{version}-%{release}
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql%{?_isa} = %{version}-%{release}
+%endif
 
 %description    client
 This package contains the standard MySQL clients and administration
@@ -190,6 +223,7 @@ Obsoletes:      mysql-community-common < %{version}-%{release}
 %endif
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
+%{?el5:Requires: mysql%{?_isa} = %{version}-%{release}} 
 
 %description    common
 This packages contains common files needed by MySQL client library,
@@ -206,6 +240,7 @@ Requires:       mysql-enterprise-server%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mysql-test < %{version}-%{release}
+Obsoletes:      mariadb-test
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 
@@ -225,6 +260,7 @@ Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mysql-devel < %{version}-%{release}
+Obsoletes:      mariadb-devel
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 
@@ -242,6 +278,7 @@ Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mysql-libs < %{version}-%{release}
+Obsoletes:      mariadb-libs
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 
@@ -249,16 +286,27 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 This package contains the shared libraries for MySQL client
 applications.
 
+%if 0%{?compatlib}
 %package        libs-compat
-Summary:        Shared compat libraries for MySQL 5.1 database client applications
+Summary:        Shared compat libraries for MySQL %{compatver} database client applications
 Group:          Applications/Databases
 Obsoletes:      mysql-libs-compat < %{version}-%{release}
 Provides:       mysql-libs-compat = %{version}-%{release}
 Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
+%if 0%{?commercial}
+Obsoletes:      mysql-community-libs-compat < %{version}-%{release}
+Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
+%else
+Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
+%endif
+%if 0%{?rhel} > 5
+Obsoletes:      mysql-libs < %{version}-%{release}
+%endif
 
 %description    libs-compat
-This package contains the shared compat libraries for MySQL 5.1 client
+This package contains the shared compat libraries for MySQL %{compatver} client
 applications.
+%endif
 
 %package        embedded
 Summary:        MySQL embedded library
@@ -274,7 +322,7 @@ Provides:       mysql-embedded = %{version}-%{release}
 Provides:       mysql-emdedded%{?_isa} = %{version}-%{release}
 
 %description    embedded
-This package contains the mysql server as an embedded library.
+This package contains the MySQL server as an embedded library.
 
 The embedded MySQL server library makes it possible to run a full-featured
 MySQL server inside the client application. The main benefits are increased
@@ -301,12 +349,39 @@ Provides:       mysql-embedded-devel = %{version}-%{release}
 Provides:       mysql-embedded-devel%{?_isa} = %{version}-%{release}
 
 %description    embedded-devel
-This package contains files needed for developing applicatison using
+This package contains files needed for developing applications using
 the embedded version of the MySQL server.
 
+%if 0%{?rhel} == 5
+%package -n     mysql
+Summary:        Convenience package for easy upgrades of MySQL package set
+Group:          Applications/Databases
+%if 0%{?commercial}
+Requires:       mysql-enterprise-client%{?_isa} = %{version}-%{release}
+Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-enterprise-libs-compat%{?_isa} = %{version}-%{release}
+%else
+Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-libs-compat%{?_isa} = %{version}-%{release}
+%endif
+
+%description -n mysql
+This package has as sole purpose to require other MySQL packages such
+that upgrades will be more convenient.
+
+Technical background: this is done to reflect the fact that mysql
+package has been split into several subpackages.
+%endif
+
 %prep
+%if 0%{?compatlib}
 %setup -q -T -a 0 -a 7 -c -n %{src_dir}
-cd %{src_dir}
+%else
+%setup -q -T -a 0 -c -n %{src_dir}
+%endif # 0%{?compatlib}
+pushd %{src_dir}
+%{?el7:%patch0 -p1}
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -319,36 +394,49 @@ if [ "x$(id -u)" = "x0" ] ; then
 fi
 %endif
 
+%if 0%{?compatlib}
 # Build compat libs
 (
 export CFLAGS="%{optflags} -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv"
-export CXXFLAGS="$CFLAGS -felide-constructors -fno-rtti -fno-exceptions"
+export CXXFLAGS="$CFLAGS %{?el6:-felide-constructors} -fno-rtti -fno-exceptions"
 pushd mysql-%{compatver}
 %configure \
     --with-readline \
-    --with-ssl=%{_prefix} \
     --without-debug \
     --enable-shared \
-    --with-embedded-server \
     --localstatedir=/var/lib/mysql \
     --with-unix-socket-path=/var/lib/mysql/mysql.sock \
     --with-mysqld-user="mysql" \
     --with-extra-charsets=all \
+    --enable-local-infile \
+    --enable-largefile \
+    --enable-thread-safe-client \
+%if 0%{?rhel} == 6
+    --with-ssl=%{_prefix} \
+    --with-embedded-server \
     --with-big-tables \
     --with-pic \
     --with-plugin-innobase \
     --with-plugin-innodb_plugin \
     --with-plugin-partition \
-    --enable-local-infile \
-    --enable-largefile \
-    --enable-thread-safe-client \
+%endif
+%if 0%{?rhel} == 5
+    --with-openssl \
+    --with-bench \
+     -with-innodb \
+    --with-berkeley-db \
+    --enable-community-features \
+    --enable-profiling \
+    --with-named-thread-libs="-lpthread" \
+%endif
     --disable-dependency-tracking
 make %{?_smp_mflags}
 popd
 )
+%endif # 0%{?compatlib}
 
-export CFLAGS="%{optflags}"
-export CXXFLAGS="%{optflags}"
+export CFLAGS="%{optflags} %{?el7:-DTAOCRYPT_DISABLE_X86ASM}"
+export CXXFLAGS="%{optflags} %{?el7:-DTAOCRYPT_DISABLE_X86ASM}"
 
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug
@@ -360,12 +448,13 @@ mkdir debug
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
-           -DCMAKE_BUILD_TYPE=Debug \
-           -DWITH_INNODB_MEMCACHED=1 \
+           -DCMAKE_BUILD_TYPE=Debug %{?el7:-DENABLE_DTRACE=OFF} \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITH_EMBEDDED_SERVER=1 \
+           -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -380,38 +469,22 @@ mkdir release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
-           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-           -DWITH_INNODB_MEMCACHED=1 \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo %{?el7:-DENABLE_DTRACE=OFF} \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITH_EMBEDDED_SERVER=1 \
+           -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
-
-# Need to build libmysqld.so for distros
-mkdir libmysqld/work
-pushd libmysqld/work
-
-ar -x ../libmysqld.a
-[ -e ../../extra/yassl/libyassl.a ] && ar -x ../../extra/yassl/libyassl.a
-rm -f sql_binlog.cc.o rpl_utility.cc.o
-%{__cc} $CFLAGS $LDFLAGS -DEMBEDDED_LIBRARY -shared -Wl,-soname,libmysqld.so.%{libmysqld_so_major} \
-       -o libmysqld.so.%{libmysqld_so_long} *.o \
-       -lpthread -laio -lcrypt -lssl -lcrypto -lz -lrt -lstdc++ -ldl -lm -lc
-
-# Compile check
-cp %{SOURCE6} .
-ln -s libmysqld.so.%{libmysqld_so_long} libmysqld.so.%{libmysqld_so_major}
-%{__cc} -I../../../%{src_dir}/include -I../../include $CFLAGS \
-       mysql-embedded-check.c libmysqld.so.%{libmysqld_so_major}
-LD_LIBRARY_PATH=. ldd ./a.out
 )
 
 %install
+%if 0%{?compatlib}
 # Install compat libs
 for dir in libmysql libmysql_r ; do
     pushd mysql-%{compatver}/$dir
@@ -419,6 +492,7 @@ for dir in libmysql libmysql_r ; do
     popd
 done
 rm -f %{buildroot}%{_libdir}/mysql/libmysqlclient{,_r}.{a,la,so}
+%endif # 0%{?compatlib}
 
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
@@ -441,12 +515,6 @@ install -D -m 0644 %{SOURCE2} %{buildroot}%{_unitdir}/mysqld.service
 install -D -m 0755 $MBD/release/packaging/rpm-oel/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysqld
 %endif
 install -D -m 0644 %{SOURCE3} %{buildroot}%{_prefix}/lib/tmpfiles.d/mysql.conf
-
-install -m 0755 $MBD/release/libmysqld/work/libmysqld.so.%{libmysqld_so_long} \
-    %{buildroot}%{_libdir}/mysql/libmysqld.so.%{libmysqld_so_long}
-ln -s libmysqld.so.%{libmysqld_so_long} %{buildroot}%{_libdir}/mysql/libmysqld.so.%{libmysqld_so_major}
-ln -s libmysqld.so.%{libmysqld_so_long} %{buildroot}%{_libdir}/mysql/libmysqld.so
- 
 
 # Make library links
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
@@ -489,8 +557,9 @@ pushd mysql-test
 ./mtr \
     --mem --parallel=auto --force --retry=0 \
     --mysqld=--binlog-format=mixed \
-    --suite-timeout=720 --testcase-timeout=30
-rm -rf var/*
+    --suite-timeout=720 --testcase-timeout=30 \
+    --clean-vardir
+rm -r $(readlink var) var
 %endif
 
 %pre server
@@ -532,9 +601,11 @@ fi
 
 %postun libs -p /sbin/ldconfig
 
+%if 0%{?compatlib}
 %post libs-compat -p /sbin/ldconfig
 
 %postun libs-compat -p /sbin/ldconfig
+%endif
 
 %post embedded -p /sbin/ldconfig
 
@@ -617,7 +688,7 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/magic
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
 %if 0%{?systemd}
-%attr(644, root, root) %{_unitdir}/mysql.service
+%attr(644, root, root) %{_unitdir}/mysqld.service
 %else
 %attr(755, root, root) %{_sysconfdir}/init.d/mysqld
 %endif
@@ -706,14 +777,16 @@ fi
 %{_libdir}/mysql/libmysqlclient.so.18*
 %{_libdir}/mysql/libmysqlclient_r.so.18*
 
+%if 0%{?compatlib}
 %files libs-compat
 %defattr(-, root, root, -)
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%{_libdir}/mysql/libmysqlclient.so.16
-%{_libdir}/mysql/libmysqlclient.so.16.0.0
-%{_libdir}/mysql/libmysqlclient_r.so.16
-%{_libdir}/mysql/libmysqlclient_r.so.16.0.0
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}
+%{_libdir}/mysql/libmysqlclient.so.%{compatlib}.0.0
+%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}
+%{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.0.0
+%endif
 
 %files test
 %defattr(-, root, root, -)
@@ -731,7 +804,7 @@ fi
 %defattr(-, root, root, -)
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-%attr(644, root, root) %{_libdir}/mysql/libmysqld.so.*
+%attr(755, root, root) %{_libdir}/mysql/libmysqld.so.*
 
 %files embedded-devel
 %defattr(-, root, root, -)
@@ -739,66 +812,28 @@ fi
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
+%if 0%{?rhel} == 5
+%files -n mysql
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%endif
+
 %changelog
-* Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.15-1
-- Fixed uln advanced rpm libyassl.a error
-- Updated to 5.6.15
+* Fri Mar 14 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.37-4
+- Resolve mysql conflict with mysql-community-client
 
-* Wed Oct 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.14-3
-- Fixed mysql_install_db usage 
-- Improved handling of plugin directory 
+* Wed Mar 12 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.37-3
+- Resolve conflict with mysql-libs-compat
 
-* Fri Sep 27 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.14-2
-- Refresh mysql-install patch and service renaming
+* Thu Mar 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.37-2
+- Resolve conflict issues during upgrade
 
-* Mon Sep 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.14-1
-- Updated to 5.6.14
+* Mon Feb 10 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.37-1
+- Add support for el7 (with systemd enabled)
+- Enable shared libmysqld by cmake option
 
-* Wed Sep 04 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-5
-- Support upgrade from 5.5 ULN packages to 5.6 
-
-* Tue Aug 27 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-4
-- Enhanced perl filtering 
-- Added openssl-devel to buildreq 
-
-* Wed Aug 21 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-3
-- Removed mysql_embedded binary to resolve multilib conflict issue
-
-* Fri Aug 16 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-2 
-- Fixed Provides and Obsoletes issues in server, test packages 
-
-* Wed Aug 14 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.13-1
-- Updated to 5.6.13
-
-* Mon Aug 05 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-9
-- Added files list to embedded packages 
-
-* Thu Aug 01 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-8
-- Updated libmysqld.a with libmysqld.so in embedded package
-
-* Mon Jul 29 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-7
-- Updated test package dependency from client to server
-
-* Wed Jul 24 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-6
-- Added libs-compat dependency under libs package to resolve server
-  installation conflicts issue.
- 
-* Wed Jul 17 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-5
-- Removed libmysqlclient.so.16 from libs package
- 
-* Fri Jul 05 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-4
-- Adjusted to work on OEL6
-
-* Wed Jun 26 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-3
-- Move libs to mysql/
-- Basic multi arch support
-- Fix changelog dates
-
-* Thu Jun 20 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-2
-- Major cleanup
-
-* Tue Jun 04 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.12-1
-- Updated to 5.6.12
+* Fri Oct 25 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.35-1
+- Backport changes from 5.6
 
 * Mon Nov 05 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
@@ -879,7 +914,7 @@ fi
 * Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Null-upmerge the fix of bug#37165: This spec file is not affected.
-- Replace "/var/lib/mysql" by the spec file variable "%{mysqldatadir}".
+- Replace "/var/lib/mysql" by the spec file variable "%%{mysqldatadir}".
 
 * Fri Aug 12 2011 Daniel Fischer <daniel.fischer@oracle.com>
 
@@ -1139,7 +1174,7 @@ fi
 
 * Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
 
-- Call "make install" using "benchdir_root=%{_datadir}",
+- Call "make install" using "benchdir_root=%%{_datadir}",
   because that is affecting the regression test suite as well.
 
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
@@ -1235,7 +1270,7 @@ fi
 - Added zlib to the list of (static) libraries installed
 - Added check against libtool wierdness (WRT: sql/mysqld || sql/.libs/mysqld)
 - Compile MySQL with bundled zlib
-- Fixed %packager name to "MySQL Production Engineering Team"
+- Fixed %%packager name to "MySQL Production Engineering Team"
 
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
@@ -1266,7 +1301,7 @@ fi
 - Give mode arguments the same way in all places
 lenz@mysql.com>
 
-- fixed the removing of the RPM_BUILD_ROOT in the %clean section (the
+- fixed the removing of the RPM_BUILD_ROOT in the %%clean section (the
   $RBR variable did not get expanded, thus leaving old build roots behind)
 
 * Thu Aug 04 2005 Lenz Grimmer <lenz@mysql.com>

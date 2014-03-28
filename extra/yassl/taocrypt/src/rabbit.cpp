@@ -198,7 +198,6 @@ void Rabbit::Process(byte* output, const byte* input, word32 msglen)
 {
     /* Temporary variables */
     word32 i;
-    byte buffer[16];
 
     /* Encrypt/decrypt all full blocks */
     while (msglen >= 16) {
@@ -227,17 +226,23 @@ void Rabbit::Process(byte* output, const byte* input, word32 msglen)
 
     /* Encrypt/decrypt remaining data */
     if (msglen) {
+
+        word32 tmp[4];
+        byte*  buffer = (byte*)tmp;
+
+        memset(tmp, 0, sizeof(tmp));   /* help static analysis */
+
         /* Iterate the system */
         NextState(Work);
 
         /* Generate 16 bytes of pseudo-random data */
-        *(word32*)(buffer+ 0) = LITTLE32(workCtx_.x[0] ^
+        tmp[0] = LITTLE32(workCtx_.x[0] ^ 
                   (workCtx_.x[5]>>16) ^ U32V(workCtx_.x[3]<<16));
-        *(word32*)(buffer+ 4) = LITTLE32(workCtx_.x[2] ^ 
+        tmp[1] = LITTLE32(workCtx_.x[2] ^ 
                   (workCtx_.x[7]>>16) ^ U32V(workCtx_.x[5]<<16));
-        *(word32*)(buffer+ 8) = LITTLE32(workCtx_.x[4] ^ 
+        tmp[2] = LITTLE32(workCtx_.x[4] ^ 
                   (workCtx_.x[1]>>16) ^ U32V(workCtx_.x[7]<<16));
-        *(word32*)(buffer+12) = LITTLE32(workCtx_.x[6] ^ 
+        tmp[3] = LITTLE32(workCtx_.x[6] ^ 
                   (workCtx_.x[3]>>16) ^ U32V(workCtx_.x[1]<<16));
 
         /* Encrypt/decrypt the data */

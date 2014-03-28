@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1769,9 +1769,7 @@ row_upd_clust_rec_by_insert_inherit_func(
 		data += len - BTR_EXTERN_FIELD_REF_SIZE;
 		/* The pointer must not be zero. */
 		ut_a(memcmp(data, field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
-		/* The BLOB must be owned. */
-		ut_a(!(data[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
-
+		data[BTR_EXTERN_LEN] &= ~BTR_EXTERN_OWNER_FLAG;
 		data[BTR_EXTERN_LEN] |= BTR_EXTERN_INHERITED_FLAG;
 		/* The BTR_EXTERN_INHERITED_FLAG only matters in
 		rollback. Purge will always free the extern fields of
@@ -1873,7 +1871,13 @@ err_exit:
 				rec, offsets, entry, node->update);
 
 			if (change_ownership) {
-				btr_pcur_store_position(pcur, mtr);
+				/* The blobs are disowned here, expecting the
+				insert down below to inherit them.  But if the
+				insert fails, then this disown will be undone
+				when the operation is rolled back. */
+				btr_cur_disown_inherited_fields(
+					btr_cur_get_page_zip(btr_cur),
+					rec, index, offsets, node->update, mtr);
 			}
 		}
 
@@ -1898,35 +1902,6 @@ err_exit:
 	node->state = change_ownership
 		? UPD_NODE_INSERT_BLOB
 		: UPD_NODE_INSERT_CLUSTERED;
-
-	if (err == DB_SUCCESS && change_ownership) {
-		/* Mark the non-updated fields disowned by the old record. */
-
-		/* NOTE: this transaction has an x-lock on the record
-		and therefore other transactions cannot modify the
-		record when we have no latch on the page. In addition,
-		we assume that other query threads of the same
-		transaction do not modify the record in the meantime.
-		Therefore we can assert that the restoration of the
-		cursor succeeds. */
-
-		mtr_start(mtr);
-
-		if (!btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr)) {
-			ut_error;
-		}
-
-		rec = btr_cur_get_rec(btr_cur);
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		ut_ad(page_rec_is_user_rec(rec));
-
-		btr_cur_disown_inherited_fields(
-			btr_cur_get_page_zip(btr_cur),
-			rec, index, offsets, node->update, mtr);
-
-		mtr_commit(mtr);
-	}
 
 	mem_heap_free(heap);
 
