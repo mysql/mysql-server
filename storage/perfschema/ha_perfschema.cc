@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -250,6 +250,9 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
 {
   DBUG_ENTER("ha_perfschema::update_row");
 
+  if (is_executed_by_slave())
+    DBUG_RETURN(0);
+
   DBUG_ASSERT(m_table);
   int result= m_table->update_row(table, old_data, new_data, table->field);
   DBUG_RETURN(result);
@@ -333,6 +336,9 @@ int ha_perfschema::delete_all_rows(void)
   int result;
 
   DBUG_ENTER("ha_perfschema::delete_all_rows");
+
+  if (is_executed_by_slave())
+    DBUG_RETURN(0);
 
   DBUG_ASSERT(m_table_share);
   if (m_table_share->m_delete_all_rows)
