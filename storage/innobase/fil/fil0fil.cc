@@ -2054,7 +2054,7 @@ fil_create_directory_for_tablename(
 or MLOG_FILE_RENAME2
 @param[in]	space_id	tablespace identifier
 @param[in]	first_page_no	first page number in the file
-@param[in]	name		file path
+@param[in]	path		file path
 @param[in]	new_path	if type is MLOG_FILE_RENAME2, the new name
 @param[in,out]	mtr		mini-transaction */
 static
@@ -2063,7 +2063,7 @@ fil_op_write_log(
 	mlog_id_t	type,
 	ulint		space_id,
 	ulint		first_page_no,
-	const char*	name,
+	const char*	path,
 	const char*	new_path,
 	mtr_t*		mtr)
 {
@@ -2073,9 +2073,9 @@ fil_op_write_log(
 	/* TODO: support user-created multi-file tablespaces */
 	ut_ad(first_page_no == 0);
 	/* fil_name_parse() requires this */
-	ut_ad(strchr(name, OS_PATH_SEPARATOR));
-	ut_ad(strstr(name, DOT_IBD));
-	ut_ad(strstr(name, DOT_IBD)[4] == 0);
+	ut_ad(strchr(path, OS_PATH_SEPARATOR));
+	ut_ad(strstr(path, DOT_IBD));
+	ut_ad(strstr(path, DOT_IBD)[4] == 0);
 
 	log_ptr = mlog_open(mtr, 11 + 2 + 1);
 
@@ -2091,14 +2091,14 @@ fil_op_write_log(
 	/* Let us store the strings as null-terminated for easier readability
 	and handling */
 
-	len = ::strlen(name) + 1;
+	len = ::strlen(path) + 1;
 
 	mach_write_to_2(log_ptr, len);
 	log_ptr += 2;
 	mlog_close(mtr, log_ptr);
 
 	mlog_catenate_string(
-		mtr, reinterpret_cast<const byte*>(name), len);
+		mtr, reinterpret_cast<const byte*>(path), len);
 
 	switch (type) {
 	case MLOG_FILE_RENAME2:
