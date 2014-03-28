@@ -20,7 +20,7 @@
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
-%global obs_ver      @VERSION@
+%global obs_ver      %{version}
 
 # By default, a build will include the bundeled "yaSSL" library for SSL.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
@@ -35,15 +35,6 @@
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community Server - (GPL)}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
-
-%if 0%{?fedora} > 18
-%global libmysqld_so_major    18
-%global libmysqld_so_long     18.1.0
-%else
-%global libmysqld_so_major    0
-%global libmysqld_so_long     0.0.1
-%endif
-
 
 %global src_dir               %{src_base}-%{version}
 
@@ -79,10 +70,9 @@ Source1:        mysql-systemd-start
 Source2:        mysqld.service
 Source3:        mysql.conf
 Source4:        my_config.h
-Source5:        mysql-embedded-check.c
 Source6:        mysql_config.sh
 Patch0:         mysql-5.6-libmysqlclient-symbols.patch
-Patch1:         mysql-5.6.14-mysql-install.patch
+Patch1:         mysql-5.6.16-mysql-install.patch
 BuildRequires:  cmake
 BuildRequires:  perl
 BuildRequires:  time
@@ -91,7 +81,7 @@ BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %if 0%{?systemd}
-BuildRequires:  systemd-units
+BuildRequires:  systemd
 %endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
@@ -312,13 +302,10 @@ This package contains files needed for developing applicatison using
 the embedded version of the MySQL server.
 
 %prep
-%setup -T -a 0 -c -n %{src_dir}
+%setup -q -T -a 0 -c -n %{src_dir}
 pushd %{src_dir}
+%patch0 -p1
 %patch1 -p1
-popd
-cp -a %{src_dir} %{src_dir}-client
-pushd %{src_dir}-client
-%patch0
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -351,6 +338,7 @@ mkdir debug
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -371,46 +359,9 @@ mkdir release
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
-  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
-  make %{?_smp_mflags} VERBOSE=1
-
-  
-  # Need to build libmysqld.so for distros
-  mkdir libmysqld/work
-  pushd libmysqld/work
-
-  ar -x ../libmysqld.a
-  ar -x ../../extra/yassl/libyassl.a
-  %{__cc} $CFLAGS $LDFLAGS -DEMBEDDED_LIBRARY -shared -Wl,-soname,libmysqld.so.%{libmysqld_so_major} \
-      -o libmysqld.so.%{libmysqld_so_long} *.o \
-      -lpthread -laio -lcrypt -lssl -lcrypto -lz -lrt -lstdc++ -ldl -lm -lc
-  # Compile check
-  cp %{SOURCE5} .
-  ln -s libmysqld.so.%{libmysqld_so_long} libmysqld.so.%{libmysqld_so_major}
-  %{__cc} -I../../../mysql-%{version}/include -I../../include $CFLAGS \
-      mysql-embedded-check.c libmysqld.so.%{libmysqld_so_major}
-  LD_LIBRARY_PATH=. ldd ./a.out
-)
-
-# 
-mkdir client
-(
-  pushd client
-  cmake ../%{src_dir}-client \
-           -DBUILD_CONFIG=mysql_release \
-           -DINSTALL_LAYOUT=RPM \
-           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-           -DWITH_INNODB_MEMCACHED=1 \
-           -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
-           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
-           -DFEATURE_SET="%{feature_set}" \
-           %{?ssl_option} \
-           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DWITH_EMBEDDED_SERVER=ON \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
@@ -429,12 +380,6 @@ pushd $MBD/release
 make DESTDIR=%{buildroot} install
 popd
 
-# Install modified client libs
-rm -rf  %{buildroot}%{_libdir}/mysql/libmysqlclient*
-pushd $MBD/client/libmysql
-make DESTDIR=%{buildroot} install
-popd
-
 # Install logrotate and autostart
 install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
 install -D -m 0644 $MBD/release/packaging/rpm-fedora/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
@@ -442,14 +387,9 @@ install -D -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/mysql-systemd-start
 install -D -m 0644 %{SOURCE2} %{buildroot}%{_unitdir}/mysqld.service
 install -D -m 0644 %{SOURCE3} %{buildroot}%{_prefix}/lib/tmpfiles.d/mysql.conf
 
-# Make library links and fix _r symlinks
+# Add libdir to linker
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
 echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
-
-install -m 0755 $MBD/release/libmysqld/work/libmysqld.so.%{libmysqld_so_long} \
-    %{buildroot}%{_libdir}/mysql/libmysqld.so.%{libmysqld_so_long}
-ln -s libmysqld.so.%{libmysqld_so_long} %{buildroot}%{_libdir}/mysql/libmysqld.so.%{libmysqld_so_major}
-ln -s libmysqld.so.%{libmysqld_so_long} %{buildroot}%{_libdir}/mysql/libmysqld.so
 
 # multiarch support
 %ifarch %{multiarchs}
@@ -484,8 +424,9 @@ pushd mysql-test
 ./mtr \
     --mem --parallel=auto --force --retry=0 \
     --mysqld=--binlog-format=mixed \
-    --suite-timeout=720 --testcase-timeout=30
-rm -rf var/*
+    --suite-timeout=720 --testcase-timeout=30 \
+    --clean-vardir
+rm -r $(readlink var) var
 %endif
 
 %pre server
@@ -729,6 +670,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Fri Feb 07 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.17-1
+- 5.6.17
+- Enable shared libmysqld by cmake option
+
 * Thu Jan 09 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.16-1
 - Updated to 5.6.16
 
@@ -858,7 +803,7 @@ fi
 * Fri Aug 19 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Null-upmerge the fix of bug#37165: This spec file is not affected.
-- Replace "/var/lib/mysql" by the spec file variable "%{mysqldatadir}".
+- Replace "/var/lib/mysql" by the spec file variable "%%{mysqldatadir}".
 
 * Fri Aug 12 2011 Daniel Fischer <daniel.fischer@oracle.com>
 
@@ -1118,7 +1063,7 @@ fi
 
 * Thu Nov 30 2006 Joerg Bruehe <joerg@mysql.com>
 
-- Call "make install" using "benchdir_root=%{_datadir}",
+- Call "make install" using "benchdir_root=%%{_datadir}",
   because that is affecting the regression test suite as well.
 
 * Thu Nov 16 2006 Joerg Bruehe <joerg@mysql.com>
@@ -1235,7 +1180,7 @@ fi
 - Added zlib to the list of (static) libraries installed
 - Added check against libtool wierdness (WRT: sql/mysqld || sql/.libs/mysqld)
 - Compile MySQL with bundled zlib
-- Fixed %packager name to "MySQL Production Engineering Team"
+- Fixed %%packager name to "MySQL Production Engineering Team"
 
 * Mon Dec 05 2005 Joerg Bruehe <joerg@mysql.com>
 
@@ -1292,7 +1237,7 @@ fi
 
 * Thu Sep 29 2005 Lenz Grimmer <lenz@mysql.com>
 
-- fixed the removing of the RPM_BUILD_ROOT in the %clean section (the
+- fixed the removing of the RPM_BUILD_ROOT in the %%clean section (the
   $RBR variable did not get expanded, thus leaving old build roots behind)
 
 * Thu Aug 04 2005 Lenz Grimmer <lenz@mysql.com>

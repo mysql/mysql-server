@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -86,6 +86,8 @@ row_undo_mod_clust_low(
 				before the update, or NULL if
 				the table is not being rebuilt online or
 				the PRIMARY KEY definition does not change */
+	byte*		sys,	/*!< out: DB_TRX_ID, DB_ROLL_PTR
+				for row_log_table_delete() */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -115,7 +117,7 @@ row_undo_mod_clust_low(
 	    && dict_index_is_online_ddl(btr_cur_get_index(btr_cur))) {
 		*rebuilt_old_pk = row_log_table_get_pk(
 			btr_cur_get_rec(btr_cur),
-			btr_cur_get_index(btr_cur), NULL, &heap);
+			btr_cur_get_index(btr_cur), NULL, sys, &heap);
 	} else {
 		*rebuilt_old_pk = NULL;
 	}
@@ -277,12 +279,13 @@ row_undo_mod_clust(
 	mem_heap_t*	offsets_heap	= NULL;
 	ulint*		offsets		= NULL;
 	const dtuple_t*	rebuilt_old_pk;
+	byte		sys[DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN];
 
 	/* Try optimistic processing of the record, keeping changes within
 	the index page */
 
 	err = row_undo_mod_clust_low(node, &offsets, &offsets_heap,
-				     heap, &rebuilt_old_pk,
+				     heap, &rebuilt_old_pk, sys,
 				     thr, &mtr, online
 				     ? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 				     : BTR_MODIFY_LEAF);
@@ -296,7 +299,8 @@ row_undo_mod_clust(
 		mtr_start(&mtr);
 
 		err = row_undo_mod_clust_low(
-			node, &offsets, &offsets_heap, heap, &rebuilt_old_pk,
+			node, &offsets, &offsets_heap,
+			heap, &rebuilt_old_pk, sys,
 			thr, &mtr, BTR_MODIFY_TREE);
 		ut_ad(err == DB_SUCCESS || err == DB_OUT_OF_FILE_SPACE);
 	}
@@ -322,8 +326,7 @@ row_undo_mod_clust(
 			break;
 		case TRX_UNDO_UPD_DEL_REC:
 			row_log_table_delete(
-				btr_pcur_get_rec(pcur), index, offsets,
-				true, node->trx->id);
+				btr_pcur_get_rec(pcur), index, offsets, sys);
 			break;
 		default:
 			ut_ad(0);

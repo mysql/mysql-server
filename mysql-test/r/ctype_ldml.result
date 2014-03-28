@@ -819,7 +819,7 @@ ERROR HY000: Unknown collation: 'utf8_5624_2'
 SHOW WARNINGS;
 Level	Code	Message
 Error	1273	Unknown collation: 'utf8_5624_2'
-Warning	1273	Syntax error at '[strength tertiary]'
+Warning	1273	Syntax error at '[strength tertiary]' for COLLATION : utf8_5624_2
 #
 # WL#5624, reset before primary ignorable
 #

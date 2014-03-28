@@ -1,6 +1,6 @@
 # This test checks that a slave DOES execute queries originating
 # from itself, if running with --replicate-same-server-id.
-
+source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 connection slave;
 create table t1 (n int);
@@ -63,7 +63,7 @@ start slave sql_thread;
 connection master;
 drop table t1;
 drop table t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of tests
 --source include/rpl_end.inc

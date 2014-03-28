@@ -1,0 +1,49 @@
+###############################################################################
+# Bug#17986385:LOG-WARNINGS=2 UNUSABLE ON SLAVE WITH FILTERS
+#
+# Problem:
+# ========
+# If a slave is configured with replication filters and log-warnings=2, every
+# statement which is filtered writes an entry to the error log:
+#
+# [Warning] Slave SQL: Could not execute Query event. Detailed error: Slave
+# SQL thread ignored the query because of replicate-*-table rules
+# For busy servers which generate a lot of statements that get filtered, the
+# result is an error log which can quickly grow into the GB range.
+#
+# Test:
+# =====
+# Set replicate-do-table=test.t1. Execute  statements on ignored tables.
+# During the execution of the first such statement the actual warning will be
+# printed and the remaining such errors will be suppressed. Script sleeps for
+# a minute and executes another statment on the ignored table so that
+# "error throttle" becomes active and checks if 1 minute has elapsed and
+# prints the acutal error message and along with that it also prints the number
+# of errors that were suppressed. With fix less warnings should be printed.
+# With bug we get 5 warnings.
+###############################################################################
+--source include/have_binlog_format_statement.inc
+# Inorder to grep a specific error pattern in error log a fresh error log
+# needs to be generated.
+--source include/force_restart.inc
+--source include/master-slave.inc
+
+CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
+--source include/sync_slave_sql_with_master.inc
+
+--connection master
+INSERT INTO test.t2 VALUES (100);
+INSERT INTO test.t2 VALUES (200);
+INSERT INTO test.t2 VALUES (300);
+# Error log throttle is checked once per minute hence the sleep has been
+# added.
+SLEEP 60;
+DROP TABLE t2;
+--source include/sync_slave_sql_with_master.inc
+
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [0-9]+/--TIME--/ s/Worker .* end_log_pos [0-9]*; //
+--let GREP_FILE=$MYSQLTEST_VARDIR/tmp/slave.err
+--let GREP_PATTERN=Slave SQL thread ignored the query because of replicate
+--source extra/rpl_tests/grep_pattern.inc
+
+--source include/rpl_end.inc

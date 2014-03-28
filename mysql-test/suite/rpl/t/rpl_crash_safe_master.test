@@ -60,7 +60,7 @@ CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 -- echo # Lets stop the slave IO thread first, so that it does not timeout on
 -- echo # reconnection while the master is down (it happened before on some
 -- echo # slow hosts).
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_io.inc
 --connection master
 
@@ -100,7 +100,7 @@ COMMIT;
 --source include/start_slave_io.inc
 --connection master
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 -- echo # On slave, test replication will work fine, and the data 
 -- echo #           is not replicated
 --let $diff_tables= master:test.t1, slave:test.t1
@@ -115,7 +115,7 @@ connection master;
 -- echo # Lets stop the slave IO thread first, so that it does not timeout on
 -- echo # reconnection while the master is down (it happened before on some
 -- echo # slow hosts).
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_io.inc
 --connection master
 
@@ -155,14 +155,14 @@ COMMIT;
 --source include/start_slave_io.inc
 --connection master
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 -- echo # On slave, test replication will work fine, and the data is replicated
 --let $diff_tables= master:test.t1, slave:test.t1
 --source include/diff_tables.inc
 
 connection master;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 -- source include/stop_slave.inc
 
 connection master;
@@ -233,4 +233,5 @@ INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
 SELECT COUNT(*) FROM t2;
 
 DROP TABLE t1, t2;
-
+connection slave;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;

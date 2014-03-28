@@ -316,8 +316,8 @@ cmp_dfield_dfield_like_prefix(
 	dfield_t*	dfield1,/* in: data field; must have type field set */
 	dfield_t*	dfield2)/* in: data field */
 {
-	const dtype_t*  type;
-	ulint           ret;
+	const dtype_t*	type;
+	int		ret;
 
 	ut_ad(dfield_check_typed(dfield1));
 
@@ -325,21 +325,21 @@ cmp_dfield_dfield_like_prefix(
 
 	if (type->mtype >= DATA_FLOAT) {
 		ret = innobase_mysql_cmp_prefix(
-			(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
-			(uint) dtype_get_charset_coll(type->prtype),
+			static_cast<int>(type->prtype & DATA_MYSQL_TYPE_MASK),
+			static_cast<uint>(dtype_get_charset_coll(type->prtype)),
+			static_cast<byte*>(dfield_get_data(dfield1)),
+			static_cast<uint>(dfield_get_len(dfield1)),
+			static_cast<byte*>(dfield_get_data(dfield2)),
+			static_cast<uint>(dfield_get_len(dfield2)));
+	} else {
+		ret = (cmp_data_data_like_prefix(
 			static_cast<byte*>(dfield_get_data(dfield1)),
 			dfield_get_len(dfield1),
-                        static_cast<byte*>(dfield_get_data(dfield2)),
-                        dfield_get_len(dfield2));
-        } else {
-                ret = (cmp_data_data_like_prefix(
-                        static_cast<byte*>(dfield_get_data(dfield1)),
-                        dfield_get_len(dfield1),
-                        static_cast<byte*>(dfield_get_data(dfield2)),
-                        dfield_get_len(dfield2)));
-        }
+			static_cast<byte*>(dfield_get_data(dfield2)),
+			dfield_get_len(dfield2)));
+	}
 
-        return(ret);
+	return(ret);
 }
 
 /*************************************************************//**
@@ -506,7 +506,8 @@ cmp_data_data_slow_varchar(
 		}
 	}
 
-	return(i == lhs_len && i == rhs_len) ? 0 : rhs_len - lhs_len;
+	return((i == lhs_len && i == rhs_len) ? 0 :
+		static_cast<int>(rhs_len - lhs_len));
 }
 
 /*****************************************************************

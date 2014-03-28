@@ -9,7 +9,7 @@
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
 # (otherwise RESET MASTER may come too early).
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 --source include/wait_for_slave_to_stop.inc
 reset master;
@@ -34,9 +34,22 @@ select count(*) from t1;
 source include/show_binlog_events.inc;
 
 let $binlog_limit= 1;
-source include/show_binlog_events.inc;
+if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+{
+  # if GTID_MODE=ON, there is the extra event entry the binary log: Gtid_log_event
+  --let $binlog_limit= 2,1
+}
 
-let $binlog_limit= 1,4;
+source include/show_binlog_events.inc;
+--let $from_event= 1
+--let $number_of_events= 4
+if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+{
+  # if GTID_MODE=ON, there is the extra event entry the binary log: Gtid_log_event
+  --let $from_event= `SELECT $from_event * 2 + 1`
+  --let $number_of_events= `SELECT $number_of_events * 2 - 2`
+}
+let $binlog_limit= $from_event,$number_of_events;
 source include/show_binlog_events.inc;
 let $binlog_limit=;
 flush logs;
@@ -65,7 +78,7 @@ eval create table t3 (a int)ENGINE=$engine_type;
 connection master;
 select * from t1 order by 1 asc;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #check t1 on slave to ensure whether it's identical with on master
 select * from t1 order by 1 asc;
@@ -85,7 +98,7 @@ source include/show_binlog_events.inc;
 
 --replace_column 2 #
 show binary logs;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --replace_column 2 #
 show binary logs;
 
@@ -136,4 +149,4 @@ drop table t1;
 
 # End of 4.1 tests
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
