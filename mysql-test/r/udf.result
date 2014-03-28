@@ -134,9 +134,9 @@ a	c
 1	1
 2	2
 SELECT a, fn(MIN(b) xx) as c FROM t1 GROUP BY a;
-ERROR 42000: Incorrect parameters in the call to stored function 'fn'
+ERROR 42000: Incorrect parameters in the call to stored function `fn`
 SELECT myfunc_int(fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
-ERROR 42000: Incorrect parameters in the call to stored function 'fn'
+ERROR 42000: Incorrect parameters in the call to stored function `fn`
 SELECT myfunc_int(test.fn(MIN(b) xx)) as c FROM t1 GROUP BY a;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xx)) as c FROM t1 GROUP BY a' at line 1
 SELECT myfunc_int(fn(MIN(b)) xx) as c FROM t1 GROUP BY a;

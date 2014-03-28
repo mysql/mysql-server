@@ -3520,7 +3520,7 @@ f1	f2	f2
 NULL	a	NULL
 drop table t1,t2;
 select * from (select * left join t on f1=f2) tt;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'on f1=f2) tt' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'left join t on f1=f2) tt' at line 1
 CREATE TABLE t1 (sku int PRIMARY KEY, pr int);
 CREATE TABLE t2 (sku int PRIMARY KEY, sppr int, name varchar(255));
 INSERT INTO t1 VALUES
