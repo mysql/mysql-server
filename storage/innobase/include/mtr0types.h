@@ -225,6 +225,9 @@ enum mlog_id_t {
 
 /* @} */
 
+/** Size of a MLOG_CHECKPOINT record in bytes */
+#define SIZE_OF_MLOG_CHECKPOINT	1
+
 /** Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 enum mtr_memo_type_t {

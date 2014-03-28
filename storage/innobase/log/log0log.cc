@@ -1732,7 +1732,7 @@ log_checkpoint(
 
 	if (!write_always
 	    && oldest_lsn == log_sys->last_checkpoint_lsn
-	    + 1 /* size of MLOG_CHECKPOINT marker */) {
+	    + SIZE_OF_MLOG_CHECKPOINT) {
 		/* Do nothing, because nothing was logged (other than
 		a MLOG_CHECKPOINT marker) since the previous checkpoint. */
 		log_mutex_exit();
@@ -1763,7 +1763,7 @@ log_checkpoint(
 			    (srv_shutdown_state == SRV_SHUTDOWN_NONE
 			     || flush_lsn != log_sys->lsn)
 			    && flush_lsn > log_sys->last_checkpoint_lsn
-			    + 1/* size of MLOG_CHECKPOINT */)) {
+			    + SIZE_OF_MLOG_CHECKPOINT)) {
 		flush_lsn = log_sys->lsn;
 	}
 
