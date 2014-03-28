@@ -323,31 +323,28 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_clust_index_entry_by_modify(
 /*================================*/
+	btr_pcur_t*	pcur,	/*!< in/out: a persistent cursor pointing
+				to the clust_rec that is being modified. */
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
-	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
 	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
 	mem_heap_t**	offsets_heap,
 				/*!< in/out: pointer to memory heap that can
 				be emptied, or NULL */
 	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	big_rec_t**	big_rec,/*!< out: possible big rec vector of fields
-				which have to be stored externally by the
-				caller */
 	const dtuple_t*	entry,	/*!< in: index entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
 {
 	const rec_t*	rec;
-	const upd_t*	update;
+	upd_t*		update;
 	dberr_t		err;
+	btr_cur_t*	cursor	= btr_pcur_get_btr_cur(pcur);
 
 	ut_ad(dict_index_is_clust(cursor->index));
-
-	*big_rec = NULL;
 
 	rec = btr_cur_get_rec(cursor);
 
@@ -384,10 +381,24 @@ row_ins_clust_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 
 		}
+
+		big_rec_t*	big_rec	= NULL;
+
 		err = btr_cur_pessimistic_update(
 			flags | BTR_KEEP_POS_FLAG,
 			cursor, offsets, offsets_heap, heap,
-			big_rec, update, 0, thr, thr_get_trx(thr)->id, mtr);
+			&big_rec, update, 0, thr, thr_get_trx(thr)->id, mtr);
+
+		if (big_rec) {
+			ut_a(err == DB_SUCCESS);
+
+			DEBUG_SYNC_C("before_row_ins_upd_extern");
+			err = btr_store_big_rec_extern_fields(
+				pcur, update, *offsets, big_rec, mtr,
+				BTR_STORE_INSERT_UPDATE);
+			DEBUG_SYNC_C("after_row_ins_upd_extern");
+			dtuple_big_rec_free(big_rec);
+		}
 	}
 
 	return(err);
@@ -2323,7 +2334,8 @@ row_ins_clust_index_entry_low(
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	btr_cur_t	cursor;
+	btr_pcur_t	pcur;
+	btr_cur_t*	cursor;
 	ulint*		offsets		= NULL;
 	dberr_t		err;
 	big_rec_t*	big_rec		= NULL;
@@ -2354,18 +2366,17 @@ row_ins_clust_index_entry_low(
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 	}
 
-	cursor.thr = thr;
-
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
 
-	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE, mode,
-				    &cursor, 0, __FILE__, __LINE__, &mtr);
+	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);
+	cursor = btr_pcur_get_btr_cur(&pcur);
+	cursor->thr = thr;
 
 #ifdef UNIV_DEBUG
 	{
-		page_t*	page = btr_cur_get_page(&cursor);
+		page_t*	page = btr_cur_get_page(cursor);
 		rec_t*	first_rec = page_rec_get_next(
 			page_get_infimum_rec(page));
 
@@ -2375,8 +2386,8 @@ row_ins_clust_index_entry_low(
 	}
 #endif
 
-	if (n_uniq && (cursor.up_match >= n_uniq
-		       || cursor.low_match >= n_uniq)) {
+	if (n_uniq && (cursor->up_match >= n_uniq
+		       || cursor->low_match >= n_uniq)) {
 
 		if (flags
 		    == (BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
@@ -2384,7 +2395,7 @@ row_ins_clust_index_entry_low(
 			/* Set no locks when applying log
 			in online table rebuild. Only check for duplicates. */
 			err = row_ins_duplicate_error_in_clust_online(
-				n_uniq, entry, &cursor,
+				n_uniq, entry, cursor,
 				&offsets, &offsets_heap);
 
 			switch (err) {
@@ -2395,14 +2406,14 @@ row_ins_clust_index_entry_low(
 				/* fall through */
 			case DB_SUCCESS_LOCKED_REC:
 			case DB_DUPLICATE_KEY:
-				thr_get_trx(thr)->error_info = cursor.index;
+				thr_get_trx(thr)->error_info = cursor->index;
 			}
 		} else {
 			/* Note that the following may return also
 			DB_LOCK_WAIT */
 
 			err = row_ins_duplicate_error_in_clust(
-				flags, &cursor, entry, thr, &mtr);
+				flags, cursor, entry, thr, &mtr);
 		}
 
 		if (err != DB_SUCCESS) {
@@ -2412,77 +2423,19 @@ err_exit:
 		}
 	}
 
-	if (row_ins_must_modify_rec(&cursor)) {
+	if (row_ins_must_modify_rec(cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
 		mem_heap_t*	entry_heap	= mem_heap_create(1024);
 
 		err = row_ins_clust_index_entry_by_modify(
-			flags, mode, &cursor, &offsets, &offsets_heap,
-			entry_heap, &big_rec, entry, thr, &mtr);
-
-		rec_t*		rec		= btr_cur_get_rec(&cursor);
-
-		if (big_rec) {
-			ut_a(err == DB_SUCCESS);
-			/* Write out the externally stored
-			columns while still x-latching
-			index->lock and block->lock. Allocate
-			pages for big_rec in the mtr that
-			modified the B-tree, but be sure to skip
-			any pages that were freed in mtr. We will
-			write out the big_rec pages before
-			committing the B-tree mini-transaction. If
-			the system crashes so that crash recovery
-			will not replay the mtr_commit(&mtr), the
-			big_rec pages will be left orphaned until
-			the pages are allocated for something else.
-
-			TODO: If the allocation extends the
-			tablespace, it will not be redo
-			logged, in either mini-transaction.
-			Tablespace extension should be
-			redo-logged in the big_rec
-			mini-transaction, so that recovery
-			will not fail when the big_rec was
-			written to the extended portion of the
-			file, in case the file was somehow
-			truncated in the crash. */
-
-			DEBUG_SYNC_C_IF_THD(
-				thr_get_trx(thr)->mysql_thd,
-				"before_row_ins_upd_extern");
-			err = btr_store_big_rec_extern_fields(
-				index, btr_cur_get_block(&cursor),
-				rec, offsets, big_rec, &mtr,
-				BTR_STORE_INSERT_UPDATE);
-			DEBUG_SYNC_C_IF_THD(
-				thr_get_trx(thr)->mysql_thd,
-				"after_row_ins_upd_extern");
-			/* If writing big_rec fails (for
-			example, because of DB_OUT_OF_FILE_SPACE),
-			the record will be corrupted. Even if
-			we did not update any externally
-			stored columns, our update could cause
-			the record to grow so that a
-			non-updated column was selected for
-			external storage. This non-update
-			would not have been written to the
-			undo log, and thus the record cannot
-			be rolled back.
-
-			However, because we have not executed
-			mtr_commit(mtr) yet, the update will
-			not be replayed in crash recovery, and
-			the following assertion failure will
-			effectively "roll back" the operation. */
-			ut_a(err == DB_SUCCESS);
-			dtuple_big_rec_free(big_rec);
-		}
+			&pcur, flags, mode, &offsets, &offsets_heap,
+			entry_heap, entry, thr, &mtr);
 
 		if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
-			row_log_table_insert(rec, index, offsets);
+			row_log_table_insert(btr_cur_get_rec(cursor),
+					     index, offsets);
 		}
 
 		mtr_commit(&mtr);
@@ -2494,7 +2447,7 @@ err_exit:
 			ut_ad((mode & ~BTR_ALREADY_S_LATCHED)
 			      == BTR_MODIFY_LEAF);
 			err = btr_cur_optimistic_insert(
-				flags, &cursor, &offsets, &offsets_heap,
+				flags, cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		} else {
@@ -2507,14 +2460,14 @@ err_exit:
 			DEBUG_SYNC_C("before_insert_pessimitic_row_ins_clust");
 
 			err = btr_cur_optimistic_insert(
-				flags, &cursor,
+				flags, cursor,
 				&offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 
 			if (err == DB_FAIL) {
 				err = btr_cur_pessimistic_insert(
-					flags, &cursor,
+					flags, cursor,
 					&offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec,
 					n_ext, thr, &mtr);
@@ -2881,7 +2834,7 @@ row_ins_index_entry_big_rec_func(
 	ulint			line)	/*!< in: line number of caller */
 {
 	mtr_t		mtr;
-	btr_cur_t	cursor;
+	btr_pcur_t	pcur;
 	rec_t*		rec;
 	dberr_t		error;
 
@@ -2892,17 +2845,15 @@ row_ins_index_entry_big_rec_func(
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
-	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    BTR_MODIFY_TREE, &cursor, 0,
-				    file, line, &mtr);
-	rec = btr_cur_get_rec(&cursor);
+	btr_pcur_open(index, entry, PAGE_CUR_LE, BTR_MODIFY_TREE,
+		      &pcur, &mtr);
+	rec = btr_pcur_get_rec(&pcur);
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, heap);
 
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
 	error = btr_store_big_rec_extern_fields(
-		index, btr_cur_get_block(&cursor),
-		rec, offsets, big_rec, &mtr, BTR_STORE_INSERT);
+		&pcur, 0, offsets, big_rec, &mtr, BTR_STORE_INSERT);
 	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
 
 	if (error == DB_SUCCESS

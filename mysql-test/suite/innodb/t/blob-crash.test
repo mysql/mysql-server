@@ -1,0 +1,403 @@
+--source include/not_embedded.inc
+--source include/not_crashrep.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_innodb_16k.inc
+
+--echo #
+--echo # Bug #16963396 INNODB: USE OF LARGE EXTERNALLY-STORED FIELDS MAKES
+--echo # CRASH RECOVERY LOSE DATA
+--echo #
+
+let blob_file=$MYSQLTEST_VARDIR/tmp/innodb-blob-crash.txt;
+
+--perl
+srand(10);
+open(FILE, ">", $ENV{'blob_file'});
+print FILE map{(a..z,A..Z,0..9)[rand(62)]} 0..300000;
+close(FILE);
+EOF
+
+connection default;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - Insert Operation - Crash Test
+--echo # Fresh insert with blobs
+--echo #
+
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+
+# Insert a few rows (it doesn't really matter how many). These transactions
+# are committed once they are acked, so they should not be lost.
+INSERT INTO t1 (a, b) VALUES (1, repeat('^', 40000));
+INSERT INTO t1 (a, b) VALUES (2, '2');
+INSERT INTO t1 (a, b) VALUES (3, '3');
+INSERT INTO t1 (a, b) VALUES (4, '4');
+INSERT INTO t1 (a, b) VALUES (5, '5');
+
+# Crash before commit of this BLOB insert.
+SET SESSION debug='d,crash_commit_before';
+
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# The BLOB insert will fail, and should disappear. However no data committed
+# up to this point should be lost.
+--error 2013
+INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 20*1024*1024));
+
+# Wait for the server to come back up, and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT a, right(b, 50) FROM t1;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - UPDATE Operation - Crash Test
+--echo # Update of non-blob column so that blob is needed.
+--echo #
+
+# Crash before commit of this BLOB insert.
+SET SESSION debug='d,crash_commit_before';
+
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+--error 2013
+UPDATE t1 set b = REPEAT('a', 20*1024*1024) where a = 5 ;
+
+# Wait for the server to come back up, and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT a, right(b, 50) FROM t1;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - UPDATE Operation - Crash Test
+--echo # Update of blob column to blob.
+--echo #
+
+# Crash before commit of this BLOB insert.
+SET SESSION debug='d,crash_commit_before';
+
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+--error 2013
+UPDATE t1 set b = REPEAT('$', 50000) where a = 1 ;
+
+# Wait for the server to come back up, and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT a, right(b, 50) FROM t1;
+
+# Clean up.
+DROP TABLE t1;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - UPDATE Operation - Crash Test
+--echo # Update that moves non-updated column to blob
+--echo #
+
+create table t2 (f1 bigint primary key, f2 longblob, f3 longblob,
+  index(f2(10), f3(10))) engine=innodb;
+
+insert into t2 values (1, repeat('%', 7000), repeat('+', 30));
+select f1, length(f2), length(f3) from t2;
+
+--echo # Connection con1:
+connect (con1,localhost,root,,);
+
+# Crash before commit of this BLOB update.
+SET SESSION debug='d,crash_commit_before';
+set debug_sync='ib_mv_nonupdated_column_offpage SIGNAL s1 WAIT_FOR go_update';
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+--send
+update t2 set f3 = repeat('[', 3000);
+
+--echo # Connection default:
+connection default;
+set debug_sync='now WAIT_FOR s1';
+
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 0,2013
+set debug_sync='now SIGNAL go_update';
+
+# Wait for the server to come back up, and reconnect.
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo # Connection con1:
+connection con1;
+--echo # reap: update t2 set f3 = repeat('[', 3000);
+--error 2013
+--reap
+
+--echo # Connection default:
+connection default;
+
+select f1, length(f2), length(f3) from t2;
+select f1, right(f2, 40), right(f3, 40) from t2;
+check table t2;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - Rollback of UPDATE operation
+--echo # Update moves offpage data to inline data.
+--echo #
+
+insert into t2 values (10, repeat('.', 40000), repeat('?', 40000));
+
+start transaction;
+update t2 set f2 = '=';
+select f1, right(f2, 20), right(f3, 20) from t2;
+update t2 set f3 = '&';
+select f1, right(f2, 20), right(f3, 20) from t2;
+
+set session debug='d,ib_blob_update_rollback';
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+rollback;
+
+# Wait for the server to come back up, and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+select f1, right(f2, 20), right(f3, 20) from t2;
+check table t2;
+
+# ..........................................................................
+
+--echo #
+--echo # Uncompressed Table - Rollback of UPDATE operation
+--echo #
+
+insert into t2 values (20, repeat('.', 40000), repeat('?', 40000));
+
+select f1, right(f2, 20), right(f3, 20) from t2;
+
+start transaction;
+update t2 set f2 = repeat('$', 60000) where f1 = 20;
+select f1, right(f2, 20), right(f3, 20) from t2;
+
+SET GLOBAL innodb_log_checkpoint_now=ON;
+
+# We expect a restart.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+--echo # Starting server with --innodb-force-recovery-crash=99
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+let args = --loose-console > $SEARCH_FILE 2>&1;
+let crash = $args --innodb-force-recovery-crash;
+
+--error 3
+--exec $MYSQLD_CMD $crash=99
+
+let SEARCH_PATTERN = innodb_force_recovery_crash=99;
+--source include/search_pattern_in_file.inc
+
+--echo # Restarting server in normal mode
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Wait for the server to come back up, and reconnect.
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+select f1, right(f2, 20), right(f3, 20) from t2;
+check table t2;
+drop table t2;
+
+# ..........................................................................
+
+--echo #
+--echo # Compressed Table - Update Operation
+--echo # update that moves a non-updated column to BLOB
+--echo #
+
+let blob_file=$MYSQLTEST_VARDIR/tmp/innodb-blob-crash.txt;
+let blob8000=$MYSQLTEST_VARDIR/tmp/ib_blob8000.txt;
+let blob1000=$MYSQLTEST_VARDIR/tmp/ib_blob1000.txt;
+
+--perl
+srand(10);
+open(FILE, ">", $ENV{'blob8000'});
+print FILE map{(a..z,A..Z,0..9)[rand(62)]} 1..8000;
+close(FILE);
+
+open(FILE, ">", $ENV{'blob1000'});
+print FILE map{(a..z,A..Z,0..9)[rand(62)]} 1..1000;
+close(FILE);
+EOF
+
+connection default;
+
+let $innodb_file_format = `select @@innodb_file_format`;
+set global innodb_file_format = 'Barracuda';
+
+create table t3 (f1 bigint primary key, f2 longblob, f3 longblob,
+  index(f2(10), f3(10))) engine=innodb row_format=compressed;
+
+eval set global innodb_file_format = $innodb_file_format;
+
+insert into t3 values (2, repeat('!', 30), repeat('+', 30));
+
+--disable_query_log
+--eval insert into t3 values (3, load_file('$blob_file'), load_file('$blob_file'));
+--eval insert into t3 values (1, load_file('$blob8000'), repeat('+', 30));
+--enable_query_log
+
+select f1, length(f2), length(f3) from t3;
+
+--echo # Connection con2:
+connect (con2,localhost,root,,);
+
+# Crash before commit of this BLOB update.
+SET SESSION debug='d,crash_commit_before';
+set debug_sync='ib_mv_nonupdated_column_offpage SIGNAL s1 WAIT_FOR go_upd';
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+--disable_query_log
+--send_eval update t3 set f3 = LOAD_FILE('$blob1000') where f1 = 1;
+--enable_query_log
+
+--echo # Connection default:
+connection default;
+set debug_sync='now WAIT_FOR s1';
+
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 0,2013
+set debug_sync='now SIGNAL go_upd';
+
+# Wait for the server to come back up, and reconnect.
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo # Connection con2:
+connection con2;
+--error 2013
+--reap
+
+--echo # Connection default:
+connection default;
+select f1, length(f2), length(f3) from t3;
+select f1, right(f2, 30), right(f3, 20) from t3;
+check table t3;
+
+# ..........................................................................
+
+--echo #
+--echo # Compressed Table - Insert Operation - Crash Test
+--echo # fresh insert with BLOBs
+--echo #
+
+# Crash before commit of this BLOB insert.
+SET SESSION debug='d,crash_commit_before';
+
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# The BLOB insert will fail, and should disappear. However no data committed
+# up to this point should be lost.
+--disable_query_log
+--error 2013
+INSERT INTO t3 (f1, f2, f3) VALUES (6, load_file('$blob_file'),
+ load_file('$blob_file'));
+--enable_query_log
+
+# Wait for the server to come back up, and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+select f1, length(f2), length(f3) from t3;
+select f1, right(f2, 30), right(f3, 20) from t3;
+check table t3;
+
+# ..........................................................................
+
+--echo #
+--echo # Compressed Table - Update Operation - Crash Test
+--echo # update of a non-BLOB column so that BLOB is needed
+--echo #
+
+# Crash before commit of this BLOB insert.
+SET SESSION debug='d,crash_commit_before';
+
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+--error 2013
+UPDATE t3 set f2 = load_file('$blob_file') where f1 = 2;
+
+# Wait for the server to come back up, and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+select f1, length(f2), length(f3) from t3;
+select f1, right(f2, 30), right(f3, 20) from t3;
+check table t3;
+
+# ..........................................................................
+
+--echo #
+--echo # Compressed Table - Update Operation - Crash Test
+--echo # update blob to blob
+--echo #
+
+# Crash before commit of this BLOB insert.
+SET SESSION debug='d,crash_commit_before';
+
+# We expect a restart.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# The BLOB update will fail, and should disappear. However no data committed
+# up to this point should be lost.
+--error 2013
+UPDATE t3 set f2 = concat(f2, repeat(',', 10)) where f1 = 3;
+
+# Wait for the server to come back up, and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+select f1, length(f2), length(f3) from t3;
+select f1, right(f2, 30), right(f3, 20) from t3;
+check table t3;
+
+# Clean up.
+DROP TABLE t3;
+
+--remove_file $blob_file
+--remove_file $blob8000
+--remove_file $blob1000
+
