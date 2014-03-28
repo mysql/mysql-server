@@ -24,6 +24,8 @@
 #include "fake_table.h"
 #include "test_utils.h"
 
+#include "parse_tree_helpers.h"
+
 namespace item_filter_unittest {
 
 using my_testing::Server_initializer;
@@ -190,7 +192,11 @@ protected:
   {
     SCOPED_TRACE(called_from_line);
 
-    Item_func_in *in_item= new Item_func_in(lst);
+    PT_item_list *list= new (thd()->mem_root) PT_item_list;
+    list->value= lst;
+    Item_func_in *in_item= new Item_func_in(POS(), list, false);
+    Parse_context pc(thd(), thd()->lex->current_select());
+    EXPECT_FALSE(in_item->itemize(&pc, (Item **) &in_item));
 
     Item *itm= static_cast<Item*>(in_item);
     in_item->fix_fields(thd(), &itm);
@@ -253,9 +259,14 @@ Item_func* ItemFilterTest::create_item(Item_func::Functype type,
     result= new Item_func_isnotnull(new Item_field(fld));
     break;
   case Item_func::BETWEEN:
-    result= new Item_func_between(new Item_field(fld),
-                                  new Item_int(val1), new Item_int(val2));
-    break;
+    {
+      Parse_context pc(thd(), thd()->lex->current_select());
+      result= new Item_func_between(POS(), new Item_field(fld),
+                                    new Item_int(val1), new Item_int(val2),
+                                    false);
+      EXPECT_FALSE(result->itemize(&pc, (Item **) &result));
+      break;
+    }
   default:
     result= NULL;
     DBUG_ASSERT(false);

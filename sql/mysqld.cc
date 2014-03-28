@@ -1298,17 +1298,6 @@ void kill_mysql(void)
   DBUG_VOID_RETURN;
 }
 
-extern "C" void print_signal_warning(int sig)
-{
-  sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-  my_sigset(sig,print_signal_warning);    /* int. thread system calls */
-#endif
-#if !defined(_WIN32)
-  if (sig == SIGALRM)
-    alarm(2);         /* reschedule alarm */
-#endif
-}
 
 static void init_error_log_mutex()
 {
@@ -2101,13 +2090,29 @@ void my_init_signals(void)
 #define SA_NODEFER 0
 #endif
 
+extern "C" void print_signal_warning(int sig)
+{
+  sql_print_warning("Got signal %d from thread %ld", sig, my_thread_id());
+  if (sig == SIGALRM)
+    alarm(2);         /* reschedule alarm */
+}
+
+
 void my_init_signals(void)
 {
   sigset_t set;
   struct sigaction sa;
   DBUG_ENTER("my_init_signals");
 
-  my_sigset(thr_server_alarm,print_signal_warning); // Should never be called!
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= print_signal_warning; // Should never be called!
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(thr_server_alarm, &l_s, NULL);
+  }
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -2139,7 +2144,15 @@ void my_init_signals(void)
   }
 #endif
   (void) sigemptyset(&set);
-  my_sigset(SIGPIPE,SIG_IGN);
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= SIG_IGN;
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(SIGPIPE, &l_s, NULL);
+  }
   sigaddset(&set,SIGPIPE);
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
@@ -2321,7 +2334,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 #endif // !EMBEDDED_LIBRARY
 
 
-#if BACKTRACE_DEMANGLE
+#if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 #include <cxxabi.h>
 extern "C" char *my_demangle(const char *mangled_name, int *status)
 {

@@ -139,10 +139,17 @@ class Item_bool_func :public Item_int_func
 {
 public:
   Item_bool_func() : Item_int_func(), m_created_by_in2exists(false) {}
+
   Item_bool_func(Item *a) : Item_int_func(a),
     m_created_by_in2exists(false)  {}
+  Item_bool_func(const POS &pos, Item *a) : Item_int_func(pos, a),
+    m_created_by_in2exists(false)  {}
+
   Item_bool_func(Item *a,Item *b) : Item_int_func(a,b),
     m_created_by_in2exists(false)  {}
+  Item_bool_func(const POS &pos, Item *a,Item *b) : Item_int_func(pos, a,b),
+    m_created_by_in2exists(false)  {}
+
   Item_bool_func(THD *thd, Item_bool_func *item) : Item_int_func(thd, item),
     m_created_by_in2exists(item->m_created_by_in2exists) {}
   bool is_bool_func() { return 1; }
@@ -173,8 +180,8 @@ public:
   virtual void print(String *str, enum_query_type query_type);
 
 protected:
-  Item_func_truth(Item *a, bool a_value, bool a_affirmative)
-  : Item_bool_func(a), value(a_value), affirmative(a_affirmative)
+  Item_func_truth(const POS &pos, Item *a, bool a_value, bool a_affirmative)
+  : Item_bool_func(pos, a), value(a_value), affirmative(a_affirmative)
   {}
 
   ~Item_func_truth()
@@ -199,7 +206,9 @@ private:
 class Item_func_istrue : public Item_func_truth
 {
 public:
-  Item_func_istrue(Item *a) : Item_func_truth(a, true, true) {}
+  Item_func_istrue(const POS &pos, Item *a)
+    : Item_func_truth(pos, a, true, true)
+  {}
   ~Item_func_istrue() {}
   virtual const char* func_name() const { return "istrue"; }
 };
@@ -212,7 +221,9 @@ public:
 class Item_func_isnottrue : public Item_func_truth
 {
 public:
-  Item_func_isnottrue(Item *a) : Item_func_truth(a, true, false) {}
+  Item_func_isnottrue(const POS &pos, Item *a)
+    : Item_func_truth(pos, a, true, false)
+  {}
   ~Item_func_isnottrue() {}
   virtual const char* func_name() const { return "isnottrue"; }
 };
@@ -225,7 +236,9 @@ public:
 class Item_func_isfalse : public Item_func_truth
 {
 public:
-  Item_func_isfalse(Item *a) : Item_func_truth(a, false, true) {}
+  Item_func_isfalse(const POS &pos, Item *a)
+    : Item_func_truth(pos, a, false, true)
+  {}
   ~Item_func_isfalse() {}
   virtual const char* func_name() const { return "isfalse"; }
 };
@@ -238,7 +251,9 @@ public:
 class Item_func_isnotfalse : public Item_func_truth
 {
 public:
-  Item_func_isnotfalse(Item *a) : Item_func_truth(a, false, false) {}
+  Item_func_isnotfalse(const POS &pos, Item *a)
+    : Item_func_truth(pos, a, false, false)
+  {}
   ~Item_func_isnotfalse() {}
   virtual const char* func_name() const { return "isnotfalse"; }
 };
@@ -386,6 +401,11 @@ protected:
 public:
   Item_bool_func2(Item *a,Item *b)
     :Item_bool_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
+
+  Item_bool_func2(const POS &pos, Item *a,Item *b)
+    :Item_bool_func(pos, a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE)
+  {}
+
   void fix_length_and_dec();
   int set_cmp_func()
   {
@@ -420,6 +440,12 @@ public:
   {
     allowed_arg_cols= 0;  // Fetch this value from first argument
   }
+  Item_bool_rowready_func2(const POS &pos, Item *a, Item *b)
+    : Item_bool_func2(pos, a, b)
+  {
+    allowed_arg_cols= 0;  // Fetch this value from first argument
+  }
+
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
   bool subst_argument_checker(uchar **arg) { return TRUE; }
@@ -434,6 +460,10 @@ class Item_func_xor :public Item_bool_func2
 {
 public:
   Item_func_xor(Item *i1, Item *i2) :Item_bool_func2(i1, i2) {}
+  Item_func_xor(const POS &pos, Item *i1, Item *i2)
+    : Item_bool_func2(pos, i1, i2)
+  {}
+
   enum Functype functype() const { return XOR_FUNC; }
   const char *func_name() const { return "xor"; }
   longlong val_int();
@@ -450,6 +480,8 @@ class Item_func_not :public Item_bool_func
 {
 public:
   Item_func_not(Item *a) :Item_bool_func(a) {}
+  Item_func_not(const POS &pos, Item *a) :Item_bool_func(pos, a) {}
+
   longlong val_int();
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
@@ -617,7 +649,10 @@ class Item_func_eq :public Item_bool_rowready_func2
 {
 public:
   Item_func_eq(Item *a,Item *b) :
-    Item_bool_rowready_func2(a,b)
+    Item_bool_rowready_func2( a, b)
+  {}
+  Item_func_eq(const POS &pos, Item *a,Item *b) :
+    Item_bool_rowready_func2(pos, a, b)
   {}
   longlong val_int();
   enum Functype functype() const { return EQ_FUNC; }
@@ -638,6 +673,10 @@ class Item_func_equal :public Item_bool_rowready_func2
 {
 public:
   Item_func_equal(Item *a,Item *b) :Item_bool_rowready_func2(a,b) {};
+  Item_func_equal(const POS &pos, Item *a,Item *b)
+    : Item_bool_rowready_func2(pos, a,b)
+  {};
+
   longlong val_int();
   void fix_length_and_dec();
   table_map not_null_tables() const { return 0; }
@@ -756,10 +795,18 @@ public:
   bool negated;     /* <=> the item represents NOT <func> */
   bool pred_level;  /* <=> [NOT] <func> is used on a predicate level */
 public:
-  Item_func_opt_neg(Item *a, Item *b, Item *c)
-    :Item_int_func(a, b, c), negated(0), pred_level(0) {}
-  Item_func_opt_neg(List<Item> &list)
-    :Item_int_func(list), negated(0), pred_level(0) {}
+  Item_func_opt_neg(const POS &pos, Item *a, Item *b, Item *c, bool is_negation)
+    :Item_int_func(pos, a, b, c), negated(0), pred_level(0) 
+  {
+    if (is_negation)
+      negate();
+  }
+  Item_func_opt_neg(const POS &pos, PT_item_list *list, bool is_negation)
+    :Item_int_func(pos, list), negated(0), pred_level(0)
+  {
+    if (is_negation)
+      negate();
+  }
 public:
   inline void negate() { negated= !negated; }
   inline void top_level_item() { pred_level= 1; }
@@ -787,8 +834,9 @@ public:
   
   /* Comparators used for DATE/DATETIME comparison. */
   Arg_comparator ge_cmp, le_cmp;
-  Item_func_between(Item *a, Item *b, Item *c)
-    :Item_func_opt_neg(a, b, c), compare_as_dates_with_strings(FALSE),
+  Item_func_between(const POS &pos, Item *a, Item *b, Item *c, bool is_negation)
+    :Item_func_opt_neg(pos, a, b, c, is_negation),
+    compare_as_dates_with_strings(FALSE),
     compare_as_temporal_dates(FALSE),
     compare_as_temporal_times(FALSE) {}
   longlong val_int();
@@ -814,7 +862,8 @@ public:
 class Item_func_strcmp :public Item_bool_func2
 {
 public:
-  Item_func_strcmp(Item *a,Item *b) :Item_bool_func2(a,b) {}
+  Item_func_strcmp(const POS &pos, Item *a, Item *b) :Item_bool_func2(pos, a, b)
+  {}
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "strcmp"; }
@@ -840,6 +889,8 @@ struct interval_range
 
 class Item_func_interval :public Item_int_func
 {
+  typedef Item_int_func super;
+
   Item_row *row;
   my_bool use_decimal_comparison;
   interval_range *intervals;
@@ -849,11 +900,25 @@ public:
   {
     allowed_arg_cols= 0;    // Fetch this value from first argument
   }
+
+  Item_func_interval(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
+                     Item *expr2, class PT_item_list *opt_expr_list= NULL)
+    :super(pos, alloc_row(pos, mem_root, expr1, expr2, opt_expr_list)),
+     intervals(0)
+  {
+    allowed_arg_cols= 0;    // Fetch this value from first argument
+  }
+
+  virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   void fix_length_and_dec();
   const char *func_name() const { return "interval"; }
   uint decimal_precision() const { return 2; }
   void print(String *str, enum_query_type query_type);
+
+private:
+  Item_row *alloc_row(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
+                      Item *expr2, class PT_item_list *opt_expr_list);
 };
 
 
@@ -861,9 +926,11 @@ class Item_func_coalesce :public Item_func_numhybrid
 {
 protected:
   enum_field_types cached_field_type;
-  Item_func_coalesce(Item *a, Item *b) :Item_func_numhybrid(a, b) {}
+  Item_func_coalesce(const POS &pos, Item *a, Item *b)
+    : Item_func_numhybrid(pos, a, b)
+  {}
 public:
-  Item_func_coalesce(List<Item> &list) :Item_func_numhybrid(list) {}
+  Item_func_coalesce(const POS &pos, PT_item_list *list);
   double real_op();
   longlong int_op();
   String *str_op(String *);
@@ -884,7 +951,9 @@ class Item_func_ifnull :public Item_func_coalesce
 protected:
   bool field_type_defined;
 public:
-  Item_func_ifnull(Item *a, Item *b) :Item_func_coalesce(a,b) {}
+  Item_func_ifnull(const POS &pos, Item *a, Item *b)
+    : Item_func_coalesce(pos, a, b)
+  {}
   double real_op();
   longlong int_op();
   String *str_op(String *str);
@@ -906,6 +975,10 @@ public:
   Item_func_if(Item *a,Item *b,Item *c)
     :Item_func(a,b,c), cached_result_type(INT_RESULT)
   {}
+  Item_func_if(const POS &pos, Item *a,Item *b,Item *c)
+    :Item_func(pos, a,b,c), cached_result_type(INT_RESULT)
+  {}
+
   double val_real();
   longlong val_int();
   String *val_str(String *str);
@@ -929,8 +1002,8 @@ class Item_func_nullif :public Item_bool_func2
 {
   enum Item_result cached_result_type;
 public:
-  Item_func_nullif(Item *a,Item *b)
-    :Item_bool_func2(a,b), cached_result_type(INT_RESULT)
+  Item_func_nullif(const POS &pos, Item *a, Item *b)
+    :Item_bool_func2(pos, a, b), cached_result_type(INT_RESULT)
   {}
   double val_real();
   longlong val_int();
@@ -1397,6 +1470,8 @@ public:
 
 class Item_func_case :public Item_func
 {
+  typedef Item_func super;
+
   int first_expr_num, else_expr_num;
   enum Item_result cached_result_type, left_result_type;
   String tmp_value;
@@ -1407,8 +1482,9 @@ class Item_func_case :public Item_func
   cmp_item *cmp_items[5]; /* For all result types */
   cmp_item *case_item;
 public:
-  Item_func_case(List<Item> &list, Item *first_expr_arg, Item *else_expr_arg)
-    :Item_func(), first_expr_num(-1), else_expr_num(-1),
+  Item_func_case(const POS &pos, List<Item> &list, Item *first_expr_arg,
+                 Item *else_expr_arg)
+    : super(pos), first_expr_num(-1), else_expr_num(-1),
     cached_result_type(INT_RESULT), left_result_type(INT_RESULT), case_item(0)
   {
     ncases= list.elements;
@@ -1422,7 +1498,7 @@ public:
       else_expr_num= list.elements;
       list.push_back(else_expr_arg);
     }
-    set_arguments(list);
+    set_arguments(list, true);
     memset(&cmp_items, 0, sizeof(cmp_items));
   }
   double val_real();
@@ -1480,8 +1556,8 @@ public:
   cmp_item *cmp_items[6]; /* One cmp_item for each result type */
   DTCollation cmp_collation;
 
-  Item_func_in(List<Item> &list)
-    :Item_func_opt_neg(list), array(NULL),
+  Item_func_in(const POS &pos, PT_item_list *list, bool is_negation)
+    :Item_func_opt_neg(pos, list, is_negation), array(NULL),
     have_null(false), arg_types_compatible(false)
   {
     memset(&cmp_items, 0, sizeof(cmp_items));
@@ -1590,6 +1666,8 @@ protected:
   longlong cached_value;
 public:
   Item_func_isnull(Item *a) :Item_bool_func(a) {}
+  Item_func_isnull(const POS &pos, Item *a) :Item_bool_func(pos, a) {}
+
   longlong val_int();
   enum Functype functype() const { return ISNULL_FUNC; }
   void fix_length_and_dec()
@@ -1667,6 +1745,10 @@ class Item_func_isnotnull :public Item_bool_func
   bool abort_on_null;
 public:
   Item_func_isnotnull(Item *a) :Item_bool_func(a), abort_on_null(0) {}
+  Item_func_isnotnull(const POS &pos, Item *a)
+    : Item_bool_func(pos, a), abort_on_null(0)
+  {}
+
   longlong val_int();
   enum Functype functype() const { return ISNOTNULL_FUNC; }
   void fix_length_and_dec()
@@ -1692,6 +1774,8 @@ public:
 
 class Item_func_like :public Item_bool_func2
 {
+  typedef Item_bool_func2 super;
+
   // Boyer-Moore data
   bool        can_do_bm;	// pattern is '%abcd%' case
   const char* pattern;
@@ -1718,6 +1802,14 @@ public:
     :Item_bool_func2(a,b), can_do_bm(false), pattern(0), pattern_len(0), 
      bmGs(0), bmBc(0), escape_item(escape_arg),
      escape_used_in_parsing(escape_used) {}
+  Item_func_like(const POS &pos, Item *a, Item *b, Item *opt_escape_arg)
+    :super(pos, a, b), can_do_bm(false), pattern(0), pattern_len(0), 
+     bmGs(0), bmBc(0), escape_item(opt_escape_arg),
+     escape_used_in_parsing(opt_escape_arg != NULL)
+  {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+
   longlong val_int();
   enum Functype functype() const { return LIKE_FUNC; }
   optimize_type select_optimize() const;
@@ -1750,7 +1842,7 @@ class Item_func_regex :public Item_bool_func
   String conv;
   int regcomp(bool send_error);
 public:
-  Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b),
+  Item_func_regex(const POS &pos, Item *a,Item *b) :Item_bool_func(pos, a,b),
     regex_compiled(0),regex_is_const(0) {}
   void cleanup();
   longlong val_int();
