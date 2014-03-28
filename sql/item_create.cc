@@ -261,11 +261,68 @@ protected:
   virtual ~Create_func_addtime() {}
 };
 
-
-class Create_func_aes_encrypt : public Create_func_arg2
+class Create_func_aes_base : public Create_native_func
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_native(THD *thd, LEX_STRING name, List<Item> *item_list)
+  {
+    Item *func= NULL, *p1, *p2, *p3;
+    int arg_count= 0;
+
+    /* Unsafe for SBR since result depends on a session variable */
+    thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+
+    if (item_list != NULL)
+      arg_count= item_list->elements;
+
+    switch (arg_count)
+    {
+    case 2:
+      {
+        p1= item_list->pop();
+        p2= item_list->pop();
+        func= create_aes(thd, p1, p2);
+        break;
+      }
+    case 3:
+      {
+        p1= item_list->pop();
+        p2= item_list->pop();
+        p3= item_list->pop();
+        func= create_aes(thd, p1, p2, p3);
+        break;
+      }
+    default:
+      {
+        my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+        break;
+      }
+    }
+    return func;
+
+  }
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2)= 0;
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3)= 0;
+protected:
+  Create_func_aes_base()
+  {}
+  virtual ~Create_func_aes_base()
+  {}
+
+};
+
+
+class Create_func_aes_encrypt : public Create_func_aes_base
+{
+public:
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2)
+  {
+    return new (thd->mem_root) Item_func_aes_encrypt(arg1, arg2);
+  }
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3)
+  {
+    return new (thd->mem_root) Item_func_aes_encrypt(arg1, arg2, arg3);
+  }
 
   static Create_func_aes_encrypt s_singleton;
 
@@ -275,16 +332,42 @@ protected:
 };
 
 
-class Create_func_aes_decrypt : public Create_func_arg2
+class Create_func_aes_decrypt : public Create_func_aes_base
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2)
+  {
+    return new (thd->mem_root) Item_func_aes_decrypt(arg1, arg2);
+  }
+  virtual Item *create_aes(THD *thd, Item *arg1, Item *arg2, Item *arg3)
+  {
+    return new (thd->mem_root) Item_func_aes_decrypt(arg1, arg2, arg3);
+  }
 
   static Create_func_aes_decrypt s_singleton;
 
 protected:
   Create_func_aes_decrypt() {}
   virtual ~Create_func_aes_decrypt() {}
+};
+
+
+class Create_func_random_bytes : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1)
+  {
+    /* it is unsafe for SBR since it uses crypto random from the ssl library */
+    thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+    return new (thd->mem_root) Item_func_random_bytes(arg1);
+  }
+  static Create_func_random_bytes s_singleton;
+
+protected:
+  Create_func_random_bytes()
+  {}
+  virtual ~Create_func_random_bytes()
+  {}
 };
 
 
@@ -3017,20 +3100,11 @@ Create_func_addtime::create(THD *thd, Item *arg1, Item *arg2)
 
 Create_func_aes_encrypt Create_func_aes_encrypt::s_singleton;
 
-Item*
-Create_func_aes_encrypt::create(THD *thd, Item *arg1, Item *arg2)
-{
-  return new (thd->mem_root) Item_func_aes_encrypt(arg1, arg2);
-}
-
 
 Create_func_aes_decrypt Create_func_aes_decrypt::s_singleton;
 
-Item*
-Create_func_aes_decrypt::create(THD *thd, Item *arg1, Item *arg2)
-{
-  return new (thd->mem_root) Item_func_aes_decrypt(arg1, arg2);
-}
+
+Create_func_random_bytes Create_func_random_bytes::s_singleton;
 
 
 #ifdef HAVE_SPATIAL
@@ -5554,7 +5628,8 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("QUOTE") }, BUILDER(Create_func_quote)},
   { { C_STRING_WITH_LEN("RADIANS") }, BUILDER(Create_func_radians)},
   { { C_STRING_WITH_LEN("RAND") }, BUILDER(Create_func_rand)},
-  { { C_STRING_WITH_LEN("RELEASE_LOCK") }, BUILDER(Create_func_release_lock)},
+  { { C_STRING_WITH_LEN("RANDOM_BYTES") }, BUILDER(Create_func_random_bytes) },
+  { { C_STRING_WITH_LEN("RELEASE_LOCK") }, BUILDER(Create_func_release_lock) },
   { { C_STRING_WITH_LEN("REVERSE") }, BUILDER(Create_func_reverse)},
   { { C_STRING_WITH_LEN("ROUND") }, BUILDER(Create_func_round)},
   { { C_STRING_WITH_LEN("RPAD") }, BUILDER(Create_func_rpad)},

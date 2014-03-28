@@ -12,6 +12,7 @@ get_lock("lock",2)
 select release_lock("lock");
 release_lock("lock")
 1
+include/sync_slave_sql_with_master.inc
 select get_lock("lock",3);
 get_lock("lock",3)
 1
@@ -33,4 +34,5 @@ select is_free_lock(NULL);
 is_free_lock(NULL)
 NULL
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

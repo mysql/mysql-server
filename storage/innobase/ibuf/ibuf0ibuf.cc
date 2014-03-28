@@ -2919,7 +2919,8 @@ ibuf_get_volume_buffered_hash(
 	fold = ut_fold_binary(data, len);
 
 	hash += (fold / (CHAR_BIT * sizeof *hash)) % size;
-	bitmask = 1 << (fold % (CHAR_BIT * sizeof *hash));
+	bitmask = static_cast<ulint>(
+		1 << (fold % (CHAR_BIT * sizeof(*hash))));
 
 	if (*hash & bitmask) {
 
@@ -3932,7 +3933,7 @@ skip_watch:
 
 /********************************************************************//**
 During merge, inserts to an index page a secondary index entry extracted
-from the insert buffer. 
+from the insert buffer.
 @return	newly inserted record */
 static __attribute__((nonnull))
 rec_t*

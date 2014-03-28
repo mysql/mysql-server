@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2001 MySQL AB, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 # Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or
@@ -26,6 +26,7 @@
 # makes .frm lowercase and .MYI/MYD/ISM/ISD uppercase
 # useful when datafiles are copied from windows
 
+print STDERR "Warning: $0 is deprecated and will be removed in a future version.\n";
 die "Usage: $0 datadir\n" unless -d $ARGV[0];
 
 for $a (<$ARGV[0]/*/*.*>) { $_=$a;

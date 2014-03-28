@@ -1,6 +1,7 @@
 # Requires binlog_format=statement format since query involving
 # get_lock() is logged in row format if binlog_format=mixed or row.
 -- source include/have_binlog_format_statement.inc
+-- source include/not_gtid_enabled.inc
 -- source include/master-slave.inc
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -18,7 +19,7 @@ select * from t1 limit 10;
 #
 # Test slave with wrong password
 #
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 stop slave;
 connection master;
 set password for root@"localhost" = password('foo');
@@ -35,12 +36,12 @@ sleep 2;
 
 create table t3(n int);
 insert into t3 values(1),(2);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t3;
 select sum(length(word)) from t1;
 connection master;
 drop table t1,t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # Test if the slave SQL thread can be more than 16K behind the slave
 # I/O thread (> IO_SIZE)
@@ -48,7 +49,7 @@ sync_slave_with_master;
 connection master;
 # we'll use table-level locking to delay slave SQL thread
 eval create table t1 (n int) engine=$engine_type;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection master;
 reset master;
 connection slave;
@@ -126,13 +127,13 @@ insert into mysql.user (Host, User, Password)
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";
 select select_priv,user from mysql.user where user = _binary'blafasel2';
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select n from t1;
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 connection master1;
 drop table t1;
 delete from mysql.user where user="blafasel2";
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests
 --source include/rpl_end.inc

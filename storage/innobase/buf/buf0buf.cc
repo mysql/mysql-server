@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -465,6 +465,26 @@ buf_block_alloc(
 	return(block);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/********************************************************************//**
+Checks if a page is all zeroes.
+@return	TRUE if the page is all zeroes */
+bool
+buf_page_is_zeroes(
+/*===============*/
+	const byte*	read_buf,	/*!< in: a database page */
+	const ulint	zip_size)	/*!< in: size of compressed page;
+					0 for uncompressed pages */
+{
+	const ulint page_size = zip_size ? zip_size : UNIV_PAGE_SIZE;
+
+	for (ulint i = 0; i < page_size; i++) {
+		if (read_buf[i] != 0) {
+			return(false);
+		}
+	}
+	return(true);
+}
 
 /********************************************************************//**
 Checks if a page is corrupt.
@@ -1272,8 +1292,8 @@ buf_pool_init_instance(
 
 		/* Number of locks protecting page_hash must be a
 		power of two */
-		srv_n_page_hash_locks =
-				 ut_2_power_up(srv_n_page_hash_locks);
+		srv_n_page_hash_locks = static_cast<ulong>(
+				 ut_2_power_up(srv_n_page_hash_locks));
 		ut_a(srv_n_page_hash_locks != 0);
 		ut_a(srv_n_page_hash_locks <= MAX_PAGE_HASH_LOCKS);
 
@@ -1668,8 +1688,8 @@ page_found:
 			buf_block_t::mutex or buf_pool->zip_mutex or both. */
 
 			bpage->state = BUF_BLOCK_ZIP_PAGE;
-			bpage->space = space;
-			bpage->offset = offset;
+			bpage->space = static_cast<ib_uint32_t>(space);
+			bpage->offset = static_cast<ib_uint32_t>(offset);
 			bpage->buf_fix_count = 1;
 
 			ut_d(bpage->in_page_hash = TRUE);
@@ -2795,13 +2815,12 @@ got_block:
 
 		++buf_pool->n_pend_unzip;
 
+		mutex_exit(&buf_pool->zip_mutex);
 		buf_pool_mutex_exit(buf_pool);
 
 		access_time = buf_page_is_accessed(&block->page);
 
 		buf_block_mutex_exit(block);
-
-		mutex_exit(&buf_pool->zip_mutex);
 
 		buf_page_free_descriptor(bpage);
 
@@ -3655,8 +3674,8 @@ err_exit:
 		buf_page_init_low(bpage);
 
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
-		bpage->space	= space;
-		bpage->offset	= offset;
+		bpage->space	= static_cast<ib_uint32_t>(space);
+		bpage->offset	= static_cast<ib_uint32_t>(offset);
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;

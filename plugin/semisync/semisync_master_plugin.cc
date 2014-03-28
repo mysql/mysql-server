@@ -76,13 +76,18 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   {
     /* One more semi-sync slave */
     repl_semisync.add_slave();
-    
+    /* Tell server it will observe the transmission.*/
+    param->set_observe_flag();
+
     /*
       Let's assume this semi-sync slave has already received all
       binlog events before the filename and position it requests.
     */
     repl_semisync.reportReplyBinlog(param->server_id, log_file, log_pos);
   }
+  else
+    param->set_dont_observe_flag();
+
   sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
 			semi_sync_slave ? "semi-sync" : "asynchronous",
 			param->server_id, log_file, (unsigned long)log_pos);

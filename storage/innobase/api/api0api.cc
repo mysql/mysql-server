@@ -1489,7 +1489,8 @@ ib_insert_row_with_lock_retry(
 			que_thr_stop_for_mysql(thr);
 
 			thr->lock_state = QUE_THR_LOCK_ROW;
-			lock_wait = ib_handle_errors(&err, trx, thr, savept);
+			lock_wait = static_cast<ib_bool_t>(
+				ib_handle_errors(&err, trx, thr, savept));
 			thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		} else {
 			lock_wait = FALSE;
@@ -1823,8 +1824,8 @@ ib_update_row_with_lock_retry(
 			if (err != DB_RECORD_NOT_FOUND) {
 				thr->lock_state = QUE_THR_LOCK_ROW;
 
-				lock_wait = ib_handle_errors(
-					&err, trx, thr, savept);
+				lock_wait = static_cast<ib_bool_t>(
+					ib_handle_errors(&err, trx, thr, savept));
 
 				thr->lock_state = QUE_THR_LOCK_NOLOCK;
 			} else {
@@ -1977,7 +1978,8 @@ ib_delete_row(
 
 	upd = ib_update_vector_create(cursor);
 
-	page_format = dict_table_is_comp(index->table);
+	page_format = static_cast<ib_bool_t>(
+		dict_table_is_comp(index->table));
 	ib_read_tuple(rec, page_format, tuple, NULL, NULL);
 
 	upd->n_fields = ib_tuple_get_n_cols(ib_tpl);
@@ -2043,7 +2045,8 @@ ib_cursor_delete_row(
 		ib_bool_t	page_format;
 		mtr_t		mtr;
 
-		page_format = dict_table_is_comp(index->table);
+		page_format = static_cast<ib_bool_t>(
+			dict_table_is_comp(index->table));
 
 		mtr_start(&mtr);
 
@@ -2116,7 +2119,8 @@ ib_cursor_read_row(
 			const rec_t*	rec;
 			ib_bool_t	page_format;
 
-			page_format = dict_table_is_comp(tuple->index->table);
+			page_format = static_cast<ib_bool_t>(
+				dict_table_is_comp(tuple->index->table));
 			rec = btr_pcur_get_rec(pcur);
 
 			if (prebuilt->innodb_api_rec &&
@@ -2360,7 +2364,7 @@ ib_col_set_value(
 	for that. */
 	if (ib_col_is_capped(dtype)) {
 
-		len = ut_min(len, col_len);
+		len = ut_min(len, static_cast<ib_ulint_t>(col_len));
 
 		if (dst == NULL || len > dfield_get_len(dfield)) {
 			dst = mem_heap_alloc(tuple->heap, col_len);
@@ -2421,12 +2425,12 @@ ib_col_set_value(
 		ut_a(pad_char != ULINT_UNDEFINED);
 
 		memset((byte*) dst + len,
-		       pad_char,
-		       col_len - len);
+		       static_cast<int>(pad_char),
+			   static_cast<size_t>(col_len - len));
 
 		memcpy(dst, src, len);
 
-		len = col_len;
+		len = static_cast<ib_ulint_t>(col_len);
 		break;
 	}
 	case DATA_BLOB:
@@ -2467,7 +2471,7 @@ ib_col_set_value(
 						&error);
 
 				if (true_len < len) {
-					len = true_len;
+					len = static_cast<ib_ulint_t>(true_len);
 				}
 			}
 		}
@@ -2508,7 +2512,7 @@ ib_col_set_value(
 				col_len--;
 			}
 
-			len = col_len;
+			len = static_cast<ib_ulint_t>(col_len);
 		}
 		break;
 	}
@@ -2544,7 +2548,8 @@ ib_col_get_len(
 
 	data_len = dfield_get_len(dfield);
 
-	return(data_len == UNIV_SQL_NULL ? IB_SQL_NULL : data_len);
+	return(static_cast<ib_ulint_t>(
+		data_len == UNIV_SQL_NULL ? IB_SQL_NULL : data_len));
 }
 
 /*****************************************************************//**
@@ -2640,7 +2645,7 @@ ib_col_copy_value_low(
 		data_len = IB_SQL_NULL;
 	}
 
-	return(data_len);
+	return(static_cast<ib_ulint_t>(data_len));
 }
 
 /*****************************************************************//**
@@ -2750,14 +2755,15 @@ ib_col_get_meta_low(
 	ib_col_meta->type = static_cast<ib_col_type_t>(
 		dtype_get_mtype(dfield_get_type(dfield)));
 
-	ib_col_meta->type_len = dtype_get_len(dfield_get_type(dfield));
+	ib_col_meta->type_len = static_cast<ib_u32_t>(
+		dtype_get_len(dfield_get_type(dfield)));
 
 	prtype = (ib_u16_t) dtype_get_prtype(dfield_get_type(dfield));
 
 	ib_col_meta->attr = ib_col_get_attr(prtype);
 	ib_col_meta->client_type = prtype & DATA_MYSQL_TYPE_MASK;
 
-	return(data_len);
+	return(static_cast<ib_ulint_t>(data_len));
 }
 
 /*************************************************************//**
@@ -3243,10 +3249,12 @@ ib_tuple_get_n_user_cols(
 	const ib_tuple_t*	tuple = (const ib_tuple_t*) ib_tpl;
 
 	if (tuple->type == TPL_TYPE_ROW) {
-		return(dict_table_get_n_user_cols(tuple->index->table));
+		return(static_cast<ib_ulint_t>(
+			dict_table_get_n_user_cols(tuple->index->table)));
 	}
 
-	return(dict_index_get_n_ordering_defined_by_user(tuple->index));
+	return(static_cast<ib_ulint_t>(
+		dict_index_get_n_ordering_defined_by_user(tuple->index)));
 }
 
 /*****************************************************************//**
@@ -3260,7 +3268,7 @@ ib_tuple_get_n_cols(
 {
 	const ib_tuple_t*	tuple = (const ib_tuple_t*) ib_tpl;
 
-	return(dtuple_get_n_fields(tuple->ptr));
+	return(static_cast<ib_ulint_t>(dtuple_get_n_fields(tuple->ptr)));
 }
 
 /*****************************************************************//**
@@ -3563,7 +3571,9 @@ ib_tuple_write_int(
 		return(DB_DATA_MISMATCH);
 	}
 
-	return(ib_col_set_value(ib_tpl, col_no, value, type_len, true));
+	return(ib_col_set_value(
+		ib_tpl, static_cast<ib_ulint_t>(col_no),
+		value, static_cast<ib_ulint_t>(type_len), true));
 }
 
 /*****************************************************************//**
@@ -3889,7 +3899,8 @@ ib_table_truncate(
 	/* Remember the memcached_sync_count and set it to 0, so the
 	truncate can be executed. */
 	if (table != NULL && err == DB_SUCCESS) {
-		memcached_sync = table->memcached_sync_count;
+		memcached_sync = static_cast<ib_ulint_t>(
+			table->memcached_sync_count);
 		table->memcached_sync_count = 0;
 	}
 

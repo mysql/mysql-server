@@ -66,7 +66,7 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
 -- source include/rpl_row_img_parts_master_slave.inc
 
 DROP TABLE t;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 #
 # Assertions: combines img_types with different index types. 
@@ -123,7 +123,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
       CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
     }
 
-    -- sync_slave_with_master
+    --source include/sync_slave_sql_with_master.inc
     -- connection master
 
     # Issue some statements
@@ -251,7 +251,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
 
     DROP TABLE t;
 
-    -- sync_slave_with_master
+    --source include/sync_slave_sql_with_master.inc
 
     -- disable_query_log
     -- connection master
@@ -301,7 +301,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
 
   -- connection master
   INSERT INTO t VALUES (1);
-  -- sync_slave_with_master
+  --source include/sync_slave_sql_with_master.inc
   -- connection master
 
   -- let $row_img_query= UPDATE t SET a=2 WHERE a=1;
@@ -319,7 +319,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
 
   -- connection master
   DROP TABLE IF EXISTS t;
-  -- sync_slave_with_master
+  --source include/sync_slave_sql_with_master.inc
 
   -- source include/rpl_reset.inc
 
@@ -376,7 +376,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
 
     -- connection master
     DROP TABLE t;
-    -- sync_slave_with_master
+    --source include/sync_slave_sql_with_master.inc
 
     -- echo ####### MINIMAL OTHER PARTICULAR SCENARIO ######
   
@@ -407,7 +407,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
 
     -- connection master
     DROP TABLE t;
-    -- sync_slave_with_master
+    --source include/sync_slave_sql_with_master.inc
   }
 
   if (`SELECT @@binlog_row_image = "NOBLOB"`)
@@ -477,7 +477,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
 
     -- connection master
     DROP TABLE t;
-    -- sync_slave_with_master
+    --source include/sync_slave_sql_with_master.inc
 
   }
 
@@ -539,7 +539,7 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c3(512)));
 
 DROP TABLE t;
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- echo ###################################
 -- echo # PK (does not contain blob, but blob is updated)
@@ -586,7 +586,7 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
 -- source include/rpl_row_img_parts_master_slave.inc
 
 DROP TABLE t;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- echo ###################################
 -- echo # AUTOINC columns
@@ -605,7 +605,7 @@ CREATE TABLE t (c1 int NOT NULL AUTO_INCREMENT, c2 int, c3 blob, primary key(c1,
 -- source include/rpl_row_img_parts_master_slave.inc
 
 DROP TABLE t;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- echo ##################################################################
 -- echo # Test that slave does not write more columns than the ones it has 
@@ -636,7 +636,7 @@ CREATE TABLE t (c1 int, c2 int, primary key(c1));
 -- source include/rpl_row_img_parts_master_slave.inc
 
 DROP TABLE t;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- echo ##################################################################
 -- echo # Test that slave fills default columns in its own columns
@@ -672,7 +672,7 @@ SELECT * FROM t;
 SELECT * FROM t;
 
 DROP TABLE t;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- echo ##################################################################
 -- echo # Test that slave uses partial BI when master contains more columns
@@ -709,7 +709,7 @@ SELECT * FROM t;
 SELECT * FROM t;
 
 DROP TABLE t;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- echo ##################################################################
 -- echo # Test that if master has binlog_row_image=MINIMAL and slave has 
@@ -745,7 +745,7 @@ CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, c4 blob, unique key(c1));
 -- source include/rpl_row_img_parts_master_slave.inc
 
 DROP TABLE t;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- source include/rpl_reset.inc
 -- connection master
@@ -776,7 +776,7 @@ CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, c4 blob, unique key(c1));
 -- source include/rpl_row_img_parts_master_slave.inc
 
 DROP TABLE t;
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 -- echo ################################################################
 -- echo # Test that the slave stop with error if no usable data is on BI

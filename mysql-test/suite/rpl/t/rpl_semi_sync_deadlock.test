@@ -23,7 +23,7 @@ while ($i < $n)
 --enable_result_log
 --enable_query_log
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --connection master
 SET GLOBAL debug= 'd,semi_sync_3-way_deadlock';
@@ -96,7 +96,7 @@ while ($i < $n)
 --enable_query_log
 SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/uninstall_semisync.inc
 --source include/rpl_end.inc

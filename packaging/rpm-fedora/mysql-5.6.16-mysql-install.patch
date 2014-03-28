@@ -2,48 +2,6 @@ diff --git a/scripts/mysql_install_db.pl.in b/scripts/mysql_install_db.pl.in
 index 440a977..7d068fc 100644
 --- a/scripts/mysql_install_db.pl.in
 +++ b/scripts/mysql_install_db.pl.in
-@@ -34,13 +34,35 @@
- #
- ##############################################################################
- 
--use Fcntl;
--use File::Basename;
--use File::Copy;
--use Getopt::Long;
--use Sys::Hostname;
--use Data::Dumper;
- use strict;
-+use warnings;
-+
-+##############################################################################
-+# Check if all needed modules are available, exit if something is missing.
-+##############################################################################
-+
-+BEGIN {
-+  my @req_mods = ('Fcntl', 'File::Basename', 'File::Copy', 'Getopt::Long',
-+                  'Sys::Hostname', 'Data::Dumper');
-+  my @missing_mods;
-+  my $req;
-+  foreach $req (@req_mods) {
-+    eval 'require ' . $req;
-+    if ($@) {
-+      push(@missing_mods, $req);
-+    } else {
-+      $req->import();
-+    }
-+  }
-+  # this avoids the confusing "BEGIN failed--compilation aborted" message
-+  local $SIG{__DIE__} = sub {warn @_; exit 1};
-+
-+  if (@missing_mods) {
-+    my $msg = "FATAL ERROR: please install the following Perl modules " .
-+              "before executing $0:\n" . join("\n",@missing_mods)."\n";
-+    die $msg;
-+  }
-+}
- 
- Getopt::Long::Configure("pass_through");
- 
 @@ -75,6 +97,8 @@ Usage: $0 [OPTIONS]
    --help               Display this help and exit.                     
    --ldata=path         The path to the MySQL data directory. Same as --datadir.
@@ -69,33 +27,6 @@ index 440a977..7d068fc 100644
               "rpm",
               "help",
               "random-passwords",
-@@ -356,13 +382,19 @@ sub tell_root_password {
- ##############################################################################
- 
- sub generate_random_password {
--  # On (at least) Linux and Solaris, a "random" device is available, use it:
--  # cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1
--  # Without LC_ALL, "tr" may not know the "alnum" character class -
--  # and there are user profiles which do not have this set.
--  #
--  my $password = `cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
--  chomp ($password);
-+  # On Linux, Solaris, Max OS X and FreeBSD we have a random device available.
-+  my $randfile = "/dev/urandom";
-+  open(FD, $randfile) || die "Can't open $randfile for reading: $!";
-+  my $password = "";
-+  my $pass_len = 16;
-+  my $c;
-+  while (length($password) < $pass_len) {
-+    $c = getc(FD);
-+    if ($c =~ /\w/) {
-+      $password .= $c;
-+    }
-+  }
-+  close(FD);
-   return $password;
- }
- 
 @@ -399,11 +431,16 @@ $basedir= "@prefix@" if ! $basedir;		# Default
  # ----------------------------------------------------------------------
  
@@ -113,7 +44,7 @@ index 440a977..7d068fc 100644
  if ( $opt->{srcdir} )
  {
    $opt->{builddir} = $opt->{srcdir} unless $opt->{builddir};
-@@ -425,13 +462,18 @@ my $config_file;
+@@ -425,7 +462,7 @@ my $config_file;
  my $copy_cfg_file;
  
  # ----------------------------------------------------------------------
@@ -121,20 +52,21 @@ index 440a977..7d068fc 100644
 +# This will be the default config file (unless creation is unwanted)
  # ----------------------------------------------------------------------
  
- $config_file= "$basedir/my.cnf";
+ my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
+@@ -434,6 +471,11 @@ $config_file= "$basedir/my.$cnfext";
  
- my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
- 				  "share","share/mysql","support-files");
+ my $cfg_template= find_in_basedir($opt,"file","my-default.$cnfext",
+ 				  ".", "share","share/mysql","support-files");
 +# Distros might move files
 +if ((! -r $cfg_template) && (-r "@pkgdatadir@/my-default.cnf")) {
 +  $cfg_template = "@pkgdatadir@/my-default.cnf";
 +}
 +
- -e $cfg_template or cannot_find_file("my-default.cnf");
+ -e $cfg_template or cannot_find_file("my-default.$cnfext");
  
  $copy_cfg_file= $config_file;
-@@ -441,22 +483,21 @@ if (-e $copy_cfg_file)
-   $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
+@@ -443,22 +485,21 @@ if (-e $copy_cfg_file)
+   $copy_cfg_file =~ s/my.$cnfext/my-new.$cnfext/;
    # Too early to print warning here, the user may not notice
  }
 -open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
@@ -169,7 +101,7 @@ index 440a977..7d068fc 100644
  
  # ----------------------------------------------------------------------
  # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
-@@ -619,7 +660,7 @@ if ( $opt->{'skip-name-resolve'} and $resolved and $resolved =~ /\s/ )
+@@ -621,7 +662,7 @@ if ( $opt->{'skip-name-resolve'} and $resolved and $resolved =~ /\s/ )
  }
  
  # ----------------------------------------------------------------------
@@ -178,7 +110,7 @@ index 440a977..7d068fc 100644
  # ----------------------------------------------------------------------
  
  # FIXME The shell variant uses "mkdir -p":
-@@ -652,7 +693,7 @@ if ($opt_user)
+@@ -654,7 +695,7 @@ if ($opt_user)
    }
  }
  
@@ -187,7 +119,7 @@ index 440a977..7d068fc 100644
  {
    mkdir($dir, 0700) unless -d $dir;
    if ($opt_user and -w "/")
-@@ -846,7 +887,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
+@@ -848,7 +889,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
             "",
             "Support MySQL by buying support/licenses at http://shop.mysql.com");
  

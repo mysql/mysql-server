@@ -6747,7 +6747,7 @@ fts_valid_stopword_table(
 
 	return(innobase_get_fts_charset(
 		static_cast<int>(col->prtype & DATA_MYSQL_TYPE_MASK),
-		static_cast<ulint>(dtype_get_charset_coll(col->prtype))));
+		static_cast<uint>(dtype_get_charset_coll(col->prtype))));
 }
 
 /**********************************************************************//**

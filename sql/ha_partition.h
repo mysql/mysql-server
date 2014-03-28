@@ -143,14 +143,18 @@ private:
   partition_info *m_part_info;          // local reference to partition
   Field **m_part_field_array;           // Part field array locally to save acc
   uchar *m_ordered_rec_buffer;          // Row and key buffer for ord. idx scan
-  /*
-    Current index.
-    When used in key_rec_cmp: If clustered pk, index compare
-    must compare pk if given index is same for two rows.
-    So normally m_curr_key_info[0]= current index and m_curr_key[1]= NULL,
-    and if clustered pk, [0]= current index, [1]= pk, [2]= NULL
+  /**
+    Current index used for sorting.
+    If clustered PK exists, then it will be used as secondary index to
+    sort on if the first is equal in key_rec_cmp.
+    So if clustered pk: m_curr_key_info[0]= current index and
+    m_curr_key_info[1]= pk and [2]= NULL.
+    Otherwise [0]= current index, [1]= NULL, and we will
+    sort by rowid as secondary sort key if equal first key.
   */
-  KEY *m_curr_key_info[3];              // Current index
+  KEY *m_curr_key_info[3];
+  /** Offset in m_ordered_rec_buffer from part buffer to its record buffer. */
+  uint m_rec_offset;
   uchar *m_rec0;                        // table->record[0]
   const uchar *m_err_rec;               // record which gave error
   QUEUE m_queue;                        // Prio queue used by sorted read
@@ -261,6 +265,8 @@ private:
   /** partitions that returned HA_ERR_KEY_NOT_FOUND. */
   MY_BITMAP m_key_not_found_partitions;
   bool m_key_not_found;
+  /** Need to sort by ref (rowid) too. */
+  bool m_sec_sort_by_rowid;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);

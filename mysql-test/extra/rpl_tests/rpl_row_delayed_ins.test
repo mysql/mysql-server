@@ -1,6 +1,7 @@
 # See if INSERT DELAYED gets replicated
 # Only in row-based, as we do SHOW BINLOG EVENTS
 
+-- source include/not_gtid_enabled.inc
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
 

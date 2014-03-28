@@ -359,3 +359,184 @@ Note	1831	Duplicate index 'i4' defined on the table 'test.t1'. This is deprecate
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
+#
+#BUG#13975225:ONLINE OPTIMIZE TABLE FOR INNODB TABLES
+#
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+#Setting up INNODB table.
+CREATE TABLE t1(fld1 INT, fld2 INT, fld3 INT) ENGINE= INNODB;
+INSERT INTO t1 VALUES (155, 45, 55);
+#Concurrent INSERT, UPDATE, SELECT and DELETE is supported 
+#during OPTIMIZE TABLE operation for INNODB tables.
+connection default;
+#OPTIMIZE TABLE operation.
+OPTIMIZE TABLE t1;
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+# With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (10, 11, 12);
+UPDATE t1 SET fld1= 20 WHERE fld1= 155;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+fld1	fld2	fld3
+10	11	12
+SET DEBUG_SYNC= 'now SIGNAL continue';
+connection default;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+#Concurrent INSERT, UPDATE, SELECT and DELETE is supported
+#during OPTIMIZE TABLE operation for Partitioned table.
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+#Setup PARTITIONED table.
+CREATE TABLE t1(fld1 INT) ENGINE= INNODB PARTITION BY HASH(fld1) PARTITIONS 4;
+INSERT INTO t1 VALUES(10);
+#OPTIMIZE TABLE operation.
+OPTIMIZE TABLE t1;
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+# With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (30);
+UPDATE t1 SET fld1= 20 WHERE fld1= 10;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+fld1
+30
+SET DEBUG_SYNC= 'now SIGNAL continue';
+connection default;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+#ALTER TABLE FORCE and ALTER TABLE ENGINE uses online rebuild
+#of the table.
+CREATE TABLE t1(fld1 INT, fld2 INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(10, 20);
+ALTER TABLE t1 FORCE;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ENGINE=INNODB;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+#ALTER TABLE FORCE, ALTER TABLE ENGINE and OPTIMIZE TABLE uses
+#table copy when the old_alter_table enabled.
+SET SESSION old_alter_table= TRUE;
+affected rows: 0
+ALTER TABLE t1 FORCE;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ENGINE= INNODB;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
+SET DEBUG_SYNC= 'alter_table_copy_after_lock_upgrade SIGNAL upgraded';
+affected rows: 0
+#OPTIMIZE TABLE operation using table copy.
+OPTIMIZE TABLE t1;
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+affected rows: 0
+INSERT INTO t1 VALUES(10, 20);
+affected rows: 1
+connection default;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+affected rows: 2
+SET DEBUG_SYNC= 'RESET';
+affected rows: 0
+SET SESSION old_alter_table= FALSE;
+affected rows: 0
+#ALTER TABLE FORCE and ALTER TABLE ENGINE uses table copy
+#when ALGORITHM COPY is used.
+ALTER TABLE t1 FORCE, ALGORITHM= COPY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ENGINE= INNODB, ALGORITHM= COPY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
+#OPTIMIZE TABLE on a table with FULLTEXT index uses
+#ALTER TABLE FORCE using COPY algorithm here. This
+#test case ensures the COPY table debug sync point is hit.
+SET DEBUG_SYNC= 'alter_table_copy_after_lock_upgrade SIGNAL upgraded';
+#Setup a table with FULLTEXT index.
+connection default;
+CREATE TABLE t1(fld1 CHAR(10), FULLTEXT(fld1)) ENGINE= INNODB;
+INSERT INTO t1 VALUES("String1");
+#OPTIMIZE TABLE operation.
+OPTIMIZE TABLE t1;
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
+INSERT INTO t1 VALUES("String2");
+connection default;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
+#Test which demonstrates that ALTER TABLE, OPTIMIZE PARTITION
+#takes OPTIMIZE TABLE code path, hence does an online rebuild
+#of the table with the patch. 
+connection default;
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+#Setup PARTITIONED table.
+CREATE TABLE t1(fld1 INT) ENGINE= INNODB PARTITION BY HASH(fld1) PARTITIONS 4;
+INSERT INTO t1 VALUES(10);
+#OPTIMIZE ALL PARTITIONS operation.
+ALTER TABLE t1 OPTIMIZE PARTITION ALL;
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+# With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (30);
+UPDATE t1 SET fld1= 20 WHERE fld1= 10;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+fld1
+30
+SET DEBUG_SYNC= 'now SIGNAL continue';
+connection default;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+test.t1	optimize	status	OK
+SET DEBUG_SYNC= 'RESET';
+#OPTIMIZE PER PARTITION operation.
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL downgraded WAIT_FOR continue';
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR downgraded';
+# With the patch, concurrent DML operation succeeds.
+INSERT INTO t1 VALUES (30);
+UPDATE t1 SET fld1= 20 WHERE fld1= 10;
+DELETE FROM t1 WHERE fld1= 20;
+SELECT * from t1;
+fld1
+30
+30
+SET DEBUG_SYNC= 'now SIGNAL continue';
+connection default;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+test.t1	optimize	status	OK
+SET DEBUG_SYNC= 'RESET';
+# Test case for Bug#11938817 (ALTER BEHAVIOR DIFFERENT THEN DOCUMENTED).
+# This should not do anything
+ALTER TABLE t1;
+affected rows: 0
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuild';
+# Check that we rebuild the table
+ALTER TABLE t1 engine=innodb;
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR rebuild';
+connection default;
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuild';
+# Check that we rebuild the table
+ALTER TABLE t1 FORCE;
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR rebuild';
+connection default;
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE t1;
