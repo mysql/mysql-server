@@ -1,1 +1,1 @@
-set storage_engine=ndbcluster;
+set default_storage_engine=ndbcluster;

@@ -7,7 +7,7 @@ create table t1 (c1 VARCHAR(10) NOT NULL COMMENT 'Abcdefghijabcdefghijabcdefghij
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -16,7 +16,7 @@ CREATE INDEX i4 ON t1(c4) COMMENT 'abcdefghijabcdefghijabcdefghijabcdefghijabcde
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -25,7 +25,7 @@ ALTER TABLE t1 ADD INDEX (c6) COMMENT 'abcdefghijabcdefghijabcdefghijabcdefghija
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -34,7 +34,7 @@ ALTER TABLE t1 DROP INDEX i2, DROP INDEX i4;
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -42,7 +42,7 @@ ALTER TABLE t1 ADD INDEX i8(c8) COMMENT 'abcdefghijabcdefghijabcdefghijabcdefghi
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -52,7 +52,7 @@ CREATE INDEX i1_3 ON t1(c1,c2,c3) COMMENT 'abcdefghijabcdefghijabcdefghijabcdefg
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -62,7 +62,7 @@ CREATE INDEX i11 ON t1(c11) COMMENT 'abcdefghijabcdefghijabcdefghijabcdefghijabc
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -70,7 +70,7 @@ ALTER TABLE t1 ADD INDEX (c13) COMMENT 'abcdefghijabcdefghijabcdefghijabcdefghij
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -83,7 +83,7 @@ ALTER TABLE t1 ADD INDEX i12 (c12) COMMENT 'abcdefghijabcdefghijabcdefghijabcdef
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -94,7 +94,7 @@ CREATE INDEX i12 ON t1(c12) COMMENT 'abcdefghijabcdefghijabcdefghijabcdefghijabc
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
