@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -776,7 +776,7 @@ static my_bool check_and_create_login_file(void)
   {
     verbose_msg("File exists.\n");
 
-    file_size= stat_info.st_size;
+    file_size= (size_t) stat_info.st_size;
 
 #ifdef _WIN32
     if (1)
@@ -943,7 +943,7 @@ static void mask_password_and_print(char *buf)
 static void remove_options(DYNAMIC_STRING *file_buf, const char *path_name)
 {
   /* If nope of the options are specified remove the entire path. */
-  if (!opt_remove_host && !opt_remove_pass && !opt_remove_user 
+  if (!opt_remove_host && !opt_remove_pass && !opt_remove_user
       && !opt_remove_socket && !opt_remove_port)
   {
     remove_login_path(file_buf, path_name);
@@ -1295,7 +1295,7 @@ error:
 
   @param plain     [in]   Plain text to be encrypted.
   @param plain_len [in]   Length of the plain text.
-  @param cipher    [in]   Encrypted cipher text.
+  @param cipher    [out]  Encrypted cipher text.
 
   @return                 -1 if error encountered,
                           length encrypted, otherwise.
@@ -1306,9 +1306,12 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[])
   DBUG_ENTER("encrypt_buffer");
   int aes_len;
 
-  aes_len= my_aes_get_size(plain_len);
+  aes_len= my_aes_get_size(plain_len, my_aes_128_ecb);
 
-  if (my_aes_encrypt(plain, plain_len, cipher, my_key, LOGIN_KEY_LEN) == aes_len)
+  if (my_aes_encrypt((const unsigned char *) plain, plain_len,
+                     (unsigned char *) cipher,
+                     (const unsigned char *) my_key, LOGIN_KEY_LEN,
+                     my_aes_128_ecb, NULL) == aes_len)
     DBUG_RETURN(aes_len);
 
   verbose_msg("Error! Couldn't encrypt the buffer.\n");
@@ -1321,7 +1324,7 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[])
 
   @param cipher     [in]  Cipher text to be decrypted.
   @param cipher_len [in]  Length of the cipher text.
-  @param plain      [in]  Decrypted plain text.
+  @param plain      [out] Decrypted plain text.
 
   @return                 -1 if error encountered,
                           length decrypted, otherwise.
@@ -1332,8 +1335,11 @@ static int decrypt_buffer(const char *cipher, int cipher_len, char plain[])
   DBUG_ENTER("decrypt_buffer");
   int aes_length;
 
-  if ((aes_length= my_aes_decrypt(cipher, cipher_len, (char *) plain,
-                                  my_key, LOGIN_KEY_LEN)) > 0)
+  if ((aes_length= my_aes_decrypt((const unsigned char *) cipher, cipher_len,
+                                  (unsigned char *) plain,
+                                  (const unsigned char *) my_key,
+                                  LOGIN_KEY_LEN,
+                                  my_aes_128_ecb, NULL)) > 0)
     DBUG_RETURN(aes_length);
 
   verbose_msg("Error! Couldn't decrypt the buffer.\n");

@@ -56,12 +56,14 @@ reset slave;
 start slave;
 flush logs;
 create table t1 (a int);
+include/sync_slave_sql_with_master.inc
 include/check_slave_is_running.inc
 #
 # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
 #
 flush logs;
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/check_slave_is_running.inc
 flush logs;
 show master status;

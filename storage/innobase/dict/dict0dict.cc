@@ -6148,9 +6148,8 @@ dict_fs2utf8(
 	db[db_len] = '\0';
 
 	strconvert(
-		&my_charset_filename, db,
-		system_charset_info, db_utf8, db_utf8_size,
-		&errors);
+		&my_charset_filename, db, system_charset_info,
+		db_utf8, static_cast<uint>(db_utf8_size), &errors);
 
 	/* convert each # to @0023 in table name and store the result in buf */
 	const char*	table = dict_remove_db_name(db_and_table);
@@ -6175,8 +6174,8 @@ dict_fs2utf8(
 
 	errors = 0;
 	strconvert(
-		&my_charset_filename, buf,
-		system_charset_info, table_utf8, table_utf8_size,
+		&my_charset_filename, buf, system_charset_info,
+		table_utf8, static_cast<uint>(table_utf8_size),
 		&errors);
 
 	if (errors != 0) {

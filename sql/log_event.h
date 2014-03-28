@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -837,6 +837,16 @@ typedef struct st_print_event_info
 } PRINT_EVENT_INFO;
 #endif
 
+/*
+  A specific to the database-scheduled MTS type.
+*/
+typedef struct st_mts_db_names
+{
+  const char *name[MAX_DBS_IN_EVENT_MTS];
+  int  num;
+} Mts_db_names;
+
+
 /**
   @class Log_event
 
@@ -1443,27 +1453,35 @@ private:
   */
   Slave_worker *get_slave_worker(Relay_log_info *rli);
 
-  /*
-    The method returns a list of updated by the event databases.
-    Other than in the case of Query-log-event the list is just one item.
+  /**
+     The method fills in pointers to event's database name c-strings
+     to a supplied array.
+     In other than Query-log-event case the returned array contains
+     just one item.
+     @param[out] arg pointer to a struct containing char* array
+                     pointers to be filled in and the number
+                     of filled instances.
+
+     @return     number of the filled intances indicating how many
+                 databases the event accesses.
   */
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
   {
-    List<char> *res= new List<char>;
-    res->push_back(strdup_root(mem_root, get_db()));
-    return res;
+    arg->name[0]= get_db();
+
+    return arg->num= mts_number_dbs();
   }
 
   /*
     Group of events can be marked to force its execution
     in isolation from any other Workers.
-    Typically that is done for a transaction that contains 
+    Typically that is done for a transaction that contains
     a query accessing more than OVER_MAX_DBS_IN_EVENT_MTS databases.
     Factually that's a sequential mode where a Worker remains to
     be the applier.
   */
   virtual void set_mts_isolate_group()
-  { 
+  {
     DBUG_ASSERT(ends_group() ||
                 get_type_code() == QUERY_EVENT ||
                 get_type_code() == EXEC_LOAD_EVENT ||
@@ -2108,17 +2126,21 @@ public:
   const char* get_db() { return db; }
 
   /**
-     Returns a list of updated databases or the default db single item list
-     in case of the number of databases exceeds MAX_DBS_IN_EVENT_MTS.
+     @param[out] arg pointer to a struct containing char* array
+                     pointers be filled in and the number of
+                     filled instances.
+                     In case the number exceeds MAX_DBS_IN_EVENT_MTS,
+                     the overfill is indicated with assigning the number to
+                     OVER_MAX_DBS_IN_EVENT_MTS.
+
+     @return     number of databases in the array or OVER_MAX_DBS_IN_EVENT_MTS.
   */
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  virtual uint8 get_mts_dbs(Mts_db_names* arg)
   {
-    List<char> *res= new (mem_root) List<char>;
     if (mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
     {
       // the empty string db name is special to indicate sequential applying
       mts_accessed_db_names[0][0]= 0;
-      res->push_back((char*) mts_accessed_db_names[0]);
     }
     else
     {
@@ -2135,11 +2157,10 @@ public:
           if (strcmp(db_name, db_filtered))
             db_name= (char*)db_filtered;
         }
-
-        res->push_back(db_name);
+        arg->name[i]= db_name;
       }
     }
-    return res;
+    return arg->num= mts_accessed_dbs;
   }
 
   void attach_temp_tables_worker(THD*);
@@ -3334,11 +3355,16 @@ public:
 #endif
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual uint8 mts_number_dbs() { return OVER_MAX_DBS_IN_EVENT_MTS; }
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  /**
+     @param[out] arg pointer to a struct containing char* array
+                     pointers be filled in and the number of
+                     filled instances.
+
+     @return     number of databases in the array (must be one).
+  */
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
   {
-    List<char> *res= new List<char>;
-    res->push_back(strdup_root(mem_root, ""));
-    return res;
+    return arg->num= mts_number_dbs();
   }
 #endif
 
@@ -3858,19 +3884,26 @@ public:
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
 
-  virtual int get_data_size() { return (uint) m_data_size; } 
+  virtual int get_data_size() { return (uint) m_data_size; }
 #ifdef MYSQL_SERVER
   virtual int save_field_metadata();
   virtual bool write_data_header(IO_CACHE *file);
   virtual bool write_data_body(IO_CACHE *file);
   virtual const char *get_db() { return m_dbnam; }
   virtual uint8 mts_number_dbs()
-  { 
+  {
     return get_flags(TM_REFERRED_FK_DB_F) ? OVER_MAX_DBS_IN_EVENT_MTS : 1;
   }
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  /**
+     @param[out] arg pointer to a struct containing char* array
+                     pointers be filled in and the number of filled instances.
+
+     @return    number of databases in the array: either one or
+                OVER_MAX_DBS_IN_EVENT_MTS, when the Table map event reports
+                foreign keys constraint.
+  */
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
   {
-    List<char> *res= new List<char>;
     const char *db_name= get_db();
 
     if (!rpl_filter->is_rewrite_empty() && !get_flags(TM_REFERRED_FK_DB_F))
@@ -3882,9 +3915,10 @@ public:
         db_name= db_filtered;
     }
 
-    res->push_back(strdup_root(mem_root,
-                               get_flags(TM_REFERRED_FK_DB_F) ? "" : db_name));
-    return res;
+    if (!get_flags(TM_REFERRED_FK_DB_F))
+      arg->name[0]= db_name;
+
+    return arg->num= mts_number_dbs();
   }
 
 #endif
@@ -4220,6 +4254,19 @@ protected:
   */
   int row_operations_scan_and_key_teardown(int error);
 
+  /**
+    Helper function to check whether there is an auto increment
+    column on the table where the event is to be applied.
+
+    @return true if there is an autoincrement field on the extra
+            columns, false otherwise.
+   */
+  inline bool is_auto_inc_in_extra_columns()
+  {
+    DBUG_ASSERT(m_table);
+    return (m_table->next_number_field &&
+            m_table->next_number_field->field_index >= m_width);
+  }
 #endif
 
 private:

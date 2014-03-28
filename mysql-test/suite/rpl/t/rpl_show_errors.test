@@ -16,7 +16,7 @@
 
 -- connection master
 CREATE TABLE t1 (a INT, b blob, PRIMARY KEY(b(512)));
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 # action: remove table on the slave to force SQL error
 DROP TABLE t1;
 

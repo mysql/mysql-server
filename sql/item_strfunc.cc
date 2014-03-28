@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,7 @@
 #include "sha1.h"
 #include "my_aes.h"
 #include <zlib.h>
+#include "my_rnd.h"
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
@@ -364,39 +365,135 @@ void Item_func_sha2::fix_length_and_dec()
 
 /* Implementation of AES encryption routines */
 
+/** helper class to process an IV argument to aes_encrypt/aes_decrypt */
+class iv_argument
+{
+  char iv_buff[MY_AES_IV_SIZE + 1];  // +1 to cater for the terminating NULL
+  String tmp_iv_value;
+public:
+  iv_argument() :
+    tmp_iv_value(iv_buff, sizeof(iv_buff), system_charset_info)
+  {}
+
+  /**
+    Validate the arguments and retrieve the IV value.
+
+    Processes a 3d optional IV argument to an Item_func function.
+    Contains all the necessary stack buffers etc.
+
+    @param aes_opmode  the encryption mode
+    @param arg_count   number of parameters passed to the function
+    @param args        array of arguments passed to the function
+    @param func_name   the name of the function (for errors)
+    @param thd         the current thread (for errors)
+    @param [out] error_generated  set to true if error was generated.
+
+    @return a pointer to the retrived validated IV or NULL
+  */
+  const unsigned char *retrieve_iv_ptr(enum my_aes_opmode aes_opmode,
+                                       uint arg_count,
+                                       Item **args,
+                                       const char *func_name,
+                                       THD *thd,
+                                       my_bool *error_generated)
+  {
+    const unsigned char *iv_str= NULL;
+
+    *error_generated= FALSE;
+
+    if (my_aes_needs_iv(aes_opmode))
+    {
+      /* we only enforce the need for IV */
+      if (arg_count == 3)
+      {
+        String *iv= args[2]->val_str(&tmp_iv_value);
+        if (!iv || iv->length() < MY_AES_IV_SIZE)
+        {
+          my_error(ER_AES_INVALID_IV, MYF(0), func_name, (long long) MY_AES_IV_SIZE);
+          *error_generated= TRUE;
+          return NULL;
+        }
+        iv_str= (unsigned char *) iv->ptr();
+      }
+      else
+      {
+        my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), func_name);
+        *error_generated= TRUE;
+        return NULL;
+      }
+    }
+    else
+    {
+      if (arg_count == 3)
+      {
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                            WARN_OPTION_IGNORED,
+                            ER(WARN_OPTION_IGNORED), "IV");
+      }
+    }
+    return iv_str;
+  }
+};
+
+
 String *Item_func_aes_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   char key_buff[80];
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
-  String *sptr= args[0]->val_str(str);			// String to encrypt
-  String *key=  args[1]->val_str(&tmp_key_value);	// key
+  String *sptr, *key;
   int aes_length;
+  THD *thd= current_thd;
+  ulong aes_opmode;
+  iv_argument iv_arg;
+  DBUG_ENTER("Item_func_aes_decrypt::val_str");
+
+  sptr= args[0]->val_str(str);			// String to encrypt
+  key=  args[1]->val_str(&tmp_key_value);	// key
+  aes_opmode= thd->variables.my_aes_mode;
+
+  DBUG_ASSERT(aes_opmode <= MY_AES_END);
+
   if (sptr && key) // we need both arguments to be not NULL
   {
-    null_value=0;
-    aes_length=my_aes_get_size(sptr->length()); // Calculate result length
+    const unsigned char *iv_str= 
+      iv_arg.retrieve_iv_ptr((enum my_aes_opmode) aes_opmode, arg_count, args,
+                             func_name(), thd, &null_value);
+    if (null_value)
+      DBUG_RETURN(NULL);
 
+    // Calculate result length
+    aes_length= my_aes_get_size(sptr->length(),
+                                (enum my_aes_opmode) aes_opmode);
+
+    str_value.set_charset(&my_charset_bin);
     if (!str_value.alloc(aes_length))		// Ensure that memory is free
     {
       // finally encrypt directly to allocated buffer.
-      if (my_aes_encrypt(sptr->ptr(),sptr->length(), (char*) str_value.ptr(),
-			 key->ptr(), key->length()) == aes_length)
+      if (my_aes_encrypt((unsigned char *) sptr->ptr(), sptr->length(),
+                         (unsigned char *) str_value.ptr(),
+                         (unsigned char *) key->ptr(), key->length(),
+                         (enum my_aes_opmode) aes_opmode,
+                         iv_str) == aes_length)
       {
 	// We got the expected result length
 	str_value.length((uint) aes_length);
-	return &str_value;
+        DBUG_RETURN(&str_value);
       }
     }
   }
   null_value=1;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
 void Item_func_aes_encrypt::fix_length_and_dec()
 {
-  max_length=my_aes_get_size(args[0]->max_length);
+  ulong aes_opmode= current_thd->variables.my_aes_mode;
+  DBUG_ASSERT(aes_opmode <= MY_AES_END);
+
+  max_length=my_aes_get_size(args[0]->max_length,
+                             (enum my_aes_opmode) aes_opmode);
 }
 
 
@@ -406,20 +503,32 @@ String *Item_func_aes_decrypt::val_str(String *str)
   char key_buff[80];
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
   String *sptr, *key;
+  THD *thd= current_thd;
+  ulong aes_opmode;
+  iv_argument iv_arg;
   DBUG_ENTER("Item_func_aes_decrypt::val_str");
 
   sptr= args[0]->val_str(str);			// String to decrypt
   key=  args[1]->val_str(&tmp_key_value);	// Key
+  aes_opmode= thd->variables.my_aes_mode;
+  DBUG_ASSERT(aes_opmode <= MY_AES_END);
+
   if (sptr && key)  			// Need to have both arguments not NULL
   {
-    null_value=0;
+    const unsigned char *iv_str=
+      iv_arg.retrieve_iv_ptr((enum my_aes_opmode) aes_opmode, arg_count, args,
+      func_name(), thd, &null_value);
+    if (null_value)
+      DBUG_RETURN(NULL);
+    str_value.set_charset(&my_charset_bin);
     if (!str_value.alloc(sptr->length()))  // Ensure that memory is free
     {
       // finally decrypt directly to allocated buffer.
       int length;
-      length=my_aes_decrypt(sptr->ptr(), sptr->length(),
-			    (char*) str_value.ptr(),
-                            key->ptr(), key->length());
+      length= my_aes_decrypt((unsigned char *) sptr->ptr(), sptr->length(),
+                             (unsigned char *) str_value.ptr(),
+                             (unsigned char *) key->ptr(), key->length(),
+                             (enum my_aes_opmode) aes_opmode, iv_str);
       if (length >= 0)  // if we got correct data data
       {
         str_value.length((uint) length);
@@ -437,6 +546,59 @@ void Item_func_aes_decrypt::fix_length_and_dec()
 {
    max_length=args[0]->max_length;
    maybe_null= 1;
+}
+
+/*
+  Artificially limited to 1k to avoid excessive memory usage.
+  The SSL lib supports up to INT_MAX.
+*/
+const longlong Item_func_random_bytes::MAX_RANDOM_BYTES_BUFFER= 1024;
+
+
+void Item_func_random_bytes::fix_length_and_dec()
+{
+  collation.set(&my_charset_bin);
+  max_length= MAX_RANDOM_BYTES_BUFFER;
+}
+
+
+String *Item_func_random_bytes::val_str(String *a)
+{
+  DBUG_ASSERT(fixed == 1);
+  longlong n_bytes= args[0]->val_int();
+  null_value= args[0]->null_value;
+
+  if (null_value)
+    return NULL;
+
+  str_value.set_charset(&my_charset_bin);
+
+  if (n_bytes <= 0 || n_bytes > MAX_RANDOM_BYTES_BUFFER)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "length", func_name());
+    null_value= TRUE;
+    return NULL;
+  }
+
+  if (str_value.alloc(n_bytes))
+  {
+    my_error(ER_OUTOFMEMORY, n_bytes);
+    null_value= TRUE;
+    return NULL;
+  }
+
+  str_value.set_charset(&my_charset_bin);
+
+  if (my_rand_buffer((unsigned char *) str_value.ptr(), n_bytes))
+  {
+    my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), func_name(),
+             "SSL library can't generate random bytes");
+    null_value= TRUE;
+    return NULL;
+  }
+
+  str_value.length(n_bytes);
+  return &str_value;
 }
 
 

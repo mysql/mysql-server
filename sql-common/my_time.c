@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -425,6 +425,16 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
         */
         last_field_pos= str;
         field_length= 6;                        /* 6 digits */
+      }
+      else if (my_isdigit(&my_charset_latin1,str[0]))
+      {
+        /*
+          We do not see a decimal point which would have indicated a
+          fractional second part in further read. So we skip the further
+          processing of digits.
+        */
+        i++;
+        break;
       }
       continue;
     }

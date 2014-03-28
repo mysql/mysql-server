@@ -49,6 +49,7 @@
 
 
 source include/have_binlog_format_statement.inc;
+source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 
 # These tables are mentioned in do-table rules
@@ -79,7 +80,7 @@ INSERT INTO t8 VALUES (1, 1), (2, 2), (3, 3);
 INSERT INTO t9 VALUES (1, 1), (2, 2), (3, 3);
 
 # Only t1, t2, t3 should be replicated to slave
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo [on slave];
 SHOW TABLES LIKE 't%';
 
@@ -121,7 +122,7 @@ UPDATE t7 LEFT JOIN (t8, t4, t1) ON (t7.id=t8.id and t7.id=t4.id and t7.id=t1.id
 # Sync slave to make sure all above statements are correctly ignored,
 # if any of the above statement are not ignored, it would cause error
 # and stop slave sql thread.
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 call mtr.add_suppression("Slave SQL.*Error .Table .test.t[47]. doesn.t exist. on query.* Error_code: 1146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
@@ -187,7 +188,7 @@ source include/wait_for_slave_sql_error_and_skip.inc;
 UPDATE t7 LEFT JOIN (t1, t4, t2) ON (t7.id=t1.id and t7.id=t4.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1;
 source include/wait_for_slave_sql_error_and_skip.inc;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo [on slave];
 
 # We should only have tables t1, t2, t3 on slave
@@ -203,7 +204,7 @@ connection master;
 echo [on master];
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 #
 # BUG#11754117 - 45670: INTVAR_EVENTS FOR FILTERED-OUT QUERY_LOG_EVENTS ARE EXECUTED
@@ -217,7 +218,7 @@ CREATE TABLE test.t1 (a INT); # accepted on slave
 INSERT INTO test.t1 VALUES(1);
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 # Although RAND() is from 0 to 1.0, DECIMAL(M,D), requires that M must be >= D.
 CREATE TABLE test.t_slave (a INT AUTO_INCREMENT PRIMARY KEY, b DECIMAL(20,20), c INT);
@@ -233,7 +234,7 @@ SELECT b into @b FROM test.t5;
 --let $b_master=`select @b`
 UPDATE test.t1 SET a=2; # to run trigger on slave
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 # The proof:
 SELECT a AS 'ONE' into @a FROM test.t_slave;
@@ -261,7 +262,7 @@ connection master;
 drop table test.t5;
 drop table test.t1;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 drop table test.t_slave;
 
 --source include/rpl_end.inc

@@ -59,7 +59,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 ( o ) VALUES ( 1 );
 
 --echo sync_slave_with_master
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo connection slave
 connection slave;
@@ -77,7 +77,7 @@ UPDATE t1 SET o = 2;
 UPDATE t2 SET o = 2;
 
 --echo sync_slave_with_master
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo connection slave
 connection slave;

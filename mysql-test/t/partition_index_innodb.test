@@ -1,0 +1,143 @@
+--echo #
+--echo # Bug#18167648: WRONG RESULTS WITH PARTITIONING, INDEX_MERGE AND NO PK
+--echo #
+CREATE TABLE t1
+(a smallint,
+ b smallint,
+ c smallint,
+ KEY  a (a),
+ KEY  b (b)
+) ENGINE=InnoDB
+PARTITION BY HASH(c) PARTITIONS 3;
+
+--echo # c will simulate DB_ROW_ID + force to chosen partition.
+--echo # c is unique so we can identify rows in the test.
+--echo # Fillers to make the optimizer choose index_merge_intersect/union:
+INSERT INTO t1 VALUES (1,1,1), (1,1,1+3), (1,1,1+6), (1,1,1+9);
+--echo # row N..N+3
+INSERT INTO t1 VALUES (1,2,1+12), (2,2,2+15), (2,2,2+18), (1,2,3+21);
+--echo # More index matching rows for index_merge_intersect: N+4, N+5
+INSERT INTO t1 VALUES (2,2,1+24);
+INSERT INTO t1 VALUES (2,1,1+27);
+ANALYZE TABLE t1;
+
+SET @old_opt_switch = @@session.optimizer_switch;
+SET SESSION optimizer_switch="index_merge=on";
+SET SESSION optimizer_switch="index_merge_intersection=on";
+SET SESSION optimizer_switch="index_merge_sort_union=off";
+SET SESSION optimizer_switch="index_merge_union=off";
+if ($use_optimizer_trace)
+{
+SET SESSION optimizer_trace="enabled=on";
+}
+EXPLAIN SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
+if ($use_optimizer_trace)
+{
+SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+}
+# Before fix:
+# Index start of scan (ha_partition::handle_ordered_index_scan)
+# 0xNNN is the DB_ROW_ID, kind of internal global auto increment.
+# a reads row N+4 (0x208) from p1 c = 25
+# a reads row N+1 (0x205) from p2 c = 17
+# a returns row N+4, c = 25 (All same, first insert, no cmp of ref/DB_ROW_ID!)
+# b reads row N+3 (0x207) from p0 c = 24
+# b reads row N   (0x204) from p1 c = 13
+# b reads row N+1 (0x205) from p2 c = 17
+# b returns row N+3, c = 24 (All same, first insert, no cmp of ref/DB_ROW_ID!)
+# b skips to next (0x207 < 0x208)
+# b finds no more rows in p0.
+# b returns row from p2 (0x205) c = 17
+# b skips to next row (0x205 < 0x208)
+# b reads row N+2 (0x206) from p2 c = 20
+# b skips to next row (0x206 < 0x208)
+# b finds no more rows in p2.
+# b return row from p1 (0x204) c = 13
+# b skips to next row (0x204 < 0x208)
+# b reads row N+4 (0x208) from p1 c = 25
+# a == b Match found!
+# Fetches whole row for 0x208 (really p1 + 0x208) -> (2,2,25)
+# Continues with next a:
+# a reads row N+5 (0x209) from p1 c = 28
+# No more match...
+
+SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
+EXPLAIN PARTITIONS SELECT a,b,c FROM t1 WHERE a = 2 AND b = 2 AND c IN (13,25,28);
+SELECT a,b,c FROM t1 WHERE a = 2 AND b = 2 AND c IN (13,25,28);
+SET SESSION optimizer_switch="index_merge_intersection=off";
+SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
+EXPLAIN SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
+
+--echo # Adding more fillers to get index_merge_union
+INSERT INTO t1 VALUES (1,1,1+30), (1,1,1+33), (1,1,1+36), (1,1,1+39),
+(1,1,1+42), (1,1,1+45), (1,1,1+48), (1,1,1+51), (1,1,1+54), (1,1,1+57),
+(1,1,1+60), (1,1,1+63), (1,1,1+66), (1,1,1+69), (1,1,1+72), (1,1,1+75),
+(1,1,1+78);
+ANALYZE TABLE t1;
+SET SESSION optimizer_switch="index_merge_union=on";
+EXPLAIN SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
+if ($use_optimizer_trace)
+{
+SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+}
+# First there where a bug where index_init() was called with sorted=false :(
+# Before fix of secondary sort in ha_partition:
+# b reads row N+3 (0x207) from p0 c = 24
+# b reads row N   (0x204) from p1 c = 13
+# b reads row N+1 (0x205) from p2 c = 17
+# b returns row N+3, c = 24 (All same, first insert, no cmp of ref/DB_ROW_ID!)
+# a reads row N+4 (0x208) from p1 c = 25
+# a reads row N+1 (0x205) from p2 c = 17
+# a returns row N+4, c = 25 (All same, first insert, no cmp of ref/DB_ROW_ID!)
+
+# first row from both indexes done, first is b, 0x207 c = 24
+# Get next from b
+# b finds no more rows in p0.
+# b returns row from p2 (0x205) c = 17
+# Fetching whole row for (0x207) c = 24 (1,2,24) and sends it
+# b reads row N+2 (0x206) from p2 c = 20
+# b returns row from p2 (0x206) c = 20
+# No duplicate (0x206 != 0x208)
+# Fetching whole row for (0x205) c = 17 (2,2,17) and sends it
+# b finds no more rows in p2
+# b returns row from p1 (0x204) c = 13
+# No duplicate (0x205 != 0x206)
+# Fetching whole row for (0x206) c = 20 (2,2,20) and sends it
+# b reads row N+4 (0x208) from p1 c = 25
+# b returns row from p1 (0x208) c = 25
+# No duplicate (0x204 != 0x206)
+# Fetching whole row for (0x204) c = 13 (1,2,13) and sends it
+# Fetching whole row for (0x208) c = 25 (2,2,25)
+# a reads row N+5 (0x209) from p1 c = 28
+# a returns row from p1 (0x209) c = 28
+# Duplicate (0x209 == 0x209)
+# a returns row from p2 (0x205)
+# Fetching whole row for (0x209) c = 28 (2,1,28)
+# a reads row N+2 (0x206) from p2 c = 20
+# Fetching whole row for (0x205) c = 17 (2,2,17)
+# Fetching whole row for (0x206) c = 20 (2,2,20)
+
+SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
+SET SESSION optimizer_switch="index_merge_union=off";
+SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
+EXPLAIN SELECT a,b,c FROM t1 WHERE (b = 2 OR a = 2) AND  c > 0 AND c < 100;
+
+--echo Insert a few more rows to trigger sort_union
+INSERT INTO t1 VALUES (1,1,1+81), (1,1,1+84), (1,1,1+87), (1,1,1+90),
+(1,1,1+93);
+ANALYZE TABLE t1;
+SET SESSION optimizer_switch="index_merge_sort_union=on";
+EXPLAIN SELECT a,b,c FROM t1 WHERE (b >= 2 OR a >= 2) AND  c > 0 AND c < 100;
+if ($use_optimizer_trace)
+{
+SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET SESSION optimizer_trace="enabled=off";
+}
+--echo # Not affected, added for completeness...
+SELECT a,b,c FROM t1 WHERE (b >= 2 OR a >= 2) AND  c > 0 AND c < 100;
+SET SESSION optimizer_switch="index_merge_sort_union=off";
+SELECT a,b,c FROM t1 WHERE (b >= 2 OR a >= 2) AND  c > 0 AND c < 100;
+EXPLAIN SELECT a,b,c FROM t1 WHERE (b >= 2 OR a >= 2) AND  c > 0 AND c < 100;
+
+SET @@session.optimizer_switch = @old_opt_switch;
+DROP TABLE t1;

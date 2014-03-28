@@ -35,7 +35,7 @@
 #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 
 /* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
- * if you want the limit (max/min) macros for int types. 
+ * if you want the limit (max/min) macros for int types.
  */
 #ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS 1
@@ -52,7 +52,7 @@ typedef uint32_t flex_uint32_t;
 typedef signed char flex_int8_t;
 typedef short int flex_int16_t;
 typedef int flex_int32_t;
-typedef unsigned char flex_uint8_t; 
+typedef unsigned char flex_uint8_t;
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
 
@@ -185,7 +185,7 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #define EOB_ACT_LAST_MATCH 2
 
     #define YY_LESS_LINENO(n)
-    
+
 /* Return all but the first "n" matched characters back to the input stream. */
 #define yyless(n) \
 	do \
@@ -247,7 +247,7 @@ struct yy_buffer_state
 
     int yy_bs_lineno; /**< The line count. */
     int yy_bs_column; /**< The column count. */
-    
+
 	/* Whether to try to fill the input buffer when we reach the
 	 * end of it.
 	 */
@@ -354,7 +354,7 @@ static void yy_fatal_error (yyconst char msg[] ,           yyscan_t yyscanner __
  */
 #define YY_DO_BEFORE_ACTION \
 	yyg->yytext_ptr = yy_bp; \
-	yyleng = (size_t) (yy_cp - yy_bp); \
+	yyleng = static_cast<int>(yy_cp - yy_bp); \
 	yyg->yy_hold_char = *yy_cp; \
 	*yy_cp = '\0'; \
 	yyg->yy_c_buf_p = yy_cp;
@@ -618,8 +618,8 @@ static int input (yyscan_t yyscanner );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		size_t n; \
-		for ( n = 0; n < max_size && \
+		int n; \
+		for ( n = 0; n < static_cast<int>(max_size) && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
 		if ( c == '\n' ) \
@@ -631,7 +631,8 @@ static int input (yyscan_t yyscanner );
 	else \
 		{ \
 		errno=0; \
-		while ( (result = fread(buf, 1, max_size, yyin))==0 && ferror(yyin)) \
+		while ( (result = static_cast<int>(fread(buf, 1, max_size, yyin)))==0 \
+		       && ferror(yyin)) \
 			{ \
 			if( errno != EINTR) \
 				{ \
@@ -1019,8 +1020,8 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 	else
 		{
-			int num_to_read =
-			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
+			int num_to_read =static_cast<int>(
+				YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1);
 
 		while ( num_to_read <= 0 )
 			{ /* Not enough room in the buffer - grow it. */
@@ -1033,7 +1034,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			if ( b->yy_is_our_buffer )
 				{
-				int new_size = b->yy_buf_size * 2;
+				int new_size = static_cast<int>(b->yy_buf_size * 2);
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -1054,8 +1055,8 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			yyg->yy_c_buf_p = &b->yy_ch_buf[yy_c_buf_p_offset];
 
-			num_to_read = YY_CURRENT_BUFFER_LVALUE->yy_buf_size -
-						number_to_move - 1;
+			num_to_read = static_cast<int>(
+				YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1);
 
 			}
 
@@ -1064,7 +1065,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			yyg->yy_n_chars, (size_t) num_to_read );
+			yyg->yy_n_chars, num_to_read);
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = yyg->yy_n_chars;
 		}
@@ -1312,7 +1313,7 @@ static void fts0t_load_buffer_state  (yyscan_t yyscanner)
     YY_BUFFER_STATE fts0t_create_buffer  (FILE * file, int  size , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
-    
+
 	b = (YY_BUFFER_STATE) fts0talloc(sizeof( struct yy_buffer_state ) ,yyscanner );
 	if ( ! b )
 		YY_FATAL_ERROR( "out of dynamic memory in fts0t_create_buffer()" );
@@ -1378,7 +1379,7 @@ static void fts0t_load_buffer_state  (yyscan_t yyscanner)
     }
 
         b->yy_is_interactive = 0;
-    
+
 	errno = oerrno;
 }
 
@@ -1484,9 +1485,9 @@ static void fts0tensure_buffer_stack (yyscan_t yyscanner)
 								, yyscanner);
 		if ( ! yyg->yy_buffer_stack )
 			YY_FATAL_ERROR( "out of dynamic memory in fts0tensure_buffer_stack()" );
-								  
+
 		memset(yyg->yy_buffer_stack, 0, num_to_alloc * sizeof(struct yy_buffer_state*));
-				
+
 		yyg->yy_buffer_stack_max = num_to_alloc;
 		yyg->yy_buffer_stack_top = 0;
 		return;
@@ -1497,7 +1498,7 @@ static void fts0tensure_buffer_stack (yyscan_t yyscanner)
 		/* Increase the buffer to prepare for a possible push. */
 		int grow_size = 8 /* arbitrary grow size */;
 
-		num_to_alloc = yyg->yy_buffer_stack_max + grow_size;
+		num_to_alloc = static_cast<int>(yyg->yy_buffer_stack_max + grow_size);
 		yyg->yy_buffer_stack = (struct yy_buffer_state**)fts0trealloc
 								(yyg->yy_buffer_stack,
 								num_to_alloc * sizeof(struct yy_buffer_state*)
@@ -1515,12 +1516,12 @@ static void fts0tensure_buffer_stack (yyscan_t yyscanner)
  * @param base the character buffer
  * @param size the size in bytes of the character buffer
  * @param yyscanner The scanner object.
- * @return the newly allocated buffer state object. 
+ * @return the newly allocated buffer state object.
  */
 YY_BUFFER_STATE fts0t_scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
-    
+
 	if ( size < 2 ||
 	     base[size-2] != YY_END_OF_BUFFER_CHAR ||
 	     base[size-1] != YY_END_OF_BUFFER_CHAR )
@@ -1535,7 +1536,7 @@ YY_BUFFER_STATE fts0t_scan_buffer  (char * base, yy_size_t  size , yyscan_t yysc
 	b->yy_buf_pos = b->yy_ch_buf = base;
 	b->yy_is_our_buffer = 0;
 	b->yy_input_file = 0;
-	b->yy_n_chars = b->yy_buf_size;
+	b->yy_n_chars = static_cast<int>(b->yy_buf_size);
 	b->yy_is_interactive = 0;
 	b->yy_at_bol = 1;
 	b->yy_fill_buffer = 0;
@@ -1556,8 +1557,8 @@ YY_BUFFER_STATE fts0t_scan_buffer  (char * base, yy_size_t  size , yyscan_t yysc
  */
 YY_BUFFER_STATE fts0t_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 {
-    
-	return fts0t_scan_bytes(yystr,strlen(yystr) ,yyscanner);
+
+	return fts0t_scan_bytes(yystr,static_cast<int>(strlen(yystr)) ,yyscanner);
 }
 
 /** Setup the input buffer state to scan the given bytes. The next call to fts0tlex() will
@@ -1573,7 +1574,7 @@ YY_BUFFER_STATE fts0t_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , y
 	char *buf;
 	yy_size_t n;
 	int i;
-    
+
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = _yybytes_len + 2;
 	buf = (char *) fts0talloc(n ,yyscanner );
@@ -1641,10 +1642,10 @@ YY_EXTRA_TYPE fts0tget_extra  (yyscan_t yyscanner)
 int fts0tget_lineno  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-    
+
         if (! YY_CURRENT_BUFFER)
             return 0;
-    
+
     return yylineno;
 }
 
@@ -1654,10 +1655,10 @@ int fts0tget_lineno  (yyscan_t yyscanner)
 int fts0tget_column  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-    
+
         if (! YY_CURRENT_BUFFER)
             return 0;
-    
+
     return yycolumn;
 }
 
@@ -1718,8 +1719,8 @@ void fts0tset_lineno (int  line_number , yyscan_t yyscanner)
 
         /* lineno is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "fts0tset_lineno called with no buffer" , yyscanner); 
-    
+           yy_fatal_error( "fts0tset_lineno called with no buffer" , yyscanner);
+
     yylineno = line_number;
 }
 
@@ -1733,8 +1734,8 @@ void fts0tset_column (int  column_no , yyscan_t yyscanner)
 
         /* column is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "fts0tset_column called with no buffer" , yyscanner); 
-    
+           yy_fatal_error( "fts0tset_column called with no buffer" , yyscanner);
+
     yycolumn = column_no;
 }
 
@@ -1817,20 +1818,20 @@ int fts0tlex_init_extra(YY_EXTRA_TYPE yy_user_defined,yyscan_t* ptr_yy_globals )
         errno = EINVAL;
         return 1;
     }
-	
+
     *ptr_yy_globals = (yyscan_t) fts0talloc ( sizeof( struct yyguts_t ), &dummy_yyguts );
-	
+
     if (*ptr_yy_globals == NULL){
         errno = ENOMEM;
         return 1;
     }
-    
+
     /* By setting to 0xAA, we expose bugs in
     yy_init_globals. Leave at 0x00 for releases. */
     memset(*ptr_yy_globals,0x00,sizeof(struct yyguts_t));
-    
+
     fts0tset_extra (yy_user_defined, *ptr_yy_globals);
-    
+
     return yy_init_globals ( *ptr_yy_globals );
 }
 

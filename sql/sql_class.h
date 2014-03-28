@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -494,6 +495,8 @@ typedef struct system_variables
   ulong tx_isolation;
   ulong updatable_views_with_limit;
   uint max_user_connections;
+  ulong my_aes_mode;
+
   /**
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
@@ -550,7 +553,6 @@ typedef struct system_variables
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
-
 } SV;
 
 
@@ -3561,6 +3563,8 @@ public:
       DBUG_PRINT("info",
                  ("change_item_tree place %p old_value %p new_value %p",
                   place, *place, new_value));
+      if (new_value)
+        new_value->set_runtime_created(); /* Note the change of item tree */
       nocheck_register_item_tree_change(place, *place, mem_root);
     }
     *place= new_value;
@@ -3747,6 +3751,17 @@ public:
     }
     owned_gtid.sidno= 0;
   }
+
+  /*
+    There are some statements (like OPTIMIZE TABLE, ANALYZE TABLE and
+    REPAIR TABLE) that might call trans_rollback_stmt() and also will be
+    sucessfully executed and will have to go to the binary log.
+    For these statements, the skip_gtid_rollback flag must be set to avoid
+    problems when the statement is executed with a GTID_NEXT set to GTID_GROUP
+    (like the SQL thread do when applying events from other server).
+    When this flag is set, a call to gtid_rollback() will do nothing.
+  */
+  bool skip_gtid_rollback;
 
   /**
     Set the current database; use deep copy of C-string.

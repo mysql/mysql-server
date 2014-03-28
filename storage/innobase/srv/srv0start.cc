@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -158,7 +158,7 @@ UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /*********************************************************************//**
-Convert a numeric string that optionally ends in G or M, to a number
+Convert a numeric string that optionally ends in G or M or K, to a number
 containing megabytes.
 @return	next character in string */
 static
@@ -180,6 +180,10 @@ srv_parse_megabytes(
 		size *= 1024;
 		/* fall through */
 	case 'M': case 'm':
+		str++;
+		break;
+	case 'K': case 'k':
+		size /= 1024;
 		str++;
 		break;
 	default:
@@ -981,6 +985,16 @@ size_check:
 				return(DB_ERROR);
 			}
 skip_size_check:
+
+			/* This is the earliest location where we can load
+			the double write buffer. */
+			if (i == 0) {
+				buf_dblwr_init_or_load_pages(
+					files[i], srv_data_file_names[i], true);
+			}
+
+			bool retry = true;
+check_first_page:
 			check_msg = fil_read_first_page(
 				files[i], one_opened, &flags, &space,
 #ifdef UNIV_LOG_ARCHIVE
@@ -989,9 +1003,25 @@ skip_size_check:
 				min_flushed_lsn, max_flushed_lsn);
 
 			if (check_msg) {
+
+				if (retry) {
+					fsp_open_info	fsp;
+					const ulint	page_no = 0;
+
+					retry = false;
+					fsp.id = 0;
+					fsp.filepath = srv_data_file_names[i];
+					fsp.file = files[i];
+
+					if (fil_user_tablespace_restore_page(
+						&fsp, page_no)) {
+						goto check_first_page;
+					}
+				}
+
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"%s in data file %s",
-					check_msg, name);
+						"%s in data file %s",
+						check_msg, name);
 				return(DB_ERROR);
 			}
 
@@ -2009,6 +2039,9 @@ innobase_start_or_create_for_mysql(void)
 
 		return(DB_ERROR);
 	}
+
+	recv_sys_create();
+	recv_sys_init(buf_pool_get_curr_size());
 
 	err = open_or_create_data_files(&create_new_db,
 #ifdef UNIV_LOG_ARCHIVE

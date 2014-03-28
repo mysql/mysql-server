@@ -24,6 +24,7 @@ C3BF
 C3BF
 D0AA
 D0AA
+include/sync_slave_sql_with_master.inc
 select hex(a) from t1;
 hex(a)
 C3BF
@@ -34,6 +35,7 @@ C3BF
 D0AA
 D0AA
 drop table t1;
+include/sync_slave_sql_with_master.inc
 -------------test bug#45516------------------
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest CHARSET UTF8;

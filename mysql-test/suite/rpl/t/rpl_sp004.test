@@ -46,7 +46,7 @@ delimiter ;|
 CALL test.p1();
 SELECT * FROM test.t1 ORDER BY a;
 SELECT * FROM test.t2 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1 ORDER BY a;
 SELECT * FROM test.t2 ORDER BY a;
 
@@ -55,7 +55,7 @@ CALL test.p2();
 USE test;
 SHOW TABLES;
 #SELECT * FROM test.t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 USE test;
 SHOW TABLES;
 #SELECT * FROM test.t3;
@@ -65,7 +65,7 @@ CALL test.p1();
 SELECT * FROM test.t1 ORDER BY a;
 SELECT * FROM test.t2 ORDER BY a;
 #SELECT * FROM test.t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1 ORDER BY a;
 SELECT * FROM test.t2 ORDER BY a;
 #SELECT * FROM test.t3;
@@ -81,7 +81,7 @@ DROP PROCEDURE IF EXISTS test.p2;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # If the test fails, you will need to diff the dumps to see why.
 
