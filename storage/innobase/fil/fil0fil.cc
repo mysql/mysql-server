@@ -4087,10 +4087,10 @@ fil_path_to_space_name(
 
 	char*	name = mem_strdupl(dbname, end - dbname - 4);
 
-	ut_ad(name[tablename - filename - 1] == OS_PATH_SEPARATOR);
+	ut_ad(name[tablename - dbname - 1] == OS_PATH_SEPARATOR);
 #if OS_PATH_SEPARATOR != '/'
 	/* space->name uses '/', not OS_PATH_SEPARATOR. */
-	name[tablename - filename - 1] = '/';
+	name[tablename - dbname - 1] = '/';
 #endif
 
 	return(name);
