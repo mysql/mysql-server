@@ -831,7 +831,7 @@ SET @@session.session_track_schema=1;
 # we dont send the boolean tracker for the tracker itself
 SET @@session.session_track_state_change=1;
 SET @@session.session_track_state_change=0;
-# Test if resetconnection sets the OFF the tracker
+# Test if reset_connection sets the OFF the tracker
 SET @@session.session_track_state_change=1;
 SELECT @@session.session_track_state_change;
 @@session.session_track_state_change
