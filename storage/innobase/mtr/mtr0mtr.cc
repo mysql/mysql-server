@@ -495,7 +495,9 @@ mtr_t::commit()
 	}
 }
 
-/** Commit a mini-transaction that did not modify any pages.
+/** Commit a mini-transaction that did not modify any pages,
+but generated some redo log on a higher level, such as
+MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
 The caller must invoke log_mutex_enter() and log_mutex_exit().
 This is to be used at log_checkpoint(). */
 
@@ -639,6 +641,12 @@ mtr_t::Command::prepare_write()
 	log_mutex_enter();
 
 	if (space != NULL && fil_names_dirty(space)) {
+		/* This mini-transaction was the first one to modify
+		the tablespace since the latest checkpoint. Do include
+		the MLOG_FILE_NAME record that was appended to m_log
+		by fil_names_write().  In all other cases, we will use
+		the old m_log.size() (omitting the MLOG_FILE_NAME)
+		when copying the log to the global redo log buffer. */
 		ut_ad(m_impl->m_n_log_recs > n_recs);
 		mlog_catenate_ulint(
 			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);

@@ -204,7 +204,9 @@ struct mtr_t {
 	/** Commit the mini-transaction. */
 	void commit();
 
-	/** Commit a mini-transaction that did not modify any pages.
+	/** Commit a mini-transaction that did not modify any pages,
+	but generated some redo log on a higher level, such as
+	MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
 	The caller must invoke log_mutex_enter() and log_mutex_exit().
 	This is to be used at log_checkpoint(). */
 	void commit_checkpoint();
