@@ -76,6 +76,8 @@ extern const char* dot_ext[];
 enum fil_type_t {
 	/** temporary tablespace (temporary undo log or tables) */
 	FIL_TYPE_TEMPORARY,
+	/** a tablespace that is being imported (no logging until finished) */
+	FIL_TYPE_IMPORT = FIL_TYPE_TEMPORARY,
 	/** persistent tablespace (for system, undo log or tables) */
 	FIL_TYPE_TABLESPACE,
 	/** redo log covering changes to files of FIL_TYPE_TABLESPACE */
@@ -229,7 +231,7 @@ fil_space_get_type(
 	ulint	id);
 
 /** @brief Note that a tablespace has been imported.
-It is initially marked as FIL_TYPE_TEMPORARY so that no logging is
+It is initially marked as FIL_TYPE_IMPORT so that no logging is
 done during the import process when the space ID is stamped to each page.
 Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.

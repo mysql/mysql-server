@@ -46,8 +46,8 @@ create_string(THD *thd, String *buf,
 	      const char *returns, ulong returnslen,
 	      const char *body, ulong bodylen,
 	      st_sp_chistics *chistics,
-              const LEX_STRING *definer_user,
-              const LEX_STRING *definer_host,
+              const LEX_CSTRING &definer_user,
+              const LEX_CSTRING &definer_host,
               sql_mode_t sql_mode);
 
 static int
@@ -855,12 +855,12 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
   Bad_db_error_handler db_not_exists_handler;
+
   char definer_user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING definer_user_name= { definer_user_name_holder,
-                                  USERNAME_LENGTH };
+  LEX_CSTRING definer_user_name= { definer_user_name_holder, USERNAME_LENGTH};
 
   char definer_host_name_holder[HOSTNAME_LENGTH + 1];
-  LEX_STRING definer_host_name= { definer_host_name_holder, HOSTNAME_LENGTH };
+  LEX_CSTRING definer_host_name= { definer_host_name_holder, HOSTNAME_LENGTH };
 
   int ret= 0;
 
@@ -869,8 +869,10 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
   newlex.set_current_select(NULL);
 
   parse_user(definer, strlen(definer),
-             definer_user_name.str, &definer_user_name.length,
-             definer_host_name.str, &definer_host_name.length);
+             definer_user_name_holder,
+             &definer_user_name.length,
+             definer_host_name_holder,
+             &definer_host_name.length);
 
   defstr.set_charset(creation_ctx->get_client_cs());
 
@@ -887,7 +889,7 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
                      params, strlen(params),
                      returns, strlen(returns),
                      body, strlen(body),
-                     &chistics, &definer_user_name, &definer_host_name,
+                     &chistics, definer_user_name, definer_host_name,
                      sql_mode))
   {
     ret= SP_INTERNAL_ERROR;
@@ -937,7 +939,7 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
       goto end;
     }
 
-    (*sphp)->set_definer(&definer_user_name, &definer_host_name);
+    (*sphp)->set_definer(definer_user_name, definer_host_name);
     (*sphp)->set_info(created, modified, &chistics, sql_mode);
     (*sphp)->set_creation_ctx(creation_ctx);
     (*sphp)->optimize();
@@ -1253,8 +1255,8 @@ bool sp_create_routine(THD *thd, sp_head *sp)
                          sp->m_params.str, sp->m_params.length,
                          retstr.c_ptr(), retstr.length(),
                          sp->m_body.str, sp->m_body.length,
-                         sp->m_chistics, &(thd->lex->definer->user),
-                         &(thd->lex->definer->host),
+                         sp->m_chistics, thd->lex->definer->user,
+                         thd->lex->definer->host,
                          saved_mode))
       {
         my_error(ER_SP_STORE_FAILED, MYF(0),
@@ -1669,7 +1671,6 @@ err_idx_init:
     metadata locks DROP DATABASE might have acquired.
   */
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
-
 err:
   DBUG_RETURN(ret);
 }
@@ -2196,8 +2197,8 @@ static bool create_string(THD *thd, String *buf,
                           const char *returns, ulong returnslen,
                           const char *body, ulong bodylen,
                           st_sp_chistics *chistics,
-                          const LEX_STRING *definer_user,
-                          const LEX_STRING *definer_host,
+                          const LEX_CSTRING &definer_user,
+                          const LEX_CSTRING &definer_host,
                           sql_mode_t sql_mode)
 {
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
@@ -2290,8 +2291,8 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   const char *sp_body;
   String defstr;
   struct st_sp_chistics sp_chistics;
-  const LEX_STRING definer_user= {(char*)STRING_WITH_LEN("")};
-  const LEX_STRING definer_host= {(char*)STRING_WITH_LEN("")}; 
+  const LEX_CSTRING definer_user= EMPTY_CSTR;
+  const LEX_CSTRING definer_host= EMPTY_CSTR;
   LEX_STRING sp_db_str;
   LEX_STRING sp_name_str;
   sp_head *sp;
@@ -2321,7 +2322,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
                      params, strlen(params),
                      returns, strlen(returns), 
                      sp_body, strlen(sp_body),
-                     &sp_chistics, &definer_user, &definer_host, sql_mode))
+                     &sp_chistics, definer_user, definer_host, sql_mode))
     return 0;
 
   thd->lex= &newlex;
@@ -2622,7 +2623,8 @@ bool sp_check_name(LEX_STRING *ident)
     return true;
   }
 
-  if (check_string_char_length(ident, "", NAME_CHAR_LEN,
+  LEX_CSTRING ident_cstr= {ident->str, ident->length};
+  if (check_string_char_length(ident_cstr, "", NAME_CHAR_LEN,
                                system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), ident->str);

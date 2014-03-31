@@ -27,8 +27,8 @@ bool Server_ids::do_unpack_dynamic_ids(char *param_dynamic_ids)
  
   DBUG_ENTER("Server_ids::unpack_dynamic_ids");
 
-  token= strtok_r((char *)const_cast<const char*>(param_dynamic_ids),
-                  " ", &last);
+  token= my_strtok_r((char *)const_cast<const char*>(param_dynamic_ids),
+                     " ", &last);
 
   if (token == NULL)
     DBUG_RETURN(TRUE);
@@ -36,7 +36,7 @@ bool Server_ids::do_unpack_dynamic_ids(char *param_dynamic_ids)
   num_items= atoi(token);
   for (uint i=0; i < num_items; i++)
   {
-    token= strtok_r(NULL, " ", &last);
+    token= my_strtok_r(NULL, " ", &last);
     if (token == NULL)
       DBUG_RETURN(TRUE);
     else
@@ -84,8 +84,8 @@ bool Database_ids::do_unpack_dynamic_ids(char *param_dynamic_ids)
  
   DBUG_ENTER("Server_ids::unpack_dynamic_ids");
 
-  token= strtok_r((char *)const_cast<const char*>(param_dynamic_ids),
-                  " ", &last);
+  token= my_strtok_r((char *)const_cast<const char*>(param_dynamic_ids),
+                     " ", &last);
 
   if (token == NULL)
     DBUG_RETURN(TRUE);
@@ -93,7 +93,7 @@ bool Database_ids::do_unpack_dynamic_ids(char *param_dynamic_ids)
   num_items= atoi(token);
   for (uint i=0; i < num_items; i++)
   {
-    token= strtok_r(NULL, " ", &last);
+    token= my_strtok_r(NULL, " ", &last);
     if (token == NULL)
       DBUG_RETURN(TRUE);
     else

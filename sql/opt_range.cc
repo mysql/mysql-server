@@ -22,6 +22,10 @@
 
 */
 
+// Needed by the unit tests
+#ifndef OPT_RANGE_CC_INCLUDED
+#define OPT_RANGE_CC_INCLUDED
+
 /*
   This file contains:
 
@@ -1408,6 +1412,16 @@ QUICK_SELECT_I::QUICK_SELECT_I()
    used_key_parts(0)
 {}
 
+void QUICK_SELECT_I::trace_quick_description(Opt_trace_context *trace)
+{
+  Opt_trace_object range_trace(trace, "range_details");
+
+  String range_info;
+  range_info.set_charset(system_charset_info);
+  add_info_string(&range_info);
+  range_trace.add_utf8("used_index", range_info.ptr(), range_info.length());
+}
+
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc,
                                        bool *create_error)
@@ -1630,6 +1644,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
   in_ror_merged_scan= 1;
+  mrr_flags|= HA_MRR_SORTED;
   if (reuse_handler)
   {
     DBUG_PRINT("info", ("Reusing handler %p", file));
@@ -1638,6 +1653,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
       DBUG_RETURN(1);
     }
     head->column_bitmaps_set(&column_bitmap, &column_bitmap);
+    file->extra(HA_EXTRA_SECONDARY_SORT_ROWID);
     goto end;
   }
 
@@ -1676,6 +1692,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
   free_file= TRUE;
   last_rowid= file->ref;
+  file->extra(HA_EXTRA_SECONDARY_SORT_ROWID);
 
 end:
   /*
@@ -1699,6 +1716,7 @@ end:
     original value to not pollute other scans.
   */
   head->column_bitmaps_set(save_read_set, save_write_set);
+  bitmap_clear_all(&head->tmp_set);
 
   DBUG_RETURN(0);
 
@@ -2621,7 +2639,10 @@ void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
 }
 
 /*
-  Test if a key can be used in different ranges
+  Test if a key can be used in different ranges, and create the QUICK
+  access method (range, index merge etc) that is estimated to be
+  cheapest unless table/index scan is even cheaper (exception: @see
+  parameter force_quick_range).
 
   SYNOPSIS
     SQL_SELECT::test_quick_select()
@@ -2977,8 +2998,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         {
           /* Try creating index_merge/ROR-union scan. */
           SEL_IMERGE *imerge;
-          TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
-          LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
+          TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp= NULL;
           List_iterator_fast<SEL_IMERGE> it(tree->merges);
           Opt_trace_array trace_idx_merge(trace,
                                           "analyzing_index_merge_union",
@@ -5616,12 +5636,10 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 {
   uint idx;
   SEL_ARG **key,**end, **key_to_read= NULL;
-  ha_rows UNINIT_VAR(best_records);              /* protected by key_to_read */
-  uint    best_mrr_flags, best_buf_size;
+  ha_rows best_records= 0;              /* protected by key_to_read */
+  uint    best_mrr_flags= 0, best_buf_size= 0;
   TRP_RANGE* read_plan= NULL;
   DBUG_ENTER("get_key_scans_params");
-  LINT_INIT(best_mrr_flags); /* protected by key_to_read */
-  LINT_INIT(best_buf_size); /* protected by key_to_read */
   Opt_trace_context * const trace= &param->thd->opt_trace;
   /*
     Note that there may be trees that have type SEL_TREE::KEY but contain no
@@ -5925,14 +5943,6 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
                                                     Item_result cmp_type,
                                                     bool is_negated)
 {
-  /*
-    Array for IN() is constructed when all values have the same result
-    type. Tree won't be built for values with different result types,
-    so we check it here to avoid unnecessary work.
-  */
-  if (!op->arg_types_compatible)
-    return NULL;
-
   if (is_negated)
   {
     // We don't support row constructors (multiple columns on lhs) here.
@@ -6893,7 +6903,8 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
     /*
       We cannot evaluate the value yet (i.e. required tables are not yet
       locked.)
-      This is the case of prune_partitions() called during JOIN::prepare().
+      This is the case of prune_partitions() called during
+      SELECT_LEX::prepare().
     */
     return true;
   }
@@ -7338,6 +7349,11 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     tree->max_flag=NO_MAX_RANGE;
     break;
   case Item_func::SP_EQUALS_FUNC:
+    /*
+      GIS seems to work by pure accident since HA_READ_MBR_* are
+      enums.
+      @todo: Make HA_READ_MBR* bitmap values
+    */
     tree->min_flag=GEOM_FLAG | HA_READ_MBR_EQUAL;// NEAR_MIN;//512;
     tree->max_flag=NO_MAX_RANGE;
     break;
@@ -7479,16 +7495,20 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       if (*key2 && !(*key2)->simple_key())
 	flag|=CLONE_KEY2_MAYBE;
       *key1=key_and(param, *key1, *key2, flag);
-      if (*key1 && (*key1)->type == SEL_ARG::IMPOSSIBLE)
+      if (*key1)
       {
-	tree1->type= SEL_TREE::IMPOSSIBLE;
-        DBUG_RETURN(tree1);
-      }
-      result_keys.set_bit(key1 - tree1->keys);
+        if ((*key1)->type == SEL_ARG::IMPOSSIBLE)
+        {
+          tree1->type= SEL_TREE::IMPOSSIBLE;
+          DBUG_RETURN(tree1);
+        }
+        result_keys.set_bit(key1 - tree1->keys);
 #ifndef DBUG_OFF
-        if (*key1 && param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
+        if (param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
           (*key1)->test_use_count(*key1);
 #endif
+      }
+
     }
   }
   tree1->keys_map= result_keys;
@@ -7856,10 +7876,12 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
 
   if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
   {
-    /* TODO: why not leave one of the trees? */
-    key1->free_tree();
+    /*
+      Cannot optimize geometry ranges. The next best thing is to keep
+      one of them.
+    */
     key2->free_tree();
-    return 0;					// Can't optimize this
+    return key1;
   }
 
   key1->use_count--;
@@ -8651,7 +8673,7 @@ static bool eq_tree(SEL_ARG* a,SEL_ARG *b)
 SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
-  SEL_ARG *element,**UNINIT_VAR(par),*UNINIT_VAR(last_element);
+  SEL_ARG *element, **par= NULL, *last_element= NULL;
 
   for (element= this; element != &null_element ; )
   {
@@ -11382,6 +11404,12 @@ void QUICK_ROR_UNION_SELECT::add_info_string(String *str)
   str->append(')');
 }
 
+void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str)
+{
+  str->append(STRING_WITH_LEN("index_for_group_by("));
+  str->append(index_info->name);
+  str->append(')');
+}
 
 void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names,
                                               String *used_lengths)
@@ -12009,7 +12037,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         cause= "no_nongroup_keypart_predicate";
         goto next_index;
       }
-      else if (first_non_group_part && join->conds)
+      else if (first_non_group_part && join->where_cond)
       {
         /*
           If there is no MIN/MAX function in the query, but some index
@@ -12028,9 +12056,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         key_part_range[1]= last_part;
 
         /* Check if cur_part is referenced in the WHERE clause. */
-        if (join->conds->walk(&Item::find_item_in_field_list_processor,
-                              Item::WALK_POSTFIX,
-                              (uchar*) key_part_range))
+        if (join->where_cond->walk(&Item::find_item_in_field_list_processor,
+                                   Item::WALK_POSTFIX,
+                                   (uchar*) key_part_range))
         {
           cause= "keypart_reference_from_where_clause";
           goto next_index;
@@ -12131,8 +12159,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
     DBUG_RETURN(NULL);
 
   /* Check (SA3) for the where clause. */
-  if (join->conds && min_max_arg_item &&
-      !check_group_min_max_predicates(join->conds, min_max_arg_item,
+  if (join->where_cond && min_max_arg_item &&
+      !check_group_min_max_predicates(join->where_cond, min_max_arg_item,
                                       (index_info->flags & HA_SPATIAL) ?
                                       Field::itMBR : Field::itRAW))
   {
@@ -14031,7 +14059,9 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     if (field->real_maybe_null() && *key)
       out->append(STRING_WITH_LEN("NULL"));
     else
-      out->append(STRING_WITH_LEN("unprintable_blob_value"));    
+      (field->type() == MYSQL_TYPE_GEOMETRY) ?
+        out->append(STRING_WITH_LEN("unprintable_geometry_value")) :
+        out->append(STRING_WITH_LEN("unprintable_blob_value"));    
     return;
   }
 
@@ -14106,6 +14136,19 @@ void append_range(String *out,
 {
   if (out->length() > 0)
     out->append(STRING_WITH_LEN(" AND "));
+
+  if (flag & GEOM_FLAG)
+  {
+    /*
+      The flags of GEOM ranges do not work the same way as for other
+      range types, so printing "col < some_geom" doesn't make sense.
+      Just print the column name, not operator.
+    */
+    out->append(key_part->field->field_name);
+    out->append(STRING_WITH_LEN(" "));
+    print_key_value(out, key_part, min_key);
+    return;
+  }
 
   if (!(flag & NO_MIN_RANGE))
   {
@@ -14400,6 +14443,7 @@ static inline void print_tree(String *out,
   }
 }
 
+
 /*****************************************************************************
 ** Print a quick range for debugging
 ** TODO:
@@ -14601,3 +14645,4 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 
 
 #endif /* !DBUG_OFF */
+#endif /* OPT_RANGE_CC_INCLUDED */

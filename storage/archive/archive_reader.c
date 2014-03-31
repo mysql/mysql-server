@@ -322,7 +322,7 @@ get_one_option(int optid,
   case 'A':
     opt_autoincrement= 1;
     if (argument)
-      new_auto_increment_value= strtoull(argument, NULL, 0);
+      new_auto_increment_value= my_strtoull(argument, NULL, 0);
     else
       new_auto_increment_value= 0;
     break;

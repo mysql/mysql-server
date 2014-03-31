@@ -132,7 +132,7 @@ JOIN::exec()
       evaluating all conditions except the HAVING clause.
     */
     if (select_lex->cond_value != Item::COND_FALSE &&
-        (!conds || conds->val_int()))
+        (!where_cond || where_cond->val_int()))
     {
       if (result->send_result_set_metadata(*columns_list,
                                            Protocol::SEND_NUM_ROWS |
@@ -148,7 +148,7 @@ JOIN::exec()
         same way it checks for JOIN::cond_value.
       */
       if (((select_lex->having_value != Item::COND_FALSE) &&
-           (!having || having->val_int())) 
+           (!having_cond || having_cond->val_int()))
           && do_send_rows && result->send_data(fields_list))
         error= 1;
       else
@@ -331,7 +331,7 @@ int JOIN::rollup_send_data(uint idx)
   {
     /* Get reference pointers to sum functions in place */
     copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
-    if ((!having || having->val_int()))
+    if ((!having_cond || having_cond->val_int()))
     {
       if (send_records < unit->select_limit_cnt && do_send_rows &&
 	  result->send_data(rollup.fields[i]))
@@ -372,7 +372,7 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
   {
     /* Get reference pointers to sum functions in place */
     copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
-    if ((!having || having->val_int()))
+    if ((!having_cond || having_cond->val_int()))
     {
       int write_error;
       Item *item;
@@ -746,7 +746,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
       while ((item= it++))
         item->no_rows_in_result();
 
-      if (!join->having || join->having->val_int())
+      if (!join->having_cond || join->having_cond->val_int())
         send_error= join->result->send_data(fields);
     }
     if (!send_error)
@@ -876,7 +876,7 @@ do_select(JOIN *join)
 
       @todo: consider calling end_select instead of duplicating code
     */
-    if (!join->conds || join->conds->val_int())
+    if (!join->where_cond || join->where_cond->val_int())
     {
       // HAVING will be checked by end_select
       error= (*end_select)(join, 0, 0);
@@ -913,7 +913,7 @@ do_select(JOIN *join)
       // Mark tables as containing only NULL values
       join->clear();
 
-      if (!join->having || join->having->val_int())
+      if (!join->having_cond || join->having_cond->val_int())
         rc= join->result->send_data(*join->fields);
 
       if (save_nullinfo)
@@ -1817,18 +1817,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
 
   if (tab->type == JT_SYSTEM)
-  {
-    if ((error=join_read_system(tab)))
-    {						// Info for DESCRIBE
-      tab->info= ET_CONST_ROW_NOT_FOUND;
-      /* Mark for EXPLAIN that the row was not found */
-      pos->fanout= 0.0;
-      pos->prefix_record_count= 0.0;
-      pos->ref_depend_map= 0;
-      if (!table->pos_in_table_list->outer_join || error > 0)
-	DBUG_RETURN(error);
-    }
-  }
+    error= join_read_system(tab);
   else
   {
     if (!table->key_read && table->covering_keys.is_set(tab->ref.key) &&
@@ -1840,23 +1829,27 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     }
     error=join_read_const(tab);
     table->set_keyread(FALSE);
-    if (error)
-    {
-      tab->info= ET_UNIQUE_ROW_NOT_FOUND;
-      /* Mark for EXPLAIN that the row was not found */
-      pos->fanout= 0.0;
-      pos->prefix_record_count= 0.0;
-      pos->ref_depend_map= 0;
-      if (!table->pos_in_table_list->outer_join || error > 0)
-	DBUG_RETURN(error);
-    }
   }
 
-  if (*tab->on_expr_ref && !table->null_row)
+  if (error)
+  {
+    tab->info= (tab->type == JT_SYSTEM) ? ET_CONST_ROW_NOT_FOUND :
+      ET_UNIQUE_ROW_NOT_FOUND;
+    /* Mark for EXPLAIN that the row was not found */
+    pos->filter_effect= 1.0;
+    pos->rows_fetched= 0.0;
+    pos->prefix_record_count= 0.0;
+    pos->ref_depend_map= 0;
+    if (!table->pos_in_table_list->outer_join || error > 0)
+      DBUG_RETURN(error);
+  }
+    
+
+  if (tab->join_cond() && !table->null_row)
   {
     // We cannot handle outer-joined tables with expensive join conditions here:
-    DBUG_ASSERT(!(*tab->on_expr_ref)->is_expensive());
-    if ((table->null_row= MY_TEST((*tab->on_expr_ref)->val_int() == 0)))
+    DBUG_ASSERT(!tab->join_cond()->is_expensive());
+    if ((table->null_row= (tab->join_cond()->val_int() == 0)))
       mark_as_null_row(table);  
   }
   if (!table->null_row)
@@ -1864,8 +1857,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 
   /* Check appearance of new constant items in Item_equal objects */
   JOIN *join= tab->join;
-  if (join->conds)
-    update_const_equal_items(join->conds, tab);
+  if (join->where_cond)
+    update_const_equal_items(join->where_cond, tab);
   TABLE_LIST *tbl;
   for (tbl= join->select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
   {
@@ -1874,8 +1867,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     do
     {
       embedded= embedding;
-      if (embedded->join_cond())
-        update_const_equal_items(embedded->join_cond(), tab);
+      if (embedded->optim_join_cond())
+        update_const_equal_items(embedded->optim_join_cond(), tab);
       embedding= embedded->embedding;
     }
     while (embedding &&
@@ -2785,7 +2778,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       copy_fields(&join->tmp_table_param);
     }
     // Use JOIN's HAVING for the case of tableless SELECT.
-    if (join->having && join->having->val_int() == 0)
+    if (join->having_cond && join->having_cond->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;
     if (join->do_send_rows)
@@ -2821,7 +2814,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 	if ((join->primary_tables == 1) &&
             !join->sort_and_group &&
             !join->send_group_parts &&
-            !join->having &&
+            !join->having_cond &&
             !jt->condition() &&
             !(jt->select && jt->select->quick) &&
 	    (jt->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
@@ -2915,7 +2908,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
             // Mark tables as containing only NULL values
             join->clear();
 	  }
-	  if (join->having && join->having->val_int() == 0)
+	  if (join->having_cond && join->having_cond->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
 	  else
 	  {
@@ -3969,7 +3962,7 @@ copy_fields(Temp_table_param *param)
   DBUG_ASSERT((ptr != NULL && end >= ptr) || (ptr == NULL && end == NULL));
 
   for (; ptr < end; ptr++)
-    (*ptr->do_copy)(ptr);
+    ptr->invoke_do_copy(ptr);
 
   List_iterator_fast<Item> it(param->copy_funcs);
   Item_copy *item;
@@ -4034,7 +4027,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
           DBUG_RETURN(true);                  // Fatal error
         List<Item> list;
         list.push_back(new_field);
-        suv->set_arguments(list);
+        suv->set_arguments(list, true);
         item_field= suv;
       }
       else

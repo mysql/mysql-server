@@ -276,7 +276,7 @@ create_query_string(THD *thd, String *buf)
   if (buf->append(STRING_WITH_LEN("CREATE ")))
     return 1;
   /* Append definer */
-  append_definer(thd, buf, &(thd->lex->definer->user), &(thd->lex->definer->host));
+  append_definer(thd, buf, thd->lex->definer->user, thd->lex->definer->host);
   /* Append the left part of thd->query after "DEFINER" part */
   if (buf->append(thd->lex->stmt_definition_begin,
                   thd->lex->stmt_definition_end -

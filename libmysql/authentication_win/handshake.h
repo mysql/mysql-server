@@ -49,7 +49,7 @@ class Security_buffer: public SecBufferDesc
 
     m_buf.BufferType= SECBUFFER_TOKEN;
     m_buf.pvBuffer= ptr;
-    m_buf.cbBuffer= len;
+    m_buf.cbBuffer= (ulong)len;
   }
 
   /// If @c false, no deallocation will be done in the destructor.

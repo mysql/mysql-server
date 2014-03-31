@@ -126,7 +126,7 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
-  THR_LOCK_INFO *UNINIT_VAR(first_owner);
+  THR_LOCK_INFO *first_owner= NULL;
 
   prev= &list->data;
   if (list->data)

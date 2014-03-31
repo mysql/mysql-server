@@ -4786,7 +4786,7 @@ dict_foreign_parse_drop_constraints(
 	*constraints_to_drop = static_cast<const char**>(
 		mem_heap_alloc(heap, 1000 * sizeof(char*)));
 
-	ptr = innobase_get_stmt(trx->mysql_thd, &len);
+	ptr = innobase_get_stmt_unsafe(trx->mysql_thd, &len);
 
 	str = dict_strip_comments(ptr, len);
 
@@ -6031,7 +6031,7 @@ dict_fs2utf8(
 
 	strconvert(
 		&my_charset_filename, db, system_charset_info,
-		db_utf8, static_cast<uint>(db_utf8_size), &errors);
+		db_utf8, db_utf8_size, &errors);
 
 	/* convert each # to @0023 in table name and store the result in buf */
 	const char*	table = dict_remove_db_name(db_and_table);
@@ -6057,7 +6057,7 @@ dict_fs2utf8(
 	errors = 0;
 	strconvert(
 		&my_charset_filename, buf, system_charset_info,
-		table_utf8, static_cast<uint>(table_utf8_size),
+		table_utf8, table_utf8_size,
 		&errors);
 
 	if (errors != 0) {

@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,32 +32,28 @@ class sp_name;
 
 /*
   Cache usage scenarios:
-  1. Application-wide init:
-    sp_cache_init();
+  1. SP execution in thread:
+  1.1 While holding sp_head* pointers:
 
-  2. SP execution in thread:
-  2.1 While holding sp_head* pointers:
-  
     // look up a routine in the cache (no checks if it is up to date or not)
-    sp_cache_lookup(); 
-    
+    sp_cache_lookup();
+
     sp_cache_insert();
     sp_cache_invalidate();
-  
-  2.2 When not holding any sp_head* pointers:
+
+  1.2 When not holding any sp_head* pointers:
     sp_cache_flush_obsolete();
-  
-  3. Before thread exit:
+
+  2. Before thread exit:
     sp_cache_clear();
 */
 
-void sp_cache_init();
 void sp_cache_clear(sp_cache **cp);
 void sp_cache_insert(sp_cache **cp, sp_head *sp);
 sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name);
 void sp_cache_invalidate();
 void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp);
-ulong sp_cache_version();
+int64 sp_cache_version();
 void sp_cache_enforce_limit(sp_cache *cp, ulong upper_limit_for_elements);
 
 #endif /* _SP_CACHE_H_ */

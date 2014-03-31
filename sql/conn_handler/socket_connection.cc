@@ -352,7 +352,7 @@ public:
     char port_buf[NI_MAXSERV];
     my_snprintf(port_buf, NI_MAXSERV, "%d", m_tcp_port);
 
-    if (strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0)
+    if (native_strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0)
     {
       /*
         That's the case when bind-address is set to a special value ('*'),

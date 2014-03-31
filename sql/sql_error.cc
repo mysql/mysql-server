@@ -471,7 +471,7 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
 
 
 bool Diagnostics_area::has_sql_condition(const char *message_text,
-                                         ulong message_length) const
+                                         size_t message_length) const
 {
   Sql_condition_iterator it(m_conditions_list);
   const Sql_condition *err;

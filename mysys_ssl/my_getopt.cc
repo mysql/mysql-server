@@ -910,7 +910,7 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
   
   *error= 0;
   errno= 0;
-  num= strtoll(argument, &endchar, 10);
+  num= my_strtoll(argument, &endchar, 10);
   if (errno == ERANGE)
   {
     my_getopt_error_reporter(ERROR_LEVEL,
@@ -952,7 +952,7 @@ static ulonglong eval_num_suffix_ull(char *argument, int *error, char *option_na
 
   *error= 0;
   errno= 0;
-  num= strtoull(argument, &endchar, 10);
+  num= my_strtoull(argument, &endchar, 10);
   if (errno == ERANGE)
   {
     my_getopt_error_reporter(ERROR_LEVEL,

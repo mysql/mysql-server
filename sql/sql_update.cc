@@ -198,9 +198,6 @@ static bool check_constant_expressions(List<Item> &values)
     thd			thread handler
     fields		fields for update
     values		values of fields for update
-    conds		WHERE clause expression
-    order_num		number of elemen in ORDER BY clause
-    order		ORDER BY clause list
     limit		limit clause
     handle_duplicates	how to handle duplicates
 
@@ -210,11 +207,8 @@ static bool check_constant_expressions(List<Item> &values)
 */
 
 bool mysql_update(THD *thd,
-                  TABLE_LIST *table_list,
                   List<Item> &fields,
                   List<Item> &values,
-                  Item *conds,
-                  uint order_num, ORDER *order,
                   ha_rows limit,
                   enum enum_duplicates handle_duplicates, bool ignore,
                   ha_rows *found_return, ha_rows *updated_return)
@@ -246,7 +240,7 @@ bool mysql_update(THD *thd,
   THD::killed_state killed_status= THD::NOT_KILLED;
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &fields, &values);
   SQL_SELECT *saved_selects[2]= {NULL, NULL};
-
+  TABLE_LIST *const table_list= select_lex->get_table_list();
   DBUG_ENTER("mysql_update");
 
   THD_STAGE_INFO(thd, stage_init);
@@ -270,8 +264,11 @@ bool mysql_update(THD *thd,
   want_privilege= (table_list->view ? UPDATE_ACL :
                    table_list->grant.want_privilege);
 #endif
-  if (mysql_prepare_update(thd, table_list, update_table_ref, &conds,
-                           order_num, order))
+  if (mysql_prepare_update(thd, update_table_ref))
+    DBUG_RETURN(1);
+
+  Item *conds;
+  if (select_lex->get_optimizable_conditions(thd, &conds, NULL))
     DBUG_RETURN(1);
 
   old_covering_keys= table->covering_keys;		// Keys used in WHERE
@@ -311,6 +308,8 @@ bool mysql_update(THD *thd,
   if (select_lex->inner_refs_list.elements &&
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
     DBUG_RETURN(1);
+
+  ORDER *order= select_lex->order_list.first;
 
   if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0 &&
       update.function_defaults_apply(table))
@@ -1074,21 +1073,15 @@ exit_without_my_ok:
   Prepare items in UPDATE statement
 
   @param thd              thread handler
-  @param table_list       global/local table list (may be a view)
   @param update_table_ref Reference to table being updated
-  @param conds            conditions
-  @param order_num        number of ORDER BY list entries
-  @param order            ORDER BY clause list
 
   @return false if success, true if error
 */
-bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
-                          const TABLE_LIST *update_table_ref,
-                          Item **conds, uint order_num, ORDER *order)
+bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref)
 {
-  Item *fake_conds= 0;
   List<Item> all_fields;
   SELECT_LEX *select_lex= thd->lex->select_lex;
+  TABLE_LIST *const table_list= select_lex->get_table_list();
   DBUG_ENTER("mysql_prepare_update");
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1106,12 +1099,14 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
                                     &select_lex->leaf_tables,
                                     FALSE, UPDATE_ACL, SELECT_ACL))
     DBUG_RETURN(true);
-  if (setup_conds(thd, table_list, select_lex->leaf_tables, conds))
+  if (select_lex->setup_conds(thd))
     DBUG_RETURN(true);
-  if (select_lex->setup_ref_array(thd, order_num))
+
+  if (select_lex->setup_ref_array(thd))
     DBUG_RETURN(true);                          /* purecov: inspected */
   if (setup_order(thd, select_lex->ref_pointer_array,
-                  table_list, all_fields, all_fields, order))
+                  table_list, all_fields, all_fields,
+                  select_lex->order_list.first))
     DBUG_RETURN(true);
   if (setup_ftfuncs(select_lex))
     DBUG_RETURN(true);                          /* purecov: inspected */
@@ -1124,7 +1119,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
     update_non_unique_table_error(table_list, "UPDATE", duplicate);
     DBUG_RETURN(true);
   }
-  select_lex->fix_prepare_information(thd, conds, &fake_conds);
+  select_lex->fix_prepare_information(thd);
   DBUG_RETURN(false);
 }
 
@@ -1374,9 +1369,9 @@ int mysql_multi_update_prepare(THD *thd)
                                       MYSQL_OPEN_FORCE_SHARED_MDL : 0)))
     DBUG_RETURN(TRUE);
   /*
-    setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()
-    second time, but this call will do nothing (there are check for second
-    call in setup_tables()).
+    setup_tables() need for VIEWs. SELECT_LEX::prepare() will call
+    setup_tables() second time, but this call will do nothing (there are check
+    for second call in setup_tables()).
   */
 
   if (setup_tables(thd, &lex->select_lex->context,
@@ -1539,24 +1534,21 @@ int mysql_multi_update_prepare(THD *thd)
 */
 
 bool mysql_multi_update(THD *thd,
-                        TABLE_LIST *table_list,
                         List<Item> *fields,
                         List<Item> *values,
-                        Item *conds,
                         ulonglong options,
                         enum enum_duplicates handle_duplicates,
                         bool ignore,
-                        SELECT_LEX_UNIT *unit,
                         SELECT_LEX *select_lex,
                         multi_update **result)
 {
   bool res;
   DBUG_ENTER("mysql_multi_update");
 
-  if (!(*result= new multi_update(table_list,
-				 thd->lex->select_lex->leaf_tables,
-				 fields, values,
-				 handle_duplicates, ignore)))
+  if (!(*result= new multi_update(select_lex->get_table_list(),
+                                  select_lex->leaf_tables,
+                                  fields, values,
+                                  handle_duplicates, ignore)))
   {
     DBUG_RETURN(TRUE);
   }
@@ -1569,14 +1561,14 @@ bool mysql_multi_update(THD *thd,
   {
     List<Item> total_list;
 
+    DBUG_ASSERT(select_lex->having_cond() == NULL &&
+                !select_lex->order_list.elements &&
+                !select_lex->group_list.elements);
     res= mysql_select(thd,
-                      table_list, select_lex->with_wild,
                       total_list,
-                      conds, (SQL_I_List<ORDER> *) NULL,
-                      (SQL_I_List<ORDER> *)NULL, (Item *) NULL,
                       options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                       OPTION_SETUP_TABLES_DONE,
-                      *result, unit, select_lex);
+                      *result, select_lex);
 
     DBUG_PRINT("info",("res: %d  report_error: %d",res, (int) thd->is_error()));
     res|= thd->is_error();
@@ -1666,6 +1658,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
+      bitmap_clear_all(&table->tmp_set);
     }
   }
   
@@ -2439,12 +2432,18 @@ int multi_update::do_updates()
       for (copy_field_ptr=copy_field;
 	   copy_field_ptr != copy_field_end;
 	   copy_field_ptr++)
-	(*copy_field_ptr->do_copy)(copy_field_ptr);
+        copy_field_ptr->invoke_do_copy(copy_field_ptr);
 
-      if (table->triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                            TRG_ACTION_BEFORE, TRUE))
-        goto err;
+      if (table->triggers)
+      {
+        bool rc= table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                   TRG_ACTION_BEFORE, true);
+
+        table->triggers->disable_fields_temporary_nullability();
+
+        if (rc || check_record(thd, table->field))
+          goto err;
+      }
 
       if (!records_are_comparable(table) || compare_records(table))
       {

@@ -24,14 +24,16 @@
 #include "my_static.h"
 #include <m_string.h>
 
-/* Not instrumented */
-static pthread_mutex_t THR_LOCK_mutex;
-static ulong safe_mutex_count= 0;		/* Number of mutexes created */
 static my_bool safe_mutex_inited= FALSE;
 
+/**
+  While it looks like this function is pointless, it makes it possible to
+  catch usage of global static mutexes. Since the order of construction of
+  global objects in different compilation units is undefined, this is
+  quite useful.
+*/
 void safe_mutex_global_init(void)
 {
-  pthread_mutex_init(&THR_LOCK_mutex,MY_MUTEX_INIT_FAST);
   safe_mutex_inited= TRUE;
 }
 
@@ -48,10 +50,6 @@ int safe_mutex_init(safe_mutex_t *mp,
   /* Mark that mutex is initialized */
   mp->file= file;
   mp->line= line;
-
-  pthread_mutex_lock(&THR_LOCK_mutex);
-  safe_mutex_count++;
-  pthread_mutex_unlock(&THR_LOCK_mutex);
   return 0;
 }
 
@@ -155,10 +153,6 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
   }
   mp->thread= 0;
   mp->count--;
-#ifdef _WIN32
-  pthread_mutex_unlock(&mp->mutex);
-  error=0;
-#else
   error=pthread_mutex_unlock(&mp->mutex);
   if (error)
   {
@@ -166,7 +160,6 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
     fflush(stderr);
     abort();
   }
-#endif /* _WIN32 */
   pthread_mutex_unlock(&mp->global);
   return error;
 }
@@ -279,43 +272,12 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
     fflush(stderr);
     abort();
   }
-#ifdef _WIN32 
-  pthread_mutex_destroy(&mp->global);
-  pthread_mutex_destroy(&mp->mutex);
-#else
   if (pthread_mutex_destroy(&mp->global))
     error=1;
   if (pthread_mutex_destroy(&mp->mutex))
     error=1;
-#endif
   mp->file= 0;					/* Mark destroyed */
-
-  pthread_mutex_lock(&THR_LOCK_mutex);
-  safe_mutex_count--;
-  pthread_mutex_unlock(&THR_LOCK_mutex);
   return error;
-}
-
-
-/*
-  Free global resources and check that all mutex has been destroyed
-
-  SYNOPSIS
-    safe_mutex_end()
-    file		Print errors on this file
-
-  NOTES
-    We can't use DBUG_PRINT() here as we have in my_end() disabled
-    DBUG handling before calling this function.
-
-   In MySQL one may get one warning for a mutex created in my_thr_init.c
-   This is ok, as this thread may not yet have been exited.
-*/
-
-void safe_mutex_end(FILE *file __attribute__((unused)))
-{
-  if (!safe_mutex_count)			/* safetly */
-    pthread_mutex_destroy(&THR_LOCK_mutex);
 }
 
 #elif defined(MY_PTHREAD_FASTMUTEX)

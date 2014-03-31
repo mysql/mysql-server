@@ -219,7 +219,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   uint length,nod_flag,search_key_length;
   my_bool last_key;
   uchar *leaf_buff,*keypos;
-  my_off_t UNINIT_VAR(leaf_page),next_block;
+  my_off_t leaf_page= 0, next_block;
   uchar lastkey[MI_MAX_KEY_BUFF];
   DBUG_ENTER("d_search");
   DBUG_DUMP("page",(uchar*) anc_buff,mi_getint(anc_buff));
@@ -304,7 +304,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
     }
   }
   leaf_buff=0;
-  LINT_INIT(leaf_page);
+  leaf_page= 0;
   if (nod_flag)
   {
     leaf_page=_mi_kpos(nod_flag,keypos);

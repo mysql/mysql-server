@@ -1199,7 +1199,11 @@ public:
       if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
         plugin= ha_resolve_by_name(thd, &pname, FALSE);
       else
-        plugin= my_plugin_lock_by_name(thd, &pname, plugin_type);
+      {
+        LEX_CSTRING pname_cstr= {pname.str, pname.length};
+        plugin= my_plugin_lock_by_name(thd, pname_cstr, plugin_type);
+      }
+
       if (!plugin)
       {
         // historically different error code
@@ -1251,7 +1255,10 @@ public:
     if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
       plugin= ha_resolve_by_name(thd, &pname, FALSE);
     else
-      plugin= my_plugin_lock_by_name(thd, &pname, plugin_type);
+    {
+      LEX_CSTRING pname_cstr= {pname.str,pname.length};
+      plugin= my_plugin_lock_by_name(thd, pname_cstr, plugin_type);
+    }
     DBUG_ASSERT(plugin);
 
     var->save_result.plugin= my_plugin_lock(thd, &plugin);

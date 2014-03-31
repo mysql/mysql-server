@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,24 +13,49 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_priv.h"
-#include "unireg.h"
-#include "sp_cache.h"
-#include "sp_head.h"
 
-static mysql_mutex_t Cversion_lock;
-static ulong volatile Cversion= 0;
+#include "sp_cache.h"
+
+#include "my_atomic.h"
+#include "sp_head.h"
 
 
 /*
-  Cache of stored routines. 
+  Cache of stored routines.
 */
+
+extern "C"
+{
+  static uchar *hash_get_key_for_sp_head(const uchar *ptr, size_t *plen,
+                                         my_bool first)
+  {
+    sp_head *sp= (sp_head *)ptr;
+    *plen= sp->m_qname.length;
+    return (uchar*) sp->m_qname.str;
+  }
+
+
+  static void hash_free_sp_head(void *p)
+  {
+    sp_head *sp= (sp_head *)p;
+    delete sp;
+  }
+}
+
 
 class sp_cache
 {
 public:
-  sp_cache();
-  ~sp_cache();
+  sp_cache()
+  {
+    my_hash_init(&m_hashtable, system_charset_info, 0, 0, 0,
+                 hash_get_key_for_sp_head, hash_free_sp_head, 0);
+  }
+
+  ~sp_cache()
+  {
+    my_hash_free(&m_hashtable);
+  }
 
   /**
    Inserts a sp_head object into a hash table.
@@ -39,18 +64,18 @@ public:
      @return TRUE Failure
      @return FALSE Success
   */
-  inline bool insert(sp_head *sp)
+  bool insert(sp_head *sp)
   {
     return my_hash_insert(&m_hashtable, (const uchar *)sp);
   }
 
-  inline sp_head *lookup(char *name, uint namelen)
+  sp_head *lookup(char *name, size_t namelen)
   {
     return (sp_head *) my_hash_search(&m_hashtable, (const uchar *)name,
                                       namelen);
   }
 
-  inline void remove(sp_head *sp)
+  void remove(sp_head *sp)
   {
     my_hash_delete(&m_hashtable, (uchar *)sp);
   }
@@ -69,41 +94,12 @@ public:
   }
 
 private:
-  void init();
-  void cleanup();
-
   /* All routines in this cache */
   HASH m_hashtable;
 }; // class sp_cache
 
-#ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_Cversion_lock;
 
-static PSI_mutex_info all_sp_cache_mutexes[]=
-{
-  { &key_Cversion_lock, "Cversion_lock", PSI_FLAG_GLOBAL}
-};
-
-static void init_sp_cache_psi_keys(void)
-{
-  const char* category= "sql";
-  int count;
-
-  count= array_elements(all_sp_cache_mutexes);
-  mysql_mutex_register(category, all_sp_cache_mutexes, count);
-}
-#endif
-
-/* Initialize the SP caching once at startup */
-
-void sp_cache_init()
-{
-#ifdef HAVE_PSI_INTERFACE
-  init_sp_cache_psi_keys();
-#endif
-
-  mysql_mutex_init(key_Cversion_lock, &Cversion_lock, MY_MUTEX_INIT_FAST);
-}
+static int64 volatile Cversion= 0;
 
 
 /*
@@ -152,8 +148,7 @@ void sp_cache_insert(sp_cache **cp, sp_head *sp)
     if (!(c= new sp_cache()))
       return;                                   // End of memory error
   }
-  /* Reading a ulong variable with no lock. */
-  sp->set_sp_cache_version(Cversion);
+  sp->set_sp_cache_version(sp_cache_version());
   DBUG_PRINT("info",("sp_cache: inserting: %.*s", (int) sp->m_qname.length,
                      sp->m_qname.str));
   c->insert(sp);
@@ -201,7 +196,7 @@ sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name)
 void sp_cache_invalidate()
 {
   DBUG_PRINT("info",("sp_cache: invalidating"));
-  thread_safe_increment(Cversion, &Cversion_lock);
+  my_atomic_add64(&Cversion, 1);
 }
 
 
@@ -218,7 +213,7 @@ void sp_cache_invalidate()
 
 void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp)
 {
-  if ((*sp)->sp_cache_version() < Cversion && !(*sp)->is_invoked())
+  if ((*sp)->sp_cache_version() < sp_cache_version() && !(*sp)->is_invoked())
   {
     (*cp)->remove(*sp);
     *sp= NULL;
@@ -230,9 +225,9 @@ void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp)
   Return the current global version of the cache.
 */
 
-ulong sp_cache_version()
+int64 sp_cache_version()
 {
-  return Cversion;
+  return my_atomic_load64(&Cversion);
 }
 
 
@@ -249,54 +244,4 @@ sp_cache_enforce_limit(sp_cache *c, ulong upper_limit_for_elements)
 {
  if (c)
    c->enforce_limit(upper_limit_for_elements);
-}
-
-/*************************************************************************
-  Internal functions 
- *************************************************************************/
-
-extern "C" uchar *hash_get_key_for_sp_head(const uchar *ptr, size_t *plen,
-                                           my_bool first);
-extern "C" void hash_free_sp_head(void *p);
-
-uchar *hash_get_key_for_sp_head(const uchar *ptr, size_t *plen,
-                                my_bool first)
-{
-  sp_head *sp= (sp_head *)ptr;
-  *plen= sp->m_qname.length;
-  return (uchar*) sp->m_qname.str;
-}
-
-
-void hash_free_sp_head(void *p)
-{
-  sp_head *sp= (sp_head *)p;
-  delete sp;
-}
-
-
-sp_cache::sp_cache()
-{
-  init();
-}
-
-
-sp_cache::~sp_cache()
-{
-  my_hash_free(&m_hashtable);
-}
-
-
-void
-sp_cache::init()
-{
-  my_hash_init(&m_hashtable, system_charset_info, 0, 0, 0,
-               hash_get_key_for_sp_head, hash_free_sp_head, 0);
-}
-
-
-void
-sp_cache::cleanup()
-{
-  my_hash_free(&m_hashtable);
 }

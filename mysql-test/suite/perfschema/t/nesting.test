@@ -41,6 +41,7 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
                  'wait/io/socket/sql/client_connection',
                  'wait/synch/rwlock/sql/LOCK_grant',
                  'wait/synch/mutex/sql/THD::LOCK_thd_data',
+                 'wait/synch/mutex/sql/THD::LOCK_thd_query',
                  'wait/io/file/sql/query_log');
 
 update performance_schema.setup_instruments set enabled='YES', timed='YES'

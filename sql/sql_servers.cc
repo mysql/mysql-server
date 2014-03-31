@@ -387,7 +387,7 @@ static bool close_cached_connection_tables(THD *thd,
          (connection_length < share->connect_string.length &&
           (share->connect_string.str[connection_length] != '/' &&
            share->connect_string.str[connection_length] != '\\')) ||
-         strncasecmp(connection_string, share->connect_string.str,
+         native_strncasecmp(connection_string, share->connect_string.str,
                      connection_length)))
       continue;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -254,8 +254,6 @@ log_block_init(
 {
 	ulint	no;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
-
 	no = log_block_convert_lsn_to_no(lsn);
 
 	log_block_set_hdr_no(log_block, no);
@@ -264,6 +262,7 @@ log_block_init(
 	log_block_set_first_rec_group(log_block, 0);
 }
 
+#ifdef UNIV_HOTBACKUP
 /************************************************************//**
 Initializes a log block in the log buffer in the old format, where there
 was no checksum yet. */
@@ -276,7 +275,7 @@ log_block_init_in_old_format(
 {
 	ulint	no;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	no = log_block_convert_lsn_to_no(lsn);
 
@@ -286,19 +285,20 @@ log_block_init_in_old_format(
 	log_block_set_data_len(log_block, LOG_BLOCK_HDR_SIZE);
 	log_block_set_first_rec_group(log_block, 0);
 }
+#endif /* UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************//**
-Writes to the log the string given. The log must be released with
-log_release.
+/** Append a string to the log.
+@param[in]	str		string
+@param[in]	len		string length
+@param[out]	start_lsn	start LSN of the log record
 @return end lsn of the log record, zero if did not succeed */
 UNIV_INLINE
 lsn_t
 log_reserve_and_write_fast(
-/*=======================*/
-	const void*	str,	/*!< in: string */
-	ulint		len,	/*!< in: string length */
-	lsn_t*		start_lsn)/*!< out: start lsn of the log record */
+	const void*	str,
+	ulint		len,
+	lsn_t*		start_lsn)
 {
 	ulint		data_len;
 #ifdef UNIV_LOG_LSN_DEBUG
@@ -306,7 +306,7 @@ log_reserve_and_write_fast(
 	ulint		lsn_len;
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	log_mutex_enter();
+	ut_ad(log_mutex_own());
 
 #ifdef UNIV_LOG_LSN_DEBUG
 	lsn_len = 1
@@ -367,16 +367,6 @@ log_reserve_and_write_fast(
 		    log_sys->lsn - log_sys->last_checkpoint_lsn);
 
 	return(log_sys->lsn);
-}
-
-/***********************************************************************//**
-Releases the log mutex. */
-UNIV_INLINE
-void
-log_release(void)
-/*=============*/
-{
-	log_mutex_exit();
 }
 
 /************************************************************//**

@@ -239,8 +239,8 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   char          *db;
   char          *table_name;
   uint          dirlen;
-  uint          db_length;
-  uint          table_name_length;
+  size_t        db_length;
+  size_t        table_name_length;
   char          dir_path[FN_REFLEN];
   char          name_buf[NAME_LEN];
   DBUG_ENTER("myisammrg_parent_open_callback");
@@ -1534,8 +1534,8 @@ int ha_myisammrg::create(const char *name, TABLE *form,
       opened through the table cache. They are opened by db.table_name,
       not by their path name.
     */
-    uint length= build_table_filename(buff, sizeof(buff),
-                                      tables->db, tables->table_name, "", 0);
+    size_t length= build_table_filename(buff, sizeof(buff),
+                                        tables->db, tables->table_name, "", 0);
     /*
       If a MyISAM table is in the same directory as the MERGE table,
       we use the table name without a path. This means that the

@@ -480,17 +480,23 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
 typedef struct st_position : public Sql_alloc
 {
   /**
-    The "fanout" - number of output rows that will be produced (after
-    table condition is applied) per each row combination of previous
-    tables. That is:
+    The number of rows that will be fetched by the chosen access
+    method per each row combination of previous tables. That is:
 
-      fanout = selectivity(access_condition) * cardinality(table)
+      rows_fetched = selectivity(access_condition) * cardinality(table)
 
-    where 'access_condition' is whatever condition
-    was chosen for index access, depending on the access method
-    ('ref', 'range', etc.)
+    where 'access_condition' is whatever condition was chosen for
+    index access, depending on the access method ('ref', 'range',
+    etc.)
+
+    @Note that for index/table scans, rows_fetched may be less than
+    the number of rows in the table because the cost of evaluating
+    constant conditions is included in the scan cost, and the number
+    of rows produced by these scans is the estimated number of rows
+    that pass the constant conditions. @see
+    Optimize_table_order::calculate_scan_cost()
   */
-  double fanout;
+  double rows_fetched;
 
   /**
     Cost of accessing the table in course of the entire complete join
@@ -514,10 +520,60 @@ typedef struct st_position : public Sql_alloc
   table_map ref_depend_map;
   bool use_join_buffer; 
   
+  /**
+    The fraction of the 'rows_fetched' rows that will pass the table
+    conditions that were NOT used by the access method. If, e.g.,
+
+      "SELECT ... WHERE t1.colx = 4 and t1.coly > 5"
+
+    is resolved by ref access on t1.colx, filter_effect will be the
+    fraction of rows that will pass the "t1.coly > 5" predicate. The
+    valid range is 0..1, where 0.0 means that no rows will pass the
+    table conditions and 1.0 means that all rows will pass.
+
+    It is used to calculate how many row combinations will be joined
+    with the next table, @see prefix_record_count below.
+
+    @Note that with condition filtering enabled, it is possible to get
+    a fanout = rows_fetched * filter_effect that is less than 1.0.
+    Consider, e.g., a join between t1 and t2:
+
+       "SELECT ... WHERE t1.col1=t2.colx and t2.coly OP <something>"
+
+    where t1 is a prefix table and the optimizer currently calculates
+    the cost of adding t2 to the join. Assume that the chosen access
+    method on t2 is a 'ref' access on 'colx' that is estimated to
+    produce 2 rows per row from t1 (i.e., rows_fetched = 2). It will
+    in this case be perfectly fine to calculate a filtering effect
+    <0.5 (resulting in "rows_fetched * filter_effect < 1.0") from the
+    predicate "t2.coly OP <something>". If so, the number of row
+    combinations from (t1,t2) is lower than the prefix_record_count of
+    t1.
+
+    The above is just an example of how the fanout of a table can
+    become less than one. It can happen for any access method.
+  */
+  float filter_effect;
+
   
-  /** These form a stack of partial join order costs and output sizes */
+  /**
+    prefix_record_count and prefix_cost form a stack of partial join
+    order costs and output sizes
+
+    prefix_record_count: The number of row combinations that will be
+    joined to the next table in the join sequence.
+
+    For a joined table it is calculated as
+      prefix_record_count =
+          last_table.prefix_record_count * rows_fetched * filter_effect
+
+    @see filter_effect
+
+    For a semijoined table it may be less than this formula due to
+    duplicate elimination.
+  */
+  double prefix_record_count;
   Cost_estimate prefix_cost;
-  double    prefix_record_count;
 
   /**
     Current optimization state: Semi-join strategy to be used for this
@@ -663,6 +719,52 @@ typedef struct st_join_table : public Sql_alloc
   void add_prefix_tables(table_map tables)
   { prefix_tables_map|= tables; added_tables_map|= tables; }
 
+  /// Sets the pointer to the join condition of TABLE_LIST
+  void init_join_cond_ref(TABLE_LIST *tl)
+  {
+    m_join_cond_ref= tl->optim_join_cond_ref();
+  }
+
+  /// @returns join condition
+  Item *join_cond() const
+  {
+    return *m_join_cond_ref;
+  }
+
+  /**
+     Sets join condition
+     @note this also changes TABLE_LIST::m_join_cond.
+  */
+  void set_join_cond(Item *cond)
+  {
+    *m_join_cond_ref= cond;
+  }
+
+  /// @returns combined condition after attaching where and join condition
+  Item *condition() const
+  {
+    return m_condition;
+  }
+  /// Set the combined condition for a table (may be performed several times)
+  void set_condition(Item *to, uint line)
+  {
+    DBUG_PRINT("info", 
+               ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
+                m_condition, to, line, this));
+    m_condition= to;
+    quick_order_tested.clear_all();
+  }
+
+  /// Set table condition, for JOIN_TAB as well as for SELECT object
+  Item *set_jt_and_sel_condition(Item *new_cond, uint line)
+  {
+    Item *tmp_cond= m_condition;
+    set_condition(new_cond, line);
+    if (select)
+      select->cond= new_cond;
+    return tmp_cond;
+  }
+
   /// Return true if join_tab should perform a FirstMatch action
   bool do_firstmatch() const { return firstmatch_return; }
 
@@ -679,11 +781,21 @@ typedef struct st_join_table : public Sql_alloc
   POSITION      *position;      /**< points into best_positions array        */
   Key_use       *keyuse;        /**< pointer to first used key               */
   SQL_SELECT    *select;
+  QUICK_SELECT_I *quick;
 private:
   Item          *m_condition;   /**< condition for this join_tab             */
+  /**
+     Pointer to the associated join condition:
+     - if this is a table with position==NULL (e.g. internal sort/group
+     temporary table), pointer is NULL
+     - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
+     Thus, TABLE_LIST::m_join_cond and *JOIN_TAB::m_join_cond_ref are the same
+     thing (changing one changes the other; thus, optimizations made on the
+     second are reflected in SELECT_LEX::print_table_array() which uses the
+     first).
+  */
+  Item          **m_join_cond_ref;
 public:
-  QUICK_SELECT_I *quick;
-  Item         **on_expr_ref;   /**< pointer to the associated on expression */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression*/
   st_join_table *first_inner;   /**< first inner table for including outerjoin*/
   bool           found;         /**< true after all matches or null complement*/
@@ -965,27 +1077,6 @@ public:
   {
     return first_inner && first_inner == this;
   }
-  Item *condition() const
-  {
-    return m_condition;
-  }
-  void set_condition(Item *to, uint line)
-  {
-    DBUG_PRINT("info", 
-               ("JOIN_TAB::m_condition changes %p -> %p at line %u tab %p",
-                m_condition, to, line, this));
-    m_condition= to;
-    quick_order_tested.clear_all();
-  }
-
-  Item *set_jt_and_sel_condition(Item *new_cond, uint line)
-  {
-    Item *tmp_cond= m_condition;
-    set_condition(new_cond, line);
-    if (select)
-      select->cond= new_cond;
-    return tmp_cond;
-  }
 
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const
@@ -1034,9 +1125,9 @@ st_join_table::st_join_table()
     position(NULL),
     keyuse(NULL),
     select(NULL),
-    m_condition(NULL),
     quick(NULL),
-    on_expr_ref(NULL),
+    m_condition(NULL),
+    m_join_cond_ref(NULL),
     cond_equal(NULL),
     first_inner(NULL),
     found(false),
@@ -1382,10 +1473,10 @@ class store_key_field: public store_key
  protected: 
   enum store_key_result copy_inner()
   {
-    TABLE *table= copy_field.to_field->table;
+    TABLE *table= copy_field.to_field()->table;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
                                                      table->write_set);
-    copy_field.do_copy(&copy_field);
+    copy_field.invoke_do_copy(&copy_field);
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null();
     return err != 0 ? STORE_KEY_FATAL : STORE_KEY_OK;
@@ -1461,18 +1552,14 @@ bool error_if_full_join(JOIN *join);
 bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option);
 bool mysql_prepare_and_optimize_select(THD *thd,
-                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
-                  Item *conds, SQL_I_List<ORDER> *order,
-                  SQL_I_List<ORDER> *group,
-                  Item *having, ulonglong select_type, 
-                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  List<Item> &list,
+                  ulonglong select_type,
+                  select_result *result,
                   SELECT_LEX *select_lex, bool *free_join);
 bool mysql_select(THD *thd,
-                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
-                  Item *conds, SQL_I_List<ORDER> *order,
-                  SQL_I_List<ORDER> *group,
-                  Item *having, ulonglong select_type, 
-                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  List<Item> &list,
+                  ulonglong select_type,
+                  select_result *result,
                   SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);
 
