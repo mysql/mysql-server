@@ -128,6 +128,10 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
 
+      if(Protocol6::getCheckSumIncluded(word1))
+      {
+        sectionData ++;
+      }
       if (sectionData != readPtr + messageLen32)
       {
         report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
@@ -224,6 +228,10 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
+        if(Protocol6::getCheckSumIncluded(word1))
+        {
+          sectionData ++;
+        }
         if (sectionData != readPtr + messageLen32)
         {
           report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
@@ -327,6 +335,10 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
       
+      if(Protocol6::getCheckSumIncluded(word1))
+      {
+        sectionData ++;
+      }
       if (sectionData != readPtr + messageLen32)
       {
         report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
@@ -412,6 +424,10 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
+        if(Protocol6::getCheckSumIncluded(word1))
+        {
+          sectionData ++;
+        }
         if (sectionData != readPtr + messageLen32)
         {
           report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
