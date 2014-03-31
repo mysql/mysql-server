@@ -1558,12 +1558,12 @@ sync_print_wait_info(
 	FILE*	file)		/*!< in: file where to print */
 {
 	fprintf(file,
-		"Mutex spin waits "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n"
-		"RW-shared spins "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n"
-		"RW-excl spins "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n",
+		"Mutex spin waits " UINT64PF ", rounds " UINT64PF ", "
+		"OS waits " UINT64PF "\n"
+		"RW-shared spins " UINT64PF ", rounds " UINT64PF ", "
+		"OS waits " UINT64PF "\n"
+		"RW-excl spins " UINT64PF ", rounds " UINT64PF ", "
+		"OS waits " UINT64PF "\n",
 		(ib_uint64_t) mutex_spin_wait_count,
 		(ib_uint64_t) mutex_spin_round_count,
 		(ib_uint64_t) mutex_os_wait_count,

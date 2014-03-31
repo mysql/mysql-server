@@ -67,7 +67,7 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
     
     val= mbr[start / sizeof (double)];
 #ifdef HAVE_ISNAN
-    if (isnan(val))
+    if (my_isnan(val))
     {
       memset(key, 0, length);
       key+= length;
