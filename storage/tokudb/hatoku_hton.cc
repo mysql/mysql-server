@@ -1105,24 +1105,24 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
             case CHARSTR:
                 snprintf(buf, bufsiz, "%s", mystat[row].value.str);
                 break;
-            case UNIXTIME:
-                {
-                    time_t t = mystat[row].value.num;
-                    char tbuf[26];
-                    snprintf(buf, bufsiz, "%.24s", ctime_r(&t, tbuf));
-                }
+            case UNIXTIME: {
+                time_t t = mystat[row].value.num;
+                char tbuf[26];
+                snprintf(buf, bufsiz, "%.24s", ctime_r(&t, tbuf));
                 break;
-            case TOKUTIME:
-                {
-                    double t = tokutime_to_seconds(mystat[row].value.num);
-                    snprintf(buf, bufsiz, "%.6f", t);
-                }
+            }
+            case TOKUTIME: {
+                double t = tokutime_to_seconds(mystat[row].value.num);
+                snprintf(buf, bufsiz, "%.6f", t);
                 break;
-            case PARCOUNT:
-                {
-                    uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
-                    snprintf(buf, bufsiz, "%" PRIu64, v);
-                }
+            }
+            case PARCOUNT: {
+                uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
+                snprintf(buf, bufsiz, "%" PRIu64, v);
+                break;
+            }
+            case DOUBLE:
+                snprintf(buf, bufsiz, "%.6f", mystat[row].value.dnum);
                 break;
             default:
                 snprintf(buf, bufsiz, "UNKNOWN STATUS TYPE: %d", mystat[row].type);
@@ -2216,42 +2216,39 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
                 status_var.type = SHOW_CHAR;
                 status_var.value = (char*)status_row.value.str;
                 break;
-            case UNIXTIME:
-                {
-                    status_var.type = SHOW_CHAR;
-                    time_t t = status_row.value.num;
-                    char tbuf[26];
-                    // Reuse the memory in status_row. (It belongs to us).
-                    snprintf(status_row.value.datebuf, sizeof(status_row.value.datebuf), "%.24s", ctime_r(&t, tbuf));
-                    status_var.value = (char*)&status_row.value.datebuf[0];
-                }
+            case UNIXTIME: {
+                status_var.type = SHOW_CHAR;
+                time_t t = status_row.value.num;
+                char tbuf[26];
+                // Reuse the memory in status_row. (It belongs to us).
+                snprintf(status_row.value.datebuf, sizeof(status_row.value.datebuf), "%.24s", ctime_r(&t, tbuf));
+                status_var.value = (char*)&status_row.value.datebuf[0];
                 break;
+            }
             case TOKUTIME:
-                {
-                    status_var.type = SHOW_DOUBLE;
-                    double t = tokutime_to_seconds(status_row.value.num);
-                    // Reuse the memory in status_row. (It belongs to us).
-                    status_row.value.dnum = t;
-                    status_var.value = (char*)&status_row.value.dnum;
-                }
+                status_var.type = SHOW_DOUBLE;
+                // Reuse the memory in status_row. (It belongs to us).
+                status_row.value.dnum = tokutime_to_seconds(status_row.value.num);
+                status_var.value = (char*)&status_row.value.dnum;
                 break;
-            case PARCOUNT:
-                {
-                    status_var.type = SHOW_LONGLONG;
-                    uint64_t v = read_partitioned_counter(status_row.value.parcount);
-                    // Reuse the memory in status_row. (It belongs to us).
-                    status_row.value.num = v;
-                    status_var.value = (char*)&status_row.value.num;
-                }
+            case PARCOUNT: {
+                status_var.type = SHOW_LONGLONG;
+                uint64_t v = read_partitioned_counter(status_row.value.parcount);
+                // Reuse the memory in status_row. (It belongs to us).
+                status_row.value.num = v;
+                status_var.value = (char*)&status_row.value.num;
+                break;
+            }
+            case DOUBLE:
+                status_var.type = SHOW_DOUBLE;
+                status_var.value = (char*) &status_row.value.dnum;
                 break;
             default:
-                {
-                    status_var.type = SHOW_CHAR;
-                    // Reuse the memory in status_row.datebuf. (It belongs to us).
-                    // UNKNOWN TYPE: %d fits in 26 bytes (sizeof datebuf) for any integer.
-                    snprintf(status_row.value.datebuf, sizeof(status_row.value.datebuf), "UNKNOWN TYPE: %d", status_row.type);
-                    status_var.value = (char*)&status_row.value.datebuf[0];
-                }
+                status_var.type = SHOW_CHAR;
+                // Reuse the memory in status_row.datebuf. (It belongs to us).
+                // UNKNOWN TYPE: %d fits in 26 bytes (sizeof datebuf) for any integer.
+                snprintf(status_row.value.datebuf, sizeof(status_row.value.datebuf), "UNKNOWN TYPE: %d", status_row.type);
+                status_var.value = (char*)&status_row.value.datebuf[0];
                 break;
             }
         }
