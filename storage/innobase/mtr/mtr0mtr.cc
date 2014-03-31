@@ -420,6 +420,7 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_modifications = false;
 	m_impl.m_made_dirty = false;
 	m_impl.m_n_log_recs = 0;
+	m_impl.m_n_freed_pages = 0;
 
 	ut_d(m_impl.m_state = MTR_STATE_ACTIVE);
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);

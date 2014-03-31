@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -536,9 +536,6 @@ struct btr_pcur_t{
 					buffer for old_rec */
 	ulint		buf_size;	/*!< old_rec_buf size if old_rec_buf
 					is not NULL */
-
-	/** Return the index of this persistent cursor */
-	dict_index_t*	index() const { return(btr_cur.index); }
 };
 
 #define BTR_PCUR_OLD_STORED	908467085
