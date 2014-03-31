@@ -2528,6 +2528,12 @@ fil_op_log_parse_or_replay(
 				new_name + dirlen,
 				strlen(new_name + dirlen)
 				- 4 /* remove ".ibd" */);
+
+			ut_ad(new_table[namend - new_name - dirlen]
+			      == OS_PATH_SEPARATOR);
+#if OS_PATH_SEPARATOR != '/'
+			new_table[namend - new_name - dirlen] = '/';
+#endif
 			if (!fil_rename_tablespace(
 				    space_id, name, new_table, new_name)) {
 				ut_error;
@@ -3151,13 +3157,6 @@ fil_rename_tablespace_in_mem(
 	::ut_free(node->name);
 
 	space->name = mem_strdup(new_name);
-#if OS_PATH_SEPARATOR != '/'
-	for (char* c = space->name; *c; c++) {
-		if (*c == OS_PATH_SEPARATOR) {
-			*c = '/';
-		}
-	}
-#endif
 	node->name = mem_strdup(new_path);
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
@@ -3292,6 +3291,8 @@ fil_rename_tablespace(
 		new_path = fil_make_filepath(NULL, new_name, IBD, false);
 	}
 
+	ut_ad(strchr(new_name, '/'));
+	ut_ad(strchr(new_path, OS_PATH_SEPARATOR));
 retry:
 	count++;
 
