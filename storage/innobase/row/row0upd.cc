@@ -1632,7 +1632,7 @@ row_upd_sec_index_entry(
 			    "before_row_upd_sec_index_entry");
 
 	mtr_start(&mtr);
-	fsp_names_write(index->space, &mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
@@ -2107,7 +2107,7 @@ row_upd_clust_rec(
 	down the index tree */
 
 	mtr_start(mtr);
-	fsp_names_write(index->space, mtr);
+	mtr->set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
@@ -2290,7 +2290,7 @@ row_upd_clust_step(
 	/* We have to restore the cursor to its position */
 
 	mtr_start(&mtr);
-	fsp_names_write(index->space, &mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
@@ -2349,7 +2349,7 @@ row_upd_clust_step(
 		mtr_commit(&mtr);
 
 		mtr_start(&mtr);
-		fsp_names_write(index->space, &mtr);
+		mtr.set_named_space(index->space);
 
 		success = btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur,
 						    &mtr);

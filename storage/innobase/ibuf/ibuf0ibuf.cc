@@ -763,7 +763,7 @@ ibuf_bitmap_page_set_bits(
 	ut_a((bit != IBUF_BITMAP_BUFFERED) || (val != FALSE)
 	     || (0 == ibuf_count_get(page_id)));
 #endif
-	fsp_names_write(page_id.space(), mtr);
+	mtr->set_named_space(page_id.space());
 
 	bit_offset = (page_id.page_no() % page_size.physical())
 		* IBUF_BITS_PER_PAGE + bit;
@@ -4681,7 +4681,7 @@ loop:
 	if (block != NULL) {
 		ibool success;
 
-		fsp_names_write(page_id.space(), &mtr);
+		mtr.set_named_space(page_id.space());
 
 		success = buf_page_get_known_nowait(
 			RW_X_LATCH, block,
@@ -4797,7 +4797,7 @@ loop:
 				ibuf_btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
 				ibuf_mtr_start(&mtr);
-				fsp_names_write(page_id.space(), &mtr);
+				mtr.set_named_space(page_id.space());
 
 				success = buf_page_get_known_nowait(
 					RW_X_LATCH, block,
