@@ -1160,7 +1160,7 @@ fsp_fill_free_list(
 				mtr_t	ibuf_mtr;
 
 				mtr_start(&ibuf_mtr);
-				fsp_names_write(space, &ibuf_mtr);
+				ibuf_mtr.set_named_space(space);
 
 				/* Avoid logging while truncate table
 				fix-up is active. */

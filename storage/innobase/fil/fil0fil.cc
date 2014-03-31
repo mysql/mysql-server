@@ -3028,8 +3028,8 @@ fil_reinit_space_header(
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
+	mtr.set_named_space(id);
 
-	fsp_names_write(id, &mtr);
 	fsp_header_init(id, size, &mtr);
 
 	mtr_commit(&mtr);

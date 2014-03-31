@@ -14148,6 +14148,7 @@ innodb_make_page_dirty(
 	ulong space_id = *static_cast<const ulong*>(save);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(space_id);
 
 	buf_block_t* block = buf_page_get(
 		page_id_t(space_id, srv_saved_page_number_debug),
@@ -14155,7 +14156,6 @@ innodb_make_page_dirty(
 
 	if (block) {
 		byte* page = block->frame;
-		fsp_names_write(space_id, &mtr);
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Dirtying page:%lu of space:%lu",
 			page_get_page_no(page),

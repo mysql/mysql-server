@@ -2228,6 +2228,7 @@ btr_cur_ins_lock_and_undo(
 	ut_ad(!dict_index_is_online_ddl(index)
 	      || dict_index_is_clust(index)
 	      || (flags & BTR_CREATE_FLAG));
+	ut_ad(mtr->is_named_space(index->space));
 
 	err = lock_rec_insert_check_and_lock(flags, rec,
 					     btr_cur_get_block(cursor),
@@ -2247,8 +2248,6 @@ btr_cur_ins_lock_and_undo(
 
 		return(err);
 	}
-
-	fsp_names_write(index->space, mtr);
 
 	/* Now we can fill in the roll ptr field in entry */
 
@@ -2483,8 +2482,6 @@ fail_err:
 		goto fail_err;
 	}
 
-	fsp_names_write(index->space, mtr);
-
 	DBUG_PRINT("ib_cur", ("insert %s (" IB_ID_FMT ") by " TRX_ID_FMT
 			      ": %s",
 			      index->name, index->id,
@@ -2651,8 +2648,6 @@ btr_cur_pessimistic_insert(
 
 		return(err);
 	}
-
-	fsp_names_write(index->space, mtr);
 
 	if (!(flags & BTR_NO_UNDO_LOG_FLAG)) {
 		/* First reserve enough free space for the file segments
@@ -3092,8 +3087,6 @@ btr_cur_update_in_place(
 		goto func_exit;
 	}
 
-	fsp_names_write(index->space, mtr);
-
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_rec_sys_fields(rec, NULL, index, offsets,
 				       thr_get_trx(thr), roll_ptr);
@@ -3361,8 +3354,6 @@ any_extern:
 		goto func_exit;
 	}
 
-	fsp_names_write(index->space, mtr);
-
 	/* Ok, we may do the replacement. Store on the page infimum the
 	explicit locks on rec, before deleting rec (see the comment in
 	btr_cur_pessimistic_update). */
@@ -3565,8 +3556,6 @@ btr_cur_pessimistic_update(
 	if (err != DB_SUCCESS) {
 		goto err_exit;
 	}
-
-	fsp_names_write(index->space, mtr);
 
 	if (optim_err == DB_OVERFLOW) {
 		ulint	reserve_flag;
@@ -4028,8 +4017,6 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	fsp_names_write(index->space, mtr);
-
 	/* The btr_search_latch is not needed here, because
 	the adaptive hash index does not depend on the delete-mark
 	and the delete-mark is being updated in place. */
@@ -4278,6 +4265,8 @@ btr_cur_optimistic_delete_func(
 	ut_ad(flags == 0 || flags == BTR_CREATE_FLAG);
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr->is_named_space(cursor->index->space));
+
 	/* This is intended only for leaf page deletions */
 
 	block = btr_cur_get_block(cursor);
@@ -4303,8 +4292,6 @@ btr_cur_optimistic_delete_func(
 		lock_update_delete(block, rec);
 
 		btr_search_update_hash_on_delete(cursor);
-
-		fsp_names_write(cursor->index->space, mtr);
 
 		if (page_zip) {
 #ifdef UNIV_ZIP_DEBUG
@@ -4407,8 +4394,7 @@ btr_cur_pessimistic_delete(
 					MTR_MEMO_X_LOCK
 					| MTR_MEMO_SX_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-
-	fsp_names_write(index->space, mtr);
+	ut_ad(mtr->is_named_space(index->space));
 
 	if (!has_reserved_extents) {
 		/* First reserve enough free space for the file segments
@@ -5667,8 +5653,8 @@ btr_store_big_rec_extern_fields(
 			page_t*		page;
 
 			mtr_start(&mtr);
+			mtr.set_named_space(index->space);
 			dict_disable_redo_if_temporary(index->table, &mtr);
-			fsp_names_write(index->space, &mtr);
 
 			if (prev_page_no == FIL_NULL) {
 				hint_page_no = 1 + rec_page_no;
@@ -6106,10 +6092,11 @@ btr_free_externally_stored_field(
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
+		mtr.set_named_space(space_id);
+		mtr.set_log_mode(local_mtr->get_log_mode());
+
 		ut_ad(!dict_table_is_temporary(index->table)
 		      || local_mtr->get_log_mode() == MTR_LOG_NO_REDO);
-		mtr.set_log_mode(local_mtr->get_log_mode());
-		fsp_names_write(space_id, &mtr);
 
 		const page_t*	p = page_align(field_ref);
 

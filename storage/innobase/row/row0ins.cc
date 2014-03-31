@@ -2339,7 +2339,7 @@ row_ins_clust_index_entry_low(
 	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	mtr_start(&mtr);
-	fsp_names_write(index->space, &mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
@@ -2577,7 +2577,7 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	mtr_log_t	log_mode = mtr->get_log_mode();
 
 	mtr_start(mtr);
-	fsp_names_write(index->space, mtr);
+	mtr->set_named_space(index->space);
 	mtr->set_log_mode(log_mode);
 
 	if (!check) {
@@ -2646,7 +2646,7 @@ row_ins_sec_index_entry_low(
 	ut_ad(thr_get_trx(thr)->id != 0);
 
 	mtr_start(&mtr);
-	fsp_names_write(index->space, &mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
@@ -2894,8 +2894,8 @@ row_ins_index_entry_big_rec_func(
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
-	fsp_names_write(index->space, &mtr);
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 				    BTR_MODIFY_TREE, &cursor, 0,
