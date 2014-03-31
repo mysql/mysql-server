@@ -144,6 +144,10 @@ struct mtr_t {
 		/** mini-transaction log */
 		mtr_buf_t	m_log;
 
+		/** Number of pages that have been freed in this
+		mini-transaction */
+		ib_uint32_t	m_n_freed_pages;
+
 		/** true if mtr has made at least one buffer pool page dirty */
 		bool		m_made_dirty;
 
@@ -310,6 +314,24 @@ struct mtr_t {
 	bool is_inside_ibuf() const
 	{
 		return(m_impl.m_inside_ibuf);
+	}
+
+	/** Note that some pages were freed */
+	void add_freed_pages()
+	{
+		++m_impl.m_n_freed_pages;
+	}
+
+	/** @return true if mini-transaction freed pages */
+	bool has_freed_pages() const
+	{
+		return(get_freed_page_count() > 0);
+	}
+
+	/** @return the number of freed pages */
+	ulint get_freed_page_count() const
+	{
+		return(m_impl.m_n_freed_pages);
 	}
 
 #ifdef UNIV_DEBUG

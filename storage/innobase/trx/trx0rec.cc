@@ -1606,6 +1606,10 @@ trx_undo_prev_version_build(
 					     NULL, heap, &update);
 	ut_a(ptr);
 
+# if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ut_a(!rec_offs_any_null_extern(rec, offsets));
+# endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint	n_ext;
 
@@ -1672,12 +1676,6 @@ trx_undo_prev_version_build(
 		rec_offs_make_valid(*old_vers, index, offsets);
 		row_upd_rec_in_place(*old_vers, index, offsets, update, NULL);
 	}
-
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	ut_a(!rec_offs_any_null_extern(
-		*old_vers, rec_get_offsets(
-			*old_vers, index, NULL, ULINT_UNDEFINED, &heap)));
-#endif // defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 
 	return(true);
 }
