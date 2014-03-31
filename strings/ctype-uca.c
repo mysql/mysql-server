@@ -19797,11 +19797,11 @@ my_uca_scanner_contraction_find(my_uca_scanner *scanner, my_wc_t *wc)
 {
   size_t clen= 1;
   int flag;
-  const uchar *s, *beg[MY_UCA_MAX_CONTRACTION];
+  uchar *s, *beg[MY_UCA_MAX_CONTRACTION];
   memset(beg, 0, sizeof(beg));
 
   /* Scan all contraction candidates */
-  for (s= scanner->sbeg, flag= MY_UCA_CNT_MID1;
+  for (s= (uchar*)scanner->sbeg, flag= MY_UCA_CNT_MID1;
        clen < MY_UCA_MAX_CONTRACTION;
        flag<<= 1)
   {
@@ -20653,7 +20653,7 @@ lex_cmp(MY_COLL_LEXEM *lexem, const char *pattern, size_t patternlen)
   size_t lexemlen= lexem->beg - lexem->prev;
   if (lexemlen < patternlen)
     return 1; /* Not a prefix */
-  return strncasecmp(lexem->prev, pattern, patternlen);
+  return native_strncasecmp(lexem->prev, pattern, patternlen);
 }
 
 
@@ -26423,6 +26423,32 @@ MY_COLLATION_HANDLER my_collation_gb18030_uca_handler =
     my_propagate_complex
 };
 
+/**
+  The array used for "type of characters" bit mask for each
+  character. The ctype[0] is reserved for EOF(-1), so we use
+  ctype[(char)+1]. Also refer to strings/CHARSET_INFO.txt
+*/
+static const uchar ctype_gb18030[257]=
+{
+   0,                                   /* For standard library */
+   32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
+   32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
+   72, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
+  132,132,132,132,132,132,132,132,132,132, 16, 16, 16, 16, 16, 16,
+   16,129,129,129,129,129,129,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1, 16, 16, 16, 16, 16,
+   16,130,130,130,130,130,130,  2,  2,  2,  2,  2,  2,  2,  2,  2,
+    2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, 16, 16, 16, 16, 32,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  0
+};
+
 extern MY_CHARSET_HANDLER my_charset_gb18030_uca_handler;
 
 CHARSET_INFO my_charset_gb18030_unicode_520_ci=
@@ -26433,7 +26459,7 @@ CHARSET_INFO my_charset_gb18030_unicode_520_ci=
     "gb18030_unicode_520_ci",/* name        */
     "",                /* comment       */
     "",                /* tailoring     */
-    NULL,              /* ctype         */
+    ctype_gb18030,     /* ctype         */
     NULL,              /* lower         */
     NULL,              /* UPPER         */
     NULL,              /* sort order    */

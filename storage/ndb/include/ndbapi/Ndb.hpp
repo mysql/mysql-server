@@ -2066,8 +2066,9 @@ private:
 #ifdef VM_TRACE
   void printState(const char* fmt, ...)
 #ifdef __GNUC__
-    __attribute__((format(printf, 2, 3)));
+    __attribute__((format(printf, 2, 3)))
 #endif
+    ;
 #endif
 };
 

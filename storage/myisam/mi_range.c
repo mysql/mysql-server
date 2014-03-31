@@ -193,7 +193,7 @@ static double _mi_search_pos(MI_INFO *info,
 			     my_off_t pos)
 {
   int flag;
-  uint nod_flag,keynr,UNINIT_VAR(max_keynr);
+  uint nod_flag, keynr, max_keynr= 0;
   my_bool after_key;
   uchar *keypos,*buff;
   double offset;

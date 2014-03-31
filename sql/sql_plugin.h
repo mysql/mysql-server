@@ -40,6 +40,7 @@ enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
 enum enum_plugin_load_option { PLUGIN_OFF, PLUGIN_ON, PLUGIN_FORCE,
   PLUGIN_FORCE_PLUS_PERMANENT };
 extern const char *global_plugin_typelib_names[];
+extern mysql_mutex_t LOCK_plugin_delete;
 
 #include <my_sys.h>
 #include "sql_list.h"
@@ -143,13 +144,13 @@ extern int plugin_init(int *argc, char **argv, int init_flags);
 extern void plugin_shutdown(void);
 extern void memcached_shutdown(void);
 void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);
-extern bool plugin_is_ready(const LEX_STRING *name, int type);
+extern bool plugin_is_ready(const LEX_CSTRING &name, int type);
 #define my_plugin_lock_by_name(A,B,C) plugin_lock_by_name(A,B,C)
 #define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name(A,B,C)
 #define my_plugin_lock(A,B) plugin_lock(A,B)
 #define my_plugin_lock_ci(A,B) plugin_lock(A,B)
 extern plugin_ref plugin_lock(THD *thd, plugin_ref *ptr);
-extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name,
+extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_CSTRING &name,
                                       int type);
 extern void plugin_unlock(THD *thd, plugin_ref plugin);
 extern void plugin_unlock_list(THD *thd, plugin_ref *list, uint count);
@@ -171,7 +172,7 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
                                      int type, uint state_mask, void *arg);
 
 /* interface to randomly access plugin data */
-struct st_plugin_int *plugin_find_by_type(LEX_STRING *plugin, int type);
+struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
 int lock_plugin_data();
 int unlock_plugin_data();
 #endif

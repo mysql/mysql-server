@@ -410,7 +410,6 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   KEY *key_info;
   uint key_len;
   uchar *key_buf= NULL;
-  LINT_INIT(key_buf);
 
   DBUG_ENTER("Event_db_repository::index_read_for_db_for_i_s");
 

@@ -46,7 +46,7 @@ static handler* pfs_create_handler(handlerton *hton,
 static int compare_database_names(const char *name1, const char *name2)
 {
   if (lower_case_table_names)
-    return strcasecmp(name1, name2);
+    return native_strcasecmp(name1, name2);
   return strcmp(name1, name2);
 }
 

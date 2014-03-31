@@ -187,9 +187,9 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   int  strict_week_number_year= -1;
   int frac_part;
   bool usa_time= 0;
-  bool UNINIT_VAR(sunday_first_n_first_week_non_iso);
-  bool UNINIT_VAR(strict_week_number);
-  bool UNINIT_VAR(strict_week_number_year_type);
+  bool sunday_first_n_first_week_non_iso= false;
+  bool strict_week_number= false;
+  bool strict_week_number_year_type= false;
   const char *val_begin= val;
   const char *val_end= val + length;
   const char *ptr= format->format.str;
@@ -1276,6 +1276,23 @@ uint week_mode(uint mode)
   return week_format;
 }
 
+
+bool Item_func_week::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (args[1] == NULL)
+  {
+    THD *thd= pc->thd;
+    args[1]= new (pc->mem_root) Item_int(NAME_STRING("0"),
+                                         thd->variables.default_week_format, 1);
+    if (args[1] == NULL)
+      return true;
+  }
+  return super::itemize(pc, res);
+}
+
+
 /**
  @verbatim
   The bits in week_format(for calc_week() function) has the following meaning:
@@ -1491,6 +1508,18 @@ String *Item_timeval_func::val_str(String *str)
 }
 
 
+bool Item_func_unix_timestamp::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  if (arg_count == 0)
+    pc->thd->lex->safe_to_cache_query= false;
+  return false;
+}
+
+
 /**
    @retval true  args[0] is SQL NULL, so item is set to SQL NULL
    @retval false item's value is set, to 0 if out of range
@@ -1552,7 +1581,7 @@ bool get_interval_value(Item *args, interval_type int_type,
                         String *str_value, INTERVAL *interval)
 {
   ulonglong array[5];
-  longlong UNINIT_VAR(value);
+  longlong value= 0;
 
   memset(interval, 0, sizeof(*interval));
   if (int_type == INTERVAL_SECOND && args->decimals)
@@ -1815,6 +1844,18 @@ String *MYSQL_TIME_cache::val_str(String *str)
 
 
 /* CURDATE() and UTC_DATE() */
+
+bool Item_func_curdate::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->safe_to_cache_query= 0;
+  return false;
+}
+
+
 void Item_func_curdate::fix_length_and_dec()
 {
   THD *thd= current_thd;
@@ -1836,6 +1877,18 @@ Time_zone *Item_func_curdate_utc::time_zone()
 
 
 /* CURTIME() and UTC_TIME() */
+
+bool Item_func_curtime::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->safe_to_cache_query= 0;
+  return false;
+}
+
+
 void Item_func_curtime::fix_length_and_dec()
 {
   if (check_precision())
@@ -1889,6 +1942,17 @@ void Item_func_now_local::store_in(Field *field)
 Time_zone *Item_func_now_local::time_zone()
 {
   return current_thd->time_zone();
+}
+
+
+bool Item_func_now_utc::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->safe_to_cache_query= 0;
+  return false;
 }
 
 

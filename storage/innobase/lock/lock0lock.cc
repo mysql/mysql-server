@@ -4247,7 +4247,7 @@ lock_rec_unlock(
 	lock_mutex_exit();
 	trx_mutex_exit(trx);
 
-	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
+	stmt = innobase_get_stmt_unsafe(trx->mysql_thd, &stmt_len);
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"Unlock row could not find a %lu mode lock on the record",
 		(ulong) lock_mode);

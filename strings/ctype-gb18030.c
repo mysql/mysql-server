@@ -21278,7 +21278,7 @@ my_wc_mb_gb18030_chs(const CHARSET_INFO *cs  __attribute__((unused)),
   {
     /* [0x80, 0x9FA6) */
     cp= tab_uni_gb18030_p1[wc - 0x80];
-    if (((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE)
+    if ((uint)((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE)
     {
       idx= cp;
       len= 4;
@@ -21299,7 +21299,7 @@ my_wc_mb_gb18030_chs(const CHARSET_INFO *cs  __attribute__((unused)),
   {
     /* [0xE000, 0xE865) */
     cp= tab_uni_gb18030_p2[wc - 0xE000];
-    if (((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE)
+    if ((uint)((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE)
     {
       idx= cp + UNI2_TO_GB4_DIFF;
       len= 4;
@@ -21315,7 +21315,7 @@ my_wc_mb_gb18030_chs(const CHARSET_INFO *cs  __attribute__((unused)),
   {
     /* (0xF92B, 0xFFFF] */
     cp= tab_uni_gb18030_p2[wc - 0xE000 - 4295];
-    if (((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE)
+    if ((uint)((cp >> 8) & 0xFF) < MIN_MB_ODD_BYTE)
     {
       idx= cp + UNI2_TO_GB4_DIFF;
       len= 4;

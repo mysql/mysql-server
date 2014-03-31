@@ -39,7 +39,6 @@ extern char *	mysql_unix_port;
                              CLIENT_CONNECT_ATTRS | \
                              CLIENT_SESSION_TRACK)
 
-void my_pipe_sig_handler(int sig);
 void read_user_name(char *name);
 my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 

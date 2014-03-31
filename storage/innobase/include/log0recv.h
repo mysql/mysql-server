@@ -322,10 +322,6 @@ struct recv_sys_t{
 	ibool		apply_batch_on;
 				/*!< this is TRUE when a log rec application
 				batch is running */
-	lsn_t		lsn;	/*!< log sequence number */
-	ulint		last_log_buf_size;
-				/*!< size of the log buffer when the database
-				last time wrote to the log */
 	byte*		last_block;
 				/*!< possible incomplete last recovered log
 				block */
@@ -398,8 +394,6 @@ extern ibool		recv_lsn_checks_on;
 /** TRUE when the redo log is being backed up */
 extern ibool		recv_is_making_a_backup;
 #endif /* UNIV_HOTBACKUP */
-/** Maximum page number encountered in the redo log */
-extern ulint		recv_max_parsed_page_no;
 
 /** Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */
