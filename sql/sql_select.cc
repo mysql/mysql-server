@@ -80,12 +80,13 @@ bool handle_select(THD *thd, select_result *result,
     DBUG_RETURN(true);
   }
 
-  if (select_lex->master_unit()->is_union() || 
-      select_lex->master_unit()->fake_select_lex)
-    res= mysql_union(thd, lex, result, lex->unit, setup_tables_done_option);
+  SELECT_LEX_UNIT *const unit= select_lex->master_unit();
+  DBUG_ASSERT(unit == thd->lex->unit);
+
+  if (unit->is_union() || unit->fake_select_lex)
+    res= mysql_union(thd, lex, result, unit, setup_tables_done_option);
   else
   {
-    SELECT_LEX_UNIT *unit= lex->unit;
     unit->set_limit(unit->global_parameters());
     /*
       'options' of mysql_select will be set in JOIN, as far as JOIN for
@@ -93,15 +94,10 @@ bool handle_select(THD *thd, select_result *result,
       setup_tables_done_option changed for next rexecution
     */
     res= mysql_select(thd,
-		      select_lex->table_list.first,
-		      select_lex->with_wild, select_lex->item_list,
-		      select_lex->where,
-		      &select_lex->order_list,
-		      &select_lex->group_list,
-		      select_lex->having,
-		      select_lex->options | thd->variables.option_bits |
+                      select_lex->item_list,
+                      select_lex->options | thd->variables.option_bits |
                       setup_tables_done_option,
-		      result, unit, select_lex);
+                      result, select_lex);
   }
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
 		     thd->is_error()));
@@ -539,7 +535,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         SJ_TMP_TABLE *sjtbl;
         if (jt_rowid_offset) /* Temptable has at least one rowid */
         {
-          uint tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
+          size_t tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
           if (!(sjtbl= new (thd->mem_root) SJ_TMP_TABLE) ||
               !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
             DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -839,35 +835,15 @@ void JOIN::cleanup_item_list(List<Item> &items) const
 
   @param thd                  thread handler
                               the top-level select_lex for this query
-  @param tables               list of all tables used in this query.
-                              The tables have been pre-opened.
-  @param wild_num             number of wildcards used in the top level 
-                              select of this query.
-                              For example statement
-                              SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
-                              has 3 wildcards.
   @param fields               list of items in SELECT list of the top-level
                               select
                               e.g. SELECT a, b, c FROM t1 will have Item_field
                               for a, b and c in this list.
-  @param conds                top level item of an expression representing
-                              WHERE clause of the top level select
-  @param og_num               total number of ORDER BY and GROUP BY clauses
-                              arguments
-  @param order                linked list of ORDER BY agruments
-  @param group                linked list of GROUP BY arguments
-  @param having               top level item of HAVING expression
   @param select_options       select options (BIG_RESULT, etc)
   @param result               an instance of result set handling class.
                               This object is responsible for send result
                               set rows to the client or inserting them
                               into a table.
-  @param unit                 top-level UNIT of this query
-                              UNIT is an artificial object created by the
-                              parser for every SELECT clause.
-                              e.g.
-                              SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
-                              has 2 unions.
   @param select_lex           the only SELECT_LEX of this query
   @param[out] free_join       Will be set to false if select_lex->join does
                               not need to be freed.
@@ -882,10 +858,9 @@ void JOIN::cleanup_item_list(List<Item> &items) const
 
 static bool
 mysql_prepare_select(THD *thd,
-                     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
-                     Item *conds, uint og_num,  ORDER *order, ORDER *group,
-                     Item *having, ulonglong select_options,
-                     select_result *result, SELECT_LEX_UNIT *unit,
+                     List<Item> &fields,
+                     ulonglong select_options,
+                     select_result *result,
                      SELECT_LEX *select_lex, bool *free_join)
 {
   bool err= false;
@@ -914,9 +889,7 @@ mysql_prepare_select(THD *thd,
       }
       else
       {
-        err= join->prepare(tables, wild_num,
-                           conds, og_num, order, group, having,
-                           select_lex, unit);
+        err= select_lex->prepare(join);
         if (err)
           DBUG_RETURN(true);
       }
@@ -929,9 +902,7 @@ mysql_prepare_select(THD *thd,
       DBUG_RETURN(TRUE); /* purecov: inspected */
     THD_STAGE_INFO(thd, stage_init);
     thd->lex->used_tables=0;                         // Updated by setup_fields
-    err= join->prepare(tables, wild_num,
-                       conds, og_num, order, group, having,
-                       select_lex, unit);
+    err= select_lex->prepare(join);
     if (err)
       DBUG_RETURN(true);
   }
@@ -944,33 +915,15 @@ mysql_prepare_select(THD *thd,
   Prepare and optimize single-unit select (a select without UNION).
 
   @param thd                  thread handler
-  @param tables               list of all tables used in this query.
-                              The tables have been pre-opened.
-  @param wild_num             number of wildcards used in the top level 
-                              select of this query.
-                              For example statement
-                              SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
-                              has 3 wildcards.
   @param fields               list of items in SELECT list of the top-level
                               select
                               e.g. SELECT a, b, c FROM t1 will have Item_field
                               for a, b and c in this list.
-  @param conds                top level item of an expression representing
-                              WHERE clause of the top level select
-  @param order                linked list of ORDER BY agruments
-  @param group                linked list of GROUP BY arguments
-  @param having               top level item of HAVING expression
   @param select_options       select options (BIG_RESULT, etc)
   @param result               an instance of result set handling class.
                               This object is responsible for send result
                               set rows to the client or inserting them
                               into a table.
-  @param unit                 top-level UNIT of this query
-                              UNIT is an artificial object created by the
-                              parser for every SELECT clause.
-                              e.g.
-                              SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
-                              has 2 unions.
   @param select_lex           the only SELECT_LEX of this query
   @param free_join [out]      whether the caller should free allocated JOIN
 
@@ -981,32 +934,14 @@ mysql_prepare_select(THD *thd,
 */
 
 bool
-mysql_prepare_and_optimize_select(THD *thd,
-             TABLE_LIST *tables, uint wild_num, List<Item> &fields,
-             Item *conds, SQL_I_List<ORDER> *order, SQL_I_List<ORDER> *group,
-             Item *having, ulonglong select_options,
-             select_result *result, SELECT_LEX_UNIT *unit,
-             SELECT_LEX *select_lex, bool *free_join)
+mysql_prepare_and_optimize_select(THD *thd, List<Item> &fields,
+                                  ulonglong select_options,
+                                  select_result *result,
+                                  SELECT_LEX *select_lex, bool *free_join)
 {
-  uint og_num= 0;
-  ORDER *first_order= NULL;
-  ORDER *first_group= NULL;
   DBUG_ENTER("mysql_prepare_and_optimize_select");
 
-  if (order)
-  {
-    og_num= order->elements;
-    first_order= order->first;
-  }
-  if (group)
-  {
-    og_num+= group->elements;
-    first_group= group->first;
-  }
-
-  if (mysql_prepare_select(thd, tables, wild_num, fields,
-                           conds, og_num, first_order, first_group, having,
-                           select_options, result, unit,
+  if (mysql_prepare_select(thd, fields, select_options, result,
                            select_lex, free_join))
     DBUG_RETURN(true);
 
@@ -1044,33 +979,15 @@ mysql_prepare_and_optimize_select(THD *thd,
   An entry point to single-unit select (a select without UNION).
 
   @param thd                  thread handler
-  @param tables               list of all tables used in this query.
-                              The tables have been pre-opened.
-  @param wild_num             number of wildcards used in the top level 
-                              select of this query.
-                              For example statement
-                              SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
-                              has 3 wildcards.
   @param fields               list of items in SELECT list of the top-level
                               select
                               e.g. SELECT a, b, c FROM t1 will have Item_field
                               for a, b and c in this list.
-  @param conds                top level item of an expression representing
-                              WHERE clause of the top level select
-  @param order                linked list of ORDER BY agruments
-  @param group                linked list of GROUP BY arguments
-  @param having               top level item of HAVING expression
   @param select_options       select options (BIG_RESULT, etc)
   @param result               an instance of result set handling class.
                               This object is responsible for send result
                               set rows to the client or inserting them
                               into a table.
-  @param unit                 top-level UNIT of this query
-                              UNIT is an artificial object created by the
-                              parser for every SELECT clause.
-                              e.g.
-                              SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
-                              has 2 unions.
   @param select_lex           the only SELECT_LEX of this query
 
   @retval
@@ -1081,20 +998,19 @@ mysql_prepare_and_optimize_select(THD *thd,
 
 bool
 mysql_select(THD *thd,
-             TABLE_LIST *tables, uint wild_num, List<Item> &fields,
-             Item *conds, SQL_I_List<ORDER> *order, SQL_I_List<ORDER> *group,
-             Item *having, ulonglong select_options,
-             select_result *result, SELECT_LEX_UNIT *unit,
+             List<Item> &fields,
+             ulonglong select_options,
+             select_result *result,
              SELECT_LEX *select_lex)
 {
   bool free_join= true;
   bool err;
   DBUG_ENTER("mysql_select");
-  if ((err= (mysql_prepare_and_optimize_select(thd, tables, wild_num,fields,
-                                               conds, order, group, having,
-                                               select_options, result, unit,
+  if ((err= (mysql_prepare_and_optimize_select(thd, fields,
+                                               select_options, result,
                                                select_lex, &free_join)) ||
-             mysql_optimize_prepared_inner_units(thd, unit, select_options)))
+       mysql_optimize_prepared_inner_units(thd, select_lex->master_unit(),
+                                           select_options)))
     goto err;
   DBUG_ASSERT(!(select_lex->join->select_options & SELECT_DESCRIBE));
   select_lex->join->exec();
@@ -2001,7 +1917,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   tab->found_records= tab->records;
   tab->read_time= (ha_rows)emb_sj_nest->nested_join->sjm.scan_cost.total_cost();
 
-  tab->on_expr_ref= tl->join_cond_ref();
+  tab->init_join_cond_ref(tl);
 
   tab->materialize_table= join_materialize_semijoin;
 
@@ -2011,6 +1927,11 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   sjm_pos->sj_strategy= SJ_OPT_NONE;
 
   sjm_pos->use_join_buffer= false;
+  /*
+    No need to recalculate filter_effect since there are no post-read
+    conditions for materialized tables.
+  */
+  sjm_pos->filter_effect= 1.0;
 
   /*
     Key_use objects are required so that create_ref_for_key() can set up
@@ -2032,7 +1953,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
     sjm_pos->set_prefix_costs(block_read_cost, fanout);
-    sjm_pos->fanout= 1.0;   
+    sjm_pos->rows_fetched= 1.0;   
     sjm_pos->read_cost= block_read_cost;      
     tab->type= JT_REF;
   }
@@ -2040,7 +1961,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   {
     sjm_pos->key= NULL; // No index use for MaterializeScan
     sjm_pos->set_prefix_costs(tab->read_time, tab->records * fanout);
-    sjm_pos->fanout= tab->records;
+    sjm_pos->rows_fetched= tab->records;
     sjm_pos->read_cost= tab->read_time;
     tab->type= JT_ALL;
   }
@@ -2094,9 +2015,18 @@ void JOIN_TAB::init_join_cache()
     DBUG_ASSERT(0);
 
   }
+  DBUG_EXECUTE_IF("jb_alloc_with_prev_fail",
+                  if (prev_cache)
+                  {
+                    DBUG_SET("+d,jb_alloc_fail");
+                    DBUG_SET("-d,jb_alloc_with_prev_fail");
+                  });
   if (!op || op->init())
   {
     use_join_cache= JOIN_CACHE::ALG_NONE;
+    // Unlink cache
+    if (prev_cache)
+      prev_cache->next_cache= NULL;
     op= NULL;
   }
   else
@@ -3362,7 +3292,7 @@ bool JOIN::make_tmp_tables_info()
   uint curr_tmp_table= const_tables;
   TABLE *exec_tmp_table= NULL;
   DBUG_ENTER("JOIN::make_tmp_tables_info");
-  having_for_explain= having;
+  having_for_explain= having_cond;
 
   const bool has_group_by= this->group;
   /*
@@ -3441,12 +3371,12 @@ bool JOIN::make_tmp_tables_info()
       If having is not handled here, it will be checked before the row
       is sent to the client.
     */
-    if (having &&
+    if (having_cond &&
         (sort_and_group || (exec_tmp_table->distinct && !group_list)))
     {
       // Attach HAVING to tmp table's condition
-      join_tab[curr_tmp_table].having= having;
-      having= NULL; // Already done
+      join_tab[curr_tmp_table].having= having_cond;
+      having_cond= NULL; // Already done
     }
 
     /* Change sum_fields reference to calculated fields in tmp_table */
@@ -3588,14 +3518,14 @@ bool JOIN::make_tmp_tables_info()
 
     if (select_distinct && !group_list)
     {
-      if (having)
+      if (having_cond)
       {
-        join_tab[curr_tmp_table].having= having;
-        having->update_used_tables();
+        join_tab[curr_tmp_table].having= having_cond;
+        having_cond->update_used_tables();
+        having_cond= NULL;
       }
       join_tab[curr_tmp_table].distinct= true;
       explain_flags.set(ESC_DISTINCT, ESP_DUPS_REMOVAL);
-      having= NULL;
       select_distinct= false;
     }
     /* Clean tmp_table_param for the next tmp table. */
@@ -3669,14 +3599,14 @@ bool JOIN::make_tmp_tables_info()
     DBUG_PRINT("info",("Sorting for send_result_set_metadata"));
     THD_STAGE_INFO(thd, stage_sorting_result);
     /* If we have already done the group, add HAVING to sorted table */
-    if (having && !group_list && !sort_and_group)
+    if (having_cond && !group_list && !sort_and_group)
     {
-      // Some tables may have been const
-      having->update_used_tables();
+      // Some tables may have become constant
+      having_cond->update_used_tables();
       JOIN_TAB *curr_table= &join_tab[curr_tmp_table];
       table_map used_tables= (const_table_map | curr_table->table->map);
 
-      Item* sort_table_cond= make_cond_for_table(having, used_tables,
+      Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
                                                  (table_map) 0, false);
       if (sort_table_cond)
       {
@@ -3699,10 +3629,11 @@ bool JOIN::make_tmp_tables_info()
 					 "select and having",
                                          QT_ORDINARY););
 
-        having= make_cond_for_table(having, ~ (table_map) 0,
-                                    ~used_tables, false);
+        having_cond= make_cond_for_table(having_cond, ~ (table_map) 0,
+                                         ~used_tables, false);
         DBUG_EXECUTE("where",
-                     print_where(having, "having after sort", QT_ORDINARY););
+                     print_where(having_cond, "having after sort",
+                     QT_ORDINARY););
       }
     }
 
@@ -3942,7 +3873,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     read_time= tab->position->read_cost;
     for (const JOIN_TAB *jt= tab + 1;
          jt < join->join_tab + join->primary_tables; jt++)
-      fanout*= jt->position->fanout; // fanout is always >= 1
+    {
+      fanout*= jt->position->rows_fetched * jt->position->filter_effect;
+    }
   }
   else
     read_time= table->file->table_scan_cost().total_cost();

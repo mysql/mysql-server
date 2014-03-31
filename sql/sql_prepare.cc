@@ -571,9 +571,9 @@ static void set_param_float(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 4)
     return;
-  float4get(data,*pos);
+  float4get(&data,*pos);
 #else
-  floatget(data, *pos);
+  floatget(&data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 4;
@@ -585,9 +585,9 @@ static void set_param_double(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
     return;
-  float8get(data,*pos);
+  float8get(&data,*pos);
 #else
-  doubleget(data, *pos);
+  doubleget(&data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 8;
@@ -1309,13 +1309,14 @@ error:
     2                 convert to multi_update
 */
 
-static int mysql_test_update(Prepared_statement *stmt,
-                              TABLE_LIST *table_list)
+static int mysql_test_update(Prepared_statement *stmt)
 {
   DBUG_ENTER("mysql_test_update");
 
   THD        *const thd= stmt->thd;
   SELECT_LEX *const select= stmt->lex->select_lex;
+  TABLE_LIST *const table_list= select->get_table_list();
+  DBUG_ASSERT(thd->lex == stmt->lex);
 
   if (update_precheck(thd, table_list))
     DBUG_RETURN(1);
@@ -1345,9 +1346,7 @@ static int mysql_test_update(Prepared_statement *stmt,
                              table_list->grant.want_privilege);
 #endif
 
-  if (mysql_prepare_update(thd, table_list, update_table_ref, &select->where,
-                           select->order_list.elements,
-                           select->order_list.first))
+  if (mysql_prepare_update(thd, update_table_ref))
     DBUG_RETURN(1);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1358,11 +1357,8 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->register_want_access(want_privilege);
 #endif
   DBUG_ASSERT(select == thd->lex->select_lex);
-  select->no_wrap_view_item= true;
-  const int res= setup_fields(thd, Ref_ptr_array(),
-                              select->item_list, MARK_COLUMNS_READ, 0, 0);
-  select->no_wrap_view_item= false;
-  if (res)
+  if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
+                                select->item_list, MARK_COLUMNS_READ, 0, 0))
     DBUG_RETURN(1);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
@@ -1383,7 +1379,6 @@ static int mysql_test_update(Prepared_statement *stmt,
   Validate DELETE statement.
 
   @param stmt               prepared statement
-  @param tables             list of tables used in this query
 
   @retval
     FALSE             success
@@ -1391,13 +1386,14 @@ static int mysql_test_update(Prepared_statement *stmt,
     TRUE              error, error message is set in THD
 */
 
-static bool mysql_test_delete(Prepared_statement *stmt,
-                              TABLE_LIST *table_list)
+static bool mysql_test_delete(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   DBUG_ENTER("mysql_test_delete");
   DBUG_ASSERT(stmt->is_stmt_prepare());
+  DBUG_ASSERT(lex->select_lex == thd->lex->select_lex);
+  TABLE_LIST *const table_list= lex->select_lex->get_table_list();
 
   if (delete_precheck(thd, table_list))
     DBUG_RETURN(true);
@@ -1419,9 +1415,7 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   }
 
   TABLE_LIST *const delete_table_ref= table_list->updatable_base_table();
-
-  if (mysql_prepare_delete(thd, table_list, delete_table_ref,
-                           &lex->select_lex->where))
+  if (mysql_prepare_delete(thd, delete_table_ref))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
@@ -1471,7 +1465,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /*
-    JOIN::prepare calls
+    SELECT_LEX::prepare calls
     It is not SELECT COMMAND for sure, so setup_tables will be called as
     usual, and we pass 0 as setup_tables_done_option
   */
@@ -1653,8 +1647,9 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 
   thd->lex->used_tables= 0;                        // Updated by setup_fields
 
-  /* Calls JOIN::prepare */
-  DBUG_RETURN(lex->unit->prepare(thd, 0, setup_tables_done_option));
+  /* Calls SELECT_LEX::prepare */
+  const bool ret= lex->unit->prepare(thd, 0, setup_tables_done_option);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -1972,7 +1967,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= lex->select_lex;
-  TABLE_LIST *tables;
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("check_prepared_statement");
@@ -1980,7 +1974,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
                       sql_command, stmt->param_count));
 
   lex->first_lists_tables_same();
-  tables= lex->query_tables;
+  TABLE_LIST *const tables= lex->query_tables;
 
   /* set context for commands which do not use setup_tables */
   lex->select_lex->context.resolve_in_table_list_only(select_lex->
@@ -2027,7 +2021,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     break;
 
   case SQLCOM_UPDATE:
-    res= mysql_test_update(stmt, tables);
+    DBUG_ASSERT(tables == select_lex->get_table_list());
+    res= mysql_test_update(stmt);
     /* mysql_test_update returns 2 if we need to switch to multi-update */
     if (res != 2)
       break;
@@ -2037,7 +2032,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     break;
 
   case SQLCOM_DELETE:
-    res= mysql_test_delete(stmt, tables);
+    DBUG_ASSERT(tables == select_lex->get_table_list());
+    res= mysql_test_delete(stmt);
     break;
   /* The following allow WHERE clause, so they must be tested like SELECT */
   case SQLCOM_SHOW_DATABASES:
@@ -2478,24 +2474,16 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       /* see unique_table() */
       sl->exclude_from_table_unique_test= FALSE;
 
-      /*
-        Copy WHERE, HAVING clause pointers to avoid damaging them
-        by optimisation
-      */
-      if (sl->prep_where)
+      if (sl->where_cond())
       {
-        sl->where= sl->prep_where->copy_andor_structure(thd);
-        sl->where->cleanup();
+        DBUG_ASSERT(sl->where_cond()->real_item()); // no dangling 'ref'
+        sl->where_cond()->cleanup();
       }
-      else
-        sl->where= NULL;
-      if (sl->prep_having)
+      if (sl->having_cond())
       {
-        sl->having= sl->prep_having->copy_andor_structure(thd);
-        sl->having->cleanup();
+        DBUG_ASSERT(sl->having_cond()->real_item());
+        sl->having_cond()->cleanup();
       }
-      else
-        sl->having= NULL;
       DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */

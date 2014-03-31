@@ -74,7 +74,6 @@ bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
-static unsigned long stop_wait_timeout;
 char* slave_load_tmpdir = 0;
 Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
@@ -212,11 +211,11 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi);
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
-static void set_stop_slave_wait_timeout(unsigned long wait_timeout);
 static int terminate_slave_thread(THD *thd,
                                   mysql_mutex_t *term_lock,
                                   mysql_cond_t *term_cond,
                                   volatile uint *slave_running,
+                                  ulong *stop_wait_timeout,
                                   bool need_lock_term);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 int slave_worker_exec_job(Slave_worker * w, Relay_log_info *rli);
@@ -317,9 +316,10 @@ void unlock_slave_threads(Master_info* mi)
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+
 static PSI_memory_key key_memory_rli_mts_coor;
 
-#ifdef HAVE_PSI_INTERFACE
 static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slave_worker;
 
 static PSI_thread_info all_slave_threads[]=
@@ -730,10 +730,6 @@ static void print_slave_skip_errors(void)
   DBUG_VOID_RETURN;
 }
 
-static void set_stop_slave_wait_timeout(unsigned long wait_timeout) {
-  stop_wait_timeout = wait_timeout;
-}
-
 /**
  Change arg to the string with the nice, human-readable skip error values.
    @param slave_skip_errors_ptr
@@ -874,7 +870,8 @@ static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
   }
 }
 
-int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
+int terminate_slave_threads(Master_info* mi, int thread_mask,
+                            ulong stop_wait_timeout, bool need_lock_term)
 {
   DBUG_ENTER("terminate_slave_threads");
 
@@ -883,7 +880,13 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   mysql_mutex_t *sql_lock = &mi->rli->run_lock, *io_lock = &mi->run_lock;
   mysql_mutex_t *log_lock= mi->rli->relay_log.get_log_lock();
-  set_stop_slave_wait_timeout(rpl_stop_slave_timeout);
+  /*
+    Set it to a variable, so the value is shared by both stop methods.
+    This guarantees that the user defined value for the timeout value is for
+    the time the 2 threads take to shutdown, and not the time of each thread
+    stop operation.
+  */
+  ulong total_stop_wait_timeout= stop_wait_timeout;
 
   if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
@@ -892,6 +895,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
     if ((error=terminate_slave_thread(mi->rli->info_thd, sql_lock,
                                       &mi->rli->stop_cond,
                                       &mi->rli->slave_running,
+                                      &total_stop_wait_timeout,
                                       need_lock_term)) &&
         !force_all)
     {
@@ -927,6 +931,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
     if ((error=terminate_slave_thread(mi->info_thd,io_lock,
                                       &mi->stop_cond,
                                       &mi->slave_running,
+                                      &total_stop_wait_timeout,
                                       need_lock_term)) &&
         !force_all)
     {
@@ -989,6 +994,10 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
    @param slave_running
           Pointer to predicate to check for slave thread termination
 
+   @param stop_wait_timeout
+          A pointer to a variable that denotes the time the thread has
+          to stop before we time out and throw an error.
+
    @param need_lock_term
           If @c false the lock will not be acquired before waiting on
           the condition. In this case, it is assumed that the calling
@@ -1006,6 +1015,7 @@ terminate_slave_thread(THD *thd,
                        mysql_mutex_t *term_lock,
                        mysql_cond_t *term_cond,
                        volatile uint *slave_running,
+                       ulong *stop_wait_timeout,
                        bool need_lock_term)
 {
   DBUG_ENTER("terminate_slave_thread");
@@ -1066,8 +1076,8 @@ terminate_slave_thread(THD *thd,
     int error=
 #endif
       mysql_cond_timedwait(term_cond, term_lock, &abstime);
-    if (stop_wait_timeout >= 2)
-      stop_wait_timeout= stop_wait_timeout - 2;
+    if ((*stop_wait_timeout) >= 2)
+      (*stop_wait_timeout)= (*stop_wait_timeout) - 2;
     else if (*slave_running)
     {
       if (need_lock_term)
@@ -1236,7 +1246,8 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
                                 &mi->rli->slave_running, &mi->rli->slave_run_id,
                                 mi);
     if (error)
-      terminate_slave_threads(mi, thread_mask & SLAVE_IO, need_lock_slave);
+      terminate_slave_threads(mi, thread_mask & SLAVE_IO,
+                              rpl_stop_slave_timeout, need_lock_slave);
   }
   DBUG_RETURN(error);
 }
@@ -1267,7 +1278,8 @@ void end_slave()
       list_walk(&master_list, (list_walk_action)end_slave_on_walk,0);
       once multi-master code is ready.
     */
-    terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
+    terminate_slave_threads(active_mi, SLAVE_FORCE_ALL,
+                            rpl_stop_slave_timeout);
   }
   mysql_mutex_unlock(&LOCK_active_mi);
   DBUG_VOID_RETURN;
@@ -3970,7 +3982,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
 
     if (slave_trans_retries)
     {
-      int UNINIT_VAR(temp_err);
+      int temp_err= 0;
       bool silent= false;
       if (exec_res && !is_mts_worker(thd) /* no reexecution in MTS mode */ &&
           (temp_err= rli->has_temporary_error(thd, 0, &silent)) &&
@@ -8146,6 +8158,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
   if (thread_mask)
   {
     slave_errno= terminate_slave_threads(mi,thread_mask,
+                                         rpl_stop_slave_timeout,
                                          false/*need_lock_term=false*/);
   }
   else

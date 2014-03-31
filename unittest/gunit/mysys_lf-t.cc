@@ -86,7 +86,7 @@ pthread_handler_t test_lf_alloc(void *arg)
   if (with_my_thread_init)
     my_thread_init();
 
-  pins= lf_alloc_get_pins(&lf_allocator);
+  pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
 
   for (x= ((int)(intptr)(&m)); m ; m--)
   {
@@ -100,10 +100,10 @@ pthread_handler_t test_lf_alloc(void *arg)
     node2->data= x;
     y-= node2->data;
     node2->data= 0;
-    lf_alloc_free(pins, node1);
-    lf_alloc_free(pins, node2);
+    lf_pinbox_free(pins, node1);
+    lf_pinbox_free(pins, node2);
   }
-  lf_alloc_put_pins(pins);
+  lf_pinbox_put_pins(pins);
   mysql_mutex_lock(&mutex);
   bad+= y;
 

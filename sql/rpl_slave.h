@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -281,7 +281,30 @@ int flush_master_info(Master_info* mi, bool force);
 void add_slave_skip_errors(const char* arg);
 void set_slave_skip_errors(char** slave_skip_errors_ptr);
 int register_slave_on_master(MYSQL* mysql);
+/**
+  Terminates the slave threads according to the given mask.
+
+  @param mi                the master info repository
+  @param thread_mask       the mask identifying which thread(s) to terminate
+  @param stop_wait_timeout the timeout after which the method returns and error
+  @param need_lock_term
+          If @c false the lock will not be acquired before waiting on
+          the condition. In this case, it is assumed that the calling
+          function acquires the lock before calling this function.
+
+  @return the operation status
+    @retval 0    OK
+    @retval ER_SLAVE_NOT_RUNNING
+      The slave is already stopped
+    @retval ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
+      There was a timeout when stopping the SQL thread
+    @retval ER_STOP_SLAVE_IO_THREAD_TIMEOUT
+      There was a timeout when stopping the IO thread
+    @retval ER_ERROR_DURING_FLUSH_LOGS
+      There was an error while flushing the log/repositories
+*/
 int terminate_slave_threads(Master_info* mi, int thread_mask,
+                            ulong stop_wait_timeout,
                             bool need_lock_term= true);
 int start_slave_threads(bool need_lock_slave, bool wait_for_start,
 			Master_info* mi, int thread_mask);

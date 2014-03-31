@@ -59,18 +59,6 @@
 # define MY_ALIGNED(size)
 #endif
 
-/*
-  Disable __attribute__ for Sun Studio and Visual Studio.
-  Note that Sun Studio supports some __attribute__ variants,
-  but not format or unused which we use quite a lot.
-
-  Sic: We should not (re-)define identifiers that begin with
-  an underscore followed by an uppercase letter or another underscore.
-*/
-#if defined __SUNPRO_C || defined __SUNPRO_CC || defined _MSC_VER
-# define __attribute__(A)
-#endif
-
 
 /**
   C++ Type Traits
@@ -109,5 +97,17 @@ struct my_aligned_storage
 };
 
 #endif /* __cplusplus */
+
+/*
+  Disable __attribute__ for Sun Studio and Visual Studio.
+  Note that Sun Studio supports some __attribute__ variants,
+  but not format or unused which we use quite a lot.
+
+  Sic: We should not (re-)define identifiers that begin with
+  an underscore followed by an uppercase letter or another underscore.
+*/
+#if defined __SUNPRO_C || defined __SUNPRO_CC || defined _MSC_VER
+# define __attribute__(A)
+#endif
 
 #endif /* MY_COMPILER_INCLUDED */

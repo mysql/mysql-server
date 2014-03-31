@@ -17,47 +17,9 @@
 #define _lf_h
 
 #include <my_atomic.h>
+#include "my_sys.h"
 
 C_MODE_START
-
-/*
-  Helpers to define both func() and _func(), where
-  func() is a _func() protected by my_atomic_rwlock_wrlock()
-*/
-
-#define lock_wrap(f, t, proto_args, args, lock) \
-t _ ## f proto_args;                            \
-static inline t f  proto_args                   \
-{                                               \
-  t ret;                                        \
-  my_atomic_rwlock_wrlock(lock);                \
-  ret= _ ## f args;                             \
-  my_atomic_rwlock_wrunlock(lock);              \
-  return ret;                                   \
-}
-
-#define lock_wrap_void(f, proto_args, args, lock) \
-void _ ## f proto_args;                         \
-static inline void f proto_args                 \
-{                                               \
-  my_atomic_rwlock_wrlock(lock);                \
-  _ ## f args;                                  \
-  my_atomic_rwlock_wrunlock(lock);              \
-}
-
-#define nolock_wrap(f, t, proto_args, args)     \
-t _ ## f proto_args;                            \
-static inline t f  proto_args                   \
-{                                               \
-  return _ ## f args;                           \
-}
-
-#define nolock_wrap_void(f, proto_args, args)   \
-void _ ## f proto_args;                         \
-static inline void f proto_args                 \
-{                                               \
-  _ ## f args;                                  \
-}
 
 /*
   wait-free dynamic array, see lf_dynarray.c
@@ -71,24 +33,15 @@ static inline void f proto_args                 \
 typedef struct {
   void * volatile level[LF_DYNARRAY_LEVELS];
   uint size_of_element;
-  my_atomic_rwlock_t lock;
 } LF_DYNARRAY;
 
 typedef int (*lf_dynarray_func)(void *, void *);
 
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size);
 void lf_dynarray_destroy(LF_DYNARRAY *array);
-
-nolock_wrap(lf_dynarray_value, void *,
-            (LF_DYNARRAY *array, uint idx),
-            (array, idx))
-lock_wrap(lf_dynarray_lvalue, void *,
-          (LF_DYNARRAY *array, uint idx),
-          (array, idx),
-          &array->lock)
-nolock_wrap(lf_dynarray_iterate, int,
-            (LF_DYNARRAY *array, lf_dynarray_func func, void *arg),
-            (array, func, arg))
+void *lf_dynarray_value(LF_DYNARRAY *array, uint idx);
+void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx);
+int lf_dynarray_iterate(LF_DYNARRAY *array, lf_dynarray_func func, void *arg);
 
 /*
   pin manager for memory allocator, lf_alloc-pin.c
@@ -121,15 +74,6 @@ typedef struct st_lf_pins {
 } LF_PINS;
 
 /*
-  shortcut macros to do an atomic_wrlock on a structure that uses pins
-  (e.g. lf_hash).
-*/
-#define lf_rwlock_by_pins(PINS)   \
-  my_atomic_rwlock_wrlock(&(PINS)->pinbox->pinarray.lock)
-#define lf_rwunlock_by_pins(PINS) \
-  my_atomic_rwlock_wrunlock(&(PINS)->pinbox->pinarray.lock)
-
-/*
   compile-time assert, to require "no less than N" pins
   it's enough if it'll fail on at least one compiler, so
   we'll enable it on GCC only, which supports zero-length arrays.
@@ -139,43 +83,33 @@ typedef struct st_lf_pins {
   static const char require_pins[LF_PINBOX_PINS-N]              \
                              __attribute__ ((unused));          \
   static const int LF_NUM_PINS_IN_THIS_FILE= N;
-#define _lf_pin(PINS, PIN, ADDR)                                \
-  (                                                             \
-    assert(PIN < LF_NUM_PINS_IN_THIS_FILE),                     \
-    my_atomic_storeptr(&(PINS)->pin[PIN], (ADDR))               \
-  )
 #else
 #define LF_REQUIRE_PINS(N)
-#define _lf_pin(PINS, PIN, ADDR)  my_atomic_storeptr(&(PINS)->pin[PIN], (ADDR))
 #endif
 
-#define _lf_unpin(PINS, PIN)      _lf_pin(PINS, PIN, NULL)
-#define lf_pin(PINS, PIN, ADDR)   \
-  do {                            \
-    lf_rwlock_by_pins(PINS);      \
-    _lf_pin(PINS, PIN, ADDR);     \
-    lf_rwunlock_by_pins(PINS);    \
-  } while (0)
-#define lf_unpin(PINS, PIN)  lf_pin(PINS, PIN, NULL)
-#define _lf_assert_pin(PINS, PIN) assert((PINS)->pin[PIN] != 0)
-#define _lf_assert_unpin(PINS, PIN) assert((PINS)->pin[PIN] == 0)
+static inline void lf_pin(LF_PINS *pins, int pin, void *addr)
+{
+#if defined(__GNUC__) && defined(MY_LF_EXTRA_DEBUG)
+  assert(pin < LF_NUM_PINS_IN_THIS_FILE);
+#endif
+  my_atomic_storeptr(&pins->pin[pin], addr);
+}
+
+static inline void lf_unpin(LF_PINS *pins, int pin)
+{
+#if defined(__GNUC__) && defined(MY_LF_EXTRA_DEBUG)
+  assert(pin < LF_NUM_PINS_IN_THIS_FILE);
+#endif
+  my_atomic_storeptr(&pins->pin[pin], NULL);
+}
 
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
                     lf_pinbox_free_func *free_func, void * free_func_arg);
 void lf_pinbox_destroy(LF_PINBOX *pinbox);
+LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox);
+void lf_pinbox_put_pins(LF_PINS *pins);
+void lf_pinbox_free(LF_PINS *pins, void *addr);
 
-lock_wrap(lf_pinbox_get_pins, LF_PINS *,
-          (LF_PINBOX *pinbox),
-          (pinbox),
-          &pinbox->pinarray.lock)
-lock_wrap_void(lf_pinbox_put_pins,
-               (LF_PINS *pins),
-               (pins),
-               &pins->pinbox->pinarray.lock)
-lock_wrap_void(lf_pinbox_free,
-               (LF_PINS *pins, void *addr),
-               (pins, addr),
-               &pins->pinbox->pinarray.lock)
 
 /*
   memory allocator, lf_alloc-pin.c
@@ -196,27 +130,15 @@ void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
                     lf_allocator_func *ctor, lf_allocator_func *dtor);
 void lf_alloc_destroy(LF_ALLOCATOR *allocator);
 uint lf_alloc_pool_count(LF_ALLOCATOR *allocator);
-/*
-  shortcut macros to access underlying pinbox functions from an LF_ALLOCATOR
-  see _lf_pinbox_get_pins() and _lf_pinbox_put_pins()
-*/
-#define _lf_alloc_free(PINS, PTR)     _lf_pinbox_free((PINS), (PTR))
-#define lf_alloc_free(PINS, PTR)       lf_pinbox_free((PINS), (PTR))
-#define _lf_alloc_get_pins(A)         _lf_pinbox_get_pins(&(A)->pinbox)
-#define lf_alloc_get_pins(A)           lf_pinbox_get_pins(&(A)->pinbox)
-#define _lf_alloc_put_pins(PINS)      _lf_pinbox_put_pins(PINS)
-#define lf_alloc_put_pins(PINS)        lf_pinbox_put_pins(PINS)
-#define lf_alloc_direct_free(ALLOC, ADDR)   \
-  do {                                      \
-    if ((ALLOC)->destructor)                \
-      (ALLOC)->destructor((uchar *)(ADDR)); \
-    my_free((ADDR));                        \
-  } while (0)
 
-lock_wrap(lf_alloc_new, void *,
-          (LF_PINS *pins),
-          (pins),
-          &pins->pinbox->pinarray.lock)
+static inline void lf_alloc_direct_free(LF_ALLOCATOR *allocator, void *addr)
+{
+  if (allocator->destructor)
+    allocator->destructor((uchar *)addr);
+  my_free(addr);
+}
+
+void *lf_alloc_new(LF_PINS *pins);
 
 C_MODE_END
 
@@ -271,28 +193,25 @@ void lf_hash_destroy(LF_HASH *hash);
 int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data);
 void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
 int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
-/*
-  shortcut macros to access underlying pinbox functions from an LF_HASH
-  see _lf_pinbox_get_pins() and _lf_pinbox_put_pins()
-*/
-#define _lf_hash_get_pins(HASH)     _lf_alloc_get_pins(&(HASH)->alloc)
-#define lf_hash_get_pins(HASH)       lf_alloc_get_pins(&(HASH)->alloc)
-#define _lf_hash_put_pins(PINS)     _lf_pinbox_put_pins(PINS)
-#define lf_hash_put_pins(PINS)       lf_pinbox_put_pins(PINS)
-#define lf_hash_search_unpin(PINS)   lf_unpin((PINS), 2)
+
+static inline LF_PINS *lf_hash_get_pins(LF_HASH *hash)
+{
+  return lf_pinbox_get_pins(&hash->alloc.pinbox);
+}
+
+static inline void lf_hash_put_pins(LF_PINS *pins)
+{
+  lf_pinbox_put_pins(pins);
+}
+
+static inline void lf_hash_search_unpin(LF_PINS *pins)
+{
+  lf_unpin(pins, 2);
+}
 
 typedef int lf_hash_match_func(const uchar *el);
 void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
                            lf_hash_match_func *match, uint rand_val);
-
-/*
-  cleanup
-*/
-
-#undef lock_wrap_void
-#undef lock_wrap
-#undef nolock_wrap_void
-#undef nolock_wrap
 
 C_MODE_END
 

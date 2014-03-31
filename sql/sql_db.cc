@@ -97,8 +97,8 @@ uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
   Helper function to write a query to binlog used by mysql_rm_db()
 */
 
-static inline int write_to_binlog(THD *thd, char *query, uint q_len,
-                                  char *db, uint db_len)
+static inline int write_to_binlog(THD *thd, char *query, size_t q_len,
+                                  char *db, size_t db_len)
 {
   Query_log_event qinfo(thd, query, q_len, FALSE, TRUE, FALSE, 0);
   qinfo.db= db;
@@ -629,7 +629,7 @@ not_silent:
     const char *query;
     size_t query_length;
     char db_name_quoted[2 * FN_REFLEN + sizeof("create database ") + 2];
-    int id_len= 0;
+    size_t id_len= 0;
 
     if (!thd->query().str)                          // Only in replication
     {
@@ -898,7 +898,7 @@ update_binlog:
     size_t query_length;
     // quoted db name + wraping quote
     char buffer_temp [2 * FN_REFLEN + 2];
-    int id_len= 0;
+    size_t id_len= 0;
     if (!thd->query().str)
     {
       /* The client used the old obsolete mysql_drop_db() call */
@@ -946,7 +946,7 @@ update_binlog:
     char *query, *query_pos, *query_end, *query_data_start;
     char temp_identifier[ 2 * FN_REFLEN + 2];
     TABLE_LIST *tbl;
-    uint db_len, id_length=0;
+    size_t db_len, id_length=0;
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
@@ -1716,7 +1716,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
 
   /* Lock the old name, the new name will be locked by mysql_create_db().*/
   if (lock_schema_name(thd, old_db->str))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
 
   /*
     Let's remember if we should do "USE newdb" afterwards.

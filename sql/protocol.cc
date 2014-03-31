@@ -854,7 +854,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       pos= (char*) local_packet->ptr()+local_packet->length();
       *pos++= 12;				// Length of packed fields
       /* inject a NULL to test the client */
-      DBUG_EXECUTE_IF("poison_rs_fields", pos[-1]= 0xfb;);
+      DBUG_EXECUTE_IF("poison_rs_fields", pos[-1]= (char)0xfb;);
       if (item->charset_for_protocol() == &my_charset_bin || thd_charset == NULL)
       {
         /* No conversion */

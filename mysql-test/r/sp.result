@@ -6379,12 +6379,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f2`(10))
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	c1	5	NULL	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	c1	5	NULL	5	20.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f2`(`test`.`t1`.`c1`))
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(rand());
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	c1	5	NULL	5	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	c1	5	NULL	5	20.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = `f2`(rand()))
 DROP VIEW v1;
@@ -7642,8 +7642,42 @@ CALL p1();
 1
 1
 DROP PROCEDURE p1;
+prepare s from 'select 1 from `v1` join `t1` on `v1`.`a`
+where (select 1 from `t1` where `v1`.`a`)';
+execute s;
+1
+1
+execute s;
+1
+1
+prepare s from 'select 1 from `v1` join `t1` on `v1`.`a`';
+execute s;
+1
+1
+execute s;
+1
+1
+prepare s from 'select 1 from `v1` join `t1` on `v1`.`a` join t1 as t2
+on v1.a';
+execute s;
+1
+1
+execute s;
+1
+1
+create view v2 as select 0 as a from t1;
+prepare s from 'select 1 from `v2` join `t1` on `v2`.`a` join v1 on `v1`.`a`';
+execute s;
+1
+execute s;
+1
+prepare s from 'select 1 from `v2` join `t1` on `v2`.`a`, v1 where `v1`.`a`';
+execute s;
+1
+execute s;
+1
 DROP TABLE t1;
-DROP VIEW v1;
+DROP VIEW v1,v2;
 #
 # WL#2111: Add non-reserved ROW_COUNT keyword.
 #
@@ -7712,33 +7746,33 @@ DROP FUNCTION f4;
 CREATE TABLE t1(a INT);
 CREATE PROCEDURE p(p INT)
 SET p = DEFAULT|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 2
 CREATE PROCEDURE p()
 BEGIN
 DECLARE v INT;
 SET v = DEFAULT;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
 END' at line 4
 CREATE PROCEDURE p()
 BEGIN
 DECLARE v INT DEFAULT 1;
 SET v = DEFAULT;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
 END' at line 4
 CREATE PROCEDURE p()
 BEGIN
 DECLARE v INT DEFAULT (SELECT * FROM t1);
 SET v = DEFAULT;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
 END' at line 4
 CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
 BEGIN
 SET NEW.a = DEFAULT;
 END|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
 END' at line 3
 
 # Check that setting system variables to DEFAULT still works in SP.

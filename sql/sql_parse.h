@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,14 +64,14 @@ void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
-bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
-                              uint max_byte_length);
-bool check_string_char_length(LEX_STRING *str, const char *err_msg,
-                              uint max_char_length, const CHARSET_INFO *cs,
+bool check_string_byte_length(const LEX_CSTRING &str, const char *err_msg,
+                              size_t max_byte_length);
+bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
+                              size_t max_char_length, const CHARSET_INFO *cs,
                               bool no_error);
 const CHARSET_INFO* merge_charset_and_collation(const CHARSET_INFO *cs,
                                                 const CHARSET_INFO *cl);
-bool check_host_name(LEX_STRING *str);
+bool check_host_name(const LEX_CSTRING &str);
 bool check_identifier_name(LEX_STRING *str, uint max_char_length,
                            uint err_code, const char *param_for_err_msg);
 bool mysql_test_parse_for_slave(THD *thd);
@@ -81,7 +81,7 @@ bool is_log_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, size_t packet_length);
 void mysql_parse(THD *thd, Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
-void create_select_for_variable(const char *var_name);
+void create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
@@ -104,17 +104,16 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       char *change, List<String> *interval_list,
 		       const CHARSET_INFO *cs,
 		       uint uint_geom_type);
-bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *group, bool asc);
+void add_to_list(SQL_I_List<ORDER> &list, ORDER *order);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
                       SELECT_LEX *lex);
-bool push_new_name_resolution_context(THD *thd,
+bool push_new_name_resolution_context(Parse_context *pc,
                                       TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
 void store_position_for_column(const char *name);
 void init_update_queries(void);
-bool check_simple_select();
-Item *negate_expression(THD *thd, Item *expr);
+Item *negate_expression(Parse_context *pc, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 
 /* Variables */

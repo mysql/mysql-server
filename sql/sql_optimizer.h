@@ -345,27 +345,47 @@ public:
   Explain_format_flags explain_flags;
 
   /** 
-    JOIN::having is initially equal to select_lex->having, but may
+    JOIN::having_cond is initially equal to select_lex->having_cond, but may
     later be changed by optimizations performed by JOIN.
-    The relationship between the JOIN::having condition and the
+    The relationship between the JOIN::having_cond condition and the
     associated variable select_lex->having_value is so that
     having_value can be:
      - COND_UNDEF if a having clause was not specified in the query or
        if it has not been optimized yet
      - COND_TRUE if the having clause is always true, in which case
-       JOIN::having is set to NULL.
+       JOIN::having_cond is set to NULL.
      - COND_FALSE if the having clause is impossible, in which case
-       JOIN::having is set to NULL
+       JOIN::having_cond is set to NULL
      - COND_OK otherwise, meaning that the having clause needs to be
        further evaluated
-    All of the above also applies to the conds/select_lex->cond_value
+    All of the above also applies to the where_cond/select_lex->cond_value
     pair.
   */
-  Item       *conds;                      ///< The where clause item tree
-  Item       *having;                     ///< The having clause item tree
+  /**
+    Optimized WHERE clause item tree (valid for one single execution).
+    Used in JOIN execution if no tables. Otherwise, attached in pieces to
+    JOIN_TABs and then not used in JOIN execution.
+    Printed by EXPLAIN EXTENDED.
+    Initialized by SELECT_LEX::get_optimizable_conditions().
+  */
+  Item       *where_cond;
+  /**
+    Optimized HAVING clause item tree (valid for one single execution).
+    Used in JOIN execution, as last "row filtering" step. With one exception:
+    may be pushed to the JOIN_TABs of temporary tables used in DISTINCT /
+    GROUP BY (see JOIN::make_tmp_tables_info()); in that case having_cond is
+    set to NULL, but is first saved to having_for_explain so that EXPLAIN
+    EXTENDED can still print it.
+    Initialized by SELECT_LEX::get_optimizable_conditions().
+  */
+  Item       *having_cond;
   Item       *having_for_explain;    ///< Saved optimized HAVING for EXPLAIN
-  TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
-  List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
+  /**
+    Pointer set to select_lex->get_table_list() at the start of
+    optimization. May be changed (to NULL) only if opt_sum_query() optimizes
+    tables away.
+  */
+  TABLE_LIST *tables_list;
   COND_EQUAL *cond_equal;
   /*
     Join tab to return to. Points to an element of join->join_tab array, or to
@@ -407,9 +427,6 @@ public:
   */
   bool allow_outer_refs;
 
-  // true: No need to run DTORs on pointers.
-  Mem_root_array<Item_exists_subselect*, true> sj_subselects;
-
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
   List<Semijoin_mat_exec> sjm_exec_list;
@@ -423,8 +440,7 @@ public:
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
     : keyuse_array(thd_arg->mem_root),
-      fields_list(fields_arg),
-      sj_subselects(thd_arg->mem_root)
+      fields_list(fields_arg)
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
@@ -438,7 +454,6 @@ public:
     const_tables= 0;
     tmp_tables= 0;
     const_table_map= 0;
-    join_list= 0;
     implicit_grouping= FALSE;
     sort_and_group= 0;
     first_record= 0;
@@ -450,7 +465,13 @@ public:
     examined_rows= 0;
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
-    having= having_for_explain= 0;
+    /*
+      Those four members are meaningless before JOIN::optimize(), so force a
+      crash if they are used before that.
+    */
+    where_cond= having_cond= having_for_explain= (Item*)1;
+    tables_list= (TABLE_LIST*)1;
+
     select_options= select_options_arg;
     result= result_arg;
     lock= thd_arg->lock;
@@ -503,10 +524,6 @@ public:
   */
   bool plan_is_single_table() { return primary_tables - const_tables == 1; }
 
-  int prepare(TABLE_LIST *tables, uint wind_num,
-	      Item *conds, uint og_num, ORDER *order, ORDER *group,
-              Item *having,
-              SELECT_LEX *select, SELECT_LEX_UNIT *unit);
   int optimize();
   void reset();
   void exec();
@@ -514,7 +531,6 @@ public:
   bool destroy();
   void restore_tmp();
   bool alloc_func_list();
-  bool flatten_subqueries();
   bool make_sum_func_list(List<Item> &all_fields,
                           List<Item> &send_fields,
                           bool before_group_by, bool recompute= FALSE);
@@ -563,7 +579,7 @@ public:
 			  Item_sum ***func);
   int rollup_send_data(uint idx);
   int rollup_write_data(uint idx, TABLE *table);
-  void remove_subq_pushed_predicates(Item **where);
+  void remove_subq_pushed_predicates();
   /**
     Release memory and, if possible, the open tables held by this execution
     plan (and nested plans). It's used to release some tables before
@@ -706,17 +722,17 @@ private:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   bool prune_table_partitions();
 #endif
+public:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
   */
   bool implicit_grouping; 
-
+private:
   void set_prefix_tables();
   void cleanup_item_list(List<Item> &items) const;
-private:
   void set_semijoin_embedding();
-  bool make_join_plan(bool first_optimization);
+  bool make_join_plan();
   bool init_planner_arrays();
   bool propagate_dependencies();
   bool extract_const_tables();
@@ -852,7 +868,6 @@ private:
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok);
-void reset_nj_counters(List<TABLE_LIST> *join_list);
 Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
 Item *optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal,
                     List<TABLE_LIST> *join_list,

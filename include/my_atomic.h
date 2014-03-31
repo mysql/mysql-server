@@ -41,52 +41,26 @@
 
   '#' is substituted by a size suffix - 32, 64, or ptr
   (e.g. my_atomic_add64, my_atomic_fas32, my_atomic_casptr).
-
-  NOTE This operations are not always atomic, so they always must be
-  enclosed in my_atomic_rwlock_rdlock(lock)/my_atomic_rwlock_rdunlock(lock)
-  or my_atomic_rwlock_wrlock(lock)/my_atomic_rwlock_wrunlock(lock).
-  Hint: if a code block makes intensive use of atomic ops, it make sense
-  to take/release rwlock once for the whole block, not for every statement.
-
-  On architectures where these operations are really atomic, rwlocks will
-  be optimized away.
 */
 
 /*
-  Attempt to do atomic ops without locks
-
   We choose implementation as follows:
   ------------------------------------
   On Windows using Visual C++ the native implementation should be
   preferrable. When using gcc we prefer the Solaris implementation
   before the gcc because of stability preference, we choose gcc
-  builtins if available, otherwise we fallback to rw locks. If
-  neither Visual C++ or gcc we still choose the Solaris
-  implementation on Solaris (mainly for SunStudio compilers).
+  builtins if available. If neither Visual C++ or gcc we still choose
+  the Solaris implementation on Solaris (mainly for SunStudio compilers).
 */
-#ifndef MY_ATOMIC_MODE_RWLOCKS
-#  if defined(_MSC_VER)
-#    include "atomic/generic-msvc.h"
-#  elif defined(HAVE_SOLARIS_ATOMIC)
-#    include "atomic/solaris.h"
-#  elif defined(HAVE_GCC_ATOMIC_BUILTINS)
-#    include "atomic/gcc_builtins.h"
-#  else
-#    define MY_ATOMIC_MODE_RWLOCKS 1
-#  endif
-#endif /* !MY_ATOMIC_MODE_RWLOCKS */
-
-#ifdef MY_ATOMIC_MODE_RWLOCKS
-#  include "atomic/rwlock.h"
+#if defined(_MSC_VER)
+#  include "atomic/generic-msvc.h"
+#elif defined(HAVE_SOLARIS_ATOMIC)
+#  include "atomic/solaris.h"
+#elif defined(HAVE_GCC_ATOMIC_BUILTINS)
+#  include "atomic/gcc_builtins.h"
 #else
-typedef char my_atomic_rwlock_t __attribute__ ((unused));
-#  define my_atomic_rwlock_destroy(name)
-#  define my_atomic_rwlock_init(name)
-#  define my_atomic_rwlock_rdlock(name)
-#  define my_atomic_rwlock_wrlock(name)
-#  define my_atomic_rwlock_rdunlock(name)
-#  define my_atomic_rwlock_wrunlock(name)
-#endif /* MY_ATOMIC_MODE_RWLOCKS */
+#  error Native atomics support not found!
+#endif
 
 /*
   the macro below defines (as an expression) the code that

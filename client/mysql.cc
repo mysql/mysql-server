@@ -1171,7 +1171,7 @@ inline int get_command_index(char cmd_char)
     All client-specific commands are in the first part of commands array
     and have a function to implement it.
   */
-  for (uint i= 0; *commands[i].func; i++)
+  for (uint i= 0; *commands[i].func != NULL; i++)
     if (commands[i].cmd_char == cmd_char)
       return i;
   return -1;
@@ -1323,7 +1323,7 @@ int main(int argc,char *argv[])
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
-  snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
+  my_snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
 	   "Your MySQL connection id is %lu\nServer version: %s\n",
 	   mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
@@ -3345,8 +3345,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
       char last_char= 0;
 
       int num_name= 0, num_cat= 0;
-      LINT_INIT(num_name);
-      LINT_INIT(num_cat);
 
       if (num_fields == 2)
       {
@@ -3372,7 +3370,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else
     {
       put_info("\nNothing found", INFO_INFO);
-      if (strncasecmp(server_cmd, "help 'contents'", 15) == 0)
+      if (native_strncasecmp(server_cmd, "help 'contents'", 15) == 0)
       {
          put_info("\nPlease check if 'help tables' are loaded.\n", INFO_INFO); 
          goto err;
@@ -3486,7 +3484,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
 
   /* Remove garbage for nicer messages */
-  LINT_INIT(buff[0]);
+  buff[0]= 0;
   remove_cntrl(*buffer);
 
   if (buffer->is_empty())
@@ -4799,7 +4797,8 @@ char *get_arg(char *line, my_bool get_next_arg)
   }
   for (start=ptr ; *ptr; ptr++)
   {
-    if (*ptr == '\\' && ptr[1]) // escaped character
+    // if it is a quoted string do not remove backslash
+    if (!quoted && *ptr == '\\' && ptr[1]) // escaped character
     {
       // Remove the backslash
       my_stpmov(ptr, ptr+1);
@@ -5039,8 +5038,7 @@ com_status(String *buffer __attribute__((unused)),
   const char *status_str;
   char buff[40];
   ulonglong id;
-  MYSQL_RES *result;
-  LINT_INIT(result);
+  MYSQL_RES *result= NULL;
 
   if (mysql_real_query_for_lazy(
         C_STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
@@ -5658,8 +5656,7 @@ static void init_username()
   my_free(full_username);
   my_free(part_username);
 
-  MYSQL_RES *result;
-  LINT_INIT(result);
+  MYSQL_RES *result= NULL;
   if (!mysql_query(&mysql,"select USER()") &&
       (result=mysql_use_result(&mysql)))
   {

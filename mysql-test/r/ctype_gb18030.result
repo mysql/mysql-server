@@ -1437,6 +1437,10 @@ hex(c)	hex(weight_string(c))	c
 9030E734	30D2	𐐀
 9030EB34	30D2	𐐨
 DROP TABLE t1;
+SET NAMES gb18030 COLLATE gb18030_unicode_520_ci;
+SELECT 1 gb18030_unicode_520_ci;
+gb18030_unicode_520_ci
+1
 CREATE DATABASE gb18030 CHARSET=GB18030;
 SET NAMES utf8mb4;
 SET collation_connection='gb18030_chinese_ci';

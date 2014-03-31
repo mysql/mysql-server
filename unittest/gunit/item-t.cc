@@ -322,8 +322,10 @@ TEST_F(ItemTest, ItemFuncDesDecrypt)
   const uint length= 1U;
   Item_int *item_one= new Item_int(1, length);
   Item_int *item_two= new Item_int(2, length);
-  Item_func_des_decrypt *item_decrypt=
-    new Item_func_des_decrypt(item_two, item_one);
+  Item *item_decrypt=
+    new Item_func_des_decrypt(POS(), item_two, item_one);
+  Parse_context pc(thd(), thd()->lex->current_select());
+  EXPECT_FALSE(item_decrypt->itemize(&pc, &item_decrypt));
   
   EXPECT_FALSE(item_decrypt->fix_fields(thd(), NULL));
   EXPECT_EQ(length, item_one->max_length);
@@ -340,24 +342,30 @@ TEST_F(ItemTest, ItemFuncExportSet)
   Item *sep_string= new Item_string(STRING_WITH_LEN(","), &my_charset_bin);
   {
     // Testing basic functionality.
-    Item_func_export_set *export_set=
-      new Item_func_export_set(new Item_int(2),
+    Item *export_set=
+      new Item_func_export_set(POS(),
+                               new Item_int(2),
                                on_string,
                                off_string,
                                sep_string,
                                new Item_int(4));
+    Parse_context pc(thd(), thd()->lex->current_select());
+    EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
     EXPECT_EQ(&str, export_set->val_str(&str));
     EXPECT_STREQ("off,on,off,off", str.c_ptr_safe());
   }
   {
     // Testing corner case: number_of_bits == zero.
-    Item_func_export_set *export_set=
-      new Item_func_export_set(new Item_int(2),
+    Item *export_set=
+      new Item_func_export_set(POS(),
+                               new Item_int(2),
                                on_string,
                                off_string,
                                sep_string,
                                new Item_int(0));
+    Parse_context pc(thd(), thd()->lex->current_select());
+    EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
     EXPECT_EQ(&str, export_set->val_str(&str));
     EXPECT_STREQ("", str.c_ptr_safe());
@@ -376,11 +384,15 @@ TEST_F(ItemTest, ItemFuncExportSet)
   {
     // Testing overflow caused by 'on-string'.
     Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
-    Item_func_export_set *export_set=
-      new Item_func_export_set(new Item_int(0xff),
-                               new Item_func_repeat(string_x, item_int_repeat),
+    Item *export_set=
+      new Item_func_export_set(POS(),
+                               new Item_int(0xff),
+                               new Item_func_repeat(POS(),
+                                                    string_x, item_int_repeat),
                                string_x,
                                sep_string);
+    Parse_context pc(thd(), thd()->lex->current_select());
+    EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
     EXPECT_EQ(null_string, export_set->val_str(&str));
     EXPECT_STREQ("", str.c_ptr_safe());
@@ -389,11 +401,15 @@ TEST_F(ItemTest, ItemFuncExportSet)
   {
     // Testing overflow caused by 'off-string'.
     Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
-    Item_func_export_set *export_set=
-      new Item_func_export_set(new Item_int(0xff),
+    Item *export_set=
+      new Item_func_export_set(POS(),
+                               new Item_int(0xff),
                                string_x,
-                               new Item_func_repeat(string_x, item_int_repeat),
+                               new Item_func_repeat(POS(),
+                                                    string_x, item_int_repeat),
                                sep_string);
+    Parse_context pc(thd(), thd()->lex->current_select());
+    EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
     EXPECT_EQ(null_string, export_set->val_str(&str));
     EXPECT_STREQ("", str.c_ptr_safe());
@@ -402,11 +418,15 @@ TEST_F(ItemTest, ItemFuncExportSet)
   {
     // Testing overflow caused by 'separator-string'.
     Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
-    Item_func_export_set *export_set=
-      new Item_func_export_set(new Item_int(0xff),
+    Item *export_set=
+      new Item_func_export_set(POS(),
+                               new Item_int(0xff),
                                string_x,
                                string_x,
-                               new Item_func_repeat(string_x, item_int_repeat));
+                               new Item_func_repeat(POS(),
+                                                    string_x, item_int_repeat));
+    Parse_context pc(thd(), thd()->lex->current_select());
+    EXPECT_FALSE(export_set->itemize(&pc, &export_set));
     EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
     EXPECT_EQ(null_string, export_set->val_str(&str));
     EXPECT_STREQ("", str.c_ptr_safe());
@@ -726,10 +746,13 @@ TEST_F(ItemTest, ItemFuncConvIntMin)
 {
   Mock_charset charset(*system_charset_info);
   SCOPED_TRACE("");
-  Item_func_conv *item_conv=
-    new Item_func_conv(new Item_string("5", 1, &charset),
+  Item *item_conv=
+    new Item_func_conv(POS(),
+                       new Item_string("5", 1, &charset),
                        new Item_int(INT_MIN),   // from_base
                        new Item_int(INT_MIN));  // to_base
+  Parse_context pc(thd(), thd()->lex->current_select());
+  EXPECT_FALSE(item_conv->itemize(&pc, &item_conv));
   EXPECT_FALSE(item_conv->fix_fields(thd(), NULL));
   const String *null_string= NULL;
   String str;

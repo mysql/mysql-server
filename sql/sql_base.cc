@@ -217,9 +217,7 @@ static void modify_slave_open_temp_tables(THD *thd, int inc)
 {
   if (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
   {
-    my_atomic_rwlock_wrlock(&slave_open_temp_tables_lock);
     my_atomic_add32(&slave_open_temp_tables, inc);
-    my_atomic_rwlock_wrunlock(&slave_open_temp_tables_lock);
   }
   else
   {
@@ -268,9 +266,9 @@ static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
   @return Length of key.
 */
 
-static uint create_table_def_key(THD *thd, char *key,
-                                 const char *db_name, const char *table_name,
-                                 bool tmp_table)
+static size_t create_table_def_key(THD *thd, char *key,
+                                   const char *db_name, const char *table_name,
+                                   bool tmp_table)
 {
   /*
     In theory caller should ensure that both db and table_name are
@@ -278,9 +276,8 @@ static uint create_table_def_key(THD *thd, char *key,
     buffer overruns.
   */
   DBUG_ASSERT(strlen(db_name) <= NAME_LEN && strlen(table_name) <= NAME_LEN);
-  uint key_length= static_cast<uint>(strmake(strmake(key, db_name, NAME_LEN) +
-                                             1, table_name, NAME_LEN) - key +
-                                     1);
+  size_t key_length= strmake(strmake(key, db_name, NAME_LEN) +
+                                             1, table_name, NAME_LEN) - key + 1;
 
   if (tmp_table)
   {
@@ -312,7 +309,7 @@ static uint create_table_def_key(THD *thd, char *key,
   @return Length of key.
 */
 
-uint get_table_def_key(const TABLE_LIST *table_list, const char **key)
+size_t get_table_def_key(const TABLE_LIST *table_list, const char **key)
 {
   /*
     This call relies on the fact that TABLE_LIST::mdl_request::key object
@@ -457,7 +454,7 @@ uint cached_table_definitions(void)
 */
 
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
-                             const char *key, uint key_length,
+                             const char *key, size_t key_length,
                              uint db_flags, int *error,
                              my_hash_value_type hash_value)
 {
@@ -574,7 +571,7 @@ found:
 
 static TABLE_SHARE *
 get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
-                              const char *key, uint key_length,
+                              const char *key, size_t key_length,
                               uint db_flags, int *error,
                               my_hash_value_type hash_value)
 
@@ -1179,7 +1176,7 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
                           TABLE *skip_table)
 {
   char key[MAX_DBKEY_LENGTH];
-  uint key_length= share->table_cache_key.length;
+  size_t key_length= share->table_cache_key.length;
   const char *db= key;
   const char *table_name= db + share->db.length + 1;
 
@@ -1671,13 +1668,14 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 
   NOTE: to exclude derived tables from check we use following mechanism:
     a) during derived table processing set THD::derived_tables_processing
-    b) JOIN::prepare set SELECT::exclude_from_table_unique_test if
+    b) SELECT_LEX::prepare set SELECT::exclude_from_table_unique_test if
        THD::derived_tables_processing set. (we can't use JOIN::execute
-       because for PS we perform only JOIN::prepare, but we can't set this
-       flag in JOIN::prepare if we are not sure that we are in derived table
-       processing loop, because multi-update call fix_fields() for some its
-       items (which mean JOIN::prepare for subqueries) before unique_table
-       call to detect which tables should be locked for write).
+       because for PS we perform only SELECT_LEX::prepare, but we can't set
+       this flag in SELECT_LEX::prepare if we are not sure that we are in
+       derived table processing loop, because multi-update call fix_fields()
+       for some its items (which mean SELECT_LEX::prepare for subqueries)
+       before unique_table call to detect which tables should be locked for
+       write).
     c) find_dup_table skip all tables which belong to SELECT with
        SELECT::exclude_from_table_unique_test set.
     Also SELECT::exclude_from_table_unique_test used to exclude from check
@@ -1876,7 +1874,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name)
 {
   char key[MAX_DBKEY_LENGTH];
-  uint key_length= create_table_def_key(thd, key, db, table_name, 1);
+  size_t key_length= create_table_def_key(thd, key, db, table_name, 1);
   return find_temporary_table(thd, key, key_length);
 }
 
@@ -1891,7 +1889,7 @@ TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name)
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl)
 {
   const char *key;
-  uint key_length;
+  size_t key_length;
   char key_suffix[TMP_TABLE_KEY_EXTRA];
   TABLE *table;
 
@@ -1921,7 +1919,7 @@ TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl)
 
 TABLE *find_temporary_table(THD *thd,
                             const char *table_key,
-                            uint table_key_length)
+                            size_t table_key_length)
 {
   for (TABLE *table= thd->temporary_tables; table; table= table->next)
   {
@@ -2495,7 +2493,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
 {
   TABLE *table;
   const char *key;
-  uint key_length;
+  size_t key_length;
   char	*alias= table_list->alias;
   uint flags= ot_ctx->get_flags();
   MDL_ticket *mdl_ticket;
@@ -3646,9 +3644,9 @@ static bool
 check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
                                  sp_head *sp)
 {
-  ulong spc_version= sp_cache_version();
+  int64 spc_version= sp_cache_version();
   /* sp is NULL if there is no such routine. */
-  ulong version= sp ? sp->sp_cache_version() : spc_version;
+  int64 version= sp ? sp->sp_cache_version() : spc_version;
   /*
     If the version in the parse tree is stale,
     or the version in the cache is stale and sp is not used,
@@ -3695,7 +3693,7 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
 */
 
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
-                   const char *cache_key, uint cache_key_length, uint flags)
+                   const char *cache_key, size_t cache_key_length, uint flags)
 {
   int error;
   my_hash_value_type hash_value;
@@ -3812,7 +3810,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
 {
   const char *cache_key;
-  uint cache_key_length;
+  size_t cache_key_length;
   TABLE_SHARE *share;
   TABLE *entry;
   int not_used;
@@ -6018,7 +6016,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   TABLE *tmp_table;
   TABLE_SHARE *share;
   char cache_key[MAX_DBKEY_LENGTH], *saved_cache_key, *tmp_path;
-  uint key_length;
+  size_t key_length;
   DBUG_ENTER("open_table_uncached");
   DBUG_PRINT("enter",
              ("table: '%s'.'%s'  path: '%s'  server_id: %u  "
@@ -6368,7 +6366,7 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
 
 static Field *
 find_field_in_view(THD *thd, TABLE_LIST *table_list,
-                   const char *name, uint length,
+                   const char *name, size_t length,
                    const char *item_name, Item **ref,
                    bool register_tree_change)
 {
@@ -6460,20 +6458,18 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
 
 static Field *
 find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
-                           uint length, Item **ref, bool register_tree_change,
+                           size_t length, Item **ref, bool register_tree_change,
                            TABLE_LIST **actual_table)
 {
   List_iterator_fast<Natural_join_column>
     field_it(*(table_ref->join_columns));
   Natural_join_column *nj_col, *curr_nj_col;
-  Field *found_field;
+  Field *found_field= NULL;
   DBUG_ENTER("find_field_in_natural_join");
   DBUG_PRINT("enter", ("field name: '%s', ref 0x%lx",
 		       name, (ulong) ref));
   DBUG_ASSERT(table_ref->is_natural_join && table_ref->join_columns);
   DBUG_ASSERT(*actual_table == NULL);
-
-  LINT_INIT(found_field);
 
   for (nj_col= NULL, curr_nj_col= field_it++; curr_nj_col; 
        curr_nj_col= field_it++)
@@ -6585,7 +6581,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 */
 
 Field *
-find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
+find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
                     bool allow_rowid, uint *cached_field_index_ptr)
 {
   Field **field_ptr, *field;
@@ -6686,7 +6682,7 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
 
 Field *
 find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
-                        const char *name, uint length,
+                        const char *name, size_t length,
                         const char *item_name, const char *db_name,
                         const char *table_name, Item **ref,
                         bool check_privileges, bool allow_rowid,
@@ -6923,7 +6919,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
   const char *db= item->db_name;
   const char *table_name= item->table_name;
   const char *name= item->field_name;
-  uint length=(uint) strlen(name);
+  size_t length= strlen(name);
   char name_buff[NAME_LEN+1];
   TABLE_LIST *cur_table= first_table;
   TABLE_LIST *actual_table;
@@ -8045,9 +8041,8 @@ static bool setup_natural_join_row_types(THD *thd,
 ** Expand all '*' in given fields
 ****************************************************************************/
 
-int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
-	       List<Item> *sum_func_list,
-	       uint wild_num)
+int setup_wild(THD *thd, List<Item> &fields, List<Item> *sum_func_list,
+               uint wild_num)
 {
   if (!wild_num)
     return(0);
@@ -8658,142 +8653,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 }
 
 
-/*
-  Fix all conditions and outer join expressions.
-
-  SYNOPSIS
-    setup_conds()
-    thd     thread handler
-    tables  list of tables for name resolving (select_lex->table_list)
-    leaves  list of leaves of join table tree (select_lex->leaf_tables)
-    conds   WHERE clause
-
-  DESCRIPTION
-    TODO
-
-  RETURN
-    TRUE  if some error occured (e.g. out of memory)
-    FALSE if all is OK
-*/
-
-int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-                Item **conds)
-{
-  SELECT_LEX *select_lex= thd->lex->current_select();
-  TABLE_LIST *table= NULL;	// For HP compilers
-  /*
-    it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
-    which belong to LEX, i.e. most up SELECT) will be updated by
-    INSERT/UPDATE/LOAD
-    NOTE: using this condition helps to prevent call of prepare_check_option()
-    from subquery of VIEW, because tables of subquery belongs to VIEW
-    (see condition before prepare_check_option() call)
-  */
-  bool it_is_update= (select_lex == thd->lex->select_lex) &&
-    thd->lex->which_check_option_applicable();
-  bool save_is_item_list_lookup= select_lex->is_item_list_lookup;
-  select_lex->is_item_list_lookup= 0;
-  DBUG_ENTER("setup_conds");
-
-  thd->mark_used_columns= MARK_COLUMNS_READ;
-  DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
-  select_lex->cond_count= 0;
-  select_lex->between_count= 0;
-  select_lex->max_equal_elems= 0;
-
-  for (table= tables; table; table= table->next_local)
-  {
-    select_lex->resolve_place= st_select_lex::RESOLVE_CONDITION;
-    /*
-      Walk up tree of join nests and try to find outer join nest.
-      This is needed because simplify_joins() has not yet been called,
-      and hence inner join nests have not yet been removed.
-    */
-    for (TABLE_LIST *embedding= table;
-         embedding;
-         embedding= embedding->embedding)
-    {
-      if (embedding->outer_join)
-      {
-        /*
-          The join condition belongs to an outer join next.
-          Record this fact and the outer join nest for possible transformation
-          of subqueries into semi-joins.
-        */  
-        select_lex->resolve_place= st_select_lex::RESOLVE_JOIN_NEST;
-        select_lex->resolve_nest= embedding;
-        break;
-      }
-    }
-    if (table->prepare_where(thd, conds, FALSE))
-      goto err_no_arena;
-    select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
-    select_lex->resolve_nest= NULL;
-  }
-
-  if (*conds)
-  {
-    select_lex->resolve_place= st_select_lex::RESOLVE_CONDITION;
-    thd->where="where clause";
-    if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
-	(*conds)->check_cols(1))
-      goto err_no_arena;
-    select_lex->where= *conds;
-    select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
-  }
-
-  /*
-    Apply fix_fields() to all ON clauses at all levels of nesting,
-    including the ones inside view definitions.
-  */
-  for (table= leaves; table; table= table->next_leaf)
-  {
-    TABLE_LIST *embedded; /* The table at the current level of nesting. */
-    TABLE_LIST *embedding= table; /* The parent nested table reference. */
-    do
-    {
-      embedded= embedding;
-      if (embedded->join_cond())
-      {
-        /* Make a join an a expression */
-        select_lex->resolve_place= st_select_lex::RESOLVE_JOIN_NEST;
-        select_lex->resolve_nest= embedded;
-        thd->where="on clause";
-        if ((!embedded->join_cond()->fixed &&
-           embedded->join_cond()->fix_fields(thd, embedded->join_cond_ref())) ||
-	   embedded->join_cond()->check_cols(1))
-	  goto err_no_arena;
-        select_lex->cond_count++;
-        select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
-        select_lex->resolve_nest= NULL;
-      }
-      embedding= embedded->embedding;
-    }
-    while (embedding &&
-           embedding->nested_join->join_list.head() == embedded);
-
-    /* process CHECK OPTION */
-    if (it_is_update)
-    {
-      TABLE_LIST *view= table->top_table();
-      if (view->effective_with_check)
-      {
-        if (view->prepare_check_option(thd))
-          goto err_no_arena;
-        thd->change_item_tree(&table->check_option, view->check_option);
-      }
-    }
-  }
-
-  thd->lex->current_select()->is_item_list_lookup= save_is_item_list_lookup;
-  DBUG_RETURN(MY_TEST(thd->is_error()));
-
-err_no_arena:
-  select_lex->is_item_list_lookup= save_is_item_list_lookup;
-  DBUG_RETURN(1);
-}
-
-
 /******************************************************************************
 ** Fill a record with data (for INSERT or UPDATE)
 ** Returns : 1 if some field has wrong type
@@ -8920,7 +8779,7 @@ static bool check_record(THD *thd, List<Item> &fields, bool ignore_errors)
 
   @return Error status.
 */
-static bool check_record(THD *thd, Field **ptr)
+bool check_record(THD *thd, Field **ptr)
 {
   Field *field;
   while ((field = *ptr++) && !thd->is_error())

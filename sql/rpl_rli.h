@@ -249,6 +249,8 @@ private:
   bool rli_fake;
   /* Last gtid retrieved by IO thread */
   Gtid last_retrieved_gtid;
+  /* Flag that ensures the retrieved GTID set is initialized only once. */
+  bool gtid_retrieved_initialized;
 
 public:
   Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }

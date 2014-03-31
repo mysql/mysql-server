@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,6 +115,8 @@
 */
 #define OPTION_ALLOW_BATCH              (ULL(1) << 36) // THD, intern (slave)
 
+#define SELECT_MAX_STATEMENT_TIME       (ULL(1) << 37) // SELECT, user
+
 /*
   Check how many bytes are available on buffer.
 
@@ -128,7 +130,7 @@ template <class T> T available_buffer(const char* buf_start,
                                       const char* buf_current,
                                       T buf_len)
 {
-  return buf_len - (buf_current - buf_start);
+  return static_cast<T>(buf_len - (buf_current - buf_start));
 }
 
 /*
@@ -177,7 +179,8 @@ template <class T> bool valid_buffer_range(T jump,
 #define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
 #define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED       (1ULL << 14)
 #define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 15)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 16)
+#define OPTIMIZER_SWITCH_COND_FANOUT_FILTER        (1ULL << 16)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 17)
 
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -193,7 +196,8 @@ template <class T> bool valid_buffer_range(T jump,
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
                                   OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
-                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
+                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS | \
+                                  OPTIMIZER_SWITCH_COND_FANOUT_FILTER)
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should
@@ -220,7 +224,7 @@ template <class T> bool valid_buffer_range(T jump,
 */ 
 #define CONTEXT_ANALYSIS_ONLY_PREPARE 1
 /*
-  Special JOIN::prepare mode: changing of query is prohibited.
+  Special SELECT_LEX::prepare mode: changing of query is prohibited.
   When creating a view, we need to just check its syntax omitting
   any optimizations: afterwards definition of the view will be
   reconstructed by means of ::print() methods and written to
