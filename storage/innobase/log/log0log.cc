@@ -407,6 +407,11 @@ log_close(void)
 	checkpoint_age = lsn - log->last_checkpoint_lsn;
 
 	if (checkpoint_age >= log->log_group_capacity) {
+		/* TODO: split btr_store_big_rec_extern_fields() into small
+		steps so that we can release all latches in the middle, and
+		call log_free_check() to ensure we never write over log written
+		after the latest checkpoint. In principle, we should split all
+		big_rec operations, but other operations are smaller. */
 
 		if (!log_has_printed_chkp_warning
 		    || difftime(time(NULL), log_last_warning_time) > 15) {
@@ -417,7 +422,11 @@ log_close(void)
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"The age of the last checkpoint is"
 				" " LSN_PF ", which exceeds the log group"
-				" capacity " LSN_PF ".", checkpoint_age,
+				" capacity " LSN_PF ".  If you are using"
+				" big BLOB or TEXT rows, you must set the"
+				" combined size of log files at least 10"
+				" times bigger than the largest such row.",
+				checkpoint_age,
 				log->log_group_capacity);
 		}
 	}

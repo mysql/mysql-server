@@ -1588,6 +1588,8 @@ fsp_free_page(
 			    mtr);
 		fsp_free_extent(page_id, page_size, mtr);
 	}
+
+	mtr->add_freed_pages();
 }
 
 /** Returns an extent to the free list of a space.
@@ -3229,6 +3231,8 @@ crash:
 			    descr + XDES_FLST_NODE, mtr);
 		fsp_free_extent(page_id, page_size, mtr);
 	}
+
+	mtr->add_freed_pages();
 }
 
 /**********************************************************************//**
