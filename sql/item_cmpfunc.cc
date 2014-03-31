@@ -4866,7 +4866,6 @@ void Item_func_in::fix_length_and_dec()
     if (cmp_type == STRING_RESULT && 
         agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
       return;
-    arg_types_compatible= TRUE;
     /*
       When comparing rows create the row comparator object beforehand to ease
       the DATETIME comparison detection procedure.

@@ -1547,18 +1547,13 @@ public:
     NULL.
   */
   bool have_null;
-  /**
-    true when all arguments of the IN list are of compatible types
-    and can be used safely as comparisons for key conditions
-  */
-  bool arg_types_compatible;
   Item_result left_result_type;
   cmp_item *cmp_items[6]; /* One cmp_item for each result type */
   DTCollation cmp_collation;
 
   Item_func_in(const POS &pos, PT_item_list *list, bool is_negation)
     :Item_func_opt_neg(pos, list, is_negation), array(NULL),
-    have_null(false), arg_types_compatible(false)
+    have_null(false)
   {
     memset(&cmp_items, 0, sizeof(cmp_items));
     allowed_arg_cols= 0;  // Fetch this value from first argument
