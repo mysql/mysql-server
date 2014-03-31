@@ -97,7 +97,7 @@ PATENT RIGHTS GRANT:
 #endif
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-// mariadb 10
+// mariadb 10.0
 #define TOKU_USE_DB_TYPE_TOKUDB 1
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
@@ -110,21 +110,35 @@ PATENT RIGHTS GRANT:
 
 #elif 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
 // mysql 5.7 with no patches
+#if TOKUDB_NOPATCH_CONFIG
 #define TOKU_USE_DB_TYPE_UNKNOWN 1
 #define TOKU_INCLUDE_ALTER_56 1
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
+#else
+#error
+#endif
 
 #elif 50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-// mysql 5.6
-#define TOKU_USE_DB_TYPE_TOKUDB 1
+// mysql 5.6 with no patches
+#if TOKUDB_NOPATCH_CONFIG
+#define TOKU_USE_DB_TYPE_UNKNOWN 1
+#define TOKU_INCLUDE_ALTER_56 1    
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
+#define TOKU_INCLUDE_XA 0
+#define TOKU_PARTITION_WRITE_FRM_DATA 0
+#else
+// mysql 5.6 with tokutek patches
+#define TOKU_USE_DB_TYPE_TOKUDB 1           /* has DB_TYPE_TOKUDB patch */
 #define TOKU_INCLUDE_ALTER_56 1
-#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
-#define TOKU_INCLUDE_XA 1
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1 /* has tokudb row format compression patch */
+#define TOKU_INCLUDE_XA 1                   /* has patch that fixes TC_LOG_MMAP code */
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
 #define TOKU_INCLUDE_WRITE_FRM_DATA 0
-#define TOKU_INCLUDE_UPSERT 1
+#define TOKU_INCLUDE_UPSERT 1               /* has tokudb upsert patch */
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
+#endif
 #endif
 
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
