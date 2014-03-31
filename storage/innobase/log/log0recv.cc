@@ -2116,6 +2116,7 @@ recv_parse_log_rec(
 
 	switch (*ptr) {
 #ifdef UNIV_LOG_LSN_DEBUG
+	case MLOG_LSN | MLOG_SINGLE_REC_FLAG:
 	case MLOG_LSN:
 		new_ptr = mlog_parse_initial_log_record(
 			ptr, end_ptr, type, space, page_no);
@@ -2125,7 +2126,7 @@ recv_parse_log_rec(
 			ut_a(lsn == recv_sys->recovered_lsn);
 		}
 
-		*type = static_cast<mlog_id_t>(*ptr);
+		*type = MLOG_LSN;
 		return(new_ptr - ptr);
 #endif /* UNIV_LOG_LSN_DEBUG */
 	case MLOG_MULTI_REC_END:
