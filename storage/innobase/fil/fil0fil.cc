@@ -2050,7 +2050,7 @@ fil_create_directory_for_tablename(
 
 #ifndef UNIV_HOTBACKUP
 /** Write a log record about an operation on a tablespace file.
-@param[in]	type		MLOG_FILE_NAME or MLOG_FILE_DELETE2
+@param[in]	type		MLOG_FILE_NAME or MLOG_FILE_DELETE
 or MLOG_FILE_RENAME2
 @param[in]	space_id	tablespace identifier
 @param[in]	first_page_no	first page number in the file
