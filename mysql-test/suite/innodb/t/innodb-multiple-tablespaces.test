@@ -140,6 +140,7 @@ INSERT INTO nolink VALUES (1, 'no link file');
 
 --echo # YNY; Tablespace found in default and new_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd $MYSQLD_DATADIR/test/yny.ibd
+# move_file can fail on Windows PB2; using copy_file and remove_file instead.
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd $MYSQL_TMP_DIR/new_dir/test/yny.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd
 --exec echo $MYSQL_TMP_DIR/new_dir/test/yny.ibd > $MYSQLD_DATADIR/test/yny.isl
@@ -406,11 +407,13 @@ COMMIT;
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak $MYSQLD_DATADIR/test/wy.ibd
 
 --echo # YW; Tablespace is found in the default directory but the wrong file in alt_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 
 --echo # YN; Tablespace found the default directory but not in alt_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd
 
 --echo # YY; Found in both default directory and alt-dir.
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yy.ibd $MYSQLD_DATADIR/test/yy.ibd
@@ -428,9 +431,9 @@ let $mysqld=$MYSQLD_CMD --console > $SEARCH_FILE 2>&1;
 --error 1
 --exec $mysqld
 
-let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at $MYSQL_TMP_DIR/alt_dir/test/yn\.ibd\.;
+let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*alt_dir.test.yn\.ibd\.;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at $MYSQL_TMP_DIR/alt_dir/test/yw\.ibd\.;
+let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*alt_dir.test.yw\.ibd\.;
 --source include/search_pattern_in_file.inc
 
 --echo # restoring yn.ibd, yw.ibd
