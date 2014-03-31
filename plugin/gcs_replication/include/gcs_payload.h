@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,8 +34,9 @@ namespace GCS
 typedef enum enum_payload_type
 {
   PAYLOAD_TRANSACTION_EVENT, // WL#6822
+  PAYLOAD_RECOVERY_EVENT,    // recovery generated message
   PAYLOAD_STATE_EXCHANGE,    // WL#7332
-  PAYLOAD_END                // dummy, non informative
+  PAYLOAD_END                // enum end
 } Payload_code;
 
 class MessageBuffer;

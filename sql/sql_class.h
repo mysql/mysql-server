@@ -89,6 +89,7 @@ class Load_log_event;
 class sp_rcontext;
 class sp_cache;
 class Parser_state;
+class Log_event;
 class Rows_log_event;
 class Sroutine_hash_entry;
 class User_level_lock;
@@ -1906,6 +1907,17 @@ public:
             binlog_flush_pending_rows_event(stmt_end, TRUE));
   }
   int binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional);
+
+  /**
+    Member functions to handle direct write to the log
+
+    @param event the event to be written
+
+    @return the operation status
+      @retval 0      write successful
+      @retval !=0    error on write
+  */
+  int binlog_write_event(Log_event *event);
 
   /**
     Determine the binlog format of the current statement.

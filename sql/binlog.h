@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -615,6 +615,16 @@ public:
   void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
+  /**
+    Method to write events directly to the binlog with no cache use.
+
+    @param event the event to be written
+
+    @return the operation status
+      @retval 0      write successful
+      @retval !=0    error on write
+  */
+  int binlog_write_event_into_file(Log_event *event);
 
 #endif /* !defined(MYSQL_CLIENT) */
   void add_bytes_written(ulonglong inc)

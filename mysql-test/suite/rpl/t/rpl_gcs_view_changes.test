@@ -35,28 +35,22 @@ if (`select view_id <> 0 from performance_schema.replication_connection_status`)
     --die
 }
 
-CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually until certification WL#7334 is fixed
-
 --connection server2
 --source include/install_gcs_replication.inc
 call mtr.add_suppression("could not form the cluster");
 call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
-
-CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
 
 --connection server3
 --source include/install_gcs_replication.inc
 call mtr.add_suppression("could not form the cluster");
 call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 
-CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
-
 --connection server4
 --source include/install_gcs_replication.inc
 call mtr.add_suppression("could not form the cluster");
 call mtr.add_suppression("re-joins the cluster, distributed recovery must follow");
 
-CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB; #manually
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 #
 # Part I.
@@ -109,7 +103,7 @@ while($restart_cnt)
     START GCS_REPLICATION;
 
     --connection server$s_id2
-    START GCS_REPLICATION;
+    --source include/start_gcs_replication.inc
 
     let $wait_condition= select number_of_nodes = 4 from performance_schema.replication_connection_status;
     --source include/wait_condition.inc
@@ -119,6 +113,16 @@ while($restart_cnt)
 --let $include_silent= 0
 --enable_result_log
 --enable_query_log
+
+#Check if all nodes are online
+--let $s_cnt=4
+while ($s_cnt)
+{
+    --connection server$s_cnt
+    let $wait_condition= select node_state="ONLINE" from performance_schema.replication_connection_nodes;
+    --source include/wait_condition.inc
+    --dec $s_cnt
+}
 
 #
 # Part II.
@@ -141,7 +145,6 @@ let $wait_condition= select number_of_nodes = 3 from performance_schema.replicat
 let $wait_condition= select number_of_nodes = 2 from performance_schema.replication_connection_status;
 --source include/wait_condition.inc
 
-#
 # end of forming.
 
 --connection server1
@@ -277,14 +280,15 @@ while ($s_cnt)
 #
 #  Cleanup
 #
+DROP TABLE t1;
+sleep 5;
+
 --let $s_cnt=4
 while ($s_cnt)
 {
-    --connection server$s_cnt
-    --source include/stop_gcs_replication.inc
-    DROP TABLE t1;  # manual removal until certification is fixed
-    --source include/uninstall_gcs_replication.inc
-
-    dec $s_cnt;
+  --connection server$s_cnt
+  --source include/stop_gcs_replication.inc
+  --source include/uninstall_gcs_replication.inc
+  dec $s_cnt;
 }
 

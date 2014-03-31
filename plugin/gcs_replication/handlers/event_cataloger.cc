@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,23 +33,22 @@ Event_cataloger::terminate()
 int
 Event_cataloger::handle(PipelineEvent *pevent, Continuation* cont)
 {
-  Packet *packet= NULL;
-
-  pevent->get_Packet(&packet);
-
-  Log_event_type event_type= (Log_event_type) packet->payload[EVENT_TYPE_OFFSET];
+  Log_event_type event_type= pevent->get_event_type();
 
   if (event_type == TRANSACTION_CONTEXT_EVENT)
   {
     pevent->mark_event(TRANSACTION_BEGIN);
   }
   else
+  {
     pevent->mark_event(UNMARKED_EVENT);
+  }
 
   //Check if the current transaction was discarded
   if (cont->is_transaction_discarded())
   {
-    if (pevent->get_event_context() == TRANSACTION_BEGIN)
+    if (pevent->get_event_context() == TRANSACTION_BEGIN ||
+        pevent->get_event_type() == VIEW_CHANGE_EVENT)
     {
       //a new transaction begins
       cont->set_transation_discarded(false);

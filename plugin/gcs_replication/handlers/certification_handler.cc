@@ -14,21 +14,20 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "certification_handler.h"
-#include "../gcs_certifier.h"
 #include "../gcs_commit_validation.h"
-#include "../gcs_plugin_utils.h"
 #include "../observer_trans.h"
 #include <gcs_replication.h>
 
-Certifier* cert_map= NULL;
-Certification_handler::Certification_handler(): seq_number(0)
+
+Certification_handler::Certification_handler()
+  :cert_module(NULL), seq_number(0)
 {}
 
 int
 Certification_handler::initialize()
 {
-  cert_map= new Certifier();
-  if(cert_map)
+  cert_module= new Certifier();
+  if(cert_module != NULL)
     return 0;
   return 1;
 }
@@ -36,8 +35,6 @@ Certification_handler::initialize()
 int
 Certification_handler::terminate()
 {
-  if(cert_map != NULL)
-    delete cert_map;
   return 0;
 }
 
@@ -45,9 +42,8 @@ int
 Certification_handler::handle(PipelineEvent *pevent, Continuation* cont)
 {
   DBUG_ENTER("Certification_handler::handle");
-  Packet *packet= NULL;
-  pevent->get_Packet(&packet);
-  Log_event_type ev_type= (Log_event_type) packet->payload[EVENT_TYPE_OFFSET];
+
+  Log_event_type ev_type= pevent->get_event_type();
 
   switch (ev_type)
   {
@@ -55,6 +51,8 @@ Certification_handler::handle(PipelineEvent *pevent, Continuation* cont)
       DBUG_RETURN(certify(pevent, cont));
     case GTID_LOG_EVENT:
       DBUG_RETURN(inject_gtid(pevent, cont));
+    case VIEW_CHANGE_EVENT:
+      DBUG_RETURN(extract_certification_db(pevent, cont));
     default:
       next(pevent, cont);
       DBUG_RETURN(0);
@@ -69,7 +67,7 @@ Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
   pevent->get_LogEvent(&event);
 
   Transaction_context_log_event *tcle= (Transaction_context_log_event*) event;
-  rpl_gno seq_number= cert_map->certify(tcle);
+  rpl_gno seq_number= cert_module->certify(tcle);
 
   // FIXME: This needs to be improved before 0.2
   if (!strncmp(tcle->get_server_uuid(), server_uuid, UUID_LENGTH))
@@ -149,6 +147,35 @@ Certification_handler::inject_gtid(PipelineEvent *pevent, Continuation *cont)
   next(pevent, cont);
 
   DBUG_RETURN(0);
+}
+
+int
+Certification_handler::extract_certification_db(PipelineEvent *pevent,
+                                                Continuation *cont)
+{
+  DBUG_ENTER("Certification_handler::extract_certification_db");
+  Log_event *event= NULL;
+  pevent->get_LogEvent(&event);
+  View_change_log_event *vchange_event= (View_change_log_event*)event;
+
+  rpl_gno sequence_number= 0;
+  std::map<std::string, rpl_gno> *cert_db= NULL;
+  cert_module->get_certification_info(&cert_db, &sequence_number);
+
+  vchange_event->set_certification_db_snapshot(cert_db);
+  vchange_event->set_seq_number(sequence_number);
+
+  next(pevent, cont);
+  DBUG_RETURN(0);
+}
+
+void
+Certification_handler::set_certification_info(std::map<std::string,rpl_gno>* cert_db,
+                                              rpl_gno seq_number)
+{
+  DBUG_ENTER("Certification_handler::set_certification_db");
+  cert_module->set_certification_info(cert_db, seq_number);
+  DBUG_VOID_RETURN;
 }
 
 bool Certification_handler::is_unique()

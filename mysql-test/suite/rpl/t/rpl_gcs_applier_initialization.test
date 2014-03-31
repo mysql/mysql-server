@@ -9,6 +9,7 @@
 
 call mtr.add_suppression("An handler, marked as unique *.*");
 call mtr.add_suppression("Cannot start the applier as a *.*");
+call mtr.add_suppression("On shutdown there was a timeout on the applier *.*");
 
 --let $gcs_group_name= 2d249320-2e06-11e3-aa6e-0800200c9a66
 --eval SET GLOBAL gcs_replication_plugin_group_name= "$gcs_group_name"
@@ -27,10 +28,10 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/start_gcs_replication.inc
 
 #Set the timeout to the minimum value: 2
---eval SET GLOBAL gcs_replication_plugin_stop_applier_timeout= 2
+--eval SET GLOBAL gcs_replication_plugin_components_stop_timeout= 2
 
---let $assert_text= The value of stop_applier_timeout should be 2
---let $assert_cond= [SELECT @@gcs_replication_plugin_stop_applier_timeout] = 2
+--let $assert_text= The value of stop_components_timeout should be 2
+--let $assert_cond= [SELECT @@gcs_replication_plugin_components_stop_timeout] = 2
 --source include/assert.inc
 
 SET @@GLOBAL.DEBUG= 'd,applier_thd_timeout';

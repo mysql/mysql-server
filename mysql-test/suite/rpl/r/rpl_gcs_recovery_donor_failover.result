@@ -1,0 +1,43 @@
+include/have_gcs_replication_plugin.inc
+#
+# Setup a new 2 node cluster
+#
+include/install_gcs_replication.inc
+include/start_gcs_replication.inc
+include/rpl_gcs_wait_for_number_of_nodes.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/install_gcs_replication.inc
+include/start_gcs_replication.inc
+include/rpl_gcs_wait_for_number_of_nodes.inc
+#
+# Start recovery on a new node and kill the donor
+#
+SET @debug_save= @@GLOBAL.DEBUG;
+include/install_gcs_replication.inc
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
+SET GLOBAL gcs_replication_plugin_group_name= "55d07150-9a4d-11e3-a5e2-0800200c9a66";
+START GCS_REPLICATION;
+include/rpl_gcs_wait_for_node_state.inc
+# Stop gcs replication on node 1 making it leave the cluster
+include/stop_gcs_replication.inc
+# Unblock recovery and watch the node go online despite the donor exit
+SET @@GLOBAL.DEBUG= @debug_save;
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+include/rpl_gcs_wait_for_node_state.inc
+include/assert.inc [On the recovered node, the table should exist and have 1 elements;]
+include/assert.inc [On the recovered node, the executed GTID should be the same as on server 1]
+#
+# Cleaning up
+#
+include/start_gcs_replication.inc
+DROP TABLE t1;
+server3
+include/stop_gcs_replication.inc
+include/uninstall_gcs_replication.inc
+server2
+include/stop_gcs_replication.inc
+include/uninstall_gcs_replication.inc
+server1
+include/stop_gcs_replication.inc
+include/uninstall_gcs_replication.inc

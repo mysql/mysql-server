@@ -404,6 +404,8 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
     }
   case ROTATE_EVENT:
     DBUG_RETURN(false);
+  case VIEW_CHANGE_EVENT:
+    DBUG_RETURN(false);
   }
   DBUG_RETURN(in_exclude_group);
 }

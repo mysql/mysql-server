@@ -853,6 +853,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case PREVIOUS_GTIDS_LOG_EVENT: return "Previous_gtids";
   case HEARTBEAT_LOG_EVENT: return "Heartbeat";
   case TRANSACTION_CONTEXT_EVENT: return "Transaction_context";
+  case VIEW_CHANGE_EVENT: return "View_change";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -1825,6 +1826,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case TRANSACTION_CONTEXT_EVENT:
       ev = new Transaction_context_log_event(buf, event_len, description_event);
+      break;
+    case VIEW_CHANGE_EVENT:
+      ev = new View_change_log_event(buf, event_len, description_event);
       break;
 #endif
     default:
@@ -5667,6 +5671,8 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[PREVIOUS_GTIDS_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[TRANSACTION_CONTEXT_EVENT-1]=
         Transaction_context_log_event::POST_HEADER_LENGTH;
+      post_header_len[VIEW_CHANGE_EVENT-1]=
+        View_change_log_event::POST_HEADER_LENGTH;
 
       // Sanity-check that all post header lengths are initialized.
       int i;
@@ -14213,6 +14219,218 @@ void Transaction_context_log_event::add_read_set(const char *hash)
 {
   DBUG_ENTER("Transaction_context_log_event::add_read_set");
   read_set.push_back(hash);
+  DBUG_VOID_RETURN;
+}
+
+/**************************************************************************
+	View_change_log_event methods
+**************************************************************************/
+
+#ifndef MYSQL_CLIENT
+View_change_log_event::View_change_log_event(ulonglong view_id)
+  : Log_event(Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
+    view_id(view_id)
+{
+  DBUG_ENTER("View_change_log_event::View_change_log_event(ulonglong)");
+  DBUG_VOID_RETURN;
+}
+#endif
+
+View_change_log_event::View_change_log_event(const char *buffer,
+                                             uint event_len,
+                                             const Format_description_log_event *descr_event)
+  : Log_event(buffer, descr_event)
+{
+  DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"
+             " uint, const Format_description_log_event*)");
+
+  const char* data_header = buffer + descr_event->common_header_len;
+
+  view_id= uint8korr(data_header + ENCODED_VIEW_ID_OFFSET);
+  seq_number= uint8korr(data_header + ENCODED_SEQ_NUMBER_OFFSET);
+  uint cert_db_len= uint4korr(data_header + ENCODED_CERT_DB_SIZE_OFFSET);
+  char *pos = (char*) data_header + POST_HEADER_LENGTH;
+
+  pos= read_data_map(pos, cert_db_len, &cert_db);
+  if (pos == NULL)
+    goto err;
+
+  DBUG_VOID_RETURN;
+
+err:
+  // Make is_valid() return false.
+  view_id= -1;
+  DBUG_VOID_RETURN;
+}
+
+View_change_log_event::~View_change_log_event()
+{
+  DBUG_ENTER("View_change_log_event::~View_change_log_event");
+  DBUG_VOID_RETURN;
+}
+
+int View_change_log_event::get_data_size()
+{
+  DBUG_ENTER("View_change_log_event::get_data_size");
+
+  int size= POST_HEADER_LENGTH;
+  size+= get_map_data_size(&cert_db);
+
+  DBUG_RETURN(size);
+}
+
+int
+View_change_log_event::get_map_data_size(std::map<std::string, rpl_gno> *map)
+{
+  DBUG_ENTER("View_change_log_event::get_map_data_size");
+  int size= 0;
+
+  std::map<std::string, rpl_gno>::iterator iter;
+  size+= (ENCODED_CERT_DB_KEY_SIZE_LEN +
+          ENCODED_CERT_DB_VALUE_LEN) * map->size();
+  for (iter= map->begin(); iter!= map->end(); iter++)
+    size+= iter->first.length();
+
+  DBUG_RETURN(size);
+}
+
+size_t View_change_log_event::to_string(char *buf, ulong len) const
+{
+  DBUG_ENTER("View_change_log_event::to_string");
+  DBUG_RETURN(my_snprintf(buf, len, "view_id=%llu", view_id));
+}
+
+#ifndef MYSQL_CLIENT
+int View_change_log_event::pack_info(Protocol *protocol)
+{
+  DBUG_ENTER("View_change_log_event::pack_info");
+  char buf[256];
+  size_t bytes= to_string(buf, 256);
+  protocol->store(buf, bytes, &my_charset_bin);
+  DBUG_RETURN(0);
+}
+#endif
+
+#ifdef MYSQL_CLIENT
+void View_change_log_event::print(FILE *file,
+                                  PRINT_EVENT_INFO *print_event_info)
+{
+  DBUG_ENTER("View_change_log_event::print");
+  char buf[256];
+  IO_CACHE *const head= &print_event_info->head_cache;
+
+  if (!print_event_info->short_form)
+  {
+    to_string(buf, 256);
+    print_header(head, print_event_info, FALSE);
+    my_b_printf(head, "View_change_log_event: %s\n", buf);
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+
+ int View_change_log_event::do_apply_event(Relay_log_info const *rli)
+ {
+   return thd->binlog_write_event(this);
+ }
+
+int View_change_log_event::do_update_pos(Relay_log_info *rli)
+{
+  DBUG_ENTER("View_change_log_event::do_update_pos");
+  rli->inc_event_relay_log_pos();
+  DBUG_RETURN(0);
+}
+#endif
+
+#ifndef MYSQL_CLIENT
+bool View_change_log_event::write_data_header(IO_CACHE* file){
+  DBUG_ENTER("View_change_log_event::write_data_header");
+  char buf[POST_HEADER_LENGTH];
+  int8store(buf + ENCODED_VIEW_ID_OFFSET, view_id);
+  int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
+  int4store(buf + ENCODED_CERT_DB_SIZE_OFFSET, cert_db.size());
+  DBUG_RETURN(wrapper_my_b_safe_write(file,
+                                      (const uchar *) buf,
+                                      POST_HEADER_LENGTH));
+}
+
+bool View_change_log_event::write_data_body(IO_CACHE* file){
+  DBUG_ENTER("Transaction_context_log_event::write_data_body");
+
+  if (write_data_map(file, &cert_db))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+bool View_change_log_event::write_data_map(IO_CACHE* file,
+                                           std::map<std::string, rpl_gno> *map)
+{
+  DBUG_ENTER("View_change_log_event::write_data_set");
+
+  std::map<std::string, rpl_gno>::iterator iter;
+  int i= 0;
+  for (iter= map->begin(); iter!= map->end(); iter++)
+  {
+
+    char buf[ENCODED_CERT_DB_KEY_SIZE_LEN + ENCODED_CERT_DB_VALUE_LEN];
+    uint16 len= iter->first.length();
+    int2store(buf, len);
+    int8store(buf+ENCODED_CERT_DB_KEY_SIZE_LEN, iter->second);
+
+    if (wrapper_my_b_safe_write(file, (const uchar*) buf,
+                                ENCODED_CERT_DB_KEY_SIZE_LEN +
+                                ENCODED_CERT_DB_VALUE_LEN) ||
+        wrapper_my_b_safe_write(file, (const uchar*) iter->first.c_str(), len))
+      DBUG_RETURN(true);
+    i++;
+  }
+
+  DBUG_RETURN(false);
+}
+
+#endif
+
+char *View_change_log_event::read_data_map(char *pos,
+                                           uint map_len,
+                                           std::map<std::string, rpl_gno> *map)
+{
+  DBUG_ENTER("Transaction_context_log_event::read_data_set");
+
+  for (uint i=0; i < map_len; i++)
+  {
+
+    uint16 len= uint2korr(pos);
+    pos+= ENCODED_CERT_DB_KEY_SIZE_LEN;
+    rpl_gno value= uint8korr(pos);
+    pos+= ENCODED_CERT_DB_VALUE_LEN;
+    char *hash= my_strndup(key_memory_log_event,
+                           pos, len, MYF(MY_WME));
+    if (hash == NULL)
+      DBUG_RETURN(NULL);
+    std::string key(hash);
+    pos+= len;
+    (*map)[key]= value;
+  }
+  DBUG_RETURN(pos);
+}
+
+void
+View_change_log_event::set_certification_db_snapshot(std::map<std::string,rpl_gno> *db)
+{
+  DBUG_ENTER("View_change_log_event::set_certification_database_snapshot");
+
+  cert_db.clear();
+
+  std::map<std::string, rpl_gno>::iterator iter;
+
+  for (iter= db->begin(); iter!= db->end(); iter++) {
+    std::string key= iter->first;
+    cert_db[key]=  iter->second;
+  }
+
   DBUG_VOID_RETURN;
 }
 

@@ -20,34 +20,57 @@
 #include "rpl_reporting.h"
 #include "log.h"
 
-/**
-  @enum event_modifier
-  Enumeration type for the different kinds of event modifiers.
-*/
-enum enum_event_modifier
-{
-  UNDEFINED=0,       //no info available
-  TRANSACTION_BEGIN, //transaction start event
-  TRANSACTION_END,   //transaction end event
-  UNMARKED_EVENT     //transaction regular event
-};
+//Define the data packet type
+#define DATA_PACKET_TYPE  1
 
 /**
   @class Packet
 
-  A wrapper for raw network packets.
+  A generic interface for different kinds of packets.
 */
 class Packet
 {
 public:
 
   /**
-    Create a new packet wrapper.
+   Create a new generic packet of a certain type.
+
+   @param[in]  type             the packet type
+  */
+  Packet(int type)
+    :packet_type(type)
+  {
+  }
+
+  /**
+   @return the packet type
+  */
+  int get_packet_type()
+  {
+    return packet_type;
+  }
+
+private:
+  int packet_type;
+};
+
+/**
+  @class Data packet
+
+  A wrapper for raw network packets.
+*/
+class Data_packet: public Packet
+{
+public:
+
+  /**
+    Create a new data packet wrapper.
 
     @param[in]  data             the packet data
     @param[in]  len              the packet length
   */
-  Packet(uchar *data, uint len) :len(len)
+  Data_packet(uchar *data, uint len)
+    : Packet(DATA_PACKET_TYPE), payload(NULL), len(len)
   {
     payload= (uchar*)my_malloc(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -57,13 +80,27 @@ public:
     memcpy(payload, data, len);
   }
 
-  ~Packet()
+  ~Data_packet()
   {
-    my_free(payload);
+    if (payload != NULL)
+      my_free(payload);
   }
 
   uchar *payload;
   uint  len;
+};
+
+/**
+  @enum event_modifier
+  Enumeration type for the different kinds of event modifiers.
+  TODO: This should be a distinct enum created by whomever uses this
+*/
+enum enum_event_modifier
+{
+  UNDEFINED=0,       //no info available
+  TRANSACTION_BEGIN, //transaction start event
+  TRANSACTION_END,   //transaction end event
+  UNMARKED_EVENT     //transaction regular event
 };
 
 /**
@@ -92,7 +129,7 @@ public:
     @param[in]  fde_event        the format description event for conversions
     @param[in]  modifier         the event modifier
   */
-  PipelineEvent(Packet *base_packet,
+  PipelineEvent(Data_packet *base_packet,
                 Format_description_log_event *fde_event,
                 enum_event_modifier modifier= UNDEFINED)
     :packet(base_packet), log_event(NULL), event_context(modifier),
@@ -183,7 +220,7 @@ public:
 
     @param[in]  in_packet    the given packet
   */
-  void set_Packet(Packet *in_packet)
+  void set_Packet(Data_packet *in_packet)
   {
      packet= in_packet;
   }
@@ -198,7 +235,7 @@ public:
       @retval 0      OK
       @retval !=0    error on conversion
   */
-  int get_Packet(Packet **out_packet)
+  int get_Packet(Data_packet **out_packet)
   {
      if (packet == NULL)
        if (int error= convert_log_event_to_packet())
@@ -206,6 +243,20 @@ public:
      *out_packet= packet;
      return 0;
   }
+
+  /**
+    Returns the event type.
+    Be it a Log_event or Packet, it's marked with a type we can extract.
+
+    @return the pipeline event type
+  */
+  Log_event_type get_event_type()
+  {
+    if (packet != NULL)
+      return (Log_event_type) packet->payload[EVENT_TYPE_OFFSET];
+    else
+      return log_event->get_type_code();
+   }
 
   /**
     Sets the event context flag.
@@ -330,7 +381,7 @@ private:
       sql_print_error("Unable to convert the event into a packet on the applier!"
                       " Error: %d\n", error);
     }
-    packet= new Packet((uchar*)packet_data.ptr(), packet_data.length());
+    packet= new Data_packet((uchar*)packet_data.ptr(), packet_data.length());
 
     close_cached_file(&cache);
 
@@ -341,7 +392,7 @@ private:
   }
 
 private:
-  Packet                       *packet;
+  Data_packet                  *packet;
   Log_event                    *log_event;
   enum_event_modifier          event_context;
   //Error buffer used on conversions

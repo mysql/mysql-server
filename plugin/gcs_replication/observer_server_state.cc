@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,8 @@ int gcs_after_engine_recovery(Server_state_param *param)
     int error= 0;
 
     wait_on_engine_initialization= false;
-    if ((error= configure_and_start_applier()))
+
+    if ((error= configure_and_start_applier_module()))
       return error;
 
     if ((error= configure_and_start_gcs()))
@@ -49,7 +50,7 @@ int gcs_after_engine_recovery(Server_state_param *param)
       //terminate the before created pipeline
       log_message(MY_ERROR_LEVEL,
                   "Error on gcs initialization methods, killing the applier");
-      applier->terminate_applier_thread();
+      applier_module->terminate_applier_thread();
       return error;
     }
 

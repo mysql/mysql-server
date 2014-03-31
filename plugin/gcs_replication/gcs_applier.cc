@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,12 +14,16 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "gcs_applier.h"
+#include "handlers/certification_handler.h"
 #include <mysqld.h>
 #include <mysqld_thd_manager.h>  // Global_THD_manager
 #include <thr_alarm.h>
 #include <rpl_slave.h>
 #include <gcs_replication.h>
 #include <debug_sync.h>
+
+#define APPLIER_GTID_CHECK_TIMEOUT_ERROR -1
+#define APPLIER_RELAY_LOG_NOT_INITED -2
 
 static void *launch_handler_thread(void* arg)
 {
@@ -29,19 +33,22 @@ static void *launch_handler_thread(void* arg)
 }
 
 Applier_module::Applier_module()
-  :applier_running(false), applier_aborted(false), incoming(NULL),
-   pipeline(NULL), fde_evt(BINLOG_VERSION), stop_wait_timeout(LONG_TIMEOUT)
+  :applier_running(false), applier_aborted(false), suspended(false),
+   waiting_for_applier_suspension(false), incoming(NULL), pipeline(NULL),
+   fde_evt(BINLOG_VERSION), stop_wait_timeout(LONG_TIMEOUT)
 {
-
 #ifdef HAVE_PSI_INTERFACE
   PSI_cond_info applier_conds[]=
   {
-    { &run_key_cond, "COND_applier_run", 0}
+    { &run_key_cond, "COND_applier_run", 0},
+    { &suspend_key_cond, "COND_applier_suspend", 0},
+    { &suspend_wait_key_cond, "COND_applier_wait_suspend", 0}
   };
 
   PSI_mutex_info applier_mutexes[]=
   {
-    { &run_key_mutex, "LOCK_applier_run", 0}
+    { &run_key_mutex, "LOCK_applier_run", 0},
+    { &suspend_key_mutex, "LOCK_applier_suspend", 0}
   };
 
   register_gcs_psi_keys(applier_mutexes, 1,
@@ -50,6 +57,9 @@ Applier_module::Applier_module()
 
   mysql_mutex_init(run_key_mutex, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(run_key_cond, &run_cond, 0);
+  mysql_mutex_init(suspend_key_mutex, &suspend_lock, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(suspend_key_cond, &suspend_cond, 0);
+  mysql_cond_init(suspend_wait_key_cond, &suspension_waiting_condition, 0);
 }
 
 Applier_module::~Applier_module(){
@@ -66,6 +76,9 @@ Applier_module::~Applier_module(){
 
   mysql_mutex_destroy(&run_lock);
   mysql_cond_destroy(&run_cond);
+  mysql_mutex_destroy(&suspend_lock);
+  mysql_cond_destroy(&suspend_cond);
+  mysql_cond_destroy(&suspension_waiting_condition);
 }
 
 int
@@ -117,6 +130,18 @@ Applier_module::clean_applier_thread_context()
   pthread_exit(0);
 }
 
+int
+Applier_module::inject_event_into_pipeline(PipelineEvent* pevent,
+                                           Continuation* cont)
+{
+  int error= 0;
+  pipeline->handle(pevent, cont);
+
+  if ((error= cont->wait()))
+    log_message(MY_ERROR_LEVEL, "Error at event handling! Got error: %d \n", error);
+
+  return error;
+}
 
 int
 Applier_module::applier_thread_handle()
@@ -134,6 +159,10 @@ Applier_module::applier_thread_handle()
   //broadcast if the invoker thread is waiting.
   mysql_cond_broadcast(&run_cond);
 
+  Format_description_log_event* fde_evt=
+    new Format_description_log_event(BINLOG_VERSION);
+  Continuation* cont= new Continuation();
+
   while (!error)
   {
     if (is_applier_thread_aborted())
@@ -144,44 +173,58 @@ Applier_module::applier_thread_handle()
       log_message(MY_ERROR_LEVEL, "Error when reading from applier's queue");
       break;
     }
-
-    if (packet == NULL)
+    if(packet->get_packet_type() == ACTION_PACKET_TYPE)
     {
-      // a NULL packet was added to release the queue
-      if (is_applier_thread_aborted())
-        break;
-      else //something bad happened
+      enum_packet_action action= ((Action_packet*)packet)->packet_action;
+      //packet used to break the queue blocking wait
+      if (action == TERMINATION_PACKET)
       {
-        log_message(MY_ERROR_LEVEL, "Error: Null packet on applier's queue");
-        error= 1;
         break;
       }
-    }
+      //packet to signal the applier to suspend
+      if (action == SUSPENSION_PACKET)
+      {
+        suspend_applier_module();
+        continue;
+      }
+      //signals the injection of a view change event into the pipeline
+      if (action == VIEW_CHANGE_PACKET)
+      {
+        ulonglong view_id= uint8korr(((Action_packet*)packet)->payload);
+        View_change_log_event* view_change_event
+                = new View_change_log_event(view_id);
+        PipelineEvent* pevent= new PipelineEvent(view_change_event, fde_evt);
+        error= inject_event_into_pipeline(pevent,cont);
+        delete packet;
+        continue;
+      }
+    }//end if action type
 
-    uchar* payload= packet->payload;
-    uchar* payload_end= packet->payload+packet->len;
+    Data_packet* data_packet = ((Data_packet*)packet);
 
-    Continuation* cont= new Continuation();
+    uchar* payload= data_packet->payload;
+    uchar* payload_end= data_packet->payload + data_packet->len;
 
+    /**
+      TODO: handle the applier error in a way that it causes the node to leave
+      the view maybe?
+    */
     while ((payload != payload_end) && !error)
     {
       uint event_len= uint4korr(((uchar*)payload) + EVENT_LEN_OFFSET);
 
-      Packet* new_packet= new Packet(payload,event_len);
+      Data_packet* new_packet= new Data_packet(payload,event_len);
       payload= payload + event_len;
 
-      PipelineEvent* pevent= new PipelineEvent(new_packet, &fde_evt);
-      pipeline->handle(pevent, cont);
-
-      if ((error= cont->wait()))
-        log_message(MY_ERROR_LEVEL, "Error at event handling! Got error: %d \n", error);
+      PipelineEvent* pevent= new PipelineEvent(new_packet, fde_evt);
+      error= inject_event_into_pipeline(pevent,cont);
 
       delete pevent;
     }
 
     delete packet;
-    delete cont;
   }
+  delete cont;
 
   log_message(MY_INFORMATION_LEVEL, "The applier thread was killed");
 
@@ -285,7 +328,10 @@ Applier_module::terminate_applier_thread()
     mysql_mutex_unlock(&applier_thd->LOCK_thd_data);
 
     //before waiting for termination, signal the queue to unlock.
-    incoming->push(NULL);
+    add_termination_packet();
+
+    //also awake the applier in case it is suspended
+    awake_applier_module();
 
     /*
       There is a small chance that thread might miss the first
@@ -318,3 +364,77 @@ Applier_module::terminate_applier_thread()
 
   DBUG_RETURN(0);
 }
+
+int
+Applier_module::wait_for_applier_complete_suspension(bool *abort_flag)
+{
+  int error= 0;
+
+  mysql_mutex_lock(&suspend_lock);
+
+  /*
+   We use an external flag to avoid race conditions.
+   A local flag could always lead to the scenario of
+     wait_for_applier_complete_suspension()
+
+   >> thread switch
+
+     break_applier_suspension_wait()
+       we_are_waiting = false;
+       awake
+
+   thread switch <<
+
+      we_are_waiting = true;
+      wait();
+  */
+  while (!suspended && !(*abort_flag))
+  {
+    mysql_cond_wait(&suspension_waiting_condition, &suspend_lock);
+  }
+
+  mysql_mutex_unlock(&suspend_lock);
+
+  /**
+    Wait for the applier execution of pre suspension events (blocking method)
+    while(the wait method times out)
+      wait()
+  */
+  error= APPLIER_GTID_CHECK_TIMEOUT_ERROR; //timeout error
+  while (error == APPLIER_GTID_CHECK_TIMEOUT_ERROR && !(*abort_flag))
+    error= wait_for_applier_event_execution(1); //blocking
+
+  return (error == APPLIER_RELAY_LOG_NOT_INITED);
+}
+
+void
+Applier_module::interrupt_applier_suspension_wait()
+{
+  mysql_mutex_lock(&suspend_lock);
+  mysql_cond_broadcast(&suspension_waiting_condition);
+  mysql_mutex_unlock(&suspend_lock);
+}
+
+int
+Applier_module::wait_for_applier_event_execution(ulonglong timeout)
+{
+  EventHandler* event_applier= NULL;
+  EventHandler::get_handler_by_role(pipeline, APPLIER, &event_applier);
+
+  //Nothing to wait?
+  if (event_applier == NULL)
+    return true;
+
+  //The only event applying handler by now
+  return ((Applier_sql_thread*)event_applier)->wait_for_gtid_execution(timeout);
+}
+
+Certification_handler* Applier_module::get_certification_handler(){
+
+  EventHandler* event_applier= NULL;
+  EventHandler::get_handler_by_role(pipeline, CERTIFIER, &event_applier);
+
+  //The only certification handler for now
+  return (Certification_handler*) event_applier;
+}
+

@@ -31,6 +31,7 @@
 #include "rpl_info_factory.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
+#include <gcs_replication.h>
 
 using std::min;
 using std::max;
@@ -1410,6 +1411,19 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     {
       DBUG_RETURN(false);
     }
+    break;
+
+  case UNTIL_SQL_VIEW_ID:
+    if (ev != NULL && ev->get_type_code() == VIEW_CHANGE_EVENT)
+    {
+      View_change_log_event *view_event= (View_change_log_event *)ev;
+      if (until_view_id == view_event->get_view_id())
+      {
+        set_retrieved_cert_info(view_event);
+        DBUG_RETURN(true);
+      }
+    }
+    DBUG_RETURN(false);
     break;
 
   case UNTIL_NONE:

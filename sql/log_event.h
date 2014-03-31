@@ -35,6 +35,8 @@
 #include "hash.h"
 #include "table_id.h"
 #include <list>
+#include <string>
+#include <map>
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -747,6 +749,8 @@ enum Log_event_type
   PREVIOUS_GTIDS_LOG_EVENT= 35,
 
   TRANSACTION_CONTEXT_EVENT= 36,
+
+  VIEW_CHANGE_EVENT= 37,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -5381,6 +5385,111 @@ public:
   my_thread_id get_thread_id() { return thread_id; }
 };
 
+/**
+  @class View_change_log_event
+*/
+class View_change_log_event: public Log_event
+{
+private:
+  ulonglong view_id;
+  rpl_gno seq_number;
+  std::map<std::string, rpl_gno> cert_db;
+
+  // 8 bytes length.
+  static const int ENCODED_VIEW_ID_OFFSET= 0;
+  // 8 bytes length.
+  static const int ENCODED_SEQ_NUMBER_OFFSET= 8;
+  // 4 bytes length.
+  static const int ENCODED_CERT_DB_SIZE_OFFSET= 16;
+
+  //Field sizes on serialization
+  static const int ENCODED_CERT_DB_KEY_SIZE_LEN= 2;
+  static const int ENCODED_CERT_DB_VALUE_LEN= 8;
+
+
+#ifndef MYSQL_CLIENT
+  bool write_data_header(IO_CACHE* file);
+
+  bool write_data_body(IO_CACHE* file);
+
+  bool write_data_map(IO_CACHE* file, std::map<std::string, rpl_gno> *map);
+#endif
+
+  static char *read_data_map(char *pos, uint map_len,
+                             std::map<std::string, rpl_gno> *map);
+
+  int get_map_data_size(std::map<std::string, rpl_gno> *map);
+
+public:
+
+  // view id (8 bytes) + seq number (8 bytes) + map size (4 bytes)
+  static const int POST_HEADER_LENGTH= 20;
+
+  View_change_log_event(ulonglong view_id);
+
+  View_change_log_event(const char *buffer,
+                        uint event_len,
+                        const Format_description_log_event *descr_event);
+
+  virtual ~View_change_log_event();
+
+  Log_event_type get_type_code() { return VIEW_CHANGE_EVENT; }
+
+  bool is_valid() const
+  {
+    return view_id > 0;
+  }
+
+  int get_data_size();
+
+  size_t to_string(char *buf, ulong len) const;
+
+#ifndef MYSQL_CLIENT
+  int pack_info(Protocol *protocol);
+#endif
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli);
+  int do_update_pos(Relay_log_info *rli);
+#endif
+
+  /**
+    Returns the view id.
+  */
+  ulonglong get_view_id() { return view_id; }
+
+  /**
+    Sets the certification database
+
+    @param db the database
+  */
+  void set_certification_db_snapshot(std::map<std::string, rpl_gno> *db);
+
+  /**
+    Returns the certification database
+  */
+  std::map<std::string, rpl_gno>* get_certification_database()
+  {
+    return &cert_db;
+  }
+
+  /**
+    Set the certification sequence number
+
+    @param number the sequence number
+  */
+  void set_seq_number(rpl_gno number) { seq_number= number; }
+
+  /**
+    Returns the certification sequence number
+  */
+  rpl_gno get_seq_number() { return seq_number; }
+
+};
 
 inline bool is_gtid_event(Log_event* evt)
 {

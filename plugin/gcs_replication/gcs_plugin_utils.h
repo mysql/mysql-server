@@ -96,6 +96,16 @@ public:
     return 0;
   }
 
+  ulong size()
+  {
+    ulong qsize= 0;
+    mysql_mutex_lock(&lock);
+    qsize= queue.size();
+    mysql_mutex_unlock(&lock);
+
+    return qsize;
+  }
+
 private:
   mysql_mutex_t lock;
   mysql_cond_t cond;

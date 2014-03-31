@@ -1,0 +1,60 @@
+include/have_gcs_replication_plugin.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+#
+# 1) Setup a new single node cluster
+#
+server1
+include/install_gcs_replication.inc
+# Set the debug flag to block recovery
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
+# Node should be offline before start
+include/assert.inc [On the new stopped node, the status is OFFLINE]
+include/start_gcs_replication.inc
+# Node should be online as the node is alone and doesn't need recovery
+include/rpl_gcs_wait_for_node_state.inc
+#
+# 2) A new node enters the existing cluster
+#
+server2
+include/install_gcs_replication.inc
+# Set the debug flag to block recovery
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
+SET GLOBAL gcs_replication_plugin_group_name= "89ab83b0-9f17-11e3-a5e2-0800200c9a66";
+START GCS_REPLICATION;
+# Node should be marked as on recovery on both nodes
+include/rpl_gcs_wait_for_node_state.inc
+server1
+include/rpl_gcs_wait_for_node_state.inc
+server2
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+# Node should be marked as online on both nodes
+include/rpl_gcs_wait_for_node_state.inc
+server1
+include/rpl_gcs_wait_for_node_state.inc
+#
+# 3) A node leaves the existing cluster
+#
+# Add a new node to hold quorum
+server3
+include/install_gcs_replication.inc
+include/start_gcs_replication.inc
+# Node should be marked as online
+include/rpl_gcs_wait_for_node_state.inc
+include/stop_gcs_replication.inc
+# Node should be marked as offline after stop
+include/rpl_gcs_wait_for_node_state.inc
+#
+# Cleaning up
+#
+server3
+SET @@GLOBAL.DEBUG= @debug_save;
+include/stop_gcs_replication.inc
+include/uninstall_gcs_replication.inc
+server2
+SET @@GLOBAL.DEBUG= @debug_save;
+include/stop_gcs_replication.inc
+include/uninstall_gcs_replication.inc
+server1
+SET @@GLOBAL.DEBUG= @debug_save;
+include/stop_gcs_replication.inc
+include/uninstall_gcs_replication.inc

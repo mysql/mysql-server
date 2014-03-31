@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,8 +34,11 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     gcs_event_handlers.cc gcs_event_handlers.h
     gcs_protocol_factory.cc gcs_corosync.cc
     pipeline_factory.h pipeline_factory.cc
+    gcs_replication_threads_api.h gcs_replication_threads_api.cc
     gcs_applier.h gcs_applier.cc
     gcs_commit_validation.cc gcs_commit_validation.h
+    gcs_recovery_message.cc gcs_recovery_message.h
+    gcs_recovery.cc gcs_recovery.h
     gcs_payload.cc gcs_member_info.cc gcs_protocol.cc gcs_message.cc
     handlers/certification_handler.h
     handlers/certification_handler.cc

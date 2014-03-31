@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,6 +78,20 @@ void log_view_change(ulonglong view_id, Member_set& total,
               view_id > 0 ? "true" : "false",
               buf_totl, buf_left, buf_join);
 }
+
+ bool is_member_in_set(string& uuid, Member_set& member_set)
+ {
+   std::set<Member>::iterator set_iterator= member_set.begin();
+
+   while(set_iterator != member_set.end())
+   {
+     Member set_member = *set_iterator;
+     if(!(set_member.get_uuid().compare(uuid)))
+       return true;
+     ++set_iterator;
+   }
+   return false;
+ }
 
 } // end of namespace
 

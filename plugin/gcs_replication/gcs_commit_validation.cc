@@ -14,7 +14,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
-#include <gcs_replication.h>
 #include <mysqld.h>
 #include <log.h>
 #include "gcs_commit_validation.h"

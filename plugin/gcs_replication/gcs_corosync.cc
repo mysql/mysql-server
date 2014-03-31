@@ -379,9 +379,6 @@ static void deliver(cpg_handle_t handle, const struct cpg_name *name,
   }
   else
   {
-    /* The "normal" branch. */
-    assert(get_payload_code(&msg) == PAYLOAD_TRANSACTION_EVENT);
-
     if (view.is_prim_component() && view.get_view_id() != 0 /* not Joiner */)
       proto->do_message_delivery(&msg);
     else
@@ -553,8 +550,6 @@ bool Protocol_corosync::broadcast(Message& msg)
   */
   if (msg.get_type() != MSG_GCS_INTERNAL)
   {
-    assert(get_payload_code(&msg) == PAYLOAD_TRANSACTION_EVENT);
-
     pthread_mutex_lock(&vc_mutex);
 
     /*
@@ -1080,8 +1075,6 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
                       "distributed recovery must follow",
                       get_client_uuid().c_str(),
                       local_process_id.first, local_process_id.second, last_view_id);
-
-        //TODO: Pedro's wl#6837 followup starts here...
       }
       group_stats.update_per_view_change();
       /*

@@ -338,14 +338,19 @@ public:
      notify_*_log_name_updated() methods. (They need to be called only if SQL
      thread is running).
    */
-  enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS,
-        UNTIL_SQL_BEFORE_GTIDS, UNTIL_SQL_AFTER_GTIDS,
-        UNTIL_SQL_AFTER_MTS_GAPS
+  enum
+  {
+    UNTIL_NONE= 0,
+    UNTIL_MASTER_POS,
+    UNTIL_RELAY_POS,
+    UNTIL_SQL_BEFORE_GTIDS,
+    UNTIL_SQL_AFTER_GTIDS,
+    UNTIL_SQL_AFTER_MTS_GAPS,
+    UNTIL_SQL_VIEW_ID,
 #ifndef DBUG_OFF
-        , UNTIL_DONE
+    UNTIL_DONE
 #endif
-}
-    until_condition;
+  } until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
@@ -373,6 +378,8 @@ public:
   } until_log_names_cmp_result;
 
   char cached_charset[6];
+
+  ulonglong until_view_id;
   /*
     trans_retries varies between 0 to slave_transaction_retries and counts how
     many times the slave has retried the present transaction; gets reset to 0

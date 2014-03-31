@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
 #ifndef GCS_CERTIFIER
 #define GCS_CERTIFIER
 
-#include "gcs_plugin.h"
+#include "../gcs_plugin_utils.h"
 #include <replication.h>
 #include <log_event.h>
 #include <log.h>
 #include <map>
 #include <string>
 #include <list>
+
 /**
   This class is a core component of the database state machine
   replication protocol. It implements conflict detection based
@@ -73,6 +74,48 @@ public:
   cert_db::iterator end()
   {
     return item_to_seqno_map.end();
+  }
+
+  /**
+    Retrieves the current certification db and sequence number.
+
+     @note if concurrent access is introduce to these variables,
+     locking is needed in this method
+
+     @param[out] cert_db     a pointer to retrieve the certification database
+     @param[out] seq_number  a pointer to retrieve the sequence number
+  */
+  void get_certification_info(cert_db **cert_db, rpl_gno *seq_number)
+  {
+    *cert_db= &item_to_seqno_map;
+    *seq_number= next_seqno;
+  }
+
+  /**
+    Sets the certification db and sequence number according to the given values.
+
+    @note if concurrent access is introduce to these variables,
+    locking is needed in this method
+
+    @param cert_db
+    @param sequence_number
+  */
+  void set_certification_info(std::map<std::string, rpl_gno> *cert_db,
+                              rpl_gno sequence_number)
+  {
+    item_to_seqno_map.clear();
+
+    DBUG_ASSERT(cert_db != NULL);
+
+    std::map<std::string, rpl_gno>::iterator iter;
+
+    for (iter= cert_db->begin(); iter!= cert_db->end(); iter++)
+    {
+      const char* key= iter->first.c_str();
+      add_item(key, iter->second);
+    }
+
+    next_seqno= sequence_number;
   }
 
 private:

@@ -3,6 +3,7 @@
 
 #include <gcs_protocol.h>
 #include <gcs_protocol_factory.h>
+#include "gcs_member_info.h"
 
 /*
   The function is called at View change and receives the view and three set of
@@ -31,5 +32,44 @@ void handle_view_change(GCS::View& view, GCS::Member_set& total,
   @param[in] view    pointer to the View in which delivery is happening
 */
 void handle_message_delivery(GCS::Message *msg, const GCS::View& view);
+
+/**
+  Takes all the joining members handling status changes and recovery related
+  tasks.
+
+  @param view         the received view
+  @param joined       the joined members
+  @param total        the set of all group members
+  @param is_joining   is the local node joining
+ */
+void handle_joining_nodes(GCS::View& view,
+                          GCS::Member_set& joined,
+                          GCS::Member_set& total,
+                          bool is_joining);
+
+/**
+  Handles state change and recovery related tasks for all the leaving members
+
+  @param left          the leaving members
+  @param total        the set of all group members
+  @param is_joining    is the local node joining
+*/
+void handle_leaving_nodes(GCS::Member_set& left,
+                          GCS::Member_set& total,
+                          bool is_joining);
+/**
+  Handle a transaction based message received through gcs
+
+  @param msg  the received message
+ */
+void handle_transactional_message(GCS::Message *msg);
+
+/**
+  Handle a recovery based message received through gcs
+
+  @param msg  the received message
+ */
+void handle_recovery_message(GCS::Message *msg);
+
 
 #endif /* GCS_EVENT_HANDLERS_INCLUDE */

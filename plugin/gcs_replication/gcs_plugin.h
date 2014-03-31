@@ -27,6 +27,7 @@
 #include <mysqld.h>               // UUID_LENGTH
 #include <rpl_gtid.h>             // rpl_sidno
 #include "gcs_applier.h"
+#include "gcs_recovery.h"
 #include <gcs_protocol.h>
 #include <gcs_stats.h>
 
@@ -45,17 +46,27 @@ typedef st_mysql_sys_var SYS_VAR;
 extern char gcs_replication_group[UUID_LENGTH+1];
 extern rpl_sidno gcs_cluster_sidno;
 extern char gcs_replication_boot;
-extern ulong handler_pipeline_type;
-extern GCS::Protocol *gcs_instance;
-extern Applier_module *applier;
-extern GCS::Stats cluster_stats;
 extern bool wait_on_engine_initialization;
-extern ulong gcs_applier_thread_timeout;
+
+//The modules
+extern GCS::Protocol *gcs_module;
+extern Applier_module *applier_module;
+extern Recovery_module *recovery_module;
+extern GCS::Stats cluster_stats;
+
+//Appliers module variables
+extern ulong handler_pipeline_type;
+//GCS module variables
 extern char *gcs_group_pointer;
+
+//handlers
 extern GCS::Event_handlers gcs_plugin_event_handlers;
 
 //Plugin global methods
-int configure_and_start_applier();
+int configure_and_start_applier_module();
+int terminate_applier_module();
+int initialize_recovery_module();
+int terminate_recovery_module();
 int configure_and_start_gcs();
 void declare_plugin_running();
 

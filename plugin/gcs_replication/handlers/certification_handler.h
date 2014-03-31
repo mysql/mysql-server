@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define CERTIFICATION_HANDLER_INCLUDE
 
 #include "../gcs_plugin_utils.h"
+#include "../gcs_certifier.h"
 #include <applier_interfaces.h>
 
 class Certification_handler : public EventHandler
@@ -53,7 +54,12 @@ public:
     return res;
   }
 
+  void set_certification_info(std::map<std::string, rpl_gno>* cert_db,
+                             rpl_gno seq_number);
+
 private:
+  Certifier* cert_module;
+
   rpl_gno seq_number;
   /*
     This method is used to call the certification method of the plugin
@@ -66,6 +72,14 @@ private:
     adds it in the pipeline.
   */
   int inject_gtid(PipelineEvent *ev, Continuation *cont);
+
+  /*
+    This method extracts the certification db and the sequence number from
+    the certifier injecting them in a View change event to be sent to a possible
+    joiner.
+  */
+  int extract_certification_db(PipelineEvent *pevent, Continuation *cont);
+
 };
 
 #endif /* CERTIFICATION_HANDLER_INCLUDE */

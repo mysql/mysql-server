@@ -37,6 +37,7 @@
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 #include "gcs_replication.h"
+#include "mysys_err.h"
 
 using std::max;
 using std::min;
@@ -5488,6 +5489,25 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   DBUG_RETURN(error);
 }
 
+int
+MYSQL_BIN_LOG::binlog_write_event_into_file(Log_event* event){
+
+  DBUG_ENTER("MYSQL_BIN_LOG::binlog_write_event_into_file(Log_event *)");
+
+  mysql_mutex_lock(&LOCK_log);
+
+  int error= event->write(&log_file);
+
+  if (!error && !(error= flush_and_sync()))
+  {
+    update_binlog_end_pos();
+  }
+
+  mysql_mutex_unlock(&LOCK_log);
+
+  DBUG_RETURN(error);
+}
+
 /**
   Write an event to the binary log.
 */
@@ -9175,6 +9195,15 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional)
   DBUG_RETURN(error);
 }
 
+int THD::binlog_write_event(Log_event *event)
+{
+  DBUG_ENTER("THD::binlog_write_event");
+  DBUG_ASSERT(mysql_bin_log.is_open());
+
+  int error= mysql_bin_log.binlog_write_event_into_file(event);
+
+  DBUG_RETURN(error);
+}
 
 /**
    binlog_row_event_extra_data_eq

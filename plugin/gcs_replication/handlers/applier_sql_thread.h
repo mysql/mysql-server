@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,8 @@
 #define SQL_THREAD_APPLIER_INCLUDE
 
 #include "../gcs_applier.h"
-#include <gcs_replication.h>
 #include <applier_interfaces.h>
-#include <rpl_rli.h>
+#include "../gcs_replication_threads_api.h"
 
 class Applier_sql_thread : public EventHandler
 {
@@ -31,13 +30,23 @@ public:
   bool is_unique();
   Handler_role get_role();
 
+  /**
+    Checks if all the queued transactions were executed.
+
+    @param timeout  the time (seconds) after which the method returns if the
+                    above condition was not satisfied
+
+    @return the operation status
+      @retval 0      All transactions were executed
+      @retval -1     A timeout occurred
+      @retval -2     An error occurred
+  */
+  int wait_for_gtid_execution(longlong timeout);
+
 private:
 
-  int initialize_sql_thread();
-  int terminate_sql_thread();
+  Replication_thread_api sql_thread_interface;
 
-  Master_info *mi;
-  Relay_log_info *rli;
 };
 
 #endif /* SQL_THREAD_APPLIER_INCLUDE */

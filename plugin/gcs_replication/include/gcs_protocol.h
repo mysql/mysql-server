@@ -130,6 +130,16 @@ inline Member_set& mset_diff(Member_set& c, Member_set& a, Member_set& b)
   return c;
 }
 
+/**
+  Tells if the member belongs to the set
+
+  @param member      the member that may belong to the set
+  @return if the member belongs
+    @retval true     the member belongs to the set
+    @retval false    the member is not in the set
+ */
+bool is_member_in_set(string& uuid, Member_set& member_set);
+
 class Group_members
 {
 public:
