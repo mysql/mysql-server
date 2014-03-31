@@ -3774,19 +3774,53 @@ ndb_binlog_index_table__write_rows(THD *thd,
         ->store((ulonglong)first->n_schemaops, true);
     }
 
-    if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
-    {
-      char tmp[128];
-      if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
-        my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
-                    uint(epoch >> 32), uint(epoch),
-                    orig_server_id,
-                    uint(orig_epoch >> 32), uint(orig_epoch));
+    error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
 
-      else
-        my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
-      sql_print_error("NDB Binlog: Writing row (%s) to ndb_binlog_index: %d",
-                      tmp, error);
+    /* Fault injection to test logging */
+    DBUG_EXECUTE_IF("ndb_injector_binlog_index_write_fail_random",
+                    {
+                      if ((((uint32) rand()) % 10) == 9)
+                      {
+                        sql_print_error("NDB Binlog: Injecting random write failure");
+                        error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
+                      }
+                    });
+    
+    if (error)
+    {
+      sql_print_error("NDB Binlog: Failed writing to ndb_binlog_index for epoch %u/%u "
+                      " orig_server_id %u orig_epoch %u/%u "
+                      "with error %d.",
+                      uint(epoch >> 32), uint(epoch),
+                      orig_server_id,
+                      uint(orig_epoch >> 32), uint(orig_epoch),
+                      error);
+      
+      bool seen_error_row = false;
+      ndb_binlog_index_row* cursor= first;
+      do
+      {
+        char tmp[128];
+        if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
+          my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
+                      uint(epoch >> 32), uint(epoch),
+                      uint(cursor->orig_server_id),
+                      uint(cursor->orig_epoch >> 32), 
+                      uint(cursor->orig_epoch));
+        
+        else
+          my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
+        
+        bool error_row = (row == (cursor->next));
+        sql_print_error("NDB Binlog: Writing row (%s) to ndb_binlog_index - %s",
+                        tmp,
+                        (error_row?"ERROR":
+                         (seen_error_row?"Discarded":
+                          "OK")));
+        seen_error_row |= error_row;
+
+      } while ((cursor = cursor->next));
+      
       error= -1;
       goto add_ndb_binlog_index_err;
     }
