@@ -95,7 +95,7 @@ enum fts_msg_type_t {
 /** Compressed list of words that have been read from FTS INDEX
 that needs to be optimized. */
 struct fts_zip_t {
-	ulint		status;		/*!< Status of (un)/zip operation */
+	lint		status;		/*!< Status of (un)/zip operation */
 
 	ulint		n_words;	/*!< Number of words compressed */
 
