@@ -254,18 +254,4 @@ xdes_calc_descriptor_page(
 
 	return(ut_2pow_round(offset, page_size.physical()));
 }
-
-/** Schedule MLOG_FILE_NAME to be written.
-@param[in]	id	tablespace identifier
-@param[in,out]	mtr	mini-transaction */
-UNIV_INLINE
-void
-fsp_names_write(
-	ulint	id,
-	mtr_t*	mtr)
-{
-	if (mtr != NULL) {
-		mtr->set_named_space(id);
-	}
-}
 #endif /* !UNIV_INNOCHECKSUM */

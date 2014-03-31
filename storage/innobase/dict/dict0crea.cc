@@ -346,9 +346,9 @@ dict_build_tablespace(
 		}
 
 		mtr_start(&mtr);
+		mtr.set_named_space(table->space);
 		dict_disable_redo_if_temporary(table, &mtr);
 
-		fsp_names_write(table->space, &mtr);
 		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 
 		mtr_commit(&mtr);
@@ -755,7 +755,7 @@ dict_create_index_tree_step(
 		|| dict_table_is_discarded(index->table);
 
 	if (!missing) {
-		fsp_names_write(index->space, &mtr);
+		mtr.set_named_space(index->space);
 	}
 
 	search_tuple = dict_create_search_tuple(node->ind_row, node->heap);
@@ -1046,8 +1046,8 @@ dict_recreate_index_tree(
 	mtr_commit(mtr);
 
 	mtr_start(mtr);
+	mtr->set_named_space(space);
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
-	fsp_names_write(space, mtr);
 
 	/* Find the index corresponding to this SYS_INDEXES record. */
 	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
