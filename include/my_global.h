@@ -295,14 +295,6 @@ typedef unsigned short ushort;
 #undef DBUG_OFF
 #endif
 
-/* We might be forced to turn debug off, if not turned off already */
-#if (defined(FORCE_DBUG_OFF) || defined(_lint)) && !defined(DBUG_OFF)
-#  define DBUG_OFF
-#  ifdef DBUG_ON
-#    undef DBUG_ON
-#  endif
-#endif
-
 /* Some types that is different between systems */
 
 typedef int	File;		/* File descriptor */
@@ -757,7 +749,6 @@ typedef char		my_bool; /* Small bool */
 /* Some helper macros */
 #define YESNO(X) ((X) ? "yes" : "no")
 
-#define MY_HOW_OFTEN_TO_ALARM	2	/* How often we want info on screen */
 #define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
 
 #include <my_byteorder.h>
