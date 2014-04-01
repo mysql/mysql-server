@@ -4462,6 +4462,10 @@ log space");
         if (event_buf[EVENT_TYPE_OFFSET] == XID_EVENT)
            thd->killed= THD::KILLED_NO_VALUE;
       );
+      DBUG_EXECUTE_IF("stop_io_after_reading_write_rows_log_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == WRITE_ROWS_EVENT)
+           thd->killed= THD::KILLED_NO_VALUE;
+      );
     }
   }
 
