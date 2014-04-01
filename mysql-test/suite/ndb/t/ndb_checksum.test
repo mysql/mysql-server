@@ -1,0 +1,2 @@
+-- source include/have_ndb.inc
+-- echo Cluster started with [tcp] Checksum=1
