@@ -45,6 +45,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "hash0hash.h"
 #include "trx0types.h"
 #include "fts0fts.h"
+#include "os0once.h"
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -877,6 +878,9 @@ struct dict_table_t {
 	unsigned				big_rows:1;
 
 	/** Statistics for query optimization. @{ */
+
+	/** Creation state of 'stats_latch'. */
+	volatile os_once::state_t		stats_latch_created;
 
 	/** This latch protects:
 	dict_table_t::stat_initialized,
