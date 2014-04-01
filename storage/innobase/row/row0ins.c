@@ -143,6 +143,7 @@ row_ins_alloc_sys_fields(
 	const dict_col_t*	col;
 	dfield_t*		dfield;
 	byte*			ptr;
+	uint			len;
 
 	row = node->row;
 	table = node->table;
@@ -152,7 +153,7 @@ row_ins_alloc_sys_fields(
 	ut_ad(dtuple_get_n_fields(row) == dict_table_get_n_cols(table));
 
 	/* allocate buffer to hold the needed system created hidden columns. */
-	uint len = DATA_ROW_ID_LEN + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+	len = DATA_ROW_ID_LEN + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 	ptr = mem_heap_zalloc(heap, len);
 
 	/* 1. Populate row-id */
