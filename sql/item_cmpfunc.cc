@@ -4612,11 +4612,17 @@ float Item_func_in::get_filtering_effect(table_map filter_for_table,
 
   DBUG_ASSERT((read_tables & filter_for_table) == 0);
   /*
-    To contribute to filering effect, the condition must refer to
+    To contribute to filtering effect, the condition must refer to
     exactly one unread table: the table filtering is currently
     calculated for.
+
+    Dependent subqueries are not considered available values and no
+    filtering should be calculated for this item if the IN list
+    contains one. dep_subq_in_list is 'true' if the IN list contains a
+    dependent subquery.
   */
-  if ((used_tables() & ~read_tables) != filter_for_table)
+  if ((used_tables() & ~read_tables) != filter_for_table ||
+      dep_subq_in_list)
     return COND_FILTER_ALLPASS;
 
   /*
@@ -4823,6 +4829,8 @@ void Item_func_in::fix_length_and_dec()
     if (!arg[0]->const_item())
     {
       const_itm= 0;
+      if (arg[0]->real_item()->type() == Item::SUBSELECT_ITEM)
+        dep_subq_in_list= true;
       break;
     }
   }
