@@ -40,6 +40,9 @@ EXPLAIN SELECT * FROM t1 WHERE t1.col3 NOT BETWEEN 5 AND 10;
 --echo # <column> IN
 EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (5, 6);
 EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (5, 6, 7, 8);
+--echo # Dependent subquery in IN list. No filtering in t1 
+EXPLAIN SELECT * FROM t1 
+WHERE t1.col3 IN (1, (SELECT col3 FROM t2 where col3=t1.col4 LIMIT 1));
 
 --echo
 --echo # <column> NOT IN
