@@ -4104,12 +4104,8 @@ static int cmp_row(void *cmp_arg, cmp_item_row *a, cmp_item_row *b)
 
 static int cmp_decimal(void *cmp_arg, my_decimal *a, my_decimal *b)
 {
-  /*
-    We need call of fixing buffer pointer, because fast sort just copy
-    decimal buffers in memory and pointers left pointing on old buffer place
-  */
-  a->fix_buffer_pointer();
-  b->fix_buffer_pointer();
+  a->sanity_check();
+  b->sanity_check();
   return my_decimal_cmp(a, b);
 }
 
@@ -4348,6 +4344,13 @@ uchar *in_decimal::get_value(Item *item)
   return (uchar *)result;
 }
 
+
+void in_decimal::sort()
+{
+  my_decimal *begin= static_cast<my_decimal*>(static_cast<void*>(base));
+  my_decimal *end= begin + used_count;
+  std::sort(begin, end);
+}
 
 cmp_item* cmp_item::get_comparator(Item_result type,
                                    const CHARSET_INFO *cs)

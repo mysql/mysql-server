@@ -1047,7 +1047,7 @@ public:
   virtual ~in_vector() {}
   virtual void set(uint pos,Item *item)=0;
   virtual uchar *get_value(Item *item)=0;
-  void sort()
+  virtual void sort()
   {
     my_qsort2(base,used_count,size,compare,collation);
   }
@@ -1235,6 +1235,8 @@ public:
   }
   Item_result result_type() { return DECIMAL_RESULT; }
 
+  // Our own, type-aware sort, rather than my_qsort2.
+  virtual void sort();
 };
 
 
