@@ -26,6 +26,12 @@
 
 static my_bool safe_mutex_inited= FALSE;
 
+/**
+  While it looks like this function is pointless, it makes it possible to
+  catch usage of global static mutexes. Since the order of construction of
+  global objects in different compilation units is undefined, this is
+  quite useful.
+*/
 void safe_mutex_global_init(void)
 {
   safe_mutex_inited= TRUE;
@@ -147,10 +153,6 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
   }
   mp->thread= 0;
   mp->count--;
-#ifdef _WIN32
-  pthread_mutex_unlock(&mp->mutex);
-  error=0;
-#else
   error=pthread_mutex_unlock(&mp->mutex);
   if (error)
   {
@@ -158,7 +160,6 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
     fflush(stderr);
     abort();
   }
-#endif /* _WIN32 */
   pthread_mutex_unlock(&mp->global);
   return error;
 }
@@ -271,15 +272,10 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
     fflush(stderr);
     abort();
   }
-#ifdef _WIN32 
-  pthread_mutex_destroy(&mp->global);
-  pthread_mutex_destroy(&mp->mutex);
-#else
   if (pthread_mutex_destroy(&mp->global))
     error=1;
   if (pthread_mutex_destroy(&mp->mutex))
     error=1;
-#endif
   mp->file= 0;					/* Mark destroyed */
   return error;
 }

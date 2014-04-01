@@ -169,7 +169,7 @@ err:
 static bool make_valid_column_names(LEX *lex)
 {
   Item *item;
-  uint name_len;
+  size_t name_len;
   char buff[NAME_LEN];
   uint column_no= 1;
   DBUG_ENTER("make_valid_column_names");
@@ -243,7 +243,7 @@ static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
   const char *key;
-  uint key_length;
+  size_t key_length;
   LEX *lex= thd->lex;
   TABLE_LIST decoy;
 

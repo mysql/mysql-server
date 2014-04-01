@@ -49,8 +49,6 @@ ELSE()
   SET(SYSTEM_TYPE "Win32")
 ENDIF()
 
-ADD_DEFINITIONS("-D_CRT_SECURE_NO_DEPRECATE")
-
 # Target Windows Vista or later, i.e _WIN32_WINNT_VISTA
 ADD_DEFINITIONS("-D_WIN32_WINNT=0x0600")
 SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -D_WIN32_WINNT=0x0600")
@@ -176,43 +174,6 @@ CHECK_SYMBOL_EXISTS(isnan math.h HAVE_ISNAN)
 IF(NOT HAVE_ISNAN)
   CHECK_SYMBOL_REPLACEMENT(isnan _isnan float.h)
 ENDIF()
-
-# See http://msdn.microsoft.com/en-us/library/ms235384.aspx
-# about POSIX functions and their Windows replacements
-
-# Windows replacement functions.
-SET(alloca _alloca)
-SET(finite _finite)
-SET(popen _popen)
-SET(pclose _pclose)
-SET(strcasecmp _stricmp)
-SET(strncasecmp _strnicmp)
-SET(strtoll _strtoi64)
-SET(strtoull _strtoui64)
-SET(snprintf _snprintf)
-SET(vsnprintf _vsnprintf)
-
-# Windows replacement functions where the POSIX name is deprecated.
-SET(access _access)
-SET(chdir _chdir)
-SET(chmod _chmod)
-SET(dup _dup)
-SET(fdopen _fdopen)
-SET(fileno _fileno)
-SET(getcwd _getcwd)
-SET(isatty _isatty)
-SET(mkdir _mkdir)
-SET(putenv _putenv)
-SET(read _read)
-SET(rmdir _rmdir)
-SET(strdup _strdup)
-SET(stricmp _stricmp)
-SET(tzset _tzset)
-SET(umask _umask)
-SET(unlink _unlink)
-
-# Windows security enchanced replacement functions.
-SET(strtok_r strtok_s)
 
 CHECK_TYPE_SIZE(ssize_t SIZE_OF_SSIZE_T)
 IF(NOT HAVE_SIZE_OF_SSIZE_T)

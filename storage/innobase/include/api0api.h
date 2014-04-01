@@ -30,11 +30,6 @@ InnoDB Native API
 #include "db0err.h"
 #include <stdio.h>
 
-#ifdef _MSC_VER
-#define strncasecmp		_strnicmp
-#define strcasecmp		_stricmp
-#endif
-
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #define UNIV_NO_IGNORE		__attribute__ ((warn_unused_result))
 #else

@@ -26,6 +26,7 @@ SELECT @@session.character_set_client, @@session.character_set_results, @@sessio
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 latin1	latin1	latin1
 SET NAMES 'utf8';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
 -- utf8
 -- character_set_connection
@@ -37,6 +38,7 @@ SELECT @@session.character_set_client, @@session.character_set_results, @@sessio
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8	utf8	utf8
 SET NAMES 'big5';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
 -- big5
 -- character_set_connection
@@ -48,6 +50,7 @@ SELECT @@session.character_set_client, @@session.character_set_results, @@sessio
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 big5	big5	big5
 SET @@session.character_set_client=utf8;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
 -- utf8
 
@@ -55,6 +58,7 @@ SELECT @@session.character_set_client, @@session.character_set_results, @@sessio
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8	big5	big5
 SET @@session.character_set_results=utf8;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_results
 -- utf8
 
@@ -62,6 +66,7 @@ SELECT @@session.character_set_client, @@session.character_set_results, @@sessio
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8	utf8	big5
 SET @@session.character_set_connection=utf8;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_connection
 -- utf8
 
@@ -74,6 +79,7 @@ SELECT @@session.time_zone;
 @@session.time_zone
 SYSTEM
 SET @@session.time_zone='Europe/Moscow';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- time_zone
 -- Europe/Moscow
 
@@ -81,6 +87,7 @@ SELECT @@session.time_zone;
 @@session.time_zone
 Europe/Moscow
 SET @@session.time_zone='MET';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- time_zone
 -- MET
 
@@ -99,6 +106,7 @@ SELECT @@session.autocommit;
 @@session.autocommit
 1
 SET @@session.autocommit= 1;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- autocommit
 -- ON
 
@@ -106,6 +114,7 @@ SELECT @@session.autocommit;
 @@session.autocommit
 1
 SET @@session.autocommit= 0;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- autocommit
 -- OFF
 
@@ -113,6 +122,7 @@ SELECT @@session.autocommit;
 @@session.autocommit
 0
 SET @@session.autocommit= OFF;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- autocommit
 -- OFF
 
@@ -120,6 +130,7 @@ SELECT @@session.autocommit;
 @@session.autocommit
 0
 SET @@session.autocommit= ON;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- autocommit
 -- ON
 
@@ -136,6 +147,7 @@ SELECT @@session.autocommit;
 # Setting multiple variables in one shot..
 
 SET @@session.autocommit=OFF, @@time_zone='SYSTEM';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- autocommit
 -- OFF
 -- time_zone
@@ -169,10 +181,12 @@ SELECT @@session.session_track_system_variables;
 sql_mode
 SET @sql_mode_saved= @@session.sql_mode;
 SET @@session.sql_mode='traditional';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
 -- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 
 SET @@session.sql_mode='traditional';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
 -- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 
@@ -183,21 +197,25 @@ SET @@session.sql_mode='invalid';
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'invalid'
 # Test the wildcard value for tracking.
 SET @@session.session_track_system_variables='*';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- session_track_system_variables
 -- *
 
 # Expect change info.
 SET @@session.sql_mode= @sql_mode_saved;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
 -- NO_ENGINE_SUBSTITUTION
 
 # Expect change info.
 SET @@old_passwords=0;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- old_passwords
 -- 0
 
 # Expect change info.
 SET @@session.sql_mode= @sql_mode_saved;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
 -- NO_ENGINE_SUBSTITUTION
 
@@ -209,6 +227,7 @@ Warning	1231	* is not a valid system variable and will be ignored.
 SET @@session.sql_mode= @sql_mode_saved;
 # Expect change info.
 SET @@old_passwords=0;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- old_passwords
 -- 0
 
@@ -255,6 +274,7 @@ SET @@session.time_zone='-6:00';
 SET @@session.tx_isolation='READ-COMMITTED';
 END;|
 CALL my_proc;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- tx_isolation
 -- READ-COMMITTED
 -- autocommit
@@ -263,6 +283,7 @@ CALL my_proc;
 -- -06:00
 
 CALL my_proc;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- tx_isolation
 -- READ-COMMITTED
 -- autocommit
@@ -286,6 +307,7 @@ SELECT @@session.session_track_system_variables;
 var1,sql_mode,var2
 
 SET @@session.sql_mode='ANSI';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
 -- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
 
@@ -295,12 +317,14 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
 SET @@session.sql_mode=@@session.sql_mode;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
 -- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
 
 # Tracking @@session.session_track_system_variables itself.
 
 SET @@session.session_track_system_variables='session_track_system_variables';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- session_track_system_variables
 -- session_track_system_variables
 
@@ -314,21 +338,26 @@ SELECT @@session.session_track_schema;
 @@session.session_track_schema
 1
 USE mysql;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- mysql
 
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
 
 # Expect no change info.
 USE non_existing_db;
 ERROR 42000: Unknown database 'non_existing_db'
 USE mysql;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- mysql
 
 USE mysql;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- mysql
 
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
 
 # Turing current schema tracking off.
@@ -357,12 +386,14 @@ USE test;
 # Turn tracking on.
 SET @@session.session_track_schema=ON;
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
 
 # Set to an invalid value, the tracking should remain on.
 SET @@session.session_track_schema=OFFF;
 ERROR 42000: Variable 'session_track_schema' can't be set to the value of 'OFFF'
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
 
 # Testing COM_CHANGE_USER
@@ -427,10 +458,12 @@ SET @@session.session_track_state_change=ON;
 # Create a temporary table
 expect 1
 CREATE TEMPORARY TABLE test.t1(i INT);
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 expect 1
 DROP TEMPORARY TABLE test.t1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=OFF;
@@ -441,20 +474,24 @@ CREATE TEMPORARY TABLE test.t1(i INT);
 SET @@session.session_track_state_change=ON;
 expect 1
 ALTER TABLE test.t1 ADD COLUMN (j INT);
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 expect 1
 DROP TEMPORARY TABLE test.t1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=ON;
 # Create a prepared statement
 expect 1
 PREPARE p1 FROM 'SELECT i FROM test.t';
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 expect 1
 DEALLOCATE PREPARE p1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=OFF;
@@ -465,17 +502,21 @@ SET @@session.session_track_state_change=ON;
 # Change system variable
 expect 1
 SET NAMES 'utf8';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
 -- utf8
 -- character_set_connection
 -- utf8
 -- character_set_results
 -- utf8
+
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=OFF;
 # Change system variable
 SET NAMES 'utf8';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- character_set_client
 -- utf8
 -- character_set_connection
@@ -488,12 +529,16 @@ SET @@session.session_track_state_change=ON;
 # Change database
 expect 1
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
+
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=OFF;
 # Change database
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
 
 # reset the session.
@@ -501,6 +546,7 @@ SET @@session.session_track_state_change=ON;
 # Define a user defined variable
 expect 1
 SET @var1=20;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=OFF;
@@ -513,48 +559,61 @@ SET @var1=20;
 SET @@session.session_track_state_change=ON;
 # expect 1
 PREPARE p1 FROM 'SELECT i FROM test.t';
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 PREPARE p2 FROM 'SELECT i FROM test.t';
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 DEALLOCATE PREPARE p1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 expect 1
 CREATE TEMPORARY TABLE test.t1(i INT);
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 expect 1
 DROP TEMPORARY TABLE test.t1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 DEALLOCATE PREPARE p2;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=ON;
 # expect 1
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
+
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 SET @var3= 10;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 CREATE TEMPORARY TABLE test.t1(i INT);
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 ALTER TABLE test.t1 ADD COLUMN (j INT);
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 expect 1
 DROP TEMPORARY TABLE test.t1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 
@@ -563,16 +622,19 @@ DROP TEMPORARY TABLE test.t1;
 # CASE1: current DB exists in current session
 SET @@session.session_track_state_change=OFF;
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
 
 SET @@session.session_track_state_change=ON;
 # expect 1
 PREPARE p1 FROM 'SELECT i FROM test.t';
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1 there is session context
 # 'Use test' context was not tracked
 DEALLOCATE PREPARE p1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # CASE2: prepared stmt exists in current session
@@ -581,15 +643,18 @@ PREPARE p1 FROM 'SELECT i FROM test.t';
 SET @@session.session_track_state_change=ON;
 # expect 1
 CREATE TEMPORARY TABLE test.t1(i INT);
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1 there is prepared stmt context
 # since tracker is OFF it is not tracked
 DROP TEMPORARY TABLE test.t1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 DEALLOCATE PREPARE p1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # CASE3: user variables exists in current session
@@ -598,33 +663,40 @@ SET @var1= 20;
 SET @@session.session_track_state_change=ON;
 # expect 1
 PREPARE p1 FROM 'SELECT i FROM test.t';
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1 if session context is present
 DEALLOCATE PREPARE p1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # CASE4: system variables exists in current session
 SET @@session.session_track_state_change=OFF;
 SET autocommit= 1;
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- autocommit
 -- ON
 
 SET @@session.session_track_state_change=ON;
 # expect 1
 PREPARE p1 FROM 'SELECT i FROM test.t';
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 CREATE TEMPORARY TABLE test.t1(i INT);
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 DROP TEMPORARY TABLE test.t1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 DEALLOCATE PREPARE p1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # CASE5: temporary table exists in current session
@@ -633,10 +705,12 @@ CREATE TEMPORARY TABLE test.t1(i INT);
 SET @@session.session_track_state_change=ON;
 # expect 1
 PREPARE p1 FROM 'SELECT i FROM test.t';
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 DEALLOCATE PREPARE p1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # reset the session.
@@ -646,6 +720,7 @@ DEALLOCATE PREPARE p1;
 SET @@session.session_track_state_change=1;
 # expect 1
 PREPARE p1 FROM 'SELECT i FROM test.t';
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=0;
@@ -654,6 +729,7 @@ i
 SET @@session.session_track_state_change=True;
 # expect 1
 DEALLOCATE PREPARE p1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=falSe;
@@ -679,64 +755,83 @@ ERROR 42000: Variable 'session_track_state_change' can't be set to the value of 
 # CASE1: with session_track_system_variables
 SET @@session.session_track_system_variables='time_zone,tx_isolation';
 SET @@session.time_zone='-6:00';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- time_zone
 -- -06:00
 
 SET @@session.session_track_state_change=1;
 # expect 1 as well in OK packet
 SET @@session.tx_isolation='READ-COMMITTED';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- tx_isolation
 -- READ-COMMITTED
+
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1 as well in OK packet
 SET @var2= 20;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # CASE2: with session_track_schema
 SET @@session.session_track_state_change=1;
 SET @@session.session_track_schema=1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1 as well in OK packet
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
+
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # CASE3: with both session_track_system_variables, session_track_schema
 # expect 1 as well in OK packet
 SET @@session.time_zone='-6:00';
+-- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- time_zone
 -- -06:00
+
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_state_change=1;
 # expect 1 as well in OK packet
 SET @var2= 20;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 SET @@session.session_track_schema=1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1 as well in OK packet
 USE test;
+-- Tracker : SESSION_TRACK_SCHEMA
 -- test
+
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # CASE4: check for trackers itself
 SET @@session.session_track_state_change=1;
 # expect 1
 SET @@session.session_track_system_variables='tx_isolation';
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # expect 1
 SET @@session.session_track_schema=1;
+-- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
 # we dont send the boolean tracker for the tracker itself
 SET @@session.session_track_state_change=1;
 SET @@session.session_track_state_change=0;
-# Test if resetconnection sets the OFF the tracker
+# Test if reset_connection sets the OFF the tracker
 SET @@session.session_track_state_change=1;
 SELECT @@session.session_track_state_change;
 @@session.session_track_state_change

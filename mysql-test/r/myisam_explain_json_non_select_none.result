@@ -39,7 +39,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1     WHERE a < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
@@ -57,13 +57,13 @@ EXPLAIN
       "table_name": "t1",
       "access_type": "ALL",
       "rows_examined_per_scan": 3,
-      "rows_produced_per_join": 3,
-      "filtered": 100,
+      "rows_produced_per_join": 1,
+      "filtered": 33.333,
       "cost_info": {
-        "read_cost": "2.01",
-        "eval_cost": "0.60",
+        "read_cost": "2.41",
+        "eval_cost": "0.20",
         "prefix_cost": "2.61",
-        "data_read_per_join": "24"
+        "data_read_per_join": "8"
       } /* cost_info */,
       "used_columns": [
         "a"
@@ -121,7 +121,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
@@ -139,13 +139,13 @@ EXPLAIN
       "table_name": "t1",
       "access_type": "ALL",
       "rows_examined_per_scan": 3,
-      "rows_produced_per_join": 3,
-      "filtered": 100,
+      "rows_produced_per_join": 1,
+      "filtered": 33.333,
       "cost_info": {
-        "read_cost": "2.01",
-        "eval_cost": "0.60",
+        "read_cost": "2.41",
+        "eval_cost": "0.20",
         "prefix_cost": "2.61",
-        "data_read_per_join": "24"
+        "data_read_per_join": "8"
       } /* cost_info */,
       "used_columns": [
         "a"
@@ -174,12 +174,12 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 EXPLAIN DELETE   FROM t1 USING t1 WHERE a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 USING t1 WHERE a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -197,13 +197,13 @@ EXPLAIN
       "table_name": "t1",
       "access_type": "ALL",
       "rows_examined_per_scan": 3,
-      "rows_produced_per_join": 3,
-      "filtered": 100,
+      "rows_produced_per_join": 1,
+      "filtered": 33.333,
       "cost_info": {
-        "read_cost": "2.01",
-        "eval_cost": "0.60",
+        "read_cost": "2.41",
+        "eval_cost": "0.20",
         "prefix_cost": "2.61",
-        "data_read_per_join": "24"
+        "data_read_per_join": "8"
       } /* cost_info */,
       "used_columns": [
         "a"
@@ -216,7 +216,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1          WHERE a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 1)
@@ -234,13 +234,13 @@ EXPLAIN
       "table_name": "t1",
       "access_type": "ALL",
       "rows_examined_per_scan": 3,
-      "rows_produced_per_join": 3,
-      "filtered": 100,
+      "rows_produced_per_join": 1,
+      "filtered": 33.333,
       "cost_info": {
-        "read_cost": "2.01",
-        "eval_cost": "0.60",
+        "read_cost": "2.41",
+        "eval_cost": "0.20",
         "prefix_cost": "2.61",
-        "data_read_per_join": "24"
+        "data_read_per_join": "8"
       } /* cost_info */,
       "used_columns": [
         "a"
@@ -271,13 +271,13 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1, t2 SET t1.a = 10 WHERE t1.a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET t1.a = 10 WHERE t1.a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -289,7 +289,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.41"
+      "query_cost": "5.21"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -298,13 +298,13 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 3,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 33.333,
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "0.60",
+            "read_cost": "2.41",
+            "eval_cost": "0.20",
             "prefix_cost": "2.61",
-            "data_read_per_join": "24"
+            "data_read_per_join": "8"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -317,14 +317,14 @@ EXPLAIN
           "table_name": "t2",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 9,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.01",
-            "eval_cost": "1.80",
-            "prefix_cost": "6.41",
-            "data_read_per_join": "72"
+            "eval_cost": "0.60",
+            "prefix_cost": "5.21",
+            "data_read_per_join": "24"
           } /* cost_info */
         } /* table */
       }
@@ -335,7 +335,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1, t2               WHERE t1.a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -348,7 +348,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.41"
+      "query_cost": "5.21"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -356,13 +356,13 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 3,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 33.333,
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "0.60",
+            "read_cost": "2.41",
+            "eval_cost": "0.20",
             "prefix_cost": "2.61",
-            "data_read_per_join": "24"
+            "data_read_per_join": "8"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -375,14 +375,14 @@ EXPLAIN
           "table_name": "t2",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 9,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.01",
-            "eval_cost": "1.80",
-            "prefix_cost": "6.41",
-            "data_read_per_join": "72"
+            "eval_cost": "0.60",
+            "prefix_cost": "5.21",
+            "data_read_per_join": "24"
           } /* cost_info */,
           "used_columns": [
             "b"
@@ -414,14 +414,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
@@ -434,7 +434,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "14.55"
+      "query_cost": "13.35"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -443,13 +443,13 @@ EXPLAIN
           "table_name": "t11",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 3,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 33.333,
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "0.60",
+            "read_cost": "2.41",
+            "eval_cost": "0.20",
             "prefix_cost": "2.61",
-            "data_read_per_join": "24"
+            "data_read_per_join": "8"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -462,14 +462,14 @@ EXPLAIN
           "table_name": "t12",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 9,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "10.15",
-            "eval_cost": "1.80",
-            "prefix_cost": "14.56",
-            "data_read_per_join": "144"
+            "eval_cost": "0.60",
+            "prefix_cost": "13.36",
+            "data_read_per_join": "48"
           } /* cost_info */,
           "used_columns": [
             "b"
@@ -510,7 +510,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12                WHERE t11.a = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
@@ -524,7 +524,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "14.55"
+      "query_cost": "13.35"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -532,13 +532,13 @@ EXPLAIN
           "table_name": "t11",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 3,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 33.333,
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "0.60",
+            "read_cost": "2.41",
+            "eval_cost": "0.20",
             "prefix_cost": "2.61",
-            "data_read_per_join": "24"
+            "data_read_per_join": "8"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -551,14 +551,14 @@ EXPLAIN
           "table_name": "t12",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 9,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "10.15",
-            "eval_cost": "1.80",
-            "prefix_cost": "14.56",
-            "data_read_per_join": "144"
+            "eval_cost": "0.60",
+            "prefix_cost": "13.36",
+            "data_read_per_join": "48"
           } /* cost_info */,
           "used_columns": [
             "b"
@@ -620,13 +620,13 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -656,13 +656,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 3,
-              "filtered": 100,
+              "rows_produced_per_join": 1,
+              "filtered": 33.333,
               "cost_info": {
-                "read_cost": "2.01",
-                "eval_cost": "0.60",
+                "read_cost": "2.41",
+                "eval_cost": "0.20",
                 "prefix_cost": "2.61",
-                "data_read_per_join": "24"
+                "data_read_per_join": "8"
               } /* cost_info */,
               "used_columns": [
                 "b"
@@ -680,7 +680,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1            WHERE 1 IN (SELECT 1 FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 1
@@ -724,13 +724,13 @@ EXPLAIN
             "table_name": "t2",
             "access_type": "ALL",
             "rows_examined_per_scan": 3,
-            "rows_produced_per_join": 3,
-            "filtered": 100,
+            "rows_produced_per_join": 1,
+            "filtered": 33.333,
             "cost_info": {
-              "read_cost": "2.01",
-              "eval_cost": "0.60",
+              "read_cost": "2.41",
+              "eval_cost": "0.20",
               "prefix_cost": "2.61",
-              "data_read_per_join": "24"
+              "data_read_per_join": "8"
             } /* cost_info */,
             "used_columns": [
               "b"
@@ -765,7 +765,7 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 FLUSH STATUS;
@@ -773,7 +773,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -804,13 +804,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 3,
-              "filtered": 100,
+              "rows_produced_per_join": 1,
+              "filtered": 33.333,
               "cost_info": {
                 "read_cost": "2.01",
-                "eval_cost": "0.60",
+                "eval_cost": "0.20",
                 "prefix_cost": "2.61",
-                "data_read_per_join": "24"
+                "data_read_per_join": "8"
               } /* cost_info */,
               "used_columns": [
                 "b"
@@ -830,7 +830,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1            WHERE a IN (SELECT b FROM t2 WHERE t1.a < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
@@ -874,13 +874,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 3,
-              "filtered": 100,
+              "rows_produced_per_join": 1,
+              "filtered": 33.333,
               "cost_info": {
                 "read_cost": "2.01",
-                "eval_cost": "0.60",
+                "eval_cost": "0.20",
                 "prefix_cost": "2.61",
-                "data_read_per_join": "24"
+                "data_read_per_join": "8"
               } /* cost_info */,
               "used_columns": [
                 "b"
@@ -918,14 +918,14 @@ EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -970,13 +970,13 @@ EXPLAIN
                   "table_name": "t2",
                   "access_type": "ALL",
                   "rows_examined_per_scan": 3,
-                  "rows_produced_per_join": 3,
-                  "filtered": 100,
+                  "rows_produced_per_join": 0,
+                  "filtered": 11.111,
                   "cost_info": {
-                    "read_cost": "2.01",
-                    "eval_cost": "0.60",
+                    "read_cost": "2.41",
+                    "eval_cost": "0.07",
                     "prefix_cost": "2.61",
-                    "data_read_per_join": "24"
+                    "data_read_per_join": "2"
                   } /* cost_info */,
                   "used_columns": [
                     "b"
@@ -1013,7 +1013,7 @@ EXPLAIN EXTENDED SELECT * FROM t1, t2            WHERE a IN (SELECT b FROM t2 WH
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
@@ -1058,13 +1058,13 @@ EXPLAIN
                   "table_name": "t2",
                   "access_type": "ALL",
                   "rows_examined_per_scan": 3,
-                  "rows_produced_per_join": 3,
-                  "filtered": 100,
+                  "rows_produced_per_join": 0,
+                  "filtered": 11.111,
                   "cost_info": {
-                    "read_cost": "2.01",
-                    "eval_cost": "0.60",
+                    "read_cost": "2.41",
+                    "eval_cost": "0.07",
                     "prefix_cost": "2.61",
-                    "data_read_per_join": "24"
+                    "data_read_per_join": "2"
                   } /* cost_info */,
                   "used_columns": [
                     "b"
@@ -1307,10 +1307,9 @@ Handler_read_rnd_next	12
 Handler_write	3
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_rnd	3
-Handler_read_rnd_next	25
+Handler_read_rnd_next	20
 Handler_update	3
-Handler_write	12
+Handler_write	3
 
 DROP TABLE t1, t2;
 #9
@@ -1498,14 +1497,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 t11, (SELECT * FROM t2) t12 SET t11.a = 10 WHERE t11.a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
@@ -1518,7 +1517,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "14.55"
+      "query_cost": "13.35"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -1527,13 +1526,13 @@ EXPLAIN
           "table_name": "t11",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 3,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 33.333,
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "0.60",
+            "read_cost": "2.41",
+            "eval_cost": "0.20",
             "prefix_cost": "2.61",
-            "data_read_per_join": "24"
+            "data_read_per_join": "8"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -1546,14 +1545,14 @@ EXPLAIN
           "table_name": "t12",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 9,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "10.15",
-            "eval_cost": "1.80",
-            "prefix_cost": "14.56",
-            "data_read_per_join": "144"
+            "eval_cost": "0.60",
+            "prefix_cost": "13.36",
+            "data_read_per_join": "48"
           } /* cost_info */,
           "used_columns": [
             "b"
@@ -1594,7 +1593,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 t11, (SELECT * FROM t2) t12                WHERE t11.a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
@@ -1608,7 +1607,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "14.55"
+      "query_cost": "13.35"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -1616,13 +1615,13 @@ EXPLAIN
           "table_name": "t11",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 3,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 33.333,
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "0.60",
+            "read_cost": "2.41",
+            "eval_cost": "0.20",
             "prefix_cost": "2.61",
-            "data_read_per_join": "24"
+            "data_read_per_join": "8"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -1635,14 +1634,14 @@ EXPLAIN
           "table_name": "t12",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 9,
+          "rows_produced_per_join": 3,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "10.15",
-            "eval_cost": "1.80",
-            "prefix_cost": "14.56",
-            "data_read_per_join": "144"
+            "eval_cost": "0.60",
+            "prefix_cost": "13.36",
+            "data_read_per_join": "48"
           } /* cost_info */,
           "used_columns": [
             "b"
@@ -1730,7 +1729,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a > 1 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 1) limit 1
@@ -1748,13 +1747,13 @@ EXPLAIN
       "table_name": "t1",
       "access_type": "ALL",
       "rows_examined_per_scan": 3,
-      "rows_produced_per_join": 3,
-      "filtered": 100,
+      "rows_produced_per_join": 1,
+      "filtered": 33.333,
       "cost_info": {
-        "read_cost": "2.01",
-        "eval_cost": "0.60",
+        "read_cost": "2.41",
+        "eval_cost": "0.20",
         "prefix_cost": "2.61",
-        "data_read_per_join": "24"
+        "data_read_per_join": "8"
       } /* cost_info */,
       "used_columns": [
         "a"
@@ -2722,13 +2721,13 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t1 SET a = 10 WHERE a IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -2758,13 +2757,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 3,
-              "filtered": 100,
+              "rows_produced_per_join": 1,
+              "filtered": 33.333,
               "cost_info": {
                 "read_cost": "2.01",
-                "eval_cost": "0.60",
+                "eval_cost": "0.20",
                 "prefix_cost": "2.61",
-                "data_read_per_join": "24"
+                "data_read_per_join": "8"
               } /* cost_info */,
               "used_columns": [
                 "a"
@@ -2782,7 +2781,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1     WHERE a IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
@@ -2825,13 +2824,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 3,
-              "filtered": 100,
+              "rows_produced_per_join": 1,
+              "filtered": 33.333,
               "cost_info": {
                 "read_cost": "2.01",
-                "eval_cost": "0.60",
+                "eval_cost": "0.20",
                 "prefix_cost": "2.61",
-                "data_read_per_join": "24"
+                "data_read_per_join": "8"
               } /* cost_info */,
               "used_columns": [
                 "a"
@@ -2868,13 +2867,13 @@ SET @save_optimizer_switch= @@optimizer_switch;
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -2904,13 +2903,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 5,
-              "filtered": 100,
+              "rows_produced_per_join": 0,
+              "filtered": 6.666,
               "cost_info": {
-                "read_cost": "2.02",
-                "eval_cost": "1.00",
+                "read_cost": "2.69",
+                "eval_cost": "0.07",
                 "prefix_cost": "3.02",
-                "data_read_per_join": "80"
+                "data_read_per_join": "5"
               } /* cost_info */,
               "used_columns": [
                 "a2"
@@ -2928,7 +2927,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
@@ -2971,13 +2970,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 5,
-              "filtered": 100,
+              "rows_produced_per_join": 0,
+              "filtered": 6.666,
               "cost_info": {
-                "read_cost": "2.02",
-                "eval_cost": "1.00",
+                "read_cost": "2.69",
+                "eval_cost": "0.07",
                 "prefix_cost": "3.02",
-                "data_read_per_join": "80"
+                "data_read_per_join": "5"
               } /* cost_info */,
               "used_columns": [
                 "a2"
@@ -3010,13 +3009,13 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 EXPLAIN DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -3046,13 +3045,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 5,
-              "filtered": 100,
+              "rows_produced_per_join": 0,
+              "filtered": 6.666,
               "cost_info": {
-                "read_cost": "2.02",
-                "eval_cost": "1.00",
+                "read_cost": "2.69",
+                "eval_cost": "0.07",
                 "prefix_cost": "3.02",
-                "data_read_per_join": "80"
+                "data_read_per_join": "5"
               } /* cost_info */,
               "used_columns": [
                 "a2"
@@ -3070,7 +3069,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a1 IN (SELECT a2 FROM t2 WHERE a2 > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	6.67	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
@@ -3113,13 +3112,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 5,
-              "filtered": 100,
+              "rows_produced_per_join": 0,
+              "filtered": 6.666,
               "cost_info": {
-                "read_cost": "2.02",
-                "eval_cost": "1.00",
+                "read_cost": "2.69",
+                "eval_cost": "0.07",
                 "prefix_cost": "3.02",
-                "data_read_per_join": "80"
+                "data_read_per_join": "5"
               } /* cost_info */,
               "used_columns": [
                 "a2"
@@ -3357,7 +3356,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	352040.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	1760.20	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -3384,13 +3383,13 @@ EXPLAIN
         ] /* used_key_parts */,
         "key_length": "15",
         "rows_examined_per_scan": 5,
-        "rows_produced_per_join": 17602,
-        "filtered": 352040,
+        "rows_produced_per_join": 88,
+        "filtered": 1760.2,
         "cost_info": {
-          "read_cost": "75.06",
-          "eval_cost": "3520.40",
+          "read_cost": "3577.85",
+          "eval_cost": "17.60",
           "prefix_cost": "3595.46",
-          "data_read_per_join": "412K"
+          "data_read_per_join": "2K"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -3525,14 +3524,14 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -3575,14 +3574,14 @@ EXPLAIN
             "table_name": "tt",
             "access_type": "ALL",
             "rows_examined_per_scan": 3,
-            "rows_produced_per_join": 9,
-            "filtered": 100,
+            "rows_produced_per_join": 3,
+            "filtered": 33.333,
             "using_join_buffer": "Block Nested Loop",
             "cost_info": {
               "read_cost": "2.01",
-              "eval_cost": "1.80",
+              "eval_cost": "0.60",
               "prefix_cost": "6.41",
-              "data_read_per_join": "72"
+              "data_read_per_join": "24"
             } /* cost_info */,
             "used_columns": [
               "i"
@@ -3599,7 +3598,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 JOIN t1 AS tt USING(i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
@@ -3637,14 +3636,14 @@ EXPLAIN
           "table_name": "tt",
           "access_type": "ALL",
           "rows_examined_per_scan": 3,
-          "rows_produced_per_join": 9,
-          "filtered": 100,
+          "rows_produced_per_join": 3,
+          "filtered": 33.333,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.01",
-            "eval_cost": "1.80",
+            "eval_cost": "0.60",
             "prefix_cost": "6.41",
-            "data_read_per_join": "72"
+            "data_read_per_join": "24"
           } /* cost_info */,
           "used_columns": [
             "i"
@@ -4001,7 +4000,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	i	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t1	NULL	ALL	i	NULL	NULL	NULL	26	11.11	Using where; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
@@ -4015,10 +4014,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.24"
+      "query_cost": "10.13"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "2.89"
+      } /* cost_info */,
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -4026,13 +4028,13 @@ EXPLAIN
           "i"
         ] /* possible_keys */,
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 26,
-        "filtered": 100,
+        "rows_produced_per_join": 2,
+        "filtered": 11.109,
         "cost_info": {
-          "read_cost": "2.04",
-          "eval_cost": "5.20",
+          "read_cost": "6.67",
+          "eval_cost": "0.58",
           "prefix_cost": "7.24",
-          "data_read_per_join": "208"
+          "data_read_per_join": "23"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4106,7 +4108,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -4121,18 +4123,25 @@ EXPLAIN
       "query_cost": "7.31"
     } /* cost_info */,
     "ordering_operation": {
-      "using_filesort": true,
+      "using_filesort": false,
       "table": {
         "table_name": "t2",
-        "access_type": "ALL",
-        "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 26,
-        "filtered": 100,
+        "access_type": "index",
+        "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
+        "key_length": "15",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 1,
+        "filtered": 20,
         "cost_info": {
-          "read_cost": "2.11",
-          "eval_cost": "5.20",
+          "read_cost": "7.11",
+          "eval_cost": "0.20",
           "prefix_cost": "7.31",
-          "data_read_per_join": "624"
+          "data_read_per_join": "24"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4149,9 +4158,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_rnd_next	27
-Sort_rows	1
-Sort_scan	1
+Handler_read_first	1
+Handler_read_next	26
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -4214,7 +4222,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	352040.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	1760.20	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -4241,13 +4249,13 @@ EXPLAIN
         ] /* used_key_parts */,
         "key_length": "15",
         "rows_examined_per_scan": 5,
-        "rows_produced_per_join": 17602,
-        "filtered": 352040,
+        "rows_produced_per_join": 88,
+        "filtered": 1760.2,
         "cost_info": {
-          "read_cost": "75.06",
-          "eval_cost": "3520.40",
+          "read_cost": "3577.85",
+          "eval_cost": "17.60",
           "prefix_cost": "3595.46",
-          "data_read_per_join": "412K"
+          "data_read_per_join": "2K"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4323,7 +4331,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	3.85	Using where; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -4335,21 +4343,24 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.26"
+      "query_cost": "8.26"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "1.00"
+      } /* cost_info */,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 26,
-        "filtered": 100,
+        "rows_produced_per_join": 1,
+        "filtered": 3.8462,
         "cost_info": {
-          "read_cost": "2.06",
-          "eval_cost": "5.20",
+          "read_cost": "7.06",
+          "eval_cost": "0.20",
           "prefix_cost": "7.26",
-          "data_read_per_join": "416"
+          "data_read_per_join": "16"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4429,7 +4440,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	3.85	Using where; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -4441,21 +4452,24 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "16.50"
+      "query_cost": "17.50"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "1.00"
+      } /* cost_info */,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 26,
-        "filtered": 100,
+        "rows_produced_per_join": 1,
+        "filtered": 3.8462,
         "cost_info": {
-          "read_cost": "11.30",
-          "eval_cost": "5.20",
+          "read_cost": "16.30",
+          "eval_cost": "0.20",
           "prefix_cost": "16.50",
-          "data_read_per_join": "416"
+          "data_read_per_join": "16"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5090,7 +5104,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	i	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	ALL	i	NULL	NULL	NULL	26	11.11	Using where; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
@@ -5104,10 +5118,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.24"
+      "query_cost": "10.13"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "2.89"
+      } /* cost_info */,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
@@ -5115,13 +5132,13 @@ EXPLAIN
           "i"
         ] /* possible_keys */,
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 26,
-        "filtered": 100,
+        "rows_produced_per_join": 2,
+        "filtered": 11.109,
         "cost_info": {
-          "read_cost": "2.04",
-          "eval_cost": "5.20",
+          "read_cost": "6.67",
+          "eval_cost": "0.58",
           "prefix_cost": "7.24",
-          "data_read_per_join": "208"
+          "data_read_per_join": "23"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5195,7 +5212,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	20.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -5210,18 +5227,25 @@ EXPLAIN
       "query_cost": "7.31"
     } /* cost_info */,
     "ordering_operation": {
-      "using_filesort": true,
+      "using_filesort": false,
       "table": {
         "table_name": "t2",
-        "access_type": "ALL",
-        "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 26,
-        "filtered": 100,
+        "access_type": "index",
+        "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
+        "key_length": "15",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 1,
+        "filtered": 20,
         "cost_info": {
-          "read_cost": "2.11",
-          "eval_cost": "5.20",
+          "read_cost": "7.11",
+          "eval_cost": "0.20",
           "prefix_cost": "7.31",
-          "data_read_per_join": "624"
+          "data_read_per_join": "24"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5238,9 +5262,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_rnd_next	27
-Sort_rows	1
-Sort_scan	1
+Handler_read_first	1
+Handler_read_next	26
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_rnd	1
@@ -5304,7 +5327,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	352040.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	1760.20	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -5331,13 +5354,13 @@ EXPLAIN
         ] /* used_key_parts */,
         "key_length": "15",
         "rows_examined_per_scan": 5,
-        "rows_produced_per_join": 17602,
-        "filtered": 352040,
+        "rows_produced_per_join": 88,
+        "filtered": 1760.2,
         "cost_info": {
-          "read_cost": "75.06",
-          "eval_cost": "3520.40",
+          "read_cost": "3577.85",
+          "eval_cost": "17.60",
           "prefix_cost": "3595.46",
-          "data_read_per_join": "412K"
+          "data_read_per_join": "2K"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5414,7 +5437,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	3.85	Using where; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -5426,21 +5449,24 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.26"
+      "query_cost": "8.26"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "1.00"
+      } /* cost_info */,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 26,
-        "filtered": 100,
+        "rows_produced_per_join": 1,
+        "filtered": 3.8462,
         "cost_info": {
-          "read_cost": "2.06",
-          "eval_cost": "5.20",
+          "read_cost": "7.06",
+          "eval_cost": "0.20",
           "prefix_cost": "7.26",
-          "data_read_per_join": "416"
+          "data_read_per_join": "16"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5519,7 +5545,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	26	3.85	Using where; Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -5531,21 +5557,24 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "16.50"
+      "query_cost": "17.50"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "1.00"
+      } /* cost_info */,
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 26,
-        "filtered": 100,
+        "rows_produced_per_join": 1,
+        "filtered": 3.8462,
         "cost_info": {
-          "read_cost": "11.30",
-          "eval_cost": "5.20",
+          "read_cost": "16.30",
+          "eval_cost": "0.20",
           "prefix_cost": "16.50",
-          "data_read_per_join": "416"
+          "data_read_per_join": "16"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -6518,13 +6547,13 @@ Handler_read_rnd_next	4
 EXPLAIN UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10 WHERE t1.c3 = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 LEFT JOIN t2 ON t1.c1 = t2.c1 SET t2.c2 = 10 WHERE t1.c3 = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
@@ -6566,13 +6595,13 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 2,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 50,
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "0.40",
+            "read_cost": "2.21",
+            "eval_cost": "0.20",
             "prefix_cost": "2.41",
-            "data_read_per_join": "32"
+            "data_read_per_join": "16"
           } /* cost_info */,
           "used_columns": [
             "c1",
@@ -6589,7 +6618,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 LEFT JOIN t2 ON t1.c1 = t2.c1                WHERE t1.c3 = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,NULL AS `c1`,NULL AS `c2` from `test`.`t1` where (`test`.`t1`.`c3` = 10)
@@ -6631,13 +6660,13 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 2,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 50,
           "cost_info": {
-            "read_cost": "2.01",
-            "eval_cost": "0.40",
+            "read_cost": "2.21",
+            "eval_cost": "0.20",
             "prefix_cost": "2.41",
-            "data_read_per_join": "32"
+            "data_read_per_join": "16"
           } /* cost_info */,
           "used_columns": [
             "c1",
@@ -6884,13 +6913,13 @@ CREATE VIEW v1 AS SELECT t11.a, t12.a AS b FROM t1 t11, t1 t12;
 #
 EXPLAIN UPDATE        v1 SET a = 1 WHERE a > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        v1 SET a = 1 WHERE a > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -6902,7 +6931,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.21"
+      "query_cost": "4.81"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -6911,13 +6940,13 @@ EXPLAIN
           "table_name": "t11",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 2,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 50,
           "cost_info": {
-            "read_cost": "2.00",
-            "eval_cost": "0.40",
+            "read_cost": "2.20",
+            "eval_cost": "0.20",
             "prefix_cost": "2.40",
-            "data_read_per_join": "16"
+            "data_read_per_join": "8"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -6930,14 +6959,14 @@ EXPLAIN
           "table_name": "t12",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 4,
+          "rows_produced_per_join": 2,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.00",
-            "eval_cost": "0.80",
-            "prefix_cost": "5.21",
-            "data_read_per_join": "32"
+            "eval_cost": "0.40",
+            "prefix_cost": "4.81",
+            "data_read_per_join": "16"
           } /* cost_info */
         } /* table */
       }
@@ -6948,7 +6977,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM v1           WHERE a > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -6961,7 +6990,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.21"
+      "query_cost": "4.81"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -6969,13 +6998,13 @@ EXPLAIN
           "table_name": "t11",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 2,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 50,
           "cost_info": {
-            "read_cost": "2.00",
-            "eval_cost": "0.40",
+            "read_cost": "2.20",
+            "eval_cost": "0.20",
             "prefix_cost": "2.40",
-            "data_read_per_join": "16"
+            "data_read_per_join": "8"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -6988,14 +7017,14 @@ EXPLAIN
           "table_name": "t12",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 4,
+          "rows_produced_per_join": 2,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.00",
-            "eval_cost": "0.80",
-            "prefix_cost": "5.21",
-            "data_read_per_join": "32"
+            "eval_cost": "0.40",
+            "prefix_cost": "4.81",
+            "data_read_per_join": "16"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -7023,14 +7052,14 @@ Handler_write	2
 EXPLAIN UPDATE        t1, v1 SET v1.a = 1 WHERE t1.a = v1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, v1 SET v1.a = 1 WHERE t1.a = v1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7042,7 +7071,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.81"
+      "query_cost": "8.01"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -7069,14 +7098,14 @@ EXPLAIN
           "table_name": "t11",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 4,
-          "filtered": 100,
+          "rows_produced_per_join": 2,
+          "filtered": 50,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.00",
-            "eval_cost": "0.80",
+            "eval_cost": "0.40",
             "prefix_cost": "5.21",
-            "data_read_per_join": "32"
+            "data_read_per_join": "16"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -7089,14 +7118,14 @@ EXPLAIN
           "table_name": "t12",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 8,
+          "rows_produced_per_join": 4,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.00",
-            "eval_cost": "1.60",
-            "prefix_cost": "8.81",
-            "data_read_per_join": "64"
+            "eval_cost": "0.80",
+            "prefix_cost": "8.01",
+            "data_read_per_join": "32"
           } /* cost_info */
         } /* table */
       }
@@ -7108,7 +7137,7 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1, v1              WHERE t1.a = v1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7121,7 +7150,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.81"
+      "query_cost": "8.01"
     } /* cost_info */,
     "nested_loop": [
       {
@@ -7147,14 +7176,14 @@ EXPLAIN
           "table_name": "t11",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 4,
-          "filtered": 100,
+          "rows_produced_per_join": 2,
+          "filtered": 50,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.00",
-            "eval_cost": "0.80",
+            "eval_cost": "0.40",
             "prefix_cost": "5.21",
-            "data_read_per_join": "32"
+            "data_read_per_join": "16"
           } /* cost_info */,
           "used_columns": [
             "a"
@@ -7167,14 +7196,14 @@ EXPLAIN
           "table_name": "t12",
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
-          "rows_produced_per_join": 8,
+          "rows_produced_per_join": 4,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.00",
-            "eval_cost": "1.60",
-            "prefix_cost": "8.81",
-            "data_read_per_join": "64"
+            "eval_cost": "0.80",
+            "prefix_cost": "8.01",
+            "data_read_per_join": "32"
           } /* cost_info */,
           "used_columns": [
             "a"

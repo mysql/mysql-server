@@ -801,7 +801,7 @@ static my_bool net_read_packet_header(NET *net)
   @return The length of the packet, or @packet_error on error.
 */
 
-static ulong net_read_packet(NET *net, size_t *complen)
+static size_t net_read_packet(NET *net, size_t *complen)
 {
   size_t pkt_len, pkt_data_len;
 
@@ -907,14 +907,14 @@ my_net_read(NET *net)
     if (len != packet_error)
       net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
     MYSQL_NET_READ_DONE(0, len);
-    return len;
+    return static_cast<ulong>(len);
 #ifdef HAVE_COMPRESS
   }
   else
   {
     /* We are using the compressed protocol */
 
-    ulong buf_length;
+    size_t buf_length;
     ulong start_of_packet;
     ulong first_packet_offset;
     uint read_length, multi_byte_packet=0;
@@ -1018,7 +1018,7 @@ my_net_read(NET *net)
   }
 #endif /* HAVE_COMPRESS */
   MYSQL_NET_READ_DONE(0, len);
-  return len;
+  return static_cast<ulong>(len);
 }
 
 

@@ -54,8 +54,6 @@ Created 9/20/1997 Heikki Tuuri
 # include "row0merge.h"
 # include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
-
-
 /** This is set to FALSE if the backup was originally taken with the
 ibbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
@@ -87,7 +85,7 @@ ibool	recv_no_log_write = FALSE;
 
 /** TRUE if buf_page_is_corrupted() should check if the log sequence
 number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
-recv_recovery_from_checkpoint_start_func(). */
+recv_recovery_from_checkpoint_start(). */
 ibool	recv_lsn_checks_on;
 
 /** If the following is TRUE, the buffer pool file pages must be invalidated
@@ -457,20 +455,13 @@ recv_synchronize_groups(void)
 		log_group_set_fields(group, recovered_lsn);
 	}
 
-	/* Copy the checkpoint info to the groups; remember that we have
+	/* Copy the checkpoint info to the log; remember that we have
 	incremented checkpoint_no by one, and the info will not be written
 	over the max checkpoint info, thus making the preservation of max
 	checkpoint info on disk certain */
 
-	log_groups_write_checkpoint_info();
-
-	mutex_exit(&(log_sys->mutex));
-
-	/* Wait for the checkpoint write to complete */
-	rw_lock_s_lock(&(log_sys->checkpoint_lock));
-	rw_lock_s_unlock(&(log_sys->checkpoint_lock));
-
-	mutex_enter(&(log_sys->mutex));
+	log_write_checkpoint_info(true);
+	log_mutex_enter();
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1357,9 +1348,6 @@ recv_recover_page_func(
 	lsn_t		page_lsn;
 	lsn_t		page_newest_lsn;
 	ibool		modification_to_page;
-#ifndef UNIV_HOTBACKUP
-	ibool		success;
-#endif /* !UNIV_HOTBACKUP */
 	mtr_t		mtr;
 
 	mutex_enter(&(recv_sys->mutex));
@@ -1379,16 +1367,18 @@ recv_recover_page_func(
 	if ((recv_addr == NULL)
 	    || (recv_addr->state == RECV_BEING_PROCESSED)
 	    || (recv_addr->state == RECV_PROCESSED)) {
+		ut_ad(recv_addr == NULL || recv_needed_recovery);
 
 		mutex_exit(&(recv_sys->mutex));
 
 		return;
 	}
 
-#if 0
-	fprintf(stderr, "Recovering space %lu, page %lu\n",
-		block->page.id.space(), block->page.id.page_no());
-#endif
+	ut_ad(recv_needed_recovery);
+
+	DBUG_PRINT("ib_log",
+		   ("Applying log to page %u:%u",
+		    recv_addr->space, recv_addr->page_no));
 
 	recv_addr->state = RECV_BEING_PROCESSED;
 
@@ -1410,10 +1400,9 @@ recv_recover_page_func(
 		rw_lock_x_lock_move_ownership(&block->lock);
 	}
 
-	success = buf_page_get_known_nowait(RW_X_LATCH, block,
-					    BUF_KEEP_OLD,
-					    __FILE__, __LINE__,
-					    &mtr);
+	ibool	success = buf_page_get_known_nowait(
+		RW_X_LATCH, block, BUF_KEEP_OLD,
+		__FILE__, __LINE__, &mtr);
 	ut_a(success);
 
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
@@ -1560,7 +1549,6 @@ recv_recover_page_func(
 }
 
 #ifndef UNIV_HOTBACKUP
-
 /** Reads in pages which have hashed log records, from an area around a given
 page number.
 @param[in]	page_id	page id
@@ -1644,7 +1632,7 @@ loop:
 		goto loop;
 	}
 
-	ut_ad(!allow_ibuf == mutex_own(&log_sys->mutex));
+	ut_ad(!allow_ibuf == log_mutex_own());
 
 	if (!allow_ibuf) {
 		recv_no_ibuf_operations = TRUE;
@@ -1739,7 +1727,7 @@ loop:
 
 		ut_d(recv_no_log_write = TRUE);
 		mutex_exit(&(recv_sys->mutex));
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		/* Stop the recv_writer thread from issuing any LRU
 		flush batches. */
@@ -1755,7 +1743,7 @@ loop:
 		/* Allow batches from recv_writer thread. */
 		mutex_exit(&recv_sys->writer_mutex);
 
-		mutex_enter(&(log_sys->mutex));
+		log_mutex_enter();
 		mutex_enter(&(recv_sys->mutex));
 		ut_d(recv_no_log_write = FALSE);
 
@@ -2098,7 +2086,7 @@ recv_parse_log_recs(void)
 	byte*		body;
 	ulint		n_recs;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 	ut_ad(recv_sys->parse_start_lsn != 0);
 loop:
 	ptr = recv_sys->buf + recv_sys->recovered_offset;
@@ -2711,7 +2699,7 @@ recv_recovery_from_checkpoint_start(
 
 	recv_recovery_on = TRUE;
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 
 	/* Look for the latest checkpoint from any of the log groups */
 
@@ -2719,7 +2707,7 @@ recv_recovery_from_checkpoint_start(
 
 	if (err != DB_SUCCESS) {
 
-		mutex_exit(&(log_sys->mutex));
+		log_mutex_exit();
 
 		return(err);
 	}
@@ -2803,14 +2791,13 @@ recv_recovery_from_checkpoint_start(
 	    || checkpoint_lsn != min_flushed_lsn) {
 
 		if (checkpoint_lsn < max_flushed_lsn) {
-
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"The log sequence number in the ibdata files is"
 				" higher than the log sequence number in the"
 				" ib_logfiles! Are you sure you are using the"
 				" right ib_logfiles to start up the database."
 				" Log sequence number in the ib_logfiles is"
-				LSN_PF ", log sequence numbers stamped to"
+				" " LSN_PF ", log sequence numbers stamped to"
 				" ibdata file headers are between"
 				" " LSN_PF " and " LSN_PF ".",
 				checkpoint_lsn,
@@ -2851,13 +2838,7 @@ recv_recovery_from_checkpoint_start(
 	}
 
 	if (recv_sys->recovered_lsn < checkpoint_lsn) {
-
-		mutex_exit(&(log_sys->mutex));
-
-		if (recv_sys->recovered_lsn >= LSN_MAX) {
-
-			return(DB_SUCCESS);
-		}
+		log_mutex_exit();
 
 		/* No harm in trying to do RO access. */
 		if (!srv_read_only_mode) {
@@ -2902,7 +2883,7 @@ recv_recovery_from_checkpoint_start(
 
 	mutex_exit(&recv_sys->mutex);
 
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	recv_lsn_checks_on = TRUE;
 
@@ -2920,32 +2901,6 @@ void
 recv_recovery_from_checkpoint_finish(void)
 /*======================================*/
 {
-	/* Apply the hashed log records to the respective file pages,
-	for the last batch of recv_group_scan_log_recs(). */
-
-	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-
-		recv_apply_hashed_log_recs(TRUE);
-	}
-
-	DBUG_PRINT("ib_log", ("apply completed"));
-
-	if (recv_needed_recovery) {
-		trx_sys_print_mysql_binlog_offset();
-	}
-
-	if (recv_sys->found_corrupt_log) {
-
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"The log file may have been corrupt and it"
-			" is possible that the log scan or parsing"
-			" did not proceed far enough in recovery."
-			" Please run CHECK TABLE on your InnoDB tables"
-			" to check that they are ok!"
-			" It may be safest to recover your"
-			" InnoDB database from a backup!");
-	}
-
 	/* Make sure that the recv_writer thread is done. This is
 	required because it grabs various mutexes and we want to
 	ensure that when we enable sync_order_checks there is no
@@ -2956,7 +2911,7 @@ recv_recovery_from_checkpoint_finish(void)
 	recv_recovery_on = FALSE;
 
 	/* By acquring the mutex we ensure that the recv_writer thread
-	won't trigger any more LRU batchtes. Now wait for currently
+	won't trigger any more LRU batches. Now wait for currently
 	in progress batches to finish. */
 	buf_flush_wait_LRU_batch_end();
 
@@ -3032,7 +2987,7 @@ recv_reset_logs(
 {
 	log_group_t*	group;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	log_sys->lsn = ut_uint64_align_up(lsn, OS_FILE_LOG_BLOCK_SIZE);
 
@@ -3059,13 +3014,13 @@ recv_reset_logs(
 	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
 		    (log_sys->lsn - log_sys->last_checkpoint_lsn));
 
-	mutex_exit(&(log_sys->mutex));
+	log_mutex_exit();
 
 	/* Reset the checkpoint fields in logs */
 
 	log_make_checkpoint_at(LSN_MAX, TRUE);
 
-	mutex_enter(&(log_sys->mutex));
+	log_mutex_enter();
 }
 #endif /* !UNIV_HOTBACKUP */
 

@@ -350,6 +350,8 @@ int mysql_client_plugin_init()
 
   load_env_plugins(&mysql);
 
+  mysql_close_free(&mysql);
+
   return 0;
 }
 

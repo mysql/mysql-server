@@ -108,7 +108,6 @@
 #include <ft_global.h>
 #include <errmsg.h>
 #include "sp_rcontext.h"
-#include "sp_cache.h"
 #include "sql_reload.h"  // reload_acl_and_cache
 #include "sp_head.h"  // init_sp_psi_keys
 #include "event_data_objects.h" //init_scheduler_psi_keys
@@ -495,14 +494,11 @@ ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
 ulong slave_max_allowed_packet= 0;
 ulong binlog_stmt_cache_size=0;
-my_atomic_rwlock_t opt_binlog_max_flush_queue_time_lock;
 int32 opt_binlog_max_flush_queue_time= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
-my_atomic_rwlock_t global_query_id_lock;
-my_atomic_rwlock_t slave_open_temp_tables_lock;
 ulong aborted_threads;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
@@ -598,7 +594,7 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file;
 char *lc_messages_dir_ptr, *log_error_file_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
-int mysql_unpacked_real_data_home_len;
+size_t mysql_unpacked_real_data_home_len;
 uint mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
 const key_map key_map_empty(0);
@@ -1302,17 +1298,6 @@ void kill_mysql(void)
   DBUG_VOID_RETURN;
 }
 
-extern "C" void print_signal_warning(int sig)
-{
-  sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-  my_sigset(sig,print_signal_warning);    /* int. thread system calls */
-#endif
-#if !defined(_WIN32)
-  if (sig == SIGALRM)
-    alarm(2);         /* reschedule alarm */
-#endif
-}
 
 static void init_error_log_mutex()
 {
@@ -1357,6 +1342,18 @@ static void mysqld_exit(int exit_code)
   clean_up_error_log_mutex();
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
+#endif
+#if defined(_WIN32)
+  if (Service.IsNT() && start_mode)
+  {
+    Service.Stop();
+  }
+  else
+  {
+    Service.SetShutdownEvent(0);
+    if (hEventShutdown)
+      CloseHandle(hEventShutdown);
+  }
 #endif
   exit(exit_code); /* purecov: inspected */
 }
@@ -1494,8 +1491,6 @@ void clean_up(bool print_message)
   (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
-  my_atomic_rwlock_destroy(&opt_binlog_max_flush_queue_time_lock);
-  my_atomic_rwlock_destroy(&global_query_id_lock);
   free_charsets();
   sys_var_end();
   Global_THD_manager::destroy_instance();
@@ -2095,13 +2090,29 @@ void my_init_signals(void)
 #define SA_NODEFER 0
 #endif
 
+extern "C" void print_signal_warning(int sig)
+{
+  sql_print_warning("Got signal %d from thread %ld", sig, my_thread_id());
+  if (sig == SIGALRM)
+    alarm(2);         /* reschedule alarm */
+}
+
+
 void my_init_signals(void)
 {
   sigset_t set;
   struct sigaction sa;
   DBUG_ENTER("my_init_signals");
 
-  my_sigset(thr_server_alarm,print_signal_warning); // Should never be called!
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= print_signal_warning; // Should never be called!
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(thr_server_alarm, &l_s, NULL);
+  }
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -2133,7 +2144,15 @@ void my_init_signals(void)
   }
 #endif
   (void) sigemptyset(&set);
-  my_sigset(SIGPIPE,SIG_IGN);
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= SIG_IGN;
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(SIGPIPE, &l_s, NULL);
+  }
   sigaddset(&set,SIGPIPE);
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
@@ -2315,7 +2334,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 #endif // !EMBEDDED_LIBRARY
 
 
-#if BACKTRACE_DEMANGLE
+#if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 #include <cxxabi.h>
 extern "C" char *my_demangle(const char *mangled_name, int *status)
 {
@@ -2514,8 +2533,7 @@ SHOW_VAR com_status_vars[]= {
   {"drop_view",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_VIEW]), SHOW_LONG_STATUS},
   {"empty_query",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EMPTY_QUERY]), SHOW_LONG_STATUS},
   {"execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]), SHOW_LONG_STATUS},
-  {"explain_other",        (char*) offsetof(STATUS_VAR, com_stat[(uint)
-  SQLCOM_EXPLAIN_OTHER]), SHOW_LONG_STATUS},
+  {"explain_other",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXPLAIN_OTHER]), SHOW_LONG_STATUS},
   {"flush",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_FLUSH]), SHOW_LONG_STATUS},
   {"get_diagnostics",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GET_DIAGNOSTICS]), SHOW_LONG_STATUS},
   {"grant",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GRANT]), SHOW_LONG_STATUS},
@@ -3274,7 +3292,6 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
-  sp_cache_init();
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #if defined(_WIN32)
@@ -4026,8 +4043,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (log_output_options & LOG_TABLE)
   {
     /* Fall back to log files if the csv engine is not loaded. */
-    LEX_STRING csv_name={C_STRING_WITH_LEN("csv")};
-    if (!plugin_is_ready(&csv_name, MYSQL_STORAGE_ENGINE_PLUGIN))
+    LEX_CSTRING csv_name={C_STRING_WITH_LEN("csv")};
+    if (!plugin_is_ready(csv_name, MYSQL_STORAGE_ENGINE_PLUGIN))
     {
       sql_print_error("CSV engine is not present, falling back to the "
                       "log files");
@@ -4761,16 +4778,6 @@ int mysqld_main(int argc, char **argv)
     sql_print_warning("Could not join signal_thread. error:%d", ret);
 #endif
 
-#if defined(_WIN32)
-  if (Service.IsNT() && start_mode)
-    Service.Stop();
-  else
-  {
-    Service.SetShutdownEvent(0);
-    if (hEventShutdown)
-      CloseHandle(hEventShutdown);
-  }
-#endif
   clean_up(1);
   mysqld_exit(0);
 }
@@ -5113,17 +5120,17 @@ void adjust_open_files_limit(ulong *requested_open_files)
 
     if (open_files_limit == 0)
     {
-      snprintf(msg, sizeof(msg),
-               "Changed limits: max_open_files: %lu (requested %lu)",
-               effective_open_files, request_open_files);
+      my_snprintf(msg, sizeof(msg),
+                  "Changed limits: max_open_files: %lu (requested %lu)",
+                  effective_open_files, request_open_files);
       buffered_logs.buffer(WARNING_LEVEL, msg);
     }
     else
     {
-      snprintf(msg, sizeof(msg),
-               "Could not increase number of max_open_files to "
-               "more than %lu (request: %lu)",
-               effective_open_files, request_open_files);
+      my_snprintf(msg, sizeof(msg),
+                  "Could not increase number of max_open_files to "
+                  "more than %lu (request: %lu)",
+                  effective_open_files, request_open_files);
       buffered_logs.buffer(WARNING_LEVEL, msg);
     }
   }
@@ -5143,9 +5150,9 @@ void adjust_max_connections(ulong requested_open_files)
   {
     char msg[1024];
 
-    snprintf(msg, sizeof(msg),
-             "Changed limits: max_connections: %lu (requested %lu)",
-             limit, max_connections);
+    my_snprintf(msg, sizeof(msg),
+                "Changed limits: max_connections: %lu (requested %lu)",
+                limit, max_connections);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 
     // This can be done unprotected since it is only called on startup.
@@ -5164,9 +5171,9 @@ void adjust_table_cache_size(ulong requested_open_files)
   {
     char msg[1024];
 
-    snprintf(msg, sizeof(msg),
-             "Changed limits: table_cache: %lu (requested %lu)",
-             limit, table_cache_size);
+    my_snprintf(msg, sizeof(msg),
+                "Changed limits: table_cache: %lu (requested %lu)",
+                limit, table_cache_size);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 
     table_cache_size= limit;
@@ -5598,6 +5605,17 @@ static int show_starttime(THD *thd, SHOW_VAR *var, char *buff)
   var->type= SHOW_LONGLONG;
   var->value= buff;
   *((longlong *)buff)= (longlong) (thd->query_start() - server_start_time);
+  return 0;
+}
+
+static int show_max_used_connections_time(THD *thd, SHOW_VAR *var, char *buff)
+{
+  MYSQL_TIME max_used_connections_time;
+  var->type= SHOW_CHAR;
+  var->value= buff;
+  thd->variables.time_zone->gmt_sec_to_TIME(&max_used_connections_time,
+    Connection_handler_manager::max_used_connections_time);
+  my_datetime_to_str(&max_used_connections_time, buff, 0);
   return 0;
 }
 
@@ -6202,8 +6220,7 @@ SHOW_VAR status_vars[]= {
 #ifndef EMBEDDED_LIBRARY
   {"Connection_errors_accept",   (char*) &show_connection_errors_accept, SHOW_FUNC},
   {"Connection_errors_internal", (char*) &connection_errors_internal, SHOW_LONG},
-  {"Connection_errors_max_connections",
-   (char*) &show_connection_errors_max_connection, SHOW_FUNC},
+  {"Connection_errors_max_connections", (char*) &show_connection_errors_max_connection, SHOW_FUNC},
   {"Connection_errors_peer_address", (char*) &connection_errors_peer_addr, SHOW_LONG},
   {"Connection_errors_select",   (char*) &show_connection_errors_select, SHOW_FUNC},
   {"Connection_errors_tcpwrap",  (char*) &show_connection_errors_tcpwrap, SHOW_FUNC},
@@ -6242,10 +6259,11 @@ SHOW_VAR status_vars[]= {
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
-  {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections, SHOW_LONG},
   {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded), SHOW_LONG_STATUS},
   {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set), SHOW_LONG_STATUS},
   {"Max_statement_time_set_failed", (char*) offsetof(STATUS_VAR, max_statement_time_set_failed), SHOW_LONG_STATUS},
+  {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections, SHOW_LONG},
+  {"Max_used_connections_time",(char*) &show_max_used_connections_time, SHOW_FUNC},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},
@@ -6314,10 +6332,8 @@ SHOW_VAR status_vars[]= {
   {"Ssl_verify_depth",         (char*) &show_ssl_get_verify_depth, SHOW_FUNC},
   {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
   {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
-  {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before,
-    SHOW_FUNC},
-  {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,
-    SHOW_FUNC},
+  {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before, SHOW_FUNC},
+  {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after, SHOW_FUNC},
 #ifndef HAVE_YASSL
   {"Rsa_public_key",           (char*) &show_rsa_public_key, SHOW_FUNC},
 #endif
@@ -6334,11 +6350,9 @@ SHOW_VAR status_vars[]= {
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
 #endif
 #ifndef EMBEDDED_LIBRARY
-  {"Threads_cached",           (char*) &Per_thread_connection_handler::blocked_pthread_count,
-   SHOW_LONG_NOFLUSH},
+  {"Threads_cached",           (char*) &Per_thread_connection_handler::blocked_pthread_count, SHOW_LONG_NOFLUSH},
 #endif
-  {"Threads_connected",        (char*) &Connection_handler_manager::connection_count,
-   SHOW_INT},
+  {"Threads_connected",        (char*) &Connection_handler_manager::connection_count, SHOW_INT},
   {"Threads_created",          (char*) &show_num_thread_created,   SHOW_FUNC},
   {"Threads_running",          (char*) &show_num_thread_running,   SHOW_FUNC},
   {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
@@ -6539,8 +6553,6 @@ static int mysql_init_variables(void)
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= 1L;  /* Increments on each reload */
   global_query_id= 1L;
-  my_atomic_rwlock_init(&opt_binlog_max_flush_queue_time_lock);
-  my_atomic_rwlock_init(&global_query_id_lock);
   my_stpcpy(server_version, MYSQL_SERVER_VERSION);
   key_caches.empty();
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
@@ -7457,7 +7469,7 @@ static int fix_paths(void)
 
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
   mysql_unpacked_real_data_home_len=
-    (int) strlen(mysql_unpacked_real_data_home);
+    strlen(mysql_unpacked_real_data_home);
   if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
     --mysql_unpacked_real_data_home_len;
 
