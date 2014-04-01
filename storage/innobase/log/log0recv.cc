@@ -998,9 +998,9 @@ recv_parse_or_apply_log_rec_body(
 		   && !is_predefined_tablespace(space_id)
 		   && recv_spaces.find(space_id) == recv_spaces.end()) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"A redo log record %d"
-			" (page " ULINTPF ":" ULINTPF ") at " LSN_PF
-			" is missing a prior MLOG_FILE_NAME record.",
+			"Missing MLOG_FILE_NAME or MLOG_FILE_DELETE"
+			" for redo log record %d"
+			" (page " ULINTPF ":" ULINTPF ") at " LSN_PF ".",
 			type, space_id, page_no, recv_sys->recovered_lsn);
 		return(NULL);
 	} else {
