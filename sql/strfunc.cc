@@ -111,7 +111,7 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length,
   > 0 position in TYPELIB->type_names +1
 */
 
-uint find_type(const TYPELIB *lib, const char *find, uint length,
+uint find_type(const TYPELIB *lib, const char *find, size_t length,
                bool part_match)
 {
   uint found_count=0, found_pos=0;
@@ -265,8 +265,8 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 */
 
 
-uint strconvert(CHARSET_INFO *from_cs, const char *from,
-                CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors)
+size_t strconvert(CHARSET_INFO *from_cs, const char *from,
+                  CHARSET_INFO *to_cs, char *to, size_t to_length, uint *errors)
 {
   int cnvres;
   my_wc_t wc;
@@ -315,7 +315,7 @@ outp:
   }
   *to= '\0';
   *errors= error_count;
-  return (uint32) (to - to_start);
+  return static_cast<size_t>(to - to_start);
 
 }
 

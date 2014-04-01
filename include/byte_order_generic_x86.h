@@ -113,24 +113,3 @@ static inline void int8store(uchar *T, ulonglong A)
 {
   *((ulonglong*) T)= A;
 }
-
-
-
-typedef union {
-  double v;
-  long m[2];
-} doubleget_union;
-#define doubleget(V,M)	 do { doubleget_union _tmp; \
-                              _tmp.m[0] = *((long*)(M)); \
-                              _tmp.m[1] = *(((long*) (M))+1); \
-                              (V) = _tmp.v;\
-                         } while(0)
-#define doublestore(T,V) do { *((long *) T) = ((doubleget_union *)&V)->m[0]; \
-			     *(((long *) T)+1) = ((doubleget_union *)&V)->m[1];\
-                         } while (0)
-#define float4get(V,M)   do { *((float *) &(V)) = *((float*) (M)); } while(0)
-#define float8get(V,M)   doubleget((V),(M))
-#define float4store(V,M) memcpy((uchar*)(V), (uchar*)(&M), sizeof(float))
-#define floatstore(T,V)  memcpy((uchar*)(T), (uchar*)(&V), sizeof(float))
-#define floatget(V,M)    memcpy((uchar*)(&V),(uchar*) (M), sizeof(float))
-#define float8store(V,M) doublestore((V),(M))

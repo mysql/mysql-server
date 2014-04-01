@@ -441,10 +441,10 @@ create_log_files(
 	fil_open_log_and_system_tablespace_files();
 
 	/* Create a log checkpoint. */
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
 	ut_d(recv_no_log_write = FALSE);
 	recv_reset_logs(lsn);
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	return(DB_SUCCESS);
 }
@@ -476,7 +476,7 @@ create_log_files_rename(
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Renaming log file %s to %s", logfile0, logfilename);
 
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
 	ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
 	bool success = os_file_rename(
 		innodb_log_file_key, logfile0, logfilename);
@@ -486,7 +486,7 @@ create_log_files_rename(
 
 	/* Replace the first file with ib_logfile0. */
 	strcpy(logfile0, logfilename);
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	fil_open_log_and_system_tablespace_files();
 
@@ -1586,6 +1586,11 @@ innobase_start_or_create_for_mysql(void)
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
+#ifdef UNIV_SYNC_DEBUG
+	/* Switch latching order checks on in sync0debug.cc */
+	sync_check_enable();
+#endif /* UNIV_SYNC_DEBUG */
+
 	/* Create i/o-handler threads: */
 
 	for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
@@ -1910,10 +1915,6 @@ files_checked:
 
 		create_log_files_rename(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
-#ifdef UNIV_SYNC_DEBUG
-		/* Switch latching order checks on in sync0debug.cc. */
-		sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
 
 	} else {
 
@@ -1958,24 +1959,41 @@ files_checked:
 		err = recv_recovery_from_checkpoint_start(
 			min_flushed_lsn, max_flushed_lsn);
 
-		if (err != DB_SUCCESS) {
+		if (err == DB_SUCCESS) {
+			/* Initialize the change buffer. */
+			err = dict_boot();
+		}
 
+		if (err != DB_SUCCESS) {
 			return(srv_init_abort(DB_ERROR));
 		}
 
-		/* Since the insert buffer init is in dict_boot, and the
-		insert buffer is needed in any disk i/o, first we call
-		dict_boot(). Note that trx_sys_init_at_db_start() only needs
-		to access space 0, and the insert buffer at this stage already
-		works for space 0. */
+		purge_queue = trx_sys_init_at_db_start();
 
-		err = dict_boot();
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+			/* Apply the hashed log records to the
+			respective file pages, for the last batch of
+			recv_group_scan_log_recs(). */
 
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(err));
+			recv_apply_hashed_log_recs(TRUE);
+			DBUG_PRINT("ib_log", ("apply completed"));
+
+			if (recv_needed_recovery) {
+				trx_sys_print_mysql_binlog_offset();
+			}
 		}
 
-		purge_queue = trx_sys_init_at_db_start();
+		if (recv_sys->found_corrupt_log) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"The log file may have been corrupt and it"
+				" is possible that the log scan or parsing"
+				" did not proceed far enough in recovery."
+				" Please run CHECK TABLE on your InnoDB tables"
+				" to check that they are ok!"
+				" It may be safest to recover your"
+				" InnoDB database from a backup!");
+		}
+
 		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
@@ -2107,11 +2125,6 @@ files_checked:
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
-
-#ifdef UNIV_SYNC_DEBUG
-		/* Switch latching order checks on in sync0debug.cc */
-		sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
 
 		recv_recovery_rollback_active();
 

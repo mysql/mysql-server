@@ -1,3 +1,6 @@
+--source include/have_partition.inc
+--source include/have_innodb_16k.inc
+
 --echo #
 --echo # Bug#18167648: WRONG RESULTS WITH PARTITIONING, INDEX_MERGE AND NO PK
 --echo #
@@ -62,6 +65,8 @@ SELECT TRACE FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 # No more match...
 
 SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
+EXPLAIN SELECT a,b,c FROM t1 WHERE a = 2 AND b = 2 AND c IN (13,25,28);
+SELECT a,b,c FROM t1 WHERE a = 2 AND b = 2 AND c IN (13,25,28);
 SET SESSION optimizer_switch="index_merge_intersection=off";
 SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;
 EXPLAIN SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2 AND  c > 0 AND c < 100;

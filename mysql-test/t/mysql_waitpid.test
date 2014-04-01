@@ -1,0 +1,88 @@
+#------------------------------------------------------------------------------
+# Test mysql_waitpid program
+# usage: mysql_waitpid [options] #pid #time
+# Description: Waits for a program, which program id is #pid, to
+# terminate within #time seconds. If the program terminates within
+# this time, or if the #pid no longer exists, value 0 is returned.
+# Otherwise 1 is returned. Both #pid and #time must be positive
+# integer arguments.
+
+#------------------------------------------------------------------------------
+
+let MYSQL_PIDFILE= `SELECT @@pid_file`;
+let MYSQL_BASEDIR= `select @@basedir`;
+# It uses the kill() system call and Unix signals, so it runs on Unix and Unix-like systems.
+--source include/not_windows.inc
+# no embeeded run
+--source include/not_embedded.inc
+--source include/not_valgrind.inc
+
+perl;
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
+open ( OUTPUT, ">$dir/tmp/mysql_waitpid_binary_check.inc") ;
+$binary_file = $ENV{'MYSQL_BASEDIR'}."/bin/mysql_waitpid";
+if (-e $binary_file) {
+    print OUTPUT "let \$binary_exists = 1;\n";
+}else {
+    print OUTPUT "let \$binary_exists = 0;\n";
+}
+close (OUTPUT);
+EOF
+#Read variables set from above  perl 
+--source  $MYSQLTEST_VARDIR/tmp/mysql_waitpid_binary_check.inc
+# skip run if binary do not exits
+if (!$binary_exists) {
+   --skip Test requires mysql_waitpid binary in MYSQL_BASEDIR/bin/ path
+}
+#Remove the temp file
+--remove_file $MYSQLTEST_VARDIR/tmp/mysql_waitpid_binary_check.inc
+    
+
+# Case 1
+# pass #pid of running mysqld process and #time=10 sec
+# mysql_waitpid will wait 10 sec fro mysql to terminate 
+# mysql_waitpid returns 1 as mysqld process is not going to be terminated 
+# within 10 sec
+perl;
+my $pid_file=$ENV{'MYSQL_PIDFILE'};
+my $mysql_wait_pid_path=$ENV{'MYSQL_BASEDIR'}."/bin/mysql_waitpid";
+my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
+my $win_platform=0;
+$win_platform=$ENV{'MYSQL_WINDOWS_PLATFORM'};
+$pid = `cat $pid_file` or die "Can not get pid of running server"; 
+chomp($pid);
+system("$mysql_wait_pid_path $pid 10");
+$exit_value  = $? >> 8;
+if($exit_value==1){
+   print "Process of given pid is still running....\n" ;
+}
+# Case 2 : pid do not exits
+$invalid_pid = 99999999999999999999;
+system("$mysql_wait_pid_path $invalid_pid 10");
+$exit_value  = $? >> 8;
+if($exit_value==0){
+   print "Invalid Process...\n" ;
+}
+# Case 3 : Start process such that it terminates within wait time 
+# This testcase assumes that sleep command start & stop when mysql_wait
+# is triggered. Hence testcase is very dependent on timing.
+# On heavyly loaded machines , it might be possible that sleep end before
+# mysql_wait is triggered. This might cause test failure.
+# Incease is sleep time allow us to reduce possibilty of such
+system("sleep 30 > /dev/null 2>&1 &");
+
+my @process_details;
+$cmd_output = `ps -aef | grep -v grep | grep "sleep 30"`;
+$cmd_output =~ s/^\s+//;
+@process_details = split (/\s+/, $cmd_output);
+# we are waiting for process for 20 sec and process we started is supoose to 
+# run for 10 sec.
+# Hence we will get 0 as return value
+system("$mysql_wait_pid_path $process_details[1] 50");
+$exit_value  = $? >> 8;
+if($exit_value==0){
+   print "Process terminated within wait time....\n";
+}elsif($exit_value==1) {
+   print "Process NOT terminated within wait time....\n" ;
+}
+EOF

@@ -69,7 +69,7 @@ public:
     return my_hash_insert(&m_hashtable, (const uchar *)sp);
   }
 
-  sp_head *lookup(char *name, uint namelen)
+  sp_head *lookup(char *name, size_t namelen)
   {
     return (sp_head *) my_hash_search(&m_hashtable, (const uchar *)name,
                                       namelen);
@@ -99,16 +99,7 @@ private:
 }; // class sp_cache
 
 
-static my_atomic_rwlock_t Cversion_lock __attribute__((unused));
 static int64 volatile Cversion= 0;
-
-
-/* Initialize the SP caching once at startup */
-
-void sp_cache_init()
-{
-  my_atomic_rwlock_init(&Cversion_lock);
-}
 
 
 /*
@@ -205,9 +196,7 @@ sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name)
 void sp_cache_invalidate()
 {
   DBUG_PRINT("info",("sp_cache: invalidating"));
-  my_atomic_rwlock_wrlock(&Cversion_lock);
   my_atomic_add64(&Cversion, 1);
-  my_atomic_rwlock_wrunlock(&Cversion_lock);
 }
 
 
@@ -238,10 +227,7 @@ void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp)
 
 int64 sp_cache_version()
 {
-  my_atomic_rwlock_rdlock(&Cversion_lock);
-  int64 version= my_atomic_load64(&Cversion);
-  my_atomic_rwlock_rdunlock(&Cversion_lock);
-  return version;
+  return my_atomic_load64(&Cversion);
 }
 
 

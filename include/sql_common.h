@@ -29,6 +29,20 @@ extern const char	*unknown_sqlstate;
 extern const char	*cant_connect_sqlstate;
 extern const char	*not_error_sqlstate;
 
+
+/*
+  Free all memory allocated in MYSQL handle except the
+  current options.
+*/
+void mysql_close_free(MYSQL *mysql);
+
+/*
+  Clear connection options stored in MYSQL handle and
+  free memory used by them.
+*/
+void mysql_close_free_options(MYSQL *mysql);
+
+
 /**
   The structure is used to hold the state change information
   received from the server. LIST functions are used for manipulation
@@ -68,7 +82,8 @@ struct st_mysql_extension* mysql_extension_init(struct st_mysql*);
 void mysql_extension_free(struct st_mysql_extension*);
 
 /*
-  Note: Allocated extension structure is freed in mysql_close().
+  Note: Allocated extension structure is freed in mysql_close_free()
+  called by mysql_close().
 */
 #define MYSQL_EXTENSION_PTR(H)                                    \
 (                                                                 \

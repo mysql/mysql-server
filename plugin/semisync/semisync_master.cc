@@ -928,11 +928,6 @@ int ReplSemiSyncMaster::reserveSyncHeader(unsigned char *header,
   function_enter(kWho);
 
   int hlen=0;
-  if (!is_semi_sync_slave())
-  {
-    hlen= 0;
-  }
-  else
   {
     /* No enough space for the extra header, disable semi-sync master */
     if (sizeof(kSyncHeader) > size)
@@ -962,10 +957,10 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
   int  cmp = 0;
   bool sync = false;
 
-  /* If the semi-sync master is not enabled, or the slave is not a semi-sync
-   * target, do not request replies from the slave.
+  /* If the semi-sync master is not enabled, do not request replies from the
+     slave.
    */
-  if (!getMasterEnabled() || !is_semi_sync_slave())
+  if (!getMasterEnabled())
     return 0;
 
   function_enter(kWho);

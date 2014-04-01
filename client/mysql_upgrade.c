@@ -36,6 +36,11 @@
 # endif
 #endif
 
+#ifdef _WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
+
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 

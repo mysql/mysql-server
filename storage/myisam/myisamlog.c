@@ -184,7 +184,7 @@ static void get_options(int *argc, char ***argv)
 	  else
 	    pos= *(++*argv);
 	}
-	start_offset=(my_off_t) strtoll(pos,NULL,10);
+	start_offset=(my_off_t) my_strtoll(pos,NULL,10);
 	pos=" ";
 	break;
       case 'p':
@@ -215,7 +215,7 @@ static void get_options(int *argc, char ***argv)
 	record_pos_file=(char*) pos;
 	if (!--*argc)
 	  goto err;
-	record_pos=(my_off_t) strtoll(*(++*argv),NULL,10);
+	record_pos=(my_off_t) my_strtoll(*(++*argv),NULL,10);
 	pos=" ";
 	break;
       case 'v':

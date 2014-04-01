@@ -597,7 +597,7 @@ fil_space_get_type(
 }
 
 /** @brief Note that a tablespace has been imported.
-It is initially marked as FIL_TYPE_TEMPORARY so that no logging is
+It is initially marked as FIL_TYPE_IMPORT so that no logging is
 done during the import process when the space ID is stamped to each page.
 Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.
@@ -616,7 +616,7 @@ fil_space_set_imported(
 	space = fil_space_get_by_id(id);
 
 	ut_a(space);
-	ut_ad(space->purpose == FIL_TYPE_TEMPORARY);
+	ut_ad(space->purpose == FIL_TYPE_IMPORT);
 	space->purpose = FIL_TYPE_TABLESPACE;
 
 	mutex_exit(&fil_system->mutex);

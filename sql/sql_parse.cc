@@ -103,10 +103,10 @@
 #include "table_cache.h" // table_cache_manager
 #include "sql_timer.h"   // thd_timer_set, thd_timer_reset
 #include "sp_rcontext.h"
+#include "parse_location.h"
 
 #include <algorithm>
 using std::max;
-using std::min;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -1074,6 +1074,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     command= COM_SHUTDOWN;
   }
   thd->set_query_id(next_query_id());
+  thd->rewritten_query.free();
   thd_manager->inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
@@ -1149,7 +1150,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
     char *save_db= thd->db;
-    uint save_db_length= thd->db_length;
+    size_t save_db_length= thd->db_length;
     Security_context save_security_ctx= *thd->security_ctx;
 
     auth_rc= acl_authenticate(thd, packet_length);
@@ -1349,7 +1350,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       We have name + wildcard in packet, separated by endzero
     */
     arg_end= strend(packet);
-    uint arg_length= arg_end - packet;
+    size_t arg_length= static_cast<size_t>(arg_end - packet);
 
     /* Check given table name length. */
     if (arg_length >= packet_length || arg_length > NAME_LEN)
@@ -1863,7 +1864,6 @@ bool alloc_query(THD *thd, const char *packet, size_t packet_length)
   query[packet_length]= '\0';
 
   thd->set_query(query, packet_length);
-  thd->rewritten_query.free();                 // free here lest PS break
 
   /* Reclaim some memory */
   thd->packet.shrink(thd->variables.net_buffer_length);
@@ -2136,6 +2136,15 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   if (unlikely(thd->slave_thread))
   {
+    // Database filters.
+    if (lex->sql_command != SQLCOM_BEGIN &&
+        lex->sql_command != SQLCOM_COMMIT &&
+        lex->sql_command != SQLCOM_SAVEPOINT &&
+        lex->sql_command != SQLCOM_ROLLBACK &&
+        lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
+        !rpl_filter->db_ok(thd->db))
+      DBUG_RETURN(0);
+
     if (lex->sql_command == SQLCOM_DROP_TRIGGER)
     {
       /*
@@ -2800,6 +2809,8 @@ case SQLCOM_PREPARE:
              table= table->next_global)
           if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
           {
+            lex->link_first_table_back(create_table, link_to_local);
+
             res= 1;
             my_error(ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT, MYF(0),
                      table->table_name, create_info.alias);
@@ -3091,6 +3102,14 @@ end_with_restore_list:
       {
         DBUG_ASSERT(all_tables->view != 0);
         DBUG_PRINT("info", ("Switch to multi-update"));
+        if (select_lex->order_list.elements ||
+            select_lex->select_limit)
+        { // Clauses not supported by multi-update: can't switch.
+          my_error(ER_VIEW_PREVENT_UPDATE, MYF(0),
+                   all_tables->alias, "UPDATE", all_tables->alias);
+          res= true;
+          break;
+        }
         if (!thd->in_sub_stmt)
           thd->query_plan.set_query_plan(SQLCOM_UPDATE_MULTI, lex,
                                          !thd->stmt_arena->is_conventional());
@@ -3844,8 +3863,8 @@ end_with_restore_list:
         } 
         else if (is_acl_user(user->host.str, user->user.str) &&
                  user->password.str &&
-                 check_change_password (thd, user->host.str, user->user.str, 
-                                        user->password.str, 
+                 check_change_password (thd, user->host.str, user->user.str,
+                                        user->password.str,
                                         user->password.length))
           goto error;
       }
@@ -4174,9 +4193,9 @@ end_with_restore_list:
       */
       if (thd->slave_thread && is_acl_user(definer->host.str, definer->user.str))
       {
-        security_context.change_security_context(thd, 
-                                                 &thd->lex->definer->user,
-                                                 &thd->lex->definer->host,
+        security_context.change_security_context(thd,
+                                                 thd->lex->definer->user,
+                                                 thd->lex->definer->host,
                                                  &thd->lex->sphead->m_db,
                                                  &backup);
         restore_backup_context= true;
@@ -5055,19 +5074,19 @@ void THD::reset_for_next_command()
 
   This will crash with a core dump if the variable doesn't exists.
 
+  @param pc                     Current parse context
   @param var_name		Variable name
 */
 
-void create_select_for_variable(const char *var_name)
+void create_select_for_variable(Parse_context *pc, const char *var_name)
 {
-  THD *thd;
+  THD *thd= pc->thd;
   LEX *lex;
   LEX_STRING tmp, null_lex_string;
   Item *var;
   char buff[MAX_SYS_VAR_LENGTH*2+4+8], *end;
   DBUG_ENTER("create_select_for_variable");
 
-  thd= current_thd;
   lex= thd->lex;
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
@@ -5077,7 +5096,7 @@ void create_select_for_variable(const char *var_name)
     We set the name of Item to @@session.var_name because that then is used
     as the column name in the output.
   */
-  if ((var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string)))
+  if ((var= get_system_var(pc, OPT_SESSION, tmp, null_lex_string)))
   {
     end= strxmov(buff, "@@session.", var_name, NullS);
     var->item_name.copy(buff, end - buff);
@@ -5245,11 +5264,29 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
               thd->variables.gtid_next.type == GTID_GROUP &&
               thd->owned_gtid.sidno != 0 &&
               (thd->lex->sql_command == SQLCOM_COMMIT ||
-               stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)))
+               stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
+               thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+               thd->lex->sql_command == SQLCOM_DROP_TABLE))
           {
-            // This is executed at the end of a DDL statement or after
-            // COMMIT.  It ensures that an empty group is logged if
-            // needed.
+            /*
+              This ensures that an empty transaction is logged if
+              needed. It is executed at the end of an implicitly or
+              explicitly committing statement, or after CREATE
+              TEMPORARY TABLE or DROP TEMPORARY TABLE.
+
+              CREATE/DROP TEMPORARY do not count as implicitly
+              committing according to stmt_causes_implicit_commit(),
+              but are written to the binary log as DDL (not between
+              BEGIN/COMMIT). Thus we need special cases for these
+              statements in the condition above. Hence the clauses for
+              for SQLCOM_CREATE_TABLE and SQLCOM_DROP_TABLE above.
+
+              Thus, for base tables, SQLCOM_[CREATE|DROP]_TABLE match
+              both the stmt_causes_implicit_commit clause and the
+              thd->lex->sql_command == SQLCOM_* clause; for temporary
+              tables they match only thd->lex->sql_command ==
+              SQLCOM_*.
+            */
             error= gtid_empty_group_log_and_cleanup(thd);
           }
           MYSQL_QUERY_EXEC_DONE(error);
@@ -5301,7 +5338,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
 
 
 #ifdef HAVE_REPLICATION
-/*
+/**
   Usable by the replication SQL thread only: just parse a query to know if it
   can be ignored because of replicate-*-table rules.
 
@@ -5314,28 +5351,39 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
 bool mysql_test_parse_for_slave(THD *thd)
 {
   LEX *lex= thd->lex;
-  bool error= 0;
+  bool ignorable= false;
   sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
+  DBUG_ASSERT(thd->slave_thread);
+
   Parser_state parser_state;
-  if (!(error= parser_state.init(thd, thd->query().str, thd->query().length)))
+  if (parser_state.init(thd, thd->query().str, thd->query().length) == 0)
   {
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
 
     thd->m_digest= NULL;
     thd->m_statement_psi= NULL;
-    if (!parse_sql(thd, & parser_state, NULL) &&
-        all_tables_not_ok(thd, lex->select_lex->table_list.first))
-      error= 1;                  /* Ignore question */
+    if (parse_sql(thd, & parser_state, NULL) == 0)
+    {
+      if (all_tables_not_ok(thd, lex->select_lex->table_list.first))
+        ignorable= true;
+      else if (lex->sql_command != SQLCOM_BEGIN &&
+               lex->sql_command != SQLCOM_COMMIT &&
+               lex->sql_command != SQLCOM_SAVEPOINT &&
+               lex->sql_command != SQLCOM_ROLLBACK &&
+               lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
+               !rpl_filter->db_ok(thd->db))
+        ignorable= true;
+    }
     thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
     thd->end_statement();
   }
   thd->cleanup_after_query();
-  DBUG_RETURN(error);
+  DBUG_RETURN(ignorable);
 }
 #endif
 
@@ -5362,7 +5410,9 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   uint8 datetime_precision= decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
 
-  if (check_string_char_length(field_name, "", NAME_CHAR_LEN,
+  LEX_CSTRING field_name_cstr= {field_name->str, field_name->length};
+
+  if (check_string_char_length(field_name_cstr, "", NAME_CHAR_LEN,
                                system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), field_name->str); /* purecov: inspected */
@@ -5456,19 +5506,14 @@ void store_position_for_column(const char *name)
   save order by and tables in own lists.
 */
 
-bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
+void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
 {
-  ORDER *order;
   DBUG_ENTER("add_to_list");
-  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER))))
-    DBUG_RETURN(1);
-  order->item_ptr= item;
   order->item= &order->item_ptr;
-  order->direction= (asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC);
   order->used_alias= false;
   order->used=0;
   list.link_in_list(order, &order->next);
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -5597,7 +5642,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->schema_table_name= ptr->table_name;
     ptr->schema_table= schema_table;
   }
-  ptr->select_lex=  lex->current_select();
+  ptr->select_lex= this;
   ptr->cacheable_table= 1;
   ptr->index_hints= index_hints_arg;
   ptr->option= option ? option->str : 0;
@@ -5950,7 +5995,6 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
       just before the parser starts processing order_list
     */ 
     fake_select_lex->no_table_names_allowed= 1;
-    thd_arg->lex->set_current_select(fake_select_lex);
   }
   thd->lex->pop_context();
   DBUG_RETURN(false);
@@ -5966,7 +6010,7 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
     to be used for name resolution, and push the newly created
     context to the stack of contexts of the query.
 
-  @param thd       pointer to current thread
+  @param pc        current parse context
   @param left_op   left  operand of the JOIN
   @param right_op  rigth operand of the JOIN
 
@@ -5980,9 +6024,10 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
 */
 
 bool
-push_new_name_resolution_context(THD *thd,
+push_new_name_resolution_context(Parse_context *pc,
                                  TABLE_LIST *left_op, TABLE_LIST *right_op)
 {
+  THD *thd= pc->thd;
   Name_resolution_context *on_context;
   if (!(on_context= new (thd->mem_root) Name_resolution_context))
     return TRUE;
@@ -5991,7 +6036,7 @@ push_new_name_resolution_context(THD *thd,
     left_op->first_leaf_for_name_resolution();
   on_context->last_name_resolution_table=
     right_op->last_leaf_for_name_resolution();
-  on_context->select_lex= thd->lex->current_select();
+  on_context->select_lex= pc->select;
   // Save join nest's context in right_op, to find it later in view merging.
   DBUG_ASSERT(right_op->context_of_embedding == NULL);
   right_op->context_of_embedding= on_context;
@@ -6179,32 +6224,6 @@ bool append_file_to_dir(THD *thd, const char **filename_ptr,
     return 1;					// End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);
-  return 0;
-}
-
-
-/**
-  Check if the select is a simple select (not an union).
-
-  @retval
-    0	ok
-  @retval
-    1	error	; In this case the error messege is sent to the client
-*/
-
-bool check_simple_select()
-{
-  THD *thd= current_thd;
-  LEX *lex= thd->lex;
-  if (lex->current_select() != lex->select_lex)
-  {
-    char command[80];
-    Lex_input_stream *lip= & thd->m_parser_state->m_lip;
-    strmake(command, lip->yylval->symbol.str,
-	    min<size_t>(lip->yylval->symbol.length, sizeof(command)-1));
-    my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
-    return 1;
-  }
   return 0;
 }
 
@@ -6405,14 +6424,14 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
 /**
   negate given expression.
 
-  @param thd  thread handler
+  @param pc   current parse context
   @param expr expression for negation
 
   @return
     negated expression
 */
 
-Item *negate_expression(THD *thd, Item *expr)
+Item *negate_expression(Parse_context *pc, Item *expr)
 {
   Item *negated;
   if (expr->type() == Item::FUNC_ITEM &&
@@ -6420,7 +6439,7 @@ Item *negate_expression(THD *thd, Item *expr)
   {
     /* it is NOT(NOT( ... )) */
     Item *arg= ((Item_func *) expr)->arguments()[0];
-    enum_parsing_context place= thd->lex->current_select()->parsing_place;
+    enum_parsing_context place= pc->select->parsing_place;
     if (arg->is_bool_func() || place == CTX_WHERE || place == CTX_HAVING)
       return arg;
     /*
@@ -6430,7 +6449,7 @@ Item *negate_expression(THD *thd, Item *expr)
     return new Item_func_ne(arg, new Item_int_0());
   }
 
-  if ((negated= expr->neg_transformer(thd)) != 0)
+  if ((negated= expr->neg_transformer(pc->thd)) != 0)
     return negated;
   return new Item_func_not(expr);
 }
@@ -6453,9 +6472,9 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->host.str= (char *) sctx->priv_host;
   definer->host.length= strlen(definer->host.str);
 
-  definer->password= null_lex_str;
-  definer->plugin= empty_lex_str;
-  definer->auth= empty_lex_str;
+  definer->password= NULL_CSTR;
+  definer->plugin= EMPTY_CSTR;
+  definer->auth= EMPTY_CSTR;
   definer->uses_identified_with_clause= false;
   definer->uses_identified_by_clause= false;
   definer->uses_authentication_string_clause= false;
@@ -6512,8 +6531,10 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
   if (! (definer= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     return 0;
 
-  definer->user= *user_name;
-  definer->host= *host_name;
+  definer->user.str= user_name->str;
+  definer->user.length= user_name->length;
+  definer->host.str= host_name->str;
+  definer->host.length= host_name->length;
   definer->password.str= NULL;
   definer->password.length= 0;
   definer->uses_authentication_string_clause= false;
@@ -6594,13 +6615,13 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
     The function is not used in existing code but can be useful later?
 */
 
-bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
-                              uint max_byte_length)
+bool check_string_byte_length(const LEX_CSTRING &str, const char *err_msg,
+                              size_t max_byte_length)
 {
-  if (str->length <= max_byte_length)
+  if (str.length <= max_byte_length)
     return FALSE;
 
-  my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_byte_length);
+  my_error(ER_WRONG_STRING_LENGTH, MYF(0), str.str, err_msg, max_byte_length);
 
   return TRUE;
 }
@@ -6622,20 +6643,20 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 */
 
 
-bool check_string_char_length(LEX_STRING *str, const char *err_msg,
-                              uint max_char_length, const CHARSET_INFO *cs,
+bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
+                              size_t max_char_length, const CHARSET_INFO *cs,
                               bool no_error)
 {
   int well_formed_error;
-  uint res= cs->cset->well_formed_len(cs, str->str, str->str + str->length,
+  uint res= cs->cset->well_formed_len(cs, str.str, str.str + str.length,
                                       max_char_length, &well_formed_error);
 
-  if (!well_formed_error &&  str->length == res)
+  if (!well_formed_error &&  str.length == res)
     return FALSE;
 
   if (!no_error)
   {
-    ErrConvString err(str->str, str->length, cs);
+    ErrConvString err(str.str, str.length, cs);
     my_error(ER_WRONG_STRING_LENGTH, MYF(0), err.ptr(), err_msg, max_char_length);
   }
   return TRUE;
@@ -6659,7 +6680,7 @@ C_MODE_START
 int test_if_data_home_dir(const char *dir)
 {
   char path[FN_REFLEN];
-  int dir_len;
+  size_t dir_len;
   DBUG_ENTER("test_if_data_home_dir");
 
   if (!dir)
@@ -6703,10 +6724,10 @@ C_MODE_END
                       has invalid symbols
 */
 
-bool check_host_name(LEX_STRING *str)
+bool check_host_name(const LEX_CSTRING &str)
 {
-  const char *name= str->str;
-  const char *end= str->str + str->length;
+  const char *name= str.str;
+  const char *end= str.str + str.length;
   if (check_string_byte_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
     return TRUE;
 
@@ -6725,7 +6746,7 @@ bool check_host_name(LEX_STRING *str)
 }
 
 
-extern int MYSQLparse(void *thd); // from sql_yacc.cc
+extern int MYSQLparse(class THD *thd); // from sql_yacc.cc
 
 
 /**

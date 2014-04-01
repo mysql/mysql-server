@@ -60,6 +60,9 @@ XML_TAG::XML_TAG(int l, String f, String v)
 }
 
 
+#define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
+#define PUSH(A) *(stack_pos++)=(A)
+
 class READ_INFO {
   File	file;
   uchar	*buffer,			/* Buffer for read text */
@@ -117,6 +120,15 @@ public:
     either the table or THD value
   */
   void set_io_cache_arg(void* arg) { cache.arg = arg; }
+
+  /**
+    skip all data till the eof.
+  */
+  void skip_data_till_eof()
+  {
+    while (GET != my_b_EOF)
+      ;
+  }
 };
 
 static int read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
@@ -177,9 +189,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char name[FN_REFLEN];
   File file;
   int error= 0;
-  const String *field_term= ex->field_term;
-  const String *escaped=    ex->escaped;
-  const String *enclosed=   ex->enclosed;
+  const String *field_term= ex->field.field_term;
+  const String *escaped=    ex->field.escaped;
+  const String *enclosed=   ex->field.enclosed;
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
@@ -219,7 +231,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   /* Report problems with non-ascii separators */
   if (!escaped->is_ascii() || !enclosed->is_ascii() ||
       !field_term->is_ascii() ||
-      !ex->line_term->is_ascii() || !ex->line_start->is_ascii())
+      !ex->line.line_term->is_ascii() || !ex->line.line_start->is_ascii())
   {
     push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
@@ -363,7 +375,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     else if (item->type() == Item::STRING_ITEM)
       use_vars= 1;
   }
-  if (use_blobs && !ex->line_term->length() && !field_term->length())
+  if (use_blobs && !ex->line.line_term->length() && !field_term->length())
   {
     my_message(ER_BLOBS_AND_NO_TERMINATED,ER(ER_BLOBS_AND_NO_TERMINATED),
 	       MYF(0));
@@ -453,7 +465,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   READ_INFO read_info(file,tot_length,
                       ex->cs ? ex->cs : thd->variables.collation_database,
-		      *field_term,*ex->line_start, *ex->line_term, *enclosed,
+		      *field_term,*ex->line.line_start, *ex->line.line_term,
+                      *enclosed,
 		      info.escape_char, read_file_from_client, is_fifo);
   if (read_info.error)
   {
@@ -476,7 +489,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
   /* Skip lines if there is a line terminator */
-  if (ex->line_term->length() && ex->filetype != FILETYPE_XML)
+  if (ex->line.line_term->length() && ex->filetype != FILETYPE_XML)
   {
     /* ex->skip_lines needs to be preserved for logging */
     while (skip_lines > 0)
@@ -553,8 +566,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (error)
   {
     if (read_file_from_client)
-      while (!read_info.next_line())
-	;
+      read_info.skip_data_till_eof();
 
 #ifndef EMBEDDED_LIBRARY
     if (mysql_bin_log.is_open())
@@ -802,7 +814,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
 #endif
 
 /****************************************************************************
-** Read of rows of fixed size + optional garage + optonal newline
+** Read of rows of fixed size + optional garbage + optional newline
 ****************************************************************************/
 
 static int
@@ -812,7 +824,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                   ulong skip_lines, bool ignore_check_option_errors)
 {
   List_iterator_fast<Item> it(fields_vars);
-  Item_field *sql_field;
   TABLE *table= table_list->table;
   bool err;
   DBUG_ENTER("read_fixed_length");
@@ -849,12 +860,15 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       break;
     }
 
-    /*
-      There is no variables in fields_vars list in this format so
-      this conversion is safe.
-    */
-    while ((sql_field= (Item_field*) it++))
+    Item *item;
+    while ((item= it++))
     {
+      /*
+        There is no variables in fields_vars list in this format so
+        this conversion is safe (no need to check for STRING_ITEM).
+      */
+      DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
+      Item_field *sql_field= static_cast<Item_field*>(item->real_item());
       Field *field= sql_field->field;                  
       if (field == table->next_number_field)
         table->auto_increment_field_not_null= TRUE;
@@ -1058,6 +1072,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 	}
         else if (item->type() == Item::STRING_ITEM)
         {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
@@ -1081,6 +1096,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
       else if (item->type() == Item::STRING_ITEM)
       {
+        DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *)item)->set_value((char*) pos, length,
                                                         read_info.read_charset);
       }
@@ -1139,6 +1155,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         }
         else if (item->type() == Item::STRING_ITEM)
         {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
@@ -1282,11 +1299,13 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       while(tag && strcmp(tag->field.c_ptr(), item->item_name.ptr()) != 0)
         tag= xmlit++;
       
+      item= item->real_item();
+
       if (!tag) // found null
       {
         if (item->type() == Item::FIELD_ITEM)
         {
-          Field *field= ((Item_field *) item)->field;
+          Field *field= (static_cast<Item_field*>(item))->field;
           field->reset();
           field->set_null();
           if (field == table->next_number_field)
@@ -1302,13 +1321,15 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           }
         }
         else
+        {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *) item)->set_null_value(cs);
+        }
         continue;
       }
 
       if (item->type() == Item::FIELD_ITEM)
       {
-
         Field *field= ((Item_field *)item)->field;
         field->set_notnull();
         if (field == table->next_number_field)
@@ -1316,9 +1337,12 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         field->store((char *) tag->value.ptr(), tag->value.length(), cs);
       }
       else
+      {
+        DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *) item)->set_value(
                                                  (char *) tag->value.ptr(), 
                                                  tag->value.length(), cs);
+      }
     }
     
     if (read_info.error)
@@ -1353,7 +1377,10 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                               thd->get_stmt_da()->current_row_for_condition());
         }
         else
+        {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
+        }
       }
     }
 
@@ -1509,9 +1536,6 @@ READ_INFO::~READ_INFO()
 }
 
 
-#define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
-#define PUSH(A) *(stack_pos++)=(A)
-
 /**
   The logic here is similar with my_mbcharlen, except for GET and PUSH
 
@@ -1534,6 +1558,7 @@ READ_INFO::~READ_INFO()
       PUSH(chr1);                                                             \
     }                                                                         \
   } while (0)
+
 
 inline int READ_INFO::terminator(const char *ptr,uint length)
 {
