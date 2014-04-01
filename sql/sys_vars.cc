@@ -38,7 +38,6 @@
 #include "mysql_com.h"
 
 #include "events.h"
-#include <thr_alarm.h>
 #include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
@@ -1900,14 +1899,6 @@ static Sys_var_ulong Sys_max_binlog_size(
        BLOCK_SIZE(IO_SIZE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_max_binlog_size));
 
-static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
-{
-#ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(static_cast<uint>(max_connections + 10));
-#endif
-  return false;
-}
-
 static Sys_var_ulong Sys_max_connections(
        "max_connections", "The number of simultaneous clients allowed",
        GLOBAL_VAR(max_connections), CMD_LINE(REQUIRED_ARG),
@@ -1917,7 +1908,7 @@ static Sys_var_ulong Sys_max_connections(
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG,
        ON_CHECK(0),
-       ON_UPDATE(fix_max_connections),
+       ON_UPDATE(0),
        NULL,
        /* max_connections is used as a sizing hint by the performance schema. */
        sys_var::PARSE_EARLY);
@@ -1947,7 +1938,7 @@ static Sys_var_ulong Sys_max_insert_delayed_threads(
        SESSION_VAR(max_insert_delayed_threads),
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
        DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_delayed_threads(
@@ -1958,7 +1949,7 @@ static Sys_var_ulong Sys_max_delayed_threads(
        SESSION_VAR(max_insert_delayed_threads),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
        DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_error_count(
