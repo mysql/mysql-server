@@ -2859,12 +2859,19 @@ longlong compare_between_int_result(bool compare_as_temporal_dates,
     if (args[0]->unsigned_flag)
     {
       /*
+        Comparing as unsigned.
         value BETWEEN <some negative number> AND <some number>
         rewritten to
         value BETWEEN 0 AND <some number>
       */
       if (!args[1]->unsigned_flag && (longlong) a < 0)
         a = 0;
+    }
+    else
+    {
+      // Comparing as signed, but b is unsigned, and really large
+      if (args[2]->unsigned_flag && (longlong) b < 0)
+        b= LONGLONG_MAX;
     }
 
     if (!args[1]->null_value && !args[2]->null_value)
@@ -4859,7 +4866,6 @@ void Item_func_in::fix_length_and_dec()
     if (cmp_type == STRING_RESULT && 
         agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
       return;
-    arg_types_compatible= TRUE;
     /*
       When comparing rows create the row comparator object beforehand to ease
       the DATETIME comparison detection procedure.

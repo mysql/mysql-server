@@ -1428,3 +1428,35 @@ DROP DATABASE gis_ogs;
 --echo #
 
 SELECT ST_Union('', ''), md5(1);
+
+--echo #
+--echo # Bug#18413646: SINCE 5.7 ERROR 1416 IS CONSIDERED FATAL,
+--echo #               BUT IT SHOULDN'T BE.
+--echo #
+
+USE test;
+CREATE TABLE t1(a POINT NOT NULL, SPATIAL KEY(a)) engine=myisam;
+
+--echo # Check that normal INSERT gives error
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t1 VALUES ("");
+
+--echo # INSERT IGNORE also gives error => not ignorable error
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT IGNORE INTO t1 VALUES ("");
+
+delimiter $;
+CREATE PROCEDURE p1()
+BEGIN
+ DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+ BEGIN
+   SELECT 'Handler activated';
+ END;
+ INSERT INTO t1 VALUES("");
+END $
+delimiter ;$
+
+--echo # But HANDLER should work => not fatal error
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;
