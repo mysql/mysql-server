@@ -62,8 +62,6 @@ void pre_initialize_performance_schema()
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
 
-  PFS_atomic::init();
-
   if (pthread_key_create(&THR_PFS, destroy_pfs_thread))
     return;
 
@@ -239,8 +237,6 @@ static void cleanup_performance_schema(void)
   cleanup_memory_class();
 
   cleanup_instruments();
-
-  PFS_atomic::cleanup();
 }
 
 void shutdown_performance_schema(void)

@@ -4082,6 +4082,23 @@ public:
   uchar *from_null_ptr,*to_null_ptr;
   my_bool *null_row;
   uint	from_bit,to_bit;
+  String tmp;					// For items
+
+  Copy_field()
+   :m_from_field(NULL),
+    m_to_field(NULL)
+  { }
+
+  ~Copy_field()
+  { }
+
+  void set(Field *to, Field *from, bool save);	// Field to field
+  void set(uchar *to, Field *from);		// Field to string
+
+private:
+  void (*m_do_copy)(Copy_field *);
+  void (*m_do_copy2)(Copy_field *);		// Used to handle null values
+
   /**
     Number of bytes in the fields pointed to by 'from_ptr' and
     'to_ptr'. Usually this is the number of bytes that are copied from
@@ -4099,16 +4116,37 @@ public:
     only copies the length-bytes (1 or 2) + the actual length of the
     text instead of from/to_length bytes. @see get_copy_func()
   */
-  uint from_length,to_length;
-  Field *from_field,*to_field;
-  String tmp;					// For items
+  uint m_from_length;
+  uint m_to_length;
+  Field *m_from_field;
+  Field *m_to_field;
 
-  Copy_field() {}
-  ~Copy_field() {}
-  void set(Field *to,Field *from,bool save);	// Field to field 
-  void set(uchar *to,Field *from);		// Field to string
-  void (*do_copy)(Copy_field *);
-  void (*do_copy2)(Copy_field *);		// Used to handle null values
+  void check_and_set_temporary_null()
+  {
+    if (m_from_field &&
+        m_from_field->is_tmp_null() &&
+        !m_to_field->is_tmp_null())
+    {
+      m_to_field->set_tmp_nullable();
+      m_to_field->set_tmp_null();
+    }
+  }
+
+public:
+  void invoke_do_copy(Copy_field *f);
+  void invoke_do_copy2(Copy_field *f);
+
+  Field *from_field()
+  { return m_from_field; }
+
+  Field *to_field()
+  { return m_to_field; }
+
+  uint from_length() const
+  { return m_from_length; }
+
+  uint to_length() const
+  { return m_to_length; }
 };
 
 

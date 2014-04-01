@@ -124,7 +124,9 @@ TEST_F(MakeSortKeyTest, DecimalResult)
   const char dec_str[]= "1234567890.1234567890";
   thd()->variables.max_sort_length= 4U;
   m_sort_fields[0].item=
-    new Item_decimal(dec_str, strlen(dec_str), &my_charset_bin);
+    new Item_decimal(POS(), dec_str, strlen(dec_str), &my_charset_bin);
+  Parse_context pc(thd(), thd()->lex->current_select());
+  EXPECT_FALSE(m_sort_fields[0].item->itemize(&pc, &m_sort_fields[0].item));
 
   const uint total_length=
     sortlength(thd(), m_sort_fields, 1, &m_multi_byte_charset);

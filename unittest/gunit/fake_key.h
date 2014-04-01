@@ -49,7 +49,7 @@ public:
 
     // Allocate memory for the two rec_per_key arrays
     m_rec_per_key= new ulong[actual_key_parts];
-    m_rec_per_key_float= new float[actual_key_parts];
+    m_rec_per_key_float= new rec_per_key_t[actual_key_parts];
     set_rec_per_key_array(m_rec_per_key, m_rec_per_key_float);
 
     // Initialize the rec_per_key arrays with default/unknown value
@@ -70,7 +70,7 @@ public:
 private:
   // Storage for the two records per key arrays
   ulong *m_rec_per_key;
-  float *m_rec_per_key_float;
+  rec_per_key_t *m_rec_per_key_float;
 };
 
 #endif /* FAKE_KEY_INCLUDED */

@@ -258,11 +258,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
-/* Does the system remember a signal handler after a signal ? */
-#if !defined(HAVE_SIGACTION)
-#define SIGNAL_HANDLER_RESET_ON_DELIVERY
-#endif
-
 #ifndef SO_EXT
 #ifdef _WIN32
 #define SO_EXT ".dll"
@@ -571,6 +566,8 @@ inline unsigned long long my_double2ulonglong(double d)
 #else
   #ifdef HAVE_LLVM_LIBCPP /* finite is deprecated in libc++ */
     #define my_isfinite(X) isfinite(X)
+  #elif defined _WIN32
+    #define my_isfinite(X) _finite(X)
   #else
     #define my_isfinite(X) finite(X)
   #endif

@@ -1606,7 +1606,7 @@ ndb_mgm_match_event_severity(const char * name)
     return NDB_MGM_ILLEGAL_EVENT_SEVERITY;
   
   for(int i = 0; clusterlog_severities[i].name !=0 ; i++)
-    if(strcasecmp(name, clusterlog_severities[i].name) == 0)
+    if(native_strcasecmp(name, clusterlog_severities[i].name) == 0)
       return clusterlog_severities[i].severity;
 
   return NDB_MGM_ILLEGAL_EVENT_SEVERITY;

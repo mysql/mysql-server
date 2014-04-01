@@ -373,7 +373,14 @@ public:
   virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) { return NULL; }
   virtual void set_handler(handler *file_arg) {}
 
-  virtual void trace_quick_description(Opt_trace_context *trace)= 0;
+  /**
+    Get the fields used by the range access method.
+
+    @param[out] used_fields Bitmap of fields that this range access
+                            method uses.
+  */
+  virtual void get_fields_used(MY_BITMAP *used_fields) = 0;
+  void trace_quick_description(Opt_trace_context *trace);
 };
 
 
@@ -488,10 +495,15 @@ public:
 #endif
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
   void set_handler(handler *file_arg) { file= file_arg; }
+
+  virtual void get_fields_used(MY_BITMAP *used_fields)
+  {
+    for (uint i= 0; i < used_key_parts; i++)
+      bitmap_set_bit(used_fields, key_parts[i].field->field_index);
+  }
+
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
-
-  virtual void trace_quick_description(Opt_trace_context *trace);
 };
 
 
@@ -622,11 +634,19 @@ public:
     return valid;
   }
 
+  virtual void get_fields_used(MY_BITMAP *used_fields)
+  {
+    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+    QUICK_RANGE_SELECT *quick;
+    while ((quick= it++))
+      quick->get_fields_used(used_fields);
+
+    if (pk_quick_select)
+      pk_quick_select->get_fields_used(used_fields);
+  }
+
   /* used to get rows collected in Unique */
   READ_RECORD read_record;
-
-  void trace_quick_description(Opt_trace_context *trace);
-
 };
 
 
@@ -695,7 +715,13 @@ public:
     return valid;
   }
 
-  void trace_quick_description(Opt_trace_context *trace);
+  virtual void get_fields_used(MY_BITMAP *used_fields)
+  {
+    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+    QUICK_RANGE_SELECT *quick;
+    while ((quick= it++))
+      quick->get_fields_used(used_fields);
+  }
 
   /*
     Merged quick select that uses Clustered PK, if there is one. This quick
@@ -765,7 +791,13 @@ public:
     return valid;
   }
 
-  void trace_quick_description(Opt_trace_context *trace);
+  virtual void get_fields_used(MY_BITMAP *used_fields)
+  {
+    List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
+    QUICK_SELECT_I *quick;
+    while ((quick= it++))
+      quick->get_fields_used(used_fields);
+  }
 
   QUEUE queue;    /* Priority queue for merge operation */
   MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
@@ -775,6 +807,7 @@ public:
   uchar *prev_rowid;     /* rowid of last row returned by get_next() */
   bool have_prev_rowid; /* true if prev_rowid has valid data */
   uint rowid_length;    /* table rowid length */
+
 private:
   bool scans_inited; 
 };
@@ -893,8 +926,12 @@ public:
       str->append(STRING_WITH_LEN("scanning"));
   }
 
-  void trace_quick_description(Opt_trace_context *trace);
-
+  virtual void get_fields_used(MY_BITMAP *used_fields)
+  {
+    for (uint i= 0; i < used_key_parts; i++)
+      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index);
+  }
+  void add_info_string(String *str);
 };
 
 

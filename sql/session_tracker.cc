@@ -329,7 +329,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
     }
   }
 
-  token= strtok_r(variables_list, separator, &lasts);
+  token= my_strtok_r(variables_list, separator, &lasts);
 
   track_all= false;
   /*
@@ -382,7 +382,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
       }
     }
 
-    token= strtok_r(NULL, separator, &lasts);
+    token= my_strtok_r(NULL, separator, &lasts);
   }
   if (!thd || session_created)
     unlock_plugin_mutex();

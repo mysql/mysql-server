@@ -24,7 +24,7 @@
 # adding a 'SHOW WARNINGS' after the statement.
 
 set sql_mode='';
-set storage_engine=MyISAM;
+set default_storage_engine=MyISAM;
 
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 

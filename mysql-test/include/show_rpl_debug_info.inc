@@ -21,6 +21,8 @@
 # ==== Usage ====
 #
 # [--let $rpl_only_current_connection= 1]
+# [--let $extra_debug_info= some text]
+# [--let $extra_debug_eval= expression parsable by include/eval.inc]
 # --source include/show_rpl_debug_info.inc
 #
 # Parameters:
@@ -28,7 +30,14 @@
 #     By default, debug info is printed from all connections, starting
 #     with the current connection. If this variable is set, debug
 #     info is printed only for the current connection.
-#     
+#
+#   $extra_debug_info
+#     This text is printed verbatim to the output. Useful for helper
+#     scripts to supply extra diagnostic output.
+#
+#   $extra_debug_eval
+#     Expression in the form expected by include/eval.inc, which will
+#     be evaluated and printed to the output.
 #
 # ==== Side effects ====
 #
@@ -55,6 +64,8 @@ if ($_rpl_server == '')
   --let $_rpl_server= 0
 }
 --inc $_rpl_server
+
+--echo DO_NOT_CHECK_IN_THIS_LINE: include/show_rpl_debug_info.inc should only be used for debugging. Never check in a test that calls it on success.
 
 --echo CURRENT_CONNECTION = '$_rpl_old_con'
 
@@ -124,6 +135,12 @@ while ($_rpl_server)
 
 --echo rand_seed: '$rand_seed' _rand_state: '$_rand_state'
 --echo extra debug info if any: '$extra_debug_info'
+if ($extra_debug_eval)
+{
+  --let $eval_expr= $extra_debug_eval
+  --source include/eval.inc
+  --echo extra evaluated debug info: '$eval_result'
+}
 
 --connection $_rpl_old_con
 --enable_abort_on_error

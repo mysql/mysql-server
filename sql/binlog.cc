@@ -774,7 +774,7 @@ public:
   {
     my_off_t stmt_bytes= 0;
     my_off_t trx_bytes= 0;
-    DBUG_ASSERT(stmt_cache.has_xid() == 0 && trx_cache.has_xid() <= 1);
+    DBUG_ASSERT(stmt_cache.has_xid() == 0);
     if (int error= stmt_cache.flush(thd, &stmt_bytes, wrote_xid))
       return error;
     if (int error= trx_cache.flush(thd, &trx_bytes, wrote_xid))
@@ -2565,7 +2565,6 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_mutex_destroy(&LOCK_binlog_end_pos);
     mysql_mutex_destroy(&LOCK_xids);
     mysql_cond_destroy(&update_cond);
-    my_atomic_rwlock_destroy(&m_prep_xids_lock);
     mysql_cond_destroy(&m_prep_xids_cond);
     stage_manager.deinit();
   }
@@ -2585,7 +2584,6 @@ void MYSQL_BIN_LOG::init_pthread_objects()
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
-  my_atomic_rwlock_init(&m_prep_xids_lock);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond, NULL);
   stage_manager.init(
 #ifdef HAVE_PSI_INTERFACE
@@ -3730,7 +3728,7 @@ err:
     -1   error
 */
 int MYSQL_BIN_LOG::add_log_to_index(uchar* log_name,
-                                    int log_name_len, bool need_lock_index)
+                                    size_t log_name_len, bool need_lock_index)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::add_log_to_index");
 
@@ -3906,7 +3904,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
 
   for (;;)
   {
-    uint length;
+    size_t length;
     my_off_t offset= my_b_tell(&index_file);
 
     DBUG_EXECUTE_IF("simulate_find_log_pos_error",
@@ -3969,7 +3967,7 @@ end:
 int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock_index)
 {
   int error= 0;
-  uint length;
+  size_t length;
   char fname[FN_REFLEN];
   char *full_fname= linfo->log_file_name;
 
@@ -5051,7 +5049,7 @@ err:
 
 void MYSQL_BIN_LOG::make_log_name(char* buf, const char* log_ident)
 {
-  uint dir_len = dirname_length(log_file_name); 
+  size_t dir_len = dirname_length(log_file_name); 
   if (dir_len >= FN_REFLEN)
     dir_len=FN_REFLEN-1;
   my_stpnmov(buf, log_file_name, dir_len);
@@ -5843,7 +5841,8 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
 
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     DBUG_RETURN(ER_ERROR_ON_WRITE);
-  uint length= my_b_bytes_in_cache(cache), group, carry, hdr_offs;
+  size_t length = my_b_bytes_in_cache(cache);
+  uint group, carry, hdr_offs;
   ulong remains= 0; // part of unprocessed yet netto length of the event
   long val;
   ulong end_log_pos_inc= 0; // each event processed adds BINLOG_CHECKSUM_LEN 2 t
@@ -6875,9 +6874,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   int flush_error= 1;
   mysql_mutex_assert_owner(&LOCK_log);
 
-  my_atomic_rwlock_rdlock(&opt_binlog_max_flush_queue_time_lock);
   const ulonglong max_udelay= my_atomic_load32(&opt_binlog_max_flush_queue_time);
-  my_atomic_rwlock_rdunlock(&opt_binlog_max_flush_queue_time_lock);
   const ulonglong start_utime= max_udelay > 0 ? my_micro_time() : 0;
 
   /*
@@ -8956,6 +8953,8 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   /* restore read/write set for the rest of execution */
   table->column_bitmaps_set_no_signal(old_read_set,
                                       old_write_set);
+  
+  bitmap_clear_all(&table->tmp_set);
 
   return error;
 }
@@ -9008,6 +9007,7 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
   table->column_bitmaps_set_no_signal(old_read_set,
                                       old_write_set);
 
+  bitmap_clear_all(&table->tmp_set);
   return error;
 }
 
@@ -9036,8 +9036,8 @@ void THD::binlog_prepare_row_images(TABLE *table)
       the read_set already.
     */
     DBUG_ASSERT(table->read_set != &table->tmp_set);
-
-    bitmap_clear_all(&table->tmp_set);
+    // Verify it's not used
+    DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
 
     switch(thd->variables.binlog_row_image)
     {
@@ -9321,7 +9321,6 @@ void THD::issue_unsafe_warnings()
 
  Logical_clock::Logical_clock()
 {
-  my_atomic_rwlock_init(&m_state_lock);
   init();
 }
 
@@ -9336,11 +9335,9 @@ int64
 {
   int64 retval;
   DBUG_ENTER("Logical_clock::step_clock");
-  my_atomic_rwlock_wrlock(&m_state_lock);
   retval= my_atomic_add64(&state, 1);
   if (retval == (INT_MAX64 - 1))
     init();
-  my_atomic_rwlock_wrunlock(&m_state_lock);
   DBUG_RETURN(retval);
 }
 
@@ -9353,18 +9350,8 @@ int64
 {
   int64 retval= 0;
   DBUG_ENTER("Logical_clock::get_timestamp");
-  my_atomic_rwlock_rdlock(&m_state_lock);
   retval= my_atomic_load64(&state);
-  my_atomic_rwlock_rdunlock(&m_state_lock);
   DBUG_RETURN(retval);
-}
-
-/**
-  Destructor for Logical clock.
-*/
-Logical_clock::~Logical_clock()
-{
-  my_atomic_rwlock_destroy(&m_state_lock);
 }
 
 /**

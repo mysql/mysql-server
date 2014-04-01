@@ -15052,7 +15052,11 @@ static void test_bug15510()
 
   myheader("test_bug15510");
 
-  rc= mysql_query(mysql, "set @@sql_mode='STRICT_ALL_TABLES'");
+  /* Behavior change introduced by WL#7467 */
+  if (mysql_get_server_version(mysql) < 50704)
+    rc= mysql_query(mysql, "set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO'");
+  else
+    rc= mysql_query(mysql, "set @@sql_mode='STRICT_ALL_TABLES'");
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
@@ -19659,6 +19663,14 @@ static void test_wl5768()
   int        rc;
 
   myheader("test_wl5768");
+
+  if (mysql_get_server_version(mysql) < 50704)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_wl5768: "
+              "tested feature does not exist in versions before MySQL 5.7.4\n");
+    return;
+  }
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS ps_t1");
   myquery(rc);

@@ -134,7 +134,7 @@ TEST_F(SqlTableTest, FileNameToTableName)
                             + sizeof(srv_mysql50_table_name_prefix) - 1];
 
   // This one used to fail with AddressSanitizer
-  uint name_length;
+  size_t name_length;
   name_length= filename_to_tablename(test_filename,
                                      test_tablename,
                                      sizeof(test_tablename)

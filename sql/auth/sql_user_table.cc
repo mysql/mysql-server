@@ -368,7 +368,7 @@ update_user_table(THD *thd, TABLE *table,
   }
 
   table->use_all_columns();
-  DBUG_ASSERT(host != '\0');
+  DBUG_ASSERT(host != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(host, strlen(host),
 					     system_charset_info);
   table->field[MYSQL_USER_FIELD_USER]->store(user, strlen(user),
@@ -467,7 +467,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   bool old_row_exists=0;
   bool builtin_plugin= true;
   bool update_password;
-  char *password= empty_c_string;
+  const char *password= empty_c_string;
   uint password_len= 0;
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
@@ -485,7 +485,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   }
  
   table->use_all_columns();
-  DBUG_ASSERT(combo->host.str != '\0');
+  DBUG_ASSERT(combo->host.str != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                              system_charset_info);
   table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
@@ -567,7 +567,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
     else if (combo->plugin.str[0])
     {
-      if (!plugin_is_ready(&combo->plugin, MYSQL_AUTHENTICATION_PLUGIN))
+      if (!plugin_is_ready(combo->plugin, MYSQL_AUTHENTICATION_PLUGIN))
       {
         my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), combo->plugin.str);
         goto end;
@@ -576,7 +576,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     old_row_exists = 0;
     restore_record(table,s->default_values);
-    DBUG_ASSERT(combo->host.str != '\0');
+    DBUG_ASSERT(combo->host.str != NULL);
     table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                                system_charset_info);
     table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
@@ -631,12 +631,11 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
     
     /* 1. resolve plugins in the LEX_USER struct if needed */
-    LEX_STRING old_plugin;
 
+    LEX_CSTRING old_plugin;
     /*
       Get old plugin value from storage.
     */
-
     old_plugin.str=
       get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
 
@@ -930,8 +929,8 @@ end:
 		      lex->x509_subject,
 		      &lex->mqh,
 		      rights,
-		      &combo->plugin,
-		      &combo->auth,
+		      combo->plugin,
+		      combo->auth,
                       password_change_time);
     else
       acl_insert_user(combo->user.str, combo->host.str, password, password_len,
@@ -941,8 +940,8 @@ end:
 		      lex->x509_subject,
 		      &lex->mqh,
 		      rights,
-		      &combo->plugin,
-		      &combo->auth,
+		      combo->plugin,
+		      combo->auth,
                       password_change_time);
   }
   DBUG_RETURN(error);
@@ -1084,8 +1083,8 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   }
 
   table->use_all_columns();
-  ACL_PROXY_USER::store_pk (table, &user->host, &user->user, 
-                            &proxied_user->host, &proxied_user->user);
+  ACL_PROXY_USER::store_pk (table, user->host, user->user,
+                            proxied_user->host, proxied_user->user);
 
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
@@ -1111,9 +1110,9 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     }
     old_row_exists= 0;
     restore_record(table, s->default_values);
-    ACL_PROXY_USER::store_data_record(table, &user->host, &user->user,
-                                      &proxied_user->host,
-                                      &proxied_user->user,
+    ACL_PROXY_USER::store_data_record(table, user->host, user->user,
+                                      proxied_user->host,
+                                      proxied_user->user,
                                       with_grant_arg,
                                       grantor);
   }
@@ -1811,8 +1810,6 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   TABLE *table= tables[table_no].table;
   Field *host_field= table->field[0];
   Field *user_field= table->field[table_no && table_no != 5 ? 2 : 1];
-  char *host_str= user_from->host.str;
-  char *user_str= user_from->user.str;
   const char *host;
   const char *user;
   uchar user_key[MAX_KEY_LENGTH];
@@ -1833,9 +1830,15 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
       by the searched record, if it exists.
     */
     DBUG_PRINT("info",("read table: '%s'  search: '%s'@'%s'",
-                       table->s->table_name.str, user_str, host_str));
-    host_field->store(host_str, user_from->host.length, system_charset_info);
-    user_field->store(user_str, user_from->user.length, system_charset_info);
+                       table->s->table_name.str,
+                       user_from->user.str,
+                       user_from->host.str));
+    host_field->store(user_from->host.str,
+                      user_from->host.length,
+                      system_charset_info);
+    user_field->store(user_from->user.str,
+                      user_from->user.length,
+                      system_charset_info);
     
     if (!table->key_info)
     {
@@ -1883,7 +1886,9 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     {
 #ifdef EXTRA_DEBUG
       DBUG_PRINT("info",("scan table: '%s'  search: '%s'@'%s'",
-                         table->s->table_name.str, user_str, host_str));
+                         table->s->table_name.str,
+                         user_from->user.str,
+                         user_from->host.str));
 #endif
       while ((error= table->file->ha_rnd_next(table->record[0])) != 
              HA_ERR_END_OF_FILE)
@@ -1910,8 +1915,8 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                                        table->field[4]) /*column*/));
         }
 #endif
-        if (strcmp(user_str, user) ||
-            my_strcasecmp(system_charset_info, host_str, host))
+        if (strcmp(user_from->user.str, user) ||
+            my_strcasecmp(system_charset_info, user_from->host.str, host))
           continue;
 
         /* If requested, delete or update the record. */

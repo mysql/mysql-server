@@ -528,9 +528,9 @@ ibuf_init_at_db_start(void)
 
 	mtr_start(&mtr);
 
-	mutex_enter(&ibuf_mutex);
-
 	mtr_x_lock(fil_space_get_latch(IBUF_SPACE_ID, NULL), &mtr);
+
+	mutex_enter(&ibuf_mutex);
 
 	header_page = ibuf_header_page_get(&mtr);
 
@@ -916,8 +916,17 @@ ibuf_set_free_bits_func(
 	bitmap_page = ibuf_bitmap_get_map_page(block->page.id,
 					       block->page.size, &mtr);
 
-	/* Avoid logging while fixing up truncate of table. */
-	if (srv_is_tablespace_truncated(block->page.id.space())) {
+	switch (fil_space_get_type(block->page.id.space())) {
+	case FIL_TYPE_LOG:
+		ut_ad(0);
+		break;
+	case FIL_TYPE_TABLESPACE:
+		/* Avoid logging while fixing up truncate of table. */
+		if (!srv_is_tablespace_truncated(block->page.id.space())) {
+			break;
+		}
+		/* fall through */
+	case FIL_TYPE_IMPORT:
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
 
