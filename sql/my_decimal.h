@@ -502,6 +502,12 @@ int my_decimal_cmp(const my_decimal *a, const my_decimal *b)
   return decimal_cmp(a, b);
 }
 
+inline
+bool operator<(const my_decimal &lhs, const my_decimal &rhs)
+{
+  return my_decimal_cmp(&lhs, &rhs) < 0;
+}
+
 
 inline
 int my_decimal_intg(const my_decimal *a)

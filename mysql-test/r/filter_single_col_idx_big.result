@@ -102,6 +102,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (5, 6, 7, 8);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	2.00	Using where
+# Dependent subquery in IN list. No filtering in t1 
+EXPLAIN SELECT * FROM t1 
+WHERE t1.col3 IN (1, (SELECT col3 FROM t2 where col3=t1.col4 LIMIT 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	0.50	Using where
 
 # <column> NOT IN
 EXPLAIN SELECT * FROM t1 WHERE t1.col3 NOT IN (5, 6);
