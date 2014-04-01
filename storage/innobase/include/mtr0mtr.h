@@ -165,8 +165,8 @@ struct mtr_t {
 		value MTR_LOG_ALL */
 		mtr_log_t	m_log_mode;
 
-		/** MLOG_FILE_NAME tablespace associated with the mini-transaction,
-		or TRX_SYS_SPACE if none yet */
+		/** MLOG_FILE_NAME tablespace associated with the
+		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
 		ulint		m_named_space;
 #ifdef UNIV_DEBUG
 		/** State of the transaction */
@@ -254,7 +254,11 @@ struct mtr_t {
 	/** Set the tablespace associated with the mini-transaction
 	(needed for generating a MLOG_FILE_NAME record)
 	@param[in]	space	tablespace */
-	void set_named_space(ulint space);
+	void set_named_space(ulint space)
+	{
+		ut_ad(m_impl.m_named_space == 0);
+		m_impl.m_named_space = space;
+	}
 
 #ifdef UNIV_DEBUG
 	/** Check the tablespace associated with the mini-transaction

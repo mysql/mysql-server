@@ -759,11 +759,11 @@ ibuf_bitmap_page_set_bits(
 # error "IBUF_BITS_PER_PAGE % 2 != 0"
 #endif
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr->is_named_space(page_id.space()));
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a((bit != IBUF_BITMAP_BUFFERED) || (val != FALSE)
 	     || (0 == ibuf_count_get(page_id)));
 #endif
-	mtr->set_named_space(page_id.space());
 
 	bit_offset = (page_id.page_no() % page_size.physical())
 		* IBUF_BITS_PER_PAGE + bit;
@@ -867,6 +867,8 @@ ibuf_set_free_bits_low(
 {
 	page_t*	bitmap_page;
 
+	ut_ad(mtr->is_named_space(block->page.id.space()));
+
 	if (!page_is_leaf(buf_block_get_frame(block))) {
 
 		return;
@@ -914,6 +916,7 @@ ibuf_set_free_bits_func(
 	}
 
 	mtr_start(&mtr);
+	mtr.set_named_space(block->page.id.space());
 
 	bitmap_page = ibuf_bitmap_get_map_page(block->page.id,
 					       block->page.size, &mtr);
@@ -1010,6 +1013,7 @@ ibuf_update_free_bits_low(
 	ulint	after;
 
 	ut_a(!buf_block_get_page_zip(block));
+	ut_ad(mtr->is_named_space(block->page.id.space()));
 
 	before = ibuf_index_page_calc_free_bits(block->page.size.logical(),
 						max_ins_size);
@@ -1081,6 +1085,9 @@ ibuf_update_free_bits_for_two_pages_low(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	state;
+
+	ut_ad(mtr->is_named_space(block1->page.id.space()));
+	ut_ad(block1->page.id.space() == block2->page.id.space());
 
 	/* As we have to x-latch two random bitmap pages, we have to acquire
 	the bitmap mutex to prevent a deadlock with a similar operation
@@ -3583,6 +3590,7 @@ fail_exit:
 	ut_a((buffered == 0) || ibuf_count_get(page_id));
 #endif
 	ibuf_mtr_start(&bitmap_mtr);
+	bitmap_mtr.set_named_space(page_id.space());
 
 	bitmap_page = ibuf_bitmap_get_map_page(page_id, page_size,
 					       &bitmap_mtr);
@@ -4853,7 +4861,7 @@ loop:
 	}
 
 reset_bit:
-	if (update_ibuf_bitmap) {
+	if (update_ibuf_bitmap && block != NULL) {
 		page_t*	bitmap_page;
 
 		bitmap_page = ibuf_bitmap_get_map_page(page_id, *page_size,
@@ -4863,18 +4871,16 @@ reset_bit:
 			bitmap_page, page_id, *page_size,
 			IBUF_BITMAP_BUFFERED, FALSE, &mtr);
 
-		if (block != NULL) {
-			ulint old_bits = ibuf_bitmap_page_get_bits(
+		ulint old_bits = ibuf_bitmap_page_get_bits(
+			bitmap_page, page_id, *page_size,
+			IBUF_BITMAP_FREE, &mtr);
+
+		ulint new_bits = ibuf_index_page_calc_free(block);
+
+		if (old_bits != new_bits) {
+			ibuf_bitmap_page_set_bits(
 				bitmap_page, page_id, *page_size,
-				IBUF_BITMAP_FREE, &mtr);
-
-			ulint new_bits = ibuf_index_page_calc_free(block);
-
-			if (old_bits != new_bits) {
-				ibuf_bitmap_page_set_bits(
-					bitmap_page, page_id, *page_size,
-					IBUF_BITMAP_FREE, new_bits, &mtr);
-			}
+				IBUF_BITMAP_FREE, new_bits, &mtr);
 		}
 	}
 
