@@ -739,7 +739,22 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   if (mysql->server_capabilities & CLIENT_SESSION_TRACK)
   {
     size_t length_msg_member= (size_t) net_field_length(&pos);
-    mysql->info= (length_msg_member ? (char *) pos : NULL);
+    if (length_msg_member)
+    {
+      if (!mysql->info_buffer)
+	mysql->info_buffer= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
+	                                       MYSQL_ERRMSG_SIZE, MYF(MY_WME));
+      /*
+        If memory allocation succeeded, the string is copied.
+	Else, mysql->info remains NULL.
+      */
+      if (mysql->info_buffer)
+      {
+	strmake(mysql->info_buffer, (const char *) pos,
+	        MY_MIN(length_msg_member, MYSQL_ERRMSG_SIZE - 1));
+	mysql->info= mysql->info_buffer;
+      }
+    }
     pos += (length_msg_member);
     free_state_change_info(mysql->extension);
     if (mysql->server_status & SERVER_SESSION_STATE_CHANGED)
