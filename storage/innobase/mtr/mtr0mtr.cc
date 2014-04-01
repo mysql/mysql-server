@@ -538,25 +538,6 @@ mtr_t::commit_checkpoint()
 		   ("MLOG_CHECKPOINT written at " LSN_PF, log_sys->lsn));
 }
 
-/** Set the tablespace associated with the mini-transaction
-(needed for generating a MLOG_FILE_NAME record)
-@param[in]	space	tablespace */
-
-void
-mtr_t::set_named_space(ulint space)
-{
-	if (is_predefined_tablespace(space)) {
-		return;
-	}
-
-	/* TRX_SYS_SPACE is one of the predefined tablespaces
-	that is always open during redo log apply.
-	MLOG_FILE_NAME only keeps track of user-created tablespaces. */
-	ut_ad(m_impl.m_named_space == TRX_SYS_SPACE
-	      || m_impl.m_named_space == space);
-	m_impl.m_named_space = space;
-}
-
 #ifdef UNIV_DEBUG
 /** Check the tablespace associated with the mini-transaction
 (needed for generating a MLOG_FILE_NAME record)
@@ -572,11 +553,12 @@ mtr_t::is_named_space(ulint space) const
 		return(true);
 	case MTR_LOG_ALL:
 	case MTR_LOG_SHORT_INSERTS:
-		break;
+		return(m_impl.m_named_space == space
+		       || is_predefined_tablespace(space));
 	}
 
-	return(m_impl.m_named_space == space
-	       || is_predefined_tablespace(space));
+	ut_error;
+	return(false);
 }
 #endif /* UNIV_DEBUG */
 
