@@ -190,6 +190,7 @@ public:
 #endif
   /* Destroy this statement */
   void deallocate();
+  virtual const LEX_CSTRING& query() const { return Statement::query(); }
 private:
   /**
     The memory root to allocate parsed tree elements (instances of Item,
@@ -2640,6 +2641,11 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
     DBUG_VOID_RETURN;
   }
 
+#if defined(ENABLED_PROFILING)
+  thd->profiling.set_query_source(stmt->query().str,
+                                  stmt->query().length);
+#endif
+
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
   open_cursor= MY_TEST(flags & (ulong) CURSOR_TYPE_READ_ONLY);
@@ -3588,11 +3594,6 @@ Prepared_statement::execute_loop(String *expanded_query,
   Reprepare_observer reprepare_observer;
   bool error;
   int reprepare_attempt= 0;
-
-#if defined(ENABLED_PROFILING)
-  thd->profiling.set_query_source(query().str,
-                                  query().length);
-#endif
 
   /* Check if we got an error when sending long data */
   if (state == Query_arena::STMT_ERROR)
