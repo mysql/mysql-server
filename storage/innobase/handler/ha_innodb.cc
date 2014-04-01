@@ -10672,7 +10672,7 @@ Calculate Record Per Key value. Need to exclude the NULL value if
 innodb_stats_method is set to "nulls_ignored"
 @return estimated record per key value */
 static
-double
+rec_per_key_t
 innodb_rec_per_key(
 /*===============*/
 	dict_index_t*	index,		/*!< in: dict_index_t structure */
@@ -10680,7 +10680,7 @@ innodb_rec_per_key(
 					calculating rec per key */
 	ha_rows		records)	/*!< in: estimated total records */
 {
-	double		rec_per_key;
+	rec_per_key_t	rec_per_key;
 	ib_uint64_t	n_diff;
 
 	ut_a(index->table->stat_initialized);
@@ -10691,7 +10691,7 @@ innodb_rec_per_key(
 
 	if (n_diff == 0) {
 
-		rec_per_key = static_cast<double>(records);
+		rec_per_key = static_cast<rec_per_key_t>(records);
 	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
 		ib_uint64_t	n_null;
 		ib_uint64_t	n_non_null;
@@ -10718,12 +10718,13 @@ innodb_rec_per_key(
 		} else {
 			/* Need to exclude rows with NULL values from
 			rec_per_key calculation */
-			rec_per_key = static_cast<double>(records - n_null)
+			rec_per_key
+				= static_cast<rec_per_key_t>(records - n_null)
 				/ (n_diff - n_null);
 		}
 	} else {
 		DEBUG_SYNC_C("after_checking_for_0");
-		rec_per_key = static_cast<double>(records) / n_diff;
+		rec_per_key = static_cast<rec_per_key_t>(records) / n_diff;
 	}
 
 	return(rec_per_key);
@@ -11046,8 +11047,9 @@ ha_innobase::info_low(
 					break;
 				}
 
-				double	rec_per_key = innodb_rec_per_key(
-					index, j, stats.records);
+				const rec_per_key_t	rec_per_key
+					= innodb_rec_per_key(index, j,
+							     stats.records);
 
 				/* Here we have two variants for rec_per_key:
 				1. The new one which is set via
@@ -11057,8 +11059,7 @@ ha_innobase::info_low(
 				assigning to rec_per_key[] and works with
 				integer values (to be removed). */
 
-				key->set_records_per_key(
-					j, static_cast<float>(rec_per_key));
+				key->set_records_per_key(j, rec_per_key);
 
 				/* Handle the 'integer' variant. The code below
 				should be deleted once we are sure that the
