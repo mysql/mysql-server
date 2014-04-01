@@ -4104,12 +4104,8 @@ static int cmp_row(void *cmp_arg, cmp_item_row *a, cmp_item_row *b)
 
 static int cmp_decimal(void *cmp_arg, my_decimal *a, my_decimal *b)
 {
-  /*
-    We need call of fixing buffer pointer, because fast sort just copy
-    decimal buffers in memory and pointers left pointing on old buffer place
-  */
-  a->fix_buffer_pointer();
-  b->fix_buffer_pointer();
+  a->sanity_check();
+  b->sanity_check();
   return my_decimal_cmp(a, b);
 }
 
@@ -4348,6 +4344,13 @@ uchar *in_decimal::get_value(Item *item)
   return (uchar *)result;
 }
 
+
+void in_decimal::sort()
+{
+  my_decimal *begin= static_cast<my_decimal*>(static_cast<void*>(base));
+  my_decimal *end= begin + used_count;
+  std::sort(begin, end);
+}
 
 cmp_item* cmp_item::get_comparator(Item_result type,
                                    const CHARSET_INFO *cs)
@@ -4612,11 +4615,17 @@ float Item_func_in::get_filtering_effect(table_map filter_for_table,
 
   DBUG_ASSERT((read_tables & filter_for_table) == 0);
   /*
-    To contribute to filering effect, the condition must refer to
+    To contribute to filtering effect, the condition must refer to
     exactly one unread table: the table filtering is currently
     calculated for.
+
+    Dependent subqueries are not considered available values and no
+    filtering should be calculated for this item if the IN list
+    contains one. dep_subq_in_list is 'true' if the IN list contains a
+    dependent subquery.
   */
-  if ((used_tables() & ~read_tables) != filter_for_table)
+  if ((used_tables() & ~read_tables) != filter_for_table ||
+      dep_subq_in_list)
     return COND_FILTER_ALLPASS;
 
   /*
@@ -4823,6 +4832,8 @@ void Item_func_in::fix_length_and_dec()
     if (!arg[0]->const_item())
     {
       const_itm= 0;
+      if (arg[0]->real_item()->type() == Item::SUBSELECT_ITEM)
+        dep_subq_in_list= true;
       break;
     }
   }
