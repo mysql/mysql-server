@@ -1520,3 +1520,29 @@ DROP DATABASE gis_ogs;
 SELECT ST_Union('', ''), md5(1);
 ST_Union('', '')	md5(1)
 NULL	c4ca4238a0b923820dcc509a6f75849b
+#
+# Bug#18413646: SINCE 5.7 ERROR 1416 IS CONSIDERED FATAL,
+#               BUT IT SHOULDN'T BE.
+#
+USE test;
+CREATE TABLE t1(a POINT NOT NULL, SPATIAL KEY(a)) engine=myisam;
+# Check that normal INSERT gives error
+INSERT INTO t1 VALUES ("");
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+# INSERT IGNORE also gives error => not ignorable error
+INSERT IGNORE INTO t1 VALUES ("");
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+BEGIN
+SELECT 'Handler activated';
+END;
+INSERT INTO t1 VALUES("");
+END $
+# But HANDLER should work => not fatal error
+CALL p1();
+Handler activated
+Handler activated
+DROP PROCEDURE p1;
+DROP TABLE t1;

@@ -118,7 +118,10 @@ Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
   : super(pos), allowed_arg_cols(1)
 {
   if (opt_list == NULL)
+  {
+    args= tmp_arg;
     arg_count= 0;
+  }
   else
     set_arguments(opt_list->value, true);
 }

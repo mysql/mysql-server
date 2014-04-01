@@ -7089,10 +7089,18 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     5.0.0, there also are some rotates from the slave itself, in the
     relay log, which shall not change the group positions.
   */
+
+  /*
+    The way we check if SQL thread is currently in a group is different
+    for STS and MTS.
+  */
+  bool in_group = rli->is_parallel_exec() ?
+    (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) :
+    rli->is_in_group();
+
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
       !is_relay_log_event() &&
-      ((!rli->is_parallel_exec() && !rli->is_in_group()) ||
-       rli->mts_group_status != Relay_log_info::MTS_IN_GROUP))
+      !in_group)
   {
     if (!is_mts_db_partitioned(rli) && server_id != ::server_id && log_pos )
     {

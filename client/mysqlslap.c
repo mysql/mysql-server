@@ -1653,7 +1653,7 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
 
   if (engine_stmt)
   {
-    len= snprintf(query, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
+    len= snprintf(query, HUGE_STRING_LENGTH, "set default_storage_engine=`%s`",
                   engine_stmt->string);
     if (run_query(mysql, query, len))
     {
