@@ -5943,14 +5943,6 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
                                                     Item_result cmp_type,
                                                     bool is_negated)
 {
-  /*
-    Array for IN() is constructed when all values have the same result
-    type. Tree won't be built for values with different result types,
-    so we check it here to avoid unnecessary work.
-  */
-  if (!op->arg_types_compatible)
-    return NULL;
-
   if (is_negated)
   {
     // We don't support row constructors (multiple columns on lhs) here.

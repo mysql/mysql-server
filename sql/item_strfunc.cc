@@ -4372,17 +4372,28 @@ null:
   return 0;
 }
 
+/**
+  @returns The length that the compressed string args[0] had before
+  being compressed.
+
+  @note This function is supposed to handle this case:
+  SELECT UNCOMPRESSED_LENGTH(COMPRESS(<some string>))
+  However, in mysql tradition, the input argument can be *anything*.
+
+  We return NULL if evaluation of the input argument returns NULL.
+  If the input string does not look like something produced by
+  Item_func_compress::val_str, we issue a warning and return 0.
+ */
 longlong Item_func_uncompressed_length::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(&value);
-  if (!res)
-  {
-    null_value=1;
-    return 0; /* purecov: inspected */
-  }
-  null_value=0;
-  if (res->is_empty()) return 0;
+
+  if ((null_value= args[0]->null_value))
+    return 0;
+
+  if (!res || res->is_empty())
+    return 0;
 
   /*
     If length is <= 4 bytes, data is corrupt. This is the best we can do
@@ -4393,7 +4404,6 @@ longlong Item_func_uncompressed_length::val_int()
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_ZLIB_Z_DATA_ERROR,
                         ER(ER_ZLIB_Z_DATA_ERROR));
-    null_value= 1;
     return 0;
   }
 
