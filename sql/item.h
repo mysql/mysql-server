@@ -3194,7 +3194,9 @@ public:
     : super(pos), m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(literal.str ? literal.str : "",
-                                  literal.str ? literal.length : 0, cs);
+                                  literal.str ? static_cast<uint32>(
+                                  literal.length) : 0,
+                                  cs);
     collation.set(cs, dv, repertoire);
     max_length= str_value.numchars()*cs->mbmaxlen;
     item_name= name_par;
@@ -3444,7 +3446,7 @@ public:
   Item_bin_string(const char *str,uint str_length)
   { bin_string_init(str, str_length); }
   Item_bin_string(const POS &pos, const LEX_STRING &literal) : super(pos)
-  { bin_string_init(literal.str, literal.length); }
+  { bin_string_init(literal.str, static_cast<uint>(literal.length)); }
 
   static LEX_STRING make_bin_str(const char *str, uint str_length);
 
