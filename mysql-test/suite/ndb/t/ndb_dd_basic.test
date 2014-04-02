@@ -75,12 +75,16 @@ ENGINE=NDB;
 
 ########################################
 # Create a table using this tablespace
+# Specify number of partitions in order to make
+# output from INFORMATION_SCHEMA.PARTITIONS
+# independent of ndbd/ndbmtd and ThreadConfig.
 ########################################
 
 CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
 TABLESPACE ts1 STORAGE DISK
-ENGINE=NDB;
+ENGINE=NDB
+PARTITION BY KEY() PARTITIONS 8;
 
 SHOW CREATE TABLE t1;
 
