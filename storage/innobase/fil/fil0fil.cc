@@ -2547,6 +2547,22 @@ fil_op_log_parse_or_replay(
 #if OS_PATH_SEPARATOR != '/'
 			new_table[namend - new_name - dirlen] = '/';
 #endif
+
+			/* New path must not exist. */
+			bool		exists;
+			os_file_type_t	ftype;
+
+			if (!os_file_status(new_name, &exists, &ftype)
+			    || exists) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Cannot replay rename '%s' to '%s'"
+					" for space ID " ULINTPF
+					" because the target file exists."
+					" Remove either file and try again.",
+					name, new_name, space_id);
+				exit(1);
+			}
+
 			if (!fil_rename_tablespace(
 				    space_id, name, new_table, new_name)) {
 				ut_error;
@@ -4205,26 +4221,6 @@ fil_load_single_table_tablespace(
 		/* Fall through to error handling */
 
 	case DB_TABLESPACE_EXISTS:
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"We do not continue the crash recovery, because"
-			" the table may become corrupt if we cannot apply"
-			" the log records in the InnoDB log to it."
-			" To fix the problem and start mysqld:");
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"1) If there is a permission problem in the file"
-			" and mysqld cannot open the file, you should"
-			" modify the permissions.");
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"2) If the table is not needed, or you can restore"
-			" it from a backup, then you can remove the .ibd"
-			" file, and InnoDB will do a normal crash recovery"
-			" and ignore that table.");
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"3) If the file system or the disk is broken, and"
-			" you cannot remove the .ibd file, you can set"
-			" innodb_force_recovery > 0 in my.cnf and force"
-			" InnoDB to continue crash recovery here.");
-
 		return(FIL_LOAD_INVALID);
 
 	default:

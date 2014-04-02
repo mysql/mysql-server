@@ -311,6 +311,32 @@ fil_name_parse(
 		case FIL_LOAD_INVALID:
 			ut_ad(space == NULL);
 			if (srv_force_recovery == 0) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"We do not continue the"
+					" crash recovery, because"
+					" the table may become corrupt"
+					" if we cannot apply"
+					" the log records in the"
+					" InnoDB log to it."
+					" To fix the problem"
+					" and start mysqld:");
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"1) If there is a permission problem"
+					" in the file and mysqld cannot open"
+					" the file, you should"
+					" modify the permissions.");
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"2) If the tablespace is not needed,"
+					" or you can restore an older version"
+					" from a backup, then you can"
+					" remove the .ibd file, and use"
+					" --innodb_force_recovery=1 to force"
+					" startup without this file.");
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"3) If the file system or the disk"
+					" is broken, and you cannot remove"
+					" the .ibd file, you can set"
+					" --innodb_force_recovery.");
 				exit(1);
 			}
 

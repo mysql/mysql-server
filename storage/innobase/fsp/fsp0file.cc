@@ -440,11 +440,6 @@ Datafile::validate_first_page()
 		ut_ad(m_first_page);
 	}
 
-	/* Skip the rest of these checks for force_recovery. */
-	if (error_txt == NULL && srv_force_recovery >= SRV_FORCE_IGNORE_CORRUPT) {
-		return(DB_SUCCESS);
-	}
-
 	/* Check if the whole page is blank. */
 	if (error_txt == NULL && !m_space_id && !m_flags) {
 		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
