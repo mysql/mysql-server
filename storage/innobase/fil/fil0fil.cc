@@ -36,7 +36,6 @@ Created 10/25/1995 Heikki Tuuri
 #include "fsp0fsp.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
 #include "page0page.h"

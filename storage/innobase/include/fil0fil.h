@@ -32,7 +32,7 @@ Created 10/25/1995 Heikki Tuuri
 
 #include "dict0types.h"
 #include "buf0types.h"
-#include "mem0mem.h"
+#include "hash0hash.h"
 #include "page0size.h"
 #include "mtr0types.h"
 #ifndef UNIV_HOTBACKUP

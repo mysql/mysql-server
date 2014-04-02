@@ -26,7 +26,7 @@ Created 12/7/1995 Heikki Tuuri
 #include "buf0dblwr.h"
 #include "fsp0types.h"
 #include "mach0data.h"
-#include "trx0sys.h"
+#include "trx0types.h"
 
 /********************************************************//**
 Opens a buffer to mlog. It must be closed with mlog_close.
