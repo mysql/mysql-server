@@ -73,6 +73,8 @@ dict_index_t*	dict_ind_compact;
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "trx0undo.h"
+#include <vector>
+#include <algorithm>
 
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
@@ -2653,7 +2655,8 @@ dict_index_find_cols(
 	dict_table_t*	table,	/*!< in: table */
 	dict_index_t*	index)	/*!< in: index */
 {
-	ulint		i;
+	ulint			i;
+	std::vector<ulint>	col_added;
 
 	ut_ad(table && index);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -2666,7 +2669,22 @@ dict_index_find_cols(
 		for (j = 0; j < table->n_cols; j++) {
 			if (!strcmp(dict_table_get_col_name(table, j),
 				    field->name)) {
+
+				/* Check if same column is being assigned again
+				which suggest that column has duplicate name. */
+				bool found =
+					std::find(col_added.begin(),
+						col_added.end(), j)
+					!= col_added.end();
+
+				if (found) {
+					/* Duplicate column found. */
+					break;
+				}
+
 				field->col = dict_table_get_nth_col(table, j);
+
+				col_added.push_back(j);
 
 				goto found;
 			}
