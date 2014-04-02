@@ -3443,15 +3443,15 @@ class Item_bin_string: public Item_hex_string
   typedef Item_hex_string super;
 
 public:
-  Item_bin_string(const char *str,uint str_length)
+  Item_bin_string(const char *str, size_t str_length)
   { bin_string_init(str, str_length); }
   Item_bin_string(const POS &pos, const LEX_STRING &literal) : super(pos)
-  { bin_string_init(literal.str, static_cast<uint>(literal.length)); }
+  { bin_string_init(literal.str, literal.length); }
 
-  static LEX_STRING make_bin_str(const char *str, uint str_length);
+  static LEX_STRING make_bin_str(const char *str, size_t str_length);
 
 private:
-  void bin_string_init(const char *str, uint str_length);
+  void bin_string_init(const char *str, size_t str_length);
 };
 
 class Item_result_field :public Item	/* Item with result field */
