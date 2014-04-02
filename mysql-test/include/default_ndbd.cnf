@@ -4,7 +4,7 @@ MaxNoOfSavedMessages=          1000
 MaxNoOfConcurrentTransactions= 2048
 MaxNoOfConcurrentOperations=   10000
 DataMemory=                    20M
-IndexMemory=                   5M
+IndexMemory=                   8M
 Diskless=                      0
 TimeBetweenWatchDogCheck=      30000
 MaxNoOfOrderedIndexes=         128
@@ -17,7 +17,7 @@ DiskPageBufferMemory=          4M
 SharedGlobalMemory=            20M
 TwoPassInitialNodeRestartCopy=1
 
-# O_DIRECT has issues on 2.4 whach have not been handled, Bug #29612
+# O_DIRECT has issues on 2.4 which have not been handled, Bug #29612
 #ODirect= 1
 CompressedLCP= 1
 CompressedBackup= 1

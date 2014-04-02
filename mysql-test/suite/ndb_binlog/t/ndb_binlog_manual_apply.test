@@ -68,6 +68,7 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
+--sorted_result
 select * from test.t1;
 
 drop table test.t1;
