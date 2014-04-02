@@ -5939,7 +5939,6 @@ ha_innobase::commit_inplace_alter_table(
 	/* Commit or roll back the changes to the data dictionary. */
 
 	if (fail) {
-failed:
 		trx_rollback_for_mysql(trx);
 	} else if (!new_clustered) {
 		trx_commit_for_mysql(trx);
@@ -5962,8 +5961,8 @@ failed:
 				/* Out of memory. */
 				mtr.set_log_mode(MTR_LOG_NO_REDO);
 				mtr_commit(&mtr);
+				trx_rollback_for_mysql(trx);
 				fail = true;
-				goto failed;
 			}
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
@@ -5977,9 +5976,7 @@ failed:
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_before_commit",
 				log_buffer_flush_to_disk();
 				DBUG_SUICIDE(););
-		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
-		ut_ad(trx_is_rseg_updated(trx));
 
 		/* The following call commits the
 		mini-transaction, making the data dictionary
@@ -5988,7 +5985,11 @@ failed:
 		log_buffer_flush_to_disk() returns. In the
 		logical sense the commit in the file-based
 		data structures happens here. */
-		trx_commit_low(trx, &mtr);
+		if (!fail) {
+			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+			ut_ad(trx_is_rseg_updated(trx));
+			trx_commit_low(trx, &mtr);
+		}
 
 		/* If server crashes here, the dictionary in
 		InnoDB and MySQL will differ.  The .ibd files
