@@ -78,7 +78,7 @@ Datafile::shutdown()
 {
 	close();
 
-	free(m_name);
+	ut_free(m_name);
 	m_name = NULL;
 
 	free_filepath();
