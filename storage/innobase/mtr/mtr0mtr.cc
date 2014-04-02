@@ -620,6 +620,8 @@ mtr_t::Command::prepare_write()
 		? NULL
 		: fil_names_write(m_impl->m_named_space, m_impl->m_mtr);
 
+	ut_ad(m_impl->m_n_log_recs >= n_recs);
+
 	log_mutex_enter();
 
 	if (space != NULL && fil_names_dirty(space)) {
@@ -633,16 +635,52 @@ mtr_t::Command::prepare_write()
 		mlog_catenate_ulint(
 			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
 		len = m_impl->m_log.size();
-	} else if (n_recs <= 1) {
-		*m_impl->m_log.front()->begin() |= MLOG_SINGLE_REC_FLAG;
-	} else if (space != NULL) {
-		byte* tail = m_impl->m_log.at<byte*>(len++);
-		ut_ad(*tail == MLOG_FILE_NAME);
-		*tail = MLOG_MULTI_REC_END;
 	} else {
-		mlog_catenate_ulint(
-			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
-		len++;
+		/* This was not the first time of dirtying the
+		tablespace since the latest checkpoint. Thus, we
+		should not append any MLOG_FILE_NAME record.
+
+		If fil_names_write() returned space!=NULL, it would
+		have appended a MLOG_FILE_NAME record. We must copy
+		the m_impl->m_log only up to the start of that
+		MLOG_FILE_NAME record, not including the record. */
+
+		ut_ad(space == NULL
+		      ? (n_recs == m_impl->m_n_log_recs)
+		      : (n_recs < m_impl->m_n_log_recs));
+		ut_ad(space == NULL
+		      ? (len == m_impl->m_log.size())
+		      : (len < m_impl->m_log.size()));
+
+		if (n_recs <= 1) {
+			ut_ad(n_recs == 1);
+
+			/* Flag the single log record as the
+			only record in this mini-transaction. */
+			*m_impl->m_log.front()->begin()
+				|= MLOG_SINGLE_REC_FLAG;
+		} else {
+			/* Because this mini-transaction comprises
+			multiple log records, append MLOG_MULTI_REC_END
+			at the end. */
+
+			if (space != NULL) {
+				/* Replace the first byte of the
+				to-be-ignored MLOG_FILE_NAME log
+				record with MLOG_MULTI_REC_END. */
+				byte* tail = m_impl->m_log.at<byte*>(len++);
+				ut_ad(*tail == MLOG_FILE_NAME);
+				*tail = MLOG_MULTI_REC_END;
+				ut_ad(len < m_impl->m_log.size());
+			} else {
+				/* Append MLOG_MULTI_REC_END. */
+				mlog_catenate_ulint(
+					&m_impl->m_log, MLOG_MULTI_REC_END,
+					MLOG_1BYTE);
+				len++;
+				ut_ad(len == m_impl->m_log.size());
+			}
+		}
 	}
 
 	ut_ad(len <= m_impl->m_log.size());
