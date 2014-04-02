@@ -40,7 +40,7 @@ function makePass(testCase) {
 }
 
 function makeFail(testCase, message) {
-  return function() { testCase.fail(message); };
+  return function(err) { testCase.fail(message + err.message); };
 }
 
 function shouldSucceed(test, promise) {
@@ -54,6 +54,10 @@ function shouldGetError(test, sqlstate, promise) {
     test.failOnError();
   });
 }
+
+function Numerictypes() {}
+var mapping = new mynode.TableMapping("test.numerictypes");
+mapping.applyToClass(Numerictypes);
 
 
 // Write numbers to all columns
@@ -126,4 +130,32 @@ t7.run = function() {
   });
 };
 
-module.exports.tests = [ t1,t2,t3,t4,t5,t6,t7 ] ;
+// READ/MODIFY/SAVE as string
+
+
+var t8 = new harness.ConcurrentTest("FindModifySave_Strings");
+t8.run = function() {
+  fail_openSession(t8, function(session) {
+    session.find(Numerictypes, 108).then(function(r) {
+      r.tfloat = "108.8";
+      r.tdouble = "108.8";
+      r.tnumber = "-108.8";
+      r.tposint = "118";
+      r.tposnumber = "108.80";
+      r.tposbigint = "118";
+      shouldSucceed(t8, session.save(r));
+    });
+  });
+}
+
+var t9 = new harness.ConcurrentTest("FindModifySave_22003");
+t9.run = function() {
+  fail_openSession(t9, function(session) {
+    session.find(Numerictypes, 109).then(function(r) {
+      r.tposnumber = -109;
+      shouldGetError(t9, "22003", session.save(r));
+    });
+  });
+}
+
+module.exports.tests = [ t1,t2,t3,t4,t5,t6,t7,t8,t9];
