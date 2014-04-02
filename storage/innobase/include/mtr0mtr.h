@@ -31,6 +31,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "log0types.h"
 #include "mtr0types.h"
 #include "buf0types.h"
+#include "trx0types.h"
 #include "dyn0buf.h"
 
 /** Start a mini-transaction. */
@@ -256,7 +257,7 @@ struct mtr_t {
 	@param[in]	space	tablespace */
 	void set_named_space(ulint space)
 	{
-		ut_ad(m_impl.m_named_space == 0);
+		ut_ad(m_impl.m_named_space == TRX_SYS_SPACE);
 		m_impl.m_named_space = space;
 	}
 
