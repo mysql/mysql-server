@@ -743,7 +743,15 @@ struct dict_table_t {
 	/** Id of the table. */
 	table_id_t				id;
 
-	/** Memory heap. */
+	/** Memory heap. If you allocate from this heap after the table has
+	been created then be sure to account the allocation into
+	dict_sys->size. When closing the table we do something like
+	dict_sys->size -= mem_heap_get_size(table->heap) and if that is going
+	to become negative then we would assert. Something like this should do:
+	old_size = mem_heap_get_size()
+	mem_heap_alloc()
+	new_size = mem_heap_get_size()
+	dict_sys->size += new_size - old_size. */
 	mem_heap_t*				heap;
 
 	/** Table name. */
