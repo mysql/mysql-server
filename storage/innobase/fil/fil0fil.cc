@@ -1226,9 +1226,9 @@ fil_space_free_low(
 
 	if (space == NULL) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to remove tablespace %lu"
+			"Trying to remove tablespace " ULINTPF
 			" from the cache but it is not there.",
-			(ulong) id);
+			id);
 
 		return(false);
 	}
