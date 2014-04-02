@@ -4815,7 +4815,9 @@ retry:
 	os_offset_t	file_start_page_no = start_page_no - node->size;
 
 	/* Extend at most 64 pages at a time */
-	buf_size = ut_min(64, size_after_extend - start_page_no) * page_size;
+	buf_size = ut_min(
+		64, size_after_extend - static_cast<ulint>(start_page_no))
+		* page_size;
 
 	ptr = static_cast<byte*>(ut_malloc(buf_size + page_size));
 	buf = static_cast<byte*>(ut_align(ptr, (ulint) page_size));
@@ -4827,8 +4829,8 @@ retry:
 		ulint	n_pages;
 
 		n_pages = ut_min(
-			buf_size / (ulint) page_size,
-			size_after_extend - start_page_no);
+			buf_size / page_size,
+			size_after_extend - static_cast<ulint>(start_page_no));
 
 		os_offset_t	offset;
 
