@@ -31,7 +31,7 @@ Created 2013-7-26 by Kevin Lewis
 #include "srv0start.h"
 
 /** Initialize the name, size and order of this datafile
-@param[in]	name		space name, shutdown() will ::free() it
+@param[in]	name		space name, shutdown() will free it
 @param[in]	filepath	file name, or NULL if not determined
 @param[in]	size		size in database pages
 @param[in]	order		ordinal position or the datafile
@@ -78,7 +78,7 @@ Datafile::shutdown()
 {
 	close();
 
-	::free(m_name);
+	free(m_name);
 	m_name = NULL;
 
 	free_filepath();

@@ -1272,8 +1272,8 @@ fil_space_free_low(
 
 	rw_lock_free(&(space->latch));
 
-	::ut_free(space->name);
-	::ut_free(space);
+	free(space->name);
+	free(space);
 
 	return(true);
 }
@@ -2091,7 +2091,7 @@ fil_op_write_log(
 	/* Let us store the strings as null-terminated for easier readability
 	and handling */
 
-	len = ::strlen(path) + 1;
+	len = strlen(path) + 1;
 
 	mach_write_to_2(log_ptr, len);
 	log_ptr += 2;
@@ -2103,7 +2103,7 @@ fil_op_write_log(
 	switch (type) {
 	case MLOG_FILE_RENAME2:
 		ut_ad(strchr(new_path, OS_PATH_SEPARATOR));
-		len = ::strlen(new_path) + 1;
+		len = strlen(new_path) + 1;
 		log_ptr = mlog_open(mtr, 2 + len);
 		ut_a(log_ptr);
 		mach_write_to_2(log_ptr, len);
@@ -3396,7 +3396,7 @@ skip_second_rename:
 		}
 	}
 
-	::ut_free(old_name);
+	free(old_name);
 	space->stop_ios = false;
 
 func_exit:
@@ -3415,7 +3415,7 @@ func_exit:
 #endif /* !UNIV_HOTBACKUP */
 
 	if (new_path != new_path_in) {
-		::ut_free(const_cast<char*>(new_path));
+		free(const_cast<char*>(new_path));
 	}
 	return(success);
 }

@@ -357,7 +357,7 @@ log_reserve_and_write_fast(
 		len += lsn_len;
 	} else
 #endif /* UNIV_LOG_LSN_DEBUG */
-	::memcpy(log_sys->buf + log_sys->buf_free, str, len);
+	memcpy(log_sys->buf + log_sys->buf_free, str, len);
 
 	log_block_set_data_len(
                 reinterpret_cast<byte*>(ut_align_down(
