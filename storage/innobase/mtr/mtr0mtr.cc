@@ -765,7 +765,7 @@ the resources. */
 void
 mtr_t::Command::execute()
 {
-	if (ulint len = prepare_write()) {
+	if (const ulint len = prepare_write()) {
 		finish_write(len);
 	}
 
