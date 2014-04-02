@@ -49,6 +49,7 @@ include/stop_gcs_replication.inc
 include/uninstall_gcs_replication.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
 include/rpl_gcs_wait_for_number_of_nodes.inc
+include/rpl_gcs_wait_for_number_of_nodes.inc
 
 ###########################################################
 # 7. No nodes on group.

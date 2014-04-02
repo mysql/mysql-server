@@ -119,12 +119,9 @@ SELECT * FROM performance_schema.replication_connection_nodes;
 --let $gcs_number_of_nodes= 0
 --source include/rpl_gcs_wait_for_number_of_nodes.inc
 
-# Quorate is killing this test, after server2 leaves server3
-# reports a group with two nodes, where one is OFFLINE.
-# This must be fixed on binding layer.
-#--connection server3
-#--let $gcs_number_of_nodes= 1
-#--source include/rpl_gcs_wait_for_number_of_nodes.inc
+--connection server3
+--let $gcs_number_of_nodes= 1
+--source include/rpl_gcs_wait_for_number_of_nodes.inc
 
 
 --echo
