@@ -1,9 +1,4 @@
 drop table if exists t1,t2,t3,t4;
-create temporary table spj_counts_at_startup 
-select counter_name, sum(val) as val 
-from ndbinfo.counters 
-where block_name='DBSPJ' 
-group by counter_name;
 create temporary table server_counts_at_startup
 select * from information_schema.global_status 
 where variable_name in 
@@ -21,7 +16,8 @@ b int not null,
 c int not null,
 d int not null,
 primary key (`a`,`b`)
-) engine=ndbcluster;
+) engine=ndbcluster
+partition by key() partitions 8;
 insert into t1 values
 (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
 (1,2,5,1), (1,3,1,2), (1,4,2,3),
@@ -68,7 +64,13 @@ EXPLAIN
           "table_name": "t1",
           "partitions": [
             "p0",
-            "p1"
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7"
           ],
           "access_type": "ALL",
           "rows": 16,
@@ -81,7 +83,13 @@ EXPLAIN
           "table_name": "t2",
           "partitions": [
             "p0",
-            "p1"
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7"
           ],
           "access_type": "eq_ref",
           "possible_keys": [
@@ -4256,7 +4264,8 @@ create table t1 (a int not null,
 b int not null,
 c int not null,
 primary key(a)) 
-engine = ndb;
+engine = ndb
+partition by key() partitions 8;
 insert into t1 values (1, 2, 2);
 insert into t1 values (2, 3, 3);
 insert into t1 values (3, 4, 4);
@@ -4281,16 +4290,16 @@ and new_count.counter_name <> 'LOCAL_READS_SENT'
        and new_count.counter_name <> 'REMOTE_READS_SENT';
 counter_name	new_count.val - old_count.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	0
-LOCAL_RANGE_SCANS_SENT	2
-LOCAL_TABLE_SCANS_SENT	2
+LOCAL_RANGE_SCANS_SENT	8
+LOCAL_TABLE_SCANS_SENT	8
 PRUNED_RANGE_SCANS_RECEIVED	0
-RANGE_SCANS_RECEIVED	2
+RANGE_SCANS_RECEIVED	8
 READS_NOT_FOUND	2
 READS_RECEIVED	1
 REMOTE_RANGE_SCANS_SENT	0
-SCAN_BATCHES_RETURNED	4
+SCAN_BATCHES_RETURNED	16
 SCAN_ROWS_RETURNED	8
-TABLE_SCANS_RECEIVED	2
+TABLE_SCANS_RECEIVED	8
 select 'READS_SENT', sum(new_count.val - old_count.val) 
 from new_count, old_count 
 where new_count.counter_name = old_count.counter_name
@@ -5089,7 +5098,7 @@ a int not null,
 b int not null,
 c int not null,
 primary key (a,b,c))
-engine = ndb partition by key (b);
+engine = ndb partition by key (b) partitions 8;
 insert into t1(a,b,c,d,e,f) values
 (1, 2, 3, 1, 2, 3),
 (1, 2, 4, 1, 2, 3),
@@ -5125,7 +5134,7 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
-alter table t1 partition by key (a);
+alter table t1 partition by key (a) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	1	2	3	1	2	3	1	2	3
@@ -5144,7 +5153,7 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
-alter table t1 partition by key (a,b);
+alter table t1 partition by key (a,b) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	1	2	3	1	2	3	1	2	3
@@ -5163,7 +5172,7 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
-alter table t1 partition by key (b,a);
+alter table t1 partition by key (b,a) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	1	2	3	1	2	3	1	2	3
@@ -5182,7 +5191,7 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
-alter table t1 partition by key (b);
+alter table t1 partition by key (b) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	1	2	3	1	2	3	1	2	3
@@ -5201,7 +5210,7 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
-alter table t1 partition by key (a);
+alter table t1 partition by key (a) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	1	2	3	1	2	3	1	2	3
@@ -5222,7 +5231,7 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	7	8	9	1	2	3	1	2	4
 select straight_join * from t1 x, t1 y where y.a=0 and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
-alter table t1 partition by key (a,b);
+alter table t1 partition by key (a,b) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	1	2	3	1	2	3	1	2	3
@@ -5260,7 +5269,7 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
 alter table t1 drop primary key, add primary key using hash (d,b,a,c);
-alter table t1 partition by key (b);
+alter table t1 partition by key (b) partitions 8;
 create index ix1 on t1(b,d,a);
 explain extended
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
@@ -5272,7 +5281,7 @@ Note	1003	/* select#1 */ select straight_join `test`.`x`.`d` AS `d`,`test`.`x`.`
 insert into t1(a,b,c,d,e,f) values
 (8, 9, 0, 1,  null, 3),
 (9, 9, 0, 1,  2,    null);
-alter table t1 partition by key (b);
+alter table t1 partition by key (b) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	1	2	3	1	2	3	1	2	3
@@ -5294,9 +5303,9 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	NULL	9	9	0	1	2	3	1	2	3
 1	2	NULL	9	9	0	1	2	3	1	2	4
 pruned
-14
+56
 const_pruned
-6
+24
 drop table t1;
 create table t1 (pk int primary key, a int, b int) engine=ndb;
 create index ix1 on t1(b,a);
@@ -6165,31 +6174,6 @@ user_id	node_id	sort_number	name
 1	68	549053	Shawn
 1	68	1398029	Shawn
 DROP TABLE ndb_order_test, ndb_user_test;
-create temporary table spj_counts_at_end
-select counter_name, sum(val) as val 
-from ndbinfo.counters 
-where block_name='DBSPJ' 
-group by counter_name;
-select spj_counts_at_end.counter_name, spj_counts_at_end.val - spj_counts_at_startup.val 
-from spj_counts_at_end, spj_counts_at_startup 
-where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
-and spj_counts_at_end.counter_name not in 
-('READS_NOT_FOUND',
-'LOCAL_READS_SENT',
-'REMOTE_READS_SENT',
-'LOCAL_RANGE_SCANS_SENT',
-'REMOTE_RANGE_SCANS_SENT',
-'SCAN_ROWS_RETURNED',
-'SCAN_BATCHES_RETURNED');
-counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
-CONST_PRUNED_RANGE_SCANS_RECEIVED	8
-LOCAL_TABLE_SCANS_SENT	262
-PRUNED_RANGE_SCANS_RECEIVED	27
-RANGE_SCANS_RECEIVED	773
-READS_RECEIVED	53
-TABLE_SCANS_RECEIVED	262
-drop table spj_counts_at_startup;
-drop table spj_counts_at_end;
 select new.variable_name, new.variable_value - old.variable_value
 from server_counts_at_startup as old,
 information_schema.global_status as new
