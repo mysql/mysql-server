@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -716,7 +716,6 @@ extern int write_cache_record(RECORD_CACHE *info,my_off_t filepos,
 extern int flush_write_cache(RECORD_CACHE *info);
 extern void handle_recived_signals(void);
 
-extern void my_set_alarm_variable(int signo);
 extern my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
 extern void my_string_ptr_sort(uchar *base,uint items,size_t size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
