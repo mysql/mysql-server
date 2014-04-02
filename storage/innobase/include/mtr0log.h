@@ -27,7 +27,7 @@ Created 12/7/1995 Heikki Tuuri
 #define mtr0log_h
 
 #include "univ.i"
-#include "mtr0types.h"
+#include "mtr0mtr.h"
 #include "dyn0buf.h"
 
 // Forward declaration
