@@ -417,6 +417,16 @@ drop view if exists v1;
 Warnings:
 Note	1051	Unknown table 'test.v1'
 drop function if exists f1;
+End of 5.0 tests
+#
+# Bug#18483776: ASSERTION FAILED: QUERY_SOURCE == 0,
+#               FILE SQL_PROFILE.CC, LINE 297
+#
+SET profiling= 1;
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
+PREPARE s FROM 'DO 1';
+EXECUTE s;
+DEALLOCATE PREPARE s;
 set session profiling = OFF;
 set global profiling_history_size= @start_value;
-End of 5.0 tests
