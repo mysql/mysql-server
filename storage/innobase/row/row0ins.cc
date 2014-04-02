@@ -2558,23 +2558,24 @@ func_exit:
 	DBUG_RETURN(err);
 }
 
-/***************************************************************//**
-Starts a mini-transaction and checks if the index will be dropped.
+/** Start a mini-transaction and check if the index will be dropped.
+@param[in,out]	mtr		mini-transaction
+@param[in,out]	index		secondary index
+@param[in]	check		whether to check
+@param[in]	search_mode	flags
 @return true if the index is to be dropped */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 row_ins_sec_mtr_start_and_check_if_aborted(
-/*=======================================*/
-	mtr_t*		mtr,	/*!< out: mini-transaction */
-	dict_index_t*	index,	/*!< in/out: secondary index */
-	bool		check,	/*!< in: whether to check */
+	mtr_t*		mtr,
+	dict_index_t*	index,
+	bool		check,
 	ulint		search_mode)
-				/*!< in: flags */
 {
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(mtr->is_named_space(index->space));
 
-	mtr_log_t	log_mode = mtr->get_log_mode();
+	const mtr_log_t	log_mode = mtr->get_log_mode();
 
 	mtr_start(mtr);
 	mtr->set_named_space(index->space);
