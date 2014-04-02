@@ -2183,6 +2183,10 @@ af_get_pct_for_dirty()
 {
 	ulint dirty_pct = buf_get_modified_ratio_pct();
 
+	if (dirty_pct > 0 && srv_max_buf_pool_modified_pct == 0) {
+		return(100);
+	}
+
 	ut_a(srv_max_dirty_pages_pct_lwm
 	     <= srv_max_buf_pool_modified_pct);
 
