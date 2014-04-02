@@ -2086,8 +2086,8 @@ fil_op_write_log(
 	/* TODO: support user-created multi-file tablespaces */
 	ut_ad(first_page_no == 0);
 	/* fil_name_parse() requires this */
-	ut_ad(strchr(path, OS_PATH_SEPARATOR));
-	ut_ad(strstr(path, DOT_IBD));
+	ut_ad(strchr(path, OS_PATH_SEPARATOR) != NULL);
+	ut_ad(strstr(path, DOT_IBD) != NULL);
 	ut_ad(strstr(path, DOT_IBD)[4] == 0);
 
 	log_ptr = mlog_open(mtr, 11 + 2 + 1);
@@ -2115,7 +2115,7 @@ fil_op_write_log(
 
 	switch (type) {
 	case MLOG_FILE_RENAME2:
-		ut_ad(strchr(new_path, OS_PATH_SEPARATOR));
+		ut_ad(strchr(new_path, OS_PATH_SEPARATOR) != NULL);
 		len = strlen(new_path) + 1;
 		log_ptr = mlog_open(mtr, 2 + len);
 		ut_a(log_ptr);
@@ -3320,8 +3320,8 @@ fil_rename_tablespace(
 		new_path = fil_make_filepath(NULL, new_name, IBD, false);
 	}
 
-	ut_ad(strchr(new_name, '/'));
-	ut_ad(strchr(new_path, OS_PATH_SEPARATOR));
+	ut_ad(strchr(new_name, '/') != NULL);
+	ut_ad(strchr(new_path, OS_PATH_SEPARATOR) != NULL);
 retry:
 	count++;
 
@@ -4113,7 +4113,7 @@ fil_path_to_space_name(
 	ut_ad(tablename > dbname);
 	ut_ad(tablename < end);
 	ut_ad(end - tablename > 4);
-	ut_ad(!memcmp(end - 4, DOT_IBD, 4));
+	ut_ad(memcmp(end - 4, DOT_IBD, 4) == 0);
 
 	char*	name = mem_strdupl(dbname, end - dbname - 4);
 
