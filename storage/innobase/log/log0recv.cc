@@ -212,8 +212,8 @@ fil_name_parse(
 	if (is_predefined_tablespace(space_id)
 	    || first_page_no != 0 // TODO: multi-file user-created tablespaces
 	    || len < sizeof "/a.ibd\0"
-	    || memcmp(ptr + len - 5, DOT_IBD, 5)
-	    || !memchr(ptr, OS_PATH_SEPARATOR, len)) {
+	    || memcmp(ptr + len - 5, DOT_IBD, 5) != 0
+	    || memchr(ptr, OS_PATH_SEPARATOR, len) == NULL) {
 		/* MLOG_FILE_NAME should only be written for
 		user-created tablespaces The name must be long enough
 		and end in .ibd. */
