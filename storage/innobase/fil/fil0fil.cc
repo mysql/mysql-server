@@ -4173,7 +4173,7 @@ fil_load_single_table_tablespace(
 
 	os_offset_t	size;
 
-	/* Read and validate the first page of the default tablespace */
+	/* Read and validate the first page of the tablespace */
 	switch (file.validate_for_recovery()) {
 		os_offset_t	minimum_size;
 	case DB_SUCCESS:
