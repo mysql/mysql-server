@@ -1253,8 +1253,9 @@ fil_space_free_low(
 	/* fil_names_dirty() could update max_lsn from nonzero to
 	nonzero while only holding log_sys->mutex, which we are not
 	holding. Because we are only interested whether max_lsn==0
-	here, holding fil_system->mutex is sufficient here. (Changing
-	max_lsn to or from 0 is also protected by fil_system->mutex.)
+	here, holding fil_system->mutex is sufficient. (Changing
+	max_lsn to or from 0 is protected by fil_system->mutex
+	and log_sys->mutex.)
 
 	There is a theoretical race condition that fil_names_dirty()
 	could access a tablespace that was freed by some other thread

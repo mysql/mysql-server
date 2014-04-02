@@ -688,7 +688,7 @@ mtr_t::Command::prepare_write()
 }
 
 /** Append the redo log records to the redo log buffer
-@param len	number of bytes to write */
+@param[in] len	number of bytes to write */
 
 void
 mtr_t::Command::finish_write(
