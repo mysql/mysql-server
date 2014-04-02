@@ -135,8 +135,6 @@ static void init_net_server_extension(THD *thd)
 */
 class Channel_info_local_socket : public Channel_info
 {
-  // listen socket object
-  MYSQL_SOCKET m_listen_sock;
   // connect socket object
   MYSQL_SOCKET m_connect_sock;
 
@@ -148,15 +146,12 @@ protected:
 
 public:
   /**
-    Constructor that sets listen and connect socket.
+    Constructor that sets the connect socket.
 
-    @param listen_socket  set listen socket descriptor.
     @param connect_socket set connect socket descriptor.
   */
-  Channel_info_local_socket(MYSQL_SOCKET listen_socket,
-                            MYSQL_SOCKET connect_socket)
-  : m_listen_sock(listen_socket),
-    m_connect_sock(connect_socket)
+  Channel_info_local_socket(MYSQL_SOCKET connect_socket)
+  : m_connect_sock(connect_socket)
   { }
 
   virtual THD* create_thd()
@@ -193,8 +188,6 @@ public:
 */
 class Channel_info_tcpip_socket : public Channel_info
 {
-  // listen socket object
-  MYSQL_SOCKET m_listen_sock;
   // connect socket object
   MYSQL_SOCKET m_connect_sock;
 
@@ -206,15 +199,12 @@ protected:
 
 public:
   /**
-    Constructor that sets listen and connect socket.
+    Constructor that sets the connect socket.
 
-    @param listen_socket  set listen socket descriptor.
     @param connect_socket set connect socket descriptor.
   */
-  Channel_info_tcpip_socket(MYSQL_SOCKET listen_socket,
-                            MYSQL_SOCKET connect_socket)
-  : m_listen_sock(listen_socket),
-    m_connect_sock(connect_socket)
+  Channel_info_tcpip_socket(MYSQL_SOCKET connect_socket)
+  : m_connect_sock(connect_socket)
   { }
 
   virtual THD* create_thd()
@@ -826,11 +816,9 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
 
   Channel_info* channel_info= NULL;
   if (is_unix_socket)
-    channel_info= new (std::nothrow) Channel_info_local_socket(listen_sock,
-                                                               connect_sock);
+    channel_info= new (std::nothrow) Channel_info_local_socket(connect_sock);
   else
-    channel_info= new (std::nothrow) Channel_info_tcpip_socket(listen_sock,
-                                                               connect_sock);
+    channel_info= new (std::nothrow) Channel_info_tcpip_socket(connect_sock);
   if (channel_info == NULL)
   {
     (void) mysql_socket_shutdown(connect_sock, SHUT_RDWR);

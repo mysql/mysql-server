@@ -3951,8 +3951,6 @@ public:
 */
 class Item_datetime_with_ref :public Item_temporal_with_ref
 {
-private:
-  enum_field_types cached_field_type;
 public:
   /**
     Constructor for Item_datetime_with_ref.
@@ -3963,8 +3961,7 @@ public:
   */
   Item_datetime_with_ref(enum_field_types field_type_arg,
                          uint8 decimals_arg, longlong i, Item *ref_arg):
-    Item_temporal_with_ref(field_type_arg, decimals_arg, i, ref_arg, true),
-    cached_field_type(field_type_arg)
+    Item_temporal_with_ref(field_type_arg, decimals_arg, i, ref_arg, true)
   {
   }
   Item *clone_item();
