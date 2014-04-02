@@ -32,26 +32,24 @@ Created 2013-7-26 by Kevin Lewis
 
 /** Initialize the name, size and order of this datafile
 @param[in]	name		space name, shutdown() will free it
-@param[in]	filepath	file name, or NULL if not determined
+@param[in]	filepath	file name, shutdown() fill free it;
+can be NULL if not determined
 @param[in]	size		size in database pages
 @param[in]	order		ordinal position or the datafile
 in the tablespace */
 
 void
 Datafile::init(
-	char*		name,
-	const char*	filepath,
-	ulint		size,
-	ulint		order)
+	char*	name,
+	char*	filepath,
+	ulint	size,
+	ulint	order)
 {
 	ut_ad(m_name == NULL);
+	ut_ad(name != NULL);
+
 	m_name = name;
-	ut_ad(m_name != NULL);
-
-	if (filepath != NULL) {
-		m_filepath = mem_strdup(filepath);
-	}
-
+	m_filepath = filepath;
 	m_size = size;
 	m_order = order;
 }

@@ -4144,7 +4144,7 @@ fil_load_single_table_tablespace(
 	Datafile	file;
 
 	file.init(fil_path_to_space_name(filename, filename_len),
-		  filename, 0, 0);
+		  mem_strdupl(filename, filename_len), 0, 0);
 
 	/* If the space is already in the file system cache with the
 	correct space ID, then there is nothing to do. */
