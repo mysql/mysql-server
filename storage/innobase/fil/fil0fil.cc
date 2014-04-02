@@ -1284,10 +1284,10 @@ fil_space_free_low(
 		rw_lock_x_unlock(&space->latch);
 	}
 
-	rw_lock_free(&(space->latch));
+	rw_lock_free(&space->latch);
 
-	free(space->name);
-	free(space);
+	ut_free(space->name);
+	ut_free(space);
 
 	return(true);
 }
@@ -3425,7 +3425,7 @@ skip_second_rename:
 		}
 	}
 
-	free(old_name);
+	ut_free(old_name);
 	space->stop_ios = false;
 
 func_exit:
@@ -3444,8 +3444,9 @@ func_exit:
 #endif /* !UNIV_HOTBACKUP */
 
 	if (new_path != new_path_in) {
-		free(const_cast<char*>(new_path));
+		ut_free(const_cast<char*>(new_path));
 	}
+
 	return(success);
 }
 
