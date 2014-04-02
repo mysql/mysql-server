@@ -188,10 +188,19 @@ struct fil_space_t {
 	lsn_t		max_lsn;
 				/*!< LSN of the most recent fil_names_dirty().
 				Reset to 0 by fil_names_clear().
-				If and only if this is not 0, the
-				tablespace will be in named_spaces.
 				Protected by log_sys->mutex and
-				sometimes by fil_system->mutex. */
+				sometimes by fil_system->mutex:
+
+				Updates from nonzero to nonzero
+				are only protected by log_sys->mutex.
+
+				Updates between 0 and nonzero are
+				protected by log_sys->mutex and
+				fil_system->mutex.
+
+				If and only if this is nonzero, the
+				tablespace will be in named_spaces,
+				which is protected by fil_system->mutex. */
 	bool		stop_ios;/*!< true if we want to rename the
 				.ibd file of tablespace and want to
 				stop temporarily posting of new i/o
@@ -1241,12 +1250,17 @@ fil_space_free_low(
 		UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 	}
 
-	/* Theoretically, fil_names_dirty() could update max_lsn while
-	holding only log_sys->mutex, which we are not holding! This
-	read should be OK, because fil_names_dirty() can only be
-	called when there are buffer-fixed pages for this tablespace
-	(in which case it would be an error to free the tablespace
-	object in the first place). */
+	/* fil_names_dirty() could update max_lsn from nonzero to
+	nonzero while only holding log_sys->mutex, which we are not
+	holding. Because we are only interested whether max_lsn==0
+	here, holding fil_system->mutex is sufficient here. (Changing
+	max_lsn to or from 0 is also protected by fil_system->mutex.)
+
+	There is a theoretical race condition that fil_names_dirty()
+	could access a tablespace that was freed by some other thread
+	after fil_names_write() looked it up. It should be a grave
+	error to free a tablespace object while a thread is still
+	buffer-fixing some of its pages. */
 	if (space->max_lsn != 0) {
 		UT_LIST_REMOVE(fil_system->named_spaces, space);
 	}
@@ -6316,9 +6330,19 @@ fil_names_clear(
 
 		ut_ad(space->max_lsn > 0);
 		if (space->max_lsn < lsn) {
+			/* The tablespace was last dirtied before the
+			checkpoint LSN. Remove it from the list, so
+			that if the tablespace is not going to be
+			modified any more, subsequent checkpoints will
+			avoid calling fil_names_write_low() on it. */
 			space->max_lsn = 0;
 			UT_LIST_REMOVE(fil_system->named_spaces, space);
 		}
+
+		/* max_lsn is the last LSN where fil_names_dirty() was
+		called. If we kept track of "min_lsn" (the first LSN
+		where max_lsn turned nonzero), we could avoid the
+		fil_names_write_low() call if min_lsn > lsn. */
 
 		fil_names_write_low(space, &mtr);
 		do_write = true;
