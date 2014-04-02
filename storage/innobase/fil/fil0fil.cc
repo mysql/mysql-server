@@ -1268,7 +1268,7 @@ fil_space_free_low(
 	UT_LIST_REMOVE(fil_system->space_list, space);
 
 	ut_a(space->magic_n == FIL_SPACE_MAGIC_N);
-	ut_a(0 == space->n_pending_flushes);
+	ut_a(space->n_pending_flushes == 0);
 
 	for (fil_node_t* fil_node = UT_LIST_GET_FIRST(space->chain);
 	     fil_node != NULL;
@@ -1277,7 +1277,7 @@ fil_space_free_low(
 		fil_node_free(fil_node, fil_system, space);
 	}
 
-	ut_a(0 == UT_LIST_GET_LEN(space->chain));
+	ut_a(UT_LIST_GET_LEN(space->chain) == 0);
 
 	if (x_latched) {
 		rw_lock_x_unlock(&space->latch);
@@ -1304,7 +1304,7 @@ fil_space_free(
 	bool		x_latched)
 {
 	mutex_enter(&fil_system->mutex);
-	bool freed = fil_space_free_low(id, x_latched);
+	const bool freed = fil_space_free_low(id, x_latched);
 	mutex_exit(&fil_system->mutex);
 	return(freed);
 }
@@ -3306,7 +3306,6 @@ fil_rename_tablespace(
 	const char*	new_name,
 	const char*	new_path_in)
 {
-	bool		success;
 	bool		sleep		= false;
 	bool		flush		= false;
 	fil_space_t*	space;
@@ -3335,7 +3334,7 @@ retry:
 
 	space = fil_space_get_by_id(id);
 
-	success = false;
+	bool success = false;
 
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_1", space = NULL; );
 
