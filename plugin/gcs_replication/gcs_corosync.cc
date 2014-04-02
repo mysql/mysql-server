@@ -1076,17 +1076,6 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
                       get_client_uuid().c_str(),
                       local_process_id.first, local_process_id.second, last_view_id);
       }
-      group_stats.update_per_view_change();
-      /*
-        Deliver View-change event to Client.
-        Notice the last argument value as false normally indicates
-        this just installed group is not the cluster.
-      */
-      handlers->view_change(view, view.get_members(), view.left, view.joined,
-                            view.is_quorate());
-      is_locked= false;
-      pthread_mutex_unlock(&vc_mutex);
-      pthread_cond_broadcast(&vc_cond);
     }
     else
     {
@@ -1096,6 +1085,20 @@ void Protocol_corosync::do_process_state_message(Message *ptr_msg,
                     "configuration could not form the cluster",
                     get_client_uuid().c_str(),
                     p_id.first, p_id.second, ms_total.size());
+    }
+    group_stats.update_per_view_change();
+    /*
+      Deliver View-change event to Client.
+      Notice the last argument value as false normally indicates
+      this just installed group is not the cluster.
+    */
+    handlers->view_change(view, view.get_members(), view.left, view.joined,
+                            view.is_quorate());
+    if (view.is_quorate())
+    {
+      is_locked= false;
+      pthread_mutex_unlock(&vc_mutex);
+      pthread_cond_broadcast(&vc_cond);
     }
   }
 }
