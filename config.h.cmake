@@ -100,7 +100,6 @@
 
 /* Functions we may want to use. */
 #cmakedefine HAVE_ALIGNED_MALLOC 1
-#cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CRYPT 1

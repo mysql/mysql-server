@@ -35,7 +35,6 @@
 #include "rpl_filter.h"
 #include "rpl_info_factory.h"
 #include "transaction.h"
-#include <thr_alarm.h>
 #include <my_dir.h>
 #include <sql_common.h>
 #include <errmsg.h>
@@ -1061,7 +1060,7 @@ terminate_slave_thread(THD *thd,
       EINVAL: invalid signal number (can't happen)
       ESRCH: thread already killed (can happen, should be ignored)
     */
-    int err __attribute__((unused))= pthread_kill(thd->real_id, thr_client_alarm);
+    int err __attribute__((unused))= pthread_kill(thd->real_id, SIGUSR1);
     DBUG_ASSERT(err != EINVAL);
     thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
