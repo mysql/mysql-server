@@ -27,6 +27,7 @@ Created 11/26/1995 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "buf0flu.h"
+#include "fsp0sysspace.h"
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
@@ -346,13 +347,14 @@ public:
 	/** Release the resources */
 	void release_resources();
 
-	/** Append the redo log records to the redo log buffer. */
-	void finish_write();
+	/** Append the redo log records to the redo log buffer.
+	@param[in]	len	number of bytes to write */
+	void finish_write(ulint len);
 
 private:
 	/** Prepare to write the mini-transaction log to the redo log buffer.
-	@return whether finish_write() needs to be invoked */
-	bool prepare_write();
+	@return number of bytes to write in finish_write() */
+	ulint prepare_write();
 
 	/** true if it is a sync mini-transaction. */
 	bool			m_sync;
@@ -388,11 +390,23 @@ mtr_t::is_block_dirtied(const buf_block_t* block)
 
 /** Write the block contents to the REDO log */
 struct mtr_write_log_t {
-	/** @return true - never fails */
+	/** Number of bytes to write */
+	mutable ulint	m_len;
+
+	/** Constructor */
+	explicit mtr_write_log_t(ulint len) : m_len (len) {}
+
+	/** Append a block to the redo log buffer.
+	@return whether the appending should continue */
 	bool operator()(const mtr_buf_t::block_t* block) const
 	{
-		log_write_low(block->begin(), block->used());
-		return(true);
+		ut_ad(m_len > 0);
+
+		ulint	len = ut_min(m_len, block->used());
+
+		log_write_low(block->begin(), len);
+		m_len -= len;
+		return(m_len > 0);
 	}
 };
 
@@ -421,6 +435,7 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_made_dirty = false;
 	m_impl.m_n_log_recs = 0;
 	m_impl.m_n_freed_pages = 0;
+	m_impl.m_named_space = TRX_SYS_SPACE;
 
 	ut_d(m_impl.m_state = MTR_STATE_ACTIVE);
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
@@ -480,6 +495,73 @@ mtr_t::commit()
 	}
 }
 
+/** Commit a mini-transaction that did not modify any pages,
+but generated some redo log on a higher level, such as
+MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
+The caller must invoke log_mutex_enter() and log_mutex_exit().
+This is to be used at log_checkpoint(). */
+
+void
+mtr_t::commit_checkpoint()
+{
+	ut_ad(log_mutex_own());
+	ut_ad(is_active());
+	ut_ad(!is_inside_ibuf());
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(get_log_mode() == MTR_LOG_ALL);
+	ut_ad(!m_impl.m_made_dirty);
+	ut_ad(m_impl.m_memo.size() == 0);
+	ut_ad(!srv_read_only_mode);
+	ut_d(m_impl.m_state = MTR_STATE_COMMITTING);
+
+	/* This is a dirty read, for debugging. */
+	ut_ad(!recv_no_log_write);
+
+	switch (m_impl.m_n_log_recs) {
+	case 0:
+		break;
+	case 1:
+		*m_impl.m_log.front()->begin() |= MLOG_SINGLE_REC_FLAG;
+		break;
+	default:
+		mlog_catenate_ulint(
+			&m_impl.m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
+	}
+
+	mlog_catenate_ulint(&m_impl.m_log, MLOG_CHECKPOINT, MLOG_1BYTE);
+
+	Command	cmd(this);
+	cmd.finish_write(m_impl.m_log.size());
+	cmd.release_resources();
+
+	DBUG_PRINT("ib_log",
+		   ("MLOG_CHECKPOINT written at " LSN_PF, log_sys->lsn));
+}
+
+#ifdef UNIV_DEBUG
+/** Check the tablespace associated with the mini-transaction
+(needed for generating a MLOG_FILE_NAME record)
+@param[in]	space	tablespace
+@return whether the mini-transaction is associated with the space */
+
+bool
+mtr_t::is_named_space(ulint space) const
+{
+	switch (get_log_mode()) {
+	case MTR_LOG_NONE:
+	case MTR_LOG_NO_REDO:
+		return(true);
+	case MTR_LOG_ALL:
+	case MTR_LOG_SHORT_INSERTS:
+		return(m_impl.m_named_space == space
+		       || is_predefined_tablespace(space));
+	}
+
+	ut_error;
+	return(false);
+}
+#endif /* UNIV_DEBUG */
+
 /** Release an object in the memo stack.
 @return true if released */
 
@@ -505,9 +587,9 @@ mtr_t::memo_release(const void* object, ulint type)
 }
 
 /** Prepare to write the mini-transaction log to the redo log buffer.
-@return whether finish_write() needs to be invoked */
+@return number of bytes to write in finish_write() */
 
-bool
+ulint
 mtr_t::Command::prepare_write()
 {
 	switch (m_impl->m_log_mode) {
@@ -521,41 +603,108 @@ mtr_t::Command::prepare_write()
 		m_end_lsn = m_start_lsn = log_sys->lsn;
 		return(false);
 	case MTR_LOG_ALL:
-		ut_ad(m_impl->m_n_log_recs > 0);
 		break;
 	}
 
-	const ulint	len = m_impl->m_log.size();
+	ulint	len	= m_impl->m_log.size();
+	ulint	n_recs	= m_impl->m_n_log_recs;
+	ut_ad(len > 0);
+	ut_ad(n_recs > 0);
 
 	if (len > log_sys->buf_size / 2) {
 		log_buffer_extend((len + 1) * 2);
 	}
 
+	fil_space_t*	space
+		= is_predefined_tablespace(m_impl->m_named_space)
+		? NULL
+		: fil_names_write(m_impl->m_named_space, m_impl->m_mtr);
+
+	ut_ad(m_impl->m_n_log_recs >= n_recs);
+
 	log_mutex_enter();
 
-	if (m_impl->m_n_log_recs > 1) {
+	if (space != NULL && fil_names_dirty(space)) {
+		/* This mini-transaction was the first one to modify
+		the tablespace since the latest checkpoint. Do include
+		the MLOG_FILE_NAME record that was appended to m_log
+		by fil_names_write().  In all other cases, we will use
+		the old m_log.size() (omitting the MLOG_FILE_NAME)
+		when copying the log to the global redo log buffer. */
+		ut_ad(m_impl->m_n_log_recs > n_recs);
 		mlog_catenate_ulint(
 			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
+		len = m_impl->m_log.size();
 	} else {
-		*m_impl->m_log.front()->begin() |= MLOG_SINGLE_REC_FLAG;
+		/* This was not the first time of dirtying the
+		tablespace since the latest checkpoint. Thus, we
+		should not append any MLOG_FILE_NAME record.
+
+		If fil_names_write() returned space!=NULL, it would
+		have appended a MLOG_FILE_NAME record. We must copy
+		the m_impl->m_log only up to the start of that
+		MLOG_FILE_NAME record, not including the record. */
+
+		ut_ad(space == NULL
+		      ? (n_recs == m_impl->m_n_log_recs)
+		      : (n_recs < m_impl->m_n_log_recs));
+		ut_ad(space == NULL
+		      ? (len == m_impl->m_log.size())
+		      : (len < m_impl->m_log.size()));
+
+		if (n_recs <= 1) {
+			ut_ad(n_recs == 1);
+
+			/* Flag the single log record as the
+			only record in this mini-transaction. */
+			*m_impl->m_log.front()->begin()
+				|= MLOG_SINGLE_REC_FLAG;
+		} else {
+			/* Because this mini-transaction comprises
+			multiple log records, append MLOG_MULTI_REC_END
+			at the end. */
+
+			if (space != NULL) {
+				/* Replace the first byte of the
+				to-be-ignored MLOG_FILE_NAME log
+				record with MLOG_MULTI_REC_END. */
+				byte* tail = m_impl->m_log.at<byte*>(len++);
+				ut_ad(*tail == MLOG_FILE_NAME);
+				*tail = MLOG_MULTI_REC_END;
+				ut_ad(len < m_impl->m_log.size());
+			} else {
+				/* Append MLOG_MULTI_REC_END. */
+				mlog_catenate_ulint(
+					&m_impl->m_log, MLOG_MULTI_REC_END,
+					MLOG_1BYTE);
+				len++;
+				ut_ad(len == m_impl->m_log.size());
+			}
+		}
 	}
 
-	return(true);
+	ut_ad(len <= m_impl->m_log.size());
+	return(len);
 }
 
-/** Append the redo log records to the redo log buffer. */
+/** Append the redo log records to the redo log buffer
+@param[in] len	number of bytes to write */
 
 void
-mtr_t::Command::finish_write()
+mtr_t::Command::finish_write(
+	ulint	len)
 {
 	ut_ad(m_impl->m_log_mode == MTR_LOG_ALL);
 	ut_ad(log_mutex_own());
+	ut_ad(m_impl->m_log.size() >= len);
+	ut_ad(len > 0);
 
 	if (m_impl->m_log.is_small()) {
 		const mtr_buf_t::block_t*	front = m_impl->m_log.front();
+		ut_ad(len <= front->used());
 
 		m_end_lsn = log_reserve_and_write_fast(
-			front->begin(), front->used(), &m_start_lsn);
+			front->begin(), len, &m_start_lsn);
 
 		if (m_end_lsn > 0) {
 			return;
@@ -563,9 +712,9 @@ mtr_t::Command::finish_write()
 	}
 
 	/* Open the database log for log_write_low */
-	m_start_lsn = log_reserve_and_open(m_impl->m_log.size());
+	m_start_lsn = log_reserve_and_open(len);
 
-	mtr_write_log_t	write_log;
+	mtr_write_log_t	write_log(len);
 	m_impl->m_log.for_each_block(write_log);
 
 	m_end_lsn = log_close();
@@ -616,8 +765,8 @@ the resources. */
 void
 mtr_t::Command::execute()
 {
-	if (prepare_write()) {
-		finish_write();
+	if (const ulint len = prepare_write()) {
+		finish_write(len);
 	}
 
 	if (m_impl->m_made_dirty) {
