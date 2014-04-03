@@ -176,7 +176,7 @@ row_search_for_mysql(
 	row_prebuilt_t*	prebuilt,
 	ulint		match_mode,
 	ulint		direction,
-	bool		use_ahi)
+	bool		ins_sel_stmt = false)
 	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Checks if MySQL at the moment is allowed for this table to retrieve a

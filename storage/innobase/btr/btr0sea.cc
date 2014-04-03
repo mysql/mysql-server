@@ -1452,7 +1452,8 @@ btr_search_move_or_delete_hash_entries(
 	dict_index_t*	index)		/*!< in: record descriptor */
 {
 	/* AHI is disabled for intrinsic table as it depends on index-id
-	which is dynamically assigned in case on intrinsic table indexes */
+	which is dynamically assigned for intrinsic table indexes and not
+	through a centralized index generator. */
 	if (index->disable_ahi) {
 		ut_ad(dict_table_is_intrinsic(index->table));
 		return;

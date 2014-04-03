@@ -786,11 +786,7 @@ cmp_rec_rec_with_match(
 		ulint	prtype;
 
 		/* If this is node-ptr records then avoid comparing node-ptr
-		field. Only key field needs to be compared.
-		This interface was being used for validation that normally
-		use to have rec1 != rec2 but for intrinsic table that case
-		could be valid and so comparision could reach till node-ptr
-		field. */
+		field. Only key field needs to be compared. */
 		if (cur_field == dict_index_get_n_unique_in_tree(index)) {
 			break;
 		}

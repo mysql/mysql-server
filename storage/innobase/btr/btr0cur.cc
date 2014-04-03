@@ -2777,7 +2777,7 @@ fail_err:
 	} else {
 
 		/* For intrinsic table we take a consistent path
-		to re-organize using pessmisitic delete. */
+		to re-organize using pessmisitic path. */
 		if (dict_table_is_intrinsic(index->table)) {
 			goto fail;
 		}
@@ -4525,6 +4525,8 @@ btr_cur_compress_if_useful(
 				cursor position even if compression occurs */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
+	/* Avoid applying compression as we don't accept lot of page garbage
+	given the workload of intrinsic table. */
 	if (dict_table_is_intrinsic(cursor->index->table)) {
 		return (FALSE);
 	}
@@ -5943,11 +5945,9 @@ btr_store_big_rec_extern_fields(
 
 		ut_a(extern_len > 0);
 
-		/* For intrinsic table reserve extent.
-		This logic should be enabled for normal table too
-		but for now enabling it for intrinsic table only.
-		For normal table things are anyways extended because of UNDO
-		log involvement. */
+		/* For intrinsic table reserve extent. This logic should be
+		enabled for normal table too but for now enabling it for
+		intrinsic table only. */
 		ulint	n_reserved = 0;
 		if (dict_table_is_intrinsic(index->table)) {
 			bool	success;

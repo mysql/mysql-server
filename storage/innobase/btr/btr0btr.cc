@@ -4153,11 +4153,9 @@ loop:
 					  offsets, ULINT_UNDEFINED, &heap);
 		offsets2 = rec_get_offsets(right_rec, index,
 					   offsets2, ULINT_UNDEFINED, &heap);
-		
-		int	ret =
-			cmp_rec_rec(rec, right_rec, offsets,
-				    offsets2, index, NULL);
-		if (ret >= 0) {
+
+		if (cmp_rec_rec(rec, right_rec, offsets, offsets2,
+				index) >= 0) {
 
 			btr_validate_report2(index, level, block, right_block);
 
@@ -4210,11 +4208,10 @@ loop:
 					page_rec_get_next(node_ptr));
 
 		btr_cur_position(
-			index,
-			page_rec_get_prev(page_get_supremum_rec(page)),
+			index, page_rec_get_prev(page_get_supremum_rec(page)),
 			block, &node_cur);
 		offsets = btr_page_get_father_node_ptr_for_validate(
-			offsets, heap, &node_cur, &mtr);
+				offsets, heap, &node_cur, &mtr);
 
 		if (node_ptr != btr_cur_get_rec(&node_cur)
 		    || btr_node_ptr_get_child_page_no(node_ptr, offsets)
