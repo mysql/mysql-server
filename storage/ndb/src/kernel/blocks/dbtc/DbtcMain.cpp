@@ -99,6 +99,8 @@
 
 #define TC_TIME_SIGNAL_DELAY 50
 
+extern EventLogger * g_eventLogger;
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE
@@ -8731,7 +8733,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
 #ifdef VM_TRACE
     g_eventLogger->warning("Time-out in WAIT_GET_PRIMCONF: scanRecord = %u",
                            ptr.i);
-endif
+#endif
     break;
   case ScanFragRec::LQH_ACTIVE:{
     jam();
