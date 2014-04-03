@@ -225,7 +225,7 @@ static uint test_hash(const LF_HASH*, const uchar *key, size_t length)
   {
     /* We use ulongget() to avoid potential problems with alignment. */
     uint32 res;
-    ulongget(res, key);
+    ulongget(&res, key);
     return res;
   }
 }

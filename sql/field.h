@@ -1470,7 +1470,7 @@ protected:
       val = sint2korr(from);
     else
 #endif
-      shortget(val, from);
+      shortget(&val, from);
 
 #ifdef WORDS_BIGENDIAN
     if (low_byte_first_to)
@@ -1515,7 +1515,7 @@ protected:
       val = sint4korr(from);
     else
 #endif
-      longget(val, from);
+      longget(&val, from);
 
 #ifdef WORDS_BIGENDIAN
     if (low_byte_first_to)
@@ -1537,7 +1537,7 @@ protected:
       val = sint8korr(from);
     else
 #endif
-      longlongget(val, from);
+      longlongget(&val, from);
 
 #ifdef WORDS_BIGENDIAN
     if (low_byte_first_to)
