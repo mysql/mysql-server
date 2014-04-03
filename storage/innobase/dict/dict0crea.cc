@@ -1897,7 +1897,12 @@ dict_create_add_foreigns_to_dictionary(
 	ulint		number	= start_id + 1;
 	dberr_t		error;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&(dict_sys->mutex))
+	      || dict_table_is_intrinsic(table));
+
+	if (dict_table_is_intrinsic(table)) {
+		goto exit_loop;
+	}
 
 	if (NULL == dict_table_get_low("SYS_FOREIGN")) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1928,6 +1933,7 @@ dict_create_add_foreigns_to_dictionary(
 		}
 	}
 
+exit_loop:
 	trx->op_info = "committing foreign key definitions";
 
 	if (trx->state != TRX_STATE_NOT_STARTED) {

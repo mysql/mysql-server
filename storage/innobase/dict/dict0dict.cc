@@ -881,12 +881,10 @@ dict_init(void)
 	rw_lock_create(dict_operation_lock_key,
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
-	if (!srv_read_only_mode) {
-		dict_foreign_err_file = os_file_create_tmpfile();
-		ut_a(dict_foreign_err_file);
+	dict_foreign_err_file = os_file_create_tmpfile();
+	ut_a(dict_foreign_err_file);
 
-		mutex_create("dict_foreign_err", &dict_foreign_err_mutex);
-	}
+	mutex_create("dict_foreign_err", &dict_foreign_err_mutex);
 }
 
 /**********************************************************************//**
@@ -4189,34 +4187,40 @@ dict_foreign_report_syntax_err(
 }
 
 /*********************************************************************//**
-Scans a table create SQL string and adds to the data dictionary the foreign
-key constraints declared in the string. This function should be called after
-the indexes for a table have been created. Each foreign key constraint must
-be accompanied with indexes in both participating tables. The indexes are
-allowed to contain more fields than mentioned in the constraint.
+Scans a table create SQL string and adds to the data dictionary the foreign key
+constraints declared in the string. This function should be called after the
+indexes for a table have been created. Each foreign key constraint must be
+accompanied with indexes in bot participating tables. The indexes are allowed
+to contain more fields than mentioned in the constraint.
+
+@param[in]	trx		transaction
+@param[in[	heap		memory heap
+@param[in[	cs		the character set of sql_string
+@param[in]	sql_string	table create statement where
+				foreign keys are declared like:
+				FOREIGN KEY (a, b) REFERENCES table2(c, d),
+				table2 can be written also with the database
+				name before it: test.table2; the default
+				database id the database of parameter name
+@param[in]	sql_length	length of sql_string
+@param[in]	name		table full name in normalized form
+@param[in/out]	handler		table handler if table is intrinsic
+@param[in]	reject_fks	if TRUE, fail with error code
+				DB_CANNOT_ADD_CONSTRAINT if any
+				foreign keys are found.
 @return error code or DB_SUCCESS */
 static
 dberr_t
 dict_create_foreign_constraints_low(
-/*================================*/
-	trx_t*		trx,	/*!< in: transaction */
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	CHARSET_INFO*	cs,	/*!< in: the character set of sql_string */
-	const char*	sql_string,
-				/*!< in: CREATE TABLE or ALTER TABLE statement
-				where foreign keys are declared like:
-				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-				table2 can be written also with the database
-				name before it: test.table2; the default
-				database is the database of parameter name */
-	const char*	name,	/*!< in: table full name in the normalized form
-				database_name/table_name */
-	ibool		reject_fks)
-				/*!< in: if TRUE, fail with error code
-				DB_CANNOT_ADD_CONSTRAINT if any foreign
-				keys are found. */
+	trx_t*			trx,
+	mem_heap_t*		heap,
+	CHARSET_INFO*		cs,
+	const char*		sql_string,
+	const char*		name,
+	dict_table_t*		handler,
+	ibool			reject_fks)
 {
-	dict_table_t*	table;
+	dict_table_t*	table			= NULL;
 	dict_table_t*	referenced_table;
 	dict_table_t*	table_to_alter;
 	ulint		highest_id_so_far	= 0;
@@ -4239,21 +4243,25 @@ dict_create_foreign_constraints_low(
 	const char*	column_names[500];
 	const char*	referenced_table_name;
 
-	ut_ad(!srv_read_only_mode);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(!srv_read_only_mode || handler);
+	ut_ad(mutex_own(&(dict_sys->mutex)) || handler);
 
-	table = dict_table_get_low(name);
+	if (handler == NULL) {
+		table = dict_table_get_low(name);
 
-	if (table == NULL) {
-		mutex_enter(&dict_foreign_err_mutex);
-		dict_foreign_error_report_low(ef, name);
-		fprintf(ef,
-			"Cannot find the table in the internal"
-			" data dictionary of InnoDB.\n"
-			"Create table statement:\n%s\n", sql_string);
-		mutex_exit(&dict_foreign_err_mutex);
+		if (table == NULL) {
+			mutex_enter(&dict_foreign_err_mutex);
+			dict_foreign_error_report_low(ef, name);
+			fprintf(ef,
+				"Cannot find the table in the internal"
+				" data dictionary of InnoDB.\n"
+				"Create table statement:\n%s\n", sql_string);
+			mutex_exit(&dict_foreign_err_mutex);
 
-		return(DB_ERROR);
+			return(DB_ERROR);
+		}
+	} else {
+		table = handler;
 	}
 
 	/* First check if we are actually doing an ALTER TABLE, and in that
@@ -4788,32 +4796,36 @@ dict_str_starts_with_keyword(
 }
 
 /*********************************************************************//**
-Scans a table create SQL string and adds to the data dictionary the foreign
-key constraints declared in the string. This function should be called after
-the indexes for a table have been created. Each foreign key constraint must
-be accompanied with indexes in both participating tables. The indexes are
-allowed to contain more fields than mentioned in the constraint.
+Scans a table create SQL string and adds to the data dictionary
+the foreign key constraints declared in the string. This function
+should be called after the indexes for a table have been created.
+Each foreign key constraint must be accompanied with indexes in
+bot participating tables. The indexes are allowed to contain more
+fields than mentioned in the constraint.
+
+@param[in]	trx		transaction
+@param[in]	sql_string	table create statement where
+				foreign keys are declared like:
+				FOREIGN KEY (a, b) REFERENCES table2(c, d),
+				table2 can be written also with the database
+				name before it: test.table2; the default
+				database id the database of parameter name
+@param[in]	sql_length	length of sql_string
+@param[in]	name		table full name in normalized form
+@param[in/out]	handler		table handler if table is intrinsic
+@param[in]	reject_fks	if TRUE, fail with error code
+				DB_CANNOT_ADD_CONSTRAINT if any
+				foreign keys are found.
 @return error code or DB_SUCCESS */
 
 dberr_t
 dict_create_foreign_constraints(
-/*============================*/
-	trx_t*		trx,		/*!< in: transaction */
-	const char*	sql_string,	/*!< in: table create statement where
-					foreign keys are declared like:
-					FOREIGN KEY (a, b) REFERENCES
-					table2(c, d), table2 can be written
-					also with the database
-					name before it: test.table2; the
-					default database id the database of
-					parameter name */
-	size_t		sql_length,	/*!< in: length of sql_string */
-	const char*	name,		/*!< in: table full name in the
-					normalized form
-					database_name/table_name */
-	ibool		reject_fks)	/*!< in: if TRUE, fail with error
-					code DB_CANNOT_ADD_CONSTRAINT if
-					any foreign keys are found. */
+	trx_t*			trx,
+	const char*		sql_string,
+	size_t			sql_length,
+	const char*		name,
+	dict_table_t*		handler,
+	ibool			reject_fks)
 {
 	char*		str;
 	dberr_t		err;
@@ -4827,7 +4839,7 @@ dict_create_foreign_constraints(
 
 	err = dict_create_foreign_constraints_low(
 		trx, heap, innobase_get_charset(trx->mysql_thd), str, name,
-		reject_fks);
+		handler, reject_fks);
 
 	mem_heap_free(heap);
 	ut_free(str);
@@ -6195,9 +6207,7 @@ dict_close(void)
 
 	rw_lock_free(&dict_operation_lock);
 
-	if (!srv_read_only_mode) {
-		mutex_free(&dict_foreign_err_mutex);
-	}
+	mutex_free(&dict_foreign_err_mutex);
 
 	ut_free(dict_sys);
 	dict_sys = NULL;
