@@ -89,6 +89,7 @@
 #include <signaldata/CreateTab.hpp>
 
 #include <TransporterRegistry.hpp> // error 8035
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 353
 
