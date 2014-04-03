@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -140,6 +140,7 @@ row_purge_remove_clust_if_poss_low(
 
 	log_free_check();
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	if (!row_purge_reposition_pcur(mode, node, &mtr)) {
 		/* The record was already removed. */
@@ -279,6 +280,7 @@ row_purge_remove_sec_if_poss_tree(
 
 	log_free_check();
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -388,6 +390,7 @@ row_purge_remove_sec_if_poss_leaf(
 	log_free_check();
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
