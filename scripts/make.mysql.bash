@@ -9,7 +9,7 @@ function usage() {
     echo "--mysqlbuild=$mysqlbuild"
     echo "--mysql=$mysql"
     echo "--tokudb_version=$tokudb_version"
-    echo "--mysql_tree=$mysql_tree --ftengine_tree=$ftengine_tree --ftindex_tree=$ftindex_tree --jemalloc_tree=$jemalloc_tree --backup_tree=$backup_tree"
+    echo "--mysql_tree=$mysql_tree --tokudbengine_tree=$tokudbengine_tree --ftindex_tree=$ftindex_tree --jemalloc_tree=$jemalloc_tree --backup_tree=$backup_tree"
     echo 
     echo "community release builds using the tokudb-7.0.1 git tag"
     echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.0.1-linux-x86_64"
@@ -23,7 +23,7 @@ function usage() {
     echo "    make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-test-e-linux-x86_64"
     echo 
     echo "community release builds of a branch"
-    echo "    make.mysql.bash --mysql=mysql-5.5.30 --mysql_tree=<your mysql tree name> --ftengine_tree=<your ft-engine tree name> --tokudb_version=<your test string>>"
+    echo "    make.mysql.bash --mysql=mysql-5.5.30 --mysql_tree=<your mysql tree name> --tokudbengine_tree=<your tokudb-engine tree name> --tokudb_version=<your test string>>"
     return 1
 }
 
@@ -50,7 +50,7 @@ tokudb_version=
 tokudb_patches=1
 cmake_build_type=RelWithDebInfo
 mysql_tree=
-ftengine_tree=
+tokudbengine_tree=
 ftindex_tree=
 jemalloc_version=3.3.0
 jemalloc_tree=
@@ -109,20 +109,20 @@ if [ ! -d toku_backup ] ; then
     cp -r backup-$build_type/backup toku_backup
 fi
 
-if [ ! -d ft-engine ] ; then
-    github_download Tokutek/ft-engine $(git_tree $git_tag $ftengine_tree) ft-engine
+if [ ! -d tokudb-engine ] ; then
+    github_download Tokutek/tokudb-engine $(git_tree $git_tag $tokudbengine_tree) tokudb-engine
 
     # install the tokudb storage engine source
-    cp -r ft-engine/storage/tokudb storage/
+    cp -r tokudb-engine/storage/tokudb storage/
 
     # merge the mysql tests
     mv mysql-test mysql-test-save
-    cp -r ft-engine/mysql-test .
+    cp -r tokudb-engine/mysql-test .
     cp -r mysql-test-save/* mysql-test
     rm -rf mysql-test-save
 
     # install the tokudb scripts
-    cp -r ft-engine/scripts/* scripts/
+    cp -r tokudb-engine/scripts/* scripts/
 fi
 
 if [ ! -d storage/tokudb/ft-index ] ; then

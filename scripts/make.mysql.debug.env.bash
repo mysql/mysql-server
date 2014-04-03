@@ -7,7 +7,7 @@ function usage() {
     echo "with default parameters it builds a debug $mysql-$mysql_tree"
     echo "--git_tag=$git_tag"
     echo "--mysql=$mysql --mysql_tree=$mysql_tree"
-    echo "--ftengine=$ftengine --ftengine_tree=$ftengine_tree"
+    echo "--tokudbengine=$tokudbengine --tokudbengine_tree=$tokudbengine_tree"
     echo "--ftindex=$ftindex --ftindex_tree=$ftindex_tree"
     echo "--jemalloc=$jemalloc --jemalloc_tree=$jemalloc_tree"
     echo "--backup=$backup --backup_tree=$backup_tree"
@@ -54,12 +54,12 @@ function github_clone() {
 # shopt -s compat31 2>/dev/null
 
 git_tag=
-mysql=mysql
+mysql=mysql-5.5
 mysql_tree=mysql-5.5.35
 jemalloc=jemalloc
 jemalloc_tree=3.3.1
-ftengine=ft-engine
-ftengine_tree=master
+tokudbengine=tokudb-engine
+tokudbengine_tree=master
 ftindex=ft-index
 ftindex_tree=master
 backup=backup-community
@@ -73,12 +73,17 @@ cmake_debug_paranoid=
 
 while [ $# -ne 0 ] ; do
     arg=$1; shift
-    if [[ $arg =~ --(.*)=(.*) ]] ; then
+    if [[ $arg =~ ^--(.*)=(.*) ]] ; then
         eval ${BASH_REMATCH[1]}=${BASH_REMATCH[2]};
     else
         usage; exit 1;
     fi
 done
+
+if [[ $mysql =~ ^(.*)-(([0-9]+\.[0-9]+)\.[0-9]+.*)$ ]] ; then
+    mysql=${BASH_REMATCH[1]}-${BASH_REMATCH[3]}
+    mysql_tree=${BASH_REMATCH[1]}-${BASH_REMATCH[2]}
+fi
 
 # setup environment variables
 build_dir=$PWD/build
@@ -101,17 +106,17 @@ github_clone $mysql $mysql_tree $mysql_tree
 github_clone $backup $backup_tree
 
 # checkout the tokudb handlerton
-github_clone $ftengine $ftengine_tree
+github_clone $tokudbengine $tokudbengine_tree
 
 # setup links'
-pushd $ftengine/storage/tokudb
+pushd $tokudbengine/storage/tokudb
 if [ $? != 0 ] ; then exit 1; fi
 ln -s ../../../$ftindex ft-index
 if [ $? != 0 ] ; then exit 1; fi
 popd
 pushd $mysql_tree/storage
 if [ $? != 0 ] ; then exit 1; fi
-ln -s ../../$ftengine/storage/tokudb tokudb
+ln -s ../../$tokudbengine/storage/tokudb tokudb
 if [ $? != 0 ] ; then exit 1; fi
 popd
 pushd $mysql_tree
@@ -121,9 +126,9 @@ if [ $? != 0 ] ; then exit 1; fi
 popd
 pushd $mysql_tree/scripts
 if [ $? != 0 ] ; then exit 1; fi
-ln ../../$ftengine/scripts/tokustat.py
+ln ../../$tokudbengine/scripts/tokustat.py
 if [ $? != 0 ] ; then exit 1; fi
-ln ../../$ftengine/scripts/tokufilecheck.py
+ln ../../$tokudbengine/scripts/tokufilecheck.py
 if [ $? != 0 ] ; then exit 1; fi
 popd
 if [[ $mysql =~ mariadb ]] || [[ $mysql_tree =~ mariadb ]] ; then
