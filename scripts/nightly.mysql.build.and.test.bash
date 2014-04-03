@@ -8,9 +8,9 @@ function usage() {
 # generate a script that makes a mysql release and run tests on it
 function make_and_test_mysql() {
     echo $(date) $* >>$nightlytrace 2>&1
-    echo "bash -x \$HOME/github/ft-engine/scripts/tokutek.make.mysql.bash $* >>$mysqltrace 2>&1; \
+    echo "bash -x \$HOME/github/tokudb-engine/scripts/tokutek.make.mysql.bash $* >>$mysqltrace 2>&1; \
         buildexitcode=\$?; \
-        echo \$(date) \$HOME/github/ft-engine/scripts/tokutek.make.mysql.bash -$* \$buildexitcode >>$mysqltrace; \
+        echo \$(date) \$HOME/github/tokudb-engine/scripts/tokutek.make.mysql.bash -$* \$buildexitcode >>$mysqltrace; \
         if [ \$buildexitcode -eq 0 ] ; then \$HOME/bin/test.mysql.bash $* >>/tmp/mysql.test.trace 2>&1; fi" \
         | $gearmandir/bin/gearman -b -f mysql-build-$system-$arch -h $gearmandhost -p 4730 >>$nightlytrace 2>&1
 }
@@ -18,7 +18,7 @@ function make_and_test_mysql() {
 # make a mysql release
 function make_mysql() {
     echo $(date) $* >>$nightlytrace 2>&1
-    echo "\$HOME/github/ft-engine/scripts/tokutek.make.mysql.bash $* >>$mysqltrace 2>&1" | $gearmandir/bin/gearman -b -f mysql-build-$system-$arch -h $gearmandhost -p 4730 >>$nightlytrace 2>&1
+    echo "\$HOME/github/tokudb-engine/scripts/tokutek.make.mysql.bash $* >>$mysqltrace 2>&1" | $gearmandir/bin/gearman -b -f mysql-build-$system-$arch -h $gearmandhost -p 4730 >>$nightlytrace 2>&1
 }
 
 # setup the PATH since cron gives us a minimal PATH
