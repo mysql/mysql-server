@@ -1281,35 +1281,40 @@ enum page_scan_method_t {
 };
 /* @} */
 
-/*********************************************************************//**
-Scan a page, reading records from left to right and counting the number
-of distinct records on that page (looking only at the first n_prefix
-columns). If scan_method is QUIT_ON_FIRST_NON_BORING then the function
+/** Scan a page, reading records from left to right and counting the number
+of distinct records (looking only at the first n_prefix
+columns) and the number of external pages pointed by records from this page.
+If scan_method is QUIT_ON_FIRST_NON_BORING then the function
 will return as soon as it finds a record that does not match its neighbor
 to the right, which means that in the case of QUIT_ON_FIRST_NON_BORING the
 returned n_diff can either be 0 (empty page), 1 (the whole page has all keys
 equal) or 2 (the function found a non-boring record and returned).
+@param[out]	out_rec			record, or NULL
+@param[out]	offsets1		rec_get_offsets() working space (must
+be big enough)
+@param[out]	offsets2		rec_get_offsets() working space (must
+be big enough)
+@param[in]	index			index of the page
+@param[in]	page			the page to scan
+@param[in]	n_prefix		look at the first n_prefix columns
+@param[in]	scan_method		scan to the end of the page or not
+@param[out]	n_diff			number of distinct records encountered
+@param[out]	n_external_pages	if this is non-NULL then it will be set
+to the number of externally stored pages which were encountered
 @return offsets1 or offsets2 (the offsets of *out_rec),
 or NULL if the page is empty and does not contain user records. */
 UNIV_INLINE
 ulint*
 dict_stats_scan_page(
-/*=================*/
-	const rec_t**		out_rec,	/*!< out: record, or NULL */
-	ulint*			offsets1,	/*!< out: rec_get_offsets()
-						working space (must be big
-						enough) */
-	ulint*			offsets2,	/*!< out: rec_get_offsets()
-						working space (must be big
-						enough) */
-	dict_index_t*		index,		/*!< in: index of the page */
-	const page_t*		page,		/*!< in: the page to scan */
-	ulint			n_prefix,	/*!< in: look at the first
-						n_prefix columns */
-	page_scan_method_t	scan_method,	/*!< in: scan to the end of
-						the page or not */
-	ib_uint64_t*		n_diff)		/*!< out: number of distinct
-						records encountered */
+	const rec_t**		out_rec,
+	ulint*			offsets1,
+	ulint*			offsets2,
+	const dict_index_t*	index,
+	const page_t*		page,
+	ulint			n_prefix,
+	page_scan_method_t	scan_method,
+	ib_uint64_t*		n_diff,
+	ib_uint64_t*		n_external_pages)
 {
 	ulint*		offsets_rec		= offsets1;
 	ulint*		offsets_next_rec	= offsets2;
@@ -1327,6 +1332,12 @@ dict_stats_scan_page(
 		get_next = page_rec_get_next_const;
 	}
 
+	const bool	should_count_external_pages = n_external_pages != NULL;
+
+	if (should_count_external_pages) {
+		*n_external_pages = 0;
+	}
+
 	rec = get_next(page_get_infimum_rec(page));
 
 	if (page_rec_is_supremum(rec)) {
@@ -1338,6 +1349,11 @@ dict_stats_scan_page(
 
 	offsets_rec = rec_get_offsets(rec, index, offsets_rec,
 				      ULINT_UNDEFINED, &heap);
+
+	if (should_count_external_pages) {
+		*n_external_pages += btr_rec_get_externally_stored_len(
+			rec, offsets_rec);
+	}
 
 	next_rec = get_next(rec);
 
@@ -1387,6 +1403,11 @@ dict_stats_scan_page(
 			offsets_next_rec = offsets_tmp;
 		}
 
+		if (should_count_external_pages) {
+			*n_external_pages += btr_rec_get_externally_stored_len(
+				rec, offsets_rec);
+		}
+
 		next_rec = get_next(next_rec);
 	}
 
@@ -1396,19 +1417,25 @@ dict_stats_scan_page(
 	return(offsets_rec);
 }
 
-/*********************************************************************//**
-Dive below the current position of a cursor and calculate the number of
+/** Dive below the current position of a cursor and calculate the number of
 distinct records on the leaf page, when looking at the fist n_prefix
-columns.
+columns. Also calculate the number of external pages pointed by records
+on the leaf page.
+@param[in]	cur			cursor
+@param[in]	n_prefix		look at the first n_prefix columns
+when comparing records
+@param[out]	n_diff			number of distinct records
+@param[out]	n_external_pages	number of external pages
+@param[in,out]	mtr			mini-transaction
 @return number of distinct records on the leaf page */
 static
-ib_uint64_t
+void
 dict_stats_analyze_index_below_cur(
-/*===============================*/
-	const btr_cur_t*cur,		/*!< in: cursor */
-	ulint		n_prefix,	/*!< in: look at the first n_prefix
-					columns when comparing records */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction */
+	const btr_cur_t*	cur,
+	ulint			n_prefix,
+	ib_uint64_t*		n_diff,
+	ib_uint64_t*		n_external_pages,
+	mtr_t*			mtr)
 {
 	dict_index_t*	index;
 	buf_block_t*	block;
@@ -1418,7 +1445,6 @@ dict_stats_analyze_index_below_cur(
 	ulint*		offsets1;
 	ulint*		offsets2;
 	ulint*		offsets_rec;
-	ib_uint64_t	n_diff; /* the result */
 	ulint		size;
 
 	index = btr_cur_get_index(cur);
@@ -1454,6 +1480,10 @@ dict_stats_analyze_index_below_cur(
 						rec, offsets_rec));
 	const page_size_t	page_size(dict_table_page_size(index->table));
 
+	/* assume no external pages by default - in case we quit from this
+	function without analyzing any leaf pages */
+	*n_external_pages = 0;
+
 	/* descend to the leaf level on the B-tree */
 	for (;;) {
 
@@ -1472,20 +1502,24 @@ dict_stats_analyze_index_below_cur(
 		/* search for the first non-boring record on the page */
 		offsets_rec = dict_stats_scan_page(
 			&rec, offsets1, offsets2, index, page, n_prefix,
-			QUIT_ON_FIRST_NON_BORING, &n_diff);
+			QUIT_ON_FIRST_NON_BORING, n_diff, NULL);
 
 		/* pages on level > 0 are not allowed to be empty */
 		ut_a(offsets_rec != NULL);
 		/* if page is not empty (offsets_rec != NULL) then n_diff must
 		be > 0, otherwise there is a bug in dict_stats_scan_page() */
-		ut_a(n_diff > 0);
+		ut_a(*n_diff > 0);
 
-		if (n_diff == 1) {
+		if (*n_diff == 1) {
 			/* page has all keys equal and the end of the page
 			was reached by dict_stats_scan_page(), no need to
 			descend to the leaf level */
 			mem_heap_free(heap);
-			return(1);
+			/* can't get an estimate for n_external_pages here
+			because we do not dive to the leaf level, assume no
+			external pages (*n_external_pages was assigned to 0
+			above). */
+			return;
 		}
 		/* else */
 
@@ -1493,7 +1527,7 @@ dict_stats_analyze_index_below_cur(
 		first non-boring record it finds, then the returned n_diff
 		can either be 0 (empty page), 1 (page has all keys equal) or
 		2 (non-boring record was found) */
-		ut_a(n_diff == 2);
+		ut_a(*n_diff == 2);
 
 		/* we have a non-boring record in rec, descend below it */
 
@@ -1505,11 +1539,14 @@ dict_stats_analyze_index_below_cur(
 	ut_ad(btr_page_get_level(page, mtr) == 0);
 
 	/* scan the leaf page and find the number of distinct keys,
-	when looking only at the first n_prefix columns */
+	when looking only at the first n_prefix columns; also estimate
+	the number of externally stored pages pointed by records on this
+	page */
 
 	offsets_rec = dict_stats_scan_page(
 		&rec, offsets1, offsets2, index, page, n_prefix,
-		COUNT_ALL_NON_BORING_AND_SKIP_DEL_MARKED, &n_diff);
+		COUNT_ALL_NON_BORING_AND_SKIP_DEL_MARKED, n_diff,
+		n_external_pages);
 
 #if 0
 	DEBUG_PRINTF("      %s(): n_diff below page_no=%lu: " UINT64PF "\n",
@@ -1517,13 +1554,22 @@ dict_stats_analyze_index_below_cur(
 #endif
 
 	mem_heap_free(heap);
-
-	return(n_diff);
 }
 
 /** Input data that is used to calculate dict_index_t::stat_n_diff_key_vals[]
 for each n-columns prefix (n from 1 to n_uniq). */
 struct n_diff_data_t {
+	/** Index of the level on which the descent through the btree
+	stopped. level 0 is the leaf level. This is >= 1 because we
+	avoid scanning the leaf level because it may contain too many
+	pages and doing so is useless when combined with the random dives -
+	if we are to scan the leaf level, this means a full scan and we can
+	simply do that instead of fiddling with picking random records higher
+	in the tree and to dive below them. At the start of the analyzing
+	we may decide to do full scan of the leaf level, but then this
+	structure is not used in that code path. */
+	ulint		level;
+
 	/** Number of records on the level where the descend through the btree
 	stopped. When we scan the btree from the root, we stop at some mid
 	level, choose some records from it and dive below them towards a leaf
@@ -1541,6 +1587,10 @@ struct n_diff_data_t {
 	/** Cumulative sum of the number of different key values that were
 	found on all analyzed pages. */
 	ib_uint64_t	n_diff_all_analyzed_pages;
+
+	/** Cumulative sum of the number of external pages (stored outside of
+	the btree but in the same file segment). */
+	ib_uint64_t	n_external_pages_sum;
 };
 
 /** Estimate the number of different key values in an index when looking at
@@ -1549,23 +1599,21 @@ n_diff_data->n_leaf_pages_to_analyze records from that level and dive below
 them to the corresponding leaf pages, then scan those leaf pages and save the
 sampling results in n_diff_data->n_diff_all_analyzed_pages.
 @param[in]	index			index
-@param[in]	level			level, must be >= 1
 @param[in]	n_prefix		look at first 'n_prefix' columns when
 comparing records
 @param[in]	boundaries		a vector that contains
 n_diff_data->n_diff_on_level integers each of which represents the index (on
 level 'level', counting from left/smallest to right/biggest from 0) of the
 last record from each group of distinct keys
-@param[in,out]	n_diff_data		n_diff_all_analyzed_pages in this
-structure will be set by this function. The members n_diff_on_level and
-n_leaf_pages_to_analyze must be set by the caller in advance - they are used
-by some calculations inside this function
+@param[in,out]	n_diff_data		n_diff_all_analyzed_pages and
+n_external_pages_sum in this structure will be set by this function. The
+members level, n_diff_on_level and n_leaf_pages_to_analyze must be set by the
+caller in advance - they are used by some calculations inside this function
 @param[in,out]	mtr			mini-transaction */
 static
 void
 dict_stats_analyze_index_for_n_prefix(
 	dict_index_t*		index,
-	ulint			level,
 	ulint			n_prefix,
 	const boundaries_t*	boundaries,
 	n_diff_data_t*		n_diff_data,
@@ -1591,7 +1639,7 @@ dict_stats_analyze_index_for_n_prefix(
 
 	btr_pcur_open_at_index_side(
 		true, index, BTR_SEARCH_TREE | BTR_ALREADY_S_LATCHED,
-		&pcur, true, level, mtr);
+		&pcur, true, n_diff_data->level, mtr);
 	btr_pcur_move_to_next_on_page(&pcur);
 
 	page = btr_pcur_get_page(&pcur);
@@ -1600,7 +1648,7 @@ dict_stats_analyze_index_for_n_prefix(
 
 	/* We shouldn't be scanning the leaf level. The caller of this function
 	should have stopped the descend on level 1 or higher. */
-	ut_ad(level > 0);
+	ut_ad(n_diff_data->level > 0);
 	ut_ad(!page_is_leaf(page));
 
 	/* The page must not be empty, except when
@@ -1609,7 +1657,7 @@ dict_stats_analyze_index_for_n_prefix(
 	ut_ad(first_rec == page_rec_get_next_const(page_get_infimum_rec(page)));
 
 	/* check that we are indeed on the desired level */
-	ut_a(btr_page_get_level(page, mtr) == level);
+	ut_a(btr_page_get_level(page, mtr) == n_diff_data->level);
 
 	/* there should not be any pages on the left */
 	ut_a(btr_page_get_prev(page, mtr) == FIL_NULL);
@@ -1625,6 +1673,7 @@ dict_stats_analyze_index_for_n_prefix(
 	rec_idx = 0;
 
 	n_diff_data->n_diff_all_analyzed_pages = 0;
+	n_diff_data->n_external_pages_sum = 0;
 
 	for (i = 0; i < n_diff_data->n_leaf_pages_to_analyze; i++) {
 		/* there are n_diff_on_level elements
@@ -1708,9 +1757,13 @@ dict_stats_analyze_index_for_n_prefix(
 		ut_a(rec_idx == dive_below_idx);
 
 		ib_uint64_t	n_diff_on_leaf_page;
+		ib_uint64_t	n_external_pages;
 
-		n_diff_on_leaf_page = dict_stats_analyze_index_below_cur(
-			btr_pcur_get_btr_cur(&pcur), n_prefix, mtr);
+		dict_stats_analyze_index_below_cur(btr_pcur_get_btr_cur(&pcur),
+						   n_prefix,
+						   &n_diff_on_leaf_page,
+						   &n_external_pages,
+						   mtr);
 
 		/* We adjust n_diff_on_leaf_page here to avoid counting
 		one value twice - once as the last on some page and once
@@ -1731,6 +1784,8 @@ dict_stats_analyze_index_for_n_prefix(
 		}
 
 		n_diff_data->n_diff_all_analyzed_pages += n_diff_on_leaf_page;
+
+		n_diff_data->n_external_pages_sum += n_external_pages;
 	}
 
 	btr_pcur_close(&pcur);
@@ -1756,9 +1811,35 @@ dict_stats_index_set_n_diff(
 
 		const n_diff_data_t*	data = &n_diff_data[n_prefix - 1];
 
+		ut_ad(data->n_leaf_pages_to_analyze > 0);
+		ut_ad(data->n_recs_on_level > 0);
+
+		ulint	n_ordinary_leaf_pages;
+
+		if (data->level == 1) {
+			/* If we know the number of records on level 1, then
+			this number is the same as the number of pages on
+			level 0 (leaf). */
+			n_ordinary_leaf_pages = data->n_recs_on_level;
+		} else {
+			/* If we analyzed D ordinary leaf pages and found E
+			external pages in total linked from those D ordinary
+			leaf pages, then this means that the ratio
+			ordinary/external is D/E. Then the ratio ordinary/total
+			is D / (D + E). Knowing that the total number of pages
+			is T (including ordinary and external) then we estimate
+			that the total number of ordinary leaf pages is
+			T * D / (D + E). */
+			n_ordinary_leaf_pages
+				= index->stat_n_leaf_pages
+				* data->n_leaf_pages_to_analyze
+				/ (data->n_leaf_pages_to_analyze
+				   + data->n_external_pages_sum);
+		}
+
 		/* See REF01 for an explanation of the algorithm */
 		index->stat_n_diff_key_vals[n_prefix - 1]
-			= index->stat_n_leaf_pages
+			= n_ordinary_leaf_pages
 
 			* data->n_diff_on_level
 			/ data->n_recs_on_level
@@ -2027,6 +2108,13 @@ found_level:
 			     " distinct records for n_prefix=%lu\n",
 			     __func__, level, n_diff_on_level[n_prefix - 1],
 			     n_prefix);
+		/* here we are either on level 1 or the level that we are on
+		contains >= N_DIFF_REQUIRED distinct keys or we did not scan
+		deeper levels because they would contain too many pages */
+
+		ut_ad(level > 0);
+
+		ut_ad(level_is_analyzed);
 
 		/* if any of these is 0 then there is exactly one page in the
 		B-tree and it is empty and we should have done full scan and
@@ -2038,6 +2126,8 @@ found_level:
 
 		n_diff_data_t*	data = &n_diff_data[n_prefix - 1];
 
+		data->level = level;
+
 		data->n_recs_on_level = total_recs;
 
 		data->n_diff_on_level = n_diff_on_level[n_prefix - 1];
@@ -2046,20 +2136,12 @@ found_level:
 			N_SAMPLE_PAGES(index),
 			n_diff_on_level[n_prefix - 1]);
 
-		/* here we are either on level 1 or the level that we are on
-		contains >= N_DIFF_REQUIRED distinct keys or we did not scan
-		deeper levels because they would contain too many pages */
-
-		ut_ad(level >= 1);
-
-		ut_ad(level_is_analyzed);
-
 		/* pick some records from this level and dive below them for
 		the given n_prefix */
 
 		dict_stats_analyze_index_for_n_prefix(
-			index, level, n_prefix,
-			&n_diff_boundaries[n_prefix - 1], data, &mtr);
+			index, n_prefix, &n_diff_boundaries[n_prefix - 1],
+			data, &mtr);
 	}
 
 	mtr_commit(&mtr);
