@@ -4904,7 +4904,7 @@ fixShmKey(InitConfigFileParser::Context & ctx, const char *)
       {
 	  ctx.reportError("Unable to set default parameter for [SHM]Signum"
 			  " please specify [SHM DEFAULT]Signum");
-	  return false;
+          DBUG_RETURN(false);
       }
       ctx.m_currentSection->put("Signum", signum);
       DBUG_PRINT("info",("Added Signum=%u", signum));
@@ -4913,7 +4913,7 @@ fixShmKey(InitConfigFileParser::Context & ctx, const char *)
     {
       ctx.reportError("All shared memory transporters must have same [SHM]Signum defined."
 		      " Use [SHM DEFAULT]Signum");
-      return false;
+      DBUG_RETURN(false);
     }
     last_signum= (int)signum;
   }

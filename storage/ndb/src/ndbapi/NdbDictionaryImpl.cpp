@@ -867,13 +867,13 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
 int
 NdbTableImpl::assign(const NdbTableImpl& org)
 {
-  DBUG_ENTER("NdbColumnImpl::assign");
+  DBUG_ENTER("NdbTableImpl::assign");
   DBUG_PRINT("info", ("this: %p  &org: %p", this, &org));
   m_primaryTableId = org.m_primaryTableId;
   if (!m_internalName.assign(org.m_internalName) ||
       updateMysqlName())
   {
-    return -1;
+    DBUG_RETURN(-1);
   }
   m_externalName.assign(org.m_externalName);
   m_frm.assign(org.m_frm.get_data(), org.m_frm.length());
@@ -908,14 +908,14 @@ NdbTableImpl::assign(const NdbTableImpl& org)
     if (col == NULL)
     {
       errno = ENOMEM;
-      return -1;
+      DBUG_RETURN(-1);
     }
     const NdbColumnImpl * iorg = org.m_columns[i];
     (* col) = (* iorg);
     if (m_columns.push_back(col))
     {
       delete col;
-      return -1;
+      DBUG_RETURN(-1);
     }
   }
 
