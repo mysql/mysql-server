@@ -89,6 +89,7 @@
 #include <signaldata/CreateTab.hpp>
 
 #include <TransporterRegistry.hpp> // error 8035
+#include <EventLogger.hpp>
 
 #include <signaldata/CreateFKImpl.hpp>
 #include <signaldata/DropFKImpl.hpp>
