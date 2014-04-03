@@ -1250,18 +1250,11 @@ fil_space_free_low(
 		UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 	}
 
-	/* fil_names_dirty() could update max_lsn from nonzero to
-	nonzero while only holding log_sys->mutex, which we are not
-	holding. Because we are only interested whether max_lsn==0
-	here, holding fil_system->mutex is sufficient. (Changing
-	max_lsn to or from 0 is protected by fil_system->mutex
-	and log_sys->mutex.)
-
-	There is a theoretical race condition that fil_names_dirty()
-	could access a tablespace that was freed by some other thread
-	after fil_names_write() looked it up. It should be a grave
-	error to free a tablespace object while a thread is still
-	buffer-fixing some of its pages. */
+	/* Could fil_names_dirty() access a tablespace that is being
+	freed or has been freed here? The answer is no:
+	fil_names_write() will check space->stop_new_ops,
+	and return NULL if it was set. Thus, fil_names_dirty() would
+	not be invoked if we are preparing to drop a tablespace. */
 	if (space->max_lsn != 0) {
 		UT_LIST_REMOVE(fil_system->named_spaces, space);
 	}
@@ -6255,14 +6248,21 @@ fil_names_write(
 	mtr_t*		mtr)
 {
 	mutex_enter(&fil_system->mutex);
-	fil_space_t*	space = fil_space_get_by_id(space_id);
+	fil_space_t*	space	= fil_space_get_by_id(space_id);
 	ut_ad(space != NULL);
 	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
+	const bool	skip	= space == NULL
+		|| (space->stop_new_ops && !space->is_being_truncated);
 	mutex_exit(&fil_system->mutex);
 
-	/* We assume that files are not being added to or removed from
-	a tablepace for which buffer-fixed pages exist in the buffer pool. */
-	fil_names_write_low(space, mtr);
+	if (skip) {
+		/* This should be prevented by meta-data locks
+		or transactional locks on tables or tablespaces. */
+		ut_ad(0);
+		space = NULL;
+	} else {
+		fil_names_write_low(space, mtr);
+	}
 
 	return(space);
 }
