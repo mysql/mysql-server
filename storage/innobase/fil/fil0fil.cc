@@ -2897,14 +2897,15 @@ fil_delete_tablespace(
 	/* If it is a delete then also delete any generated files, otherwise
 	when we drop the database the remove directory will fail. */
 	{
-#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_HOTBACKUP
+		/* When replaying the operation in MySQL Enterprise
+		Backup, we do not try to write any log record. */
+#else /* UNIV_HOTBACKUP */
 		/* Before deleting the file, write a log record about
 		it, so that InnoDB crash recovery will expect the file
 		to be gone. */
 		mtr_t		mtr;
 
-		/* When replaying the operation in MySQL Enterprise
-		Backup, we do not try to write any log record. */
 		mtr_start(&mtr);
 		fil_op_write_log(MLOG_FILE_DELETE, id, 0, path, NULL, &mtr);
 		mtr_commit(&mtr);
@@ -6217,6 +6218,7 @@ fil_mtr_rename_log(
 	}
 
 	ut_free(old_path);
+	ut_free(new_path);
 	ut_free(tmp_path);
 	return(true);
 }

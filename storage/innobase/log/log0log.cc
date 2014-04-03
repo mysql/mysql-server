@@ -1731,8 +1731,8 @@ log_checkpoint(
 	flushed up to oldest_lsn. */
 
 	if (!write_always
-	    && oldest_lsn == log_sys->last_checkpoint_lsn
-	    + SIZE_OF_MLOG_CHECKPOINT) {
+	    && oldest_lsn
+	    == log_sys->last_checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT) {
 		/* Do nothing, because nothing was logged (other than
 		a MLOG_CHECKPOINT marker) since the previous checkpoint. */
 		log_mutex_exit();
