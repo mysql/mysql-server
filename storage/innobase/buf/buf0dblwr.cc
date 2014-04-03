@@ -812,8 +812,7 @@ buf_dblwr_flush_buffered_writes(void)
 	ulint		first_free;
 	ulint		len;
 
-	if (!srv_use_doublewrite_buf
-	    || buf_dblwr == NULL) {
+	if (!srv_use_doublewrite_buf || buf_dblwr == NULL) {
 		/* Sync the writes to the disk. */
 		buf_dblwr_sync_datafiles();
 		return;

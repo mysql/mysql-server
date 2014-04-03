@@ -1090,8 +1090,8 @@ dict_table_add_system_columns(
 	etc.) and as the last columns of the table memory object.
 	The clustered index will not always physically contain all system
 	columns.
-	Intrinsic table don't need DB_ROLL_PTR as
-	UNDO logging is turned off for these tables. */
+	Intrinsic table don't need DB_ROLL_PTR as UNDO logging is turned off
+	for these tables. */
 
 	dict_mem_table_add_col(table, heap, "DB_ROW_ID", DATA_SYS,
 			       DATA_ROW_ID | DATA_NOT_NULL,

@@ -324,10 +324,9 @@ buf_pool_get_oldest_modification(void)
 
 		bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 
-		/* We don't let log-checkpoint halt because pages
-		from system temporary are not yet flushed to the disk.
-		Anyway, object residing in system temporary doesn't generate
-		REDO logging and is not needed too. */
+		/* We don't let log-checkpoint halt because pages from system
+		temporary are not yet flushed to the disk. Anyway, object
+		residing in system temporary doesn't generate REDO logging. */
 		if (bpage != NULL) {
 			while (fsp_is_system_temporary(bpage->id.space())) {
 				bpage = UT_LIST_GET_PREV(list, bpage);
@@ -3223,9 +3222,10 @@ got_block:
 	buf_wait_for_read(fix_block);
 #endif /* PAGE_ATOMIC_REF_COUNT */
 
-	/* Set if only if it is not set because same block can be
-	part of multiple mtr and if latter mtr try to reset it to false
-	then former one will too loose the setting too. */
+	/* Set it only if it is not set because same block can be
+	part of multiple mtrs and if latter mtr try to reset it to false
+	and former one has set it to true then setting is overwritten
+	and block is not scheduled for flush even though block is modified. */
 	if (dirty_with_no_latch) {
 		fix_block->made_dirty_with_no_latch = dirty_with_no_latch;
 	}

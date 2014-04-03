@@ -4679,7 +4679,7 @@ ha_innobase::innobase_initialize_autoinc()
 
 		col_name = field->field_name;
 
-		/* For intrinsic table, name of field could be prefixed with
+		/* For intrinsic table, name of field has to be prefixed with
 		table name to maintain column-name uniqueness. */
 		if (prebuilt->table
 		    && dict_table_is_intrinsic(prebuilt->table)) {
@@ -6414,8 +6414,6 @@ ha_innobase::write_row(
 	ulint		sql_command;
 	trx_t*		trx = NULL;
 
-	/* For intrinsic tables case even if create of table fails Optimizer
-	will continue to insert rows to the table ignoring create failure. */
 	ut_ad(user_thd != NULL);
 	trx = thd_to_trx(user_thd);
 
@@ -6967,8 +6965,6 @@ ha_innobase::update_row(
 	dberr_t		error;
 	trx_t*		trx = NULL;
 
-	/* For intrinsic tables case even if create of table fails Optimizer
-	will continue to insert rows to the table ignoring create failure. */
 	ut_ad(user_thd != NULL);
 	trx = thd_to_trx(user_thd);
 
@@ -8250,8 +8246,7 @@ next_record:
 		innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 		dberr_t ret = row_search_for_mysql(
-			(byte*) buf, PAGE_CUR_GE, prebuilt, ROW_SEL_EXACT,
-			0, false);
+			(byte*) buf, PAGE_CUR_GE, prebuilt, ROW_SEL_EXACT, 0);
 
 		innobase_srv_conc_exit_innodb(prebuilt->trx);
 
