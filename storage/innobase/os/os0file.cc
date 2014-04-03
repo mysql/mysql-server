@@ -748,8 +748,6 @@ os_file_create_tmpfile(void)
 	FILE*	file	= NULL;
 	int	fd	= innobase_mysql_tmpfile();
 
-	ut_ad(!srv_read_only_mode);
-
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
 	}
