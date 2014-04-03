@@ -1831,7 +1831,7 @@ static int runCreateDropNR(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.getNumDbNodes() < 2)
   {
     ctx->stopTest();
-    return NDBT_OK;
+    DBUG_RETURN(NDBT_OK);
   }
   NdbDictionary::Table copy(* ctx->getTab());
   do
