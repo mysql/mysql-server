@@ -425,9 +425,9 @@ dict_stats_table_clone_create(
 	t->corrupted = table->corrupted;
 
 	/* This private object "t" is not shared with other threads, so
-	we do not need the stats_latch. The lock/unlock routines will do
-	nothing if stats_latch is NULL. */
-	t->stats_latch = NULL;
+	we do not need the stats_latch (thus we pass false below). The
+	dict_table_stats_lock()/unlock() routines will do nothing. */
+	dict_table_stats_latch_create(t, false);
 
 	UT_LIST_INIT(t->indexes, &dict_index_t::indexes);
 
@@ -507,6 +507,7 @@ dict_stats_table_clone_free(
 /*========================*/
 	dict_table_t*	t)	/*!< in: dummy table object to free */
 {
+	dict_table_stats_latch_destroy(t);
 	mem_heap_free(t->heap);
 }
 
