@@ -32,7 +32,7 @@ Thd_ndb::seize(THD* thd)
 
   Thd_ndb* thd_ndb= new Thd_ndb(thd);
   if (thd_ndb == NULL)
-    return NULL;
+    DBUG_RETURN(NULL);
 
   if (thd_ndb->ndb->init(MAX_TRANSACTIONS) != 0)
   {

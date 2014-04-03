@@ -261,7 +261,7 @@ ndb_mgm_create_handle()
   DBUG_ENTER("ndb_mgm_create_handle");
   NdbMgmHandle h = (NdbMgmHandle)malloc(sizeof(ndb_mgm_handle));
   if (!h)
-    return NULL;
+    DBUG_RETURN(NULL);
 
   h->connected       = 0;
   h->last_error      = 0;
