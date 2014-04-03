@@ -729,7 +729,13 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
       calculate_condition_filter(tab, NULL, 0,
                                  tab->found_records, true);
 
-    *rows_after_filtering= tab->found_records * const_cond_filter;
+    /*
+      For high found_records values, multiplication by float may
+      result in a higher value than the original for
+      const_cond_filter=1.0. Cast to double to increase precision.
+    */
+    *rows_after_filtering=
+      rows2double(tab->found_records) * const_cond_filter;
   }
   else if (table->quick_condition_rows != tab->found_records)
     *rows_after_filtering= table->quick_condition_rows;

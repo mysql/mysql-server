@@ -99,9 +99,9 @@ dict_mem_table_create(
 			       (n_cols + dict_table_get_n_sys_cols(table))
 				* sizeof(dict_col_t)));
 
-	table->stats_latch = new rw_lock_t;
-	rw_lock_create(dict_table_stats_key, table->stats_latch,
-		       SYNC_INDEX_TREE);
+	/* true means that the stats latch will be enabled -
+	dict_table_stats_lock() will not be noop. */
+	dict_table_stats_latch_create(table, true);
 
 #ifndef UNIV_HOTBACKUP
 	table->autoinc_lock = static_cast<ib_lock_t*>(
@@ -159,8 +159,7 @@ dict_mem_table_free(
 	mutex_free(&(table->autoinc_mutex));
 #endif /* UNIV_HOTBACKUP */
 
-	rw_lock_free(table->stats_latch);
-	delete table->stats_latch;
+	dict_table_stats_latch_destroy(table);
 
 	ut_free(table->name);
 	mem_heap_free(table->heap);
