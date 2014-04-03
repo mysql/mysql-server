@@ -54,6 +54,7 @@ check table t1;
 delete from t1; select count(*) from t1;
 check table t1;
 #
+--error ER_ILLEGAL_HA
 alter table t1 add index sk(c1);
 #
 begin; call populate_t1(); commit; select count(*) from t1;
@@ -66,11 +67,17 @@ check table t1;
 update t1 set c2 = '141434' where keyc < 2000; select count(*) from t1;
 check table t1;
 #
+--error ER_ILLEGAL_HA
 alter table t1 add column (t char(10));
 select * from t1 limit 5;
 delete from t1; select count(*) from t1;
 check table t1;
 #
+#
+--error ER_CANNOT_ADD_FOREIGN
+create temporary table t2 (
+	id int primary key, t1_keyc int,
+	foreign key (t1_keyc) references t1(keyc)) engine = innodb;
 #
 drop procedure populate_t1;
 drop table t1;

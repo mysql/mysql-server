@@ -9769,11 +9769,19 @@ ha_innobase::create(
 
 	stmt = innobase_get_stmt_unsafe(thd, &stmt_len);
 
-	if (stmt &&
-	    !((flags2 & DICT_TF2_TEMPORARY) && (flags2 & DICT_TF2_INTRINSIC))) {
+	if (stmt) {
+
+		innodb_private_t*&	priv
+				= thd_to_innodb_private(trx->mysql_thd);
+		dict_table_t*		handler
+				= priv->lookup_table_handler(norm_name);
+		ut_ad(handler == NULL
+		      || (handler != NULL && is_intrinsic_temp_table));
+
 		dberr_t	err = row_table_add_foreign_constraints(
 			trx, stmt, stmt_len, norm_name,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE,
+			handler,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
 		switch (err) {
@@ -12442,7 +12450,11 @@ ha_innobase::external_lock(
 
 	ut_ad(prebuilt->table);
 	if (dict_table_is_intrinsic(prebuilt->table)) {
-		DBUG_RETURN(0);
+		if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
+			DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+		} else {
+			DBUG_RETURN(0);
+		}
 	}
 
 	/* Statement based binlogging does not work in isolation level

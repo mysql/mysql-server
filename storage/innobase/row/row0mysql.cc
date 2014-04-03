@@ -3108,36 +3108,42 @@ Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
 Each foreign key constraint must be accompanied with indexes in
-both participating tables. The indexes are allowed to contain more
-fields than mentioned in the constraint. Check also that foreign key
-constraints which reference this table are ok.
+bot participating tables. The indexes are allowed to contain more
+fields than mentioned in the constraint.
+
+@param[in]	trx		transaction
+@param[in]	sql_string	table create statement where
+				foreign keys are declared like:
+				FOREIGN KEY (a, b) REFERENCES table2(c, d),
+				table2 can be written also with the database
+				name before it: test.table2; the default
+				database id the database of parameter name
+@param[in]	sql_length	length of sql_string
+@param[in]	name		table full name in normalized form
+@param[in[	is_temp_table	true if table is temporary
+@param[in/out]	handler		table handler if table is intrinsic
+@param[in]	reject_fks	if TRUE, fail with error code
+				DB_CANNOT_ADD_CONSTRAINT if any
+				foreign keys are found.
 @return error code or DB_SUCCESS */
 
 dberr_t
 row_table_add_foreign_constraints(
-/*==============================*/
-	trx_t*		trx,		/*!< in: transaction */
-	const char*	sql_string,	/*!< in: table create statement where
-					foreign keys are declared like:
-				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-					table2 can be written also with the
-					database name before it: test.table2 */
-	size_t		sql_length,	/*!< in: length of sql_string */
-	const char*	name,		/*!< in: table full name in the
-					normalized form
-					database_name/table_name */
-	bool		is_temp_table,	/*!< in: true if temp-table */
-	bool		reject_fks)	/*!< in: if TRUE, fail with error
-					code DB_CANNOT_ADD_CONSTRAINT if
-					any foreign keys are found. */
+	trx_t*			trx,
+	const char*		sql_string,
+	size_t			sql_length,
+	const char*		name,
+	bool			is_temp_table,
+	dict_table_t*		handler,
+	ibool			reject_fks)
 {
 	dberr_t	err;
 
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&(dict_sys->mutex)) || handler);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X) || handler);
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 
@@ -3149,15 +3155,18 @@ row_table_add_foreign_constraints(
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-	err = dict_create_foreign_constraints(trx, sql_string, sql_length,
-					      name, reject_fks);
+	err = dict_create_foreign_constraints(
+		trx, sql_string, sql_length, name, handler, reject_fks);
 
 	DBUG_EXECUTE_IF("ib_table_add_foreign_fail",
 			err = DB_DUPLICATE_KEY;);
 
 	DEBUG_SYNC_C("table_add_foreign_constraints");
 
-	if (err == DB_SUCCESS) {
+	/* Check like this shouldn't be done for table that doesn't
+	have foreign keys but code still continues to run with void action.
+	Disable it for intrinsic table at-least */
+	if (err == DB_SUCCESS && handler == NULL) {
 		/* Check that also referencing constraints are ok */
 		dict_names_t	fk_tables;
 		err = dict_load_foreigns(name, NULL, false, true,
@@ -3175,11 +3184,15 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_rollback_to_savepoint(trx, NULL);
+		if (trx->state != TRX_STATE_NOT_STARTED) {
+			trx_rollback_to_savepoint(trx, NULL);
+		}
 
-		row_drop_table_for_mysql(name, trx, FALSE);
+		row_drop_table_for_mysql(name, trx, FALSE, handler);
 
-		trx_commit_for_mysql(trx);
+		if (trx->state != TRX_STATE_NOT_STARTED) {
+			trx_commit_for_mysql(trx);
+		}
 
 		trx->error_state = DB_SUCCESS;
 	}

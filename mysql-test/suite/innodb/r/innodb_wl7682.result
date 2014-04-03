@@ -55,6 +55,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 alter table t1 add index sk(c1);
+ERROR HY000: Table storage engine for 'InnoDB' doesn't have this option
 begin;
 call populate_t1();
 commit;
@@ -85,13 +86,14 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 alter table t1 add column (t char(10));
+ERROR HY000: Table storage engine for 'InnoDB' doesn't have this option
 select * from t1 limit 5;
-keyc	c1	c2	t
-1000	aefafdf	141434	NULL
-1001	aefafdf	141434	NULL
-1002	aefafdf	141434	NULL
-1003	aefafdf	141434	NULL
-1004	aefafdf	141434	NULL
+keyc	c1	c2
+1000	aefafdf	141434
+1001	aefafdf	141434
+1002	aefafdf	141434
+1003	aefafdf	141434
+1004	aefafdf	141434
 delete from t1;
 select count(*) from t1;
 count(*)
@@ -99,6 +101,10 @@ count(*)
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+create temporary table t2 (
+id int primary key, t1_keyc int,
+foreign key (t1_keyc) references t1(keyc)) engine = innodb;
+ERROR HY000: Cannot add foreign key constraint
 drop procedure populate_t1;
 drop table t1;
 Warnings:
@@ -612,6 +618,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 alter table t1 add index sk(c1);
+ERROR HY000: Table storage engine for 'InnoDB' doesn't have this option
 begin;
 call populate_t1();
 commit;
@@ -642,13 +649,14 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 alter table t1 add column (t char(10));
+ERROR HY000: Table storage engine for 'InnoDB' doesn't have this option
 select * from t1 limit 5;
-keyc	c1	c2	t
-1000	aefafdf	141434	NULL
-1001	aefafdf	141434	NULL
-1002	aefafdf	141434	NULL
-1003	aefafdf	141434	NULL
-1004	aefafdf	141434	NULL
+keyc	c1	c2
+1000	aefafdf	141434
+1001	aefafdf	141434
+1002	aefafdf	141434
+1003	aefafdf	141434
+1004	aefafdf	141434
 delete from t1;
 select count(*) from t1;
 count(*)
@@ -656,6 +664,10 @@ count(*)
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+create temporary table t2 (
+id int primary key, t1_keyc int,
+foreign key (t1_keyc) references t1(keyc)) engine = innodb;
+ERROR HY000: Cannot add foreign key constraint
 drop procedure populate_t1;
 drop table t1;
 Warnings:
