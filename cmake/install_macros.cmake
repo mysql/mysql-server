@@ -60,7 +60,11 @@ FUNCTION (INSTALL_DEBUG_SYMBOLS)
     IF(NOT comp)
       SET(comp Debuginfo_archive_only) # not in MSI
     ENDIF()
-    INSTALL(FILES ${pdb_location} DESTINATION ${ARG_INSTALL_LOCATION} COMPONENT ${comp})
+	IF(type MATCHES "STATIC")
+	  # PDB for static libraries might be unsupported http://public.kitware.com/Bug/view.php?id=14600
+	  SET(opt OPTIONAL)
+	ENDIF()
+    INSTALL(FILES ${pdb_location} DESTINATION ${ARG_INSTALL_LOCATION} COMPONENT ${comp} ${opt})
   ENDFOREACH()
   ENDIF()
 ENDFUNCTION()
