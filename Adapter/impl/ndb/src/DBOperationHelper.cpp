@@ -198,9 +198,6 @@ const NdbOperation * DBOperationHelper_VO(Handle<Object> spec, int opcode,
   valueObj = v->ToObject();
   NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
 
-  /* The VO may have values that are not yet encoded to its buffer. */
-  nro->prepare();  // FIXME: prepare() could return an error
-  
   /* Set the key record and key buffer from the helper spec */
   setKeysInOp(spec, op);
   

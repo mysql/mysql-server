@@ -358,6 +358,7 @@ DBOperation.prototype.buildOpHelper = function(helper) {
      DBOperationHelper only needs the VO.
   */
   if(isVOwrite) {
+    adapter.impl.prepareForUpdate(this.values);
     helper[OpHelper.value_obj] = this.values;
   }  
   else {
