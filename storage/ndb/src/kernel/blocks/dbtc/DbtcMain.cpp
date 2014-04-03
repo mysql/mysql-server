@@ -8721,7 +8721,17 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
   switch (ptr.p->scanFragState) {
   case ScanFragRec::WAIT_GET_PRIMCONF:
     jam();
-    ndbrequire(false);
+    /**
+     * Time-out waiting for local DIH, we will continue waiting forever.
+     * This should only occur when we run in an unstable environment where
+     * the main thread goes slow.
+     * We reset timer to avoid getting here again immediately.
+     */
+    ptr.p->startFragTimer(ctcTimer);
+#ifdef VM_TRACE
+    g_eventLogger->warning("Time-out in WAIT_GET_PRIMCONF: scanRecord = %u",
+                           ptr.i);
+endif
     break;
   case ScanFragRec::LQH_ACTIVE:{
     jam();
