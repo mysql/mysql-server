@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -60,13 +60,12 @@ extern Uint32 MAX_RECEIVED_SIGNALS;
 bool
 Trpman::handles_this_node(Uint32 nodeId)
 {
-#ifndef NDBD_MULTITHREADED
-  return true;
-#else
+  /* If there's only one receiver then no question */
   if (globalData.ndbMtReceiveThreads <= (Uint32)1)
     return true;
-  return (instance()== (mt_get_recv_thread_idx(nodeId) + /* proxy */ 1));
-#endif
+  
+  /* There's a global receiver->thread index - look it up */
+  return (instance() == (get_recv_thread_idx(nodeId) + /* proxy */ 1));
 }
 
 void
@@ -819,17 +818,19 @@ TrpmanProxy::execROUTE_ORD(Signal* signal)
 {
   jamEntry();
 
-#ifdef VM_TRACE
   RouteOrd* ord = (RouteOrd*)signal->getDataPtr();
   Uint32 nodeId = ord->from;
   ndbassert(nodeId != 0);
-#endif
-#ifndef NDBD_MULTITHREADED
-  Uint32 workerId = 0;
-#else
-  Uint32 workerId = mt_get_recv_thread_idx(nodeId);
-#endif
+
+  Uint32 workerIndex = 0;
+  
+  if (globalData.ndbMtReceiveThreads > (Uint32) 1)
+  {
+    workerIndex = get_recv_thread_idx(nodeId);
+    ndbrequire(workerIndex < globalData.ndbMtReceiveThreads);
+  }
+  
   SectionHandle handle(this, signal);
-  sendSignal(workerRef(workerId), GSN_ROUTE_ORD, signal,
+  sendSignal(workerRef(workerIndex), GSN_ROUTE_ORD, signal,
              signal->getLength(), JBB, &handle);
 }
