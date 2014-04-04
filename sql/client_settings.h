@@ -20,7 +20,6 @@
 #error You have already included an client_settings.h and it should not be included twice
 #endif /* CLIENT_SETTINGS_INCLUDED */
 
-#include <thr_alarm.h>
 #include <sql_common.h>
 
 /*
