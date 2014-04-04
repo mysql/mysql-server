@@ -272,68 +272,66 @@ Note	1003	/* select#1 */ select `a4`.`i` AS `i` from (/* select#2 */ select `a3`
 # subquery in WHERE
 EXPLAIN             SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`i` = 10) and (`test`.`t1`.`i` = 10))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`i` = 10) and (`test`.`t2`.`i` = 10))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.21"
+      "query_cost": "5.81"
     } /* cost_info */,
-    "duplicates_removal": {
-      "using_temporary_table": true,
-      "nested_loop": [
-        {
-          "table": {
-            "table_name": "t2",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 2,
-            "rows_produced_per_join": 1,
-            "filtered": 50,
-            "cost_info": {
-              "read_cost": "2.20",
-              "eval_cost": "0.20",
-              "prefix_cost": "2.40",
-              "data_read_per_join": "8"
-            } /* cost_info */,
-            "used_columns": [
-              "i"
-            ] /* used_columns */,
-            "attached_condition": "(`test`.`t2`.`i` = 10)"
-          } /* table */
-        },
-        {
-          "table": {
-            "table_name": "t1",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 7,
-            "rows_produced_per_join": 1,
-            "filtered": 14.286,
-            "using_join_buffer": "Block Nested Loop",
-            "cost_info": {
-              "read_cost": "3.21",
-              "eval_cost": "0.20",
-              "prefix_cost": "8.22",
-              "data_read_per_join": "8"
-            } /* cost_info */,
-            "used_columns": [
-              "i"
-            ] /* used_columns */,
-            "attached_condition": "(`test`.`t1`.`i` = 10)"
-          } /* table */
-        }
-      ] /* nested_loop */
-    } /* duplicates_removal */
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 7,
+          "rows_produced_per_join": 0,
+          "filtered": 14.286,
+          "cost_info": {
+            "read_cost": "3.21",
+            "eval_cost": "0.20",
+            "prefix_cost": "3.41",
+            "data_read_per_join": "7"
+          } /* cost_info */,
+          "used_columns": [
+            "i"
+          ] /* used_columns */,
+          "attached_condition": "(`test`.`t1`.`i` = 10)"
+        } /* table */
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 2,
+          "rows_produced_per_join": 0,
+          "filtered": 50,
+          "first_match": "t1",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.20",
+            "eval_cost": "0.20",
+            "prefix_cost": "5.82",
+            "data_read_per_join": "7"
+          } /* cost_info */,
+          "used_columns": [
+            "i"
+          ] /* used_columns */,
+          "attached_condition": "(`test`.`t2`.`i` = 10)"
+        } /* table */
+      }
+    ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`i` = 10) and (`test`.`t1`.`i` = 10))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`i` = 10) and (`test`.`t2`.`i` = 10))
 # two subqueries in WHERE
 EXPLAIN             SELECT * FROM t1
 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())

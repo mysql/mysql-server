@@ -14167,6 +14167,7 @@ innodb_make_page_dirty(
 	ulong space_id = *static_cast<const ulong*>(save);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(space_id);
 
 	buf_block_t* block = buf_page_get(
 		page_id_t(space_id, srv_saved_page_number_debug),
@@ -15152,7 +15153,9 @@ checkpoint_now_set(
 						check function */
 {
 	if (*(my_bool*) save) {
-		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
+		while (log_sys->last_checkpoint_lsn
+		       + 1 /* MLOG_CHECKPOINT */
+		       < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
@@ -16819,8 +16822,8 @@ innobase_convert_to_filename_charset(
 	CHARSET_INFO*	cs_to = &my_charset_filename;
 	CHARSET_INFO*	cs_from = system_charset_info;
 
-	return(strconvert(
-		cs_from, from, cs_to, to, len, &errors));
+	return(static_cast<uint>(strconvert(
+		cs_from, from, cs_to, to, static_cast<size_t>(len), &errors)));
 }
 
 /**********************************************************************
@@ -16837,6 +16840,6 @@ innobase_convert_to_system_charset(
 	CHARSET_INFO*	cs1 = &my_charset_filename;
 	CHARSET_INFO*	cs2 = system_charset_info;
 
-	return(strconvert(
-		cs1, from, cs2, to, len, errors));
+	return(static_cast<uint>(strconvert(
+		cs1, from, cs2, to, static_cast<size_t>(len), errors)));
 }
