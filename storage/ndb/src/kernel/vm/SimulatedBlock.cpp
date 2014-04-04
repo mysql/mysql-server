@@ -4469,6 +4469,16 @@ SimulatedBlock::assertOwnThread()
 
 #endif
 
+Uint32
+SimulatedBlock::get_recv_thread_idx(NodeId nodeId)
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_get_recv_thread_idx(nodeId);
+#else
+  return 0;
+#endif
+}
+
 /** 
  * #undef is needed since this file is included by SimulatedBlock_nonmt.cpp
  * and SimulatedBlock_mt.cpp
