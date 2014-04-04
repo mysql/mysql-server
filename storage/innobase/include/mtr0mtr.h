@@ -31,6 +31,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "log0types.h"
 #include "mtr0types.h"
 #include "buf0types.h"
+#include "trx0types.h"
 #include "dyn0buf.h"
 
 /** Start a mini-transaction. */
@@ -178,6 +179,10 @@ struct mtr_t {
 		value MTR_LOG_ALL */
 		mtr_log_t	m_log_mode;
 
+		/** MLOG_FILE_NAME tablespace associated with the
+		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
+		ulint		m_named_space;
+
 		/** State of the transaction */
 		mtr_state_t	m_state;
 
@@ -215,6 +220,13 @@ struct mtr_t {
 
 	/** Commit the mini-transaction. */
 	void commit();
+
+	/** Commit a mini-transaction that did not modify any pages,
+	but generated some redo log on a higher level, such as
+	MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
+	The caller must invoke log_mutex_enter() and log_mutex_exit().
+	This is to be used at log_checkpoint(). */
+	void commit_checkpoint();
 
 	/** Return current size of the buffer.
 	@return	savepoint */
@@ -255,6 +267,23 @@ struct mtr_t {
 	@param mode	 logging mode
 	@return	old mode */
 	inline mtr_log_t set_log_mode(mtr_log_t mode);
+
+	/** Set the tablespace associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	tablespace */
+	void set_named_space(ulint space)
+	{
+		ut_ad(m_impl.m_named_space == TRX_SYS_SPACE);
+		m_impl.m_named_space = space;
+	}
+
+#ifdef UNIV_DEBUG
+	/** Check the tablespace associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	tablespace
+	@return whether the mini-transaction is associated with the space */
+	bool is_named_space(ulint space) const;
+#endif /* UNIV_DEBUG */
 
 	/** Read 1 - 4 bytes from a file page buffered in the buffer pool.
 	@param ptr	pointer from where to read

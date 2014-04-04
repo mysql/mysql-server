@@ -14559,6 +14559,7 @@ innodb_make_page_dirty(
 	ulong space_id = *static_cast<const ulong*>(save);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(space_id);
 
 	buf_block_t* block = buf_page_get(
 		page_id_t(space_id, srv_saved_page_number_debug),
@@ -15544,7 +15545,9 @@ checkpoint_now_set(
 						check function */
 {
 	if (*(my_bool*) save) {
-		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
+		while (log_sys->last_checkpoint_lsn
+		       + 1 /* MLOG_CHECKPOINT */
+		       < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
