@@ -31,6 +31,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "que0types.h"
 #include "dict0types.h"
 #include "trx0types.h"
+#include "read0types.h"
 #include "row0types.h"
 #include "que0types.h"
 #include "pars0sym.h"

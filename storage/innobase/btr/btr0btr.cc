@@ -1058,6 +1058,7 @@ btr_free_but_not_root(
 leaf_loop:
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, logging_mode);
+	mtr.set_named_space(root_page_id.space());
 
 	root = btr_page_get(root_page_id, page_size, RW_X_LATCH, NULL, &mtr);
 
@@ -1082,6 +1083,7 @@ leaf_loop:
 top_loop:
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, logging_mode);
+	mtr.set_named_space(root_page_id.space());
 
 	root = btr_page_get(root_page_id, page_size, RW_X_LATCH, NULL, &mtr);
 
@@ -1111,6 +1113,8 @@ btr_free_root(
 {
 	buf_block_t*	block;
 	fseg_header_t*	header;
+
+	mtr->set_named_space(root_page_id.space());
 
 	block = btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, mtr);
 

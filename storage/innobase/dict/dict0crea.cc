@@ -353,6 +353,7 @@ dict_build_tablespace(
 		}
 
 		mtr_start(&mtr);
+		mtr.set_named_space(table->space);
 		dict_disable_redo_if_temporary(table, &mtr);
 
 		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
@@ -768,6 +769,13 @@ dict_create_index_tree_step(
 
 	mtr_start(&mtr);
 
+	const bool	missing = index->table->ibd_file_missing
+		|| dict_table_is_discarded(index->table);
+
+	if (!missing) {
+		mtr.set_named_space(index->space);
+	}
+
 	search_tuple = dict_create_search_tuple(node->ind_row, node->heap);
 
 	btr_pcur_open(UT_LIST_GET_FIRST(sys_indexes->indexes),
@@ -779,9 +787,7 @@ dict_create_index_tree_step(
 
 	dberr_t		err = DB_SUCCESS;
 
-	if (node->index->table->ibd_file_missing
-	    || dict_table_is_discarded(node->index->table)) {
-
+	if (missing) {
 		node->page_no = FIL_NULL;
 	} else {
 		node->page_no = btr_create(
@@ -1059,6 +1065,7 @@ dict_recreate_index_tree(
 	mtr_commit(mtr);
 
 	mtr_start(mtr);
+	mtr->set_named_space(space);
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 
 	/* Find the index corresponding to this SYS_INDEXES record. */
