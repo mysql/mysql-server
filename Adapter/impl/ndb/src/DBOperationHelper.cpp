@@ -193,7 +193,6 @@ const NdbOperation * DBOperationHelper_VO(Handle<Object> spec, int opcode,
   const NdbOperation * ndbOp;
   Operation op;
 
-  /* NdbOperation.prepare() just verified that this is really a VO */
   v = spec->Get(HELPER_VALUE_OBJECT);
   valueObj = v->ToObject();
   NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
