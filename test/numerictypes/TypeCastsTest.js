@@ -146,7 +146,7 @@ t8.run = function() {
       shouldSucceed(t8, session.save(r));
     });
   });
-}
+};
 
 var t9 = new harness.ConcurrentTest("FindModifySave_22003");
 t9.run = function() {
@@ -156,22 +156,22 @@ t9.run = function() {
       shouldGetError(t9, "22003", session.save(r));
     });
   });
-}
+};
 
 var t10 = new harness.ConcurrentTest("FindModifySave_22003_batch");
 t10.run = function() {
   fail_openSession(t10, function(session) {
     session.find(Numerictypes, 110).then(function(findResult) {
-      findResult.tposNumber = -110;  // store a negative value in an unsigned column
+      findResult.tposnumber = -110;  // store a negative value in an unsigned column
       var batch = session.createBatch();
       batch.find(Numerictypes, 109);
       batch.save(findResult).
-        then(function() { t10.appendErrorMessage("expected error state 22003")},
-             function(e) { t10.errorIfNotEqual("22003", e.sqlstate); }
+        then(function()  { t10.appendErrorMessage("expected error state 22003"); },
+             function(e) { t10.errorIfNotEqual("sqlstate", "22003", e.sqlstate); }
         );
-      batch.execute().then(function() { t10.failOnError(); } );
+      batch.execute(function() { t10.failOnError(); });
     });
   });
-}
-    
+};
+
 module.exports.tests = [ t1,t2,t3,t4,t5,t6,t7,t8,t9,t10];

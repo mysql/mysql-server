@@ -359,7 +359,7 @@ DBOperation.prototype.buildOpHelper = function(helper) {
      DBOperationHelper only needs the VO.
   */
   if(isVOwrite) {
-    var error = adapter.impl.prepareForUpdate(this.values);
+    error = adapter.impl.prepareForUpdate(this.values);
     if(error) {
       this.encoderError = new DBOperationError().fromSqlState(error);
     } else {
