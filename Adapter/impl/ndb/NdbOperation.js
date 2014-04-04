@@ -207,6 +207,7 @@ function encodeBounds(key, nfields, dbIndexHandler, buffer) {
   if(nfields == 0) {
     return null;
   }
+  // FIXME: encodeFieldsInBuffer() may return an error
   encodeFieldsInBuffer(key, nfields, dbIndexHandler.getColumnMetadata(), 
                        dbIndexHandler.dbIndex.record, buffer, []);
   return buffer;
@@ -358,8 +359,12 @@ DBOperation.prototype.buildOpHelper = function(helper) {
      DBOperationHelper only needs the VO.
   */
   if(isVOwrite) {
-    adapter.impl.prepareForUpdate(this.values);
-    helper[OpHelper.value_obj] = this.values;
+    var error = adapter.impl.prepareForUpdate(this.values);
+    if(error) {
+      this.encoderError = new DBOperationError().fromSqlState(error);
+    } else {
+      helper[OpHelper.value_obj] = this.values;
+    }
   }  
   else {
     /* All non-VO operations get a row record */
