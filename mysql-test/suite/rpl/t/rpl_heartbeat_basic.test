@@ -363,13 +363,11 @@ let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_b
 --connection master
 DELETE FROM t1;
 DROP EVENT e1;
+--sync_slave_with_master
 --echo
 
 
-
-
 # Check received heartbeat events while logs flushed on slave
---connection slave
 --echo *** Flush logs on slave ***
 STOP SLAVE;
 RESET SLAVE;
