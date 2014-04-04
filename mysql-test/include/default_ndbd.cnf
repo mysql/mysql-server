@@ -32,3 +32,16 @@ HeartbeatIntervalDbApi=        30000
 
 #TransactionDeadlockDetectionTimeout= 7500
 DiskIOThreadPool=1
+
+#######
+# Configure a typical MT configuration in order to test
+# several instances of the MT'ed components.
+#
+# (Option is ignored for non-MT'ed NDB)
+#
+ThreadConfig=main={count=1},tc={count=3},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
+
+
+[ENV]
+# Use the multithreaded scheduler whenever available
+MTR_NDBMTD= 1
