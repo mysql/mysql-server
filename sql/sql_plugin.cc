@@ -2015,9 +2015,7 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   }
   if (!plugin->plugin_dl)
   {
-    push_warning(thd, Sql_condition::SL_WARNING,
-                 WARN_PLUGIN_DELETE_BUILTIN, ER(WARN_PLUGIN_DELETE_BUILTIN));
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
+    my_error(ER_PLUGIN_DELETE_BUILTIN, MYF(0));
     goto err;
   }
   if (plugin->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
