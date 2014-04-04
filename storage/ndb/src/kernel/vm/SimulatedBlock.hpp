@@ -820,6 +820,12 @@ protected:
    */
   void setup_wakeup();
 
+  /**
+   * Get receiver thread index for node
+   * MAX_NODES == no receiver thread
+   */
+  Uint32 get_recv_thread_idx(NodeId nodeId);
+
 private:
   NewVARIABLE* NewVarRef;      /* New Base Address Table for block  */
   Uint16       theBATSize;     /* # entries in BAT */
