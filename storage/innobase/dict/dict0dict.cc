@@ -1539,36 +1539,35 @@ dict_table_rename_in_cache(
 		ut_free(filepath);
 
 	} else if (!is_system_tablespace(table->space)) {
-		char*	new_path = NULL;
-
 		if (table->dir_path_of_temp_table != NULL) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Trying to rename a TEMPORARY TABLE %s ( %s )",
 				ut_get_name(NULL, TRUE, old_name).c_str(),
 				table->dir_path_of_temp_table);
 			return(DB_ERROR);
+		}
 
-		} else if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			char*		old_path;
+		char*	new_path = NULL;
+		char*	old_path = fil_space_get_first_path(table->space);
 
-			old_path = fil_space_get_first_path(table->space);
-
+		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			new_path = os_file_make_new_pathname(
 				old_path, new_name);
-
-			ut_free(old_path);
 
 			dberr_t	err = RemoteDatafile::create_link_file(
 				new_name, new_path);
 
 			if (err != DB_SUCCESS) {
 				ut_free(new_path);
+				ut_free(old_path);
 				return(DB_TABLESPACE_EXISTS);
 			}
 		}
 
 		bool	success = fil_rename_tablespace(
-			old_name, table->space, new_name, new_path);
+			table->space, old_path, new_name, new_path);
+
+		ut_free(old_path);
 
 		/* If the tablespace is remote, a new .isl file was created
 		If success, delete the old one. If not, delete the new one.  */

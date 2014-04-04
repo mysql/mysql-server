@@ -77,11 +77,6 @@ SET(BUILDTYPE_DOCSTRING
  "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
  CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
 
-# Possibly temporary fix: Clang on 32 bit causes non-debug server to crash
-IF(CMAKE_OSX_ARCHITECTURES MATCHES "i386")
-  SET(CMAKE_CXX_COMPILER g++)
-ENDIF()
-
 IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
   IF(UNIX AND NOT APPLE)

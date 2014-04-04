@@ -185,5 +185,4 @@ xdes_calc_descriptor_page(
 
 	return(ut_2pow_round(offset, page_size.physical()));
 }
-
 #endif /* !UNIV_INNOCHECKSUM */

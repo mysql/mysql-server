@@ -1187,9 +1187,9 @@ row_ins_foreign_check_on_constraint(
 			dfield_set_null(&ufield->new_val);
 
 			if (table->fts && dict_table_is_fts_column(
-				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i))
-				!= ULINT_UNDEFINED) {
+				    table->fts->indexes,
+				    dict_index_get_nth_col_no(index, i))
+			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
 		}
@@ -1201,9 +1201,9 @@ row_ins_foreign_check_on_constraint(
 		/* DICT_FOREIGN_ON_DELETE_CASCADE case */
 		for (i = 0; i < foreign->n_fields; i++) {
 			if (table->fts && dict_table_is_fts_column(
-				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i))
-				!= ULINT_UNDEFINED) {
+				    table->fts->indexes,
+				    dict_index_get_nth_col_no(index, i))
+			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
 		}
@@ -2352,14 +2352,15 @@ row_ins_clust_index_entry_low(
 	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 
 		if (dict_table_is_intrinsic(index->table)) {
 			flags |= BTR_NO_UNDO_LOG_FLAG;
@@ -2743,23 +2744,28 @@ func_exit:
 	DBUG_RETURN(err);
 }
 
-/***************************************************************//**
-Starts a mini-transaction and checks if the index will be dropped.
+/** Start a mini-transaction and check if the index will be dropped.
+@param[in,out]	mtr		mini-transaction
+@param[in,out]	index		secondary index
+@param[in]	check		whether to check
+@param[in]	search_mode	flags
 @return true if the index is to be dropped */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 row_ins_sec_mtr_start_and_check_if_aborted(
-/*=======================================*/
-	mtr_t*		mtr,	/*!< out: mini-transaction */
-	dict_index_t*	index,	/*!< in/out: secondary index */
-	bool		check,	/*!< in: whether to check */
+	mtr_t*		mtr,
+	dict_index_t*	index,
+	bool		check,
 	ulint		search_mode)
-				/*!< in: flags */
 {
 	ut_ad(!dict_index_is_clust(index));
+	ut_ad(mtr->is_named_space(index->space));
+
+	const mtr_log_t	log_mode = mtr->get_log_mode();
 
 	mtr_start(mtr);
-	dict_disable_redo_if_temporary(index->table, mtr);
+	mtr->set_named_space(index->space);
+	mtr->set_log_mode(log_mode);
 
 	if (!check) {
 		return(false);
@@ -2833,22 +2839,21 @@ row_ins_sec_index_entry_low(
 	      || dict_table_is_intrinsic(index->table));
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 
 		if (dict_table_is_intrinsic(index->table)) {
 			flags |= BTR_NO_UNDO_LOG_FLAG;
 		}
-	}
-
-	/* Disable insert buffering for temp-table indexes */
-	if (!dict_table_is_temporary(index->table)) {
+	} else {
+		/* Enable insert buffering if not temp-table */
 		search_mode |= BTR_INSERT;
 	}
 
@@ -3113,6 +3118,7 @@ row_ins_index_entry_big_rec_func(
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,

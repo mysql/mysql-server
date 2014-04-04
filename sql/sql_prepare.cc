@@ -530,7 +530,7 @@ static void set_param_short(Item_param *param, uchar **pos, ulong len)
     return;
   value= sint2korr(*pos);
 #else
-  shortget(value, *pos);
+  shortget(&value, *pos);
 #endif
   param->set_int(param->unsigned_flag ? (longlong) ((uint16) value) :
                                         (longlong) value, 6);
@@ -545,7 +545,7 @@ static void set_param_int32(Item_param *param, uchar **pos, ulong len)
     return;
   value= sint4korr(*pos);
 #else
-  longget(value, *pos);
+  longget(&value, *pos);
 #endif
   param->set_int(param->unsigned_flag ? (longlong) ((uint32) value) :
                                         (longlong) value, 11);
@@ -560,7 +560,7 @@ static void set_param_int64(Item_param *param, uchar **pos, ulong len)
     return;
   value= (longlong) sint8korr(*pos);
 #else
-  longlongget(value, *pos);
+  longlongget(&value, *pos);
 #endif
   param->set_int(value, 21);
   *pos+= 8;
