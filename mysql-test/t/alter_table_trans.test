@@ -32,4 +32,16 @@ insert t1 values (repeat('3', 8193),3,1,1);
 ALTER TABLE t1 ADD PRIMARY KEY (col4(10)) , ADD UNIQUE KEY uidx (col3);
 DROP TABLE t1;
 
+#
+# MDEV-5743 Server crashes in mysql_alter_table on an attempt to add a primary key to InnoDB table
+#
+
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (2);
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+ALTER TABLE t1 DROP PRIMARY KEY;
+INSERT INTO t1 VALUES (2);
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+DROP TABLE t1;
 

@@ -6908,7 +6908,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           if (is_PK(key_info))
           {
             merged[0]= key_info[0];
-            if (is_PK(table->key_info))
+            if (table->key_info && is_PK(table->key_info))
             {
               old_cnt--;
               table->key_info++;
