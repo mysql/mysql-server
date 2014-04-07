@@ -258,24 +258,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
-/* Does the system remember a signal handler after a signal ? */
-#if !defined(HAVE_SIGACTION)
-#define SIGNAL_HANDLER_RESET_ON_DELIVERY
-#endif
-
-/*
-  Deprecated workaround for false-positive uninitialized variables
-  warnings. Those should be silenced using tool-specific heuristics.
-
-  Enabled by default for g++ due to the bug referenced below.
-*/
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
-    (defined(__GNUC__) && defined(__cplusplus))
-#define LINT_INIT(var) var= 0
-#else
-#define LINT_INIT(var)
-#endif
-
 #ifndef SO_EXT
 #ifdef _WIN32
 #define SO_EXT ".dll"
@@ -284,20 +266,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #else
 #define SO_EXT ".so"
 #endif
-#endif
-
-/*
-   Suppress uninitialized variable warning without generating code.
-
-   The _cplusplus is a temporary workaround for C++ code pending a fix
-   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772).
-*/
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
-    defined(__cplusplus) || !defined(__GNUC__)
-#define UNINIT_VAR(x) x= 0
-#else
-/* GCC specific self-initialization which inhibits the warning. */
-#define UNINIT_VAR(x) x= x
 #endif
 
 #if !defined(HAVE_UINT)
@@ -325,14 +293,6 @@ typedef unsigned short ushort;
 /* The DBUG_ON flag always takes precedence over default DBUG_OFF */
 #if defined(DBUG_ON) && defined(DBUG_OFF)
 #undef DBUG_OFF
-#endif
-
-/* We might be forced to turn debug off, if not turned off already */
-#if (defined(FORCE_DBUG_OFF) || defined(_lint)) && !defined(DBUG_OFF)
-#  define DBUG_OFF
-#  ifdef DBUG_ON
-#    undef DBUG_ON
-#  endif
 #endif
 
 /* Some types that is different between systems */
@@ -598,6 +558,8 @@ inline unsigned long long my_double2ulonglong(double d)
 #else
   #ifdef HAVE_LLVM_LIBCPP /* finite is deprecated in libc++ */
     #define my_isfinite(X) isfinite(X)
+  #elif defined _WIN32
+    #define my_isfinite(X) _finite(X)
   #else
     #define my_isfinite(X) finite(X)
   #endif
@@ -787,7 +749,6 @@ typedef char		my_bool; /* Small bool */
 /* Some helper macros */
 #define YESNO(X) ((X) ? "yes" : "no")
 
-#define MY_HOW_OFTEN_TO_ALARM	2	/* How often we want info on screen */
 #define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
 
 #include <my_byteorder.h>

@@ -202,6 +202,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   CHECK_C_SOURCE_RUNS(
   "
   #include <stdio.h>
+  #include <unistd.h>
   #include <errno.h>
   #include <assert.h>
   #include <linux/futex.h>

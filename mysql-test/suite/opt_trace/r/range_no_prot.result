@@ -205,15 +205,20 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 47,
                       "access_type": "range",
-                      "rows": 47,
+                      "range_details": {
+                        "used_index": "i2"
+                      } /* range_details */,
+                      "resulting_rows": 47,
                       "cost": 67.81,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 67.81,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 47,
+                "cost_for_plan": 67.81,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -354,15 +359,20 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 47,
                       "access_type": "range",
-                      "rows": 47,
+                      "range_details": {
+                        "used_index": "i2"
+                      } /* range_details */,
+                      "resulting_rows": 47,
                       "cost": 67.81,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 67.81,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 47,
+                "cost_for_plan": 67.81,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -618,15 +628,20 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 45,
                       "access_type": "range",
-                      "rows": 45,
+                      "range_details": {
+                        "used_index": "sort_union(i1,i2)"
+                      } /* range_details */,
+                      "resulting_rows": 45,
                       "cost": 67.363,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 67.363,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 45,
+                "cost_for_plan": 67.363,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -824,16 +839,21 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 103,
                       "access_type": "range",
-                      "rows": 103,
+                      "range_details": {
+                        "used_index": "index_for_group_by(i2_1)"
+                      } /* range_details */,
+                      "resulting_rows": 103,
                       "cost": 91.8,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 91.8,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 103,
+                "cost_for_plan": 91.8,
                 "sort_cost": 103,
                 "new_cost_for_plan": 194.8,
                 "chosen": true
@@ -1058,15 +1078,20 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 103,
                       "access_type": "range",
-                      "rows": 103,
+                      "range_details": {
+                        "used_index": "index_for_group_by(i2_1)"
+                      } /* range_details */,
+                      "resulting_rows": 103,
                       "cost": 91.8,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 91.8,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 103,
+                "cost_for_plan": 91.8,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -1133,7 +1158,7 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2
 WHERE key2 = 5 or key2 = 4 or key2 = 3 or key2 = 2 or key2 = 1 
 GROUP BY key2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	i2_1,i2_2	i2_1	4	NULL	47	10.64	Using where; Using index
+1	SIMPLE	t2	NULL	range	i2_1,i2_2	i2_1	4	NULL	47	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`key2` AS `key2`,min(`test`.`t2`.`key2_1`) AS `MIN(key2_1)` from `test`.`t2` where ((`test`.`t2`.`key2` = 5) or (`test`.`t2`.`key2` = 4) or (`test`.`t2`.`key2` = 3) or (`test`.`t2`.`key2` = 2) or (`test`.`t2`.`key2` = 1)) group by `test`.`t2`.`key2`
 
@@ -1373,18 +1398,23 @@ GROUP BY key2	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 47,
                       "access_type": "range",
-                      "rows": 5,
+                      "range_details": {
+                        "used_index": "i2_1"
+                      } /* range_details */,
+                      "resulting_rows": 47,
                       "cost": 21.124,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 47,
                 "cost_for_plan": 21.124,
-                "rows_for_plan": 5,
-                "sort_cost": 5,
-                "new_cost_for_plan": 26.124,
+                "sort_cost": 47,
+                "new_cost_for_plan": 68.124,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -1449,7 +1479,7 @@ GROUP BY key2	{
 
 EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	i2_1,i2_2	i2_1	4	const	10	100.00	Using where
+1	SIMPLE	t2	NULL	ref	i2_1,i2_2	i2_1	4	const	10	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`key1a` AS `key1a`,`test`.`t2`.`key1b` AS `key1b`,`test`.`t2`.`key2` AS `key2`,`test`.`t2`.`key2_1` AS `key2_1`,`test`.`t2`.`key2_2` AS `key2_2`,`test`.`t2`.`key3` AS `key3` from `test`.`t2` where ((`test`.`t2`.`key2` = 1) and ((`test`.`t2`.`key2_1` = 1) or (`test`.`t2`.`key3` = 5)))
 
@@ -1637,13 +1667,17 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "i2_1"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
+                "condition_filtering_pct": 0.9975,
+                "rows_for_plan": 0.0997,
                 "cost_for_plan": 12,
-                "rows_for_plan": 10,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -1931,15 +1965,20 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 2,
                       "access_type": "range",
-                      "rows": 2,
+                      "range_details": {
+                        "used_index": "union(i2,i3)"
+                      } /* range_details */,
+                      "resulting_rows": 2,
                       "cost": 4.727,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 4.727,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
+                "cost_for_plan": 4.727,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -1979,7 +2018,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
 
 EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	i2_1,i2_2	NULL	NULL	NULL	1024	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	i2_1,i2_2	NULL	NULL	NULL	1024	33.98	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`key1a` AS `key1a`,`test`.`t2`.`key1b` AS `key1b`,`test`.`t2`.`key2` AS `key2`,`test`.`t2`.`key2_1` AS `key2_1`,`test`.`t2`.`key2_2` AS `key2_2`,`test`.`t2`.`key3` AS `key3` from `test`.`t2` where ((`test`.`t2`.`key2_1` < 79) or (`test`.`t2`.`key2` = 2))
 
@@ -2094,15 +2133,17 @@ EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1024,
                       "access_type": "scan",
-                      "rows": 1024,
+                      "resulting_rows": 347.97,
                       "cost": 213.05,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 347.97,
                 "cost_for_plan": 213.05,
-                "rows_for_plan": 1024,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -2316,15 +2357,20 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                       "chosen": true
                     },
                     {
+                      "rows_to_scan": 1,
                       "access_type": "range",
-                      "rows": 1,
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
+                      "resulting_rows": 1,
                       "cost": 2.41,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 2.41,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 2.41,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -2533,15 +2579,20 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 2,
                       "access_type": "range",
-                      "rows": 2,
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
+                      "resulting_rows": 2,
                       "cost": 4.81,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 4.81,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
+                "cost_for_plan": 4.81,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -2584,7 +2635,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
 EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and 
 (key1a = 4 or key1a = 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	PRIMARY,i1b	i1b	4	NULL	2	100.00	Using index condition
+1	SIMPLE	t2	NULL	range	PRIMARY,i1b	i1b	4	NULL	2	2.50	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`key1a` AS `key1a`,`test`.`t2`.`key1b` AS `key1b`,`test`.`t2`.`key2` AS `key2`,`test`.`t2`.`key2_1` AS `key2_1`,`test`.`t2`.`key2_2` AS `key2_2`,`test`.`t2`.`key3` AS `key3` from `test`.`t2` where ((`test`.`t2`.`key1b` < 10) and (`test`.`t2`.`key1b` > 7) and ((`test`.`t2`.`key1a` = 4) or (`test`.`t2`.`key1a` = 5)))
 
@@ -2746,15 +2797,20 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 2,
                       "access_type": "range",
-                      "rows": 2,
+                      "range_details": {
+                        "used_index": "i1b"
+                      } /* range_details */,
+                      "resulting_rows": 0.05,
                       "cost": 3.81,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 0.05,
                 "cost_for_plan": 3.81,
-                "rows_for_plan": 2,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -2796,7 +2852,7 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
 
 EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	i1,i2	NULL	NULL	NULL	1024	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	i1,i2	NULL	NULL	NULL	1024	55.55	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key1` > 1) or (`test`.`t1`.`key2` > 2))
 
@@ -2984,15 +3040,17 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1024,
                       "access_type": "scan",
-                      "rows": 1024,
+                      "resulting_rows": 568.84,
                       "cost": 215.05,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 568.84,
                 "cost_for_plan": 215.05,
-                "rows_for_plan": 1024,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -3231,15 +3289,20 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                       "chosen": false
                     },
                     {
+                      "rows_to_scan": 42,
                       "access_type": "range",
-                      "rows": 42,
+                      "range_details": {
+                        "used_index": "i2"
+                      } /* range_details */,
+                      "resulting_rows": 42,
                       "cost": 59.81,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 59.81,
-                "rows_for_plan": 42
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 42,
+                "cost_for_plan": 59.81
               },
               {
                 "plan_prefix": [
@@ -3256,17 +3319,19 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                       "chosen": true
                     },
                     {
+                      "rows_to_scan": 1024,
                       "access_type": "scan",
                       "using_join_cache": true,
                       "buffers_needed": 1,
-                      "rows": 768,
-                      "cost": 6511,
+                      "resulting_rows": 1024,
+                      "cost": 8609.9,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 573.89,
-                "rows_for_plan": 420
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 420,
+                "cost_for_plan": 573.89
               }
             ] /* considered_execution_plans */
           },
@@ -3324,7 +3389,7 @@ Inserting records
 
 EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	32	75.00	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	3,3	NULL	32	100.00	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 
@@ -3546,15 +3611,20 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                       "chosen": false
                     },
                     {
+                      "rows_to_scan": 32,
                       "access_type": "range",
-                      "rows": 24,
+                      "range_details": {
+                        "used_index": "intersect(cola,colb)"
+                      } /* range_details */,
+                      "resulting_rows": 32,
                       "cost": 59.759,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 32,
                 "cost_for_plan": 59.759,
-                "rows_for_plan": 24,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -3741,13 +3811,17 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "cola"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -3795,7 +3869,7 @@ EXPLAIN SELECT 1 FROM
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t2	NULL	ALL	b	NULL	NULL	NULL	3	100.00	Range checked for each record (index map: 0x1)
+2	DERIVED	t2	NULL	ALL	b	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x1)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`b` < `test`.`t1`.`c`) group by '' limit 1) `d2`
 
@@ -4120,7 +4194,7 @@ EXPLAIN SELECT 1 FROM
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t2	NULL	ALL	b	NULL	NULL	NULL	3	100.00	Range checked for each record (index map: 0x1)
+2	DERIVED	t2	NULL	ALL	b	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x1)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select 1 AS `1` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`b` < `test`.`t1`.`c`) group by '' limit 1) `d2`
 
@@ -4568,16 +4642,21 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 2,
                       "access_type": "range",
-                      "rows": 2,
+                      "range_details": {
+                        "used_index": "k1"
+                      } /* range_details */,
+                      "resulting_rows": 2,
                       "cost": 3.81,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 3.81,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
+                "cost_for_plan": 3.81,
                 "sort_cost": 2,
                 "new_cost_for_plan": 5.81,
                 "chosen": true
@@ -4897,16 +4976,18 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 2,
                       "access_type": "scan",
-                      "rows": 2,
+                      "resulting_rows": 2,
                       "cost": 2.4049,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 2.4049,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
+                "cost_for_plan": 2.4049,
                 "sort_cost": 2,
                 "new_cost_for_plan": 4.4049,
                 "chosen": true
@@ -5077,7 +5158,7 @@ INSERT INTO t1 VALUES (1, 1, 9,'a'), (2, 2, 8,'b'), (3, 3, 7,'c'),
 # Covering ROR intersect not chosen: only one scan used
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	100.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	8.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
@@ -5304,15 +5385,20 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       "chosen": false
                     },
                     {
+                      "rows_to_scan": 1,
                       "access_type": "range",
-                      "rows": 1,
+                      "range_details": {
+                        "used_index": "v_idx"
+                      } /* range_details */,
+                      "resulting_rows": 1,
                       "cost": 1.41,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
+                "condition_filtering_pct": 8,
+                "rows_for_plan": 0.08,
                 "cost_for_plan": 1.2,
-                "rows_for_plan": 1,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -5360,7 +5446,7 @@ test.t1	analyze	status	OK
 # Covering ROR intersect not chosen: cost
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	9	const,const	1	100.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	9	const,const	1	8.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
@@ -5614,15 +5700,20 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       "chosen": false
                     },
                     {
+                      "rows_to_scan": 1,
                       "access_type": "range",
-                      "rows": 1,
+                      "range_details": {
+                        "used_index": "intersect(v_idx,PRIMARY)"
+                      } /* range_details */,
+                      "resulting_rows": 0.2,
                       "cost": 1.3,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
+                "condition_filtering_pct": 8,
+                "rows_for_plan": 0.08,
                 "cost_for_plan": 1.2,
-                "rows_for_plan": 1,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -5871,15 +5962,20 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       "chosen": true
                     },
                     {
+                      "rows_to_scan": 1,
                       "access_type": "range",
-                      "rows": 1,
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
+                      "resulting_rows": 1,
                       "cost": 1.41,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
+                "condition_filtering_pct": 50,
+                "rows_for_plan": 0.5,
                 "cost_for_plan": 1.2,
-                "rows_for_plan": 1,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -6132,13 +6228,17 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "k1"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -6362,13 +6462,17 @@ trace
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "i_b"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -6555,13 +6659,17 @@ trace
                     },
                     {
                       "access_type": "range",
+                      "range_details": {
+                        "used_index": "i_b"
+                      } /* range_details */,
                       "chosen": false,
                       "cause": "heuristic_index_cheaper"
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -6601,3 +6709,42 @@ trace
   ] /* steps */
 }
 drop table t;
+#
+# Test trace of geometry fields
+#
+CREATE TABLE t1(
+pk INT AUTO_INCREMENT PRIMARY KEY,
+col_geom GEOMETRY NOT NULL
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1, GeomFromText('POINT(10 10)'));
+INSERT INTO t1 VALUES (2, GeomFromText('POINT(11 11)'));
+CREATE SPATIAL INDEX idx3 on t1(col_geom DESC);
+# Show that geometry data is traced as "unprintable_geometry_value"
+EXPLAIN
+SELECT pk, AsText(col_geom)
+FROM t1 
+WHERE MBREqual(t1.col_geom, GeomFromText('POINT(12 13)'));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	idx3	idx3	34	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,st_astext(`test`.`t1`.`col_geom`) AS `AsText(col_geom)` from `test`.`t1` where mbrequals(`test`.`t1`.`col_geom`,<cache>(st_geometryfromtext('POINT(12 13)')))
+SELECT show_json_object('"range_scan_alternatives": [', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+show_json_object('"range_scan_alternatives": [', TRACE)
+"range_scan_alternatives": [
+                      {
+                        "index": "idx3",
+                        "ranges": [
+                          "col_geom unprintable_geometry_value"
+                        ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
+                        "index_only": false,
+                        "rows": 1,
+                        "cost": 2.21,
+                        "chosen": true
+                      }
+                    ] 
+DROP TABLE t1;
+DROP FUNCTION show_json_object;

@@ -152,7 +152,7 @@ ERROR HY000: Query execution was interrupted, max_statement_time exceeded
 SELECT @a;
 @a
 1
-SELECT f2();
+SELECT MAX_STATEMENT_TIME=60000 f2();
 f2()
 1
 Warnings:
@@ -197,10 +197,8 @@ SELECT SLEEP(2) into @a;
 INSERT INTO t2 VALUES(@a);
 END
 |
-SET @@SESSION.max_statement_time = 0;
 # Wait until at least one instance of event is executed.
-SET @@SESSION.max_statement_time = 2;
-SELECT * FROM t2;
+SELECT MAX_STATEMENT_TIME=3600000 * FROM t2;
 f1
 0
 DELETE FROM t2;
@@ -226,12 +224,12 @@ SELECT @a, @b;
 @a	@b
 1	1
 INSERT INTO t1 VALUES (1, 'string');
-SELECT * FROM t2;
+SELECT MAX_STATEMENT_TIME=3600000 * FROM t2;
 f1
 0
 DROP TABLE t1,t2;
 #
-# 8. Test MAX_STATEMENT_TIME precedence set at difference levels.
+# 8. Test MAX_STATEMENT_TIME precedence set at different levels.
 #
 SET @@SESSION.max_statement_time = 3;
 SELECT sleep(5);
