@@ -628,7 +628,7 @@ int main(int argc, char** argv){
 
     /* Create or replace the view */
     BaseString sql;
-    sql.assfmt("CREATE OR REPLACE DEFINER=`root@localhost` "
+    sql.assfmt("CREATE OR REPLACE DEFINER=`root`@`localhost` "
                "SQL SECURITY INVOKER VIEW `%s`.`%s` AS %s",
                opt_ndbinfo_db, v.name, view_sql.c_str());
     print_conditional_sql(sql);
