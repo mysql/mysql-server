@@ -5,7 +5,7 @@
 #
 
 --source include/not_embedded.inc
-
+--source include/have_64bit.inc
 --source include/have_innodb.inc
 
 --disable_query_log
