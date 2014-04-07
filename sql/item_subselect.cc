@@ -42,9 +42,26 @@
 #include "sql_join_buffer.h"                    // JOIN_CACHE
 #include "sql_optimizer.h"                      // JOIN
 #include "opt_explain_format.h"
+#include "parse_tree_nodes.h"
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
+  substitution(NULL), in_cond_of_tab(INT_MIN), engine(NULL), old_engine(NULL),
+  used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
+  changed(false)
+{
+  with_subselect= 1;
+  reset();
+  /*
+    Item value is NULL if select_result_interceptor didn't change this value
+    (i.e. some rows will be found returned)
+  */
+  null_value= TRUE;
+}
+
+
+Item_subselect::Item_subselect(const POS &pos):
+  super(pos), value_assigned(0), traced_before(false),
   substitution(NULL), in_cond_of_tab(INT_MIN), engine(NULL), old_engine(NULL),
   used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
   changed(false)
@@ -1158,6 +1175,37 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
   //if test_limit will fail then error will be reported to client
   test_limit(select_lex->master_unit());
   DBUG_VOID_RETURN;
+}
+
+
+Item_in_subselect::Item_in_subselect(const POS &pos, Item * left_exp,
+				     PT_subselect *pt_subselect_arg)
+: super(pos), left_expr(left_exp), left_expr_cache(NULL),
+  left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
+  optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
+  in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL),
+  pt_subselect(pt_subselect_arg)
+{
+  DBUG_ENTER("Item_in_subselect::Item_in_subselect");
+  max_columns= UINT_MAX;
+  maybe_null= 1;
+  reset();
+  DBUG_VOID_RETURN;
+}
+
+
+bool Item_in_subselect::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res) || left_expr->itemize(pc, &left_expr) ||
+      pt_subselect->contextualize(pc))
+    return true;
+  SELECT_LEX *select_lex= pt_subselect->value;
+  init(select_lex, new select_exists_subselect(this));
+  //if test_limit will fail then error will be reported to client
+  test_limit(select_lex->master_unit());
+  return false;
 }
 
 Item_allany_subselect::Item_allany_subselect(Item * left_exp,

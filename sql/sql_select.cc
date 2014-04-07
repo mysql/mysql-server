@@ -535,7 +535,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         SJ_TMP_TABLE *sjtbl;
         if (jt_rowid_offset) /* Temptable has at least one rowid */
         {
-          uint tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
+          size_t tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
           if (!(sjtbl= new (thd->mem_root) SJ_TMP_TABLE) ||
               !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
             DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -1927,6 +1927,11 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   sjm_pos->sj_strategy= SJ_OPT_NONE;
 
   sjm_pos->use_join_buffer= false;
+  /*
+    No need to recalculate filter_effect since there are no post-read
+    conditions for materialized tables.
+  */
+  sjm_pos->filter_effect= 1.0;
 
   /*
     Key_use objects are required so that create_ref_for_key() can set up
@@ -1948,7 +1953,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
     sjm_pos->set_prefix_costs(block_read_cost, fanout);
-    sjm_pos->fanout= 1.0;   
+    sjm_pos->rows_fetched= 1.0;   
     sjm_pos->read_cost= block_read_cost;      
     tab->type= JT_REF;
   }
@@ -1956,7 +1961,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   {
     sjm_pos->key= NULL; // No index use for MaterializeScan
     sjm_pos->set_prefix_costs(tab->read_time, tab->records * fanout);
-    sjm_pos->fanout= tab->records;
+    sjm_pos->rows_fetched= tab->records;
     sjm_pos->read_cost= tab->read_time;
     tab->type= JT_ALL;
   }
@@ -2010,9 +2015,18 @@ void JOIN_TAB::init_join_cache()
     DBUG_ASSERT(0);
 
   }
+  DBUG_EXECUTE_IF("jb_alloc_with_prev_fail",
+                  if (prev_cache)
+                  {
+                    DBUG_SET("+d,jb_alloc_fail");
+                    DBUG_SET("-d,jb_alloc_with_prev_fail");
+                  });
   if (!op || op->init())
   {
     use_join_cache= JOIN_CACHE::ALG_NONE;
+    // Unlink cache
+    if (prev_cache)
+      prev_cache->next_cache= NULL;
     op= NULL;
   }
   else
@@ -3859,7 +3873,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     read_time= tab->position->read_cost;
     for (const JOIN_TAB *jt= tab + 1;
          jt < join->join_tab + join->primary_tables; jt++)
-      fanout*= jt->position->fanout; // fanout is always >= 1
+    {
+      fanout*= jt->position->rows_fetched * jt->position->filter_effect;
+    }
   }
   else
     read_time= table->file->table_scan_cost().total_cost();

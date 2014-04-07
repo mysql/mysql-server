@@ -514,7 +514,7 @@ os_event::wait_time_low(
 		tv.tv_usec += time_in_usec;
 
 		if ((ulint) tv.tv_usec >= MICROSECS_IN_A_SECOND) {
-			tv.tv_sec += time_in_usec / MICROSECS_IN_A_SECOND;
+			tv.tv_sec += tv.tv_usec / MICROSECS_IN_A_SECOND;
 			tv.tv_usec %= MICROSECS_IN_A_SECOND;
 		}
 

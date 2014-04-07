@@ -2078,7 +2078,7 @@ err:
 
 bool check_grant_column(THD *thd, GRANT_INFO *grant,
                         const char *db_name, const char *table_name,
-                        const char *name, uint length,  Security_context *sctx)
+                        const char *name, size_t length,  Security_context *sctx)
 {
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
@@ -2148,7 +2148,7 @@ err:
 */
 
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
-                                     const char *name, uint length)
+                                     const char *name, size_t length)
 {
   GRANT_INFO *grant;
   const char *db_name;
@@ -2733,13 +2733,12 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   ulong want_access;
   uint counter,index;
   int  error = 0;
-  ACL_USER *acl_user;
+  ACL_USER *acl_user= NULL;
   ACL_DB *acl_db;
   char buff[1024];
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_show_grants");
 
-  LINT_INIT(acl_user);
   if (!initialized)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
@@ -3561,9 +3560,9 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->make_lex_string(&combo->host,
                        combo->host.str, strlen(combo->host.str), 0);
 
-  combo->password= empty_lex_str;
-  combo->plugin= empty_lex_str;
-  combo->auth= empty_lex_str;
+  combo->password= EMPTY_CSTR;
+  combo->plugin= EMPTY_CSTR;
+  combo->auth= EMPTY_CSTR;
   combo->uses_identified_by_clause= false;
   combo->uses_identified_with_clause= false;
   combo->uses_identified_by_password_clause= false;

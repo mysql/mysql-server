@@ -566,12 +566,14 @@ WHERE t100.I=t10.I
   AND t10000.K=t10.I;
 --source include/expect_qep.inc
 
+--echo # See BUG#18352936
 let $query=
 SELECT COUNT(*) FROM t10,t100,t10000
 WHERE t100.I=t10.I
   AND t10000.K=t10.I;
 --source include/check_qep.inc
 
+--echo # See BUG#18352936
 let $query=
 SELECT COUNT(*) FROM t10,t10000,t100
 WHERE t100.I=t10.I

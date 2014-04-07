@@ -451,7 +451,7 @@ list_dbs(MYSQL *mysql,const char *wild)
 		if ((rresult = mysql_store_result(mysql)))
 		{
 		  rrow = mysql_fetch_row(rresult);
-		  rowcount += (ulong) strtoull(rrow[0], (char**) 0, 10);
+		  rowcount += (ulong) my_strtoull(rrow[0], (char**) 0, 10);
 		  mysql_free_result(rresult);
 		}
 	      }
@@ -592,7 +592,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
 	      if ((rresult = mysql_store_result(mysql)))
 	      {
 		rrow = mysql_fetch_row(rresult);
-		rowcount += (unsigned long) strtoull(rrow[0], (char**) 0, 10);
+		rowcount += (unsigned long) my_strtoull(rrow[0], (char**) 0, 10);
 		mysql_free_result(rresult);
 	      }
 	      sprintf(rows,"%10lu",rowcount);
@@ -647,7 +647,7 @@ static int
 list_table_status(MYSQL *mysql,const char *db,const char *wild)
 {
   char query[NAME_LEN + 100];
-  int len;
+  size_t len;
   MYSQL_RES *result;
   MYSQL_ROW row;
 
@@ -687,10 +687,10 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 	    const char *wild)
 {
   char query[NAME_LEN + 100];
-  int len;
+  size_t len;
   MYSQL_RES *result;
   MYSQL_ROW row;
-  ulong UNINIT_VAR(rows);
+  ulong rows= 0;
 
   if (mysql_select_db(mysql,db))
   {
@@ -709,7 +709,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
       return 1;
     }
     row= mysql_fetch_row(result);
-    rows= (ulong) strtoull(row[0], (char**) 0, 10);
+    rows= (ulong) my_strtoull(row[0], (char**) 0, 10);
     mysql_free_result(result);
   }
 

@@ -801,7 +801,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
           /* We don't use mysql_kill(), since it only handles 32-bit IDs. */
           char buff[26], *out; /* "KILL " + max 20 digs + NUL */
           out= strxmov(buff, "KILL ", NullS);
-          ullstr(strtoull(pos, NULL, 0), out);
+          ullstr(my_strtoull(pos, NULL, 0), out);
 
           if (mysql_query(mysql, buff))
 	  {
@@ -1348,7 +1348,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row)
   printf("| %-*s|", (int) field->max_length + 1, cur[0]);
 
   field = mysql_fetch_field(result);
-  tmp = cur[1] ? strtoull(cur[1], NULL, 10) : (ulonglong) 0;
+  tmp = cur[1] ? my_strtoull(cur[1], NULL, 10) : (ulonglong) 0;
   printf(" %-*s|\n", (int) field->max_length + 1,
 	 llstr((tmp - last_values[row]), buff));
   last_values[row] = tmp;
@@ -1366,7 +1366,7 @@ static void print_relative_row_vert(MYSQL_RES *result __attribute__((unused)),
   if (!row)
     putchar('|');
 
-  tmp = cur[1] ? strtoull(cur[1], NULL, 10) : (ulonglong) 0;
+  tmp = cur[1] ? my_strtoull(cur[1], NULL, 10) : (ulonglong) 0;
   printf(" %-*s|", ex_val_max_len[row] + 1,
 	 llstr((tmp - last_values[row]), buff));
 
@@ -1391,7 +1391,7 @@ static void store_values(MYSQL_RES *result)
   for (i = 0; (row = mysql_fetch_row(result)); i++)
   {
     my_stpcpy(ex_var_names[i], row[0]);
-    last_values[i]=strtoull(row[1],NULL,10);
+    last_values[i]= my_strtoull(row[1],NULL,10);
     ex_val_max_len[i]=2;		/* Default print width for values */
   }
   ex_var_count = i;

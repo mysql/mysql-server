@@ -25,6 +25,8 @@ SELECT COUNT(*) FROM countrylanguage;
 
 show variables like 'join_buffer_size';
 
+# Somewhat unstable filtering numbers
+--replace_regex /88.18/87.57/
 EXPLAIN
 SELECT city.Name, country.Name FROM city,country
   WHERE city.Country=country.Code AND 
@@ -102,6 +104,8 @@ use world;
 
 show variables like 'join_buffer_size';
 
+# Somewhat unstable filtering numbers
+--replace_regex /88.18/87.57/
 EXPLAIN
 SELECT city.Name, country.Name FROM city,country
   WHERE city.country=country.Code AND 
@@ -129,6 +133,8 @@ SELECT city.Name, country.Name, countrylanguage.Language
         city.Name LIKE 'L%' AND country.Population > 3000000 AND
         countrylanguage.Percentage > 50;
 
+# Somewhat unstable filtering numbers
+--replace_regex /88.18/87.57/
 EXPLAIN
 SELECT Name FROM city
   WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND
@@ -156,6 +162,8 @@ SELECT country.Name, IF(ISNULL(countrylanguage.country), NULL, countrylanguage.P
 set join_buffer_size=256;
 show variables like 'join_buffer_size';
 
+# Somewhat unstable filtering numbers
+--replace_regex /88.18/87.57/
 EXPLAIN
 SELECT city.Name, country.Name FROM city,country
   WHERE city.country=country.Code AND 
@@ -183,6 +191,8 @@ SELECT city.Name, country.Name, countrylanguage.Language
         city.Name LIKE 'L%' AND country.Population > 3000000 AND
         countrylanguage.Percentage > 50;
 
+# Somewhat unstable filtering numbers
+--replace_regex /88.18/87.57/
 EXPLAIN
 SELECT Name FROM city
   WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AND

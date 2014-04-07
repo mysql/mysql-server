@@ -748,14 +748,14 @@ set @@sort_buffer_size=8192;
 
 SELECT COUNT(*) FROM t1;
 
---replace_column 10 #
+--replace_column 10 # 11 #
 EXPLAIN 
 SELECT COUNT(*) FROM t1 
   WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 SELECT COUNT(*) FROM t1 
   WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 
---replace_column 10 #
+--replace_column 10 # 11 #
 EXPLAIN 
 SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c) 
   WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;

@@ -1,0 +1,25 @@
+!include ../my.cnf
+
+[mysqld.1]
+gtid-mode=on
+log-slave-updates=on
+enforce-gtid-consistency=on
+
+[mysqld.2]
+gtid-mode=on
+log-slave-updates=on
+enforce-gtid-consistency=on
+
+replicate-ignore-table=test.t_ignore
+replicate-wild-ignore-table=test.t_wild_ignore
+replicate-ignore-db=db_ignore
+binlog-ignore-db=db_binlog_ignore
+
+[mysqld.3]
+gtid-mode=on
+log-slave-updates=on
+enforce-gtid-consistency=on
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket

@@ -28,6 +28,7 @@
 #include "sql_parse.h"                          // check_stack_overrun
 #include "sql_time.h"                  // make_truncated_value_warning
 #include "opt_trace.h"
+#include "parse_tree_helpers.h"
 
 #include <algorithm>
 using std::min;
@@ -283,6 +284,30 @@ Item_bool_func2* Le_creator::create(Item *a, Item *b) const
   return new Item_func_le(a, b);
 }
 
+float Item_func_not::get_filtering_effect(table_map filter_for_table,
+                                          table_map read_tables,
+                                          const MY_BITMAP *fields_to_ignore,
+                                          double rows_in_table)
+{
+  const float filter= args[0]->get_filtering_effect(filter_for_table,
+                                                    read_tables,
+                                                    fields_to_ignore,
+                                                    rows_in_table);
+
+  /*
+    If the predicate that will be negated has COND_FILTER_ALLPASS
+    filtering it means that some dependent tables have not been
+    read, that the predicate is of a type that filtering effect is
+    not calculated for or something similar. In any case, the
+    filtering effect of the inverted predicate should also be
+    COND_FILTER_ALLPASS.
+  */
+  if (filter == COND_FILTER_ALLPASS)
+    return COND_FILTER_ALLPASS;
+
+  return 1.0f - filter;
+}
+
 /*
   Test functions
   Most of these  returns 0LL if false and 1LL if true and
@@ -429,10 +454,10 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
     sql_mode_t orig_sql_mode= thd->variables.sql_mode;
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_maps[2];
-    ulonglong UNINIT_VAR(orig_field_val); /* original field value if valid */
+    ulonglong orig_field_val= 0; /* original field value if valid */
 
-    LINT_INIT(old_maps[0]);
-    LINT_INIT(old_maps[1]);
+    old_maps[0]= NULL;
+    old_maps[1]= NULL;
 
     if (table)
       dbug_tmp_use_all_columns(table, old_maps, 
@@ -2220,6 +2245,20 @@ longlong Item_func_equal::val_int()
   return cmp.compare();
 }
 
+float Item_func_ne::get_filtering_effect(table_map filter_for_table,
+                                         table_map read_tables,
+                                         const MY_BITMAP *fields_to_ignore,
+                                         double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  return 1.0f - fld->get_cond_filter_default_probability(rows_in_table,
+                                                         COND_FILTER_EQUALITY);
+}
+
 longlong Item_func_ne::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -2227,6 +2266,75 @@ longlong Item_func_ne::val_int()
   return value != 0 && !null_value ? 1 : 0;
 }
 
+float Item_func_equal::get_filtering_effect(table_map filter_for_table,
+                                            table_map read_tables,
+                                            const MY_BITMAP *fields_to_ignore,
+                                            double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_EQUALITY);
+}
+
+float Item_func_ge::get_filtering_effect(table_map filter_for_table,
+                                         table_map read_tables,
+                                         const MY_BITMAP *fields_to_ignore,
+                                         double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_INEQUALITY);
+}
+
+float Item_func_lt::get_filtering_effect(table_map filter_for_table,
+                                         table_map read_tables,
+                                         const MY_BITMAP *fields_to_ignore,
+                                         double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_INEQUALITY);
+}
+
+float Item_func_le::get_filtering_effect(table_map filter_for_table,
+                                         table_map read_tables,
+                                         const MY_BITMAP *fields_to_ignore,
+                                         double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_INEQUALITY);
+}
+
+float Item_func_gt::get_filtering_effect(table_map filter_for_table,
+                                         table_map read_tables,
+                                         const MY_BITMAP *fields_to_ignore,
+                                         double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_INEQUALITY);
+}
 
 longlong Item_func_ge::val_int()
 {
@@ -2234,7 +2342,6 @@ longlong Item_func_ge::val_int()
   int value= cmp.compare();
   return value >= 0 ? 1 : 0;
 }
-
 
 longlong Item_func_gt::val_int()
 {
@@ -2295,10 +2402,43 @@ bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const
 }
 
 
+bool Item_func_interval::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (row == NULL || // OOM in constructor
+      super::itemize(pc, res))
+    return true;
+  DBUG_ASSERT(row == args[0]); // row->itemize() is not needed
+  return false;
+}
+
+
+Item_row *Item_func_interval::alloc_row(const POS &pos, MEM_ROOT *mem_root,
+                                        Item *expr1, Item *expr2,
+                                        PT_item_list *opt_expr_list)
+{
+  List<Item> *list= opt_expr_list ? &opt_expr_list->value
+                                  : new (mem_root) List<Item>;
+  if (list == NULL)
+    return NULL;
+  list->push_front(expr2);
+  row= new (mem_root) Item_row(pos, expr1, *list);
+  return row;
+}
+
+
 void Item_func_interval::fix_length_and_dec()
 {
   uint rows= row->cols();
   
+  //The number of columns in one argument is limited to one
+  for (uint i= 0; i < rows; i++)
+  {
+    if (row->element_index(i)->check_cols(1))
+      return;
+  }
+
   use_decimal_comparison= ((row->element_index(0)->result_type() ==
                             DECIMAL_RESULT) ||
                            (row->element_index(0)->result_type() ==
@@ -2654,6 +2794,23 @@ void Item_func_between::fix_length_and_dec()
   }
 }
 
+float
+Item_func_between::get_filtering_effect(table_map filter_for_table,
+                                        table_map read_tables,
+                                        const MY_BITMAP *fields_to_ignore,
+                                        double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  const float filter=
+    fld->get_cond_filter_default_probability(rows_in_table,
+                                             COND_FILTER_BETWEEN);
+
+  return negated ? 1.0f - filter : filter;
+}
 
 /**
   A helper function for Item_func_between::val_int() to avoid
@@ -2702,12 +2859,19 @@ longlong compare_between_int_result(bool compare_as_temporal_dates,
     if (args[0]->unsigned_flag)
     {
       /*
+        Comparing as unsigned.
         value BETWEEN <some negative number> AND <some number>
         rewritten to
         value BETWEEN 0 AND <some number>
       */
       if (!args[1]->unsigned_flag && (longlong) a < 0)
         a = 0;
+    }
+    else
+    {
+      // Comparing as signed, but b is unsigned, and really large
+      if (args[2]->unsigned_flag && (longlong) b < 0)
+        b= LONGLONG_MAX;
     }
 
     if (!args[1]->null_value && !args[2]->null_value)
@@ -3729,6 +3893,10 @@ void Item_func_case::cleanup()
   Coalesce - return first not NULL argument.
 */
 
+Item_func_coalesce::Item_func_coalesce(const POS &pos, PT_item_list *list)
+  : Item_func_numhybrid(pos, list)
+{}
+
 String *Item_func_coalesce::str_op(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -3936,12 +4104,8 @@ static int cmp_row(void *cmp_arg, cmp_item_row *a, cmp_item_row *b)
 
 static int cmp_decimal(void *cmp_arg, my_decimal *a, my_decimal *b)
 {
-  /*
-    We need call of fixing buffer pointer, because fast sort just copy
-    decimal buffers in memory and pointers left pointing on old buffer place
-  */
-  a->fix_buffer_pointer();
-  b->fix_buffer_pointer();
+  a->sanity_check();
+  b->sanity_check();
   return my_decimal_cmp(a, b);
 }
 
@@ -4148,15 +4312,23 @@ uchar *in_double::get_value(Item *item)
 
 in_decimal::in_decimal(uint elements)
   :in_vector(elements, sizeof(my_decimal),(qsort2_cmp) cmp_decimal, 0)
-{}
+{
+  if (base != NULL)
+  {
+    // Array placement new is not portable, so loop instead.
+    my_decimal *elt= static_cast<my_decimal*>(static_cast<void*>(base));
+    for (uint ix= 0; ix < elements; ++ix)
+    {
+      new (elt++) my_decimal;
+    }
+  }
+}
 
 
 void in_decimal::set(uint pos, Item *item)
 {
   /* as far as 'item' is constant, we can store reference on my_decimal */
   my_decimal *dec= ((my_decimal *)base) + pos;
-  dec->len= DECIMAL_BUFF_LENGTH;
-  dec->fix_buffer_pointer();
   my_decimal *res= item->val_decimal(dec);
   /* if item->val_decimal() is evaluated to NULL then res == 0 */ 
   if (!item->null_value && res != dec)
@@ -4172,6 +4344,13 @@ uchar *in_decimal::get_value(Item *item)
   return (uchar *)result;
 }
 
+
+void in_decimal::sort()
+{
+  my_decimal *begin= static_cast<my_decimal*>(static_cast<void*>(base));
+  my_decimal *end= begin + used_count;
+  std::sort(begin, end);
+}
 
 cmp_item* cmp_item::get_comparator(Item_result type,
                                    const CHARSET_INFO *cs)
@@ -4403,6 +4582,149 @@ cmp_item *cmp_item_datetime::make_same()
 }
 
 
+float 
+Item_func_in::get_single_col_filtering_effect(Item_ident *fieldref,
+                                              table_map filter_for_table,
+                                              const MY_BITMAP *fields_to_ignore,
+                                              double rows_in_table)
+{
+  /* 
+    Does not contribute to filtering effect if
+    1) This field belongs to another table.
+    2) Filter effect for this field has already been taken into
+       account. 'fieldref' may be a field or a reference to a field
+       (through a view, to an outer table etc)
+  */
+  if ((fieldref->used_tables() != filter_for_table) ||             // 1)
+      bitmap_is_set(fields_to_ignore,
+                    static_cast<Item_field*>
+                    (fieldref->real_item())->field->field_index))  // 2)
+    return COND_FILTER_ALLPASS;
+
+  const Item_field *fld= (Item_field*)fieldref->real_item();
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_EQUALITY);
+
+}
+
+float Item_func_in::get_filtering_effect(table_map filter_for_table,
+                                         table_map read_tables,
+                                         const MY_BITMAP *fields_to_ignore,
+                                         double rows_in_table)
+{
+
+  DBUG_ASSERT((read_tables & filter_for_table) == 0);
+  /*
+    To contribute to filtering effect, the condition must refer to
+    exactly one unread table: the table filtering is currently
+    calculated for.
+
+    Dependent subqueries are not considered available values and no
+    filtering should be calculated for this item if the IN list
+    contains one. dep_subq_in_list is 'true' if the IN list contains a
+    dependent subquery.
+  */
+  if ((used_tables() & ~read_tables) != filter_for_table ||
+      dep_subq_in_list)
+    return COND_FILTER_ALLPASS;
+
+  /*
+    No matter how many row values are input the filtering effect
+    shall not be higher than in_max_filter (currently 0.5).
+  */
+  const float in_max_filter= 0.5f;
+
+  float filter= COND_FILTER_ALLPASS;
+  if (args[0]->type() == Item::ROW_ITEM)
+  {
+    /*
+      This is a row value IN predicate: 
+         "WHERE (col1, col2, ...) IN ((1,2,..), ...)"
+      which can be rewritten to:
+         "WHERE (col1=1 AND col2=2...) OR (col1=.. AND col2=...) OR ..."
+
+      The filtering effect is: 
+        filter= #row_values * filter(<single_row_value>)
+
+      where filter(<single_row_value>) = filter(col1) * filter(col2) * ...
+
+      In other words, we ignore the fact that there could be identical
+      row values since writing "WHERE (a,b) IN ((1,1), (1,1), ...)" is
+      not expected input from a user.
+    */
+    Item_row* lhs_row= static_cast<Item_row*>(args[0]);
+    // For all items in the left row
+    float single_rowval_filter= COND_FILTER_ALLPASS;
+    for (uint i= 0; i < lhs_row->cols(); i++)
+    {
+      /*
+        May contribute to condition filtering only if
+        lhs_row->element_index(i) is a field or a reference to a field
+        (through a view, to an outer table etc)
+      */
+      if (lhs_row->element_index(i)->real_item()->type() == Item::FIELD_ITEM)
+      {
+        Item_ident *fieldref= 
+          static_cast<Item_ident*>(lhs_row->element_index(i));
+
+        const float tmp_filt= get_single_col_filtering_effect(fieldref,
+                                                              filter_for_table,
+                                                              fields_to_ignore,
+                                                              rows_in_table);
+        single_rowval_filter*= tmp_filt;
+      }
+    }
+
+    /*
+      If single_rowval_filter == COND_FILTER_ALLPASS, the filtering
+      effect of this field should be ignored. If not, selectivity
+      should not be higher than 'in_max_filter' even if there are a
+      lot of values on the right hand side
+
+      arg_count includes the left hand side item
+    */
+    if (single_rowval_filter != COND_FILTER_ALLPASS)
+      filter= min((arg_count - 1) * single_rowval_filter, in_max_filter);
+  }
+  else if (args[0]->real_item()->type() == Item::FIELD_ITEM)
+  {
+    /*
+      This is a single-column IN predicate:
+        "WHERE col IN (1, 2, ...)"
+      which can be rewritten to:
+        "WHERE col=1 OR col1=2 OR ..."
+
+      The filtering effect is: #values_right_hand_side * selectivity(=)
+
+      As for row values, it is assumed that no values on the right
+      hand side are identical.
+    */
+    DBUG_ASSERT(args[0]->type() == FIELD_ITEM || args[0]->type() == REF_ITEM);
+    Item_ident *fieldref= static_cast<Item_ident*>(args[0]);
+
+    const float tmp_filt= get_single_col_filtering_effect(fieldref,
+                                                          filter_for_table,
+                                                          fields_to_ignore,
+                                                          rows_in_table);
+    /*
+      If tmp_filt == COND_FILTER_ALLPASS, the filtering effect of this
+      field should be ignored. If not, selectivity should not be
+      higher than 'in_max_filter' even if there are a lot of values on
+      the right hand side
+
+      arg_count includes the left hand side item
+    */
+    if (tmp_filt != COND_FILTER_ALLPASS)
+      filter= min((arg_count - 1) * tmp_filt, in_max_filter);
+  }
+
+  if (negated && filter != COND_FILTER_ALLPASS)
+    filter= 1.0f - filter;
+
+  DBUG_ASSERT(filter >= 0.0f && filter <= 1.0f);
+  return filter;
+}
+
 bool Item_func_in::list_contains_null()
 {
   Item **arg,**arg_end;
@@ -4510,6 +4832,8 @@ void Item_func_in::fix_length_and_dec()
     if (!arg[0]->const_item())
     {
       const_itm= 0;
+      if (arg[0]->real_item()->type() == Item::SUBSELECT_ITEM)
+        dep_subq_in_list= true;
       break;
     }
   }
@@ -4553,7 +4877,6 @@ void Item_func_in::fix_length_and_dec()
     if (cmp_type == STRING_RESULT && 
         agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
       return;
-    arg_types_compatible= TRUE;
     /*
       When comparing rows create the row comparator object beforehand to ease
       the DATETIME comparison detection procedure.
@@ -5217,6 +5540,30 @@ void Item_cond::neg_arguments(THD *thd)
 }
 
 
+float Item_cond_and::get_filtering_effect(table_map filter_for_table,
+                                          table_map read_tables,
+                                          const MY_BITMAP *fields_to_ignore,
+                                          double rows_in_table)
+{
+  if (!(used_tables() & filter_for_table))
+    return COND_FILTER_ALLPASS; // No conditions below this apply to the table
+
+  float filter= COND_FILTER_ALLPASS;
+  List_iterator<Item> it(list);
+  Item *item;
+
+  /*
+    Calculated as "Conjunction of independent events":
+       P(A and B ...) = P(A) * P(B) * ...
+  */
+  while ((item= it++))
+    filter*= item->get_filtering_effect(filter_for_table,
+                                        read_tables,
+                                        fields_to_ignore,
+                                        rows_in_table);
+  return filter;
+}
+
 /**
   Evaluation of AND(expr, expr, expr ...).
 
@@ -5254,6 +5601,38 @@ longlong Item_cond_and::val_int()
   return null_value ? 0 : 1;
 }
 
+
+float Item_cond_or::get_filtering_effect(table_map filter_for_table,
+                                         table_map read_tables,
+                                         const MY_BITMAP *fields_to_ignore,
+                                         double rows_in_table)
+{
+  if (!(used_tables() & filter_for_table))
+    return COND_FILTER_ALLPASS; // No conditions below this apply to the table
+
+  float filter= 0.0f;
+  List_iterator<Item> it(list);
+  Item *item;
+  while ((item= it++))
+  {
+    const float cur_filter=
+      item->get_filtering_effect(filter_for_table, read_tables,
+                                 fields_to_ignore, rows_in_table);
+    /*
+      Calculated as "Disjunction of independent events":
+      P(A or B)  = P(A) + P(B) - P(A) * P(B)
+
+      If any of the ORed predicates has a filtering effect of
+      COND_FILTER_ALLPASS, the end result is COND_FILTER_ALLPASS. This is as
+      expected since COND_FILTER_ALLPASS means that a) the predicate has
+      no filtering effect at all, or b) the predicate's filtering
+      effect is unknown. In both cases, the only meaningful result is
+      for OR to produce COND_FILTER_ALLPASS.
+    */
+    filter= filter + cur_filter - (filter * cur_filter);
+  }
+  return filter;
+}
 
 longlong Item_cond_or::val_int()
 {
@@ -5316,6 +5695,19 @@ Item *and_expressions(Item *a, Item *b, Item **org_item)
   return a;
 }
 
+float Item_func_isnull::get_filtering_effect(table_map filter_for_table,
+                                             table_map read_tables,
+                                             const MY_BITMAP *fields_to_ignore,
+                                             double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_EQUALITY);
+}
 
 longlong Item_func_isnull::val_int()
 {
@@ -5376,6 +5768,20 @@ void Item_is_not_null_test::update_used_tables()
     cached_value= !args[0]->is_null();
 }
 
+float
+Item_func_isnotnull::get_filtering_effect(table_map filter_for_table,
+                                          table_map read_tables,
+                                          const MY_BITMAP *fields_to_ignore,
+                                          double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  return 1.0f - fld->get_cond_filter_default_probability(rows_in_table,
+                                                         COND_FILTER_EQUALITY);
+}
 
 longlong Item_func_isnotnull::val_int()
 {
@@ -5389,6 +5795,56 @@ void Item_func_isnotnull::print(String *str, enum_query_type query_type)
   str->append('(');
   args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" is not null)"));
+}
+
+
+float Item_func_like::get_filtering_effect(table_map filter_for_table,
+                                           table_map read_tables,
+                                           const MY_BITMAP *fields_to_ignore,
+                                           double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  /*
+    Filtering effect is similar to that of BETWEEN because
+
+    * "col like abc%" is similar to
+      "col between abc and abd"
+      The same applies for 'abc_'
+    * "col like %abc" can be seen as 
+      "reverse(col) like cba%"" (see above)
+    * "col like "abc%def%..." is also similar
+
+    Now we're left with "col like <string_no_wildcards>" which should
+    have filtering effect like equality, but it would be costly to
+    look through the whole string searching for wildcards and since
+    LIKE is mostly used for wildcards this isn't checked.
+  */
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_BETWEEN);
+}
+
+
+bool Item_func_like::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res) ||
+      (escape_item != NULL && escape_item->itemize(pc, &escape_item)))
+    return true;
+
+  if (escape_item == NULL)
+  {
+    THD *thd= pc->thd;
+    escape_item=
+      ((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) ?
+       new (pc->mem_root) Item_string("", 0, &my_charset_latin1) :
+       new (pc->mem_root) Item_string("\\", 1, &my_charset_latin1));
+  }
+  return escape_item == NULL;
 }
 
 
@@ -5906,6 +6362,33 @@ bool Item_func_like::bm_matches(const char* text, int text_len) const
   }
 }
 
+float Item_func_xor::get_filtering_effect(table_map filter_for_table,
+                                          table_map read_tables,
+                                          const MY_BITMAP *fields_to_ignore,
+                                          double rows_in_table)
+{
+  DBUG_ASSERT(arg_count == 2);
+
+  const float filter0=
+    args[0]->get_filtering_effect(filter_for_table, read_tables,
+                                  fields_to_ignore, rows_in_table);
+  if (filter0 == COND_FILTER_ALLPASS)
+    return COND_FILTER_ALLPASS;
+
+  const float filter1=
+    args[1]->get_filtering_effect(filter_for_table, read_tables,
+                                  fields_to_ignore, rows_in_table);
+
+  if (filter1 == COND_FILTER_ALLPASS)
+    return COND_FILTER_ALLPASS;
+
+  /*
+    Calculated as "exactly one of independent events":
+    P(A and not B) + P(B and not A) = P(A) + P(B) - 2 * P(A) * P(B)
+  */
+  return filter0 + filter1 - (2 * filter0 * filter1);
+}
+
 /**
   Make a logical XOR of the arguments.
 
@@ -6337,6 +6820,114 @@ bool Item_equal::fix_fields(THD *thd, Item **ref)
   return 0;
 }
 
+/**
+  Get filtering effect for multiple equalities, i.e. 
+  "tx.col = value_1 = ... = value_n" where value_i may be a 
+  constant, a column etc.
+
+  The multiple equality only contributes to the filtering effect for
+  'filter_for_table' if 
+    a) A column in 'filter_for_table' is referred to
+    b) at least one value_i is a constant or a column in a table
+       already read
+
+  If this multiple equality refers to more than one column in
+  'filter_for_table', the predicates on all these fields will
+  contribute to the filtering effect.
+*/
+float Item_equal::get_filtering_effect(table_map filter_for_table,
+                                       table_map read_tables,
+                                       const MY_BITMAP *fields_to_ignore,
+                                       double rows_in_table)
+{
+  // This predicate does not refer to a column in 'filter_for_table'
+  if (!(used_tables() & filter_for_table))
+    return COND_FILTER_ALLPASS;
+
+  float filter= COND_FILTER_ALLPASS;
+  /*
+    Keep track of whether or not a usable value that is either a
+    constant or a column in an already read table has been found.
+  */
+  bool found_comparable= false;
+
+  // Is there a constant that this multiple equality is equal to?
+  if (const_item)
+    found_comparable= true;
+
+  List_iterator<Item_field> it(fields);
+
+  Item_field *cur_field;
+  /*
+    Calculate filtering effect for all applicable fields. If this
+    item has multiple fields from 'filter_for_table', each of these
+    fields will contribute to the filtering effect.
+  */
+  while ((cur_field= it++))
+  {
+    if (cur_field->used_tables() & read_tables)
+    {
+      // cur_field is a field in a table earlier in the join sequence.
+      found_comparable= true;
+    }
+    else if (cur_field->used_tables() == filter_for_table)
+    {
+      if (bitmap_is_set(fields_to_ignore, cur_field->field->field_index))
+      {
+        /*
+          cur_field is a field in 'filter_for_table', but it is a
+          field which already contributes to the filtering effect.
+          Its value can still be used as a constant if another column
+          in the same table is referred to in this multiple equality.
+        */
+        found_comparable= true;
+      }
+      else
+      {
+        /*
+          cur_field is a field in 'filter_for_table', and it's not one
+          of the fields that must be ignored
+        */
+        float cur_filter=
+          cur_field->get_cond_filter_default_probability(rows_in_table,
+                                                         COND_FILTER_EQUALITY);
+
+        // Use index statistics if available for this field
+        if (!cur_field->field->key_start.is_clear_all())
+        { 
+          // cur_field is indexed - there may be statistics for it.
+          const TABLE *tab= cur_field->field->table;
+
+          for (uint j= 0; j < tab->s->keys; j++)
+          {
+            if (cur_field->field->key_start.is_set(j))
+            {
+              const uint rec_estimate= tab->key_info[j].rec_per_key[0];
+              if (rec_estimate)
+              {
+                cur_filter= rec_estimate / rows_in_table;
+                break;
+              }
+            }
+          }
+          /*
+            Since rec_per_key and rows_per_table are calculated at
+            different times, their values may not be in synch and thus
+            it is possible that cur_filter is greater than 1.0 if
+            rec_per_key is outdated. Force the filter to 1.0 in such
+            cases.
+          */
+          if (cur_filter >= 1.0)
+            cur_filter= 1.0f;
+        }
+
+        filter*= cur_filter;
+      }
+    }
+  }
+  return found_comparable ? filter : COND_FILTER_ALLPASS;
+}
+
 void Item_equal::update_used_tables()
 {
   List_iterator_fast<Item_field> li(fields);
@@ -6666,4 +7257,18 @@ Item* Item_func_eq::equality_substitution_transformer(uchar *arg)
     fieldno++;
   }
   return this;
+}
+
+float Item_func_eq::get_filtering_effect(table_map filter_for_table,
+                                         table_map read_tables,
+                                         const MY_BITMAP *fields_to_ignore,
+                                         double rows_in_table)
+{
+  const Item_field* fld= 
+    contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
+  if (!fld)
+    return COND_FILTER_ALLPASS;
+
+  return fld->get_cond_filter_default_probability(rows_in_table,
+                                                  COND_FILTER_EQUALITY);
 }

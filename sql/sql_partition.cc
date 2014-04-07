@@ -2049,7 +2049,7 @@ static int add_keyword_path(File fptr, const char *keyword,
 #ifdef _WIN32
   /* Convert \ to / to be able to create table on unix */
   char *pos, *end;
-  uint length= strlen(temp_path);
+  size_t length= strlen(temp_path);
   for (pos= temp_path, end= pos+length ; pos < end ; pos++)
   {
     if (*pos == '\\')
@@ -7891,8 +7891,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
                                            PARTITION_ITERATOR *part_iter)
 {
   Field *field= part_info->part_field_array[0];
-  uint32             UNINIT_VAR(max_endpoint_val);
-  get_endpoint_func  UNINIT_VAR(get_endpoint);
+  uint32             max_endpoint_val= 0;
+  get_endpoint_func  get_endpoint= 0;
   bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
   MYSQL_TIME start_date;

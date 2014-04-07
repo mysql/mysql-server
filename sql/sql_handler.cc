@@ -505,8 +505,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   String	buffer(buff, sizeof(buff), system_charset_info);
   int           error, keyno= -1;
   uint          num_rows;
-  uchar		*UNINIT_VAR(key);
-  uint		UNINIT_VAR(key_len);
+  uchar		*key= NULL;
+  uint		key_len= 0;
   Sql_handler_lock_error_handler sql_handler_lock_error;
   LEX           *lex= thd->lex;
   SELECT_LEX    *select_lex= lex->select_lex;

@@ -475,7 +475,7 @@ get_one_option(int optid,
     break;
   case 'A':
     if (argument)
-      check_param.auto_increment_value= strtoull(argument, NULL, 0);
+      check_param.auto_increment_value= my_strtoull(argument, NULL, 0);
     else
       check_param.auto_increment_value= 0;	/* Set to max used value */
     check_param.testflag|= T_AUTO_INC;
@@ -502,7 +502,7 @@ get_one_option(int optid,
       check_param.testflag|= T_CHECK | T_CHECK_ONLY_CHANGED;
     break;
   case 'D':
-    check_param.max_data_file_length=strtoll(argument, NULL, 10);
+    check_param.max_data_file_length= my_strtoll(argument, NULL, 10);
     break;
   case 's':				/* silent */
     if (argument == disabled_my_option)
@@ -558,7 +558,7 @@ get_one_option(int optid,
       check_param.testflag|= T_FAST;
     break;
   case 'k':
-    check_param.keys_in_use= (ulonglong) strtoll(argument, NULL, 10);
+    check_param.keys_in_use= (ulonglong) my_strtoll(argument, NULL, 10);
     break;
   case 'm':
     if (argument == disabled_my_option)
@@ -676,7 +676,7 @@ get_one_option(int optid,
   case OPT_STATS_METHOD:
   {
     int method;
-    enum_mi_stats_method UNINIT_VAR(method_conv);
+    enum_mi_stats_method method_conv= 0;
     myisam_stats_method_str= argument;
     if ((method= find_type(argument, &myisam_stats_method_typelib,
                            FIND_TYPE_BASIC)) <= 0)
@@ -701,7 +701,7 @@ get_one_option(int optid,
   }
 #ifdef DEBUG					/* Only useful if debugging */
   case OPT_START_CHECK_POS:
-    check_param.start_check_pos= strtoull(argument, NULL, 0);
+    check_param.start_check_pos= my_strtoull(argument, NULL, 0);
     break;
 #endif
   case 'H':

@@ -599,6 +599,7 @@ SyncDebug::check_order(const latch_t* latch)
 	case SYNC_STATS_AUTO_RECALC:
 	case SYNC_POOL:
 	case SYNC_POOL_MANAGER:
+	case SYNC_RECV_WRITER:
 
 		basic_check(latches, latch->m_level);
 		break;
@@ -966,7 +967,7 @@ sync_latch_meta_init()
 		  recv_sys_mutex_key);
 
 	LATCH_ADD(SrvLatches, "recv_writer",
-		  SYNC_LEVEL_VARYING,
+		  SYNC_RECV_WRITER,
 		  recv_writer_mutex_key);
 
 	LATCH_ADD(SrvLatches, "redo_rseg",
@@ -1392,9 +1393,7 @@ Enable sync order checking. */
 void
 sync_check_enable()
 {
-	/* Wait for a while so that created threads have time to suspend
-	themselves before we switch the latching order checks on */
-	os_thread_sleep(1000000);
-
+	/* Currently, we should always call this before we create threads,
+	so we don't need to wait any more. */
 	syncDebug.enable();
 }

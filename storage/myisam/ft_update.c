@@ -83,7 +83,7 @@ uint _mi_ft_segiterator(FT_SEG_ITERATOR *ftsi)
   if (ftsi->seg->flag & HA_BLOB_PART)
   {
     ftsi->len=_mi_calc_blob_length(ftsi->seg->bit_start,ftsi->pos);
-    memcpy(&ftsi->pos, ftsi->pos+ftsi->seg->bit_start, sizeof(char*));
+    memcpy((uchar*)&ftsi->pos, ftsi->pos+ftsi->seg->bit_start, sizeof(char*));
     DBUG_RETURN(1);
   }
   ftsi->len=ftsi->seg->length;
