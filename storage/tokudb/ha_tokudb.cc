@@ -4487,7 +4487,7 @@ void ha_tokudb::invalidate_icp() {
 //      error otherwise
 //
 int ha_tokudb::index_init(uint keynr, bool sorted) {
-    TOKUDB_HANDLER_DBUG_ENTER("%d", keynr);
+    TOKUDB_HANDLER_DBUG_ENTER("%d %u txn %p", keynr, sorted, transaction);
 
     int error;
     THD* thd = ha_thd(); 
@@ -6078,7 +6078,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
             goto cleanup;
         }
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_HANDLER_TRACE("trx %p just created master %p", trx, trx->all);
+            TOKUDB_HANDLER_TRACE("created master %p", trx->all);
         }
         trx->sp_level = trx->all;
         trans_register_ha(thd, true, tokudb_hton);
@@ -6115,7 +6115,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
     }
     trx->sub_sp_level = trx->stmt;
     if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-        TOKUDB_HANDLER_TRACE("trx %p just created stmt %p %p", trx, trx->sp_level, trx->stmt);
+        TOKUDB_HANDLER_TRACE("created stmt %p sp_level %p", trx->sp_level, trx->stmt);
     }
     reset_stmt_progress(&trx->stmt_progress);
     trans_register_ha(thd, false, tokudb_hton);
@@ -6162,9 +6162,6 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         error = create_tokudb_trx_data_instance(&trx);
         if (error) { goto cleanup; }
         thd_data_set(thd, tokudb_hton->slot, trx);
-        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_HANDLER_TRACE("set trx %p", trx);
-        }
     }
     if (trx->all == NULL) {
         trx->sp_level = NULL;
@@ -6252,7 +6249,7 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
             goto cleanup;
         }
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_HANDLER_TRACE("trx %p %p %p %p %p %u", trx, trx->all, trx->stmt, trx->sp_level, trx->sub_sp_level, trx->tokudb_lock_count);
+            TOKUDB_HANDLER_TRACE("%p %p %p %p %u", trx->all, trx->stmt, trx->sp_level, trx->sub_sp_level, trx->tokudb_lock_count);
         }
     }
     else {
