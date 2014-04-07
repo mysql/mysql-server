@@ -470,6 +470,7 @@ page_create(
 	mtr_t*		mtr,		/*!< in: mini-transaction handle */
 	ulint		comp)		/*!< in: nonzero=compact page format */
 {
+	ut_ad(mtr->is_named_space(block->page.id.space()));
 	page_create_write_log(buf_block_get_frame(block), mtr, comp);
 	return(page_create_low(block, comp));
 }

@@ -26,8 +26,8 @@
 class Item_func_inet_aton : public Item_int_func
 {
 public:
-  inline Item_func_inet_aton(Item *arg)
-    : Item_int_func(arg)
+  inline Item_func_inet_aton(const POS &pos, Item *arg)
+    : Item_int_func(pos, arg)
   {}
 
 public:
@@ -53,8 +53,8 @@ public:
 class Item_func_inet_ntoa : public Item_str_func
 {
 public:
-  inline Item_func_inet_ntoa(Item *arg)
-    : Item_str_func(arg)
+  inline Item_func_inet_ntoa(const POS &pos, Item *arg)
+    : Item_str_func(pos, arg)
   { }
 
 public:
@@ -80,8 +80,8 @@ public:
 class Item_func_inet_bool_base : public Item_bool_func
 {
 public:
-  inline Item_func_inet_bool_base(Item *ip_addr)
-    : Item_bool_func(ip_addr)
+  Item_func_inet_bool_base(const POS &pos, Item *ip_addr)
+    : Item_bool_func(pos, ip_addr)
   {
     null_value= false;
   }
@@ -102,8 +102,8 @@ protected:
 class Item_func_inet_str_base : public Item_str_ascii_func
 {
 public:
-  inline Item_func_inet_str_base(Item *arg)
-    : Item_str_ascii_func(arg)
+  Item_func_inet_str_base(const POS &pos, Item *arg)
+    : Item_str_ascii_func(pos, arg)
   { }
 
 public:
@@ -121,8 +121,8 @@ protected:
 class Item_func_inet6_aton : public Item_func_inet_str_base
 {
 public:
-  inline Item_func_inet6_aton(Item *ip_addr)
-    : Item_func_inet_str_base(ip_addr)
+  Item_func_inet6_aton(const POS &pos, Item *ip_addr)
+    : Item_func_inet_str_base(pos, ip_addr)
   { }
 
 public:
@@ -148,8 +148,8 @@ protected:
 class Item_func_inet6_ntoa : public Item_func_inet_str_base
 {
 public:
-  inline Item_func_inet6_ntoa(Item *ip_addr)
-    : Item_func_inet_str_base(ip_addr)
+  Item_func_inet6_ntoa(const POS &pos, Item *ip_addr)
+    : Item_func_inet_str_base(pos, ip_addr)
   { }
 
 public:
@@ -180,8 +180,8 @@ protected:
 class Item_func_is_ipv4 : public Item_func_inet_bool_base
 {
 public:
-  inline Item_func_is_ipv4(Item *ip_addr)
-    : Item_func_inet_bool_base(ip_addr)
+  Item_func_is_ipv4(const POS &pos, Item *ip_addr)
+    : Item_func_inet_bool_base(pos, ip_addr)
   { }
 
 public:
@@ -200,8 +200,8 @@ protected:
 class Item_func_is_ipv6 : public Item_func_inet_bool_base
 {
 public:
-  inline Item_func_is_ipv6(Item *ip_addr)
-    : Item_func_inet_bool_base(ip_addr)
+  Item_func_is_ipv6(const POS &pos, Item *ip_addr)
+    : Item_func_inet_bool_base(pos, ip_addr)
   { }
 
 public:
@@ -220,8 +220,8 @@ protected:
 class Item_func_is_ipv4_compat : public Item_func_inet_bool_base
 {
 public:
-  inline Item_func_is_ipv4_compat(Item *ip_addr)
-    : Item_func_inet_bool_base(ip_addr)
+  Item_func_is_ipv4_compat(const POS &pos, Item *ip_addr)
+    : Item_func_inet_bool_base(pos, ip_addr)
   { }
 
 public:
@@ -240,8 +240,8 @@ protected:
 class Item_func_is_ipv4_mapped : public Item_func_inet_bool_base
 {
 public:
-  inline Item_func_is_ipv4_mapped(Item *ip_addr)
-    : Item_func_inet_bool_base(ip_addr)
+  Item_func_is_ipv4_mapped(const POS &pos, Item *ip_addr)
+    : Item_func_inet_bool_base(pos, ip_addr)
   { }
 
 public:

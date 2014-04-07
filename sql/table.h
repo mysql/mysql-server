@@ -721,7 +721,7 @@ struct TABLE_SHARE
       appropriate values by using table cache key as their source.
   */
 
-  void set_table_cache_key(char *key_buff, uint key_length)
+  void set_table_cache_key(char *key_buff, size_t key_length)
   {
     table_cache_key.str= key_buff;
     table_cache_key.length= key_length;
@@ -751,7 +751,7 @@ struct TABLE_SHARE
       it should has same life-time as share itself.
   */
 
-  void set_table_cache_key(char *key_buff, const char *key, uint key_length)
+  void set_table_cache_key(char *key_buff, const char *key, size_t key_length)
   {
     memcpy(key_buff, key, key_length);
     set_table_cache_key(key_buff, key_length);
@@ -1015,6 +1015,15 @@ public:
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+  /*
+    Bitmap of fields that one or more query condition refers to. Only
+    used if optimizer_condition_fanout_filter is turned 'on'.
+    Currently, only the WHERE clause and ON clause of inner joins is
+    taken into account but not ON conditions of outer joins.
+    Furthermore, HAVING conditions apply to groups and are therefore
+    not useful as table condition filters.
+  */
+  MY_BITMAP     cond_set;
 
   /**
     Bitmap of table fields (columns), which are explicitly set in the
@@ -2400,9 +2409,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table);
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
-                               uint key_length);
+                               size_t key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
-                          uint key_length,
+                          size_t key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
@@ -2426,7 +2435,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
-void append_unescaped(String *res, const char *pos, uint length);
+void append_unescaped(String *res, const char *pos, size_t length);
 File create_frm(THD *thd, const char *name, const char *db,
                 const char *table, uint reclength, uchar *fileinfo,
   		HA_CREATE_INFO *create_info, uint keys, KEY *key_info);

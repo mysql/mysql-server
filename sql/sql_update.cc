@@ -1658,6 +1658,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     {
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
+      bitmap_clear_all(&table->tmp_set);
     }
   }
   
@@ -2431,12 +2432,18 @@ int multi_update::do_updates()
       for (copy_field_ptr=copy_field;
 	   copy_field_ptr != copy_field_end;
 	   copy_field_ptr++)
-	(*copy_field_ptr->do_copy)(copy_field_ptr);
+        copy_field_ptr->invoke_do_copy(copy_field_ptr);
 
-      if (table->triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                            TRG_ACTION_BEFORE, TRUE))
-        goto err;
+      if (table->triggers)
+      {
+        bool rc= table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                   TRG_ACTION_BEFORE, true);
+
+        table->triggers->disable_fields_temporary_nullability();
+
+        if (rc || check_record(thd, table->field))
+          goto err;
+      }
 
       if (!records_are_comparable(table) || compare_records(table))
       {

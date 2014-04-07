@@ -1194,7 +1194,7 @@ bool partition_info::check_range_constants(THD *thd)
   if (column_list)
   {
     part_column_list_val *loc_range_col_array;
-    part_column_list_val *UNINIT_VAR(current_largest_col_val);
+    part_column_list_val *current_largest_col_val= NULL;
     uint num_column_values= part_field_list.elements;
     uint size_entries= sizeof(part_column_list_val) * num_column_values;
     range_col_array= (part_column_list_val*)sql_calloc(num_parts *
@@ -1232,7 +1232,7 @@ bool partition_info::check_range_constants(THD *thd)
   }
   else
   {
-    longlong UNINIT_VAR(current_largest);
+    longlong current_largest= 0;
     longlong part_range_value;
     bool signed_flag= !part_expr->unsigned_flag;
 
@@ -1402,7 +1402,7 @@ bool partition_info::check_list_constants(THD *thd)
   bool result= TRUE;
   longlong type_add, calc_value;
   void *curr_value;
-  void *UNINIT_VAR(prev_value);
+  void *prev_value= NULL;
   partition_element* part_def;
   bool found_null= FALSE;
   qsort_cmp compare_func;
@@ -2039,8 +2039,7 @@ bool partition_info::set_up_charset_field_preps()
     i= 0;
     while ((field= *(ptr++)))
     {
-      uchar *field_buf;
-      LINT_INIT(field_buf);
+      uchar *field_buf= NULL;
 
       if (!field_is_partition_charset(field))
         continue;

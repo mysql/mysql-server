@@ -62,6 +62,8 @@ using std::max;
 
 #ifdef _WIN32
 #define setenv(a,b,c) _putenv_s(a,b)
+#define popen _popen
+#define pclose _pclose
 #endif
 
 #define MAX_VAR_NAME_LENGTH    256
@@ -73,6 +75,25 @@ using std::max;
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
+
+#define APPEND_TYPE(type)                                                      \
+{                                                                              \
+  dynstr_append(ds, "-- ");                                                    \
+  switch (type)                                                                \
+  {                                                                            \
+  case SESSION_TRACK_SYSTEM_VARIABLES:                                         \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_SYSTEM_VARIABLES\n");           \
+    break;                                                                     \
+  case SESSION_TRACK_SCHEMA:                                                   \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_SCHEMA\n");                     \
+    break;                                                                     \
+  case SESSION_TRACK_STATE_CHANGE:                                             \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_STATE_CHANGE\n");               \
+    break;                                                                     \
+  default:                                                                     \
+    dynstr_append(ds, "\n");                                                   \
+  }                                                                            \
+}
 
 C_MODE_START
 static void signal_handler(int sig);
@@ -469,7 +490,7 @@ const char *command_names[]=
   "remove_files_wildcard",
   "send_eval",
   "output",
-  "resetconnection",
+  "reset_connection",
 
   0
 };
@@ -1293,7 +1314,7 @@ end:
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= snprintf(buf, 10, "%u", error);
+    int err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -2460,12 +2481,11 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 {
   char *end = (char*)((query_end && *query_end) ?
 		      *query_end : query + strlen(query));
-  MYSQL_RES *res;
+  MYSQL_RES *res= NULL;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   DYNAMIC_STRING ds_query;
   DBUG_ENTER("var_query_set");
-  LINT_INIT(res);
 
   /* Only white space or ) allowed past ending ` */
   while (end > query && *end != '`')
@@ -2516,7 +2536,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       {
         /* Add column to tab separated string */
 	char *val= row[i];
-	int len= lengths[i];
+	size_t len= lengths[i];
 	
 	if (glob_replace_regex)
 	{
@@ -2611,7 +2631,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
-  { "<No error>", -1U, "" },
+  { "<No error>", (uint)-1, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
@@ -2706,7 +2726,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
 {
   long row_no;
   int col_no= -1;
-  MYSQL_RES* res;
+  MYSQL_RES* res= NULL;
   MYSQL* mysql= &cur_con->mysql;
 
   static DYNAMIC_STRING ds_query;
@@ -2719,7 +2739,6 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   };
 
   DBUG_ENTER("var_set_query_get_value");
-  LINT_INIT(res);
 
   strip_parentheses(command);
   DBUG_PRINT("info", ("query: %s", command->query));
@@ -3247,7 +3266,7 @@ void do_exec(struct st_command *command)
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= snprintf(buf, 10, "%u", error);
+    int err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -4341,7 +4360,7 @@ void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
   MYSQL* mysql = &cur_con->mysql;
   for (;;)
   {
-    MYSQL_RES *UNINIT_VAR(res);
+    MYSQL_RES *res= NULL;
     MYSQL_ROW row;
     int done;
 
@@ -4518,7 +4537,7 @@ int do_save_master_pos()
 	    if (*status)
 	    {
 	      status+= sizeof(latest_trans_epoch_str)-1;
-	      latest_trans_epoch= strtoull(status, (char**) 0, 10);
+	      latest_trans_epoch= my_strtoull(status, (char**) 0, 10);
 	    }
 	    else
 	      die("result does not contain '%s' in '%s'",
@@ -4532,7 +4551,7 @@ int do_save_master_pos()
 	    if (*status)
 	    {
 	      status+= sizeof(latest_handled_binlog_epoch_str)-1;
-	      latest_handled_binlog_epoch= strtoull(status, (char**) 0, 10);
+	      latest_handled_binlog_epoch= my_strtoull(status, (char**) 0, 10);
 	    }
 	    else
 	      die("result does not contain '%s' in '%s'",
@@ -6155,7 +6174,7 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  char c, UNINIT_VAR(last_quote), last_char= 0;
+  char c, last_quote= 0, last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   my_bool have_slash= FALSE;
@@ -6330,7 +6349,7 @@ int read_line(char *buf, int size)
       {
         if (!(charlen= my_mbcharlen(charset_info, (unsigned char) c)))
         {
-          char c1= my_getc(cur_file->file);
+          int c1= my_getc(cur_file->file);
           if (c1 == EOF)
           {
             *p++= c;
@@ -7378,6 +7397,11 @@ void append_session_track_info(DYNAMIC_STRING *ds, MYSQL *mysql)
                                        (enum_session_state_type) type,
                                        &data, &data_length))
     {
+      /*
+	Append the type information. Please update the definition of APPEND_TYPE when
+	any changes are made to enum_session_state_type.
+      */
+      APPEND_TYPE(type);
       dynstr_append(ds, "-- ");
       dynstr_append_mem(ds, data, data_length);
     }

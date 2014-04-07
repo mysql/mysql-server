@@ -730,7 +730,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_alloc_new
+   fun:lf_alloc_new
    fun:lf_hash_insert
 }
 
@@ -740,7 +740,7 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_alloc_new
+   fun:lf_alloc_new
    fun:lf_hash_insert
 }
 
@@ -774,7 +774,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:initialize_bucket
 }
 
@@ -784,7 +784,7 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:initialize_bucket
 }
 
@@ -795,8 +795,8 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
-   fun:_lf_pinbox_get_pins
+   fun:lf_dynarray_lvalue
+   fun:lf_pinbox_get_pins
 }
 
 # The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
@@ -805,8 +805,8 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
-   fun:_lf_pinbox_get_pins
+   fun:lf_dynarray_lvalue
+   fun:lf_pinbox_get_pins
 }
 
 # The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
@@ -816,7 +816,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_insert
 }
 
@@ -826,7 +826,7 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_insert
 }
 
@@ -837,7 +837,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_delete
 }
 
@@ -847,7 +847,7 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_delete
 }
 
@@ -858,7 +858,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_search
 }
 
@@ -868,7 +868,7 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_search
 }
 

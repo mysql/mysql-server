@@ -807,7 +807,7 @@ UPDATE t1, t3 SET t1.a = NULL, t3.a = -20 WHERE t1.a = t3.a AND t3.a = 10;
 SELECT * FROM t1;
 a	b	c	a_new_is_null	a_old_is_null	b_new_is_null	b_old_is_null
 1	2	3	NULL	NULL	NULL	NULL
-99	20	30	0	0	0	0
+99	20	30	1	0	0	0
 100	200	300	NULL	NULL	NULL	NULL
 
 SELECT * FROM t3;

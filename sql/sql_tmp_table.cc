@@ -104,8 +104,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                          bool modify_item)
 {
   bool maybe_null= item->maybe_null;
-  Field *new_field;
-  LINT_INIT(new_field);
+  Field *new_field= NULL;
 
   switch (item->result_type()) {
   case REAL_RESULT:
@@ -397,7 +396,10 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
   bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
               FALSE);
   bitmap_init(&table->tmp_set,
-              (my_bitmap_map*) (bitmaps+ bitmap_buffer_size(field_count)),
+              (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count)),
+              field_count, FALSE);
+  bitmap_init(&table->cond_set,
+              (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count) * 2),
               field_count, FALSE);
   /* write_set and all_set are copies of read_set */
   table->def_write_set= table->def_read_set;
@@ -570,7 +572,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                         &tmpname, (uint) strlen(path)+1,
                         &group_buff, (group && ! using_unique_constraint ?
                                       param->group_length : 0),
-                        &bitmaps, bitmap_buffer_size(field_count)*2,
+                        &bitmaps, bitmap_buffer_size(field_count) * 3,
                         NullS))
   {
     if (temp_pool_slot != MY_BIT_NONE)
@@ -877,7 +879,7 @@ update_hidden:
     uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
     share->rec_buff_length= alloc_length;
     if (!(table->record[0]= (uchar*)
-                            alloc_root(&table->mem_root, alloc_length*3)))
+                            alloc_root(&table->mem_root, alloc_length * 3)))
       goto err;
     table->record[1]= table->record[0]+alloc_length;
     share->default_values= table->record[1]+alloc_length;
@@ -1268,7 +1270,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
                         &tmpname, (uint) strlen(path)+1,
                         &group_buff, (!using_unique_constraint ?
                                       uniq_tuple_length_arg : 0),
-                        &bitmaps, bitmap_buffer_size(1)*2,
+                        &bitmaps, bitmap_buffer_size(1) * 3,
                         NullS))
   {
     if (temp_pool_slot != MY_BIT_NONE)
@@ -1367,7 +1369,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     uint alloc_length=ALIGN_SIZE(share->reclength + MI_UNIQUE_HASH_LENGTH+1);
     share->rec_buff_length= alloc_length;
     if (!(table->record[0]= (uchar*)
-                            alloc_root(&table->mem_root, alloc_length*3)))
+                            alloc_root(&table->mem_root, alloc_length * 3)))
       goto err;
     table->record[1]= table->record[0]+alloc_length;
     share->default_values= table->record[1]+alloc_length;
@@ -1514,7 +1516,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                         &share, sizeof(*share),
                         &field, (field_count + 1) * sizeof(Field*),
                         &blob_field, (field_count+1) *sizeof(uint),
-                        &bitmaps, bitmap_buffer_size(field_count)*2,
+                        &bitmaps, bitmap_buffer_size(field_count) * 3,
                         NullS))
     return 0;
 

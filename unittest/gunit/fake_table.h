@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,11 @@ class Fake_TABLE_SHARE : public TABLE_SHARE
   uint32 all_set_buf;
 
 public:
+  /**
+    Creates a TABLE_SHARE with the requested number of columns
+
+    @param  number_of_columns  The number of columns in the table
+  */
   Fake_TABLE_SHARE(uint number_of_columns)
   {
     static const char *fakepath= "fakepath";
@@ -92,7 +97,7 @@ class Fake_TABLE: public TABLE
 
     const_table= false;
     maybe_null= 0;
-    map= 1u << highest_table_id;                    /* ID bit of table */
+    map= 1ULL << highest_table_id;              /* ID bit of table */
     highest_table_id= (highest_table_id + 1) % MAX_TABLES;
     key_info= &m_keys[0];
     for (int i= 0; i < max_keys; i++)
@@ -156,12 +161,13 @@ public:
 
 
   /**
-    Creates a table with the requested number of fields without
+    Creates a table with the requested number of columns without
     creating indexes.
 
-    @param  column_count     The number of fields in the table
+    @param  column_count     The number of columns in the table
+    @param  cols_nullable    Whether or not columns are allowed to be NULL
   */
-  Fake_TABLE(int column_count, bool columns_nullable) :
+  Fake_TABLE(int column_count, bool cols_nullable) :
     table_share(column_count),
     mock_handler(static_cast<handlerton*>(NULL), &table_share)
   {
@@ -171,7 +177,7 @@ public:
     {
       std::stringstream str;
       str << "field_" << (i + 1);
-      add(new Mock_field_long(str.str().c_str()), i);
+      add(new Mock_field_long(str.str().c_str(), cols_nullable), i);
     }
   }
 

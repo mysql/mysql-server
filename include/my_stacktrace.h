@@ -18,38 +18,26 @@
 
 #include <my_global.h>
 
-#ifdef TARGET_OS_LINUX
-#if defined (__x86_64__) || defined (__i386__)
-#define HAVE_STACKTRACE 1
-#endif
-#elif defined(_WIN32) || defined(HAVE_PRINTSTACK)
-#define HAVE_STACKTRACE 1
-#endif
-
-#if HAVE_BACKTRACE && (HAVE_BACKTRACE_SYMBOLS || HAVE_BACKTRACE_SYMBOLS_FD)
-#undef HAVE_STACKTRACE
-#define HAVE_STACKTRACE 1
-#endif
-
-#if HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS && \
-    HAVE_CXXABI_H && HAVE_ABI_CXA_DEMANGLE
-#define BACKTRACE_DEMANGLE 1
-#endif
-
 C_MODE_START
 
-#if defined(HAVE_STACKTRACE) || defined(HAVE_BACKTRACE)
+/*
+  HAVE_BACKTRACE - Linux
+  HAVE_PRINTSTACK - Solaris
+  _WIN32 - Windows
+  Missing: FreeBSD
+*/
+#if defined(HAVE_BACKTRACE) || defined(HAVE_PRINTSTACK) || defined(_WIN32)
+#define HAVE_STACKTRACE 1
 void my_init_stacktrace();
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack);
 void my_safe_puts_stderr(const char* val, int max_len);
-void my_write_core(int sig);
-#if BACKTRACE_DEMANGLE
+#if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 char *my_demangle(const char *mangled_name, int *status);
 #endif
 #ifdef _WIN32
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 #endif
-#endif
+#endif /* HAVE_BACKTRACE || HAVE_PRINTSTACK || _WIN32 */
 
 void my_write_core(int sig);
 

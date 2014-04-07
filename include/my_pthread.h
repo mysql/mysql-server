@@ -213,6 +213,12 @@ extern int pthread_dummy(int);
 #define pthread_mutex_destroy(A) (DeleteCriticalSection(A), 0)
 #define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 
+static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
+                                            size_t *guardsize)
+{
+  *guardsize= 0;
+  return 0;
+}
 
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
@@ -220,7 +226,6 @@ extern int pthread_dummy(int);
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
 #define pthread_yield() SwitchToThread()
-#define my_sigset(A,B) signal(A,B)
 
 #else /* Normal threads */
 
@@ -239,48 +244,16 @@ extern int pthread_dummy(int);
 typedef void *(* pthread_handler)(void *);
 
 #define my_pthread_once_t pthread_once_t
-#if defined(PTHREAD_ONCE_INITIALIZER)
-#define MY_PTHREAD_ONCE_INIT PTHREAD_ONCE_INITIALIZER
-#else
 #define MY_PTHREAD_ONCE_INIT PTHREAD_ONCE_INIT
-#endif
 #define my_pthread_once(C,F) pthread_once(C,F)
-
-/*
-  We define my_sigset() and use that instead of the system sigset() so that
-  we can favor an implementation based on sigaction(). On some systems, such
-  as Mac OS X, sigset() results in flags such as SA_RESTART being set, and
-  we want to make sure that no such flags are set.
-*/
-#if defined(HAVE_SIGACTION) && !defined(my_sigset)
-#define my_sigset(A,B) do { struct sigaction l_s; sigset_t l_set;           \
-                            DBUG_ASSERT((A) != 0);                          \
-                            sigemptyset(&l_set);                            \
-                            l_s.sa_handler = (B);                           \
-                            l_s.sa_mask   = l_set;                          \
-                            l_s.sa_flags   = 0;                             \
-                            sigaction((A), &l_s, NULL);                     \
-                          } while (0)
-#elif defined(HAVE_SIGSET) && !defined(my_sigset)
-#define my_sigset(A,B) sigset((A),(B))
-#elif !defined(my_sigset)
-#define my_sigset(A,B) signal((A),(B))
-#endif
-
 #define my_pthread_getspecific(A,B) ((A) pthread_getspecific(B))
 
-#endif /* defined(_WIN32) */
-
-#if !defined(HAVE_PTHREAD_YIELD_ONE_ARG) && !defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
+#if !defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
 /* no pthread_yield() available */
-#ifdef HAVE_SCHED_YIELD
 #define pthread_yield() sched_yield()
-#elif defined(HAVE_PTHREAD_YIELD_NP) /* can be Mac OS X */
-#define pthread_yield() pthread_yield_np()
-#elif defined(HAVE_THR_YIELD)
-#define pthread_yield() thr_yield()
 #endif
-#endif
+
+#endif /* defined(_WIN32) */
 
 /*
   The defines set_timespec and set_timespec_nsec should be used
@@ -346,7 +319,6 @@ int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
                         const struct timespec *abstime,
                         const char *file, uint line);
 void safe_mutex_global_init(void);
-void safe_mutex_end(FILE *file);
 
 	/* Wrappers if safe mutex is actually used */
 #ifdef SAFE_MUTEX
@@ -562,15 +534,6 @@ extern my_bool my_thread_init(void);
 extern void my_thread_end(void);
 extern const char *my_thread_name(void);
 extern my_thread_id my_thread_dbug_id(void);
-
-#ifndef HAVE_PTHREAD_ATTR_GETGUARDSIZE
-static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
-                                            size_t *guardsize)
-{
-  *guardsize= 0;
-  return 0;
-}
-#endif
 
 /* All thread specific variables are in the following struct */
 
