@@ -468,12 +468,13 @@ mkdir debug
 (
   cd debug
   # Attempt to remove any optimisation flags from the debug build
-  CFLAGS=$(echo "${CFLAGS}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
-  CXXFLAGS=$(echo "${CFLAGS}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /') 
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug %{?el7:-DENABLE_DTRACE=OFF} \
+           -DCMAKE_C_FLAGS="$optflags" \
+           -DCMAKE_CXX_FLAGS="$optflags" \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
