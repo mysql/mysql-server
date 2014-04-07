@@ -78,6 +78,9 @@ TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
+MYSQL_ADD_EXECUTABLE(mysql_install_db mysql_install_db.cc)
+TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
+
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)
   MYSQL_ADD_EXECUTABLE(echo echo.c)
