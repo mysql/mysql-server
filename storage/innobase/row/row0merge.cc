@@ -3692,11 +3692,7 @@ wait_again:
 
 			if (error == DB_SUCCESS) {
 				bool	use_bulk_load = innobase_enable_bulk_load;
-#ifdef UNIV_DEBUG
 				const	ulint	row_threshold = 1;
-#else
-				const	ulint	row_threshold = innobase_bulk_load_row_threshold;
-#endif	/* UNIV_DEBUG */
 
 				if (merge_files[i].n_rec < row_threshold) {
 					use_bulk_load = false;
