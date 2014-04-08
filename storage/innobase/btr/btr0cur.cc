@@ -5656,8 +5656,22 @@ btr_store_big_rec_extern_fields(
 			}
 
 alloc_another:
-			block = btr_page_alloc(index, hint_page_no,
-					       FSP_NO_DIR, 0, alloc_mtr, &mtr);
+			if (op == BTR_STORE_INSERT_BULK) {
+				mtr_t	bulk_alloc_mtr;
+
+				mtr_set_log_mode(alloc_mtr, MTR_LOG_NO_REDO);
+
+				mtr_start(&bulk_alloc_mtr);
+				dict_disable_redo_if_temporary(index->table,
+					&bulk_alloc_mtr);
+				block = btr_page_alloc(index, hint_page_no,
+					FSP_NO_DIR, 0, &bulk_alloc_mtr, &mtr);
+				mtr_commit(&bulk_alloc_mtr);
+
+			} else {
+				block = btr_page_alloc(index, hint_page_no,
+					FSP_NO_DIR, 0, alloc_mtr, &mtr);
+			}
 			if (UNIV_UNLIKELY(block == NULL)) {
 				mtr_commit(&mtr);
 				error = DB_OUT_OF_FILE_SPACE;
@@ -5889,13 +5903,6 @@ next_zip_page:
 						SYNC_NO_ORDER_CHECK);
 				}
 
-				/* We log record insert when finish bulk insert,
-				at this point, the record is not logged yet. */
-				if (op == BTR_STORE_INSERT_BULK) {
-					ut_ad(alloc_mtr == &mtr);
-					alloc_mtr = NULL;
-				}
-
 				mlog_write_ulint(field_ref + BTR_EXTERN_LEN, 0,
 						 MLOG_4BYTES, alloc_mtr);
 				mlog_write_ulint(field_ref
@@ -5920,10 +5927,6 @@ next_zip_page:
 							 FIL_PAGE_DATA,
 							 MLOG_4BYTES,
 							 alloc_mtr);
-				}
-
-				if (op == BTR_STORE_INSERT_BULK) {
-					alloc_mtr = &mtr;
 				}
 
 				prev_page_no = page_no;

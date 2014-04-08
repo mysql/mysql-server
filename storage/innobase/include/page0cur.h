@@ -370,31 +370,6 @@ page_delete_rec(
 	page_zip_des_t*		page_zip,/*!< in: compressed page descriptor */
 	const ulint*		offsets);/*!< in: offsets for record */
 
-/***********************************************************//**
-Writes the log record of a record insert on a page. */
-void
-page_cur_insert_rec_write_log(
-/*==========================*/
-        rec_t*          insert_rec,     /*!< in: inserted physical record */
-        ulint           rec_size,       /*!< in: insert_rec size */
-        rec_t*          cursor_rec,     /*!< in: record the
-                                        cursor is pointing to */
-        dict_index_t*   index,          /*!< in: record descriptor */
-        mtr_t*          mtr);
-
-#ifndef UNIV_HOTBACKUP
-/**********************************************************//**
-Writes a log record of copying a record list end to a new created page.
-@return 4-byte field where to write the log data length, or NULL if
-logging is disabled */
-byte*
-page_copy_rec_list_to_created_page_write_log(
-/*=========================================*/
-        page_t*         page,   /*!< in: index page */
-        dict_index_t*   index,  /*!< in: record descriptor */
-        mtr_t*          mtr);   /*!< in: mtr */
-#endif /* !UNIV_HOTBACKUP */
-
 /** Index page cursor */
 
 struct page_cur_t{

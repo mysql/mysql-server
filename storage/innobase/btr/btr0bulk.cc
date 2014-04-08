@@ -32,7 +32,13 @@ Created 03/11/2014 Shaohua Wang
 char	innobase_enable_bulk_load;
 
 /* Innodb index fill factor during index build. */
-long	innobase_index_fill_factor;
+long	innobase_bulk_load_fill_factor;
+
+/* Innodb bulk load page flush threshold. */
+long	innobase_bulk_load_flush_threshold;
+
+/* Innodb bulk load row threshold. */
+long	innobase_bulk_load_row_threshold;
 
 /** Initialize members.
 Allocate page and mtr. */
@@ -48,10 +54,7 @@ void PageBulk::init()
 		mem_heap_alloc(m_heap, sizeof(mtr_t)));
 	mtr_start(mtr);
 	mtr_x_lock(dict_index_get_lock(m_index), mtr);
-
-	if (dict_table_is_temporary(m_index->table)) {
-		mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
-	}
+	mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
 
 	if (m_page_no == FIL_NULL) {
 		mtr_t	alloc_mtr;
@@ -60,6 +63,7 @@ void PageBulk::init()
 		pages are committed following the allocation order. */
 		mtr_start(&alloc_mtr);
 
+		dict_disable_redo_if_temporary(m_index->table, &alloc_mtr);
 		/* Allocate a new page. */
 		new_block = btr_page_alloc(m_index, 0, FSP_NO_DIR, m_level,
 					   &alloc_mtr, mtr);
@@ -109,7 +113,6 @@ void PageBulk::init()
 	}
 
 	m_mtr = mtr;
-	m_log = !dict_table_is_temporary(m_index->table);
 	m_block = new_block;
 	m_page = new_page;
 	m_page_zip = new_page_zip;
@@ -118,7 +121,7 @@ void PageBulk::init()
 	m_is_comp = page_is_comp(new_page);
 	m_free_space = page_get_free_space_of_empty(m_is_comp);
 	m_fill_space =
-		UNIV_PAGE_SIZE * (100 - innobase_index_fill_factor) / 100;
+		UNIV_PAGE_SIZE * (100 - innobase_bulk_load_fill_factor) / 100;
 	m_pad_space =
 		UNIV_PAGE_SIZE - dict_index_zip_pad_optimal_page_size(m_index);
 	m_heap_top = page_header_get_ptr(new_page, PAGE_HEAP_TOP);
@@ -213,18 +216,9 @@ void PageBulk::finish()
 	ulint		count;
 	ulint		n_recs;
 	ulint		slot_index;
-	ulint		rec_size;
-	byte*		log_ptr = NULL;
-	ulint		log_data_len = 0;
-	mtr_log_t	log_mode = MTR_LOG_ALL;
-	bool		log_insert;
 	page_dir_slot_t* slot = NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets = offsets_;
 
 	ut_ad(m_rec_no > 0);
-
-	rec_offs_init(offsets_);
 
 #ifdef UNIV_DEBUG
 	ut_ad(m_total_data + page_dir_calc_reserved_space(m_rec_no)
@@ -234,19 +228,6 @@ void PageBulk::finish()
 	in the debug version */
 	page_dir_set_n_slots(m_page, NULL, UNIV_PAGE_SIZE / 2);
 #endif
-
-	/* We need to log insert for non-compressed table,
-	and we have log compressed page for compressed table. */
-	log_insert = m_log && (m_page_zip == NULL);
-
-	if (log_insert) {
-		/* Fixme: if we use logging, we can simply logging the
-		whole page. */
-		log_ptr = page_copy_rec_list_to_created_page_write_log(
-			m_page, m_index, m_mtr);
-		log_data_len = m_mtr->get_log()->size();
-		log_mode = mtr_set_log_mode(m_mtr, MTR_LOG_SHORT_INSERTS);
-	}
 
 	/* Set owner & dir. */
 	count = 0;
@@ -273,14 +254,6 @@ void PageBulk::finish()
 			count = 0;
 		}
 
-		if (log_insert) {
-			offsets = rec_get_offsets(insert_rec, m_index, offsets,
-					  ULINT_UNDEFINED, &m_heap);
-			rec_size = rec_offs_size(offsets);
-			page_cur_insert_rec_write_log(insert_rec, rec_size,
-						      prev_rec, m_index, m_mtr);
-		}
-
 		insert_rec = page_rec_get_next(insert_rec);
 	} while (!page_rec_is_supremum(insert_rec));
 
@@ -299,19 +272,6 @@ void PageBulk::finish()
 		page_dir_slot_set_n_owned(slot, NULL, 0);
 
 		slot_index--;
-	}
-
-	if (log_insert) {
-		log_data_len = m_mtr->get_log()->size() - log_data_len;
-
-		ut_a(log_data_len < 100 * UNIV_PAGE_SIZE);
-
-		if (log_ptr != NULL) {
-			mach_write_to_4(log_ptr, log_data_len);
-		}
-
-		/* Restore the log mode */
-		mtr_set_log_mode(m_mtr, log_mode);
 	}
 
 	slot = page_dir_get_nth_slot(m_page, 1 + slot_index);
@@ -343,7 +303,7 @@ void PageBulk::commit(bool	success)
 		    && !dict_table_is_temporary(m_index->table)
 		    && page_is_leaf(m_page)) {
 			ibuf_set_bitmap_for_bulk_load(
-				m_block, innobase_index_fill_factor == 100);
+				m_block, innobase_bulk_load_fill_factor == 100);
 		}
 	}
 
@@ -596,10 +556,7 @@ void PageBulk::lock()
 
 	mtr_start(m_mtr);
 	mtr_x_lock(dict_index_get_lock(m_index), m_mtr);
-
-	if (!m_log) {
-		mtr_set_log_mode(m_mtr, MTR_LOG_NO_REDO);
-	}
+	mtr_set_log_mode(m_mtr, MTR_LOG_NO_REDO);
 
 	m_block = btr_block_get(page_id, page_size, RW_X_LATCH, m_index, m_mtr);
 	m_page = buf_block_get_frame(m_block);
@@ -691,6 +648,10 @@ dberr_t BtrBulk::pageCommit(PageBulk* page_bulk, PageBulk* next_page_bulk,
 	/* Commit mtr. */
 	page_bulk->commit(true);
 
+	if (m_finished_pages++ % innobase_bulk_load_flush_threshold) {
+		m_need_flush = true;
+	}
+
 	return(err);
 }
 
@@ -703,6 +664,14 @@ void BtrBulk::logFreeCheck()
 		PageBulk*    page_bulk = m_page_bulks->at(level);
 
 		page_bulk->release();
+	}
+
+	if (m_need_flush) {
+		/* Wake up page cleaner to flush dirty pages. */
+                srv_inc_activity_count();
+                os_event_set(buf_flush_event);
+
+		m_need_flush = false;
 	}
 
 	log_free_check();

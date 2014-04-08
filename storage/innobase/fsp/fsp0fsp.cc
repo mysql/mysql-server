@@ -631,7 +631,6 @@ fsp_init_file_page(
 {
 	fsp_init_file_page_low(block);
 
-	ut_d(fsp_space_modify_check(block->page.id.space(), mtr));
 	mlog_write_initial_log_record(buf_block_get_frame(block),
 				      MLOG_INIT_FILE_PAGE, mtr);
 }
