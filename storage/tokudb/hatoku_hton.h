@@ -484,7 +484,31 @@ static int tokudb_killed_callback(void) {
     return thd->killed;
 }
 
-static MYSQL_THDVAR_BOOL(open_table_check_empty, 0, "Check if table is empty at first open", NULL /*check*/, NULL /*update*/, true /*default*/);
+enum {
+    TOKUDB_EMPTY_SCAN_DISABLED = 0,
+    TOKUDB_EMPTY_SCAN_LR = 1,
+    TOKUDB_EMPTY_SCAN_RL = 2,
+};
+
+static const char *tokudb_empty_scan_names[] = {
+    "disabled",
+    "lr",
+    "rl",
+    NullS
+};
+
+static TYPELIB tokudb_empty_scan_typelib = {
+    array_elements(tokudb_empty_scan_names) - 1,
+    "tokudb_empty_scan_typelib",
+    tokudb_empty_scan_names,
+    NULL
+};
+
+static MYSQL_THDVAR_ENUM(empty_scan,
+    PLUGIN_VAR_OPCMDARG,
+    "TokuDB algorithm to check if the table is empty when opened. ",
+    NULL, NULL, TOKUDB_EMPTY_SCAN_RL, &tokudb_empty_scan_typelib
+);
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
