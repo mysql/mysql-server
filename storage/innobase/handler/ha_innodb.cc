@@ -15807,16 +15807,6 @@ static MYSQL_SYSVAR_BOOL(enable_bulk_load, innobase_enable_bulk_load,
   "InnoDB enable bulk load.",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_LONG(bulk_load_row_threshold, innobase_bulk_load_row_threshold,
-  PLUGIN_VAR_RQCMDARG,
-  "Use bulk load to build index when bulk load is enabled and rows in table exceeds the row threshold.",
-  NULL, NULL, 1000, 1, 100000, 0);
-
-static MYSQL_SYSVAR_LONG(bulk_load_flush_threshold, innobase_bulk_load_flush_threshold,
-  PLUGIN_VAR_RQCMDARG,
-  "Wakeup page cleaner to flush when the number of dirty pages generated in bulk load exceeds the flush threshold.",
-  NULL, NULL, 500, 100, 100000, 0);
-
 static MYSQL_SYSVAR_LONG(bulk_load_fill_factor, innobase_bulk_load_fill_factor,
   PLUGIN_VAR_RQCMDARG,
   "Number of percentage in a page is filled up in bulk load.",
@@ -16264,8 +16254,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(force_recovery_crash),
 #endif /* !DBUG_OFF */
   MYSQL_SYSVAR(enable_bulk_load),
-  MYSQL_SYSVAR(bulk_load_row_threshold),
-  MYSQL_SYSVAR(bulk_load_flush_threshold),
   MYSQL_SYSVAR(bulk_load_fill_factor),
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_total_cache_size),

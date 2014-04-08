@@ -41,12 +41,6 @@ extern	char	innobase_enable_bulk_load;
 /* Innodb index fill factor during index build. */
 extern	long	innobase_bulk_load_fill_factor;
 
-/* Innodb bulk load page flush threshold. */
-extern long	innobase_bulk_load_flush_threshold;
-
-/* Innodb bulk load row threshold. */
-extern long	innobase_bulk_load_row_threshold;
-
 class PageBulk
 {
 public:
