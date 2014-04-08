@@ -147,6 +147,10 @@ SETA(CPACK_RPM_test_PACKAGE_OBSOLETES
 SETA(CPACK_RPM_test_PACKAGE_PROVIDES
   "MySQL-test")
 
+SETA(CPACK_RPM_server_PACKAGE_REQUIRES 
+   ${CPACK_RPM_PACKAGE_REQUIRES}
+   "MariaDB-client")
+
 SET(CPACK_RPM_server_PRE_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-prein.sh)
 SET(CPACK_RPM_server_PRE_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-preun.sh)
 SET(CPACK_RPM_server_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postin.sh)
@@ -166,12 +170,12 @@ MACRO(ALTERNATIVE_NAME real alt)
   SET(${o} "${${o}} ${alt} ${alt}%{_isa}")
 ENDMACRO(ALTERNATIVE_NAME)
 
-# Argh! Different distributions call packages differently, to be a drop-in
-# replacement we have to fake distribution-speficic dependencies
-
 ALTERNATIVE_NAME("devel"  "mysql-devel")
 ALTERNATIVE_NAME("server" "mysql-server")
 ALTERNATIVE_NAME("test"   "mysql-test")
+
+# Argh! Different distributions call packages differently, to be a drop-in
+# replacement we have to fake distribution-speficic dependencies
 
 IF(RPM MATCHES "(rhel|centos)5")
   ALTERNATIVE_NAME("shared" "mysql")
