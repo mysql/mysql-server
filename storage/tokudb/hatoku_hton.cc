@@ -1390,7 +1390,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(loader_memory_size),
     MYSQL_SYSVAR(hide_default_row_format),
     MYSQL_SYSVAR(killed_time),
-    MYSQL_SYSVAR(open_table_check_empty),
+    MYSQL_SYSVAR(empty_scan),
     NULL
 };
 

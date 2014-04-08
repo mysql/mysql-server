@@ -1732,7 +1732,7 @@ int ha_tokudb::initialize_share(
         init_auto_increment();
     }
 
-    if (THDVAR(thd, open_table_check_empty) && may_table_be_empty(txn)) {
+    if (may_table_be_empty(txn)) {
         share->try_table_lock = true;
     }
     else {
@@ -3215,6 +3215,10 @@ bool ha_tokudb::may_table_be_empty(DB_TXN *txn) {
     DBC* tmp_cursor = NULL;
     DB_TXN* tmp_txn = NULL;
 
+    const int empty_scan = THDVAR(ha_thd(), empty_scan);
+    if (empty_scan == TOKUDB_EMPTY_SCAN_DISABLED)
+        goto cleanup;
+
     if (txn == NULL) {
         error = txn_begin(db_env, 0, &tmp_txn, 0, ha_thd());
         if (error) {
@@ -3224,21 +3228,23 @@ bool ha_tokudb::may_table_be_empty(DB_TXN *txn) {
     }
 
     error = share->file->cursor(share->file, txn, &tmp_cursor, 0);
-    if (error) {
+    if (error)
         goto cleanup;
-    }
-    error = tmp_cursor->c_getf_next(tmp_cursor, 0, smart_dbt_do_nothing, NULL);
-    if (error == DB_NOTFOUND) {
+     
+    if (empty_scan == TOKUDB_EMPTY_SCAN_LR)
+        error = tmp_cursor->c_getf_next(tmp_cursor, 0, smart_dbt_do_nothing, NULL);
+    else
+        error = tmp_cursor->c_getf_prev(tmp_cursor, 0, smart_dbt_do_nothing, NULL);
+    if (error == DB_NOTFOUND)
         ret_val = true;
-    }
-    else {
+    else 
         ret_val = false;
-    }
     error = 0;
+
 cleanup:
     if (tmp_cursor) {
         int r = tmp_cursor->c_close(tmp_cursor);
-        assert(r==0);
+        assert(r == 0);
         tmp_cursor = NULL;
     }
     if (tmp_txn) {
