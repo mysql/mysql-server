@@ -46,6 +46,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "ut0rnd.h" /* ut_rnd_interval() */
 #include "ut0ut.h" /* ut_format_name(), ut_time() */
 
+#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -127,10 +128,11 @@ where n=1..n_uniq.
 #endif /* UNIV_STATS_DEBUG */
 
 /* Gets the number of leaf pages to sample in persistent stats estimation */
-#define N_SAMPLE_PAGES(index)				\
-	((index)->table->stats_sample_pages != 0 ?	\
-	 (index)->table->stats_sample_pages :		\
-	 srv_stats_persistent_sample_pages)
+#define N_SAMPLE_PAGES(index)					\
+	static_cast<ib_uint64_t>(				\
+		(index)->table->stats_sample_pages != 0		\
+		? (index)->table->stats_sample_pages		\
+		: srv_stats_persistent_sample_pages)
 
 /* number of distinct records on a given level that are required to stop
 descending to lower levels and fetch N_SAMPLE_PAGES(index) records
@@ -1528,66 +1530,70 @@ dict_stats_analyze_index_below_cur(
 	return(n_diff);
 }
 
-/*********************************************************************//**
-For a given level in an index select N_SAMPLE_PAGES(index)
-(or less) records from that level and dive below them to the corresponding
-leaf pages, then scan those leaf pages and save the sampling results in
-index->stat_n_diff_key_vals[n_prefix - 1] and the number of pages scanned in
-index->stat_n_sample_sizes[n_prefix - 1]. */
+/** Input data that is used to calculate dict_index_t::stat_n_diff_key_vals[]
+for each n-columns prefix (n from 1 to n_uniq). */
+struct n_diff_data_t {
+	/** Number of records on the level where the descend through the btree
+	stopped. When we scan the btree from the root, we stop at some mid
+	level, choose some records from it and dive below them towards a leaf
+	page to analyze. */
+	ib_uint64_t	n_recs_on_level;
+
+	/** Number of different key values that were found on the mid level. */
+	ib_uint64_t	n_diff_on_level;
+
+	/** Number of leaf pages that are analyzed. This is also the same as
+	the number of records that we pick from the mid level and dive below
+	them. */
+	ib_uint64_t	n_leaf_pages_to_analyze;
+
+	/** Cumulative sum of the number of different key values that were
+	found on all analyzed pages. */
+	ib_uint64_t	n_diff_all_analyzed_pages;
+};
+
+/** Estimate the number of different key values in an index when looking at
+the first n_prefix columns. For a given level in an index select
+n_diff_data->n_leaf_pages_to_analyze records from that level and dive below
+them to the corresponding leaf pages, then scan those leaf pages and save the
+sampling results in n_diff_data->n_diff_all_analyzed_pages.
+@param[in]	index			index
+@param[in]	level			level, must be >= 1
+@param[in]	n_prefix		look at first 'n_prefix' columns when
+comparing records
+@param[in]	boundaries		a vector that contains
+n_diff_data->n_diff_on_level integers each of which represents the index (on
+level 'level', counting from left/smallest to right/biggest from 0) of the
+last record from each group of distinct keys
+@param[in,out]	n_diff_data		n_diff_all_analyzed_pages in this
+structure will be set by this function. The members n_diff_on_level and
+n_leaf_pages_to_analyze must be set by the caller in advance - they are used
+by some calculations inside this function
+@param[in,out]	mtr			mini-transaction */
 static
 void
 dict_stats_analyze_index_for_n_prefix(
-/*==================================*/
-	dict_index_t*	index,		/*!< in/out: index */
-	ulint		level,		/*!< in: level, must be >= 1 */
-	ib_uint64_t	total_recs_on_level,
-					/*!< in: total number of
-					records on the given level */
-	ulint		n_prefix,	/*!< in: look at first
-					n_prefix columns when
-					comparing records */
-	ib_uint64_t	n_diff_for_this_prefix,
-					/*!< in: number of distinct
-					records on the given level,
-					when looking at the first
-					n_prefix columns */
-	boundaries_t*	boundaries,	/*!< in: array that contains
-					n_diff_for_this_prefix
-					integers each of which
-					represents the index (on the
-					level, counting from
-					left/smallest to right/biggest
-					from 0) of the last record
-					from each group of distinct
-					keys */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction */
+	dict_index_t*		index,
+	ulint			level,
+	ulint			n_prefix,
+	const boundaries_t*	boundaries,
+	n_diff_data_t*		n_diff_data,
+	mtr_t*			mtr)
 {
 	btr_pcur_t	pcur;
 	const page_t*	page;
 	ib_uint64_t	rec_idx;
-	ib_uint64_t	last_idx_on_level;
-	ib_uint64_t	n_recs_to_dive_below;
-	ib_uint64_t	n_diff_sum_of_all_analyzed_pages;
 	ib_uint64_t	i;
 
 #if 0
 	DEBUG_PRINTF("    %s(table=%s, index=%s, level=%lu, n_prefix=%lu, "
-		     "n_diff_for_this_prefix=" UINT64PF ")\n",
+		     "n_diff_on_level=" UINT64PF ")\n",
 		     __func__, index->table->name, index->name, level,
-		     n_prefix, n_diff_for_this_prefix);
+		     n_prefix, n_diff_data->n_diff_on_level);
 #endif
 
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_S_LOCK));
-
-	/* if some of those is 0 then this means that there is exactly one
-	page in the B-tree and it is empty and we should have done full scan
-	and should not be here */
-	ut_ad(total_recs_on_level > 0);
-	ut_ad(n_diff_for_this_prefix > 0);
-
-	/* this must be at least 1 */
-	ut_ad(N_SAMPLE_PAGES(index) > 0);
 
 	/* Position pcur on the leftmost record on the leftmost page
 	on the desired level. */
@@ -1599,11 +1605,17 @@ dict_stats_analyze_index_for_n_prefix(
 
 	page = btr_pcur_get_page(&pcur);
 
+	const rec_t*	first_rec = btr_pcur_get_rec(&pcur);
+
+	/* We shouldn't be scanning the leaf level. The caller of this function
+	should have stopped the descend on level 1 or higher. */
+	ut_ad(level > 0);
+	ut_ad(!page_is_leaf(page));
+
 	/* The page must not be empty, except when
 	it is the root page (and the whole index is empty). */
-	ut_ad(btr_pcur_is_on_user_rec(&pcur) || page_is_leaf(page));
-	ut_ad(btr_pcur_get_rec(&pcur)
-	      == page_rec_get_next_const(page_get_infimum_rec(page)));
+	ut_ad(btr_pcur_is_on_user_rec(&pcur));
+	ut_ad(first_rec == page_rec_get_next_const(page_get_infimum_rec(page)));
 
 	/* check that we are indeed on the desired level */
 	ut_a(btr_page_get_level(page, mtr) == level);
@@ -1612,45 +1624,36 @@ dict_stats_analyze_index_for_n_prefix(
 	ut_a(btr_page_get_prev(page, mtr) == FIL_NULL);
 
 	/* check whether the first record on the leftmost page is marked
-	as such, if we are on a non-leaf level */
-	ut_a((level == 0)
-	     == !(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
-			  btr_pcur_get_rec(&pcur), page_is_comp(page))));
+	as such; we are on a non-leaf level */
+	ut_a(rec_get_info_bits(first_rec, page_is_comp(page))
+	     & REC_INFO_MIN_REC_FLAG);
 
-	last_idx_on_level = boundaries->at(
-		static_cast<unsigned int>(n_diff_for_this_prefix - 1));
+	const ib_uint64_t	last_idx_on_level = boundaries->at(
+		static_cast<unsigned>(n_diff_data->n_diff_on_level - 1));
 
 	rec_idx = 0;
 
-	n_diff_sum_of_all_analyzed_pages = 0;
+	n_diff_data->n_diff_all_analyzed_pages = 0;
 
-	n_recs_to_dive_below = ut_min(N_SAMPLE_PAGES(index),
-				      n_diff_for_this_prefix);
-
-	for (i = 0; i < n_recs_to_dive_below; i++) {
-		ib_uint64_t	left;
-		ib_uint64_t	right;
-		ib_uint64_t	rnd;
-		ib_uint64_t	dive_below_idx;
-
-		/* there are n_diff_for_this_prefix elements
+	for (i = 0; i < n_diff_data->n_leaf_pages_to_analyze; i++) {
+		/* there are n_diff_on_level elements
 		in 'boundaries' and we divide those elements
-		into n_recs_to_dive_below segments, for example:
+		into n_leaf_pages_to_analyze segments, for example:
 
-		let n_diff_for_this_prefix=100, n_recs_to_dive_below=4, then:
+		let n_diff_on_level=100, n_leaf_pages_to_analyze=4, then:
 		segment i=0:  [0, 24]
 		segment i=1: [25, 49]
 		segment i=2: [50, 74]
 		segment i=3: [75, 99] or
 
-		let n_diff_for_this_prefix=1, n_recs_to_dive_below=1, then:
+		let n_diff_on_level=1, n_leaf_pages_to_analyze=1, then:
 		segment i=0: [0, 0] or
 
-		let n_diff_for_this_prefix=2, n_recs_to_dive_below=2, then:
+		let n_diff_on_level=2, n_leaf_pages_to_analyze=2, then:
 		segment i=0: [0, 0]
 		segment i=1: [1, 1] or
 
-		let n_diff_for_this_prefix=13, n_recs_to_dive_below=7, then:
+		let n_diff_on_level=13, n_leaf_pages_to_analyze=7, then:
 		segment i=0:  [0,  0]
 		segment i=1:  [1,  2]
 		segment i=2:  [3,  4]
@@ -1661,9 +1664,12 @@ dict_stats_analyze_index_for_n_prefix(
 
 		then we select a random record from each segment and dive
 		below it */
-		left = n_diff_for_this_prefix * i / n_recs_to_dive_below;
-		right = n_diff_for_this_prefix * (i + 1)
-			/ n_recs_to_dive_below - 1;
+		const ib_uint64_t	n_diff = n_diff_data->n_diff_on_level;
+		const ib_uint64_t	n_pick
+			= n_diff_data->n_leaf_pages_to_analyze;
+
+		const ib_uint64_t	left = n_diff * i / n_pick;
+		const ib_uint64_t	right = n_diff * (i + 1) / n_pick - 1;
 
 		ut_a(left <= right);
 		ut_a(right <= last_idx_on_level);
@@ -1671,11 +1677,11 @@ dict_stats_analyze_index_for_n_prefix(
 		/* we do not pass (left, right) because we do not want to ask
 		ut_rnd_interval() to work with too big numbers since
 		ib_uint64_t could be bigger than ulint */
-		rnd = static_cast<ib_uint64_t>(
-			ut_rnd_interval(0, static_cast<ulint>(right - left)));
+		const ulint	rnd = ut_rnd_interval(
+			0, static_cast<ulint>(right - left));
 
-		dive_below_idx = boundaries->at(
-			static_cast<unsigned int>(left + rnd));
+		const ib_uint64_t	dive_below_idx
+			= boundaries->at(static_cast<unsigned>(left + rnd));
 
 #if 0
 		DEBUG_PRINTF("    %s(): dive below record with index="
@@ -1733,37 +1739,58 @@ dict_stats_analyze_index_for_n_prefix(
 			n_diff_on_leaf_page--;
 		}
 
-		n_diff_sum_of_all_analyzed_pages += n_diff_on_leaf_page;
+		n_diff_data->n_diff_all_analyzed_pages += n_diff_on_leaf_page;
 	}
 
-	/* n_diff_sum_of_all_analyzed_pages can be 0 here if all the leaf
-	pages sampled contained only delete-marked records. In this case
-	we should assign 0 to index->stat_n_diff_key_vals[n_prefix - 1], which
-	the formula below does. */
-
-	/* See REF01 for an explanation of the algorithm */
-	index->stat_n_diff_key_vals[n_prefix - 1]
-		= index->stat_n_leaf_pages
-
-		* n_diff_for_this_prefix
-		/ total_recs_on_level
-
-		* n_diff_sum_of_all_analyzed_pages
-		/ n_recs_to_dive_below;
-
-	index->stat_n_sample_sizes[n_prefix - 1] = n_recs_to_dive_below;
-
-	DEBUG_PRINTF("    %s(): n_diff=" UINT64PF " for n_prefix=%lu "
-		     "(%lu"
-		     " * " UINT64PF " / " UINT64PF
-		     " * " UINT64PF " / " UINT64PF ")\n",
-		     __func__, index->stat_n_diff_key_vals[n_prefix - 1],
-		     n_prefix,
-		     index->stat_n_leaf_pages,
-		     n_diff_for_this_prefix, total_recs_on_level,
-		     n_diff_sum_of_all_analyzed_pages, n_recs_to_dive_below);
-
 	btr_pcur_close(&pcur);
+}
+
+/** Set dict_index_t::stat_n_diff_key_vals[] and stat_n_sample_sizes[].
+@param[in]	n_diff_data	input data to use to derive the results
+@param[in,out]	index		index whose stat_n_diff_key_vals[] to set */
+UNIV_INLINE
+void
+dict_stats_index_set_n_diff(
+	const n_diff_data_t*	n_diff_data,
+	dict_index_t*		index)
+{
+	for (ulint n_prefix = dict_index_get_n_unique(index);
+	     n_prefix >= 1;
+	     n_prefix--) {
+		/* n_diff_all_analyzed_pages can be 0 here if
+		all the leaf pages sampled contained only
+		delete-marked records. In this case we should assign
+		0 to index->stat_n_diff_key_vals[n_prefix - 1], which
+		the formula below does. */
+
+		const n_diff_data_t*	data = &n_diff_data[n_prefix - 1];
+
+		/* See REF01 for an explanation of the algorithm */
+		index->stat_n_diff_key_vals[n_prefix - 1]
+			= index->stat_n_leaf_pages
+
+			* data->n_diff_on_level
+			/ data->n_recs_on_level
+
+			* data->n_diff_all_analyzed_pages
+			/ data->n_leaf_pages_to_analyze;
+
+		index->stat_n_sample_sizes[n_prefix - 1]
+			= data->n_leaf_pages_to_analyze;
+
+		DEBUG_PRINTF("    %s(): n_diff=" UINT64PF " for n_prefix=%lu"
+			     " (%lu"
+			     " * " UINT64PF " / " UINT64PF
+			     " * " UINT64PF " / " UINT64PF ")\n",
+			     __func__,
+			     index->stat_n_diff_key_vals[n_prefix - 1],
+			     n_prefix,
+			     index->stat_n_leaf_pages,
+			     data->n_diff_on_level,
+			     data->n_recs_on_level,
+			     data->n_diff_all_analyzed_pages,
+			     data->n_leaf_pages_to_analyze);
+	}
 }
 
 /*********************************************************************//**
@@ -1781,10 +1808,8 @@ dict_stats_analyze_index(
 	bool		level_is_analyzed;
 	ulint		n_uniq;
 	ulint		n_prefix;
-	ib_uint64_t*	n_diff_on_level;
 	ib_uint64_t	total_recs;
 	ib_uint64_t	total_pages;
-	boundaries_t*	n_diff_boundaries;
 	mtr_t		mtr;
 	ulint		size;
 	DBUG_ENTER("dict_stats_analyze_index");
@@ -1870,11 +1895,18 @@ dict_stats_analyze_index(
 		DBUG_VOID_RETURN;
 	}
 
-	/* set to zero */
-	n_diff_on_level = reinterpret_cast<ib_uint64_t*>
-		(mem_zalloc(n_uniq * sizeof(ib_uint64_t)));
+	/* For each level that is being scanned in the btree, this contains the
+	number of different key values for all possible n-column prefixes. */
+	ib_uint64_t*		n_diff_on_level = new ib_uint64_t[n_uniq];
 
-	n_diff_boundaries = new boundaries_t[n_uniq];
+	/* For each level that is being scanned in the btree, this contains the
+	index of the last record from each group of equal records (when
+	comparing only the first n columns, n=1..n_uniq). */
+	boundaries_t*		n_diff_boundaries = new boundaries_t[n_uniq];
+
+	/* For each n-column prefix this array contains the input data that is
+	used to calculate dict_index_t::stat_n_diff_key_vals[]. */
+	n_diff_data_t*		n_diff_data = new n_diff_data_t[n_uniq];
 
 	/* total_recs is also used to estimate the number of pages on one
 	level below, so at the start we have 1 page (the root) */
@@ -1986,12 +2018,12 @@ dict_stats_analyze_index(
 
 			level_is_analyzed = true;
 
-			if (n_diff_on_level[n_prefix - 1]
-			    >= N_DIFF_REQUIRED(index)
-			    || level == 1) {
-				/* we found a good level with many distinct
-				records or we have reached the last level we
-				could scan */
+			if (level == 1
+			    || n_diff_on_level[n_prefix - 1]
+			    >= N_DIFF_REQUIRED(index)) {
+				/* we have reached the last level we could scan
+				or we found a good level with many distinct
+				records */
 				break;
 			}
 
@@ -2005,11 +2037,29 @@ found_level:
 			     __func__, level, n_diff_on_level[n_prefix - 1],
 			     n_prefix);
 
+		/* if any of these is 0 then there is exactly one page in the
+		B-tree and it is empty and we should have done full scan and
+		should not be here */
+		ut_ad(total_recs > 0);
+		ut_ad(n_diff_on_level[n_prefix - 1] > 0);
+
+		ut_ad(N_SAMPLE_PAGES(index) > 0);
+
+		n_diff_data_t*	data = &n_diff_data[n_prefix - 1];
+
+		data->n_recs_on_level = total_recs;
+
+		data->n_diff_on_level = n_diff_on_level[n_prefix - 1];
+
+		data->n_leaf_pages_to_analyze = std::min(
+			N_SAMPLE_PAGES(index),
+			n_diff_on_level[n_prefix - 1]);
+
 		/* here we are either on level 1 or the level that we are on
 		contains >= N_DIFF_REQUIRED distinct keys or we did not scan
 		deeper levels because they would contain too many pages */
 
-		ut_ad(level > 0);
+		ut_ad(level >= 1);
 
 		ut_ad(level_is_analyzed);
 
@@ -2017,16 +2067,23 @@ found_level:
 		the given n_prefix */
 
 		dict_stats_analyze_index_for_n_prefix(
-			index, level, total_recs, n_prefix,
-			n_diff_on_level[n_prefix - 1],
-			&n_diff_boundaries[n_prefix - 1], &mtr);
+			index, level, n_prefix,
+			&n_diff_boundaries[n_prefix - 1], data, &mtr);
 	}
 
 	mtr_commit(&mtr);
 
 	delete[] n_diff_boundaries;
 
-	mem_free(n_diff_on_level);
+	delete[] n_diff_on_level;
+
+	/* n_prefix == 0 means that the above loop did not end up prematurely
+	due to tree being changed and so n_diff_data[] is set up. */
+	if (n_prefix == 0) {
+		dict_stats_index_set_n_diff(n_diff_data, index);
+	}
+
+	delete[] n_diff_data;
 
 	dict_stats_assert_initialized_index(index);
 	DBUG_VOID_RETURN;
