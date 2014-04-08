@@ -34,12 +34,6 @@ char	innobase_enable_bulk_load;
 /* Innodb index fill factor during index build. */
 long	innobase_bulk_load_fill_factor;
 
-/* Innodb bulk load page flush threshold. */
-long	innobase_bulk_load_flush_threshold;
-
-/* Innodb bulk load row threshold. */
-long	innobase_bulk_load_row_threshold;
-
 /** Initialize members.
 Allocate page and mtr. */
 void PageBulk::init()
@@ -65,7 +59,7 @@ void PageBulk::init()
 
 		dict_disable_redo_if_temporary(m_index->table, &alloc_mtr);
 		/* Allocate a new page. */
-		new_block = btr_page_alloc(m_index, 0, FSP_NO_DIR, m_level,
+		new_block = btr_page_alloc(m_index, 0, FSP_UP, m_level,
 					   &alloc_mtr, mtr);
 
 		mtr_commit(&alloc_mtr);
@@ -618,6 +612,7 @@ dberr_t BtrBulk::pageCommit(PageBulk* page_bulk, PageBulk* next_page_bulk,
 			    bool insert_father)
 {
 	dberr_t		err = DB_SUCCESS;
+	const	ulint	flush_threshold = 500;
 
 	page_bulk->finish();
 
@@ -648,7 +643,7 @@ dberr_t BtrBulk::pageCommit(PageBulk* page_bulk, PageBulk* next_page_bulk,
 	/* Commit mtr. */
 	page_bulk->commit(true);
 
-	if (m_finished_pages++ % innobase_bulk_load_flush_threshold) {
+	if (m_finished_pages++ % flush_threshold) {
 		m_need_flush = true;
 	}
 
