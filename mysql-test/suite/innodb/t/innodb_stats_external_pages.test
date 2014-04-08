@@ -30,7 +30,7 @@ ANALYZE TABLE bug18384390;
 
 -- let $cardinality = `SELECT cardinality FROM information_schema.statistics WHERE table_name = 'bug18384390'`
 
--- let $margin_of_err_pct = 25
+-- let $margin_of_err_pct = 30
 -- let $margin_of_err_rows = `SELECT ROUND($count * $margin_of_err_pct / 100)`
 
 -- let $min_allowed = `SELECT $count - $margin_of_err_rows`
