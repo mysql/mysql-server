@@ -109,7 +109,7 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
 # FILL_FACTOR=75
-SET GLOBAL innodb_index_fill_factor = 50;
+SET GLOBAL innodb_bulk_load_fill_factor = 50;
 CREATE INDEX idx_title ON t1(title);
 SELECT index_name, stat_name, stat_value, sample_size, stat_description
 FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
@@ -130,7 +130,7 @@ SELECT * FROM t1 WHERE title = 'ITSO';
 class	id	title
 68999668	15517	ITSO
 # FILL_FACTOR=50
-SET GLOBAL innodb_index_fill_factor = 75;
+SET GLOBAL innodb_bulk_load_fill_factor = 75;
 DROP INDEX idx_title ON t1;
 CREATE INDEX idx_title ON t1(title);
 SELECT index_name, stat_name, stat_value, sample_size, stat_description
@@ -152,7 +152,7 @@ SELECT * FROM t1 WHERE title = 'ITSO';
 class	id	title
 68999668	15517	ITSO
 # FILL_FACTOR=100
-SET GLOBAL innodb_index_fill_factor = 100;
+SET GLOBAL innodb_bulk_load_fill_factor = 100;
 DROP INDEX idx_title ON t1;
 CREATE INDEX idx_title ON t1(title);
 SELECT index_name, stat_name, stat_value, sample_size, stat_description
@@ -173,7 +173,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` 
 SELECT * FROM t1 WHERE title = 'ITSO';
 class	id	title
 68999668	15517	ITSO
-SET GLOBAL innodb_index_fill_factor = DEFAULT;
+SET GLOBAL innodb_bulk_load_fill_factor = DEFAULT;
 DROP TABLE t1;
 # Test Case 3: Test Compressed Table
 SET GLOBAL innodb_file_per_table=1;
