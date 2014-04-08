@@ -31,10 +31,21 @@ Created 03/11/2014 Shaohua Wang
 
 #include <vector>
 
+#ifdef UNIV_DEBUG
+/* Print bulk load performance data.*/
+#define BULK_LOAD_PFS_PRINT
+#endif
+
 extern	char	innobase_enable_bulk_load;
 
 /* Innodb index fill factor during index build. */
-extern	long	innobase_index_fill_factor;
+extern	long	innobase_bulk_load_fill_factor;
+
+/* Innodb bulk load page flush threshold. */
+extern long	innobase_bulk_load_flush_threshold;
+
+/* Innodb bulk load row threshold. */
+extern long	innobase_bulk_load_row_threshold;
 
 class PageBulk
 {
@@ -179,9 +190,6 @@ private:
 	/* The transaction id */
 	ulint		m_trx_id;
 
-	/* Flag: is the mtr need redo logging */
-	bool		m_log;
-
 	/* The buffer block */
 	buf_block_t*	m_block;
 
@@ -231,7 +239,8 @@ class BtrBulk
 public:
 	/** Constructor */
 	BtrBulk(dict_index_t* index, ulint trx_id):
-		m_index(index), m_trx_id(trx_id), m_root_level(0)
+		m_index(index), m_trx_id(trx_id), m_root_level(0),
+		m_finished_pages(0), m_need_flush(false)
 	{
 		m_heap = mem_heap_create(1000);
 
@@ -306,6 +315,12 @@ private:
 
 	/* Page cursor vector for all level */
 	page_bulk_vector*	m_page_bulks;
+
+	/* Finished page number. */
+	ulint			m_finished_pages;
+
+	/* Falg whether a flush needed. */
+	bool			m_need_flush;
 };
 
 #endif

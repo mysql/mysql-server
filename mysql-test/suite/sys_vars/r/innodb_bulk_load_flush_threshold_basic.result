@@ -1,0 +1,42 @@
+select @@global.innodb_bulk_load_flush_threshold;
+@@global.innodb_bulk_load_flush_threshold
+500
+select @@session.innodb_bulk_load_flush_threshold;
+ERROR HY000: Variable 'innodb_bulk_load_flush_threshold' is a GLOBAL variable
+show global variables like 'innodb_bulk_load_flush_threshold';
+Variable_name	Value
+innodb_bulk_load_flush_threshold	500
+show session variables like 'innodb_bulk_load_flush_threshold';
+Variable_name	Value
+innodb_bulk_load_flush_threshold	500
+select * from information_schema.global_variables where variable_name='innodb_bulk_load_flush_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_BULK_LOAD_FLUSH_THRESHOLD	500
+select * from information_schema.session_variables where variable_name='innodb_bulk_load_flush_threshold';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_BULK_LOAD_FLUSH_THRESHOLD	500
+set global innodb_bulk_load_flush_threshold=99;
+Warnings:
+Warning	1292	Truncated incorrect innodb_bulk_load_flush_threshold value: '99'
+select @@innodb_bulk_load_flush_threshold;
+@@innodb_bulk_load_flush_threshold
+100
+set global innodb_bulk_load_flush_threshold=100;
+select @@innodb_bulk_load_flush_threshold;
+@@innodb_bulk_load_flush_threshold
+100
+set global innodb_bulk_load_flush_threshold=500;
+select @@innodb_bulk_load_flush_threshold;
+@@innodb_bulk_load_flush_threshold
+500
+set global innodb_bulk_load_flush_threshold=100000;
+select @@innodb_bulk_load_flush_threshold;
+@@innodb_bulk_load_flush_threshold
+100000
+set global innodb_bulk_load_flush_threshold=100001;
+Warnings:
+Warning	1292	Truncated incorrect innodb_bulk_load_flush_threshold value: '100001'
+select @@innodb_bulk_load_flush_threshold;
+@@innodb_bulk_load_flush_threshold
+100000
+set global innodb_bulk_load_flush_threshold=500;

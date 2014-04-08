@@ -3504,6 +3504,7 @@ row_merge_build_indexes(
 	bool			fts_psort_initiated = false;
 	ulint			start_time_ms;
 	ulint			diff_time;
+	bool			bulk_load_used = false;
 	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
@@ -3592,11 +3593,11 @@ row_merge_build_indexes(
 		goto func_exit;
 	}
 
+#ifdef BULK_LOAD_PFS_PRINT
 	diff_time = ut_time_ms() - start_time_ms;
-	DBUG_EXECUTE_IF("row_merge_build_index_measure",
-		ib_logf(IB_LOG_LEVEL_INFO, "index read cluster time\t : %ld",
-			diff_time);
-	);
+	ib_logf(IB_LOG_LEVEL_INFO, "index read cluster time\t : %ld",
+		diff_time);
+#endif
 
 	DEBUG_SYNC_C("row_merge_after_scan");
 
@@ -3682,24 +3683,22 @@ wait_again:
 				trx, &dup, &merge_files[i],
 				block, &tmpfd);
 
+#ifdef BULK_LOAD_PFS_PRINT
 			diff_time = ut_time_ms() - start_time_ms;
-			DBUG_EXECUTE_IF("row_merge_build_index_measure",
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"index merge sort time\t : %ld",
-					diff_time);
-			);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"index merge sort time\t : %ld",
+				diff_time);
+#endif
 
 			if (error == DB_SUCCESS) {
 				bool	use_bulk_load = innobase_enable_bulk_load;
 #ifdef UNIV_DEBUG
-				const	ulint	bulk_load_record_threshhold = 1;
+				const	ulint	row_threshold = 1;
 #else
-				const	ulint	bulk_load_record_threshhold = 1000;
+				const	ulint	row_threshold = innobase_bulk_load_row_threshold;
 #endif	/* UNIV_DEBUG */
 
-				start_time_ms = ut_time_ms();
-
-				if (merge_files[i].n_rec < bulk_load_record_threshhold) {
+				if (merge_files[i].n_rec < row_threshold) {
 					use_bulk_load = false;
 				}
 
@@ -3709,18 +3708,20 @@ wait_again:
 					error = row_merge_bulk_load_index(
 						trx->id, sort_idx, old_table,
 						merge_files[i].fd, block);
+
+					bulk_load_used = true;
 				} else {
 					error = row_merge_insert_index_tuples(
 						trx->id, sort_idx, old_table,
 						merge_files[i].fd, block);
 				}
 
+#ifdef BULK_LOAD_PFS_PRINT
 				diff_time = ut_time_ms() - start_time_ms;
-				DBUG_EXECUTE_IF("row_merge_build_index_measure",
-					ib_logf(IB_LOG_LEVEL_INFO,
-						"index build time\t\t : %ld",
-						diff_time);
-				);
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"index build time\t\t : %ld",
+					diff_time);
+#endif
 			}
 		}
 
@@ -3822,6 +3823,10 @@ func_exit:
 					MONITOR_BACKGROUND_DROP_INDEX);
 			}
 		}
+	}
+
+	if (error == DB_SUCCESS && bulk_load_used) {
+		log_make_checkpoint_at(LSN_MAX, TRUE);
 	}
 
 	DBUG_RETURN(error);
