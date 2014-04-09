@@ -6,7 +6,7 @@
 #
 
 --source include/not_embedded.inc
-
+--source include/have_64bit.inc
 --source include/have_innodb.inc
 
 --source include/have_semijoin.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -104,39 +104,16 @@ static const char* example_system_database();
 static bool example_is_supported_system_table(const char *db,
                                       const char *table_name,
                                       bool is_sql_layer_system_table);
-#ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key ex_key_mutex_Example_share_mutex;
-
-static PSI_mutex_info all_example_mutexes[]=
-{
-  { &ex_key_mutex_Example_share_mutex, "Example_share::mutex", 0}
-};
-
-static void init_example_psi_keys()
-{
-  const char* category= "example";
-  int count;
-
-  count= array_elements(all_example_mutexes);
-  mysql_mutex_register(category, all_example_mutexes, count);
-}
-#endif
 
 Example_share::Example_share()
 {
   thr_lock_init(&lock);
-  mysql_mutex_init(ex_key_mutex_Example_share_mutex,
-                   &mutex, MY_MUTEX_INIT_FAST);
 }
 
 
 static int example_init_func(void *p)
 {
   DBUG_ENTER("example_init_func");
-
-#ifdef HAVE_PSI_INTERFACE
-  init_example_psi_keys();
-#endif
 
   example_hton= (handlerton *)p;
   example_hton->state=                     SHOW_OPTION_YES;

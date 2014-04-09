@@ -27,6 +27,7 @@ class subselect_hash_sj_engine;
 class Item_bool_func2;
 class Cached_item;
 class Comp_creator;
+class PT_subselect;
 
 typedef class st_select_lex SELECT_LEX;
 
@@ -40,6 +41,7 @@ typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 
 class Item_subselect :public Item_result_field
 {
+  typedef Item_result_field super;
 private:
   bool value_assigned; /* value already assigned to subselect */
   /**
@@ -100,6 +102,7 @@ public:
 		  EXISTS_SUBS, IN_SUBS, ALL_SUBS, ANY_SUBS};
 
   Item_subselect();
+  explicit Item_subselect(const POS &pos);
 
   virtual subs_type substype() { return UNKNOWN_SUBS; }
 
@@ -266,6 +269,7 @@ public:
 
 class Item_exists_subselect :public Item_subselect
 {
+  typedef Item_subselect super;
 protected:
   bool value; /* value of this item (boolean: exists/not-exists) */
 
@@ -307,10 +311,16 @@ public:
   TABLE_LIST *embedding_join_nest;
 
   Item_exists_subselect(st_select_lex *select_lex);
+
   Item_exists_subselect()
     :Item_subselect(), value(false), exec_method(EXEC_UNSPECIFIED),
      sj_convert_priority(0), sj_chosen(false), embedding_join_nest(NULL)
   {}
+  explicit Item_exists_subselect(const POS &pos)
+    :super(pos), value(false), exec_method(EXEC_UNSPECIFIED),
+     sj_convert_priority(0), sj_chosen(false), embedding_join_nest(NULL)
+  {}
+
   virtual trans_res select_transformer(JOIN *join)
   {
     exec_method= EXEC_EXISTS;
@@ -361,6 +371,7 @@ public:
 
 class Item_in_subselect :public Item_exists_subselect
 {
+  typedef Item_exists_subselect super;
 public:
   Item *left_expr;
 protected:
@@ -421,6 +432,10 @@ public:
   */
   TABLE_LIST *expr_join_nest;
 
+private:
+  PT_subselect *pt_subselect;
+
+public:
   bool in2exists_added_to_where() const
   { return in2exists_info && in2exists_info->added_to_where; }
 
@@ -439,13 +454,19 @@ public:
   }
   bool have_guarded_conds() { return MY_TEST(pushed_cond_guards); }
 
-  Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
+  explicit
+  Item_in_subselect(Item * left_expr, SELECT_LEX *select_lex);
+  Item_in_subselect(const POS &pos, Item * left_expr, PT_subselect *pt_subselect_arg);
+
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),
     left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
     optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
     in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
   {}
+
+  bool itemize(Parse_context *pc, Item **res);
+
   virtual void cleanup();
   subs_type substype() { return IN_SUBS; }
   virtual void reset() 

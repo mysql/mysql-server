@@ -62,6 +62,8 @@ using std::max;
 
 #ifdef _WIN32
 #define setenv(a,b,c) _putenv_s(a,b)
+#define popen _popen
+#define pclose _pclose
 #endif
 
 #define MAX_VAR_NAME_LENGTH    256
@@ -73,6 +75,25 @@ using std::max;
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
+
+#define APPEND_TYPE(type)                                                      \
+{                                                                              \
+  dynstr_append(ds, "-- ");                                                    \
+  switch (type)                                                                \
+  {                                                                            \
+  case SESSION_TRACK_SYSTEM_VARIABLES:                                         \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_SYSTEM_VARIABLES\n");           \
+    break;                                                                     \
+  case SESSION_TRACK_SCHEMA:                                                   \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_SCHEMA\n");                     \
+    break;                                                                     \
+  case SESSION_TRACK_STATE_CHANGE:                                             \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_STATE_CHANGE\n");               \
+    break;                                                                     \
+  default:                                                                     \
+    dynstr_append(ds, "\n");                                                   \
+  }                                                                            \
+}
 
 C_MODE_START
 static void signal_handler(int sig);
@@ -469,7 +490,7 @@ const char *command_names[]=
   "remove_files_wildcard",
   "send_eval",
   "output",
-  "resetconnection",
+  "reset_connection",
 
   0
 };
@@ -1293,7 +1314,7 @@ end:
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= snprintf(buf, 10, "%u", error);
+    int err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -3245,7 +3266,7 @@ void do_exec(struct st_command *command)
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= snprintf(buf, 10, "%u", error);
+    int err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -4516,7 +4537,7 @@ int do_save_master_pos()
 	    if (*status)
 	    {
 	      status+= sizeof(latest_trans_epoch_str)-1;
-	      latest_trans_epoch= strtoull(status, (char**) 0, 10);
+	      latest_trans_epoch= my_strtoull(status, (char**) 0, 10);
 	    }
 	    else
 	      die("result does not contain '%s' in '%s'",
@@ -4530,7 +4551,7 @@ int do_save_master_pos()
 	    if (*status)
 	    {
 	      status+= sizeof(latest_handled_binlog_epoch_str)-1;
-	      latest_handled_binlog_epoch= strtoull(status, (char**) 0, 10);
+	      latest_handled_binlog_epoch= my_strtoull(status, (char**) 0, 10);
 	    }
 	    else
 	      die("result does not contain '%s' in '%s'",
@@ -7376,6 +7397,11 @@ void append_session_track_info(DYNAMIC_STRING *ds, MYSQL *mysql)
                                        (enum_session_state_type) type,
                                        &data, &data_length))
     {
+      /*
+	Append the type information. Please update the definition of APPEND_TYPE when
+	any changes are made to enum_session_state_type.
+      */
+      APPEND_TYPE(type);
       dynstr_append(ds, "-- ");
       dynstr_append_mem(ds, data, data_length);
     }

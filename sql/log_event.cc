@@ -3679,8 +3679,8 @@ bool Query_log_event::write(IO_CACHE* file)
 
   if (thd && thd->need_binlog_invoker())
   {
-    LEX_STRING invoker_user;
-    LEX_STRING invoker_host;
+    LEX_CSTRING invoker_user;
+    LEX_CSTRING invoker_host;
     memset(&invoker_user, 0, sizeof(invoker_user));
     memset(&invoker_host, 0, sizeof(invoker_host));
 
@@ -4899,7 +4899,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             ::do_apply_event(), then the companion SET also have so
             we don't need to reset_one_shot_variables().
   */
-  if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
     thd->set_time(&when);
     thd->set_query(query_arg, q_len_arg);
@@ -6328,22 +6327,22 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
   fname_len = (fname) ? (uint) strlen(fname) : 0;
-  sql_ex.field_term = (char*) ex->field_term->ptr();
-  sql_ex.field_term_len = (uint8) ex->field_term->length();
-  sql_ex.enclosed = (char*) ex->enclosed->ptr();
-  sql_ex.enclosed_len = (uint8) ex->enclosed->length();
-  sql_ex.line_term = (char*) ex->line_term->ptr();
-  sql_ex.line_term_len = (uint8) ex->line_term->length();
-  sql_ex.line_start = (char*) ex->line_start->ptr();
-  sql_ex.line_start_len = (uint8) ex->line_start->length();
-  sql_ex.escaped = (char*) ex->escaped->ptr();
-  sql_ex.escaped_len = (uint8) ex->escaped->length();
+  sql_ex.field_term = ex->field.field_term->ptr();
+  sql_ex.field_term_len = (uint8) ex->field.field_term->length();
+  sql_ex.enclosed = ex->field.enclosed->ptr();
+  sql_ex.enclosed_len = (uint8) ex->field.enclosed->length();
+  sql_ex.line_term = ex->line.line_term->ptr();
+  sql_ex.line_term_len = (uint8) ex->line.line_term->length();
+  sql_ex.line_start = ex->line.line_start->ptr();
+  sql_ex.line_start_len = (uint8) ex->line.line_start->length();
+  sql_ex.escaped = (char*) ex->field.escaped->ptr();
+  sql_ex.escaped_len = (uint8) ex->field.escaped->length();
   sql_ex.opt_flags = 0;
   sql_ex.cached_new_format = -1;
     
   if (ex->dumpfile)
     sql_ex.opt_flags|= DUMPFILE_FLAG;
-  if (ex->opt_enclosed)
+  if (ex->field.opt_enclosed)
     sql_ex.opt_flags|= OPT_ENCLOSED_FLAG;
 
   sql_ex.empty_flags= 0;
@@ -6359,15 +6358,15 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   if (ignore)
     sql_ex.opt_flags|= IGNORE_FLAG;
 
-  if (!ex->field_term->length())
+  if (!ex->field.field_term->length())
     sql_ex.empty_flags |= FIELD_TERM_EMPTY;
-  if (!ex->enclosed->length())
+  if (!ex->field.enclosed->length())
     sql_ex.empty_flags |= ENCLOSED_EMPTY;
-  if (!ex->line_term->length())
+  if (!ex->line.line_term->length())
     sql_ex.empty_flags |= LINE_TERM_EMPTY;
-  if (!ex->line_start->length())
+  if (!ex->line.line_start->length())
     sql_ex.empty_flags |= LINE_START_EMPTY;
-  if (!ex->escaped->length())
+  if (!ex->field.escaped->length())
     sql_ex.empty_flags |= ESCAPED_EMPTY;
     
   skip_lines = ex->skip_lines;
@@ -6792,15 +6791,15 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       String line_start(sql_ex.line_start,sql_ex.line_start_len,log_cs);
       String escaped(sql_ex.escaped,sql_ex.escaped_len, log_cs);
       const String empty_str("", 0, log_cs);
-      ex.field_term= &field_term;
-      ex.enclosed= &enclosed;
-      ex.line_term= &line_term;
-      ex.line_start= &line_start;
-      ex.escaped= &escaped;
+      ex.field.field_term= &field_term;
+      ex.field.enclosed= &enclosed;
+      ex.line.line_term= &line_term;
+      ex.line.line_start= &line_start;
+      ex.field.escaped= &escaped;
 
-      ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
+      ex.field.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
-        ex.field_term= &empty_str;
+        ex.field.field_term= &empty_str;
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
@@ -7090,10 +7089,18 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     5.0.0, there also are some rotates from the slave itself, in the
     relay log, which shall not change the group positions.
   */
+
+  /*
+    The way we check if SQL thread is currently in a group is different
+    for STS and MTS.
+  */
+  bool in_group = rli->is_parallel_exec() ?
+    (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) :
+    rli->is_in_group();
+
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
       !is_relay_log_event() &&
-      ((!rli->is_parallel_exec() && !rli->is_in_group()) ||
-       rli->mts_group_status != Relay_log_info::MTS_IN_GROUP))
+      !in_group)
   {
     if (!is_mts_db_partitioned(rli) && server_id != ::server_id && log_pos )
     {
@@ -13540,8 +13547,8 @@ Rows_query_log_event::print(FILE *file,
       statement from being executed when binary log will be processed
       using 'mysqlbinlog --verbose --verbose'.
     */
-    for (token= strtok_r(rows_query_copy, "\n", &saveptr); token;
-         token= strtok_r(NULL, "\n", &saveptr))
+    for (token= my_strtok_r(rows_query_copy, "\n", &saveptr); token;
+         token= my_strtok_r(NULL, "\n", &saveptr))
       my_b_printf(head, "# %s\n", token);
     my_free(rows_query_copy);
     print_base64(body, print_event_info, true);

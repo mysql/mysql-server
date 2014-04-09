@@ -254,9 +254,11 @@ enum recv_addr_state {
 	RECV_BEING_READ,
 	/** log records are being applied on the page */
 	RECV_BEING_PROCESSED,
-	/** log records have been applied on the page, or they have
-	been discarded because the tablespace does not exist */
-	RECV_PROCESSED
+	/** log records have been applied on the page */
+	RECV_PROCESSED,
+	/** log records have been discarded because the tablespace
+	does not exist */
+	RECV_DISCARDED
 };
 
 /** Hashed page file address struct */
@@ -322,10 +324,6 @@ struct recv_sys_t{
 	ibool		apply_batch_on;
 				/*!< this is TRUE when a log rec application
 				batch is running */
-	lsn_t		lsn;	/*!< log sequence number */
-	ulint		last_log_buf_size;
-				/*!< size of the log buffer when the database
-				last time wrote to the log */
 	byte*		last_block;
 				/*!< possible incomplete last recovered log
 				block */
@@ -356,6 +354,9 @@ struct recv_sys_t{
 				scan find a corrupt log block, or a corrupt
 				log record, or there is a log parsing
 				buffer overflow */
+	lsn_t		mlog_checkpoint_lsn;
+				/*!< the LSN of a MLOG_CHECKPOINT
+				record, or 0 if none was parsed */
 	mem_heap_t*	heap;	/*!< memory heap of log records and file
 				addresses*/
 	hash_table_t*	addr_hash;/*!< hash table of file addresses of pages */

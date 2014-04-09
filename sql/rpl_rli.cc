@@ -134,8 +134,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 
   if(!rli_fake)
   {
-    my_atomic_rwlock_init(&slave_open_temp_tables_lock);
-
     mysql_mutex_init(key_relay_log_info_log_space_lock,
                      &log_space_lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
@@ -200,7 +198,6 @@ Relay_log_info::~Relay_log_info()
     mysql_mutex_destroy(&pending_jobs_lock);
     mysql_cond_destroy(&pending_jobs_cond);
     mysql_mutex_destroy(&mts_temp_table_LOCK);
-    my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
     relay_log.cleanup();
   }
 
