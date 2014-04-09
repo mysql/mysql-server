@@ -11048,8 +11048,9 @@ ha_innobase::info_low(
 				}
 
 				const rec_per_key_t	rec_per_key
-					= innodb_rec_per_key(index, j,
-							     stats.records);
+					= innodb_rec_per_key(
+						index, j,
+						index->table->stat_n_rows);
 
 				/* Here we have two variants for rec_per_key:
 				1. The new one which is set via
@@ -11065,8 +11066,9 @@ ha_innobase::info_low(
 				should be deleted once we are sure that the
 				floating point numbers are fine. */
 
-				ulong	rec_per_key_int
-					= static_cast<ulong>(rec_per_key);
+				ulong	rec_per_key_int = static_cast<ulong>(
+					innodb_rec_per_key(index, j,
+							   stats.records));
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
