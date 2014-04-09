@@ -248,7 +248,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
   char   buff[2048];
   size_t len;
 
-  len= snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
+  len= my_snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
 
   va_start(args, format);
   vsnprintf(buff + len, sizeof(buff) - len, format, args);
@@ -441,7 +441,7 @@ PSI_stage_info stage_waiting_for_table_level_lock=
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
-  key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
+  key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
   key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
@@ -454,7 +454,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
   { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},
   { &key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0},
-  { &key_LOCK_alarm, "LOCK_alarm", PSI_FLAG_GLOBAL},
   { &key_my_thread_var_mutex, "my_thread_var::mutex", 0},
   { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL},
@@ -469,13 +468,12 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
 };
 
-PSI_cond_key key_COND_alarm, key_IO_CACHE_SHARE_cond,
+PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
   key_THR_COND_threads;
 
 static PSI_cond_info all_mysys_conds[]=
 {
-  { &key_COND_alarm, "COND_alarm", PSI_FLAG_GLOBAL},
   { &key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0},
   { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0},
   { &key_my_thread_var_suspend, "my_thread_var::suspend", 0},
@@ -530,7 +528,6 @@ static PSI_memory_info all_mysys_memory[]=
   { &key_memory_MY_STAT, "MY_STAT", 0},
   { &key_memory_QUEUE, "QUEUE", 0},
   { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
-  { &key_memory_ALARM, "ALARM", 0},
   { &key_memory_TREE, "TREE", 0},
   { &key_memory_radix_sort, "radix_sort", 0}
 };

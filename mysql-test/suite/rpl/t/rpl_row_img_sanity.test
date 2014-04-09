@@ -21,6 +21,7 @@
 #
 -- source include/master-slave.inc
 -- source include/have_binlog_format_row.inc
+-- source include/no_valgrind_without_big.inc
 
 -- connection slave
 call mtr.add_suppression("Slave: Can\'t find record in \'t\' Error_code: 1032");

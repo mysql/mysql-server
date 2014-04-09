@@ -22,6 +22,10 @@
 
 */
 
+// Needed by the unit tests
+#ifndef OPT_RANGE_CC_INCLUDED
+#define OPT_RANGE_CC_INCLUDED
+
 /*
   This file contains:
 
@@ -1712,6 +1716,7 @@ end:
     original value to not pollute other scans.
   */
   head->column_bitmaps_set(save_read_set, save_write_set);
+  bitmap_clear_all(&head->tmp_set);
 
   DBUG_RETURN(0);
 
@@ -2634,7 +2639,10 @@ void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
 }
 
 /*
-  Test if a key can be used in different ranges
+  Test if a key can be used in different ranges, and create the QUICK
+  access method (range, index merge etc) that is estimated to be
+  cheapest unless table/index scan is even cheaper (exception: @see
+  parameter force_quick_range).
 
   SYNOPSIS
     SQL_SELECT::test_quick_select()
@@ -5935,14 +5943,6 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
                                                     Item_result cmp_type,
                                                     bool is_negated)
 {
-  /*
-    Array for IN() is constructed when all values have the same result
-    type. Tree won't be built for values with different result types,
-    so we check it here to avoid unnecessary work.
-  */
-  if (!op->arg_types_compatible)
-    return NULL;
-
   if (is_negated)
   {
     // We don't support row constructors (multiple columns on lhs) here.
@@ -7349,6 +7349,11 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     tree->max_flag=NO_MAX_RANGE;
     break;
   case Item_func::SP_EQUALS_FUNC:
+    /*
+      GIS seems to work by pure accident since HA_READ_MBR_* are
+      enums.
+      @todo: Make HA_READ_MBR* bitmap values
+    */
     tree->min_flag=GEOM_FLAG | HA_READ_MBR_EQUAL;// NEAR_MIN;//512;
     tree->max_flag=NO_MAX_RANGE;
     break;
@@ -7490,16 +7495,20 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       if (*key2 && !(*key2)->simple_key())
 	flag|=CLONE_KEY2_MAYBE;
       *key1=key_and(param, *key1, *key2, flag);
-      if (*key1 && (*key1)->type == SEL_ARG::IMPOSSIBLE)
+      if (*key1)
       {
-	tree1->type= SEL_TREE::IMPOSSIBLE;
-        DBUG_RETURN(tree1);
-      }
-      result_keys.set_bit(key1 - tree1->keys);
+        if ((*key1)->type == SEL_ARG::IMPOSSIBLE)
+        {
+          tree1->type= SEL_TREE::IMPOSSIBLE;
+          DBUG_RETURN(tree1);
+        }
+        result_keys.set_bit(key1 - tree1->keys);
 #ifndef DBUG_OFF
-        if (*key1 && param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
+        if (param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
           (*key1)->test_use_count(*key1);
 #endif
+      }
+
     }
   }
   tree1->keys_map= result_keys;
@@ -7867,10 +7876,12 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
 
   if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
   {
-    /* TODO: why not leave one of the trees? */
-    key1->free_tree();
+    /*
+      Cannot optimize geometry ranges. The next best thing is to keep
+      one of them.
+    */
     key2->free_tree();
-    return 0;					// Can't optimize this
+    return key1;
   }
 
   key1->use_count--;
@@ -14048,7 +14059,9 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     if (field->real_maybe_null() && *key)
       out->append(STRING_WITH_LEN("NULL"));
     else
-      out->append(STRING_WITH_LEN("unprintable_blob_value"));    
+      (field->type() == MYSQL_TYPE_GEOMETRY) ?
+        out->append(STRING_WITH_LEN("unprintable_geometry_value")) :
+        out->append(STRING_WITH_LEN("unprintable_blob_value"));    
     return;
   }
 
@@ -14123,6 +14136,19 @@ void append_range(String *out,
 {
   if (out->length() > 0)
     out->append(STRING_WITH_LEN(" AND "));
+
+  if (flag & GEOM_FLAG)
+  {
+    /*
+      The flags of GEOM ranges do not work the same way as for other
+      range types, so printing "col < some_geom" doesn't make sense.
+      Just print the column name, not operator.
+    */
+    out->append(key_part->field->field_name);
+    out->append(STRING_WITH_LEN(" "));
+    print_key_value(out, key_part, min_key);
+    return;
+  }
 
   if (!(flag & NO_MIN_RANGE))
   {
@@ -14619,3 +14645,4 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 
 
 #endif /* !DBUG_OFF */
+#endif /* OPT_RANGE_CC_INCLUDED */

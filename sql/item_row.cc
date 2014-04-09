@@ -22,32 +22,22 @@
 #include "sql_class.h"                          // THD, set_var.h: THD
 #include "set_var.h"
 
-/**
-  Row items used for comparing rows and IN operations on rows:
-
-  @verbatim
-  (a, b, c) > (10, 10, 30)
-  (a, b, c) = (select c, d, e, from t1 where x=12)
-  (a, b, c) IN ((1,2,2), (3,4,5), (6,7,8)
-  (a, b, c) IN (select c, d, e, from t1)
-  @endverbatim
-
-  @todo
-    think placing 2-3 component items in item (as it done for function
-*/
-
-Item_row::Item_row(List<Item> &arg):
-  Item(), used_tables_cache(0), not_null_tables_cache(0),
+Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail):
+  super(pos), used_tables_cache(0), not_null_tables_cache(0),
   const_item_cache(1), with_null(0)
 {
 
   //TODO: think placing 2-3 component items in item (as it done for function)
-  if ((arg_count= arg.elements))
-    items= (Item**) sql_alloc(sizeof(Item*)*arg_count);
-  else
-    items= 0;
-  List_iterator<Item> li(arg);
-  uint i= 0;
+  arg_count= 1 + tail.elements;
+  items= (Item**) sql_alloc(sizeof(Item*)*arg_count);
+  if (items == NULL)
+  {
+    arg_count= 0;
+    return; // OOM
+  }
+  items[0]= head;
+  List_iterator<Item> li(tail);
+  uint i= 1;
   Item *item;
   while ((item= li++))
   {
@@ -55,6 +45,22 @@ Item_row::Item_row(List<Item> &arg):
     i++;    
   }
 }
+
+
+bool Item_row::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (items[i]->itemize(pc, &items[i]))
+      return true;
+  }
+  return false;
+}
+
 
 void Item_row::illegal_method_call(const char *method)
 {

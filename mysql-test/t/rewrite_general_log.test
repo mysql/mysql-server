@@ -1,12 +1,8 @@
-
 #
 # WL#5706/Bug#58712/Bug#11746378
 # Encrypt or remove passwords from slow, query, and binary logs
 # (see sql/sql_rewrite.cc for bulk of implementation)
 #
-
-# For Bug#16467055 and friends:
---source include/not_embedded.inc
 
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.general_log;
@@ -113,21 +109,6 @@ EXPLAIN EXTENDED SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
 
 
 --echo End of 5.6 tests!
-
-
---echo #
---echo # Bug#16467055: GRANT STATEMENTS LOGGED TWICE IN SLOW QUERY LOG
---echo #
-
-SET GLOBAL slow_query_log=1;
-SET GLOBAL log_output='TABLE';
-TRUNCATE mysql.slow_log;
---exec $MYSQL -e "SET SESSION long_query_time=0; GRANT ALL PRIVILEGES ON *.* TO test_user1 IDENTIFIED BY 'meow';"
-SELECT sql_text FROM mysql.slow_log;
-DROP USER test_user1;
-
-
---echo End of 5.7 tests!
 
 # cleanup
 DROP TABLE test_log;

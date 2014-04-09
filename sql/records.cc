@@ -720,7 +720,7 @@ static int rr_from_cache(READ_RECORD *info)
     {
       if (info->cache_pos[info->error_offset])
       {
-	shortget(error,info->cache_pos);
+	shortget(&error, info->cache_pos);
 	if (info->print_error)
 	  info->table->file->print_error(error,MYF(0));
       }

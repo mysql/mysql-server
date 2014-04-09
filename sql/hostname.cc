@@ -952,7 +952,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
 
     DBUG_PRINT("info", ("  - '%s'", (const char *) ip_buffer));
 
-    if (strcasecmp(ip_key, ip_buffer) == 0)
+    if (native_strcasecmp(ip_key, ip_buffer) == 0)
     {
       /* Copy host name string to be stored in the cache. */
 

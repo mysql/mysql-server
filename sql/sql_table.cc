@@ -3650,7 +3650,9 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TOO_MANY_KEY_PARTS,MYF(0),tmp);
       DBUG_RETURN(TRUE);
     }
-    if (check_string_char_length(&key->name, "", NAME_CHAR_LEN,
+
+    LEX_CSTRING key_name_cstr= {key->name.str, key->name.length};
+    if (check_string_char_length(key_name_cstr, "", NAME_CHAR_LEN,
                                  system_charset_info, 1))
     {
       my_error(ER_TOO_LONG_IDENT, MYF(0), key->name.str);
@@ -9085,7 +9087,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     
     for (Copy_field *copy_ptr=copy ; copy_ptr != copy_end ; copy_ptr++)
     {
-      copy_ptr->do_copy(copy_ptr);
+      copy_ptr->invoke_do_copy(copy_ptr);
     }
 
     error=to->file->ha_write_row(to->record[0]);

@@ -3053,7 +3053,7 @@ innobase_change_buffering_inited_ok:
 				  " cannot be set higher than"
 				  " innodb_max_dirty_pages_pct.\n"
 				  "InnoDB: Setting"
-				  " innodb_max_dirty_pages_pct_lwm to %lu\n",
+				  " innodb_max_dirty_pages_pct_lwm to %lf\n",
 				  srv_max_buf_pool_modified_pct);
 
 		srv_max_dirty_pages_pct_lwm = srv_max_buf_pool_modified_pct;
@@ -13626,7 +13626,7 @@ innodb_max_dirty_pages_pct_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	ulong	in_val = *static_cast<const ulong*>(save);
+	double	in_val = *static_cast<const double*>(save);
 	if (in_val < srv_max_dirty_pages_pct_lwm) {
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
@@ -13636,7 +13636,7 @@ innodb_max_dirty_pages_pct_update(
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Lowering"
-				    " innodb_max_dirty_page_pct_lwm to %lu",
+				    " innodb_max_dirty_page_pct_lwm to %lf",
 				    in_val);
 
 		srv_max_dirty_pages_pct_lwm = in_val;
@@ -13660,7 +13660,7 @@ innodb_max_dirty_pages_pct_lwm_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	ulong	in_val = *static_cast<const ulong*>(save);
+	double	in_val = *static_cast<const double*>(save);
 	if (in_val > srv_max_buf_pool_modified_pct) {
 		in_val = srv_max_buf_pool_modified_pct;
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -13671,7 +13671,7 @@ innodb_max_dirty_pages_pct_lwm_update(
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Setting innodb_max_dirty_page_pct_lwm"
-				    " to %lu",
+				    " to %lf",
 				    in_val);
 	}
 
@@ -14148,6 +14148,7 @@ innodb_make_page_dirty(
 	ulong space_id = *static_cast<const ulong*>(save);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(space_id);
 
 	buf_block_t* block = buf_page_get(
 		page_id_t(space_id, srv_saved_page_number_debug),
@@ -14910,9 +14911,9 @@ innodb_enable_monitor_at_startup(
 	and/or counter group name, and calling innodb_monitor_update()
 	if successfully updated. Please note that the "str" would be
 	changed by strtok_r() as it walks through it. */
-	for (char* option = strtok_r(str, sep, &last);
+	for (char* option = my_strtok_r(str, sep, &last);
 	     option;
-	     option = strtok_r(NULL, sep, &last)) {
+	     option = my_strtok_r(NULL, sep, &last)) {
 		ulint	ret;
 		char*	option_name;
 
@@ -15133,7 +15134,9 @@ checkpoint_now_set(
 						check function */
 {
 	if (*(my_bool*) save) {
-		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
+		while (log_sys->last_checkpoint_lsn
+		       + 1 /* MLOG_CHECKPOINT */
+		       < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
@@ -15580,16 +15583,16 @@ static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
   "Page cleaner threads can be from 1 to 64. Default is 1.",
   NULL, NULL, 1, 1, 64, 0);
 
-static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
+static MYSQL_SYSVAR_DOUBLE(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages allowed in bufferpool.",
-  NULL, innodb_max_dirty_pages_pct_update, 75, 0, 99, 0);
+  NULL, innodb_max_dirty_pages_pct_update, 75.0, 0, 99.999, 0);
 
-static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct_lwm,
+static MYSQL_SYSVAR_DOUBLE(max_dirty_pages_pct_lwm,
   srv_max_dirty_pages_pct_lwm,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages at which flushing kicks in.",
-  NULL, innodb_max_dirty_pages_pct_lwm_update, 0, 0, 99, 0);
+  NULL, innodb_max_dirty_pages_pct_lwm_update, 0, 0, 99.999, 0);
 
 static MYSQL_SYSVAR_ULONG(adaptive_flushing_lwm,
   srv_adaptive_flushing_lwm,
@@ -16800,8 +16803,8 @@ innobase_convert_to_filename_charset(
 	CHARSET_INFO*	cs_to = &my_charset_filename;
 	CHARSET_INFO*	cs_from = system_charset_info;
 
-	return(strconvert(
-		cs_from, from, cs_to, to, len, &errors));
+	return(static_cast<uint>(strconvert(
+		cs_from, from, cs_to, to, static_cast<size_t>(len), &errors)));
 }
 
 /**********************************************************************
@@ -16818,6 +16821,6 @@ innobase_convert_to_system_charset(
 	CHARSET_INFO*	cs1 = &my_charset_filename;
 	CHARSET_INFO*	cs2 = system_charset_info;
 
-	return(strconvert(
-		cs1, from, cs2, to, len, errors));
+	return(static_cast<uint>(strconvert(
+		cs1, from, cs2, to, static_cast<size_t>(len), errors)));
 }

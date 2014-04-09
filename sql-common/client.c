@@ -102,12 +102,11 @@ my_bool	net_flush(NET *net);
 
 #define STATE_DATA(M) (MYSQL_EXTENSION_PTR(M)->state_change)
 
-#define ADD_INFO(M, element)                                                    \
-{                                                                      \
-  M= &STATE_DATA(mysql);                                               \
-  M->info_list[SESSION_TRACK_SYSTEM_VARIABLES].head_node=              \
-    list_add(M->info_list[SESSION_TRACK_SYSTEM_VARIABLES].head_node,   \
-	     element);                                                 \
+#define ADD_INFO(M, element, type)                                             \
+{                                                                              \
+  M= &STATE_DATA(mysql);                                                       \
+  M->info_list[type].head_node= list_add(M->info_list[type].head_node,         \
+                                         element);                             \
 }
 
 #define native_password_plugin_name "mysql_native_password"
@@ -740,7 +739,22 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   if (mysql->server_capabilities & CLIENT_SESSION_TRACK)
   {
     size_t length_msg_member= (size_t) net_field_length(&pos);
-    mysql->info= (length_msg_member ? (char *) pos : NULL);
+    if (length_msg_member)
+    {
+      if (!mysql->info_buffer)
+	mysql->info_buffer= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
+	                                       MYSQL_ERRMSG_SIZE, MYF(MY_WME));
+      /*
+        If memory allocation succeeded, the string is copied.
+	Else, mysql->info remains NULL.
+      */
+      if (mysql->info_buffer)
+      {
+	strmake(mysql->info_buffer, (const char *) pos,
+	        MY_MIN(length_msg_member, MYSQL_ERRMSG_SIZE - 1));
+	mysql->info= mysql->info_buffer;
+      }
+    }
     pos += (length_msg_member);
     free_state_change_info(mysql->extension);
     if (mysql->server_status & SERVER_SESSION_STATE_CHANGED)
@@ -780,7 +794,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
           /*
             Check if the changed variable was charset. In that case we need to
@@ -813,7 +827,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
           if (is_charset == 1)
           {
@@ -858,7 +872,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SCHEMA);
 
 	  if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
 		                       data->length + 1, MYF(MY_WME))))
@@ -900,7 +914,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-          ADD_INFO(info, element);
+          ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
 
           break;
         default:
@@ -3738,14 +3752,14 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                       "_platform", MACHINE_TYPE);
 #ifdef _WIN32
-  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
+  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
 #else
-  snprintf(buff, buf_len, "%lu", (ulong) getpid());
+  my_snprintf(buff, buf_len, "%lu", (ulong) getpid());
 #endif
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
 
 #ifdef _WIN32
-  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
+  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
 

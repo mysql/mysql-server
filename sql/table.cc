@@ -1019,7 +1019,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
-  float *rec_per_key_float;
+  rec_per_key_t *rec_per_key_float;
   handler *handler_file= 0;
   KEY	*keyinfo;
   KEY_PART_INFO *key_part;
@@ -1148,7 +1148,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!multi_alloc_root(&share->mem_root, 
                         &keyinfo, n_length + uint2korr(disk_buff + 4),
                         &rec_per_key, sizeof(ulong) * total_key_parts,
-                        &rec_per_key_float, sizeof(float) * total_key_parts,
+                        &rec_per_key_float,
+                        sizeof(rec_per_key_t) * total_key_parts,
                         NULL))
     goto err;                                   /* purecov: inspected */
 
@@ -1318,7 +1319,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           replacing it with a globally locked version of tmp_plugin
         */
         /* Check if the partitioning engine is ready */
-        if (!plugin_is_ready(&name, MYSQL_STORAGE_ENGINE_PLUGIN))
+        LEX_CSTRING name_cstr= {name.str, name.length};
+        if (!plugin_is_ready(name_cstr, MYSQL_STORAGE_ENGINE_PLUGIN))
         {
           error= 8;
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
@@ -1393,17 +1395,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     {
       if (keyinfo->flags & HA_USES_PARSER)
       {
-        LEX_STRING parser_name;
         if (next_chunk >= buff_end)
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
           goto err;
         }
-        parser_name.str= (char*) next_chunk;
-        parser_name.length= strlen((char*) next_chunk);
+        LEX_CSTRING parser_name= {reinterpret_cast<char*>(next_chunk),
+                                  strlen(reinterpret_cast<char*>(next_chunk))};
         next_chunk+= parser_name.length + 1;
-        keyinfo->parser= my_plugin_lock_by_name(NULL, &parser_name,
+        keyinfo->parser= my_plugin_lock_by_name(NULL, parser_name,
                                                 MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
         {
@@ -2304,7 +2305,7 @@ partititon_err:
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 4)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 5)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -2312,8 +2313,10 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
   bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  bitmap_init(&outparam->cond_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
   bitmap_init(&outparam->def_fields_set_during_insert,
-              (my_bitmap_map*) (bitmaps + bitmap_size * 3), share->fields,
+              (my_bitmap_map*) (bitmaps + bitmap_size * 4), share->fields,
               FALSE);
   outparam->default_column_bitmaps();
 
@@ -4492,8 +4495,11 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
   {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     DBUG_ASSERT(view && view_sctx);
-    if (acl_getroot(view_sctx, definer.user.str, definer.host.str,
-                                definer.host.str, thd->db))
+    if (acl_getroot(view_sctx,
+                    const_cast<char*>(definer.user.str),
+                    const_cast<char*>(definer.host.str),
+                    const_cast<char*>(definer.host.str),
+                    thd->db))
     {
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
@@ -5120,6 +5126,8 @@ void TABLE::clear_column_bitmaps()
 
   bitmap_clear_all(&def_fields_set_during_insert);
   fields_set_during_insert= &def_fields_set_during_insert;
+
+  bitmap_clear_all(&tmp_set);
 }
 
 
@@ -5525,12 +5533,13 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   */
   const size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count;
   ulong *rec_per_key;
-  float *rec_per_key_float;
+  rec_per_key_t *rec_per_key_float;
 
   if(!multi_alloc_root(&mem_root,
                        &key_buf, key_buf_size,
                        &rec_per_key, sizeof(ulong) * key_part_count,
-                       &rec_per_key_float, sizeof(float) * key_part_count,
+                       &rec_per_key_float,
+                       sizeof(rec_per_key_t) * key_part_count,
                        NULL))
     return true;                                /* purecov: inspected */
 
@@ -6342,6 +6351,8 @@ bool TABLE::update_const_key_parts(Item *conds)
 
 bool TABLE::check_read_removal(uint index)
 {
+  bool retval= false;
+
   DBUG_ENTER("check_read_removal");
   DBUG_ASSERT(file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL);
   DBUG_ASSERT(index != MAX_KEY);
@@ -6353,11 +6364,15 @@ bool TABLE::check_read_removal(uint index)
   // Full index must be used
   bitmap_clear_all(&tmp_set);
   mark_columns_used_by_index_no_reset(index, &tmp_set);
-  if (!bitmap_cmp(&tmp_set, read_set))
-    DBUG_RETURN(false);
 
-  // Start read removal in handler
-  DBUG_RETURN(file->start_read_removal());
+  if (bitmap_cmp(&tmp_set, read_set))
+  {
+    // Start read removal in handler
+    retval= file->start_read_removal();
+  }
+
+  bitmap_clear_all(&tmp_set);
+  DBUG_RETURN(retval);
 }
 
 

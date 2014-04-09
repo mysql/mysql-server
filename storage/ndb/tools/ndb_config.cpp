@@ -319,17 +319,17 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
       const char * str= list[i].c_str();
       if(g_section == CFG_SECTION_NODE)
       {
-	if(strcasecmp(str, "id") == 0 || strcasecmp(str, "nodeid") == 0)
+	if(native_strcasecmp(str, "id") == 0 || native_strcasecmp(str, "nodeid") == 0)
 	{
 	  select.push_back(new Apply(CFG_NODE_ID));
 	  continue;
 	}
-	else if(strncasecmp(str, "host", 4) == 0)
+	else if(native_strncasecmp(str, "host", 4) == 0)
 	{
 	  select.push_back(new Apply(CFG_NODE_HOST));
 	  continue;
 	}
-	else if(strcasecmp(str, "type") == 0)
+	else if(native_strcasecmp(str, "type") == 0)
 	{
 	  select.push_back(new NodeTypeApply());
 	  continue;
@@ -337,7 +337,7 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
       }
       else if (g_section == CFG_SECTION_CONNECTION)
       {
-	if(strcasecmp(str, "type") == 0)
+	if(native_strcasecmp(str, "type") == 0)
 	{
 	  select.push_back(new ConnectionTypeApply());
 	  continue;
@@ -362,7 +362,7 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
              ||
 	     (g_section == CFG_SECTION_SYSTEM))
 	  {
-	    if(strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
+	    if(native_strcasecmp(ConfigInfo::m_ParamInfo[p]._fname, str) == 0)
 	    {
 	      select.push_back(new Apply(ConfigInfo::m_ParamInfo[p]._paramId));
 	      found = true;
@@ -452,7 +452,7 @@ Match::eval(const Iter& iter)
   } 
   else if(iter.get(m_key, &val64) == 0)
   {
-    if(strtoll(m_value.c_str(), (char **)NULL, 10) != (long long)val64)
+    if(my_strtoll(m_value.c_str(), (char **)NULL, 10) != (long long)val64)
       return 0;
   }
   else if(iter.get(m_key, &valc) == 0)

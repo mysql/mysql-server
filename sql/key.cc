@@ -467,7 +467,11 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields)
 {
   bitmap_clear_all(&table->tmp_set);
   table->mark_columns_used_by_index_no_reset(idx, &table->tmp_set);
-  if (bitmap_is_overlapping(&table->tmp_set, fields))
+  const bool overlapping= bitmap_is_overlapping(&table->tmp_set, fields);
+  
+  // Clear tmp_set so it can be used elsewhere
+  bitmap_clear_all(&table->tmp_set);
+  if (overlapping)
     return 1;
 
   /*

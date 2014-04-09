@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -288,33 +288,42 @@ log_block_init_in_old_format(
 #endif /* UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
-/************************************************************//**
-Writes to the log the string given. The log must be released with
-log_release.
+/** Append a string to the log.
+@param[in]	str		string
+@param[in]	len		string length
+@param[out]	start_lsn	start LSN of the log record
 @return end lsn of the log record, zero if did not succeed */
 UNIV_INLINE
 lsn_t
 log_reserve_and_write_fast(
-/*=======================*/
-	const void*	str,	/*!< in: string */
-	ulint		len,	/*!< in: string length */
-	lsn_t*		start_lsn)/*!< out: start lsn of the log record */
+	const void*	str,
+	ulint		len,
+	lsn_t*		start_lsn)
 {
-	ulint		data_len;
-#ifdef UNIV_LOG_LSN_DEBUG
-	/* length of the LSN pseudo-record */
-	ulint		lsn_len;
-#endif /* UNIV_LOG_LSN_DEBUG */
-
-	log_mutex_enter();
+	ut_ad(log_mutex_own());
+	ut_ad(len > 0);
 
 #ifdef UNIV_LOG_LSN_DEBUG
-	lsn_len = 1
+	/* Append a MLOG_LSN record after mtr_commit(), except when
+	the last byte could be a MLOG_CHECKPOINT marker. We have special
+	handling when the log consists of only a single MLOG_CHECKPOINT
+	marker byte since the latest checkpoint, and appending the
+	MLOG_LSN would ruin that.
+
+	Note that a longer redo log record could happen to end in a
+	MLOG_CHECKPOINT byte, and we could be omitting MLOG_LSN
+	without reason. This is OK, because writing the MLOG_LSN is
+	just a 'best effort', aimed at finding log corruption due to
+	bugs in the redo log writing logic. */
+	const ulint	lsn_len
+		= static_cast<const char*>(str)[len - 1] == MLOG_CHECKPOINT
+		? 0
+		: 1
 		+ mach_get_compressed_size(log_sys->lsn >> 32)
 		+ mach_get_compressed_size(log_sys->lsn & 0xFFFFFFFFUL);
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	data_len = len
+	const ulint	data_len = len
 #ifdef UNIV_LOG_LSN_DEBUG
 		+ lsn_len
 #endif /* UNIV_LOG_LSN_DEBUG */
@@ -331,7 +340,7 @@ log_reserve_and_write_fast(
 	*start_lsn = log_sys->lsn;
 
 #ifdef UNIV_LOG_LSN_DEBUG
-	{
+	if (lsn_len) {
 		/* Write the LSN pseudo-record. */
 		byte* b = &log_sys->buf[log_sys->buf_free];
 
@@ -346,10 +355,9 @@ log_reserve_and_write_fast(
 		::memcpy(b, str, len);
 
 		len += lsn_len;
-	}
-#else /* UNIV_LOG_LSN_DEBUG */
-	::memcpy(log_sys->buf + log_sys->buf_free, str, len);
+	} else
 #endif /* UNIV_LOG_LSN_DEBUG */
+	memcpy(log_sys->buf + log_sys->buf_free, str, len);
 
 	log_block_set_data_len(
                 reinterpret_cast<byte*>(ut_align_down(
@@ -367,16 +375,6 @@ log_reserve_and_write_fast(
 		    log_sys->lsn - log_sys->last_checkpoint_lsn);
 
 	return(log_sys->lsn);
-}
-
-/***********************************************************************//**
-Releases the log mutex. */
-UNIV_INLINE
-void
-log_release(void)
-/*=============*/
-{
-	log_mutex_exit();
 }
 
 /************************************************************//**

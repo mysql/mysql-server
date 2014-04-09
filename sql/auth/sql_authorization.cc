@@ -3560,9 +3560,9 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->make_lex_string(&combo->host,
                        combo->host.str, strlen(combo->host.str), 0);
 
-  combo->password= empty_lex_str;
-  combo->plugin= empty_lex_str;
-  combo->auth= empty_lex_str;
+  combo->password= EMPTY_CSTR;
+  combo->plugin= EMPTY_CSTR;
+  combo->auth= EMPTY_CSTR;
   combo->uses_identified_by_clause= false;
   combo->uses_identified_with_clause= false;
   combo->uses_identified_by_password_clause= false;
