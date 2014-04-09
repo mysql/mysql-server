@@ -4592,6 +4592,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
 {
   char *tmp, buff[FN_REFLEN + 1];
   int select_db;
+  uint warnings;
 
   memset(buff, 0, sizeof(buff));
 
@@ -4673,6 +4674,17 @@ com_use(String *buffer __attribute__((unused)), char *line)
 #endif
   }
 
+
+  if (0 < (warnings= mysql_warning_count(&mysql)))
+  {
+    my_snprintf(buff, sizeof(buff),
+                "Database changed, %u warning%s", warnings,
+                warnings > 1 ? "s" : "");
+    put_info(buff, INFO_INFO);
+    if (show_warnings == 1)
+      print_warnings();
+  }
+  else
   put_info("Database changed",INFO_INFO);
   return 0;
 }

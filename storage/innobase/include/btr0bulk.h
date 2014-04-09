@@ -239,6 +239,10 @@ public:
 		m_heap = mem_heap_create(1000);
 
 		m_page_bulks = new page_bulk_vector();
+
+#ifdef UNIV_DEBUG
+		fil_space_set_is_redo_skipped(m_index->space, true);
+#endif
 	}
 
 	/** Destructor */
@@ -246,6 +250,10 @@ public:
 	{
 		mem_heap_free(m_heap);
 		delete m_page_bulks;
+
+#ifdef UNIV_DEBUG
+		fil_space_set_is_redo_skipped(m_index->space, false);
+#endif
 	}
 
 	/** Insert a tuple

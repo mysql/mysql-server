@@ -2285,6 +2285,7 @@ row_merge_insert_index_tuples(
 			log_free_check();
 
 			mtr_start(&mtr);
+			mtr.set_named_space(index->space);
 			/* Insert after the last user record. */
 			btr_cur_open_at_index_side(
 				false, index, BTR_MODIFY_LEAF,
@@ -2318,6 +2319,7 @@ row_merge_insert_index_tuples(
 				ut_ad(!big_rec);
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
+				mtr.set_named_space(index->space);
 				btr_cur_open_at_index_side(
 					false, index,
 					BTR_MODIFY_TREE | BTR_LATCH_FOR_INSERT,
@@ -2401,7 +2403,7 @@ row_merge_bulk_load_index(
 	ulint			foffs = 0;
 	ulint*			offsets;
 	mrec_buf_t*		buf;
-	DBUG_ENTER("row_merge_bulk_insert_index_tuples");
+	DBUG_ENTER("row_merge_bulk_loadindex");
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(!(index->type & DICT_FTS));
@@ -3701,6 +3703,12 @@ wait_again:
 				start_time_ms = ut_time_ms();
 
 				if (use_bulk_load) {
+					sort_idx->is_redo_skipped =
+						dict_table_is_temporary(new_table)
+						|| (old_table != new_table
+						&& new_table->flags2 &
+						DICT_TF2_USE_FILE_PER_TABLE);
+
 					error = row_merge_bulk_load_index(
 						trx->id, sort_idx, old_table,
 						merge_files[i].fd, block);

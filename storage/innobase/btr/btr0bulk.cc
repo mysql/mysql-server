@@ -57,7 +57,12 @@ void PageBulk::init()
 		pages are committed following the allocation order. */
 		mtr_start(&alloc_mtr);
 
-		dict_disable_redo_if_temporary(m_index->table, &alloc_mtr);
+		if (m_index->is_redo_skipped) {
+			mtr_set_log_mode(&alloc_mtr, MTR_LOG_NO_REDO);
+		} else {
+			alloc_mtr.set_named_space(dict_index_get_space(m_index));
+		}
+
 		/* Allocate a new page. */
 		new_block = btr_page_alloc(m_index, 0, FSP_UP, m_level,
 					   &alloc_mtr, mtr);
@@ -538,6 +543,8 @@ void PageBulk::release()
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
 			    m_heap_top - m_total_data);
 #endif
+	/* Don't need buf_page_mutex_enter(block);*/
+	buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
 
 	mtr_commit(m_mtr);
 }
@@ -545,15 +552,26 @@ void PageBulk::release()
 /** Start mtr and lock block */
 void PageBulk::lock()
 {
-	page_id_t	page_id(dict_index_get_space(m_index), m_page_no);
-	page_size_t	page_size(dict_table_page_size(m_index->table));
+	ibool	ret;
 
 	mtr_start(m_mtr);
 	mtr_x_lock(dict_index_get_lock(m_index), m_mtr);
 	mtr_set_log_mode(m_mtr, MTR_LOG_NO_REDO);
 
-	m_block = btr_block_get(page_id, page_size, RW_X_LATCH, m_index, m_mtr);
-	m_page = buf_block_get_frame(m_block);
+	/*TODO: need a simple and wait version of buf_page_optimistic_get. */
+	ret = buf_page_optimistic_get(RW_X_LATCH, m_block, 1,
+				      __FILE__, __LINE__, m_mtr);
+	if (!ret) {
+		page_id_t       page_id(dict_index_get_space(m_index), m_page_no);
+		page_size_t     page_size(dict_table_page_size(m_index->table));
+
+		m_block = buf_page_get_gen(page_id, page_size, RW_X_LATCH,
+					   m_block, BUF_GET_IF_IN_POOL,
+					   __FILE__, __LINE__, m_mtr);
+		ut_ad(m_block != NULL);
+	}
+
+	buf_block_buf_fix_dec(m_block);
 
 #ifdef UNIV_DEBUG
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
@@ -818,10 +836,11 @@ dberr_t BtrBulk::finish(dberr_t	err)
 					last_page_no);
 		page_size_t	page_size(dict_table_page_size(m_index->table));
 		ulint		root_page_no = dict_index_get_page(m_index);
-		PageBulk	root_page_bulk(m_index, m_trx_id, root_page_no,
-					       m_root_level);
+		PageBulk	root_page_bulk(m_index, m_trx_id,
+					       root_page_no, m_root_level);
 
 		mtr_start(&mtr);
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 		mtr_x_lock(dict_index_get_lock(m_index), &mtr);
 
 		ut_ad(last_page_no != FIL_NULL);
