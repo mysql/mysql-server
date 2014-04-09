@@ -1,22 +1,17 @@
-/*
-Copyright (c) 2011, 2013, 2014 Oracle and/or its affiliates. All rights
-reserved.
+/* Copyright (c) 2011, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; version 2 of
-the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-02110-1301  USA
-*/
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef FIELD_ITERATOR_INCLUDED
 #define	FIELD_ITERATOR_INCLUDED
@@ -95,7 +90,7 @@ public:
 
     @param field_type The input column type
     @return           number of bytes required to store metadata information
-                      
+
   */
   int lookup_metadata_field_size(enum_field_types field_type);
 
@@ -105,7 +100,7 @@ public:
     @param map    Table_map_event. It contains the information of the col type.
     @param col_no The index of the column for which the metadata info is needed.
                   The count starts from 0.
-    @return       The metadata value. 
+    @return       The metadata value.
   */
   uint32_t extract_metadata(const Table_map_event *map, int col_no);
 

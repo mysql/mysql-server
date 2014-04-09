@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +25,7 @@
 #ifndef WRAPPER_FUNCTIONS_INCLUDED
 #define WRAPPER_FUNCTIONS_INCLUDED
 
-#include "config.h"
+#include "binlog_config.h"
 
 #if HAVE_MYSYS
 #include "my_sys.h"

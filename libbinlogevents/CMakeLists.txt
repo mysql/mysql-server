@@ -19,9 +19,6 @@ INCLUDE(configure.cmake)
 SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
 SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
 
-# Locate Google Test package and enable tests if it is found
-FIND_PACKAGE(GTest ${GTEST_VERSION} QUIET)
-
 # Options for building
 OPTION(WITH_SERVER_TESTS
        "Build the unit test suite with tests requiring a server" OFF)
@@ -40,8 +37,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${ZLIB_INCLUDE_DIR})
 
 
-CONFIGURE_FILE(config.h.cmake
-               ${CMAKE_SOURCE_DIR}/libbinlogevents/include/config.h)
+CONFIGURE_FILE(binlog_config.h.cmake
+               ${CMAKE_SOURCE_DIR}/libbinlogevents/include/binlog_config.h)
 
 ADD_SUBDIRECTORY(src)
 
