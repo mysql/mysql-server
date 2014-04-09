@@ -4051,8 +4051,8 @@ static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_mybool Sys_general_log(
        "general_log", "Log connections and queries to a table or log file. "
-       "Defaults logging to a file hostname.log or a table mysql.general_log"
-       "if --log-output=TABLE is used",
+       "Defaults to logging to a file hostname.log, "
+       "or if --log-output=TABLE is used, to a table mysql.general_log.",
        GLOBAL_VAR(opt_general_log), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_general_log_state));
