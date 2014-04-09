@@ -605,7 +605,8 @@ fsp_space_modify_check(
 		ut_ad(id == srv_tmp_space.space_id()
 		      || srv_is_tablespace_truncated(id)
 		      || fil_space_get_flags(id) == ULINT_UNDEFINED
-		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY);
+		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY
+		      || fil_space_is_redo_skipped(id));
 		return;
 	case MTR_LOG_ALL:
 		/* We must not write redo log for the shared temporary
@@ -613,6 +614,7 @@ fsp_space_modify_check(
 		ut_ad(id != srv_tmp_space.space_id());
 		/* If we write redo log, the tablespace must exist. */
 		ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
+		ut_ad(mtr->is_named_space(id));
 		return;
 	}
 
@@ -631,6 +633,7 @@ fsp_init_file_page(
 {
 	fsp_init_file_page_low(block);
 
+	ut_d(fsp_space_modify_check(block->page.id.space(), mtr));
 	mlog_write_initial_log_record(buf_block_get_frame(block),
 				      MLOG_INIT_FILE_PAGE, mtr);
 }
@@ -1158,6 +1161,7 @@ fsp_fill_free_list(
 				mtr_t	ibuf_mtr;
 
 				mtr_start(&ibuf_mtr);
+				ibuf_mtr.set_named_space(space);
 
 				/* Avoid logging while truncate table
 				fix-up is active. */

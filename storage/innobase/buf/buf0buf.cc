@@ -3052,12 +3052,6 @@ got_block:
 
 	ut_ad(buf_block_get_state(fix_block) == BUF_BLOCK_FILE_PAGE);
 
-#if UNIV_WORD_SIZE == 4
-	/* On 32-bit systems, there is no padding in buf_page_t.  On
-	other systems, Valgrind could complain about uninitialized pad
-	bytes. */
-	UNIV_MEM_ASSERT_RW(&fix_block->page, sizeof fix_block->page);
-#endif
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 
 	if ((mode == BUF_GET_IF_IN_POOL || mode == BUF_GET_IF_IN_POOL_OR_WATCH)

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,6 +41,11 @@ Created 3/26/1996 Heikki Tuuri
 /** maximum length that a formatted trx_t::id could take, not including
 the terminating NUL character. */
 #define TRX_ID_MAX_LEN		17
+
+/** Space id of the transaction system page (the system tablespace) */
+#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+/** Page number of the transaction system page */
+#define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
 
 /** Transaction execution states when trx->state == TRX_STATE_ACTIVE */
 enum trx_que_t {

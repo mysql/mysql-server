@@ -45,6 +45,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "hash0hash.h"
 #include "trx0types.h"
 #include "fts0fts.h"
+#include "os0once.h"
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -595,6 +596,9 @@ struct dict_index_t{
 				protected by index->lock. */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
+	bool		is_redo_skipped;
+				/*!< TRUE if redo loggging is skipped in
+				some operations, such as bulk load. */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
@@ -742,7 +746,15 @@ struct dict_table_t {
 	/** Id of the table. */
 	table_id_t				id;
 
-	/** Memory heap. */
+	/** Memory heap. If you allocate from this heap after the table has
+	been created then be sure to account the allocation into
+	dict_sys->size. When closing the table we do something like
+	dict_sys->size -= mem_heap_get_size(table->heap) and if that is going
+	to become negative then we would assert. Something like this should do:
+	old_size = mem_heap_get_size()
+	mem_heap_alloc()
+	new_size = mem_heap_get_size()
+	dict_sys->size += new_size - old_size. */
 	mem_heap_t*				heap;
 
 	/** Table name. */
@@ -877,6 +889,9 @@ struct dict_table_t {
 	unsigned				big_rows:1;
 
 	/** Statistics for query optimization. @{ */
+
+	/** Creation state of 'stats_latch'. */
+	volatile os_once::state_t		stats_latch_created;
 
 	/** This latch protects:
 	dict_table_t::stat_initialized,
