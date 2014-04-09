@@ -63,9 +63,6 @@ static void warning(const char *format, ...)
 using std::min;
 using std::max;
 using binary_log::Binary_log_event;
-#ifndef BIN_LOG_HEADER_SIZE
-#define BIN_LOG_HEADER_SIZE	4U
-#endif
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
 #define INTVAR_DYNAMIC_INIT	16
 #define INTVAR_DYNAMIC_INCR	1
