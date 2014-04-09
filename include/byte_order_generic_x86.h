@@ -32,7 +32,7 @@ static inline int32 sint3korr(const uchar *A)
     ;
 }
 
-static inline long   sint4korr(const uchar *A) { return *((long *) A); }
+static inline int32 sint4korr(const uchar *A) { return *((int32*) A); }
 
 static inline uint16 uint2korr(const uchar *A) { return *((uint16*) A); }
 
@@ -45,7 +45,7 @@ static inline uint32 uint3korr(const uchar *A)
     ;
 }
 
-static inline uint32 uint4korr(const uchar *A) { return *((uint32 *) A); }
+static inline uint32 uint4korr(const uchar *A) { return *((uint32*) A); }
 
 static inline ulonglong uint5korr(const uchar *A)
 {
@@ -70,8 +70,8 @@ static inline ulonglong uint6korr(const uchar *A)
     ;
 }
 
-static inline ulonglong uint8korr(const uchar *A) { return *((ulonglong *) A);}
-static inline longlong  sint8korr(const uchar *A) { return *((longlong *) A); }
+static inline ulonglong uint8korr(const uchar *A) { return *((ulonglong*) A);}
+static inline longlong  sint8korr(const uchar *A) { return *((longlong*) A); }
 
 static inline void int2store(uchar *T, uint16 A)
 {
@@ -87,7 +87,7 @@ static inline void int3store(uchar *T, uint A)
 
 static inline void int4store(uchar *T, uint32 A)
 {
-  *((long *) (T))= (long) (A);
+  *((uint32*) T)= A;
 }
 
 static inline void int5store(uchar *T, ulonglong A)
