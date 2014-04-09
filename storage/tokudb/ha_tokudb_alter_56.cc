@@ -520,7 +520,11 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
 
 #if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
     (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
+#if WITH_PARTITION_STORAGE_ENGINE
     if (error == 0 && (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL)) {
+#else
+    if (error == 0) {
+#endif
         error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
     }
 #endif
@@ -731,7 +735,11 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
 #endif
 #if (50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599) || \
     (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
+#if WITH_PARTITION_STORAGE_ENGINE
         if (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL) {
+#else
+        if (true) {
+#endif
             int error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
             if (error) {
                 commit = false; 
