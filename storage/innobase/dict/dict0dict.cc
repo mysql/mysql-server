@@ -103,7 +103,7 @@ UNIV_INTERN ulong	zip_pad_max = 50;
 UNIV_INTERN mysql_pfs_key_t	dict_operation_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_tree_rw_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_online_log_key;
-UNIV_INTERN mysql_pfs_key_t	dict_table_stats_latch_key;
+UNIV_INTERN mysql_pfs_key_t	dict_table_stats_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
@@ -334,7 +334,7 @@ dict_table_stats_latch_alloc(
 
 	ut_a(table->stats_latch != NULL);
 
-	rw_lock_create(dict_table_stats_latch_key, table->stats_latch,
+	rw_lock_create(dict_table_stats_key, table->stats_latch,
 		       SYNC_INDEX_TREE);
 }
 

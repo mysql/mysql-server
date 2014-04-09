@@ -378,7 +378,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&trx_purge_latch_key, "trx_purge_latch", 0},
 	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
 	{&index_online_log_key, "index_online_log", 0},
-	{&dict_table_stats_latch_key, "dict_table_stats", 0},
+	{&dict_table_stats_key, "dict_table_stats", 0},
 	{&hash_table_rw_lock_key, "hash_table_locks", 0}
 };
 # endif /* UNIV_PFS_RWLOCK */
