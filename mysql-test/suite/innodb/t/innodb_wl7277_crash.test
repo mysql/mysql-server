@@ -21,9 +21,6 @@
 # 1. Test restart;
 # 2. Test crash recovery.
 
-# Make sure bulk load is enabled.
-SELECT @@innodb_enable_bulk_load;
-
 -- echo # Test Case 1: Test Restart
 -- echo # Test Default Row Format
 CREATE TABLE t1(

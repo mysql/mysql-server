@@ -28,9 +28,6 @@ Created 03/11/2014 Shaohua Wang
 #include "btr0cur.h"
 #include "ibuf0ibuf.h"
 
-/* Flag whether innodb enables bulk load. */
-char	innobase_enable_bulk_load;
-
 /* Innodb index fill factor during index build. */
 long	innobase_bulk_load_fill_factor;
 
@@ -119,9 +116,9 @@ void PageBulk::init()
 	m_cur_rec = page_get_infimum_rec(new_page);
 	m_is_comp = page_is_comp(new_page);
 	m_free_space = page_get_free_space_of_empty(m_is_comp);
-	m_fill_space =
+	m_reserved_space =
 		UNIV_PAGE_SIZE * (100 - innobase_bulk_load_fill_factor) / 100;
-	m_pad_space =
+	m_padding_space =
 		UNIV_PAGE_SIZE - dict_index_zip_pad_optimal_page_size(m_index);
 	m_heap_top = page_header_get_ptr(new_page, PAGE_HEAP_TOP);
 	m_rec_no = page_header_get_field(new_page, PAGE_N_RECS);
@@ -490,24 +487,24 @@ We check fill factor & padding here.
 bool PageBulk::spaceAvailable(ulint        rec_size)
 {
 	ulint	slot_size;
-	ulint	total_size;
+	ulint	required_space;
 
 	slot_size = page_dir_calc_reserved_space(m_rec_no + 1)
 		- page_dir_calc_reserved_space(m_rec_no);
 
-	total_size = rec_size + slot_size;
+	required_space = rec_size + slot_size;
 
-	if (total_size > m_free_space) {
+	if (required_space > m_free_space) {
 		ut_ad(m_rec_no > 0);
 		return false;
 	}
 
-	/* Fillfactor & Padding only apply to leaf pages. */
-	if (page_is_leaf(m_page)
-	    && m_rec_no > 0
-	    && ((m_page_zip == NULL && m_free_space - total_size < m_fill_space)
-		|| (m_page_zip != NULL && m_free_space - total_size < m_pad_space)
-	        )) {
+	/* Fillfactor & Padding apply to leaf and non-laef pages. */
+	if (m_rec_no > 0
+	    && ((m_page_zip == NULL && m_free_space - required_space
+		 < m_reserved_space)
+		|| (m_page_zip != NULL && m_free_space - required_space
+		    < m_padding_space))) {
 		return(false);
 	}
 

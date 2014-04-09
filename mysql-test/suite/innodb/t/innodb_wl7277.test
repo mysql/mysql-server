@@ -11,9 +11,6 @@
 # 3. Test compress table;
 # 4. Test blob.
 
-# Make sure bulk load is enabled.
-SELECT @@innodb_enable_bulk_load;
-
 -- echo # Test Case 1: Test Row Format
 -- echo # ROW_FORMAT=REDUNDANT
 CREATE TABLE t1(

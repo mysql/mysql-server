@@ -1,6 +1,3 @@
-SELECT @@innodb_enable_bulk_load;
-@@innodb_enable_bulk_load
-1
 # Test Case 1: Test Row Format
 # ROW_FORMAT=REDUNDANT
 CREATE TABLE t1(

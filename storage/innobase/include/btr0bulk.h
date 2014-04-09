@@ -36,8 +36,6 @@ Created 03/11/2014 Shaohua Wang
 #define BULK_LOAD_PFS_PRINT
 #endif
 
-extern	char	innobase_enable_bulk_load;
-
 /* Innodb index fill factor during index build. */
 extern	long	innobase_bulk_load_fill_factor;
 
@@ -215,10 +213,10 @@ private:
 	ulint		m_free_space;
 
 	/* The reserved space for fill factor */
-	ulint		m_fill_space;
+	ulint		m_reserved_space;
 
-	/* The pad space for compressed page */
-	ulint		m_pad_space;
+	/* The padding space for compressed page */
+	ulint		m_padding_space;
 
 #ifdef UNIV_DEBUG
 	/* Total data in the page */
