@@ -61,10 +61,6 @@ protected:
     for (int ix= 0 ; ix < num_spaces; ++ix)
       m_string.append(" ");
     m_length= m_string.length();
-    // The first byte will allways be aligned:
-    ulonglong foo= reinterpret_cast<ulonglong>(m_string.c_str());
-    const ulonglong expected_alignment= 0x3ULL;
-    EXPECT_EQ(0ULL, foo & expected_alignment);
   }
   size_t m_length;
   std::string m_string;
