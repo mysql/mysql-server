@@ -341,7 +341,6 @@ class PTI_function_call_generic_ident_sys : public Parse_tree_item
 {
   typedef Parse_tree_item super;
 
-  POS pos;
   LEX_STRING ident;
   PT_item_list *opt_udf_expr_list;
 
@@ -351,7 +350,7 @@ public:
   PTI_function_call_generic_ident_sys(const POS &pos,
                                       const LEX_STRING &ident_arg,
                                       PT_item_list *opt_udf_expr_list_arg)
-  : super(pos), pos(pos), ident(ident_arg),
+  : super(pos), ident(ident_arg),
     opt_udf_expr_list(opt_udf_expr_list_arg)
   {}
 

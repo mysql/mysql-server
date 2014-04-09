@@ -281,5 +281,14 @@ disconnect con2;
 
 --disable_connect_log
 
+--echo #
+--echo # Bug #11759453: UNINSTALL PLUGIN MISLEADING ERROR
+--echo #                MESSAGE FOR NON-DYNAMIC PLUGINS
+--echo #
+
+# Innodb is now builtin plugin and not dynamically loaded
+--error ER_PLUGIN_DELETE_BUILTIN
+UNINSTALL PLUGIN innodb;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

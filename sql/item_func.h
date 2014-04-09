@@ -1918,7 +1918,6 @@ class Item_func_set_user_var :public Item_var_func
     @see select_dumpvar::send_data().
    */
   bool delayed_non_constness;
-  char buffer[MAX_FIELD_WIDTH];
   String value;
   my_decimal decimal_buff;
   bool null_item;
