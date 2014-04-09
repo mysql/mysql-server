@@ -601,7 +601,7 @@ mtr_t::Command::prepare_write()
 		ut_ad(m_impl->m_log.size() == 0);
 		log_mutex_enter();
 		m_end_lsn = m_start_lsn = log_sys->lsn;
-		return(false);
+		return(0);
 	case MTR_LOG_ALL:
 		break;
 	}
