@@ -11062,9 +11062,10 @@ ha_innobase::info_low(
 
 				key->set_records_per_key(j, rec_per_key);
 
-				/* Handle the 'integer' variant. The code below
-				should be deleted once we are sure that the
-				floating point numbers are fine. */
+				/* The code below is legacy and should be
+				removed together with this comment once we
+				are sure the new floating point rec_per_key,
+				set via set_records_per_key(), works fine. */
 
 				ulong	rec_per_key_int = static_cast<ulong>(
 					innodb_rec_per_key(index, j,
