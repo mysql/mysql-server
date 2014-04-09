@@ -40,15 +40,20 @@ SELECT * FROM t1;
 a
 set global example_ulong_var=500;
 set global example_enum_var= e1;
+set session example_int_var= -1;
 show status like 'example%';
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 500, double_var is 8.500000, really
+example_func_example	enum_var is 0, ulong_var is 500, int_var is -1, double_var is 8.500000, really
 show variables like 'example%';
 Variable_name	Value
 example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
+example_int_var	-1
 example_ulong_var	500
+select @@session.example_int_var;
+@@session.example_int_var
+-1
 UNINSTALL SONAME 'ha_example';
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown

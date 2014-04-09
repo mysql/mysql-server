@@ -2703,7 +2703,7 @@ static bool show_status_array(THD *thd, const char *wild,
           end= int10_to_str((long) *(uint*) value, buff, 10);
           break;
         case SHOW_SINT:
-          end= int10_to_str((long) *(uint*) value, buff, -10);
+          end= int10_to_str((long) *(int*) value, buff, -10);
           break;
         case SHOW_SLONG:
           end= int10_to_str(*(long*) value, buff, -10);

@@ -1081,6 +1081,9 @@ static MYSQL_SYSVAR_ENUM(
   0,                              // def
   &enum_var_typelib);             // typelib
 
+static MYSQL_THDVAR_INT(int_var, PLUGIN_VAR_RQCMDARG, "-1..1",
+  NULL, NULL, 0, -1, 1, 0);
+
 static MYSQL_SYSVAR_ULONG(
   ulong_var,
   srv_ulong_var,
@@ -1119,6 +1122,7 @@ static MYSQL_THDVAR_DOUBLE(
 static struct st_mysql_sys_var* example_system_variables[]= {
   MYSQL_SYSVAR(enum_var),
   MYSQL_SYSVAR(ulong_var),
+  MYSQL_SYSVAR(int_var),
   MYSQL_SYSVAR(double_var),
   MYSQL_SYSVAR(double_thdvar),
   NULL
@@ -1131,9 +1135,10 @@ static int show_func_example(MYSQL_THD thd, struct st_mysql_show_var *var,
   var->type= SHOW_CHAR;
   var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
   my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
-              "enum_var is %lu, ulong_var is %lu, "
+              "enum_var is %lu, ulong_var is %lu, int_var is %d, "
               "double_var is %f, %.6b", // %b is a MySQL extension
-              srv_enum_var, srv_ulong_var, srv_double_var, "really");
+              srv_enum_var, srv_ulong_var, THDVAR(thd, int_var),
+              srv_double_var, "really");
   return 0;
 }
 

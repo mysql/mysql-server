@@ -3165,15 +3165,21 @@ static void plugin_vars_free_values(sys_var *vars)
 
 static SHOW_TYPE pluginvar_show_type(st_mysql_sys_var *plugin_var)
 {
-  switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
+  switch (plugin_var->flags & (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_UNSIGNED)) {
   case PLUGIN_VAR_BOOL:
     return SHOW_MY_BOOL;
   case PLUGIN_VAR_INT:
-    return SHOW_INT;
+    return SHOW_SINT;
+  case PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED:
+    return SHOW_UINT;
   case PLUGIN_VAR_LONG:
-    return SHOW_LONG;
+    return SHOW_SLONG;
+  case PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED:
+    return SHOW_ULONG;
   case PLUGIN_VAR_LONGLONG:
-    return SHOW_LONGLONG;
+    return SHOW_SLONGLONG;
+  case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED:
+    return SHOW_ULONGLONG;
   case PLUGIN_VAR_STR:
     return SHOW_CHAR_PTR;
   case PLUGIN_VAR_ENUM:
