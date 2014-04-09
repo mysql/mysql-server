@@ -62,10 +62,6 @@ function DBTransactionHandler(dbsession) {
 }
 DBTransactionHandler.prototype = proto;
 
-function onAsyncSent(a,b) {
-  udebug.log("execute onAsyncSent");
-}
-
 /* NdbTransactionHandler internal run():
    Create a QueuedAsyncCall on the Ndb's execQueue.
 */
@@ -80,17 +76,19 @@ function run(self, execMode, abortFlag, callback) {
     /* NDB Execute.
        "Sync" execute is an async operation for the JavaScript user,
         but the uv worker thread uses synchronous NDBAPI execute().
-        In "Async" execute, the uv worker thread uses executeAsynch(),
-        and the DBConnectionPool listener thread runs callbacks.
+
+        In "Async" execute, the DBConnectionPool listener thread runs callbacks.
+        executeAsynch() itself can run either sync (in JS thread) or async
+        (in uv thread).  Supply an onSend callback as the 6th argument to make
+        it run async.
     */
     var force_send = 1;
 
     if(this.tx.asyncContext) {
       stats.incr(["run","async"]);
-      this.tx.asyncContext.executeAsynch(this.tx.ndbtx, 
+      this.tx.asyncContext.executeAsynch(this.tx.ndbtx,
                                          this.execMode, this.abortFlag,
-                                         force_send, this.callback, 
-                                         onAsyncSent);
+                                         force_send, this.callback);
     }
     else {
       stats.incr(["run","sync"]);
