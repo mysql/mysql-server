@@ -132,16 +132,24 @@ static struct my_option my_long_options[] =
    "Number of iterations to make. This works with -i (--sleep) only.",
    &nr_iterations, &nr_iterations, 0, GET_UINT,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"force", 'f',
    "Don't ask for confirmation on drop database; with multiple commands, "
    "continue even if an error occurs.",
