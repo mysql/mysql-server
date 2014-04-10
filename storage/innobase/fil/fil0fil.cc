@@ -4796,7 +4796,7 @@ retry:
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Error while writing %lu zeroes to %s"
 					" starting at offset %lu",
-					len, node->name, (ulint) node_start);
+					(ulint) len, node->name, (ulint) node_start);
 			}
 		}
 
