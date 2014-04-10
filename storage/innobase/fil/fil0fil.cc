@@ -3552,19 +3552,21 @@ fil_create_new_single_table_tablespace(
 	if (fil_fusionio_enable_atomic_write(file)) {
 
 		/* This is required by FusionIO HW/Firmware */
-		if (posix_fallocate(file, 0, size * UNIV_PAGE_SIZE) == -1) {
+		int	ret = posix_fallocate(file, 0, size * UNIV_PAGE_SIZE);
+
+		if (ret != 0) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"posix_fallocate(): Failed to preallocate"
 				" data for file %s, desired size %lu."
-				" Operating system error number %lu. Check"
+				" Operating system error number %d. Check"
 				" that the disk is not full or a disk quota"
 				" exceeded. Some operating system error"
 				" numbers are described at " REFMAN
 				" operating-system-error-codes.html",
 				path,
 				(ulong) size * UNIV_PAGE_SIZE,
-				(ulong) errno);
+				ret);
 
 			success = false;
 		} else {
@@ -4596,6 +4598,60 @@ fil_get_space_id_for_table(
 	return(id);
 }
 
+/**
+Fill pages with NULs
+@param[in] node		File node
+@param[in] page_size	Page size
+@param[in] start	Offset from the start of the file in bytes
+@param[in] len		Length in bytes
+@return true on success */
+static
+bool
+fil_write_zeros(
+	const fil_node_t*	node,
+	const ulint		page_size,
+	const os_offset_t	start,
+	const ulint		len)
+{
+	ut_a(len > 0);
+
+	ulint	n_bytes = ut_min(1024 * 1024, len);
+	byte*	ptr = reinterpret_cast<byte*>(ut_zalloc(n_bytes + page_size));
+	byte*	buf = reinterpret_cast<byte*>(ut_align(ptr, page_size));
+
+	os_offset_t		offset = start;
+	const os_offset_t	end = start + len;
+
+	while (offset < end) {
+
+		bool	success;
+
+#ifdef UNIV_HOTBACKUP
+		success = os_file_write(
+			node->name, node->handle, buf, offset, n_bytes);
+#else
+		success = os_aio(
+			OS_FILE_WRITE, OS_AIO_SYNC, node->name,
+			node->handle, buf, offset, n_bytes, NULL, NULL);
+#endif /* UNIV_HOTBACKUP */
+
+		if (!success) {
+			return(false);
+		}
+
+		offset += n_bytes;
+
+		n_bytes = ut_min(n_bytes, end - offset);
+
+		DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension",
+				DBUG_SUICIDE(););
+	}
+
+	::ut_free(ptr);
+
+	return(true);
+}
+
 /**********************************************************************//**
 Tries to extend a data file so that it would accommodate the number of pages
 given. The tablespace must be cached in the memory cache. If the space is big
@@ -4663,104 +4719,80 @@ retry:
 	we have set the node->being_extended flag. */
 	mutex_exit(&fil_system->mutex);
 
-	ulint		pages_added = 0;
-	os_offset_t	start_page_no = space->size;
-
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-	/* Note: This code is going to be execute independent of FusionIO HW
+	/* Note: This code is going to be executed independent of FusionIO HW
 	if the OS supports posix_fallocate() */
-	os_offset_t	start = start_page_no * page_size;
-	os_offset_t	end = (size_after_extend - start_page_no) * page_size;
 
-	DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension",
-			DBUG_SUICIDE(););
+	ut_ad(size_after_extend > space->size);
 
-	/* This is also required by FusionIO HW/Firmware */
-	if (posix_fallocate(node->handle, start, end) == -1) {
+	os_offset_t	node_start = os_file_get_size(node->handle);
+	ut_a(node_start != (os_offset_t) -1);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"posix_fallocate(): Failed to preallocate"
-			" data for file %s, desired size %lu."
-			" Operating system error number %lu. Check"
-			" that the disk is not full or a disk quota"
-			" exceeded. Some operating system error"
-			" numbers are described at " REFMAN ""
-			" operating-system-error-codes.html",
-			node->name, (ulong) end, (ulong) errno);
+	/* Number of physical pages in the node/file */
+	ulint		n_node_physical_pages = node_start / page_size;
 
-		success = false;
-	} else {
-		success = true;
-	}
+	/* Number of pages to extend in the node/file */
+	lint		n_node_extend;
 
-	if (success) {
-		pages_added = size_after_extend - start_page_no;
-		os_has_said_disk_full = FALSE;
-	}
-#else
-	byte*		buf;
-	byte*		ptr;
-	ulint		buf_size;
-	os_offset_t	file_start_page_no = start_page_no - node->size;
+	n_node_extend = size_after_extend - space->size;
+	ut_a(n_node_extend >= 0);
 
-	/* Extend at most 64 pages at a time */
-	buf_size = ut_min(
-		64, size_after_extend - static_cast<ulint>(start_page_no))
-		* page_size;
+	ulint		pages_added;
 
-	ptr = static_cast<byte*>(ut_malloc(buf_size + page_size));
-	buf = static_cast<byte*>(ut_align(ptr, (ulint) page_size));
-
-	::memset(buf, 0, buf_size);
-
-	while (start_page_no < size_after_extend) {
-
-		ulint	n_pages;
-
-		n_pages = ut_min(
-			buf_size / page_size,
-			size_after_extend - static_cast<ulint>(start_page_no));
-
-		os_offset_t	offset;
-
-		offset = os_offset_t(start_page_no - file_start_page_no);
-		offset *= page_size;
-
-#ifdef UNIV_HOTBACKUP
-		success = os_file_write(node->name, node->handle, buf,
-					offset, page_size * n_pages);
-#else
-		success = os_aio(OS_FILE_WRITE, OS_AIO_SYNC,
-				 node->name, node->handle, buf,
-				 offset, page_size * n_pages,
-				 NULL, NULL);
-#endif /* UNIV_HOTBACKUP */
-		if (success) {
-			os_has_said_disk_full = false;
-		} else {
-			/* Let us measure the size of the file to determine
-			how much we were able to extend it */
-			os_offset_t	size;
-
-			size = os_file_get_size(node->handle);
-			ut_a(size != (os_offset_t) -1);
-
-			n_pages = ((ulint) (size / page_size))
-				- node->size - pages_added;
-
-			pages_added += n_pages;
-			break;
-		}
-
-		start_page_no += n_pages;
-		pages_added += n_pages;
+	/* If we already have enough physical pages to satisfy the
+	extend request on the node then ignore it */
+	if (node->size + n_node_extend > n_node_physical_pages) {
 
 		DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension",
 				DBUG_SUICIDE(););
-	}
 
-	::ut_free(ptr);
+		os_offset_t	len;
+
+		len = ((node->size + n_node_extend) * page_size) - node_start;
+
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		/* This is required by FusionIO HW/Firmware */
+		int	ret = posix_fallocate(node->handle, node_start, len);
+
+		if (ret != 0) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"posix_fallocate(): Failed to preallocate"
+				" data for file %s, desired size %lu bytes."
+				" Operating system error number %d. Check"
+				" that the disk is not full or a disk quota"
+				" exceeded. Some operating system error"
+				" numbers are described at " REFMAN ""
+				" operating-system-error-codes.html",
+				node->name, (ulong) len, ret);
+
+			success = false;
+		}
 #endif /* NO_FALLOCATE || !UNIV_LINUX */
+
+		if (success) {
+			success = fil_write_zeros(
+				node, page_size, node_start, len);
+
+			if (!success) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Error while writing %lu zeroes to %s"
+					" starting at offset %lu",
+					len, node->name, (ulint) node_start);
+			}
+		}
+
+		/* Check how many pages actually added */
+		os_offset_t	end = os_file_get_size(node->handle);
+		ut_a(end != (os_offset_t) -1 && end >= node_start);
+
+		os_has_said_disk_full = !(success = (end == node_start + len));
+
+		pages_added = (end - node_start) / page_size;
+
+	} else {
+		success = true;
+		pages_added = n_node_extend;
+		os_has_said_disk_full = FALSE;
+	}
 
 	mutex_enter(&fil_system->mutex);
 
