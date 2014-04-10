@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4421,6 +4421,16 @@ SimulatedBlock::assertOwnThread()
 }
 
 #endif
+
+Uint32
+SimulatedBlock::get_recv_thread_idx(NodeId nodeId)
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_get_recv_thread_idx(nodeId);
+#else
+  return 0;
+#endif
+}
 
 /** 
  * #undef is needed since this file is included by SimulatedBlock_nonmt.cpp
