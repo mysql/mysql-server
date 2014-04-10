@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,6 +60,12 @@ using std::max;
 #define SIGNAL_FMT "signal %d"
 #endif
 
+#ifdef _WIN32
+#define setenv(a,b,c) _putenv_s(a,b)
+#define popen _popen
+#define pclose _pclose
+#endif
+
 #define MAX_VAR_NAME_LENGTH    256
 #define MAX_COLUMNS            256
 #define MAX_EMBEDDED_SERVER_ARGS 64
@@ -70,12 +76,27 @@ using std::max;
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
 
-#ifndef HAVE_SETENV
-static int setenv(const char *name, const char *value, int overwrite);
-#endif
+#define APPEND_TYPE(type)                                                      \
+{                                                                              \
+  dynstr_append(ds, "-- ");                                                    \
+  switch (type)                                                                \
+  {                                                                            \
+  case SESSION_TRACK_SYSTEM_VARIABLES:                                         \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_SYSTEM_VARIABLES\n");           \
+    break;                                                                     \
+  case SESSION_TRACK_SCHEMA:                                                   \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_SCHEMA\n");                     \
+    break;                                                                     \
+  case SESSION_TRACK_STATE_CHANGE:                                             \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_STATE_CHANGE\n");               \
+    break;                                                                     \
+  default:                                                                     \
+    dynstr_append(ds, "\n");                                                   \
+  }                                                                            \
+}
 
 C_MODE_START
-static sig_handler signal_handler(int sig);
+static void signal_handler(int sig);
 static my_bool get_one_option(int optid, const struct my_option *,
                               char *argument);
 C_MODE_END
@@ -111,7 +132,8 @@ static my_bool json_explain_protocol= 0, json_explain_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
 static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
-  display_metadata= FALSE, display_result_sorted= FALSE;
+  display_metadata= FALSE, display_result_sorted= FALSE,
+  display_session_track_info= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
 static my_bool disable_connect_log= 1;
 static my_bool disable_warnings= 0;
@@ -141,6 +163,7 @@ static struct property prop_list[] = {
   { &abort_on_error, 0, 1, 0, "$ENABLED_ABORT_ON_ERROR" },
   { &disable_connect_log, 0, 1, 1, "$ENABLED_CONNECT_LOG" },
   { &disable_info, 0, 1, 1, "$ENABLED_INFO" },
+  { &display_session_track_info, 0, 1, 1, "$ENABLED_STATE_CHANGE_INFO" },
   { &display_metadata, 0, 0, 0, "$ENABLED_METADATA" },
   { &ps_protocol_enabled, 0, 0, 0, "$ENABLED_PS_PROTOCOL" },
   { &disable_query_log, 0, 0, 1, "$ENABLED_QUERY_LOG" },
@@ -154,6 +177,7 @@ enum enum_prop {
   P_ABORT= 0,
   P_CONNECT,
   P_INFO,
+  P_SESSION_TRACK,
   P_META,
   P_PS,
   P_QUERY,
@@ -340,6 +364,7 @@ enum enum_commands {
   Q_WAIT_FOR_SLAVE_TO_STOP,
   Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
   Q_ENABLE_INFO, Q_DISABLE_INFO,
+  Q_ENABLE_SESSION_TRACK_INFO, Q_DISABLE_SESSION_TRACK_INFO,
   Q_ENABLE_METADATA, Q_DISABLE_METADATA,
   Q_EXEC, Q_EXECW, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
@@ -411,6 +436,8 @@ const char *command_names[]=
   "disable_warnings",
   "enable_info",
   "disable_info",
+  "enable_session_track_info",
+  "disable_session_track_info",
   "enable_metadata",
   "disable_metadata",
   "exec",
@@ -463,7 +490,7 @@ const char *command_names[]=
   "remove_files_wildcard",
   "send_eval",
   "output",
-  "resetconnection",
+  "reset_connection",
 
   0
 };
@@ -550,13 +577,13 @@ void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
 static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
 
 void die(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
+  __attribute__((format(printf, 1, 2))) __attribute__((noreturn));
 void abort_not_supported_test(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
+  __attribute__((format(printf, 1, 2))) __attribute__((noreturn));
 void verbose_msg(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 void log_msg(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 
 VAR* var_from_env(const char *, const char *);
 VAR* var_init(VAR* v, const char *name, size_t name_len, const char *val,
@@ -1287,7 +1314,7 @@ end:
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= snprintf(buf, 10, "%u", error);
+    int err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -2454,12 +2481,11 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 {
   char *end = (char*)((query_end && *query_end) ?
 		      *query_end : query + strlen(query));
-  MYSQL_RES *res;
+  MYSQL_RES *res= NULL;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   DYNAMIC_STRING ds_query;
   DBUG_ENTER("var_query_set");
-  LINT_INIT(res);
 
   /* Only white space or ) allowed past ending ` */
   while (end > query && *end != '`')
@@ -2510,7 +2536,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       {
         /* Add column to tab separated string */
 	char *val= row[i];
-	int len= lengths[i];
+	size_t len= lengths[i];
 	
 	if (glob_replace_regex)
 	{
@@ -2605,7 +2631,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
-  { "<No error>", -1U, "" },
+  { "<No error>", (uint)-1, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
@@ -2700,7 +2726,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
 {
   long row_no;
   int col_no= -1;
-  MYSQL_RES* res;
+  MYSQL_RES* res= NULL;
   MYSQL* mysql= &cur_con->mysql;
 
   static DYNAMIC_STRING ds_query;
@@ -2713,7 +2739,6 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   };
 
   DBUG_ENTER("var_set_query_get_value");
-  LINT_INIT(res);
 
   strip_parentheses(command);
   DBUG_PRINT("info", ("query: %s", command->query));
@@ -3241,7 +3266,7 @@ void do_exec(struct st_command *command)
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= snprintf(buf, 10, "%u", error);
+    int err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -4335,7 +4360,7 @@ void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
   MYSQL* mysql = &cur_con->mysql;
   for (;;)
   {
-    MYSQL_RES *UNINIT_VAR(res);
+    MYSQL_RES *res= NULL;
     MYSQL_ROW row;
     int done;
 
@@ -4512,7 +4537,7 @@ int do_save_master_pos()
 	    if (*status)
 	    {
 	      status+= sizeof(latest_trans_epoch_str)-1;
-	      latest_trans_epoch= strtoull(status, (char**) 0, 10);
+	      latest_trans_epoch= my_strtoull(status, (char**) 0, 10);
 	    }
 	    else
 	      die("result does not contain '%s' in '%s'",
@@ -4526,7 +4551,7 @@ int do_save_master_pos()
 	    if (*status)
 	    {
 	      status+= sizeof(latest_handled_binlog_epoch_str)-1;
-	      latest_handled_binlog_epoch= strtoull(status, (char**) 0, 10);
+	      latest_handled_binlog_epoch= my_strtoull(status, (char**) 0, 10);
 	    }
 	    else
 	      die("result does not contain '%s' in '%s'",
@@ -6090,6 +6115,7 @@ void do_reset_connection()
     mysql_stmt_close(cur_con->stmt);
     cur_con->stmt= NULL;
   }
+  DBUG_VOID_RETURN;
 }
 
 my_bool match_delimiter(int c, const char *delim, size_t length)
@@ -6148,7 +6174,7 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  char c, UNINIT_VAR(last_quote), last_char= 0;
+  char c, last_quote= 0, last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   my_bool have_slash= FALSE;
@@ -6316,7 +6342,25 @@ int read_line(char *buf, int size)
     {
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
-      uint charlen= my_mbcharlen(charset_info, (unsigned char) c);
+      uint charlen;
+      if (my_mbmaxlenlen(charset_info) == 1)
+        charlen= my_mbcharlen(charset_info, (unsigned char) c);
+      else
+      {
+        if (!(charlen= my_mbcharlen(charset_info, (unsigned char) c)))
+        {
+          int c1= my_getc(cur_file->file);
+          if (c1 == EOF)
+          {
+            *p++= c;
+            goto found_eof;
+          }
+
+          charlen= my_mbcharlen_2(charset_info, (unsigned char) c,
+                                  (unsigned char) c1);
+          my_ungetc(c1);
+        }
+      }
       if(charlen == 0)
         DBUG_RETURN(1);
       /* We give up if multibyte character is started but not */
@@ -6900,7 +6944,7 @@ int parse_args(int argc, char **argv)
   if (argc == 1)
     opt_db= *argv;
   if (tty_password)
-    opt_pass= get_tty_password(NullS);          /* purify tested */
+    opt_pass= get_tty_password(NullS);
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
@@ -7335,6 +7379,45 @@ void append_info(DYNAMIC_STRING *ds, ulonglong affected_rows,
 }
 
 
+/**
+  @brief Append state change information (received through Ok packet) to the output.
+
+  @param ds    [INOUT]      Dynamic string to hold the content to be printed.
+  @param mysql [IN]         Connection handle.
+*/
+
+void append_session_track_info(DYNAMIC_STRING *ds, MYSQL *mysql)
+{
+  for (unsigned int type= SESSION_TRACK_BEGIN; type <= SESSION_TRACK_END; type++)
+  {
+    const char *data;
+    size_t data_length;
+
+    if (!mysql_session_track_get_first(mysql,
+                                       (enum_session_state_type) type,
+                                       &data, &data_length))
+    {
+      /*
+	Append the type information. Please update the definition of APPEND_TYPE when
+	any changes are made to enum_session_state_type.
+      */
+      APPEND_TYPE(type);
+      dynstr_append(ds, "-- ");
+      dynstr_append_mem(ds, data, data_length);
+    }
+    else
+      continue;
+    while (!mysql_session_track_get_next(mysql,
+                                        (enum_session_state_type) type,
+                                        &data, &data_length))
+    {
+      dynstr_append(ds, "\n-- ");
+      dynstr_append_mem(ds, data, data_length);
+    }
+    dynstr_append(ds, "\n\n");
+  }
+}
+
 /*
   Display the table headings with the names tab separated
 */
@@ -7482,6 +7565,9 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
       */
       if (!disable_info)
 	append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
+
+      if (display_session_track_info)
+        append_session_track_info(ds, mysql);
 
       /*
         Add all warnings to the result. We can't do this if we are in
@@ -7882,6 +7968,9 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
     if (!disable_info)
       append_info(ds, mysql_stmt_affected_rows(stmt), mysql_info(mysql));
+
+    if (display_session_track_info)
+      append_session_track_info(ds, mysql);
 
     if (!disable_warnings)
     {
@@ -8537,7 +8626,7 @@ static void dump_backtrace(void)
 
 #endif
 
-static sig_handler signal_handler(int sig)
+static void signal_handler(int sig)
 {
   fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
   dump_backtrace();
@@ -8911,6 +9000,12 @@ int main(int argc, char **argv)
         break;
       case Q_DISABLE_INFO:
         set_property(command, P_INFO, 1);
+        break;
+      case Q_ENABLE_SESSION_TRACK_INFO:
+        set_property(command, P_SESSION_TRACK, 1);
+        break;
+      case Q_DISABLE_SESSION_TRACK_INFO:
+        set_property(command, P_SESSION_TRACK, 0);
         break;
       case Q_ENABLE_METADATA:
         set_property(command, P_META, 1);
@@ -10757,18 +10852,3 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
   delete_dynamic(&lines);
   DBUG_VOID_RETURN;
 }
-
-#ifndef HAVE_SETENV
-static int setenv(const char *name, const char *value, int overwrite)
-{
-  size_t buflen= strlen(name) + strlen(value) + 2;
-  char *envvar= (char *)malloc(buflen);
-  if(!envvar)
-    return ENOMEM;
-  strcpy(envvar, name);
-  strcat(envvar, "=");
-  strcat(envvar, value);
-  putenv(envvar);
-  return 0;
-}
-#endif

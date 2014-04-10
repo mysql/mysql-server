@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@ class MY_LOCALE;
 
 class Item_str_func :public Item_func
 {
+  typedef Item_func super;
+
 protected:
   /**
      Sets the result value of the function an empty string, using the current
@@ -36,16 +38,44 @@ protected:
   }
 public:
   Item_str_func() :Item_func() { decimals=NOT_FIXED_DEC; }
+  explicit Item_str_func(const POS &pos) :super(pos) { decimals=NOT_FIXED_DEC; }
+
   Item_str_func(Item *a) :Item_func(a) {decimals=NOT_FIXED_DEC; }
+  Item_str_func(const POS &pos, Item *a) :Item_func(pos, a)
+  {decimals=NOT_FIXED_DEC; }
+
   Item_str_func(Item *a,Item *b) :Item_func(a,b) { decimals=NOT_FIXED_DEC; }
-  Item_str_func(Item *a,Item *b,Item *c) :Item_func(a,b,c) { decimals=NOT_FIXED_DEC; }
-  Item_str_func(Item *a,Item *b,Item *c,Item *d) :Item_func(a,b,c,d) {decimals=NOT_FIXED_DEC; }
-  Item_str_func(Item *a,Item *b,Item *c,Item *d, Item* e) :Item_func(a,b,c,d,e) {decimals=NOT_FIXED_DEC; }
+  Item_str_func(const POS &pos, Item *a,Item *b) :Item_func(pos, a,b)
+  { decimals=NOT_FIXED_DEC; }
+
+  Item_str_func(Item *a, Item *b, Item *c) :Item_func(a, b, c)
+  { decimals=NOT_FIXED_DEC; }
+  Item_str_func(const POS &pos, Item *a, Item *b, Item *c)
+    :Item_func(pos, a,b,c)
+  { decimals=NOT_FIXED_DEC; }
+
+  Item_str_func(Item *a, Item *b, Item *c, Item *d) :Item_func(a, b, c, d)
+  {decimals=NOT_FIXED_DEC; }
+  Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+    :Item_func(pos, a,b,c,d)
+  {decimals=NOT_FIXED_DEC; }
+
+  Item_str_func(Item *a, Item *b, Item *c, Item *d, Item* e)
+    :Item_func(a, b, c, d, e)
+  {decimals=NOT_FIXED_DEC; }
+  Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e)
+    :Item_func(pos, a, b, c, d, e)
+  {decimals=NOT_FIXED_DEC; }
+
   Item_str_func(List<Item> &list) :Item_func(list) {decimals=NOT_FIXED_DEC; }
+  Item_str_func(const POS &pos, PT_item_list *opt_list)
+    :Item_func(pos, opt_list)
+  {decimals=NOT_FIXED_DEC; }
+
   longlong val_int();
   double val_real();
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -70,12 +100,23 @@ class Item_str_ascii_func :public Item_str_func
 public:
   Item_str_ascii_func() :Item_str_func()
   { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+
   Item_str_ascii_func(Item *a) :Item_str_func(a)
   { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+  Item_str_ascii_func(const POS &pos, Item *a) :Item_str_func(pos, a)
+  { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+
   Item_str_ascii_func(Item *a,Item *b) :Item_str_func(a,b)
   { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+  Item_str_ascii_func(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b)
+  { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+
   Item_str_ascii_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c)
   { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+  Item_str_ascii_func(const POS &pos, Item *a,Item *b,Item *c)
+    :Item_str_func(pos, a,b,c)
+  { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+
   String *val_str(String *str)
   {
     return val_str_from_val_str_ascii(str, &ascii_buf);
@@ -88,7 +129,7 @@ class Item_func_md5 :public Item_str_ascii_func
 {
   String tmp_value;
 public:
-  Item_func_md5(Item *a) :Item_str_ascii_func(a) {}
+  Item_func_md5(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
   String *val_str_ascii(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "md5"; }
@@ -98,7 +139,7 @@ public:
 class Item_func_sha :public Item_str_ascii_func
 {
 public:
-  Item_func_sha(Item *a) :Item_str_ascii_func(a) {}
+  Item_func_sha(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
   String *val_str_ascii(String *);    
   void fix_length_and_dec();      
   const char *func_name() const { return "sha"; }	
@@ -107,7 +148,9 @@ public:
 class Item_func_sha2 :public Item_str_ascii_func
 {
 public:
-  Item_func_sha2(Item *a, Item *b) :Item_str_ascii_func(a, b) {}
+  Item_func_sha2(const POS &pos, Item *a, Item *b)
+    :Item_str_ascii_func(pos, a, b)
+  {}
   String *val_str_ascii(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "sha2"; }
@@ -117,7 +160,7 @@ class Item_func_to_base64 :public Item_str_ascii_func
 {
   String tmp_value;
 public:
-  Item_func_to_base64(Item *a) :Item_str_ascii_func(a) {}
+  Item_func_to_base64(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
   String *val_str_ascii(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "to_base64"; }
@@ -127,7 +170,7 @@ class Item_func_from_base64 :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_from_base64(Item *a) :Item_str_func(a) {}
+  Item_func_from_base64(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "from_base64"; }
@@ -136,8 +179,16 @@ public:
 
 class Item_func_aes_encrypt :public Item_str_func
 {
+  typedef Item_str_func super;
 public:
-  Item_func_aes_encrypt(Item *a, Item *b) :Item_str_func(a,b) {}
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b)
+    :Item_str_func(pos, a, b)
+  {}
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c)
+    :Item_str_func(pos, a, b, c)
+  {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "aes_encrypt"; }
@@ -145,20 +196,54 @@ public:
 
 class Item_func_aes_decrypt :public Item_str_func	
 {
+  typedef Item_str_func super;
 public:
-  Item_func_aes_decrypt(Item *a, Item *b) :Item_str_func(a,b) {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b)
+    :Item_str_func(pos, a, b)
+  {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c)
+    :Item_str_func(pos, a, b, c)
+  {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "aes_decrypt"; }
 };
 
 
+class Item_func_random_bytes : public Item_str_func
+{
+  typedef Item_str_func super;
+
+  /** limitation from the SSL library */
+  static const longlong MAX_RANDOM_BYTES_BUFFER;
+public:
+  Item_func_random_bytes(const POS &pos, Item *a) : Item_str_func(pos, a)
+  {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+  void fix_length_and_dec();
+  String *val_str(String *a);
+
+  const char *func_name() const
+  {
+    return "random_bytes";
+  }
+
+};
+
 class Item_func_concat :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_concat(List<Item> &list) :Item_str_func(list) {}
+  Item_func_concat(const POS &pos, PT_item_list *opt_list)
+    :Item_str_func(pos, opt_list)
+  {}
+
   Item_func_concat(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_concat(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
+
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "concat"; }
@@ -169,6 +254,9 @@ class Item_func_concat_ws :public Item_str_func
   String tmp_value;
 public:
   Item_func_concat_ws(List<Item> &list) :Item_str_func(list) {}
+  Item_func_concat_ws(const POS &pos, PT_item_list *opt_list)
+    :Item_str_func(pos, opt_list)
+  {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "concat_ws"; }
@@ -180,6 +268,8 @@ class Item_func_reverse :public Item_str_func
   String tmp_value;
 public:
   Item_func_reverse(Item *a) :Item_str_func(a) {}
+  Item_func_reverse(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "reverse"; }
@@ -190,8 +280,9 @@ class Item_func_replace :public Item_str_func
 {
   String tmp_value,tmp_value2;
 public:
-  Item_func_replace(Item *org,Item *find,Item *replace)
-    :Item_str_func(org,find,replace) {}
+  Item_func_replace(const POS &pos, Item *org,Item *find,Item *replace)
+    :Item_str_func(pos, org,find,replace)
+  {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "replace"; }
@@ -202,8 +293,10 @@ class Item_func_insert :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_insert(Item *org,Item *start,Item *length,Item *new_str)
-    :Item_str_func(org,start,length,new_str) {}
+  Item_func_insert(const POS &pos,
+                   Item *org, Item *start, Item *length, Item *new_str)
+    :Item_str_func(pos, org,start,length,new_str)
+  {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "insert"; }
@@ -217,7 +310,7 @@ protected:
   my_charset_conv_case converter;
   String tmp_value;
 public:
-  Item_str_conv(Item *item) :Item_str_func(item) {}
+  Item_str_conv(const POS &pos, Item *item) :Item_str_func(pos, item) {}
   String *val_str(String *);
 };
 
@@ -225,7 +318,7 @@ public:
 class Item_func_lower :public Item_str_conv
 {
 public:
-  Item_func_lower(Item *item) :Item_str_conv(item) {}
+  Item_func_lower(const POS &pos, Item *item) :Item_str_conv(pos, item) {}
   const char *func_name() const { return "lower"; }
   void fix_length_and_dec();
 };
@@ -233,7 +326,7 @@ public:
 class Item_func_upper :public Item_str_conv
 {
 public:
-  Item_func_upper(Item *item) :Item_str_conv(item) {}
+  Item_func_upper(const POS &pos, Item *item) :Item_str_conv(pos, item) {}
   const char *func_name() const { return "upper"; }
   void fix_length_and_dec();
 };
@@ -243,7 +336,7 @@ class Item_func_left :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_left(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_left(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "left"; }
@@ -254,7 +347,7 @@ class Item_func_right :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_right(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_right(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "right"; }
@@ -263,10 +356,17 @@ public:
 
 class Item_func_substr :public Item_str_func
 {
+  typedef Item_str_func super;
+
   String tmp_value;
 public:
   Item_func_substr(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_substr(const POS &pos, Item *a,Item *b) :super(pos, a,b) {}
+
   Item_func_substr(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
+  Item_func_substr(const POS &pos, Item *a,Item *b,Item *c) :super(pos, a, b, c)
+  {}
+
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "substr"; }
@@ -277,7 +377,9 @@ class Item_func_substr_index :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_substr_index(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
+  Item_func_substr_index(const POS &pos, Item *a,Item *b, Item *c)
+    :Item_str_func(pos, a, b, c)
+  {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "substring_index"; }
@@ -291,7 +393,11 @@ protected:
   String remove;
 public:
   Item_func_trim(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_func_trim(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
+
   Item_func_trim(Item *a) :Item_str_func(a) {}
+  Item_func_trim(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "trim"; }
@@ -304,7 +410,11 @@ class Item_func_ltrim :public Item_func_trim
 {
 public:
   Item_func_ltrim(Item *a,Item *b) :Item_func_trim(a,b) {}
+  Item_func_ltrim(const POS &pos, Item *a,Item *b) :Item_func_trim(pos, a,b) {}
+
   Item_func_ltrim(Item *a) :Item_func_trim(a) {}
+  Item_func_ltrim(const POS &pos, Item *a) :Item_func_trim(pos, a) {}
+
   String *val_str(String *);
   const char *func_name() const { return "ltrim"; }
   const char *mode_name() const { return "leading"; }
@@ -315,7 +425,11 @@ class Item_func_rtrim :public Item_func_trim
 {
 public:
   Item_func_rtrim(Item *a,Item *b) :Item_func_trim(a,b) {}
+  Item_func_rtrim(const POS &pos, Item *a,Item *b) :Item_func_trim(pos, a,b) {}
+
   Item_func_rtrim(Item *a) :Item_func_trim(a) {}
+  Item_func_rtrim(const POS &pos, Item *a) :Item_func_trim(pos, a) {}
+
   String *val_str(String *);
   const char *func_name() const { return "rtrim"; }
   const char *mode_name() const { return "trailing"; }
@@ -358,9 +472,15 @@ public:
 
 class Item_func_old_password :public Item_str_ascii_func
 {
+  typedef Item_str_ascii_func super;
+
   char tmp_value[SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1];
 public:
   Item_func_old_password(Item *a) :Item_str_ascii_func(a) {}
+  Item_func_old_password(const POS &pos, Item *a) :super(pos, a) {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+
   String *val_str_ascii(String *str);
   void fix_length_and_dec()
   {
@@ -375,8 +495,10 @@ class Item_func_des_encrypt :public Item_str_func
 {
   String tmp_value,tmp_arg;
 public:
-  Item_func_des_encrypt(Item *a) :Item_str_func(a) {}
-  Item_func_des_encrypt(Item *a, Item *b): Item_str_func(a,b) {}
+  Item_func_des_encrypt(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+  Item_func_des_encrypt(const POS &pos, Item *a, Item *b)
+    : Item_str_func(pos, a, b)
+  {}
   String *val_str(String *);
   void fix_length_and_dec()
   {
@@ -391,8 +513,10 @@ class Item_func_des_decrypt :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_des_decrypt(Item *a) :Item_str_func(a) {}
-  Item_func_des_decrypt(Item *a, Item *b): Item_str_func(a,b) {}
+  Item_func_des_decrypt(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+  Item_func_des_decrypt(const POS &pos, Item *a, Item *b)
+    : Item_str_func(pos, a, b)
+  {}
   String *val_str(String *);
   void fix_length_and_dec()
   {
@@ -407,6 +531,8 @@ public:
 
 class Item_func_encrypt :public Item_str_func
 {
+  typedef Item_str_func super;
+
   String tmp_value;
 
   /* Encapsulate common constructor actions */
@@ -415,14 +541,16 @@ class Item_func_encrypt :public Item_str_func
     collation.set(&my_charset_bin);
   }
 public:
-  Item_func_encrypt(Item *a) :Item_str_func(a)
+  Item_func_encrypt(const POS &pos, Item *a) :Item_str_func(pos, a)
   {
     constructor_helper();
   }
-  Item_func_encrypt(Item *a, Item *b): Item_str_func(a,b)
+  Item_func_encrypt(const POS &pos, Item *a, Item *b): Item_str_func(pos, a, b)
   {
     constructor_helper();
   }
+
+  virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
   const char *func_name() const { return "encrypt"; }
@@ -439,8 +567,9 @@ private:
 protected:
   SQL_CRYPT sql_crypt;
 public:
-  Item_func_encode(Item *a, Item *seed):
-    Item_str_func(a, seed) {}
+  Item_func_encode(const POS &pos, Item *a, Item *seed)
+    :Item_str_func(pos, a, seed)
+  {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "encode"; }
@@ -455,7 +584,9 @@ private:
 class Item_func_decode :public Item_func_encode
 {
 public:
-  Item_func_decode(Item *a, Item *seed): Item_func_encode(a, seed) {}
+  Item_func_decode(const POS &pos, Item *a, Item *seed)
+    :Item_func_encode(pos, a, seed)
+  {}
   const char *func_name() const { return "decode"; }
 protected:
   void crypto_transform(String *);
@@ -464,9 +595,14 @@ protected:
 
 class Item_func_sysconst :public Item_str_func
 {
+  typedef Item_str_func super;
+
 public:
   Item_func_sysconst()
   { collation.set(system_charset_info,DERIVATION_SYSCONST); }
+  explicit Item_func_sysconst(const POS &pos) : super(pos)
+  { collation.set(system_charset_info,DERIVATION_SYSCONST); }
+
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   /*
     Used to create correct Item name in new converted item in
@@ -479,8 +615,13 @@ public:
 
 class Item_func_database :public Item_func_sysconst
 {
+  typedef Item_func_sysconst super;
+
 public:
-  Item_func_database() :Item_func_sysconst() {}
+  explicit Item_func_database(const POS &pos) :Item_func_sysconst(pos) {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+
   String *val_str(String *);
   void fix_length_and_dec()
   {
@@ -495,6 +636,8 @@ public:
 
 class Item_func_user :public Item_func_sysconst
 {
+  typedef Item_func_sysconst super;
+
 protected:
   bool init (const char *user, const char *host);
 
@@ -503,6 +646,13 @@ public:
   {
     str_value.set("", 0, system_charset_info);
   }
+  explicit Item_func_user(const POS &pos) : super(pos)
+  {
+    str_value.set("", 0, system_charset_info);
+  }
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+
   String *val_str(String *)
   {
     DBUG_ASSERT(fixed == 1);
@@ -526,11 +676,15 @@ public:
 
 class Item_func_current_user :public Item_func_user
 {
+  typedef Item_func_user super;
+
   Name_resolution_context *context;
 
 public:
-  Item_func_current_user(Name_resolution_context *context_arg)
-    : context(context_arg) {}
+  explicit Item_func_current_user(const POS &pos) : super(pos) {}
+  
+  virtual bool itemize(Parse_context *pc, Item **res);
+
   bool fix_fields(THD *thd, Item **ref);
   const char *func_name() const { return "current_user"; }
   const Name_string fully_qualified_func_name() const
@@ -543,6 +697,7 @@ class Item_func_soundex :public Item_str_func
   String tmp_value;
 public:
   Item_func_soundex(Item *a) :Item_str_func(a) {}
+  Item_func_soundex(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "soundex"; }
@@ -552,7 +707,9 @@ public:
 class Item_func_elt :public Item_str_func
 {
 public:
-  Item_func_elt(List<Item> &list) :Item_str_func(list) {}
+  Item_func_elt(const POS &pos, PT_item_list *opt_list)
+    :Item_str_func(pos, opt_list)
+  {}
   double val_real();
   longlong val_int();
   String *val_str(String *str);
@@ -563,11 +720,17 @@ public:
 
 class Item_func_make_set :public Item_str_func
 {
+  typedef Item_str_func super;
+
   Item *item;
   String tmp_str;
 
 public:
-  Item_func_make_set(Item *a,List<Item> &list) :Item_str_func(list),item(a) {}
+  Item_func_make_set(const POS &pos, Item *a, PT_item_list *opt_list)
+    :Item_str_func(pos, opt_list), item(a)
+  {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *str);
   bool fix_fields(THD *thd, Item **ref)
   {
@@ -584,11 +747,13 @@ public:
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
 
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg)
   {
-    return item->walk(processor, walk_subquery, arg) ||
-      Item_str_func::walk(processor, walk_subquery, arg);
+    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+           item->walk(processor, walk, arg) ||
+           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
   }
+
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -599,9 +764,12 @@ class Item_func_format :public Item_str_ascii_func
   String tmp_str;
   MY_LOCALE *locale;
 public:
-  Item_func_format(Item *org, Item *dec): Item_str_ascii_func(org, dec) {}
-  Item_func_format(Item *org, Item *dec, Item *lang):
-  Item_str_ascii_func(org, dec, lang) {}
+  Item_func_format(const POS &pos, Item *org, Item *dec)
+    : Item_str_ascii_func(pos, org, dec)
+  {}
+  Item_func_format(const POS &pos, Item *org, Item *dec, Item *lang)
+    : Item_str_ascii_func(pos, org, dec, lang)
+  {}
   
   MY_LOCALE *get_locale(Item *item);
   String *val_str_ascii(String *);
@@ -614,10 +782,10 @@ public:
 class Item_func_char :public Item_str_func
 {
 public:
-  Item_func_char(List<Item> &list) :Item_str_func(list)
+  Item_func_char(const POS &pos, PT_item_list *list) :Item_str_func(pos, list)
   { collation.set(&my_charset_bin); }
-  Item_func_char(List<Item> &list, const CHARSET_INFO *cs) :
-  Item_str_func(list)
+  Item_func_char(const POS &pos, PT_item_list *list, const CHARSET_INFO *cs)
+    : Item_str_func(pos, list)
   { collation.set(cs); }  
   String *val_str(String *);
   void fix_length_and_dec() 
@@ -632,7 +800,9 @@ class Item_func_repeat :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_repeat(Item *arg1,Item *arg2) :Item_str_func(arg1,arg2) {}
+  Item_func_repeat(const POS &pos, Item *arg1,Item *arg2)
+    :Item_str_func(pos, arg1,arg2)
+  {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "repeat"; }
@@ -642,7 +812,7 @@ public:
 class Item_func_space :public Item_str_func
 {
 public:
-  Item_func_space(Item *arg1):Item_str_func(arg1) {}
+  Item_func_space(const POS &pos, Item *arg1) :Item_str_func(pos, arg1) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "space"; }
@@ -653,8 +823,9 @@ class Item_func_rpad :public Item_str_func
 {
   String tmp_value, rpad_str;
 public:
-  Item_func_rpad(Item *arg1,Item *arg2,Item *arg3)
-    :Item_str_func(arg1,arg2,arg3) {}
+  Item_func_rpad(const POS &pos, Item *arg1, Item *arg2, Item *arg3)
+    :Item_str_func(pos, arg1, arg2, arg3)
+  {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "rpad"; }
@@ -665,8 +836,9 @@ class Item_func_lpad :public Item_str_func
 {
   String tmp_value, lpad_str;
 public:
-  Item_func_lpad(Item *arg1,Item *arg2,Item *arg3)
-    :Item_str_func(arg1,arg2,arg3) {}
+  Item_func_lpad(const POS &pos, Item *arg1, Item *arg2, Item *arg3)
+    :Item_str_func(pos , arg1, arg2, arg3)
+  {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "lpad"; }
@@ -676,7 +848,9 @@ public:
 class Item_func_conv :public Item_str_func
 {
 public:
-  Item_func_conv(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
+  Item_func_conv(const POS &pos, Item *a,Item *b,Item *c)
+    :Item_str_func(pos, a,b,c)
+  {}
   const char *func_name() const { return "conv"; }
   String *val_str(String *);
   void fix_length_and_dec()
@@ -692,7 +866,7 @@ class Item_func_hex :public Item_str_ascii_func
 {
   String tmp_value;
 public:
-  Item_func_hex(Item *a) :Item_str_ascii_func(a) {}
+  Item_func_hex(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
   const char *func_name() const { return "hex"; }
   String *val_str_ascii(String *);
   void fix_length_and_dec()
@@ -707,7 +881,7 @@ class Item_func_unhex :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_unhex(Item *a) :Item_str_func(a) 
+  Item_func_unhex(const POS &pos, Item *a) :Item_str_func(pos, a) 
   { 
     /* there can be bad hex strings */
     maybe_null= 1; 
@@ -731,8 +905,8 @@ protected:
   String max_str;
   const bool is_min;
 public:
-  Item_func_like_range(Item *a, Item *b, bool is_min_arg)
-    :Item_str_func(a, b), is_min(is_min_arg)
+  Item_func_like_range(const POS &pos, Item *a, Item *b, bool is_min_arg)
+    :Item_str_func(pos, a, b), is_min(is_min_arg)
   { maybe_null= 1; }
   String *val_str(String *);
   void fix_length_and_dec()
@@ -747,8 +921,9 @@ public:
 class Item_func_like_range_min :public Item_func_like_range
 {
 public:
-  Item_func_like_range_min(Item *a, Item *b) 
-    :Item_func_like_range(a, b, true) { }
+  Item_func_like_range_min(const POS &pos, Item *a, Item *b) 
+    :Item_func_like_range(pos, a, b, true)
+  { }
   const char *func_name() const { return "like_range_min"; }
 };
 
@@ -756,8 +931,9 @@ public:
 class Item_func_like_range_max :public Item_func_like_range
 {
 public:
-  Item_func_like_range_max(Item *a, Item *b)
-    :Item_func_like_range(a, b, false) { }
+  Item_func_like_range_max(const POS &pos, Item *a, Item *b)
+    :Item_func_like_range(pos, a, b, false)
+  { }
   const char *func_name() const { return "like_range_max"; }
 };
 #endif
@@ -772,6 +948,10 @@ class Item_char_typecast :public Item_str_func
 public:
   Item_char_typecast(Item *a, int length_arg, const CHARSET_INFO *cs_arg)
     :Item_str_func(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  Item_char_typecast(const POS &pos, Item *a, int length_arg,
+                     const CHARSET_INFO *cs_arg)
+    :Item_str_func(pos, a), cast_length(length_arg), cast_cs(cs_arg) 
+  {}
   enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "cast_as_char"; }
@@ -784,7 +964,7 @@ public:
 class Item_func_binary :public Item_str_func
 {
 public:
-  Item_func_binary(Item *a) :Item_str_func(a) {}
+  Item_func_binary(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *a)
   {
     DBUG_ASSERT(fixed == 1);
@@ -806,9 +986,13 @@ public:
 
 class Item_load_file :public Item_str_func
 {
+  typedef Item_str_func super;
+
   String tmp_value;
 public:
-  Item_load_file(Item *a) :Item_str_func(a) {}
+  Item_load_file(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
@@ -823,9 +1007,16 @@ public:
 class Item_func_export_set: public Item_str_func
 {
  public:
-  Item_func_export_set(Item *a,Item *b,Item* c) :Item_str_func(a,b,c) {}
-  Item_func_export_set(Item *a,Item *b,Item* c,Item* d) :Item_str_func(a,b,c,d) {}
-  Item_func_export_set(Item *a,Item *b,Item* c,Item* d,Item* e) :Item_str_func(a,b,c,d,e) {}
+  Item_func_export_set(const POS &pos, Item *a, Item *b, Item* c)
+    :Item_str_func(pos, a, b, c)
+  {}
+  Item_func_export_set(const POS &pos, Item *a, Item *b, Item* c, Item* d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+  Item_func_export_set(const POS &pos,
+                       Item *a, Item *b, Item* c, Item* d, Item* e)
+    :Item_str_func(pos, a, b, c, d, e)
+  {}
   String  *val_str(String *str);
   void fix_length_and_dec();
   const char *func_name() const { return "export_set"; }
@@ -835,7 +1026,7 @@ class Item_func_quote :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_quote(Item *a) :Item_str_func(a) {}
+  Item_func_quote(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   const char *func_name() const { return "quote"; }
   String *val_str(String *);
   void fix_length_and_dec()
@@ -854,7 +1045,8 @@ class Item_func_conv_charset :public Item_str_func
 public:
   bool safe;
   const CHARSET_INFO *conv_charset; // keep it public
-  Item_func_conv_charset(Item *a, const CHARSET_INFO *cs) :Item_str_func(a) 
+  Item_func_conv_charset(const POS &pos, Item *a, const CHARSET_INFO *cs)
+  : Item_str_func(pos, a) 
   { conv_charset= cs; use_cached_value= 0; safe= 0; }
   Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const) :Item_str_func(a)
@@ -893,8 +1085,16 @@ public:
 
 class Item_func_set_collation :public Item_str_func
 {
+  typedef Item_str_func super;
+
+  LEX_STRING collation_string;
 public:
-  Item_func_set_collation(Item *a, Item *b) :Item_str_func(a,b) {};
+  Item_func_set_collation(const POS &pos, Item *a,
+                          const LEX_STRING &collation_string_arg)
+    :super(pos, a, NULL), collation_string(collation_string_arg)
+  {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
@@ -911,7 +1111,7 @@ public:
 class Item_func_charset :public Item_str_func
 {
 public:
-  Item_func_charset(Item *a) :Item_str_func(a) {}
+  Item_func_charset(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *);
   const char *func_name() const { return "charset"; }
   void fix_length_and_dec()
@@ -926,7 +1126,7 @@ public:
 class Item_func_collation :public Item_str_func
 {
 public:
-  Item_func_collation(Item *a) :Item_str_func(a) {}
+  Item_func_collation(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *);
   const char *func_name() const { return "collation"; }
   void fix_length_and_dec()
@@ -940,20 +1140,27 @@ public:
 
 class Item_func_weight_string :public Item_str_func
 {
+  typedef Item_str_func super;
+
   String tmp_value;
   uint flags;
   uint nweights;
   uint result_length;
   Field *field;
+  bool as_binary;
 public:
-  Item_func_weight_string(Item *a, uint result_length_arg,
-                          uint nweights_arg, uint flags_arg)
-  :Item_str_func(a), field(NULL)
+  Item_func_weight_string(const POS &pos, Item *a, uint result_length_arg,
+                          uint nweights_arg, uint flags_arg,
+                          bool as_binary_arg= false)
+  :Item_str_func(pos, a), field(NULL), as_binary(as_binary_arg)
   {
     nweights= nweights_arg;
     flags= flags_arg;
     result_length= result_length_arg;
   }
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+
   const char *func_name() const { return "weight_string"; }
   String *val_str(String *);
   void fix_length_and_dec();
@@ -963,7 +1170,8 @@ class Item_func_crc32 :public Item_int_func
 {
   String value;
 public:
-  Item_func_crc32(Item *a) :Item_int_func(a) { unsigned_flag= 1; }
+  Item_func_crc32(const POS &pos, Item *a) :Item_int_func(pos, a)
+  { unsigned_flag= 1; }
   const char *func_name() const { return "crc32"; }
   void fix_length_and_dec() { max_length=10; }
   longlong val_int();
@@ -973,7 +1181,8 @@ class Item_func_uncompressed_length : public Item_int_func
 {
   String value;
 public:
-  Item_func_uncompressed_length(Item *a):Item_int_func(a){}
+  Item_func_uncompressed_length(const POS &pos, Item *a) :Item_int_func(pos, a)
+  {}
   const char *func_name() const{return "uncompressed_length";}
   void fix_length_and_dec() { max_length=10; }
   longlong val_int();
@@ -989,7 +1198,7 @@ class Item_func_compress: public Item_str_func
 {
   String buffer;
 public:
-  Item_func_compress(Item *a):Item_str_func(a){}
+  Item_func_compress(const POS &pos, Item *a):Item_str_func(pos, a){}
   void fix_length_and_dec(){max_length= (args[0]->max_length*120)/100+12;}
   const char *func_name() const{return "compress";}
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
@@ -999,7 +1208,7 @@ class Item_func_uncompress: public Item_str_func
 {
   String buffer;
 public:
-  Item_func_uncompress(Item *a): Item_str_func(a){}
+  Item_func_uncompress(const POS &pos, Item *a): Item_str_func(pos, a) {}
   void fix_length_and_dec(){ maybe_null= 1; max_length= MAX_BLOB_WIDTH; }
   const char *func_name() const{return "uncompress";}
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
@@ -1007,8 +1216,13 @@ public:
 
 class Item_func_uuid: public Item_str_func
 {
+  typedef Item_str_func super;
 public:
   Item_func_uuid(): Item_str_func() {}
+  explicit
+  Item_func_uuid(const POS &pos): Item_str_func(pos) {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
   void fix_length_and_dec()
   {
     collation.set(system_charset_info,
@@ -1023,7 +1237,9 @@ class Item_func_gtid_subtract: public Item_str_ascii_func
 {
   String buf1, buf2;
 public:
-  Item_func_gtid_subtract(Item *a, Item *b) :Item_str_ascii_func(a, b) {}
+  Item_func_gtid_subtract(const POS &pos, Item *a, Item *b)
+    :Item_str_ascii_func(pos, a, b)
+  {}
   void fix_length_and_dec();
   const char *func_name() const{ return "gtid_subtract"; }
   String *val_str_ascii(String *);

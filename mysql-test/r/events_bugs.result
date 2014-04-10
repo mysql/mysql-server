@@ -77,7 +77,7 @@ set sql_mode='traditional';
 alter event e_16407 do select 1;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
-events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 drop event e_16407;
 set sql_mode="ansi";
 select get_lock('ee_16407_2', 60);
@@ -114,8 +114,8 @@ insert into events_test.events_smode_test values ('ee_16407_4','10-11-1956');
 end|
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
-events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
-events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_4	
 select /*2*/ user, host, db, info from information_schema.processlist
 where state = 'User lock' and info = 'select get_lock(\'ee_16407_2\', 60)';
@@ -138,8 +138,8 @@ ee_16407_4	0000-00-00
 "OK, last check before we drop them"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
-events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
-events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_4	
 drop event ee_16407_2;
 drop event ee_16407_3;
@@ -185,8 +185,8 @@ ee_16407_6	2004-02-29
 "And here we check one more time before we drop the events"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
-events_test	ee_16407_5	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
-events_test	ee_16407_6	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_5	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_6	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 drop event ee_16407_5;
 drop event ee_16407_6;
 drop procedure ee_16407_5_pendant;
@@ -728,6 +728,10 @@ DROP USER mysqltest_u1@localhost;
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
+Warnings:
+Warning	1910	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1910	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1910	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;
@@ -810,6 +814,24 @@ event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	4	SECOND	#	#	DISABLE
 DROP EVENT ev1;
 DROP DATABASE event_test11764334;
 USE test;
+#
+# BUG#18311187 - SQL_MODE IS CHANGED TO WRONG VALUE AFTER DUMP/DATA
+#                UPGRADE FOR TRIGGERS
+#
+# Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
+# manually into mysql.event table do not show up in SHOW CREATE event OUTPUT.
+#
+INSERT INTO mysql.event VALUES ('test','ev1','select 1','root@localhost','NULL','1','SECOND','1970-01-01 05:30:00','1970-01-01 05:30:00','NULL','1970-01-01 05:30:00','NULL','ENABLED','DROP','NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','','0','SYSTEM', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'select 1');
+Warnings:
+Warning	1265	Data truncated for column 'execute_at' at row 1
+Warning	1265	Data truncated for column 'last_executed' at row 1
+Warning	1265	Data truncated for column 'ends' at row 1
+# NO_ZERO_* modes should not show up in the output.
+SHOW CREATE EVENT ev1;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+ev1	STRICT_ALL_TABLES	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE EVERY 1 SECOND STARTS '1970-01-01 08:30:00' ENDS '1970-01-01 03:00:00' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
+# Clean-up
+DROP EVENT ev1;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;

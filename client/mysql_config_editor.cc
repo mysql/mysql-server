@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,8 +49,8 @@ static int g_fd;
   excluding the header part.
 */
 static size_t file_size;
-static char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
-            *opt_login_path= NULL, *opt_socket= NULL, *opt_port= NULL;
+static const char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
+            *opt_login_path= "client", *opt_socket= NULL, *opt_port= NULL;
 
 static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
@@ -140,11 +140,11 @@ static struct my_option my_set_command_options[]=
   {"password", 'p', "Prompt for password to be entered into the login file.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User name to be entered into the login file.", &opt_user,
-   &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket path to be entered into login file.", &opt_socket,
-   &opt_socket, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_socket, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to be entered into login file.", &opt_port,
-   &opt_port, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"warn", 'w', "Warn and ask for confirmation if set command attempts to "
    "overwrite an existing login path (enabled by default).",
    &opt_warn, &opt_warn, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -454,11 +454,6 @@ static int do_handle_options(int argc, char *argv[])
   /* Do not allow multiple commands. */
   if ( argc_cmd > 1)
     goto error;
-
-  /* If NULL, set it to 'client' (default) */
-  if (!opt_login_path)
-    opt_login_path= my_strdup(PSI_NOT_INSTRUMENTED,
-                              "client", MYF(MY_WME));
 
 done:
   my_free(ptr);
@@ -778,7 +773,7 @@ static my_bool check_and_create_login_file(void)
   {
     verbose_msg("File exists.\n");
 
-    file_size= stat_info.st_size;
+    file_size= (size_t) stat_info.st_size;
 
 #ifdef _WIN32
     if (1)
@@ -945,7 +940,7 @@ static void mask_password_and_print(char *buf)
 static void remove_options(DYNAMIC_STRING *file_buf, const char *path_name)
 {
   /* If nope of the options are specified remove the entire path. */
-  if (!opt_remove_host && !opt_remove_pass && !opt_remove_user 
+  if (!opt_remove_host && !opt_remove_pass && !opt_remove_user
       && !opt_remove_socket && !opt_remove_port)
   {
     remove_login_path(file_buf, path_name);
@@ -1049,7 +1044,7 @@ static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
   DBUG_ENTER("remove_login_path");
 
   char *start=NULL, *end= NULL;
-  int tot_len, len, diff;
+  int to_move, len, diff;
 
   if((start= locate_login_path(file_buf, path_name)) == NULL)
     /* login path was not found, skip.. */
@@ -1061,7 +1056,7 @@ static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
   {
     end ++;                                     /* Move past '\n' */
     len= ((diff= (start - end)) > 0) ? diff : - diff;
-    tot_len= file_buf->length - len ;
+    to_move= file_buf->length - (end - file_buf->str) ;
   }
   else
   {
@@ -1070,7 +1065,7 @@ static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
     goto done;
   }
 
-  while(tot_len --)
+  while(to_move --)
     *(start ++)= *(end ++);
 
   *start= '\0';
@@ -1298,7 +1293,7 @@ error:
 
   @param plain     [in]   Plain text to be encrypted.
   @param plain_len [in]   Length of the plain text.
-  @param cipher    [in]   Encrypted cipher text.
+  @param cipher    [out]  Encrypted cipher text.
 
   @return                 -1 if error encountered,
                           length encrypted, otherwise.
@@ -1309,9 +1304,12 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[])
   DBUG_ENTER("encrypt_buffer");
   int aes_len;
 
-  aes_len= my_aes_get_size(plain_len);
+  aes_len= my_aes_get_size(plain_len, my_aes_128_ecb);
 
-  if (my_aes_encrypt(plain, plain_len, cipher, my_key, LOGIN_KEY_LEN) == aes_len)
+  if (my_aes_encrypt((const unsigned char *) plain, plain_len,
+                     (unsigned char *) cipher,
+                     (const unsigned char *) my_key, LOGIN_KEY_LEN,
+                     my_aes_128_ecb, NULL) == aes_len)
     DBUG_RETURN(aes_len);
 
   verbose_msg("Error! Couldn't encrypt the buffer.\n");
@@ -1324,7 +1322,7 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[])
 
   @param cipher     [in]  Cipher text to be decrypted.
   @param cipher_len [in]  Length of the cipher text.
-  @param plain      [in]  Decrypted plain text.
+  @param plain      [out] Decrypted plain text.
 
   @return                 -1 if error encountered,
                           length decrypted, otherwise.
@@ -1335,8 +1333,11 @@ static int decrypt_buffer(const char *cipher, int cipher_len, char plain[])
   DBUG_ENTER("decrypt_buffer");
   int aes_length;
 
-  if ((aes_length= my_aes_decrypt(cipher, cipher_len, (char *) plain,
-                                  my_key, LOGIN_KEY_LEN)) > 0)
+  if ((aes_length= my_aes_decrypt((const unsigned char *) cipher, cipher_len,
+                                  (unsigned char *) plain,
+                                  (const unsigned char *) my_key,
+                                  LOGIN_KEY_LEN,
+                                  my_aes_128_ecb, NULL)) > 0)
     DBUG_RETURN(aes_length);
 
   verbose_msg("Error! Couldn't decrypt the buffer.\n");

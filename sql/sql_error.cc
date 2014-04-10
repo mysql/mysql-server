@@ -341,8 +341,7 @@ Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
 {
   /* Initialize sub structures */
   init_sql_alloc(PSI_INSTRUMENT_ME,
-                 &m_condition_root, WARN_ALLOC_BLOCK_SIZE,
-                 WARN_ALLOC_PREALLOC_SIZE);
+                 &m_condition_root, WARN_ALLOC_BLOCK_SIZE, 0);
   m_conditions_list.empty();
   memset(m_current_statement_cond_count_by_sl, 0,
          sizeof(m_current_statement_cond_count_by_sl));
@@ -472,7 +471,7 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
 
 
 bool Diagnostics_area::has_sql_condition(const char *message_text,
-                                         ulong message_length) const
+                                         size_t message_length) const
 {
   Sql_condition_iterator it(m_conditions_list);
   const Sql_condition *err;

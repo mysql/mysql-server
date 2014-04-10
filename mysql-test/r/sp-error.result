@@ -881,7 +881,7 @@ select password;
 end|
 ERROR 42000: Variable 'password' must be quoted with `...`, or renamed
 set names='foo2'|
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '='foo2'' at line 1
 create procedure bug13510_2()
 begin
 declare names varchar(10);
@@ -1487,7 +1487,7 @@ CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
 SELECT inexistent(), 1 + ,;
-ERROR 3D000: No database selected
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT inexistent();
 ERROR 3D000: No database selected
 SELECT .inexistent();
@@ -1497,7 +1497,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 USE test;
 create function f1() returns int
 begin
-set @test = 1, password = password('foo');
+set password = password('foo');
 return 1;
 end|
 ERROR HY000: Not allowed to set autocommit from a stored function or trigger
@@ -1610,7 +1610,7 @@ DROP TABLE t1|
 drop procedure if exists p1;
 create procedure p1()
 begin
-create table t1 (a int) engine=MyISAM;
+create table t1 (a int);
 drop table t1;
 end|
 call p1();

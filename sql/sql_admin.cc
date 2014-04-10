@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!(table= table_list->table))
   {
     const char *key;
-    uint key_length;
+    size_t key_length;
     /*
       If the table didn't exist, we have a shared metadata lock
       on it that is left from mysql_admin_table()'s attempt to 
@@ -280,6 +280,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   Protocol *protocol= thd->protocol;
   LEX *lex= thd->lex;
   int result_code;
+  bool gtid_rollback_must_be_skipped=
+    ((thd->variables.gtid_next.type == GTID_GROUP) &&
+    (!thd->skip_gtid_rollback));
   DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
@@ -302,6 +305,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   close_thread_tables(thd);
   for (table= tables; table; table= table->next_local)
     table->table= NULL;
+
+  /*
+    If this statement goes to binlog and GTID_NEXT was set to a GTID_GROUP
+    (like SQL thread do when applying statements from the relay log of a
+    master server with GTIDs enabled) we have to avoid losing the ownership of
+    the GTID_GROUP by some trans_rollback_stmt() when processing individual
+    tables.
+  */
+  if (gtid_rollback_must_be_skipped)
+    thd->skip_gtid_rollback= true;
 
   for (table= tables; table; table= table->next_local)
   {
@@ -426,7 +439,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
             goto err;
           }
-          
+
           if (set_part_state(alter_info, table->table->part_info, PART_ADMIN))
           {
             char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
@@ -627,7 +640,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         table->mdl_request.ticket= NULL;
 
         tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        result_code= mysql_recreate_table(thd, table);
+        result_code= mysql_recreate_table(thd, table, false);
         reenable_binlog(thd);
         /*
           mysql_recreate_table() can push OK or ERROR.
@@ -799,7 +812,7 @@ send_result_message:
       tmp_disable_binlog(thd); // binlogging is done by caller if wanted
       /* Don't forget to pre-open temporary tables. */
       result_code= (open_temporary_tables(thd, table) ||
-                    mysql_recreate_table(thd, table));
+                    mysql_recreate_table(thd, table, false));
       reenable_binlog(thd);
       /*
         mysql_recreate_table() can push OK or ERROR.
@@ -975,9 +988,16 @@ send_result_message:
   }
 
   my_eof(thd);
+
+  if (gtid_rollback_must_be_skipped)
+    thd->skip_gtid_rollback= false;
+
   DBUG_RETURN(FALSE);
 
 err:
+  if (gtid_rollback_must_be_skipped)
+    thd->skip_gtid_rollback= false;
+
   trans_rollback_stmt(thd);
   trans_rollback(thd);
 
@@ -1126,7 +1146,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd)
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= (specialflag & SPECIAL_NO_NEW_FUNC) ?
-    mysql_recreate_table(thd, first_table) :
+    mysql_recreate_table(thd, first_table, true) :
     mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                       "optimize", TL_WRITE, 1, 0, 0, 0,
                       &handler::ha_optimize, 0);

@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,28 +140,28 @@ static const uint NO_HA_TABLE=     1 << 4;
 /** Don't check foreign key constraints while renaming table */
 static const uint NO_FK_CHECKS=    1 << 5;
 
-uint filename_to_tablename(const char *from, char *to, uint to_length
+size_t filename_to_tablename(const char *from, char *to, size_t to_length
 #ifndef DBUG_OFF
                            , bool stay_quiet = false
 #endif /* DBUG_OFF */
                            );
-uint tablename_to_filename(const char *from, char *to, uint to_length);
-uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
+size_t tablename_to_filename(const char *from, char *to, size_t to_length);
+size_t check_n_cut_mysql50_prefix(const char *from, char *to, size_t to_length);
 bool check_mysql50_prefix(const char *name);
-uint build_table_filename(char *buff, size_t bufflen, const char *db,
-                          const char *table, const char *ext,
-                          uint flags, bool *was_truncated);
+size_t build_table_filename(char *buff, size_t bufflen, const char *db,
+                            const char *table, const char *ext,
+                            uint flags, bool *was_truncated);
 // For caller's who are mostly sure that path do not truncate
-uint inline build_table_filename(char *buff, size_t bufflen, const char *db,
-                          const char *table, const char *ext, uint flags)
+size_t inline build_table_filename(char *buff, size_t bufflen, const char *db,
+                                   const char *table, const char *ext, uint flags)
 {
     bool truncated_not_used;
     return build_table_filename(buff, bufflen, db, table, ext, flags,
                                 &truncated_not_used);
 }
-uint build_table_shadow_filename(char *buff, size_t bufflen,
-                                 ALTER_PARTITION_PARAM_TYPE *lpt);
-uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen);
+size_t build_table_shadow_filename(char *buff, size_t bufflen,
+                                   ALTER_PARTITION_PARAM_TYPE *lpt);
+size_t build_tmptable_filename(THD* thd, char *buff, size_t bufflen);
 bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         HA_CREATE_INFO *create_info,
                         Alter_info *alter_info);
@@ -182,13 +183,12 @@ bool mysql_trans_commit_alter_copy_data(THD *thd);
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
-                       Alter_info *alter_info,
-                       uint order_num, ORDER *order, bool ignore);
+                       Alter_info *alter_info);
 bool mysql_compare_tables(TABLE *table,
                           Alter_info *alter_info,
                           HA_CREATE_INFO *create_info,
                           bool *metadata_equal);
-bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
+bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
                              HA_CREATE_INFO *create_info);
@@ -243,8 +243,8 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions);
 /*
   These prototypes where under INNODB_COMPATIBILITY_HOOKS.
 */
-uint explain_filename(THD* thd, const char *from, char *to, uint to_length,
-                      enum_explain_filename_mode explain_mode);
+size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,
+                        enum_explain_filename_mode explain_mode);
 
 
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;

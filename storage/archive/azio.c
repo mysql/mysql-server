@@ -152,8 +152,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
 
 int write_header(azio_stream *s)
 {
-  char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
-  char *ptr= buffer;
+  uchar buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
+  uchar *ptr= buffer;
 
   if (s->version == 1)
     return 0;

@@ -203,8 +203,10 @@ void udf_init()
 
       On windows we must check both FN_LIBCHAR and '/'.
     */
+
+    LEX_CSTRING name_cstr= {name.str, name.length};
     if (check_valid_path(dl_name, strlen(dl_name)) ||
-        check_string_char_length(&name, "", NAME_CHAR_LEN,
+        check_string_char_length(name_cstr, "", NAME_CHAR_LEN,
                                  system_charset_info, 1))
     {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
@@ -452,7 +454,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);
   }
-  if (check_string_char_length(&udf->name, "", NAME_CHAR_LEN,
+  LEX_CSTRING udf_name_cstr= {udf->name.str, udf->name.length};
+  if (check_string_char_length(udf_name_cstr, "", NAME_CHAR_LEN,
                                system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), udf->name.str);
@@ -522,7 +525,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
   table->field[1]->store((longlong) u_d->returns, TRUE);
-  table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), system_charset_info);
+  table->field[2]->store(u_d->dl, strlen(u_d->dl), system_charset_info);
   if (table->s->fields >= 4)			// If not old func format
     table->field[3]->store((longlong) u_d->type, TRUE);
   error = table->file->ha_write_row(table->record[0]);

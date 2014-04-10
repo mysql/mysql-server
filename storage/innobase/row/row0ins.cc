@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -91,6 +91,7 @@ ins_node_create(
 	node->select = NULL;
 
 	node->trx_id = 0;
+	node->duplicate = NULL;
 
 	node->entry_sys_heap = mem_heap_create(128);
 
@@ -151,35 +152,37 @@ row_ins_alloc_sys_fields(
 	ut_ad(row && table && heap);
 	ut_ad(dtuple_get_n_fields(row) == dict_table_get_n_cols(table));
 
-	/* 1. Allocate buffer for row id */
+	/* allocate buffer to hold the needed system created hidden columns. */
+	uint len = DATA_ROW_ID_LEN + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+	ptr = static_cast<byte*>(mem_heap_zalloc(heap, len));
 
+	/* 1. Populate row-id */
 	col = dict_table_get_sys_col(table, DATA_ROW_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-
-	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_ROW_ID_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_ROW_ID_LEN);
 
 	node->row_id_buf = ptr;
 
-	/* 3. Allocate buffer for trx id */
+	ptr += DATA_ROW_ID_LEN;
 
+	/* 2. Populate trx id */
 	col = dict_table_get_sys_col(table, DATA_TRX_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_TRX_ID_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_TRX_ID_LEN);
 
 	node->trx_id_buf = ptr;
 
-	/* 4. Allocate buffer for roll ptr */
+	ptr += DATA_TRX_ID_LEN;
+
+	/* 3. Populate roll ptr */
 
 	col = dict_table_get_sys_col(table, DATA_ROLL_PTR);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_ROLL_PTR_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_ROLL_PTR_LEN);
 }
@@ -198,6 +201,7 @@ ins_node_set_new_row(
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->index = NULL;
 	node->entry = NULL;
+	node->duplicate = NULL;
 
 	node->row = row;
 
@@ -1179,9 +1183,9 @@ row_ins_foreign_check_on_constraint(
 			dfield_set_null(&ufield->new_val);
 
 			if (table->fts && dict_table_is_fts_column(
-				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i))
-				!= ULINT_UNDEFINED) {
+				    table->fts->indexes,
+				    dict_index_get_nth_col_no(index, i))
+			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
 		}
@@ -1193,9 +1197,9 @@ row_ins_foreign_check_on_constraint(
 		/* DICT_FOREIGN_ON_DELETE_CASCADE case */
 		for (i = 0; i < foreign->n_fields; i++) {
 			if (table->fts && dict_table_is_fts_column(
-				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i))
-				!= ULINT_UNDEFINED) {
+				    table->fts->indexes,
+				    dict_index_get_nth_col_no(index, i))
+			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
 		}
@@ -2337,14 +2341,15 @@ row_ins_clust_index_entry_low(
 	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
@@ -2555,23 +2560,28 @@ func_exit:
 	DBUG_RETURN(err);
 }
 
-/***************************************************************//**
-Starts a mini-transaction and checks if the index will be dropped.
+/** Start a mini-transaction and check if the index will be dropped.
+@param[in,out]	mtr		mini-transaction
+@param[in,out]	index		secondary index
+@param[in]	check		whether to check
+@param[in]	search_mode	flags
 @return true if the index is to be dropped */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 row_ins_sec_mtr_start_and_check_if_aborted(
-/*=======================================*/
-	mtr_t*		mtr,	/*!< out: mini-transaction */
-	dict_index_t*	index,	/*!< in/out: secondary index */
-	bool		check,	/*!< in: whether to check */
+	mtr_t*		mtr,
+	dict_index_t*	index,
+	bool		check,
 	ulint		search_mode)
-				/*!< in: flags */
 {
 	ut_ad(!dict_index_is_clust(index));
+	ut_ad(mtr->is_named_space(index->space));
+
+	const mtr_log_t	log_mode = mtr->get_log_mode();
 
 	mtr_start(mtr);
-	dict_disable_redo_if_temporary(index->table, mtr);
+	mtr->set_named_space(index->space);
+	mtr->set_log_mode(log_mode);
 
 	if (!check) {
 		return(false);
@@ -2636,21 +2646,20 @@ row_ins_sec_index_entry_low(
 	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
 
 	cursor.thr = thr;
-	ut_ad(thr_get_trx(thr)->id);
+	ut_ad(thr_get_trx(thr)->id != 0);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
-	}
-
-	/* Disable insert buffering for temp-table indexes */
-	if (!dict_table_is_temporary(index->table)) {
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	} else {
+		/* Enable insert buffering if not temp-table */
 		search_mode |= BTR_INSERT;
 	}
 
@@ -2888,6 +2897,7 @@ row_ins_index_entry_big_rec_func(
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
@@ -2985,6 +2995,10 @@ row_ins_sec_index_entry(
 	mem_heap_t*	offsets_heap;
 	mem_heap_t*	heap;
 
+	DBUG_EXECUTE_IF("row_ins_sec_index_entry_timeout", {
+			DBUG_SET("-d,row_ins_sec_index_entry_timeout");
+			return(DB_LOCK_WAIT);});
+
 	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
 		err = row_ins_check_foreign_constraints(index->table, index,
 							entry, thr);
@@ -2994,7 +3008,7 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	ut_ad(thr_get_trx(thr)->id);
+	ut_ad(thr_get_trx(thr)->id != 0);
 
 	offsets_heap = mem_heap_create(1024);
 	heap = mem_heap_create(1024);
@@ -3036,7 +3050,11 @@ row_ins_index_entry(
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ut_ad(thr_get_trx(thr)->id > 0);
+	ut_ad(thr_get_trx(thr)->id != 0);
+
+	DBUG_EXECUTE_IF("row_ins_index_entry_timeout", {
+			DBUG_SET("-d,row_ins_index_entry_timeout");
+			return(DB_LOCK_WAIT);});
 
 	if (dict_index_is_clust(index)) {
 		return(row_ins_clust_index_entry(index, entry, thr, 0));
@@ -3228,11 +3246,14 @@ row_ins(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t	err;
-	dict_index_t *index_dup = 0;
 
 	DBUG_ENTER("row_ins");
 
 	DBUG_PRINT("row_ins", ("table: %s", node->table->name));
+
+	if (node->duplicate) {
+		thr_get_trx(thr)->error_state = DB_DUPLICATE_KEY;
+	}
 
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
@@ -3278,10 +3299,10 @@ row_ins(
 					secondary indexes to block concurrent
 					transactions from inserting the
 					searched records. */
-					if (!index_dup) {
+					if (!node->duplicate) {
 						/* Save 1st dup error. Ignore
 						subsequent dup errors. */
-						index_dup = node->index;
+						node->duplicate = node->index;
 						thr_get_trx(thr)->error_state
 							= DB_DUPLICATE_KEY;
 					}
@@ -3311,7 +3332,7 @@ row_ins(
 		remaining indexes just to place gap locks and no actual
 		insertion will take place.  These gap locks are needed
 		only for unique indexes.  So skipping non-unique indexes. */
-		if (index_dup) {
+		if (node->duplicate) {
 			while (node->index
 			       && !dict_index_is_unique(node->index)) {
 
@@ -3325,10 +3346,10 @@ row_ins(
 
 	ut_ad(node->entry == NULL);
 
-	thr_get_trx(thr)->error_info = index_dup;
+	thr_get_trx(thr)->error_info = node->duplicate;
 	node->state = INS_NODE_ALLOC_ROW_ID;
 
-	DBUG_RETURN(index_dup ? DB_DUPLICATE_KEY : DB_SUCCESS);
+	DBUG_RETURN(node->duplicate ? DB_DUPLICATE_KEY : DB_SUCCESS);
 }
 
 /***********************************************************//**

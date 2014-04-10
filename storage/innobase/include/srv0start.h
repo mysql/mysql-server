@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,13 +49,6 @@ struct dict_table_t;
 /** Log 'spaces' have id's >= this */
 #define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL
 
-/*********************************************************************//**
-Normalizes a directory path for Windows: converts slashes to backslashes. */
-
-void
-srv_normalize_path_for_win(
-/*=======================*/
-	char*	str);	/*!< in/out: null-terminated character string */
 /*********************************************************************//**
 Parse temporary tablespace configuration.
 @return true if ok, false on parse error */
@@ -148,7 +141,7 @@ extern	ibool	srv_start_raw_disk_in_use;
 
 
 /** Shutdown state */
-enum srv_shutdown_state {
+enum srv_shutdown_t {
 	SRV_SHUTDOWN_NONE = 0,	/*!< Database running normally */
 	SRV_SHUTDOWN_CLEANUP,	/*!< Cleaning up in
 				logs_empty_and_mark_files_at_shutdown() */
@@ -165,7 +158,7 @@ enum srv_shutdown_state {
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
-extern	enum srv_shutdown_state	srv_shutdown_state;
+extern	enum srv_shutdown_t	srv_shutdown_state;
 #endif /* !UNIV_HOTBACKUP */
 
 #endif

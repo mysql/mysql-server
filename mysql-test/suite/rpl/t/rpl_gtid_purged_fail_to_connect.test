@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # ==== Purpose ====
 #
 # Test that the slave fails to connect to the master with
@@ -23,16 +18,16 @@
 
 --source include/have_debug.inc
 --source include/have_gtid.inc
+--let $rpl_gtid_utils= 1
 --source include/master-slave.inc
 
 call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'The slave is connecting using CHANGE MASTER TO MASTER_AUTO_POSITION = 1, but the master has purged binary logs containing GTIDs that the slave requires.");
---source include/gtid_utils.inc
 
 --echo ######## Initialize ########
 
 --let $master_uuid= `SELECT @@SERVER_UUID`
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 
 --connection master
@@ -95,8 +90,7 @@ RESET MASTER;
 --echo === Sync slave with master (connection master/slave) ====
 --connection master
 DROP TABLE t1;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --connection master
---source include/gtid_utils_end.inc
 --source include/rpl_end.inc

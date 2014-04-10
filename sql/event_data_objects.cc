@@ -382,8 +382,10 @@ Event_timed::init()
 {
   DBUG_ENTER("Event_timed::init");
 
-  definer_user.str= definer_host.str= body.str= comment.str= NULL;
-  definer_user.length= definer_host.length= body.length= comment.length= 0;
+  definer_user= NULL_CSTR;
+  definer_host= NULL_CSTR;
+  body= NULL_STR;
+  comment= NULL_STR;
 
   sql_mode= 0;
 
@@ -1210,7 +1212,7 @@ Event_timed::get_create_event(THD *thd, String *buf)
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
 
   buf->append(STRING_WITH_LEN("CREATE "));
-  append_definer(thd, buf, &definer_user, &definer_host);
+  append_definer(thd, buf, definer_user, definer_host);
   buf->append(STRING_WITH_LEN("EVENT "));
   append_identifier(thd, buf, name.str, name.length);
 
@@ -1350,6 +1352,7 @@ Event_job_data::execute(THD *thd, bool drop)
 #endif
   List<Item> empty_item_list;
   bool ret= TRUE;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
 
   DBUG_ENTER("Event_job_data::execute");
@@ -1378,7 +1381,7 @@ Event_job_data::execute(THD *thd, bool drop)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (event_sctx.change_security_context(thd,
-                                         &definer_user, &definer_host,
+                                         definer_user, definer_host,
                                          &dbname, &save_sctx))
   {
     sql_print_error("Event Scheduler: "
@@ -1426,6 +1429,7 @@ Event_job_data::execute(THD *thd, bool drop)
     if (parser_state.init(thd, thd->query().str, thd->query().length))
       goto end;
 
+    thd->m_digest= NULL;
     thd->m_statement_psi= NULL;
     if (parse_sql(thd, & parser_state, creation_ctx))
     {
@@ -1433,9 +1437,11 @@ Event_job_data::execute(THD *thd, bool drop)
                       "%serror during compilation of %s.%s",
                       thd->is_fatal_error ? "fatal " : "",
                       (const char *) dbname.str, (const char *) name.str);
+      thd->m_digest= parent_digest;
       thd->m_statement_psi= parent_locker;
       goto end;
     }
+    thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
   }
 

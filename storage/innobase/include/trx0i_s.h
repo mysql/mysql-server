@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -133,7 +133,7 @@ struct i_s_trx_row_t {
 					in innodb_locks if trx
 					is waiting, or NULL */
 	ib_time_t	trx_wait_started; /*!< trx_t::wait_started */
-	ullint		trx_weight;	/*!< TRX_WEIGHT() */
+	uintmax_t	trx_weight;	/*!< TRX_WEIGHT() */
 	ulint		trx_mysql_thread_id; /*!< thd_get_thread_id() */
 	const char*	trx_query;	/*!< MySQL statement being
 					executed in the transaction */
@@ -150,7 +150,7 @@ struct i_s_trx_row_t {
 					/*!< mem_heap_get_size(
 					trx->lock_heap) */
 	ulint		trx_rows_locked;/*!< lock_number_of_rows_locked() */
-	ullint		trx_rows_modified;/*!< trx_t::undo_no */
+	uintmax_t	trx_rows_modified;/*!< trx_t::undo_no */
 	ulint		trx_concurrency_tickets;
 					/*!< n_tickets_to_enter_innodb in
 					trx_t */

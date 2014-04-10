@@ -207,6 +207,9 @@ insert into d1.t2 values (@var);
 create table d1.t1 (a int);
 select round(rand()*8) into @var;
 insert into d1.t1 values (@var);
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:d8.t8, slave:d8.t8]
 include/diff_tables.inc [master:d8.t7, slave:d8.t7]
 include/diff_tables.inc [master:d8.t6, slave:d8.t6]
@@ -271,6 +274,7 @@ include/diff_tables.inc [master:d1.t4, slave:d1.t4]
 include/diff_tables.inc [master:d1.t3, slave:d1.t3]
 include/diff_tables.inc [master:d1.t2, slave:d1.t2]
 include/diff_tables.inc [master:d1.t1, slave:d1.t1]
+include/sync_slave_sql_with_master.inc
 create database d20;
 create table d20.t1 (a int);
 select round(rand()*8) into @var;
@@ -351,6 +355,7 @@ create database d1;
 create table d1.t1 (a int);
 select round(rand()*8) into @var;
 insert into d1.t1 values (@var);
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:d20.t1, slave:d20.t1]
 include/diff_tables.inc [master:d19.t1, slave:d19.t1]
 include/diff_tables.inc [master:d18.t1, slave:d18.t1]
@@ -371,5 +376,6 @@ include/diff_tables.inc [master:d4.t1, slave:d4.t1]
 include/diff_tables.inc [master:d3.t1, slave:d3.t1]
 include/diff_tables.inc [master:d2.t1, slave:d2.t1]
 include/diff_tables.inc [master:d1.t1, slave:d1.t1]
+include/sync_slave_sql_with_master.inc
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 include/rpl_end.inc

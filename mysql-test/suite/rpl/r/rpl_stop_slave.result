@@ -11,6 +11,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # STOP SLAVE should wait until the transaction has finished.
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
 CREATE TABLE t2(c1 INT) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
 SET DEBUG_SYNC= 'RESET';
 include/stop_slave.inc
 
@@ -97,6 +98,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (c1 INT KEY, c2 INT) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(1, 1);
+include/sync_slave_sql_with_master.inc
 [connection master]
 SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
 [connection slave]

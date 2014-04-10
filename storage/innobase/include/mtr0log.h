@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,10 +27,10 @@ Created 12/7/1995 Heikki Tuuri
 #define mtr0log_h
 
 #include "univ.i"
-#include "mtr0types.h"
+#include "mtr0mtr.h"
+#include "dyn0buf.h"
 
 // Forward declaration
-struct mtr_t;
 struct dict_index_t;
 
 #ifndef UNIV_HOTBACKUP
@@ -89,20 +89,6 @@ mlog_write_initial_log_record(
 				modification is made */
 	mlog_id_t	type,	/*!< in: log item type: MLOG_1BYTE, ... */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/********************************************************//**
-Writes a log record about an .ibd file create/delete/rename.
-@return new value of log_ptr */
-UNIV_INLINE
-byte*
-mlog_write_initial_log_record_for_file_op(
-/*======================================*/
-	mlog_id_t	type,	/*!< in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
-				MLOG_FILE_RENAME */
-	ulint		space_id,/*!< in: space id, if applicable */
-	ulint		page_no,/*!< in: page number (not relevant currently) */
-	byte*		log_ptr,/*!< in: pointer to mtr log which has been
-				opened */
-	mtr_t*		mtr);	/*!< in/out: mtr */
 /********************************************************//**
 Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 UNIV_INLINE
@@ -165,6 +151,23 @@ mlog_close(
 	mtr_t*		mtr,	/*!< in: mtr */
 	byte*		ptr);	/*!< in: buffer space from ptr up was
 				not used */
+
+/** Writes a log record about an operation.
+@param[in]	type		redo log record type
+@param[in]	space_id	tablespace identifier
+@param[in]	page_no		page number
+@param[in,out]	log_ptr		current end of mini-transaction log
+@param[in,out]	mtr		mini-transaction
+@return	end of mini-transaction log */
+UNIV_INLINE
+byte*
+mlog_write_initial_log_record_low(
+	mlog_id_t	type,
+	ulint		space_id,
+	ulint		page_no,
+	byte*		log_ptr,
+	mtr_t*		mtr);
+
 /********************************************************//**
 Writes the initial part of a log record (3..11 bytes).
 If the implementation of this function is changed, all
@@ -192,8 +195,8 @@ Parses an initial log record written by mlog_write_initial_log_record.
 byte*
 mlog_parse_initial_log_record(
 /*==========================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	mlog_id_t*	type,	/*!< out: log record type: MLOG_1BYTE, ... */
 	ulint*		space,	/*!< out: space id */
 	ulint*		page_no);/*!< out: page number */
@@ -205,8 +208,8 @@ byte*
 mlog_parse_nbytes(
 /*==============*/
 	mlog_id_t	type,	/*!< in: log record type: MLOG_1BYTE, ... */
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	byte*		page,	/*!< in: page where to apply the log record,
 				or NULL */
 	void*		page_zip);/*!< in/out: compressed page, or NULL */

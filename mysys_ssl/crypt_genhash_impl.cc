@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 #endif
 
 #include "crypt_genhash_impl.h"
+
+#include "m_string.h"
 
 /* Pre VS2010 compilers doesn't support stdint.h */
 #ifdef HAVE_STDINT_H
@@ -396,13 +398,13 @@ my_crypt_genhash(char *ctbuffer,
   /* 22. Now make the output string */
   if (custom_rounds)
   {
-    (void) snprintf(ctbuffer, ctbufflen,
-                    "%s$rounds=%zu$", crypt_alg_magic, (size_t)rounds);
+    (void) my_snprintf(ctbuffer, ctbufflen,
+                       "%s$rounds=%zu$", crypt_alg_magic, (size_t)rounds);
   }
   else
   {
-    (void) snprintf(ctbuffer, ctbufflen,
-                    "%s$", crypt_alg_magic);
+    (void) my_snprintf(ctbuffer, ctbufflen,
+                       "%s$", crypt_alg_magic);
   }
   (void) strncat(ctbuffer, (const char *)salt, salt_len);
   (void) strlcat(ctbuffer, "$", ctbufflen);

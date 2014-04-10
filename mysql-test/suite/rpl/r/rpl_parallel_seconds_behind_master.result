@@ -30,6 +30,7 @@ Seconds_Behind_Master after first transaction is as expected.
 unlock tables;
 include/wait_for_slave_param.inc [Seconds_Behind_Master]
 drop tables t1, t2;
+include/sync_slave_sql_with_master.inc
 set @@global.slave_checkpoint_period= @save.slave_checkpoint_period;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 set @@global.slave_transaction_retries= @save.slave_transaction_retries;

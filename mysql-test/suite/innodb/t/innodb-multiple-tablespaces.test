@@ -4,12 +4,6 @@
 
 --source include/have_innodb.inc
 
-# Must have debug code to use SET SESSION debug
---source include/have_debug.inc
-
-# Valgrind would complain about memory leaks when we crash on purpose.
---source include/not_valgrind.inc
-
 # Embedded server does not support crashing
 --source include/not_embedded.inc
 
@@ -36,21 +30,16 @@ let $innodb_file_format=`select @@innodb_file_format`;
 call mtr.add_suppression("Cannot calculate statistics for table .* because the \.ibd file is missing");
 call mtr.add_suppression("Could not find a valid tablespace file for");
 call mtr.add_suppression("Tablespace open failed for");
-call mtr.add_suppression("tablespace id and flags are");
-call mtr.add_suppression("but in the InnoDB data dictionary they are");
+call mtr.add_suppression("tablespace id and flags are.*but in the InnoDB data dictionary they are");
 call mtr.add_suppression("has been found in multiple places");
-call mtr.add_suppression("have been found in two places;");
 call mtr.add_suppression("Will not open the tablespace for");
-call mtr.add_suppression("Default location;");
-call mtr.add_suppression("Remote location;");
-call mtr.add_suppression("Dictionary location;");
+call mtr.add_suppression("\(Default\|Remote\|Dictionary\) location;");
 call mtr.add_suppression("Failed to find tablespace for table");
-call mtr.add_suppression("Attempt to open a tablespace previously opened");
 call mtr.add_suppression("A link file was found named");
-call mtr.add_suppression("but tablespace with that id or name does not exist.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
 --enable_query_log
 
 --echo #
@@ -132,7 +121,6 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --echo # Shutdown the server, copy and remove files.
 --echo #
 --source include/shutdown_mysqld.inc
---sleep 2
 
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
@@ -152,6 +140,7 @@ INSERT INTO nolink VALUES (1, 'no link file');
 
 --echo # YNY; Tablespace found in default and new_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd $MYSQLD_DATADIR/test/yny.ibd
+# move_file can fail on Windows PB2; using copy_file and remove_file instead.
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd $MYSQL_TMP_DIR/new_dir/test/yny.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd
 --exec echo $MYSQL_TMP_DIR/new_dir/test/yny.ibd > $MYSQLD_DATADIR/test/yny.isl
@@ -279,8 +268,9 @@ SHOW CREATE TABLE nolink;
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo #
---echo # Cleanup after restart
+--echo # Restart the server and DROP the tablespaces.
 --echo #
+--source include/restart_mysqld.inc
 
 DROP TABLE yyy;
 DROP TABLE nyy;
@@ -339,7 +329,7 @@ DROP TABLE nolink;
 --echo # Create some tables again and this time, crash instead of shutdown
 --echo # InnoDB recovery does not have the ability at this time to query
 --echo # the data dictionary in order to determine if the table it is
---echo # openeing is the correct one, or to finde the previous location
+--echo # openeing is the correct one, or to find the previous location
 --echo # of a tablespace from SYS_DATAFILES.  It must rely on the ISL file
 --echo # to tell the truth. But it can compare the current linked location
 --echo # with a tablespace found in the default location and use the most
@@ -353,7 +343,7 @@ DROP TABLE nolink;
 --echo # source of the 'wrong' tablespaces.
 --echo #
 --echo # Tablename   Default_Tablespace  Remote_Tablespace
---echo #    ny              Yes                 Yes
+--echo #    ny              No                  Yes
 --echo #    wy              Wrong               Yes
 --echo #    yn              Yes                 No
 --echo #    yw              Yes                 Wrong
@@ -399,15 +389,12 @@ SELECT * FROM yn;
 SELECT * FROM yw;
 SELECT * FROM yy;
 
-# Request a crash on next execution of commit.
-SET SESSION debug="+d,crash_commit_before";
+# Request a crash.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# Execute the statement that causes the crash.
+--shutdown_server 0
+# Notice the crash.
 --error 2013
 COMMIT;
---source include/wait_until_disconnected.inc
---sleep 2
 
 --echo #
 --echo # Now that the engine is not running, move files around to test various scenarios.
@@ -436,32 +423,43 @@ COMMIT;
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
---echo #
---echo # Start the server with innodb-force-recovery=1 so that it does not quit
---echo # when it finds multiple possible locations for yy, wy and yw.
---echo #
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+let $mysqld=$MYSQLD_CMD --console > $SEARCH_FILE 2>&1;
+
+# TODO: This could fail to refuse startup, in case there was a log
+# checkpoint after the INSERT INTO yn.
+--error 1
+--exec $mysqld
+
+let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*alt_dir.test.yn\.ibd\.;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*alt_dir.test.yw\.ibd\.;
+--source include/search_pattern_in_file.inc
+
+--echo # restoring yn.ibd, yw.ibd
+--move_file $MYSQLD_DATADIR/test/yn.ibd $MYSQL_TMP_DIR/alt_dir/test/yn.ibd
+--move_file $MYSQLD_DATADIR/test/yw.ibd $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+
 --enable_reconnect
---exec echo "restart:--innodb-force-recovery=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
 SELECT * FROM ny;
---error ER_NO_SUCH_TABLE
 SELECT * FROM wy;
 SELECT * FROM yn;
---error ER_NO_SUCH_TABLE
 SELECT * FROM yw;
---error ER_NO_SUCH_TABLE
 SELECT * FROM yy;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE ny;
---error ER_NO_SUCH_TABLE
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE wy;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE yn;
---error ER_NO_SUCH_TABLE
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE yw;
---error ER_NO_SUCH_TABLE
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE yy;
 
 --replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -469,55 +467,19 @@ SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
 
 --echo #
---echo # Shutdown the server and remove extra tablespace files.
---echo #
---source include/shutdown_mysqld.inc
---sleep 2
-
---echo #
 --echo # List of files before removing unused files
 --echo #
-
---echo ---- MYSQLD_DATADIR/test
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---list_files $MYSQL_TMP_DIR/alt_dir/test
-
---remove_file $MYSQLD_DATADIR/test/ny.isl
---remove_file $MYSQLD_DATADIR/test/wy.ibd
---remove_file $MYSQLD_DATADIR/test/wy.isl
---remove_file $MYSQLD_DATADIR/test/yn.ibd
---remove_file $MYSQLD_DATADIR/test/yn.isl
---remove_file $MYSQLD_DATADIR/test/yw.ibd
---remove_file $MYSQLD_DATADIR/test/yw.isl
---remove_file $MYSQLD_DATADIR/test/yy.ibd
---remove_file $MYSQLD_DATADIR/test/yy.isl
-
---remove_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak
---remove_file $MYSQL_TMP_DIR/alt_dir/test/ny.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/wy.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/yy.ibd
-
---echo #
---echo # List of files before restart and DROP TABLES
---echo #
-
---echo ---- MYSQLD_DATADIR/test
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---list_files $MYSQL_TMP_DIR/alt_dir/test
-
---echo #
---echo # Start the server without using force_recover.
---echo #
---source include/start_mysqld.inc
 
 DROP TABLE ny;
 DROP TABLE wy;
 DROP TABLE yn;
 DROP TABLE yw;
 DROP TABLE yy;
+
+--echo ---- MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
 --echo # List of files after DROP TABLES
@@ -527,9 +489,9 @@ DROP TABLE yy;
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
---echo #
---echo # Cleanup
---echo #
+--remove_file $MYSQLD_DATADIR/test/wy.ibd
+--remove_file $MYSQLD_DATADIR/test/yy.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak
 
 --rmdir $MYSQL_TMP_DIR/alt_dir/test
 --rmdir $MYSQL_TMP_DIR/alt_dir
@@ -539,4 +501,3 @@ DROP TABLE yy;
 -- disable_query_log
 eval set global innodb_file_format=$innodb_file_format;
 eval set global innodb_file_per_table=$innodb_file_per_table;
-

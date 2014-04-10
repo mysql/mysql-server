@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,6 +116,8 @@ When one supplies long data for a placeholder:
 #include "sql_analyse.h"
 #include "sql_rewrite.h"
 #include "transaction.h"                        // trans_rollback_implicit
+#include "mysqld.h"
+#include "mysql/psi/mysql_ps.h"
 
 #include <algorithm>
 using std::max;
@@ -165,6 +167,8 @@ public:
   uint flags;
   char last_error[MYSQL_ERRMSG_SIZE];
   bool with_log;
+  /* Performance Schema interface for a prepared statement. */
+  PSI_prepared_stmt* m_prepared_stmt;
 public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
@@ -181,8 +185,12 @@ public:
                     bool open_cursor,
                     uchar *packet_arg, uchar *packet_end_arg);
   bool execute_server_runnable(Server_runnable *server_runnable);
+#ifdef HAVE_PSI_PS_INTERFACE
+  PSI_prepared_stmt* get_PS_prepared_stmt();
+#endif
   /* Destroy this statement */
   void deallocate();
+  virtual const LEX_CSTRING& query() const { return Statement::query(); }
 private:
   /**
     The memory root to allocate parsed tree elements (instances of Item,
@@ -522,7 +530,7 @@ static void set_param_short(Item_param *param, uchar **pos, ulong len)
     return;
   value= sint2korr(*pos);
 #else
-  shortget(value, *pos);
+  shortget(&value, *pos);
 #endif
   param->set_int(param->unsigned_flag ? (longlong) ((uint16) value) :
                                         (longlong) value, 6);
@@ -537,7 +545,7 @@ static void set_param_int32(Item_param *param, uchar **pos, ulong len)
     return;
   value= sint4korr(*pos);
 #else
-  longget(value, *pos);
+  longget(&value, *pos);
 #endif
   param->set_int(param->unsigned_flag ? (longlong) ((uint32) value) :
                                         (longlong) value, 11);
@@ -552,7 +560,7 @@ static void set_param_int64(Item_param *param, uchar **pos, ulong len)
     return;
   value= (longlong) sint8korr(*pos);
 #else
-  longlongget(value, *pos);
+  longlongget(&value, *pos);
 #endif
   param->set_int(value, 21);
   *pos+= 8;
@@ -564,9 +572,9 @@ static void set_param_float(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 4)
     return;
-  float4get(data,*pos);
+  float4get(&data,*pos);
 #else
-  floatget(data, *pos);
+  floatget(&data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 4;
@@ -578,9 +586,9 @@ static void set_param_double(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
     return;
-  float8get(data,*pos);
+  float8get(&data,*pos);
 #else
-  doubleget(data, *pos);
+  doubleget(&data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 8;
@@ -862,6 +870,12 @@ inline bool is_param_long_data_type(Item_param *param)
           (param->param_type <= MYSQL_TYPE_STRING));
 }
 
+#ifdef HAVE_PSI_PS_INTERFACE
+PSI_prepared_stmt* Prepared_statement::get_PS_prepared_stmt()
+{
+  return m_prepared_stmt;
+}
+#endif
 
 /**
   Routines to assign parameters from data supplied by the client.
@@ -1296,13 +1310,14 @@ error:
     2                 convert to multi_update
 */
 
-static int mysql_test_update(Prepared_statement *stmt,
-                              TABLE_LIST *table_list)
+static int mysql_test_update(Prepared_statement *stmt)
 {
   DBUG_ENTER("mysql_test_update");
 
   THD        *const thd= stmt->thd;
   SELECT_LEX *const select= stmt->lex->select_lex;
+  TABLE_LIST *const table_list= select->get_table_list();
+  DBUG_ASSERT(thd->lex == stmt->lex);
 
   if (update_precheck(thd, table_list))
     DBUG_RETURN(1);
@@ -1332,9 +1347,7 @@ static int mysql_test_update(Prepared_statement *stmt,
                              table_list->grant.want_privilege);
 #endif
 
-  if (mysql_prepare_update(thd, table_list, update_table_ref, &select->where,
-                           select->order_list.elements,
-                           select->order_list.first))
+  if (mysql_prepare_update(thd, update_table_ref))
     DBUG_RETURN(1);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1345,11 +1358,8 @@ static int mysql_test_update(Prepared_statement *stmt,
   table_list->register_want_access(want_privilege);
 #endif
   DBUG_ASSERT(select == thd->lex->select_lex);
-  select->no_wrap_view_item= true;
-  const int res= setup_fields(thd, Ref_ptr_array(),
-                              select->item_list, MARK_COLUMNS_READ, 0, 0);
-  select->no_wrap_view_item= false;
-  if (res)
+  if (setup_fields_with_no_wrap(thd, Ref_ptr_array(),
+                                select->item_list, MARK_COLUMNS_READ, 0, 0))
     DBUG_RETURN(1);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Check values */
@@ -1370,7 +1380,6 @@ static int mysql_test_update(Prepared_statement *stmt,
   Validate DELETE statement.
 
   @param stmt               prepared statement
-  @param tables             list of tables used in this query
 
   @retval
     FALSE             success
@@ -1378,13 +1387,14 @@ static int mysql_test_update(Prepared_statement *stmt,
     TRUE              error, error message is set in THD
 */
 
-static bool mysql_test_delete(Prepared_statement *stmt,
-                              TABLE_LIST *table_list)
+static bool mysql_test_delete(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   DBUG_ENTER("mysql_test_delete");
   DBUG_ASSERT(stmt->is_stmt_prepare());
+  DBUG_ASSERT(lex->select_lex == thd->lex->select_lex);
+  TABLE_LIST *const table_list= lex->select_lex->get_table_list();
 
   if (delete_precheck(thd, table_list))
     DBUG_RETURN(true);
@@ -1406,9 +1416,7 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   }
 
   TABLE_LIST *const delete_table_ref= table_list->updatable_base_table();
-
-  if (mysql_prepare_delete(thd, table_list, delete_table_ref,
-                           &lex->select_lex->where))
+  if (mysql_prepare_delete(thd, delete_table_ref))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
@@ -1458,7 +1466,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /*
-    JOIN::prepare calls
+    SELECT_LEX::prepare calls
     It is not SELECT COMMAND for sure, so setup_tables will be called as
     usual, and we pass 0 as setup_tables_done_option
   */
@@ -1640,8 +1648,9 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 
   thd->lex->used_tables= 0;                        // Updated by setup_fields
 
-  /* Calls JOIN::prepare */
-  DBUG_RETURN(lex->unit->prepare(thd, 0, setup_tables_done_option));
+  /* Calls SELECT_LEX::prepare */
+  const bool ret= lex->unit->prepare(thd, 0, setup_tables_done_option);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -1959,7 +1968,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= lex->select_lex;
-  TABLE_LIST *tables;
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("check_prepared_statement");
@@ -1967,7 +1975,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
                       sql_command, stmt->param_count));
 
   lex->first_lists_tables_same();
-  tables= lex->query_tables;
+  TABLE_LIST *const tables= lex->query_tables;
 
   /* set context for commands which do not use setup_tables */
   lex->select_lex->context.resolve_in_table_list_only(select_lex->
@@ -2014,7 +2022,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     break;
 
   case SQLCOM_UPDATE:
-    res= mysql_test_update(stmt, tables);
+    DBUG_ASSERT(tables == select_lex->get_table_list());
+    res= mysql_test_update(stmt);
     /* mysql_test_update returns 2 if we need to switch to multi-update */
     if (res != 2)
       break;
@@ -2024,7 +2033,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     break;
 
   case SQLCOM_DELETE:
-    res= mysql_test_delete(stmt, tables);
+    DBUG_ASSERT(tables == select_lex->get_table_list());
+    res= mysql_test_delete(stmt);
     break;
   /* The following allow WHERE clause, so they must be tested like SELECT */
   case SQLCOM_SHOW_DATABASES:
@@ -2233,8 +2243,15 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
 
   thd->protocol= &thd->protocol_binary;
 
+  stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                         thd->m_statement_psi,
+                                         stmt->name.str, stmt->name.length,
+                                         packet, packet_length);
+
   if (stmt->prepare(packet, packet_length))
   {
+    /* Delete this stmt stats from PS table. */
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
   }
@@ -2376,6 +2393,7 @@ void mysql_sql_stmt_prepare(THD *thd)
       DBUG_VOID_RETURN;
     }
 
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     stmt->deallocate();
   }
 
@@ -2400,13 +2418,26 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
+  stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
+                                         thd->m_statement_psi,
+                                         stmt->name.str, stmt->name.length,
+                                         query, query_len);
+
   if (stmt->prepare(query, query_len))
   {
+    /* Delete this stmt stats from PS table. */
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     /* Statement map deletes the statement on erase */
     thd->stmt_map.erase(stmt);
   }
   else
+  {
+    /* send the boolean tracker in the OK packet when
+       @@session_track_state_change is set to ON */
+    if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
     my_ok(thd, 0L, 0L, "Statement prepared");
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -2444,24 +2475,16 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       /* see unique_table() */
       sl->exclude_from_table_unique_test= FALSE;
 
-      /*
-        Copy WHERE, HAVING clause pointers to avoid damaging them
-        by optimisation
-      */
-      if (sl->prep_where)
+      if (sl->where_cond())
       {
-        sl->where= sl->prep_where->copy_andor_structure(thd);
-        sl->where->cleanup();
+        DBUG_ASSERT(sl->where_cond()->real_item()); // no dangling 'ref'
+        sl->where_cond()->cleanup();
       }
-      else
-        sl->where= NULL;
-      if (sl->prep_having)
+      if (sl->having_cond())
       {
-        sl->having= sl->prep_having->copy_andor_structure(thd);
-        sl->having->cleanup();
+        DBUG_ASSERT(sl->having_cond()->real_item());
+        sl->having_cond()->cleanup();
       }
-      else
-        sl->having= NULL;
       DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
@@ -2618,11 +2641,19 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
     DBUG_VOID_RETURN;
   }
 
+#if defined(ENABLED_PROFILING)
+  thd->profiling.set_query_source(stmt->query().str,
+                                  stmt->query().length);
+#endif
+
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
   open_cursor= MY_TEST(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
   thd->protocol= &thd->protocol_binary;
+
+  MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
+
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
   thd->protocol= save_protocol;
 
@@ -2677,6 +2708,8 @@ void mysql_sql_stmt_execute(THD *thd)
   }
 
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
+
+  MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 
   (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
 
@@ -2839,6 +2872,7 @@ void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length)
     in use is from within Dynamic SQL.
   */
   DBUG_ASSERT(! stmt->is_in_use());
+  MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
   stmt->deallocate();
   query_logger.general_log_print(thd, thd->get_command(), NullS);
 
@@ -2872,7 +2906,10 @@ void mysql_sql_stmt_close(THD *thd)
     my_error(ER_PS_NO_RECURSION, MYF(0));
   else
   {
+    MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     stmt->deallocate();
+    if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
     my_ok(thd);
   }
 }
@@ -3066,6 +3103,7 @@ Execute_sql_statement(LEX_STRING sql_text)
 bool
 Execute_sql_statement::execute_server_code(THD *thd)
 {
+  sql_digest_state *parent_digest;
   PSI_statement_locker *parent_locker;
   bool error;
 
@@ -3079,9 +3117,12 @@ Execute_sql_statement::execute_server_code(THD *thd)
   parser_state.m_lip.multi_statements= FALSE;
   lex_start(thd);
 
+  parent_digest= thd->m_digest;
   parent_locker= thd->m_statement_psi;
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   error= parse_sql(thd, &parser_state, NULL) || thd->is_error();
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   if (error)
@@ -3124,7 +3165,8 @@ Prepared_statement::Prepared_statement(THD *thd_arg)
   param_count(0),
   last_errno(0),
   flags((uint) IS_IN_USE),
-  with_log(false)
+  with_log(false),
+  m_prepared_stmt(0)
 {
   init_sql_alloc(key_memory_prepared_statement_main_mem_root,
                  &main_mem_root, thd_arg->variables.query_alloc_block_size,
@@ -3278,6 +3320,7 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   bool error;
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("Prepared_statement::prepare");
   /*
@@ -3325,10 +3368,12 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   lex_start(thd);
   lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_PREPARE;
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   error= parse_sql(thd, & parser_state, NULL) ||
     thd->is_error() ||
     init_param_array(this);
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   lex->set_trg_event_type_for_tables();
@@ -3381,7 +3426,7 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   lex->unit->cleanup(true);
 
   /* No need to commit statement transaction, it's not started. */
-  DBUG_ASSERT(thd->transaction.stmt.is_empty());
+  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
 
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
@@ -3550,11 +3595,6 @@ Prepared_statement::execute_loop(String *expanded_query,
   bool error;
   int reprepare_attempt= 0;
 
-#if defined(ENABLED_PROFILING)
-  thd->profiling.set_query_source(query().str,
-                                  query().length);
-#endif
-
   /* Check if we got an error when sending long data */
   if (state == Query_arena::STMT_ERROR)
   {
@@ -3697,6 +3737,10 @@ Prepared_statement::reprepare()
 
   if (! error)
   {
+    copy.m_prepared_stmt= m_prepared_stmt;
+    /* Update reprepare count for this prepared statement in P_S table. */
+    MYSQL_REPREPARE_PS(copy.m_prepared_stmt);
+
     swap_prepared_statement(&copy);
     swap_parameter_array(param_array, copy.param_array, param_count);
 #ifndef DBUG_OFF

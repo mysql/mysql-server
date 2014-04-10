@@ -4,6 +4,7 @@ update performance_schema.setup_instruments set enabled='YES'
 update performance_schema.setup_consumers
 set enabled='YES';
 truncate table performance_schema.events_waits_history_long;
+truncate table performance_schema.events_statements_summary_by_digest;
 flush status;
 drop table if exists test.no_index_tab;
 create table test.no_index_tab ( a varchar(255), b int ) engine=myisam;
@@ -57,6 +58,7 @@ Performance_schema_metadata_lock_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_nested_statement_lost	0
+Performance_schema_prepared_statements_lost	0
 Performance_schema_program_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0

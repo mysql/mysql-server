@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -228,12 +228,12 @@ int my_strcasecmp_mb(const CHARSET_INFO *cs,const char *s, const char *t)
         if (*s++ != *t++)
           return 1;
     }
-    else if (my_mbcharlen(cs, *t) != 1)
-      return 1;
-    else if (map[(uchar) *s++] != map[(uchar) *t++])
+    else if (my_mbcharlen(cs, *t) != 1 ||
+             map[(uchar) *s++] != map[(uchar) *t++])
       return 1;
   }
   /* At least one of '*s' and '*t' is zero here. */
+  DBUG_ASSERT(!*t || !*s);
   return (*t != *s);
 }
 
@@ -726,9 +726,22 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end)
       memset(str, cs->max_sort_char, end - str);
       return;
     }
-    buf[0]= cs->max_sort_char >> 8;
-    buf[1]= cs->max_sort_char & 0xFF;
-    buflen= 2;
+    else if (cs->max_sort_char <= 0xFFFF)
+    {
+      buf[0]= cs->max_sort_char >> 8;
+      buf[1]= cs->max_sort_char & 0xFF;
+      buflen= 2;
+    }
+    else
+    {
+      /* Currently, it's only for GB18030, so it must be a 4-byte char */
+      DBUG_ASSERT(cs->max_sort_char > 0xFFFFFF);
+      buf[0]= cs->max_sort_char >> 24 & 0xFF;
+      buf[1]= cs->max_sort_char >> 16 & 0xFF;
+      buf[2]= cs->max_sort_char >> 8 & 0xFF;
+      buf[3]= cs->max_sort_char & 0xFF;
+      buflen= 4;
+    }
   }
   else
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "sql_bitmap.h"                         /* Bitmap */
 #include "my_decimal.h"                         /* my_decimal */
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
-#include "my_atomic.h"                     /* my_atomic_rwlock_t */
+#include "my_atomic.h"                     /* my_atomic_add64 */
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
 #include "sql_list.h"                      /* I_List */
@@ -173,6 +173,7 @@ extern const char *log_output_str;
 extern const char *log_backup_output_str;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char *default_auth_plugin;
+extern volatile uint default_password_lifetime;
 extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -244,7 +245,7 @@ extern char language[FN_REFLEN];
 extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
 extern time_t server_start_time, flush_status_time;
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[];
-extern int mysql_unpacked_real_data_home_len;
+extern size_t mysql_unpacked_real_data_home_len;
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 extern const char *first_keyword, *binary_keyword;
 extern MYSQL_PLUGIN_IMPORT const char  *my_localhost;
@@ -352,7 +353,7 @@ extern PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
-  key_LOCK_log_throttle_qni, key_LOCK_query_plan;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -365,6 +366,9 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
+#ifdef HAVE_MY_TIMER
+extern PSI_mutex_key key_thd_timer_mutex;
+#endif
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -396,6 +400,10 @@ extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand;
+
+#ifdef HAVE_MY_TIMER
+extern PSI_thread_key key_thread_timer_notifier;
+#endif
 
 #ifdef HAVE_MMAP
 extern PSI_file_key key_file_map;
@@ -543,6 +551,11 @@ extern PSI_memory_key key_memory_READ_RECORD_cache;
 extern PSI_memory_key key_memory_Quick_ranges;
 extern PSI_memory_key key_memory_File_query_log_name;
 extern PSI_memory_key key_memory_Table_trigger_dispatcher;
+#ifdef HAVE_MY_TIMER
+extern PSI_memory_key key_memory_thd_timer;
+#endif
+extern PSI_memory_key key_memory_THD_Session_tracker;
+extern PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 
 C_MODE_END
 
@@ -645,13 +658,13 @@ extern PSI_stage_info stage_waiting_for_table_flush;
 extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
 extern PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position;
 extern PSI_stage_info stage_waiting_to_finalize_termination;
-extern PSI_stage_info stage_waiting_to_get_readlock;
 extern PSI_stage_info stage_slave_waiting_worker_to_release_partition;
 extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
 extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
-extern PSI_stage_info stage_slave_waiiting_for_workers_to_finish;
+extern PSI_stage_info stage_slave_waiting_for_workers_to_finish;
+extern PSI_stage_info stage_starting;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).
@@ -729,8 +742,6 @@ extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
-extern my_atomic_rwlock_t slave_open_temp_tables_lock;
-extern my_atomic_rwlock_t opt_binlog_max_flush_queue_time_lock;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
@@ -813,7 +824,9 @@ enum options_mysqld
   OPT_SECURE_AUTH,
   OPT_THREAD_CACHE_SIZE,
   OPT_HOST_CACHE_SIZE,
-  OPT_TABLE_DEFINITION_CACHE
+  OPT_TABLE_DEFINITION_CACHE,
+  OPT_MDL_CACHE_SIZE,
+  OPT_MDL_HASH_INSTANCES
 };
 
 
@@ -843,15 +856,11 @@ enum enum_query_type
 /* query_id */
 typedef int64 query_id_t;
 extern query_id_t global_query_id;
-extern my_atomic_rwlock_t global_query_id_lock;
 
 /* increment query_id and return it.  */
 inline __attribute__((warn_unused_result)) query_id_t next_query_id()
 {
-  query_id_t id;
-  my_atomic_rwlock_wrlock(&global_query_id_lock);
-  id= my_atomic_add64(&global_query_id, 1);
-  my_atomic_rwlock_wrunlock(&global_query_id_lock);
+  query_id_t id= my_atomic_add64(&global_query_id, 1);
   return (id+1);
 }
 

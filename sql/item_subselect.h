@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ class subselect_hash_sj_engine;
 class Item_bool_func2;
 class Cached_item;
 class Comp_creator;
+class PT_subselect;
 
 typedef class st_select_lex SELECT_LEX;
 
@@ -40,6 +41,7 @@ typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 
 class Item_subselect :public Item_result_field
 {
+  typedef Item_result_field super;
 private:
   bool value_assigned; /* value already assigned to subselect */
   /**
@@ -100,6 +102,7 @@ public:
 		  EXISTS_SUBS, IN_SUBS, ALL_SUBS, ANY_SUBS};
 
   Item_subselect();
+  explicit Item_subselect(const POS &pos);
 
   virtual subs_type substype() { return UNKNOWN_SUBS; }
 
@@ -161,9 +164,9 @@ public:
   virtual void reset_value_registration() {}
   enum_parsing_context place() { return parsing_place; }
   bool walk_join_condition(List<TABLE_LIST> *tables, Item_processor processor,
-                           bool walk_subquery, uchar *argument);
-  bool walk_body(Item_processor processor, bool walk_subquery, uchar *arg);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+                           enum_walk walk, uchar *arg);
+  bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);
   bool inform_item_in_cond_of_tab(uchar *join_tab_index);
   virtual bool clean_up_after_removal(uchar *arg);
@@ -207,7 +210,7 @@ public:
   longlong val_int ();
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool val_bool();
   enum Item_result result_type() const;
@@ -266,6 +269,7 @@ public:
 
 class Item_exists_subselect :public Item_subselect
 {
+  typedef Item_subselect super;
 protected:
   bool value; /* value of this item (boolean: exists/not-exists) */
 
@@ -307,10 +311,16 @@ public:
   TABLE_LIST *embedding_join_nest;
 
   Item_exists_subselect(st_select_lex *select_lex);
+
   Item_exists_subselect()
     :Item_subselect(), value(false), exec_method(EXEC_UNSPECIFIED),
      sj_convert_priority(0), sj_chosen(false), embedding_join_nest(NULL)
   {}
+  explicit Item_exists_subselect(const POS &pos)
+    :super(pos), value(false), exec_method(EXEC_UNSPECIFIED),
+     sj_convert_priority(0), sj_chosen(false), embedding_join_nest(NULL)
+  {}
+
   virtual trans_res select_transformer(JOIN *join)
   {
     exec_method= EXEC_EXISTS;
@@ -328,7 +338,7 @@ public:
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -361,6 +371,7 @@ public:
 
 class Item_in_subselect :public Item_exists_subselect
 {
+  typedef Item_exists_subselect super;
 public:
   Item *left_expr;
 protected:
@@ -421,6 +432,10 @@ public:
   */
   TABLE_LIST *expr_join_nest;
 
+private:
+  PT_subselect *pt_subselect;
+
+public:
   bool in2exists_added_to_where() const
   { return in2exists_info && in2exists_info->added_to_where; }
 
@@ -439,13 +454,19 @@ public:
   }
   bool have_guarded_conds() { return MY_TEST(pushed_cond_guards); }
 
-  Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
+  explicit
+  Item_in_subselect(Item * left_expr, SELECT_LEX *select_lex);
+  Item_in_subselect(const POS &pos, Item * left_expr, PT_subselect *pt_subselect_arg);
+
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),
     left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
     optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
     in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
   {}
+
+  bool itemize(Parse_context *pc, Item **res);
+
   virtual void cleanup();
   subs_type substype() { return IN_SUBS; }
   virtual void reset() 
@@ -461,7 +482,7 @@ public:
   trans_res single_value_in_to_exists_transformer(JOIN * join,
                                                   Comp_creator *func);
   trans_res row_value_in_to_exists_transformer(JOIN * join);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool exec();
   longlong val_int();
   double val_real();
@@ -687,7 +708,10 @@ private:
   bool unique;
 public:
 
-  // constructor can assign THD because it will be called after JOIN::prepare
+  /*
+    constructor can assign THD because it will be called after
+    SELECT_LEX::prepare
+  */
   subselect_indexsubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
                                  Item *having_arg, bool chk_null,
@@ -764,7 +788,7 @@ private:
   */
   subselect_single_select_engine *materialize_engine;
   /* Temp table context of the outer select's JOIN. */
-  TMP_TABLE_PARAM *tmp_param;
+  Temp_table_param *tmp_param;
 
 public:
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,

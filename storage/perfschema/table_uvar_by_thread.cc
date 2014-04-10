@@ -50,6 +50,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
   m_pfs= pfs;
   m_thread_internal_id= pfs->m_thread_internal_id;
   m_vector.clear();
+  m_vector.reserve(thd->user_vars.records);
 
   User_variable pfs_uvar;
   user_var_entry *sql_uvar;
@@ -64,35 +65,16 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
       /* Copy VARIABLE_NAME */
       const char *name= sql_uvar->entry_name.ptr();
       size_t name_length= sql_uvar->entry_name.length();
-      if (name_length > sizeof(pfs_uvar.m_name))
-      {
-        name_length= sizeof(pfs_uvar.m_name);
-      }
+      DBUG_ASSERT(name_length <= sizeof(pfs_uvar.m_name));
+
       if (name_length > 0)
         memcpy(pfs_uvar.m_name, name, name_length);
       pfs_uvar.m_name_length= name_length;
 
       /* Copy VARIABLE_VALUE */
-      String value(1024);
       my_bool null_value;
-      sql_uvar->val_str(& null_value, & value, 0);
-      if (null_value)
-      {
-        pfs_uvar.m_value_is_null= true;
-      }
-      else
-      {
-        pfs_uvar.m_value_is_null= false;
-        const char *value_ptr= value.ptr();
-        uint value_length= value.length();
-        if (value_length > sizeof(pfs_uvar.m_value))
-        {
-          value_length= sizeof(pfs_uvar.m_value);
-        }
-        if (value_length > 0)
-          memcpy(pfs_uvar.m_value, value_ptr, value_length);
-        pfs_uvar.m_value_length= value_length;
-      }
+      sql_uvar->val_str(& null_value, & pfs_uvar.m_value, 0);
+      pfs_uvar.m_value_is_null= null_value;
 
       m_vector.push_back(pfs_uvar);
     }
@@ -117,7 +99,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("VARIABLE_VALUE") },
-    { C_STRING_WITH_LEN("varchar(1024)") },
+    { C_STRING_WITH_LEN("blob") },
     { NULL, 0}
   }
 };
@@ -133,9 +115,8 @@ table_uvar_by_thread::m_share=
   &pfs_truncatable_acl,
   table_uvar_by_thread::create,
   NULL, /* write_row */
-  table_uvar_by_thread::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  NULL, /* delete_all_rows */
+  table_uvar_by_thread::get_row_count,
   sizeof(pos_uvar_by_thread),
   &m_table_lock,
   &m_field_def,
@@ -148,11 +129,11 @@ table_uvar_by_thread::create(void)
   return new table_uvar_by_thread();
 }
 
-int
-table_uvar_by_thread::delete_all_rows(void)
+ha_rows
+table_uvar_by_thread::get_row_count(void)
 {
-  reset_events_waits_by_thread();
-  return 0;
+  // FIXME
+  return thread_max * 10;
 }
 
 table_uvar_by_thread::table_uvar_by_thread()
@@ -240,7 +221,7 @@ void table_uvar_by_thread
   m_row.m_thread_internal_id= thread->m_thread_internal_id;
 
   m_row.m_variable_name.make_row(uvar->m_name, uvar->m_name_length);
-  m_row.m_variable_value.make_row(uvar->m_value, uvar->m_value_length);
+  m_row.m_variable_value.make_row(uvar->m_value.ptr(), uvar->m_value.length());
 
   if (! thread->m_lock.end_optimistic_lock(&lock))
     return;
@@ -260,8 +241,7 @@ int table_uvar_by_thread
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
-  buf[0]= 0;
+  DBUG_ASSERT(table->s->null_bytes == 0);
 
   for (; (f= *fields) ; fields++)
   {
@@ -276,7 +256,7 @@ int table_uvar_by_thread
         set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
         break;
       case 2: /* VARIABLE_VALUE */
-        set_field_varchar_utf8(f, m_row.m_variable_value.m_str, m_row.m_variable_value.m_length);
+        set_field_longtext_utf8(f, m_row.m_variable_value.m_str, m_row.m_variable_value.m_length);
         break;
       default:
         DBUG_ASSERT(false);

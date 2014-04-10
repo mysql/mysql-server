@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -144,7 +144,7 @@ page_dir_find_owner_slot(
 					      + mach_decode_2(rec_offs_bytes));
 			}
 
-			buf_page_print(page, 0, 0);
+			buf_page_print(page, univ_page_size, 0);
 
 			ut_error;
 		}
@@ -290,30 +290,6 @@ page_create_write_log(
 #else /* !UNIV_HOTBACKUP */
 # define page_create_write_log(frame,mtr,comp) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
-
-/***********************************************************//**
-Parses a redo log record of creating a page.
-@return end of log record or NULL */
-
-byte*
-page_parse_create(
-/*==============*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr __attribute__((unused)), /*!< in: buffer end */
-	ulint		comp,	/*!< in: nonzero=compact page format */
-	buf_block_t*	block,	/*!< in: block or NULL */
-	mtr_t*		mtr)	/*!< in: mtr or NULL */
-{
-	ut_ad(ptr && end_ptr);
-
-	/* The record is empty, except for the record initial part */
-
-	if (block) {
-		page_create(block, mtr, comp);
-	}
-
-	return(ptr);
-}
 
 /**********************************************************//**
 The index page creation function.
@@ -468,6 +444,20 @@ page_create_low(
 	return(page);
 }
 
+/** Parses a redo log record of creating a page.
+@param[in,out]	block	buffer block, or NULL
+@param[in]	comp	nonzero=compact page format */
+
+void
+page_parse_create(
+	buf_block_t*	block,
+	ulint		comp)
+{
+	if (block != NULL) {
+		page_create_low(block, comp);
+	}
+}
+
 /**********************************************************//**
 Create an uncompressed B-tree index page.
 @return pointer to the page */
@@ -480,6 +470,7 @@ page_create(
 	mtr_t*		mtr,		/*!< in: mini-transaction handle */
 	ulint		comp)		/*!< in: nonzero=compact page format */
 {
+	ut_ad(mtr->is_named_space(block->page.id.space()));
 	page_create_write_log(buf_block_get_frame(block), mtr, comp);
 	return(page_create_low(block, comp));
 }
@@ -632,9 +623,9 @@ page_copy_rec_list_end_no_locks(
 			/* Track an assertion failure reported on the mailing
 			list on June 18th, 2003 */
 
-			buf_page_print(new_page, 0,
+			buf_page_print(new_page, univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
-			buf_page_print(page_align(rec), 0,
+			buf_page_print(page_align(rec), univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 
 			ib_logf(IB_LOG_LEVEL_FATAL,
@@ -1963,14 +1954,14 @@ page_check_dir(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Page directory corruption: infimum not pointed to");
-		buf_page_print(page, 0, 0);
+		buf_page_print(page, univ_page_size, 0);
 	}
 
 	if (UNIV_UNLIKELY(!page_rec_is_supremum_low(supremum_offs))) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Page directory corruption: supremum not pointed to");
-		buf_page_print(page, 0, 0);
+		buf_page_print(page, univ_page_size, 0);
 	}
 }
 #endif /* UNIV_DEBUG */
@@ -2699,7 +2690,7 @@ func_exit2:
 			(ulong) page_get_space_id(page),
 			(ulong) page_get_page_no(page),
 			index->name);
-		buf_page_print(page, 0, 0);
+		buf_page_print(page, univ_page_size, 0);
 	}
 
 	return(ret);

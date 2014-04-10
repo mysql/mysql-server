@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "parse_file.h"
 #include "sql_sort.h"
 #include "table_id.h"
+#include "opt_costmodel.h"
 
 /* Structs that defines the TABLE */
 
@@ -720,7 +721,7 @@ struct TABLE_SHARE
       appropriate values by using table cache key as their source.
   */
 
-  void set_table_cache_key(char *key_buff, uint key_length)
+  void set_table_cache_key(char *key_buff, size_t key_length)
   {
     table_cache_key.str= key_buff;
     table_cache_key.length= key_length;
@@ -750,7 +751,7 @@ struct TABLE_SHARE
       it should has same life-time as share itself.
   */
 
-  void set_table_cache_key(char *key_buff, const char *key, uint key_length)
+  void set_table_cache_key(char *key_buff, const char *key, size_t key_length)
   {
     memcpy(key_buff, key, key_length);
     set_table_cache_key(key_buff, key_length);
@@ -1014,6 +1015,15 @@ public:
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+  /*
+    Bitmap of fields that one or more query condition refers to. Only
+    used if optimizer_condition_fanout_filter is turned 'on'.
+    Currently, only the WHERE clause and ON clause of inner joins is
+    taken into account but not ON conditions of outer joins.
+    Furthermore, HAVING conditions apply to groups and are therefore
+    not useful as table condition filters.
+  */
+  MY_BITMAP     cond_set;
 
   /**
     Bitmap of table fields (columns), which are explicitly set in the
@@ -1178,6 +1188,11 @@ public:
 #endif
   MDL_ticket *mdl_ticket;
 
+private:
+  /// Cost model object for operations on this table
+  Cost_model_table m_cost_model;
+public:
+
   void init(THD *thd, TABLE_LIST *tl);
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
@@ -1267,6 +1282,23 @@ public:
   {
     created= false;
   }
+
+  /**
+    Initialize the optimizer cost model.
+ 
+    This function should be called each time a new query is started.
+
+    @param cost_model_server the main cost model object for the query
+  */
+  void init_cost_model(const Cost_model_server* cost_model_server)
+  {
+    m_cost_model.init(cost_model_server);
+  }
+
+  /**
+    Return the cost model object for this table.
+  */
+  const Cost_model_table* cost_model() const { return &m_cost_model; }
 };
 
 
@@ -1385,7 +1417,7 @@ enum enum_derived_type {
 #define MAX_TDC_BLOB_SIZE 65536
 
 class select_union;
-class TMP_TABLE_PARAM;
+class Temp_table_param;
 
 struct Field_translator
 {
@@ -1527,6 +1559,28 @@ struct TABLE_LIST
                                      List<TABLE_LIST> *belongs_to,
                                      class st_select_lex *select);
 
+  Item         **join_cond_ref() { return &m_join_cond; }
+  Item          *join_cond() const { return m_join_cond; }
+  void          set_join_cond(Item *val)
+  {
+    // If optimization has started, it's too late to change m_join_cond.
+    DBUG_ASSERT(m_optim_join_cond == NULL ||
+                m_optim_join_cond == (Item*)1);
+    m_join_cond= val;
+  }
+  Item *optim_join_cond() const { return m_optim_join_cond; }
+  void set_optim_join_cond(Item *cond)
+  {
+    /*
+      Either we are setting to "empty", or there must pre-exist a
+      permanent condition.
+    */
+    DBUG_ASSERT(cond == NULL || cond == (Item*)1 ||
+                m_join_cond != NULL);
+    m_optim_join_cond= cond;
+  }
+  Item **optim_join_cond_ref() { return &m_optim_join_cond; }
+
   /*
     List of tables local to a subquery or the top-level SELECT (used by
     SQL_I_List). Considers views as leaves (unlike 'next_leaf' below).
@@ -1547,22 +1601,14 @@ struct TABLE_LIST
   Name_resolution_context *context_of_embedding;
 
 private:
-  Item		*m_join_cond;           /* Used with outer join */
-public:
-  Item         **join_cond_ref() { return &m_join_cond; }
-  Item          *join_cond() const { return m_join_cond; }
-  Item          *set_join_cond(Item *val)
-                 { return m_join_cond= val; }
-  /*
-    The structure of the join condition presented in the member above
-    can be changed during certain optimizations. This member
-    contains a snapshot of AND-OR structure of the join condition
-    made after permanent transformations of the parse tree, and is
-    used to restore the join condition before every reexecution of a prepared
-    statement or stored procedure.
+  /**
+     If this table or join nest is the Y in "X [LEFT] JOIN Y ON C", this
+     member points to C.
+     It may be modified only by permanent transformations (permanent = done
+     once for all executions of a prepared statement).
   */
-  Item          *prep_join_cond;
-
+  Item		*m_join_cond;
+public:
   Item          *sj_on_expr;            /* Synthesized semijoin condition */
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -1572,7 +1618,6 @@ public:
   */
   table_map     sj_inner_tables;
 
-  COND_EQUAL    *cond_equal;            /* Used with outer join */
   /*
     During parsing - left operand of NATURAL/USING join where 'this' is
     the right operand. After parsing (this->natural_join == this) iff
@@ -1643,11 +1688,6 @@ public:
      derived tables. Use TABLE_LIST::is_anonymous_derived_table().
   */
   st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
-  /*
-    TRUE <=> all possible keys for a derived table were collected and
-    could be re-used while statement re-execution.
-  */
-  bool derived_keys_ready;
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
   st_select_lex	*schema_select_lex;
   /*
@@ -1655,7 +1695,7 @@ public:
     schema table fields for backwards compatibility with SHOW command.
   */
   bool schema_table_reformed;
-  TMP_TABLE_PARAM *schema_table_param;
+  Temp_table_param *schema_table_param;
   /* link to select_lex where this table was used */
   st_select_lex	*select_lex;
   LEX *view;                    /* link on VIEW lex for merging */
@@ -1839,8 +1879,6 @@ public:
     the parsed tree is created.
   */
   uint8 trg_event_map;
-  /* TRUE <=> this table is a const one and was optimized away. */
-  bool optimized_away;
   uint i_s_requested_object;
   bool has_db_lookup_value;
   bool has_table_lookup_value;
@@ -1856,6 +1894,27 @@ public:
   /* List to carry partition names from PARTITION (...) clause in statement */
   List<String> *partition_names;
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+private:
+  /*
+    A group of members set and used only during JOIN::optimize().
+  */
+  /**
+     Optimized copy of m_join_cond (valid for one single
+     execution). Initialized by SELECT_LEX::get_optimizable_conditions().
+  */
+  Item          *m_optim_join_cond;
+public:
+
+  COND_EQUAL    *cond_equal;            ///< Used with outer join
+  /// true <=> this table is a const one and was optimized away.
+  bool optimized_away;
+  /**
+    true <=> all possible keys for a derived table were collected and
+    could be re-used while statement re-execution.
+  */
+  bool derived_keys_ready;
+  // End of group for optimization
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
@@ -2231,7 +2290,7 @@ typedef struct st_nested_join
     1. In make_outerjoin_info(). 
     2. check_interleaving_with_nj/backout_nj_state (these are called
        by the join optimizer. 
-    Before each use the counters are zeroed by reset_nj_counters.
+    Before each use the counters are zeroed by SELECT_LEX::reset_nj_counters.
   */
   uint              nj_counter;
   /**
@@ -2350,9 +2409,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table);
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
-                               uint key_length);
+                               size_t key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
-                          uint key_length,
+                          size_t key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
@@ -2376,7 +2435,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
-void append_unescaped(String *res, const char *pos, uint length);
+void append_unescaped(String *res, const char *pos, size_t length);
 File create_frm(THD *thd, const char *name, const char *db,
                 const char *table, uint reclength, uchar *fileinfo,
   		HA_CREATE_INFO *create_info, uint keys, KEY *key_info);

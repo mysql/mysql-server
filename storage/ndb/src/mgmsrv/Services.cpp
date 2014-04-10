@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -916,9 +916,9 @@ MgmApiSession::restart(Properties const &args, int version) {
   args.get("force", &force);
 
   char *p, *last;
-  for((p = strtok_r(nodes_str, " ", &last));
+  for((p = my_strtok_r(nodes_str, " ", &last));
       p;
-      (p = strtok_r(NULL, " ", &last))) {
+      (p = my_strtok_r(NULL, " ", &last))) {
     nodes.push_back(atoi(p));
   }
 
@@ -1125,9 +1125,9 @@ MgmApiSession::stop(Properties const &args, int version) {
   args.get("force", &force);
 
   char *p, *last;
-  for((p = strtok_r(nodes_str, " ", &last));
+  for((p = my_strtok_r(nodes_str, " ", &last));
       p;
-      (p = strtok_r(NULL, " ", &last))) {
+      (p = my_strtok_r(NULL, " ", &last))) {
     nodes.push_back(atoi(p));
   }
 

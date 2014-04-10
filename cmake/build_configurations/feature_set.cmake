@@ -1,4 +1,4 @@
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ SET(FEATURE_SET_large   5)
 SET(FEATURE_SET_xlarge  6)
 SET(FEATURE_SET_community 7)
 
-IF(FEATURE_SET)
+IF(FEATURE_SET AND NOT WITHOUT_SERVER)
   STRING(TOLOWER ${FEATURE_SET} feature_set)
   SET(num ${FEATURE_SET_${feature_set}})
   IF(NOT num)
@@ -66,8 +66,11 @@ IF(FEATURE_SET)
   
   # Update cache with current values, remove engines we do not care about
   # from build.
-  FOREACH(eng ARCHIVE BLACKHOLE FEDERATED INNOBASE PARTITION EXAMPLE)
-    IF(NOT WITH_${eng}_STORAGE_ENGINE)
+  FOREACH(eng ARCHIVE BLACKHOLE FEDERATED INNOBASE PARTITION)
+    IF(WITHOUT_${eng}_STORAGE_ENGINE)
+      SET(WITH_${eng}_STORAGE_ENGINE OFF)
+      SET(WITH_${eng}_STORAGE_ENGINE OFF CACHE BOOL "")
+    ELSEIF(NOT WITH_${eng}_STORAGE_ENGINE)
       SET(WITHOUT_${eng}_STORAGE_ENGINE ON CACHE BOOL "")
       MARK_AS_ADVANCED(WITHOUT_${eng}_STORAGE_ENGINE)
       SET(WITH_${eng}_STORAGE_ENGINE OFF CACHE BOOL "")

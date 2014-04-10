@@ -1,7 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
@@ -174,6 +170,8 @@ TRUNCATE t2;
 --eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS TERMINATED BY 'ъ'
 --remove_file $file
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+SELECT * FROM t1;
+SELECT * FROM t2;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT * FROM t1 INTO OUTFILE '$file' LINES STARTING BY 'ъ'
@@ -196,6 +194,8 @@ TRUNCATE t2;
 --eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary LINES TERMINATED BY 'ъ'
 --remove_file $file
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+SELECT * FROM t1;
+SELECT * FROM t2;
 
 --echo # Default (binary) charset:
 
