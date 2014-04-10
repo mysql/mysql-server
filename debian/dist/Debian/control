@@ -121,7 +121,11 @@ Description: MariaDB database core client binaries
 
 Package: mariadb-client-5.5
 Architecture: any
-Depends: debianutils (>=1.6), libdbi-perl, libdbd-mysql-perl (>= 1.2202), mariadb-common, libmariadbclient18 (>= ${source:Version}), mariadb-client-core-5.5 (>= ${source:Version}), ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
+Depends: debianutils (>=1.6), libdbi-perl, libdbd-mysql-perl (>= 1.2202),
+    mariadb-common, libmariadbclient18 (>= ${source:Version}),
+    mariadb-client-core-5.5 (>= ${source:Version}), ${perl:Depends},
+    ${shlibs:Depends}, ${misc:Depends}
+Suggests: libterm-readkey-perl
 Provides: virtual-mysql-client, mysql-client,
     mysql-client-4.1, mysql-client-5.1, mysql-client-5.5
 Conflicts: mysql-client (<< 5.0.51), mysql-client-5.0, mysql-client-5.1,
