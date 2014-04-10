@@ -937,9 +937,12 @@ public:
       is_handled= TRUE;
       break;
 
+    case ER_BAD_FIELD_ERROR:
+    case ER_SP_DOES_NOT_EXIST:
     case ER_NO_SUCH_TABLE:
     case ER_NO_SUCH_TABLE_IN_ENGINE:
-      /* Established behavior: warn if underlying tables are missing. */
+      /* Established behavior: warn if underlying tables, columns, or functions
+         are missing. */
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
                           ER_VIEW_INVALID,
                           ER(ER_VIEW_INVALID),
@@ -948,15 +951,6 @@ public:
       is_handled= TRUE;
       break;
 
-    case ER_SP_DOES_NOT_EXIST:
-      /* Established behavior: warn if underlying functions are missing. */
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-                          ER_VIEW_INVALID,
-                          ER(ER_VIEW_INVALID),
-                          m_top_view->get_db_name(),
-                          m_top_view->get_table_name());
-      is_handled= TRUE;
-      break;
     default:
       is_handled= FALSE;
     }

@@ -750,6 +750,21 @@ drop view v1;
 drop table t1;
 
 #
+# VIEW over non-existing column
+#
+create table t1 (a varchar(20));
+create view v1 as select a from t1;
+alter table t1 change a aa int;
+--error ER_VIEW_INVALID
+select * from v1;
+--replace_column 8 # 12 # 13 #
+show table status;
+show create view v1;
+drop view v1;
+drop table t1;
+
+
+#
 # VIEW with floating point (long number) as column
 #
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
