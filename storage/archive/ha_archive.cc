@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1078,6 +1079,7 @@ int ha_archive::index_next(uchar * buf)
   }
 
   rc= found ? 0 : HA_ERR_END_OF_FILE;
+  table->status= rc ? STATUS_NOT_FOUND : 0;
   MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
