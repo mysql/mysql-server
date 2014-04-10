@@ -11047,18 +11047,24 @@ ha_innobase::info_low(
 					break;
 				}
 
+				/* innodb_rec_per_key() will use
+				index->stat_n_diff_key_vals[] and the value we
+				pass index->table->stat_n_rows. Both are
+				calculated by ANALYZE and by the background
+				stats gathering thread (which kicks in when too
+				much of the table has been changed). In
+				addition table->stat_n_rows is adjusted with
+				each DML (e.g. ++ on row insert). Those
+				adjustments are not MVCC'ed and not even
+				reversed on rollback. So,
+				index->stat_n_diff_key_vals[] and
+				index->table->stat_n_rows could have been
+				calculated at different time. This is
+				acceptable. */
 				const rec_per_key_t	rec_per_key
 					= innodb_rec_per_key(
 						index, j,
 						index->table->stat_n_rows);
-
-				/* Here we have two variants for rec_per_key:
-				1. The new one which is set via
-				set_records_per_key() and works with floating
-				point values;
-				2. The old one which is set by directly
-				assigning to rec_per_key[] and works with
-				integer values (to be removed). */
 
 				key->set_records_per_key(j, rec_per_key);
 
