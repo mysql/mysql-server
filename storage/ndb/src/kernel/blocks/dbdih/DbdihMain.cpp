@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16432,7 +16432,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
  */
 void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
 {
-  jamEntry();
+  jamNoBlock();
   CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
 
   bool direct = (sd->requestType & CheckNodeGroups::Direct);
@@ -16440,25 +16440,25 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   switch(sd->requestType & ~CheckNodeGroups::Direct){
   case CheckNodeGroups::ArbitCheck:{
     ok = true;
-    jam();
+    jamNoBlock();
     unsigned missall = 0;
     unsigned haveall = 0;
     for (Uint32 i = 0; i < cnoOfNodeGroups; i++) {
-      jam();
+      jamNoBlock();
       NodeGroupRecordPtr ngPtr;
       ngPtr.i = c_node_groups[i];
       ptrAss(ngPtr, nodeGroupRecord);
       Uint32 count = 0;
       for (Uint32 j = 0; j < ngPtr.p->nodeCount; j++) {
-	jam();
+	jamNoBlock();
 	Uint32 nodeId = ngPtr.p->nodesInGroup[j];
 	if (sd->mask.get(nodeId)) {
-	  jam();
+	  jamNoBlock();
 	  count++;
 	}//if
       }//for
       if (count == 0) {
-	jam();
+	jamNoBlock();
 	missall++;
       }//if
       if (count == ngPtr.p->nodeCount) {
@@ -16467,13 +16467,13 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     }//for
 
     if (missall) {
-      jam();
+      jamNoBlock();
       sd->output = CheckNodeGroups::Lose;
     } else if (haveall) {
-      jam();
+      jamNoBlock();
       sd->output = CheckNodeGroups::Win;
     } else {
-      jam();
+      jamNoBlock();
       sd->output = CheckNodeGroups::Partitioning;
     }//if
   }
@@ -16499,17 +16499,17 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     ngPtr.i = ng;
     if (ngPtr.i != RNIL)
     {
-      jam();
+      jamNoBlock();
       ptrAss(ngPtr, nodeGroupRecord);
       for (Uint32 j = 0; j < ngPtr.p->nodeCount; j++) {
-        jam();
+        jamNoBlock();
         sd->mask.set(ngPtr.p->nodesInGroup[j]);
       }
     }
     break;
   }
   case CheckNodeGroups::GetDefaultFragments:
-    jam();
+    jamNoBlock();
     ok = true;
     sd->output = (cnoOfNodeGroups + sd->extraNodeGroups)
       * getFragmentsPerNode() * cnoReplicas;
