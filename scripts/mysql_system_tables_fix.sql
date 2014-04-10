@@ -21,6 +21,18 @@
 # because these just mean that your tables are already up to date.
 # This script is safe to run even if your tables are already up to date!
 
+# To facilitate custom changes to system tables that might have been done 
+# (as per MDEV-4332, MDEV-6068 and https://mariadb.com/kb/en/create-user/#user-names),
+# we need to preserve non-default column length for user name fields.
+# These variables will be further used to alter system tables.
+# We presume that the set of ALTERs, if it was run, was run in full,
+# so either all columns were modified, or none was. 
+
+SELECT character_maximum_length, IF(character_maximum_length = 16,77,141) 
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE table_schema = 'mysql' AND table_name = 'user' AND column_name = 'user'
+  INTO @user_name_length, @definer_name_length;
+
 set sql_mode='';
 set storage_engine=MyISAM;
 
@@ -56,14 +68,18 @@ ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
 ALTER TABLE tables_priv
   ADD KEY Grantor (Grantor);
 
+SET @alter_statement = CONCAT("
 ALTER TABLE tables_priv
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
+  MODIFY User char(", @user_name_length, ") NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
-  MODIFY Grantor char(77) NOT NULL default '',
+  MODIFY Grantor char(", @definer_name_length, ") NOT NULL default '',
   ENGINE=MyISAM,
-  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
 
 ALTER TABLE tables_priv
   MODIFY Column_priv set('Select','Insert','Update','References')
@@ -84,15 +100,19 @@ ALTER TABLE columns_priv
   CHANGE Type Column_priv set('Select','Insert','Update','References')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
+SET @alter_statement = CONCAT("
 ALTER TABLE columns_priv
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
+  MODIFY User char(", @user_name_length, ") NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
   MODIFY Column_name char(64) NOT NULL default '',
   ENGINE=MyISAM,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin,
-  COMMENT='Column privileges';
+  COMMENT='Column privileges'
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
 
 ALTER TABLE columns_priv
   MODIFY Column_priv set('Select','Insert','Update','References')
@@ -156,10 +176,16 @@ alter table func comment='User defined functions';
 
 # Convert all tables to UTF-8 with binary collation
 # and reset all char columns to correct width
+
+SET @alter_statement = CONCAT("
 ALTER TABLE user
   MODIFY Host char(60) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
-  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  MODIFY User char(", @user_name_length, ") NOT NULL default '',
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
+
 ALTER TABLE user
   MODIFY Password char(41) character set latin1 collate latin1_bin NOT NULL default '',
   MODIFY Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -185,11 +211,16 @@ ALTER TABLE user
   MODIFY Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
+SET @alter_statement = CONCAT("
 ALTER TABLE db
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
-  MODIFY User char(16) NOT NULL default '',
-  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+  MODIFY User char(", @user_name_length, ") NOT NULL default '',
+  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
+
 ALTER TABLE db
   MODIFY  Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY  Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -439,12 +470,16 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
 # Correct the character set and collation
 ALTER TABLE proc CONVERT TO CHARACTER SET utf8;
 # Reset some fields after the conversion
+SET @alter_statement = CONCAT("
 ALTER TABLE proc  MODIFY db
                          char(64) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY definer
-                         char(77) collate utf8_bin DEFAULT '' NOT NULL,
+                         char(", @definer_name_length, ") collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY comment
-                         char(64) collate utf8_bin DEFAULT '' NOT NULL;
+                         char(64) collate utf8_bin DEFAULT '' NOT NULL
+");
+PREPARE alter_stmt FROM @alter_statement;
+EXECUTE alter_stmt;
 
 ALTER TABLE proc ADD character_set_client
                      char(32) collate utf8_bin DEFAULT NULL
@@ -641,3 +676,5 @@ UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
 # changes was correct
 
 flush privileges;
+DEALLOCATE PREPARE alter_stmt;
+
