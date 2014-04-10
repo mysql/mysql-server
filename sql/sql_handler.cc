@@ -342,7 +342,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables)
       If called for re-open, no need to rollback either,
       it will be done at statement end.
     */
-    DBUG_ASSERT(thd->transaction.stmt.is_empty());
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
     close_thread_tables(thd);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
     thd->set_open_tables(backup_open_tables);
@@ -505,15 +505,15 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   String	buffer(buff, sizeof(buff), system_charset_info);
   int           error, keyno= -1;
   uint          num_rows;
-  uchar		*UNINIT_VAR(key);
-  uint		UNINIT_VAR(key_len);
+  uchar		*key= NULL;
+  uint		key_len= 0;
   Sql_handler_lock_error_handler sql_handler_lock_error;
   LEX           *lex= thd->lex;
   SELECT_LEX    *select_lex= lex->select_lex;
   SELECT_LEX_UNIT *unit= lex->unit;
   TABLE_LIST    *tables= select_lex->get_table_list();
   enum enum_ha_read_modes mode= m_read_mode;
-  Item          *cond= select_lex->where;
+  Item          *cond= select_lex->where_cond();
   ha_rows select_limit_cnt, offset_limit_cnt;
   DBUG_ENTER("Sql_cmd_handler_read::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
@@ -526,7 +526,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  if (tables && thd->transaction.xid_state.check_xa_idle_or_prepared(true))
+  if (tables &&
+      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
   {
     DBUG_RETURN(true);
   }

@@ -401,6 +401,7 @@ client/mysqlslap
 client/mysqltest
 client/mysqltestmanager-pwgen
 client/mysqltestmanagerc
+client/mysql_secure_installation
 client/mysys_priv.h
 client/readline.cpp
 client/rpl_constants.h
@@ -524,7 +525,6 @@ emacs.h
 examples/*.ds?
 examples/*.vcproj
 examples/udf_example/udf_example.def
-extra/.deps/charset2html.Po
 extra/.deps/comp_err.Po
 extra/.deps/innochecksum.Po
 extra/.deps/my_print_defaults.Po
@@ -533,7 +533,6 @@ extra/.deps/perror.Po
 extra/.deps/replace.Po
 extra/.deps/resolve_stack_dump.Po
 extra/.deps/resolveip.Po
-extra/charset2html
 extra/comp_err
 extra/created_include_files
 extra/innochecksum
@@ -1507,7 +1506,6 @@ mysys/.deps/thr_rwlock.Po
 mysys/.deps/tree.Po
 mysys/.deps/trie.Po
 mysys/.deps/typelib.Po
-mysys/charset2html
 mysys/getopt.c
 mysys/getopt1.c
 mysys/main.cc
@@ -1832,13 +1830,10 @@ scripts/make_sharedlib_distribution
 scripts/make_win_binary_distribution
 scripts/make_win_src_distribution
 scripts/make_win_src_distribution_old
-scripts/msql2mysql
 scripts/mysql_config
-scripts/mysql_convert_table_format
+scripts/mysql_config.pl
 scripts/mysql_create_system_tables
 scripts/mysql_explain_log
-scripts/mysql_find_rows
-scripts/mysql_fix_extensions
 scripts/mysql_fix_privilege_tables
 scripts/mysql_fix_privilege_tables.sql
 scripts/mysql_fix_privilege_tables.sql.rule
@@ -1846,13 +1841,11 @@ scripts/mysql_fix_privilege_tables_sql.c
 scripts/mysql_fix_privilege_tables_sql.c.rule
 scripts/mysql_install_db
 scripts/mysql_secure_installation
-scripts/mysql_setpermission
+scripts/mysql_server_config
 scripts/mysql_tableinfo
 scripts/mysql_upgrade
 scripts/mysql_upgrade_shell
 scripts/mysql_zap
-scripts/mysqlaccess
-scripts/mysqlbug
 scripts/mysqld_multi
 scripts/mysqld_safe
 scripts/mysqldumpslow
@@ -2881,6 +2874,7 @@ support-files/MacOSX/postinstall
 support-files/MacOSX/preflight
 support-files/MacOSX/preinstall
 support-files/binary-configure
+support-files/my-default.cnf
 support-files/my-huge.cnf
 support-files/my-innodb-heavy-4G.cnf
 support-files/my-large.cnf
@@ -2982,6 +2976,7 @@ unittest/examples/.deps/skip_all-t.Po
 unittest/examples/.deps/todo-t.Po
 unittest/gunit/merge_large_tests.cc
 unittest/gunit/merge_small_tests.cc
+unittest/gunit/innodb/merge_innodb_tests-t.cc
 unittest/mysys/*.t
 unittest/mysys/.deps/base64-t.Po
 unittest/mysys/.deps/my_atomic-t.Po
@@ -3146,3 +3141,8 @@ storage/perfschema/pfs_lex_token.h
 storage/perfschema/gen_pfs_lex_token
 sql/share/bulgarian
 storage/ndb/test/dox
+sql/lex_token.h
+sql/gen_lex_token
+internal/plugin/thread_pool/src/thread_pool_config.h
+internal/tests/innorwlocktest
+packaging/solaris/postinstall-solaris

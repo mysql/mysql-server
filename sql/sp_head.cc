@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ struct SP_TABLE
     we count length of key.
   */
   LEX_STRING qname;
-  uint db_length, table_name_length;
+  size_t db_length, table_name_length;
   bool temp;               /* true if corresponds to a temporary table */
   thr_lock_type lock_type; /* lock type used for prelocking */
   uint lock_count;
@@ -737,11 +737,15 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
+    sql_digest_state digest_state;
+    sql_digest_state *parent_digest= thd->m_digest;
+    thd->m_digest= & digest_state;
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state psi_state;
-    PSI_statement_locker *parent_locker;
     PSI_statement_info *psi_info = i->get_psi_info();
-
+    PSI_statement_locker *parent_locker;
+ 
     parent_locker= thd->m_statement_psi;
     thd->m_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
                                                 thd->db, thd->db_length,
@@ -749,12 +753,22 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
                                                 this->m_sp_share);
 #endif
 
+    /*
+      For now, we're mostly concerned with sp_instr_stmt, but that's
+      likely to change in the future, so we'll do it right from the
+      start.
+    */
+    if (thd->rewritten_query.length())
+      thd->rewritten_query.free();
+
     err_status= i->execute(thd, &ip);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
     thd->m_statement_psi= parent_locker;
 #endif
+
+    thd->m_digest= parent_digest;
 
     if (i->free_list)
       cleanup_items(i->free_list);
@@ -951,12 +965,13 @@ bool sp_head::execute_trigger(THD *thd,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_ctx= NULL;
-
+  LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
+  LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
 
   if (m_chistics->suid != SP_IS_NOT_SUID &&
       m_security_ctx.change_security_context(thd,
-                                             &m_definer_user,
-                                             &m_definer_host,
+                                             definer_user,
+                                             definer_host,
                                              &m_db,
                                              &save_ctx))
     DBUG_RETURN(true);
@@ -1057,7 +1072,7 @@ err_with_cleanup:
 bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                                Field *return_value_fld)
 {
-  ulonglong binlog_save_options;
+  ulonglong binlog_save_options= 0;
   bool need_binlog_call= FALSE;
   uint arg_no;
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
@@ -1071,7 +1086,6 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 
-  LINT_INIT(binlog_save_options);
   // Resetting THD::where to its default value
   thd->where= THD::DEFAULT_WHERE;
   /*
@@ -1213,9 +1227,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    my_atomic_rwlock_rdlock(&global_query_id_lock);
     q= my_atomic_load64(&global_query_id); 
-    my_atomic_rwlock_rdunlock(&global_query_id_lock);
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;
@@ -1659,29 +1671,30 @@ void sp_head::set_info(longlong created,
 }
 
 
-void sp_head::set_definer(const char *definer, uint definerlen)
+void sp_head::set_definer(const char *definer, size_t definerlen)
 {
   char user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
+  LEX_CSTRING user_name= { user_name_holder, USERNAME_LENGTH };
 
   char host_name_holder[HOSTNAME_LENGTH + 1];
-  LEX_STRING host_name= { host_name_holder, HOSTNAME_LENGTH };
+  LEX_CSTRING host_name= { host_name_holder, HOSTNAME_LENGTH };
 
-  parse_user(definer, definerlen, user_name.str, &user_name.length,
-             host_name.str, &host_name.length);
+  parse_user(definer, definerlen,
+             user_name_holder, &user_name.length,
+             host_name_holder, &host_name.length);
 
-  set_definer(&user_name, &host_name);
+  set_definer(user_name, host_name);
 }
 
 
-void sp_head::set_definer(const LEX_STRING *user_name,
-                          const LEX_STRING *host_name)
+void sp_head::set_definer(const LEX_CSTRING &user_name,
+                          const LEX_CSTRING &host_name)
 {
-  m_definer_user.str= strmake_root(mem_root, user_name->str, user_name->length);
-  m_definer_user.length= user_name->length;
+  m_definer_user.str= strmake_root(mem_root, user_name.str, user_name.length);
+  m_definer_user.length= user_name.length;
 
-  m_definer_host.str= strmake_root(mem_root, host_name->str, host_name->length);
-  m_definer_host.length= host_name->length;
+  m_definer_host.str= strmake_root(mem_root, host_name.str, host_name.length);
+  m_definer_host.length= host_name.length;
 }
 
 
@@ -2115,10 +2128,12 @@ bool sp_head::check_show_access(THD *thd, bool *full_access)
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 {
   *save_ctx= NULL;
+  LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
+  LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
 
   if (m_chistics->suid != SP_IS_NOT_SUID &&
       m_security_ctx.change_security_context(thd,
-                                             &m_definer_user, &m_definer_host,
+                                             definer_user, definer_host,
                                              &m_db, save_ctx))
   {
     return true;

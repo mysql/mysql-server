@@ -8,13 +8,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -27,13 +27,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -46,13 +46,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -65,13 +65,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -84,13 +84,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -103,13 +103,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -122,13 +122,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY KEY(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -141,13 +141,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY KEY(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -160,13 +160,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY KEY(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -179,13 +179,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY KEY(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -198,13 +198,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY KEY(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
@@ -217,13 +217,13 @@ SELECT * FROM t1 ORDER BY c1;
 ALTER TABLE t1 PARTITION BY KEY(c1) PARTITIONS 5;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1;
 ALTER TABLE t1 COALESCE PARTITION 2;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 

@@ -15,24 +15,6 @@
 
 # This file includes OSX specific options and quirks, related to system checks
 
-# Workaround for CMake bug#9051
-# (CMake does not pass CMAKE_OSX_SYSROOT and CMAKE_OSX_DEPLOYMENT_TARGET when 
-# running TRY_COMPILE)
-
-IF(CMAKE_OSX_SYSROOT)
- SET(ENV{CMAKE_OSX_SYSROOT} ${CMAKE_OSX_SYSROOT})
-ENDIF()
-IF(CMAKE_OSX_SYSROOT)
- SET(ENV{MACOSX_DEPLOYMENT_TARGET} ${OSX_DEPLOYMENT_TARGET})
-ENDIF()
-
-IF(CMAKE_OSX_DEPLOYMENT_TARGET)
-  # Workaround linker problems  on OSX 10.4
-  IF(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "10.5")
-    ADD_DEFINITIONS(-fno-common)
-  ENDIF()
-ENDIF()
-
 # This is used for the version_compile_machine variable.
 IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(MYSQL_MACHINE_TYPE "x86_64")

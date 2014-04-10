@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -147,7 +147,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
       if (type == HA_KEYTYPE_FLOAT)
       {
 	float nr;
-	float4get(nr,pos);
+	float4get(&nr,pos);
 	if (my_isnan(nr))
 	{
 	  /* Replace NAN with zero */
@@ -159,7 +159,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
       else if (type == HA_KEYTYPE_DOUBLE)
       {
 	double nr;
-	float8get(nr,pos);
+	float8get(&nr,pos);
 	if (my_isnan(nr))
 	{
 	  memset(key, 0, length);
@@ -549,7 +549,7 @@ ulonglong retrieve_auto_increment(MI_INFO *info,const uchar *record)
   case HA_KEYTYPE_FLOAT:                        /* This shouldn't be used */
   {
     float f_1;
-    float4get(f_1,key);
+    float4get(&f_1,key);
     /* Ignore negative values */
     value = (f_1 < (float) 0.0) ? 0 : (ulonglong) f_1;
     break;
@@ -557,7 +557,7 @@ ulonglong retrieve_auto_increment(MI_INFO *info,const uchar *record)
   case HA_KEYTYPE_DOUBLE:                       /* This shouldn't be used */
   {
     double f_1;
-    float8get(f_1,key);
+    float8get(&f_1,key);
     /* Ignore negative values */
     value = (f_1 < 0.0) ? 0 : (ulonglong) f_1;
     break;

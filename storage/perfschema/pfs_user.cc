@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -123,16 +123,16 @@ int init_user(const PFS_global_param *param)
 
   for (index= 0; index < user_max; index++)
   {
-    user_array[index].m_instr_class_waits_stats=
-      &user_instr_class_waits_array[index * wait_class_max];
-    user_array[index].m_instr_class_stages_stats=
-      &user_instr_class_stages_array[index * stage_class_max];
-    user_array[index].m_instr_class_statements_stats=
-      &user_instr_class_statements_array[index * statement_class_max];
-    user_array[index].m_instr_class_transactions_stats=
-      &user_instr_class_transactions_array[index * transaction_class_max];
-    user_array[index].m_instr_class_memory_stats=
-      &user_instr_class_memory_array[index * memory_class_max];
+    user_array[index].set_instr_class_waits_stats(
+      &user_instr_class_waits_array[index * wait_class_max]);
+    user_array[index].set_instr_class_stages_stats(
+      &user_instr_class_stages_array[index * stage_class_max]);
+    user_array[index].set_instr_class_statements_stats(
+      &user_instr_class_statements_array[index * statement_class_max]);
+    user_array[index].set_instr_class_transactions_stats(
+      &user_instr_class_transactions_array[index * transaction_class_max]);
+    user_array[index].set_instr_class_memory_stats(
+      &user_instr_class_memory_array[index * memory_class_max]);
   }
 
   return 0;
@@ -371,10 +371,12 @@ void PFS_user::release()
 
 void PFS_user::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 {
+  PFS_memory_stat *event_name_array;
   PFS_memory_stat *stat;
   PFS_memory_stat_delta delta_buffer;
 
-  stat= & m_instr_class_memory_stats[index];
+  event_name_array= write_instr_class_memory_stats();
+  stat= & event_name_array[index];
   (void) stat->apply_delta(delta, &delta_buffer);
 }
 

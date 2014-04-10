@@ -204,7 +204,9 @@ enum ha_extra_function {
     Prepare table for export
     (e.g. quiesce the table and write table metadata).
   */
-  HA_EXTRA_EXPORT
+  HA_EXTRA_EXPORT,
+  /** Do secondary sort by handler::ref (rowid) after key sort. */
+  HA_EXTRA_SECONDARY_SORT_ROWID
 };
 
 /* Compatible option, to be deleted in 6.0 */
@@ -495,10 +497,12 @@ is the global server default. */
 #define HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT  188 /* FTS query exceeds result cache limit */
 #define HA_ERR_TEMP_FILE_WRITE_FAILURE	189	/* Temporary file write failure */
 #define HA_ERR_INNODB_FORCED_RECOVERY 190	/* Innodb is in force recovery mode */
-#define HA_ERR_FK_DEPTH_EXCEEDED  191    /* FK cascade depth exceeded */
-#define HA_MISSING_CREATE_OPTION  192    /* Option Missing during Create */
-#define HA_ERR_SE_OUT_OF_MEMORY   193    /* Out of memory in storage engine */
-#define HA_ERR_LAST               193    /* Copy of last error nr */
+#define HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE	191 /* Too many words in a phrase */
+#define HA_ERR_FK_DEPTH_EXCEEDED  192    /* FK cascade depth exceeded */
+#define HA_MISSING_CREATE_OPTION  193    /* Option Missing during Create */
+#define HA_ERR_SE_OUT_OF_MEMORY   194    /* Out of memory in storage engine */
+#define HA_ERR_TABLE_CORRUPT      195    /* Table/Clustered index is corrupted. */
+#define HA_ERR_LAST               195    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

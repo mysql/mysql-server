@@ -7,12 +7,6 @@
 # Not supported in embedded
 --source include/not_embedded.inc
 
--- source include/have_innodb.inc
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
---disable_query_log
 # These values can change during the test
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
@@ -140,7 +134,7 @@ SELECT * FROM t5980;
 ALTER TABLE t5980 IMPORT TABLESPACE;
 CHECK TABLE t5980;
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd 
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -742,6 +736,11 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 
 # These warnings are expected in the log
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
 call mtr.add_suppression("InnoDB: Could not find a valid tablespace file for");
 call mtr.add_suppression("InnoDB: Tablespace open failed for");
 call mtr.add_suppression("InnoDB: Tablespace 'test/t5980' exists in the cache with id");

@@ -1,7 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
 --source include/have_case_sensitive_file_system.inc
 --source include/have_lowercase1.inc
@@ -10,7 +6,7 @@
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (id int) engine=myisam;
+create table t1 (id int);
 insert into t1 values (1);
 create temporary table t2 select * from t1;
 drop temporary table t2;

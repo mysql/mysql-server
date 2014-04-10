@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -106,7 +106,6 @@ row_sel_sec_rec_is_for_blob(
 {
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
-	ulint	zip_size = dict_tf_get_zip_size(table->flags);
 
 	/* This function should never be invoked on an Antelope format
 	table, because they should always contain enough prefix in the
@@ -117,9 +116,8 @@ row_sel_sec_rec_is_for_blob(
 	ut_ad(prefix_len > 0);
 	ut_a(prefix_len <= sizeof buf);
 
-	if (UNIV_UNLIKELY
-	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
-		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+	if (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
+		    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE)) {
 		/* The externally stored field was not written yet.
 		This record should only be seen by
 		recv_recovery_rollback_active() or any
@@ -127,11 +125,11 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(buf, prefix_len,
-						      zip_size,
-						      clust_field, clust_len);
+	len = btr_copy_externally_stored_field_prefix(
+		buf, prefix_len, dict_tf_get_page_size(table->flags),
+		clust_field, clust_len);
 
-	if (UNIV_UNLIKELY(len == 0)) {
+	if (len == 0) {
 		/* The BLOB was being deleted as the server crashed.
 		There should not be any secondary index records
 		referring to this clustered index record, because
@@ -447,7 +445,7 @@ row_sel_fetch_columns(
 
 				data = btr_rec_copy_externally_stored_field(
 					rec, offsets,
-					dict_table_zip_size(index->table),
+					dict_table_page_size(index->table),
 					field_no, &len, heap);
 
 				/* data == NULL means that the
@@ -2838,7 +2836,7 @@ row_sel_store_mysql_field_func(
 
 		data = btr_rec_copy_externally_stored_field(
 			rec, offsets,
-			dict_table_zip_size(prebuilt->table),
+			dict_table_page_size(prebuilt->table),
 			field_no, &len, heap);
 
 		if (UNIV_UNLIKELY(!data)) {
@@ -3703,6 +3701,8 @@ row_search_for_mysql(
 	rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
 	/* We don't support FTS queries from the HANDLER interfaces, because
 	we implemented FTS as reversed inverted index with auxiliary tables.
@@ -3733,45 +3733,8 @@ row_search_for_mysql(
 
 		return(DB_CORRUPTION);
 
-	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to free a corrupt"
-			" table handle. Magic n %lu, table name %s",
-			(ulong) prebuilt->magic_n,
-			ut_get_name(trx, TRUE, prebuilt->table->name).c_str());
-
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
-#if 0
-	/* August 19, 2005 by Heikki: temporarily disable this error
-	print until the cursor lock count is done correctly.
-	See bugs #12263 and #12456!*/
-
-	if (trx->n_mysql_tables_in_use == 0
-	    && UNIV_UNLIKELY(prebuilt->select_lock_type == LOCK_NONE)) {
-		/* Note that if MySQL uses an InnoDB temp table that it
-		created inside LOCK TABLES, then n_mysql_tables_in_use can
-		be zero; in that case select_lock_type is set to LOCK_X in
-		::start_stmt. */
-
-		fputs("InnoDB: Error: MySQL is trying to perform a SELECT\n"
-		      "InnoDB: but it has not locked"
-		      " any tables in ::external_lock()!\n",
-		      stderr);
-		trx_print(stderr, trx, 600);
-		fputc('\n', stderr);
-	}
-#endif
-
-#if 0
-	fprintf(stderr, "Match mode %lu\n search tuple ",
-		(ulong) match_mode);
-	dtuple_print(search_tuple);
-	fprintf(stderr, "N tables locked %lu\n",
-		(ulong) trx->mysql_n_tables_locked);
-#endif
 	/*-------------------------------------------------------------*/
 	/* PHASE 0: Release a possible s-latch we are holding on the
 	adaptive hash index latch if there is someone waiting behind */
@@ -4269,7 +4232,7 @@ rec_loop:
 
 wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
-			buf_page_print(page_align(rec), 0,
+			buf_page_print(page_align(rec), univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Rec address %p,"
@@ -5210,7 +5173,7 @@ row_search_check_if_query_cache_permitted(
 	saw at the time of the read view creation.  */
 
 	if (lock_table_get_n_locks(table) == 0
-	    && ((trx->id > 0 && trx->id >= table->query_cache_inv_id)
+	    && ((trx->id != 0 && trx->id >= table->query_cache_inv_id)
 		|| !MVCC::is_view_active(trx->read_view)
 		|| trx->read_view->low_limit_id()
 		>= table->query_cache_inv_id)) {

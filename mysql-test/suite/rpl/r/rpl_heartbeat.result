@@ -74,6 +74,7 @@ Variable_name	Slave_heartbeat_period
 Value	0.500
 start slave;
 create table t1 (f1 int);
+include/sync_slave_sql_with_master.inc
 include/check_slave_param.inc [Relay_Log_File]
 show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
@@ -81,5 +82,16 @@ Value	0.500
 A heartbeat has been received by the slave
 include/assert.inc [Slave_last_heartbeat should not be empty]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 set @@global.slave_net_timeout= @restore_slave_net_timeout;
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD= 10;
+include/assert.inc [Slave_heartbeat_period should be 10.000]
+
+# Verify that heartbeat period is not reset to default implicitly and
+# received_heartbeat is not set to 0 by this.
+
+CHANGE MASTER TO MASTER_RETRY_COUNT= 3;
+include/assert.inc [Slave_heartbeat_period should be 10.000]
+include/assert.inc [Slave_received_heartbeat should NOT be set to 0]
 include/rpl_end.inc

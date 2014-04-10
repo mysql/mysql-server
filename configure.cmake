@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,25 +60,6 @@ IF(NOT SYSTEM_TYPE)
   ELSE()
     SET(SYSTEM_TYPE ${CMAKE_SYSTEM_NAME})
   ENDIF()
-ENDIF()
-
-# Always enable -Wall for gnu C/C++
-# Remember to strip off these in scripts/CMakeLists.txt
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCC)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-ENDIF()
-
-# Remember to strip off these in scripts/CMakeLists.txt
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
-ENDIF()
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS
-    "${CMAKE_C_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
 ENDIF()
 
 # The default C++ library for SunPro is really old, and not standards compliant.
@@ -193,6 +174,11 @@ ENDIF()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
+  # Also extract real path to the compiler(which is normally
+  # in <install_path>/prod/bin) and try to find the
+  # stlport libs relative to that location as well.
+  GET_FILENAME_COMPONENT(CXX_REALPATH ${CMAKE_CXX_COMPILER} REALPATH)
+
   SET(STLPORT_SUFFIX "lib/stlport4")
   IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
     SET(STLPORT_SUFFIX "lib/stlport4/v9")
@@ -204,6 +190,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   FIND_LIBRARY(STL_LIBRARY_NAME
     NAMES "stlport"
     PATHS ${CXX_PATH}/../${STLPORT_SUFFIX}
+          ${CXX_REALPATH}/../../${STLPORT_SUFFIX}
   )
   MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
   IF(STL_LIBRARY_NAME)
@@ -212,7 +199,17 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
     MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
     INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
             DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    EXTEND_C_LINK_FLAGS(${STLPORT_PATH})
     EXTEND_CXX_LINK_FLAGS(${STLPORT_PATH})
+  ELSE()
+    MESSAGE(STATUS "Failed to find the reuired stlport library, print some"
+                   "variables to help debugging and bail out")
+    MESSAGE(STATUS "CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER}")
+    MESSAGE(STATUS "CXX_PATH ${CXX_PATH}")
+    MESSAGE(STATUS "CXX_REALPATH ${CXX_REALPATH}")
+    MESSAGE(STATUS "STLPORT_SUFFIX ${STLPORT_SUFFIX}")
+    MESSAGE(FATAL_ERROR
+      "Could not find the required stlport library.")
   ENDIF()
 ENDIF()
 
@@ -271,6 +268,11 @@ FUNCTION(MY_SEARCH_LIBS func libs result)
 ENDFUNCTION()
 
 # Find out which libraries to use.
+
+# Figure out threading library
+# Defines CMAKE_USE_PTHREADS_INIT and CMAKE_THREAD_LIBS_INIT.
+FIND_PACKAGE (Threads)
+
 IF(UNIX)
   MY_SEARCH_LIBS(floor m LIBM)
   IF(NOT LIBM)
@@ -285,12 +287,12 @@ IF(UNIX)
   IF(NOT LIBRT)
     MY_SEARCH_LIBS(clock_gettime rt LIBRT)
   ENDIF()
-  FIND_PACKAGE(Threads)
+  MY_SEARCH_LIBS(timer_create rt LIBRT)
 
   SET(CMAKE_REQUIRED_LIBRARIES 
     ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT})
   # Need explicit pthread for gcc -fsanitize=address
-  IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
+  IF(CMAKE_C_FLAGS MATCHES "-fsanitize=")
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} pthread)
   ENDIF()
 
@@ -330,12 +332,13 @@ ENDIF()
 # Tests for header files
 #
 INCLUDE (CheckIncludeFiles)
+INCLUDE (CheckIncludeFileCXX)
 
 CHECK_INCLUDE_FILES (sys/types.h HAVE_SYS_TYPES_H)
 CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
 CHECK_INCLUDE_FILES (arpa/inet.h HAVE_ARPA_INET_H)
 CHECK_INCLUDE_FILES (crypt.h HAVE_CRYPT_H)
-CHECK_INCLUDE_FILES (cxxabi.h HAVE_CXXABI_H)
+CHECK_INCLUDE_FILE_CXX (cxxabi.h HAVE_CXXABI_H)
 CHECK_INCLUDE_FILES (dirent.h HAVE_DIRENT_H)
 CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
@@ -363,13 +366,11 @@ CHECK_INCLUDE_FILES (synch.h HAVE_SYNCH_H)
 CHECK_INCLUDE_FILES (sysent.h HAVE_SYSENT_H)
 CHECK_INCLUDE_FILES (sys/cdefs.h HAVE_SYS_CDEFS_H)
 CHECK_INCLUDE_FILES (sys/ioctl.h HAVE_SYS_IOCTL_H)
-CHECK_INCLUDE_FILES (sys/ipc.h HAVE_SYS_IPC_H)
 CHECK_INCLUDE_FILES (sys/malloc.h HAVE_SYS_MALLOC_H)
 CHECK_INCLUDE_FILES (sys/mman.h HAVE_SYS_MMAN_H)
 CHECK_INCLUDE_FILES (sys/prctl.h HAVE_SYS_PRCTL_H)
 CHECK_INCLUDE_FILES (sys/resource.h HAVE_SYS_RESOURCE_H)
 CHECK_INCLUDE_FILES (sys/select.h HAVE_SYS_SELECT_H)
-CHECK_INCLUDE_FILES (sys/shm.h HAVE_SYS_SHM_H)
 CHECK_INCLUDE_FILES (sys/socket.h HAVE_SYS_SOCKET_H)
 CHECK_INCLUDE_FILES (sys/stat.h HAVE_SYS_STAT_H)
 CHECK_INCLUDE_FILES ("curses.h;term.h" HAVE_TERM_H)
@@ -401,60 +402,11 @@ ENDIF()
 CHECK_INCLUDE_FILES(sys/epoll.h HAVE_SYS_EPOLL_H)
 CHECK_SYMBOL_EXISTS (TAILQ_FOREACH "sys/queue.h" HAVE_TAILQFOREACH)
 
-# Figure out threading library
-# Defines CMAKE_USE_PTHREADS_INIT and CMAKE_THREAD_LIBS_INIT.
-FIND_PACKAGE (Threads)
-
-FUNCTION(MY_CHECK_PTHREAD_ONCE_INIT)
-  CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
-  IF(HAVE_WERROR_FLAG)
-    SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
-  ENDIF()
-  CHECK_C_SOURCE_COMPILES("
-    #include <pthread.h>
-    void foo(void) {}
-    int main()
-    {
-      pthread_once_t once_control = PTHREAD_ONCE_INIT;
-      pthread_once(&once_control, foo);
-      return 0;
-    }"
-    HAVE_PTHREAD_ONCE_INIT
-  )
-  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6611808
-  IF(NOT HAVE_PTHREAD_ONCE_INIT)
-    CHECK_C_SOURCE_COMPILES("
-      #include <pthread.h>
-      void foo(void) {}
-      int main()
-      {
-        pthread_once_t once_control = { PTHREAD_ONCE_INIT };
-        pthread_once(&once_control, foo);
-        return 0;
-      }"
-      HAVE_ARRAY_PTHREAD_ONCE_INIT
-    )
-  ENDIF()
-  IF(HAVE_PTHREAD_ONCE_INIT)
-    SET(PTHREAD_ONCE_INITIALIZER "PTHREAD_ONCE_INIT" PARENT_SCOPE)
-  ENDIF()
-  IF(HAVE_ARRAY_PTHREAD_ONCE_INIT)
-    SET(PTHREAD_ONCE_INITIALIZER "{ PTHREAD_ONCE_INIT }" PARENT_SCOPE)
-  ENDIF()
-ENDFUNCTION()
-
-IF(CMAKE_USE_PTHREADS_INIT)
-  MY_CHECK_PTHREAD_ONCE_INIT()
-ENDIF()
-
 #
 # Tests for functions
 #
 CHECK_FUNCTION_EXISTS (_aligned_malloc HAVE_ALIGNED_MALLOC)
-CHECK_FUNCTION_EXISTS (alarm HAVE_ALARM)
 CHECK_FUNCTION_EXISTS (backtrace HAVE_BACKTRACE)
-CHECK_FUNCTION_EXISTS (backtrace_symbols HAVE_BACKTRACE_SYMBOLS)
-CHECK_FUNCTION_EXISTS (backtrace_symbols_fd HAVE_BACKTRACE_SYMBOLS_FD)
 CHECK_FUNCTION_EXISTS (printstack HAVE_PRINTSTACK)
 CHECK_FUNCTION_EXISTS (index HAVE_INDEX)
 CHECK_FUNCTION_EXISTS (clock_gettime HAVE_CLOCK_GETTIME)
@@ -490,6 +442,7 @@ CHECK_FUNCTION_EXISTS (getegid HAVE_GETEGID)
 CHECK_FUNCTION_EXISTS (lstat HAVE_LSTAT)
 CHECK_FUNCTION_EXISTS (madvise HAVE_MADVISE)
 CHECK_FUNCTION_EXISTS (malloc_info HAVE_MALLOC_INFO)
+CHECK_FUNCTION_EXISTS (memrchr HAVE_MEMRCHR)
 CHECK_FUNCTION_EXISTS (mlock HAVE_MLOCK)
 CHECK_FUNCTION_EXISTS (mlockall HAVE_MLOCKALL)
 CHECK_FUNCTION_EXISTS (mmap HAVE_MMAP)
@@ -497,19 +450,15 @@ CHECK_FUNCTION_EXISTS (mmap64 HAVE_MMAP64)
 CHECK_FUNCTION_EXISTS (poll HAVE_POLL)
 CHECK_FUNCTION_EXISTS (posix_fallocate HAVE_POSIX_FALLOCATE)
 CHECK_FUNCTION_EXISTS (posix_memalign HAVE_POSIX_MEMALIGN)
-CHECK_FUNCTION_EXISTS (pread HAVE_PREAD)
-CHECK_FUNCTION_EXISTS (pthread_attr_getguardsize HAVE_PTHREAD_ATTR_GETGUARDSIZE)
+CHECK_FUNCTION_EXISTS (pread HAVE_PREAD) # Used by NDB
 CHECK_FUNCTION_EXISTS (pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS (pthread_sigmask HAVE_PTHREAD_SIGMASK)
-CHECK_FUNCTION_EXISTS (pthread_yield_np HAVE_PTHREAD_YIELD_NP)
 CHECK_FUNCTION_EXISTS (readdir_r HAVE_READDIR_R)
 CHECK_FUNCTION_EXISTS (readlink HAVE_READLINK)
 CHECK_FUNCTION_EXISTS (realpath HAVE_REALPATH)
 CHECK_FUNCTION_EXISTS (sched_yield HAVE_SCHED_YIELD)
-CHECK_FUNCTION_EXISTS (setenv HAVE_SETENV)
 CHECK_FUNCTION_EXISTS (setfd HAVE_SETFD)
 CHECK_FUNCTION_EXISTS (sigaction HAVE_SIGACTION)
-CHECK_FUNCTION_EXISTS (sigset HAVE_SIGSET)
 CHECK_FUNCTION_EXISTS (sleep HAVE_SLEEP)
 CHECK_FUNCTION_EXISTS (stpcpy HAVE_STPCPY)
 CHECK_FUNCTION_EXISTS (stpncpy HAVE_STPNCPY)
@@ -523,7 +472,6 @@ SET(HAVE_STRTOK_R 1) # Used by libevent
 SET(HAVE_STRTOLL 1) # Used by libevent
 SET(HAVE_STRDUP 1) # Used by NDB
 CHECK_FUNCTION_EXISTS (tell HAVE_TELL)
-CHECK_FUNCTION_EXISTS (thr_yield HAVE_THR_YIELD)
 CHECK_FUNCTION_EXISTS (vasprintf HAVE_VASPRINTF)
 CHECK_FUNCTION_EXISTS (memalign HAVE_MEMALIGN)
 CHECK_FUNCTION_EXISTS (nl_langinfo HAVE_NL_LANGINFO)
@@ -540,7 +488,9 @@ CHECK_SYMBOL_EXISTS (timeradd "sys/time.h" HAVE_TIMERADD)
 CHECK_SYMBOL_EXISTS (timerclear "sys/time.h" HAVE_TIMERCLEAR)
 CHECK_SYMBOL_EXISTS (timercmp "sys/time.h" HAVE_TIMERCMP)
 CHECK_SYMBOL_EXISTS (timerisset "sys/time.h" HAVE_TIMERISSET)
-
+CHECK_FUNCTION_EXISTS (timer_create HAVE_TIMER_CREATE)
+CHECK_FUNCTION_EXISTS (timer_settime HAVE_TIMER_SETTIME)
+CHECK_FUNCTION_EXISTS (kqueue HAVE_KQUEUE)
 
 #--------------------------------------------------------------------
 # Support for WL#2373 (Use cycle counter for timing)
@@ -567,6 +517,10 @@ CHECK_SYMBOL_EXISTS(lrand48 "stdlib.h" HAVE_LRAND48)
 CHECK_SYMBOL_EXISTS(TIOCGWINSZ "sys/ioctl.h" GWINSZ_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/ioctl.h" FIONREAD_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/filio.h" FIONREAD_IN_SYS_FILIO)
+CHECK_SYMBOL_EXISTS(gettimeofday "sys/time.h" HAVE_GETTIMEOFDAY)
+CHECK_SYMBOL_EXISTS(SIGEV_THREAD_ID "signal.h;time.h" HAVE_SIGEV_THREAD_ID)
+CHECK_SYMBOL_EXISTS(SIGEV_PORT "signal.h;time.h" HAVE_SIGEV_PORT)
+CHECK_SYMBOL_EXISTS(EVFILT_TIMER "sys/types.h;sys/event.h;sys/time.h" HAVE_EVFILT_TIMER)
 
 CHECK_SYMBOL_EXISTS(log2  math.h HAVE_LOG2)
 CHECK_SYMBOL_EXISTS(rint  math.h HAVE_RINT)
@@ -588,7 +542,21 @@ int main() {
   return 0;
 }" HAVE_FESETROUND)
 
+IF(HAVE_KQUEUE AND HAVE_EVFILT_TIMER)
+  SET(HAVE_KQUEUE_TIMERS 1 CACHE INTERNAL "Have kqueue timer-related filter")
+ELSEIF(HAVE_TIMER_CREATE AND HAVE_TIMER_SETTIME)
+  IF(HAVE_SIGEV_THREAD_ID OR HAVE_SIGEV_PORT)
+    SET(HAVE_POSIX_TIMERS 1 CACHE INTERNAL "Have POSIX timer-related functions")
+  ENDIF()
+ENDIF()
 
+IF(WIN32)
+  SET(HAVE_WINDOWS_TIMERS 1 CACHE INTERNAL "Have Windows timer-related functions")
+ENDIF()
+
+IF(HAVE_POSIX_TIMERS OR HAVE_KQUEUE_TIMERS OR HAVE_WINDOWS_TIMERS)
+  SET(HAVE_MY_TIMER 1 CACHE INTERNAL "Have mysys timer-related functions")
+ENDIF()
 
 #
 # Test for endianess
@@ -652,108 +620,13 @@ ENDIF()
 # Code tests
 #
 
-# check whether time_t is unsigned
-CHECK_C_SOURCE_COMPILES("
-#include <time.h>
-int main()
-{
-  int array[(((time_t)-1) > 0) ? 1 : -1];
-  return 0;
-}"
-TIME_T_UNSIGNED)
-
-
-CHECK_C_SOURCE_COMPILES("
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#endif
-int main()
-{
-  getaddrinfo( 0, 0, 0, 0);
-  return 0;
-}"
-HAVE_GETADDRINFO)
-
-CHECK_C_SOURCE_COMPILES("
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#endif
-int main()
-{
-  select(0,0,0,0,0);
-  return 0;
-}"
-HAVE_SELECT)
-
-#
-# Check return type of qsort()
-#
-CHECK_C_SOURCE_COMPILES("
-#include <stdlib.h>
-#ifdef __cplusplus
-extern \"C\"
-#endif
-void qsort(void *base, size_t nel, size_t width,
-  int (*compar) (const void *, const void *));
-int main(int ac, char **av) {}
-" QSORT_TYPE_IS_VOID)
-IF(QSORT_TYPE_IS_VOID)
-  SET(RETQSORTTYPE "void")
-ELSE(QSORT_TYPE_IS_VOID)
-  SET(RETQSORTTYPE "int")
-ENDIF(QSORT_TYPE_IS_VOID)
+SET(HAVE_GETADDRINFO 1) # Used by libevent
+SET(HAVE_SELECT 1) # Used by NDB/libevent
 
 IF(WIN32)
-SET(SOCKET_SIZE_TYPE int)
+  SET(SOCKET_SIZE_TYPE int)
 ELSE()
-CHECK_CXX_SOURCE_COMPILES("
-#include <sys/socket.h>
-int main(int argc, char **argv)
-{
-  getsockname(0,0,(socklen_t *) 0);
-  return 0; 
-}"
-HAVE_SOCKET_SIZE_T_AS_socklen_t)
-
-IF(HAVE_SOCKET_SIZE_T_AS_socklen_t)
   SET(SOCKET_SIZE_TYPE socklen_t)
-ELSE()
-  CHECK_CXX_SOURCE_COMPILES("
-  #include <sys/socket.h>
-  int main(int argc, char **argv)
-  {
-    getsockname(0,0,(int *) 0);
-    return 0; 
-  }"
-  HAVE_SOCKET_SIZE_T_AS_int)
-  IF(HAVE_SOCKET_SIZE_T_AS_int)
-    SET(SOCKET_SIZE_TYPE int)
-  ELSE()
-    CHECK_CXX_SOURCE_COMPILES("
-    #include <sys/socket.h>
-    int main(int argc, char **argv)
-    {
-      getsockname(0,0,(size_t *) 0);
-      return 0; 
-    }"
-    HAVE_SOCKET_SIZE_T_AS_size_t)
-    IF(HAVE_SOCKET_SIZE_T_AS_size_t)
-      SET(SOCKET_SIZE_TYPE size_t)
-    ELSE()
-      SET(SOCKET_SIZE_TYPE int)
-    ENDIF()
-  ENDIF()
-ENDIF()
 ENDIF()
 
 CHECK_CXX_SOURCE_COMPILES("
@@ -785,29 +658,6 @@ IF(NOT STACK_DIRECTION)
      MESSAGE(STATUS "Checking stack direction : ${STACK_DIRECTION}")
    ENDIF()
 ENDIF()
-
-#
-# Check return type of signal handlers
-#
-CHECK_C_SOURCE_COMPILES("
-#include <signal.h>
-#ifdef signal
-# undef signal
-#endif
-#ifdef __cplusplus
-extern \"C\" void (*signal (int, void (*)(int)))(int);
-#else
-void (*signal ()) ();
-#endif
-int main(int ac, char **av) {}
-" SIGNAL_RETURN_TYPE_IS_VOID)
-IF(SIGNAL_RETURN_TYPE_IS_VOID)
-  SET(RETSIGTYPE void)
-  SET(VOID_SIGHANDLER 1)
-ELSE(SIGNAL_RETURN_TYPE_IS_VOID)
-  SET(RETSIGTYPE int)
-ENDIF(SIGNAL_RETURN_TYPE_IS_VOID)
-
 
 CHECK_INCLUDE_FILES("time.h;sys/time.h" TIME_WITH_SYS_TIME)
 CHECK_SYMBOL_EXISTS(O_NONBLOCK "unistd.h;fcntl.h" HAVE_FCNTL_NONBLOCK)
@@ -841,17 +691,30 @@ ENDIF()
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
   STRING(TOLOWER ${CMAKE_SYSTEM_PROCESSOR}  processor)
   IF(processor MATCHES "86" OR processor MATCHES "amd64" OR processor MATCHES "x64")
-  #Check for x86 PAUSE instruction
-  # We have to actually try running the test program, because of a bug
-  # in Solaris on x86_64, where it wrongly reports that PAUSE is not
-  # supported when trying to run an application.  See
-  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6478684
-  CHECK_C_SOURCE_RUNS("
-  int main()
-  { 
-    __asm__ __volatile__ (\"pause\"); 
-    return 0;
-  }"  HAVE_PAUSE_INSTRUCTION)
+    IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+      # The loader in some Solaris versions has a bug due to which it refuses to
+      # start a binary that has been compiled by GCC and uses __asm__("pause")
+      # with the error:
+      # $ ./mysqld
+      # ld.so.1: mysqld: fatal: hardware capability unsupported: 0x2000 [ PAUSE ]
+      # Killed
+      # $
+      # Even though the CPU does have support for the instruction.
+      # Binaries that have been compiled by GCC and use __asm__("pause")
+      # on a non-buggy Solaris get flagged with a "uses pause" flag and
+      # thus they are unusable if copied on buggy Solaris version. To
+      # circumvent this we explicitly disable __asm__("pause") when
+      # compiling on Solaris. Subsequently the tests here will enable
+      # HAVE_FAKE_PAUSE_INSTRUCTION which will use __asm__("rep; nop")
+      # which currently generates the same code as __asm__("pause") - 0xf3 0x90
+      # but without flagging the binary as "uses pause".
+      CHECK_C_SOURCE_RUNS("
+      int main()
+      {
+        __asm__ __volatile__ (\"pause\");
+        return 0;
+      }"  HAVE_PAUSE_INSTRUCTION)
+    ENDIF()
   ENDIF()
   IF (NOT HAVE_PAUSE_INSTRUCTION)
     CHECK_C_SOURCE_COMPILES("
@@ -864,47 +727,6 @@ IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
   ENDIF()
 ENDIF()
   
-#
-# Check type of signal routines (posix, 4.2bsd, 4.1bsd or v7)
-#
-CHECK_C_SOURCE_COMPILES("
-  #include <signal.h>
-  int main(int ac, char **av)
-  {
-    sigset_t ss;
-    struct sigaction sa;
-    sigemptyset(&ss); sigsuspend(&ss);
-    sigaction(SIGINT, &sa, (struct sigaction *) 0);
-    sigprocmask(SIG_BLOCK, &ss, (sigset_t *) 0);
-  }"
-  HAVE_POSIX_SIGNALS)
-
-IF(NOT HAVE_POSIX_SIGNALS)
- CHECK_C_SOURCE_COMPILES("
-  #include <signal.h>
-  int main(int ac, char **av)
-  {
-    int mask = sigmask(SIGINT);
-    sigsetmask(mask); sigblock(mask); sigpause(mask);
-  }"
-  HAVE_BSD_SIGNALS)
-  IF (NOT HAVE_BSD_SIGNALS)
-    CHECK_C_SOURCE_COMPILES("
-    #include <signal.h>
-    void foo() { }
-    int main(int ac, char **av)
-    {
-      int mask = sigmask(SIGINT);
-      sigset(SIGINT, foo); sigrelse(SIGINT);
-      sighold(SIGINT); sigpause(SIGINT);
-    }"
-   HAVE_SVR3_SIGNALS)  
-   IF (NOT HAVE_SVR3_SIGNALS)
-    SET(HAVE_V7_SIGNALS 1)
-   ENDIF(NOT HAVE_SVR3_SIGNALS)
- ENDIF(NOT HAVE_BSD_SIGNALS)
-ENDIF(NOT HAVE_POSIX_SIGNALS)
-
 # Assume regular sprintf
 SET(SPRINTFS_RETURNS_INT 1)
 
@@ -929,14 +751,42 @@ CHECK_C_SOURCE_COMPILES("
 HAVE_BSS_START)
 
 CHECK_C_SOURCE_COMPILES("
-    int main()
-    {
-      extern void __attribute__((weak)) foo(void);
-      return 0;
-    }"
-    HAVE_WEAK_SYMBOL
-)
+int main()
+{
+  __builtin_unreachable();
+  return 0;
+}" HAVE_BUILTIN_UNREACHABLE_C)
 
+CHECK_CXX_SOURCE_COMPILES("
+int main()
+{
+  __builtin_unreachable();
+  return 0;
+}" HAVE_BUILTIN_UNREACHABLE_CXX)
+
+IF(HAVE_BUILTIN_UNREACHABLE_C AND HAVE_BUILTIN_UNREACHABLE_CXX)
+  SET(HAVE_BUILTIN_UNREACHABLE 1)
+ENDIF()
+
+CHECK_C_SOURCE_COMPILES("
+int main()
+{
+  long l= 0;
+  __builtin_expect(l, 0);
+  return 0;
+}" HAVE_BUILTIN_EXPECT)
+
+# GCC has __builtin_stpcpy but still calls stpcpy
+IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS" OR NOT CMAKE_COMPILER_IS_GNUCC)
+CHECK_C_SOURCE_COMPILES("
+int main()
+{
+  char foo1[1];
+  char foo2[1];
+  __builtin_stpcpy(foo1, foo2);
+  return 0;
+}" HAVE_BUILTIN_STPCPY)
+ENDIF()
 
 CHECK_CXX_SOURCE_COMPILES("
     #undef inline
@@ -960,14 +810,7 @@ CHECK_CXX_SOURCE_COMPILES("
   "
   HAVE_SOLARIS_STYLE_GETHOST)
 
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-IF(WITH_ATOMIC_OPS STREQUAL "up")
-  SET(MY_ATOMIC_MODE_DUMMY 1 CACHE BOOL "Assume single-CPU mode, no concurrency")
-ELSEIF(WITH_ATOMIC_OPS STREQUAL "rwlocks")
-  SET(MY_ATOMIC_MODE_RWLOCK 1 CACHE BOOL "Use pthread rwlocks for atomic ops")
-ELSEIF(WITH_ATOMIC_OPS STREQUAL "smp")
-ELSEIF(NOT WITH_ATOMIC_OPS)
-  CHECK_CXX_SOURCE_COMPILES("
+CHECK_CXX_SOURCE_COMPILES("
   int main()
   {
     int foo= -10; int bar= 10;
@@ -991,22 +834,6 @@ ELSEIF(NOT WITH_ATOMIC_OPS)
     return 0;
   }"
   HAVE_GCC_ATOMIC_BUILTINS)
-  IF(NOT HAVE_GCC_ATOMIC_BUILTINS)
-    MESSAGE(WARNING
-    "Unsupported version of GCC/Clang is used which does not support Atomic "
-    "Builtins. Using pthread rwlocks instead.")
-  ENDIF(NOT HAVE_GCC_ATOMIC_BUILTINS)
-ELSE()
-  MESSAGE(FATAL_ERROR "${WITH_ATOMIC_OPS} is not a valid value for WITH_ATOMIC_OPS!")
-ENDIF()
-ENDIF()
-
-SET(WITH_ATOMIC_LOCKS "${WITH_ATOMIC_LOCKS}" CACHE STRING
-"Implement atomic operations using pthread rwlocks or atomic CPU
-instructions for multi-processor or uniprocessor
-configuration. By default gcc built-in sync functions are used,
-if available and 'smp' configuration otherwise.")
-MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
 
 IF(WITH_VALGRIND)
   SET(VALGRIND_HEADERS "valgrind/memcheck.h;valgrind/valgrind.h")

@@ -23,7 +23,7 @@
 
 static int get_options(int argc, char *argv[]);
 static int rnd(int max_value);
-static sig_handler endprog(int sig_number);
+static void endprog(int sig_number);
 
 static uint flag=0,verbose=0,testflag=0,recant=10000,silent=0;
 static uint keys=MAX_KEYS;
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
   HP_SHARE *tmp_share;
   HP_KEYDEF keyinfo[MAX_KEYS];
   HA_KEYSEG keyseg[MAX_KEYS*5];
-  HEAP_PTR UNINIT_VAR(position);
+  HEAP_PTR position= 0;
   HP_CREATE_INFO hp_create_info;
   CHARSET_INFO *cs= &my_charset_latin1;
   my_bool unused;
@@ -618,7 +618,7 @@ static int rnd(int max_value)
 } /* rnd */
 
 
-static sig_handler endprog(int sig_number __attribute__((unused)))
+static void endprog(int sig_number __attribute__((unused)))
 {
   {
     hp_panic(HA_PANIC_CLOSE);

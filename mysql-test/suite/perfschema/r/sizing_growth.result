@@ -1,3 +1,4 @@
+create table test.t0(a int) engine = innodb;
 flush status;
 flush tables;
 select * from performance_schema.mutex_instances;
@@ -194,6 +195,7 @@ Performance_schema_metadata_lock_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_nested_statement_lost	0
+Performance_schema_prepared_statements_lost	0
 Performance_schema_program_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
@@ -218,7 +220,7 @@ select @file_per_share <= 3;
 1
 select @mutex_per_con;
 @mutex_per_con
-4
+5
 select @rwlock_per_con;
 @rwlock_per_con
 1
@@ -244,7 +246,7 @@ select if(
 (@rwlock_per_share <= 4)
 AND (@cond_per_share = 0)
 AND (@file_per_share <= 3)
-AND (@mutex_per_con = 4)
+AND (@mutex_per_con = 5)
 AND (@rwlock_per_con = 1)
 AND (@cond_per_con = 2)
 AND (@file_per_con = 0)
@@ -257,3 +259,4 @@ AND (@file_per_handle = 0),
 as status;
 status
 OK: heuristics are up to date
+drop table test.t0;

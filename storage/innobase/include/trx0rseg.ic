@@ -27,23 +27,26 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0log.h"
 #include "trx0sys.h"
 
-/******************************************************************//**
-Gets a rollback segment header.
+/** Gets a rollback segment header.
+@param[in]	space		space where placed
+@param[in]	page_no		page number of the header
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get(
-/*==========*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number of the header */
-	mtr_t*	mtr)		/*!< in: mtr */
+	ulint			space,
+	ulint			page_no,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
 {
 	buf_block_t*	block;
 	trx_rsegf_t*	header;
 
-	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
+	block = buf_page_get(
+		page_id_t(space, page_no), page_size, RW_X_LATCH, mtr);
+
 	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER);
 
 	header = TRX_RSEG + buf_block_get_frame(block);
@@ -51,23 +54,26 @@ trx_rsegf_get(
 	return(header);
 }
 
-/******************************************************************//**
-Gets a newly created rollback segment header.
+/** Gets a newly created rollback segment header.
+@param[in]	space		space where placed
+@param[in]	page_no		page number of the header
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
 @return rollback segment header, page x-latched */
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get_new(
-/*==============*/
-	ulint	space,		/*!< in: space where placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number of the header */
-	mtr_t*	mtr)		/*!< in: mtr */
+	ulint			space,
+	ulint			page_no,
+	const page_size_t&	page_size,
+	mtr_t*			mtr)
 {
 	buf_block_t*	block;
 	trx_rsegf_t*	header;
 
-	block = buf_page_get(space, zip_size, page_no, RW_X_LATCH, mtr);
+	block = buf_page_get(
+		page_id_t(space, page_no), page_size, RW_X_LATCH, mtr);
+
 	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
 
 	header = TRX_RSEG + buf_block_get_frame(block);
@@ -86,12 +92,7 @@ trx_rsegf_get_nth_undo(
 	ulint		n,	/*!< in: index of slot */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	if (n >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to get slot %lu of rseg\n",
-			(ulong) n);
-		ut_error;
-	}
+	ut_a(n < TRX_RSEG_N_SLOTS);
 
 	return(mtr_read_ulint(rsegf + TRX_RSEG_UNDO_SLOTS
 			      + n * TRX_RSEG_SLOT_SIZE, MLOG_4BYTES, mtr));
@@ -108,12 +109,7 @@ trx_rsegf_set_nth_undo(
 	ulint		page_no,/*!< in: page number of the undo log segment */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	if (n >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to set slot %lu of rseg\n",
-			(ulong) n);
-		ut_error;
-	}
+	ut_a(n < TRX_RSEG_N_SLOTS);
 
 	mlog_write_ulint(rsegf + TRX_RSEG_UNDO_SLOTS + n * TRX_RSEG_SLOT_SIZE,
 			 page_no, MLOG_4BYTES, mtr);
@@ -131,19 +127,18 @@ trx_rsegf_undo_find_free(
 {
 	ulint		i;
 	ulint		page_no;
+	ulint		max_slots = TRX_RSEG_N_SLOTS;
 
-	for (i = 0;
-#ifndef UNIV_DEBUG
-	     i < TRX_RSEG_N_SLOTS;
-#else
-	     i < (trx_rseg_n_slots_debug ? trx_rseg_n_slots_debug : TRX_RSEG_N_SLOTS);
+#ifdef UNIV_DEBUG
+	if (trx_rseg_n_slots_debug) {
+		max_slots = ut_min(trx_rseg_n_slots_debug, TRX_RSEG_N_SLOTS);
+	}
 #endif
-	     i++) {
 
+	for (i = 0; i < max_slots; i++) {
 		page_no = trx_rsegf_get_nth_undo(rsegf, i, mtr);
 
 		if (page_no == FIL_NULL) {
-
 			return(i);
 		}
 	}
@@ -163,7 +158,7 @@ trx_rseg_get_on_id(
 {
 	ut_a(id < TRX_SYS_N_RSEGS);
 
-	/* If redo rseg is being requested and id falls in range of 
+	/* If redo rseg is being requested and id falls in range of
 	non-redo rseg that is from slot-1....slot-srv_tmp_undo_logs then
 	server is being upgraded from pre-5.7.2. In such case return
 	rseg from pending_purge_rseg_array array. */

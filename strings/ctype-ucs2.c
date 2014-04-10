@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -966,7 +966,7 @@ my_fill_mb2(const CHARSET_INFO *cs, char *s, size_t slen, int fill)
 }
 
 
-static int
+static size_t
 my_vsnprintf_mb2(char *dst, size_t n, const char* fmt, va_list ap)
 {
   char *start=dst, *end= dst + n - 1;
@@ -1280,7 +1280,7 @@ my_strnncoll_utf16(const CHARSET_INFO *cs,
                    my_bool t_is_prefix)
 {
   int s_res, t_res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -1344,7 +1344,7 @@ my_strnncollsp_utf16(const CHARSET_INFO *cs,
                      my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen, *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
@@ -1512,7 +1512,7 @@ my_strnncoll_utf16_bin(const CHARSET_INFO *cs,
                        my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
 
@@ -1545,7 +1545,7 @@ my_strnncollsp_utf16_bin(const CHARSET_INFO *cs,
                          my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen, *te= t + tlen;
 
   DBUG_ASSERT((slen % 2) == 0);
@@ -1718,6 +1718,7 @@ CHARSET_INFO my_charset_utf16_general_ci=
   1,                   /* casedn_multiply  */
   2,                   /* mbminlen     */
   4,                   /* mbmaxlen     */
+  1,                   /* mbmaxlenlen  */
   0,                   /* min_sort_char */
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
@@ -1752,6 +1753,7 @@ CHARSET_INFO my_charset_utf16_bin=
   1,                   /* casedn_multiply  */
   2,                   /* mbminlen     */
   4,                   /* mbmaxlen     */
+  1,                   /* mbmaxlenlen  */
   0,                   /* min_sort_char */
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
@@ -1825,7 +1827,7 @@ my_lengthsp_utf16le(const CHARSET_INFO *cs __attribute__((unused)),
                     const char *ptr, size_t length)
 {
   const char *end= ptr + length;
-  while (end > ptr + 1 && uint2korr(end - 2) == 0x20)
+  while (end > ptr + 1 && uint2korr((uchar*) end - 2) == 0x20)
     end-= 2;
   return (size_t) (end - ptr);
 }
@@ -1886,6 +1888,7 @@ CHARSET_INFO my_charset_utf16le_general_ci=
   1,                   /* casedn_multiply  */
   2,                   /* mbminlen     */
   4,                   /* mbmaxlen     */
+  1,                   /* mbmaxlenlen  */
   0,                   /* min_sort_char */
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
@@ -1920,6 +1923,7 @@ CHARSET_INFO my_charset_utf16le_bin=
   1,                   /* casedn_multiply  */
   2,                   /* mbminlen     */
   4,                   /* mbmaxlen     */
+  1,                   /* mbmaxlenlen  */
   0,                   /* min_sort_char */
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
@@ -2094,7 +2098,7 @@ my_strnncoll_utf32(const CHARSET_INFO *cs,
                    const uchar *t, size_t tlen,
                    my_bool t_is_prefix)
 {
-  my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -2159,7 +2163,7 @@ my_strnncollsp_utf32(const CHARSET_INFO *cs,
                      my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen, *te= t + tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
@@ -2251,7 +2255,7 @@ my_mbcharlen_utf32(const CHARSET_INFO *cs  __attribute__((unused)) ,
 }
 
 
-static int
+static size_t
 my_vsnprintf_utf32(char *dst, size_t n, const char* fmt, va_list ap)
 {
   char *start= dst, *end= dst + n;
@@ -2636,7 +2640,7 @@ my_strnncoll_utf32_bin(const CHARSET_INFO *cs,
                        const uchar *t, size_t tlen,
                        my_bool t_is_prefix)
 {
-  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
 
@@ -2832,6 +2836,7 @@ CHARSET_INFO my_charset_utf32_general_ci=
   1,                   /* casedn_multiply  */
   4,                   /* mbminlen     */
   4,                   /* mbmaxlen     */
+  1,                   /* mbmaxlenlen  */
   0,                   /* min_sort_char */
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
@@ -2866,6 +2871,7 @@ CHARSET_INFO my_charset_utf32_bin=
   1,                   /* casedn_multiply  */
   4,                   /* mbminlen     */
   4,                   /* mbmaxlen     */
+  1,                   /* mbmaxlenlen  */
   0,                   /* min_sort_char */
   0xFFFF,              /* max_sort_char */
   ' ',                 /* pad char      */
@@ -3083,7 +3089,7 @@ static int my_strnncoll_ucs2(const CHARSET_INFO *cs,
                              my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -3268,7 +3274,7 @@ int my_strnncoll_ucs2_bin(const CHARSET_INFO *cs,
                           my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc),UNINIT_VAR(t_wc);
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
 
@@ -3456,6 +3462,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     0,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -3490,6 +3497,7 @@ CHARSET_INFO my_charset_ucs2_general_mysql500_ci=
   1,                                               /* casedn_multiply  */
   2,                                               /* mbminlen         */
   2,                                               /* mbmaxlen         */
+  1,                                               /* mbmaxlenlen      */
   0,                                               /* min_sort_char    */
   0xFFFF,                                          /* max_sort_char    */
   ' ',                                             /* pad char         */
@@ -3524,6 +3532,7 @@ CHARSET_INFO my_charset_ucs2_bin=
     1,                  /* casedn_multiply  */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     0,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     ' ',                /* pad char      */

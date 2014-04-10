@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,10 +27,10 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				my_gethwaddr.c my_getsystime.c my_getwd.c my_compare.c my_init.c
 				my_lib.c my_lock.c my_malloc.c my_mess.c
 				my_mkdir.c my_mmap.c my_once.c my_open.c my_pread.c
-				my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
+				my_read.c my_redel.c my_rename.c my_seek.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
 				my_write.c ptr_cmp.c queues.c stacktrace.c
-				string.c thr_alarm.c thr_lock.c thr_mutex.c
+				string.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
 				my_getncpus.c
@@ -47,8 +47,16 @@ IF (WIN32)
   )
 ENDIF()
 
-IF(HAVE_ALARM)
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_alarm.c)
+IF(HAVE_POSIX_TIMERS)
+ SET(MYSYS_SOURCES ${MYSYS_SOURCES} posix_timers.c)
+ENDIF()
+
+IF(HAVE_KQUEUE_TIMERS)
+  SET(MYSYS_SOURCES ${MYSYS_SOURCES} kqueue_timers.c)
+ENDIF()
+
+IF(HAVE_WINDOWS_TIMERS)
+  SET(MYSYS_SOURCES ${MYSYS_SOURCES} win_timers.c)
 ENDIF()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
@@ -57,7 +65,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
    PROPERTIES COMPILE_FLAGS "${CMAKE_CURRENT_SOURCE_DIR}/my_timer_cycles.il")
 ENDIF()
 
-IF(HAVE_LARGE_PAGES)
+IF(HAVE_LINUX_LARGE_PAGES)
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_largepage.c)
 ENDIF()
 

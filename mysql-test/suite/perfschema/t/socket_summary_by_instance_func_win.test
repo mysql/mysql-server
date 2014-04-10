@@ -1473,9 +1473,11 @@ if(`SELECT COUNT(*) $part`)
 #     4  6706392    85      3 15509472    117     2 34851168 Connect (con*,localhost,root012345,,mysqltest,,)
 #     4 10543632    89      3 10578744    117     2 39460872 Connect (con*,localhost,root0123456789,,mysqltest,,)
 
---echo # 4.6.1 The SUM_OF_BYTES_WRITE value is the same for all Connects.
+--echo # 4.6.1 The SUM_OF_BYTES_WRITE value depends on length of database
+--echo #       since the database name is written in OK packet.
+--echo #       Hence the value 2.
 #========================================================================
-let $my_rules= COUNT(DISTINCT SUM_NUMBER_OF_BYTES_WRITE) = 1;
+let $my_rules= COUNT(DISTINCT SUM_NUMBER_OF_BYTES_WRITE) = 2;
 let $part=
 FROM mysqltest.socket_summary_by_instance_detail
 WHERE OBJECT_INSTANCE_BEGIN <> @default_object_instance_begin

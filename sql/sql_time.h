@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,12 +41,14 @@ bool datetime_with_no_zero_in_date_to_timeval(THD *thd, const MYSQL_TIME *t,
                                               int *warnings);
 bool datetime_to_timeval(THD *thd, const MYSQL_TIME *t,
                          struct timeval *tm, int *warnings);
-bool str_to_datetime_with_warn(String *str,  MYSQL_TIME *l_time, uint flags);
+bool str_to_datetime_with_warn(String *str,  MYSQL_TIME *l_time,
+                               my_time_flags_t flags);
 bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
-                                      MYSQL_TIME *ltime, uint flags);
-bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime, uint flags);
-bool my_longlong_to_datetime_with_warn(longlong nr,
-                                       MYSQL_TIME *ltime, uint flags);
+                                      MYSQL_TIME *ltime, my_time_flags_t flags);
+bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
+                                     my_time_flags_t flags);
+bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
+                                       my_time_flags_t flags);
 bool my_decimal_to_time_with_warn(const my_decimal *decimal,
                                   MYSQL_TIME *ltime);
 bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime);
@@ -104,10 +106,10 @@ int calc_weekday(long daynr,bool sunday_first_day_of_week);
 
 /* Character set-aware version of str_to_time() */
 bool str_to_time(const CHARSET_INFO *cs, const char *str, size_t length,
-                 MYSQL_TIME *l_time, uint flags, MYSQL_TIME_STATUS *status);
-static inline bool
-str_to_time(const String *str, MYSQL_TIME *ltime, uint flags,
-            MYSQL_TIME_STATUS *status)
+                 MYSQL_TIME *l_time, my_time_flags_t flags,
+                 MYSQL_TIME_STATUS *status);
+static inline bool str_to_time(const String *str, MYSQL_TIME *ltime,
+                               my_time_flags_t flags, MYSQL_TIME_STATUS *status)
 {
   return str_to_time(str->charset(), str->ptr(), str->length(),
                      ltime, flags, status);
@@ -118,11 +120,11 @@ bool time_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
 /* Character set-aware version of str_to_datetime() */
 bool str_to_datetime(const CHARSET_INFO *cs,
                      const char *str, size_t length,
-                     MYSQL_TIME *l_time, uint flags,
+                     MYSQL_TIME *l_time, my_time_flags_t flags,
                      MYSQL_TIME_STATUS *status);
-static inline bool
-str_to_datetime(const String *str, MYSQL_TIME *ltime, uint flags,
-                MYSQL_TIME_STATUS *status)
+static inline bool str_to_datetime(const String *str, MYSQL_TIME *ltime,
+                                   my_time_flags_t flags,
+                                   MYSQL_TIME_STATUS *status)
 {
   return str_to_datetime(str->charset(), str->ptr(), str->length(),
                          ltime, flags, status);
@@ -231,8 +233,8 @@ inline double TIME_to_double(const MYSQL_TIME *ltime)
 }
 
 
-static inline bool
-check_fuzzy_date(const MYSQL_TIME *ltime, uint fuzzydate)
+static inline bool check_fuzzy_date(const MYSQL_TIME *ltime,
+                                    my_time_flags_t fuzzydate)
 {
   return !(fuzzydate & TIME_FUZZY_DATE) && (!ltime->month || !ltime->day);
 }

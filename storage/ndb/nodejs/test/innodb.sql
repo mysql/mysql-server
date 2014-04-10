@@ -1,1 +1,1 @@
-set storage_engine=innodb;
+set default_storage_engine=innodb;

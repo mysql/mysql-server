@@ -866,7 +866,8 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset)
 {
   uint i;
-  uint int_count, comment_length=0;
+  uint int_count;
+  size_t comment_length= 0;
   uchar buff[MAX_FIELD_WIDTH];
   Create_field *field;
   DBUG_ENTER("pack_fields");
@@ -1137,9 +1138,9 @@ static bool make_empty_rec(THD *thd, File file,
       regfield->store((longlong) 1, TRUE);
     }
     else if (type == Field::YES)		// Old unireg type
-      regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)),system_charset_info);
+      regfield->store(ER(ER_YES), strlen(ER(ER_YES)),system_charset_info);
     else if (type == Field::NO)			// Old unireg type
-      regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)),system_charset_info);
+      regfield->store(ER(ER_NO), strlen(ER(ER_NO)),system_charset_info);
     else
       regfield->reset();
     /*

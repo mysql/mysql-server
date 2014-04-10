@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 # adding a 'SHOW WARNINGS' after the statement.
 
 set sql_mode='';
-set storage_engine=MyISAM;
+set default_storage_engine=MyISAM;
 
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
@@ -339,7 +339,7 @@ ALTER TABLE procs_priv
   MODIFY Proc_priv set('Execute','Alter Routine','Grant')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
-ALTER IGNORE TABLE procs_priv
+ALTER TABLE procs_priv
   MODIFY Routine_name char(64)
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
@@ -735,3 +735,11 @@ DROP PROCEDURE mysql.warn_host_table_nonempty;
 ALTER TABLE help_category MODIFY url TEXT NOT NULL;
 ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 
+--
+-- Add timestamp and expiry columns
+--
+
+ALTER TABLE user ADD password_last_changed timestamp NULL;
+UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','mysql_old_password','sha256_password') and password_last_changed is NULL;
+
+ALTER TABLE user ADD password_lifetime smallint unsigned NULL;

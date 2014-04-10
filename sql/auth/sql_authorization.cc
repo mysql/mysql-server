@@ -279,7 +279,8 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   }
   thd->lex->query_tables_own_last= save_query_tables_own_last;
 
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && !select_lex->where)
+  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
+      !select_lex->where_cond())
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
@@ -2077,7 +2078,7 @@ err:
 
 bool check_grant_column(THD *thd, GRANT_INFO *grant,
                         const char *db_name, const char *table_name,
-                        const char *name, uint length,  Security_context *sctx)
+                        const char *name, size_t length,  Security_context *sctx)
 {
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
@@ -2147,7 +2148,7 @@ err:
 */
 
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
-                                     const char *name, uint length)
+                                     const char *name, size_t length)
 {
   GRANT_INFO *grant;
   const char *db_name;
@@ -2732,13 +2733,12 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   ulong want_access;
   uint counter,index;
   int  error = 0;
-  ACL_USER *acl_user;
+  ACL_USER *acl_user= NULL;
   ACL_DB *acl_db;
   char buff[1024];
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_show_grants");
 
-  LINT_INIT(acl_user);
   if (!initialized)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
@@ -2807,26 +2807,35 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append (STRING_WITH_LEN("'@'"));
     global.append(lex_user->host.str,lex_user->host.length,
                   system_charset_info);
-    global.append ('\'');
+    global.append ('\'');    
 #if defined(HAVE_OPENSSL)
-    if (acl_user->plugin.str == sha256_password_plugin_name.str)
+    if (acl_user->plugin.str == sha256_password_plugin_name.str &&
+        acl_user->auth_string.length > 0)
     {
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append((const char *) &acl_user->auth_string.str[0]);
-      global.append('\'');
+      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
+      if ((thd->security_ctx->master_access & SUPER_ACL) == SUPER_ACL)
+      {
+        global.append(" \'");
+        global.append((const char *) &acl_user->auth_string.str[0]);
+        global.append('\'');
+      }
     }
     else
 #endif /* HAVE_OPENSSL */
     if (acl_user->salt_len)
     {
+      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
       char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
       if (acl_user->salt_len == SCRAMBLE_LENGTH)
         make_password_from_salt(passwd_buff, acl_user->salt);
       else
         make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append(passwd_buff);
-      global.append('\'');
+      if ((thd->security_ctx->master_access & SUPER_ACL) == SUPER_ACL)
+      {
+        global.append(" \'");
+        global.append(passwd_buff);
+        global.append('\'');
+      }
     }
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
@@ -3551,9 +3560,9 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->make_lex_string(&combo->host,
                        combo->host.str, strlen(combo->host.str), 0);
 
-  combo->password= empty_lex_str;
-  combo->plugin= empty_lex_str;
-  combo->auth= empty_lex_str;
+  combo->password= EMPTY_CSTR;
+  combo->plugin= EMPTY_CSTR;
+  combo->auth= EMPTY_CSTR;
   combo->uses_identified_by_clause= false;
   combo->uses_identified_with_clause= false;
   combo->uses_identified_by_password_clause= false;
@@ -3587,12 +3596,12 @@ static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
   int i= 2;
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
-  table->field[0]->store(buff, (uint) strlen(buff), cs);
+  table->field[0]->store(buff, strlen(buff), cs);
   table->field[1]->store(STRING_WITH_LEN("def"), cs);
   if (db)
-    table->field[i++]->store(db, (uint) strlen(db), cs);
+    table->field[i++]->store(db, strlen(db), cs);
   if (t_name)
-    table->field[i++]->store(t_name, (uint) strlen(t_name), cs);
+    table->field[i++]->store(t_name, strlen(t_name), cs);
   if (column)
     table->field[i++]->store(column, col_length, cs);
   table->field[i++]->store(priv, priv_length, cs);

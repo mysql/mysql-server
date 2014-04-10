@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -306,7 +306,7 @@ parse_size(const char * src)
 {
   Uint64 num = 0;
   char * endptr = 0;
-  num = strtoll(src, &endptr, 10);
+  num = my_strtoll(src, &endptr, 10);
 
   if (endptr)
   {
@@ -367,11 +367,11 @@ parse_spec(Vector<ddentry> & dst,
   for (Uint32 i = 0; i<list.size(); i++)
   {
     list[i].trim();
-    if (strncasecmp(list[i].c_str(), "name=", sizeof("name=")-1) == 0)
+    if (native_strncasecmp(list[i].c_str(), "name=", sizeof("name=")-1) == 0)
     {
       group.name= strdup(list[i].c_str() + sizeof("name=")-1);
     }
-    else if (strncasecmp(list[i].c_str(), key, keylen) == 0)
+    else if (native_strncasecmp(list[i].c_str(), key, keylen) == 0)
     {
       group.size = parse_size(list[i].c_str() + keylen);
     }

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # ==== Purpose ====
 #
@@ -34,8 +34,10 @@
 #  ==== Related Worklog ====
 #
 #  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
+#  Bug#18358253: RPL.RPL_PERFSCHEMA_EXECUTE_STATUS_BY_WORKER HAS SPORADIC FAILURES ON PB2
 #
 
+source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 source include/have_binlog_format_mixed.inc;
 
@@ -48,9 +50,10 @@ let $assert_cond= [select count(*) from performance_schema.replication_execute_s
 source include/assert.inc;
 
 --echo
---echo # Setup MTS and performa testing on a fresh slave.
+--echo # Setup MTS and perform testing on a fresh slave.
 --echo
 
+--source include/sync_slave_sql_with_master.inc
 --connection slave
 
 # PB2 runs the tests with slave-parallel-worker=4 in a combination.
@@ -93,7 +96,17 @@ let $assert_cond= "$ps_value"= "ON";
 source include/assert.inc;
 
 let $ps_value= query_get_value(select Last_Seen_Transaction from performance_schema.replication_execute_status_by_worker, Last_Seen_Transaction, 1);
-let $assert_text= Last_Seen_Transaction should show "ANONYMOUS" if gtid-mode=off.;
+let $assert_text= Last_Seen_Transaction should show "" if no transaction executed;
+let $assert_cond= "$ps_value" = "";
+source include/assert.inc;
+
+--connection master
+CREATE TABLE t1 (a INT);
+DROP TABLE t1;
+--sync_slave_with_master
+
+let $ps_value= query_get_value(select Last_Seen_Transaction from performance_schema.replication_execute_status_by_worker, Last_Seen_Transaction, 1);
+let $assert_text= Last_Seen_Transaction should show "ANONYMOUS" if last transaction was anonymous.;
 let $assert_cond= "$ps_value" = "ANONYMOUS";
 source include/assert.inc;
 
@@ -121,7 +134,7 @@ source include/assert.inc;
 --echo
 
 # Cause an error in Worker thread.
-# 1) Ceate a table 't' at master, replicate at slave.
+# 1) Create a table 't' at master, replicate at slave.
 # 2) Drop table 't' at slave only.
 # 3) Insert a value in table 't' on master and replicate on slave.
 # Since slave doesnt have table 't' anymore, worker thread will report an error.
@@ -149,6 +162,7 @@ let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
 --disable_query_log
+--replace_regex /master-bin.[0-9]+/FILENAME/ /end_log_pos [0-9]+/end_log_pos POSITION/
 select Last_Error_Message from performance_schema.replication_execute_status_by_worker;
 --enable_query_log
 
@@ -202,6 +216,7 @@ let $assert_cond= "$sss_value" = "$ps_value";
 source include/assert.inc;
 
 --disable_query_log
+--replace_regex /master-bin.[0-9]+/FILENAME/ /end_log_pos [0-9]+/end_log_pos POSITION/
 select Last_Error_Message from performance_schema.replication_execute_status_by_worker;
 --enable_query_log
 

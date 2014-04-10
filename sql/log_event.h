@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -834,8 +834,12 @@ typedef struct st_print_event_info
 
 
   /* Settings on how to print the events */
+  // True if the --short-form flag was specified
   bool short_form;
+  // The X in --base64-output=X
   enum_base64_output_mode base64_output_mode;
+  // True if the --skip-gtids flag was specified.
+  bool skip_gtids;
   /*
     This is set whenever a Format_description_event is printed.
     Later, when an event is printed in base64, this flag is tested: if
@@ -874,6 +878,16 @@ typedef struct st_print_event_info
   bool skipped_event_in_transaction;
 } PRINT_EVENT_INFO;
 #endif
+
+/*
+  A specific to the database-scheduled MTS type.
+*/
+typedef struct st_mts_db_names
+{
+  const char *name[MAX_DBS_IN_EVENT_MTS];
+  int  num;
+} Mts_db_names;
+
 
 /**
   @class Log_event
@@ -1210,6 +1224,48 @@ public:
                                    *description_event,
                                    my_bool crc_check);
 
+  /*
+   This function will read the common header into the buffer and
+   rewind the IO_CACHE back to the beginning of the event.
+
+   @param[in]         log_cache The IO_CACHE to read from.
+   @param[in/out]     header The buffer where to read the common header. This
+                      buffer must be at least LOG_EVENT_MINIMAL_HEADER_LEN long.
+
+   @returns           false on success, true otherwise.
+  */
+  inline static bool peek_event_header(char *header, IO_CACHE *log_cache)
+  {
+    DBUG_ENTER("Log_event::peek_event_header");
+    my_off_t old_pos= my_b_safe_tell(log_cache);
+    if (my_b_read(log_cache, (uchar*) header, LOG_EVENT_MINIMAL_HEADER_LEN))
+      DBUG_RETURN(true);
+    my_b_seek(log_cache, old_pos); // rewind
+    DBUG_RETURN(false);
+  }
+
+  /*
+   This static function will read the event length from the common
+   header that is on the IO_CACHE. Note that the IO_CACHE read position
+   will not be updated.
+
+   @param[in]         log_cache The IO_CACHE to read from.
+   @param[out]        length A pointer to the memory position where to store
+                      the length value.
+
+   @returns           false on success, true otherwise.
+  */
+
+  inline static bool peek_event_length(uint32* length, IO_CACHE *log_cache)
+  {
+    DBUG_ENTER("Log_event::peek_event_length");
+    char header[LOG_EVENT_MINIMAL_HEADER_LEN];
+    if (peek_event_header(header, log_cache))
+      DBUG_RETURN(true);
+    *length= uint4korr(header + EVENT_LEN_OFFSET);
+    DBUG_RETURN(false);
+  }
+
   /**
     Reads an event from a binlog or relay log. Used by the dump thread
     this method reads the event into a raw buffer without parsing it.
@@ -1304,7 +1360,7 @@ public:
   /* Placement version of the above operators */
   static void *operator new(size_t, void* ptr) { return ptr; }
   static void operator delete(void*, void*) { }
-  bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, ulong data_length);
+  bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t data_length);
 
 #ifdef MYSQL_SERVER
   bool write_header(IO_CACHE* file, ulong data_length);
@@ -1482,27 +1538,35 @@ private:
   */
   Slave_worker *get_slave_worker(Relay_log_info *rli);
 
-  /*
-    The method returns a list of updated by the event databases.
-    Other than in the case of Query-log-event the list is just one item.
+  /**
+     The method fills in pointers to event's database name c-strings
+     to a supplied array.
+     In other than Query-log-event case the returned array contains
+     just one item.
+     @param[out] arg pointer to a struct containing char* array
+                     pointers to be filled in and the number
+                     of filled instances.
+
+     @return     number of the filled intances indicating how many
+                 databases the event accesses.
   */
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
   {
-    List<char> *res= new List<char>;
-    res->push_back(strdup_root(mem_root, get_db()));
-    return res;
+    arg->name[0]= get_db();
+
+    return arg->num= mts_number_dbs();
   }
 
   /*
     Group of events can be marked to force its execution
     in isolation from any other Workers.
-    Typically that is done for a transaction that contains 
+    Typically that is done for a transaction that contains
     a query accessing more than OVER_MAX_DBS_IN_EVENT_MTS databases.
     Factually that's a sequential mode where a Worker remains to
     be the applier.
   */
   virtual void set_mts_isolate_group()
-  { 
+  {
     DBUG_ASSERT(ends_group() ||
                 get_type_code() == QUERY_EVENT ||
                 get_type_code() == EXEC_LOAD_EVENT ||
@@ -1580,7 +1644,12 @@ public:
    */
   enum_skip_reason shall_skip(Relay_log_info *rli)
   {
-    return do_shall_skip(rli);
+    DBUG_ENTER("Log_event::shall_skip");
+    enum_skip_reason ret= do_shall_skip(rli);
+    DBUG_PRINT("info", ("skip reason=%d=%s", ret,
+                        ret==EVENT_SKIP_NOT ? "NOT" :
+                        ret==EVENT_SKIP_IGNORE ? "IGNORE" : "COUNT"));
+    DBUG_RETURN(ret);
   }
 
   /**
@@ -2085,8 +2154,8 @@ public:
     we pass it with q_len, so we would not have to call strlen()
     otherwise, set it to 0, in which case, we compute it with strlen()
   */
-  uint32 q_len;
-  uint32 db_len;
+  size_t q_len;
+  size_t db_len;
   uint16 error_code;
   ulong thread_id;
   /*
@@ -2178,17 +2247,21 @@ public:
   const char* get_db() { return db; }
 
   /**
-     Returns a list of updated databases or the default db single item list
-     in case of the number of databases exceeds MAX_DBS_IN_EVENT_MTS.
+     @param[out] arg pointer to a struct containing char* array
+                     pointers be filled in and the number of
+                     filled instances.
+                     In case the number exceeds MAX_DBS_IN_EVENT_MTS,
+                     the overfill is indicated with assigning the number to
+                     OVER_MAX_DBS_IN_EVENT_MTS.
+
+     @return     number of databases in the array or OVER_MAX_DBS_IN_EVENT_MTS.
   */
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  virtual uint8 get_mts_dbs(Mts_db_names* arg)
   {
-    List<char> *res= new (mem_root) List<char>;
     if (mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS)
     {
       // the empty string db name is special to indicate sequential applying
       mts_accessed_db_names[0][0]= 0;
-      res->push_back((char*) mts_accessed_db_names[0]);
     }
     else
     {
@@ -2205,11 +2278,10 @@ public:
           if (strcmp(db_name, db_filtered))
             db_name= (char*)db_filtered;
         }
-
-        res->push_back(db_name);
+        arg->name[i]= db_name;
       }
     }
-    return res;
+    return arg->num= mts_accessed_dbs;
   }
 
   void attach_temp_tables_worker(THD*, const Relay_log_info *);
@@ -2277,8 +2349,8 @@ public:        /* !!! Public in this patch to allow old usage */
      */
     return !strncmp(query, "BEGIN", q_len) ||
       !strncmp(query, "COMMIT", q_len) ||
-      !strncasecmp(query, "SAVEPOINT", 9) ||
-      !strncasecmp(query, "ROLLBACK", 8);
+      !native_strncasecmp(query, "SAVEPOINT", 9) ||
+      !native_strncasecmp(query, "ROLLBACK", 8);
   }
   /*
     Prepare and commit sequence number. will be set to 0 if the event is not a
@@ -2295,8 +2367,8 @@ public:        /* !!! Public in this patch to allow old usage */
   {  
     return
       !strncmp(query, "COMMIT", q_len) ||
-      (!strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
-       && strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
+      (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
+       && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
   }
 };
 
@@ -3409,11 +3481,16 @@ public:
 #endif
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual uint8 mts_number_dbs() { return OVER_MAX_DBS_IN_EVENT_MTS; }
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  /**
+     @param[out] arg pointer to a struct containing char* array
+                     pointers be filled in and the number of
+                     filled instances.
+
+     @return     number of databases in the array (must be one).
+  */
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
   {
-    List<char> *res= new List<char>;
-    res->push_back(strdup_root(mem_root, ""));
-    return res;
+    return arg->num= mts_number_dbs();
   }
 #endif
 
@@ -3936,19 +4013,26 @@ public:
     return (m_memory != NULL && m_meta_memory != NULL); /* we check malloc */
   }
 
-  virtual int get_data_size() { return (uint) m_data_size; } 
+  virtual int get_data_size() { return (uint) m_data_size; }
 #ifdef MYSQL_SERVER
   virtual int save_field_metadata();
   virtual bool write_data_header(IO_CACHE *file);
   virtual bool write_data_body(IO_CACHE *file);
   virtual const char *get_db() { return m_dbnam; }
   virtual uint8 mts_number_dbs()
-  { 
+  {
     return get_flags(TM_REFERRED_FK_DB_F) ? OVER_MAX_DBS_IN_EVENT_MTS : 1;
   }
-  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  /**
+     @param[out] arg pointer to a struct containing char* array
+                     pointers be filled in and the number of filled instances.
+
+     @return    number of databases in the array: either one or
+                OVER_MAX_DBS_IN_EVENT_MTS, when the Table map event reports
+                foreign keys constraint.
+  */
+  virtual uint8 get_mts_dbs(Mts_db_names *arg)
   {
-    List<char> *res= new List<char>;
     const char *db_name= get_db();
 
     if (!rpl_filter->is_rewrite_empty() && !get_flags(TM_REFERRED_FK_DB_F))
@@ -3960,9 +4044,10 @@ public:
         db_name= db_filtered;
     }
 
-    res->push_back(strdup_root(mem_root,
-                               get_flags(TM_REFERRED_FK_DB_F) ? "" : db_name));
-    return res;
+    if (!get_flags(TM_REFERRED_FK_DB_F))
+      arg->name[0]= db_name;
+
+    return arg->num= mts_number_dbs();
   }
 
 #endif
@@ -4298,6 +4383,19 @@ protected:
   */
   int row_operations_scan_and_key_teardown(int error);
 
+  /**
+    Helper function to check whether there is an auto increment
+    column on the table where the event is to be applied.
+
+    @return true if there is an autoincrement field on the extra
+            columns, false otherwise.
+   */
+  inline bool is_auto_inc_in_extra_columns()
+  {
+    DBUG_ASSERT(m_table);
+    return (m_table->next_number_field &&
+            m_table->next_number_field->field_index >= m_width);
+  }
 #endif
 
 private:
@@ -5106,7 +5204,7 @@ public:
   Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }
 
   bool is_valid() const { return buf != NULL; }
-  int get_data_size() { return buf_size; }
+  int get_data_size() { return static_cast<int>(buf_size); }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -5154,7 +5252,7 @@ public:
 #endif
 
 private:
-  int buf_size;
+  size_t buf_size;
   const uchar *buf;
 };
 
@@ -5210,13 +5308,13 @@ inline void do_server_version_split(char* version, uchar split_versions[3])
  */
 size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
                                    const char* identifier,
-                                   uint length);
+                                   size_t length);
 #else
 size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
 #endif
 size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
                                           const char* identifier,
-                                          uint length);
+                                          size_t length);
 
 /**
   @} (end of group Replication)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value);
 static ulong find_set(TYPELIB *lib, const char *x, uint length,
                       char **err_pos, uint *err_len);
-static char *alloc_query_str(ulong size);
+static char *alloc_query_str(size_t size);
 
 static void field_escape(DYNAMIC_STRING* in, const char *from);
 static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
@@ -109,7 +109,8 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_slave_apply= 0, 
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
-                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0;
+                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
+                opt_secure_auth= 1;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -167,12 +168,12 @@ wrappers, they will terminate the process if there is
 an allocation failure.
 */
 static void init_dynamic_string_checked(DYNAMIC_STRING *str, const char *init_str,
-			    uint init_alloc, uint alloc_increment);
+			    size_t init_alloc, size_t alloc_increment);
 static void dynstr_append_checked(DYNAMIC_STRING* dest, const char* src);
 static void dynstr_set_checked(DYNAMIC_STRING *str, const char *init_str);
 static void dynstr_append_mem_checked(DYNAMIC_STRING *str, const char *append,
-			  uint length);
-static void dynstr_realloc_checked(DYNAMIC_STRING *str, ulong additional_size);
+			  size_t length);
+static void dynstr_realloc_checked(DYNAMIC_STRING *str, size_t additional_size);
 /*
   Constant for detection of default value of default_charset.
   If default_charset is equal to mysql_universal_client_charset, then
@@ -512,6 +513,9 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, 
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tab",'T',
    "Create tab-separated textfile for each table to given path. (Create .sql "
@@ -889,7 +893,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       }
 #if !defined(DBUG_OFF)
       {
-        uint size_for_sql_mode= 0;
+        size_t size_for_sql_mode= 0;
         const char **ptr;
         for (ptr= compatible_mode_names; *ptr; ptr++)
           size_for_sql_mode+= strlen(*ptr);
@@ -1197,9 +1201,9 @@ static int fetch_db_collation(const char *db_name,
 
 
 static char *my_case_str(const char *str,
-                         uint str_len,
+                         size_t str_len,
                          const char *token,
-                         uint token_len)
+                         size_t token_len)
 {
   my_match_t match;
 
@@ -1413,13 +1417,13 @@ static int switch_character_set_results(MYSQL *mysql, const char *cs_name)
 */
 
 static char *cover_definer_clause(const char *stmt_str,
-                                  uint stmt_length,
+                                  size_t stmt_length,
                                   const char *definer_version_str,
-                                  uint definer_version_length,
+                                  size_t definer_version_length,
                                   const char *stmt_version_str,
-                                  uint stmt_version_length,
+                                  size_t stmt_version_length,
                                   const char *keyword_str,
-                                  uint keyword_length)
+                                  size_t keyword_length)
 {
   char *definer_begin= my_case_str(stmt_str, stmt_length,
                                    C_STRING_WITH_LEN(" DEFINER"));
@@ -1602,6 +1606,8 @@ static int connect_to_db(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
+  if (!opt_secure_auth)
+    mysql_options(&mysql_connection,MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -1788,7 +1794,7 @@ static char *quote_for_like(const char *name, char *buff)
     Quote '<' '>' '&' '\"' chars and print a string to the xml_file.
 */
 
-static void print_quoted_xml(FILE *xml_file, const char *str, ulong len,
+static void print_quoted_xml(FILE *xml_file, const char *str, size_t len,
                              my_bool is_attribute_name)
 {
   const char *end;
@@ -2044,7 +2050,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
     squeezed to a single hyphen.
 */
 
-static void print_xml_comment(FILE *xml_file, ulong len,
+static void print_xml_comment(FILE *xml_file, size_t len,
                               const char *comment_string)
 {
   const char* end;
@@ -2161,7 +2167,7 @@ static uint dump_events_for_db(char *db)
   DBUG_ENTER("dump_events_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
 
-  mysql_real_escape_string(mysql, db_name_buff, db, strlen(db));
+  mysql_real_escape_string(mysql, db_name_buff, db, (ulong)strlen(db));
 
   /* nice comments */
   print_comment(sql_file, 0,
@@ -2373,7 +2379,7 @@ static uint dump_routines_for_db(char *db)
   DBUG_ENTER("dump_routines_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
 
-  mysql_real_escape_string(mysql, db_name_buff, db, strlen(db));
+  mysql_real_escape_string(mysql, db_name_buff, db, (ulong)strlen(db));
 
   /* nice comments */
   print_comment(sql_file, 0,
@@ -2575,7 +2581,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
                                 "FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE "
                                 "TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'";
   FILE       *sql_file= md_result_file;
-  int        len;
+  size_t     len;
   my_bool    is_log_table;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
@@ -2640,7 +2646,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       if (strcmp (table_type, "VIEW") == 0)         /* view */
         print_comment(sql_file, 0,
-                      "\n--\n-- Temporary table structure for view %s\n--\n\n",
+                      "\n--\n-- Temporary view structure for view %s\n--\n\n",
                       result_table);
       else
         print_comment(sql_file, 0,
@@ -2667,7 +2673,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         char *scv_buff= NULL;
         my_ulonglong n_cols;
 
-        verbose_msg("-- It's a view, create dummy table for view\n");
+        verbose_msg("-- It's a view, create dummy view\n");
 
         /* save "show create" statement for later */
         if ((row= mysql_fetch_row(result)) && (scv_buff=row[1]))
@@ -2741,7 +2747,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           fprintf(sql_file,
                   "SET @saved_cs_client     = @@character_set_client;\n"
                   "SET character_set_client = utf8;\n"
-                  "/*!50001 CREATE TABLE %s (\n",
+                  "/*!50001 CREATE VIEW %s AS SELECT \n",
                   result_table);
 
           /*
@@ -2750,31 +2756,24 @@ static uint get_table_structure(char *table, char *db, char *table_type,
             there should be a _trailing_ comma.
           */
 
+
           row= mysql_fetch_row(result);
 
           /*
-            The actual column type doesn't matter anyway, since the table will
-            be dropped at run time.
-            We do tinyint to avoid hitting the row size limit.
+            A temporary view is created to resolve the view interdependencies.
+            This temporary view is dropped when the actual view is created.
           */
-          fprintf(sql_file, "  %s tinyint NOT NULL",
+
+          fprintf(sql_file, " 1 AS %s",
                   quote_name(row[0], name_buff, 0));
 
           while((row= mysql_fetch_row(result)))
           {
-            /* col name, col type */
-            fprintf(sql_file, ",\n  %s tinyint NOT NULL",
+            fprintf(sql_file, ",\n 1 AS %s",
                     quote_name(row[0], name_buff, 0));
           }
 
-          /*
-            Stand-in tables are always MyISAM tables as the default
-            engine might have a column-limit that's lower than the
-            number of columns in the view, and MyISAM support is
-            guaranteed to be in the server anyway.
-          */
-          fprintf(sql_file,
-                  "\n) ENGINE=MyISAM */;\n"
+          fprintf(sql_file,"*/;\n"
                   "SET character_set_client = @saved_cs_client;\n");
 
           check_io(sql_file);
@@ -3427,7 +3426,7 @@ static void field_escape(DYNAMIC_STRING* in, const char *from)
 
 
 
-static char *alloc_query_str(ulong size)
+static char *alloc_query_str(size_t size)
 {
   char *query;
 
@@ -3463,7 +3462,8 @@ static void dump_table(char *table, char *db)
   char table_type[NAME_LEN];
   char *result_table, table_buff2[NAME_LEN*2+3], *opt_quoted_table;
   int error= 0;
-  ulong         rownr, row_break, total_length, init_length;
+  ulong         rownr, row_break;
+  size_t        total_length, init_length;
   uint num_fields;
   MYSQL_RES     *res;
   MYSQL_FIELD   *field;
@@ -3853,7 +3853,7 @@ static void dump_table(char *table, char *db)
 
       if (extended_insert)
       {
-        ulong row_length;
+        size_t row_length;
         dynstr_append_checked(&extended_row,")");
         row_length= 2 + extended_row.length;
         if (total_length + row_length < opt_net_buffer_length)
@@ -3971,7 +3971,7 @@ static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
   int i;
   char name_buff[NAME_LEN*2+3];
 
-  mysql_real_escape_string(mysql, name_buff, db, strlen(db));
+  mysql_real_escape_string(mysql, name_buff, db, (ulong)strlen(db));
 
   init_dynamic_string_checked(&where, " AND TABLESPACE_NAME IN ("
                       "SELECT DISTINCT TABLESPACE_NAME FROM"
@@ -3984,7 +3984,7 @@ static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
   for (i=0 ; i<tables ; i++)
   {
     mysql_real_escape_string(mysql, name_buff,
-                             table_names[i], strlen(table_names[i]));
+                             table_names[i], (ulong)strlen(table_names[i]));
 
     dynstr_append_checked(&where, "'");
     dynstr_append_checked(&where, name_buff);
@@ -4015,7 +4015,7 @@ static int dump_tablespaces_for_databases(char** databases)
   {
     char db_name_buff[NAME_LEN*2+3];
     mysql_real_escape_string(mysql, db_name_buff,
-                             databases[i], strlen(databases[i]));
+                             databases[i], (ulong)strlen(databases[i]));
     dynstr_append_checked(&where, "'");
     dynstr_append_checked(&where, db_name_buff);
     dynstr_append_checked(&where, "',");
@@ -5307,7 +5307,7 @@ static char *primary_key_fields(const char *table_name)
   MYSQL_ROW  row;
   /* SHOW KEYS FROM + table name * 2 (escaped) + 2 quotes + \0 */
   char show_keys_buff[15 + NAME_LEN * 2 + 3];
-  uint result_length= 0;
+  size_t result_length= 0;
   char *result= 0;
   char buff[NAME_LEN * 2 + 3];
   char *quoted_field;
@@ -5388,8 +5388,8 @@ cleanup:
 */
 
 static int replace(DYNAMIC_STRING *ds_str,
-                   const char *search_str, ulong search_len,
-                   const char *replace_str, ulong replace_len)
+                   const char *search_str, size_t search_len,
+                   const char *replace_str, size_t replace_len)
 {
   DYNAMIC_STRING ds_tmp;
   const char *start= strstr(ds_str->str, search_str);
@@ -5457,7 +5457,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
 {
   MYSQL_RES  *gtid_purged_res;
   MYSQL_ROW  gtid_set;
-  ulong     num_sets, idx;
+  ulonglong  num_sets, idx;
 
   /* query to get the GTID_EXECUTED */
   if (mysql_query_with_error_report(mysql_con, &gtid_purged_res,
@@ -5629,15 +5629,8 @@ static my_bool get_view_structure(char *table, char* db)
                 "\n--\n-- Final view structure for view %s\n--\n\n",
                 result_table);
 
-  /* Table might not exist if this view was dumped with --tab. */
-  fprintf(sql_file, "/*!50001 DROP TABLE IF EXISTS %s*/;\n", opt_quoted_table);
-  if (opt_drop)
-  {
-    fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n",
-            opt_quoted_table);
-    check_io(sql_file);
-  }
-
+  verbose_msg("-- Dropping the temporary view structure created\n");
+  fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);
 
   my_snprintf(query, sizeof(query),
               "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE, "
@@ -5776,7 +5769,7 @@ static my_bool get_view_structure(char *table, char* db)
 #define DYNAMIC_STR_ERROR_MSG "Couldn't perform DYNAMIC_STRING operation"
 
 static void init_dynamic_string_checked(DYNAMIC_STRING *str, const char *init_str,
-			    uint init_alloc, uint alloc_increment)
+			    size_t init_alloc, size_t alloc_increment)
 {
   if (init_dynamic_string(str, init_str, init_alloc, alloc_increment))
     die(EX_MYSQLERR, DYNAMIC_STR_ERROR_MSG);
@@ -5795,13 +5788,13 @@ static void dynstr_set_checked(DYNAMIC_STRING *str, const char *init_str)
 }
 
 static void dynstr_append_mem_checked(DYNAMIC_STRING *str, const char *append,
-			  uint length)
+			  size_t length)
 {
   if (dynstr_append_mem(str, append, length))
     die(EX_MYSQLERR, DYNAMIC_STR_ERROR_MSG);
 }
 
-static void dynstr_realloc_checked(DYNAMIC_STRING *str, ulong additional_size)
+static void dynstr_realloc_checked(DYNAMIC_STRING *str, size_t additional_size)
 {
   if (dynstr_realloc(str, additional_size))
     die(EX_MYSQLERR, DYNAMIC_STR_ERROR_MSG);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -378,32 +378,6 @@ que_fork_start_command(
 	return(thr);
 }
 
-/****************************************************************//**
-Tests if all the query threads in the same fork have a given state.
-@return TRUE if all the query threads in the same fork were in the
-given state */
-UNIV_INLINE
-ibool
-que_fork_all_thrs_in_state(
-/*=======================*/
-	que_fork_t*	fork,	/*!< in: query fork */
-	ulint		state)	/*!< in: state */
-{
-	que_thr_t*	thr_node;
-
-	for (thr_node = UT_LIST_GET_FIRST(fork->thrs);
-	     thr_node != NULL;
-	     thr_node = UT_LIST_GET_NEXT(thrs, thr_node)) {
-
-		if (thr_node->state != state) {
-
-			return(FALSE);
-		}
-	}
-
-	return(TRUE);
-}
-
 /**********************************************************************//**
 Calls que_graph_free_recursive for statements in a statement list. */
 static
@@ -466,14 +440,7 @@ que_graph_free_recursive(
 
 		thr = static_cast<que_thr_t*>(node);
 
-		if (thr->magic_n != QUE_THR_MAGIC_N) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"que_thr struct appears corrupt;"
-				" magic n %lu",
-				(unsigned long) thr->magic_n);
-			mem_analyze_corruption(thr);
-			ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-		}
+		ut_a(thr->magic_n == QUE_THR_MAGIC_N);
 
 		thr->magic_n = QUE_THR_MAGIC_FREED;
 
@@ -590,11 +557,7 @@ que_graph_free_recursive(
 
 		break;
 	default:
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"que_node struct appears corrupt; type %lu",
-			(unsigned long) que_node_get_type(node));
-		mem_analyze_corruption(node);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
+		ut_error;
 	}
 
 	DBUG_VOID_RETURN;
@@ -871,13 +834,7 @@ que_thr_move_to_run_state_for_mysql(
 	que_thr_t*	thr,	/*!< in: an query thread */
 	trx_t*		trx)	/*!< in: transaction */
 {
-	if (thr->magic_n != QUE_THR_MAGIC_N) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"que_thr struct appears corrupt; magic n %lu",
-			(unsigned long) thr->magic_n);
-		mem_analyze_corruption(thr);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
+	ut_a(thr->magic_n == QUE_THR_MAGIC_N);
 
 	if (!thr->is_active) {
 
@@ -905,14 +862,7 @@ que_thr_stop_for_mysql_no_error(
 	ut_ad(thr->is_active == TRUE);
 	ut_ad(trx->lock.n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);
-
-	if (thr->magic_n != QUE_THR_MAGIC_N) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"que_thr struct appears corrupt; magic n %lu",
-			(unsigned long) thr->magic_n);
-		mem_analyze_corruption(thr);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
+	ut_a(thr->magic_n == QUE_THR_MAGIC_N);
 
 	thr->state = QUE_THR_COMPLETED;
 

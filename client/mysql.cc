@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1136,11 +1136,11 @@ static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 static void kill_query(const char* reason);
-extern "C" sig_handler mysql_end(int sig);
-extern "C" sig_handler handle_ctrlc_signal(int sig);
-extern "C" sig_handler handle_quit_signal(int sig);
+extern "C" void mysql_end(int sig);
+extern "C" void handle_ctrlc_signal(int sig);
+extern "C" void handle_quit_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-static sig_handler window_resize(int sig);
+static void window_resize(int sig);
 #endif
 
 const char DELIMITER_NAME[]= "delimiter";
@@ -1171,7 +1171,7 @@ inline int get_command_index(char cmd_char)
     All client-specific commands are in the first part of commands array
     and have a function to implement it.
   */
-  for (uint i= 0; *commands[i].func; i++)
+  for (uint i= 0; *commands[i].func != NULL; i++)
     if (commands[i].cmd_char == cmd_char)
       return i;
   return -1;
@@ -1323,9 +1323,9 @@ int main(int argc,char *argv[])
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
-  sprintf((char*) glob_buffer.ptr(),
-	  "Your MySQL connection id is %lu\nServer version: %s\n",
-	  mysql_thread_id(&mysql), server_version_string(&mysql));
+  my_snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
+	   "Your MySQL connection id is %lu\nServer version: %s\n",
+	   mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
   put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
@@ -1413,7 +1413,7 @@ int main(int argc,char *argv[])
 #endif
 }
 
-sig_handler mysql_end(int sig)
+void mysql_end(int sig)
 {
   mysql_close(&mysql);
 #ifdef HAVE_READLINE
@@ -1481,7 +1481,7 @@ sig_handler mysql_end(int sig)
   @param [IN]               Signal number
 */
 
-sig_handler handle_ctrlc_signal(int sig)
+void handle_ctrlc_signal(int sig)
 {
   sigint_received= 1;
 
@@ -1507,7 +1507,7 @@ sig_handler handle_ctrlc_signal(int sig)
   @param [IN]               Signal number
 */
 
-sig_handler handle_quit_signal(int sig)
+void handle_quit_signal(int sig)
 {
   const char *reason= "Terminal close";
 
@@ -1575,7 +1575,7 @@ err:
 
 
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-sig_handler window_resize(int sig)
+void window_resize(int sig)
 {
   struct winsize window_size;
 
@@ -3345,8 +3345,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
       char last_char= 0;
 
       int num_name= 0, num_cat= 0;
-      LINT_INIT(num_name);
-      LINT_INIT(num_cat);
 
       if (num_fields == 2)
       {
@@ -3372,7 +3370,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else
     {
       put_info("\nNothing found", INFO_INFO);
-      if (strncasecmp(server_cmd, "help 'contents'", 15) == 0)
+      if (native_strncasecmp(server_cmd, "help 'contents'", 15) == 0)
       {
          put_info("\nPlease check if 'help tables' are loaded.\n", INFO_INFO); 
          goto err;
@@ -3486,7 +3484,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
 
   /* Remove garbage for nicer messages */
-  LINT_INIT(buff[0]);
+  buff[0]= 0;
   remove_cntrl(*buffer);
 
   if (buffer->is_empty())
@@ -4594,6 +4592,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
 {
   char *tmp, buff[FN_REFLEN + 1];
   int select_db;
+  uint warnings;
 
   memset(buff, 0, sizeof(buff));
 
@@ -4675,6 +4674,17 @@ com_use(String *buffer __attribute__((unused)), char *line)
 #endif
   }
 
+
+  if (0 < (warnings= mysql_warning_count(&mysql)))
+  {
+    my_snprintf(buff, sizeof(buff),
+                "Database changed, %u warning%s", warnings,
+                warnings > 1 ? "s" : "");
+    put_info(buff, INFO_INFO);
+    if (show_warnings == 1)
+      print_warnings();
+  }
+  else
   put_info("Database changed",INFO_INFO);
   return 0;
 }
@@ -4799,7 +4809,8 @@ char *get_arg(char *line, my_bool get_next_arg)
   }
   for (start=ptr ; *ptr; ptr++)
   {
-    if (*ptr == '\\' && ptr[1]) // escaped character
+    // if it is a quoted string do not remove backslash
+    if (!quoted && *ptr == '\\' && ptr[1]) // escaped character
     {
       // Remove the backslash
       my_stpmov(ptr, ptr+1);
@@ -5039,8 +5050,7 @@ com_status(String *buffer __attribute__((unused)),
   const char *status_str;
   char buff[40];
   ulonglong id;
-  MYSQL_RES *result;
-  LINT_INIT(result);
+  MYSQL_RES *result= NULL;
 
   if (mysql_real_query_for_lazy(
         C_STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
@@ -5658,8 +5668,7 @@ static void init_username()
   my_free(full_username);
   my_free(part_username);
 
-  MYSQL_RES *result;
-  LINT_INIT(result);
+  MYSQL_RES *result= NULL;
   if (!mysql_query(&mysql,"select USER()") &&
       (result=mysql_use_result(&mysql)))
   {

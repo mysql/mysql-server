@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ struct st_mysql_trace_info
   enum protocol_stage stage;
 };
 
-#define TRACE_DATA(M)   (MYSQL_EXTENSION(M)->trace_data)
+#define TRACE_DATA(M)   (MYSQL_EXTENSION_PTR(M)->trace_data)
 
 
 /*

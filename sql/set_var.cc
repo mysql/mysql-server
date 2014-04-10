@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,8 +193,18 @@ bool sys_var::update(THD *thd, set_var *var)
       (on_update && on_update(this, thd, OPT_GLOBAL));
   }
   else
-    return session_update(thd, var) ||
+  {
+    bool ret= session_update(thd, var) ||
       (on_update && on_update(this, thd, OPT_SESSION));
+
+    if ((!ret) &&
+        thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
+      thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&(var->var->name));
+    if ((!ret) &&
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(&var->var->name);
+    return ret;
+  }
 }
 
 uchar *sys_var::session_value_ptr(THD *thd, LEX_STRING *base)
@@ -737,6 +747,8 @@ int set_var_user::update(THD *thd)
     my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY), MYF(0));
     return -1;
   }
+  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
   return 0;
 }
 
@@ -842,6 +854,22 @@ int set_var_collation_client::update(THD *thd)
   thd->variables.character_set_results= character_set_results;
   thd->variables.collation_connection= collation_connection;
   thd->update_charset();
+
+  /* Mark client collation variables as changed */
+  if (thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
+  {
+    LEX_CSTRING cs_client= {"character_set_client",
+                            sizeof("character_set_client") - 1};
+    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_client);
+    LEX_CSTRING cs_results= {"character_set_results",
+                             sizeof("character_set_results") -1};
+    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_results);
+    LEX_CSTRING cs_connection= {"character_set_connection",
+                                sizeof("character_set_connection") - 1};
+    thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(&cs_connection);
+  }
+  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
   thd->protocol_text.init(thd);
   thd->protocol_binary.init(thd);
   return 0;
