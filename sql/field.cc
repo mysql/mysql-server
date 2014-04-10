@@ -7376,8 +7376,7 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
       If content of the 'from'-address is cached in the 'value'-object
       it is possible that the content needs a character conversion.
     */
-    uint32 dummy_offset;
-    if (!String::needs_conversion(length, cs, field_charset, &dummy_offset))
+    if (!String::needs_conversion_on_storage(length, cs, field_charset))
     {
       Field_blob::store_length(length);
       bmove(ptr+packlength, &from, sizeof(char*));
@@ -7980,7 +7979,7 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
   /* Convert character set if necessary */
-  if (String::needs_conversion(length, cs, field_charset, &not_used))
+  if (String::needs_conversion_on_storage(length, cs, field_charset))
   { 
     uint dummy_errors;
     tmpstr.copy(from, length, cs, field_charset, &dummy_errors);
@@ -8196,12 +8195,11 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
   int err= 0;
   char *not_used;
   uint not_used2;
-  uint32 not_used_offset;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
   /* Convert character set if necessary */
-  if (String::needs_conversion(length, cs, field_charset, &not_used_offset))
+  if (String::needs_conversion_on_storage(length, cs, field_charset))
   { 
     uint dummy_errors;
     tmpstr.copy(from, length, cs, field_charset, &dummy_errors);
