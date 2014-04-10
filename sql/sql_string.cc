@@ -224,6 +224,36 @@ bool String::needs_conversion(uint32 arg_length,
 
 
 /*
+  Checks that the source string can just be copied to the destination string
+  without conversion.
+  Unlike needs_conversion it will require conversion on incoming binary data
+  to ensure the data are verified for vailidity first.
+
+  @param arg_length   Length of string to copy.
+  @param from_cs      Character set to copy from
+  @param to_cs        Character set to copy to
+
+  @return conversion needed
+*/
+bool String::needs_conversion_on_storage(uint32 arg_length,
+                                         CHARSET_INFO *cs_from,
+                                         CHARSET_INFO *cs_to)
+{
+  uint32 offset;
+  return (needs_conversion(arg_length, cs_from, cs_to, &offset) ||
+          (cs_from == &my_charset_bin &&      /* force conversion when storing a binary string */
+           cs_to != &my_charset_bin &&        /* into a non-binary destination */
+           (                                  /* and any of the following is true :*/
+            cs_to->mbminlen != cs_to->mbmaxlen || /* it's a variable length encoding */
+            cs_to->mbminlen > 2 ||            /* longer than 2 bytes : neither 1 byte nor ucs2 */
+            0 != (arg_length % cs_to->mbmaxlen)
+           )
+          )
+         );
+}
+
+
+/*
   Copy a multi-byte character sets with adding leading zeros.
 
   SYNOPSIS
