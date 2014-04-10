@@ -36,8 +36,8 @@ Created 03/11/2014 Shaohua Wang
 #define BULK_LOAD_PFS_PRINT
 #endif
 
-/* Innodb index fill factor during index build. */
-extern	long	innobase_bulk_load_fill_factor;
+/* Innodb B-tree index fill factor for bulk load. */
+extern	long	innobase_fill_factor;
 
 class PageBulk
 {

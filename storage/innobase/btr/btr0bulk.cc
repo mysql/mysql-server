@@ -28,8 +28,8 @@ Created 03/11/2014 Shaohua Wang
 #include "btr0cur.h"
 #include "ibuf0ibuf.h"
 
-/* Innodb index fill factor during index build. */
-long	innobase_bulk_load_fill_factor;
+/* Innodb B-tree index fill factor for bulk load. */
+long	innobase_fill_factor;
 
 /** Initialize members.
 Allocate page and mtr. */
@@ -117,7 +117,7 @@ void PageBulk::init()
 	m_is_comp = page_is_comp(new_page);
 	m_free_space = page_get_free_space_of_empty(m_is_comp);
 	m_reserved_space =
-		UNIV_PAGE_SIZE * (100 - innobase_bulk_load_fill_factor) / 100;
+		UNIV_PAGE_SIZE * (100 - innobase_fill_factor) / 100;
 	m_padding_space =
 		UNIV_PAGE_SIZE - dict_index_zip_pad_optimal_page_size(m_index);
 	m_heap_top = page_header_get_ptr(new_page, PAGE_HEAP_TOP);
@@ -299,7 +299,7 @@ void PageBulk::commit(bool	success)
 		    && !dict_table_is_temporary(m_index->table)
 		    && page_is_leaf(m_page)) {
 			ibuf_set_bitmap_for_bulk_load(
-				m_block, innobase_bulk_load_fill_factor == 100);
+				m_block, innobase_fill_factor == 100);
 		}
 	}
 
