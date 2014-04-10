@@ -283,6 +283,11 @@ else
   esac
 fi
 
+# source other config files
+[ -f /etc/default/mysql ] && . /etc/default/mysql
+[ -f /etc/sysconfig/mysql ] && . /etc/sysconfig/mysql
+[ -f /etc/conf.d/mysql ] && . /etc/conf.d/mysql
+
 case "$mode" in
   'start')
     # Start daemon
