@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@
 #include <mysql/psi/mysql_transaction.h>
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "sql_trigger.h"        // TRG_EXT, TRN_EXT
+#include "opt_costmodel.h"
 #include <my_bit.h>
 #include <list>
 
@@ -338,7 +339,9 @@ redo:
     return is_temp_table ? 
       ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
-  if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
+  LEX_CSTRING cstring_name= {name->str, name->length};
+  if ((plugin= my_plugin_lock_by_name(thd, cstring_name,
+                                      MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
     handlerton *hton= plugin_data(plugin, handlerton *);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
@@ -562,6 +565,8 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT,  "FTS query exceeds result cache limit");
   SETMSG(HA_ERR_TEMP_FILE_WRITE_FAILURE,	ER_DEFAULT(ER_TEMP_FILE_WRITE_FAILURE));
   SETMSG(HA_ERR_INNODB_FORCED_RECOVERY,	ER_DEFAULT(ER_INNODB_FORCED_RECOVERY));
+  SETMSG(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE,  "Too many words in a FTS phrase or proximity search");
+  SETMSG(HA_ERR_TABLE_CORRUPT,		ER_DEFAULT(ER_TABLE_CORRUPT));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -862,6 +867,26 @@ void ha_close_connection(THD* thd)
 {
   plugin_foreach(thd, closecon_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
 }
+
+
+static my_bool kill_handlerton(THD *thd, plugin_ref plugin, void *)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->state == SHOW_OPTION_YES && hton->kill_connection)
+  {
+    if (thd_get_ha_data(thd, hton))
+      hton->kill_connection(hton, thd);
+  }
+
+  return FALSE;
+}
+
+void ha_kill_connection(THD *thd)
+{
+  plugin_foreach(thd, kill_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
+}
+
 
 /* ========================================================================
  ======================= TRANSACTIONS ===================================*/
@@ -1172,31 +1197,35 @@ void ha_close_connection(THD* thd)
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
                        const ulonglong *trxid)
 {
-  THD_TRANS *trans;
   Ha_trx_info *ha_info;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+
   DBUG_ENTER("trans_register_ha");
   DBUG_PRINT("enter",("%s", all ? "all" : "stmt"));
 
+  Ha_trx_info *knownn_trans= trn_ctx->ha_trx_info(trx_scope);
   if (all)
   {
-    trans= &thd->transaction.all;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
     if (thd->tx_read_only)
       thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
     DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
   }
-  else
-    trans= &thd->transaction.stmt;
 
   ha_info= thd->ha_data[ht_arg->slot].ha_info + (all ? 1 : 0);
 
   if (ha_info->is_started())
     DBUG_VOID_RETURN; /* already registered, return */
 
-  ha_info->register_ha(trans, ht_arg);
+  ha_info->register_ha(knownn_trans, ht_arg);
+  trn_ctx->set_ha_trx_info(trx_scope, ha_info);
 
-  trans->no_2pc|=(ht_arg->prepare==0);
-  thd->transaction.xid_state.set_query_id(thd->query_id);
+  if (ht_arg->prepare == 0)
+    trn_ctx->set_no_2pc(trx_scope, true);
+
+  trn_ctx->xid_state()->set_query_id(thd->query_id);
 /*
   Register transaction start in performance schema if not done already.
   By doing this, we handle cases when the transaction is started implicitly in
@@ -1212,7 +1241,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
   if (thd->m_transaction_psi == NULL &&
       ht_arg->db_type != DB_TYPE_BINLOG)
   {
-    const XID *xid= thd->transaction.xid_state.get_xid();
+    const XID *xid= trn_ctx->xid_state()->get_xid();
     my_bool autocommit= !thd->in_multi_stmt_transaction_mode();
     thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
                                          xid, trxid, thd->tx_isolation,
@@ -1231,12 +1260,15 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 int ha_prepare(THD *thd)
 {
   int error=0;
-  Ha_trx_info *ha_info= thd->transaction.all.ha_list;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
   DBUG_ENTER("ha_prepare");
 
-  if (ha_info)
+  if (trn_ctx->is_active(Transaction_ctx::SESSION))
   {
-    for (; ha_info; ha_info= ha_info->next())
+    const Ha_trx_info *ha_info= trn_ctx->ha_trx_info(
+      Transaction_ctx::SESSION);
+
+    while (ha_info)
     {
       int err;
       handlerton *ht= ha_info->ht();
@@ -1257,6 +1289,7 @@ int ha_prepare(THD *thd)
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
+      ha_info= ha_info->next();
     }
   }
 
@@ -1351,7 +1384,10 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     'all' means that this is either an explicit commit issued by
     user, or an implicit commit issued by a DDL.
   */
-  THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
@@ -1359,8 +1395,10 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     the changes are not durable as they might be rolled back if the
     enclosing 'all' transaction is rolled back.
   */
-  bool is_real_trans= all || thd->transaction.all.ha_list == 0;
-  Ha_trx_info *ha_info= trans->ha_list;
+  bool is_real_trans=
+    all || !trn_ctx->is_active(Transaction_ctx::SESSION);
+
+  Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope);
   DBUG_ENTER("ha_commit_trans");
 
   DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
@@ -1371,8 +1409,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     flags will not get propagated to its normal transaction's
     counterpart.
   */
-  DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt);
+  DBUG_ASSERT(!trn_ctx->is_active(Transaction_ctx::STMT) ||
+              !all);
 
   if (thd->in_sub_stmt)
   {
@@ -1410,7 +1448,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       thd->stmt_map.close_transient_cursors();
 
     rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
-    trans->rw_ha_count= rw_ha_count;
+    trn_ctx->set_rw_ha_count(trx_scope, rw_ha_count);
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
@@ -1457,7 +1495,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       goto end;
     }
 
-    if (!trans->no_2pc && (rw_ha_count > 1))
+    if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
       error= tc_log->prepare(thd, all);
   }
   if (error || (error= tc_log->commit(thd, all)))
@@ -1493,7 +1531,7 @@ end:
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
-    thd->transaction.cleanup();
+    trn_ctx->cleanup();
   DBUG_RETURN(error);
 }
 
@@ -1519,8 +1557,11 @@ end:
 int ha_commit_low(THD *thd, bool all, bool run_after_commit)
 {
   int error=0;
-  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+  Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
+
   DBUG_ENTER("ha_commit_low");
 
   if (ha_info)
@@ -1538,25 +1579,22 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
-    trans->ha_list= 0;
-    trans->no_2pc=0;
-    trans->rw_ha_count= 0;
+    trn_ctx->reset_scope(trx_scope);
     if (all)
     {
-      if (thd->transaction.changed_tables)
-        query_cache.invalidate(thd->transaction.changed_tables);
+      trn_ctx->invalidate_changed_tables_in_cache();
     }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (all)
-    thd->transaction.cleanup();
+    trn_ctx->cleanup();
   /*
     When the transaction has been committed, we clear the commit_low
     flag. This allow other parts of the system to check if commit_low
     was called.
   */
-  thd->transaction.flags.commit_low= false;
-  if (run_after_commit && thd->transaction.flags.run_hooks)
+  trn_ctx->m_flags.commit_low= false;
+  if (run_after_commit && thd->get_transaction()->m_flags.run_hooks)
   {
     /*
        If commit succeeded, we call the after_commit hook.
@@ -1567,7 +1605,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     */
     if (!error)
       (void) RUN_HOOK(transaction, after_commit, (thd, all));
-    thd->transaction.flags.run_hooks= false;
+    trn_ctx->m_flags.run_hooks= false;
   }
   DBUG_RETURN(error);
 }
@@ -1575,9 +1613,11 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
 
 int ha_rollback_low(THD *thd, bool all)
 {
-  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
   int error= 0;
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+  Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
 
   if (ha_info)
   {
@@ -1598,9 +1638,7 @@ int ha_rollback_low(THD *thd, bool all)
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
-    trans->ha_list= 0;
-    trans->no_2pc=0;
-    trans->rw_ha_count= 0;
+    trn_ctx->reset_scope(trx_scope);
   }
 
   /*
@@ -1608,7 +1646,7 @@ int ha_rollback_low(THD *thd, bool all)
     transaction hasn't been started in any transactional storage engine.
   */
   if (all && thd->transaction_rollback_request)
-    thd->transaction.xid_state.set_error(thd);
+    trn_ctx->xid_state()->set_error(thd);
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
   return error;
@@ -1618,9 +1656,7 @@ int ha_rollback_low(THD *thd, bool all)
 int ha_rollback_trans(THD *thd, bool all)
 {
   int error=0;
-#ifndef DBUG_OFF
-  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-#endif
+  Transaction_ctx *trn_ctx= thd->get_transaction();
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
@@ -1634,15 +1670,17 @@ int ha_rollback_trans(THD *thd, bool all)
     ha_commit_one_phase() is called with an empty
     transaction.all.ha_list, see why in trans_register_ha()).
   */
-  bool is_real_trans= all || thd->transaction.all.ha_list == NULL;
+  bool is_real_trans=
+    all || !trn_ctx->is_active(Transaction_ctx::SESSION);
+
   DBUG_ENTER("ha_rollback_trans");
 
   /*
     We must not rollback the normal transaction if a statement
     transaction is pending.
   */
-  DBUG_ASSERT(thd->transaction.stmt.ha_list == NULL ||
-              trans == &thd->transaction.stmt);
+  DBUG_ASSERT(!trn_ctx->is_active(Transaction_ctx::STMT) ||
+              !all);
 
   if (thd->in_sub_stmt)
   {
@@ -1674,7 +1712,7 @@ int ha_rollback_trans(THD *thd, bool all)
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
-    thd->transaction.cleanup();
+    trn_ctx->cleanup();
   if (all)
     thd->transaction_rollback_request= FALSE;
 
@@ -1694,13 +1732,11 @@ int ha_rollback_trans(THD *thd, bool all)
     the error log; but we don't want users to wonder why they have this
     message in the error log, so we don't send it.
   */
-#ifndef DBUG_OFF
-  thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
-  thd->transaction.all.dbug_unsafe_rollback_flags("all");
-#endif
-  if (is_real_trans && thd->transaction.all.cannot_safely_rollback() &&
+  if (is_real_trans &&
+      trn_ctx->cannot_safely_rollback(
+        Transaction_ctx::SESSION) &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
-    thd->transaction.push_unsafe_rollback_warnings(thd);
+    trn_ctx->push_unsafe_rollback_warnings(thd);
   DBUG_RETURN(error);
 }
 
@@ -1726,7 +1762,8 @@ int ha_rollback_trans(THD *thd, bool all)
 
 int ha_release_temporary_latches(THD *thd)
 {
-  Ha_trx_info *info;
+  const Ha_trx_info *info;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
 
   /*
     Note that below we assume that only transactional storage engines
@@ -1734,7 +1771,8 @@ int ha_release_temporary_latches(THD *thd)
     we could iterate on thd->open_tables instead (and remove duplicates
     as if (!seen[hton->slot]) { seen[hton->slot]=1; ... }).
   */
-  for (info= thd->transaction.stmt.ha_list; info; info= info->next())
+  for (info= trn_ctx->ha_trx_info(Transaction_ctx::STMT);
+       info; info= info->next())
   {
     handlerton *hton= info->ht();
     if (hton && hton->release_temporary_latches)
@@ -1756,8 +1794,9 @@ int ha_release_temporary_latches(THD *thd)
 bool ha_rollback_to_savepoint_can_release_mdl(THD *thd)
 {
   Ha_trx_info *ha_info;
-  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
-                                        &thd->transaction.all);
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    thd->in_sub_stmt ? Transaction_ctx::STMT : Transaction_ctx::SESSION;
 
   DBUG_ENTER("ha_rollback_to_savepoint_can_release_mdl");
 
@@ -1765,7 +1804,8 @@ bool ha_rollback_to_savepoint_can_release_mdl(THD *thd)
     Checking whether it is safe to release metadata locks after rollback to
     savepoint in all the storage engines that are part of the transaction.
   */
-  for (ha_info= trans->ha_list; ha_info; ha_info= ha_info->next())
+  for (ha_info= trn_ctx->ha_trx_info(trx_scope);
+       ha_info; ha_info= ha_info->next())
   {
     handlerton *ht= ha_info->ht();
     DBUG_ASSERT(ht);
@@ -1781,14 +1821,16 @@ bool ha_rollback_to_savepoint_can_release_mdl(THD *thd)
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
-  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
-                                        &thd->transaction.all);
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Transaction_ctx::enum_trx_scope trx_scope=
+    !thd->in_sub_stmt ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+
   Ha_trx_info *ha_info, *ha_info_next;
 
   DBUG_ENTER("ha_rollback_to_savepoint");
 
-  trans->no_2pc=0;
-  trans->rw_ha_count= 0;
+  trn_ctx->set_rw_ha_count(trx_scope, 0);
+  trn_ctx->set_no_2pc(trx_scope, 0);
   /*
     rolling back to savepoint in all storage engines that were part of the
     transaction when the savepoint was set
@@ -1806,13 +1848,15 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       error=1;
     }
     thd->status_var.ha_savepoint_rollback_count++;
-    trans->no_2pc|= ht->prepare == 0;
+    if (ht->prepare == 0)
+      trn_ctx->set_no_2pc(trx_scope, true);
   }
+
   /*
     rolling back the transaction in all storage engines that were not part of
     the transaction when the savepoint was set
   */
-  for (ha_info= trans->ha_list; ha_info != sv->ha_list;
+  for (ha_info= trn_ctx->ha_trx_info(trx_scope); ha_info != sv->ha_list;
        ha_info= ha_info_next)
   {
     int err;
@@ -1826,7 +1870,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     ha_info_next= ha_info->next();
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
-  trans->ha_list= sv->ha_list;
+  trn_ctx->set_ha_trx_info(trx_scope, sv->ha_list);
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi != NULL)
@@ -1839,8 +1883,10 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 int ha_prepare_low(THD *thd, bool all)
 {
   int error= 0;
-  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  Ha_trx_info *ha_info= trans->ha_list;
+  Transaction_ctx::enum_trx_scope trx_scope=
+    all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+  Ha_trx_info *ha_info= thd->get_transaction()->ha_trx_info(trx_scope);
+
   DBUG_ENTER("ha_prepare_low");
 
   if (ha_info)
@@ -1878,9 +1924,11 @@ int ha_prepare_low(THD *thd, bool all)
 int ha_savepoint(THD *thd, SAVEPOINT *sv)
 {
   int error=0;
-  THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
-                                        &thd->transaction.all);
-  Ha_trx_info *ha_info= trans->ha_list;
+  Transaction_ctx::enum_trx_scope trx_scope=
+    !thd->in_sub_stmt ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+  Ha_trx_info *ha_info= thd->get_transaction()->ha_trx_info(trx_scope);
+  Ha_trx_info *begin_ha_info= ha_info;
+
   DBUG_ENTER("ha_savepoint");
 
   for (; ha_info; ha_info= ha_info->next())
@@ -1905,7 +1953,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
     Remember the list of registered storage engines. All new
     engines are prepended to the beginning of the list.
   */
-  sv->ha_list= trans->ha_list;
+  sv->ha_list= begin_ha_info;
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (!error && thd->m_transaction_psi != NULL)
@@ -3391,6 +3439,9 @@ bool handler::is_fatal_error(int error)
     case HA_ERR_LOCK_WAIT_TIMEOUT:
     case HA_ERR_LOCK_DEADLOCK:
       DBUG_RETURN(false);
+
+    case HA_ERR_NULL_IN_SPATIAL:
+      DBUG_RETURN(false);
   }
 
   // Default is that an error is fatal
@@ -3637,6 +3688,10 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_INNODB_FORCED_RECOVERY:
     textno= ER_INNODB_FORCED_RECOVERY;
     break;
+  case HA_ERR_TABLE_CORRUPT:
+    my_error(ER_TABLE_CORRUPT, errflag, table_share->db.str,
+             table_share->table_name.str);
+    DBUG_VOID_RETURN;
   default:
     {
       /* The error was "unknown" to this function.
@@ -4493,7 +4548,7 @@ int ha_enable_transaction(THD *thd, bool on)
   DBUG_ENTER("ha_enable_transaction");
   DBUG_PRINT("enter", ("on: %d", (int) on));
 
-  if ((thd->transaction.flags.enabled= on))
+  if ((thd->get_transaction()->m_flags.enabled= on))
   {
     /*
       Now all storage engines should have transaction handling enabled.
@@ -4514,10 +4569,10 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
   if (!(error=index_next(buf)))
   {
     my_ptrdiff_t ptrdiff= buf - table->record[0];
-    uchar *UNINIT_VAR(save_record_0);
-    KEY *UNINIT_VAR(key_info);
-    KEY_PART_INFO *UNINIT_VAR(key_part);
-    KEY_PART_INFO *UNINIT_VAR(key_part_end);
+    uchar *save_record_0= NULL;
+    KEY *key_info= NULL;
+    KEY_PART_INFO *key_part= NULL;
+    KEY_PART_INFO *key_part_end= NULL;
 
     /*
       key_cmp_if_same() compares table->record[0] against 'key'.
@@ -5347,7 +5402,7 @@ static my_bool binlog_log_query_handlerton(THD *thd,
 
 void ha_binlog_log_query(THD *thd, handlerton *hton,
                          enum_binlog_command binlog_command,
-                         const char *query, uint query_length,
+                         const char *query, size_t query_length,
                          const char *db, const char *table_name)
 {
   struct binlog_log_query_st b;
@@ -5383,10 +5438,6 @@ int ha_binlog_end(THD* thd)
     performs a random seek, thus the cost is proportional to the number of
     blocks read.
 
-  @todo
-    Consider joining this function and handler::read_time() into one
-    handler::read_time(keynr, records, ranges, bool index_only) function.
-
   @return
     Estimated cost of 'index only' scan
 */
@@ -5402,6 +5453,63 @@ double handler::index_only_read_time(uint keynr, double records)
   return read_time;
 }
 
+
+Cost_estimate handler::table_scan_cost()
+{
+  /*
+    This function returns a Cost_estimate object. The function should be
+    implemented in a way that allows the compiler to use "return value
+    optimization" to avoid creating the temporary object for the return value
+    and use of the copy constructor.
+  */
+
+  const double io_cost= scan_time() * table->cost_model()->io_block_read_cost();
+  Cost_estimate cost;
+  cost.add_io(io_cost);
+  return cost;
+}
+
+  
+Cost_estimate handler::index_scan_cost(uint index, double ranges, double rows)
+{
+  /*
+    This function returns a Cost_estimate object. The function should be
+    implemented in a way that allows the compiler to use "return value
+    optimization" to avoid creating the temporary object for the return value
+    and use of the copy constructor.
+  */
+
+  DBUG_ASSERT(ranges >= 0.0);
+  DBUG_ASSERT(rows >= 0.0);
+
+  const double io_cost= index_only_read_time(index, rows) *
+                        table->cost_model()->io_block_read_cost();
+  Cost_estimate cost;
+  cost.add_io(io_cost);
+  return cost;
+}
+
+
+Cost_estimate handler::read_cost(uint index, double ranges, double rows)
+{
+  /*
+    This function returns a Cost_estimate object. The function should be
+    implemented in a way that allows the compiler to use "return value
+    optimization" to avoid creating the temporary object for the return value
+    and use of the copy constructor.
+  */
+
+  DBUG_ASSERT(ranges >= 0.0);
+  DBUG_ASSERT(rows >= 0.0);
+
+  const double io_cost= read_time(index, static_cast<uint>(ranges),
+                                  static_cast<ha_rows>(rows)) *
+                        table->cost_model()->io_block_read_cost();
+  Cost_estimate cost;
+  cost.add_io(io_cost);
+  return cost;
+}
+  
 
 /**
   Check if key has partially-covered columns
@@ -5448,11 +5556,11 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
   @param seq_init_param  First parameter for seq->init()
   @param n_ranges_arg    Number of ranges in the sequence, or 0 if the caller
                          can't efficiently determine it
-  @param bufsz    INOUT  IN:  Size of the buffer available for use
+  @param bufsz[in,out]   IN:  Size of the buffer available for use
                          OUT: Size of the buffer that is expected to be actually
                               used, or 0 if buffer is not needed.
-  @param flags    INOUT  A combination of HA_MRR_* flags
-  @param cost     OUT    Estimated cost of MRR access
+  @param flags[in,out]   A combination of HA_MRR_* flags
+  @param cost[out]       Estimated cost of MRR access
 
   @note
     This method (or an overriding one in a derived class) must check for
@@ -5552,18 +5660,18 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   
   if (total_rows != HA_POS_ERROR)
   {
+    const Cost_model_table *const cost_model= table->cost_model();
+
     /* The following calculation is the same as in multi_range_read_info(): */
     *flags|= HA_MRR_USE_DEFAULT_IMPL;
     *flags|= HA_MRR_SUPPORT_SORTED;
 
     DBUG_ASSERT(cost->is_zero());
     if (*flags & HA_MRR_INDEX_ONLY)
-      cost->add_io(index_only_read_time(keyno, total_rows) *
-                   Cost_estimate::IO_BLOCK_READ_COST());
+      *cost= index_scan_cost(keyno, n_ranges, total_rows);
     else
-      cost->add_io(read_time(keyno, n_ranges, total_rows) *
-                   Cost_estimate::IO_BLOCK_READ_COST());
-    cost->add_cpu(total_rows * ROW_EVALUATE_COST + 0.01);
+      *cost= read_cost(keyno, n_ranges, total_rows);
+    cost->add_cpu(cost_model->row_evaluate_cost(total_rows) + 0.01);
   }
   return total_rows;
 }
@@ -5590,11 +5698,11 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                          range sequence.
   @param n_rows          Estimated total number of records contained within all
                          of the ranges
-  @param bufsz    INOUT  IN:  Size of the buffer available for use
+  @param bufsz[in,out]   IN:  Size of the buffer available for use
                          OUT: Size of the buffer that will be actually used, or
                               0 if buffer is not needed.
-  @param flags    INOUT  A combination of HA_MRR_* flags
-  @param cost     OUT    Estimated cost of MRR access
+  @param flags[in,out]   A combination of HA_MRR_* flags
+  @param cost[out]       Estimated cost of MRR access
 
   @retval
     0     OK, *cost contains cost of the scan, *bufsz and *flags contain scan
@@ -5616,11 +5724,9 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 
   /* Produce the same cost as non-MRR code does */
   if (*flags & HA_MRR_INDEX_ONLY)
-    cost->add_io(index_only_read_time(keyno, n_rows) * 
-                 Cost_estimate::IO_BLOCK_READ_COST());
+    *cost= index_scan_cost(keyno, n_ranges, n_rows);
   else
-    cost->add_io(read_time(keyno, n_ranges, n_rows) *
-                 Cost_estimate::IO_BLOCK_READ_COST());
+    *cost= read_cost(keyno, n_ranges, n_rows);
   return 0;
 }
 
@@ -6338,7 +6444,6 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
 {
   ha_rows rows_in_last_step;
   uint n_full_steps;
-  double index_read_cost;
 
   const uint elem_size= h->ref_length + 
                         sizeof(void*) * (!MY_TEST(flags & HA_MRR_NO_ASSOCIATION));
@@ -6391,14 +6496,13 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   cost->add_mem(*buffer_size);
 
   /* Total cost of all index accesses */
-  index_read_cost= h->index_only_read_time(keynr, rows);
-  cost->add_io(index_read_cost * Cost_estimate::IO_BLOCK_READ_COST());
+  (*cost)+= h->index_scan_cost(keynr, 1, rows);
 
   /*
     Add CPU cost for processing records (see
     @handler::multi_range_read_info_const()).
   */
-  cost->add_cpu(rows * ROW_EVALUATE_COST);
+  cost->add_cpu(table->cost_model()->row_evaluate_cost(rows));
   return FALSE;
 }
 
@@ -6426,19 +6530,36 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
   {
     get_sweep_read_cost(table, nrows, FALSE, cost);
 
+    /*
+      @todo CostModel: For the old version of the cost model the
+      following code should be used. For the new version of the cost
+      model Cost_model::key_compare_cost() should be used.  When
+      removing support for the old cost model this code should be
+      removed. The reason for this is that we should get rid of the
+      ROWID_COMPARE_SORT_COST and use key_compare_cost() instead. For
+      the current value returned by key_compare_cost() this would
+      overestimate the cost for sorting.
+    */
+
     /* 
       Constant for the cost of doing one key compare operation in the
-      sort operation. We should have used the existing
-      ROWID_COMPARE_COST constant here but this would make the cost
+      sort operation. We should have used the value returned by
+      key_compare_cost() here but this would make the cost
       estimate of sorting very high for queries accessing many
       records. Until this constant is adjusted we introduce a constant
       that is more realistic. @todo: Replace this with
-      ROWID_COMPARE_COST when this have been given a realistic value.
+      key_compare_cost() when this has been given a realistic value.
     */
     const double ROWID_COMPARE_SORT_COST = 0.01;
 
     /* Add cost of qsort call: n * log2(n) * cost(rowid_comparison) */
+    
+    // For the old version of the cost model this cost calculations should
+    // be used....
     const double cpu_sort= nrows * log2(nrows) * ROWID_COMPARE_SORT_COST;
+    // .... For the new cost model something like this should be used...
+    // cpu_sort= nrows * log2(nrows) *
+    //           table->cost_model()->rowid_compare_cost();
     cost->add_cpu(cpu_sort);
   }
 }
@@ -6478,7 +6599,8 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
 
     1 = half_rotation_cost + move_cost * 1/3 * typical_data_file_length
 
-  We define half_rotation_cost as DISK_SEEK_BASE_COST=0.9.
+  We define half_rotation_cost as disk_seek_base_cost() (see
+  Cost_model_server::disk_seek_base_cost()).
 
   @param table             Table to be accessed
   @param nrows             Number of rows to retrieve
@@ -6495,6 +6617,8 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   DBUG_ASSERT(cost->is_zero());
   if(nrows > 0)
   {
+    const Cost_model_table *const cost_model= table->cost_model();
+
     double n_blocks=
       ceil(ulonglong2double(table->file->stats.data_file_length) / IO_SIZE);
     if (n_blocks < 1.0)                         // When data_file_length is 0
@@ -6507,12 +6631,11 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
     DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
                        busy_blocks));
     if (interrupted)
-      cost->add_io(busy_blocks * Cost_estimate::IO_BLOCK_READ_COST());
+      cost->add_io(busy_blocks * cost_model->io_block_read_cost());
     else
       /* Assume reading is done in one 'sweep' */
       cost->add_io(busy_blocks * 
-                   (DISK_SEEK_BASE_COST +
-                    DISK_SEEK_PROP_COST * n_blocks / busy_blocks));
+                   cost_model->disk_seek_cost(n_blocks / busy_blocks));
   }
   DBUG_PRINT("info",("returning cost=%g", cost->total_cost()));
   DBUG_VOID_RETURN;
@@ -6790,9 +6913,9 @@ TYPELIB* ha_known_exts()
 }
 
 
-static bool stat_print(THD *thd, const char *type, uint type_len,
-                       const char *file, uint file_len,
-                       const char *status, uint status_len)
+static bool stat_print(THD *thd, const char *type, size_t type_len,
+                       const char *file, size_t file_len,
+                       const char *status, size_t status_len)
 {
   Protocol *protocol= thd->protocol;
   protocol->prepare_for_resend();

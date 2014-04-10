@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 #include "sql_optimizer.h"  // JOIN
 #include "opt_explain.h"    // join_type_str
 #include <hash.h>
-#include <thr_alarm.h>
 #if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
 #include <malloc.h>
 #elif defined(HAVE_MALLOC_INFO) && defined(HAVE_SYS_MALLOC_H)
@@ -193,29 +192,27 @@ void print_keyuse_array(Opt_trace_context *trace,
 #ifndef DBUG_OFF
 /* purecov: begin inspected */
 
-/* 
+/** 
   Print the current state during query optimization.
 
-  SYNOPSIS
-    print_plan()
-    join         pointer to the structure providing all context info for
-                 the query
-    read_time    the cost of the best partial plan
-    record_count estimate for the number of records returned by the best
-                 partial plan
-    idx          length of the partial QEP in 'join->positions';
-                 also an index in the array 'join->best_ref';
-    info         comment string to appear above the printout
-
-  DESCRIPTION
+  @param join              pointer to the structure providing all context
+                           info for the query
+  @param idx               length of the partial QEP in 'join->positions'
+                           also an index in the array 'join->best_ref'
+  @param record_count      estimate for the number of records returned by
+                           the best partial plan
+  @param read_time         the cost of the best partial plan.
+                           If a complete plan is printed (join->best_read is 
+                           set), this argument is ignored. 
+  @param current_read_time the accumulated cost of the current partial plan
+  @param info              comment string to appear above the printout 
+  
+  @details
     This function prints to the log file DBUG_FILE the members of 'join' that
     are used during query optimization (join->positions, join->best_positions,
     and join->best_ref) and few other related variables (read_time,
     record_count).
     Useful to trace query optimizer functions.
-
-  RETURN
-    None
 */
 
 void
@@ -498,16 +495,6 @@ Open streams:  %10lu\n",
 	 (ulong) table_cache_manager.cached_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);
-
-  ALARM_INFO alarm_info;
-  thr_alarm_info(&alarm_info);
-  printf("\nAlarm status:\n\
-Active alarms:   %u\n\
-Max used alarms: %u\n\
-Next alarm time: %lu\n",
-	 alarm_info.active_alarms,
-	 alarm_info.max_used_alarms,
-	 alarm_info.next_alarm_time);
   display_table_locks();
 #ifdef HAVE_MALLOC_INFO
   printf("\nMemory status:\n");

@@ -22,6 +22,9 @@
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
+#include "sql_time.h"
+
+#define INVALID_DATE "0000-00-00 00:00:00"
 
 using std::min;
 
@@ -331,32 +334,32 @@ ACL_PROXY_USER::print_grant(String *str)
 }
 
 int
-ACL_PROXY_USER::store_pk(TABLE *table, 
-                         const LEX_STRING *host, 
-                         const LEX_STRING *user,
-                         const LEX_STRING *proxied_host, 
-                         const LEX_STRING *proxied_user)
+ACL_PROXY_USER::store_pk(TABLE *table,
+                         const LEX_CSTRING &host,
+                         const LEX_CSTRING &user,
+                         const LEX_CSTRING &proxied_host,
+                         const LEX_CSTRING &proxied_user)
 {
   DBUG_ENTER("ACL_PROXY_USER::store_pk");
   DBUG_PRINT("info", ("host=%s, user=%s, proxied_host=%s, proxied_user=%s",
-                      host->str ? host->str : "<NULL>",
-                      user->str ? user->str : "<NULL>",
-                      proxied_host->str ? proxied_host->str : "<NULL>",
-                      proxied_user->str ? proxied_user->str : "<NULL>"));
-  if (table->field[MYSQL_PROXIES_PRIV_HOST]->store(host->str, 
-                                                   host->length,
+                      host.str ? host.str : "<NULL>",
+                      user.str ? user.str : "<NULL>",
+                      proxied_host.str ? proxied_host.str : "<NULL>",
+                      proxied_user.str ? proxied_user.str : "<NULL>"));
+  if (table->field[MYSQL_PROXIES_PRIV_HOST]->store(host.str,
+                                                   host.length,
                                                    system_charset_info))
     DBUG_RETURN(TRUE);
-  if (table->field[MYSQL_PROXIES_PRIV_USER]->store(user->str, 
-                                                   user->length,
+  if (table->field[MYSQL_PROXIES_PRIV_USER]->store(user.str,
+                                                   user.length,
                                                    system_charset_info))
     DBUG_RETURN(TRUE);
-  if (table->field[MYSQL_PROXIES_PRIV_PROXIED_HOST]->store(proxied_host->str,
-                                                           proxied_host->length,
+  if (table->field[MYSQL_PROXIES_PRIV_PROXIED_HOST]->store(proxied_host.str,
+                                                           proxied_host.length,
                                                            system_charset_info))
     DBUG_RETURN(TRUE);
-  if (table->field[MYSQL_PROXIES_PRIV_PROXIED_USER]->store(proxied_user->str,
-                                                           proxied_user->length,
+  if (table->field[MYSQL_PROXIES_PRIV_PROXIED_USER]->store(proxied_user.str,
+                                                           proxied_user.length,
                                                            system_charset_info))
     DBUG_RETURN(TRUE);
 
@@ -365,10 +368,10 @@ ACL_PROXY_USER::store_pk(TABLE *table,
 
 int
 ACL_PROXY_USER::store_data_record(TABLE *table,
-                                  const LEX_STRING *host,
-                                  const LEX_STRING *user,
-                                  const LEX_STRING *proxied_host,
-                                  const LEX_STRING *proxied_user,
+                                  const LEX_CSTRING &host,
+                                  const LEX_CSTRING &user,
+                                  const LEX_CSTRING &proxied_host,
+                                  const LEX_CSTRING &proxied_user,
                                   bool with_grant,
                                   const char *grantor)
 {
@@ -673,11 +676,11 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     uint key_prefix_len;
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
     col_privs->field[0]->store(host.get_host(),
-                               host.get_host() ? (uint) host.get_host_len() : 0,
+                               host.get_host() ? host.get_host_len() : 0,
                                system_charset_info);
-    col_privs->field[1]->store(db,(uint) strlen(db), system_charset_info);
-    col_privs->field[2]->store(user,(uint) strlen(user), system_charset_info);
-    col_privs->field[3]->store(tname,(uint) strlen(tname), system_charset_info);
+    col_privs->field[1]->store(db, strlen(db), system_charset_info);
+    col_privs->field[2]->store(user, strlen(user), system_charset_info);
+    col_privs->field[3]->store(tname, strlen(tname), system_charset_info);
 
     key_prefix_len= (key_part[0].store_length +
                      key_part[1].store_length +
@@ -1217,7 +1220,7 @@ validate_user_plugin_records()
       /* rule 1 : plugin does exit */
       if (!auth_plugin_is_built_in(acl_user->plugin.str))
       {
-        plugin= plugin_find_by_type(&acl_user->plugin,
+        plugin= plugin_find_by_type(acl_user->plugin,
                                     MYSQL_AUTHENTICATION_PLUGIN);
 
         if (!plugin)
@@ -1289,9 +1292,9 @@ my_bool acl_init(bool dont_read_acl_tables)
     to avoid hash searches and a global mutex lock on every connect
   */
   native_password_plugin= my_plugin_lock_by_name(0,
-           &native_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
+           native_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
   old_password_plugin= my_plugin_lock_by_name(0,
-           &old_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
+           old_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
 
   if (!native_password_plugin || !old_password_plugin)
     DBUG_RETURN(1);
@@ -1580,6 +1583,43 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
             password_expired= true;
           }
         }
+
+	/*
+	   Initalize the values of timestamp and expire after day
+	   to error and true respectively.
+	*/
+	user.password_last_changed.time_type= MYSQL_TIMESTAMP_ERROR;
+	user.use_default_password_lifetime= true;
+	user.password_lifetime= 0;
+
+	if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED)
+        {
+	  if (!table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->is_null())
+	  {
+            char *password_last_changed= get_field(&global_acl_memory,
+	          table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]);
+
+	    if (password_last_changed &&
+	        memcmp(password_last_changed, INVALID_DATE, sizeof(INVALID_DATE)))
+	    {
+	      String str(password_last_changed, &my_charset_bin);
+              str_to_time_with_warn(&str,&(user.password_last_changed));
+	    }
+	  }
+	}
+
+        if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LIFETIME)
+        {
+          if (!table->
+              field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->is_null())
+	  {
+	    char *ptr= get_field(&global_acl_memory,
+		table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]);
+	    user.password_lifetime= ptr ? atoi(ptr) : 0;
+	    user.use_default_password_lifetime= false;
+	  }
+	}
+
       } // end if (table->s->fields >= 31)
       else
       {
@@ -2322,8 +2362,9 @@ void acl_update_user(const char *user, const char *host,
                      const char *x509_subject,
                      USER_RESOURCES  *mqh,
                      ulong privileges,
-                     const LEX_STRING *plugin,
-                     const LEX_STRING *auth)
+                     const LEX_CSTRING &plugin,
+                     const LEX_CSTRING &auth,
+		     MYSQL_TIME password_change_time)
 {
   DBUG_ENTER("acl_update_user");
   mysql_mutex_assert_owner(&acl_cache->lock);
@@ -2337,16 +2378,18 @@ void acl_update_user(const char *user, const char *host,
           (acl_user->host.get_host() &&
           !my_strcasecmp(system_charset_info, host, acl_user->host.get_host())))
       {
-        if (plugin->length > 0)
+        if (plugin.length > 0)
         {
-          acl_user->plugin= *plugin;
+          acl_user->plugin.str= plugin.str;
+          acl_user->plugin.length = plugin.length;
           optimize_plugin_compare_by_pointer(&acl_user->plugin);
           if (!auth_plugin_is_built_in(acl_user->plugin.str))
-            acl_user->plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
-          acl_user->auth_string.str= auth->str ?
-            strmake_root(&global_acl_memory, auth->str,
-                         auth->length) : const_cast<char*>("");
-          acl_user->auth_string.length= auth->length;
+            acl_user->plugin.str= strmake_root(&global_acl_memory,
+                                               plugin.str, plugin.length);
+          acl_user->auth_string.str= auth.str ?
+            strmake_root(&global_acl_memory, auth.str,
+                         auth.length) : const_cast<char*>("");
+          acl_user->auth_string.length= auth.length;
         }
         acl_user->access=privileges;
         if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
@@ -2379,6 +2422,8 @@ void acl_update_user(const char *user, const char *host,
           DBUG_ASSERT(hash_not_ok == 0);
           /* dummy addition to fool the compiler */
           password_len+= hash_not_ok;
+
+	  acl_user->password_last_changed= password_change_time;
         }
         /* search complete: */
         break;
@@ -2397,8 +2442,9 @@ void acl_insert_user(const char *user, const char *host,
                      const char *x509_subject,
                      USER_RESOURCES *mqh,
                      ulong privileges,
-                     const LEX_STRING *plugin,
-                     const LEX_STRING *auth)
+                     const LEX_CSTRING &plugin,
+                     const LEX_CSTRING &auth,
+		     MYSQL_TIME password_change_time)
 {
   DBUG_ENTER("acl_insert_user");
   ACL_USER acl_user;
@@ -2416,16 +2462,17 @@ void acl_insert_user(const char *user, const char *host,
 
   acl_user.user= *user ? strdup_root(&global_acl_memory,user) : 0;
   acl_user.host.update_hostname(*host ? strdup_root(&global_acl_memory, host) : 0);
-  if (plugin->str[0])
+  if (plugin.str[0])
   {
-    acl_user.plugin= *plugin;
+    acl_user.plugin= plugin;
     optimize_plugin_compare_by_pointer(&acl_user.plugin);
     if (!auth_plugin_is_built_in(acl_user.plugin.str))
-      acl_user.plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
-    acl_user.auth_string.str= auth->str ?
-      strmake_root(&global_acl_memory, auth->str,
-                   auth->length) : const_cast<char*>("");
-    acl_user.auth_string.length= auth->length;
+      acl_user.plugin.str= strmake_root(&global_acl_memory,
+                                        plugin.str, plugin.length);
+    acl_user.auth_string.str= auth.str ?
+      strmake_root(&global_acl_memory, auth.str,
+                   auth.length) : const_cast<char*>("");
+    acl_user.auth_string.length= auth.length;
 
     optimize_plugin_compare_by_pointer(&acl_user.plugin);
   }
@@ -2449,6 +2496,12 @@ void acl_insert_user(const char *user, const char *host,
     x509_issuer ? strdup_root(&global_acl_memory, x509_issuer) : 0;
   acl_user.x509_subject=
     x509_subject ? strdup_root(&global_acl_memory, x509_subject) : 0;
+  /*
+    During create user we can never specify a value for password expiry days field.
+  */
+  acl_user.use_default_password_lifetime= true;
+
+  acl_user.password_last_changed= password_change_time;
 
   hash_not_ok= set_user_salt(&acl_user, password, password_len);
   DBUG_ASSERT(hash_not_ok == 0);

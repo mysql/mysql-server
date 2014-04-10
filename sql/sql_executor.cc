@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,6 @@ static int join_read_key(JOIN_TAB *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
 static int join_read_next(READ_RECORD *info);
-static int test_if_quick_select(JOIN_TAB *tab);
 static int join_read_next_same(READ_RECORD *info);
 static int join_read_prev(READ_RECORD *info);
 static int join_ft_read_first(JOIN_TAB *tab);
@@ -133,7 +132,7 @@ JOIN::exec()
       evaluating all conditions except the HAVING clause.
     */
     if (select_lex->cond_value != Item::COND_FALSE &&
-        (!conds || conds->val_int()))
+        (!where_cond || where_cond->val_int()))
     {
       if (result->send_result_set_metadata(*columns_list,
                                            Protocol::SEND_NUM_ROWS |
@@ -149,7 +148,7 @@ JOIN::exec()
         same way it checks for JOIN::cond_value.
       */
       if (((select_lex->having_value != Item::COND_FALSE) &&
-           (!having || having->val_int())) 
+           (!having_cond || having_cond->val_int()))
           && do_send_rows && result->send_data(fields_list))
         error= 1;
       else
@@ -222,7 +221,7 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
                            !select_lex->with_sum_func) ?
     m_select_limit : HA_POS_ERROR;
 
-  tab->tmp_table_param= new TMP_TABLE_PARAM(tmp_table_param);
+  tab->tmp_table_param= new (thd->mem_root) Temp_table_param(tmp_table_param);
   tab->tmp_table_param->skip_create_table= true;
   TABLE* table= create_tmp_table(thd, tab->tmp_table_param, *tmp_table_fields,
                                tmp_table_group, select_distinct && !group_list,
@@ -332,7 +331,7 @@ int JOIN::rollup_send_data(uint idx)
   {
     /* Get reference pointers to sum functions in place */
     copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
-    if ((!having || having->val_int()))
+    if ((!having_cond || having_cond->val_int()))
     {
       if (send_records < unit->select_limit_cnt && do_send_rows &&
 	  result->send_data(rollup.fields[i]))
@@ -373,7 +372,7 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
   {
     /* Get reference pointers to sum functions in place */
     copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
-    if ((!having || having->val_int()))
+    if ((!having_cond || having_cond->val_int()))
     {
       int write_error;
       Item *item;
@@ -747,7 +746,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
       while ((item= it++))
         item->no_rows_in_result();
 
-      if (!join->having || join->having->val_int())
+      if (!join->having_cond || join->having_cond->val_int())
         send_error= join->result->send_data(fields);
     }
     if (!send_error)
@@ -772,7 +771,7 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
   JOIN *join= tab->join;
   TABLE *table= tab->table;
   QEP_tmp_table *op= (QEP_tmp_table *)tab->op;
-  TMP_TABLE_PARAM *tmp_tbl= tab->tmp_table_param;
+  Temp_table_param *tmp_tbl= tab->tmp_table_param;
 
   DBUG_ASSERT(table && op);
 
@@ -830,7 +829,8 @@ void setup_tmptable_write_func(JOIN_TAB *tab)
 
 Next_select_func setup_end_select_func(JOIN *join, JOIN_TAB *tab)
 {
-  TMP_TABLE_PARAM *tmp_tbl= tab ? tab->tmp_table_param : &join->tmp_table_param;
+  Temp_table_param *tmp_tbl=
+    tab ? tab->tmp_table_param : &join->tmp_table_param;
 
   /* 
      Choose method for presenting result to user. Use end_send_group
@@ -876,7 +876,7 @@ do_select(JOIN *join)
 
       @todo: consider calling end_select instead of duplicating code
     */
-    if (!join->conds || join->conds->val_int())
+    if (!join->where_cond || join->where_cond->val_int())
     {
       // HAVING will be checked by end_select
       error= (*end_select)(join, 0, 0);
@@ -913,7 +913,7 @@ do_select(JOIN *join)
       // Mark tables as containing only NULL values
       join->clear();
 
-      if (!join->having || join->having->val_int())
+      if (!join->having_cond || join->having_cond->val_int())
         rc= join->result->send_data(*join->fields);
 
       if (save_nullinfo)
@@ -944,7 +944,7 @@ do_select(JOIN *join)
     following join_tabs in this case, so this rowcount properly represents
     the correct number of qualifying rows.
   */
-  if (join->order)
+  if (join->join_tab && join->order)
   {
     // Save # of found records prior to cleanup
     JOIN_TAB *sort_tab;
@@ -1769,23 +1769,6 @@ int safe_index_read(JOIN_TAB *tab)
 }
 
 
-static int
-test_if_quick_select(JOIN_TAB *tab)
-{
-  mysql_mutex_lock(&tab->join->thd->LOCK_query_plan);
-  tab->select->set_quick(NULL);
-  mysql_mutex_unlock(&tab->join->thd->LOCK_query_plan);
-  const bool ret=
-    tab->select->test_quick_select(tab->join->thd, 
-                                   tab->keys,
-                                   0,          // empty table map
-                                   HA_POS_ERROR, 
-                                   false,      // don't force quick range
-                                   ORDER::ORDER_NOT_RELEVANT);
-  return ret;
-}
-
-
 /**
    Reads content of constant table
    @param tab  table
@@ -1834,18 +1817,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   }
 
   if (tab->type == JT_SYSTEM)
-  {
-    if ((error=join_read_system(tab)))
-    {						// Info for DESCRIBE
-      tab->info= ET_CONST_ROW_NOT_FOUND;
-      /* Mark for EXPLAIN that the row was not found */
-      pos->fanout= 0.0;
-      pos->prefix_record_count= 0.0;
-      pos->ref_depend_map= 0;
-      if (!table->pos_in_table_list->outer_join || error > 0)
-	DBUG_RETURN(error);
-    }
-  }
+    error= join_read_system(tab);
   else
   {
     if (!table->key_read && table->covering_keys.is_set(tab->ref.key) &&
@@ -1857,23 +1829,27 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     }
     error=join_read_const(tab);
     table->set_keyread(FALSE);
-    if (error)
-    {
-      tab->info= ET_UNIQUE_ROW_NOT_FOUND;
-      /* Mark for EXPLAIN that the row was not found */
-      pos->fanout= 0.0;
-      pos->prefix_record_count= 0.0;
-      pos->ref_depend_map= 0;
-      if (!table->pos_in_table_list->outer_join || error > 0)
-	DBUG_RETURN(error);
-    }
   }
 
-  if (*tab->on_expr_ref && !table->null_row)
+  if (error)
+  {
+    tab->info= (tab->type == JT_SYSTEM) ? ET_CONST_ROW_NOT_FOUND :
+      ET_UNIQUE_ROW_NOT_FOUND;
+    /* Mark for EXPLAIN that the row was not found */
+    pos->filter_effect= 1.0;
+    pos->rows_fetched= 0.0;
+    pos->prefix_record_count= 0.0;
+    pos->ref_depend_map= 0;
+    if (!table->pos_in_table_list->outer_join || error > 0)
+      DBUG_RETURN(error);
+  }
+    
+
+  if (tab->join_cond() && !table->null_row)
   {
     // We cannot handle outer-joined tables with expensive join conditions here:
-    DBUG_ASSERT(!(*tab->on_expr_ref)->is_expensive());
-    if ((table->null_row= MY_TEST((*tab->on_expr_ref)->val_int() == 0)))
+    DBUG_ASSERT(!tab->join_cond()->is_expensive());
+    if ((table->null_row= (tab->join_cond()->val_int() == 0)))
       mark_as_null_row(table);  
   }
   if (!table->null_row)
@@ -1881,8 +1857,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 
   /* Check appearance of new constant items in Item_equal objects */
   JOIN *join= tab->join;
-  if (join->conds)
-    update_const_equal_items(join->conds, tab);
+  if (join->where_cond)
+    update_const_equal_items(join->where_cond, tab);
   TABLE_LIST *tbl;
   for (tbl= join->select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
   {
@@ -1891,8 +1867,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     do
     {
       embedded= embedding;
-      if (embedded->join_cond())
-        update_const_equal_items(embedded->join_cond(), tab);
+      if (embedded->optim_join_cond())
+        update_const_equal_items(embedded->optim_join_cond(), tab);
       embedding= embedded->embedding;
     }
     while (embedding &&
@@ -2337,7 +2313,7 @@ join_init_quick_read_record(JOIN_TAB *tab)
 
   /* 
     If this join tab was read through a QUICK for the last record
-    combination from earlier tables, test_if_quick_select() will
+    combination from earlier tables, test_quick_select() will
     delete that quick and effectively close the index. Otherwise, we
     need to close the index before the next join iteration starts
     because the handler object might be reused by a different access
@@ -2347,7 +2323,12 @@ join_init_quick_read_record(JOIN_TAB *tab)
       (tab->table->file->inited != handler::NONE))
     tab->table->file->ha_index_or_rnd_end(); 
 
-  if (test_if_quick_select(tab) == -1)
+  if (tab->select->test_quick_select(tab->join->thd, 
+                                     tab->keys,
+                                     0,          // empty table map
+                                     HA_POS_ERROR, 
+                                     false,      // don't force quick range
+                                     ORDER::ORDER_NOT_RELEVANT) == -1)
     return -1;					/* No possible records */
   return join_init_read_record(tab);
 }
@@ -2668,6 +2649,10 @@ join_read_next_same_or_null(READ_RECORD *info)
   Sets the functions for the selected table access method
 
   @param      tab               Table reference to put access method
+
+  @todo join_init_read_record/join_read_(last|first) set
+  tab->read_record.read_record internally. Do the same in other first record
+  reading functions.
 */
 
 void
@@ -2692,36 +2677,37 @@ pick_table_access_method(JOIN_TAB *tab)
     DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
     tab->read_first_record= join_read_linked_first;
     tab->read_record.read_record= join_read_linked_next;
-    tab->read_record.unlock_row= rr_unlock_row;
     return;
   }
 
-  /**
-    Already set to some non-default value in sql_select.cc?
-    TODO: Move these settings into pick_table_access_method() also
-  */
-  if (tab->read_first_record != NULL)
-    return;  
-
+  DBUG_ASSERT(tab->read_first_record == NULL);
+  // Only some access methods support reversed access:
+  DBUG_ASSERT(!tab->reversed_access || tab->type == JT_REF ||
+              tab->type == JT_INDEX_SCAN);
   // Fall through to set default access functions:
   switch (tab->type) 
   {
   case JT_REF:
-    tab->read_first_record= join_read_always_key;
-    tab->read_record.read_record= join_read_next_same;
-    tab->read_record.unlock_row= rr_unlock_row;
+    if (tab->reversed_access)
+    {
+      tab->read_first_record= join_read_last_key;
+      tab->read_record.read_record= join_read_prev_same;
+    }
+    else
+    {
+      tab->read_first_record= join_read_always_key;
+      tab->read_record.read_record= join_read_next_same;
+    }
     break;
 
   case JT_REF_OR_NULL:
     tab->read_first_record= join_read_always_key_or_null;
     tab->read_record.read_record= join_read_next_same_or_null;
-    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_CONST:
     tab->read_first_record= join_read_const;
     tab->read_record.read_record= join_no_more_records;
-    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_EQ_REF:
@@ -2733,18 +2719,27 @@ pick_table_access_method(JOIN_TAB *tab)
   case JT_FT:
     tab->read_first_record= join_ft_read_first;
     tab->read_record.read_record= join_ft_read_next;
-    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
   case JT_SYSTEM:
     tab->read_first_record= join_read_system;
     tab->read_record.read_record= join_no_more_records;
-    tab->read_record.unlock_row= rr_unlock_row;
     break;
 
+  case JT_INDEX_SCAN:
+    tab->read_first_record= tab->reversed_access ?
+                            join_read_last : join_read_first;
+    break;
+  case JT_ALL:
+  case JT_RANGE:
+  case JT_INDEX_MERGE:
+    tab->read_first_record= (tab->use_quick == QS_DYNAMIC_RANGE) ?
+                            join_init_quick_read_record :
+                            join_init_read_record;
+    break;
   default:
-    tab->read_record.unlock_row= rr_unlock_row;
-    break;  
+    DBUG_ASSERT(0);
+    break;
   }
 }
 
@@ -2783,7 +2778,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       copy_fields(&join->tmp_table_param);
     }
     // Use JOIN's HAVING for the case of tableless SELECT.
-    if (join->having && join->having->val_int() == 0)
+    if (join->having_cond && join->having_cond->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
     error=0;
     if (join->do_send_rows)
@@ -2819,7 +2814,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 	if ((join->primary_tables == 1) &&
             !join->sort_and_group &&
             !join->send_group_parts &&
-            !join->having &&
+            !join->having_cond &&
             !jt->condition() &&
             !(jt->select && jt->select->quick) &&
 	    (jt->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
@@ -2913,7 +2908,7 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
             // Mark tables as containing only NULL values
             join->clear();
 	  }
-	  if (join->having && join->having->val_int() == 0)
+	  if (join->having_cond && join->having_cond->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
 	  else
 	  {
@@ -3381,8 +3376,6 @@ JOIN_TAB::remove_duplicates()
 {
   bool error;
   ulong reclength,offset;
-  uint field_count;
-  List<Item> *field_list= (this-1)->fields;
   DBUG_ENTER("remove_duplicates");
 
   DBUG_ASSERT(join->tmp_tables > 0 && table->s->tmp_table != NO_TMP_TABLE);
@@ -3390,15 +3383,7 @@ JOIN_TAB::remove_duplicates()
 
   table->reginfo.lock_type=TL_WRITE;
 
-  /* Calculate how many saved fields there is in list */
-  field_count=0;
-  List_iterator<Item> it(*field_list);
-  Item *item;
-  while ((item=it++))
-  {
-    if (item->get_tmp_table_field() && ! item->const_item())
-      field_count++;
-  }
+  uint field_count= (this-1)->fields->elements;
 
   if (!field_count && !(join->select_options & OPTION_FOUND_ROWS) && !having) 
   {                    // only const items with no OPTION_FOUND_ROWS
@@ -3827,7 +3812,7 @@ int test_if_item_cache_changed(List<Cached_item> &list)
 */
 
 bool
-setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
+setup_copy_fields(THD *thd, Temp_table_param *param,
 		  Ref_ptr_array ref_pointer_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields)
@@ -3899,20 +3884,15 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	field= item->field;
 	item->result_field=field->new_field(thd->mem_root,field->table, 1);
         /*
-          We need to allocate one extra byte for null handling and
-          another extra byte to not get warnings from purify in
-          Field_string::val_int
+          We need to allocate one extra byte for null handling.
         */
-	if (!(tmp= (uchar*) sql_alloc(field->pack_length()+2)))
+	if (!(tmp= static_cast<uchar*>(sql_alloc(field->pack_length() + 1))))
 	  goto err;
         if (copy)
         {
           DBUG_ASSERT (param->field_count > (uint) (copy - copy_start));
           copy->set(tmp, item->result_field);
-          item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-#ifdef HAVE_purify
-          copy->to_ptr[copy->from_length]= 0;
-#endif
+          item->result_field->move_field(copy->to_ptr, copy->to_null_ptr, 1);
           copy++;
         }
       }
@@ -3974,7 +3954,7 @@ err2:
 */
 
 void
-copy_fields(TMP_TABLE_PARAM *param)
+copy_fields(Temp_table_param *param)
 {
   Copy_field *ptr=param->copy_field;
   Copy_field *end=param->copy_field_end;
@@ -3982,7 +3962,7 @@ copy_fields(TMP_TABLE_PARAM *param)
   DBUG_ASSERT((ptr != NULL && end >= ptr) || (ptr == NULL && end == NULL));
 
   for (; ptr < end; ptr++)
-    (*ptr->do_copy)(ptr);
+    ptr->invoke_do_copy(ptr);
 
   List_iterator_fast<Item> it(param->copy_funcs);
   Item_copy *item;
@@ -4047,7 +4027,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
           DBUG_RETURN(true);                  // Fatal error
         List<Item> list;
         list.push_back(new_field);
-        suv->set_arguments(list);
+        suv->set_arguments(list, true);
         item_field= suv;
       }
       else

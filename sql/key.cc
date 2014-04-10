@@ -140,7 +140,7 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
       length= min<uint>(key_length, key_part->length);
       Field *field= key_part->field;
       const CHARSET_INFO *cs= field->charset();
-      uint bytes= field->get_key_image(to_key, length, Field::itRAW);
+      size_t bytes= field->get_key_image(to_key, length, Field::itRAW);
       if (bytes < length)
         cs->cset->fill(cs, (char*) to_key + bytes, length - bytes, ' ');
     }
@@ -319,7 +319,7 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
                                 FIELDFLAG_PACK)))
     {
       const CHARSET_INFO *cs= key_part->field->charset();
-      uint char_length= key_part->length / cs->mbmaxlen;
+      size_t char_length= key_part->length / cs->mbmaxlen;
       const uchar *pos= table->record[0] + key_part->offset;
       if (length > char_length)
       {
@@ -385,7 +385,7 @@ void field_unpack(String *to, Field *field, const uchar *rec, uint max_length,
         which can break a multi-byte characters in the middle.
         Align, returning not more than "char_length" characters.
       */
-      uint charpos, char_length= max_length / cs->mbmaxlen;
+      size_t charpos, char_length= max_length / cs->mbmaxlen;
       if ((charpos= my_charpos(cs, tmp.ptr(),
                                tmp.ptr() + tmp.length(),
                                char_length)) < tmp.length())
@@ -467,7 +467,11 @@ bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields)
 {
   bitmap_clear_all(&table->tmp_set);
   table->mark_columns_used_by_index_no_reset(idx, &table->tmp_set);
-  if (bitmap_is_overlapping(&table->tmp_set, fields))
+  const bool overlapping= bitmap_is_overlapping(&table->tmp_set, fields);
+  
+  // Clear tmp_set so it can be used elsewhere
+  bitmap_clear_all(&table->tmp_set);
+  if (overlapping)
     return 1;
 
   /*

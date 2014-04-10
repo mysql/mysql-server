@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,11 +33,11 @@ Smart ALTER TABLE
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+#include "fsp0sysspace.h"
 #include "log0log.h"
 #include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
-#include "srv0space.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
 #include "handler0alter.h"
@@ -64,6 +64,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD
 	| Alter_inplace_info::ALTER_COLUMN_ORDER
 	| Alter_inplace_info::DROP_COLUMN
 	| Alter_inplace_info::ADD_COLUMN
+	| Alter_inplace_info::RECREATE_TABLE
 	/*
 	| Alter_inplace_info::ALTER_COLUMN_TYPE
 	*/
@@ -290,18 +291,6 @@ ha_innobase::check_if_supported_inplace_alter(
 	    && !thd_is_strict_mode(user_thd)) {
 		ha_alter_info->unsupported_reason = innobase_get_err_msg(
 			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOT_NULL);
-		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-	}
-
-	/* InnoDB cannot IGNORE when creating unique indexes. IGNORE
-	should silently delete some duplicate rows. Our inplace_alter
-	code will not delete anything from existing indexes. */
-	if (ha_alter_info->ignore
-	    && (ha_alter_info->handler_flags
-		& (Alter_inplace_info::ADD_PK_INDEX
-		   | Alter_inplace_info::ADD_UNIQUE_INDEX))) {
-		ha_alter_info->unsupported_reason = innobase_get_err_msg(
-			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -869,7 +858,7 @@ innobase_get_foreign_key_info(
 			/* Check whether there exist such
 			index in the the index create clause */
 			if (!index && !innobase_find_equiv_index(
-				    column_names, (uint) i,
+				    column_names, static_cast<uint>(i),
 				    ha_alter_info->key_info_buffer,
 				    ha_alter_info->index_add_buffer,
 				    ha_alter_info->index_add_count)) {
@@ -976,6 +965,12 @@ innobase_get_foreign_key_info(
 			}
 
 			referenced_num_col = i;
+		} else {
+			/* Not possible to add a foreign key without a
+			referenced column */
+			mutex_exit(&dict_sys->mutex);
+			my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), tbl_namep);
+			goto err_exit;
 		}
 
 		if (!innobase_init_foreign(
@@ -1096,16 +1091,16 @@ innobase_col_to_mysql(
 		/* These column types should never be shipped to MySQL. */
 		ut_ad(0);
 
-	case DATA_FIXBINARY:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 	case DATA_DECIMAL:
 		/* Above are the valid column types for MySQL data. */
 		ut_ad(flen == len);
 		/* fall through */
+	case DATA_FIXBINARY:
 	case DATA_CHAR:
 		/* We may have flen > len when there is a shorter
-		prefix on a CHAR column. */
+		prefix on the CHAR and BINARY column. */
 		ut_ad(flen >= len);
 #else /* UNIV_DEBUG */
 	default:
@@ -2685,7 +2680,7 @@ prepare_inplace_alter_table_dict(
 		check_if_supported_inplace_alter(). */
 		ut_ad(0);
 		my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-			 thd_query_string(ctx->prebuilt->trx->mysql_thd).str);
+			 thd_query_unsafe(ctx->prebuilt->trx->mysql_thd).str);
 		goto error_handled;
 	}
 
@@ -3561,9 +3556,10 @@ ha_innobase::prepare_inplace_alter_table(
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
-		if (const char* invalid_opt = create_options_are_invalid(
+		const char* invalid_opt = create_options_are_invalid(
 			    user_thd, ha_alter_info->create_info,
-			    prebuilt->table->space != 0)) {
+			    prebuilt->table->space != 0);
+		if (invalid_opt) {
 			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 				 table_type(), invalid_opt);
 			goto err_exit_no_heap;
@@ -5959,11 +5955,15 @@ ha_innobase::commit_inplace_alter_table(
 			/* Generate the redo log for the file
 			operations that will be performed in
 			commit_cache_rebuild(). */
-			fil_mtr_rename_log(ctx->old_table->space,
-					   ctx->old_table->name,
-					   ctx->new_table->space,
-					   ctx->new_table->name,
-					   ctx->tmp_name, &mtr);
+			if (!fil_mtr_rename_log(ctx->old_table,
+						ctx->new_table,
+						ctx->tmp_name, &mtr)) {
+				/* Out of memory. */
+				mtr.set_log_mode(MTR_LOG_NO_REDO);
+				mtr_commit(&mtr);
+				trx_rollback_for_mysql(trx);
+				fail = true;
+			}
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
 		}
@@ -5976,9 +5976,7 @@ ha_innobase::commit_inplace_alter_table(
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_before_commit",
 				log_buffer_flush_to_disk();
 				DBUG_SUICIDE(););
-		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
-		ut_ad(trx_is_rseg_updated(trx));
 
 		/* The following call commits the
 		mini-transaction, making the data dictionary
@@ -5987,7 +5985,11 @@ ha_innobase::commit_inplace_alter_table(
 		log_buffer_flush_to_disk() returns. In the
 		logical sense the commit in the file-based
 		data structures happens here. */
-		trx_commit_low(trx, &mtr);
+		if (!fail) {
+			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+			ut_ad(trx_is_rseg_updated(trx));
+			trx_commit_low(trx, &mtr);
+		}
 
 		/* If server crashes here, the dictionary in
 		InnoDB and MySQL will differ.  The .ibd files
@@ -6089,7 +6091,7 @@ foreign_fail:
 					"InnoDB: dict_load_foreigns()"
 					" returned %u for %s",
 					(unsigned) error,
-					thd_query_string(user_thd)
+					thd_query_unsafe(user_thd)
 					.str);
 				ut_ad(0);
 			} else {

@@ -21,9 +21,15 @@
 #   generate row events but CREATE TABLE without SELECT does not generate
 #   an error.
 ################################################################################
+--source include/not_gtid_enabled.inc
 --source include/have_innodb.inc
 --source include/have_example_plugin.inc
 --source include/have_log_bin.inc
+
+if (`SELECT $PS_PROTOCOL = 1`)
+{
+  --skip Not with ps-protocol
+}
 
 SET @old_binlog_format= @@global.binlog_format;
 --replace_regex /\.dll/.so/

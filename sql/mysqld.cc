@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,14 +104,14 @@
 #include <sys/prctl.h>
 #endif
 
-#include <thr_alarm.h>
 #include <ft_global.h>
 #include <errmsg.h>
 #include "sp_rcontext.h"
-#include "sp_cache.h"
 #include "sql_reload.h"  // reload_acl_and_cache
 #include "sp_head.h"  // init_sp_psi_keys
 #include "event_data_objects.h" //init_scheduler_psi_keys
+
+#include "my_timer.h"    // my_timer_init, my_timer_deinit
 
 #ifdef HAVE_POLL_H
 #include <poll.h>
@@ -266,7 +266,7 @@ extern "C" int gethostname(char *name, int namelen);
 #endif
 
 #ifndef EMBEDDED_LIBRARY
-extern "C" sig_handler handle_fatal_signal(int sig);
+extern "C" void handle_fatal_signal(int sig);
 #endif
 
 /* Constants */
@@ -432,6 +432,7 @@ my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
 uint   opt_large_page_size= 0;
+volatile uint default_password_lifetime= 0;
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -492,14 +493,11 @@ ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
 ulong slave_max_allowed_packet= 0;
 ulong binlog_stmt_cache_size=0;
-my_atomic_rwlock_t opt_binlog_max_flush_queue_time_lock;
 int32 opt_binlog_max_flush_queue_time= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
-my_atomic_rwlock_t global_query_id_lock;
-my_atomic_rwlock_t slave_open_temp_tables_lock;
 ulong aborted_threads;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
@@ -595,7 +593,7 @@ char mysql_real_data_home[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file;
 char *lc_messages_dir_ptr, *log_error_file_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
-int mysql_unpacked_real_data_home_len;
+size_t mysql_unpacked_real_data_home_len;
 uint mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
 const key_map key_map_empty(0);
@@ -656,6 +654,7 @@ SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
+SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 /* Thread specific variables */
 
@@ -1178,7 +1177,7 @@ static void close_connections(void)
   while (socket_listener_active)
   {
     DBUG_PRINT("info",("Killing socket listener"));
-    if (pthread_kill(main_thread_id, thr_client_alarm))
+    if (pthread_kill(main_thread_id, SIGUSR1))
     {
       DBUG_ASSERT(false);
       break;
@@ -1207,7 +1206,6 @@ static void close_connections(void)
     shared_mem_acceptor= NULL;
   }
 #endif
-  end_thr_alarm(0);      // Abort old alarms.
 
   /*
     First signal all threads that it's time to die
@@ -1298,17 +1296,6 @@ void kill_mysql(void)
   DBUG_VOID_RETURN;
 }
 
-extern "C" sig_handler print_signal_warning(int sig)
-{
-  sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-  my_sigset(sig,print_signal_warning);    /* int. thread system calls */
-#endif
-#if !defined(_WIN32)
-  if (sig == SIGALRM)
-    alarm(2);         /* reschedule alarm */
-#endif
-}
 
 static void init_error_log_mutex()
 {
@@ -1353,6 +1340,18 @@ static void mysqld_exit(int exit_code)
   clean_up_error_log_mutex();
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
+#endif
+#if defined(_WIN32)
+  if (Service.IsNT() && start_mode)
+  {
+    Service.Stop();
+  }
+  else
+  {
+    Service.SetShutdownEvent(0);
+    if (hEventShutdown)
+      CloseHandle(hEventShutdown);
+  }
 #endif
   exit(exit_code); /* purecov: inspected */
 }
@@ -1445,13 +1444,12 @@ void clean_up(bool print_message)
   if (tc_log)
     tc_log->close();
   delegates_destroy();
-  xid_cache_free();
+  transaction_cache_free();
   table_def_free();
   mdl_destroy();
   key_caches.delete_elements((void (*)(const char*, uchar*)) free_key_cache);
   multi_keycache_free();
   free_status_vars();
-  end_thr_alarm(1);     /* Free allocated memory */
   query_logger.cleanup();
   my_free_open_file_info();
   if (defaults_argv)
@@ -1490,8 +1488,6 @@ void clean_up(bool print_message)
   (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
-  my_atomic_rwlock_destroy(&opt_binlog_max_flush_queue_time_lock);
-  my_atomic_rwlock_destroy(&global_query_id_lock);
   free_charsets();
   sys_var_end();
   Global_THD_manager::destroy_instance();
@@ -1515,6 +1511,13 @@ void clean_up(bool print_message)
     THR_MALLOC_initialized= false;
     (void) pthread_key_delete(THR_MALLOC);
   }
+
+#ifdef HAVE_MY_TIMER
+  if (have_statement_timeout == SHOW_OPTION_YES)
+    my_timer_deinitialize();
+
+  have_statement_timeout= SHOW_OPTION_DISABLED;
+#endif
 
   /*
     The following lines may never be executed as the main thread may have
@@ -1632,7 +1635,7 @@ static struct passwd *check_user(const char *user)
   }
   if (!user)
   {
-    if (!opt_bootstrap)
+    if (!opt_bootstrap && !opt_help)
     {
       sql_print_error("Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
       unireg_abort(1);
@@ -2084,13 +2087,29 @@ void my_init_signals(void)
 #define SA_NODEFER 0
 #endif
 
+extern "C" void print_signal_warning(int sig)
+{
+  sql_print_warning("Got signal %d from thread %ld", sig, my_thread_id());
+  if (sig == SIGALRM)
+    alarm(2);         /* reschedule alarm */
+}
+
+
 void my_init_signals(void)
 {
   sigset_t set;
   struct sigaction sa;
   DBUG_ENTER("my_init_signals");
 
-  my_sigset(thr_server_alarm,print_signal_warning); // Should never be called!
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= print_signal_warning; // Should never be called!
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(SIGALRM, &l_s, NULL);
+  }
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -2104,9 +2123,7 @@ void my_init_signals(void)
     sa.sa_handler=handle_fatal_signal;
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
-#ifdef SIGBUS
     sigaction(SIGBUS, &sa, NULL);
-#endif
     sigaction(SIGILL, &sa, NULL);
     sigaction(SIGFPE, &sa, NULL);
   }
@@ -2115,14 +2132,22 @@ void my_init_signals(void)
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
     /* Change limits so that we will get a core file */
-    STRUCT_RLIMIT rl;
+    struct rlimit rl;
     rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
     if (setrlimit(RLIMIT_CORE, &rl))
       sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
   }
 #endif
   (void) sigemptyset(&set);
-  my_sigset(SIGPIPE,SIG_IGN);
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= SIG_IGN;
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(SIGPIPE, &l_s, NULL);
+  }
   sigaddset(&set,SIGPIPE);
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
@@ -2132,19 +2157,14 @@ void my_init_signals(void)
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = 0;
   sa.sa_handler = print_signal_warning;
-  sigaction(SIGTERM, &sa, (struct sigaction*) 0);
+  sigaction(SIGTERM, &sa, NULL);
   sa.sa_flags = 0;
   sa.sa_handler = print_signal_warning;
-  sigaction(SIGHUP, &sa, (struct sigaction*) 0);
-#ifdef SIGTSTP
+  sigaction(SIGHUP, &sa, NULL);
   sigaddset(&set,SIGTSTP);
-#endif
-  sigaddset(&set,thr_server_alarm);
-  if (test_flags & TEST_SIGINT)
-    sigdelset(&set,SIGINT);
-  else
+  sigaddset(&set,SIGALRM);
+  if (!(test_flags & TEST_SIGINT))
     sigaddset(&set,SIGINT);
-  sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
 }
@@ -2196,6 +2216,12 @@ static void start_signal_handler(void)
 }
 
 
+extern "C" {
+static void empty_signal_handler(int sig __attribute__((unused)))
+{ }
+}
+
+
 /** This threads handles all signals and alarms. */
 /* ARGSUSED */
 pthread_handler_t signal_hand(void *arg __attribute__((unused)))
@@ -2206,10 +2232,21 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 
   /*
     Setup alarm handler
-    This should actually be '+ max_number_of_slaves' instead of +10,
-    but the +10 should be quite safe.
   */
-  init_thr_alarm(Connection_handler_manager::max_threads + 10);
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= empty_signal_handler;
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(SIGUSR1, &l_s, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+  }
+
   if (test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);     // Setup up SIGINT for debug
@@ -2217,7 +2254,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
   (void) sigemptyset(&set);     // Setup up SIGINT for debug
-  (void) sigaddset(&set,thr_server_alarm);  // For alarms
+  (void) sigaddset(&set,SIGALRM);  // For alarms
   (void) sigaddset(&set,SIGQUIT);
   (void) sigaddset(&set,SIGHUP);
   (void) sigaddset(&set,SIGTERM);
@@ -2280,18 +2317,15 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       if (!abort_loop)
       {
         int not_used;
-  mysql_print_status();   // Print some debug info
-  reload_acl_and_cache((THD*) 0,
-           (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
-            REFRESH_GRANT |
-            REFRESH_THREADS | REFRESH_HOSTS),
-           (TABLE_LIST*) 0, &not_used); // Flush logs
+        mysql_print_status();   // Print some debug info
+        reload_acl_and_cache((THD*) 0,
+                             (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
+                              REFRESH_GRANT |
+                              REFRESH_THREADS | REFRESH_HOSTS),
+                             (TABLE_LIST*) 0, &not_used); // Flush logs
+        /* reenable query logs after the options were reloaded */
+        query_logger.set_handlers(log_output_options);
       }
-      /* reenable query logs after the options were reloaded */
-      query_logger.set_handlers(log_output_options);
-      break;
-    case thr_server_alarm:
-      process_alarm(sig);     // Trigger alarms.
       break;
     default:
       break;          /* purecov: tested */
@@ -2304,7 +2338,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 #endif // !EMBEDDED_LIBRARY
 
 
-#if BACKTRACE_DEMANGLE
+#if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 #include <cxxabi.h>
 extern "C" char *my_demangle(const char *mangled_name, int *status)
 {
@@ -2503,8 +2537,7 @@ SHOW_VAR com_status_vars[]= {
   {"drop_view",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_DROP_VIEW]), SHOW_LONG_STATUS},
   {"empty_query",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EMPTY_QUERY]), SHOW_LONG_STATUS},
   {"execute_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXECUTE]), SHOW_LONG_STATUS},
-  {"explain_other",        (char*) offsetof(STATUS_VAR, com_stat[(uint)
-  SQLCOM_EXPLAIN_OTHER]), SHOW_LONG_STATUS},
+  {"explain_other",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_EXPLAIN_OTHER]), SHOW_LONG_STATUS},
   {"flush",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_FLUSH]), SHOW_LONG_STATUS},
   {"get_diagnostics",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GET_DIAGNOSTICS]), SHOW_LONG_STATUS},
   {"grant",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_GRANT]), SHOW_LONG_STATUS},
@@ -2884,7 +2917,6 @@ int init_common_variables()
 		    "Invalid value for --default-authentication-plugin");
     return 1;
   }
-
   set_server_version();
 
   log_warnings= log_error_verbosity - 1; // backward compatibility
@@ -2901,7 +2933,7 @@ int init_common_variables()
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
          server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
-#ifdef HAVE_LARGE_PAGES
+#ifdef HAVE_LINUX_LARGE_PAGES
   /* Initialize large page size */
   if (opt_large_pages && (opt_large_page_size= my_get_large_page_size()))
   {
@@ -2918,7 +2950,7 @@ int init_common_variables()
        been compiled with large page support
     */
   }
-#endif /* HAVE_LARGE_PAGES */
+#endif /* HAVE_LINUX_LARGE_PAGES */
 #ifdef HAVE_SOLARIS_LARGE_PAGES
 #define LARGE_PAGESIZE (4*1024*1024)  /* 4MB */
 #define SUPER_LARGE_PAGESIZE (256*1024*1024)  /* 256MB */
@@ -3264,7 +3296,6 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
-  sp_cache_init();
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #if defined(_WIN32)
@@ -3542,6 +3573,17 @@ static int init_server_auto_options()
   /* load_defaults require argv[0] is not null */
   char **argv= &name;
   int argc= 1;
+  if (!check_file_permissions(fname))
+  {
+    /*
+      Found a world writable file hence removing it as it is dangerous to write
+      a new UUID into the same file.
+     */
+    my_delete(fname,MYF(MY_WME));
+    sql_print_warning("World-writable config file '%s' has been removed.\n",
+                      fname);
+  }
+
   /* load all options in 'auto.cnf'. */
   if (my_load_defaults(fname, groups, &argc, &argv, NULL))
     DBUG_RETURN(1);
@@ -3657,6 +3699,16 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(1);
 
+#ifdef HAVE_MY_TIMER
+  if (my_timer_initialize())
+    sql_print_error("Failed to initialize timer component (errno %d).", errno);
+  else
+    have_statement_timeout= SHOW_OPTION_YES;
+#else
+  have_statement_timeout= SHOW_OPTION_NO;
+#endif
+
+
   init_server_query_cache();
 
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
@@ -3724,7 +3776,7 @@ static int init_server_components()
   */
   my_charset_error_reporter= charset_error_reporter;
 
-  if (xid_cache_init())
+  if (transaction_cache_init())
   {
     sql_print_error("Out of memory");
     unireg_abort(1);
@@ -3911,6 +3963,26 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
   plugins_are_initialized= TRUE;  /* Don't separate from init function */
 
+  Session_tracker session_track_system_variables_check;
+  LEX_STRING var_list;
+  char *tmp_str;
+  size_t len= strlen(global_system_variables.track_sysvars_ptr);
+  tmp_str= (char *)my_malloc(PSI_NOT_INSTRUMENTED, len*sizeof(char)+2,
+                             MYF(MY_WME));
+  strcpy(tmp_str,global_system_variables.track_sysvars_ptr);
+  var_list.length= len;
+  var_list.str= tmp_str;
+  if (session_track_system_variables_check.server_boot_verify(system_charset_info,
+	                                                      var_list))
+  {
+    sql_print_error("The variable session_track_system_variables either has "
+	            "duplicate values or invalid values.");
+    if (tmp_str)
+      my_free(tmp_str);
+    unireg_abort(1);
+  }
+  if (tmp_str)
+    my_free(tmp_str);
   /* we do want to exit if there are any other unknown options */
   if (remaining_argc > 1)
   {
@@ -3975,8 +4047,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (log_output_options & LOG_TABLE)
   {
     /* Fall back to log files if the csv engine is not loaded. */
-    LEX_STRING csv_name={C_STRING_WITH_LEN("csv")};
-    if (!plugin_is_ready(&csv_name, MYSQL_STORAGE_ENGINE_PLUGIN))
+    LEX_CSTRING csv_name={C_STRING_WITH_LEN("csv")};
+    if (!plugin_is_ready(csv_name, MYSQL_STORAGE_ENGINE_PLUGIN))
     {
       sql_print_error("CSV engine is not present, falling back to the "
                       "log files");
@@ -4057,12 +4129,20 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     */
     mysql_bin_log.set_previous_gtid_set(
       const_cast<Gtid_set*>(gtid_state->get_logged_gtids()));
+
+    mysql_mutex_t *log_lock= mysql_bin_log.get_log_lock();
+    mysql_mutex_lock(log_lock);
+
     if (mysql_bin_log.open_binlog(opt_bin_logname, 0,
                                   max_binlog_size, false,
                                   true/*need_lock_index=true*/,
                                   true/*need_sid_lock=true*/,
                                   NULL))
+    {
+      mysql_mutex_unlock(log_lock);
       unireg_abort(1);
+    }
+    mysql_mutex_unlock(log_lock);
   }
 
 #ifdef HAVE_REPLICATION
@@ -4255,6 +4335,7 @@ int mysqld_main(int argc, char **argv)
       pfs_param.m_hints.m_table_open_cache= table_cache_size;
       pfs_param.m_hints.m_max_connections= max_connections;
       pfs_param.m_hints.m_open_files_limit= requested_open_files;
+      pfs_param.m_hints.m_max_prepared_stmt_count= max_prepared_stmt_count;
       PSI_hook= initialize_performance_schema(&pfs_param);
       if (PSI_hook == NULL)
       {
@@ -4701,16 +4782,6 @@ int mysqld_main(int argc, char **argv)
     sql_print_warning("Could not join signal_thread. error:%d", ret);
 #endif
 
-#if defined(_WIN32)
-  if (Service.IsNT() && start_mode)
-    Service.Stop();
-  else
-  {
-    Service.SetShutdownEvent(0);
-    if (hEventShutdown)
-      CloseHandle(hEventShutdown);
-  }
-#endif
   clean_up(1);
   mysqld_exit(0);
 }
@@ -5053,17 +5124,17 @@ void adjust_open_files_limit(ulong *requested_open_files)
 
     if (open_files_limit == 0)
     {
-      snprintf(msg, sizeof(msg),
-               "Changed limits: max_open_files: %lu (requested %lu)",
-               effective_open_files, request_open_files);
+      my_snprintf(msg, sizeof(msg),
+                  "Changed limits: max_open_files: %lu (requested %lu)",
+                  effective_open_files, request_open_files);
       buffered_logs.buffer(WARNING_LEVEL, msg);
     }
     else
     {
-      snprintf(msg, sizeof(msg),
-               "Could not increase number of max_open_files to "
-               "more than %lu (request: %lu)",
-               effective_open_files, request_open_files);
+      my_snprintf(msg, sizeof(msg),
+                  "Could not increase number of max_open_files to "
+                  "more than %lu (request: %lu)",
+                  effective_open_files, request_open_files);
       buffered_logs.buffer(WARNING_LEVEL, msg);
     }
   }
@@ -5083,9 +5154,9 @@ void adjust_max_connections(ulong requested_open_files)
   {
     char msg[1024];
 
-    snprintf(msg, sizeof(msg),
-             "Changed limits: max_connections: %lu (requested %lu)",
-             limit, max_connections);
+    my_snprintf(msg, sizeof(msg),
+                "Changed limits: max_connections: %lu (requested %lu)",
+                limit, max_connections);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 
     // This can be done unprotected since it is only called on startup.
@@ -5104,9 +5175,9 @@ void adjust_table_cache_size(ulong requested_open_files)
   {
     char msg[1024];
 
-    snprintf(msg, sizeof(msg),
-             "Changed limits: table_cache: %lu (requested %lu)",
-             limit, table_cache_size);
+    my_snprintf(msg, sizeof(msg),
+                "Changed limits: table_cache: %lu (requested %lu)",
+                limit, table_cache_size);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 
     table_cache_size= limit;
@@ -5273,7 +5344,7 @@ struct my_option my_long_options[]=
    "Set up signals usable for debugging.",
    &opt_debugging, &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_LARGE_PAGE_OPTION
+#if defined(HAVE_LINUX_LARGE_PAGES) || defined (HAVE_SOLARIS_LARGE_PAGES)
   {"super-large-pages", 0, "Enable support for super large pages.",
    &opt_super_large_pages, &opt_super_large_pages, 0,
    GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
@@ -5459,12 +5530,7 @@ struct my_option my_long_options[]=
 #endif
   {"symbolic-links", 's', "Enable symbolic link support.",
    &my_enable_symlinks, &my_enable_symlinks, 0, GET_BOOL, NO_ARG,
-   /*
-     The system call realpath() produces warnings under valgrind and
-     purify. These are not suppressed: instead we disable symlinks
-     option if compiled with valgrind support.
-   */
-   IF_PURIFY(0,1), 0, 0, 0, 0, 0},
+   1, 0, 0, 0, 0, 0},
   {"sysdate-is-now", 0,
    "Non-default option to alias SYSDATE() to NOW() to make it safe-replicable. "
    "Since 5.0, SYSDATE() returns a `dynamic' value different for different "
@@ -5543,6 +5609,17 @@ static int show_starttime(THD *thd, SHOW_VAR *var, char *buff)
   var->type= SHOW_LONGLONG;
   var->value= buff;
   *((longlong *)buff)= (longlong) (thd->query_start() - server_start_time);
+  return 0;
+}
+
+static int show_max_used_connections_time(THD *thd, SHOW_VAR *var, char *buff)
+{
+  MYSQL_TIME max_used_connections_time;
+  var->type= SHOW_CHAR;
+  var->value= buff;
+  thd->variables.time_zone->gmt_sec_to_TIME(&max_used_connections_time,
+    Connection_handler_manager::max_used_connections_time);
+  my_datetime_to_str(&max_used_connections_time, buff, 0);
   return 0;
 }
 
@@ -6147,8 +6224,7 @@ SHOW_VAR status_vars[]= {
 #ifndef EMBEDDED_LIBRARY
   {"Connection_errors_accept",   (char*) &show_connection_errors_accept, SHOW_FUNC},
   {"Connection_errors_internal", (char*) &connection_errors_internal, SHOW_LONG},
-  {"Connection_errors_max_connections",
-   (char*) &show_connection_errors_max_connection, SHOW_FUNC},
+  {"Connection_errors_max_connections", (char*) &show_connection_errors_max_connection, SHOW_FUNC},
   {"Connection_errors_peer_address", (char*) &connection_errors_peer_addr, SHOW_LONG},
   {"Connection_errors_select",   (char*) &show_connection_errors_select, SHOW_FUNC},
   {"Connection_errors_tcpwrap",  (char*) &show_connection_errors_tcpwrap, SHOW_FUNC},
@@ -6187,7 +6263,11 @@ SHOW_VAR status_vars[]= {
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
+  {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded), SHOW_LONG_STATUS},
+  {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set), SHOW_LONG_STATUS},
+  {"Max_statement_time_set_failed", (char*) offsetof(STATUS_VAR, max_statement_time_set_failed), SHOW_LONG_STATUS},
   {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections, SHOW_LONG},
+  {"Max_used_connections_time",(char*) &show_max_used_connections_time, SHOW_FUNC},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},
@@ -6256,10 +6336,8 @@ SHOW_VAR status_vars[]= {
   {"Ssl_verify_depth",         (char*) &show_ssl_get_verify_depth, SHOW_FUNC},
   {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
   {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
-  {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before,
-    SHOW_FUNC},
-  {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,
-    SHOW_FUNC},
+  {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before, SHOW_FUNC},
+  {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after, SHOW_FUNC},
 #ifndef HAVE_YASSL
   {"Rsa_public_key",           (char*) &show_rsa_public_key, SHOW_FUNC},
 #endif
@@ -6276,11 +6354,9 @@ SHOW_VAR status_vars[]= {
   {"Tc_log_page_waits",        (char*) &tc_log_page_waits,      SHOW_LONG},
 #endif
 #ifndef EMBEDDED_LIBRARY
-  {"Threads_cached",           (char*) &Per_thread_connection_handler::blocked_pthread_count,
-   SHOW_LONG_NOFLUSH},
+  {"Threads_cached",           (char*) &Per_thread_connection_handler::blocked_pthread_count, SHOW_LONG_NOFLUSH},
 #endif
-  {"Threads_connected",        (char*) &Connection_handler_manager::connection_count,
-   SHOW_INT},
+  {"Threads_connected",        (char*) &Connection_handler_manager::connection_count, SHOW_INT},
   {"Threads_created",          (char*) &show_num_thread_created,   SHOW_FUNC},
   {"Threads_running",          (char*) &show_num_thread_running,   SHOW_FUNC},
   {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
@@ -6481,8 +6557,6 @@ static int mysql_init_variables(void)
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= 1L;  /* Increments on each reload */
   global_query_id= 1L;
-  my_atomic_rwlock_init(&opt_binlog_max_flush_queue_time_lock);
-  my_atomic_rwlock_init(&global_query_id_lock);
   my_stpcpy(server_version, MYSQL_SERVER_VERSION);
   key_caches.empty();
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
@@ -6534,11 +6608,9 @@ static int mysql_init_variables(void)
 #else
   have_ssl=SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_BROKEN_REALPATH
-  have_symlink=SHOW_OPTION_NO;
-#else
-  have_symlink=SHOW_OPTION_YES;
-#endif
+
+  have_symlink= SHOW_OPTION_YES;
+
 #ifdef HAVE_DLOPEN
   have_dlopen=SHOW_OPTION_YES;
 #else
@@ -6968,6 +7040,13 @@ pfs_error:
   case OPT_TABLE_DEFINITION_CACHE:
     table_definition_cache_specified= true;
     break;
+  case OPT_MDL_CACHE_SIZE:
+    push_deprecated_warn_no_replacement(NULL, "--metadata_locks_cache_size");
+    break;
+  case OPT_MDL_HASH_INSTANCES:
+    push_deprecated_warn_no_replacement(NULL,
+                                        "--metadata_locks_hash_instances");
+    break;
   }
   return 0;
 }
@@ -7175,13 +7254,10 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode);
-#if defined(HAVE_BROKEN_REALPATH)
-  my_enable_symlinks= 0;
-  have_symlink=SHOW_OPTION_NO;
-#else
+
   if (!my_enable_symlinks)
-    have_symlink=SHOW_OPTION_DISABLED;
-#endif
+    have_symlink= SHOW_OPTION_DISABLED;
+
   if (opt_debugging)
   {
     /* Allow break with SIGINT, no core or stack trace */
@@ -7245,8 +7321,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
 /*
   Create version name for running mysqld version
-  We automaticly add suffixes -debug, -embedded and -log to the version
-  name to make the version more descriptive.
+  We automaticly add suffixes -debug, -embedded, -log, -valgrind and -asan
+  to the version name to make the version more descriptive.
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
 
@@ -7262,7 +7338,17 @@ static void set_server_version(void)
     end= my_stpcpy(end, "-debug");
 #endif
   if (opt_general_log || opt_slow_log || opt_bin_log)
-    my_stpcpy(end, "-log");                        // This may slow down system
+    end= my_stpcpy(end, "-log");          // This may slow down system
+#ifdef HAVE_VALGRIND
+  if (SERVER_VERSION_LENGTH - (end - server_version) >
+      static_cast<int>(sizeof("-valgrind")))
+    end= my_stpcpy(end, "-valgrind"); 
+#endif
+#ifdef HAVE_ASAN
+  if (SERVER_VERSION_LENGTH - (end - server_version) >
+      static_cast<int>(sizeof("-asan")))
+    end= my_stpcpy(end, "-asan");
+#endif
 }
 
 
@@ -7387,7 +7473,7 @@ static int fix_paths(void)
 
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
   mysql_unpacked_real_data_home_len=
-    (int) strlen(mysql_unpacked_real_data_home);
+    strlen(mysql_unpacked_real_data_home);
   if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
     --mysql_unpacked_real_data_home_len;
 
@@ -7617,7 +7703,7 @@ PSI_mutex_key
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
-  key_LOCK_log_throttle_qni, key_LOCK_query_plan;
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -7630,6 +7716,9 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
+#ifdef HAVE_MY_TIMER
+PSI_mutex_key key_thd_timer_mutex;
+#endif
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7682,6 +7771,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
   { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
+  { &key_LOCK_thd_query, "THD::LOCK_thd_query", 0},
   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
   { &key_LOCK_sql_rand, "LOCK_sql_rand", PSI_FLAG_GLOBAL},
@@ -7706,6 +7796,9 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
+#ifdef HAVE_MY_TIMER
+  { &key_thd_timer_mutex, "thd_timer_mutex", 0},
+#endif
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7805,6 +7898,10 @@ static PSI_cond_info all_server_conds[]=
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand;
 
+#ifdef HAVE_MY_TIMER
+PSI_thread_key key_thread_timer_notifier;
+#endif
+
 static PSI_thread_info all_server_threads[]=
 {
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -7813,6 +7910,9 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
+#ifdef HAVE_MY_TIMER
+  { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_GLOBAL},
+#endif
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
@@ -7910,10 +8010,10 @@ PSI_stage_info stage_invalidating_query_cache_entries_table= { 0, "invalidating 
 PSI_stage_info stage_invalidating_query_cache_entries_table_list= { 0, "invalidating query cache entries (table list)", 0};
 PSI_stage_info stage_killing_slave= { 0, "Killing slave", 0};
 PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
-PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE.", 0};
-PSI_stage_info stage_making_temp_file_create_before_load_data= { 0, "Making temporary file (create) before replaying LOAD DATA INFILE.", 0};
+PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE", 0};
+PSI_stage_info stage_making_temp_file_create_before_load_data= { 0, "Making temporary file (create) before replaying LOAD DATA INFILE", 0};
 PSI_stage_info stage_manage_keys= { 0, "manage keys", 0};
-PSI_stage_info stage_master_has_sent_all_binlog_to_slave= { 0, "Master has sent all binlog to slave; waiting for binlog to be updated", 0};
+PSI_stage_info stage_master_has_sent_all_binlog_to_slave= { 0, "Master has sent all binlog to slave; waiting for more updates", 0};
 PSI_stage_info stage_opening_tables= { 0, "Opening tables", 0};
 PSI_stage_info stage_optimizing= { 0, "optimizing", 0};
 PSI_stage_info stage_preparing= { 0, "preparing", 0};
@@ -7933,7 +8033,7 @@ PSI_stage_info stage_sending_binlog_event_to_slave= { 0, "Sending binlog event t
 PSI_stage_info stage_sending_cached_result_to_client= { 0, "sending cached result to client", 0};
 PSI_stage_info stage_sending_data= { 0, "Sending data", 0};
 PSI_stage_info stage_setup= { 0, "setup", 0};
-PSI_stage_info stage_slave_has_read_all_relay_log= { 0, "Slave has read all relay log; waiting for the slave I/O thread to update it", 0};
+PSI_stage_info stage_slave_has_read_all_relay_log= { 0, "Slave has read all relay log; waiting for more updates", 0};
 PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
 PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
@@ -7965,13 +8065,13 @@ PSI_stage_info stage_waiting_for_query_cache_lock= { 0, "Waiting for query cache
 PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0};
 PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Waiting for the slave SQL thread to advance position", 0};
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
-PSI_stage_info stage_waiting_to_get_readlock= { 0, "Waiting to get readlock", 0};
 PSI_stage_info stage_slave_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0};
 PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting for Slave Worker to release partition", 0};
 PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
 PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
 PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
-PSI_stage_info stage_slave_waiiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
+PSI_stage_info stage_slave_waiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
+PSI_stage_info stage_starting= { 0, "starting", 0};
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_stage_info *all_server_stages[]=
@@ -8069,7 +8169,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
-  & stage_waiting_to_get_readlock
+  & stage_starting
 };
 
 PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
@@ -8204,6 +8304,11 @@ PSI_memory_key key_memory_READ_RECORD_cache;
 PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_File_query_log_name;
 PSI_memory_key key_memory_Table_trigger_dispatcher;
+#ifdef HAVE_MY_TIMER
+PSI_memory_key key_memory_thd_timer;
+#endif
+PSI_memory_key key_memory_THD_Session_tracker;
+PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_server_memory[]=
@@ -8341,7 +8446,13 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_READ_RECORD_cache, "READ_RECORD_cache", 0},
   { &key_memory_Quick_ranges, "Quick_ranges", 0},
   { &key_memory_File_query_log_name, "File_query_log::name", 0},
-  { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0}
+  { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0},
+#ifdef HAVE_MY_TIMER
+  { &key_memory_thd_timer, "thd_timer", 0},
+#endif
+  { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0},
+  { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
+  { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0}
 };
 
 /* TODO: find a good header */

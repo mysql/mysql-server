@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,8 +109,8 @@ struct MBR
   void add_xy(const char *px, const char *py)
   {
     double x, y;
-    float8get(x, px);
-    float8get(y, py);
+    float8get(&x, px);
+    float8get(&y, py);
     add_xy(x,y);
   }
   void add_mbr(const MBR *mbr)
@@ -211,10 +211,8 @@ struct MBR
     if (d != mbr->dimension() || d <= 0 || contains(mbr) || within(mbr))
       return 0;
 
-    using std::min;
-    using std::max;
-    MBR intersection(max(xmin, mbr->xmin), max(ymin, mbr->ymin),
-                     min(xmax, mbr->xmax), min(ymax, mbr->ymax));
+    MBR intersection(std::max(xmin, mbr->xmin), std::max(ymin, mbr->ymin),
+                     std::min(xmax, mbr->xmax), std::min(ymax, mbr->ymax));
 
     return (d == intersection.dimension());
   }
@@ -342,7 +340,7 @@ public:
     }
     void get_float8(double *x)
     {
-      float8get(*x, m_data);      //GIS-TODO: byte order
+      float8get(x, m_data);      //GIS-TODO: byte order
     }
   public:
     wkb_parser(const char *data, const char *data_end):

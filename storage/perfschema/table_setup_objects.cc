@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -72,7 +72,6 @@ table_setup_objects::m_share=
   table_setup_objects::write_row,
   table_setup_objects::delete_all_rows,
   table_setup_objects::get_row_count,
-  1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,

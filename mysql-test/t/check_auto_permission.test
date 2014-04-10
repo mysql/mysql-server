@@ -1,0 +1,60 @@
+#############################################################################
+# Bug#17786581:SERVER WRITES INTO WORLD-WRITEABLE FILE EVEN AFTER WARNING ABOUT
+# IT.
+#
+# Problem:
+# ========
+# UUID exists in a file named "auto.cnf", make this auto.cnf  file as world
+# writable. The server starts, and it sees the auto.cnf is world writable and
+# writes a following warning:
+#
+# Warning: World-writable con-fig file './auto.cnf' is ignored
+#
+# A new UUID is generated and the new UUID is once again  written to the same
+# world writable file which is not safe.
+#
+# Test:
+# =====
+# During the execution of the script change file permissions of 'auto.cnf' to
+# 777. Restart the server and check that the newly generated 'auto.cnf' file
+# has valid 660 file permissions.
+###############################################################################
+# Run only on Linux:Since file permissions vary from one os to the other
+# we execute this script only on linux to avoid test failures.
+--source include/linux.inc
+# include/restart_mysqld.inc does not work in embedded mode
+--source include/not_embedded.inc
+
+CALL mtr.add_suppression("World-writable config file './auto.cnf' is ignored");
+CALL mtr.add_suppression("World-writable config file './auto.cnf' has been removed.");
+
+# Change file permissions to world writable
+--let $MYSQL_DATA_DIR=`select @@datadir`
+--let _INPUT_FILE_=$MYSQL_DATA_DIR/auto.cnf
+--let _FILE_PERMS_=0777
+--source include/change_file_perms.inc
+
+# Restart the server
+--source include/restart_mysqld.inc
+
+# Check that it has 660 valid permissions.
+--perl
+ use strict;
+ my $input_file= $ENV{'_INPUT_FILE_'};
+ my $mode = (stat($input_file))[2];
+ open(FILE, ">", "$ENV{MYSQL_TMP_DIR}/permissions.inc") or die;
+ my $perm= $mode & 07777;
+ print FILE "let \$FILE_PERMISSIONS= $perm;\n";
+ close FILE;
+EOF
+
+--source $MYSQL_TMP_DIR/permissions.inc
+--remove_file $MYSQL_TMP_DIR/permissions.inc
+
+--let $assert_cond= $FILE_PERMISSIONS= 432
+--let $assert_text= File permissions should be equl to decimal 432(i.e octal 660).
+--source include/assert.inc
+
+# Clear
+--let _FILE_PERMS_=
+--let _INPUT_FILE_=

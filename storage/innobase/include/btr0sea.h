@@ -141,17 +141,16 @@ btr_search_drop_page_hash_index(
 				s- or x-latched, or an index page
 				for which we know that
 				block->buf_fix_count == 0 */
-/********************************************************************//**
-Drops a possible page hash index when a page is evicted from the buffer pool
-or freed in a file segment. */
 
+/** Drops a possible page hash index when a page is evicted from the
+buffer pool or freed in a file segment.
+@param[in]	page_id		page id
+@param[in]	page_size	page size */
 void
 btr_search_drop_page_hash_when_freed(
-/*=================================*/
-	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no);	/*!< in: page number */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size);
+
 /********************************************************************//**
 Updates the page hash index when a single record is inserted on a page. */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1350,7 +1350,7 @@ static const double tinytens[]=
 static double my_strtod_int(const char *s00, char **se, int *error, char *buf, size_t buf_size)
 {
   int scale;
-  int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, UNINIT_VAR(c), dsign,
+  int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c= 0, dsign,
      e, e1, esign, i, j, k, nd, nd0, nf, nz, nz0, sign;
   const char *s, *s0, *s1, *end = *se;
   double aadj, aadj1;
@@ -2162,8 +2162,8 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
     to hold the suppressed trailing zeros.
   */
 
-  int bbits, b2, b5, be, dig, i, ieps, UNINIT_VAR(ilim), ilim0, 
-    UNINIT_VAR(ilim1), j, j1, k, k0, k_check, leftright, m2, m5, s2, s5,
+  int bbits, b2, b5, be, dig, i, ieps, ilim= 0, ilim0,
+    ilim1= 0, j, j1, k, k0, k_check, leftright, m2, m5, s2, s5,
     spec_case, try_quick;
   Long L;
   int denorm;

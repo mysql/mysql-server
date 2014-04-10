@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,6 +79,7 @@ row_undo_ins_remove_clust_rec(
 	ut_ad(node->trx->in_rollback);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	/* This is similar to row_undo_mod_clust(). The DDL thread may
@@ -114,8 +115,7 @@ row_undo_ins_remove_clust_rec(
 		mem_heap_t*	heap	= NULL;
 		const ulint*	offsets	= rec_get_offsets(
 			rec, index, NULL, ULINT_UNDEFINED, &heap);
-		row_log_table_delete(
-			rec, index, offsets, true, node->trx->id);
+		row_log_table_delete(rec, index, offsets, NULL);
 		mem_heap_free(heap);
 	}
 
@@ -146,6 +146,7 @@ row_undo_ins_remove_clust_rec(
 retry:
 	/* If did not succeed, try pessimistic descent to tree */
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	success = btr_pcur_restore_position(
@@ -199,6 +200,7 @@ row_undo_ins_remove_sec_low(
 	log_free_check();
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (mode == BTR_MODIFY_LEAF) {

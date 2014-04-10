@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "my_sys.h" // my_strerror()
 #include "my_base.h" // HA_ERR_KEY_NOT_FOUND
+#include "m_string.h" // native_strcasecmp
 #include <string.h>
 
 namespace my_error_unittest {
@@ -29,9 +30,9 @@ TEST(MyErrorTest, MyStrErrorSystem)
   const char *msg;
 
   msg= my_strerror(buf, sizeof(buf) - 1, 9999);
-  EXPECT_TRUE(!strcasecmp("unknown error", msg) ||
-              !strcasecmp("unknown error: 9999", msg) ||
-              !strcasecmp("unknown error 9999", msg))
+  EXPECT_TRUE(!native_strcasecmp("unknown error", msg) ||
+              !native_strcasecmp("unknown error: 9999", msg) ||
+              !native_strcasecmp("unknown error 9999", msg))
     << "msg<" << msg << ">";
 
   // try a proper error number

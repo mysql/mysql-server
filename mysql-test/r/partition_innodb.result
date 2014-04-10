@@ -211,13 +211,13 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 90)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 89)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 89)
@@ -466,7 +466,7 @@ partition p1 values less than (2007));
 explain partitions select * from t1
 where a between '2006-01-01' and '2007-06-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '2006-01-01' and '2007-06-01')
@@ -580,13 +580,11 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT, b TIMESTAMP DEFAULT '0000-00-00 00:00:00')
 ENGINE=INNODB PARTITION BY LINEAR HASH (a) PARTITIONS 1;
 SET @old_mode = @@sql_mode;
-SET SESSION sql_mode = 'NO_ZERO_DATE';
+SET SESSION sql_mode = '';
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
-Warnings:
-Warning	1264	Out of range value for column 'b' at row 1
 SET SESSION sql_mode = @old_mode;
 DROP TABLE t1;
 #
@@ -617,3 +615,38 @@ a	b
 1	2
 0	1
 DROP TABLE t1;
+#
+# Bug#16943907: FLUSH TABLES FOR EXPORT: ASSERTION IN HA_PARTITION::EXTRA
+#
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
+PARTITION BY HASH (a) PARTITIONS 2;
+FLUSH TABLES t1 FOR EXPORT;
+# List of files after EXPORT (should include a .cfg file for each part).
+t1#P#p0.cfg
+t1#P#p0.ibd
+t1#P#p1.cfg
+t1#P#p1.ibd
+t1.frm
+t1.par
+# Copying the .cfg and .ibd files as backup
+UNLOCK TABLES;
+# List of files after UNLOCK (no .cfg files).
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1.frm
+t1.par
+ALTER TABLE t1 DISCARD TABLESPACE;
+# List of files after DISCARD (no .cfg/.ibd files).
+t1.frm
+t1.par
+# Moving the .cfg and .ibd files back from backup
+ALTER TABLE t1 IMPORT TABLESPACE;
+# List of files after IMPORT (.cfg files still there).
+t1#P#p0.cfg
+t1#P#p0.ibd
+t1#P#p1.cfg
+t1#P#p1.ibd
+t1.frm
+t1.par
+DROP TABLE t1;
+# List of files after DROP (.cfg files should also be removed).

@@ -15,15 +15,15 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ******** [master] SHOW BINLOG EVENTS IN <FILE> LIMIT 1 ********
 include/show_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -41,15 +41,16 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
 ******** [slave] SHOW BINLOG EVENTS IN <FILE> ********
 include/show_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -57,15 +58,15 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ******** [slave] SHOW BINLOG EVENTS IN <FILE> LIMIT 1 ********
 include/show_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -83,15 +84,15 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ******** [slave] SHOW RELAYLOG EVENTS IN <FILE> ********
 include/show_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -101,15 +102,15 @@ slave-relay-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 slave-relay-bin.000003	#	Table_map	#	#	table_id: # (test.t1)
 slave-relay-bin.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-relay-bin.000003	#	Query	#	#	COMMIT
+slave-relay-bin.000003	#	Xid	#	#	COMMIT /* XID */
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 slave-relay-bin.000003	#	Table_map	#	#	table_id: # (test.t1)
 slave-relay-bin.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-relay-bin.000003	#	Query	#	#	COMMIT
+slave-relay-bin.000003	#	Xid	#	#	COMMIT /* XID */
 slave-relay-bin.000003	#	Query	#	#	BEGIN
 slave-relay-bin.000003	#	Table_map	#	#	table_id: # (test.t1)
 slave-relay-bin.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-relay-bin.000003	#	Query	#	#	COMMIT
+slave-relay-bin.000003	#	Xid	#	#	COMMIT /* XID */
 ******** [slave] SHOW RELAYLOG EVENTS IN <FILE> LIMIT 1 ********
 include/show_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -144,16 +145,17 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
+include/sync_slave_sql_with_master.inc
 ******** [slave] SHOW BINLOG EVENTS IN <FILE> ********
 include/show_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -171,15 +173,15 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT)
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Xid	#	#	COMMIT /* XID */
 slave-bin.000001	#	Rotate	#	#	slave-bin.000002;pos=POS
 ******** [slave] SHOW RELAYLOG EVENTS IN <FILE> ********
 include/show_events.inc

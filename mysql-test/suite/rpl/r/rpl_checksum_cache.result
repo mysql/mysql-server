@@ -41,10 +41,12 @@ Binlog_cache_use	1
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 begin;
 delete from t1;
 commit;
+include/sync_slave_sql_with_master.inc
 flush status;
 create table t2(a int auto_increment primary key, data VARCHAR(12288)) ENGINE=Innodb;
 show status like "binlog_cache_use";
@@ -54,10 +56,12 @@ Binlog_cache_use	1
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t2, slave:t2]
 begin;
 delete from t2;
 commit;
+include/sync_slave_sql_with_master.inc
 flush status;
 create table t3(a int auto_increment primary key, data VARCHAR(8192)) engine=innodb;
 show status like "binlog_cache_use";
@@ -67,10 +71,12 @@ Binlog_cache_use	1
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t3, slave:t3]
 begin;
 delete from t3;
 commit;
+include/sync_slave_sql_with_master.inc
 flush status;
 create procedure test.p1 (n int) 
 begin
@@ -105,6 +111,7 @@ Binlog_cache_use	1
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 include/diff_tables.inc [master:t3, slave:t3]

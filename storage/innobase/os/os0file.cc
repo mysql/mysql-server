@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -443,10 +443,8 @@ os_file_get_last_error_low(
 				" or an application request."
 				" Retry attempt is made.");
 		} else {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Some operating system error numbers"
-				" are described at" REFMAN
-				" operating-system-error-codes.html");
+			ib_logf(IB_LOG_LEVEL_INFO, "%s",
+				OPERATING_SYSTEM_ERROR_MSG);
 		}
 	}
 
@@ -505,10 +503,8 @@ os_file_get_last_error_low(
 					err, strerror(err));
 			}
 
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Some operating system error numbers are"
-				" described at " REFMAN ""
-				" operating-system-error-codes.html");
+			ib_logf(IB_LOG_LEVEL_INFO, "%s",
+				OPERATING_SYSTEM_ERROR_MSG);
 		}
 	}
 
@@ -2182,46 +2178,51 @@ os_file_set_eof(
 #endif /* _WIN32 */
 }
 
-/***********************************************************************//**
-Truncates a file to a specified size in bytes. Do nothing if the size
-preserved is smaller or equal than current size of file.
+/** Truncates a file to a specified size in bytes.
+Do nothing if the size to preserve is greater or equal to the current
+size of the file.
+@param[in]	pathname	file path
+@param[in]	file		file to be truncated
+@param[in]	size		size to preserve in bytes
 @return true if success */
 
 bool
 os_file_truncate(
-/*=============*/
-	const char*     pathname,	/*!< in: file path */
-	os_file_t       file,		/*!< in: file to be truncated */
-	os_offset_t	size)		/*!< in: size preserved in bytes */
+	const char*     pathname,
+	os_file_t       file,
+	os_offset_t	size)
 {
-	int		res;
-	os_offset_t	size_bytes;
-
-	size_bytes = os_file_get_size(file);
-
-	/* Do nothing if the size preserved is larger than or equal with
+	/* Do nothing if the size preserved is larger than or equal to the
 	current size of file */
+	os_offset_t	size_bytes = os_file_get_size(file);
 	if (size >= size_bytes) {
 		return(true);
 	}
 
 #ifdef _WIN32
-        int fd;
-	/* Get the file descriptor from the handle */
-	fd = _open_osfhandle(long(file), _O_TEXT);
-	/* Truncate the file */
-	res = _chsize(fd, long(size));
-	if (res == -1) {
-		os_file_handle_error_no_exit(pathname, "chsize", false);
+	LARGE_INTEGER    length;
+	length.QuadPart = size;
+
+	BOOL	success = SetFilePointerEx(file, length, NULL, FILE_BEGIN);
+	if (!success) {
+		os_file_handle_error_no_exit(
+			pathname, "SetFilePointerEx", false);
+	} else {
+		success = SetEndOfFile(file);
+		if (!success) {
+			os_file_handle_error_no_exit(
+				pathname, "SetEndOfFile", false);
+		}
 	}
+	return(success);
 #else /* _WIN32 */
-	res = ftruncate(file, size);
+	int	res = ftruncate(file, size);
 	if (res == -1) {
 		os_file_handle_error_no_exit(pathname, "truncate", false);
 	}
-#endif /* _WIN32 */
 
 	return(res == 0);
+#endif /* _WIN32 */
 }
 
 #ifndef _WIN32
@@ -2361,30 +2362,10 @@ os_file_io(
 
 	for (ulint i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
 		if (type == OS_FILE_READ ) {
-#if defined(HAVE_PREAD)
 			n_bytes = pread(file, buf, n, offset);
-#else
-			off_t ret_offset;
-			ret_offset = lseek(file, offset, SEEK_SET);
-			if (ret_offset < 0) {
-				bytes_returned = -1;
-				return(bytes_returned);
-			}
-			n_bytes = read(file, buf, (ssize_t) n);
-#endif /* HAVE_PREAD */
 		} else {
 			ut_ad(type == OS_FILE_WRITE);
-#if defined(HAVE_PWRITE)
 			n_bytes = pwrite(file, buf, n, offset);
-#else
-			off_t ret_offset;
-			ret_offset = lseek(file, offset, SEEK_SET);
-			if (ret_offset < 0) {
-				bytes_returned = -1;
-				return(bytes_returned);
-			}
-			n_bytes = write(file, buf, (ssize_t) n);
-#endif /* HAVE_PWRITE */
 		}
 
 		if ((ulint) n_bytes == n) {
@@ -2452,8 +2433,6 @@ os_file_pread(
 
 	os_n_file_reads++;
 
-#if defined(HAVE_PREAD)
-
 # if defined(HAVE_ATOMIC_BUILTINS)
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
@@ -2481,43 +2460,6 @@ os_file_pread(
 # endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(read_bytes);
-#else /* HAVE_PREAD */
-
-# ifdef HAVE_ATOMIC_BUILTINS
-	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
-	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
-# else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads++;
-	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-# endif /* HAVE_ATOMIC_BUILTINS */
-
-# ifndef UNIV_HOTBACKUP
-	/* Protect the seek / read operation with a mutex */
-	ulint	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-
-	mutex_enter(os_file_seek_mutexes[i]);
-# endif /* !UNIV_HOTBACKUP */
-
-	read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
-
-# ifndef UNIV_HOTBACKUP
-	mutex_exit(os_file_seek_mutexes[i]);
-# endif /* !UNIV_HOTBACKUP */
-
-# ifdef HAVE_ATOMIC_BUILTINS
-	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
-	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
-# else
-	mutex_enter(&os_file_count_mutex);
-	os_n_pending_reads--;
-	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	mutex_exit(&os_file_count_mutex);
-# endif /* HAVE_ATOMIC_BUILTINS */
-
-	return(read_bytes);
-#endif /* HAVE_PREAD */
 }
 
 /*******************************************************************//**
@@ -2548,8 +2490,6 @@ os_file_pwrite(
 
 	os_n_file_writes++;
 
-#if defined(HAVE_PWRITE)
-
 #ifdef HAVE_ATOMIC_BUILTINS
 	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_pwrites, 1);
@@ -2578,39 +2518,6 @@ os_file_pwrite(
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	return(written_bytes);
-#else /* HAVE_PWRITE */
-	{
-# ifndef UNIV_HOTBACKUP
-		ulint	i;
-# endif /* !UNIV_HOTBACKUP */
-
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_writes++;
-		MONITOR_INC(MONITOR_OS_PENDING_WRITES);
-		mutex_exit(&os_file_count_mutex);
-
-# ifndef UNIV_HOTBACKUP
-		/* Protect the seek / write operation with a mutex */
-		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
-
-		mutex_enter(os_file_seek_mutexes[i]);
-# endif /* UNIV_HOTBACKUP */
-
-		written_bytes = os_file_io(
-			file, (void*) buf, n, offs, OS_FILE_WRITE);
-
-# ifndef UNIV_HOTBACKUP
-		mutex_exit(os_file_seek_mutexes[i]);
-# endif /* !UNIV_HOTBACKUP */
-
-		mutex_enter(&os_file_count_mutex);
-		os_n_pending_writes--;
-		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-		mutex_exit(&os_file_count_mutex);
-
-		return(written_bytes);
-	}
-#endif /* HAVE_PWRITE */
 }
 
 # endif /* _WIN32*/
@@ -2747,6 +2654,7 @@ error_handling:
 #endif
 		goto try_again;
 	}
+
 	ib_logf(IB_LOG_LEVEL_FATAL,
 		"Cannot read from file. OS error number %lu.",
 #ifdef _WIN32
@@ -2995,11 +2903,9 @@ retry:
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"File pointer positioning to"
 			" file %s failed at offset %llu."
-			" Operating system error number %lu."
-			" Some operating system error numbers"
-			" are described at"
-			REFMAN "operating-system-error-codes.html",
-			name, offset, (ulong) GetLastError());
+			" Operating system error number %lu. %s",
+			name, offset, (ulong) GetLastError(),
+			OPERATING_SYSTEM_ERROR_MSG);
 
 		return(false);
 	}
@@ -3060,10 +2966,8 @@ retry:
 				(ulong) err, strerror((int) err));
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Some operating system error numbers"
-			" are described at"
-			REFMAN "operating-system-error-codes.html");
+		ib_logf(IB_LOG_LEVEL_INFO, "%s",
+			OPERATING_SYSTEM_ERROR_MSG);
 
 		os_has_said_disk_full = true;
 	}
@@ -3082,7 +2986,7 @@ retry:
 	if (!os_has_said_disk_full) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Write to file %s failed at offset "UINT64PF"."
+			"Write to file %s failed at offset " UINT64PF "."
 			" %lu bytes should have been written,"
 			" only %ld were written."
 			" Operating system error number %lu."
@@ -3098,10 +3002,8 @@ retry:
 				errno, strerror(errno));
 		}
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Some operating system error numbers"
-			" are described at" REFMAN ""
-			" operating-system-error-codes.html");
+		ib_logf(IB_LOG_LEVEL_INFO, "%s",
+			OPERATING_SYSTEM_ERROR_MSG);
 
 		os_has_said_disk_full = true;
 	}
@@ -3367,56 +3269,6 @@ os_file_make_new_pathname(
 		    "%c%s.ibd",
 		    OS_PATH_SEPARATOR,
 		    base_name);
-
-	return(new_path);
-}
-
-/****************************************************************//**
-This function returns a remote path name by combining a data directory
-path provided in a DATA DIRECTORY clause with the tablename which is
-in the form 'database/tablename'.  It strips the file basename (which
-is the tablename) found after the last directory in the path provided.
-The full filepath created will include the database name as a directory
-under the path provided.  The filename is the tablename with the '.ibd'
-extension. All input and output strings are null-terminated.
-
-This function allocates memory to be returned.  It is the callers
-responsibility to free the return value after it is no longer needed.
-
-@return own: A full pathname; data_dir_path/databasename/tablename.ibd */
-
-char*
-os_file_make_remote_pathname(
-/*=========================*/
-	const char*	data_dir_path,	/*!< in: pathname */
-	const char*	tablename,	/*!< in: tablename */
-	const char*	extension)	/*!< in: file extension; ibd,cfg */
-{
-	ulint		data_dir_len;
-	char*		last_slash;
-	char*		new_path;
-	ulint		new_path_len;
-
-	ut_ad(extension && strlen(extension) == 3);
-
-	/* Find the offset of the last slash. We will strip off the
-	old basename or tablename which starts after that slash. */
-	last_slash = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
-	data_dir_len = last_slash ? last_slash - data_dir_path : strlen(data_dir_path);
-
-	/* allocate a new path and move the old directory path to it. */
-	new_path_len = data_dir_len + strlen(tablename)
-		       + sizeof "/." + strlen(extension);
-	new_path = static_cast<char*>(ut_malloc(new_path_len));
-	memcpy(new_path, data_dir_path, data_dir_len);
-	ut_snprintf(new_path + data_dir_len,
-		    new_path_len - data_dir_len,
-		    "%c%s.%s",
-		    OS_PATH_SEPARATOR,
-		    tablename,
-		    extension);
-
-	srv_normalize_path_for_win(new_path);
 
 	return(new_path);
 }
@@ -3704,7 +3556,7 @@ os_aio_native_aio_supported(void)
 		}
 	} else {
 
-		srv_normalize_path_for_win(srv_log_group_home_dir);
+		os_normalize_path_for_win(srv_log_group_home_dir);
 
 		ulint	dirnamelen = strlen(srv_log_group_home_dir);
 		ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");
@@ -5922,5 +5774,22 @@ os_aio_all_slots_free(void)
 	return(false);
 }
 #endif /* UNIV_DEBUG */
+
+#ifdef _WIN32
+/*********************************************************************//**
+Normalizes a directory path for Windows: converts slashes to backslashes.
+@param[in,out] str A null-terminated Windows directory and file path */
+
+void
+os_normalize_path_for_win(
+	char*	str __attribute__((unused)))
+{
+	for (; *str; str++) {
+		if (*str == '/') {
+			*str = '\\';
+		}
+	}
+}
+#endif
 
 #endif /* !UNIV_HOTBACKUP */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,8 @@ static my_bool init_state_maps(CHARSET_INFO *cs)
       state_map[i]=(uchar) MY_LEX_IDENT;
     else if (my_isdigit(cs,i))
       state_map[i]=(uchar) MY_LEX_NUMBER_IDENT;
-    else if (my_mbcharlen(cs, i)>1)
+    else if (my_ismb1st(cs, i))
+      /* To get whether it's a possible leading byte for a charset. */
       state_map[i]=(uchar) MY_LEX_IDENT;
     else if (my_isspace(cs,i))
       state_map[i]=(uchar) MY_LEX_SKIP;
@@ -520,7 +521,7 @@ void free_charsets(void)
 static const char*
 get_collation_name_alias(const char *name, char *buf, size_t bufsize)
 {
-  if (!strncasecmp(name, "utf8mb3_", 8))
+  if (!native_strncasecmp(name, "utf8mb3_", 8))
   {
     my_snprintf(buf, bufsize, "utf8_%s", name + 8);
     return buf;
@@ -879,7 +880,8 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info,
      multi-byte character into a valid one. For example, 0xbf27 is not
      a valid GBK character, but 0xbf5c is. (0x27 = ', 0x5c = \)
     */
-    if (use_mb_flag && (tmp_length= my_mbcharlen(charset_info, *from)) > 1)
+    tmp_length= use_mb_flag ? my_mbcharlen_ptr(charset_info, from, end) : 0;
+    if (tmp_length > 1)
       escape= *from;
     else
     switch (*from) {

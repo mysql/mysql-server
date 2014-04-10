@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -482,6 +482,7 @@ page_cur_insert_rec_write_log(
 	}
 
 	ut_a(rec_size < UNIV_PAGE_SIZE);
+	ut_ad(mtr->is_named_space(index->space));
 	ut_ad(page_align(insert_rec) == page_align(cursor_rec));
 	ut_ad(!page_rec_is_comp(insert_rec)
 	      == !dict_table_is_comp(index->table));
@@ -655,21 +656,21 @@ byte*
 page_cur_parse_insert_rec(
 /*======================*/
 	ibool		is_short,/*!< in: TRUE if short inserts */
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	buf_block_t*	block,	/*!< in: page or NULL */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
-	ulint	origin_offset;
+	ulint	origin_offset		= 0; /* remove warning */
 	ulint	end_seg_len;
-	ulint	mismatch_index;
+	ulint	mismatch_index		= 0; /* remove warning */
 	page_t*	page;
 	rec_t*	cursor_rec;
 	byte	buf1[1024];
 	byte*	buf;
-	byte*	ptr2			= ptr;
-	ulint	info_and_status_bits = 0; /* remove warning */
+	const byte*	ptr2		= ptr;
+	ulint		info_and_status_bits = 0; /* remove warning */
 	page_cur_t	cursor;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -703,7 +704,7 @@ page_cur_parse_insert_rec(
 		}
 	}
 
-	ptr = mach_parse_compressed(ptr, end_ptr, &end_seg_len);
+	end_seg_len = mach_parse_compressed(&ptr, end_ptr);
 
 	if (ptr == NULL) {
 
@@ -727,7 +728,7 @@ page_cur_parse_insert_rec(
 		info_and_status_bits = mach_read_from_1(ptr);
 		ptr++;
 
-		ptr = mach_parse_compressed(ptr, end_ptr, &origin_offset);
+		origin_offset = mach_parse_compressed(&ptr, end_ptr);
 
 		if (ptr == NULL) {
 
@@ -736,7 +737,7 @@ page_cur_parse_insert_rec(
 
 		ut_a(origin_offset < UNIV_PAGE_SIZE);
 
-		ptr = mach_parse_compressed(ptr, end_ptr, &mismatch_index);
+		mismatch_index = mach_parse_compressed(&ptr, end_ptr);
 
 		if (ptr == NULL) {
 
@@ -753,7 +754,7 @@ page_cur_parse_insert_rec(
 
 	if (!block) {
 
-		return(ptr + (end_seg_len >> 1));
+		return(const_cast<byte*>(ptr + (end_seg_len >> 1)));
 	}
 
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
@@ -798,7 +799,7 @@ page_cur_parse_insert_rec(
 		ut_print_buf(stderr, ptr2, 300);
 		putc('\n', stderr);
 
-		buf_page_print(page, 0, 0);
+		buf_page_print(page, univ_page_size, 0);
 
 		ut_error;
 	}
@@ -808,10 +809,10 @@ page_cur_parse_insert_rec(
 
 	if (page_is_comp(page)) {
 		rec_set_info_and_status_bits(buf + origin_offset,
-				     info_and_status_bits);
+					     info_and_status_bits);
 	} else {
 		rec_set_info_bits_old(buf + origin_offset,
-							info_and_status_bits);
+				      info_and_status_bits);
 	}
 
 	page_cur_position(cursor_rec, block, &cursor);
@@ -835,7 +836,7 @@ page_cur_parse_insert_rec(
 		mem_heap_free(heap);
 	}
 
-	return(ptr + end_seg_len);
+	return(const_cast<byte*>(ptr + end_seg_len));
 }
 
 /***********************************************************//**
@@ -1523,6 +1524,7 @@ page_copy_rec_list_to_created_page_write_log(
 	byte*	log_ptr;
 
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+	ut_ad(mtr->is_named_space(index->space));
 
 	log_ptr = mlog_open_and_write_index(mtr, page, index,
 					    page_is_comp(page)
@@ -1656,10 +1658,11 @@ page_copy_rec_list_end_to_created_page(
 
 	mtr_log_t	log_mode;
 
-	if (!dict_table_is_temporary(index->table)) {
-		log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
-	} else {
+	if (dict_table_is_temporary(index->table)
+	    || index->table->ibd_file_missing /* IMPORT TABLESPACE */) {
 		log_mode = mtr_get_log_mode(mtr);
+	} else {
+		log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
 	}
 
 	prev_rec = page_get_infimum_rec(new_page);
@@ -1790,6 +1793,7 @@ page_cur_delete_rec_write_log(
 	byte*	log_ptr;
 
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
+	ut_ad(mtr->is_named_space(index->space));
 
 	log_ptr = mlog_open_and_write_index(mtr, rec, index,
 					    page_rec_is_comp(rec)
@@ -1903,6 +1907,7 @@ page_cur_delete_rec(
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index))
 	      || recv_recovery_is_on());
+	ut_ad(mtr == NULL || mtr->is_named_space(index->space));
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));

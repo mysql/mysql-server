@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -175,8 +175,7 @@ void test_noop()
   PSI_server->set_socket_thread_owner(NULL);
   digest_locker= PSI_server->digest_start(NULL);
   ok(digest_locker == NULL, "no digest_locker");
-  digest_locker= PSI_server->digest_add_token(NULL, 0, NULL);
-  ok(digest_locker == NULL, "no digest_locker");
+  PSI_server->digest_end(NULL, NULL);
   sp_locker= PSI_server->start_sp(NULL, NULL);
   ok(sp_locker == NULL, "no sp_locker");
   PSI_server->end_sp(NULL);
@@ -217,7 +216,7 @@ void test_noop()
 
 int main(int, char **)
 {
-  plan(34);
+  plan(33);
 
   MY_INIT("pfs_noop-t");
   test_noop();

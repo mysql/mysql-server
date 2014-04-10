@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -395,11 +395,10 @@ public:
 */
 class Item_xpath_cast_bool :public Item_int_func
 {
-  String *pxml;
   String tmp_value;
 public:
-  Item_xpath_cast_bool(Item *a, String *pxml_arg)
-    :Item_int_func(a), pxml(pxml_arg) {}
+  Item_xpath_cast_bool(Item *a)
+    :Item_int_func(a) {}
   const char *func_name() const { return "xpath_cast_bool"; }
   bool is_bool_func() { return 1; }
   longlong val_int()
@@ -443,11 +442,10 @@ public:
 
 class Item_func_xpath_position :public Item_int_func
 {
-  String *pxml;
   String tmp_value;
 public:
-  Item_func_xpath_position(Item *a, String *p)
-    :Item_int_func(a), pxml(p) {}
+  Item_func_xpath_position(Item *a)
+    :Item_int_func(a) {}
   const char *func_name() const { return "xpath_position"; }
   void fix_length_and_dec() { max_length=10; }
   longlong val_int()
@@ -462,11 +460,10 @@ public:
 
 class Item_func_xpath_count :public Item_int_func
 {
-  String *pxml;
   String tmp_value;
 public:
-  Item_func_xpath_count(Item *a, String *p)
-    :Item_int_func(a), pxml(p) {}
+  Item_func_xpath_count(Item *a)
+    :Item_int_func(a) {}
   const char *func_name() const { return "xpath_count"; }
   void fix_length_and_dec() { max_length=10; }
   longlong val_int()
@@ -797,7 +794,7 @@ String *Item_nodeset_func_elementbyindex::val_nodeset(String *nodeset)
 static Item* nodeset2bool(MY_XPATH *xpath, Item *item)
 {
   if (item->type() == Item::XPATH_NODESET)
-    return new Item_xpath_cast_bool(item, xpath->pxml);
+    return new Item_xpath_cast_bool(item);
   return item;
 }
 
@@ -1106,7 +1103,7 @@ my_xpath_keyword(MY_XPATH *x,
   size_t length= end-beg;
   for (k= keyword_names; k->name; k++)
   {
-    if (length == k->length && !strncasecmp(beg, k->name, length))
+    if (length == k->length && !native_strncasecmp(beg, k->name, length))
     {
       x->extra= k->extra;
       return k->tok;
@@ -1152,7 +1149,7 @@ static Item *create_func_floor(MY_XPATH *xpath, Item **args, uint nargs)
 
 static Item *create_func_bool(MY_XPATH *xpath, Item **args, uint nargs)
 {
-  return new Item_xpath_cast_bool(args[0], xpath->pxml);
+  return new Item_xpath_cast_bool(args[0]);
 }
 
 
@@ -1178,21 +1175,20 @@ static Item *create_func_round(MY_XPATH *xpath, Item **args, uint nargs)
 static Item *create_func_last(MY_XPATH *xpath, Item **args, uint nargs)
 {
   return xpath->context ? 
-         new Item_func_xpath_count(xpath->context, xpath->pxml) : NULL;
+         new Item_func_xpath_count(xpath->context) : NULL;
 }
 
 
 static Item *create_func_position(MY_XPATH *xpath, Item **args, uint nargs)
 {
   return xpath->context ? 
-         new Item_func_xpath_position(xpath->context, xpath->pxml) : NULL;
+         new Item_func_xpath_position(xpath->context) : NULL;
 }
 
 
 static Item *create_func_contains(MY_XPATH *xpath, Item **args, uint nargs)
 {
-  return new Item_xpath_cast_bool(new Item_func_locate(args[0], args[1]),
-                                  xpath->pxml);
+  return new Item_xpath_cast_bool(new Item_func_locate(args[0], args[1]));
 }
 
 
@@ -1215,7 +1211,7 @@ static Item *create_func_count(MY_XPATH *xpath, Item **args, uint nargs)
 {  
   if (args[0]->type() != Item::XPATH_NODESET)
     return 0;
-  return new Item_func_xpath_count(args[0], xpath->pxml);
+  return new Item_func_xpath_count(args[0]);
 }
 
 
@@ -1317,7 +1313,7 @@ my_xpath_function(const char *beg, const char *end)
     default: function_names= my_func_names;
   }
   for (k= function_names; k->name; k++)
-    if (k->create && length == k->length && !strncasecmp(beg, k->name, length))
+    if (k->create && length == k->length && !native_strncasecmp(beg, k->name, length))
       return k;
   return NULL;
 }

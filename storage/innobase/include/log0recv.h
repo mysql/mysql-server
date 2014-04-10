@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -140,32 +140,6 @@ Initiates the rollback of active transactions. */
 void
 recv_recovery_rollback_active(void);
 /*===============================*/
-/*******************************************************//**
-Scans log from a buffer and stores new log data to the parsing buffer.
-Parses and hashes the log records if new data found.  Unless
-UNIV_HOTBACKUP is defined, this function will apply log records
-automatically when the hash table becomes full.
-@return TRUE if limit_lsn has been reached, or not able to scan any
-more in this log group */
-
-ibool
-recv_scan_log_recs(
-/*===============*/
-	ulint		available_memory,/*!< in: we let the hash table of recs
-					to grow to this size, at the maximum */
-	ibool		store_to_hash,	/*!< in: TRUE if the records should be
-					stored to the hash table; this is set
-					to FALSE if just debug checking is
-					needed */
-	const byte*	buf,		/*!< in: buffer containing a log
-					segment or garbage */
-	ulint		len,		/*!< in: buffer length */
-	lsn_t		start_lsn,	/*!< in: buffer start lsn */
-	lsn_t*		contiguous_lsn,	/*!< in/out: it is known that all log
-					groups contain contiguous log data up
-					to this lsn */
-	lsn_t*		group_scanned_lsn);/*!< out: scanning succeeded up to
-					this lsn */
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
 
@@ -244,16 +218,6 @@ Applies log records in the hash table to a backup. */
 void
 recv_apply_log_recs_for_backup(void);
 /*================================*/
-
-#elif defined(UNIV_LOG_DEBUG)
-
-/********************************************************//**
-Frees the recovery system. */
-
-void
-recv_sys_debug_free(void);
-/*=====================*/
-
 #endif /* UNIV_HOTBACKUP */
 
 /** Block of log record data */
@@ -290,9 +254,11 @@ enum recv_addr_state {
 	RECV_BEING_READ,
 	/** log records are being applied on the page */
 	RECV_BEING_PROCESSED,
-	/** log records have been applied on the page, or they have
-	been discarded because the tablespace does not exist */
-	RECV_PROCESSED
+	/** log records have been applied on the page */
+	RECV_PROCESSED,
+	/** log records have been discarded because the tablespace
+	does not exist */
+	RECV_DISCARDED
 };
 
 /** Hashed page file address struct */
@@ -306,12 +272,38 @@ struct recv_addr_t{
 	hash_node_t	addr_hash;/*!< hash node in the hash bucket chain */
 };
 
+template<typename F>
+struct ut_when_dtor {
+	ut_when_dtor(F& p) : f(p) {}
+	~ut_when_dtor() {
+		f();
+	}
+private:
+	F& f;
+};
+
 struct recv_dblwr_t {
-	void add(byte* page);
+	/** Add a page frame to the doublewrite recovery buffer. */
+	void add(const byte* page) {
+		pages.push_back(page);
+	}
 
-	byte* find_first_page(ulint space_id);
+	/** Clear the list of pages (invoked by ut_when_dtor) */
+	void operator() () {
+		pages.clear();
+	}
 
-	std::list<byte *> pages; /* Pages from double write buffer */
+	/** Find a doublewrite copy of a page.
+	@param[in]	space_id	tablespace identifier
+	@param[in]	page_no		page number
+	@return	page frame
+	@retval NULL if no page was found */
+	const byte* find_page(ulint space_id, ulint page_no);
+
+	typedef std::list<const byte*> list;
+
+	/** Recovered doublewrite buffer page frames */
+	list pages;
 };
 
 /** Recovery system data structure */
@@ -332,10 +324,6 @@ struct recv_sys_t{
 	ibool		apply_batch_on;
 				/*!< this is TRUE when a log rec application
 				batch is running */
-	lsn_t		lsn;	/*!< log sequence number */
-	ulint		last_log_buf_size;
-				/*!< size of the log buffer when the database
-				last time wrote to the log */
 	byte*		last_block;
 				/*!< possible incomplete last recovered log
 				block */
@@ -361,13 +349,14 @@ struct recv_sys_t{
 	lsn_t		recovered_lsn;
 				/*!< the log records have been parsed up to
 				this lsn */
-	lsn_t		limit_lsn;/*!< recovery should be made at most
-				up to this lsn */
 	ibool		found_corrupt_log;
 				/*!< this is set to TRUE if we during log
 				scan find a corrupt log block, or a corrupt
 				log record, or there is a log parsing
 				buffer overflow */
+	lsn_t		mlog_checkpoint_lsn;
+				/*!< the LSN of a MLOG_CHECKPOINT
+				record, or 0 if none was parsed */
 	mem_heap_t*	heap;	/*!< memory heap of log records and file
 				addresses*/
 	hash_table_t*	addr_hash;/*!< hash table of file addresses of pages */
@@ -410,8 +399,6 @@ extern ibool		recv_lsn_checks_on;
 /** TRUE when the redo log is being backed up */
 extern ibool		recv_is_making_a_backup;
 #endif /* UNIV_HOTBACKUP */
-/** Maximum page number encountered in the redo log */
-extern ulint		recv_max_parsed_page_no;
 
 /** Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */

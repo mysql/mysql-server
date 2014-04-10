@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -192,6 +192,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/example
 )
 
+# Turn off some warning flags when compiling GUnit
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-null-dereference" HAVE_NO_NULL)
 IF(HAVE_NO_NULL)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-null-dereference")
@@ -200,6 +201,12 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
 ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-compare-distinct-pointer-types"
+                           HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
+IF(HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-compare-distinct-pointer-types")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 
 # main-wrapper libraries (with tap-compatible option).
@@ -246,8 +253,11 @@ SET(TESTS
   mysys_my_malloc
   mysys_my_pwrite
   mysys_my_rdtsc
+  mysys_my_symlink
   mysys_my_vsnprintf
   mysys_my_write
+  opt_costmodel
+  opt_recperkey
   prealloced_array
   sql_list
   sql_plist
@@ -256,6 +266,7 @@ SET(TESTS
   strings_skip_trailing
   strtoll
   thread_utils
+  my_timer
   )
   
 IF(WIN32)
@@ -273,12 +284,14 @@ SET(SERVER_TESTS
   handler
   insert_delayed
   item
+  item_filter
   item_func_now_local
   item_timefunc
   item_like
   join_tab_sort
   log_throttle
   make_sortkey
+  mdl_sync
   my_decimal
   opt_range
   opt_ref
