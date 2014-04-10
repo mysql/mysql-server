@@ -15805,9 +15805,9 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   "Number of file I/O threads in InnoDB.",
   NULL, NULL, 4, 4, 64, 0);
 
-static MYSQL_SYSVAR_LONG(bulk_load_fill_factor, innobase_bulk_load_fill_factor,
+static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor,
   PLUGIN_VAR_RQCMDARG,
-  "Number of percentage in a page is filled up in bulk load.",
+  "Number of percentage in a page is filled up in B-tree index.",
   NULL, NULL, 100, 10, 100, 0);
 
 static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
@@ -16251,7 +16251,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(force_recovery_crash),
 #endif /* !DBUG_OFF */
-  MYSQL_SYSVAR(bulk_load_fill_factor),
+  MYSQL_SYSVAR(fill_factor),
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_total_cache_size),
   MYSQL_SYSVAR(ft_result_cache_limit),
