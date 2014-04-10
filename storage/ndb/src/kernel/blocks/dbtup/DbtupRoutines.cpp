@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1824,7 +1824,7 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
                                Uint32* updateBuffer,
                                Tablerec* const regTabPtr)
 {
-  Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS];
+  Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   TableDescriptor* attr_descr = req_struct->attr_descr;
   AttributeHeader ahIn(*updateBuffer);
   Uint32 attributeId = ahIn.getAttributeId();
