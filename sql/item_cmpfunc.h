@@ -1043,7 +1043,8 @@ public:
   	    const CHARSET_INFO *cmp_coll)
     :base((char*) sql_calloc(elements*element_length)),
      size(element_length), compare(cmp_func), collation(cmp_coll),
-     count(elements), used_count(elements) {}
+     count(elements), used_count(elements)
+  {}
   virtual ~in_vector() {}
   virtual void set(uint pos,Item *item)=0;
   virtual uchar *get_value(Item *item)=0;
@@ -1051,7 +1052,21 @@ public:
   {
     my_qsort2(base,used_count,size,compare,collation);
   }
-  bool find(Item *item);
+
+  /**
+    Calls (the virtual) get_value, i.e. item->val_int() or item->val_str() etc.
+    and then calls find_value() if the value is non-null.
+    @param  item to evaluate, and lookup in the IN-list.
+    @return true if item was found.
+   */
+  bool find_item(Item *item);
+
+  /**
+    Does a binary_search in the 'base' array for the input 'value'
+    @param  value to lookup in the IN-list.
+    @return true if value was found.
+   */
+  virtual bool find_value(const void *value) const ;
   
   /* 
     Create an instance of Item_{type} (e.g. Item_decimal) constant object
@@ -1074,7 +1089,7 @@ public:
   virtual void value_to_item(uint pos, Item *item) { }
   
   /* Compare values number pos1 and pos2 for equality */
-  bool compare_elems(uint pos1, uint pos2)
+  virtual bool compare_elems(uint pos1, uint pos2) const
   {
     return MY_TEST(compare(collation, base + pos1*size, base + pos2*size));
   }
@@ -1213,6 +1228,11 @@ public:
     ((Item_float*)item)->value= ((double*) base)[pos];
   }
   Item_result result_type() { return REAL_RESULT; }
+
+  // Our own, type-aware sort/search/compare, rather than my_qsort2 et.al.
+  virtual void sort();
+  virtual bool find_value(const void *value) const;
+  virtual bool compare_elems(uint pos1, uint pos2) const;
 };
 
 
@@ -1235,8 +1255,10 @@ public:
   }
   Item_result result_type() { return DECIMAL_RESULT; }
 
-  // Our own, type-aware sort, rather than my_qsort2.
+  // Our own, type-aware sort/search/compare, rather than my_qsort2 et.al.
   virtual void sort();
+  virtual bool find_value(const void *value) const;
+  virtual bool compare_elems(uint pos1, uint pos2) const;
 };
 
 
