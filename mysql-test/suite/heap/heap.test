@@ -572,7 +572,9 @@ CREATE TABLE t1 (id INT);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
 
+--disable_warnings
 SET @@max_heap_table_size = 1024*1024*1024*20;
+--enable_warnings
 
 CREATE TEMPORARY TABLE tmp ENGINE=MEMORY
   SELECT id FROM t1;
