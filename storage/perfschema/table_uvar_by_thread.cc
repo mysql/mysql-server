@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -66,15 +66,12 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
       const char *name= sql_uvar->entry_name.ptr();
       size_t name_length= sql_uvar->entry_name.length();
       DBUG_ASSERT(name_length <= sizeof(pfs_uvar.m_name));
-
-      if (name_length > 0)
-        memcpy(pfs_uvar.m_name, name, name_length);
-      pfs_uvar.m_name_length= name_length;
+      pfs_uvar.m_name.make_row(name, name_length);
 
       /* Copy VARIABLE_VALUE */
-      my_bool null_value;
-      sql_uvar->val_str(& null_value, & pfs_uvar.m_value, 0);
-      pfs_uvar.m_value_is_null= null_value;
+      const char *value= sql_uvar->ptr();
+      size_t value_length= sql_uvar->length();
+      pfs_uvar.m_value.make_row(value, value_length);
 
       m_vector.push_back(pfs_uvar);
     }
@@ -220,8 +217,9 @@ void table_uvar_by_thread
 
   m_row.m_thread_internal_id= thread->m_thread_internal_id;
 
-  m_row.m_variable_name.make_row(uvar->m_name, uvar->m_name_length);
-  m_row.m_variable_value.make_row(uvar->m_value.ptr(), uvar->m_value.length());
+  /* uvar is materialized, pointing to it directly. */
+  m_row.m_variable_name= & uvar->m_name;
+  m_row.m_variable_value= & uvar->m_value;
 
   if (! thread->m_lock.end_optimistic_lock(&lock))
     return;
@@ -243,6 +241,9 @@ int table_uvar_by_thread
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 0);
 
+  DBUG_ASSERT(m_row.m_variable_name != NULL);
+  DBUG_ASSERT(m_row.m_variable_value != NULL);
+
   for (; (f= *fields) ; fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
@@ -253,10 +254,14 @@ int table_uvar_by_thread
         set_field_ulonglong(f, m_row.m_thread_internal_id);
         break;
       case 1: /* VARIABLE_NAME */
-        set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
+        set_field_varchar_utf8(f,
+                               m_row.m_variable_name->m_str,
+                               m_row.m_variable_name->m_length);
         break;
       case 2: /* VARIABLE_VALUE */
-        set_field_longtext_utf8(f, m_row.m_variable_value.m_str, m_row.m_variable_value.m_length);
+        set_field_blob(f,
+                       m_row.m_variable_value->get_value(),
+                       m_row.m_variable_value->get_value_length());
         break;
       default:
         DBUG_ASSERT(false);
