@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -760,13 +760,31 @@ void PFS_variable_name_row::make_row(const char* str, uint length)
   m_length= length;
 }
 
-void PFS_variable_value_row::make_row(const char* str, uint length)
+PFS_variable_value_row::PFS_variable_value_row()
+  : m_value(NULL),
+    m_value_length(0),
+    m_allocated_length(0)
 {
-  DBUG_ASSERT(length <= sizeof(m_str));
-  if (length > 0)
+}
+
+PFS_variable_value_row::~PFS_variable_value_row()
+{
+  my_free(m_value);
+}
+
+void PFS_variable_value_row::make_row(const char* val, size_t length)
+{
+  if (m_allocated_length < length)
   {
-    memcpy(m_str, str, length);
+    my_free(m_value);
+    m_value= (char*) my_malloc(PSI_NOT_INSTRUMENTED, length, MYF(0));
+    m_allocated_length= length;
   }
-  m_length= length;
+
+  if ((m_value != NULL) && (length > 0))
+  {
+    memcpy(m_value, val, length);
+    m_value_length= length;
+  }
 }
 

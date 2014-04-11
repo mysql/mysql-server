@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,10 +36,8 @@
 
 struct User_variable
 {
-  char m_name[64];
-  uint m_name_length;
-  String m_value;
-  bool m_value_is_null;
+  PFS_variable_name_row m_name;
+  PFS_variable_value_row m_value;
 };
 
 class User_variables
@@ -93,9 +91,9 @@ struct row_uvar_by_thread
   /** Column THREAD_ID. */
   ulonglong m_thread_internal_id;
   /** Column VARIABLE_NAME. */
-  PFS_variable_name_row m_variable_name;
+  const PFS_variable_name_row *m_variable_name;
   /** Column VARIABLE_VALUE. */
-  PFS_variable_value_row m_variable_value;
+  const PFS_variable_value_row *m_variable_value;
 };
 
 /**
