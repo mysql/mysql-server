@@ -1042,7 +1042,7 @@ buf_flush_page(
 		rw_lock = NULL;
 	} else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST)
 		   || (!no_fix_count
-		       && srv_shutdown_state == SRV_SHUTDOWN_NONE
+		       && srv_shutdown_state <= SRV_SHUTDOWN_CLEANUP
 		       && fsp_is_system_temporary(bpage->id.space()))) {
 		/* This is a heuristic, to avoid expensive SX attempts. */
 		/* For table residing in temporary tablespace sync is done
