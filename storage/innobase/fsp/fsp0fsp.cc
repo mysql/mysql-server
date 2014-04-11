@@ -697,6 +697,7 @@ fsp_space_modify_check(
 	case MTR_LOG_NO_REDO:
 		ut_ad(id == srv_tmp_space.space_id()
 		      || srv_is_tablespace_truncated(id)
+		      || fil_space_is_being_truncated(id)
 		      || fil_space_get_flags(id) == ULINT_UNDEFINED
 		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY);
 		return;
