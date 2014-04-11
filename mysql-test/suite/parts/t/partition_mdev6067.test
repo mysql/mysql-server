@@ -1,0 +1,32 @@
+--source include/have_innodb.inc
+--source include/have_partition.inc
+--source include/have_binlog_format_statement.inc
+
+# Test binlogging of some transactions on a partitioned InnoDB table.
+# The bug was seen as one of the inserts being logged with a COMMIT query
+# event instead of the correct XID event.
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB
+  PARTITION BY KEY (a) PARTITIONS 2;
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 VALUES (2,2), (3,8);
+INSERT INTO t1 VALUES (4,16);
+
+--source include/show_binlog_events.inc
+
+# Same thing in row mode.
+DROP TABLE t1;
+SET binlog_format='row';
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB
+  PARTITION BY KEY (a) PARTITIONS 2;
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 VALUES (2,2), (3,8);
+INSERT INTO t1 VALUES (4,16);
+
+--source include/show_binlog_events.inc
+
+DROP TABLE t1;
