@@ -97,8 +97,8 @@ LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINAT
 
 SELECT COUNT(*) FROM t1;
 
--- echo # FILL_FACTOR=75
-SET GLOBAL innodb_bulk_load_fill_factor = 50;
+-- echo # FILL_FACTOR=10
+SET GLOBAL innodb_fill_factor = 10;
 
 CREATE INDEX idx_title ON t1(title);
 
@@ -111,7 +111,7 @@ EXPLAIN SELECT * FROM t1 WHERE title = 'ITSO';
 SELECT * FROM t1 WHERE title = 'ITSO';
 
 -- echo # FILL_FACTOR=50
-SET GLOBAL innodb_bulk_load_fill_factor = 75;
+SET GLOBAL innodb_fill_factor = 50;
 
 DROP INDEX idx_title ON t1;
 CREATE INDEX idx_title ON t1(title);
@@ -125,7 +125,7 @@ EXPLAIN SELECT * FROM t1 WHERE title = 'ITSO';
 SELECT * FROM t1 WHERE title = 'ITSO';
 
 -- echo # FILL_FACTOR=100
-SET GLOBAL innodb_bulk_load_fill_factor = 100;
+SET GLOBAL innodb_fill_factor = 100;
 
 DROP INDEX idx_title ON t1;
 
@@ -139,7 +139,7 @@ CHECK TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE title = 'ITSO';
 SELECT * FROM t1 WHERE title = 'ITSO';
 
-SET GLOBAL innodb_bulk_load_fill_factor = DEFAULT;
+SET GLOBAL innodb_fill_factor = DEFAULT;
 
 DROP TABLE t1;
 
