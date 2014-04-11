@@ -1757,7 +1757,6 @@ public:
   enum {NONE=0, INDEX, RND} inited;
   bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
-  bool mark_trx_done;
   const COND *pushed_cond;
   /**
     next_insert_id is the next value which should be inserted into the
@@ -1820,7 +1819,7 @@ public:
     in_range_check_pushed_down(FALSE),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(0), mark_trx_done(FALSE),
+    locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
     pushed_idx_cond(NULL),
     pushed_idx_cond_keyno(MAX_KEY),
@@ -1898,13 +1897,6 @@ public:
   }
   int ha_rnd_init_with_error(bool scan) __attribute__ ((warn_unused_result));
   int ha_reset();
-  /* Tell handler (not storage engine) this is start of a new statement */
-  void ha_start_of_new_statement()
-  {
-    ft_handler= 0;
-    mark_trx_done= FALSE;
-  }
-
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
   {
@@ -2773,12 +2765,8 @@ protected:
 
 private:
   /* Private helpers */
-  void mark_trx_read_write_part2();
-  inline void mark_trx_read_write()
-  {
-    if (!mark_trx_done)
-      mark_trx_read_write_part2();
-  }
+  inline void mark_trx_read_write();
+private:
   inline void increment_statistics(ulong SSV::*offset) const;
   inline void decrement_statistics(ulong SSV::*offset) const;
 

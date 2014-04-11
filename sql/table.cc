@@ -3954,7 +3954,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   status= STATUS_NO_RECORD;
   insert_values= 0;
   fulltext_searched= 0;
-  file->ha_start_of_new_statement();
+  file->ft_handler= 0;
   reginfo.impossible_range= 0;
   created= TRUE;
 
