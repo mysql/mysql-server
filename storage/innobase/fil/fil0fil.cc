@@ -1986,6 +1986,7 @@ fil_inc_pending_ops(
 	ulint	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
+	bool skip_inc_pending_ops = true;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -1994,15 +1995,14 @@ fil_inc_pending_ops(
 	if (space == NULL) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Trying to do an operation on a dropped tablespace."
-			" Name: %s,  Space ID: %lu",
-			space->name, ulong(id));
-	}
+			" Space ID: " ULINTPF, id);
+	} else {
 
-	bool skip_inc_pending_ops = (space == NULL
-				     || space->stop_new_ops
-				     || space->is_being_truncated);
-	if (!skip_inc_pending_ops) {
-		space->n_pending_ops++;
+		skip_inc_pending_ops = (space->stop_new_ops
+					|| space->is_being_truncated);
+		if (!skip_inc_pending_ops) {
+			space->n_pending_ops++;
+		}
 	}
 
 	mutex_exit(&fil_system->mutex);
