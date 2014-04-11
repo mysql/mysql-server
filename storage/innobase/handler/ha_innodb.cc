@@ -10141,9 +10141,12 @@ ha_innobase::delete_table(
 	if (handler != NULL) {
 		is_intrinsic_temp_table = true;
 
-		/* Commit open mtr if any. */
-		dict_index_t* index = dict_table_get_first_index(handler);
-		index->last_ins_cur->release();
+		for (dict_index_t* index = UT_LIST_GET_FIRST(handler->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			index->last_ins_cur->release();
+			index->last_sel_cur->release();
+		}
 	}
 
 	if (srv_read_only_mode && !is_intrinsic_temp_table) {
