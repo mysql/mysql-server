@@ -8514,7 +8514,6 @@ Field_enum::store(const char *from, size_t length,const CHARSET_INFO *cs)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int err= 0;
   type_conversion_status ret= TYPE_OK;
-  uint32 not_used;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
