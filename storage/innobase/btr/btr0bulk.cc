@@ -499,8 +499,10 @@ bool PageBulk::spaceAvailable(ulint        rec_size)
 		return false;
 	}
 
-	/* Fillfactor & Padding apply to leaf and non-laef pages. */
-	if (m_rec_no > 0
+	/* Fillfactor & Padding apply to leaf and non-leaf pages.
+	Note: we keep at least 2 records in a page to avoid B-tree level
+	growing too high. */
+	if (m_rec_no >= 2
 	    && ((m_page_zip == NULL && m_free_space - required_space
 		 < m_reserved_space)
 		|| (m_page_zip != NULL && m_free_space - required_space
