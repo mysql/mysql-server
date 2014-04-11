@@ -335,6 +335,14 @@ fil_space_get_flags(
 /*================*/
 	ulint	id);	/*!< in: space id */
 
+/** Check if table is mark for truncate.
+@param[in]	id	space id
+@return true if tablespace is marked for truncate. */
+
+bool
+fil_space_is_being_truncated(
+	ulint id);
+
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.
 @param[in]	id	space id

@@ -26,6 +26,9 @@ let $innodb_file_format=`select @@innodb_file_format`;
 --mkdir $MYSQL_TMP_DIR/new_dir/test
 
 --disable_query_log
+# Work around "Error 38" on Valgrind PB2 for test/www on startup.
+call mtr.add_suppression("InnoDB: Operating system error number 38 in a file operation.");
+call mtr.add_suppression("InnoDB: Error number 38 means 'Function not implemented'.");
 # These errors are expected in the error log for this test.
 call mtr.add_suppression("Cannot calculate statistics for table .* because the \.ibd file is missing");
 call mtr.add_suppression("Could not find a valid tablespace file for");
