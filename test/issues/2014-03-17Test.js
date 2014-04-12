@@ -34,7 +34,7 @@ var mapping, literalMapping;
 
 literalMapping = {
   database      : "test",
-  table         : "a",
+  table         : "towns",
   mapAllColumns : true
 };
 
@@ -44,7 +44,7 @@ mapping.applyToClass(RowConstructor);
 
 t1.run = function() {
   fail_openSession(t1, function(session, testCase) {
-    session.persist(RowConstructor, { id: 1, cint: 1}, function(err) {
+    session.persist(RowConstructor, { town: 'Glen Rock', county: 'Bergen'}, function(err) {
       t1.errorIfError(err);
       t1.failOnError();
     });
