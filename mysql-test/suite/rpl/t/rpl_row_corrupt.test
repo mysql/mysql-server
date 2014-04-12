@@ -1,0 +1,36 @@
+###############################################################################
+# Bug#18542111:ADD A TEST CASE TO TEST THE BINLOG TRANSACTION CACHE SIZE TO
+# 32768 
+#
+# Problem:
+# ========
+# When the binlog's IO_CACHE grows up to exact 32768 bytes it
+# causes binlog events to get corrupt, if this transaction
+# precedes with a transaction whose IO_CACHE size is >32768.
+#
+# Test:
+# =====
+# Create a transaction whose size is 37000 so that the event's size exceeds
+# 32768 and its contents are flushed to a file. Following this transaction
+# add a second transaction whose cache size is exactly 32768.
+#
+# During execution of third replace statement no assert should be caused.
+# Slave should be in sync with master.
+###############################################################################
+--source include/have_binlog_format_row.inc
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+--connection master
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a varchar(40000))ENGINE=INNODB;
+INSERT INTO t1 VALUES (REPEAT('a',37000));
+INSERT INTO t1 VALUES (REPEAT('b',32552));
+--sync_slave_with_master
+
+--connection master
+--let $diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc
