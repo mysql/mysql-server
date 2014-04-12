@@ -2082,8 +2082,7 @@ int ha_tokudb::remove_frm_data(DB *db, DB_TXN *txn) {
     return remove_from_status(db, hatoku_frm_data, txn);
 }
 
-static int
-smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
+static int smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
     DBT* stored_frm = (DBT *)context;
     stored_frm->size = row->size;
     stored_frm->data = (uchar *)tokudb_my_malloc(row->size, MYF(MY_WME));
@@ -2096,19 +2095,22 @@ int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", frm_name);
     uchar* mysql_frm_data = NULL;
     size_t mysql_frm_len = 0;
-    DBT key, stored_frm;
+    DBT key = {};
+    DBT stored_frm = {};
     int error = 0;
     HA_METADATA_KEY curr_key = hatoku_frm_data;
 
-    memset(&key, 0, sizeof(key));
-    memset(&stored_frm, 0, sizeof(&stored_frm));
     // get the frm data from MySQL
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
     error = table_share->read_frm_image((const uchar**)&mysql_frm_data,&mysql_frm_len);
-    if (error) { goto cleanup; }
+    if (error) { 
+        goto cleanup;
+    }
 #else
     error = readfrm(frm_name,&mysql_frm_data,&mysql_frm_len);
-    if (error) { goto cleanup; }
+    if (error) { 
+        goto cleanup; 
+    }
 #endif
 
     key.data = &curr_key;
@@ -2123,20 +2125,13 @@ int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
         );
     if (error == DB_NOTFOUND) {
         // if not found, write it
-        error = write_frm_data(
-            share->status_block,
-            txn,
-            frm_name
-            );
+        error = write_frm_data(share->status_block, txn, frm_name);
         goto cleanup;
-    }
-    else if (error) {
+    } else if (error) {
         goto cleanup;
     }
 
-    if (stored_frm.size != mysql_frm_len || 
-        memcmp(stored_frm.data, mysql_frm_data, stored_frm.size))
-    {
+    if (stored_frm.size != mysql_frm_len || memcmp(stored_frm.data, mysql_frm_data, stored_frm.size)) {
         error = HA_ERR_TABLE_DEF_CHANGED;
         goto cleanup;
     }
