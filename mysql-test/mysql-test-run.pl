@@ -1864,21 +1864,8 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--log-warnings=0");
-  for (@opt_extra_mysqld_opt) {
-    mtr_add_arg($args, $_) unless /^--binlog-format\b/;
-  }
-  my $euid= $>;
-  if (!IS_WINDOWS and $euid == 0) {
-    mtr_add_arg($args, "--user=root");
-  }
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
-
-  # Need --user=root if running as *nix root user
-  if (!IS_WINDOWS and $> == 0)
-  {
-    mtr_add_arg($args, "--user=root");
-  }
 
   my $exe_mysqld= find_mysqld($bindir);
   my $cmd= join(" ", $exe_mysqld, @$args);
