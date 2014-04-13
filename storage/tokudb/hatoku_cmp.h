@@ -229,11 +229,7 @@ static void get_blob_field_info(
     uint32_t num_offset_bytes
     );
 
-static inline uint32_t get_blob_field_len(
-    const uchar* from_tokudb, 
-    uint32_t len_bytes
-    ) 
-{
+static inline uint32_t get_blob_field_len(const uchar* from_tokudb, uint32_t len_bytes) {
     uint32_t length = 0;
     switch (len_bytes) {
     case (1):
@@ -255,13 +251,7 @@ static inline uint32_t get_blob_field_len(
 }
 
 
-static inline const uchar* unpack_toku_field_blob(
-    uchar *to_mysql, 
-    const uchar* from_tokudb,
-    uint32_t len_bytes,
-    bool skip
-    )
-{
+static inline const uchar* unpack_toku_field_blob(uchar *to_mysql, const uchar* from_tokudb, uint32_t len_bytes, bool skip) {
     uint32_t length = 0;
     const uchar* data_ptr = NULL;
     if (!skip) {
@@ -271,9 +261,9 @@ static inline const uchar* unpack_toku_field_blob(
 
     data_ptr = from_tokudb + len_bytes;
     if (!skip) {
-        memcpy(to_mysql + len_bytes, (uchar *)(&data_ptr), sizeof(uchar *));
+        memcpy(to_mysql + len_bytes, (uchar *)(&data_ptr), sizeof data_ptr);
     }
-    return (from_tokudb + len_bytes + length);
+    return from_tokudb + len_bytes + length;
 }
 
 static inline uint get_null_offset(TABLE* table, Field* field) {
