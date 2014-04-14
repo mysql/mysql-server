@@ -897,12 +897,25 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
                   system_charset_info);
 
   char md5[MD5_BUFF_LENGTH];
-  bool can_be_merged;
   char dir_buff[FN_REFLEN + 1], path_buff[FN_REFLEN + 1];
   LEX_STRING dir, file, path;
   int error= 0;
   bool was_truncated;
   DBUG_ENTER("mysql_register_view");
+
+  /*
+    A view can be merged if it is technically possible and if the user didn't
+    ask that we create a temporary table instead.
+  */
+  const bool can_be_merged= lex->can_be_merged() &&
+    lex->create_view_algorithm != VIEW_ALGORITHM_TMPTABLE;
+
+  if (can_be_merged)
+  {
+    for (ORDER *order= lex->select_lex->order_list.first ;
+         order; order= order->next)
+      order->used_alias= false;               /// @see Item::print_for_order()
+  }
 
   /* Generate view definition and IS queries. */
   view_query.length(0);
@@ -940,9 +953,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;   
   }
   view->md5.length= 32;
-  can_be_merged= lex->can_be_merged();
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
-      !lex->can_be_merged())
+      !can_be_merged)
   {
     push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_VIEW_MERGE,
                  ER(ER_WARN_VIEW_MERGE));
@@ -953,8 +965,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->definer.host= lex->definer->host;
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
-  if ((view->updatable_view= (can_be_merged &&
-                              view->algorithm != VIEW_ALGORITHM_TMPTABLE)))
+
+  if ((view->updatable_view= can_be_merged))
   {
     /* TODO: change here when we will support UNIONs */
     for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
@@ -1128,9 +1140,9 @@ err:
    parent_lex)
    @param  parent_select
  */
-static void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
-                                           SELECT_LEX *removed_select,
-                                           SELECT_LEX *parent_select)
+void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
+                                    SELECT_LEX *removed_select,
+                                    SELECT_LEX *parent_select)
 {
   List_iterator_fast<TABLE_LIST> ti(join_list);
   TABLE_LIST *tbl;
@@ -1252,12 +1264,20 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
   table->definer.user.str= table->definer.host.str= 0;
   table->definer.user.length= table->definer.host.length= 0;
 
-  Opt_trace_object trace_wrapper(&thd->opt_trace);
-  Opt_trace_object trace_view(&thd->opt_trace, "view");
-  // When reading I_S.VIEWS, table->alias may be NULL
-  trace_view.add_utf8("database", table->db, table->db_length).
-    add_utf8("view", table->alias ? table->alias : table->table_name).
-    add("in_select#", old_lex->select_lex->select_number);
+  Opt_trace_context * const trace= &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_view(trace, "view");
+  if (trace->is_started())
+  {
+    /*
+      When opening I_S views, or tables used by triggers, some information is
+      not available.
+    */
+    trace_view.add_utf8("database", table->db, table->db_length).
+      add_utf8("view", table->alias ? table->alias : table->table_name);
+    if (table->select_lex)
+      trace_view.add("in_select#", table->select_lex->select_number);
+  }
 
   /*
     TODO: when VIEWs will be stored in cache, table mem_root should
@@ -1723,7 +1743,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       }
 
       /* Store WHERE clause for post-processing in setup_underlying */
-      table->where= view_select->where;
+      table->where= view_select->where_cond();
       /*
         Add subqueries units to SELECT into which we merging current view.
         unit(->next)* chain starts with subqueries that are used by this
@@ -1912,7 +1932,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     /* if something goes wrong, bin-log with possible error code,
        otherwise bin-log with error code cleared.
      */
-    if (write_bin_log(thd, !something_wrong, thd->query(), thd->query_length()))
+    if (write_bin_log(thd, !something_wrong,
+                      thd->query().str, thd->query().length))
       something_wrong= 1;
   }
 

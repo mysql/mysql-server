@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
 #include "sql_table.h"         // prepare_create_field
 #include "auth_common.h"       // *_ACL
-#include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
 
 #include "sp_head.h"
@@ -261,6 +260,7 @@ sp_head::sp_head(enum_sp_type type)
   m_last_cached_sp(NULL),
   m_trg_list(NULL),
   m_root_parsing_ctx(NULL),
+  m_instructions(&main_mem_root),
   m_sp_cache_version(0),
   m_creation_ctx(NULL),
   unsafe_flags(0)
@@ -268,6 +268,8 @@ sp_head::sp_head(enum_sp_type type)
   m_first_instance= this;
   m_first_free_instance= this;
   m_last_cached_sp= this;
+
+  m_instructions.reserve(32);
 
   m_return_field_def.charset = NULL;
 
@@ -735,11 +737,15 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
+    sql_digest_state digest_state;
+    sql_digest_state *parent_digest= thd->m_digest;
+    thd->m_digest= & digest_state;
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state psi_state;
-    PSI_statement_locker *parent_locker;
     PSI_statement_info *psi_info = i->get_psi_info();
-
+    PSI_statement_locker *parent_locker;
+ 
     parent_locker= thd->m_statement_psi;
     thd->m_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
                                                 thd->db, thd->db_length,
@@ -753,6 +759,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
     thd->m_statement_psi= parent_locker;
 #endif
+
+    thd->m_digest= parent_digest;
 
     if (i->free_list)
       cleanup_items(i->free_list);
@@ -1781,7 +1789,7 @@ bool sp_head::add_instr(THD *thd, sp_instr *instr)
   */
   instr->mem_root= get_persistent_mem_root();
 
-  return m_instructions.append(instr);
+  return m_instructions.push_back(instr);
 }
 
 
@@ -1806,7 +1814,7 @@ void sp_head::optimize()
     {
       if (src != dst)
       {
-        m_instructions.set(dst, i);
+        m_instructions[dst]= i;
 
         /* Move the instruction and update prev. jumps */
         sp_branch_instr *ibp;
@@ -1821,7 +1829,7 @@ void sp_head::optimize()
     }
   }
 
-  m_instructions.elements(dst);
+  m_instructions.resize(dst);
   bp.empty();
 }
 

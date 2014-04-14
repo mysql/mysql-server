@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #ifndef _m_ctype_h
 #define _m_ctype_h
 
-#include <my_attribute.h>
 #include "my_global.h"                          /* uint16, uchar */
 
 #ifdef	__cplusplus
@@ -357,7 +356,7 @@ typedef struct my_charset_handler_st
   /* Charset dependant snprintf() */
   size_t (*snprintf)(const struct charset_info_st *, char *to, size_t n,
                      const char *fmt,
-                     ...) ATTRIBUTE_FORMAT_FPTR(printf, 4, 5);
+                     ...) __attribute__((format(printf, 4, 5)));
   size_t (*long10_to_str)(const struct charset_info_st *, char *to, size_t n,
                           int radix, long int val);
   size_t (*longlong10_to_str)(const struct charset_info_st *, char *to,
@@ -423,6 +422,7 @@ typedef struct charset_info_st
   uchar     casedn_multiply;
   uint      mbminlen;
   uint      mbmaxlen;
+  uint      mbmaxlenlen;
   my_wc_t   min_sort_char;
   my_wc_t   max_sort_char; /* For LIKE optimization */
   uchar     pad_char;
@@ -454,6 +454,8 @@ extern CHARSET_INFO my_charset_gb2312_chinese_ci;
 extern CHARSET_INFO my_charset_gb2312_bin;
 extern CHARSET_INFO my_charset_gbk_chinese_ci;
 extern CHARSET_INFO my_charset_gbk_bin;
+extern CHARSET_INFO my_charset_gb18030_chinese_ci;
+extern CHARSET_INFO my_charset_gb18030_bin;
 extern CHARSET_INFO my_charset_latin1_german2_ci;
 extern CHARSET_INFO my_charset_latin1_bin;
 extern CHARSET_INFO my_charset_latin2_czech_ci;
@@ -536,7 +538,7 @@ size_t my_scan_8bit(const CHARSET_INFO *cs, const char *b, const char *e,
 
 size_t my_snprintf_8bit(const struct charset_info_st *, char *to, size_t n,
                         const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 4, 5);
+  __attribute__((format(printf, 4, 5)));
 
 long       my_strntol_8bit(const CHARSET_INFO *, const char *s, size_t l,
                            int base, char **e, int *err);
@@ -722,6 +724,8 @@ uint32 my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
                   const char *from, uint32 from_length,
                   const CHARSET_INFO *from_cs, uint *errors);
 
+uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e);
+
 #define	_MY_U	01	/* Upper case */
 #define	_MY_L	02	/* Lower case */
 #define	_MY_NMR	04	/* Numeral (digit) */
@@ -769,6 +773,37 @@ uint32 my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
 #define use_mb(s)                     ((s)->cset->ismbchar != NULL)
 #define my_ismbchar(s, a, b)          ((s)->cset->ismbchar((s), (a), (b)))
 #define my_mbcharlen(s, a)            ((s)->cset->mbcharlen((s),(a)))
+/**
+  Get the length of gb18030 code by the given two leading bytes
+
+  @param[in] s charset_info
+  @param[in] a first byte of gb18030 code
+  @param[in] b second byte of gb18030 code
+  @return    the length of gb18030 code starting with given two bytes,
+             the length would be 2 or 4
+*/
+#define my_mbcharlen_2(s, a, b)       ((s)->cset->mbcharlen((s),((((a) & 0xFF) << 8) + ((b) & 0xFF))))
+/**
+  Get the maximum length of leading bytes needed to determine the length of a
+  multi-byte gb18030 code
+
+  @param[in] s charset_info
+  @return    number of leading bytes we need, would be 2 for gb18030
+             and 1 for all other charsets
+*/
+#define my_mbmaxlenlen(s)             ((s)->mbmaxlenlen)
+/**
+  Judge if the given byte is a possible leading byte for a charset.
+  For gb18030 whose mbmaxlenlen is 2, we can't determine the length of
+  a multi-byte character by looking at the first byte only
+
+  @param[in] s charset_info
+  @param[in] i possible leading byte
+  @return    true if it is, otherwise false
+*/
+#define my_ismb1st(s, i)                                           \
+   (my_mbcharlen((s), (i)) > 1 ||                                  \
+    (my_mbmaxlenlen((s)) == 2 && my_mbcharlen((s), (i)) == 0))
 
 #define my_caseup_str(s, a)           ((s)->cset->caseup_str((s), (a)))
 #define my_casedn_str(s, a)           ((s)->cset->casedn_str((s), (a)))

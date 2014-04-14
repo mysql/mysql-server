@@ -1075,6 +1075,21 @@ EFBE9D	00FF9D
 F0908E84	010384
 F4808080	100000
 DROP TABLE IF EXISTS t1;
+#
+# BUG#16691598 - ORDER BY LOWER(COLUMN) PRODUCES 
+#                OUT-OF-ORDER RESULTS
+#
+CREATE TABLE  t1 SELECT ('a a') as n;
+INSERT INTO t1 VALUES('a b');
+SELECT * FROM t1 ORDER BY LOWER(n) ASC;
+n
+a a
+a b
+SELECT * FROM t1 ORDER BY LOWER(n) DESC;
+n
+a b
+a a
+DROP TABLE t1;
 select @@collation_connection;
 @@collation_connection
 utf8mb4_bin

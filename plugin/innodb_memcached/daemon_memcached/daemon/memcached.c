@@ -6744,16 +6744,14 @@ static void shutdown_server(void) {
 }
 
 #ifdef INNODB_MEMCACHED
-bool initialize_complete(void)
-{
-    return(memcached_initialized == 1);
-}
-#endif
-
-#ifdef INNODB_MEMCACHED
 bool shutdown_complete(void)
 {
     return(memcached_shutdown == 2);
+}
+
+bool init_complete(void)
+{
+    return(memcached_initialized == 1);
 }
 #endif
 
@@ -7082,6 +7080,7 @@ int main (int argc, char **argv) {
 #endif /* INNODB_MEMCACHED */
 
     memcached_shutdown = 0;
+    memcached_initialized = 0;
 
     if (!sanitycheck()) {
         return(NULL);
@@ -7967,6 +7966,7 @@ func_exit:
 #endif
 
     memcached_shutdown = 2;
+    memcached_initialized = 2;
 
     return EXIT_SUCCESS;
 }

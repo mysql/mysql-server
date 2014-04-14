@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -69,6 +69,9 @@ struct srv_stats_t {
 
 	/** Number of physical writes to the log performed */
 	ulint_ctr_1_t		log_writes;
+
+	/** Amount of data padded for log write ahead */
+	ulint_ctr_1_t		log_padded;
 
 	/** Amount of data written to the log files in bytes */
 	lsn_ctr_1_t		os_log_written;
@@ -246,6 +249,7 @@ extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
+extern ulong	srv_log_write_ahead_size;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -253,11 +257,6 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
 
-#ifndef UNIV_HOTBACKUP
-extern my_bool	srv_use_sys_malloc;
-#else
-extern ibool	srv_use_sys_malloc;
-#endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 #define SRV_BUF_POOL_INSTANCES_NOT_SET	0
 extern ulong	srv_buf_pool_instances; /*!< requested number of buffer pool instances */
@@ -271,7 +270,6 @@ extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulong	srv_buf_pool_dump_pct;	/*!< dump that may % of each buffer
 					pool during BP dump */
-extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
@@ -303,6 +301,8 @@ extern ulint	srv_unix_file_flush_method;
 extern ulint	srv_win_file_flush_method;
 
 extern ulint	srv_max_n_open_files;
+
+extern ulong	srv_n_page_cleaners;
 
 extern ulong	srv_max_dirty_pages_pct;
 extern ulong	srv_max_dirty_pages_pct_lwm;
@@ -340,15 +340,9 @@ extern ulong	srv_max_purge_lag_delay;
 extern ulong	srv_replication_delay;
 /*-------------------------------------------*/
 
-extern ibool	srv_print_innodb_monitor;
-extern ibool	srv_print_innodb_lock_monitor;
-extern ibool	srv_print_innodb_tablespace_monitor;
+extern my_bool	srv_print_innodb_monitor;
+extern my_bool	srv_print_innodb_lock_monitor;
 extern ibool	srv_print_verbose_log;
-#define DEPRECATED_MSG_INNODB_TABLE_MONITOR \
-	"Using innodb_table_monitor is deprecated and it may be removed " \
-	"in future releases. Please use the InnoDB INFORMATION_SCHEMA " \
-	"tables instead, see " REFMAN "innodb-i_s-tables.html"
-extern ibool	srv_print_innodb_table_monitor;
 
 extern ibool	srv_monitor_active;
 extern ibool	srv_error_monitor_active;
@@ -368,7 +362,6 @@ extern ibool	srv_priority_boost;
 extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
 
-extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -382,11 +375,6 @@ extern my_bool	srv_purge_view_update_only_debug;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
-
-#ifndef HAVE_ATOMIC_BUILTINS
-/** Mutex protecting some server global variables. */
-extern ib_mutex_t	server_mutex;
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 #define SRV_MAX_N_IO_THREADS	130
 

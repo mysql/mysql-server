@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -161,9 +161,9 @@ public:
   virtual void reset_value_registration() {}
   enum_parsing_context place() { return parsing_place; }
   bool walk_join_condition(List<TABLE_LIST> *tables, Item_processor processor,
-                           bool walk_subquery, uchar *argument);
-  bool walk_body(Item_processor processor, bool walk_subquery, uchar *arg);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+                           enum_walk walk, uchar *arg);
+  bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);
   bool inform_item_in_cond_of_tab(uchar *join_tab_index);
   virtual bool clean_up_after_removal(uchar *arg);
@@ -207,7 +207,7 @@ public:
   longlong val_int ();
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool val_bool();
   enum Item_result result_type() const;
@@ -328,7 +328,7 @@ public:
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -461,7 +461,7 @@ public:
   trans_res single_value_in_to_exists_transformer(JOIN * join,
                                                   Comp_creator *func);
   trans_res row_value_in_to_exists_transformer(JOIN * join);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool exec();
   longlong val_int();
   double val_real();
@@ -470,7 +470,8 @@ public:
   void update_null_value () { (void) val_bool(); }
   bool val_bool();
   void top_level_item() { abort_on_null=1; }
-  inline bool is_top_level_item() { return abort_on_null; }
+  bool is_top_level_item() const { return abort_on_null; }
+
   bool test_limit(st_select_lex_unit *unit);
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
@@ -686,7 +687,10 @@ private:
   bool unique;
 public:
 
-  // constructor can assign THD because it will be called after JOIN::prepare
+  /*
+    constructor can assign THD because it will be called after
+    SELECT_LEX::prepare
+  */
   subselect_indexsubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				 Item_subselect *subs, Item *where,
                                  Item *having_arg, bool chk_null,
@@ -763,7 +767,7 @@ private:
   */
   subselect_single_select_engine *materialize_engine;
   /* Temp table context of the outer select's JOIN. */
-  TMP_TABLE_PARAM *tmp_param;
+  Temp_table_param *tmp_param;
 
 public:
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,

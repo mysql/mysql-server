@@ -42,6 +42,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
 {
   FILE *fd;
   char type[5];
+  char *dup_filename= NULL;
   DBUG_ENTER("my_fopen");
   DBUG_PRINT("my",("Name: '%s'  flags: %d  MyFlags: %d",
 		   filename, flags, MyFlags));
@@ -67,11 +68,11 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
       thread_safe_increment(my_stream_opened,&THR_LOCK_open);
       DBUG_RETURN(fd);				/* safeguard */
     }
-    mysql_mutex_lock(&THR_LOCK_open);
-    if ((my_file_info[filedesc].name= (char*)
-	 my_strdup(key_memory_my_file_info,
-                   filename,MyFlags)))
+    dup_filename= my_strdup(key_memory_my_file_info, filename, MyFlags);
+    if (dup_filename != NULL)
     {
+      mysql_mutex_lock(&THR_LOCK_open);
+      my_file_info[filedesc].name= dup_filename;
       my_stream_opened++;
       my_file_total_opened++;
       my_file_info[filedesc].type= STREAM_BY_FOPEN;
@@ -79,7 +80,6 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
       DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
       DBUG_RETURN(fd);
     }
-    mysql_mutex_unlock(&THR_LOCK_open);
     (void) my_fclose(fd,MyFlags);
     my_errno=ENOMEM;
   }

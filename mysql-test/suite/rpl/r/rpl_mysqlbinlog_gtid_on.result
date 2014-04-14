@@ -40,3 +40,4 @@ INSERT INTO t1 VALUES(21);
 include/rpl_restart_server.inc [server_number=1]
 FLUSH LOGS;
 DROP TABLE t1;
+CHANGE MASTER TO MASTER_AUTO_POSITION=0;

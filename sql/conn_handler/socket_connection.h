@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,6 +107,11 @@ class Mysqld_socket_listener
   select_info_t m_select_info;
 #endif // HAVE_POLL
 
+#ifdef HAVE_LIBWRAP
+  const char *m_libwrap_name;
+  int m_deny_severity;
+#endif
+
   /** Number of connection errors when selecting on the listening port */
   static ulong connection_errors_select;
   /** Number of connection errors when accepting sockets in the listening port. */
@@ -122,12 +127,12 @@ public:
 
   static ulong get_connection_errors_accept()
   {
-    return connection_errors_select;
+    return connection_errors_accept;
   }
 
   static ulong get_connection_errors_tcpwrap()
   {
-    return connection_errors_select;
+    return connection_errors_tcpwrap;
   }
 
   /**
@@ -143,14 +148,7 @@ public:
   */
   Mysqld_socket_listener(std::string bind_addr_str, uint tcp_port,
                          uint backlog, uint port_timeout,
-                         std::string unix_sockname)
-  : m_bind_addr_str(bind_addr_str),
-    m_tcp_port(tcp_port),
-    m_backlog(backlog),
-    m_port_timeout(port_timeout),
-    m_unix_sockname(unix_sockname),
-    m_error_count(0)
-  { }
+                         std::string unix_sockname);
 
   /**
     Set up a listener - set of sockets to listen for connection events

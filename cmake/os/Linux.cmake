@@ -32,8 +32,8 @@ ENDFOREACH()
 
 # Ensure we have clean build for shared libraries
 # without unresolved symbols
-# Not supported with AddressSanitizer
-IF(NOT WITH_ASAN)
+# Not supported with AddressSanitizer and MemorySanitizer
+IF(NOT WITH_ASAN AND NOT WITH_MSAN)
   SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
 ENDIF()
 
@@ -41,9 +41,4 @@ ENDIF()
 SET(_FILE_OFFSET_BITS 64)
 
 # Linux specific HUGETLB /large page support
-CHECK_SYMBOL_EXISTS(SHM_HUGETLB sys/shm.h  HAVE_DECL_SHM_HUGETLB)
-IF(HAVE_DECL_SHM_HUGETLB)
-  SET(HAVE_LARGE_PAGES 1)
-  SET(HUGETLB_USE_PROC_MEMINFO 1)
-  SET(HAVE_LARGE_PAGE_OPTION 1)
-ENDIF()
+CHECK_SYMBOL_EXISTS(SHM_HUGETLB sys/shm.h HAVE_LINUX_LARGE_PAGES)

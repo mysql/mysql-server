@@ -419,7 +419,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       if ((error= recreate_temporary_table(thd, tmp_table)))
         binlog_stmt= FALSE; /* No need to binlog failed truncate-by-recreate. */
 
-      DBUG_ASSERT(! thd->transaction.stmt.cannot_safely_rollback());
+      DBUG_ASSERT(! thd->get_transaction()->cannot_safely_rollback(
+        Transaction_ctx::STMT));
     }
     else
     {
@@ -492,7 +493,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
   /* DDL is logged in statement format, regardless of binlog format. */
   if (binlog_stmt)
-    error|= write_bin_log(thd, !error, thd->query(), thd->query_length());
+    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the

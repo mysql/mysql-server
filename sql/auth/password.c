@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,9 +81,6 @@
 
 void randominit(struct rand_struct *rand_st, ulong seed1, ulong seed2)
 {                                               /* For mysql 3.21.# */
-#ifdef HAVE_purify
-  memset(rand_st, 0, sizeof(*rand_st));       /* Avoid UMC varnings */
-#endif
   rand_st->max_value= 0x3FFFFFFFL;
   rand_st->max_value_dbl=(double) rand_st->max_value;
   rand_st->seed1=seed1%rand_st->max_value ;

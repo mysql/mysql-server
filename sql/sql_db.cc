@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -636,24 +636,25 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
 not_silent:
   if (!silent)
   {
-    char *query;
-    uint query_length;
+    const char *query;
+    size_t query_length;
     char db_name_quoted[2 * FN_REFLEN + sizeof("create database ") + 2];
     int id_len= 0;
 
-    if (!thd->query())                          // Only in replication
+    if (!thd->query().str)                          // Only in replication
     {
       id_len= my_strmov_quoted_identifier(thd, (char *) db_name_quoted, db,
                                           0);
       db_name_quoted[id_len]= '\0';
       query= tmp_query;
-      query_length= (uint) (strxmov(tmp_query,"create database ",
+      query_length=
+        static_cast<size_t>(strxmov(tmp_query,"create database ",
                                     db_name_quoted, NullS) - tmp_query);
     }
     else
     {
-      query=        thd->query();
-      query_length= thd->query_length();
+      query=        thd->query().str;
+      query_length= thd->query().length;
     }
 
     ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB,
@@ -741,14 +742,14 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   }
 
   ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB,
-                      thd->query(), thd->query_length(),
+                      thd->query().str, thd->query().length,
                       db, "");
 
   if (mysql_bin_log.is_open())
   {
     int errcode= query_error_code(thd, TRUE); 
-    Query_log_event qinfo(thd, thd->query(), thd->query_length(), FALSE, TRUE,
-			  /* suppress_use */ TRUE, errcode);
+    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
+                          false, true, /* suppress_use */ true, errcode);
     /*
       Write should use the database being created as the "current
       database" and not the threads current database, which is the
@@ -913,23 +914,24 @@ update_binlog:
   if (!silent && !error)
   {
     const char *query;
-    ulong query_length;
+    size_t query_length;
     // quoted db name + wraping quote
     char buffer_temp [2 * FN_REFLEN + 2];
     int id_len= 0;
-    if (!thd->query())
+    if (!thd->query().str)
     {
       /* The client used the old obsolete mysql_drop_db() call */
       query= path;
       id_len= my_strmov_quoted_identifier(thd, buffer_temp, db, strlen(db));
       buffer_temp[id_len] ='\0';
-      query_length= (uint) (strxmov(path, "DROP DATABASE ", buffer_temp, "",
-                                     NullS) - path);
+      query_length=
+        static_cast<size_t>(strxmov(path, "DROP DATABASE ", buffer_temp, "",
+                                    NullS) - path);
     }
     else
     {
-      query= thd->query();
-      query_length= thd->query_length();
+      query= thd->query().str;
+      query_length= thd->query().length;
     }
     if (mysql_bin_log.is_open())
     {
@@ -1030,7 +1032,18 @@ exit:
     it to 0.
   */
   if (thd->db && !strcmp(thd->db, db) && !error)
+  {
     mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
+    /*
+      Check if current database tracker is enabled. If so, set the 'changed' flag.
+    */
+    if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled())
+    {
+      LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
+      dummy.length= dummy.length*1;
+      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+    }
+  }
   my_dirend(dirp);
   DBUG_RETURN(error);
 }
@@ -1502,7 +1515,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
 
-      DBUG_RETURN(FALSE);
+      goto done;
     }
     else
     {
@@ -1518,8 +1531,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
     mysql_change_db_impl(thd, &INFORMATION_SCHEMA_NAME, SELECT_ACL,
                          system_charset_info);
-
-    DBUG_RETURN(FALSE);
+    goto done;
   }
 
   /*
@@ -1600,12 +1612,10 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
       my_free(new_db_file_name.str);
 
       /* Change db to NULL. */
-
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
 
       /* The operation succeed. */
-
-      DBUG_RETURN(FALSE);
+      goto done;
     }
     else
     {
@@ -1629,6 +1639,18 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
   mysql_change_db_impl(thd, &new_db_file_name, db_access, db_default_cl);
 
+done:
+  /*
+    Check if current database tracker is enabled. If so, set the 'changed' flag.
+  */
+  if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled())
+  {
+    LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
+    dummy.length= dummy.length*1;
+    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+  }
+  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
   DBUG_RETURN(FALSE);
 }
 
@@ -1869,7 +1891,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
   if (mysql_bin_log.is_open())
   {
     int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query(), thd->query_length(),
+    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
                           FALSE, TRUE, TRUE, errcode);
     thd->clear_error();
     error|= mysql_bin_log.write_event(&qinfo);

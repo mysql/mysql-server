@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,10 @@ typedef char my_bool;
 
 #ifndef my_socket_defined
 #ifdef _WIN32
+#include <windows.h>
+#ifdef WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
+#endif
 #define my_socket SOCKET
 #else
 typedef int my_socket;
@@ -409,6 +412,14 @@ MYSQL_RES *     STDCALL mysql_use_result(MYSQL *mysql);
 void        STDCALL mysql_get_character_set_info(MYSQL *mysql,
                            MY_CHARSET_INFO *charset);
 
+int STDCALL mysql_session_track_get_first(MYSQL *mysql,
+                                          enum enum_session_state_type type,
+                                          const char **data,
+                                          size_t *length);
+int STDCALL mysql_session_track_get_next(MYSQL *mysql,
+                                         enum enum_session_state_type type,
+                                         const char **data,
+                                         size_t *length);
 /* local infile support */
 
 #define LOCAL_INFILE_ERROR_LEN 512
@@ -572,7 +583,7 @@ typedef struct st_mysql_bind
   /* output buffer length, must be set when fetching str/binary */
   unsigned long buffer_length;
   unsigned long offset;           /* offset position for char/binary fetch */
-  unsigned long	length_value;     /* Used if length is 0 */
+  unsigned long length_value;     /* Used if length is 0 */
   unsigned int	param_number;	  /* For null count and error messages */
   unsigned int  pack_length;	  /* Internal length for packed data */
   enum enum_field_types buffer_type;	/* buffer type */

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -93,6 +93,7 @@ use My::Find;
 use My::SysInfo;
 use My::CoreDump;
 use mtr_cases;
+use mtr_cases_from_list;
 use mtr_report;
 use mtr_match;
 use mtr_unique;
@@ -163,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_gis,innodb_fts,perfschema,funcs_1,opt_trace,parts,auth_sec";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,perfschema,funcs_1,opt_trace,parts,auth_sec";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -189,6 +190,7 @@ my $opt_compress;
 my $opt_ssl;
 my $opt_skip_ssl;
 my @opt_skip_test_list;
+my $opt_do_test_list= "";
 our $opt_ssl_supported;
 my $opt_ps_protocol;
 my $opt_sp_protocol;
@@ -361,6 +363,11 @@ sub main {
     gcov_prepare($basedir);
   }
 
+  # New: collect suites and test cases from test list (file containing suite.testcase on each line)
+  #      and put suites to $opt_suites and test case to @opt_cases.
+  if ($opt_do_test_list ne "") {
+      	collect_test_cases_from_list(\$opt_suites, \@opt_cases, $opt_do_test_list,\$opt_ctest);
+  }
   if (!$opt_suites) {
     $opt_suites= $DEFAULT_SUITES;
   }
@@ -422,7 +429,6 @@ sub main {
     );
   mtr_error("Could not create testcase server port: $!") unless $server;
   my $server_port = $server->sockport();
-  mtr_report("Using server port $server_port");
 
   if ($opt_resfile) {
     resfile_init("$opt_vardir/mtr-results.txt");
@@ -480,7 +486,7 @@ sub main {
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
 
-  if (!IS_WINDOWS) {
+  if (!IS_WINDOWS) { 
     # Wait for children to exit
     foreach my $pid (keys %children)
     {
@@ -494,7 +500,7 @@ sub main {
     }
   }
 
-  if ( not defined @$completed ) {
+  if ( not $completed ) {
     mtr_error("Test suite aborted");
   }
 
@@ -628,6 +634,10 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
 	      rename($worker_savedir, $savedir);
+              #look for the test.log file and put in savedir
+	      my $logf= "$result->{shortname}" . ".log";
+              my $logfilepath= dirname($worker_savedir); 
+              move($logfilepath . "/" . $logf, $savedir);
 	      # Move any core files from e.g. mysqltest
 	      foreach my $coref (glob("core*"), glob("*.dmp"))
 	      {
@@ -1184,7 +1194,8 @@ sub command_line_setup {
              'help|h'                   => \$opt_usage,
 	     # list-options is internal, not listed in help
 	     'list-options'             => \$opt_list_options,
-             'skip-test-list=s'         => \@opt_skip_test_list
+             'skip-test-list=s'         => \@opt_skip_test_list,
+             'do-test-list=s'           => \$opt_do_test_list
            );
 
   GetOptions(%options) or usage("Can't read options");
@@ -3559,7 +3570,9 @@ sub mysql_install_db {
   # need to be given to the bootstrap process as well as the
   # server process.
   foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
-    if ($extra_opt =~ /--innodb/) {
+    (my $temp_extra_opt=$extra_opt) =~ s/_/-/g;
+    if ($temp_extra_opt =~ /--innodb-page-size/ || 
+        $temp_extra_opt =~ /--innodb-log-file-size/) {
       mtr_add_arg($args, $extra_opt);
     }
   # Plugin arguments need to be given to the bootstrap 
@@ -3607,52 +3620,41 @@ sub mysql_install_db {
   my $path_sql= my_find_file($install_basedir,
 			     ["mysql", "sql/share", "share/mysql",
 			      "share", "scripts"],
-			     "mysql_system_tables.sql",
+			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
-  if (-f $path_sql )
+  if (-f $path_sql && -f "include/mtr_system_tables_data.sql" &&
+      -f "include/mtr_test_data_timezone.sql")
   {
-    my $sql_dir= dirname($path_sql);
-    # Use the mysql database for system tables
-    mtr_tofile($bootstrap_sql_file, "use mysql;\n");
-
     # Add the offical mysql system tables
     # for a production system
-    mtr_appendfile_to_file("$sql_dir/mysql_system_tables.sql",
-			   $bootstrap_sql_file);
+    mtr_tofile($bootstrap_sql_file, "use mysql;\n");
+    mtr_appendfile_to_file($path_sql,
+	                         $bootstrap_sql_file);
+
+
 
     # Add the mysql system tables initial data
-    # for a production system
-    mtr_appendfile_to_file("$sql_dir/mysql_system_tables_data.sql",
-			   $bootstrap_sql_file);
+    # for the test system. This should in most cases be the same as the
+    # for the production system, but will for historial reasons contain 
+    # more inital root accounts.
+    mtr_appendfile_to_file("include/mtr_system_tables_data.sql",
+		                       $bootstrap_sql_file);
 
     # Add test data for timezone - this is just a subset, on a real
     # system these tables will be populated either by mysql_tzinfo_to_sql
     # or by downloading the timezone table package from our website
-    mtr_appendfile_to_file("$sql_dir/mysql_test_data_timezone.sql",
-			   $bootstrap_sql_file);
-
-    # Fill help tables, just an empty file when running from bk repo
-    # but will be replaced by a real fill_help_tables.sql when
-    # building the source dist
-    mtr_appendfile_to_file("$sql_dir/fill_help_tables.sql",
-			   $bootstrap_sql_file);
-
+    mtr_appendfile_to_file("include/mtr_test_data_timezone.sql",
+                           $bootstrap_sql_file);
   }
   else
   {
-    # Install db from init_db.sql that exist in early 5.1 and 5.0
-    # versions of MySQL
-    my $init_file= "$install_basedir/mysql-test/lib/init_db.sql";
-    mtr_report(" - from '$init_file'");
-    my $text= mtr_grab_file($init_file) or
-      mtr_error("Can't open '$init_file': $!");
-
-    mtr_tofile($bootstrap_sql_file,
-	       sql_to_bootstrap($text));
+    mtr_error("Error: The system table definition '".
+              "include/mtr_system_tables_data.sql' could not be found".
+              "in working directory.");
   }
 
-  # Remove anonymous users
+  # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';\n");
 
@@ -4432,7 +4434,7 @@ sub run_testcase ($) {
       # relevant part of logfile has already been appended to master log
       {
 	my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
-	if (-e $log_file_name) {
+	if (-e $log_file_name && ($tinfo->{'result'} ne 'MTR_RES_FAILED')) {
 	  unlink($log_file_name);
 	}
       }
@@ -6556,6 +6558,10 @@ Options to control what test suites or cases to run
   enable-disabled       Run also tests marked as disabled
   print-testcases       Don't run the tests but print details about all the
                         selected tests, in the order they would be run.
+  do-test-list=FILE     Run the tests listed in FILE. Each line in the file
+                        is an entry and should be formatted as:
+                        <SUITE>.<TESTNAME> or <SUITE> <TESTNAME>.
+                        "#" as first character marks a comment.
   skip-test-list=FILE   Skip the tests listed in FILE. Each line in the file
                         is an entry and should be formatted as: 
                         <TESTNAME> : <COMMENT>

@@ -4,7 +4,7 @@ c1 int(10) unsigned NOT NULL AUTO_INCREMENT,
 c2 varchar(30) NOT NULL,
 c3 smallint(5) unsigned DEFAULT NULL,
 PRIMARY KEY (c1)
-) ENGINE = MYISAM 
+) ENGINE = MYISAM
 PARTITION BY HASH(c1)(
 PARTITION p0
 DATA DIRECTORY = 'C:/mysqltest/p0Data'

@@ -1497,7 +1497,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 USE test;
 create function f1() returns int
 begin
-set @test = 1, password = password('foo');
+set password = password('foo');
 return 1;
 end|
 ERROR HY000: Not allowed to set autocommit from a stored function or trigger
@@ -1610,7 +1610,7 @@ DROP TABLE t1|
 drop procedure if exists p1;
 create procedure p1()
 begin
-create table t1 (a int) engine=MyISAM;
+create table t1 (a int);
 drop table t1;
 end|
 call p1();

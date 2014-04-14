@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "sql_executor.h"
 #include "sql_base.h"
 #include "opt_trace.h"
+#include "opt_costmodel.h"
 #include "debug_sync.h"
 #include "filesort.h"   // filesort_free_buffers
 
@@ -70,10 +71,7 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
     new_field->flags|= (org_field->flags & NO_DEFAULT_VALUE_FLAG);
     if (org_field->maybe_null() || (item && item->maybe_null))
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
-    if (org_field->type() == MYSQL_TYPE_VAR_STRING ||
-        org_field->type() == MYSQL_TYPE_VARCHAR)
-      table->s->db_create_options|= HA_OPTION_PACK_RECORD;
-    else if (org_field->type() == FIELD_TYPE_DOUBLE)
+    if (org_field->type() == FIELD_TYPE_DOUBLE)
       ((Field_double *) new_field)->not_fixed= TRUE;
   }
   return new_field;
@@ -447,7 +445,7 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 #define MIN_STRING_LENGTH_TO_PACK_ROWS   10
 
 TABLE *
-create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
+create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
 		 ulonglong select_options, ha_rows rows_limit,
 		 const char *table_alias)
@@ -531,7 +529,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (param->group_length >= MAX_BLOB_WIDTH)
       using_unique_constraint= true;
     if (group)
+    {
       distinct=0;				// Can't use distinct
+    }
   }
 
   field_count=param->field_count+param->func_count+param->sum_func_count;
@@ -541,7 +541,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     When loose index scan is employed as access method, it already
     computes all groups and the result of all aggregate functions. We
     make space for the items of the aggregate function in the list of
-    functions TMP_TABLE_PARAM::items_to_copy, so that the values of
+    functions Temp_table_param::items_to_copy, so that the values of
     these items are stored in the temporary table.
   */
   if (param->precomputed_group_by)
@@ -577,7 +577,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
-  /* Copy_field belongs to TMP_TABLE_PARAM, allocate it in THD mem_root */
+  /* Copy_field belongs to Temp_table_param, allocate it in THD mem_root */
   if (!(param->copy_field= copy= new (thd->mem_root) Copy_field[field_count]))
   {
     if (temp_pool_slot != MY_BIT_NONE)
@@ -763,6 +763,10 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         string_count++;
         string_total_length+= new_field->pack_length();
       }
+      // In order to reduce footprint ask SE to pack variable-length fields.
+      if (new_field->type() == MYSQL_TYPE_VAR_STRING ||
+          new_field->type() == MYSQL_TYPE_VARCHAR)
+        table->s->db_create_options|= HA_OPTION_PACK_RECORD;
 
       if (item->marker == 4 && item->maybe_null)
       {
@@ -827,11 +831,17 @@ update_hidden:
   if (!table->file)
     goto err;
 
+  // Update the handler with information about the table object
+  table->file->change_table_ptr(table, share);
+
   if (table->file->set_ha_share_ref(&share->ha_share))
   {
     delete table->file;
     goto err;
   }
+
+  // Initialize cost model for this table
+  table->init_cost_model(thd->cost_model());
 
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
@@ -1026,7 +1036,7 @@ update_hidden:
       param->group_parts;
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
-    keyinfo->rec_per_key=0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "group_key";
     ORDER *cur_group= group;
@@ -1104,7 +1114,7 @@ update_hidden:
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "<auto_key>";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
-    keyinfo->rec_per_key= 0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
 
     /*
       Create an extra field to hold NULL bits so that unique indexes on
@@ -1419,7 +1429,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     keyinfo->usable_key_parts= keyinfo->user_defined_key_parts= 1;
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
-    keyinfo->rec_per_key=0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "weedout_key";
     {

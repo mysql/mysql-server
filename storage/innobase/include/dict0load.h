@@ -255,13 +255,6 @@ dict_load_foreigns(
 						subsequently to load all the
 						foreign key constraints. */
 	__attribute__((nonnull(1), warn_unused_result));
-/********************************************************************//**
-Prints to the standard output information on all tables found in the data
-dictionary system table. */
-
-void
-dict_print(void);
-/*============*/
 
 /********************************************************************//**
 This function opens a system table, and return the first record.

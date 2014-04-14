@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,14 +39,14 @@ Created 6/9/1994 Heikki Tuuri
 
 /* -------------------- MEMORY HEAPS ----------------------------- */
 
-/* A block of a memory heap consists of the info structure
+/** A block of a memory heap consists of the info structure
 followed by an area of memory */
 typedef struct mem_block_info_t	mem_block_t;
 
-/* A memory heap is a nonempty linear list of memory blocks */
+/** A memory heap is a nonempty linear list of memory blocks */
 typedef mem_block_t		mem_heap_t;
 
-/* Types of allocation for memory heaps: DYNAMIC means allocation from the
+/** Types of allocation for memory heaps: DYNAMIC means allocation from the
 dynamic memory pool of the C compiler, BUFFER means allocation from the
 buffer pool; the latter method is used for very big heaps */
 
@@ -60,13 +60,13 @@ buffer pool; the latter method is used for very big heaps */
 					allocation functions can return
 					NULL. */
 
-/* Different type of heaps in terms of which datastructure is using them */
+/** Different type of heaps in terms of which datastructure is using them */
 #define MEM_HEAP_FOR_BTR_SEARCH		(MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER)
 #define MEM_HEAP_FOR_PAGE_HASH		(MEM_HEAP_DYNAMIC)
 #define MEM_HEAP_FOR_RECV_SYS		(MEM_HEAP_BUFFER)
 #define MEM_HEAP_FOR_LOCK_HEAP		(MEM_HEAP_BUFFER)
 
-/* The following start size is used for the first block in the memory heap if
+/** The following start size is used for the first block in the memory heap if
 the size is not specified, i.e., 0 is given as the parameter in the call of
 create. The standard size is the maximum (payload) size of the blocks used for
 allocations of small buffers. */
@@ -75,141 +75,143 @@ allocations of small buffers. */
 #define MEM_BLOCK_STANDARD_SIZE		\
 	(UNIV_PAGE_SIZE >= 16384 ? 8000 : MEM_MAX_ALLOC_IN_BUF)
 
-/* If a memory heap is allowed to grow into the buffer pool, the following
+/** If a memory heap is allowed to grow into the buffer pool, the following
 is the maximum size for a single allocated buffer: */
 #define MEM_MAX_ALLOC_IN_BUF		(UNIV_PAGE_SIZE - 200)
 
-/******************************************************************//**
-Initializes the memory system. */
+/** Space needed when allocating for a user a field of length N.
+The space is allocated only in multiples of UNIV_MEM_ALIGNMENT.  */
+#define MEM_SPACE_NEEDED(N) ut_calc_align((N), UNIV_MEM_ALIGNMENT)
 
-void
-mem_init(
-/*=====*/
-	ulint	size);	/*!< in: common pool size in bytes */
-/******************************************************************//**
-Closes the memory system. */
+#ifdef UNIV_DEBUG
+/** Macro for memory heap creation.
+@param[in]	size		Desired start block size. */
+# define mem_heap_create(size)					\
+	 mem_heap_create_func((size), __FILE__, __LINE__, MEM_HEAP_DYNAMIC)
 
-void
-mem_close(void);
-/*===========*/
+/** Macro for memory heap creation.
+@param[in]	size		Desired start block size.
+@param[in]	type		Heap type */
+# define mem_heap_create_typed(size, type)			\
+	 mem_heap_create_func((size), __FILE__, __LINE__, (type))
 
-/**************************************************************//**
-Use this macro instead of the corresponding function! Macro for memory
-heap creation. */
+#else /* UNIV_DEBUG */
+/** Macro for memory heap creation.
+@param[in]	size		Desired start block size. */
+# define mem_heap_create(size) mem_heap_create_func((size), MEM_HEAP_DYNAMIC)
 
-#define mem_heap_create(N)	mem_heap_create_func(\
-		(N), MEM_HEAP_DYNAMIC, __FILE__, __LINE__)
-/**************************************************************//**
-Use this macro instead of the corresponding function! Macro for memory
-heap creation. */
+/** Macro for memory heap creation.
+@param[in]	size		Desired start block size.
+@param[in]	type		Heap type */
+# define mem_heap_create_typed(size, type)			\
+	 mem_heap_create_func((size), (type))
 
-#define mem_heap_create_typed(N, T)	mem_heap_create_func(\
-		(N), (T), __FILE__, __LINE__)
-/**************************************************************//**
-Use this macro instead of the corresponding function! Macro for memory
-heap freeing. */
+#endif /* UNIV_DEBUG */
 
-#define mem_heap_free(heap) mem_heap_free_func(\
-					  (heap), __FILE__, __LINE__)
-/*****************************************************************//**
-NOTE: Use the corresponding macros instead of this function. Creates a
-memory heap. For debugging purposes, takes also the file name and line as
-arguments.
+/** Creates a memory heap.
+NOTE: Use the corresponding macros instead of this function.
+A single user buffer of 'size' will fit in the block.
+0 creates a default size block.
+@param[in]	size		Desired start block size.
+@param[in]	file_name	File name where created
+@param[in]	line		Line where created
+@param[in]	type		Heap type
 @return own: memory heap, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 mem_heap_t*
 mem_heap_create_func(
-/*=================*/
-	ulint		n,		/*!< in: desired start block size,
-					this means that a single user buffer
-					of size n will fit in the block,
-					0 creates a default size block */
-	ulint		type,		/*!< in: heap type */
-	const char*	file_name,	/*!< in: file name where created */
-	ulint		line);		/*!< in: line where created */
-/*****************************************************************//**
-NOTE: Use the corresponding macro instead of this function. Frees the space
-occupied by a memory heap. In the debug version erases the heap memory
-blocks. */
+	ulint		size,
+#ifdef UNIV_DEBUG
+	const char*	file_name,
+	ulint		line,
+#endif /* UNIV_DEBUG */
+	ulint		type);
+
+/** Frees the space occupied by a memory heap.
+NOTE: Use the corresponding macro instead of this function.
+@param[in]	heap	Heap to be freed */
 UNIV_INLINE
 void
-mem_heap_free_func(
-/*===============*/
-	mem_heap_t*	heap,		/*!< in, own: heap to be freed */
-	const char*	file_name,	/*!< in: file name where freed */
-	ulint		line);		/*!< in: line where freed */
-/***************************************************************//**
-Allocates and zero-fills n bytes of memory from a memory heap.
+mem_heap_free(
+	mem_heap_t*	heap);
+
+/** Allocates and zero-fills n bytes of memory from a memory heap.
+@param[in]	heap	memory heap
+@param[in]	n	number of bytes; if the heap is allowed to grow into
+the buffer pool, this must be <= MEM_MAX_ALLOC_IN_BUF
 @return allocated, zero-filled storage */
 UNIV_INLINE
 void*
 mem_heap_zalloc(
-/*============*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	ulint		n);	/*!< in: number of bytes; if the heap is allowed
-				to grow into the buffer pool, this must be
-				<= MEM_MAX_ALLOC_IN_BUF */
-/***************************************************************//**
-Allocates n bytes of memory from a memory heap.
+	mem_heap_t*	heap,
+	ulint		n);
+
+/** Allocates n bytes of memory from a memory heap.
+@param[in]	heap	memory heap
+@param[in]	n	number of bytes; if the heap is allowed to grow into
+the buffer pool, this must be <= MEM_MAX_ALLOC_IN_BUF
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 void*
 mem_heap_alloc(
-/*===========*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	ulint		n);	/*!< in: number of bytes; if the heap is allowed
-				to grow into the buffer pool, this must be
-				<= MEM_MAX_ALLOC_IN_BUF */
-/*****************************************************************//**
-Returns a pointer to the heap top.
+	mem_heap_t*	heap,
+	ulint		n);
+
+/** Returns a pointer to the heap top.
+@param[in]	heap		memory heap
 @return pointer to the heap top */
 UNIV_INLINE
 byte*
 mem_heap_get_heap_top(
-/*==================*/
-	mem_heap_t*	heap);	/*!< in: memory heap */
-/*****************************************************************//**
-Frees the space in a memory heap exceeding the pointer given. The
-pointer must have been acquired from mem_heap_get_heap_top. The first
-memory block of the heap is not freed. */
+	mem_heap_t*	heap);
+
+/** Frees the space in a memory heap exceeding the pointer given.
+The pointer must have been acquired from mem_heap_get_heap_top.
+The first memory block of the heap is not freed.
+@param[in]	heap		heap from which to free
+@param[in]	old_top		pointer to old top of heap */
 UNIV_INLINE
 void
 mem_heap_free_heap_top(
-/*===================*/
-	mem_heap_t*	heap,	/*!< in: heap from which to free */
-	byte*		old_top);/*!< in: pointer to old top of heap */
-/*****************************************************************//**
-Empties a memory heap. The first memory block of the heap is not freed. */
+	mem_heap_t*	heap,
+	byte*		old_top);
+
+/** Empties a memory heap.
+The first memory block of the heap is not freed.
+@param[in]	heap		heap to empty */
 UNIV_INLINE
 void
 mem_heap_empty(
-/*===========*/
-	mem_heap_t*	heap);	/*!< in: heap to empty */
-/*****************************************************************//**
-Returns a pointer to the topmost element in a memory heap.
+	mem_heap_t*	heap);
+
+/** Returns a pointer to the topmost element in a memory heap.
 The size of the element must be given.
+@param[in]	heap	memory heap
+@param[in]	n	size of the topmost element
 @return pointer to the topmost element */
 UNIV_INLINE
 void*
 mem_heap_get_top(
-/*=============*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	ulint		n);	/*!< in: size of the topmost element */
-/*****************************************************************//**
-Checks if a given chunk of memory is the topmost element stored in the
+	mem_heap_t*	heap,
+	ulint		n);
+
+/** Checks if a given chunk of memory is the topmost element stored in the
 heap. If this is the case, then calling mem_heap_free_top() would free
 that element from the heap.
+@param[in]	heap	memory heap
+@param[in]	buf	presumed topmost element
+@param[in]	buf_sz	size of buf in bytes
 @return true if topmost */
 UNIV_INLINE
 bool
 mem_heap_is_top(
-/*============*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	const void*	buf,	/*!< in: presumed topmost element */
-	ulint		buf_sz)	/*!< in: size of buf in bytes */
+	mem_heap_t*	heap,
+	const void*	buf,
+	ulint		buf_sz)
 	__attribute__((warn_unused_result));
+
 /*****************************************************************//**
 Allocate a new chunk of memory from a memory heap, possibly discarding
 the topmost element. If the memory chunk specified with (top, top_sz)
@@ -294,15 +296,16 @@ mem_strdupl(
 	const char*	str,	/*!< in: string to be copied */
 	ulint		len);	/*!< in: length of str, in bytes */
 
-/**********************************************************************//**
-Duplicates a NUL-terminated string, allocated from a memory heap.
+/** Duplicates a NUL-terminated string, allocated from a memory heap.
+@param[in]	heap	memory heap where string is allocated
+@param[in]	str	string to be copied
 @return own: a copy of the string */
 
 char*
 mem_heap_strdup(
-/*============*/
-	mem_heap_t*	heap,	/*!< in: memory heap where string is allocated */
-	const char*	str);	/*!< in: string to be copied */
+	mem_heap_t*	heap,
+	const char*	str);
+
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string,
 allocated from a memory heap.
@@ -351,23 +354,33 @@ mem_heap_printf(
 	const char*	format,	/*!< in: format string */
 	...) __attribute__ ((format (printf, 2, 3)));
 
-#ifdef MEM_PERIODIC_CHECK
-/******************************************************************//**
-Goes through the list of all allocated mem blocks, checks their magic
-numbers, and reports possible corruption. */
+/** Checks that an object is a memory heap (or a block of it)
+@param[in]	heap	Memory heap to check */
+UNIV_INLINE
+void
+mem_block_validate(
+	const mem_heap_t*	heap);
+
+#ifdef UNIV_DEBUG
+/** Validates the contents of a memory heap.
+Asserts that the memory heap is consistent
+@param[in]	heap	Memory heap to validate */
 
 void
-mem_validate_all_blocks(void);
-/*=========================*/
-#endif
+mem_heap_validate(
+	const mem_heap_t*	heap);
+
+#endif /* UNIV_DEBUG */
 
 /*#######################################################################*/
 
 /** The info structure stored at the beginning of a heap block */
 struct mem_block_info_t {
 	ulint	magic_n;/* magic number for debugging */
+#ifdef UNIV_DEBUG
 	char	file_name[8];/* file name where the mem heap was created */
 	ulint	line;	/*!< line number where the mem heap was created */
+#endif /* UNIV_DEBUG */
 	UT_LIST_BASE_NODE_T(mem_block_t) base; /* In the first block in the
 			the list this is the base node of the list of blocks;
 			in subsequent blocks this is undefined */
@@ -397,11 +410,6 @@ struct mem_block_info_t {
 			pool, this contains the buf_block_t handle;
 			otherwise, this is NULL */
 #endif /* !UNIV_HOTBACKUP */
-#ifdef MEM_PERIODIC_CHECK
-	UT_LIST_NODE_T(mem_block_t) mem_block_list;
-			/* List of all mem blocks allocated; protected
-			by the mem_comm_pool mutex */
-#endif
 };
 
 /** Custom allocator for STL that uses an InnoDB heap. */
@@ -466,7 +474,6 @@ private:
 /* Header size for a memory heap block */
 #define MEM_BLOCK_HEADER_SIZE	ut_calc_align(sizeof(mem_block_info_t),\
 							UNIV_MEM_ALIGNMENT)
-#include "mem0dbg.h"
 
 #ifndef UNIV_NONINL
 #include "mem0mem.ic"
@@ -519,8 +526,6 @@ public:
 	order to improve locality. */
 	pointer	allocate(size_type n, const_pointer hint = 0)
 	{
-		ut_d(DBUG_ASSERT(::mem_heap_check(m_heap)));
-
 		return(reinterpret_cast<pointer>(
 			mem_heap_alloc(m_heap, n * sizeof(T))));
 	}

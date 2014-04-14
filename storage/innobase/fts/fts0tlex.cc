@@ -35,7 +35,7 @@
 #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 
 /* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
- * if you want the limit (max/min) macros for int types. 
+ * if you want the limit (max/min) macros for int types.
  */
 #ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS 1
@@ -247,7 +247,7 @@ struct yy_buffer_state
 
 	int yy_bs_lineno; /**< The line count. */
 	int yy_bs_column; /**< The column count. */
- 
+
 	/* Whether to try to fill the input buffer when we reach the
 	 * end of it.
 	 */
@@ -305,9 +305,9 @@ YY_BUFFER_STATE fts0t_scan_buffer (char *base,yy_size_t size ,yyscan_t yyscanner
 YY_BUFFER_STATE fts0t_scan_string (yyconst char *yy_str ,yyscan_t yyscanner );
 YY_BUFFER_STATE fts0t_scan_bytes (yyconst char *bytes,int len ,yyscan_t yyscanner );
 
-void *fts0talloc (yy_size_t ,      yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) );
-void *fts0trealloc (void *,yy_size_t ,      yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) );
-void fts0tfree (void * ,      yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) );
+void *fts0talloc (yy_size_t ,           yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) );
+void *fts0trealloc (void *,yy_size_t ,           yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) );
+void fts0tfree (void * ,           yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) );
 
 #define yy_new_buffer fts0t_create_buffer
 
@@ -347,14 +347,14 @@ typedef int yy_state_type;
 static yy_state_type yy_get_previous_state (yyscan_t yyscanner );
 static yy_state_type yy_try_NUL_trans (yy_state_type current_state  ,yyscan_t yyscanner);
 static int yy_get_next_buffer (yyscan_t yyscanner );
-static void yy_fatal_error (yyconst char msg[] ,      yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) );
+static void yy_fatal_error (yyconst char msg[] ,           yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) );
 
 /* Done after the current pattern has been matched and before the
  * corresponding action - sets up yytext.
  */
 #define YY_DO_BEFORE_ACTION \
 	yyg->yytext_ptr = yy_bp; \
-	yyleng = (int) (yy_cp - yy_bp); \
+	yyleng = static_cast<int>(yy_cp - yy_bp); \
 	yyg->yy_hold_char = *yy_cp; \
 	*yy_cp = '\0'; \
 	yyg->yy_c_buf_p = yy_cp;
@@ -576,11 +576,11 @@ extern int fts0twrap (yyscan_t yyscanner );
 #endif
 
 #ifndef yytext_ptr
-static void yy_flex_strncpy (char *,yyconst char *,int ,      yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)));
+static void yy_flex_strncpy (char *,yyconst char *,int ,           yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)));
 #endif
 
 #ifdef YY_NEED_STRLEN
-static int yy_flex_strlen (yyconst char * ,      yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)));
+static int yy_flex_strlen (yyconst char * ,           yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)));
 #endif
 
 #ifndef YY_NO_INPUT
@@ -620,7 +620,7 @@ static int input (yyscan_t yyscanner );
 		{ \
 		int c = '*'; \
 		int n; \
-		for ( n = 0; n < (int) max_size && \
+		for ( n = 0; n < static_cast<int>(max_size) && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
 		if ( c == '\n' ) \
@@ -632,7 +632,8 @@ static int input (yyscan_t yyscanner );
 	else \
 		{ \
 		errno=0; \
-		while ( (result = (int) fread(buf, 1, max_size, yyin))==0 && ferror(yyin)) \
+		while ( (result = static_cast<int>(fread(buf, 1, max_size, yyin)))==0 \
+		       && ferror(yyin)) \
 			{ \
 			if( errno != EINTR) \
 				{ \
@@ -1020,8 +1021,8 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 	else
 		{
-			int num_to_read = (int)
-			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
+			int num_to_read =static_cast<int>(
+				YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1);
 
 		while ( num_to_read <= 0 )
 			{ /* Not enough room in the buffer - grow it. */
@@ -1034,7 +1035,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			if ( b->yy_is_our_buffer )
 				{
-				int new_size = (int) b->yy_buf_size * 2;
+				int new_size = static_cast<int>(b->yy_buf_size * 2);
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -1055,8 +1056,8 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			yyg->yy_c_buf_p = &b->yy_ch_buf[yy_c_buf_p_offset];
 
-			num_to_read = (int) YY_CURRENT_BUFFER_LVALUE->yy_buf_size -
-						number_to_move - 1;
+			num_to_read = static_cast<int>(
+				YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1);
 
 			}
 
@@ -1379,7 +1380,7 @@ static void fts0t_init_buffer  (YY_BUFFER_STATE  b, FILE * file , yyscan_t yysca
 	}
 
 	b->yy_is_interactive = 0;
-    
+
 	errno = oerrno;
 }
 
@@ -1498,7 +1499,7 @@ static void fts0tensure_buffer_stack (yyscan_t yyscanner)
 		/* Increase the buffer to prepare for a possible push. */
 		int grow_size = 8 /* arbitrary grow size */;
 
-		num_to_alloc = (int) yyg->yy_buffer_stack_max + grow_size;
+		num_to_alloc = static_cast<int>(yyg->yy_buffer_stack_max + grow_size);
 		yyg->yy_buffer_stack = (struct yy_buffer_state**)fts0trealloc
 								(yyg->yy_buffer_stack,
 								num_to_alloc * sizeof(struct yy_buffer_state*)
@@ -1536,7 +1537,7 @@ YY_BUFFER_STATE fts0t_scan_buffer  (char * base, yy_size_t  size , yyscan_t yysc
 	b->yy_buf_pos = b->yy_ch_buf = base;
 	b->yy_is_our_buffer = 0;
 	b->yy_input_file = 0;
-	b->yy_n_chars = (int) b->yy_buf_size;
+	b->yy_n_chars = static_cast<int>(b->yy_buf_size);
 	b->yy_is_interactive = 0;
 	b->yy_at_bol = 1;
 	b->yy_fill_buffer = 0;
@@ -1558,7 +1559,7 @@ YY_BUFFER_STATE fts0t_scan_buffer  (char * base, yy_size_t  size , yyscan_t yysc
 YY_BUFFER_STATE fts0t_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 {
 
-	return fts0t_scan_bytes(yystr, (int) strlen(yystr) ,yyscanner);
+	return fts0t_scan_bytes(yystr,static_cast<int>(strlen(yystr)) ,yyscanner);
 }
 
 /** Setup the input buffer state to scan the given bytes. The next call to fts0tlex() will
@@ -1602,7 +1603,7 @@ YY_BUFFER_STATE fts0t_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , y
 #define YY_EXIT_FAILURE 2
 #endif
 
-static void yy_fatal_error (yyconst char* msg ,       yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
+static void yy_fatal_error (yyconst char* msg ,            yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
 {
 	(void) fprintf( stderr, "%s\n", msg );
 	exit( YY_EXIT_FAILURE );
@@ -1903,7 +1904,7 @@ int fts0tlex_destroy  (yyscan_t yyscanner)
  */
 
 #ifndef yytext_ptr
-static void yy_flex_strncpy (char* s1, yyconst char * s2, int n ,       yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
+static void yy_flex_strncpy (char* s1, yyconst char * s2, int n ,            yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
 {
 	register int i;
 	for ( i = 0; i < n; ++i )
@@ -1912,7 +1913,7 @@ static void yy_flex_strncpy (char* s1, yyconst char * s2, int n ,       yyscan_t
 #endif
 
 #ifdef YY_NEED_STRLEN
-static int yy_flex_strlen (yyconst char * s ,       yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
+static int yy_flex_strlen (yyconst char * s ,            yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
 {
 	register int n;
 	for ( n = 0; s[n]; ++n )
@@ -1922,12 +1923,12 @@ static int yy_flex_strlen (yyconst char * s ,       yyscan_t yyscanner __attribu
 }
 #endif
 
-void *fts0talloc (yy_size_t  size ,       yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
+void *fts0talloc (yy_size_t  size ,            yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
 {
 	return (void *) malloc( size );
 }
 
-void *fts0trealloc  (void * ptr, yy_size_t  size ,       yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
+void *fts0trealloc  (void * ptr, yy_size_t  size ,            yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
 {
 	/* The cast to (char *) in the following accommodates both
 	 * implementations that use char* generic pointers, and those
@@ -1939,7 +1940,7 @@ void *fts0trealloc  (void * ptr, yy_size_t  size ,       yyscan_t yyscanner __at
 	return (void *) realloc( (char *) ptr, size );
 }
 
-void fts0tfree (void * ptr ,       yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
+void fts0tfree (void * ptr ,            yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
 {
 	free( (char *) ptr );	/* see fts0trealloc() for (char *) cast */
 }

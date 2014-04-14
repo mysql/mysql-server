@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -554,7 +554,7 @@ public:
      abort_on_null(0), show(0)
     {}
   virtual void top_level_item() { abort_on_null= 1; }
-  bool top_level() { return abort_on_null; }
+  bool is_top_level_item() const { return abort_on_null; }
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
   const char *func_name() const { return "<not>"; }
@@ -721,6 +721,7 @@ public:
 public:
   inline void negate() { negated= !negated; }
   inline void top_level_item() { pred_level= 1; }
+  bool is_top_level_item() const { return pred_level; }
   Item *neg_transformer(THD *thd)
   {
     negated= !negated;
@@ -753,6 +754,8 @@ public:
   enum Functype functype() const   { return BETWEEN; }
   const char *func_name() const { return "between"; }
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select);
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   bool is_bool_func() { return 1; }
@@ -817,7 +820,7 @@ public:
   double real_op();
   longlong int_op();
   String *str_op(String *);
-  bool date_op(MYSQL_TIME *ltime, uint fuzzydate);
+  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
   void fix_length_and_dec();
@@ -838,7 +841,7 @@ public:
   double real_op();
   longlong int_op();
   String *str_op(String *str);
-  bool date_op(MYSQL_TIME *ltime, uint fuzzydate);
+  bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
   void fix_length_and_dec();
@@ -860,12 +863,14 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   enum Item_result result_type () const { return cached_result_type; }
   enum_field_types field_type() const { return cached_field_type; }
   bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select);
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
 private:
@@ -926,7 +931,7 @@ public:
   {
     my_qsort2(base,used_count,size,compare,collation);
   }
-  int find(Item *item);
+  bool find(Item *item);
   
   /* 
     Create an instance of Item_{type} (e.g. Item_decimal) constant object
@@ -1124,6 +1129,10 @@ public:
   cmp_item() { cmp_charset= &my_charset_bin; }
   virtual ~cmp_item() {}
   virtual void store_value(Item *item)= 0;
+  /**
+     @returns result (TRUE, FALSE or UNKNOWN) of
+     "stored argument's value <> item's value"
+  */
   virtual int cmp(Item *item)= 0;
   // for optimized IN with row
   virtual int compare(cmp_item *item)= 0;
@@ -1135,7 +1144,15 @@ public:
   }
 };
 
-class cmp_item_string :public cmp_item 
+/// cmp_item which stores a scalar (i.e. non-ROW).
+class cmp_item_scalar : public cmp_item
+{
+protected:
+  bool m_null_value;                            ///< If stored value is NULL
+  void set_null_value(bool nv) { m_null_value= nv; }
+};
+
+class cmp_item_string : public cmp_item_scalar
 {
 protected:
   String *value_res;
@@ -1167,14 +1184,20 @@ public:
       value.copy(*res);
     }
     value_res= &value;
+    set_null_value(item->null_value);
   }
   int cmp(Item *arg)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    String tmp(buff, sizeof(buff), cmp_charset), *res;
-    res= arg->val_str(&tmp);
-    return (value_res ? (res ? sortcmp(value_res, res, cmp_charset) : 1) :
-            (res ? -1 : 0));
+    String tmp(buff, sizeof(buff), cmp_charset), *res= arg->val_str(&tmp);
+    if (m_null_value || arg->null_value)
+      return UNKNOWN;
+    if (value_res && res)
+      return sortcmp(value_res, res, cmp_charset) != 0;
+    else if (!value_res && !res)
+      return FALSE;
+    else
+      return TRUE;
   }
   int compare(cmp_item *ci)
   {
@@ -1189,7 +1212,7 @@ public:
   }
 };
 
-class cmp_item_int :public cmp_item
+class cmp_item_int : public cmp_item_scalar
 {
   longlong value;
 public:
@@ -1197,10 +1220,12 @@ public:
   void store_value(Item *item)
   {
     value= item->val_int();
+    set_null_value(item->null_value);
   }
   int cmp(Item *arg)
   {
-    return value != arg->val_int();
+    const bool rc= value != arg->val_int();
+    return (m_null_value || arg->null_value) ? UNKNOWN : rc;
   }
   int compare(cmp_item *ci)
   {
@@ -1216,7 +1241,7 @@ public:
   If the left item is a constant one then its value is cached in the
   lval_cache variable.
 */
-class cmp_item_datetime :public cmp_item
+class cmp_item_datetime : public cmp_item_scalar
 {
   longlong value;
 public:
@@ -1234,7 +1259,7 @@ public:
   cmp_item *make_same();
 };
 
-class cmp_item_real :public cmp_item
+class cmp_item_real : public cmp_item_scalar
 {
   double value;
 public:
@@ -1242,10 +1267,12 @@ public:
   void store_value(Item *item)
   {
     value= item->val_real();
+    set_null_value(item->null_value);
   }
   int cmp(Item *arg)
   {
-    return value != arg->val_real();
+    const bool rc= value != arg->val_real();
+    return (m_null_value || arg->null_value) ? UNKNOWN : rc;
   }
   int compare(cmp_item *ci)
   {
@@ -1256,7 +1283,7 @@ public:
 };
 
 
-class cmp_item_decimal :public cmp_item
+class cmp_item_decimal : public cmp_item_scalar
 {
   my_decimal value;
 public:
@@ -1283,12 +1310,13 @@ public:
   void store_value(Item *item)
   {
     value_res= item->val_str(&value);
+    set_null_value(item->null_value);
   }
   int cmp(Item *item)
   {
     // Should never be called
-    DBUG_ASSERT(0);
-    return 1;
+    DBUG_ASSERT(false);
+    return TRUE;
   }
   int compare(cmp_item *ci)
   {
@@ -1354,7 +1382,7 @@ public:
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec();
@@ -1367,19 +1395,19 @@ public:
   Item *find_item(String *str);
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   void cleanup();
-  void agg_num_lengths(Item *arg);
 };
 
 /*
-  The Item_func_in class implements the in_expr IN(values_list) function.
+  The Item_func_in class implements
+  in_expr IN (<in value list>)
+  and
+  in_expr NOT IN (<in value list>)
 
   The current implementation distinguishes 2 cases:
-  1) all items in the value_list are constants and have the same
+  1) all items in <in value list> are constants and have the same
     result type. This case is handled by in_vector class.
-  2) items in the value_list have different result types or there is some
-    non-constant items.
-    In this case Item_func_in employs several cmp_item objects to performs
-    comparisons of in_expr and an item from the values_list. One cmp_item
+  2) otherwise Item_func_in employs several cmp_item objects to perform
+    comparisons of in_expr and an item from <in value list>. One cmp_item
     object for each result type. Different result types are collected in the
     fix_length_and_dec() member function by means of collect_cmp_types()
     function.
@@ -1387,14 +1415,17 @@ public:
 class Item_func_in :public Item_func_opt_neg
 {
 public:
-  /* 
-    an array of values when the right hand arguments of IN
-    are all SQL constant and there are no nulls 
-  */
+  /// An array of values, created when the bisection lookup method is used
   in_vector *array;
+  /**
+    If there is some NULL among <in value list>, during a val_int() call; for
+    example
+    IN ( (1,(3,'col')), ... ), where 'col' is a column which evaluates to
+    NULL.
+  */
   bool have_null;
-  /* 
-    true when all arguments of the IN clause are of compatible types
+  /**
+    true when all arguments of the IN list are of compatible types
     and can be used safely as comparisons for key conditions
   */
   bool arg_types_compatible;
@@ -1403,14 +1434,16 @@ public:
   DTCollation cmp_collation;
 
   Item_func_in(List<Item> &list)
-    :Item_func_opt_neg(list), array(0), have_null(0),
-    arg_types_compatible(FALSE)
+    :Item_func_opt_neg(list), array(NULL),
+    have_null(false), arg_types_compatible(false)
   {
     memset(&cmp_items, 0, sizeof(cmp_items));
     allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   longlong val_int();
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select);
   void fix_length_and_dec();
   uint decimal_precision() const { return 1; }
   void cleanup()
@@ -1432,9 +1465,15 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
-  bool nulls_in_row();
   bool is_bool_func() { return 1; }
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+private:
+  /**
+     Usable if <in value list> is made only of constants. Returns true if one
+     of these constants contains a NULL. Example:
+     IN ( (-5, (12,NULL)), ... ).
+  */
+  bool list_contains_null();
 };
 
 class cmp_item_row :public cmp_item
@@ -1445,7 +1484,7 @@ public:
   cmp_item_row(): comparators(0), n(0) {}
   ~cmp_item_row();
   void store_value(Item *item);
-  inline void alloc_comparators();
+  void alloc_comparators(Item *item);
   int cmp(Item *arg);
   int compare(cmp_item *arg);
   cmp_item *make_same();
@@ -1680,11 +1719,9 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                       List<Item> &fields);
-  friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-                         Item **conds);
   void top_level_item() { abort_on_null=1; }
-  void copy_andor_arguments(THD *thd, Item_cond *item, bool real_items= false);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  void copy_andor_arguments(THD *thd, Item_cond *item);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   void traverse_cond(Cond_traverser, void *arg, traverse_order order);
   void neg_arguments(THD *thd);
@@ -1818,7 +1855,7 @@ public:
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
   void update_used_tables();
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
   const CHARSET_INFO *compare_collation() 
@@ -1874,11 +1911,11 @@ public:
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
-  Item* copy_andor_structure(THD *thd, bool real_items)
+  Item* copy_andor_structure(THD *thd)
   {
     Item_cond_and *item;
     if ((item= new Item_cond_and(thd, this)))
-      item->copy_andor_arguments(thd, this, real_items);
+      item->copy_andor_arguments(thd, this);
     return item;
   }
   Item *neg_transformer(THD *thd);
@@ -1903,11 +1940,11 @@ public:
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }
-  Item* copy_andor_structure(THD *thd, bool real_items)
+  Item* copy_andor_structure(THD *thd)
   {
     Item_cond_or *item;
     if ((item= new Item_cond_or(thd, this)))
-      item->copy_andor_arguments(thd, this, real_items);
+      item->copy_andor_arguments(thd, this);
     return item;
   }
   Item *neg_transformer(THD *thd);

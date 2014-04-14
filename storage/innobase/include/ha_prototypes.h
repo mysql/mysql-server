@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -345,16 +345,6 @@ innobase_fts_text_case_cmp(
 	const void*	p2);		/*!< in: node */
 
 /******************************************************************//**
-compare two character string according to their charset. */
-
-int
-innobase_fts_string_cmp(
-/*====================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*	p1,		/*!< in: key */
-	const void*	p2);		/*!< in: node */
-
-/******************************************************************//**
 Returns true if transaction should be flagged as read-only.
 @return true if the thd is marked as read-only */
 
@@ -445,6 +435,16 @@ ib_senderrf(
 	ib_log_level_t	level,		/*!< in: warning level */
 	ib_uint32_t	code,		/*!< MySQL error code */
 	...);				/*!< Args */
+
+extern const char* 	TROUBLESHOOTING_MSG;
+extern const char* 	TROUBLESHOOT_DATADICT_MSG;
+extern const char* 	BUG_REPORT_MSG;
+extern const char* 	FORCE_RECOVERY_MSG;
+extern const char*      ERROR_CREATING_MSG;
+extern const char*      OPERATING_SYSTEM_ERROR_MSG;
+extern const char*      FOREIGN_KEY_CONSTRAINTS_MSG;
+extern const char*      SET_TRANSACTION_MSG;
+extern const char*      INNODB_PARAMETERS_MSG;
 
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: ".

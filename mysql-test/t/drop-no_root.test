@@ -1,4 +1,7 @@
-#Start server with MyISAM
+# Tests for the Myisam specific Bug#26704
+# All tests are required to run with Myisam.
+# Hence MTR starts mysqld with MyISAM as default
+
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 

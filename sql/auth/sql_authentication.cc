@@ -35,6 +35,8 @@
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
+#include "tztime.h"
+#include "sql_time.h"
 
 /****************************************************************************
    AUTHENTICATION CODE
@@ -849,6 +851,9 @@ ACL_USER *decoy_user(const LEX_STRING &username,
   user->x509_issuer= empty_c_string;
   user->x509_subject= empty_c_string;
   user->salt_len= 0;
+  user->password_last_changed.time_type= MYSQL_TIMESTAMP_ERROR;
+  user->password_lifetime= 0;
+  user->use_default_password_lifetime= true;
 
   /*
     For now the common default account is used. Improvements might involve
@@ -2131,6 +2136,53 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 }
 
+/**
+  Calculate the timestamp difference for password expiry
+
+  @param thd			 thread handle
+  @param acl_user		 ACL_USER handle
+
+  @retval 0  password is valid
+  @retval 1  password has expired
+*/
+bool
+check_password_lifetime(THD *thd, const ACL_USER *acl_user)
+{
+
+  bool password_time_expired= false;
+
+  if (likely(acl_user != NULL) && !acl_user->password_expired &&
+      acl_user->password_last_changed.time_type != MYSQL_TIMESTAMP_ERROR
+      && auth_plugin_is_built_in(acl_user->plugin.str)
+      && (acl_user->use_default_password_lifetime ||
+      acl_user->password_lifetime))
+  {
+    MYSQL_TIME cur_time, password_change_by;
+    INTERVAL interval;
+
+    thd->set_time();
+    thd->variables.time_zone->gmt_sec_to_TIME(&cur_time, thd->query_start());
+    password_change_by= acl_user->password_last_changed;
+    memset(&interval, 0, sizeof(interval));
+
+    if (!acl_user->use_default_password_lifetime)
+      interval.day= acl_user->password_lifetime;
+    else
+      interval.day= default_password_lifetime;
+    if (interval.day)
+    {
+      if (!date_add_interval(&password_change_by, INTERVAL_DAY, interval))
+        password_time_expired= my_time_compare(&password_change_by,
+                                               &cur_time) >=0 ? false: true;
+      else
+      {
+        DBUG_ASSERT(FALSE);
+        /* Make the compiler happy. */
+      }
+    }
+  }
+  return password_time_expired;
+}
 
 /**
   Perform the handshake, authorize the client and update thd sctx variables.
@@ -2295,6 +2347,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     bool is_proxy_user= FALSE;
+    bool password_time_expired= false;
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
@@ -2370,8 +2423,11 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       DBUG_RETURN(1);
     }
 
-    if (unlikely(acl_user && acl_user->password_expired
-        && !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
+    password_time_expired= check_password_lifetime(thd, acl_user);
+
+    if (unlikely(acl_user && (acl_user->password_expired ||
+	password_time_expired) &&
+        !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
         && disconnect_on_expired_password))
     {
       /*
@@ -2401,7 +2457,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
           &acl_user->user_resource))
       DBUG_RETURN(1); // The error is set by get_or_create_user_conn()
 
-    sctx->password_expired= acl_user->password_expired;
+    sctx->password_expired= acl_user->password_expired || password_time_expired;
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
   }
   else
@@ -2721,7 +2777,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   String scramble_response_packet;
 #if !defined(HAVE_YASSL)
   int cipher_length= 0;
-  unsigned char plain_text[MAX_CIPHER_LENGTH];
+  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
   RSA *private_key= NULL;
   RSA *public_key= NULL;
 #endif /* HAVE_YASSL */
@@ -2730,7 +2786,15 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   generate_user_salt(scramble, SCRAMBLE_LENGTH + 1);
 
-  if (vio->write_packet(vio, (unsigned char *) scramble, SCRAMBLE_LENGTH))
+  /*
+    Note: The nonce is split into 8 + 12 bytes according to
+http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeV10
+    Native authentication sent 20 bytes + '\0' character = 21 bytes.
+    This plugin must do the same to stay consistent with historical behavior
+    if it is set to operate as a default plugin.
+  */
+  scramble[SCRAMBLE_LENGTH] = '\0';
+  if (vio->write_packet(vio, (unsigned char *) scramble, SCRAMBLE_LENGTH + 1))
     DBUG_RETURN(CR_ERROR);
 
   /*

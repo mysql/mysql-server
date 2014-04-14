@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -42,8 +42,8 @@ Created 12/9/2009 Jimmy Yang
 /* Macro to standardize the counter names for counters in the
 "monitor_buf_page" module as they have very structured defines */
 #define	MONITOR_BUF_PAGE(name, description, code, op, op_code)	\
-	{"buffer_page_"op"_"name, "buffer_page_io",		\
-	 "Number of "description" Pages "op,			\
+	{"buffer_page_" op "_" name, "buffer_page_io",		\
+	 "Number of " description " Pages " op,			\
 	 MONITOR_GROUP_MODULE, MONITOR_DEFAULT_START,		\
 	 MONITOR_##code##_##op_code}
 
@@ -88,13 +88,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Table reference counter",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_TABLE_REFERENCE},
-
-	{"metadata_mem_pool_size", "metadata",
-	 "Size of a memory pool InnoDB uses to store data dictionary"
-	 " and internal data structures in bytes",
-	 static_cast<monitor_type_t>(
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON | MONITOR_DISPLAY_CURRENT),
-	 MONITOR_DEFAULT_START, MONITOR_OVLD_META_MEM_POOL},
 
 	/* ========== Counters for Lock Module ========== */
 	{"module_lock", "lock", "Lock Module",
@@ -691,16 +684,16 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_TRX},
 
-	{"trx_rw_commits", "transaction", "Number of read-write transactions "
-	  "committed",
+	{"trx_rw_commits", "transaction",
+	 "Number of read-write transactions  committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_RW_COMMIT},
 
-	{"trx_ro_commits", "transaction", "Number of read-only transactions "
-	  "committed",
+	{"trx_ro_commits", "transaction",
+	 "Number of read-only transactions committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_RO_COMMIT},
 
-	{"trx_nl_ro_commits", "transaction", "Number of non-locking "
-	 "auto-commit read-only transactions committed",
+	{"trx_nl_ro_commits", "transaction",
+	 "Number of non-locking auto-commit read-only transactions committed",
 	 MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_NL_RO_COMMIT},
 
 	{"trx_commits_insert_update", "transaction",
@@ -760,7 +753,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_N_DEL_ROW_PURGE},
 
 	{"purge_upd_exist_or_extern_records", "purge",
-	 "Number of purges on updates of existing records and "
+	 "Number of purges on updates of existing records and"
 	 " updates on delete marked record with externally stored field",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_N_UPD_EXIST_EXTERN},
@@ -866,6 +859,12 @@ static monitor_info_t	innodb_counter_info[] =
 	 static_cast<monitor_type_t>(
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
+
+	{"log_padded", "recovery",
+	 "Bytes of log padded for log write ahead",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_PADDED},
 
 	/* ========== Counters for Page Compression ========== */
 	{"module_compress", "compression", "Page Compression Info",
@@ -1383,7 +1382,8 @@ srv_mon_set_module_control(
 		should be aware some counters are already on before
 		turn them on again (which could reset counter value) */
 		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
-			fprintf(stderr, "Monitor '%s' is already enabled.\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Monitor '%s' is already enabled.",
 				srv_mon_get_name((monitor_id_t) ix));
 			continue;
 		}
@@ -1484,10 +1484,6 @@ srv_mon_process_existing_counter(
 
 	/* Get the value from corresponding global variable */
 	switch (monitor_id) {
-	case MONITOR_OVLD_META_MEM_POOL:
-		value = srv_mem_pool_size;
-		break;
-
 	/* export_vars.innodb_buffer_pool_reads. Num Reads from
 	disk (page not in buffer) */
 	case MONITOR_OVLD_BUF_POOL_READS:
@@ -1644,6 +1640,10 @@ srv_mon_process_existing_counter(
 	/* innodb_log_writes */
 	case MONITOR_OVLD_LOG_WRITES:
 		value = srv_stats.log_writes;
+		break;
+
+	case MONITOR_OVLD_LOG_PADDED:
+		value = srv_stats.log_padded;
 		break;
 
 	/* innodb_dblwr_writes */

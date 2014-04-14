@@ -1,6 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +17,10 @@
 
 #include "semisync_master.h"
 #include "sql_class.h"                          // THD
+#include "semisync_master_ack_receiver.h"
 
 ReplSemiSyncMaster repl_semisync;
+Ack_receiver ack_receiver;
 
 /* The places at where semisync waits for binlog ACKs. */
 enum enum_wait_point {
@@ -92,15 +93,26 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   
   if (semi_sync_slave)
   {
+    if (ack_receiver.add_slave(current_thd))
+    {
+      sql_print_error("Failed to register slave to semi-sync ACK receiver "
+                      "thread.");
+      return -1;
+    }
     /* One more semi-sync slave */
     repl_semisync.add_slave();
-    
+    /* Tell server it will observe the transmission.*/
+    param->set_observe_flag();
+
     /*
       Let's assume this semi-sync slave has already received all
       binlog events before the filename and position it requests.
     */
     repl_semisync.handleAck(param->server_id, log_file, log_pos);
   }
+  else
+    param->set_dont_observe_flag();
+
   sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
 			semi_sync_slave ? "semi-sync" : "asynchronous",
 			param->server_id, log_file, (unsigned long)log_pos);
@@ -117,6 +129,7 @@ int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
                         param->server_id);
   if (semi_sync_slave)
   {
+    ack_receiver.remove_slave(current_thd);
     /* One less semi-sync slave */
     repl_semisync.remove_slave();
   }
@@ -189,6 +202,11 @@ static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD thd,
 					  void *ptr,
 					  const void *val);
 
+static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD thd,
+				      SYS_VAR *var,
+				      void *ptr,
+				      const void *val);
+
 static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
 				      SYS_VAR *var,
 				      void *ptr,
@@ -217,7 +235,7 @@ static MYSQL_SYSVAR_BOOL(wait_no_slave, rpl_semi_sync_master_wait_no_slave,
   PLUGIN_VAR_OPCMDARG,
  "Wait until timeout when no semi-synchronous replication slave available (enabled by default). ",
   NULL, 			// check
-  NULL,                         // update
+  &fix_rpl_semi_sync_master_wait_no_slave,  // update
   1);
 
 static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
@@ -289,6 +307,7 @@ static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD thd,
 {
   *(unsigned long *)ptr= *(unsigned long *)val;
   repl_semisync.setTraceLevel(rpl_semi_sync_master_trace_level);
+  ack_receiver.setTraceLevel(rpl_semi_sync_master_trace_level);
   return;
 }
 
@@ -302,11 +321,17 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
   {
     if (repl_semisync.enableMaster() != 0)
       rpl_semi_sync_master_enabled = false;
+    else if (ack_receiver.start())
+    {
+      repl_semisync.disableMaster();
+      rpl_semi_sync_master_enabled = false;
+    }
   }
   else
   {
     if (repl_semisync.disableMaster() != 0)
       rpl_semi_sync_master_enabled = true;
+    ack_receiver.stop();
   }
 
   return;
@@ -318,6 +343,19 @@ static void fix_rpl_semi_sync_master_wait_for_slave_count(MYSQL_THD thd,
                                                           const void *val)
 {
   (void) repl_semisync.setWaitSlaveCount(*(unsigned int*) val);
+  return;
+}
+
+static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD thd,
+				      SYS_VAR *var,
+				      void *ptr,
+				      const void *val)
+{
+  if (rpl_semi_sync_master_wait_no_slave != *(char *)val)
+  {
+    *(char *)ptr= *(char *)val;
+    repl_semisync.set_wait_no_slave(val);
+  }
   return;
 }
 
@@ -418,23 +456,41 @@ static SHOW_VAR semi_sync_master_status_vars[]= {
 };
 
 #ifdef HAVE_PSI_INTERFACE
+
 PSI_mutex_key key_ss_mutex_LOCK_binlog_;
+PSI_mutex_key key_ss_mutex_Ack_receiver_mutex;
 
 static PSI_mutex_info all_semisync_mutexes[]=
 {
-  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0}
+  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0},
+  { &key_ss_mutex_Ack_receiver_mutex, "Ack_receiver::m_mutex", 0}
 };
 
 PSI_cond_key key_ss_cond_COND_binlog_send_;
+PSI_cond_key key_ss_cond_Ack_receiver_cond;
 
 static PSI_cond_info all_semisync_conds[]=
 {
-  { &key_ss_cond_COND_binlog_send_, "COND_binlog_send_", 0}
+  { &key_ss_cond_COND_binlog_send_, "COND_binlog_send_", 0},
+  { &key_ss_cond_Ack_receiver_cond, "Ack_receiver::m_cond", 0}
+};
+
+PSI_thread_key key_ss_thread_Ack_receiver_thread;
+
+static PSI_thread_info all_semisync_threads[]=
+{
+  {&key_ss_thread_Ack_receiver_thread, "Ack_receiver", PSI_FLAG_GLOBAL}
 };
 #endif /* HAVE_PSI_INTERFACE */
 
 PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave=
 { 0, "Waiting for semi-sync ACK from slave", 0};
+
+PSI_stage_info stage_waiting_for_semi_sync_slave=
+{ 0, "Waiting for semi-sync slave connection", 0};
+
+PSI_stage_info stage_reading_semi_sync_ack=
+{ 0, "Reading semi-sync ACK from slave", 0};
 
 /* Always defined. */
 PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
@@ -442,7 +498,9 @@ PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
 #ifdef HAVE_PSI_INTERFACE
 PSI_stage_info *all_semisync_stages[]=
 {
-  & stage_waiting_for_semi_sync_ack_from_slave
+  & stage_waiting_for_semi_sync_ack_from_slave,
+  & stage_waiting_for_semi_sync_slave,
+  & stage_reading_semi_sync_ack
 };
 
 PSI_memory_info all_semisync_memory[]=
@@ -466,6 +524,9 @@ static void init_semisync_psi_keys(void)
 
   count= array_elements(all_semisync_memory);
   mysql_memory_register(category, all_semisync_memory, count);
+
+  count= array_elements(all_semisync_threads);
+  mysql_thread_register(category, all_semisync_threads, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -488,6 +549,8 @@ static int semi_sync_master_plugin_init(void *p)
 
 static int semi_sync_master_plugin_deinit(void *p)
 {
+  ack_receiver.stop();
+
   if (unregister_trans_observer(&trans_observer, p))
   {
     sql_print_error("unregister_trans_observer failed");
@@ -503,6 +566,7 @@ static int semi_sync_master_plugin_deinit(void *p)
     sql_print_error("unregister_binlog_transmit_observer failed");
     return 1;
   }
+
   sql_print_information("unregister_replicator OK");
   return 0;
 }

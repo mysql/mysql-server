@@ -79,6 +79,8 @@ mysys/my_perf.c, contributed by Facebook under the following license.
  * factor of two increase in speed on a Power PC G4 (PPC7455) using gcc -O3.
  */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
 #include <string.h>
 
 #include "univ.i"

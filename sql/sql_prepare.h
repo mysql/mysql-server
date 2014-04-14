@@ -65,15 +65,15 @@ private:
 };
 
 
-void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length);
-void mysqld_stmt_execute(THD *thd, char *packet, uint packet_length);
-void mysqld_stmt_close(THD *thd, char *packet, uint packet_length);
+void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length);
+void mysqld_stmt_execute(THD *thd, char *packet, size_t packet_length);
+void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length);
 void mysql_sql_stmt_prepare(THD *thd);
 void mysql_sql_stmt_execute(THD *thd);
 void mysql_sql_stmt_close(THD *thd);
-void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length);
-void mysqld_stmt_reset(THD *thd, char *packet, uint packet_length);
-void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
+void mysqld_stmt_fetch(THD *thd, char *packet, size_t packet_length);
+void mysqld_stmt_reset(THD *thd, char *packet, size_t packet_length);
+void mysql_stmt_get_longdata(THD *thd, char *pos, size_t packet_length);
 void reinit_stmt_before_use(THD *thd, LEX *lex);
 
 /**
@@ -214,7 +214,7 @@ public:
     @sa Documentation for C API function
     mysql_field_count()
   */
-  ulong get_field_count() const
+  size_t get_field_count() const
   {
     return m_current_rset ? m_current_rset->get_field_count() : 0;
   }

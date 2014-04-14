@@ -224,16 +224,16 @@ Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs)
     @retval false  String not found
 */
 
-static bool is_name_in_list(char *name, List<char> list_names)
+static bool is_name_in_list(char *name, List<String> list_names)
 {
-  List_iterator<char> names_it(list_names);
+  List_iterator<String> names_it(list_names);
   uint num_names= list_names.elements;
   uint i= 0;
 
   do
   {
-    char *list_name= names_it++;
-    if (!(my_strcasecmp(system_charset_info, name, list_name)))
+    String *list_name= names_it++;
+    if (!(my_strcasecmp(system_charset_info, name, list_name->c_ptr())))
       return TRUE;
   } while (++i < num_names);
   return FALSE;
@@ -1013,7 +1013,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   if (init_lex_with_single_table(thd, table, &lex))
     goto end;
 
-  func_expr->walk(&Item::change_context_processor, 0,
+  func_expr->walk(&Item::change_context_processor,
+                  Item::WALK_POSTFIX,
                   (uchar*) &lex.select_lex->context);
   thd->where= "partition function";
   /*
@@ -1069,7 +1070,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     in future so that we always throw an error.
   */
   if (func_expr->walk(&Item::check_valid_arguments_processor,
-                      0, NULL))
+                      Item::WALK_POSTFIX, NULL))
   {
     if (is_create_table_ind)
     {
@@ -1088,8 +1089,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 end:
   end_lex_with_single_table(thd, table, old_lex);
 #if !defined(DBUG_OFF)
-  func_expr->walk(&Item::change_context_processor, 0,
-                  (uchar*) 0);
+  func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX, NULL);
 #endif
   DBUG_RETURN(result);
 }
@@ -4347,6 +4347,7 @@ bool mysql_unpack_partition(THD *thd,
   st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
   lex.new_static_query(&unit, &select);
 
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_unpack_partition");
 
@@ -4378,14 +4379,17 @@ bool mysql_unpack_partition(THD *thd,
   part_info= lex.part_info;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, NULL) ||
       part_info->fix_parser_data(thd))
   {
     thd->free_items();
+    thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
     goto end;
   }
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
   /*
     The parsed syntax residing in the frm file can still contain defaults.
@@ -7060,7 +7064,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_ERROR("fail_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query(), thd->query_length()), FALSE)) ||
+                        thd->query().str, thd->query().length), FALSE)) ||
         ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         ERROR_INJECT_ERROR("fail_drop_partition_6") ||
         (frm_install= TRUE, FALSE) ||
@@ -7136,7 +7140,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_ERROR("fail_add_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query(), thd->query_length()), FALSE)) ||
+                        thd->query().str, thd->query().length), FALSE)) ||
         ERROR_INJECT_CRASH("crash_add_partition_7") ||
         ERROR_INJECT_ERROR("fail_add_partition_7") ||
         write_log_rename_frm(lpt) ||
@@ -7239,7 +7243,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_ERROR("fail_change_partition_7") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query(), thd->query_length()), FALSE)) ||
+                        thd->query().str, thd->query().length), FALSE)) ||
         ERROR_INJECT_CRASH("crash_change_partition_8") ||
         ERROR_INJECT_ERROR("fail_change_partition_8") ||
         ((frm_install= TRUE), FALSE) ||

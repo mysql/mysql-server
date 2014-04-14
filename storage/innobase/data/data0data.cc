@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -117,7 +117,7 @@ dfield_check_typed_no_assert(
 	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"data field type %lu, len %lu",
+			"Data field type %lu, len %lu",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
 		return(FALSE);
@@ -139,8 +139,8 @@ dtuple_check_typed_no_assert(
 	ulint		i;
 
 	if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
-		fprintf(stderr,
-			"InnoDB: Error: index entry has %lu fields\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Index entry has %lu fields",
 			(ulong) dtuple_get_n_fields(tuple));
 dump:
 		fputs("InnoDB: Tuple contents: ", stderr);
@@ -177,7 +177,7 @@ dfield_check_typed(
 	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"data field type %lu, len %lu",
+			"Data field type %lu, len %lu",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
 	}
@@ -381,16 +381,16 @@ dfield_print_also_hex(
 
 		case 6:
 			id = mach_read_from_6(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 
 		case 7:
 			id = mach_read_from_7(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 		case 8:
 			id = mach_read_from_8(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 		default:
 			goto print_hex;
@@ -418,9 +418,7 @@ dfield_print_also_hex(
 			break;
 
 		default:
-			id = mach_ull_read_compressed(data);
-
-			fprintf(stderr, "mix_id " TRX_ID_FMT, id);
+			goto print_hex;
 		}
 		break;
 
@@ -622,8 +620,8 @@ dtuple_convert_big_rec(
 	size = rec_get_converted_size(index, entry, *n_ext);
 
 	if (UNIV_UNLIKELY(size > 1000000000)) {
-		fprintf(stderr,
-			"InnoDB: Warning: tuple size very big: %lu\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Tuple size very big: %lu",
 			(ulong) size);
 		fputs("InnoDB: Tuple contents: ", stderr);
 		dtuple_print(stderr, entry);
@@ -653,7 +651,8 @@ dtuple_convert_big_rec(
 							     *n_ext),
 				      dict_table_is_comp(index->table),
 				      dict_index_get_n_fields(index),
-				      dict_table_zip_size(index->table))) {
+				      dict_table_page_size(index->table))) {
+
 		ulint			i;
 		ulint			longest		= 0;
 		ulint			longest_i	= ULINT_MAX;

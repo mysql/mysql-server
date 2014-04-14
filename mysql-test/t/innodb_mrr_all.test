@@ -3,6 +3,7 @@
 # (Runs with all 6.0 optimizer switches on)
 #
 
+--source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
 --source include/have_semijoin.inc
 --source include/have_materialization.inc

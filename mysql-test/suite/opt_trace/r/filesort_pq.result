@@ -226,8 +226,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -400,8 +399,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -608,8 +606,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -830,8 +827,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -1062,8 +1058,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -1229,8 +1224,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -1371,8 +1365,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -1504,8 +1497,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -1685,8 +1677,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -1893,8 +1884,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -2115,8 +2105,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -2347,8 +2336,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -2514,8 +2502,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -2695,8 +2682,7 @@ ORDER BY f1, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -2843,8 +2829,7 @@ ORDER BY f1, f0 LIMIT 0	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -3035,8 +3020,7 @@ ORDER BY f2, f0 LIMIT 20	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -3207,8 +3191,7 @@ ORDER BY f2, f0 LIMIT 0	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -3389,8 +3372,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -3561,8 +3543,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -3660,14 +3641,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) order by `tmp`.`f1`,`t1`.`f0` limit 30"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -3676,7 +3650,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
               ],
               "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where (`t1`.`f2` = `tmp`.`f2`) order by `tmp`.`f1`,`t1`.`f0` limit 30"
             }
-          },
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -3835,12 +3816,10 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`tmp`",
-                "access_type": "table_scan"
+                "table": "`tmp`"
               },
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -3942,14 +3921,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -3958,7 +3930,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               ],
               "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where (`t1`.`f2` = `tmp`.`f2`) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
             }
-          },
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -4117,12 +4096,10 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "refine_plan": [
               {
-                "table": "`tmp`",
-                "access_type": "table_scan"
+                "table": "`tmp`"
               },
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -4229,14 +4206,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -4245,7 +4215,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               ],
               "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where (`t1`.`f2` = `tmp`.`f2`) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
             }
-          },
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -4404,12 +4381,10 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "refine_plan": [
               {
-                "table": "`tmp`",
-                "access_type": "table_scan"
+                "table": "`tmp`"
               },
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -4544,14 +4519,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) where (`t1`.`f2` > 20) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
+          },
           {
             "transformations_to_nested_joins": {
               "transformations": [
@@ -4560,7 +4528,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               ],
               "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where ((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`)) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
             }
-          },
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
           {
             "condition_processing": {
               "condition": "WHERE",
@@ -4719,12 +4694,10 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "refine_plan": [
               {
-                "table": "`tmp`",
-                "access_type": "table_scan"
+                "table": "`tmp`"
               },
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -4963,8 +4936,7 @@ SELECT * FROM v1	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ]
                 }
@@ -5031,8 +5003,7 @@ SELECT * FROM v1	{
           {
             "refine_plan": [
               {
-                "table": "`v1`",
-                "access_type": "table_scan"
+                "table": "`v1`"
               }
             ]
           }
@@ -5248,8 +5219,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ]
                 }
@@ -5332,8 +5302,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`v1`",
-                "access_type": "table_scan"
+                "table": "`v1`"
               }
             ]
           }
@@ -5511,6 +5480,15 @@ LIMIT 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from (`v1` join `v2` on((`v1`.`f1` = `v2`.`f1`))) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "JOIN_condition_to_WHERE",
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from `v1` join `v2` where (`v1`.`f1` = `v2`.`f1`) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
+            }
           }
         ]
       }
@@ -5599,8 +5577,7 @@ LIMIT 30	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ]
                 }
@@ -5687,21 +5664,11 @@ LIMIT 30	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ]
                 }
               ]
-            }
-          },
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "JOIN_condition_to_WHERE",
-                "parenthesis_removal"
-              ],
-              "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from `v1` join `v2` where (`v1`.`f1` = `v2`.`f1`) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
             }
           },
           {
@@ -5845,7 +5812,7 @@ LIMIT 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 75,
-                          "cost": 1521.2,
+                          "cost": 1521.6,
                           "chosen": false
                         }
                       ]
@@ -5911,7 +5878,7 @@ LIMIT 30	{
                           "using_join_cache": true,
                           "buffers_needed": 1,
                           "rows": 75,
-                          "cost": 1521.2,
+                          "cost": 1521.6,
                           "chosen": false
                         }
                       ]
@@ -5963,8 +5930,7 @@ LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`v1`",
-                "access_type": "table_scan"
+                "table": "`v1`"
               },
               {
                 "table": "`v2`"
@@ -6244,8 +6210,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -6502,8 +6467,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -6682,8 +6646,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -6863,8 +6826,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -7059,8 +7021,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ]
                 }
@@ -7143,8 +7104,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`v1`",
-                "access_type": "table_scan"
+                "table": "`v1`"
               }
             ]
           }
@@ -7296,6 +7256,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
         "steps": [
           {
             "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from (`t1` left join (/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30) `d1` on((`t1`.`f1` = `d1`.`f1`))) order by `d1`.`f2` desc limit 30"
+          },
+          {
+            "transformations_to_nested_joins": {
+              "transformations": [
+                "parenthesis_removal"
+              ],
+              "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from `t1` left join (/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30) `d1` on((`t1`.`f1` = `d1`.`f1`)) order by `d1`.`f2` desc limit 30"
+            }
           }
         ]
       }
@@ -7381,20 +7349,11 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 {
                   "refine_plan": [
                     {
-                      "table": "`t1`",
-                      "access_type": "table_scan"
+                      "table": "`t1`"
                     }
                   ]
                 }
               ]
-            }
-          },
-          {
-            "transformations_to_nested_joins": {
-              "transformations": [
-                "parenthesis_removal"
-              ],
-              "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from `t1` left join (/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30) `d1` on((`t1`.`f1` = `d1`.`f1`)) order by `d1`.`f2` desc limit 30"
             }
           },
           {
@@ -7547,8 +7506,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               },
               {
                 "table": " `d1`"
@@ -7769,8 +7727,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -7854,8 +7811,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -11519,8 +11475,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -11604,8 +11559,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }
@@ -11870,8 +11824,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "access_type": "table_scan"
+                "table": "`t1`"
               }
             ]
           }

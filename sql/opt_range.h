@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,9 +81,8 @@ class QUICK_RANGE :public Sql_alloc {
   */
   void make_min_endpoint(key_range *kr, uint prefix_length, 
                          key_part_map keypart_map) {
-    using std::min;
     make_min_endpoint(kr);
-    kr->length= min(kr->length, prefix_length);
+    kr->length= std::min(kr->length, prefix_length);
     kr->keypart_map&= keypart_map;
   }
   
@@ -120,9 +119,8 @@ class QUICK_RANGE :public Sql_alloc {
   */
   void make_max_endpoint(key_range *kr, uint prefix_length, 
                          key_part_map keypart_map) {
-    using std::min;
     make_max_endpoint(kr);
-    kr->length= min(kr->length, prefix_length);
+    kr->length= std::min(kr->length, prefix_length);
     kr->keypart_map&= keypart_map;
   }
 
@@ -941,8 +939,7 @@ class SQL_SELECT :public Sql_alloc {
 
   SQL_SELECT();
   ~SQL_SELECT();
-  void cleanup();
-  void set_quick(QUICK_SELECT_I *new_quick) { delete quick; quick= new_quick; }
+  void set_quick(QUICK_SELECT_I *new_quick);
   bool check_quick(THD *thd, bool force_quick_range, ha_rows limit)
   {
     key_map tmp(key_map::ALL_BITS);

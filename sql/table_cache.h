@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -161,7 +161,7 @@ public:
   /** Get index for the table cache in container. */
   uint cache_index(Table_cache *cache) const
   {
-    return (cache - &m_table_cache[0]);
+    return static_cast<uint>(cache - &m_table_cache[0]);
   }
 
   uint cached_tables();

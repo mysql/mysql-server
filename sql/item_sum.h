@@ -1,8 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights
-   reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,19 +53,8 @@ protected:
   /* the aggregate function class to act on */
   Item_sum *item_sum;
 
-  /**
-    When feeding back the data in endup() from Unique/temp table back to
-    Item_sum::add() methods we must read the data from Unique (and not 
-    recalculate the functions that are given as arguments to the aggregate
-    function. 
-    This flag is to tell the add() methods to take the data from the Unique
-    instead by calling the relevant val_..() method
-  */
-
-  bool use_distinct_values;
-
 public:
-  Aggregator (Item_sum *arg): item_sum(arg), use_distinct_values(FALSE) {}
+  Aggregator (Item_sum *arg): item_sum(arg) {}
   virtual ~Aggregator () {}                   /* Keep gcc happy */
 
   enum Aggregator_type { SIMPLE_AGGREGATOR, DISTINCT_AGGREGATOR }; 
@@ -103,10 +91,16 @@ public:
   /** Floating point value of being-aggregated argument */
   virtual double arg_val_real() = 0;
   /**
-     NULLness of being-aggregated argument; can be called only after
-     arg_val_decimal() or arg_val_real().
+    NULLness of being-aggregated argument.
+
+    @param use_null_value Optimization: to determine if the argument is NULL
+    we must, in the general case, call is_null() on it, which itself might
+    call val_*() on it, which might be costly. If you just have called
+    arg_val*(), you can pass use_null_value=true; this way, arg_is_null()
+    might avoid is_null() and instead do a cheap read of the Item's null_value
+    (updated by arg_val*()).
   */
-  virtual bool arg_is_null() = 0;
+  virtual bool arg_is_null(bool use_null_value) = 0;
 };
 
 
@@ -466,7 +460,7 @@ public:
   virtual void make_unique() { force_copy_fields= TRUE; }
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table);
-  bool walk(Item_processor processor, bool walk_subquery, uchar *argument);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool clean_up_after_removal(uchar *arg);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
@@ -476,7 +470,7 @@ public:
 
   Item *get_arg(uint i) { return args[i]; }
   Item *set_arg(uint i, THD *thd, Item *new_val);
-  uint get_arg_count() { return arg_count; }
+  uint get_arg_count() const { return arg_count; }
 
   /* Initialization of distinct related members */
   void init_aggregator()
@@ -575,7 +569,7 @@ class Aggregator_distinct : public Aggregator
     Used in conjunction with 'table' to support the access to Field classes 
     for COUNT(DISTINCT). Needed by copy_fields()/copy_funcs().
   */
-  TMP_TABLE_PARAM *tmp_table_param;
+  Temp_table_param *tmp_table_param;
   
   /*
     If there are no blobs in the COUNT(DISTINCT) arguments, we can use a tree,
@@ -603,10 +597,20 @@ class Aggregator_distinct : public Aggregator
   */
   bool always_null;
 
+  /**
+    When feeding back the data in endup() from Unique/temp table back to
+    Item_sum::add() methods we must read the data from Unique (and not
+    recalculate the functions that are given as arguments to the aggregate
+    function.
+    This flag is to tell the arg_*() methods to take the data from the Unique
+    instead of calling the relevant val_..() method.
+  */
+  bool use_distinct_values;
+
 public:
   Aggregator_distinct (Item_sum *sum) :
     Aggregator(sum), table(NULL), tmp_table_param(NULL), tree(NULL),
-    always_null(FALSE) {}
+    always_null(false), use_distinct_values(false) {}
   virtual ~Aggregator_distinct ();
   Aggregator_type Aggrtype() { return DISTINCT_AGGREGATOR; }
 
@@ -616,7 +620,7 @@ public:
   void endup();
   virtual my_decimal *arg_val_decimal(my_decimal * value);
   virtual double arg_val_real();
-  virtual bool arg_is_null();
+  virtual bool arg_is_null(bool use_null_value);
 
   bool unique_walk_function(void *element);
   static int composite_key_cmp(void* arg, uchar* key1, uchar* key2);
@@ -642,7 +646,7 @@ public:
   void endup() {};
   virtual my_decimal *arg_val_decimal(my_decimal * value);
   virtual double arg_val_real();
-  virtual bool arg_is_null();
+  virtual bool arg_is_null(bool use_null_value);
 };
 
 
@@ -673,7 +677,7 @@ public:
   }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_numeric(ltime, fuzzydate); /* Decimal or real */
   }
@@ -694,7 +698,7 @@ public:
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -817,7 +821,7 @@ public:
     /* can't be fix_fields()ed */
     return (longlong) rint(val_real());
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_numeric(ltime, fuzzydate); /* Decimal or real */
   }
@@ -1045,7 +1049,7 @@ protected:
   longlong val_time_temporal();
   longlong val_date_temporal();
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   void reset_field();
   String *val_str(String *);
@@ -1213,7 +1217,7 @@ class Item_sum_udf_float :public Item_udf_sum
   double val_real();
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_real(ltime, fuzzydate);
   }
@@ -1240,7 +1244,7 @@ public:
     { DBUG_ASSERT(fixed == 1); return (double) Item_sum_udf_int::val_int(); }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_int(ltime, fuzzydate);
   }
@@ -1287,7 +1291,7 @@ public:
     return cs->cset->strtoll10(cs, res->ptr(), &end, &err_not_used);
   }
   my_decimal *val_decimal(my_decimal *dec);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -1314,7 +1318,7 @@ public:
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_decimal(ltime, fuzzydate);
   }
@@ -1415,7 +1419,7 @@ C_MODE_END
 
 class Item_func_group_concat : public Item_sum
 {
-  TMP_TABLE_PARAM *tmp_table_param;
+  Temp_table_param *tmp_table_param;
   String result;
   String *separator;
   TREE tree_base;
@@ -1504,7 +1508,7 @@ public:
   {
     return val_decimal_from_string(decimal_value);
   }
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return get_date_from_string(ltime, fuzzydate);
   }
@@ -1517,7 +1521,10 @@ public:
   void no_rows_in_result() {}
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
-    { context= (Name_resolution_context *)cntx; return FALSE; }
+  {
+    context= reinterpret_cast<Name_resolution_context *>(cntx);
+    return false;
+  }
 };
 
 #endif /* ITEM_SUM_INCLUDED */

@@ -1,4 +1,5 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights
+ * reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +43,7 @@ static char *shared_memory_base_name= 0;
 static unsigned int  opt_port;
 static my_bool tty_password= 0, opt_silent= 0;
 
+static my_bool opt_secure_auth= 1;
 static MYSQL *mysql= 0;
 static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
@@ -281,6 +283,9 @@ static MYSQL *mysql_client_init(MYSQL* con)
 
  if (opt_default_auth && *opt_default_auth)
  mysql_options(res, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
+ if (!opt_secure_auth)
+ mysql_options(res, MYSQL_SECURE_AUTH, (char*)&opt_secure_auth);
  return res;
 }
 
@@ -325,7 +330,7 @@ static MYSQL_STMT *STDCALL
 mysql_simple_prepare(MYSQL *mysql_arg, const char *query)
 {
  MYSQL_STMT *stmt= mysql_stmt_init(mysql_arg);
- if (stmt && mysql_stmt_prepare(stmt, query, (uint) strlen(query)))
+ if (stmt && mysql_stmt_prepare(stmt, query, (ulong)strlen(query)))
  {
    mysql_stmt_close(stmt);
    return 0;
@@ -370,6 +375,9 @@ static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
 
  if (opt_default_auth && *opt_default_auth)
  mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
+ if (!opt_secure_auth)
+ mysql_options(mysql, MYSQL_SECURE_AUTH, (char*)&opt_secure_auth);
 
  if (!(mysql_real_connect(mysql, opt_host, opt_user,
  opt_password, opt_db ? opt_db:"test", opt_port,
@@ -470,7 +478,8 @@ static void my_print_dashes(MYSQL_RES *result)
 static void my_print_result_metadata(MYSQL_RES *result)
 {
  MYSQL_FIELD  *field;
- unsigned int i, j;
+ unsigned int i;
+ size_t j;
  unsigned int field_count;
 
  mysql_field_seek(result, 0);
@@ -992,7 +1001,7 @@ const char *query_arg)
 
  fetch->handle= mysql_stmt_init(mysql);
 
- rc= mysql_stmt_prepare(fetch->handle, fetch->query, strlen(fetch->query));
+ rc= mysql_stmt_prepare(fetch->handle, fetch->query, (ulong)strlen(fetch->query));
  check_execute(fetch->handle, rc);
 
  /*
@@ -1020,7 +1029,7 @@ const char *query_arg)
  fetch->column_count);
  fetch->out_data= (char**) calloc(1, sizeof(char*) * fetch->column_count);
  fetch->out_data_length= (ulong*) calloc(1, sizeof(ulong) *
- fetch->column_count);
+                                         fetch->column_count);
  for (i= 0; i < fetch->column_count; ++i)
  {
    fetch->out_data[i]= (char*) calloc(1, MAX_COLUMN_LENGTH);
@@ -1248,6 +1257,9 @@ static struct my_option client_test_long_options[] =
 {"default_auth", 0, "Default authentication client-side plugin to use.",
  &opt_default_auth, &opt_default_auth, 0,
  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+{"secure-auth", 0, "Refuse client connecting to server if it"
+  " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+  &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1402,7 +1414,7 @@ int main(int argc, char **argv)
 
  /* Copy the original arguments, so it can be reused for restarting. */
  original_argc= argc;
- original_argv= malloc(argc * sizeof(char*));
+ original_argv= (char**)malloc(argc * sizeof(char*));
  if (argc && !original_argv)
  exit(1);
  for (i= 0; i < argc; i++)
@@ -1419,7 +1431,7 @@ int main(int argc, char **argv)
  /* If there are any arguments left (named tests), save them. */
  if (argc)
  {
-   tests_to_run= malloc((argc + 1) * sizeof(char*));
+   tests_to_run= (char**)malloc((argc + 1) * sizeof(char*));
    if (!tests_to_run)
    exit(1);
    for (i= 0; i < argc; i++)

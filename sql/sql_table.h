@@ -1,4 +1,5 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -182,13 +183,12 @@ bool mysql_trans_commit_alter_copy_data(THD *thd);
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
-                       Alter_info *alter_info,
-                       uint order_num, ORDER *order, bool ignore);
+                       Alter_info *alter_info);
 bool mysql_compare_tables(TABLE *table,
                           Alter_info *alter_info,
                           HA_CREATE_INFO *create_info,
                           bool *metadata_equal);
-bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
+bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
                              HA_CREATE_INFO *create_info);
@@ -220,7 +220,7 @@ const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
                                           HA_CREATE_INFO *create_info);
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int write_bin_log(THD *thd, bool clear_error,
-                  char const *query, ulong query_length,
+                  const char *query, size_t query_length,
                   bool is_trans= FALSE);
 bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
                            DDL_LOG_MEMORY_ENTRY **active_entry);

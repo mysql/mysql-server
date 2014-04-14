@@ -419,6 +419,8 @@ page_rec_is_user_rec(
 /*=================*/
 	const rec_t*	rec)	/*!< in: record */
 {
+	ut_ad(page_rec_check(rec));
+
 	return(page_rec_is_user_rec_low(page_offset(rec)));
 }
 
@@ -431,6 +433,8 @@ page_rec_is_supremum(
 /*=================*/
 	const rec_t*	rec)	/*!< in: record */
 {
+	ut_ad(page_rec_check(rec));
+
 	return(page_rec_is_supremum_low(page_offset(rec)));
 }
 
@@ -443,6 +447,8 @@ page_rec_is_infimum(
 /*================*/
 	const rec_t*	rec)	/*!< in: record */
 {
+	ut_ad(page_rec_check(rec));
+
 	return(page_rec_is_infimum_low(page_offset(rec)));
 }
 
@@ -782,7 +788,7 @@ page_rec_get_next_low(
 			(void*) rec,
 			(ulong) page_get_space_id(page),
 			(ulong) page_get_page_no(page));
-		buf_page_print(page, 0, 0);
+		buf_page_print(page, univ_page_size, 0);
 
 		ut_error;
 	} else if (offs == 0) {

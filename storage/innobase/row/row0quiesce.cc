@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "trx0purge.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
@@ -73,7 +73,7 @@ row_quiesce_write_index_fields(
 		}
 
 		/* Include the NUL byte in the length. */
-		ib_uint32_t len = (ib_uint32_t) strlen(field->name) + 1;
+		ib_uint32_t	len = static_cast<ib_uint32_t>(strlen(field->name) + 1);
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
@@ -182,7 +182,7 @@ row_quiesce_write_indexes(
 
 		/* Write the length of the index name.
 		NUL byte is included in the length. */
-		ib_uint32_t len = (ib_uint32_t) strlen(index->name) + 1;
+		ib_uint32_t	len = static_cast<ib_uint32_t>(strlen(index->name) + 1);
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
@@ -269,7 +269,7 @@ row_quiesce_write_table(
 		col_name = dict_table_get_col_name(table, dict_col_get_no(col));
 
 		/* Include the NUL byte in the length. */
-		len = (ib_uint32_t) strlen(col_name) + 1;
+		len = static_cast<ib_uint32_t>(strlen(col_name) + 1);
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
@@ -335,7 +335,7 @@ row_quiesce_write_header(
 	}
 
 	/* The server hostname includes the NUL byte. */
-	len = (ib_uint32_t) strlen(hostname) + 1;
+	len = static_cast<ib_uint32_t>(strlen(hostname) + 1);
 	mach_write_to_4(value, len);
 
 	DBUG_EXECUTE_IF("ib_export_io_write_failure_5", close(fileno(file)););
@@ -353,7 +353,7 @@ row_quiesce_write_header(
 
 	/* The table name includes the NUL byte. */
 	ut_a(table->name != 0);
-	len = (ib_uint32_t) strlen(table->name) + 1;
+	len = static_cast<ib_uint32_t>(strlen(table->name) + 1);
 
 	/* Write the table name. */
 	mach_write_to_4(value, len);
@@ -557,8 +557,8 @@ row_quiesce_table_start(
 			   != DB_SUCCESS) {
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"There was an error writing to the "
-				"meta data file");
+				"There was an error writing to the"
+				" meta data file");
 		} else {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Table '%s' flushed to disk", table_name);
@@ -668,8 +668,8 @@ row_quiesce_set_state(
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_NOT_SUPPORTED_YET,
-			    "FLUSH TABLES on tables that have an FTS index. "
-			    "FTS auxiliary tables will not be flushed.");
+			    "FLUSH TABLES on tables that have an FTS index."
+			    " FTS auxiliary tables will not be flushed.");
 
 	} else if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 		/* If this flag is set then the table may not have any active
@@ -677,10 +677,10 @@ row_quiesce_set_state(
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_NOT_SUPPORTED_YET,
-			    "FLUSH TABLES on a table that had an FTS index, "
-			    "created on a hidden column, the "
-			    "auxiliary tables haven't been dropped as yet. "
-			    "FTS auxiliary tables will not be flushed.");
+			    "FLUSH TABLES on a table that had an FTS index,"
+			    " created on a hidden column, the"
+			    " auxiliary tables haven't been dropped as yet."
+			    " FTS auxiliary tables will not be flushed.");
 	}
 
 	row_mysql_lock_data_dictionary(trx);

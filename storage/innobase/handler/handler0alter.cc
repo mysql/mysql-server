@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,11 +33,11 @@ Smart ALTER TABLE
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+#include "fsp0sysspace.h"
 #include "log0log.h"
 #include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
-#include "srv0space.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
 #include "handler0alter.h"
@@ -45,6 +45,7 @@ Smart ALTER TABLE
 #include "fts0priv.h"
 #include "fts0plugin.h"
 #include "pars0pars.h"
+#include "row0sel.h"
 #include "ha_innodb.h"
 
 /** Operations for creating secondary indexes (no rebuild needed) */
@@ -63,6 +64,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD
 	| Alter_inplace_info::ALTER_COLUMN_ORDER
 	| Alter_inplace_info::DROP_COLUMN
 	| Alter_inplace_info::ADD_COLUMN
+	| Alter_inplace_info::RECREATE_TABLE
 	/*
 	| Alter_inplace_info::ALTER_COLUMN_TYPE
 	*/
@@ -234,8 +236,10 @@ ha_innobase::check_if_supported_inplace_alter(
 	if (srv_read_only_mode
 	    || srv_sys_space.created_new_raw()
 	    || srv_force_recovery) {
-		ha_alter_info->unsupported_reason =
+		ha_alter_info->unsupported_reason = (srv_force_recovery)?
+			innobase_get_err_msg(ER_INNODB_FORCED_RECOVERY):
 			innobase_get_err_msg(ER_READ_ONLY_MODE);
+
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -287,18 +291,6 @@ ha_innobase::check_if_supported_inplace_alter(
 	    && !thd_is_strict_mode(user_thd)) {
 		ha_alter_info->unsupported_reason = innobase_get_err_msg(
 			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOT_NULL);
-		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-	}
-
-	/* InnoDB cannot IGNORE when creating unique indexes. IGNORE
-	should silently delete some duplicate rows. Our inplace_alter
-	code will not delete anything from existing indexes. */
-	if (ha_alter_info->ignore
-	    && (ha_alter_info->handler_flags
-		& (Alter_inplace_info::ADD_PK_INDEX
-		   | Alter_inplace_info::ADD_UNIQUE_INDEX))) {
-		ha_alter_info->unsupported_reason = innobase_get_err_msg(
-			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -866,7 +858,7 @@ innobase_get_foreign_key_info(
 			/* Check whether there exist such
 			index in the the index create clause */
 			if (!index && !innobase_find_equiv_index(
-				    column_names, (uint) i,
+				    column_names, static_cast<uint>(i),
 				    ha_alter_info->key_info_buffer,
 				    ha_alter_info->index_add_buffer,
 				    ha_alter_info->index_add_count)) {
@@ -973,6 +965,12 @@ innobase_get_foreign_key_info(
 			}
 
 			referenced_num_col = i;
+		} else {
+			/* Not possible to add a foreign key without a
+			referenced column */
+			mutex_exit(&dict_sys->mutex);
+			my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), tbl_namep);
+			goto err_exit;
 		}
 
 		if (!innobase_init_foreign(
@@ -1093,16 +1091,16 @@ innobase_col_to_mysql(
 		/* These column types should never be shipped to MySQL. */
 		ut_ad(0);
 
-	case DATA_FIXBINARY:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 	case DATA_DECIMAL:
 		/* Above are the valid column types for MySQL data. */
 		ut_ad(flen == len);
 		/* fall through */
+	case DATA_FIXBINARY:
 	case DATA_CHAR:
 		/* We may have flen > len when there is a shorter
-		prefix on a CHAR column. */
+		prefix on the CHAR and BINARY column. */
 		ut_ad(flen >= len);
 #else /* UNIV_DEBUG */
 	default:
@@ -2531,17 +2529,18 @@ innobase_drop_fts_index_table(
 }
 
 /** Get the new column names if any columns were renamed
-@param ha_alter_info Data used during in-place alter
-@param altered_table MySQL table that is being altered
-@param user_table InnoDB table as it is before the ALTER operation
-@param heap Memory heap for the allocation
+@param ha_alter_info	Data used during in-place alter
+@param altered_table	MySQL table that is being altered
+@param table		MySQL table as it is before the ALTER operation
+@param user_table	InnoDB table as it is before the ALTER operation
+@param heap		Memory heap for the allocation
 @return array of new column names in rebuilt_table, or NULL if not renamed */
 static __attribute__((nonnull, warn_unused_result))
 const char**
 innobase_get_col_names(
-/*===================*/
 	Alter_inplace_info*	ha_alter_info,
 	const TABLE*		altered_table,
+	const TABLE*		table,
 	const dict_table_t*	user_table,
 	mem_heap_t*		heap)
 {
@@ -2549,19 +2548,31 @@ innobase_get_col_names(
 	uint			i;
 
 	DBUG_ENTER("innobase_get_col_names");
-	DBUG_ASSERT(user_table->n_def > altered_table->s->fields);
+	DBUG_ASSERT(user_table->n_def > table->s->fields);
 	DBUG_ASSERT(ha_alter_info->handler_flags
 		    & Alter_inplace_info::ALTER_COLUMN_NAME);
 
 	cols = static_cast<const char**>(
-		mem_heap_alloc(heap, user_table->n_def * sizeof *cols));
+		mem_heap_zalloc(heap, user_table->n_def * sizeof *cols));
 
-	for (i = 0; i < altered_table->s->fields; i++) {
-		const Field*	field = altered_table->field[i];
-		cols[i] = field->field_name;
+	i = 0;
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+	while (const Create_field* new_field = cf_it++) {
+		DBUG_ASSERT(i < altered_table->s->fields);
+
+		for (uint old_i = 0; table->field[old_i]; old_i++) {
+			if (new_field->field == table->field[old_i]) {
+				cols[old_i] = new_field->field_name;
+				break;
+			}
+		}
+
+		i++;
 	}
 
 	/* Copy the internal column names. */
+	i = table->s->fields;
 	cols[i] = dict_table_get_col_name(user_table, i);
 
 	while (++i < user_table->n_def) {
@@ -2669,7 +2680,7 @@ prepare_inplace_alter_table_dict(
 		check_if_supported_inplace_alter(). */
 		ut_ad(0);
 		my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-			 thd_query_string(ctx->prebuilt->trx->mysql_thd)->str);
+			 thd_query_string(ctx->prebuilt->trx->mysql_thd).str);
 		goto error_handled;
 	}
 
@@ -3514,6 +3525,9 @@ ha_innobase::prepare_inplace_alter_table(
 	ulint		fts_doc_col_no		= ULINT_UNDEFINED;
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
+#ifdef _WIN32
+	bool		add_fts_idx		= false;
+#endif /* _WIN32 */
 
 	DBUG_ENTER("prepare_inplace_alter_table");
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
@@ -3542,9 +3556,10 @@ ha_innobase::prepare_inplace_alter_table(
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
-		if (const char* invalid_opt = create_options_are_invalid(
+		const char* invalid_opt = create_options_are_invalid(
 			    user_thd, ha_alter_info->create_info,
-			    prebuilt->table->space != 0)) {
+			    prebuilt->table->space != 0);
+		if (invalid_opt) {
 			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 				 table_type(), invalid_opt);
 			goto err_exit_no_heap;
@@ -3657,6 +3672,9 @@ check_if_ok_to_rename:
 				      & ~(HA_FULLTEXT
 					  | HA_PACK_KEY
 					  | HA_BINARY_PACK_KEY)));
+#ifdef _WIN32
+			add_fts_idx = true;
+#endif /* _WIN32 */
 			continue;
 		}
 
@@ -3666,6 +3684,20 @@ check_if_ok_to_rename:
 			goto err_exit_no_heap;
 		}
 	}
+
+#ifdef _WIN32
+	/* We won't be allowed to add fts index to a table with
+	fts indexes already but without AUX_HEX_NAME set.
+	This means the aux tables of the table failed to
+	rename to hex format but new created aux tables
+	shall be in hex format, which is contradictory.
+	It's only for Windows. */
+	if (!DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS_AUX_HEX_NAME)
+	    && indexed_table->fts != NULL && add_fts_idx) {
+		my_error(ER_INNODB_FT_AUX_NOT_HEX_ID, MYF(0));
+		goto err_exit_no_heap;
+	}
+#endif /* _WIN32 */
 
 	/* Check existing index definitions for too-long column
 	prefixes as well, in case max_col_len shrunk. */
@@ -3700,8 +3732,8 @@ check_if_ok_to_rename:
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ALTER_COLUMN_NAME) {
 			col_names = innobase_get_col_names(
-				ha_alter_info, altered_table, indexed_table,
-				heap);
+				ha_alter_info, altered_table, table,
+				indexed_table, heap);
 		} else {
 			col_names = NULL;
 		}
@@ -3787,8 +3819,8 @@ found_fk:
 					user_thd,
 					Sql_condition::SL_WARNING,
 					HA_ERR_WRONG_INDEX,
-					"InnoDB could not find key "
-					"with name %s", key->name);
+					"InnoDB could not find key"
+					" with name %s", key->name);
 			} else {
 				ut_ad(!index->to_be_dropped);
 				if (!dict_index_is_clust(index)) {
@@ -4001,8 +4033,8 @@ func_exit:
 				user_thd,
 				Sql_condition::SL_WARNING,
 				HA_ERR_WRONG_INDEX,
-				"InnoDB rebuilding table to add column "
-				FTS_DOC_ID_COL_NAME);
+				"InnoDB rebuilding table to add"
+				" column " FTS_DOC_ID_COL_NAME);
 		} else if (fts_doc_col_no == ULINT_UNDEFINED) {
 			goto err_exit;
 		}
@@ -4910,16 +4942,38 @@ commit_get_autoinc(
 		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
 		   && (ha_alter_info->create_info->used_fields
 		       & HA_CREATE_USED_AUTO)) {
-		/* An AUTO_INCREMENT value was supplied, but the table
-		was not rebuilt. Get the user-supplied value or the
-		last value from the sequence. */
-		ut_ad(old_table->found_next_number_field);
+		/* An AUTO_INCREMENT value was supplied, but the table was not
+		rebuilt. Get the user-supplied value or the last value from the
+		sequence. */
+		ib_uint64_t	max_value_table;
+		dberr_t		err;
+
+		Field*	autoinc_field =
+			old_table->found_next_number_field;
+
+		dict_index_t*	index = dict_table_get_index_on_first_col(
+			ctx->old_table, autoinc_field->field_index);
 
 		max_autoinc = ha_alter_info->create_info->auto_increment_value;
 
 		dict_table_autoinc_lock(ctx->old_table);
-		if (max_autoinc < ctx->old_table->autoinc) {
-			max_autoinc = ctx->old_table->autoinc;
+
+		err = row_search_max_autoinc(
+			index, autoinc_field->field_name, &max_value_table);
+
+		if (err != DB_SUCCESS) {
+			ut_ad(0);
+			max_autoinc = 0;
+		} else if (max_autoinc <= max_value_table) {
+			ulonglong	col_max_value;
+			ulonglong	offset;
+
+			col_max_value = autoinc_field->get_max_int_value();
+
+			offset = ctx->prebuilt->autoinc_offset;
+			max_autoinc = innobase_next_autoinc(
+				max_value_table, 1, 1, offset,
+				col_max_value);
 		}
 		dict_table_autoinc_unlock(ctx->old_table);
 	} else {
@@ -5573,9 +5627,9 @@ alter_stats_norebuild(
 				thd,
 				Sql_condition::SL_WARNING,
 				ER_ERROR_ON_RENAME,
-				"Error renaming an index of table '%s' "
-				"from '%s' to '%s' in InnoDB persistent "
-				"statistics storage: %s",
+				"Error renaming an index of table '%s'"
+				" from '%s' to '%s' in InnoDB persistent"
+				" statistics storage: %s",
 				table_name,
 				pair->old_key->name,
 				pair->new_key->name,
@@ -5641,8 +5695,8 @@ alter_stats_rebuild(
 			thd,
 			Sql_condition::SL_WARNING,
 			ER_ALTER_INFO,
-			"Error updating stats for table '%s' "
-			"after table rebuild: %s",
+			"Error updating stats for table '%s'"
+			" after table rebuild: %s",
 			table_name, ut_strerr(ret));
 	}
 
@@ -6032,7 +6086,7 @@ foreign_fail:
 					" returned %u for %s",
 					(unsigned) error,
 					thd_query_string(user_thd)
-					->str);
+					.str);
 				ut_ad(0);
 			} else {
 				if (!commit_cache_norebuild(

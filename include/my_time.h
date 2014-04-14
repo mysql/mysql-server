@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ typedef long my_time_t;
   check for valid times only if the range of time_t is greater than
   the range of my_time_t
 */
-#if SIZEOF_TIME_T > 4 || defined(TIME_T_UNSIGNED)
+#if SIZEOF_TIME_T > 4
 # define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
     ((x) <= TIMESTAMP_MAX_VALUE && \
      (x) >= TIMESTAMP_MIN_VALUE)
@@ -67,16 +67,14 @@ typedef long my_time_t;
 #endif
 
 /* Flags to str_to_datetime and number_to_datetime */
-#define TIME_FUZZY_DATE         1
-#define TIME_DATETIME_ONLY      2
-#define TIME_NO_NSEC_ROUNDING   4
-#define TIME_NO_DATE_FRAC_WARN  8
-
-/* Must be same as MODE_NO_ZERO_IN_DATE */
-#define TIME_NO_ZERO_IN_DATE    (65536L*2*2*2*2*2*2*2)
-/* Must be same as MODE_NO_ZERO_DATE */
-#define TIME_NO_ZERO_DATE	(TIME_NO_ZERO_IN_DATE*2)
-#define TIME_INVALID_DATES	(TIME_NO_ZERO_DATE*2)
+typedef uint my_time_flags_t;
+static const my_time_flags_t TIME_FUZZY_DATE=         1;
+static const my_time_flags_t TIME_DATETIME_ONLY=      2;
+static const my_time_flags_t TIME_NO_NSEC_ROUNDING=   4;
+static const my_time_flags_t TIME_NO_DATE_FRAC_WARN=  8;
+static const my_time_flags_t TIME_NO_ZERO_IN_DATE=   16;
+static const my_time_flags_t TIME_NO_ZERO_DATE=      32;
+static const my_time_flags_t TIME_INVALID_DATES=     64;
 
 /* Conversion warnings */
 #define MYSQL_TIME_WARN_TRUNCATED         1
@@ -116,11 +114,11 @@ static inline void my_time_status_init(MYSQL_TIME_STATUS *status)
 
 
 my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                   ulonglong flags, int *was_cut);
-my_bool str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
-                        ulonglong flags, MYSQL_TIME_STATUS *status);
+                   my_time_flags_t flags, int *was_cut);
+my_bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
+                        my_time_flags_t flags, MYSQL_TIME_STATUS *status);
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
-                            ulonglong flags, int *was_cut);
+                            my_time_flags_t flags, int *was_cut);
 my_bool number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings);
 ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *);
@@ -156,7 +154,7 @@ void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec);
 void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec);
 uint my_timestamp_binary_length(uint dec);
 
-my_bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
+my_bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
                     MYSQL_TIME_STATUS *status);
 
 my_bool check_time_mmssff_range(const MYSQL_TIME *ltime);

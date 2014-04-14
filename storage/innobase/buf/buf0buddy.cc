@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -129,7 +129,7 @@ buf_buddy_stamp_free(
 	buf_buddy_free_t*	buf,	/*!< in/out: block to stamp */
 	ulint			i)	/*!< in: block size */
 {
-	ut_d(memset(buf, (int) i, BUF_BUDDY_LOW << i));
+	ut_d(memset(buf, static_cast<int>(i), BUF_BUDDY_LOW << i));
 	buf_buddy_mem_invalid(buf, i);
 	mach_write_to_4(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET,
 			BUF_BUDDY_STAMP_FREE);
@@ -138,8 +138,8 @@ buf_buddy_stamp_free(
 
 /**********************************************************************//**
 Stamps a buddy nonfree.
-@param[in/out] buf block to stamp
-@param[in] i block size */
+@param[in,out]	buf	block to stamp
+@param[in]	i	block size */
 #define buf_buddy_stamp_nonfree(buf, i) do {				\
 	buf_buddy_mem_invalid(buf, i);					\
 	memset(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET, 0xff, 4);	\
@@ -531,7 +531,7 @@ buf_buddy_relocate(
 					buf_pool->zip_free[] */
 {
 	buf_page_t*	bpage;
-	const ulint	size	= BUF_BUDDY_LOW << i;
+	const ulint	size = BUF_BUDDY_LOW << i;
 	ulint		space;
 	ulint		offset;
 
@@ -554,13 +554,27 @@ buf_buddy_relocate(
 
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
 
-	bpage = buf_page_hash_get(buf_pool, space, offset);
+	const page_id_t	page_id(space, offset);
+
+	/* If space,offset is bogus, then we know that the
+	buf_page_hash_get_low() call below will return NULL. */
+	if (buf_pool != buf_pool_get(page_id)) {
+		return(false);
+	}
+
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
+
+	rw_lock_x_lock(hash_lock);
+
+	bpage = buf_page_hash_get_low(buf_pool, page_id);
 
 	if (!bpage || bpage->zip.data != src) {
 		/* The block has probably been freshly
 		allocated by buf_LRU_get_free_block() but not
 		added to buf_pool->page_hash yet.  Obviously,
 		it cannot be relocated. */
+
+		rw_lock_x_unlock(hash_lock);
 
 		return(false);
 	}
@@ -570,6 +584,8 @@ buf_buddy_relocate(
 		have to relocate all blocks covered by src.
 		For the sake of simplicity, give up. */
 		ut_ad(page_zip_get_size(&bpage->zip) < size);
+
+		rw_lock_x_unlock(hash_lock);
 
 		return(false);
 	}
@@ -584,11 +600,17 @@ buf_buddy_relocate(
 
 	if (buf_page_can_relocate(bpage)) {
 		/* Relocate the compressed page. */
-		ullint	usec	= ut_time_us(NULL);
+		uintmax_t	usec = ut_time_us(NULL);
+
 		ut_a(bpage->zip.data == src);
+
 		memcpy(dst, src, size);
-		bpage->zip.data = (page_zip_t*) dst;
+		bpage->zip.data = reinterpret_cast<page_zip_t*>(dst);
+
+		rw_lock_x_unlock(hash_lock);
+
 		mutex_exit(block_mutex);
+
 		buf_buddy_mem_invalid(
 			reinterpret_cast<buf_buddy_free_t*>(src), i);
 
@@ -597,6 +619,8 @@ buf_buddy_relocate(
 		buddy_stat->relocated_usec += ut_time_us(NULL) - usec;
 		return(true);
 	}
+
+	rw_lock_x_unlock(hash_lock);
 
 	mutex_exit(block_mutex);
 	return(false);

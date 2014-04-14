@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,7 @@ Created July 18, 2007 Vasil Dimov
 #include "fts0priv.h"
 #include "btr0btr.h"
 #include "page0zip.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -266,7 +266,7 @@ field_store_string(
 
 	if (str != NULL) {
 
-		ret = field->store(str, (uint) strlen(str),
+		ret = field->store(str, static_cast<uint>(strlen(str)),
 				   system_charset_info);
 		field->set_notnull();
 	} else {
@@ -303,11 +303,13 @@ field_store_index_name(
 		char	buf[NAME_LEN + 1];
 		buf[0] = '?';
 		memcpy(buf + 1, index_name + 1, strlen(index_name));
-		ret = field->store(buf, (uint) strlen(buf),
-				   system_charset_info);
+		ret = field->store(
+			buf, static_cast<uint>(strlen(buf)),
+			system_charset_info);
 	} else {
-		ret = field->store(index_name, (uint) strlen(index_name),
-				   system_charset_info);
+		ret = field->store(
+			index_name, static_cast<uint>(strlen(index_name)),
+			system_charset_info);
 	}
 
 	field->set_notnull();
@@ -330,7 +332,7 @@ field_store_ulint(
 
 	if (n != ULINT_UNDEFINED) {
 
-		ret = field->store((double) n);
+		ret = field->store(static_cast<double>(n));
 		field->set_notnull();
 	} else {
 
@@ -636,7 +638,7 @@ fill_innodb_trx_from_cache(
 
 		/* trx_mysql_thread_id */
 		OK(fields[IDX_TRX_MYSQL_THREAD_ID]->store(
-			   (double) row->trx_mysql_thread_id));
+			   static_cast<double>(row->trx_mysql_thread_id)));
 
 		/* trx_query */
 		if (row->trx_query) {
@@ -644,7 +646,7 @@ fill_innodb_trx_from_cache(
 			conversion check */
 			fields[IDX_TRX_QUERY]->store(
 				row->trx_query,
-				(uint) strlen(row->trx_query),
+				static_cast<uint>(strlen(row->trx_query)),
 				row->trx_query_cs);
 			fields[IDX_TRX_QUERY]->set_notnull();
 		} else {
@@ -689,11 +691,11 @@ fill_innodb_trx_from_cache(
 
 		/* trx_unique_checks */
 		OK(fields[IDX_TRX_UNIQUE_CHECKS]->store(
-			   (double) row->trx_unique_checks));
+			   static_cast<double>(row->trx_unique_checks)));
 
 		/* trx_foreign_key_checks */
 		OK(fields[IDX_TRX_FOREIGN_KEY_CHECKS]->store(
-			   (double) row->trx_foreign_key_checks));
+			   static_cast<double>(row->trx_foreign_key_checks)));
 
 		/* trx_last_foreign_key_error */
 		OK(field_store_string(fields[IDX_TRX_LAST_FOREIGN_KEY_ERROR],
@@ -701,7 +703,7 @@ fill_innodb_trx_from_cache(
 
 		/* trx_adaptive_hash_latched */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_LATCHED]->store(
-			   (double) row->trx_has_search_latch));
+			   static_cast<double>(row->trx_has_search_latch)));
 
 		/* trx_adaptive_hash_timeout */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_TIMEOUT]->store(
@@ -957,8 +959,9 @@ fill_innodb_locks_from_cache(
 					       row->lock_table,
 					       strlen(row->lock_table),
 					       thd, TRUE);
-		OK(fields[IDX_LOCK_TABLE]->store(buf, (uint) (bufend - buf),
-						 system_charset_info));
+		OK(fields[IDX_LOCK_TABLE]->store(
+			buf, static_cast<uint>(bufend - buf),
+			system_charset_info));
 
 		/* lock_index */
 		if (row->lock_index != NULL) {
@@ -1294,10 +1297,9 @@ trx_i_s_common_fill_table(
 
 	if (trx_i_s_cache_is_truncated(cache)) {
 
-		/* XXX show warning to user if possible */
-		fprintf(stderr, "Warning: data in %s truncated due to "
-			"memory limit of %d bytes\n", table_name,
-			TRX_I_S_MEM_LIMIT);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Data in %s truncated due to memory limit of %d bytes",
+			table_name, TRX_I_S_MEM_LIMIT);
 	}
 
 	ret = 0;
@@ -1329,14 +1331,12 @@ trx_i_s_common_fill_table(
 		}
 
 	} else {
-
-		/* huh! what happened!? */
-		fprintf(stderr,
-			"InnoDB: trx_i_s_common_fill_table() was "
-			"called to fill unknown table: %s.\n"
-			"This function only knows how to fill "
-			"innodb_trx, innodb_locks and "
-			"innodb_lock_waits tables.\n", table_name);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"trx_i_s_common_fill_table() was"
+			" called to fill unknown table: %s."
+			" This function only knows how to fill"
+			" innodb_trx, innodb_locks and"
+			" innodb_lock_waits tables.", table_name);
 
 		ret = 1;
 	}
@@ -1450,13 +1450,16 @@ i_s_cmp_fill_low(
 		clear it.  We could introduce mutex protection, but it
 		could cause a measureable performance hit in
 		page0zip.cc. */
-		table->field[1]->store((double) zip_stat->compressed);
-		table->field[2]->store((double) zip_stat->compressed_ok);
+		table->field[1]->store(
+			static_cast<double>(zip_stat->compressed));
+		table->field[2]->store(
+			static_cast<double>(zip_stat->compressed_ok));
 		table->field[3]->store(
-			(double) (zip_stat->compressed_usec / 1000000));
-		table->field[4]->store((double) zip_stat->decompressed);
+			static_cast<double>(zip_stat->compressed_usec / 1000000));
+		table->field[4]->store(
+			static_cast<double>(zip_stat->decompressed));
 		table->field[5]->store(
-			(double) (zip_stat->decompressed_usec / 1000000));
+			static_cast<double>(zip_stat->decompressed_usec / 1000000));
 
 		if (reset) {
 			memset(zip_stat, 0, sizeof *zip_stat);
@@ -1791,19 +1794,19 @@ i_s_cmp_per_index_fill_low(
 		}
 
 		fields[IDX_COMPRESS_OPS]->store(
-			(double) iter->second.compressed);
+			static_cast<double>(iter->second.compressed));
 
 		fields[IDX_COMPRESS_OPS_OK]->store(
-			(double) iter->second.compressed_ok);
+			static_cast<double>(iter->second.compressed_ok));
 
 		fields[IDX_COMPRESS_TIME]->store(
-			(double) (iter->second.compressed_usec / 1000000));
+			static_cast<double>(iter->second.compressed_usec / 1000000));
 
 		fields[IDX_UNCOMPRESS_OPS]->store(
-			(double) iter->second.decompressed);
+			static_cast<double>(iter->second.decompressed));
 
 		fields[IDX_UNCOMPRESS_TIME]->store(
-			(double) (iter->second.decompressed_usec / 1000000));
+			static_cast<double>(iter->second.decompressed_usec / 1000000));
 
 		if (schema_table_store_record(thd, table)) {
 			status = 1;
@@ -2096,15 +2099,17 @@ i_s_cmpmem_fill_low(
 			buddy_stat = &buf_pool->buddy_stat[x];
 
 			table->field[0]->store(BUF_BUDDY_LOW << x);
-			table->field[1]->store((double) i);
-			table->field[2]->store((double) buddy_stat->used);
-			table->field[3]->store((double) (x < BUF_BUDDY_SIZES
+			table->field[1]->store(static_cast<double>(i));
+			table->field[2]->store(static_cast<double>(
+				buddy_stat->used));
+			table->field[3]->store(static_cast<double>(
+				(x < BUF_BUDDY_SIZES)
 				? UT_LIST_GET_LEN(buf_pool->zip_free[x])
 				: 0));
 			table->field[4]->store(
 				(longlong) buddy_stat->relocated, true);
 			table->field[5]->store(
-				(double) (buddy_stat->relocated_usec / 1000000));
+				static_cast<double>(buddy_stat->relocated_usec / 1000000));
 
 			if (reset) {
 				/* This is protected by buf_pool->mutex. */
@@ -2662,8 +2667,8 @@ i_s_metrics_fill(
 
 			if (time_diff) {
 				OK(fields[METRIC_AVG_VALUE_RESET]->store(
-					(double) MONITOR_VALUE(count)
-					/ time_diff));
+					static_cast<double>(
+						MONITOR_VALUE(count) / time_diff)));
 				fields[METRIC_AVG_VALUE_RESET]->set_notnull();
 			} else {
 				fields[METRIC_AVG_VALUE_RESET]->set_null();
@@ -3308,9 +3313,11 @@ i_s_fts_index_cache_fill_one_index(
 		if (index_charset->cset != system_charset_info->cset) {
 			conv_str.f_n_char = my_convert(
 				reinterpret_cast<char*>(conv_str.f_str),
-				uint32(conv_str.f_len), system_charset_info,
+				static_cast<uint32>(conv_str.f_len),
+				system_charset_info,
 				reinterpret_cast<char*>(word->text.f_str),
-				uint32(word->text.f_len), index_charset, &dummy_errors);
+				static_cast<uint32>(word->text.f_len),
+				index_charset, &dummy_errors);
 			ut_ad(conv_str.f_n_char <= conv_str.f_len);
 			conv_str.f_str[conv_str.f_n_char] = 0;
 			word_str = reinterpret_cast<char*>(conv_str.f_str);
@@ -3351,13 +3358,13 @@ i_s_fts_index_cache_fill_one_index(
 						true));
 
 					OK(fields[I_S_FTS_DOC_COUNT]->store(
-						(double) node->doc_count));
+						static_cast<double>(node->doc_count)));
 
 					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
 						(longlong) doc_id, true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
-						(double) pos));
+						static_cast<double>(pos)));
 
 					OK(schema_table_store_record(
 						thd, table));
@@ -3515,6 +3522,7 @@ i_s_fts_index_table_fill_selected(
 	que_t*			graph;
 	dberr_t			error;
 	fts_fetch_t		fetch;
+	char			table_name[MAX_FULL_NAME_LEN];
 
 	info = pars_info_create();
 
@@ -3535,14 +3543,16 @@ i_s_fts_index_table_fill_selected(
 
 	FTS_INIT_INDEX_TABLE(&fts_table, fts_get_suffix(selected),
 			     FTS_INDEX_TABLE, index);
+	fts_get_table_name(&fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
 
 	graph = fts_parse_sql(
 		&fts_table, info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT word, doc_count, first_doc_id, last_doc_id, "
-		"ilist\n"
-		" FROM %s WHERE word >= :word;\n"
+		" SELECT word, doc_count, first_doc_id, last_doc_id,"
+		" ilist\n"
+		" FROM $table_name WHERE word >= :word;\n"
 		"BEGIN\n"
 		"\n"
 		"OPEN c;\n"
@@ -3554,7 +3564,7 @@ i_s_fts_index_table_fill_selected(
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	for(;;) {
+	for (;;) {
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {
@@ -3564,17 +3574,15 @@ i_s_fts_index_table_fill_selected(
 		} else {
 			fts_sql_rollback(trx);
 
-			ut_print_timestamp(stderr);
-
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: "
-					"lock wait timeout reading "
-					"FTS index.  Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Lock wait timeout reading"
+					" FTS index. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: %d "
-				"while reading FTS index.\n", error);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"%d while reading FTS index.", error);
 				break;
 			}
 		}
@@ -3664,10 +3672,11 @@ i_s_fts_index_table_fill_one_fetch(
 		if (index_charset->cset != system_charset_info->cset) {
 			conv_str->f_n_char = my_convert(
 				reinterpret_cast<char*>(conv_str->f_str),
-				uint32(conv_str->f_len), system_charset_info,
+				static_cast<uint32>(conv_str->f_len),
+				system_charset_info,
 				reinterpret_cast<char*>(word->text.f_str),
-				uint32(word->text.f_len), index_charset,
-				&dummy_errors);
+				static_cast<uint32>(word->text.f_len),
+				index_charset, &dummy_errors);
 			ut_ad(conv_str->f_n_char <= conv_str->f_len);
 			conv_str->f_str[conv_str->f_n_char] = 0;
 			word_str = reinterpret_cast<char*>(conv_str->f_str);
@@ -3707,13 +3716,13 @@ i_s_fts_index_table_fill_one_fetch(
 						longlong(node->last_doc_id), true));
 
 					OK(fields[I_S_FTS_DOC_COUNT]->store(
-						double(node->doc_count)));
+						static_cast<double>(node->doc_count)));
 
 					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
 						longlong(doc_id), true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
-						double(pos)));
+						static_cast<double>(pos)));
 
 					OK(schema_table_store_record(
 						thd, table));
@@ -4269,7 +4278,7 @@ innodb_temp_table_populate_cache(
 		strcpy(cache->m_per_table_tablespace, "TRUE");
 	}
 
-	if (dict_table_zip_size(table) != 0) {
+	if (dict_table_page_size(table).is_compressed()) {
 		strcpy(cache->m_is_compressed, "TRUE");
 	} else {
 		strcpy(cache->m_is_compressed, "FALSE");
@@ -4730,40 +4739,40 @@ i_s_innodb_stats_fill(
 	fields = table->field;
 
 	OK(fields[IDX_BUF_STATS_POOL_ID]->store(
-		(double) info->pool_unique_id));
+		static_cast<double>(info->pool_unique_id)));
 
 	OK(fields[IDX_BUF_STATS_POOL_SIZE]->store(
-		(double) info->pool_size));
+		static_cast<double>(info->pool_size)));
 
 	OK(fields[IDX_BUF_STATS_LRU_LEN]->store(
-		(double) info->lru_len));
+		static_cast<double>(info->lru_len)));
 
 	OK(fields[IDX_BUF_STATS_OLD_LRU_LEN]->store(
-		(double) info->old_lru_len));
+		static_cast<double>(info->old_lru_len)));
 
 	OK(fields[IDX_BUF_STATS_FREE_BUFFERS]->store(
-		(double) info->free_list_len));
+		static_cast<double>(info->free_list_len)));
 
 	OK(fields[IDX_BUF_STATS_FLUSH_LIST_LEN]->store(
-		(double) info->flush_list_len));
+		static_cast<double>(info->flush_list_len)));
 
 	OK(fields[IDX_BUF_STATS_PENDING_ZIP]->store(
-		(double) info->n_pend_unzip));
+		static_cast<double>(info->n_pend_unzip)));
 
 	OK(fields[IDX_BUF_STATS_PENDING_READ]->store(
-		(double) info->n_pend_reads));
+		static_cast<double>(info->n_pend_reads)));
 
 	OK(fields[IDX_BUF_STATS_FLUSH_LRU]->store(
-		(double) info->n_pending_flush_lru));
+		static_cast<double>(info->n_pending_flush_lru)));
 
 	OK(fields[IDX_BUF_STATS_FLUSH_LIST]->store(
-		(double) info->n_pending_flush_list));
+		static_cast<double>(info->n_pending_flush_list)));
 
 	OK(fields[IDX_BUF_STATS_PAGE_YOUNG]->store(
-		(double) info->n_pages_made_young));
+		static_cast<double>(info->n_pages_made_young)));
 
 	OK(fields[IDX_BUF_STATS_PAGE_NOT_YOUNG]->store(
-		(double) info->n_pages_not_made_young));
+		static_cast<double>(info->n_pages_not_made_young)));
 
 	OK(fields[IDX_BUF_STATS_PAGE_YOUNG_RATE]->store(
 		info->page_made_young_rate));
@@ -4772,16 +4781,16 @@ i_s_innodb_stats_fill(
 		info->page_not_made_young_rate));
 
 	OK(fields[IDX_BUF_STATS_PAGE_READ]->store(
-		(double) info->n_pages_read));
+		static_cast<double>(info->n_pages_read)));
 
 	OK(fields[IDX_BUF_STATS_PAGE_CREATED]->store(
-		(double) info->n_pages_created));
+		static_cast<double>(info->n_pages_created)));
 
 	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN]->store(
-		(double) info->n_pages_written));
+		static_cast<double>(info->n_pages_written)));
 
 	OK(fields[IDX_BUF_STATS_GET]->store(
-		(double) info->n_page_gets));
+		static_cast<double>(info->n_page_gets)));
 
 	OK(fields[IDX_BUF_STATS_PAGE_READ_RATE]->store(
 		info->pages_read_rate));
@@ -4793,17 +4802,20 @@ i_s_innodb_stats_fill(
 		info->pages_written_rate));
 
 	if (info->n_page_get_delta) {
-		OK(fields[IDX_BUF_STATS_HIT_RATE]->store((double)
-			1000 - (1000 * info->page_read_delta
+		OK(fields[IDX_BUF_STATS_HIT_RATE]->store(
+			static_cast<double>(
+				1000 - (1000 * info->page_read_delta
+				/ info->n_page_get_delta))));
+
+		OK(fields[IDX_BUF_STATS_MADE_YOUNG_PCT]->store(
+			static_cast<double>(
+				1000 * info->young_making_delta
 				/ info->n_page_get_delta)));
 
-		OK(fields[IDX_BUF_STATS_MADE_YOUNG_PCT]->store((double)
-			1000 * info->young_making_delta
-			/ info->n_page_get_delta));
-
-		OK(fields[IDX_BUF_STATS_NOT_MADE_YOUNG_PCT]->store((double)
-			1000 * info->not_young_making_delta
-			/ info->n_page_get_delta));
+		OK(fields[IDX_BUF_STATS_NOT_MADE_YOUNG_PCT]->store(
+			static_cast<double>(
+				1000 * info->not_young_making_delta
+				/ info->n_page_get_delta)));
 	} else {
 		OK(fields[IDX_BUF_STATS_HIT_RATE]->store(0));
 		OK(fields[IDX_BUF_STATS_MADE_YOUNG_PCT]->store(0));
@@ -4811,10 +4823,10 @@ i_s_innodb_stats_fill(
 	}
 
 	OK(fields[IDX_BUF_STATS_READ_AHREAD]->store(
-		(double) info->n_ra_pages_read));
+		static_cast<double>(info->n_ra_pages_read)));
 
 	OK(fields[IDX_BUF_STATS_READ_AHEAD_EVICTED]->store(
-		(double) info->n_ra_pages_evicted));
+		static_cast<double>(info->n_ra_pages_evicted)));
 
 	OK(fields[IDX_BUF_STATS_READ_AHEAD_RATE]->store(
 		info->pages_readahead_rate));
@@ -4823,16 +4835,16 @@ i_s_innodb_stats_fill(
 		info->pages_evicted_rate));
 
 	OK(fields[IDX_BUF_STATS_LRU_IO_SUM]->store(
-		(double) info->io_sum));
+		static_cast<double>(info->io_sum)));
 
 	OK(fields[IDX_BUF_STATS_LRU_IO_CUR]->store(
-		(double) info->io_cur));
+		static_cast<double>(info->io_cur)));
 
 	OK(fields[IDX_BUF_STATS_UNZIP_SUM]->store(
-		(double) info->unzip_sum));
+		static_cast<double>(info->unzip_sum)));
 
 	OK(fields[IDX_BUF_STATS_UNZIP_CUR]->store(
-		(double) info->unzip_cur));
+		static_cast<double>(info->unzip_cur)));
 
 	DBUG_RETURN(schema_table_store_record(thd, table));
 }
@@ -5182,16 +5194,16 @@ i_s_innodb_buffer_page_fill(
 		state_str = NULL;
 
 		OK(fields[IDX_BUFFER_POOL_ID]->store(
-			(double) page_info->pool_id));
+			static_cast<double>(page_info->pool_id)));
 
 		OK(fields[IDX_BUFFER_BLOCK_ID]->store(
-			(double) page_info->block_id));
+			static_cast<double>(page_info->block_id)));
 
 		OK(fields[IDX_BUFFER_PAGE_SPACE]->store(
-			(double) page_info->space_id));
+			static_cast<double>(page_info->space_id)));
 
 		OK(fields[IDX_BUFFER_PAGE_NUM]->store(
-			(double) page_info->page_num));
+			static_cast<double>(page_info->page_num)));
 
 		OK(field_store_string(
 			fields[IDX_BUFFER_PAGE_TYPE],
@@ -5243,7 +5255,7 @@ i_s_innodb_buffer_page_fill(
 
 				OK(fields[IDX_BUFFER_PAGE_TABLE_NAME]->store(
 					table_name,
-					(uint) (table_name_end - table_name),
+					static_cast<uint>(table_name_end - table_name),
 					system_charset_info));
 				fields[IDX_BUFFER_PAGE_TABLE_NAME]->set_notnull();
 
@@ -5420,9 +5432,9 @@ i_s_innodb_buffer_page_get_info(
 		const byte*	frame;
 		ulint		page_type;
 
-		page_info->space_id = buf_page_get_space(bpage);
+		page_info->space_id = bpage->id.space();
 
-		page_info->page_num = buf_page_get_page_no(bpage);
+		page_info->page_num = bpage->id.page_no();
 
 		page_info->flush_type = bpage->flush_type;
 
@@ -5901,26 +5913,26 @@ i_s_innodb_buf_page_lru_fill(
 		page_info = info_array + i;
 
 		OK(fields[IDX_BUF_LRU_POOL_ID]->store(
-			(double) page_info->pool_id));
+			static_cast<double>(page_info->pool_id)));
 
 		OK(fields[IDX_BUF_LRU_POS]->store(
-			(double) page_info->block_id));
+			static_cast<double>(page_info->block_id)));
 
 		OK(fields[IDX_BUF_LRU_PAGE_SPACE]->store(
-			(double) page_info->space_id));
+			static_cast<double>(page_info->space_id)));
 
 		OK(fields[IDX_BUF_LRU_PAGE_NUM]->store(
-			(double) page_info->page_num));
+			static_cast<double>(page_info->page_num)));
 
 		OK(field_store_string(
 			fields[IDX_BUF_LRU_PAGE_TYPE],
 			i_s_page_type[page_info->page_type].type_str));
 
 		OK(fields[IDX_BUF_LRU_PAGE_FLUSH_TYPE]->store(
-			(double) page_info->flush_type));
+			static_cast<double>(page_info->flush_type)));
 
 		OK(fields[IDX_BUF_LRU_PAGE_FIX_COUNT]->store(
-			(double) page_info->fix_count));
+			static_cast<double>(page_info->fix_count)));
 
 		if (page_info->hashed) {
 			OK(field_store_string(
@@ -5962,7 +5974,7 @@ i_s_innodb_buf_page_lru_fill(
 
 				OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
 					table_name,
-					(uint) (table_name_end - table_name),
+					static_cast<uint>(table_name_end - table_name),
 					system_charset_info));
 				fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
 
@@ -6335,12 +6347,13 @@ i_s_dict_fill_sys_tables(
 	dict_table_t*	table,		/*!< in: table */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	Field**		fields;
-	ulint	compact		= DICT_TF_GET_COMPACT(table->flags);
-	ulint	atomic_blobs	= DICT_TF_HAS_ATOMIC_BLOBS(table->flags);
-	ulint	zip_size	= dict_tf_get_zip_size(table->flags);
-	const char* file_format;
-	const char* row_format;
+	Field**			fields;
+	ulint			compact = DICT_TF_GET_COMPACT(table->flags);
+	ulint			atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(
+								table->flags);
+	const page_size_t&	page_size = dict_tf_get_page_size(table->flags);
+	const char*		file_format;
+	const char*		row_format;
 
 	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
 	if (!compact) {
@@ -6371,7 +6384,10 @@ i_s_dict_fill_sys_tables(
 
 	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
 
-	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store((double) zip_size));
+	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(static_cast<double>(
+				page_size.is_compressed()
+				? page_size.physical()
+				: 0)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -6645,13 +6661,13 @@ i_s_dict_fill_sys_tablestats(
 						      TRUE));
 
 		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(
-				(double) table->stat_clustered_index_size));
+			static_cast<double>(table->stat_clustered_index_size)));
 
 		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(
-				(double) table->stat_sum_of_other_index_sizes));
+			static_cast<double>(table->stat_sum_of_other_index_sizes)));
 
 		OK(fields[SYS_TABLESTATS_MODIFIED]->store(
-				(double) table->stat_modified_counter));
+			static_cast<double>(table->stat_modified_counter)));
 	} else {
 		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
 				      "Uninitialized"));
@@ -6670,7 +6686,7 @@ i_s_dict_fill_sys_tablestats(
 	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc, TRUE));
 
 	OK(fields[SYS_TABLESTATS_TABLE_REF_COUNT]->store(
-		(double) table->n_ref_count));
+		static_cast<double>(table->n_ref_count)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -7374,7 +7390,7 @@ i_s_dict_fill_sys_fields(
 
 	OK(field_store_string(fields[SYS_FIELD_NAME], field->name));
 
-	OK(fields[SYS_FIELD_POS]->store((double) pos));
+	OK(fields[SYS_FIELD_POS]->store(static_cast<double>(pos)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -7830,7 +7846,7 @@ i_s_dict_fill_sys_foreign_cols(
 
 	OK(field_store_string(fields[SYS_FOREIGN_COL_REF_NAME], ref_col_name));
 
-	OK(fields[SYS_FOREIGN_COL_POS]->store((double) pos));
+	OK(fields[SYS_FOREIGN_COL_POS]->store(static_cast<double>(pos)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -8065,12 +8081,11 @@ i_s_dict_fill_sys_tablespaces(
 	ulint		flags,		/*!< in: tablespace flags */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	Field**	fields;
-	ulint	atomic_blobs	= FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
-	ulint	page_size	= fsp_flags_get_page_size(flags);;
-	ulint	zip_size	= fsp_flags_get_zip_size(flags);
-	const char* file_format;
-	const char* row_format;
+	Field**			fields;
+	ulint			atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+	const page_size_t	page_size(flags);
+	const char*		file_format;
+	const char*		row_format;
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablespaces");
 
@@ -8085,11 +8100,13 @@ i_s_dict_fill_sys_tablespaces(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_TABLESPACES_SPACE]->store((double) space));
+	OK(fields[SYS_TABLESPACES_SPACE]->store(
+		static_cast<double>(space)));
 
 	OK(field_store_string(fields[SYS_TABLESPACES_NAME], name));
 
-	OK(fields[SYS_TABLESPACES_FLAGS]->store((double) flags));
+	OK(fields[SYS_TABLESPACES_FLAGS]->store(
+		static_cast<double>(flags)));
 
 	OK(field_store_string(fields[SYS_TABLESPACES_FILE_FORMAT],
 			      file_format));
@@ -8097,9 +8114,13 @@ i_s_dict_fill_sys_tablespaces(
 	OK(field_store_string(fields[SYS_TABLESPACES_ROW_FORMAT],
 			      row_format));
 
-	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store((double) page_size));
+	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store(
+			static_cast<double>(univ_page_size.physical())));
 
-	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store((double) zip_size));
+	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store(static_cast<double>(
+				page_size.is_compressed()
+				? page_size.physical()
+				: 0)));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 

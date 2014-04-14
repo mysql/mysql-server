@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,7 +109,8 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_slave_apply= 0, 
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
-                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0;
+                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
+                opt_secure_auth= 1;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -477,7 +478,8 @@ static struct my_option my_long_options[] =
     "are not enabled on the server, an error is generated. If OFF is "
     "used, this option does nothing. If AUTO is used and GTIDs are enabled "
     "on the server, 'SET @@GLOBAL.GTID_PURGED' is added to the output. "
-    "If GTIDs are disabled, AUTO does nothing. Default is AUTO.",
+    "If GTIDs are disabled, AUTO does nothing. If no value is supplied "
+    "then the default (AUTO) value will be considered.",
     0, 0, 0, GET_STR, OPT_ARG,
     0, 0, 0, 0, 0, 0},
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -511,6 +513,9 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, 
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tab",'T',
    "Create tab-separated textfile for each table to given path. (Create .sql "
@@ -921,9 +926,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_SET_GTID_PURGED:
     {
-      opt_set_gtid_purged_mode= find_type_or_exit(argument,
-                                                  &set_gtid_purged_mode_typelib,
-                                                  opt->name)-1;
+      if (argument)
+        opt_set_gtid_purged_mode= find_type_or_exit(argument,
+                                                    &set_gtid_purged_mode_typelib,
+                                                    opt->name)-1;
       break;
     }
   case (int) OPT_MYSQLDUMP_IGNORE_ERROR:
@@ -1382,7 +1388,7 @@ static int switch_character_set_results(MYSQL *mysql, const char *cs_name)
                             "SET SESSION character_set_results = '%s'",
                             (const char *) cs_name);
 
-  return mysql_real_query(mysql, query_buffer, query_length);
+  return mysql_real_query(mysql, query_buffer, (ulong)query_length);
 }
 
 /**
@@ -1600,6 +1606,8 @@ static int connect_to_db(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
+  if (!opt_secure_auth)
+    mysql_options(&mysql_connection,MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -3570,7 +3578,7 @@ static void dump_table(char *table, char *db)
       dynstr_append_checked(&query_string, order_by);
     }
 
-    if (mysql_real_query(mysql, query_string.str, query_string.length))
+    if (mysql_real_query(mysql, query_string.str, (ulong)query_string.length))
     {
       DB_error(mysql, "when executing 'SELECT INTO OUTFILE'");
       dynstr_free(&query_string);
@@ -4476,7 +4484,7 @@ static int dump_all_tables_in_db(char *database)
         dynstr_append_checked(&query, " READ /*!32311 LOCAL */,");
       }
     }
-    if (numrows && mysql_real_query(mysql, query.str, query.length-1))
+    if (numrows && mysql_real_query(mysql, query.str, (ulong)(query.length-1)))
       DB_error(mysql, "when using LOCK TABLES");
             /* We shall continue here, if --force was given */
     dynstr_free(&query);
@@ -4488,6 +4496,12 @@ static int dump_all_tables_in_db(char *database)
            /* We shall continue here, if --force was given */
     else
       verbose_msg("-- dump_all_tables_in_db : logs flushed successfully!\n");
+  }
+  if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+  {
+    verbose_msg("-- Setting savepoint...\n");
+    if (mysql_query_with_error_report(mysql, 0, "SAVEPOINT sp"))
+      DBUG_RETURN(1);
   }
   while ((table= getTableName(0)))
   {
@@ -4505,6 +4519,23 @@ static int dump_all_tables_in_db(char *database)
             my_fclose(md_result_file, MYF(MY_WME));
           maybe_exit(EX_MYSQLERR);
         }
+      }
+
+      /**
+        ROLLBACK TO SAVEPOINT in --single-transaction mode to release metadata
+        lock on table which was already dumped. This allows to avoid blocking
+        concurrent DDL on this table without sacrificing correctness, as we
+        won't access table second time and dumps created by --single-transaction
+        mode have validity point at the start of transaction anyway.
+        Note that this doesn't make --single-transaction mode with concurrent
+        DDL safe in general case. It just improves situation for people for whom
+        it might be working.
+      */
+      if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+      {
+        verbose_msg("-- Rolling back to savepoint sp...\n");
+        if (mysql_query_with_error_report(mysql, 0, "ROLLBACK TO SAVEPOINT sp"))
+          maybe_exit(EX_MYSQLERR);
       }
     }
     else
@@ -4528,6 +4559,14 @@ static int dump_all_tables_in_db(char *database)
       }
     }
   }
+
+  if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+  {
+    verbose_msg("-- Releasing savepoint...\n");
+    if (mysql_query_with_error_report(mysql, 0, "RELEASE SAVEPOINT sp"))
+      DBUG_RETURN(1);
+  }
+
   if (opt_events && mysql_get_server_version(mysql) >= 50106)
   {
     DBUG_PRINT("info", ("Dumping events for database %s", database));
@@ -4614,7 +4653,7 @@ static my_bool dump_all_views_in_db(char *database)
         dynstr_append_checked(&query, " READ /*!32311 LOCAL */,");
       }
     }
-    if (numrows && mysql_real_query(mysql, query.str, query.length-1))
+    if (numrows && mysql_real_query(mysql, query.str, (ulong)(query.length-1)))
       DB_error(mysql, "when using LOCK TABLES");
             /* We shall continue here, if --force was given */
     dynstr_free(&query);
@@ -4743,7 +4782,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
         !my_strcasecmp(&my_charset_latin1, db, PERFORMANCE_SCHEMA_DB_NAME)))
   {
     if (mysql_real_query(mysql, lock_tables_query.str,
-                         lock_tables_query.length-1))
+                         (ulong)(lock_tables_query.length-1)))
     {
       if (!opt_force)
       {
@@ -4770,6 +4809,13 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   if (opt_xml)
     print_xml_tag(md_result_file, "", "\n", "database", "name=", db, NullS);
 
+  if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+  {
+    verbose_msg("-- Setting savepoint...\n");
+    if (mysql_query_with_error_report(mysql, 0, "SAVEPOINT sp"))
+      DBUG_RETURN(1);
+  }
+
   /* Dump each selected table */
   for (pos= dump_tables; pos < end; pos++)
   {
@@ -4785,6 +4831,31 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
         maybe_exit(EX_MYSQLERR);
       }
     }
+
+    /**
+      ROLLBACK TO SAVEPOINT in --single-transaction mode to release metadata
+      lock on table which was already dumped. This allows to avoid blocking
+      concurrent DDL on this table without sacrificing correctness, as we
+      won't access table second time and dumps created by --single-transaction
+      mode have validity point at the start of transaction anyway.
+      Note that this doesn't make --single-transaction mode with concurrent
+      DDL safe in general case. It just improves situation for people for whom
+      it might be working.
+    */
+    if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+    {
+      verbose_msg("-- Rolling back to savepoint sp...\n");
+      if (mysql_query_with_error_report(mysql, 0, "ROLLBACK TO SAVEPOINT sp"))
+        maybe_exit(EX_MYSQLERR);
+    }
+  }
+
+  if (opt_single_transaction && mysql_get_server_version(mysql) >= 50500)
+  {
+    verbose_msg("-- Releasing savepoint...\n");
+    if (mysql_query_with_error_report(mysql, 0, "RELEASE SAVEPOINT sp"))
+      DBUG_RETURN(1);
+
   }
 
   /* Dump each selected view */

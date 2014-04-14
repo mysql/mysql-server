@@ -191,8 +191,8 @@ bool read_nth_attr(const char *connect_attrs,
 
 void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
 {
-  pfs_lock lock;
-  pfs_lock session_lock;
+  pfs_optimistic_state lock;
+  pfs_optimistic_state session_lock;
   PFS_thread_class *safe_class;
   const CHARSET_INFO *cs;
 
