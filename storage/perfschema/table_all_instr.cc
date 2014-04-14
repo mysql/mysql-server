@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,12 @@
 #include "my_pthread.h"
 #include "table_all_instr.h"
 #include "pfs_global.h"
+
+ha_rows
+table_all_instr::get_row_count(void)
+{
+  return mutex_max + rwlock_max + cond_max + file_max + socket_max;
+}
 
 table_all_instr::table_all_instr(const PFS_engine_table_share *share)
   : PFS_engine_table(share, &m_pos),

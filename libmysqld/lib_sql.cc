@@ -103,8 +103,8 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
 
 static my_bool
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		     const uchar *header, ulong header_length,
-		     const uchar *arg, ulong arg_length, my_bool skip_check,
+		     const uchar *header, size_t header_length,
+		     const uchar *arg, size_t arg_length, my_bool skip_check,
                      MYSQL_STMT *stmt)
 {
   my_bool result= 1;
@@ -426,7 +426,6 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->release_resources();
   Global_THD_manager::get_instance()->remove_thd(thd);
   delete thd;
-  my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;
 }
 
@@ -476,7 +475,7 @@ MYSQL_METHODS embedded_methods=
 
 char **copy_arguments(int argc, char **argv)
 {
-  uint length= 0;
+  size_t length= 0;
   char **from, **res, **end= argv+argc;
 
   for (from=argv ; from != end ; from++)
@@ -585,7 +584,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
     opt_mysql_tmpdir=getenv("TMP");
 #endif
   if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
-    opt_mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
+    opt_mysql_tmpdir= const_cast<char*>(DEFAULT_TMPDIR); /* purecov: inspected*/
 
   init_ssl();
   umask(((~my_umask) & 0666));
@@ -891,7 +890,7 @@ void THD::clear_data_list()
 }
 
 
-static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
+static char *dup_str_aux(MEM_ROOT *root, const char *from, size_t length,
 			 const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs)
 {
   uint32 dummy32;
@@ -901,7 +900,7 @@ static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
   /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
   if (tocs && String::needs_conversion(0, fromcs, tocs, &dummy32))
   {
-    uint new_len= (tocs->mbmaxlen * length) / fromcs->mbminlen + 1;
+    size_t new_len= (tocs->mbmaxlen * length) / fromcs->mbminlen + 1;
     result= (char *)alloc_root(root, new_len);
     length= copy_and_convert(result, new_len,
                              tocs, from, length, fromcs, &dummy_err);
@@ -1305,6 +1304,9 @@ void Protocol_text::prepare_for_resend()
 
 bool Protocol_text::store_null()
 {
+  if (!thd->mysql)            // bootstrap file handling
+    return false;
+
   *(next_field++)= NULL;
   ++next_mysql_field;
   return false;
@@ -1328,10 +1330,6 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
   ++next_mysql_field;
   return FALSE;
 }
-
-#if defined(_MSC_VER) && _MSC_VER < 1400
-#define vsnprintf _vsnprintf
-#endif
 
 void error_log_print(enum loglevel level __attribute__((unused)),
                      const char *format, va_list argsi)

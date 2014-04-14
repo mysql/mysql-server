@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -88,9 +88,9 @@ if cond becomes true.
 @param max_wait_us in: maximum delay to wait, in microseconds */
 #define UT_WAIT_FOR(cond, max_wait_us)				\
 do {								\
-	ullint	start_us;					\
+	uintmax_t	start_us;					\
 	start_us = ut_time_us(NULL);				\
-	while (!(cond) 						\
+	while (!(cond)						\
 	       && ut_time_us(NULL) - start_us < (max_wait_us)) {\
 								\
 		os_thread_sleep(2000 /* 2 ms */);		\
@@ -128,11 +128,6 @@ ut_ulint_cmp(
 /*=========*/
 	ulint	a,	/*!< in: ulint */
 	ulint	b);	/*!< in: ulint */
-/*************************************************************//**
-Determines if a number is zero or a power of two.
-@param n in: number
-@return nonzero if n is zero or a power of two; zero otherwise */
-#define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
 /*************************************************************//**
 Calculates fast the remainder of n/m when m is a power of two.
 @param n in: numerator
@@ -219,10 +214,10 @@ time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
 @return us since epoch */
 
-ullint
+uintmax_t
 ut_time_us(
 /*=======*/
-	ullint*	tloc);	/*!< out: us since epoch, if non-NULL */
+	uintmax_t*	tloc);	/*!< out: us since epoch, if non-NULL */
 /**********************************************************//**
 Returns the number of milliseconds since some epoch.  The
 value may wrap around.  It should only be used for heuristic
@@ -255,6 +250,11 @@ ut_difftime(
 	ib_time_t	time1);	/*!< in: time */
 
 #endif /* !UNIV_INNOCHECKSUM */
+
+/** Determines if a number is zero or a power of two.
+@param[in]	n	number
+@return nonzero if n is zero or a power of two; zero otherwise */
+#define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
 
 /**********************************************************//**
 Prints a timestamp to a file. */
@@ -336,18 +336,49 @@ ut_print_buf(
 	__attribute__((nonnull));
 #endif /* !DBUG_OFF */
 
-/**********************************************************************//**
-Outputs a NUL-terminated file name, quoted with apostrophes. */
-
-void
-ut_print_filename(
-/*==============*/
-	FILE*		f,	/*!< in: output stream */
-	const char*	name);	/*!< in: name to print */
-
 #ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */
 struct trx_t;
+
+/**********************************************************************//**
+Get a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier.
+ @param		[in]	trx		transaction (NULL=no quotes).
+ @param		[in]	table_id	TRUE=get a table name,
+					FALSE=get other identifier.
+ @param		[in]	name		name to retrive.
+ @retval	String quoted as an SQL identifier.
+*/
+
+std::string
+ut_get_name(
+	const trx_t*	trx,
+	ibool		table_id,
+	const char*	name);
+
+/**********************************************************************//**
+Get a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier.
+Use ut_get_name() as wrapper function, instead of calling this function
+directly.
+ @param		[in]	trx		transaction (NULL=no quotes).
+ @param		[in]	tables_id	TRUE=get a table name,
+					FALSE=get other identifier.
+ @param		[in]	name		name to retrive.
+ @param		[in]	namelen		length of name.
+ @retval	String quoted as an SQL identifier.
+*/
+
+std::string
+ut_get_namel(
+	const trx_t*	trx,
+	ibool		table_id,
+	const char*	name,
+	ulint		namelen);
 
 /**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.

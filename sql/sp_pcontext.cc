@@ -124,23 +124,36 @@ void sp_pcontext::init(uint var_offset,
 }
 
 
-sp_pcontext::sp_pcontext()
+sp_pcontext::sp_pcontext(THD *thd)
   : Sql_alloc(),
-  m_level(0),
-  m_max_var_index(0), m_max_cursor_index(0),
-  m_parent(NULL), m_pboundary(0),
-  m_scope(REGULAR_SCOPE)
+    m_level(0),
+    m_max_var_index(0), m_max_cursor_index(0),
+    m_parent(NULL), m_pboundary(0),
+    m_vars(thd->mem_root),
+    m_case_expr_ids(thd->mem_root),
+    m_conditions(thd->mem_root),
+    m_cursors(thd->mem_root),
+    m_handlers(thd->mem_root),
+    m_children(thd->mem_root),
+    m_scope(REGULAR_SCOPE)
 {
   init(0, 0, 0);
 }
 
 
-sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
+sp_pcontext::sp_pcontext(THD *thd, sp_pcontext *prev,
+                         sp_pcontext::enum_scope scope)
   : Sql_alloc(),
-  m_level(prev->m_level + 1),
-  m_max_var_index(0), m_max_cursor_index(0),
-  m_parent(prev), m_pboundary(0),
-  m_scope(scope)
+    m_level(prev->m_level + 1),
+    m_max_var_index(0), m_max_cursor_index(0),
+    m_parent(prev), m_pboundary(0),
+    m_vars(thd->mem_root),
+    m_case_expr_ids(thd->mem_root),
+    m_conditions(thd->mem_root),
+    m_cursors(thd->mem_root),
+    m_handlers(thd->mem_root),
+    m_children(thd->mem_root),
+    m_scope(scope)
 {
   init(prev->m_var_offset + prev->m_max_var_index,
        prev->current_cursor_count(),
@@ -150,17 +163,17 @@ sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
 
 sp_pcontext::~sp_pcontext()
 {
-  for (int i= 0; i < m_children.elements(); ++i)
+  for (size_t i= 0; i < m_children.size(); ++i)
     delete m_children.at(i);
 }
 
 
 sp_pcontext *sp_pcontext::push_context(THD *thd, sp_pcontext::enum_scope scope)
 {
-  sp_pcontext *child= new (thd->mem_root) sp_pcontext(this, scope);
+  sp_pcontext *child= new (thd->mem_root) sp_pcontext(thd, this, scope);
 
   if (child)
-    m_children.append(child);
+    m_children.push_back(child);
   return child;
 }
 
@@ -188,12 +201,12 @@ uint sp_pcontext::diff_handlers(const sp_pcontext *ctx, bool exclusive) const
 
   while (pctx && pctx != ctx)
   {
-    n+= pctx->m_handlers.elements();
+    n+= pctx->m_handlers.size();
     last_ctx= pctx;
     pctx= pctx->parent_context();
   }
   if (pctx)
-    return (exclusive && last_ctx ? n - last_ctx->m_handlers.elements() : n);
+    return (exclusive && last_ctx ? n - last_ctx->m_handlers.size() : n);
   return 0;			// Didn't find ctx
 }
 
@@ -206,12 +219,12 @@ uint sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
 
   while (pctx && pctx != ctx)
   {
-    n+= pctx->m_cursors.elements();
+    n+= pctx->m_cursors.size();
     last_ctx= pctx;
     pctx= pctx->parent_context();
   }
   if (pctx)
-    return  (exclusive && last_ctx ? n - last_ctx->m_cursors.elements() : n);
+    return  (exclusive && last_ctx ? n - last_ctx->m_cursors.size() : n);
   return 0;			// Didn't find ctx
 }
 
@@ -219,7 +232,7 @@ uint sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
 sp_variable *sp_pcontext::find_variable(LEX_STRING name,
                                         bool current_scope_only) const
 {
-  uint i= m_vars.elements() - m_pboundary;
+  uint i= m_vars.size() - m_pboundary;
 
   while (i--)
   {
@@ -241,7 +254,7 @@ sp_variable *sp_pcontext::find_variable(LEX_STRING name,
 
 sp_variable *sp_pcontext::find_variable(uint offset) const
 {
-  if (m_var_offset <= offset && offset < m_var_offset + m_vars.elements())
+  if (m_var_offset <= offset && offset < m_var_offset + m_vars.size())
     return m_vars.at(offset - m_var_offset);  // This frame
 
   return m_parent ?
@@ -263,7 +276,7 @@ sp_variable *sp_pcontext::add_variable(THD *thd,
 
   ++m_max_var_index;
 
-  return m_vars.append(p) ? NULL : p;
+  return m_vars.push_back(p) ? NULL : p;
 }
 
 
@@ -315,14 +328,14 @@ bool sp_pcontext::add_condition(THD *thd,
   if (p == NULL)
     return true;
 
-  return m_conditions.append(p);
+  return m_conditions.push_back(p);
 }
 
 
 sp_condition_value *sp_pcontext::find_condition(LEX_STRING name,
                                                 bool current_scope_only) const
 {
-  uint i= m_conditions.elements();
+  uint i= m_conditions.size();
 
   while (i--)
   {
@@ -350,14 +363,14 @@ sp_handler *sp_pcontext::add_handler(THD *thd,
   if (!h)
     return NULL;
 
-  return m_handlers.append(h) ? NULL : h;
+  return m_handlers.push_back(h) ? NULL : h;
 }
 
 
 bool sp_pcontext::check_duplicate_handler(
   const sp_condition_value *cond_value) const
 {
-  for (int i= 0; i < m_handlers.elements(); ++i)
+  for (size_t i= 0; i < m_handlers.size(); ++i)
   {
     sp_handler *h= m_handlers.at(i);
 
@@ -384,7 +397,7 @@ sp_pcontext::find_handler(const char *sql_state,
   sp_handler *found_handler= NULL;
   const sp_condition_value *found_cv= NULL;
 
-  for (int i= 0; i < m_handlers.elements(); ++i)
+  for (size_t i= 0; i < m_handlers.size(); ++i)
   {
     sp_handler *h= m_handlers.at(i);
 
@@ -489,10 +502,10 @@ sp_pcontext::find_handler(const char *sql_state,
 
 bool sp_pcontext::add_cursor(LEX_STRING name)
 {
-  if (m_cursors.elements() == (int) m_max_cursor_index)
+  if (m_cursors.size() == m_max_cursor_index)
     ++m_max_cursor_index;
 
-  return m_cursors.append(name);
+  return m_cursors.push_back(name);
 }
 
 
@@ -500,7 +513,7 @@ bool sp_pcontext::find_cursor(LEX_STRING name,
                               uint *poff,
                               bool current_scope_only) const
 {
-  uint i= m_cursors.elements();
+  uint i= m_cursors.size();
 
   while (i--)
   {
@@ -526,7 +539,7 @@ void sp_pcontext::retrieve_field_definitions(
 {
   /* Put local/context fields in the result list. */
 
-  for (int i= 0; i < m_vars.elements(); ++i)
+  for (size_t i= 0; i < m_vars.size(); ++i)
   {
     sp_variable *var_def= m_vars.at(i);
 
@@ -535,7 +548,7 @@ void sp_pcontext::retrieve_field_definitions(
 
   /* Put the fields of the enclosed contexts in the result list. */
 
-  for (int i= 0; i < m_children.elements(); ++i)
+  for (size_t i= 0; i < m_children.size(); ++i)
     m_children.at(i)->retrieve_field_definitions(field_def_lst);
 }
 
@@ -543,7 +556,7 @@ void sp_pcontext::retrieve_field_definitions(
 const LEX_STRING *sp_pcontext::find_cursor(uint offset) const
 {
   if (m_cursor_offset <= offset &&
-      offset < m_cursor_offset + m_cursors.elements())
+      offset < m_cursor_offset + m_cursors.size())
   {
     return &m_cursors.at(offset - m_cursor_offset);   // This frame
   }

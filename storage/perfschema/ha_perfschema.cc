@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,17 +32,7 @@
 #include "pfs_host.h"
 #include "pfs_user.h"
 #include "pfs_program.h"
-
-#ifdef MY_ATOMIC_MODE_DUMMY
-/*
-  The performance schema can can not function with MY_ATOMIC_MODE_DUMMY,
-  a fully functional implementation of MY_ATOMIC should be used instead.
-  If the build fails with this error message:
-  - either use a different ./configure --with-atomic-ops option
-  - or do not build with the performance schema.
-*/
-#error "The performance schema needs a functional MY_ATOMIC implementation."
-#endif
+#include "pfs_prepared_stmt.h"
 
 handlerton *pfs_hton= NULL;
 
@@ -174,6 +164,8 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &program_lost, SHOW_LONG},
   {"Performance_schema_nested_statement_lost",
     (char*) &nested_statement_lost, SHOW_LONG},
+  {"Performance_schema_prepared_statements_lost",
+    (char*) &prepared_stmt_lost, SHOW_LONG},
   {"Performance_schema_metadata_lock_lost",
     (char*) &metadata_lock_lost, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
@@ -274,6 +266,9 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
   if (!pfs_initialized)
     DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 
+  if (is_executed_by_slave())
+    DBUG_RETURN(0);
+
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&SSV::ha_update_count);
   int result= m_table->update_row(table, old_data, new_data, table->field);
@@ -326,7 +321,10 @@ int ha_perfschema::rnd_next(uchar *buf)
 {
   DBUG_ENTER("ha_perfschema::rnd_next");
   if (!pfs_initialized)
+  {
+    table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
@@ -338,6 +336,7 @@ int ha_perfschema::rnd_next(uchar *buf)
     if (result == 0)
       stats.records++;
   }
+  table->status= (result ? STATUS_NOT_FOUND : 0);
   DBUG_RETURN(result);
 }
 
@@ -354,13 +353,17 @@ int ha_perfschema::rnd_pos(uchar *buf, uchar *pos)
 {
   DBUG_ENTER("ha_perfschema::rnd_pos");
   if (!pfs_initialized)
+  {
+    table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&SSV::ha_read_rnd_count);
   int result= m_table->rnd_pos(pos);
   if (result == 0)
     result= m_table->read_row(table, buf, table->field);
+  table->status= (result ? STATUS_NOT_FOUND : 0);
   DBUG_RETURN(result);
 }
 
@@ -381,6 +384,9 @@ int ha_perfschema::delete_all_rows(void)
 
   DBUG_ENTER("ha_perfschema::delete_all_rows");
   if (!pfs_initialized)
+    DBUG_RETURN(0);
+
+  if (is_executed_by_slave())
     DBUG_RETURN(0);
 
   DBUG_ASSERT(m_table_share);

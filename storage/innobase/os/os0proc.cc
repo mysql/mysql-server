@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,14 @@ process control primitives
 Created 9/30/1995 Heikki Tuuri
 *******************************************************/
 
+#include "ha_prototypes.h"
+
 #include "os0proc.h"
 #ifdef UNIV_NONINL
 #include "os0proc.ic"
 #endif
 
+#include "srv0srv.h"
 #include "ut0mem.h"
 #include "ut0byte.h"
 
@@ -40,15 +43,17 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 #define OS_MAP_ANON	MAP_ANON
 #endif
 
-ibool os_use_large_pages;
-/* Large page size. This may be a boot-time option on some platforms */
-ulint os_large_page_size;
+/** The total amount of memory currently allocated from the operating
+system with os_mem_alloc_large(). */
+ulint	os_total_large_mem_allocated = 0;
 
-/****************************************************************//**
-Converts the current process id to a number. It is not guaranteed that the
-number is unique. In Linux returns the 'process number' of the current
-thread. That number is the same as one sees in 'top', for example. In Linux
-the thread id is not the same as one sees in 'top'.
+/** Whether to use large pages in the buffer pool */
+my_bool	os_use_large_pages;
+
+/** Large page size. This may be a boot-time option on some platforms */
+uint	os_large_page_size;
+
+/** Converts the current process id to a number.
 @return process id as a number */
 
 ulint
@@ -56,24 +61,23 @@ os_proc_get_number(void)
 /*====================*/
 {
 #ifdef _WIN32
-	return((ulint)GetCurrentProcessId());
+	return(static_cast<ulint>(GetCurrentProcessId()));
 #else
-	return((ulint) getpid());
+	return(static_cast<ulint>(getpid()));
 #endif
 }
 
-/****************************************************************//**
-Allocates large pages memory.
+/** Allocates large pages memory.
+@param[in,out]	n	Number of bytes to allocate
 @return allocated memory */
 
 void*
 os_mem_alloc_large(
-/*===============*/
-	ulint*	n)			/*!< in/out: number of bytes */
+	ulint*	n)
 {
 	void*	ptr;
 	ulint	size;
-#if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
+#if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
 	int shmid;
 	struct shmid_ds buf;
 
@@ -88,15 +92,15 @@ os_mem_alloc_large(
 
 	shmid = shmget(IPC_PRIVATE, (size_t) size, SHM_HUGETLB | SHM_R | SHM_W);
 	if (shmid < 0) {
-		fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to allocate"
-			" %lu bytes. errno %d\n", size, errno);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Failed to allocate %lu bytes. errno %d", size, errno);
 		ptr = NULL;
 	} else {
 		ptr = shmat(shmid, NULL, 0);
 		if (ptr == (void*)-1) {
-			fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to"
-				" attach shared memory segment, errno %d\n",
-				errno);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Failed to attach shared memory segment,"
+				" errno %d", errno);
 			ptr = NULL;
 		}
 
@@ -108,17 +112,16 @@ os_mem_alloc_large(
 
 	if (ptr) {
 		*n = size;
-		mutex_enter(&ut_list_mutex);
-		ut_total_allocated_memory += size;
-		mutex_exit(&ut_list_mutex);
+		os_increment_counter_by_amount(
+			server_mutex, os_total_large_mem_allocated, size);
+
 		UNIV_MEM_ALLOC(ptr, size);
 		return(ptr);
 	}
 
-	fprintf(stderr, "InnoDB HugeTLB: Warning: Using conventional"
-		" memory pool\n");
+	ib_logf(IB_LOG_LEVEL_WARN, "Using conventional memory pool");
 skip:
-#endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
+#endif /* HAVE_LINUX_LARGE_PAGES && UNIV_LINUX */
 
 #ifdef _WIN32
 	SYSTEM_INFO	system_info;
@@ -133,78 +136,67 @@ skip:
 	ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
 			   PAGE_READWRITE);
 	if (!ptr) {
-		fprintf(stderr, "InnoDB: VirtualAlloc(%lu bytes) failed;"
-			" Windows error %lu\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"VirtualAlloc(%lu bytes) failed;"
+			" Windows error %lu",
 			(ulong) size, (ulong) GetLastError());
 	} else {
-		mutex_enter(&ut_list_mutex);
-		ut_total_allocated_memory += size;
-		mutex_exit(&ut_list_mutex);
+		os_increment_counter_by_amount(
+			server_mutex, os_total_large_mem_allocated, size);
 		UNIV_MEM_ALLOC(ptr, size);
 	}
 #else
-# ifdef HAVE_GETPAGESIZE
 	size = getpagesize();
-# else
-	size = UNIV_PAGE_SIZE;
-# endif
 	/* Align block size to system page size */
 	ut_ad(ut_is_2pow(size));
 	size = *n = ut_2pow_round(*n + (size - 1), size);
 	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | OS_MAP_ANON, -1, 0);
 	if (UNIV_UNLIKELY(ptr == (void*) -1)) {
-		fprintf(stderr, "InnoDB: mmap(%lu bytes) failed;"
-			" errno %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"mmap(%lu bytes) failed;"
+			" errno %lu",
 			(ulong) size, (ulong) errno);
 		ptr = NULL;
 	} else {
-		mutex_enter(&ut_list_mutex);
-		ut_total_allocated_memory += size;
-		mutex_exit(&ut_list_mutex);
+		os_increment_counter_by_amount(
+			server_mutex, os_total_large_mem_allocated, size);
 		UNIV_MEM_ALLOC(ptr, size);
 	}
 #endif
 	return(ptr);
 }
 
-/****************************************************************//**
-Frees large pages memory. */
+/** Frees large pages memory.
+@param[in]	ptr	pointer returned by os_mem_alloc_large()
+@param[in]	size	size returned by os_mem_alloc_large() */
 
 void
 os_mem_free_large(
-/*==============*/
-	void	*ptr,			/*!< in: pointer returned by
-					os_mem_alloc_large() */
-	ulint	size)			/*!< in: size returned by
-					os_mem_alloc_large() */
+	void	*ptr,
+	ulint	size)
 {
-	mutex_enter(&ut_list_mutex);
-	ut_a(ut_total_allocated_memory >= size);
-	mutex_exit(&ut_list_mutex);
+	ut_a(os_total_large_mem_allocated >= size);
 
-#if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
+#if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
 	if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
-		mutex_enter(&ut_list_mutex);
-		ut_a(ut_total_allocated_memory >= size);
-		ut_total_allocated_memory -= size;
-		mutex_exit(&ut_list_mutex);
+		os_decrement_counter_by_amount(
+			server_mutex, os_total_large_mem_allocated, size);
 		UNIV_MEM_FREE(ptr, size);
 		return;
 	}
-#endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
+#endif /* HAVE_LINUX_LARGE_PAGES && UNIV_LINUX */
 #ifdef _WIN32
 	/* When RELEASE memory, the size parameter must be 0.
 	Do not use MEM_RELEASE with MEM_DECOMMIT. */
 	if (!VirtualFree(ptr, 0, MEM_RELEASE)) {
-		fprintf(stderr, "InnoDB: VirtualFree(%p, %lu) failed;"
-			" Windows error %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"VirtualFree(%p, %lu) failed;"
+			" Windows error %lu",
 			ptr, (ulong) size, (ulong) GetLastError());
 	} else {
-		mutex_enter(&ut_list_mutex);
-		ut_a(ut_total_allocated_memory >= size);
-		ut_total_allocated_memory -= size;
-		mutex_exit(&ut_list_mutex);
+		os_decrement_counter_by_amount(
+			server_mutex, os_total_large_mem_allocated, size);
 		UNIV_MEM_FREE(ptr, size);
 	}
 #elif !defined OS_MAP_ANON
@@ -215,14 +207,13 @@ os_mem_free_large(
 # else
 	if (munmap(ptr, size)) {
 # endif /* UNIV_SOLARIS */
-		fprintf(stderr, "InnoDB: munmap(%p, %lu) failed;"
-			" errno %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"munmap(%p, %lu) failed;"
+			" errno %lu",
 			ptr, (ulong) size, (ulong) errno);
 	} else {
-		mutex_enter(&ut_list_mutex);
-		ut_a(ut_total_allocated_memory >= size);
-		ut_total_allocated_memory -= size;
-		mutex_exit(&ut_list_mutex);
+		os_decrement_counter_by_amount(
+			server_mutex, os_total_large_mem_allocated, size);
 		UNIV_MEM_FREE(ptr, size);
 	}
 #endif

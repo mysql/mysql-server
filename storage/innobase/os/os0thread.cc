@@ -171,8 +171,7 @@ os_thread_create_func(
 	int	ret = pthread_create(&new_thread_id, &attr, func, arg);
 
 	if (ret != 0) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"pthread_create returned %d", ret);
+		ib_logf(IB_LOG_LEVEL_FATAL, "pthread_create returned %d", ret);
 	}
 
 	pthread_attr_destroy(&attr);
@@ -197,7 +196,7 @@ os_thread_exit(
 				is cast as a DWORD */
 {
 #ifdef UNIV_DEBUG_THREAD_CREATION
-	fprintf(stderr, "Thread exits, id %lu\n",
+	ib_logf(IB_LOG_LEVEL_INFO, "Thread exits, id %lu",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
 

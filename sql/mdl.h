@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ class THD;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
+typedef struct st_lf_pins LF_PINS;
 
 /**
   @def ENTER_COND(C, M, S, O)
@@ -105,6 +106,12 @@ public:
    */
   virtual bool notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort) = 0;
+
+  /**
+    Get random seed specific to this THD to be used for initialization
+    of PRNG for the MDL_context.
+  */
+  virtual uint get_rand_seed() = 0;
 };
 
 /**
@@ -364,8 +371,7 @@ public:
       character set is utf-8, we can safely assume that no
       character starts with a zero byte.
     */
-    using std::min;
-    return memcmp(m_ptr, rhs->m_ptr, min(m_length, rhs->m_length));
+    return memcmp(m_ptr, rhs->m_ptr, std::min(m_length, rhs->m_length));
   }
 
   MDL_key(const MDL_key *rhs)
@@ -620,6 +626,7 @@ private:
 #endif
      m_ctx(ctx_arg),
      m_lock(NULL),
+     m_is_fast_path(false),
      m_psi(NULL)
   {}
 
@@ -653,6 +660,14 @@ private:
     Pointer to the lock object for this lock ticket. Externally accessible.
   */
   MDL_lock *m_lock;
+
+  /**
+    Indicates that ticket corresponds to lock acquired using "fast path"
+    algorithm. Particularly this means that it was not included into
+    MDL_lock::m_granted bitmap/list and instead is accounted for by
+    MDL_lock::m_fast_path_locks_granted_counter
+  */
+  bool m_is_fast_path;
 
   PSI_metadata_lock *m_psi;
 
@@ -812,11 +827,56 @@ public:
             will see the new value eventually.
     */
     m_needs_thr_lock_abort= needs_thr_lock_abort;
+
+    if (m_needs_thr_lock_abort)
+    {
+      /*
+        For MDL_object_lock::notify_conflicting_locks() to work properly
+        all context requiring thr_lock aborts should not have any "fast
+        path" locks.
+      */
+      materialize_fast_path_locks();
+    }
   }
   bool get_needs_thr_lock_abort() const
   {
     return m_needs_thr_lock_abort;
   }
+
+  /**
+    Get pseudo random value in [0 .. 2^31-1] range.
+
+    @note We use Linear Congruential Generator with venerable constant
+          parameters for this.
+          It is known to have problems with its lower bits are not being
+          very random so probably is not good enough for generic use.
+          However, we only use it to do random dives into MDL_lock objects
+          hash when searching for unused objects to be freed, and for this
+          purposes it is sufficient.
+          We rely on values of "get_random() % 2^k" expression having "2^k"
+          as a period to ensure that random dives eventually cover all hash
+          (the former can be proven to be true). This also means that there
+          is no bias towards any specific objects to be expelled (as hash
+          values don't repeat), which is nice for performance.
+  */
+  uint get_random()
+  {
+    if (m_rand_state > INT_MAX32)
+    {
+      /*
+        Perform lazy initialization of LCG. We can't initialize it at the
+        point when MDL_context is created since THD represented through
+        MDL_context_owner interface is not fully initialized at this point
+        itself.
+      */
+      m_rand_state= m_owner->get_rand_seed() & INT_MAX32;
+    }
+    m_rand_state= (m_rand_state * 1103515245 + 12345) & INT_MAX32;
+    return m_rand_state;
+  }
+
+  THD *get_thd() const { return m_owner->get_thd(); }
+
 public:
   /**
     If our request for a lock is scheduled, or aborted by the deadlock
@@ -907,14 +967,28 @@ private:
     readily available to the wait-for graph iterator.
    */
   MDL_wait_for_subgraph *m_waiting_for;
+  /**
+    Thread's pins (a.k.a. hazard pointers) to be used by lock-free
+    implementation of MDL_map::m_locks container. NULL if pins are
+    not yet allocated from container's pinbox.
+  */
+  LF_PINS *m_pins;
+  /**
+    State for pseudo random numbers generator (PRNG) which output
+    is used to perform random dives into MDL_lock objects hash
+    when searching for unused objects to free.
+  */
+  uint m_rand_state;
+
 private:
-  THD *get_thd() const { return m_owner->get_thd(); }
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           enum_mdl_duration *duration);
   void release_locks_stored_before(enum_mdl_duration duration, MDL_ticket *sentinel);
   void release_lock(enum_mdl_duration duration, MDL_ticket *ticket);
   bool try_acquire_lock_impl(MDL_request *mdl_request,
                              MDL_ticket **out_ticket);
+  void materialize_fast_path_locks();
+  inline bool fix_pins();
 
 public:
   void find_deadlock();
@@ -924,6 +998,18 @@ public:
   /** Inform the deadlock detector there is an edge in the wait-for graph. */
   void will_wait_for(MDL_wait_for_subgraph *waiting_for_arg)
   {
+    /*
+      Before starting wait for any resource we need to materialize
+      all "fast path" tickets belonging to this thread. Otherwise
+      locks acquired which are represented by these tickets won't
+      be present in wait-for graph and could cause missed deadlocks.
+
+      It is OK for context which doesn't wait for any resource to
+      have "fast path" tickets, as such context can't participate
+      in any deadlock.
+    */
+    materialize_fast_path_locks();
+
     mysql_prlock_wrlock(&m_LOCK_waiting_for);
     m_waiting_for=  waiting_for_arg;
     mysql_prlock_unlock(&m_LOCK_waiting_for);
@@ -960,24 +1046,30 @@ extern mysql_mutex_t LOCK_open;
 
 
 /*
-  Start-up parameter for the maximum size of the unused MDL_lock objects cache
-  and a constant for its default value.
-*/
-extern ulong mdl_locks_cache_size;
-static const ulong MDL_LOCKS_CACHE_SIZE_DEFAULT = 1024;
-
-/*
-  Start-up parameter for the number of partitions of the hash
-  containing all the MDL_lock objects and a constant for
-  its default value.
-*/
-extern ulong mdl_locks_hash_partitions;
-static const ulong MDL_LOCKS_HASH_PARTITIONS_DEFAULT = 8;
-
-/*
   Metadata locking subsystem tries not to grant more than
   max_write_lock_count high-prio, strong locks successively,
   to avoid starving out weak, low-prio locks.
 */
 extern "C" ulong max_write_lock_count;
+
+extern int32 mdl_locks_unused_locks_low_water;
+
+/**
+  Default value for threshold for number of unused MDL_lock objects after
+  exceeding which we start considering freeing them. Only unit tests use
+  different threshold value.
+*/
+const int32 MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT= 1000;
+
+/**
+  Ratio of unused/total MDL_lock objects after exceeding which we
+  start trying to free unused MDL_lock objects (assuming that
+  mdl_locks_unused_locks_low_water threshold is passed as well).
+  Note that this value should be high enough for our algorithm
+  using random dives into hash to work well.
+*/
+const double MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO= 0.25;
+
+int32 mdl_get_unused_locks_count();
+
 #endif

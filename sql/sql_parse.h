@@ -18,6 +18,7 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "auth_common.h"                        /* GLOBAL_ACLS */
+#include "mysqld_thd_manager.h"                 /* Global_THD_manager */
 
 class Comp_creator;
 class Item;
@@ -73,13 +74,12 @@ const CHARSET_INFO* merge_charset_and_collation(const CHARSET_INFO *cs,
 bool check_host_name(LEX_STRING *str);
 bool check_identifier_name(LEX_STRING *str, uint max_char_length,
                            uint err_code, const char *param_for_err_msg);
-bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
+bool mysql_test_parse_for_slave(THD *thd);
 bool is_update_query(enum enum_sql_command command);
 bool is_explainable_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
-bool alloc_query(THD *thd, const char *packet, uint packet_length);
-void mysql_parse(THD *thd, char *rawbuf, uint length,
-                 Parser_state *parser_state);
+bool alloc_query(THD *thd, const char *packet, size_t packet_length);
+void mysql_parse(THD *thd, Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
 void create_select_for_variable(const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
@@ -89,7 +89,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex);
 int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
-		      char* packet, uint packet_length);
+		      char* packet, size_t packet_length);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
@@ -124,6 +124,11 @@ extern uint server_command_flags[];
 extern const LEX_STRING command_name[];
 extern uint server_command_flags[];
 
+#ifdef HAVE_MY_TIMER
+// Statement timeout function(s)
+extern void reset_statement_timer(THD *thd);
+#endif
+
 /* Inline functions */
 inline bool check_identifier_name(LEX_STRING *str, uint err_code)
 {
@@ -144,5 +149,29 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 
 extern "C" bool sqlcom_can_generate_row_events(const THD *thd);
 
+/**
+  Callback function used by kill_one_thread and timer_notify functions
+  to find "thd" based on the thread id.
 
+  @note It acquires LOCK_thd_data mutex when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_thd_with_id: public Find_THD_Impl
+{
+public:
+  Find_thd_with_id(ulong value): m_id(value) {}
+  virtual bool operator()(THD *thd)
+  {
+    if (thd->get_command() == COM_DAEMON)
+      return false;
+    if (thd->thread_id == m_id)
+    {
+      mysql_mutex_lock(&thd->LOCK_thd_data);
+      return true;
+    }
+    return false;
+  }
+private:
+  ulong m_id;
+};
 #endif /* SQL_PARSE_INCLUDED */

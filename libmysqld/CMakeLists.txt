@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,6 @@ SET(SQL_EMBEDDED_SOURCES
   lib_sql.cc 
   libmysqld.c
   ${GEN_SOURCES}
-  ${MYSYS_LIBWRAP_SOURCE}
   ../client/get_password.c
   ../libmysql/errmsg.c
   ../libmysql/libmysql.c
@@ -60,7 +59,6 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql-common/pack.c
   ../sql/binlog.cc 
   ../sql/event_parse_data.cc
-  ../sql/hash_filo.cc
   ../sql/log_event.cc
   ../sql/mysqld_thd_manager.cc
   ../sql/rpl_filter.cc
@@ -81,6 +79,9 @@ SET(SQL_EMBEDDED_SOURCES
   ${IMPORTED_SOURCES}
 )
 
+IF(HAVE_MY_TIMER)
+  SET(SQL_EMBEDDED_SOURCES ${SQL_EMBEDDED_SOURCES} ../sql/sql_timer.cc)
+ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
@@ -98,7 +99,7 @@ ENDIF()
 SET(LIBS 
   dbug strings regex mysys mysys_ssl vio 
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
-  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
+  ${LIBCRYPT} ${LIBDL}
   ${MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS}
   sql_embedded
 )
@@ -131,4 +132,38 @@ ENDIF()
 IF(MSVC AND NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysqld SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS}
   COMPONENT Embedded)
+ENDIF()
+
+OPTION(WITH_EMBEDDED_SHARED_LIBRARY
+  "Generate shared version of embedded library (in addition to the static one)"
+  OFF)
+IF(WITH_EMBEDDED_SHARED_LIBRARY)
+  MERGE_LIBRARIES(libmysqld SHARED
+    mysqlserver
+    EXPORTS ${CLIENT_API_FUNCTIONS}
+    OUTPUT_NAME "mysqld"
+    COMPONENT Embedded)
+  SET_TARGET_PROPERTIES(libmysqld PROPERTIES
+    VERSION "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.0"
+    SOVERSION "${SHARED_LIB_MAJOR_VERSION}"
+    )
+
+  GET_TARGET_PROPERTY(libmysqld_link_flags libmysqld LINK_FLAGS)
+  IF(NOT libmysqld_link_flag)
+    SET(libmysqld_link_flags)
+  ENDIF()
+  SET(libmysqld_link_flags
+    "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${libmysqld_link_flags}")
+  SET_TARGET_PROPERTIES(libmysqld
+    PROPERTIES LINK_FLAGS "${libmysqld_link_flags}")
+
+  IF(LINK_FLAG_NO_UNDEFINED)
+    SET(libmysqld_link_flags
+      "${libmysqld_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+    SET_TARGET_PROPERTIES(libmysqld
+      PROPERTIES LINK_FLAGS "${libmysqld_link_flags}")
+  ENDIF()
+
+  SET_TARGET_PROPERTIES(libmysqld PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+  SET_TARGET_PROPERTIES(mysqlserver PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 ENDIF()

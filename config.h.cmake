@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #cmakedefine DOT_FRM_VERSION @DOT_FRM_VERSION@
 /* Headers we may want to use. */
 #cmakedefine _GNU_SOURCE 1
+#cmakedefine HAVE_LLVM_LIBCPP 1
 #cmakedefine HAVE_ALLOCA_H 1
 #cmakedefine HAVE_ARPA_INET_H 1
 #cmakedefine HAVE_ASM_MSR_H 1
@@ -54,14 +55,12 @@
 #cmakedefine HAVE_SYS_DIR_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
-#cmakedefine HAVE_SYS_IPC_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
 #cmakedefine HAVE_SYS_MMAN_H 1
 #cmakedefine HAVE_SYS_NDIR_H 1
 #cmakedefine HAVE_SYS_PRCTL_H 1
 #cmakedefine HAVE_SYS_RESOURCE_H 1
 #cmakedefine HAVE_SYS_SELECT_H 1
-#cmakedefine HAVE_SYS_SHM_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
 #cmakedefine HAVE_SYS_STAT_H 1
 #cmakedefine HAVE_SYS_TIMES_H 1
@@ -113,7 +112,6 @@
 #cmakedefine HAVE_FCNTL 1
 #cmakedefine HAVE_FDATASYNC 1
 #cmakedefine HAVE_FESETROUND 1
-#cmakedefine HAVE_FINITE 1
 #cmakedefine HAVE_FP_EXCEPT 1
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
@@ -121,7 +119,6 @@
 #cmakedefine HAVE_GETHOSTBYADDR_R 1
 #cmakedefine HAVE_GETHRTIME 1
 #cmakedefine HAVE_GETNAMEINFO 1
-#cmakedefine HAVE_GETPAGESIZE 1
 #cmakedefine HAVE_GETPASS 1
 #cmakedefine HAVE_GETPASSPHRASE 1
 #cmakedefine HAVE_GETPWNAM 1
@@ -136,7 +133,6 @@
 #cmakedefine HAVE_GETGID 1
 #cmakedefine HAVE_GETEGID 1
 #cmakedefine HAVE_ISINF 1
-#cmakedefine HAVE_LARGE_PAGE_OPTION 1
 #cmakedefine HAVE_LRAND48 1
 #cmakedefine HAVE_LOG2 1
 #cmakedefine HAVE_LSTAT 1
@@ -146,7 +142,6 @@
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_DECL_MADVISE 1
 #cmakedefine HAVE_DECL_TGOTO 1
-#cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
 #cmakedefine HAVE_MALLOC_INFO 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP 1
@@ -172,7 +167,6 @@
 #cmakedefine HAVE_SCHED_YIELD 1
 #cmakedefine HAVE_SELECT 1
 #cmakedefine HAVE_SETFD 1
-#cmakedefine HAVE_SETENV 1
 #cmakedefine HAVE_SIGSET 1
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
@@ -222,6 +216,14 @@
 #cmakedefine HAVE_SYS_EPOLL_H 1
 #cmakedefine HAVE_TAILQFOREACH 1
 
+#cmakedefine HAVE_SIGEV_THREAD_ID 1
+#cmakedefine HAVE_SIGEV_PORT 1
+#cmakedefine HAVE_POSIX_TIMERS 1
+#cmakedefine HAVE_KQUEUE_TIMERS 1
+#cmakedefine HAVE_WINDOWS_TIMERS 1
+#cmakedefine HAVE_MY_TIMER 1
+
+#cmakedefine HAVE_ASAN
 #cmakedefine HAVE_VALGRIND
 
 #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
@@ -254,14 +256,6 @@
 
 #cmakedefine MAX_INDEXES @MAX_INDEXES@
 
-#cmakedefine QSORT_TYPE_IS_VOID 1
-#cmakedefine RETQSORTTYPE @RETQSORTTYPE@
-
-#cmakedefine SIGNAL_RETURN_TYPE_IS_VOID 1
-#cmakedefine RETSIGTYPE @RETSIGTYPE@
-#cmakedefine VOID_SIGHANDLER 1
-#define STRUCT_RLIMIT struct rlimit
-
 #cmakedefine WORDS_BIGENDIAN 1 
 
 /*
@@ -286,25 +280,17 @@
 #cmakedefine HAVE_STRDUP 1
 #cmakedefine HAVE_LANGINFO_CODESET 
 
-#cmakedefine HAVE_WEAK_SYMBOL 1
+#cmakedefine HAVE_BUILTIN_UNREACHABLE 1
+#cmakedefine HAVE_BUILTIN_EXPECT 1
+#cmakedefine HAVE_BUILTIN_STPCPY 1
 #cmakedefine HAVE_ABI_CXA_DEMANGLE 1
-
-
-#cmakedefine HAVE_POSIX_SIGNALS 1
-#cmakedefine HAVE_BSD_SIGNALS 1
-#cmakedefine HAVE_SVR3_SIGNALS 1
-#cmakedefine HAVE_V7_SIGNALS 1
-
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 
-#cmakedefine MY_ATOMIC_MODE_DUMMY 1
 #cmakedefine MY_ATOMIC_MODE_RWLOCKS 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
-#cmakedefine HAVE_DECL_SHM_HUGETLB 1
-#cmakedefine HAVE_LARGE_PAGES 1
-#cmakedefine HUGETLB_USE_PROC_MEMINFO 1
+#cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine NO_FCNTL_NONBLOCK 1
 
 #cmakedefine _LARGE_FILES 1
@@ -330,25 +316,39 @@
 #cmakedefine SIGQUIT @SIGQUIT@
 #cmakedefine SIGPIPE @SIGPIPE@
 #cmakedefine isnan @isnan@
+
+#cmakedefine alloca @alloca@
 #cmakedefine finite @finite@
 #cmakedefine popen @popen@
 #cmakedefine pclose @pclose@
-#cmakedefine ssize_t @ssize_t@
 #cmakedefine strcasecmp @strcasecmp@
 #cmakedefine strncasecmp @strncasecmp@
-#cmakedefine snprintf @snprintf@
-#cmakedefine strtok_r @strtok_r@
 #cmakedefine strtoll @strtoll@
 #cmakedefine strtoull @strtoull@
+#cmakedefine snprintf @snprintf@
 #cmakedefine vsnprintf @vsnprintf@
-#if (_MSC_VER > 1310)
-# define HAVE_SETENV
-#define setenv(a,b,c) _putenv_s(a,b)
-#endif
-/* We don't want the min/max macros */
-#ifdef _WIN32
-#define NOMINMAX
-#endif
+
+#cmakedefine access @access@
+#cmakedefine chdir @chdir@
+#cmakedefine chmod @chmod@
+#cmakedefine dup @dup@
+#cmakedefine fdopen @fdopen@
+#cmakedefine fileno @fileno@
+#cmakedefine getcwd @getcwd@
+#cmakedefine isatty @isatty@
+#cmakedefine mkdir @mkdir@
+#cmakedefine putenv @putenv@
+#cmakedefine read @read@
+#cmakedefine rmdir @rmdir@
+#cmakedefine strdup @strdup@
+#cmakedefine stricmp @stricmp@
+#cmakedefine tzset @tzset@
+#cmakedefine umask @umask@
+#cmakedefine unlink @unlink@
+
+#cmakedefine strtok_r @strtok_r@
+
+#cmakedefine ssize_t @ssize_t@
 
 /*
    Memcached config options
@@ -368,11 +368,6 @@
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
 #cmakedefine OPTIMIZER_TRACE 1
-
-/*
-   InnoDB config options
-*/
-#cmakedefine INNODB_COMPILER_HINTS
 
 /* Character sets and collations */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
@@ -399,6 +394,7 @@
 #cmakedefine HAVE_CHARSET_euckr 1
 #cmakedefine HAVE_CHARSET_gb2312 1
 #cmakedefine HAVE_CHARSET_gbk 1
+#cmakedefine HAVE_CHARSET_gb18030 1
 #cmakedefine HAVE_CHARSET_geostd8 1
 #cmakedefine HAVE_CHARSET_greek 1
 #cmakedefine HAVE_CHARSET_hebrew 1
@@ -424,7 +420,6 @@
 #cmakedefine HAVE_CHARSET_utf32 1
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
-#cmakedefine COMPILE_FLAG_WERROR 1
 
 /*
   Important storage engines (those that really need define 
@@ -443,6 +438,7 @@
 #cmakedefine DEFAULT_CHARSET_HOME "@DEFAULT_CHARSET_HOME@"
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
+#cmakedefine DEFAULT_TMPDIR @DEFAULT_TMPDIR@
 
 #cmakedefine SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 
@@ -464,7 +460,6 @@
 /* time_t related defines */
 
 #cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
-#cmakedefine TIME_T_UNSIGNED @TIME_T_UNSIGNED@
 
 /* CPU information */
 
@@ -481,6 +476,7 @@
 #cmakedefine DISABLE_PSI_STAGE 1
 #cmakedefine DISABLE_PSI_STATEMENT 1
 #cmakedefine DISABLE_PSI_SP 1
+#cmakedefine DISABLE_PSI_PS 1
 #cmakedefine DISABLE_PSI_IDLE 1
 #cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
 #cmakedefine DISABLE_PSI_METADATA 1

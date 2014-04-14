@@ -14,6 +14,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
 extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 BEGIN;
@@ -29,6 +30,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
 extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 BEGIN;
@@ -44,6 +46,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
 extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 BEGIN;
@@ -59,6 +62,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
 extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 BEGIN;
@@ -78,6 +82,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 ---- i=2 ----
@@ -85,6 +90,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 ---- i=3 ----
@@ -92,6 +98,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 ---- i=4 ----
@@ -99,6 +106,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 ==== Part 3 ====
@@ -111,6 +119,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -123,6 +132,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -135,6 +145,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -147,6 +158,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -162,6 +174,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
 extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -175,6 +188,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
 extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -188,6 +202,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
 extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -201,6 +216,7 @@ INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
 extra/rpl_tests/rpl_check_gtid.inc
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -222,6 +238,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -238,6 +255,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -254,6 +272,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -270,6 +289,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 FLUSH LOGS;
 FLUSH LOGS;
@@ -421,6 +441,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -434,6 +455,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -447,6 +469,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -460,6 +483,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -475,6 +499,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -488,6 +513,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -501,6 +527,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc
@@ -514,6 +541,7 @@ BEGIN;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t1 VALUES(2);
 COMMIT;
+include/sync_slave_sql_with_master.inc
 extra/rpl_tests/rpl_check_gtid.inc
 extra/rpl_tests/rpl_check_gtid.inc
 include/stop_slave.inc

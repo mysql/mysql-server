@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -173,6 +173,7 @@ extern const char *log_output_str;
 extern const char *log_backup_output_str;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char *default_auth_plugin;
+extern volatile uint default_password_lifetime;
 extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
@@ -365,6 +366,9 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
+#ifdef HAVE_MY_TIMER
+extern PSI_mutex_key key_thd_timer_mutex;
+#endif
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -396,6 +400,10 @@ extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand;
+
+#ifdef HAVE_MY_TIMER
+extern PSI_thread_key key_thread_timer_notifier;
+#endif
 
 #ifdef HAVE_MMAP
 extern PSI_file_key key_file_map;
@@ -466,7 +474,7 @@ extern PSI_memory_key key_memory_host_cache_hostname;
 extern PSI_memory_key key_memory_User_level_lock_key;
 extern PSI_memory_key key_memory_Filesort_info_record_pointers;
 extern PSI_memory_key key_memory_Sort_param_tmp_buffer;
-extern PSI_memory_key key_memory_Filesort_info_buffpek;
+extern PSI_memory_key key_memory_Filesort_info_merge;
 extern PSI_memory_key key_memory_Filesort_buffer_sort_keys;
 extern PSI_memory_key key_memory_handler_errmsgs;
 extern PSI_memory_key key_memory_handlerton;
@@ -543,6 +551,11 @@ extern PSI_memory_key key_memory_READ_RECORD_cache;
 extern PSI_memory_key key_memory_Quick_ranges;
 extern PSI_memory_key key_memory_File_query_log_name;
 extern PSI_memory_key key_memory_Table_trigger_dispatcher;
+#ifdef HAVE_MY_TIMER
+extern PSI_memory_key key_memory_thd_timer;
+#endif
+extern PSI_memory_key key_memory_THD_Session_tracker;
+extern PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 
 C_MODE_END
 
@@ -645,13 +658,13 @@ extern PSI_stage_info stage_waiting_for_table_flush;
 extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
 extern PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position;
 extern PSI_stage_info stage_waiting_to_finalize_termination;
-extern PSI_stage_info stage_waiting_to_get_readlock;
 extern PSI_stage_info stage_slave_waiting_worker_to_release_partition;
 extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
 extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
-extern PSI_stage_info stage_slave_waiiting_for_workers_to_finish;
+extern PSI_stage_info stage_slave_waiting_for_workers_to_finish;
+extern PSI_stage_info stage_starting;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).
@@ -813,7 +826,9 @@ enum options_mysqld
   OPT_SECURE_AUTH,
   OPT_THREAD_CACHE_SIZE,
   OPT_HOST_CACHE_SIZE,
-  OPT_TABLE_DEFINITION_CACHE
+  OPT_TABLE_DEFINITION_CACHE,
+  OPT_MDL_CACHE_SIZE,
+  OPT_MDL_HASH_INSTANCES
 };
 
 

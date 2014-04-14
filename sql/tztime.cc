@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,6 +46,15 @@
 #include <my_dir.h>
 #include <mysql/psi/mysql_file.h>
 #include "debug_sync.h"
+
+/*
+  Macro for reading 32-bit integer from network byte order (big-endian)
+  from a unaligned memory location.
+*/
+#define int4net(A)        (int32) (((uint32) ((uchar) (A)[3]))        | \
+                                  (((uint32) ((uchar) (A)[2])) << 8)  | \
+                                  (((uint32) ((uchar) (A)[1])) << 16) | \
+                                  (((uint32) ((uchar) (A)[0])) << 24))
 
 using std::min;
 
@@ -1784,13 +1793,7 @@ end:
   delete thd;
   if (org_thd)
     org_thd->store_globals();			/* purecov: inspected */
-  else
-  {
-    /* Remember that we don't have a THD */
-    my_pthread_set_THR_THD(0);
-    my_pthread_set_THR_MALLOC(0);
-  }
-  
+
   default_tz= default_tz_name ? global_system_variables.time_zone
                               : my_tz_SYSTEM;
 

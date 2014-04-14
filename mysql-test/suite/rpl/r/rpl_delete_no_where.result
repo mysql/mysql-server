@@ -5,11 +5,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 create table t1 (a int, b int) engine=myisam;
 insert into t1 values(1,1);
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a	b
 1	1
 delete from t1;
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a	b
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

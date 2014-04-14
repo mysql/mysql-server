@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,20 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 ${SSL_INCLUDE_DIRS})
 ADD_DEFINITIONS(${SSL_DEFINES})
 
-SET(VIO_SOURCES vio.c viosocket.c viossl.c viopipe.c vioshm.c viosslfactories.c)
+SET(VIO_SOURCES
+  vio.c
+  viosocket.c
+  viossl.c
+  viosslfactories.c
+)
+
+IF(WIN32)
+  LIST(APPEND VIO_SOURCES
+    viopipe.c
+    vioshm.c
+  )
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(vio ${VIO_SOURCES})
 TARGET_LINK_LIBRARIES(vio ${LIBSOCKET})
 

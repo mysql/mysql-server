@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,18 +22,12 @@
 #include "bounded_queue.h"
 #include "filesort_utils.h"
 #include "my_sys.h"
+#include "opt_costmodel.h"
+#include "test_utils.h"
 
 namespace bounded_queue_unittest {
 
 const int num_elements= 14;
-
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
-
 
 /*
   Elements to be sorted by tests below.
@@ -297,10 +291,18 @@ TEST(CostEstimationTest, MergeManyBuff)
   ulong num_keys= 100;
   ulong row_lenght= 100;
   double prev_cost= 0.0;
+
+  // Set up the optimizer cost model
+  Cost_model_server cost_model_server;
+  cost_model_server.init();
+  Cost_model_table cost_model_table;
+  cost_model_table.init(&cost_model_server);
+
   while (num_rows <= MAX_FILE_SIZE/4)
   {
-    double merge_cost=
-      get_merge_many_buffs_cost_fast(num_rows, num_keys, row_lenght);
+    const double merge_cost=
+      get_merge_many_buffs_cost_fast(num_rows, num_keys, row_lenght,
+                                     &cost_model_table);
     EXPECT_LT(0.0, merge_cost);
     EXPECT_LT(prev_cost, merge_cost);
     num_rows*= 2;

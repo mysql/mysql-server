@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,14 +24,33 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/sql
 )
 
+SET(CONF_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc 
+)
 SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
+SET(GEN_DIGEST_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
+)
 
-SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
+SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
+                            ${GEN_DIGEST_SOURCES}
+                            ${CONF_SOURCES}
+                            PROPERTIES GENERATED 1)
+
+# Gen_lex_token
+# Make sure sql_yacc.h is generated before compiling gen_lex_token
+ADD_EXECUTABLE(gen_lex_token gen_lex_token.cc)
+ADD_DEPENDENCIES(gen_lex_token GenServerSource)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
+  COMMAND gen_lex_token > lex_token.h
+  DEPENDS gen_lex_token
+)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION)
 IF(SSL_DEFINES)
@@ -51,7 +70,6 @@ SET(SQL_SHARED_SOURCES
   datadict.cc
   debug_sync.cc
   derror.cc
-  des_key_file.cc
   discover.cc
   field.cc
   field_conv.cc 
@@ -81,9 +99,9 @@ SET(SQL_SHARED_SOURCES
   lock.cc
   log.cc
   mdl.cc
-  mf_iocache.cc
   my_decimal.cc
   net_serv.cc
+  opt_costmodel.cc
   opt_explain.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
@@ -97,6 +115,7 @@ SET(SQL_SHARED_SOURCES
   protocol.cc
   records.cc
   rpl_handler.cc
+  session_tracker.cc
   set_var.cc 
   sp.cc
   sp_cache.cc
@@ -122,6 +141,7 @@ SET(SQL_SHARED_SOURCES
   sql_db.cc
   sql_delete.cc
   sql_derived.cc
+  sql_digest.cc
   sql_do.cc 
   sql_error.cc
   sql_executor.cc
@@ -166,11 +186,13 @@ SET(SQL_SHARED_SOURCES
   sql_view.cc
   strfunc.cc
   sys_vars.cc
+  sys_vars_resource_mgr.cc
   table.cc
   table_cache.cc
   table_trigger_dispatcher.cc
   thr_malloc.cc 
   transaction.cc
+  transaction_info.cc
   trigger.cc
   trigger_creation_ctx.cc
   trigger_loader.cc
@@ -185,7 +207,8 @@ SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
-  ${MYSYS_LIBWRAP_SOURCE}
+  ${GEN_DIGEST_SOURCES}
+  ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
   ../sql-common/client.c
@@ -198,12 +221,14 @@ SET(SQL_SOURCE
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
   conn_handler/socket_connection.cc
+  des_key_file.cc
   event_data_objects.cc
   event_db_repository.cc 
   event_parse_data.cc
   event_queue.cc
   event_scheduler.cc
   events.cc
+  mf_iocache.cc
   mysqld.cc
   mysqld_thd_manager.cc
   signal_handler.cc
@@ -218,6 +243,15 @@ IF(WIN32)
       )
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
+# See comments in filesort_compare-t.cc about __builtin_memcmp
+IF(HAVE_NO_BUILTIN_MEMCMP)
+  SET_SOURCE_FILES_PROPERTIES(
+    filesort_utils.cc
+    PROPERTIES COMPILE_FLAGS "-fno-builtin-memcmp"
+  )
+ENDIF()
+
 IF (WIN32 AND OPENSSL_APPLINK_C)
   SET_SOURCE_FILES_PROPERTIES(
     ../sql-common/client_authentication.cc
@@ -225,11 +259,16 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
+IF(HAVE_MY_TIMER)
+  SET(SQL_SOURCE ${SQL_SOURCE} sql_timer.cc)
+ENDIF()
+
 MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
 RECOMPILE_FOR_EMBEDDED)
 
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
+ADD_DEPENDENCIES(sql GenDigestServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
   mysys mysys_ssl dbug strings vio regex   
@@ -273,6 +312,7 @@ ADD_DEPENDENCIES(slave GenError)
 SET(SQL_GUNIT_LIB_SOURCE 
   filesort_utils.cc 
   mdl.cc 
+  opt_costmodel.cc
   sql_list.cc 
   sql_string.cc
   thr_malloc.cc
@@ -421,8 +461,11 @@ ADD_CUSTOM_TARGET(
         DEPENDS ${GEN_SOURCES}
 )
 
-#Need this only for embedded
-SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
+ADD_CUSTOM_TARGET( 
+        GenDigestServerSource
+        DEPENDS ${GEN_DIGEST_SOURCES}
+)
+
 
 IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   ADD_LIBRARY(udf_example MODULE udf_example.cc)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -758,6 +758,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   Silence_deprecated_warning warning_handler;
   Parser_state parser_state;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
 
   thd->variables.sql_mode= sql_mode;
@@ -774,6 +775,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->push_internal_handler(&warning_handler);
   thd->sp_runtime_ctx= NULL;
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, creation_ctx) || thd->lex == NULL)
   {
@@ -785,6 +787,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   {
     sp= thd->lex->sphead;
   }
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   thd->pop_internal_handler();
@@ -1152,7 +1155,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
 
     store_failed= store_failed ||
       table->field[MYSQL_PROC_FIELD_DEFINER]->
-        store(definer, (uint)strlen(definer), system_charset_info);
+        store(definer, strlen(definer), system_charset_info);
 
     Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_CREATED]);
     Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_MODIFIED]);
@@ -1338,7 +1341,7 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
   if (ret == SP_OK)
   {
     thd->add_to_binlog_accessed_dbs(name->m_db.str);
-    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+    if (write_bin_log(thd, TRUE, thd->query().str, thd->query().length))
       ret= SP_INTERNAL_ERROR;
     sp_cache_invalidate();
 
@@ -1463,7 +1466,7 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
 
   if (ret == SP_OK)
   {
-    if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+    if (write_bin_log(thd, TRUE, thd->query().str, thd->query().length))
       ret= SP_INTERNAL_ERROR;
     sp_cache_invalidate();
   }
@@ -2367,7 +2370,7 @@ sp_head *sp_start_parsing(THD *thd,
 
   // 3. finish initialization.
 
-  sp->m_root_parsing_ctx= new (thd->mem_root) sp_pcontext();
+  sp->m_root_parsing_ctx= new (thd->mem_root) sp_pcontext(thd);
 
   if (!sp->m_root_parsing_ctx)
     return NULL;
@@ -2707,7 +2710,7 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool save_abort_on_warning= thd->abort_on_warning;
   unsigned int stmt_unsafe_rollback_flags=
-    thd->transaction.stmt.get_unsafe_rollback_flags();
+    thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   if (!*expr_item_ptr)
     goto error;
@@ -2724,7 +2727,7 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning= thd->is_strict_mode();
-  thd->transaction.stmt.reset_unsafe_rollback_flags();
+  thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   /* Save the value in the field. Convert the value if needed. */
 
@@ -2732,7 +2735,8 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
-  thd->transaction.stmt.set_unsafe_rollback_flags(stmt_unsafe_rollback_flags);
+  thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
+                                                    stmt_unsafe_rollback_flags);
 
   if (!thd->is_error())
     return false;

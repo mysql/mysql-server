@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -75,11 +75,8 @@ extern mysql_pfs_key_t	log_flush_order_mutex_key;
 # ifndef HAVE_ATOMIC_BUILTINS
 extern mysql_pfs_key_t	server_mutex_key;
 # endif /* !HAVE_ATOMIC_BUILTINS */
-# ifdef UNIV_MEM_DEBUG
-extern mysql_pfs_key_t	mem_hash_mutex_key;
-# endif /* UNIV_MEM_DEBUG */
-extern mysql_pfs_key_t	mem_pool_mutex_key;
 extern mysql_pfs_key_t	recalc_pool_mutex_key;
+extern mysql_pfs_key_t	page_cleaner_mutex_key;
 extern mysql_pfs_key_t	purge_sys_pq_mutex_key;
 extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	recv_writer_mutex_key;
@@ -118,7 +115,6 @@ extern mysql_pfs_key_t	event_mutex_key;
 extern mysql_pfs_key_t	event_manager_mutex_key;
 extern mysql_pfs_key_t	sync_array_mutex_key;
 extern mysql_pfs_key_t	thread_mutex_key;
-extern mysql_pfs_key_t	ut_list_mutex_key;
 extern mysql_pfs_key_t  zip_pad_mutex_key;
 extern mysql_pfs_key_t  row_drop_list_mutex_key;
 #endif /* UNIV_PFS_MUTEX */

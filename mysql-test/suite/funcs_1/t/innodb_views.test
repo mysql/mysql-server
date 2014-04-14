@@ -1,5 +1,7 @@
 #### suite/funcs_1/t/innodb_views.test
 
+--source include/no_valgrind_without_big.inc
+
 # InnoDB tables should be used
 #
 # 1. Check if InnoDB is available

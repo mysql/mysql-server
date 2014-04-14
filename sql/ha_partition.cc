@@ -1237,7 +1237,7 @@ static bool print_admin_msg(THD* thd, uint len,
                             const char* msg_type,
                             const char* db_name, const char* table_name,
                             const char* op_name, const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 7, 8);
+  __attribute__((format(printf, 7, 8)));
 static bool print_admin_msg(THD* thd, uint len,
                             const char* msg_type,
                             const char* db_name, const char* table_name,
@@ -6044,7 +6044,7 @@ void ha_partition::return_top_record(uchar *buf)
 int ha_partition::handle_ordered_index_scan_key_not_found()
 {
   int error;
-  uint i;
+  uint i, old_elements= m_queue.elements;
   uchar *part_buf= m_ordered_rec_buffer;
   uchar *curr_rec_buf= NULL;
   DBUG_ENTER("ha_partition::handle_ordered_index_scan_key_not_found");
@@ -6096,9 +6096,12 @@ int ha_partition::handle_ordered_index_scan_key_not_found()
   bitmap_clear_all(&m_key_not_found_partitions);
   m_key_not_found= false;
 
-  /* Update m_top_entry, which may have changed. */
-  uchar *key_buffer= queue_top(&m_queue);
-  m_top_entry= uint2korr(key_buffer);
+  if (m_queue.elements > old_elements)
+  {
+    /* Update m_top_entry, which may have changed. */
+    uchar *key_buffer= queue_top(&m_queue);
+    m_top_entry= uint2korr(key_buffer);
+  }
   DBUG_RETURN(0);
 }
 
@@ -6983,6 +6986,12 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   HA_EXTRA_IS_ATTACHED_CHILDREN:
   HA_EXTRA_DETACH_CHILDREN:
     Special actions for MERGE tables. Ignore.
+
+  10) Operations only used by InnoDB
+  ----------------------------------
+  HA_EXTRA_EXPORT:
+    Prepare table for export
+    (e.g. quiesce the table and write table metadata).
 */
 
 int ha_partition::extra(enum ha_extra_function operation)
@@ -7123,6 +7132,9 @@ int ha_partition::extra(enum ha_extra_function operation)
   */
   case HA_EXTRA_MARK_AS_LOG_TABLE:
     DBUG_RETURN(ER_UNSUPORTED_LOG_ENGINE);
+    /* Category 10), used by InnoDB handlers */
+  case HA_EXTRA_EXPORT:
+    DBUG_RETURN(loop_extra(operation));
   default:
   {
     /* Temporary crash to discover what is wrong */
@@ -8278,6 +8290,24 @@ void ha_partition::notify_table_changed()
   DBUG_VOID_RETURN;
 }
 
+int ha_partition::discard_or_import_tablespace(my_bool discard)
+{
+  int error= 0;
+  uint i;
+
+  DBUG_ENTER("ha_partition::discard_or_import_tablespace");
+
+  for (i= bitmap_get_first_set(&m_part_info->read_partitions);
+       i < m_tot_parts;
+       i= bitmap_get_next_set(&m_part_info->read_partitions, i))
+  {
+    error= m_file[i]->ha_discard_or_import_tablespace(discard);
+    if (error)
+      break;
+  }
+
+  DBUG_RETURN(error);
+}
 
 /*
   If frm_error() is called then we will use this to to find out what file
@@ -8388,19 +8418,29 @@ uint ha_partition::min_record_length(uint options) const
 
 int ha_partition::cmp_ref(const uchar *ref1, const uchar *ref2)
 {
-  uint part_id;
+  int cmp;
   my_ptrdiff_t diff1, diff2;
-  handler *file;
   DBUG_ENTER("ha_partition::cmp_ref");
+
+  cmp = m_file[0]->cmp_ref((ref1 + PARTITION_BYTES_IN_POS),
+			   (ref2 + PARTITION_BYTES_IN_POS));
+  if (cmp)
+    DBUG_RETURN(cmp);
 
   if ((ref1[0] == ref2[0]) && (ref1[1] == ref2[1]))
   {
-    part_id= uint2korr(ref1);
-    file= m_file[part_id];
-    DBUG_ASSERT(part_id < m_tot_parts);
-    DBUG_RETURN(file->cmp_ref((ref1 + PARTITION_BYTES_IN_POS),
-                              (ref2 + PARTITION_BYTES_IN_POS)));
+   /* This means that the references are same and are in same partition.*/
+    DBUG_RETURN(0);
   }
+
+  /*
+    In Innodb we compare with either primary key value or global DB_ROW_ID so
+    it is not possible that the two references are equal and are in different
+    partitions, but in myisam it is possible since we are comparing offsets.
+    Remove this assert if DB_ROW_ID is changed to be per partition.
+  */
+  DBUG_ASSERT(!m_innodb);
+
   diff1= ref2[1] - ref1[1];
   diff2= ref2[0] - ref1[0];
   if (diff1 > 0)

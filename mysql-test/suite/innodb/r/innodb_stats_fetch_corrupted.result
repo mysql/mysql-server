@@ -1,5 +1,5 @@
-call mtr.add_suppression("InnoDB: Error: Table \"mysql\".\"innodb_index_stats\" not found");
-call mtr.add_suppression("InnoDB: Error: Fetch of persistent statistics requested for table");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Table \"mysql\".\"innodb_index_stats\" not found");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Fetch of persistent statistics requested for table");
 CREATE TABLE test_ps_fetch_corrupted
 (a INT, PRIMARY KEY (a))
 ENGINE=INNODB STATS_PERSISTENT=1;

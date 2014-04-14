@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -379,8 +379,8 @@ Parses the log data of system field values.
 byte*
 row_upd_parse_sys_vals(
 /*===================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	ulint*		pos,	/*!< out: TRX_ID position in record */
 	trx_id_t*	trx_id,	/*!< out: trx id */
 	roll_ptr_t*	roll_ptr);/*!< out: roll ptr */
@@ -404,8 +404,8 @@ Parses the log data written by row_upd_index_write_log.
 byte*
 row_upd_index_parse(
 /*================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	mem_heap_t*	heap,	/*!< in: memory heap where update vector is
 				built */
 	upd_t**		update_out);/*!< out: update vector */
@@ -540,11 +540,6 @@ struct upd_node_t{
 #define UPD_NODE_INSERT_CLUSTERED  3	/* clustered index record should be
 					inserted, old record is already delete
 					marked */
-#define UPD_NODE_INSERT_BLOB	   4	/* clustered index record should be
-					inserted, old record is already
-					delete-marked; non-updated BLOBs
-					should be inherited by the new record
-					and disowned by the old record */
 #define UPD_NODE_UPDATE_ALL_SEC	   5	/* an ordering field of the clustered
 					index record was changed, or this is
 					a delete operation: should update

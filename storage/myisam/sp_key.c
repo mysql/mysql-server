@@ -63,7 +63,7 @@ uint sp_make_key(MI_INFO *info, uint keynr, uchar *key,
     DBUG_ASSERT(keyseg->type == HA_KEYTYPE_DOUBLE);
     
     val= mbr[start / sizeof (double)];
-    if (isnan(val))
+    if (my_isnan(val))
     {
       memset(key, 0, length);
       key+= length;

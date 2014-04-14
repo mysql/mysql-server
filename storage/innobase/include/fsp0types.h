@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,6 @@ Created May 26, 2009 Vasil Dimov
 #ifndef UNIV_INNOCHECKSUM
 
 #include "univ.i"
-#include "fil0fil.h"
 
 /** @name Flags for inserting records in order
 If records are inserted in order, there are the following
@@ -117,4 +116,100 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 /* @} */
 
 #endif /* !UNIV_INNOCHECKSUM */
+
+/* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */
+
+/** Width of the POST_ANTELOPE flag */
+#define FSP_FLAGS_WIDTH_POST_ANTELOPE	1
+/** Number of flag bits used to indicate the tablespace zip page size */
+#define FSP_FLAGS_WIDTH_ZIP_SSIZE	4
+/** Width of the ATOMIC_BLOBS flag.  The ability to break up a long
+column into an in-record prefix and an externally stored part is available
+to the two Barracuda row formats COMPRESSED and DYNAMIC. */
+#define FSP_FLAGS_WIDTH_ATOMIC_BLOBS	1
+/** Number of flag bits used to indicate the tablespace page size */
+#define FSP_FLAGS_WIDTH_PAGE_SSIZE	4
+/** Width of the DATA_DIR flag.  This flag indicates that the tablespace
+is found in a remote location, not the default data directory. */
+#define FSP_FLAGS_WIDTH_DATA_DIR	1
+/** Width of all the currently known tablespace flags */
+#define FSP_FLAGS_WIDTH		(FSP_FLAGS_WIDTH_POST_ANTELOPE	\
+				+ FSP_FLAGS_WIDTH_ZIP_SSIZE	\
+				+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS	\
+				+ FSP_FLAGS_WIDTH_PAGE_SSIZE	\
+				+ FSP_FLAGS_WIDTH_DATA_DIR)
+
+/** A mask of all the known/used bits in tablespace flags */
+#define FSP_FLAGS_MASK		(~(~0 << FSP_FLAGS_WIDTH))
+
+/** Zero relative shift position of the POST_ANTELOPE field */
+#define FSP_FLAGS_POS_POST_ANTELOPE	0
+/** Zero relative shift position of the ZIP_SSIZE field */
+#define FSP_FLAGS_POS_ZIP_SSIZE		(FSP_FLAGS_POS_POST_ANTELOPE	\
+					+ FSP_FLAGS_WIDTH_POST_ANTELOPE)
+/** Zero relative shift position of the ATOMIC_BLOBS field */
+#define FSP_FLAGS_POS_ATOMIC_BLOBS	(FSP_FLAGS_POS_ZIP_SSIZE	\
+					+ FSP_FLAGS_WIDTH_ZIP_SSIZE)
+/** Zero relative shift position of the PAGE_SSIZE field */
+#define FSP_FLAGS_POS_PAGE_SSIZE	(FSP_FLAGS_POS_ATOMIC_BLOBS	\
+					+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS)
+/** Zero relative shift position of the start of the UNUSED bits */
+#define FSP_FLAGS_POS_DATA_DIR		(FSP_FLAGS_POS_PAGE_SSIZE	\
+					+ FSP_FLAGS_WIDTH_PAGE_SSIZE)
+/** Zero relative shift position of the start of the UNUSED bits */
+#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_DATA_DIR	\
+					+ FSP_FLAGS_WIDTH_DATA_DIR)
+
+/** Bit mask of the POST_ANTELOPE field */
+#define FSP_FLAGS_MASK_POST_ANTELOPE				\
+		((~(~0 << FSP_FLAGS_WIDTH_POST_ANTELOPE))	\
+		<< FSP_FLAGS_POS_POST_ANTELOPE)
+/** Bit mask of the ZIP_SSIZE field */
+#define FSP_FLAGS_MASK_ZIP_SSIZE				\
+		((~(~0 << FSP_FLAGS_WIDTH_ZIP_SSIZE))		\
+		<< FSP_FLAGS_POS_ZIP_SSIZE)
+/** Bit mask of the ATOMIC_BLOBS field */
+#define FSP_FLAGS_MASK_ATOMIC_BLOBS				\
+		((~(~0 << FSP_FLAGS_WIDTH_ATOMIC_BLOBS))	\
+		<< FSP_FLAGS_POS_ATOMIC_BLOBS)
+/** Bit mask of the PAGE_SSIZE field */
+#define FSP_FLAGS_MASK_PAGE_SSIZE				\
+		((~(~0 << FSP_FLAGS_WIDTH_PAGE_SSIZE))		\
+		<< FSP_FLAGS_POS_PAGE_SSIZE)
+/** Bit mask of the DATA_DIR field */
+#define FSP_FLAGS_MASK_DATA_DIR					\
+		((~(~0 << FSP_FLAGS_WIDTH_DATA_DIR))		\
+		<< FSP_FLAGS_POS_DATA_DIR)
+
+/** Return the value of the POST_ANTELOPE field */
+#define FSP_FLAGS_GET_POST_ANTELOPE(flags)			\
+		((flags & FSP_FLAGS_MASK_POST_ANTELOPE)		\
+		>> FSP_FLAGS_POS_POST_ANTELOPE)
+/** Return the value of the ZIP_SSIZE field */
+#define FSP_FLAGS_GET_ZIP_SSIZE(flags)				\
+		((flags & FSP_FLAGS_MASK_ZIP_SSIZE)		\
+		>> FSP_FLAGS_POS_ZIP_SSIZE)
+/** Return the value of the ATOMIC_BLOBS field */
+#define FSP_FLAGS_HAS_ATOMIC_BLOBS(flags)			\
+		((flags & FSP_FLAGS_MASK_ATOMIC_BLOBS)		\
+		>> FSP_FLAGS_POS_ATOMIC_BLOBS)
+/** Return the value of the PAGE_SSIZE field */
+#define FSP_FLAGS_GET_PAGE_SSIZE(flags)				\
+		((flags & FSP_FLAGS_MASK_PAGE_SSIZE)		\
+		>> FSP_FLAGS_POS_PAGE_SSIZE)
+/** Return the value of the DATA_DIR field */
+#define FSP_FLAGS_HAS_DATA_DIR(flags)				\
+		((flags & FSP_FLAGS_MASK_DATA_DIR)		\
+		>> FSP_FLAGS_POS_DATA_DIR)
+/** Return the contents of the UNUSED bits */
+#define FSP_FLAGS_GET_UNUSED(flags)				\
+		(flags >> FSP_FLAGS_POS_UNUSED)
+
+/** Set a PAGE_SSIZE into the correct bits in a given
+tablespace flags. */
+#define FSP_FLAGS_SET_PAGE_SSIZE(flags, ssize)			\
+		(flags | (ssize << FSP_FLAGS_POS_PAGE_SSIZE))
+
+/* @} */
+
 #endif /* fsp0types_h */

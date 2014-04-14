@@ -9,9 +9,12 @@ KEY a (a,b)
 )
 PARTITION BY HASH (a) PARTITIONS 1;
 INSERT INTO t1 VALUES (0, 580092), (3, 894076), (4, 805483), (4, 913540), (6, 611137), (8, 171602), (9, 599495), (9, 746305), (10, 272829), (10, 847519), (12, 258869), (12, 929028), (13, 288970), (15, 20971), (15, 105839), (16, 788272), (17, 76914), (18, 827274), (19, 802258), (20, 123677), (20, 587729), (22, 701449), (25, 31565), (25, 230782), (25, 442887), (25, 733139), (25, 851020);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10, 100, 3) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	range	a	a	5	NULL	4	25.00	Using where; Using index
+1	SIMPLE	t1	p0	range	a	a	5	NULL	4	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where (`test`.`t1`.`a` in (10,100,3)) group by `test`.`t1`.`a`
 DROP TABLE t1;
@@ -23,10 +26,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50500 PARTITION BY RANGE (TO_DAYS(a))
 SUBPARTITION BY HASH (to_seconds(a))
-(PARTITION p0 VALUES LESS THAN (1) ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (1) ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a int)
 partition by range (a)
@@ -44,6 +47,9 @@ RANGE	TO_SECONDS(a)	63340531200
 RANGE	TO_SECONDS(a)	63342604800
 INSERT INTO t1 VALUES ('2007-03-01 12:00:00'), ('2007-03-07 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-08 12:00:00'), ('2007-03-15 12:00:00');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a < '2007-03-08 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
@@ -78,10 +84,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50500 PARTITION BY RANGE (TO_SECONDS(a))
-(PARTITION p0 VALUES LESS THAN (63340531200) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN (63342604800) ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (63340531200) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (63342604800) ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a date)
 partition by range(to_seconds(a))
@@ -92,12 +98,15 @@ select * from t1;
 a
 2003-12-30
 2004-12-31
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a <= '2003-12-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select '2003-12-30' AS `a` from dual where ('2003-12-30' <= '2003-12-31')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= '2003-12-31')
 select * from t1 where a <= '2003-12-31';
 a
 2003-12-30
@@ -115,10 +124,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50500 PARTITION BY RANGE (to_seconds(a))
-(PARTITION p0 VALUES LESS THAN (63240134400) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN (63271756800) ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (63240134400) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (63271756800) ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a datetime)
 partition by range(to_seconds(a))
@@ -129,12 +138,15 @@ select * from t1;
 a
 2004-01-01 11:59:29
 2005-01-01 11:59:59
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a <= '2004-01-01 11:59.59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select '2004-01-01 11:59:29' AS `a` from dual where ('2004-01-01 11:59:29' <= '2004-01-01 11:59.59')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= '2004-01-01 11:59.59')
 select * from t1 where a <= '2004-01-01 11:59:59';
 a
 2004-01-01 11:59:29
@@ -151,10 +163,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50500 PARTITION BY RANGE (to_seconds(a))
-(PARTITION p0 VALUES LESS THAN (63240177600) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN (63271800000) ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (63240177600) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (63271800000) ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a int, b char(20))
 partition by range columns(a,b)
@@ -181,9 +193,9 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a integer)
 partition by range (a)
@@ -227,12 +239,15 @@ a
 0
 select * from t1 where a > 1;
 a
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	pnull	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	pnull	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `a` from dual where isnull(NULL)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where isnull(`test`.`t1`.`a`)
 explain partitions select * from t1 where a >= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
@@ -241,10 +256,10 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 0)
 explain partitions select * from t1 where a < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	t1	pnull	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `a` from dual where (NULL < 0)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 0)
 explain partitions select * from t1 where a <= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pnull,p0	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
@@ -253,10 +268,10 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= 0)
 explain partitions select * from t1 where a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where (NULL > 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 1)
 drop table t1;
 create table t1 (a int unsigned, b int unsigned)
 partition by range (a)
@@ -284,6 +299,9 @@ a	b
 0	1
 select * from t1 where a > 1;
 a	b
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
@@ -310,10 +328,10 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` <= 0)
 explain partitions select * from t1 where a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b` from `test`.`t1` where (NULL > 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` > 1)
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -342,11 +360,11 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = MyISAM,
- PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = MyISAM,
- PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = MyISAM) */
+(PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = InnoDB,
+ PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = InnoDB,
+ PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = InnoDB) */
 ALTER TABLE t1
 partition by range (a)
 partitions 3
@@ -366,11 +384,11 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = MyISAM,
- PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = MyISAM,
- PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = MyISAM) */
+(PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = InnoDB,
+ PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = InnoDB,
+ PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = InnoDB) */
 drop table if exists t1;
 CREATE TABLE t1 (
 a int not null,
@@ -467,15 +485,15 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a+b)
 (PARTITION x1 VALUES LESS THAN (1)
- (SUBPARTITION x11 ENGINE = MyISAM,
-  SUBPARTITION x12 ENGINE = MyISAM),
+ (SUBPARTITION x11 ENGINE = InnoDB,
+  SUBPARTITION x12 ENGINE = InnoDB),
  PARTITION x2 VALUES LESS THAN (5)
- (SUBPARTITION x21 ENGINE = MyISAM,
-  SUBPARTITION x22 ENGINE = MyISAM)) */
+ (SUBPARTITION x21 ENGINE = InnoDB,
+  SUBPARTITION x22 ENGINE = InnoDB)) */
 ALTER TABLE t1 ADD COLUMN d int;
 show create table t1;
 Table	Create Table
@@ -485,15 +503,15 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
   `d` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH (a+b)
 (PARTITION x1 VALUES LESS THAN (1)
- (SUBPARTITION x11 ENGINE = MyISAM,
-  SUBPARTITION x12 ENGINE = MyISAM),
+ (SUBPARTITION x11 ENGINE = InnoDB,
+  SUBPARTITION x12 ENGINE = InnoDB),
  PARTITION x2 VALUES LESS THAN (5)
- (SUBPARTITION x21 ENGINE = MyISAM,
-  SUBPARTITION x22 ENGINE = MyISAM)) */
+ (SUBPARTITION x21 ENGINE = InnoDB,
+  SUBPARTITION x22 ENGINE = InnoDB)) */
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -611,11 +629,11 @@ primary key (a,b))
 partition by range (a)
 subpartition by hash (a+b)
 ( partition x1 values less than (1)
-( subpartition x11 tablespace t1,
-subpartition x12 tablespace t2),
+( subpartition x11 tablespace t1 engine myisam,
+subpartition x12 tablespace t2 engine myisam),
 partition x2 values less than (5)
-( subpartition x21 tablespace t1,
-subpartition x22 tablespace t2)
+( subpartition x21 tablespace t1 engine myisam,
+subpartition x22 tablespace t2 engine myisam)
 );
 INSERT into t1 VALUES (1,1,1);
 INSERT into t1 VALUES (4,1,1);
@@ -716,10 +734,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (0) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a bigint unsigned)
 partition by range (a)
@@ -729,10 +747,10 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (2) ENGINE = MyISAM,
- PARTITION p1 VALUES LESS THAN (10) ENGINE = MyISAM) */
+(PARTITION p0 VALUES LESS THAN (2) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB) */
 insert into t1 values (0xFFFFFFFFFFFFFFFF);
 ERROR HY000: Table has no partition for value 18446744073709551615
 drop table t1;
@@ -945,6 +963,9 @@ a
 2004-09-13
 2004-09-20
 2004-09-30
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE a >= '2004-07-01' AND a <= '2004-09-30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1024,9 +1045,15 @@ INSERT INTO t1 SELECT a + 20, b + 20 FROM t1;
 INSERT INTO t1 SELECT a + 40, b + 40 FROM t1;
 INSERT INTO t2 SELECT * FROM t1;
 # plans should be identical
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10,100) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	range	a	a	5	NULL	2	50.00	Using where; Using index
+1	SIMPLE	t1	p0	range	a	a	5	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where (`test`.`t1`.`a` in (10,100)) group by `test`.`t1`.`a`
 EXPLAIN SELECT a, MAX(b) FROM t2 WHERE a IN (10,100) GROUP BY a;

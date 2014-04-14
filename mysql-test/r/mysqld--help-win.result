@@ -103,6 +103,8 @@ The following options may be given as the first argument:
  non-transactional engines for the binary log. If you
  often use statements updating a great number of rows, you
  can increase this to get more performance
+ --block-encryption-mode=name 
+ mode for AES_ENCRYPT/AES_DECRYPT
  --bootstrap         Used by mysql installation scripts.
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
@@ -138,6 +140,8 @@ The following options may be given as the first argument:
  --default-authentication-plugin=name 
  The default authentication plugin used by the server to
  hash the password.
+ --default-password-lifetime=# 
+ The number of days after which the password will expire.
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-time-zone=name 
@@ -426,9 +430,9 @@ The following options may be given as the first argument:
  in between
  --memlock           Lock mysqld in memory.
  --metadata-locks-cache-size=# 
- Size of unused metadata locks cache
+ Has no effect, deprecated
  --metadata-locks-hash-instances=# 
- Number of metadata locks hash instances
+ Has no effect, deprecated
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
@@ -641,6 +645,9 @@ The following options may be given as the first argument:
  --performance-schema-max-mutex-instances=# 
  Maximum number of instrumented MUTEX objects. Use 0 to
  disable, -1 for automated sizing.
+ --performance-schema-max-prepared-statements-instances=# 
+ Maximum number of instrumented prepared statements. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-max-program-instances=# 
  Maximum number of instrumented programs. Use 0 to
  disable, -1 for automated sizing.
@@ -844,6 +851,13 @@ The following options may be given as the first argument:
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --server-id-bits=#  Set number of significant bits in server-id
+ --session-track-schema 
+ Track changes to the 'default schema'.
+ (Defaults to on; use --skip-session-track-schema to disable.)
+ --session-track-state-change 
+ Track changes to the 'session state'.
+ --session-track-system-variables=name 
+ Track changes in registered system variables.
  --shared-memory     Enable the shared memory
  --shared-memory-base-name=name 
  Base name of shared memory
@@ -1054,6 +1068,7 @@ binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
+block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
 character-set-filesystem binary
@@ -1068,6 +1083,7 @@ console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
 default-authentication-plugin mysql_native_password
+default-password-lifetime 360
 default-storage-engine InnoDB
 default-time-zone (No default value)
 default-tmp-storage-engine InnoDB
@@ -1081,7 +1097,7 @@ disconnect-slave-event-count 0
 div-precision-increment 4
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
-eq-range-index-dive-limit 10
+eq-range-index-dive-limit 200
 event-scheduler OFF
 expire-logs-days 0
 explicit-defaults-for-timestamp FALSE
@@ -1231,6 +1247,7 @@ performance-schema-max-memory-classes 250
 performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
+performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances 5000
 performance-schema-max-rwlock-classes 40
 performance-schema-max-rwlock-instances -1
@@ -1280,6 +1297,9 @@ secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
+session-track-schema TRUE
+session-track-state-change FALSE
+session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 shared-memory FALSE
 shared-memory-base-name MYSQL
 show-slave-auth-info FALSE

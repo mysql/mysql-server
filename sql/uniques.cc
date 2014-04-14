@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "sql_sort.h"
 #include "queues.h"                             // QUEUE
 #include "my_tree.h"                            // element_count
+#include "opt_costmodel.h"
 #include "uniques.h"                            // Unique
 
 #include <algorithm>
@@ -127,23 +128,30 @@ inline double log2_n_fact(double x)
     the same length, so each of total_buf_size elements will be added to a sort
     heap with (n_buffers-1) elements. This gives the comparison cost:
 
-      total_buf_elems * log2(n_buffers) * ROWID_COMPARE_COST;
+      key_compare_cost(total_buf_elems * log2(n_buffers));
 */
 
 static double get_merge_buffers_cost(Unique::Imerge_cost_buf_type buff_elems,
                                      uint elem_size,
-                                     uint first, uint last)
+                                     uint first, uint last,
+                                     const Cost_model_table *cost_model)
 {
   uint total_buf_elems= 0;
   for (uint pbuf= first; pbuf <= last; pbuf++)
     total_buf_elems+= buff_elems[pbuf];
   buff_elems[last]= total_buf_elems;
 
-  size_t n_buffers= last - first + 1;
+  const size_t n_buffers= last - first + 1;
 
+  const double io_ops= static_cast<double>(total_buf_elems * elem_size) /
+                       IO_SIZE;
+  const double io_cost= cost_model->io_block_read_cost(io_ops);
   /* Using log2(n)=log(n)/log(2) formula */
-  return 2*((double)total_buf_elems*elem_size) / IO_SIZE +
-     total_buf_elems*log((double) n_buffers) * ROWID_COMPARE_COST / M_LN2;
+  const double cpu_cost=
+    cost_model->key_compare_cost(total_buf_elems * log((double) n_buffers) /
+                                 M_LN2);
+ 
+  return 2 * io_cost + cpu_cost;
 }
 
 
@@ -176,7 +184,8 @@ static double get_merge_buffers_cost(Unique::Imerge_cost_buf_type buff_elems,
 
 static double get_merge_many_buffs_cost(Unique::Imerge_cost_buf_type buffer,
                                         uint maxbuffer, uint max_n_elems,
-                                        uint last_n_elems, int elem_size)
+                                        uint last_n_elems, int elem_size,
+                                        const Cost_model_table *cost_model)
 {
   int i;
   double total_cost= 0.0;
@@ -204,19 +213,21 @@ static double get_merge_many_buffs_cost(Unique::Imerge_cost_buf_type buffer,
       {
         total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
                                            i,
-                                           i + MERGEBUFF-1);
+                                           i + MERGEBUFF-1,
+                                           cost_model);
 	lastbuff++;
       }
       total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
                                          i,
-                                         maxbuffer);
+                                         maxbuffer,
+                                         cost_model);
       maxbuffer= lastbuff;
     }
   }
 
   /* Simulate final merge_buff call. */
   total_cost += get_merge_buffers_cost(buff_elems, elem_size,
-                                       0, maxbuffer);
+                                       0, maxbuffer, cost_model);
   return total_cost;
 }
 
@@ -249,7 +260,7 @@ static double get_merge_many_buffs_cost(Unique::Imerge_cost_buf_type buffer,
 
       n_compares = 2*(log2(2) + log2(3) + ... + log2(N+1)) = 2*log2((N+1)!)
 
-      then cost(tree_creation) = n_compares*ROWID_COMPARE_COST;
+      then cost(tree_creation) = key_compare_cost(n_compares);
 
       Total cost of creating trees:
       (n_trees - 1)*max_size_tree_cost + non_max_size_tree_cost.
@@ -270,7 +281,8 @@ static double get_merge_many_buffs_cost(Unique::Imerge_cost_buf_type buffer,
 
 double Unique::get_use_cost(Imerge_cost_buf_type buffer,
                             uint nkeys, uint key_size,
-                            ulonglong max_in_memory_size)
+                            ulonglong max_in_memory_size,
+                            const Cost_model_table *cost_model)
 {
   ulong max_elements_in_tree;
   ulong last_tree_elems;
@@ -286,7 +298,7 @@ double Unique::get_use_cost(Imerge_cost_buf_type buffer,
   double result= 2 * log2_n_fact(last_tree_elems + 1.0);
   if (n_full_trees)
     result+= n_full_trees * log2_n_fact(max_elements_in_tree + 1.0);
-  result*= ROWID_COMPARE_COST;
+  result= cost_model->key_compare_cost(result);
 
   DBUG_PRINT("info",("unique trees sizes: %u=%u*%lu + %lu", nkeys,
                      n_full_trees, n_full_trees?max_elements_in_tree:0,
@@ -300,14 +312,16 @@ double Unique::get_use_cost(Imerge_cost_buf_type buffer,
     First, add cost of writing all trees to disk, assuming that all disk
     writes are sequential.
   */
-  result += DISK_SEEK_BASE_COST * n_full_trees *
-              ceil(((double) key_size)*max_elements_in_tree / IO_SIZE);
-  result += DISK_SEEK_BASE_COST * ceil(((double) key_size)*last_tree_elems / IO_SIZE);
+  result+= cost_model->disk_seek_base_cost() * n_full_trees *
+           ceil(((double) key_size) * max_elements_in_tree / IO_SIZE);
+  result+= cost_model->disk_seek_base_cost() * 
+           ceil(((double) key_size) * last_tree_elems / IO_SIZE);
 
   /* Cost of merge */
   double merge_cost= get_merge_many_buffs_cost(buffer, n_full_trees,
                                                max_elements_in_tree,
-                                               last_tree_elems, key_size);
+                                               last_tree_elems, key_size,
+                                               cost_model);
   if (merge_cost < 0.0)
     return merge_cost;
 
@@ -316,7 +330,8 @@ double Unique::get_use_cost(Imerge_cost_buf_type buffer,
     Add cost of reading the resulting sequence, assuming there were no
     duplicate elements.
   */
-  result += ceil((double)key_size*nkeys/IO_SIZE);
+  const double n_blocks= ceil((double)key_size * nkeys / IO_SIZE);
+  result += cost_model->io_block_read_cost(n_blocks);
 
   return result;
 }
@@ -377,9 +392,10 @@ Unique::reset()
 
 C_MODE_START
 
-static int buffpek_compare(void *arg, uchar *key_ptr1, uchar *key_ptr2)
+static int merge_chunk_compare(void *arg, uchar *key_ptr1, uchar *key_ptr2)
 {
-  BUFFPEK_COMPARE_CONTEXT *ctx= (BUFFPEK_COMPARE_CONTEXT *) arg;
+  Merge_chunk_compare_context *ctx=
+    static_cast<Merge_chunk_compare_context*>(arg);
   return ctx->key_compare(ctx->key_compare_arg,
                           *((uchar **) key_ptr1), *((uchar **)key_ptr2));
 }
@@ -427,12 +443,12 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
                        qsort_cmp2 compare, const void *compare_arg,
                        IO_CACHE *file)
 {
-  BUFFPEK_COMPARE_CONTEXT compare_context = { compare, compare_arg };
+  Merge_chunk_compare_context compare_context = { compare, compare_arg };
   QUEUE queue;
   if (end <= begin ||
       merge_buffer_size < (ulong) (key_length * (end - begin + 1)) ||
       init_queue(&queue, (uint) (end - begin), Merge_chunk::offset_to_key(), 0,
-                 buffpek_compare, &compare_context))
+                 merge_chunk_compare, &compare_context))
     return 1;
   /* we need space for one key when a piece of merge buffer is re-read */
   merge_buffer_size-= key_length;
@@ -622,7 +638,7 @@ bool Unique::get(TABLE *table)
 
   IO_CACHE *outfile=table->sort.io_cache;
   Merge_chunk *file_ptr= file_ptrs.begin();
-  uint maxbuffer= file_ptrs.size() - 1;
+  size_t num_chunks= file_ptrs.size();
   uchar *sort_memory;
   my_off_t save_pos;
   bool error=1;
@@ -655,20 +671,22 @@ bool Unique::get(TABLE *table)
   sort_param.unique_buff= sort_memory+(sort_param.max_keys_per_buffer *
                                        sort_param.sort_length);
 
-  sort_param.compare= (qsort2_cmp) buffpek_compare;
+  sort_param.compare= (qsort2_cmp) merge_chunk_compare;
   sort_param.cmp_context.key_compare= tree.compare;
   sort_param.cmp_context.key_compare_arg= tree.custom_arg;
 
   /* Merge the buffers to one file, removing duplicates */
   if (merge_many_buff(&sort_param, Sort_buffer(sort_memory, num_bytes),
-                      file_ptr,&maxbuffer,&file))
+                      Merge_chunk_array(file_ptrs.begin(), file_ptrs.size()),
+                      &num_chunks, &file))
     goto err;
   if (flush_io_cache(&file) ||
       reinit_io_cache(&file,READ_CACHE,0L,0,0))
     goto err;
   if (merge_buffers(&sort_param, &file, outfile,
                     Sort_buffer(sort_memory, num_bytes),
-                    file_ptr, file_ptr, file_ptr+maxbuffer,0))
+                    file_ptr,
+                    Merge_chunk_array(file_ptr, num_chunks), 0))
     goto err;
   error=0;
 err:

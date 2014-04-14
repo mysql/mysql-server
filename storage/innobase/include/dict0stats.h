@@ -213,4 +213,8 @@ dict_stats_rename_index(
 #include "dict0stats.ic"
 #endif
 
+#ifdef UNIV_COMPILE_TEST_FUNCS
+void test_dict_stats_all();
+#endif /* UNIV_COMPILE_TEST_FUNCS */
+
 #endif /* dict0stats_h */

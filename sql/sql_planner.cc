@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 
 #include "sql_planner.h"
 #include "sql_optimizer.h"
+#include "opt_costmodel.h"
 #include "opt_range.h"
 #include "opt_trace.h"
 #include "sql_executor.h"
@@ -71,6 +72,18 @@ cache_record_length(JOIN *join,uint idx)
 /**
   Find the best index to do 'ref' access on for a table.
 
+  The best index chosen using the following priority list
+  1) A clustered primary key with equality predicates on all keyparts is
+     always chosen.
+  2) A non nullable unique index with equality predicates on
+     all keyparts is preferred over a non-unique index,
+     nullable unique index or unique index where there are some
+     keyparts without equality predicates.
+  3) Otherwise, the index with best cost estimate is chosen.
+
+  As a side-effect, bound_keyparts/read_cost/fanout is set for the first
+  Key_use of every considered key.
+
   @param tab                        the table to be joined by the function
   @param remaining_tables           set of tables not included in the
                                     partial plan yet.
@@ -112,10 +125,14 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     Cost of using best_ref; used to determine if ref access on another
     index is cheaper. Calculated as follows:
 
-    (cost_ref_for_one_value + ROW_EVALUATE_COST * fanout_for_ref) *
+    (cost_ref_for_one_value + row_evaluate_cost(fanout_for_ref)) *
     prefix_rowcount
   */
   double best_ref_cost= DBL_MAX;
+
+  // Index type, note that code below relies on this element definition order 
+  enum idx_type {CLUSTERED_PK, UNIQUE, NOT_UNIQUE, FULLTEXT};
+  enum idx_type best_found_keytype= NOT_UNIQUE;
 
   TABLE *const table= tab->table;
   Opt_trace_context *const trace= &thd->opt_trace;
@@ -146,7 +163,6 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     table_map table_deps= 0;
     const uint key= keyuse->key;
     const KEY *const keyinfo= table->key_info + key;
-    const bool ft_key= (keyuse->keypart == FT_KEYPART);
     /*
       Bitmap of keyparts in this index that have a condition 
 
@@ -161,6 +177,9 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     Opt_trace_object trace_access_idx(trace);
     trace_access_idx.add_alnum("access_type", "ref").
       add_utf8("index", keyinfo->name);
+
+    enum idx_type cur_keytype= (keyuse->keypart == FT_KEYPART) ?
+      FULLTEXT : NOT_UNIQUE;
 
     // Calculate how many key segments of the current key we can use
     Key_use *const start_key= keyuse;
@@ -237,19 +256,52 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       distinct_keys_est= MATCHING_ROWS_IN_OTHER_TABLE;
 
     // fulltext indexes require special treatment
-    if (!ft_key)
+    if (cur_keytype != FULLTEXT)
     {
       *found_condition|= MY_TEST(found_part);
 
+      const bool all_key_parts_covered=
+         (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)));
+      /*
+        check for the current key type.
+        If we find a key with all the keyparts having equality predicates and
+        --> if it is a clustered primary key, current key type is set to
+            CLUSTERED_PK.
+        --> if it is non-nullable unique key, it is set as UNIQUE.
+        --> otherwise its a NOT_UNIQUE keytype.
+      */
+      if (all_key_parts_covered && (keyinfo->flags & HA_NOSAME))
+      {
+        if (key == table->s->primary_key &&
+            table->file->primary_key_is_clustered())
+          cur_keytype= CLUSTERED_PK;
+        else if ((keyinfo->flags & HA_NULL_PART_KEY) == 0)
+          cur_keytype= UNIQUE;
+      }
+
+      if (cur_keytype > best_found_keytype)
+      {
+        trace_access_idx.add("chosen", false).
+          add_alnum("cause", "heuristic_eqref_already_found");
+        if (unlikely(!test_all_ref_keys))
+          continue;
+        else
+        {
+          /*
+            key will be rejected further down, after we compute its
+            bound_keyparts/read_cost/fanout.
+          */
+        }
+      }
+
       // Check if we found full key
-      if (found_part == LOWER_BITS(key_part_map,
-                                   actual_key_parts(keyinfo)) &&
-          !ref_or_null_part)
-      {                                         /* use eq key */
+      if (all_key_parts_covered && !ref_or_null_part) /* use eq key */
+      {
         cur_used_keyparts= (uint) ~0;
         if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
         {
-          cur_read_cost= prev_record_reads(join, idx, table_deps);
+          cur_read_cost= prev_record_reads(join, idx, table_deps) *
+                         table->cost_model()->io_block_read_cost();
           cur_fanout= 1.0;
         }
         else
@@ -323,24 +375,26 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           if (table->covering_keys.is_set(key))
           {
             // We can use only index tree
-            cur_read_cost=
-              prefix_rowcount *
-              table->file->index_only_read_time(key, tmp_fanout);
+            const Cost_estimate index_read_cost=
+              table->file->index_scan_cost(key, 1, tmp_fanout);
+            cur_read_cost= prefix_rowcount * index_read_cost.total_cost();
           }
           else if (key == table->s->primary_key &&
                    table->file->primary_key_is_clustered())
           {
-            cur_read_cost= prefix_rowcount *
-              table->file->read_time(key, 1, (ha_rows)tmp_fanout);
+            const Cost_estimate table_read_cost=
+              table->file->read_cost(key, 1, tmp_fanout);
+            cur_read_cost= prefix_rowcount * table_read_cost.total_cost();
           }
           else
-            cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
+            cur_read_cost= prefix_rowcount *
+              table->cost_model()->io_block_read_cost(
+                min(tmp_fanout, tab->worst_seeks));
         }
       }
       else if ((found_part & 1) &&
                (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
-                found_part == LOWER_BITS(key_part_map,
-                                         actual_key_parts(keyinfo))))
+                all_key_parts_covered))
       {
         /*
           Use as many key-parts as possible and a uniqe key is better
@@ -508,18 +562,22 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
                        (double) thd->variables.max_seeks_for_key);
         if (table->covering_keys.is_set(key))
         {
-          // we can use only index tree
-          cur_read_cost= prefix_rowcount *
-            table->file->index_only_read_time(key, tmp_fanout);
+          // We can use only index tree
+          const Cost_estimate index_read_cost=
+            table->file->index_scan_cost(key, 1, tmp_fanout);
+          cur_read_cost= prefix_rowcount * index_read_cost.total_cost();
         }
         else if (key == table->s->primary_key &&
                  table->file->primary_key_is_clustered())
         {
-          cur_read_cost= prefix_rowcount *
-            table->file->read_time(key, 1, (ha_rows)tmp_fanout);
+          const Cost_estimate table_read_cost=
+            table->file->read_cost(key, 1, tmp_fanout);
+          cur_read_cost= prefix_rowcount * table_read_cost.total_cost();
         }
         else
-          cur_read_cost= prefix_rowcount * min(tmp_fanout, tab->worst_seeks);
+          cur_read_cost= prefix_rowcount *
+            table->cost_model()->io_block_read_cost(
+              min(tmp_fanout, tab->worst_seeks));
       }
       else
       {
@@ -532,8 +590,16 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     {
       // This is a full-text index
 
+      if (best_found_keytype < NOT_UNIQUE)
+      {
+        trace_access_idx.add("chosen", false).
+          add_alnum("cause", "heuristic_eqref_already_found");
+        // Ignore test_all_ref_keys, semijoin loosescan never uses fulltext
+        continue;
+      }
       // Actually it should be cur_fanout=0.0 (yes!) but 1.0 is probably safer
-      cur_read_cost= prev_record_reads(join, idx, table_deps);
+      cur_read_cost= prev_record_reads(join, idx, table_deps) *
+                     table->cost_model()->io_block_read_cost();
       cur_fanout= 1.0;
     }
 
@@ -541,18 +607,49 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     start_key->fanout= cur_fanout;
     start_key->read_cost= cur_read_cost;
 
-    const double cur_ref_cost=
-      cur_read_cost + prefix_rowcount * cur_fanout * ROW_EVALUATE_COST;
+    const double cur_ref_cost= cur_read_cost +
+      prefix_rowcount * join->cost_model()->row_evaluate_cost(cur_fanout);
     trace_access_idx.add("rows", cur_fanout).add("cost", cur_ref_cost);
-    if (cur_ref_cost < best_ref_cost)
+
+    /*
+      The current index usage is better than the best index usage found
+      so far if:
+
+       1) The access type for the best index and the current index is
+          FULLTEXT or REF, and the current index has a lower cost
+       2) The access type is the same for the best index and the
+          current index, and the current index has a lower cost
+          (ie, both indexes are UNIQUE)
+       3) The access type of the current index is better than
+          that of the best index (EQ_REF better than REF, Clustered PK
+          better than EQ_REF etc)
+    */
+    bool new_candidate= false;
+
+    if (best_found_keytype >= NOT_UNIQUE && cur_keytype >= NOT_UNIQUE)
+      new_candidate= cur_ref_cost < best_ref_cost;      // 1
+    else if (best_found_keytype == cur_keytype)
+      new_candidate= cur_ref_cost < best_ref_cost;      // 2
+    else if (best_found_keytype > cur_keytype)
+      new_candidate= true;                              // 3
+
+    if (new_candidate)
     {
       *ref_depend_map= table_deps;
       *used_key_parts= cur_used_keyparts;
       best_ref= start_key;
       best_ref_cost= cur_ref_cost;
+      best_found_keytype= cur_keytype;
     }
 
     trace_access_idx.add("chosen", best_ref == start_key);
+
+    if (best_found_keytype == CLUSTERED_PK)
+    {
+      trace_access_idx.add_alnum("cause", "clustered_pk_chosen_by_heuristics");
+      if (unlikely(!test_all_ref_keys))
+        break;
+    }
   } // for each key
 
   return best_ref;
@@ -563,10 +660,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
   Calculate the cost of range/table/index scanning table 'tab'.
 
   Returns a hybrid scan cost number: the cost of fetching rows from
-  the storage engine pluss CPU cost during execution
-  (ROW_EVALUATE_COST) for the rows (estimate) that will be filtered
-  out by predicates relevant to the table. The cost does not include
-  the CPU cost during execution for rows that are not filtered out.
+  the storage engine plus CPU cost during execution for evaluating the
+  rows (estimate) that will be filtered out by predicates relevant to
+  the table. The cost does not include the CPU cost during execution
+  for rows that are not filtered out.
 
   This hybrid cost is needed because if join buffering is used to
   reduce the number of scans, then the final cost depends on how many
@@ -604,6 +701,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
 {
   double scan_and_filter_cost;
   TABLE *const table= tab->table;
+  const Cost_model_server *const cost_model= join->cost_model();
   ha_rows rows_after_filtering= tab->found_records;
   /*
     If there is a filtering condition on the table (i.e. ref analyzer found
@@ -643,16 +741,20 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
     */
     scan_and_filter_cost= prefix_rowcount *
       (tab->quick->read_time +
-       (tab->found_records - rows_after_filtering) * ROW_EVALUATE_COST);
+       cost_model->row_evaluate_cost(tab->found_records -
+                                     rows_after_filtering));
   }
   else
   {
     trace_access_scan->add_alnum("access_type", "scan");
 
     // Cost of scanning the table once
-    const double single_scan_read_cost= (table->force_index && !best_ref) ?
-      table->file->read_time(tab->ref.key, 1, tab->records) : // index scan
-      table->file->scan_time();                               // table scan
+    Cost_estimate scan_cost;
+    if (table->force_index && !best_ref)                        // index scan
+      scan_cost= table->file->read_cost(tab->ref.key, 1, tab->records);
+    else
+      scan_cost= table->file->table_scan_cost();                // table scan
+    const double single_scan_read_cost= scan_cost.total_cost();
 
     /* Estimate total cost of reading table. */
     if (disable_jbuf)
@@ -667,23 +769,37 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
         greedy_search().
       */
       scan_and_filter_cost= prefix_rowcount *
-        (single_scan_read_cost + 
-         (tab->records - rows_after_filtering) * ROW_EVALUATE_COST);
+        (single_scan_read_cost +
+         cost_model->row_evaluate_cost(tab->records - rows_after_filtering));
     }
     else
     {
       /*
-        We read the table as many times as join buffer becomes full.
-        It would be more exact to round the result of the division with
-        floor(), but that takes 5% of time in a 20-table query plan search.
+        IO cost: We read the table as many times as join buffer
+        becomes full. (It would be more exact to round the result of
+        the division with floor(), but that takes 5% of time in a
+        20-table query plan search.)
+
+        CPU cost: For every full join buffer, attached conditions are
+        evaluated for each row in the scanned table. We assume that
+        the conditions evaluate to 'true' for 'rows_after_filtering'
+        number of rows. The rows that pass are then joined with the
+        prefix rows.
+
+        The CPU cost for the rows that do NOT satisfy the attached
+        conditions is considered to be part of the read cost and is
+        added below. The cost of joining the rows that DO satisfy the
+        attached conditions with all prefix rows is added in
+        greedy_search().
       */
       const double buffer_count=
         1.0 + ((double) cache_record_length(join,idx) *
                prefix_rowcount /
                (double) thd->variables.join_buff_size);
 
-      scan_and_filter_cost= buffer_count * single_scan_read_cost +
-         (tab->records - rows_after_filtering) * ROW_EVALUATE_COST;
+      scan_and_filter_cost= buffer_count *
+        (single_scan_read_cost +
+         cost_model->row_evaluate_cost(tab->records - rows_after_filtering));
 
       trace_access_scan->add("using_join_cache", true);
       trace_access_scan->add("buffers_needed", (ulong)buffer_count);
@@ -728,6 +844,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   bool best_uses_jbuf=  false;
   Opt_trace_context * const trace= &thd->opt_trace;
   TABLE *const table= tab->table;
+  const Cost_model_server *const cost_model= join->cost_model();
 
   thd->status_var.last_query_partial_plans++;
 
@@ -814,7 +931,8 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   {
     // "scan" means (full) index scan or (full) table scan.
     trace_access_scan.add_alnum("access_type", tab->quick ? "range" : "scan").
-      add("cost", tab->read_time + tab->found_records * ROW_EVALUATE_COST).
+      add("cost", tab->read_time +
+          cost_model->row_evaluate_cost(tab->found_records)).
       add("rows", tab->found_records).
       add("chosen", false).
       add_alnum("cause", "cost");
@@ -862,19 +980,19 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
 
     /*
       We estimate the cost of evaluating WHERE clause for found
-      records as prefix_rowcount * scan_fanout * ROW_EVALUATE_COST.
-      This cost plus scan_cost gives us total cost of
-      using TABLE/INDEX/RANGE SCAN
+      records as row_evaluate_cost(prefix_rowcount * scan_fanout).
+      This cost plus scan_cost gives us total cost of using
+      TABLE/INDEX/RANGE SCAN.
     */
-    const double scan_total_cost=
-      scan_read_cost + (prefix_rowcount * scan_fanout * ROW_EVALUATE_COST);
+    const double scan_total_cost= scan_read_cost +
+      cost_model->row_evaluate_cost(prefix_rowcount * scan_fanout);
 
     trace_access_scan.add("rows", rows2double(scan_fanout));
     trace_access_scan.add("cost", scan_total_cost);
 
     if (best_ref == NULL ||
-        (scan_total_cost < best_read_cost + (prefix_rowcount *
-                                             fanout * ROW_EVALUATE_COST)))
+        (scan_total_cost < best_read_cost +
+         cost_model->row_evaluate_cost(prefix_rowcount * fanout)))
     {
       /*
         If the table has a range (tab->quick is set) make_join_select()
@@ -1220,7 +1338,8 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
       double rowcount= rows2double(tab->table->file->stats.records);
 
       // The cost is entire index scan cost
-      double cost= tab->table->file->index_only_read_time(key, rowcount);
+      const double cost=
+        tab->table->file->index_scan_cost(key, 1, rowcount).total_cost();
 
       /*
         Now find out how many different keys we will get (for now we
@@ -1307,7 +1426,7 @@ bool Optimize_table_order::choose_table_order()
     DBUG_RETURN(false);
   }
 
-  reset_nj_counters(join->join_list);
+  join->select_lex->reset_nj_counters();
 
   const bool straight_join= MY_TEST(join->select_options & SELECT_STRAIGHT_JOIN);
   table_map join_tables;      ///< The tables involved in order selection
@@ -1449,6 +1568,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
   uint idx= join->const_tables;
   double    record_count= 1.0;
   double    read_time=    0.0;
+  const Cost_model_server *const cost_model= join->cost_model();
 
   // resolve_subquery() disables semijoin if STRAIGHT_JOIN
   DBUG_ASSERT(join->select_lex->sj_nests.is_empty());
@@ -1464,7 +1584,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
       trace_table.add_utf8_table(s->table);
     }
     /*
-      Dependency computation (make_join_statistics()) and proper ordering
+      Dependency computation (JOIN::make_join_plan()) and proper ordering
       based on them (join_tab_cmp*) guarantee that this order is compatible
       with execution, check it:
     */
@@ -1475,7 +1595,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     /* compute the cost of the new plan extended with 's' */
     record_count*= position->fanout;
     read_time+=    position->read_cost;
-    read_time+=    record_count * ROW_EVALUATE_COST;
+    read_time+=    cost_model->row_evaluate_cost(record_count);
     position->set_prefix_costs(read_time, record_count);
     position->no_semijoin(); // advance_sj_state() is not needed
 
@@ -1662,6 +1782,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
   uint      best_idx;
   POSITION  best_pos;
   JOIN_TAB  *best_table; // the next plan node to be added to the curr QEP
+  const Cost_model_server *const cost_model= join->cost_model();
   DBUG_ENTER("Optimize_table_order::greedy_search");
 
   /* Number of tables that we are optimizing */
@@ -1739,8 +1860,8 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
 
     /* compute the cost of the new plan extended with 'best_table' */
     record_count*= join->positions[idx].fanout;
-    read_time+=    join->positions[idx].read_cost
-                   + record_count * ROW_EVALUATE_COST;
+    read_time+= join->positions[idx].read_cost +
+                cost_model->row_evaluate_cost(record_count);
 
     remaining_tables&= ~(best_table->table->map);
     --size_remain;
@@ -1778,6 +1899,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
 void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
                            double *record_count_arg)
 {
+  const Cost_model_server *const cost_model= join->cost_model();
   double record_count= 1;
   double read_time= 0.0;
   for (uint i= join->const_tables; i < n_tables + join->const_tables ; i++)
@@ -1785,8 +1907,8 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
     if (join->best_positions[i].fanout)
     {
       record_count*= join->best_positions[i].fanout;
-      read_time+= join->best_positions[i].read_cost
-                   + record_count * ROW_EVALUATE_COST;
+      read_time+= join->best_positions[i].read_cost +
+                  cost_model->row_evaluate_cost(record_count);
     }
   }
   *read_time_arg= read_time;
@@ -1990,6 +2112,8 @@ bool Optimize_table_order::best_extension_by_limited_search(
   DBUG_EXECUTE_IF("bug13820776_2", thd->killed= THD::KILL_QUERY;);
   if (thd->killed)  // Abort
     DBUG_RETURN(true);
+
+  const Cost_model_server *const cost_model= join->cost_model();
   Opt_trace_context * const trace= &thd->opt_trace;
 
   /* 
@@ -2055,9 +2179,9 @@ bool Optimize_table_order::best_extension_by_limited_search(
 
       /* Compute the cost of extending the plan with 's' */
       current_record_count= record_count * position->fanout;
-      current_read_time=    read_time
-                            + position->read_cost
-                            + current_record_count * ROW_EVALUATE_COST;
+      current_read_time= read_time +
+                         position->read_cost +
+                         cost_model->row_evaluate_cost(current_record_count);
       position->set_prefix_costs(current_read_time, current_record_count);
 
       trace_one_table.add("cost_for_plan", current_read_time).
@@ -2412,10 +2536,11 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
         double current_record_count, current_read_time;
 
         /* Add the cost of extending the plan with 's' */
+        const Cost_model_server *const cost_model= join->cost_model();
         current_record_count= record_count * position->fanout;
-        current_read_time=    read_time
-                              + position->read_cost
-                              + current_record_count * ROW_EVALUATE_COST;
+        current_read_time= read_time +
+                           position->read_cost +
+                           cost_model->row_evaluate_cost(current_record_count);
         position->set_prefix_costs(current_read_time, current_record_count);
 
         trace_one_table.add("cost_for_plan", current_read_time).
@@ -2880,7 +3005,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
     */
     return true;
   }
-  const TABLE_LIST *next_emb= tab->table->pos_in_table_list->embedding;
+  TABLE_LIST *next_emb= tab->table->pos_in_table_list->embedding;
   /*
     Do update counters for "pairs of brackets" that we've left (marked as
     X,Y,Z in the above picture)
@@ -2888,7 +3013,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
   for (; next_emb != emb_sjm_nest; next_emb= next_emb->embedding)
   {
     // Ignore join nests that are not outer joins.
-    if (!next_emb->join_cond())
+    if (!next_emb->optim_join_cond())
       continue;
 
     next_emb->nested_join->nj_counter++;
@@ -2961,6 +3086,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   double rowcount;           // Rowcount of join prefix (ie before first_tab).
   double outer_fanout= 1.0;  // Fanout contributed by outer tables in range.
   double inner_fanout= 1.0;  // Fanout contributed by inner tables in range.
+  const Cost_model_server *const cost_model= join->cost_model();
   Opt_trace_context *const trace= &thd->opt_trace;
   Opt_trace_object recalculate(trace, "recalculate_access_paths_and_cost");
   Opt_trace_array trace_tables(trace, "tables");
@@ -3011,19 +3137,28 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     POSITION *pos;        // Position for later calculations
     /*
       We always need a new calculation for the first inner table in
-      the LooseScan strategy. Notice the use of loose_scan_pos.
+      the LooseScan strategy.
     */
-    if ((i == first_tab && loosescan) || positions[i].use_join_buffer)
+    const bool is_ls_driving_tab= (i == first_tab) && loosescan;
+    if (is_ls_driving_tab || positions[i].use_join_buffer)
     {
       Opt_trace_object trace_one_table(trace);
       trace_one_table.add_utf8_table(tab->table);
 
-      // Find the best access method with specified join buffering strategy.
-      best_access_path(tab, remaining_tables, i, 
-                       i < no_jbuf_before,
+      /*
+        Find the best access method with specified join buffering strategy.
+        If this is a loosescan driving table,
+        semijoin_loosescan_fill_driving_table_position will consider all keys,
+        so best_access_path() should fill bound_keyparts/read_cost/fanout for
+        all keys => test_all_ref_keys==true.
+       */
+      DBUG_ASSERT(!test_all_ref_keys);
+      test_all_ref_keys= is_ls_driving_tab;
+      best_access_path(tab, remaining_tables, i, i < no_jbuf_before,
                        rowcount * inner_fanout * outer_fanout,
                        dst_pos);
-      if (i == first_tab && loosescan)  // Use loose scan position
+      test_all_ref_keys= false;
+      if (is_ls_driving_tab)  // Use loose scan position
       {
         if (semijoin_loosescan_fill_driving_table_position(tab,
                                                            remaining_tables,
@@ -3032,7 +3167,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
           dst_pos->table= tab;
           const double rows= rowcount * dst_pos->fanout;
           dst_pos->set_prefix_costs(cost + dst_pos->read_cost +
-                                    rows * ROW_EVALUATE_COST,
+                                    cost_model->row_evaluate_cost(rows),
                                     rows);
         }
         else
@@ -3064,7 +3199,8 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
       outer_fanout*= pos->fanout;
 
     cost+= pos->read_cost +
-           rowcount * inner_fanout * outer_fanout * ROW_EVALUATE_COST;
+           cost_model->row_evaluate_cost(rowcount * inner_fanout *
+                                         outer_fanout);
   }
 
   *newcount= rowcount * outer_fanout;
@@ -3104,6 +3240,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
 {
   DBUG_ENTER("Optimize_table_order::semijoin_mat_scan_access_paths");
 
+  const Cost_model_server *const cost_model= join->cost_model();
   Opt_trace_context *const trace= &thd->opt_trace;
   Opt_trace_object recalculate(trace, "recalculate_access_paths_and_cost");
   Opt_trace_array trace_tables(trace, "tables");
@@ -3153,7 +3290,8 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
     remaining_tables&= ~tab->table->map;
     outer_fanout*= dst_pos->fanout;
     cost+= dst_pos->read_cost +
-           rowcount * inner_fanout * outer_fanout * ROW_EVALUATE_COST;
+           cost_model->row_evaluate_cost(rowcount * inner_fanout *
+                                         outer_fanout);
   }
 
   *newcount= rowcount * outer_fanout;
@@ -3243,6 +3381,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
 {
   DBUG_ENTER("Optimize_table_order::semijoin_dupsweedout_access_paths");
 
+  const Cost_model_server *const cost_model= join->cost_model();
   double cost, rowcount;
   double inner_fanout= 1.0;
   double outer_fanout= 1.0;
@@ -3294,7 +3433,8 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
       rowsize+= p->table->table->file->ref_length;
     }
     cost+= p->read_cost +
-           rowcount * inner_fanout * outer_fanout * ROW_EVALUATE_COST;
+           cost_model->row_evaluate_cost(rowcount * inner_fanout *
+                                         outer_fanout);
   }
 
   /*
@@ -3303,22 +3443,18 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
     and we will make 
     - rowcount * outer_fanout writes
     - rowcount * inner_fanout * outer_fanout lookups.
-    We assume here that a lookup and a write has the same cost.
   */
-  double one_lookup_cost, create_cost;
-  if (outer_fanout * rowsize > thd->variables.max_heap_table_size)
-  {
-    one_lookup_cost= DISK_TEMPTABLE_ROW_COST;
-    create_cost=     DISK_TEMPTABLE_CREATE_COST;
-  }
+  Cost_model_server::enum_tmptable_type tmp_table_type;
+  if (outer_fanout * rowsize < thd->variables.max_heap_table_size)
+    tmp_table_type= Cost_model_server::MEMORY_TMPTABLE;
   else
-  {
-    one_lookup_cost= HEAP_TEMPTABLE_ROW_COST;
-    create_cost=     HEAP_TEMPTABLE_CREATE_COST;
-  }
-  const double write_cost= rowcount * outer_fanout * one_lookup_cost;
-  const double full_lookup_cost= write_cost * inner_fanout;
-  cost+= create_cost + write_cost + full_lookup_cost;
+    tmp_table_type= Cost_model_server::DISK_TMPTABLE;
+
+  cost+= cost_model->tmptable_create_cost(tmp_table_type);
+  cost+=
+    cost_model->tmptable_readwrite_cost(tmp_table_type,
+                                        rowcount * outer_fanout,
+                                        rowcount * inner_fanout * outer_fanout);
 
   *newcount= rowcount * outer_fanout;
   *newcost=  cost;
@@ -3914,7 +4050,7 @@ void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
   for (; last_emb != emb_sjm_nest; last_emb= last_emb->embedding)
   {
     // Ignore join nests that are not outer joins.
-    if (!last_emb->join_cond())
+    if (!last_emb->optim_join_cond())
       continue;
 
     NESTED_JOIN *const nest= last_emb->nested_join;

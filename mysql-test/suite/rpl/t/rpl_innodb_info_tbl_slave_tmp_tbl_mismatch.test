@@ -1,0 +1,85 @@
+#
+# === Bug#18236612: I_S.INNODB_TEMP_TABLE_INFO AND SLAVE_OPEN_TEMP_TABLES SHOWS DIFFERENT RESULTS ===
+#
+#
+# ==== Problem with the bug ====
+#
+# With gtid-mode=on, STOP SLAVE followed by START SLAVE results in a mismatch
+# between I_S.INNODB_TEMP_TABLE_INFO AND SLAVE_OPEN_TEMP_TABLES. The innodb
+# table shows that no such table exists but the slave_open_temp_variable is
+# non-zero. This problem was not seen with gtid-mode=off
+#
+
+# No need to test RBR Since we dont replicate temp tables at slave with RBR
+--source include/have_binlog_format_statement.inc
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+CREATE TEMPORARY TABLE TEMP1 (a int);
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # Verify that the innodb table and slave_open_temp_table both indicate
+--echo # that there is an open temp table at slave.
+--echo
+
+--connection slave
+--let $innodb_tbl_value= `SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
+--let $var_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
+
+--let $assert_text= Both INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should show a temp table exists.
+--let $assert_cond= $innodb_tbl_value = $var_value AND $innodb_tbl_value = 1
+--source include/assert.inc
+
+--echo
+--echo # Verify that after STOP SLAVE the innodb table and slave_open_temp_table
+--echo # both indicate that there is an open temp table at slave.
+--echo
+
+--source include/stop_slave.inc
+--let $innodb_tbl_value= `SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
+--let $var_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
+
+--let $assert_text= Both INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should show a temp table exists.
+--let $assert_cond= $innodb_tbl_value = $var_value AND $innodb_tbl_value = 1
+--source include/assert.inc
+
+--echo
+--echo # Verify that after CHANGE MASTER the innodb table and slave_open_temp_table
+--echo # both indicate that there is an open temp table at slave.
+--echo
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT;
+
+--let $innodb_tbl_value= `SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
+--let $var_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
+
+--let $assert_text= Both INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should show a temp table exists.
+--let $assert_cond= $innodb_tbl_value = $var_value AND $innodb_tbl_value = 1
+--source include/assert.inc
+
+--source include/start_slave.inc
+
+--echo
+--echo # This is where the mismatch was found in the bug.
+--echo # Verify that the bug is fixed and hence we have equal values here.
+--echo
+
+# Apparently there is another bug here due to which temporary tables are sometimes
+# open and sometimes closed at this point. So we dont assert for the the number
+# of temp table itself.
+
+--let $innodb_tbl_value= `SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
+--let $var_value= `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME= 'SLAVE_OPEN_TEMP_TABLES'`
+
+--let $assert_text= count(*) from INNODB_TEMP_TABLE_INFO and SLAVE_OPEN_TEMP_TABLES should match.
+--let $assert_cond= $innodb_tbl_value = $var_value
+--source include/assert.inc
+
+# If the temp table still exists, mtr end state check will complain of
+# slave_open_temp_tables= 1.
+--connection master
+DROP TEMPORARY TABLE IF EXISTS TEMP1;
+
+--source include/rpl_end.inc

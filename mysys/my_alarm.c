@@ -1,4 +1,5 @@
 /* Copyright (C) 2000 MySQL AB
+   Use is subject to license terms
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@
 #ifdef HAVE_ALARM
 
 	/* ARGSUSED */
-sig_handler my_set_alarm_variable(int signo __attribute__((unused)))
+void my_set_alarm_variable(int signo __attribute__((unused)))
 {
   my_have_got_alarm=1;			/* Tell program that time expired */
   return;

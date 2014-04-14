@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
-ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first
 include/stop_slave.inc
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';

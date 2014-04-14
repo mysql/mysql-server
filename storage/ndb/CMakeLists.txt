@@ -1,4 +1,5 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.  #
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -53,10 +54,10 @@ NDB_CHECK_MYSQL_CLUSTER(${VERSION})
 # Temporarily remove -Werror from compiler flags until
 # storage/ndb/ can be built with it
 IF(CMAKE_C_FLAGS)
-  STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 ENDIF()
 IF(CMAKE_CXX_FLAGS)
-  STRING(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 ENDIF()
 
 # Disable specific types of warnings for storage/ndb
@@ -68,7 +69,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
     IF(HAVE_${WARNING})
-      MESSAGE(STATUS "Disabling -W${warning} warning")
+      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
       SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
     ENDIF()

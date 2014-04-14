@@ -10,6 +10,7 @@ a	b
 12	1
 22	2
 32	3
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a	b
 12	1
@@ -27,6 +28,7 @@ a	b
 3	3
 22	5
 32	6
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a	b
 1	1
@@ -63,6 +65,7 @@ a
 400
 410
 1000
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a
 5
@@ -97,6 +100,7 @@ a
 400
 410
 1000
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a
 5
@@ -142,6 +146,7 @@ a
 600
 610
 611
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a
 1
@@ -159,6 +164,7 @@ a
 drop table t1;
 set @@session.auto_increment_increment=10, @@session.auto_increment_offset=1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+include/sync_slave_sql_with_master.inc
 insert into t1 values(2),(12),(22),(32),(42);
 insert into t1 values (NULL),(NULL);
 insert into t1 values (3),(NULL),(NULL);
@@ -169,6 +175,7 @@ a
 11
 21
 31
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a
 1
@@ -214,6 +221,7 @@ Warning	1264	Out of range value for column 'a' at row 1
 select * from t3 order by a;
 a
 127
+include/sync_slave_sql_with_master.inc
 select * from t1 order by a;
 a
 103
@@ -226,6 +234,7 @@ select * from t3 order by a;
 a
 127
 drop table t1,t2,t3;
+include/sync_slave_sql_with_master.inc
 set auto_increment_increment=1;
 set auto_increment_offset=1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
@@ -236,6 +245,7 @@ t1	CREATE TABLE `t1` (
   `id` mediumint(9) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+include/sync_slave_sql_with_master.inc
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -297,21 +307,25 @@ id
 INSERT INTO t1 VALUES(4);
 INSERT INTO t2 VALUES(4);
 FLUSH LOGS;
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
 DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
 RESET MASTER;
 FLUSH LOGS;
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_MODE='';
+include/sync_slave_sql_with_master.inc
 CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
 BEGIN;
 # Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
@@ -325,12 +339,15 @@ COMMIT;
 SELECT * FROM t1;
 id	data
 0	2
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 id	data
 0	2
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 create table t1(a int auto_increment primary key) engine=innodb;
 insert into t1 values (null),(null),(1025),(null);
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a
 1
@@ -339,4 +356,5 @@ a
 1026
 include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,7 +126,7 @@ void Item_row::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
 void Item_row::update_used_tables()
 {
   used_tables_cache= 0;
-  const_item_cache= 1;
+  const_item_cache= true;
   with_subselect= false;
   with_stored_program= false;
   for (uint i= 0; i < arg_count; i++)
@@ -143,11 +143,13 @@ void Item_row::fix_after_pullout(st_select_lex *parent_select,
                                  st_select_lex *removed_select)
 {
   used_tables_cache= 0;
-  const_item_cache= 1;
+  not_null_tables_cache= 0;
+  const_item_cache= true;
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->fix_after_pullout(parent_select, removed_select);
     used_tables_cache|= items[i]->used_tables();
+    not_null_tables_cache|= items[i]->not_null_tables();
     const_item_cache&= items[i]->const_item();
   }
 }
@@ -175,14 +177,17 @@ void Item_row::print(String *str, enum_query_type query_type)
 }
 
 
-bool Item_row::walk(Item_processor processor, bool walk_subquery, uchar *arg)
+bool Item_row::walk(Item_processor processor, enum_walk walk, uchar *arg)
 {
+  if ((walk & WALK_PREFIX) && (this->*processor)(arg))
+    return true;
+
   for (uint i= 0; i < arg_count; i++)
   {
-    if (items[i]->walk(processor, walk_subquery, arg))
-      return 1;
+    if (items[i]->walk(processor, walk, arg))
+      return true;
   }
-  return (this->*processor)(arg);
+  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
 }
 
 

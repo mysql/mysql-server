@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -123,16 +123,16 @@ int init_user(const PFS_global_param *param)
 
   for (index= 0; index < user_max; index++)
   {
-    user_array[index].m_instr_class_waits_stats=
-      &user_instr_class_waits_array[index * wait_class_max];
-    user_array[index].m_instr_class_stages_stats=
-      &user_instr_class_stages_array[index * stage_class_max];
-    user_array[index].m_instr_class_statements_stats=
-      &user_instr_class_statements_array[index * statement_class_max];
-    user_array[index].m_instr_class_transactions_stats=
-      &user_instr_class_transactions_array[index * transaction_class_max];
-    user_array[index].m_instr_class_memory_stats=
-      &user_instr_class_memory_array[index * memory_class_max];
+    user_array[index].set_instr_class_waits_stats(
+      &user_instr_class_waits_array[index * wait_class_max]);
+    user_array[index].set_instr_class_stages_stats(
+      &user_instr_class_stages_array[index * stage_class_max]);
+    user_array[index].set_instr_class_statements_stats(
+      &user_instr_class_statements_array[index * statement_class_max]);
+    user_array[index].set_instr_class_transactions_stats(
+      &user_instr_class_transactions_array[index * transaction_class_max]);
+    user_array[index].set_instr_class_memory_stats(
+      &user_instr_class_memory_array[index * memory_class_max]);
   }
 
   return 0;
@@ -248,6 +248,7 @@ find_or_create_user(PFS_thread *thread,
   const uint retry_max= 3;
   uint index;
   uint attempts= 0;
+  pfs_dirty_state dirty_state;
 
 search:
   entry= reinterpret_cast<PFS_user**>
@@ -274,44 +275,41 @@ search:
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % user_max;
     pfs= user_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      pfs->m_key= key;
+      if (username_length > 0)
+        pfs->m_username= &pfs->m_key.m_hash_key[0];
+      else
+        pfs->m_username= NULL;
+      pfs->m_username_length= username_length;
+
+      pfs->init_refcount();
+      pfs->reset_stats();
+      pfs->m_disconnected_count= 0;
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&user_hash, pins, &pfs);
+      if (likely(res == 0))
       {
-        pfs->m_key= key;
-        if (username_length > 0)
-          pfs->m_username= &pfs->m_key.m_hash_key[0];
-        else
-          pfs->m_username= NULL;
-        pfs->m_username_length= username_length;
-
-        pfs->init_refcount();
-        pfs->reset_stats();
-        pfs->m_disconnected_count= 0;
-
-        int res;
-        pfs->m_lock.dirty_to_allocated();
-        res= lf_hash_insert(&user_hash, pins, &pfs);
-        if (likely(res == 0))
-        {
-          return pfs;
-        }
-
-        pfs->m_lock.allocated_to_free();
-
-        if (res > 0)
-        {
-          if (++retry_count > retry_max)
-          {
-            user_lost++;
-            return NULL;
-          }
-          goto search;
-        }
-
-        user_lost++;
-        return NULL;
+        return pfs;
       }
+
+      pfs->m_lock.allocated_to_free();
+
+      if (res > 0)
+      {
+        if (++retry_count > retry_max)
+        {
+          user_lost++;
+          return NULL;
+        }
+        goto search;
+      }
+
+      user_lost++;
+      return NULL;
     }
   }
 
@@ -373,10 +371,12 @@ void PFS_user::release()
 
 void PFS_user::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 {
+  PFS_memory_stat *event_name_array;
   PFS_memory_stat *stat;
   PFS_memory_stat_delta delta_buffer;
 
-  stat= & m_instr_class_memory_stats[index];
+  event_name_array= write_instr_class_memory_stats();
+  stat= & event_name_array[index];
   (void) stat->apply_delta(delta, &delta_buffer);
 }
 

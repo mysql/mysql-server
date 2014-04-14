@@ -15,7 +15,7 @@
 
 #include "vio_priv.h"
 
-#if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY)
 
 size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size)
 {
@@ -222,5 +222,5 @@ int vio_shutdown_shared_memory(Vio * vio)
   DBUG_RETURN(0);
 }
 
-#endif /* #if defined(_WIN32) && defined(!EMBEDDED_LIBRARY) */
+#endif /* #if !defined(!EMBEDDED_LIBRARY) */
 

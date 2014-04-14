@@ -23,7 +23,7 @@
 
 NAMED_ILIST key_caches;
 
-uchar* find_named(I_List<NAMED_ILINK> *list, const char *name, uint length,
+uchar* find_named(I_List<NAMED_ILINK> *list, const char *name, size_t length,
                 NAMED_ILINK **found)
 {
   I_List_iterator<NAMED_ILINK> it(*list);
@@ -68,11 +68,11 @@ KEY_CACHE *get_key_cache(LEX_STRING *cache_name)
                                   cache_name->str, cache_name->length, 0));
 }
 
-KEY_CACHE *create_key_cache(const char *name, uint length)
+KEY_CACHE *create_key_cache(const char *name, size_t length)
 {
   KEY_CACHE *key_cache;
   DBUG_ENTER("create_key_cache");
-  DBUG_PRINT("enter",("name: %.*s", length, name));
+  DBUG_PRINT("enter",("name: %.*s", static_cast<int>(length), name));
   
   if ((key_cache= (KEY_CACHE*) my_malloc(key_memory_KEY_CACHE,
                                          sizeof(KEY_CACHE),
@@ -100,7 +100,7 @@ KEY_CACHE *create_key_cache(const char *name, uint length)
 }
 
 
-KEY_CACHE *get_or_create_key_cache(const char *name, uint length)
+KEY_CACHE *get_or_create_key_cache(const char *name, size_t length)
 {
   LEX_STRING key_cache_name;
   KEY_CACHE *key_cache;

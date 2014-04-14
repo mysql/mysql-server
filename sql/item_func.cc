@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -260,19 +260,18 @@ void Item_func::fix_after_pullout(st_select_lex *parent_select,
 }
 
 
-bool Item_func::walk(Item_processor processor, bool walk_subquery,
-                     uchar *argument)
+bool Item_func::walk(Item_processor processor, enum_walk walk, uchar *argument)
 {
-  if (arg_count)
+  if ((walk & WALK_PREFIX) && (this->*processor)(argument))
+    return true;
+
+  Item **arg, **arg_end;
+  for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
   {
-    Item **arg,**arg_end;
-    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
-    {
-      if ((*arg)->walk(processor, walk_subquery, argument))
-	return 1;
-    }
+    if ((*arg)->walk(processor, walk, argument))
+      return true;
   }
-  return (this->*processor)(argument);
+  return (walk & WALK_POSTFIX) && (this->*processor)(argument);
 }
 
 void Item_func::traverse_cond(Cond_traverser traverser,
@@ -632,25 +631,27 @@ void Item_func::count_datetime_length(Item **item, uint nitems)
   Set max_length/decimals of function if function is fixed point and
   result length/precision depends on argument ones.
 
+  @param item    Argument array.
+  @param nitems  Number of arguments in the array.
+
   This function doesn't set unsigned_flag. Call agg_result_type()
   first to do that.
 */
 
-void Item_func::count_decimal_length()
+void Item_func::count_decimal_length(Item **item, uint nitems)
 {
   int max_int_part= 0;
   decimals= 0;
-  for (uint i=0 ; i < arg_count ; i++)
+  for (uint i=0 ; i < nitems ; i++)
   {
-    set_if_bigger(decimals, args[i]->decimals);
-    set_if_bigger(max_int_part, args[i]->decimal_int_part());
+    set_if_bigger(decimals, item[i]->decimals);
+    set_if_bigger(max_int_part, item[i]->decimal_int_part());
   }
   int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
   fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
                                                                decimals,
                                                                unsigned_flag));
 }
-
 
 /**
   Set char_length to the maximum number of characters required by any
@@ -668,25 +669,27 @@ void Item_func::count_only_length(Item **item, uint nitems)
   fix_char_length(char_length);
 }
 
-
 /**
   Set max_length/decimals of function if function is floating point and
   result length/precision depends on argument ones.
+
+  @param item    Argument array.
+  @param nitems  Number of arguments in the array.
 */
 
-void Item_func::count_real_length()
+void Item_func::count_real_length(Item **item, uint nitems)
 {
   uint32 length= 0;
   decimals= 0;
   max_length= 0;
-  for (uint i=0 ; i < arg_count ; i++)
+  for (uint i=0 ; i < nitems; i++)
   {
     if (decimals != NOT_FIXED_DEC)
     {
-      set_if_bigger(decimals, args[i]->decimals);
-      set_if_bigger(length, (args[i]->max_length - args[i]->decimals));
+      set_if_bigger(decimals, item[i]->decimals);
+      set_if_bigger(length, (item[i]->max_length - item[i]->decimals));
     }
-    set_if_bigger(max_length, args[i]->max_length);
+    set_if_bigger(max_length, item[i]->max_length);
   }
   if (decimals != NOT_FIXED_DEC)
   {
@@ -698,7 +701,6 @@ void Item_func::count_real_length()
       max_length= length;
   }
 }
-
 
 /**
   Calculate max_length and decimals for STRING_RESULT functions.
@@ -728,10 +730,20 @@ bool Item_func::count_string_result_length(enum_field_types field_type,
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
-  if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+  if (thd->is_strict_mode())
     push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
                  ER(ER_DIVISION_BY_ZERO));
   null_value= 1;
+}
+
+
+void Item_func::signal_invalid_argument_for_log()
+{
+  THD *thd= current_thd;
+  push_warning(thd, Sql_condition::SL_WARNING,
+               ER_INVALID_ARGUMENT_FOR_LOGARITHM,
+               ER(ER_INVALID_ARGUMENT_FOR_LOGARITHM));
+  null_value= TRUE;
 }
 
 
@@ -800,7 +812,7 @@ void Item_num_op::find_num_type(void)
       type codes, we should never get to here when both fields are temporal.
     */
     DBUG_ASSERT(!args[0]->is_temporal() || !args[1]->is_temporal());
-    count_real_length();
+    count_real_length(args, arg_count);
     max_length= float_length(decimals);
     hybrid_type= REAL_RESULT;
   }
@@ -1063,7 +1075,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
 }
 
 
-bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   switch (field_type())
@@ -2052,11 +2064,12 @@ double Item_func_ln::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log(value);
 }
+
 
 /** 
   Extended but so slower LOG function.
@@ -2072,7 +2085,7 @@ double Item_func_log::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   if (arg_count == 2)
@@ -2082,7 +2095,7 @@ double Item_func_log::val_real()
       return 0.0;
     if (value2 <= 0.0 || value == 1.0)
     {
-      signal_divide_by_null();
+      signal_invalid_argument_for_log();
       return 0.0;
     }
     return log(value2) / log(value);
@@ -2099,7 +2112,7 @@ double Item_func_log2::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log(value) / M_LN2;
@@ -2113,7 +2126,7 @@ double Item_func_log10::val_real()
     return 0.0;
   if (value <= 0.0)
   {
-    signal_divide_by_null();
+    signal_invalid_argument_for_log();
     return 0.0;
   }
   return log10(value);
@@ -2939,7 +2952,7 @@ String *Item_func_min_max::val_str(String *str)
 }
 
 
-bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_func_min_max::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   if (compare_as_dates)
@@ -6231,6 +6244,12 @@ void Item_func_match::init_search(bool no_order)
     search_value.copy(ft_tmp->ptr(), ft_tmp->length(), ft_tmp->charset(),
                       cmp_collation.collation, &dummy_errors);
     ft_tmp= &search_value;
+  }
+
+  if (!table->is_created())
+  {
+     my_error(ER_NO_FT_MATERIALIZED_SUBQUERY, MYF(0));
+     DBUG_VOID_RETURN;
   }
 
   if (join_key && !no_order)

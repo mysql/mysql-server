@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -655,21 +655,21 @@ byte*
 page_cur_parse_insert_rec(
 /*======================*/
 	ibool		is_short,/*!< in: TRUE if short inserts */
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	buf_block_t*	block,	/*!< in: page or NULL */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
-	ulint	origin_offset;
+	ulint	origin_offset		= 0; /* remove warning */
 	ulint	end_seg_len;
-	ulint	mismatch_index;
+	ulint	mismatch_index		= 0; /* remove warning */
 	page_t*	page;
 	rec_t*	cursor_rec;
 	byte	buf1[1024];
 	byte*	buf;
-	byte*	ptr2			= ptr;
-	ulint	info_and_status_bits = 0; /* remove warning */
+	const byte*	ptr2		= ptr;
+	ulint		info_and_status_bits = 0; /* remove warning */
 	page_cur_t	cursor;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -703,7 +703,7 @@ page_cur_parse_insert_rec(
 		}
 	}
 
-	ptr = mach_parse_compressed(ptr, end_ptr, &end_seg_len);
+	end_seg_len = mach_parse_compressed(&ptr, end_ptr);
 
 	if (ptr == NULL) {
 
@@ -727,7 +727,7 @@ page_cur_parse_insert_rec(
 		info_and_status_bits = mach_read_from_1(ptr);
 		ptr++;
 
-		ptr = mach_parse_compressed(ptr, end_ptr, &origin_offset);
+		origin_offset = mach_parse_compressed(&ptr, end_ptr);
 
 		if (ptr == NULL) {
 
@@ -736,7 +736,7 @@ page_cur_parse_insert_rec(
 
 		ut_a(origin_offset < UNIV_PAGE_SIZE);
 
-		ptr = mach_parse_compressed(ptr, end_ptr, &mismatch_index);
+		mismatch_index = mach_parse_compressed(&ptr, end_ptr);
 
 		if (ptr == NULL) {
 
@@ -753,7 +753,7 @@ page_cur_parse_insert_rec(
 
 	if (!block) {
 
-		return(ptr + (end_seg_len >> 1));
+		return(const_cast<byte*>(ptr + (end_seg_len >> 1)));
 	}
 
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
@@ -785,9 +785,9 @@ page_cur_parse_insert_rec(
 
         if (UNIV_UNLIKELY(mismatch_index >= UNIV_PAGE_SIZE)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Is short %lu, info_and_status_bits %lu, offset %lu, "
-			"o_offset %lu, mismatch index %lu, end_seg_len %lu"
-			"parsed len %lu",
+			"is_short %lu, info_and_status_bits %lu, offset %lu,"
+			" o_offset %lu, mismatch index %lu, end_seg_len %lu"
+			" parsed len %lu",
 			(ulong) is_short, (ulong) info_and_status_bits,
 			(ulong) page_offset(cursor_rec),
 			(ulong) origin_offset,
@@ -798,7 +798,7 @@ page_cur_parse_insert_rec(
 		ut_print_buf(stderr, ptr2, 300);
 		putc('\n', stderr);
 
-		buf_page_print(page, 0, 0);
+		buf_page_print(page, univ_page_size, 0);
 
 		ut_error;
 	}
@@ -835,7 +835,7 @@ page_cur_parse_insert_rec(
 		mem_heap_free(heap);
 	}
 
-	return(ptr + end_seg_len);
+	return(const_cast<byte*>(ptr + end_seg_len));
 }
 
 /***********************************************************//**
@@ -873,8 +873,7 @@ page_cur_insert_rec_low(
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || recv_recovery_is_on()
-	      || mtr->is_inside_ibuf());
-
+	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)));
 
 	ut_ad(!page_rec_is_supremum(current_rec));
 
@@ -1099,7 +1098,7 @@ page_cur_insert_rec_zip(
 	ut_ad(page_is_comp(page));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
-	      || mtr->is_inside_ibuf()
+	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index))
 	      || recv_recovery_is_on());
 
 	ut_ad(!page_cur_is_after_last(cursor));
@@ -1657,10 +1656,11 @@ page_copy_rec_list_end_to_created_page(
 
 	mtr_log_t	log_mode;
 
-	if (!dict_table_is_temporary(index->table)) {
-		log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
-	} else {
+	if (dict_table_is_temporary(index->table)
+	    || index->table->ibd_file_missing /* IMPORT TABLESPACE */) {
 		log_mode = mtr_get_log_mode(mtr);
+	} else {
+		log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
 	}
 
 	prev_rec = page_get_infimum_rec(new_page);
@@ -1872,7 +1872,8 @@ page_cur_delete_rec(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	const ulint*		offsets,/*!< in: rec_get_offsets(
 					cursor->rec, index) */
-	mtr_t*			mtr)	/*!< in: mini-transaction handle */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle
+					or NULL */
 {
 	page_dir_slot_t* cur_dir_slot;
 	page_dir_slot_t* prev_slot;
@@ -1901,7 +1902,7 @@ page_cur_delete_rec(
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
-	      || mtr->is_inside_ibuf()
+	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index))
 	      || recv_recovery_is_on());
 
 	/* The record must not be the supremum or infimum record. */
@@ -1961,7 +1962,7 @@ page_cur_delete_rec(
 	/* rec now points to the record of the previous directory slot. Look
 	for the immediate predecessor of current_rec in a loop. */
 
-	while(current_rec != rec) {
+	while (current_rec != rec) {
 		prev_rec = rec;
 		rec = page_rec_get_next(rec);
 	}

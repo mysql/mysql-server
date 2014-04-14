@@ -11,7 +11,7 @@ if (`select count(*)=0 from information_schema.global_variables where variable_n
 # and cause unstable result.
 --source include/not_valgrind.inc
 
-call mtr.add_suppression("InnoDB: Warning: cannot find a free slot for an undo log. Do you have too");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot find a free slot for an undo log. Do you have too");
 
 --disable_query_log
 set @old_innodb_trx_rseg_n_slots_debug = @@innodb_trx_rseg_n_slots_debug;

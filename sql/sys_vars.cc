@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@
 #include "connection_handler_manager.h"         // Connection_handler_manager
 #include "socket_connection.h"                  // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h" // SP_PSI_STATEMENT_INFO_COUNT 
+#include "my_aes.h" // my_aes_opmode_names
 
 #include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -326,6 +327,15 @@ static Sys_var_long Sys_pfs_max_program_instances(
        READ_ONLY GLOBAL_VAR(pfs_param.m_program_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
        DEFAULT(5000),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_long Sys_pfs_max_prepared_stmt_instances(
+       "performance_schema_max_prepared_statements_instances",
+       "Maximum number of instrumented prepared statements."
+         " Use 0 to disable, -1 for automated sizing.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_prepared_stmt_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
+       DEFAULT(-1),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_file_classes(
@@ -652,6 +662,13 @@ static Sys_var_charptr Sys_default_authentication_plugin(
        READ_ONLY GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT("mysql_native_password"));
 
+static Sys_var_uint Sys_default_password_lifetime(
+       "default_password_lifetime", "The number of days after which the "
+       "password will expire.",
+       GLOBAL_VAR(default_password_lifetime), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, UINT_MAX16), DEFAULT(360), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD);
+
 #ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_my_bind_addr(
        "bind_address", "IP address to bind to.",
@@ -954,9 +971,11 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
       switch (thread_mask)
       {
         case SLAVE_THD_IO:
-        if (Rpl_info_factory::change_mi_repository(active_mi,
-                                                   var->save_result.ulonglong_value,
-                                                   &msg))
+        if (Rpl_info_factory::
+            change_mi_repository(active_mi,
+                                 static_cast<uint>(var->save_result.
+                                                   ulonglong_value),
+                                 &msg))
         {
           ret= TRUE;
           my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
@@ -967,9 +986,11 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
           if (!active_mi->rli->is_mts_recovery())
           {
             if (Rpl_info_factory::reset_workers(active_mi->rli) ||
-                Rpl_info_factory::change_rli_repository(active_mi->rli,
-                                                        var->save_result.ulonglong_value,
-                                                        &msg))
+                Rpl_info_factory::
+                change_rli_repository(active_mi->rli,
+                                      static_cast<uint>(var->save_result.
+                                                        ulonglong_value),
+                                      &msg))
             {
               ret= TRUE;
               my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
@@ -1359,7 +1380,7 @@ static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
 static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
 {
   int err_no= 0;
-  uint opt_event_scheduler_value= Events::opt_event_scheduler;
+  ulong opt_event_scheduler_value= Events::opt_event_scheduler;
   mysql_mutex_unlock(&LOCK_global_system_variables);
   /*
     Events::start() is heavyweight. In particular it creates a new THD,
@@ -1882,7 +1903,7 @@ static Sys_var_ulong Sys_max_binlog_size(
 static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections + 10);
+  resize_thr_alarm(static_cast<uint>(max_connections + 10));
 #endif
   return false;
 }
@@ -1953,17 +1974,21 @@ static Sys_var_ulonglong Sys_max_heap_table_size(
        VALID_RANGE(16384, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1024));
 
+static ulong mdl_locks_cache_size_unused;
 static Sys_var_ulong Sys_metadata_locks_cache_size(
-       "metadata_locks_cache_size", "Size of unused metadata locks cache",
-       READ_ONLY GLOBAL_VAR(mdl_locks_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 1024*1024), DEFAULT(MDL_LOCKS_CACHE_SIZE_DEFAULT),
-       BLOCK_SIZE(1));
+       "metadata_locks_cache_size", "Has no effect, deprecated",
+       READ_ONLY GLOBAL_VAR(mdl_locks_cache_size_unused),
+       CMD_LINE(REQUIRED_ARG, OPT_MDL_CACHE_SIZE),
+       VALID_RANGE(1, 1024*1024), DEFAULT(1024), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
+static ulong mdl_locks_hash_partitions_unused;
 static Sys_var_ulong Sys_metadata_locks_hash_instances(
-       "metadata_locks_hash_instances", "Number of metadata locks hash instances",
-       READ_ONLY GLOBAL_VAR(mdl_locks_hash_partitions), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 1024), DEFAULT(MDL_LOCKS_HASH_PARTITIONS_DEFAULT),
-       BLOCK_SIZE(1));
+       "metadata_locks_hash_instances", "Has no effect, deprecated",
+       READ_ONLY GLOBAL_VAR(mdl_locks_hash_partitions_unused),
+       CMD_LINE(REQUIRED_ARG, OPT_MDL_HASH_INSTANCES),
+       VALID_RANGE(1, 1024), DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_ulong Sys_pseudo_thread_id(
        "pseudo_thread_id",
@@ -2009,7 +2034,10 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
        "Maximum number of prepared statements in the server",
        GLOBAL_VAR(max_prepared_stmt_count), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 1024*1024), DEFAULT(16382), BLOCK_SIZE(1),
-       &PLock_prepared_stmt_count);
+       &PLock_prepared_stmt_count, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL), NULL,
+       /* max_prepared_stmt_count is used as a sizing hint by the performance schema. */
+       sys_var::PARSE_EARLY);
 
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2454,7 +2482,7 @@ static Sys_var_uint Sys_eq_range_index_dive_limit(
        "ranges for the index is larger than or equal to this number. "
        "If set to 0, index dives are always used.",
        SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX32), DEFAULT(10), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX32), DEFAULT(200), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
@@ -2558,9 +2586,9 @@ static Sys_var_charptr Sys_tmpdir(
 static bool fix_trans_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    reset_root_defaults(&thd->transaction.mem_root,
-                        thd->variables.trans_alloc_block_size,
-                        thd->variables.trans_prealloc_size);
+    thd->get_transaction()->init_mem_root_defaults(
+        thd->variables.trans_alloc_block_size,
+        thd->variables.trans_prealloc_size);
   return false;
 }
 static Sys_var_ulong Sys_trans_alloc_block_size(
@@ -2697,8 +2725,10 @@ static Sys_var_charptr Sys_secure_file_priv(
 
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
 {
+  // server_id is 'MYSQL_PLUGIN_IMPORT ulong'
+  // So we cast here, rather than change its type.
   server_id_supplied = 1;
-  thd->server_id= server_id;
+  thd->server_id= static_cast<uint32>(server_id);
   return false;
 }
 static Sys_var_ulong Sys_server_id(
@@ -2791,7 +2821,7 @@ static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
     mysql_mutex_lock(&active_mi->rli->run_lock);
     if (active_mi->rli->slave_running)
     {
-      my_error(ER_SLAVE_MUST_STOP, MYF(0));
+      my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
       result= true;
     }
     mysql_mutex_unlock(&active_mi->rli->run_lock);
@@ -2846,7 +2876,8 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
   }
   else
   {
-    binlog_checksum_options= var->save_result.ulonglong_value;
+    binlog_checksum_options=
+      static_cast<ulong>(var->save_result.ulonglong_value);
   }
   DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
   DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
@@ -2887,8 +2918,75 @@ static Sys_var_ulong Sys_sort_buffer(
        VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(DEFAULT_SORT_MEMORY),
        BLOCK_SIZE(1));
 
+/**
+  NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
+  removed in 5.7 and their functionality is merged with STRICT MODE.
+  However, For backward compatibility during upgrade, these modes are kept
+  but they are not used. Setting these modes in 5.7 will give warning and
+  have no effect.
+*/
+
+void unset_removed_sql_modes(sql_mode_t &sql_mode)
+{
+  /**
+    If sql_mode is set throught the client, the warning should
+    go to the client connection. If it is used as server startup option,
+    it will go the error-log if the removed sql_modes are used.
+  */
+  THD *thd= current_thd;
+  if (thd)
+  {
+    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_SQL_MODE_NO_EFFECT,
+                          ER(ER_SQL_MODE_NO_EFFECT),
+                          "ERROR_FOR_DIVISION_BY_ZERO");
+    }
+
+    if (sql_mode & MODE_NO_ZERO_DATE)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_SQL_MODE_NO_EFFECT,
+                          ER(ER_SQL_MODE_NO_EFFECT),
+                          "NO_ZERO_DATE");
+    }
+
+    if (sql_mode & MODE_NO_ZERO_IN_DATE)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_SQL_MODE_NO_EFFECT,
+                          ER(ER_SQL_MODE_NO_EFFECT),
+                          "NO_ZERO_IN_DATE");
+    }
+  }
+  else
+  {
+    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+    {
+      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
+                        "Setting this will have no effect.");
+    }
+    if (sql_mode & MODE_NO_ZERO_DATE)
+    {
+      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
+                        "Setting this will have no effect.");
+    }
+    if (sql_mode & MODE_NO_ZERO_IN_DATE)
+    {
+      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
+                        "Setting this will have no effect.");
+    }
+  }
+  /* Unset removed SQL MODES */
+  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
+               MODE_NO_ZERO_IN_DATE);
+}
+
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
+  unset_removed_sql_modes(sql_mode);
+
   if (sql_mode & MODE_ANSI)
   {
     /*
@@ -2933,9 +3031,7 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
     sql_mode|= MODE_HIGH_NOT_PRECEDENCE;
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
-                MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER |
-                MODE_NO_ENGINE_SUBSTITUTION);
+                MODE_NO_AUTO_CREATE_USER | MODE_NO_ENGINE_SUBSTITUTION);
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
@@ -2976,6 +3072,9 @@ static const char *sql_mode_names[]=
 export bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls)
 {
+  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
+               MODE_NO_ZERO_IN_DATE);
+
   set_to_string(thd, ls, sql_mode, sql_mode_names);
   return ls->str == 0;
 }
@@ -2991,6 +3090,12 @@ static Sys_var_set Sys_sql_mode(
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
        sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
+
+static Sys_var_ulong Sys_max_statement_time(
+       "max_statement_time",
+       "Kill SELECT statement that takes over the specified number of milliseconds",
+       SESSION_VAR(max_statement_time), NO_CMD_LINE,
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)
@@ -3357,7 +3462,8 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
     */
     thd->variables.option_bits&=
                  ~(OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
-    thd->transaction.all.reset_unsafe_rollback_flags();
+    thd->get_transaction()->reset_unsafe_rollback_flags(
+        Transaction_ctx::SESSION);
     thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
     return false;
   }
@@ -3366,7 +3472,8 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
       !(thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT))
   { // disabling autocommit
 
-    thd->transaction.all.reset_unsafe_rollback_flags();
+    thd->get_transaction()->reset_unsafe_rollback_flags(
+        Transaction_ctx::SESSION);
     thd->server_status&= ~SERVER_STATUS_AUTOCOMMIT;
     thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
     return false;
@@ -3532,9 +3639,10 @@ static bool update_timestamp(THD *thd, set_var *var)
   {
     double fl= floor(var->save_result.double_value); // Truncate integer part
     struct timeval tmp;
-    tmp.tv_sec= (ulonglong) fl;
+    tmp.tv_sec= static_cast<long>(fl);
     /* Round nanoseconds to nearest microsecond */
-    tmp.tv_usec= (ulonglong) rint((var->save_result.double_value - fl) * 1000000);
+    tmp.tv_usec=
+      static_cast<long>(rint((var->save_result.double_value - fl) * 1000000));
     thd->set_time(&tmp);
   }
   else // SET timestamp=DEFAULT
@@ -3932,6 +4040,9 @@ static Sys_var_have Sys_have_symlink(
        "have_symlink", "have_symlink",
        READ_ONLY GLOBAL_VAR(have_symlink), NO_CMD_LINE);
 
+static Sys_var_have Sys_have_statement_timeout(
+       "have_statement_timeout", "have_statement_timeout",
+       READ_ONLY GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
 
 static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -4000,7 +4111,7 @@ static bool check_not_empty_set(sys_var *self, THD *thd, set_var *var)
 }
 static bool fix_log_output(sys_var *self, THD *thd, enum_var_type type)
 {
-  query_logger.set_handlers(log_output_options);
+  query_logger.set_handlers(static_cast<uint>(log_output_options));
   return false;
 }
 
@@ -4136,7 +4247,8 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
     mysql_mutex_lock(&active_mi->rli->run_lock);
     if (active_mi->rli->slave_running)
     {
-      my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+      my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
+                 ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
       result= true;
     }
     if (gtid_mode == 3)
@@ -4759,4 +4871,72 @@ static Sys_var_mybool Sys_validate_user_plugins(
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 #endif
+
+static Sys_var_enum Sys_block_encryption_mode(
+  "block_encryption_mode", "mode for AES_ENCRYPT/AES_DECRYPT",
+  SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG),
+  my_aes_opmode_names, DEFAULT(my_aes_128_ecb));
+
+static bool check_track_session_sys_vars(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_sysvar_change_reporter");
+  DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->check(thd, var));
+  DBUG_RETURN(false);
+}
+
+static bool update_track_session_sys_vars(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  DBUG_ENTER("check_sysvar_change_reporter");
+  /* Populate map only for session variable. */
+  if (type == OPT_SESSION)
+    DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->update(thd));
+  DBUG_RETURN(false);
+}
+
+static Sys_var_charptr Sys_track_session_sys_vars(
+       "session_track_system_variables",
+       "Track changes in registered system variables.",
+       SESSION_VAR(track_sysvars_ptr),
+       CMD_LINE(REQUIRED_ARG),
+       IN_FS_CHARSET,
+       DEFAULT("time_zone,autocommit,character_set_client,character_set_results,"
+               "character_set_connection"),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(check_track_session_sys_vars),
+       ON_UPDATE(update_track_session_sys_vars)
+);
+
+static bool update_session_track_schema(sys_var *self, THD *thd,
+                                        enum_var_type type)
+{
+  DBUG_ENTER("update_session_track_schema");
+  DBUG_RETURN(thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->update(thd));
+}
+
+static Sys_var_mybool Sys_session_track_schema(
+       "session_track_schema",
+       "Track changes to the 'default schema'.",
+       SESSION_VAR(session_track_schema),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(update_session_track_schema));
+
+static bool update_session_track_state_change(sys_var *self, THD *thd,
+                                              enum_var_type type)
+{
+  DBUG_ENTER("update_session_track_state_change");
+  DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->update(thd));
+}
+
+static Sys_var_mybool Sys_session_track_state_change(
+       "session_track_state_change",
+       "Track changes to the 'session state'.",
+       SESSION_VAR(session_track_state_change),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(update_session_track_state_change));
 

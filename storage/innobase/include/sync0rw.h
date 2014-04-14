@@ -287,6 +287,9 @@ unlocking, not the corresponding function. */
 	rw_lock_sx_lock_func((M), (P), (F), (L))
 #define rw_lock_sx_lock_gen(M, P)				\
 	rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
+#define rw_lock_sx_lock_nowait(M, P)				\
+	rw_lock_sx_lock_low((M), (P), __FILE__, __LINE__)
+
 #ifdef UNIV_SYNC_DEBUG
 # define rw_lock_sx_unlock(L)		rw_lock_sx_unlock_func(0, L)
 # define rw_lock_sx_unlock_gen(L, P)	rw_lock_sx_unlock_func(P, L)
@@ -399,6 +402,18 @@ an s-lock, locking does not succeed! */
 
 void
 rw_lock_x_lock_func(
+/*================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Low-level function for acquiring an sx lock.
+@return FALSE if did not succeed, TRUE if success. */
+
+ibool
+rw_lock_sx_lock_low(
 /*================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will

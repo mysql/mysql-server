@@ -520,7 +520,9 @@ bool Trigger::parse(THD *thd)
   sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   thd->sp_runtime_ctx= NULL;
 
+  sql_digest_state *digest_saved= thd->m_digest;
   PSI_statement_locker *statement_locker_saved= thd->m_statement_psi;
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
 
   Trigger_creation_ctx *creation_ctx=
@@ -533,6 +535,7 @@ bool Trigger::parse(THD *thd)
 
   bool parse_error= parse_sql(thd, &parser_state, creation_ctx);
 
+  thd->m_digest= digest_saved;
   thd->m_statement_psi= statement_locker_saved;
   thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->variables.sql_mode= sql_mode_saved;

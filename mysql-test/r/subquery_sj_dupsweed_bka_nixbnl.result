@@ -61,8 +61,8 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.a	101	100.00	Using index; End temporary
+1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.a	101	100.00	Using index; Start temporary; End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`t2`.`a`)
@@ -72,8 +72,8 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; End temporary
+1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; Start temporary; End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
@@ -101,8 +101,8 @@ a
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; End temporary
+1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.a	101	100.00	Using where; Using index; Start temporary; End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
@@ -3615,8 +3615,8 @@ create table t3 (a int);
 insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ref	kp1	kp1	5	test.t3.a	1	100.00	Using index; End temporary
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
+1	SIMPLE	t1	NULL	ref	kp1	kp1	5	test.t3.a	1	100.00	Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi join (`test`.`t1`) where ((`test`.`t1`.`kp1` = `test`.`t3`.`a`) and (`test`.`t3`.`a` < 20))
 select * from t3 where a in (select kp1 from t1 where kp1<20);
@@ -3643,8 +3643,8 @@ a
 19
 explain select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ref	kp1	kp1	5	test.t3.a	1	100.00	Using index; End temporary
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
+1	SIMPLE	t1	NULL	ref	kp1	kp1	5	test.t3.a	1	100.00	Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi join (`test`.`t1`) where ((`test`.`t1`.`kp1` = `test`.`t3`.`a`) and (`test`.`t3`.`a` < 20) and (`test`.`t3`.`a` < 20))
 select * from t3 where a in (select kp1 from t1 where kp1<20) and a<20;
@@ -3674,8 +3674,8 @@ insert into t4 select a from t3;
 explain select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ref	kp1	kp1	5	test.t3.a	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
+1	SIMPLE	t1	NULL	ref	kp1	kp1	5	test.t3.a	1	100.00	Using where; Start temporary
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	100.00	Using index; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi join (`test`.`t1` join `test`.`t4`) where ((`test`.`t1`.`kp1` = `test`.`t3`.`a`) and (`test`.`t4`.`pk` = `test`.`t1`.`c`) and (`test`.`t3`.`a` < 20))
@@ -3806,8 +3806,8 @@ create table t3 (a int, b int, filler char(100), key(a));
 insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
 explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Start temporary
 1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.a	10	100.00	End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = 3) and ((`test`.`t2`.`a` < 10) or (`test`.`t2`.`a` > 30)))
@@ -3819,80 +3819,84 @@ EXPLAIN
     "cost_info": {
       "query_cost": "1466.19"
     },
-    "duplicates_removal": {
-      "using_temporary_table": true,
-      "nested_loop": [
-        {
-          "table": {
-            "table_name": "t1",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 10,
-            "rows_produced_per_join": 10,
-            "filtered": 100,
-            "cost_info": {
-              "read_cost": "2.02",
-              "eval_cost": "2.00",
-              "prefix_cost": "4.02",
-              "data_read_per_join": "80"
-            },
-            "used_columns": [
-              "a"
-            ],
-            "attached_condition": "(`test`.`t1`.`a` = 3)"
-          }
-        },
-        {
-          "table": {
-            "table_name": "t2",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 10,
-            "rows_produced_per_join": 100,
-            "filtered": 100,
-            "cost_info": {
-              "read_cost": "20.17",
-              "eval_cost": "20.00",
-              "prefix_cost": "44.19",
-              "data_read_per_join": "800"
-            },
-            "used_columns": [
-              "a"
-            ],
-            "attached_condition": "(((`test`.`t2`.`a` < 10) or (`test`.`t2`.`a` > 30)) and (`test`.`t2`.`a` is not null))"
-          }
-        },
-        {
-          "table": {
-            "table_name": "t3",
-            "access_type": "ref",
-            "possible_keys": [
-              "a"
-            ],
-            "key": "a",
-            "used_key_parts": [
-              "a"
-            ],
-            "key_length": "5",
-            "ref": [
-              "test.t2.a"
-            ],
-            "rows_examined_per_scan": 10,
-            "rows_produced_per_join": 100,
-            "filtered": 100,
-            "cost_info": {
-              "read_cost": "1000.00",
-              "eval_cost": "20.00",
-              "prefix_cost": "1466.19",
-              "data_read_per_join": "10K"
-            },
-            "used_columns": [
-              "a",
-              "b",
-              "filler"
-            ]
-          }
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 10,
+          "rows_produced_per_join": 10,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.02",
+            "eval_cost": "2.00",
+            "prefix_cost": "4.02",
+            "data_read_per_join": "80"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "attached_condition": "(`test`.`t1`.`a` = 3)"
         }
-      ]
-    }
+      },
+      {
+        "duplicates_removal": {
+          "using_temporary_table": true,
+          "nested_loop": [
+            {
+              "table": {
+                "table_name": "t2",
+                "access_type": "ALL",
+                "rows_examined_per_scan": 10,
+                "rows_produced_per_join": 100,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "20.17",
+                  "eval_cost": "20.00",
+                  "prefix_cost": "44.19",
+                  "data_read_per_join": "800"
+                },
+                "used_columns": [
+                  "a"
+                ],
+                "attached_condition": "(((`test`.`t2`.`a` < 10) or (`test`.`t2`.`a` > 30)) and (`test`.`t2`.`a` is not null))"
+              }
+            },
+            {
+              "table": {
+                "table_name": "t3",
+                "access_type": "ref",
+                "possible_keys": [
+                  "a"
+                ],
+                "key": "a",
+                "used_key_parts": [
+                  "a"
+                ],
+                "key_length": "5",
+                "ref": [
+                  "test.t2.a"
+                ],
+                "rows_examined_per_scan": 10,
+                "rows_produced_per_join": 100,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "1000.00",
+                  "eval_cost": "20.00",
+                  "prefix_cost": "1466.19",
+                  "data_read_per_join": "10K"
+                },
+                "used_columns": [
+                  "a",
+                  "b",
+                  "filler"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
   }
 }
 Warnings:
@@ -3952,14 +3956,14 @@ insert into t1 select A.a, B.a, 'filler' from t0 A, t0 B;
 create table t2 as select * from t1;
 explain select * from t2 where a in (select b from t1 where a=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ref	a	a	10	const,test.t2.a	1	100.00	Using index; End temporary
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
+1	SIMPLE	t1	NULL	ref	a	a	10	const,test.t2.a	1	100.00	Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = 3))
 explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ref	a	a	10	const,test.t2.a	1	100.00	Using index; End temporary
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where
+1	SIMPLE	t1	NULL	ref	a	a	10	const,test.t2.a	1	100.00	Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = 3) and (`test`.`t1`.`a` = 3))
 drop table t1,t2;
@@ -4182,8 +4186,8 @@ explain select *
 from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Start temporary
-1	SIMPLE	t1	NULL	index	a	a	5	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	NULL	index	a	a	5	NULL	10	100.00	Using where; Using index; Start temporary
 1	SIMPLE	t2	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index
 1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.a	1	100.00	Using index; End temporary
 Warnings:
@@ -5680,9 +5684,9 @@ VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
 EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN 
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	Start temporary
+1	SIMPLE	t0	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	Using where
-1	SIMPLE	t2	NULL	ref	vkey	vkey	4	test.t1.vnokey	2	100.00	Using index; End temporary
+1	SIMPLE	t2	NULL	ref	vkey	vkey	4	test.t1.vnokey	2	100.00	Using index; Start temporary; End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` `t1` semi join (`test`.`t0` `t2`) join `test`.`t0` where ((`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) and (`test`.`t1`.`pk` = `test`.`t0`.`pk`))
@@ -6543,8 +6547,8 @@ CREATE INDEX I1 ON t1 (a);
 CREATE INDEX I2 ON t1 (b);
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	I2	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ref	I1	I1	2	test.t1.b	2	100.00	Using where; Using index; End temporary
+1	SIMPLE	t1	NULL	ALL	I2	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ref	I1	I1	2	test.t1.b	2	100.00	Using where; Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`b` = `test`.`t1`.`a`)
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
@@ -6555,8 +6559,8 @@ CREATE INDEX I1 ON t2 (a);
 CREATE INDEX I2 ON t2 (b);
 EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	I2	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	t2	NULL	ref	I1	I1	4	test.t2.b	2	100.00	Using where; Using index; End temporary
+1	SIMPLE	t2	NULL	ALL	I2	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ref	I1	I1	4	test.t2.b	2	100.00	Using where; Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` semi join (`test`.`t2`) where (`test`.`t2`.`b` = `test`.`t2`.`a`)
 SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
@@ -6564,8 +6568,8 @@ a	b
 EXPLAIN
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	I2	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ref	I1	I1	2	test.t1.b	2	100.00	Using where; Using index; End temporary
+1	SIMPLE	t1	NULL	ALL	I2	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ref	I1	I1	2	test.t1.b	2	100.00	Using where; Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1`) where ((length(`test`.`t1`.`a`) < 500) and (`test`.`t1`.`b` = `test`.`t1`.`a`))
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
@@ -7185,8 +7189,8 @@ EXPLAIN SELECT Name FROM t1
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	31	100.00	Start temporary
-1	SIMPLE	t2	NULL	ref	CountryCode	CountryCode	3	test.t1.Code	18	100.00	Using where; End temporary
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	31	100.00	NULL
+1	SIMPLE	t2	NULL	ref	CountryCode	CountryCode	3	test.t1.Code	18	100.00	Using where; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`Name` AS `Name` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`CountryCode` = `test`.`t1`.`Code`) and (`test`.`t2`.`Population` > 5000000))
 SELECT Name FROM t1 
@@ -7209,8 +7213,8 @@ explain extended select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ref	a	a	5	test.t0.a	1	100.00	NULL
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t1	NULL	ref	a	a	5	test.t0.a	1	100.00	Start temporary
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where; End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7392,8 +7396,8 @@ alter table t3 add primary key(id), add key(a);
 The following must use loose index scan over t3, key a:
 explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	5	NULL	1000	100.00	Using where; Using index; Start temporary
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.a	30	100.00	Using index; End temporary
+1	SIMPLE	t2	NULL	index	a	a	5	NULL	1000	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.a	30	100.00	Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t2`.`a`) AS `count(a)` from `test`.`t2` semi join (`test`.`t3`) where (`test`.`t3`.`a` = `test`.`t2`.`a`)
 select count(a) from t2 where a in ( SELECT  a FROM t3);
@@ -7599,8 +7603,8 @@ INSERT INTO t2 VALUES (1, 0), (1, 1), (2, 0), (2, 1);
 EXPLAIN
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Start temporary
-1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.i	1	100.00	Using where; Using index; End temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t2	NULL	ref	k	k	5	test.t1.i	1	100.00	Using where; Using index; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`j` > 0))
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
@@ -7696,8 +7700,8 @@ WHERE user_id = 'nicke'
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Start temporary
-1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	100.00	Using where; End temporary
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	100.00	Using where; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
 SELECT t1.partner_id
@@ -7726,15 +7730,15 @@ WHERE t1.id IN (
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Start temporary
-1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	100.00	Using where; End temporary
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	100.00	Using where; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Start temporary
-1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	100.00	Using where; End temporary
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	t2	NULL	ref	PRIMARY	PRIMARY	4	test.t1.id	1	100.00	Using where; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`partner_id` AS `partner_id` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2`.`article_id` = 'imp'))
 PREPARE stmt FROM
@@ -7932,8 +7936,8 @@ WHERE (varchar_nokey, varchar_nokey) IN (SELECT varchar_key, varchar_nokey
 FROM t2  
 WHERE varchar_nokey < 'n' XOR pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Start temporary
-1	SIMPLE	t2	NULL	ref	varchar_key	varchar_key	3	test.t1.varchar_nokey	2	100.00	Using where; End temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	NULL
+1	SIMPLE	t2	NULL	ref	varchar_key	varchar_key	3	test.t1.varchar_nokey	2	100.00	Using where; Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`varchar_nokey` AS `varchar_nokey` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`varchar_key` = `test`.`t1`.`varchar_nokey`) and (`test`.`t2`.`varchar_nokey` = `test`.`t1`.`varchar_nokey`) and ((`test`.`t2`.`varchar_nokey` < 'n') xor `test`.`t2`.`pk`))
 DROP TABLE t1, t2;
@@ -8221,8 +8225,8 @@ ON alias2.col_varchar_10_latin1_key
 ON alias1.col_varchar_1024_utf8_key
 WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	alias1	NULL	ref	PRIMARY,col_varchar_10_latin1_key	col_varchar_10_latin1_key	13	test.t3.col_varchar_10_latin1_key	2	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	alias1	NULL	ref	PRIMARY,col_varchar_10_latin1_key	col_varchar_10_latin1_key	13	test.t3.col_varchar_10_latin1_key	2	100.00	Using where; Start temporary
 1	SIMPLE	alias3	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
 1	SIMPLE	alias2	NULL	index	NULL	col_varchar_10_latin1_key	13	NULL	4	100.00	Using where; Using index; End temporary
 Warnings:
@@ -8733,8 +8737,8 @@ FROM t1 JOIN t2 ON t2.col_varchar_key = t1.col_varchar_key
 WHERE t2.col_int_key = 1
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ref	col_varchar_key	col_varchar_key	4	test.t4.col_varchar_key	2	100.00	Using index
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ref	col_varchar_key	col_varchar_key	4	test.t4.col_varchar_key	2	100.00	Using index; Start temporary
 1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	const	3	100.00	Using where; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`col_int_nokey` AS `col_int_nokey`,`test`.`t4`.`col_varchar_key` AS `col_varchar_key` from `test`.`t4` semi join (`test`.`t1` join `test`.`t2`) where ((`test`.`t1`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`) and (`test`.`t2`.`col_varchar_key` = `test`.`t4`.`col_varchar_key`) and (`test`.`t2`.`col_int_nokey` = `test`.`t4`.`col_int_nokey`) and (`test`.`t2`.`col_int_key` = 1))
@@ -8899,8 +8903,8 @@ AND grandparent1.col_int_key <> 3
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	grandparent1	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Start temporary
-2	DEPENDENT SUBQUERY	parent1	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where
+2	DEPENDENT SUBQUERY	grandparent1	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where
+2	DEPENDENT SUBQUERY	parent1	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Start temporary
 2	DEPENDENT SUBQUERY	parent2	NULL	ref	col_int_key	col_int_key	4	test.parent1.col_int_nokey	2	100.00	Using index; End temporary
 Warnings:
 Note	1003	/* select#1 */ select '8' AS `g1` from dual where (not(<in_optimizer>('8',<exists>(/* select#2 */ select 1 from `test`.`t1` `grandparent1` semi join (`test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`))) where ((`test`.`grandparent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`) and (`test`.`parent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))))))
@@ -8931,103 +8935,107 @@ EXPLAIN
           "cost_info": {
             "query_cost": "16.88"
           },
-          "duplicates_removal": {
-            "using_temporary_table": true,
-            "nested_loop": [
-              {
-                "table": {
-                  "table_name": "grandparent1",
-                  "access_type": "ref",
-                  "possible_keys": [
-                    "col_int_key"
-                  ],
-                  "key": "col_int_key",
-                  "used_key_parts": [
-                    "col_int_key"
-                  ],
-                  "key_length": "4",
-                  "ref": [
-                    "func"
-                  ],
-                  "rows_examined_per_scan": 2,
-                  "rows_produced_per_join": 2,
-                  "filtered": 100,
-                  "cost_info": {
-                    "read_cost": "2.00",
-                    "eval_cost": "0.40",
-                    "prefix_cost": "2.40",
-                    "data_read_per_join": "32"
-                  },
-                  "used_columns": [
-                    "col_int_nokey",
-                    "col_int_key"
-                  ],
-                  "attached_condition": "((`test`.`grandparent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))"
-                }
-              },
-              {
-                "table": {
-                  "table_name": "parent1",
-                  "access_type": "ref",
-                  "possible_keys": [
-                    "col_int_key"
-                  ],
-                  "key": "col_int_key",
-                  "used_key_parts": [
-                    "col_int_key"
-                  ],
-                  "key_length": "4",
-                  "ref": [
-                    "func"
-                  ],
-                  "rows_examined_per_scan": 2,
-                  "rows_produced_per_join": 4,
-                  "filtered": 100,
-                  "cost_info": {
-                    "read_cost": "4.00",
-                    "eval_cost": "0.80",
-                    "prefix_cost": "7.20",
-                    "data_read_per_join": "64"
-                  },
-                  "used_columns": [
-                    "col_int_nokey",
-                    "col_int_key"
-                  ],
-                  "attached_condition": "(`test`.`parent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`)"
-                }
-              },
-              {
-                "table": {
-                  "table_name": "parent2",
-                  "access_type": "ref",
-                  "possible_keys": [
-                    "col_int_key"
-                  ],
-                  "key": "col_int_key",
-                  "used_key_parts": [
-                    "col_int_key"
-                  ],
-                  "key_length": "4",
-                  "ref": [
-                    "test.parent1.col_int_nokey"
-                  ],
-                  "rows_examined_per_scan": 2,
-                  "rows_produced_per_join": 2,
-                  "filtered": 100,
-                  "using_index": true,
-                  "cost_info": {
-                    "read_cost": "4.09",
-                    "eval_cost": "0.40",
-                    "prefix_cost": "16.89",
-                    "data_read_per_join": "32"
-                  },
-                  "used_columns": [
-                    "col_int_key"
-                  ]
-                }
+          "nested_loop": [
+            {
+              "table": {
+                "table_name": "grandparent1",
+                "access_type": "ref",
+                "possible_keys": [
+                  "col_int_key"
+                ],
+                "key": "col_int_key",
+                "used_key_parts": [
+                  "col_int_key"
+                ],
+                "key_length": "4",
+                "ref": [
+                  "func"
+                ],
+                "rows_examined_per_scan": 2,
+                "rows_produced_per_join": 2,
+                "filtered": 100,
+                "cost_info": {
+                  "read_cost": "2.00",
+                  "eval_cost": "0.40",
+                  "prefix_cost": "2.40",
+                  "data_read_per_join": "32"
+                },
+                "used_columns": [
+                  "col_int_nokey",
+                  "col_int_key"
+                ],
+                "attached_condition": "((`test`.`grandparent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))"
               }
-            ]
-          }
+            },
+            {
+              "duplicates_removal": {
+                "using_temporary_table": true,
+                "nested_loop": [
+                  {
+                    "table": {
+                      "table_name": "parent1",
+                      "access_type": "ref",
+                      "possible_keys": [
+                        "col_int_key"
+                      ],
+                      "key": "col_int_key",
+                      "used_key_parts": [
+                        "col_int_key"
+                      ],
+                      "key_length": "4",
+                      "ref": [
+                        "func"
+                      ],
+                      "rows_examined_per_scan": 2,
+                      "rows_produced_per_join": 4,
+                      "filtered": 100,
+                      "cost_info": {
+                        "read_cost": "4.00",
+                        "eval_cost": "0.80",
+                        "prefix_cost": "7.20",
+                        "data_read_per_join": "64"
+                      },
+                      "used_columns": [
+                        "col_int_nokey",
+                        "col_int_key"
+                      ],
+                      "attached_condition": "(`test`.`parent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`)"
+                    }
+                  },
+                  {
+                    "table": {
+                      "table_name": "parent2",
+                      "access_type": "ref",
+                      "possible_keys": [
+                        "col_int_key"
+                      ],
+                      "key": "col_int_key",
+                      "used_key_parts": [
+                        "col_int_key"
+                      ],
+                      "key_length": "4",
+                      "ref": [
+                        "test.parent1.col_int_nokey"
+                      ],
+                      "rows_examined_per_scan": 2,
+                      "rows_produced_per_join": 2,
+                      "filtered": 100,
+                      "using_index": true,
+                      "cost_info": {
+                        "read_cost": "4.09",
+                        "eval_cost": "0.40",
+                        "prefix_cost": "16.89",
+                        "data_read_per_join": "32"
+                      },
+                      "used_columns": [
+                        "col_int_key"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
         }
       }
     ]
@@ -9311,9 +9319,9 @@ t1 AS sq2_alias1, t1 AS sq2_alias2
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Start temporary
+1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	sq2_alias1	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias2.col_varchar_nokey	1	100.00	Using index
+1	SIMPLE	sq2_alias1	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias2.col_varchar_nokey	1	100.00	Using index; Start temporary
 1	SIMPLE	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`alias1`.`col_varchar_nokey` AS `a1_nokey`,`test`.`alias1`.`col_varchar_key` AS `a1_key`,`test`.`alias2`.`col_varchar_nokey` AS `a2_nokey` from `test`.`t1` `alias1` semi join (`test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias2` where ((`test`.`sq2_alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_nokey`) and (`test`.`sq2_alias2`.`col_varchar_nokey` = `test`.`alias1`.`col_varchar_nokey`))
@@ -9378,8 +9386,8 @@ WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
 SELECT it2.col_varchar_nokey, it1.col_varchar_key
 FROM t2 AS it1 JOIN t1 AS it2 ON it2.col_int_key = it1.pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Start temporary
-1	SIMPLE	it1	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.ot2.col_varchar_nokey	1	100.00	Using index
+1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	it1	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.ot2.col_varchar_nokey	1	100.00	Using index; Start temporary
 1	SIMPLE	it2	NULL	ref	col_int_key	col_int_key	4	test.it1.pk	1	100.00	NULL
 1	SIMPLE	ot1	NULL	ref	col_varchar_key	col_varchar_key	3	test.it2.col_varchar_nokey	1	100.00	Using index; End temporary
 Warnings:
@@ -9439,8 +9447,8 @@ AND NOT ot.col_int_nokey < 2
 )
 ORDER BY col_varchar_nokey;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort; Start temporary
-1	SIMPLE	it	NULL	ref	col_varchar_key	col_varchar_key	3	test.ot.col_varchar_nokey	1	100.00	End temporary
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort
+1	SIMPLE	it	NULL	ref	col_varchar_key	col_varchar_key	3	test.ot.col_varchar_nokey	1	100.00	Start temporary; End temporary
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` semi join (`test`.`t1` `it`) where ((`test`.`it`.`col_varchar_key` = `test`.`ot`.`col_varchar_nokey`) and (`test`.`ot`.`col_int_nokey` >= 2)) order by `test`.`ot`.`col_varchar_nokey`
@@ -9473,8 +9481,8 @@ AND NOT ot.col_int_nokey < 2
 )
 ORDER BY col_varchar_nokey;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort; Start temporary
-1	SIMPLE	it	NULL	ref	col_varchar_key	col_varchar_key	3	test.ot.col_varchar_nokey	2	100.00	End temporary
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort
+1	SIMPLE	it	NULL	ref	col_varchar_key	col_varchar_key	3	test.ot.col_varchar_nokey	2	100.00	Start temporary; End temporary
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` semi join (`test`.`t1` `it`) where ((`test`.`it`.`col_varchar_key` = `test`.`ot`.`col_varchar_nokey`) and (`test`.`ot`.`col_int_nokey` >= 2)) order by `test`.`ot`.`col_varchar_nokey`
@@ -9507,8 +9515,8 @@ AND NOT ot.col_int_nokey < 2
 )
 ORDER BY col_varchar_nokey;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort; Start temporary
-1	SIMPLE	it	NULL	ref	col_varchar_key	col_varchar_key	3	test.ot.col_varchar_nokey	2	100.00	End temporary
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort
+1	SIMPLE	it	NULL	ref	col_varchar_key	col_varchar_key	3	test.ot.col_varchar_nokey	2	100.00	Start temporary; End temporary
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` semi join (`test`.`t1` `it`) where ((`test`.`it`.`col_varchar_key` = `test`.`ot`.`col_varchar_nokey`) and (`test`.`ot`.`col_int_nokey` >= 2)) order by `test`.`ot`.`col_varchar_nokey`
@@ -9871,10 +9879,10 @@ WHERE subquery3_t2.col_int_nokey <> 9
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	SIMPLE	table1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	table2	NULL	ALL	col_int_key	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	table3	NULL	eq_ref	PRIMARY,col_int_key	PRIMARY	4	test.table2.col_int_nokey	1	100.00	Using where
-1	SIMPLE	subquery3_t2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	subquery3_t2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	1	100.00	Using where; Start temporary
 1	SIMPLE	subquery3_t1	NULL	ref	col_varchar_key	col_varchar_key	4	test.subquery3_t2.col_varchar_key	1	100.00	Using where; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`table1`.`pk` AS `pk`,`test`.`table2`.`pk` AS `pk`,`test`.`table3`.`pk` AS `pk` from `test`.`t2` `table1` left join (`test`.`t1` `table2` semi join (`test`.`t3` `subquery3_t1` join `test`.`t1` `subquery3_t2`) join `test`.`t1` `table3`) on(((`test`.`table3`.`pk` = `test`.`table2`.`col_int_nokey`) and 1 and (`test`.`subquery3_t2`.`col_int_nokey` <> 9) and (`test`.`table1`.`col_varchar_nokey` = `test`.`subquery3_t1`.`col_varchar_nokey`) and (`test`.`table3`.`col_int_key` = `test`.`table2`.`col_int_key`) and (`test`.`subquery3_t2`.`col_varchar_key` = `test`.`subquery3_t1`.`col_varchar_key`))) where 1
@@ -10087,10 +10095,10 @@ ON subquery2_t3.pk = subquery2_t2.pk
 ;
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table1	NULL	index	NULL	col_int_key	5	NULL	20	100.00	Using index; Start temporary
+1	SIMPLE	table1	NULL	index	NULL	col_int_key	5	NULL	20	100.00	Using index
 1	SIMPLE	table2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	100.00	NULL
 1	SIMPLE	table3	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	1	100.00	NULL
-1	SIMPLE	subquery2_t1	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	1	100.00	Using index
+1	SIMPLE	subquery2_t1	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	1	100.00	Using index; Start temporary
 1	SIMPLE	subquery1_t3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Using where
 1	SIMPLE	subquery1_t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t3.col_int_key	1	100.00	Using where
 1	SIMPLE	subquery1_t1	NULL	index	PRIMARY	col_int_key	5	NULL	20	100.00	Using where; Using index
@@ -10222,9 +10230,9 @@ FROM ( view_c AS sq2_alias1, t1 AS sq2_alias2 )
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where; Start temporary
+1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	alias2	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias3.col_varchar_key	1	100.00	Using index
-1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Start temporary
 1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	test.alias3.pk	2	100.00	Using index
 1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	alias1	NULL	index	NULL	col_varchar_key	9	NULL	2	100.00	Using index; End temporary
@@ -10418,8 +10426,8 @@ ON inner_t3.col_varchar_nokey = inner_t2.col_varchar_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	outer_t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	outer_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Start temporary
-1	SIMPLE	inner_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	outer_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	inner_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Start temporary
 1	SIMPLE	inner_t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	inner_t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.inner_t2.pk	1	100.00	Using where; End temporary
 Warnings:
@@ -10527,8 +10535,8 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 (SELECT * FROM view_inline_2
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where; Start temporary
-1	PRIMARY	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using where
+1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	PRIMARY	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using where; Start temporary
 1	PRIMARY	sq2_alias2	NULL	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	100.00	Using where
 1	PRIMARY	<derived7>	NULL	ref	<auto_key0>	<auto_key0>	3	test.alias2.col_varchar_key	1	100.00	Using index
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	test.alias2.col_varchar_key,view_inline_2.My_exp_p	2	100.00	End temporary
@@ -10726,11 +10734,12 @@ OR
 outr.col_varchar_key IS NULL
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	outr	NULL	ALL	col_datetime_key	NULL	NULL	NULL	1	100.00	Using where; Start temporary
-1	SIMPLE	innr	NULL	ref	col_int_key	col_int_key	4	test.outr.col_int_nokey	1	100.00	Using where; End temporary
-1	SIMPLE	outr2	NULL	ALL	col_time_key	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x1)
+1	SIMPLE	outr	NULL	ALL	col_datetime_key	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	innr	NULL	ref	col_int_key	col_int_key	4	test.outr.col_int_nokey	1	100.00	Using where; Start temporary; End temporary
+1	SIMPLE	outr2	NULL	index	col_time_key	col_time_key	4	NULL	20	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
+Warning	1739	Cannot use range access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`outr`.`col_int_nokey` AS `col_int_nokey` from `test`.`t2` `outr` semi join (`test`.`t1` `innr`) straight_join `test`.`t3` `outr2` where ((`test`.`innr`.`col_int_key` = `test`.`outr`.`col_int_nokey`) and (`test`.`outr`.`col_int_nokey` <= 6) and (`test`.`innr`.`pk` >= `test`.`innr`.`col_int_nokey`) and (`test`.`outr2`.`col_time_key` > `test`.`outr`.`col_datetime_key`))
 SELECT outr.col_int_nokey
 FROM t2 as outr
@@ -11115,60 +11124,56 @@ EXPLAIN
     },
     "nested_loop": [
       {
+        "table": {
+          "table_name": "grandparent1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 20,
+          "filtered": 100,
+          "cost_info": {
+            "read_cost": "2.04",
+            "eval_cost": "4.00",
+            "prefix_cost": "6.04",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "col_int_nokey",
+            "col_int_key"
+          ]
+        }
+      },
+      {
         "duplicates_removal": {
           "using_temporary_table": true,
-          "nested_loop": [
-            {
-              "table": {
-                "table_name": "grandparent1",
-                "access_type": "ALL",
-                "rows_examined_per_scan": 20,
-                "rows_produced_per_join": 20,
-                "filtered": 100,
-                "cost_info": {
-                  "read_cost": "2.04",
-                  "eval_cost": "4.00",
-                  "prefix_cost": "6.04",
-                  "data_read_per_join": "320"
-                },
-                "used_columns": [
-                  "col_int_nokey",
-                  "col_int_key"
-                ]
-              }
+          "table": {
+            "table_name": "t2",
+            "access_type": "ref",
+            "possible_keys": [
+              "col_int_key"
+            ],
+            "key": "col_int_key",
+            "used_key_parts": [
+              "col_int_key"
+            ],
+            "key_length": "4",
+            "ref": [
+              "test.grandparent1.col_int_nokey"
+            ],
+            "rows_examined_per_scan": 2,
+            "rows_produced_per_join": 20,
+            "filtered": 100,
+            "cost_info": {
+              "read_cost": "40.00",
+              "eval_cost": "4.00",
+              "prefix_cost": "71.24",
+              "data_read_per_join": "320"
             },
-            {
-              "table": {
-                "table_name": "t2",
-                "access_type": "ref",
-                "possible_keys": [
-                  "col_int_key"
-                ],
-                "key": "col_int_key",
-                "used_key_parts": [
-                  "col_int_key"
-                ],
-                "key_length": "4",
-                "ref": [
-                  "test.grandparent1.col_int_nokey"
-                ],
-                "rows_examined_per_scan": 2,
-                "rows_produced_per_join": 20,
-                "filtered": 100,
-                "cost_info": {
-                  "read_cost": "40.00",
-                  "eval_cost": "4.00",
-                  "prefix_cost": "71.24",
-                  "data_read_per_join": "320"
-                },
-                "used_columns": [
-                  "col_int_nokey",
-                  "col_int_key"
-                ],
-                "attached_condition": "(`test`.`t2`.`col_int_nokey` = `test`.`grandparent1`.`col_int_nokey`)"
-              }
-            }
-          ]
+            "used_columns": [
+              "col_int_nokey",
+              "col_int_key"
+            ],
+            "attached_condition": "(`test`.`t2`.`col_int_nokey` = `test`.`grandparent1`.`col_int_nokey`)"
+          }
         }
       },
       {

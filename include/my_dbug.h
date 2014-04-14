@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 #ifndef MY_DBUG_INCLUDED
 #define MY_DBUG_INCLUDED
+
+#include "my_global.h"                          /* MYSQL_PLUGIN_IMPORT */
 
 #ifndef _WIN32
 #ifdef HAVE_SYS_TYPES_H
@@ -57,7 +59,7 @@ extern  void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_pargs_(uint _line_,const char *keyword);
 extern  int _db_enabled_();
 extern  void _db_doprnt_(const char *format,...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+  __attribute__((format(printf, 1, 2)));
 extern  void _db_dump_(uint _line_,const char *keyword,
                        const unsigned char *memory, size_t length);
 extern  void _db_end_(void);

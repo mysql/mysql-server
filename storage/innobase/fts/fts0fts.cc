@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -73,11 +73,13 @@ ulint n_nodes = 0;
 /** Error condition reported by fts_utf8_decode() */
 const ulint UTF8_ERROR = 0xFFFFFFFF;
 
+#ifdef FTS_CACHE_SIZE_DEBUG
 /** The cache size permissible lower limit (1K) */
 static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 
 /** The cache size permissible upper limit (1G) */
 static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
+#endif
 
 /** Time to sleep after DEADLOCK error before retrying operation. */
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
@@ -141,38 +143,39 @@ struct fts_aux_table_t {
 	char*		name;		/*!< Name of the table */
 };
 
-/** SQL statements for creating the ancillary common FTS tables. */
+/** SQL statements for creating the ancillary common FTS tables.
+The table name here shall be consistent with fts_common_tables. */
 static const char* fts_create_common_tables_sql = {
 	"BEGIN\n"
 	""
-	"CREATE TABLE \"%s_DELETED\" (\n"
+	"CREATE TABLE $DELETED (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND ON \"%s_DELETED\"(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND ON $DELETED (doc_id);\n"
 	""
-	"CREATE TABLE \"%s_DELETED_CACHE\" (\n"
+	"CREATE TABLE $DELETED_CACHE (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND "
-		"ON \"%s_DELETED_CACHE\"(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND"
+		" ON $DELETED_CACHE(doc_id);\n"
 	""
-	"CREATE TABLE \"%s_BEING_DELETED\" (\n"
+	"CREATE TABLE $BEING_DELETED (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND "
-		"ON \"%s_BEING_DELETED\"(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND"
+		" ON $BEING_DELETED(doc_id);\n"
 	""
-	"CREATE TABLE \"%s_BEING_DELETED_CACHE\" (\n"
+	"CREATE TABLE $BEING_DELETED_CACHE (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND "
-		"ON \"%s_BEING_DELETED_CACHE\"(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND"
+		" ON $BEING_DELETED_CACHE(doc_id);\n"
 	""
-	"CREATE TABLE \"%s_CONFIG\" (\n"
+	"CREATE TABLE $CONFIG (\n"
 	"  key CHAR(50),\n"
 	"  value CHAR(50) NOT NULL\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND ON \"%s_CONFIG\"(key);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND ON $CONFIG(key);\n"
 };
 
 #ifdef FTS_DOC_STATS_DEBUG
@@ -181,11 +184,11 @@ mainly designed for the statistics work in the future */
 static const char* fts_create_index_tables_sql = {
 	"BEGIN\n"
 	""
-	"CREATE TABLE \"%s_DOC_ID\" (\n"
+	"CREATE TABLE $doc_id_table (\n"
 	"   doc_id BIGINT UNSIGNED,\n"
 	"   word_count INTEGER UNSIGNED NOT NULL\n"
 	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND ON \"%s_DOC_ID\"(doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX IND ON $doc_id_table(doc_id);\n"
 };
 #endif
 
@@ -193,12 +196,12 @@ static const char* fts_create_index_tables_sql = {
 static const char* fts_create_index_sql = {
 	"BEGIN\n"
 	""
-	"CREATE UNIQUE CLUSTERED INDEX FTS_INDEX_TABLE_IND "
-		"ON \"%s\"(word, first_doc_id);\n"
+	"CREATE UNIQUE CLUSTERED INDEX FTS_INDEX_TABLE_IND"
+		" ON $table (word, first_doc_id);\n"
 };
 
 /** FTS auxiliary table suffixes that are common to all FT indexes. */
-static const char* fts_common_tables[] = {
+const char* fts_common_tables[] = {
 	"BEING_DELETED",
 	"BEING_DELETED_CACHE",
 	"CONFIG",
@@ -222,19 +225,19 @@ const  fts_index_selector_t fts_index_selector[] = {
 static const char* fts_config_table_insert_values_sql =
 	"BEGIN\n"
 	"\n"
-	"INSERT INTO \"%s\" VALUES('"
+	"INSERT INTO $config_table VALUES('"
 		FTS_MAX_CACHE_SIZE_IN_MB "', '256');\n"
 	""
-	"INSERT INTO \"%s\" VALUES('"
+	"INSERT INTO $config_table VALUES('"
 		FTS_OPTIMIZE_LIMIT_IN_SECS  "', '180');\n"
 	""
-	"INSERT INTO \"%s\" VALUES ('"
+	"INSERT INTO $config_table VALUES ('"
 		FTS_SYNCED_DOC_ID "', '0');\n"
 	""
-	"INSERT INTO \"%s\" VALUES ('"
+	"INSERT INTO $config_table VALUES ('"
 		FTS_TOTAL_DELETED_COUNT "', '0');\n"
 	"" /* Note: 0 == FTS_TABLE_STATE_RUNNING */
-	"INSERT INTO \"%s\" VALUES ('"
+	"INSERT INTO $config_table VALUES ('"
 		FTS_TABLE_STATE "', '0');\n";
 
 /** FTS tokenize parmameter for plugin parser */
@@ -344,31 +347,9 @@ fts_get_charset(ulint prtype)
 		return(cs);
 	}
 
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Unable to find charset-collation %u", cs_num);
+	ib_logf(IB_LOG_LEVEL_FATAL, "Unable to find charset-collation %u",
+		cs_num);
 	return(NULL);
-}
-
-/********************************************************************
-Check if we should stop. */
-UNIV_INLINE
-ibool
-fts_is_stop_signalled(
-/*==================*/
-	fts_t*		fts)			/*!< in: fts instance */
-{
-	ibool		stop_signalled = FALSE;
-
-	mutex_enter(&fts->bg_threads_mutex);
-
-	if (fts->fts_status & BG_THREAD_STOP) {
-
-		stop_signalled = TRUE;
-	}
-
-	mutex_exit(&fts->bg_threads_mutex);
-
-	return(stop_signalled);
 }
 
 /****************************************************************//**
@@ -531,7 +512,7 @@ fts_load_user_stopword(
 		info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT value "
+		" SELECT value"
 		" FROM $table_stopword;\n"
 		"BEGIN\n"
 		"\n"
@@ -555,17 +536,16 @@ fts_load_user_stopword(
 
 			fts_sql_rollback(trx);
 
-			ut_print_timestamp(stderr);
-
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout reading user stopword table. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Lock wait timeout reading user"
+					" stopword table. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error '%s' "
-					"while reading user stopword table.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Error '%s' while reading user"
+					" stopword table.",
 					ut_strerr(error));
 				ret = FALSE;
 				break;
@@ -1587,16 +1567,14 @@ fts_rename_aux_tables(
 
 	/* Rename common auxiliary tables */
 	for (i = 0; fts_common_tables[i] != NULL; ++i) {
-		char*	old_table_name;
+		char	old_table_name[MAX_FULL_NAME_LEN];
 		dberr_t	err = DB_SUCCESS;
 
 		fts_table.suffix = fts_common_tables[i];
 
-		old_table_name = fts_get_table_name(&fts_table);
+		fts_get_table_name(&fts_table, old_table_name);
 
 		err = fts_rename_one_aux_table(new_name, old_table_name, trx);
-
-		ut_free(old_table_name);
 
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -1617,19 +1595,18 @@ fts_rename_aux_tables(
 
 		for (ulint j = 0; fts_index_selector[j].value; ++j) {
 			dberr_t	err;
-			char*	old_table_name;
+			char	old_table_name[MAX_FULL_NAME_LEN];
 
 			fts_table.suffix = fts_get_suffix(j);
 
-			old_table_name = fts_get_table_name(&fts_table);
+			fts_get_table_name(&fts_table, old_table_name);
 
 			err = fts_rename_one_aux_table(
 				new_name, old_table_name, trx);
 
 			DBUG_EXECUTE_IF("fts_rename_failure",
-					err = DB_DEADLOCK;);
-
-			ut_free(old_table_name);
+					err = DB_DEADLOCK;
+					fts_sql_rollback(trx););
 
 			if (err != DB_SUCCESS) {
 				return(err);
@@ -1658,11 +1635,11 @@ fts_drop_common_tables(
 
 	for (i = 0; fts_common_tables[i] != NULL; ++i) {
 		dberr_t	err;
-		char*	table_name;
+		char	table_name[MAX_FULL_NAME_LEN];
 
 		fts_table->suffix = fts_common_tables[i];
 
-		table_name = fts_get_table_name(fts_table);
+		fts_get_table_name(fts_table, table_name);
 
 		err = fts_drop_table(trx, table_name);
 
@@ -1670,8 +1647,6 @@ fts_drop_common_tables(
 		if (err != DB_SUCCESS && err != DB_FAIL) {
 			error = err;
 		}
-
-		ut_free(table_name);
 	}
 
 	return(error);
@@ -1697,11 +1672,11 @@ fts_drop_index_split_tables(
 
 	for (i = 0; fts_index_selector[i].value; ++i) {
 		dberr_t	err;
-		char*	table_name;
+		char	table_name[MAX_FULL_NAME_LEN];
 
 		fts_table.suffix = fts_get_suffix(i);
 
-		table_name = fts_get_table_name(&fts_table);
+		fts_get_table_name(&fts_table, table_name);
 
 		err = fts_drop_table(trx, table_name);
 
@@ -1709,8 +1684,6 @@ fts_drop_index_split_tables(
 		if (err != DB_SUCCESS && err != DB_FAIL) {
 			error = err;
 		}
-
-		ut_free(table_name);
 	}
 
 	return(error);
@@ -1747,11 +1720,11 @@ fts_drop_index_tables(
 	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
 	for (ulint i = 0; index_tables[i] != NULL; ++i) {
-		char*	table_name;
+		char	table_name[MAX_FULL_NAME_LEN];
 
 		fts_table.suffix = index_tables[i];
 
-		table_name = fts_get_table_name(&fts_table);
+		fts_get_table_name(&fts_table, table_name);
 
 		err = fts_drop_table(trx, table_name);
 
@@ -1759,8 +1732,6 @@ fts_drop_index_tables(
 		if (err != DB_SUCCESS && err != DB_FAIL) {
 			error = err;
 		}
-
-		ut_free(table_name);
 	}
 #endif /* FTS_DOC_STATS_DEBUG */
 
@@ -1830,26 +1801,6 @@ fts_drop_tables(
 }
 
 /*********************************************************************//**
-Prepare the SQL, so that all '%s' are replaced by the common prefix.
-@return sql string, use ut_free() to free the memory */
-static
-char*
-fts_prepare_sql(
-/*============*/
-	fts_table_t*	fts_table,	/*!< in: table name info */
-	const char*	my_template)	/*!< in: sql template */
-{
-	char*		sql;
-	char*		name_prefix;
-
-	name_prefix = fts_get_table_name_prefix(fts_table);
-	sql = ut_strreplace(my_template, "%s", name_prefix);
-	ut_free(name_prefix);
-
-	return(sql);
-}
-
-/*********************************************************************//**
 Creates the common ancillary tables needed for supporting an FTS index
 on the given table. row_mysql_lock_data_dictionary must have been called
 before this.
@@ -1863,12 +1814,15 @@ fts_create_common_tables(
 	const char*	name,		/*!< in: table name normalized.*/
 	bool		skip_doc_id_index)/*!< in: Skip index on doc id */
 {
-	char*		sql;
 	dberr_t		error;
 	que_t*		graph;
 	fts_table_t	fts_table;
 	mem_heap_t*	heap = mem_heap_create(1024);
 	pars_info_t*	info;
+	char		fts_name[MAX_FULL_NAME_LEN];
+	char		full_name[sizeof(fts_common_tables) / sizeof(char*)]
+				[MAX_FULL_NAME_LEN];
+	ulint		i;
 
 	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
@@ -1880,9 +1834,19 @@ fts_create_common_tables(
 	}
 
 	/* Create the FTS tables that are common to an FTS index. */
-	sql = fts_prepare_sql(&fts_table, fts_create_common_tables_sql);
-	graph = fts_parse_sql_no_dict_lock(NULL, NULL, sql);
-	ut_free(sql);
+	info = pars_info_create();
+
+	for (i = 0; fts_common_tables[i] != NULL; ++i) {
+
+		fts_table.suffix = fts_common_tables[i];
+		fts_get_table_name(&fts_table, full_name[i]);
+
+		pars_info_bind_id(info, true,
+				  fts_common_tables[i], full_name[i]);
+	}
+
+	graph = fts_parse_sql_no_dict_lock(NULL, info,
+					   fts_create_common_tables_sql);
 
 	error = fts_eval_sql(trx, graph);
 
@@ -1894,9 +1858,14 @@ fts_create_common_tables(
 	}
 
 	/* Write the default settings to the config table. */
+	info = pars_info_create();
+
 	fts_table.suffix = "CONFIG";
+	fts_get_table_name(&fts_table, fts_name);
+	pars_info_bind_id(info, true, "config_table", fts_name);
+
 	graph = fts_parse_sql_no_dict_lock(
-		&fts_table, NULL, fts_config_table_insert_values_sql);
+		&fts_table, info, fts_config_table_insert_values_sql);
 
 	error = fts_eval_sql(trx, graph);
 
@@ -1962,11 +1931,13 @@ fts_create_one_index_table(
 {
 	dict_field_t*		field;
 	dict_table_t*		new_table = NULL;
-	char*			table_name = fts_get_table_name(fts_table);
+	char			table_name[MAX_FULL_NAME_LEN];
 	dberr_t			error;
 	CHARSET_INFO*		charset;
 
 	ut_ad(index->type & DICT_FTS);
+
+	fts_get_table_name(fts_table, table_name);
 
 	new_table = dict_mem_table_create(table_name, 0, 5, 1, 0);
 
@@ -2002,8 +1973,6 @@ fts_create_one_index_table(
 			"Fail to create FTS index table %s", table_name);
 	}
 
-	ut_free(table_name);
-
 	return(new_table);
 }
 
@@ -2026,23 +1995,28 @@ fts_create_index_tables_low(
 	que_t*		graph;
 	fts_table_t	fts_table;
 	dberr_t		error = DB_SUCCESS;
+	pars_info_t*	info;
 	mem_heap_t*	heap = mem_heap_create(1024);
+	char		fts_name[MAX_FULL_NAME_LEN];
 
 	fts_table.type = FTS_INDEX_TABLE;
 	fts_table.index_id = index->id;
 	fts_table.table_id = table_id;
 	fts_table.parent = table_name;
-	fts_table.table = NULL;
+	fts_table.table = index->table;
 
 #ifdef FTS_DOC_STATS_DEBUG
-	char*		sql;
-
 	/* Create the FTS auxiliary tables that are specific
 	to an FTS index. */
-	sql = fts_prepare_sql(&fts_table, fts_create_index_tables_sql);
+	info = pars_info_create();
 
-	graph = fts_parse_sql_no_dict_lock(NULL, NULL, sql);
-	ut_free(sql);
+	fts_table.suffix = "DOC_ID";
+	fts_get_table_name(&fts_table, fts_name);
+
+	pars_info_bind_id(info, true, "doc_id_table", fts_name);
+
+	graph = fts_parse_sql_no_dict_lock(NULL, info,
+					   fts_create_index_tables_sql);
 
 	error = fts_eval_sql(trx, graph);
 	que_graph_free(graph);
@@ -2050,6 +2024,8 @@ fts_create_index_tables_low(
 
 	for (i = 0; fts_index_selector[i].value && error == DB_SUCCESS; ++i) {
 		dict_table_t*	new_table;
+
+		info = pars_info_create();
 
 		/* Create the FTS auxiliary tables that are specific
 		to an FTS index. We need to preserve the table_id %s
@@ -2064,8 +2040,12 @@ fts_create_index_tables_low(
 			break;
 		}
 
+		fts_get_table_name(&fts_table, fts_name);
+
+		pars_info_bind_id(info, true, "table", fts_name);
+
 		graph = fts_parse_sql_no_dict_lock(
-			&fts_table, NULL, fts_create_index_sql);
+			&fts_table, info, fts_create_index_sql);
 
 		error = fts_eval_sql(trx, graph);
 		que_graph_free(graph);
@@ -2529,11 +2509,11 @@ fts_get_max_cache_size(
 
 		if (cache_size_in_mb > FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Warning: FTS max cache size "
-				" (%lu) out of range. Minimum value is "
-				"%luMB and the maximum values is %luMB, "
-				"setting cache size to upper limit\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"FTS max cache size"
+				" (%lu) out of range. Minimum value is"
+				" %luMB and the maximum values is %luMB,"
+				" setting cache size to upper limit",
 				cache_size_in_mb,
 				FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB,
 				FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB);
@@ -2543,11 +2523,10 @@ fts_get_max_cache_size(
 		} else if  (cache_size_in_mb
 			    < FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Warning: FTS max cache size "
-				" (%lu) out of range. Minimum value is "
-				"%luMB and the maximum values is %luMB, "
-				"setting cache size to lower limit\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"FTS max cache size (%lu) out of range. Minimum"
+				" value is %luMB and the maximum values is"
+				" %luMB, setting cache size to lower limit",
 				cache_size_in_mb,
 				FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB,
 				FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB);
@@ -2555,9 +2534,9 @@ fts_get_max_cache_size(
 			cache_size_in_mb = FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB;
 		}
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: Error: (%lu) reading max cache "
-			"config value from config table\n", error);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"(%lu) reading max cache"
+			" config value from config table", error);
 	}
 
 	ut_free(value.f_str);
@@ -2597,9 +2576,9 @@ fts_get_total_word_count(
 		value.f_str[value.f_len] = 0;
 		*total = strtoul((char*) value.f_str, NULL, 10);
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%s) reading total words "
-			"value from config table\n", ut_strerr(error));
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"(%s) reading total words value from config table",
+			ut_strerr(error));
 	}
 
 	ut_free(value.f_str);
@@ -2689,6 +2668,7 @@ fts_cmp_set_sync_doc_id(
 	fts_table_t	fts_table;
 	que_t*		graph = NULL;
 	fts_cache_t*	cache = table->fts->cache;
+	char		table_name[MAX_FULL_NAME_LEN];
 retry:
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
@@ -2708,10 +2688,13 @@ retry:
 	pars_info_bind_function(
 		info, "my_func", fts_fetch_store_doc_id, doc_id);
 
+	fts_get_table_name(&fts_table, table_name);
+	pars_info_bind_id(info, true, "config_table", table_name);
+
 	graph = fts_parse_sql(
 		&fts_table, info,
 		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS SELECT value FROM \"%s\""
+		"DECLARE CURSOR c IS SELECT value FROM $config_table"
 		" WHERE key = 'synced_doc_id' FOR UPDATE;\n"
 		"BEGIN\n"
 		""
@@ -2767,9 +2750,8 @@ func_exit:
 	} else {
 		*doc_id = 0;
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%s) "
-			"while getting next doc id.\n", ut_strerr(error));
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) while getting next doc id.",
+			ut_strerr(error));
 
 		fts_sql_rollback(trx);
 
@@ -2805,6 +2787,7 @@ fts_update_sync_doc_id(
 	dberr_t		error;
 	ibool		local_trx = FALSE;
 	fts_cache_t*	cache = table->fts->cache;
+	char		fts_name[MAX_FULL_NAME_LEN];
 
 	fts_table.suffix = "CONFIG";
 	fts_table.table_id = table->id;
@@ -2830,10 +2813,13 @@ fts_update_sync_doc_id(
 
 	pars_info_bind_varchar_literal(info, "doc_id", id, id_len);
 
+	fts_get_table_name(&fts_table, fts_name);
+	pars_info_bind_id(info, true, "table_name", fts_name);
+
 	graph = fts_parse_sql(
 		&fts_table, info,
-		"BEGIN "
-		"UPDATE \"%s\" SET value = :doc_id"
+		"BEGIN"
+		" UPDATE $table_name SET value = :doc_id"
 		" WHERE key = 'synced_doc_id';");
 
 	error = fts_eval_sql(trx, graph);
@@ -2987,6 +2973,7 @@ fts_delete(
 
 	/* Note the deleted document for OPTIMIZE to purge. */
 	if (error == DB_SUCCESS) {
+		char	table_name[MAX_FULL_NAME_LEN];
 
 		trx->op_info = "adding doc id to FTS DELETED";
 
@@ -2994,10 +2981,13 @@ fts_delete(
 
 		fts_table.suffix = "DELETED";
 
+		fts_get_table_name(&fts_table, table_name);
+		pars_info_bind_id(info, true, "deleted", table_name);
+
 		graph = fts_parse_sql(
 			&fts_table,
 			info,
-			"BEGIN INSERT INTO \"%s\" VALUES (:doc_id);");
+			"BEGIN INSERT INTO $deleted VALUES (:doc_id);");
 
 		error = fts_eval_sql(trx, graph);
 
@@ -3383,7 +3373,7 @@ fts_fetch_doc_from_rec(
 			doc->text.f_str =
 				btr_rec_copy_externally_stored_field(
 					clust_rec, offsets,
-					dict_table_zip_size(table),
+					dict_table_page_size(table),
 					clust_pos, &doc->text.f_len,
 					static_cast<mem_heap_t*>(
 						doc->self_heap->arg));
@@ -3836,11 +3826,15 @@ fts_write_node(
 	ib_time_t	start_time;
 	doc_id_t	last_doc_id;
 	doc_id_t	first_doc_id;
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	if (*graph) {
 		info = (*graph)->info;
 	} else {
 		info = pars_info_create();
+
+		fts_get_table_name(fts_table, table_name);
+		pars_info_bind_id(info, true, "index_table_name", table_name);
 	}
 
 	pars_info_bind_varchar_literal(info, "token", word->f_str, word->f_len);
@@ -3866,13 +3860,14 @@ fts_write_node(
 		DATA_BLOB, DATA_BINARY_TYPE);
 
 	if (!*graph) {
+
 		*graph = fts_parse_sql(
 			fts_table,
 			info,
 			"BEGIN\n"
-			"INSERT INTO \"%s\" VALUES "
-			"(:token, :first_doc_id,"
-			" :last_doc_id, :doc_count, :ilist);");
+			"INSERT INTO $index_table_name VALUES"
+			" (:token, :first_doc_id,"
+			"  :last_doc_id, :doc_count, :ilist);");
 	}
 
 	start_time = ut_time();
@@ -3897,6 +3892,7 @@ fts_sync_add_deleted_cache(
 	pars_info_t*	info;
 	que_t*		graph;
 	fts_table_t	fts_table;
+	char		table_name[MAX_FULL_NAME_LEN];
 	doc_id_t	dummy = 0;
 	dberr_t		error = DB_SUCCESS;
 	ulint		n_elems = ib_vector_size(doc_ids);
@@ -3912,10 +3908,13 @@ fts_sync_add_deleted_cache(
 	FTS_INIT_FTS_TABLE(
 		&fts_table, "DELETED_CACHE", FTS_COMMON_TABLE, sync->table);
 
+	fts_get_table_name(&fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
+
 	graph = fts_parse_sql(
 		&fts_table,
 		info,
-		"BEGIN INSERT INTO \"%s\" VALUES (:doc_id);");
+		"BEGIN INSERT INTO $table_name VALUES (:doc_id);");
 
 	for (i = 0; i < n_elems && error == DB_SUCCESS; ++i) {
 		fts_update_t*	update;
@@ -4021,10 +4020,9 @@ fts_sync_write_words(
 		}
 
 		if (error != DB_SUCCESS && !print_error) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Error (%s) writing "
-				"word node to FTS auxiliary index "
-				"table.\n", ut_strerr(error));
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"(%s) writing word node to FTS auxiliary index"
+				" table.", ut_strerr(error));
 
 			print_error = TRUE;
 		}
@@ -4071,6 +4069,7 @@ fts_sync_write_doc_stat(
 	doc_id_t	doc_id;
 	dberr_t		error = DB_SUCCESS;
 	ib_uint32_t	word_count;
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	if (*graph) {
 		info = (*graph)->info;
@@ -4093,10 +4092,15 @@ fts_sync_write_doc_stat(
 		FTS_INIT_INDEX_TABLE(
 			&fts_table, "DOC_ID", FTS_INDEX_TABLE, index);
 
+		fts_get_table_name(&fts_table, table_name);
+
+		pars_info_bind_id(info, true, "doc_id_table", table_name);
+
 		*graph = fts_parse_sql(
 			&fts_table,
 			info,
-			"BEGIN INSERT INTO \"%s\" VALUES (:doc_id, :count);");
+			"BEGIN"
+			" INSERT INTO $doc_id_table VALUES (:doc_id, :count);");
 	}
 
 	for (;;) {
@@ -4106,17 +4110,16 @@ fts_sync_write_doc_stat(
 
 			break;				/* Exit the loop. */
 		} else {
-			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout writing to FTS doc_id. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Lock wait timeout writing to"
+					" FTS doc_id. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: (%s) "
-					"while writing to FTS doc_id.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) while writing to FTS doc_id.",
 					ut_strerr(error));
 
 				break;			/* Exit the loop. */
@@ -4218,6 +4221,7 @@ fts_is_word_in_index(
 {
 	pars_info_t*	info;
 	dberr_t		error;
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	trx->op_info = "looking up word in FTS index";
 
@@ -4227,6 +4231,8 @@ fts_is_word_in_index(
 		info = pars_info_create();
 	}
 
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
 	pars_info_bind_function(info, "my_func", fts_lookup_word, found);
 	pars_info_bind_varchar_literal(info, "word", word->f_str, word->f_len);
 
@@ -4237,8 +4243,8 @@ fts_is_word_in_index(
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
 			" SELECT doc_count\n"
-			" FROM \"%s\"\n"
-			" WHERE word = :word "
+			" FROM $table_name\n"
+			" WHERE word = :word"
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
 			"\n"
@@ -4259,17 +4265,16 @@ fts_is_word_in_index(
 
 			break;				/* Exit the loop. */
 		} else {
-			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout reading FTS index. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Lock wait timeout reading"
+					" FTS index. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: (%s) "
-					"while reading FTS index.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) while reading FTS index.",
 					ut_strerr(error));
 
 				break;			/* Exit the loop. */
@@ -4300,8 +4305,8 @@ fts_sync_begin(
 
 	if (fts_enable_diag_print) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"FTS SYNC for table %s, deleted count: %ld size: "
-			"%lu bytes",
+			"FTS SYNC for table %s, deleted count: %ld size:"
+			" %lu bytes",
 			sync->table->name,
 			ib_vector_size(cache->deleted_doc_ids),
 			cache->total_size);
@@ -4325,8 +4330,8 @@ fts_sync_index(
 	trx->op_info = "doing SYNC index";
 
 	if (fts_enable_diag_print) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"SYNC words: %ld", rbt_size(index_cache->words));
+		ib_logf(IB_LOG_LEVEL_INFO, "SYNC words: %ld",
+			rbt_size(index_cache->words));
 	}
 
 	ut_ad(rbt_validate(index_cache->words));
@@ -4392,15 +4397,14 @@ fts_sync_commit(
 
 		fts_sql_rollback(trx);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%s) during SYNC.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR, "(%s) during SYNC.",
 			ut_strerr(error));
 	}
 
 	if (fts_enable_diag_print && elapsed_time) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"SYNC for table %s: SYNC time : %lu secs: "
-			"elapsed %lf ins/sec",
+			"SYNC for table %s: SYNC time : %lu secs:"
+			" elapsed %lf ins/sec",
 			sync->table->name,
 			(ulong) (ut_time() - sync->start_time),
 			(double) n_nodes/ (double) elapsed_time);
@@ -4471,7 +4475,7 @@ fts_sync(
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
-	}  else {
+	} else {
 		fts_sync_rollback(sync);
 	}
 
@@ -4501,7 +4505,7 @@ fts_sync_table(
 
 	ut_ad(table->fts);
 
-	if (table->fts->cache) {
+	if (!dict_table_is_discarded(table) && table->fts->cache) {
 		err = fts_sync(table->fts->cache->sync);
 	}
 
@@ -4545,6 +4549,7 @@ fts_add_token(
 			reinterpret_cast<char*>(t_str.f_str), t_str.f_len);
 
 		t_str.f_len = newlen;
+		t_str.f_str[newlen] = 0;
 
 		/* Add the word to the document statistics. If the word
 		hasn't been seen before we create a new entry for it. */
@@ -4983,6 +4988,7 @@ fts_get_rows_count(
 	que_t*		graph;
 	dberr_t		error;
 	ulint		count = 0;
+	char		table_name[MAX_FULL_NAME_LEN];
 
 	trx = trx_allocate_for_background();
 
@@ -4992,13 +4998,16 @@ fts_get_rows_count(
 
 	pars_info_bind_function(info, "my_func", fts_read_ulint, &count);
 
+	fts_get_table_name(fts_table, table_name);
+	pars_info_bind_id(info, true, "table_name", table_name);
+
 	graph = fts_parse_sql(
 		fts_table,
 		info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT COUNT(*) "
-		" FROM \"%s\";\n"
+		" SELECT COUNT(*)"
+		" FROM $table_name;\n"
 		"BEGIN\n"
 		"\n"
 		"OPEN c;\n"
@@ -5020,17 +5029,15 @@ fts_get_rows_count(
 		} else {
 			fts_sql_rollback(trx);
 
-			ut_print_timestamp(stderr);
-
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout reading FTS table. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"lock wait timeout reading"
+					" FTS table. Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: (%s) "
-					"while reading FTS table.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) while reading FTS table.",
 					ut_strerr(error));
 
 				break;			/* Exit the loop. */
@@ -5420,9 +5427,9 @@ fts_wait_for_background_thread_to_start(
 		}
 
 		if (count >= FTS_BACKGROUND_THREAD_WAIT_COUNT) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Error the background thread "
-				"for the FTS table %s refuses to start\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The background thread"
+				" for the FTS table %s refuses to start",
 				table->name);
 
 			count = 0;
@@ -5989,7 +5996,7 @@ fts_is_aux_table_name(
 	my_name[len] = 0;
 	end = my_name + len;
 
-	ptr =  static_cast<const char*>(memchr(my_name, '/', len));
+	ptr = static_cast<const char*>(memchr(my_name, '/', len));
 
 	if (ptr != NULL) {
 		/* We will start the match after the '/' */
@@ -6132,6 +6139,371 @@ fts_read_tables(
 	return(TRUE);
 }
 
+/******************************************************************//**
+Callback that sets a hex formatted FTS table's flags2 in
+SYS_TABLES. The flags is stored in MIX_LEN column.
+@return FALSE if all OK */
+static
+ibool
+fts_set_hex_format(
+/*===============*/
+	void*		row,		/*!< in: sel_node_t* */
+	void*		user_arg)	/*!< in: bool set/unset flag */
+{
+	sel_node_t*	node = static_cast<sel_node_t*>(row);
+	dfield_t*	dfield = que_node_get_val(node->select_list);
+
+	ut_ad(dtype_get_mtype(dfield_get_type(dfield)) == DATA_INT);
+	ut_ad(dfield_get_len(dfield) == sizeof(ib_uint32_t));
+	/* There should be at most one matching record. So the value
+	must be the default value. */
+	ut_ad(mach_read_from_4(static_cast<byte*>(user_arg))
+	      == ULINT32_UNDEFINED);
+
+	ulint		flags2 = mach_read_from_4(
+			static_cast<byte*>(dfield_get_data(dfield)));
+
+	flags2 |= DICT_TF2_FTS_AUX_HEX_NAME;
+
+	mach_write_to_4(static_cast<byte*>(user_arg), flags2);
+
+	return(FALSE);
+}
+
+/*****************************************************************//**
+Update the DICT_TF2_FTS_AUX_HEX_NAME flag in SYS_TABLES.
+@return DB_SUCCESS or error code. */
+dberr_t
+fts_update_hex_format_flag(
+/*=======================*/
+	trx_t*		trx,		/*!< in/out: transaction that
+					covers the update */
+	table_id_t	table_id,	/*!< in: Table for which we want
+					to set the root table->flags2 */
+	bool		dict_locked)	/*!< in: set to true if the
+					caller already owns the
+					dict_sys_t::mutex. */
+{
+	pars_info_t*		info;
+	ib_uint32_t		flags2;
+
+	static const char	sql[] =
+		"PROCEDURE UPDATE_HEX_FORMAT_FLAG() IS\n"
+		"DECLARE FUNCTION my_func;\n"
+		"DECLARE CURSOR c IS\n"
+		" SELECT MIX_LEN"
+		" FROM SYS_TABLES"
+		" WHERE ID = :table_id FOR UPDATE;"
+		"\n"
+		"BEGIN\n"
+		"OPEN c;\n"
+		"WHILE 1 = 1 LOOP\n"
+		"  FETCH c INTO my_func();\n"
+		"  IF c % NOTFOUND THEN\n"
+		"    EXIT;\n"
+		"  END IF;\n"
+		"END LOOP;\n"
+		"UPDATE SYS_TABLES"
+		" SET MIX_LEN = :flags2"
+		" WHERE ID = :table_id;\n"
+		"CLOSE c;\n"
+		"END;\n";
+
+	flags2 = ULINT32_UNDEFINED;
+
+	info = pars_info_create();
+
+	pars_info_add_ull_literal(info, "table_id", table_id);
+	pars_info_bind_int4_literal(info, "flags2", &flags2);
+
+	pars_info_bind_function(
+		info, "my_func", fts_set_hex_format, &flags2);
+
+	if (trx_get_dict_operation(trx) == TRX_DICT_OP_NONE) {
+		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+	}
+
+	dberr_t err = que_eval_sql(info, sql, !dict_locked, trx);
+
+	ut_a(flags2 != ULINT32_UNDEFINED);
+
+	return (err);
+}
+
+#ifdef _WIN32
+
+/*********************************************************************//**
+Rename an aux table to HEX format. It's called when "%016llu" is used
+to format an object id in table name, which only happens in Windows. */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+fts_rename_one_aux_table_to_hex_format(
+/*===================================*/
+	trx_t*			trx,		/*!< in: transaction */
+	const fts_aux_table_t*	aux_table,	/*!< in: table info */
+	const dict_table_t*	parent_table)	/*!< in: parent table name */
+{
+	const char*     ptr;
+	fts_table_t	fts_table;
+	char		new_name[MAX_FULL_NAME_LEN];
+	dberr_t		error;
+
+	ptr = strchr(aux_table->name, '/');
+	ut_a(ptr != NULL);
+	++ptr;
+	/* Skip "FTS_", table id and underscore */
+	for (ulint i = 0; i < 2; ++i) {
+		ptr = strchr(ptr, '_');
+		ut_a(ptr != NULL);
+		++ptr;
+	}
+
+	fts_table.suffix = NULL;
+	if (aux_table->index_id == 0) {
+		fts_table.type = FTS_COMMON_TABLE;
+
+		for (ulint i = 0; fts_common_tables[i] != NULL; ++i) {
+			if (strcmp(ptr, fts_common_tables[i]) == 0) {
+				fts_table.suffix = fts_common_tables[i];
+				break;
+			}
+		}
+	} else {
+		fts_table.type = FTS_INDEX_TABLE;
+
+		/* Skip index id and underscore */
+		ptr = strchr(ptr, '_');
+		ut_a(ptr != NULL);
+		++ptr;
+
+		for (ulint i = 0; fts_index_selector[i].value; ++i) {
+			if (strcmp(ptr, fts_get_suffix(i)) == 0) {
+				fts_table.suffix = fts_get_suffix(i);
+				break;
+			}
+		}
+	}
+
+	ut_a(fts_table.suffix != NULL);
+
+	fts_table.parent = parent_table->name;
+	fts_table.table_id = aux_table->parent_id;
+	fts_table.index_id = aux_table->index_id;
+	fts_table.table = parent_table;
+
+	fts_get_table_name(&fts_table, new_name);
+	ut_ad(strcmp(new_name, aux_table->name) != 0);
+
+	if (trx_get_dict_operation(trx) == TRX_DICT_OP_NONE) {
+		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+	}
+
+	error = row_rename_table_for_mysql(aux_table->name, new_name, trx,
+					   FALSE);
+
+	if (error != DB_SUCCESS) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Failed to rename aux table \'%s\' to"
+			" new format \'%s\'. ",
+			aux_table->name, new_name);
+	} else {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Renamed aux table \'%s\' to \'%s\'.",
+			aux_table->name, new_name);
+	}
+
+	return (error);
+}
+
+/**********************************************************************//**
+Rename all aux tables of a parent table to HEX format. Also set aux tables'
+flags2 and parent table's flags2 with DICT_TF2_FTS_AUX_HEX_NAME.
+It's called when "%016llu" is used to format an object id in table name,
+which only happens in Windows.
+Note the ids in tables are correct but the names are old ambiguous ones.
+
+This function should make sure that either all the parent table and aux tables
+are set DICT_TF2_FTS_AUX_HEX_NAME with flags2 or none of them are set */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+fts_rename_aux_tables_to_hex_format(
+/*================================*/
+	trx_t*		trx,		/*!< in: transaction */
+	dict_table_t*	parent_table,	/*!< in: parent table */
+	ib_vector_t*	tables)		/*!< in: aux tables to rename. */
+{
+	dberr_t		error;
+	ulint		count;
+
+	ut_ad(!DICT_TF2_FLAG_IS_SET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME));
+	ut_ad(!ib_vector_is_empty(tables));
+
+	error = fts_update_hex_format_flag(trx, parent_table->id, true);
+
+	if (error != DB_SUCCESS) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Setting parent table %s to hex format failed.",
+			parent_table->name);
+
+		fts_sql_rollback(trx);
+		return (error);
+	}
+
+	DICT_TF2_FLAG_SET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
+
+	for (count = 0; count < ib_vector_size(tables); ++count) {
+		dict_table_t*		table;
+		fts_aux_table_t*	aux_table;
+
+		aux_table = static_cast<fts_aux_table_t*>(
+			ib_vector_get(tables, count));
+
+		table = dict_table_open_on_id(aux_table->id, TRUE,
+					      DICT_TABLE_OP_NORMAL);
+
+		ut_ad(table != NULL);
+		ut_ad(!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_AUX_HEX_NAME));
+
+		/* Set HEX_NAME flag here to make sure we can get correct
+		new table name in following function */
+		DICT_TF2_FLAG_SET(table, DICT_TF2_FTS_AUX_HEX_NAME);
+		error = fts_rename_one_aux_table_to_hex_format(trx,
+				aux_table, parent_table);
+		/* We will rollback the trx if the error != DB_SUCCESS,
+		so setting the flag here is the same with setting it in
+		row_rename_table_for_mysql */
+		DBUG_EXECUTE_IF("rename_aux_table_fail", error = DB_ERROR;);
+
+		if (error != DB_SUCCESS) {
+			dict_table_close(table, TRUE, FALSE);
+
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Failed to rename one aux table %s Will revert"
+				" all successful rename operations.",
+				aux_table->name);
+
+			fts_sql_rollback(trx);
+			break;
+		}
+
+		error = fts_update_hex_format_flag(trx, aux_table->id, true);
+		dict_table_close(table, TRUE, FALSE);
+
+		if (error != DB_SUCCESS) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Setting aux table %s to hex format failed.",
+				aux_table->name);
+
+			fts_sql_rollback(trx);
+			break;
+		}
+	}
+
+	if (error != DB_SUCCESS) {
+		ut_ad(count != ib_vector_size(tables));
+		/* If rename fails, thr trx would be rolled back, we can't
+		use it any more, we'll start a new background trx to do
+		the reverting. */
+		ut_a(trx->state == TRX_STATE_NOT_STARTED);
+		bool not_rename = false;
+
+		/* Try to revert those succesful rename operations
+		in order to revert the ibd file rename. */
+		for (ulint i = 0; i <= count; ++i) {
+			dict_table_t*		table;
+			fts_aux_table_t*	aux_table;
+			trx_t*			trx_bg;
+			dberr_t			err;
+
+			aux_table = static_cast<fts_aux_table_t*>(
+				ib_vector_get(tables, i));
+
+			table = dict_table_open_on_id(aux_table->id, TRUE,
+						      DICT_TABLE_OP_NORMAL);
+			ut_ad(table != NULL);
+
+			if (not_rename) {
+				DICT_TF2_FLAG_UNSET(table,
+						    DICT_TF2_FTS_AUX_HEX_NAME);
+			}
+
+			if (!DICT_TF2_FLAG_IS_SET(table,
+						  DICT_TF2_FTS_AUX_HEX_NAME)) {
+				dict_table_close(table, TRUE, FALSE);
+				continue;
+			}
+
+			trx_bg = trx_allocate_for_background();
+			trx_bg->op_info = "Revert half done rename";
+			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
+			trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
+
+			DICT_TF2_FLAG_UNSET(table, DICT_TF2_FTS_AUX_HEX_NAME);
+			err = row_rename_table_for_mysql(table->name,
+							 aux_table->name,
+							 trx_bg, FALSE);
+
+			trx_bg->dict_operation_lock_mode = 0;
+			dict_table_close(table, TRUE, FALSE);
+
+			if (err != DB_SUCCESS) {
+				ib_logf(IB_LOG_LEVEL_WARN, "Failed to revert"
+					" table %s. Please revert manually.",
+					table->name);
+				fts_sql_rollback(trx_bg);
+				/* Continue to clear aux tables' flags2 */
+				not_rename = true;
+				continue;
+			}
+
+			fts_sql_commit(trx_bg);
+		}
+
+		DICT_TF2_FLAG_UNSET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
+	}
+
+	return (error);
+}
+
+/**********************************************************************//**
+Convert an id, which is actually a decimal number but was regard as a HEX
+from a string, to its real value. */
+static
+ib_id_t
+fts_fake_hex_to_dec(
+/*================*/
+	ib_id_t		id)			/*!< in: number to convert */
+{
+	ib_id_t		dec_id = 0;
+	char		tmp_id[FTS_AUX_MIN_TABLE_ID_LENGTH];
+	int		ret;
+
+	ret = sprintf(tmp_id, UINT64PFx, id);
+	ut_ad(ret == 16);
+	ret = sscanf(tmp_id, "%016llu", &dec_id);
+	ut_ad(ret == 1);
+
+	return dec_id;
+}
+
+/*********************************************************************//**
+Compare two fts_aux_table_t parent_ids.
+@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
+UNIV_INLINE
+int
+fts_check_aux_table_parent_id_cmp(
+/*==============================*/
+	const void*	p1,		/*!< in: id1 */
+	const void*	p2)		/*!< in: id2 */
+{
+	const fts_aux_table_t*	fa1 = static_cast<const fts_aux_table_t*>(p1);
+	const fts_aux_table_t*	fa2 = static_cast<const fts_aux_table_t*>(p2);
+
+	return static_cast<int>(fa1->parent_id - fa2->parent_id);
+}
+
+#endif /* _WIN32 */
+
 /**********************************************************************//**
 Check and drop all orphaned FTS auxiliary tables, those that don't have
 a parent table or FTS index defined on them.
@@ -6143,18 +6515,75 @@ fts_check_and_drop_orphaned_tables(
 	trx_t*		trx,			/*!< in: transaction */
 	ib_vector_t*	tables)			/*!< in: tables to check */
 {
+#ifdef _WIN32
+	mem_heap_t*	heap;
+	ib_vector_t*	aux_tables_to_rename;
+	ib_alloc_t*	heap_alloc;
+
+	heap = mem_heap_create(1024);
+	heap_alloc = ib_heap_allocator_create(heap);
+
+	/* We store all aux tables belonging to the same parent table here,
+	and rename all these tables in a batch mode. */
+	aux_tables_to_rename = ib_vector_create(heap_alloc,
+						sizeof(fts_aux_table_t), 128);
+
+	/* Sort by parent_id first, in case rename will fail */
+	ib_vector_sort(tables, fts_check_aux_table_parent_id_cmp);
+#endif /* _WIN32 */
+
 	for (ulint i = 0; i < ib_vector_size(tables); ++i) {
-		dict_table_t*		table;
+		dict_table_t*		parent_table;
 		fts_aux_table_t*	aux_table;
 		bool			drop = false;
+#ifdef _WIN32
+		dict_table_t*		table;
+		fts_aux_table_t*	next_aux_table = NULL;
+		ib_id_t			orig_parent_id = 0;
+		bool			rename = false;
+#endif /* _WIN32 */
 
 		aux_table = static_cast<fts_aux_table_t*>(
 			ib_vector_get(tables, i));
 
+#ifdef _WIN32
 		table = dict_table_open_on_id(
+			aux_table->id, TRUE, DICT_TABLE_OP_NORMAL);
+		orig_parent_id = aux_table->parent_id;
+
+		if (table == NULL || strcmp(table->name, aux_table->name)) {
+			/* Skip these aux tables, which are common tables
+			with wrong table ids */
+			if (table) {
+				dict_table_close(table, TRUE, FALSE);
+			}
+
+			continue;
+
+		} else if (!DICT_TF2_FLAG_IS_SET(table,
+						 DICT_TF2_FTS_AUX_HEX_NAME)) {
+
+			aux_table->parent_id = fts_fake_hex_to_dec(
+						aux_table->parent_id);
+
+			if (aux_table->index_id != 0) {
+				aux_table->index_id = fts_fake_hex_to_dec(
+							aux_table->index_id);
+			}
+
+			ut_ad(aux_table->id > aux_table->parent_id);
+			rename = true;
+		}
+
+		if (table) {
+			dict_table_close(table, TRUE, FALSE);
+		}
+#endif /* _WIN32 */
+
+		parent_table = dict_table_open_on_id(
 			aux_table->parent_id, TRUE, DICT_TABLE_OP_NORMAL);
 
-		if (table == NULL || table->fts == NULL) {
+		if (parent_table == NULL || parent_table->fts == NULL) {
 
 			drop = true;
 
@@ -6163,7 +6592,7 @@ fts_check_and_drop_orphaned_tables(
 			fts_t*		fts;
 
 			drop = true;
-			fts = table->fts;
+			fts = parent_table->fts;
 			id = aux_table->index_id;
 
 			/* Search for the FT index in the table's list. */
@@ -6171,44 +6600,153 @@ fts_check_and_drop_orphaned_tables(
 			     j < ib_vector_size(fts->indexes);
 			     ++j) {
 
-				const dict_index_t*	index;
+				const dict_index_t*     index;
 
 				index = static_cast<const dict_index_t*>(
 					ib_vector_getp_const(fts->indexes, j));
 
 				if (index->id == id) {
-
 					drop = false;
 					break;
 				}
 			}
 		}
 
-		if (table) {
-			dict_table_close(table, TRUE, FALSE);
-		}
-
 		if (drop) {
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Parent table of FTS auxiliary table %s not "
-				"found.", aux_table->name);
+				"Parent table of FTS auxiliary table %s not"
+				" found.", aux_table->name);
 
-			dberr_t	err = fts_drop_table(trx, aux_table->name);
+			dberr_t err = fts_drop_table(trx, aux_table->name);
 
 			if (err == DB_FAIL) {
-				char*	path;
+				char*	path = fil_make_filepath(
+					NULL, aux_table->name, IBD, false);
 
-				path = fil_make_ibd_name(
-					aux_table->name, false);
+				if (path != NULL) {
+					os_file_delete_if_exists(
+						innodb_data_file_key, path, NULL);
 
-				os_file_delete_if_exists(innodb_data_file_key,
-							 path, NULL);
-
-				ut_free(path);
+					::ut_free(path);
+				}
 			}
 		}
+#ifdef _WIN32
+		if (!drop && rename) {
+			ib_vector_push(aux_tables_to_rename, aux_table);
+		}
+
+		if (i + 1 < ib_vector_size(tables)) {
+			next_aux_table = static_cast<fts_aux_table_t*>(
+					ib_vector_get(tables, i + 1));
+		}
+
+		if ((next_aux_table == NULL
+		     || orig_parent_id != next_aux_table->parent_id)
+		    && !ib_vector_is_empty(aux_tables_to_rename)) {
+			/* All aux tables of parent table, whose id is
+			last_parent_id, have been checked, try to rename
+			them if necessary. We had better use a new background
+			trx to rename rather than the original trx, in case
+			any failure would cause a complete rollback. */
+			dberr_t	err;
+			trx_t*	trx_rename = trx_allocate_for_background();
+			trx_rename->op_info = "Rename aux tables to"
+					      " hex format";
+			trx_rename->dict_operation_lock_mode = RW_X_LATCH;
+			trx_start_for_ddl(trx_rename, TRX_DICT_OP_TABLE);
+
+			err = fts_rename_aux_tables_to_hex_format(trx_rename,
+					parent_table, aux_tables_to_rename);
+
+			trx_rename->dict_operation_lock_mode = 0;
+
+			if (err != DB_SUCCESS) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Rollback operations on all"
+					" aux tables of table %s."
+					" Please check why renaming aux tables"
+					" failed, and restart the server to"
+					" upgrade again to"
+					" get the table work.",
+					parent_table->name);
+
+				fts_sql_rollback(trx_rename);
+			} else {
+				fts_sql_commit(trx_rename);
+			}
+
+			trx_free_for_background(trx_rename);
+			ib_vector_reset(aux_tables_to_rename);
+		}
+#else /* _WIN32 */
+		if (!drop) {
+			dict_table_t*	table;
+
+			table = dict_table_open_on_id(
+				aux_table->id, TRUE, DICT_TABLE_OP_NORMAL);
+			if (table != NULL
+			    && strcmp(table->name, aux_table->name)) {
+				dict_table_close(table, TRUE, FALSE);
+				table = NULL;
+			}
+
+			if (table != NULL
+			    && !DICT_TF2_FLAG_IS_SET(
+						table,
+						DICT_TF2_FTS_AUX_HEX_NAME)) {
+				dberr_t err = fts_update_hex_format_flag(
+						trx, table->id, true);
+
+				if (err != DB_SUCCESS) {
+					ib_logf(IB_LOG_LEVEL_WARN,
+						"Setting aux table %s to hex"
+						" format failed.",
+						table->name);
+				} else {
+					DICT_TF2_FLAG_SET(table,
+						DICT_TF2_FTS_AUX_HEX_NAME);
+				}
+			}
+
+			if (table != NULL) {
+				dict_table_close(table, TRUE, FALSE);
+			}
+
+			ut_ad(parent_table != NULL);
+			if (!DICT_TF2_FLAG_IS_SET(parent_table,
+						  DICT_TF2_FTS_AUX_HEX_NAME)) {
+				dberr_t err = fts_update_hex_format_flag(
+						trx, parent_table->id, true);
+
+				if (err != DB_SUCCESS) {
+					ib_logf(IB_LOG_LEVEL_WARN,
+						"Setting parent table %s of"
+						" FTS auxiliary %s to hex"
+						" format failed.",
+						parent_table->name,
+						aux_table->name);
+				} else {
+					DICT_TF2_FLAG_SET(parent_table,
+						DICT_TF2_FTS_AUX_HEX_NAME);
+				}
+			}
+		}
+
+#endif /* _WIN32 */
+
+		if (parent_table) {
+			dict_table_close(parent_table, TRUE, FALSE);
+		}
 	}
+
+#ifdef _WIN32
+	/* Free the memory allocated at the beginning */
+	if (heap != NULL) {
+		mem_heap_free(heap);
+	}
+#endif /* _WIN32 */
 }
 
 /**********************************************************************//**
@@ -6288,7 +6826,7 @@ fts_drop_orphaned_tables(void)
 		info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT NAME, ID "
+		" SELECT NAME, ID"
 		" FROM SYS_TABLES;\n"
 		"BEGIN\n"
 		"\n"
@@ -6315,8 +6853,8 @@ fts_drop_orphaned_tables(void)
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"lock wait timeout reading SYS_TABLES. "
-					"Retrying!");
+					"lock wait timeout reading SYS_TABLES."
+					" Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
@@ -6369,8 +6907,8 @@ fts_valid_stopword_table(
 	table = dict_table_get_low(stopword_table_name);
 
 	if (!table) {
-		fprintf(stderr,
-			"InnoDB: user stopword table %s does not exist.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"User stopword table %s does not exist.",
 			stopword_table_name);
 
 		return(NULL);
@@ -6380,10 +6918,10 @@ fts_valid_stopword_table(
 		col_name = dict_table_get_col_name(table, 0);
 
 		if (ut_strcmp(col_name, "value")) {
-			fprintf(stderr,
-				"InnoDB: invalid column name for stopword "
-				"table %s. Its first column must be named as "
-				"'value'.\n", stopword_table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Invalid column name for stopword table %s. Its"
+				" first column must be named as 'value'.",
+				stopword_table_name);
 
 			return(NULL);
 		}
@@ -6392,10 +6930,10 @@ fts_valid_stopword_table(
 
 		if (col->mtype != DATA_VARCHAR
 		    && col->mtype != DATA_VARMYSQL) {
-			fprintf(stderr,
-				"InnoDB: invalid column type for stopword "
-				"table %s. Its first column must be of "
-				"varchar type\n", stopword_table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Invalid column type for stopword table %s. Its"
+				" first column must be of varchar type",
+				stopword_table_name);
 
 			return(NULL);
 		}
@@ -6634,12 +7172,11 @@ fts_init_recover_doc(
 
 		if (dfield_is_ext(dfield)) {
 			dict_table_t*	table = cache->sync->table;
-			ulint		zip_size = dict_table_zip_size(table);
 
 			doc.text.f_str = btr_copy_externally_stored_field(
 				&doc.text.f_len,
 				static_cast<byte*>(dfield_get_data(dfield)),
-				zip_size, len,
+				dict_table_page_size(table), len,
 				static_cast<mem_heap_t*>(doc.self_heap->arg));
 		} else {
 			doc.text.f_str = static_cast<byte*>(
