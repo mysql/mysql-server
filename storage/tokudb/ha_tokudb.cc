@@ -391,15 +391,22 @@ static inline bool is_replace_into(THD* thd) {
 }
 
 static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_eligible) {
+    bool do_opt = false;
     if (opt_eligible) {
         if (is_replace_into(thd) || is_insert_ignore(thd)) {
             uint pk_insert_mode = get_pk_insert_mode(thd);
             if ((!table->triggers && pk_insert_mode < 2) || pk_insert_mode == 0) {
-                return true;
+                // if bin log row replication is on then ignore the session variable
+                if (mysql_bin_log.is_open() && 
+                    (thd->variables.binlog_format != BINLOG_FORMAT_STMT && thd->variables.binlog_format != BINLOG_FORMAT_MIXED)) {
+                    do_opt = false;
+                } else {
+                    do_opt = true;
+                }
             }
         }
     }
-    return false;
+    return do_opt;
 }
 
 static inline uint get_key_parts(const KEY *key) {
@@ -426,9 +433,7 @@ static inline uint get_ext_key_parts(const KEY *key) {
 #endif
 
 ulonglong ha_tokudb::table_flags() const {
-    return (table && do_ignore_flag_optimization(ha_thd(), table, share->replace_into_fast && !using_ignore_no_key) ? 
-        int_table_flags | HA_BINLOG_STMT_CAPABLE : 
-        int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE);
+    return int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 }
 
 //
@@ -3772,8 +3777,7 @@ void ha_tokudb::set_main_dict_put_flags(
     uint32_t old_prelock_flags = 0;
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
     bool in_hot_index = share->num_DBs > curr_num_DBs;
-    bool using_ignore_flag_opt = do_ignore_flag_optimization(
-            thd, table, share->replace_into_fast && !using_ignore_no_key);
+    bool using_ignore_flag_opt = do_ignore_flag_optimization(thd, table, share->replace_into_fast && !using_ignore_no_key);
     //
     // optimization for "REPLACE INTO..." (and "INSERT IGNORE") command
     // if the command is "REPLACE INTO" and the only table
