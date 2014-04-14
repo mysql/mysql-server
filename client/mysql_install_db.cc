@@ -1,3 +1,20 @@
+/*
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
 // C headers and MySQL headers
 #include <stdio.h>
 #include <stdint.h>
@@ -26,6 +43,9 @@
 
 using namespace std;
 
+#include "sql_commands_system_tables.h"
+#include "sql_commands_system_data.h"
+
 #define PROGRAM_NAME "mysql_install_db"
 #define PATH_SEPARATOR "/"
 #define PATH_SEPARATOR_C '/'
@@ -45,7 +65,6 @@ char *opt_mysqldfile= 0;
 char *opt_randpwdfile= 0;
 char default_randpwfile[]= "/root/.mysql_secret";
 char *opt_langpath= 0;
-char default_langpath[]= "/usr/share/mysql";
 char *opt_lang= 0;
 char default_lang[]= "en_US";
 char *opt_defaults_file= 0;
@@ -60,7 +79,7 @@ static struct my_option my_connection_options[]=
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"euid", 'u', "The effective user id used when executing the bootstrap "
+  {"user", 'u', "The effective user id used when executing the bootstrap "
     "sequence.", &opt_euid, &opt_euid, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
     0, 0, 0},
   {"builddir", 0, "For use with --srcdir and out-of-source builds. Set this to "
@@ -102,8 +121,7 @@ static struct my_option my_connection_options[]=
   {"verbose", 'v', "Be more verbose when running program",
    &opt_verbose, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"lc-messages-dir", 'l', "Specifies the path to the language files",
-   &opt_langpath, 0, 0, GET_STR_ALLOC, REQUIRED_ARG,
-   (longlong)&default_langpath, 0, 0, 0, 0, 0},
+   &opt_langpath, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lc-messages", 0, "Specifies the language to use.", &opt_lang,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_lang, 0, 0, 0, 0, 0},
   {"defaults", 0, "Do not read any option files. If program startup fails "
@@ -131,13 +149,14 @@ ostream &operator<<(ostream &os, const Datetime &dt)
   const std::time_put<char> &tput =
           std::use_facet<std::time_put<char> >(loc);
   tput.put(sout.rdbuf(), sout, '\0', &tm, &format[0], &format[5]);
-  os << sout.str() << " >> ";
+  os << sout.str() << " ";
   return os;
 }
 
 class Access_privilege
 {
 public:
+  Access_privilege() : m_priv(0) {}
   Access_privilege(uint64_t privileges) : m_priv(privileges) {}
   Access_privilege(const Access_privilege &priv) : m_priv(priv.m_priv) {}
   bool has_select_ac()  { return (m_priv & (1L)) > 0; }
@@ -204,7 +223,78 @@ private:
   uint64_t m_priv;
 };
 
-void create_user(string *cmdstr,
+struct Sql_user
+{    
+  string host;
+  string user;
+  string password;
+  Access_privilege priv;
+  string ssl_type;
+  string ssl_cipher;
+  string x509_issuer;
+  string x509_subject;
+  int max_questions;
+  int max_updates;
+  int max_connections;
+  int max_user_connections;
+  string plugin;
+  string authentication_string;
+  bool password_expired;
+  int password_lifetime;
+ 
+  void to_sql(string *cmdstr)
+  {
+    stringstream ss, oldpass;
+
+    ss << "INSERT INTO mysql.user VALUES ("
+       << "'" << host << "','" << user << "',";
+
+    if (plugin == "mysql_native_password")
+    {
+      ss << "PASSWORD('" << password << "'),";
+    }
+    else if (plugin == "sha256_password")
+    {
+      ss << "'',";
+    }
+    uint64_t acl= priv.to_int();
+    for(int i= 0; i< 29; ++i)
+    {
+      if( (acl & (1L << i)) != 0 )
+        ss << "'Y',";
+      else
+        ss << "'N',";
+    }
+    ss << "'" << ssl_type << "',"
+       << "'" << ssl_cipher << "',"
+       << "'" << x509_issuer << "',"
+       << "'" << x509_subject << "',"
+       << max_questions << ","
+       << max_updates << ","
+       << max_connections << ","
+       << max_user_connections << ","
+       << "'" << plugin << "',";
+    if (plugin == "sha256_password")
+    {
+      oldpass << "SET @@old_passwords= 2;\n";
+      ss << "PASSWORD('" << password << "'),";
+    }
+    else
+    {
+      ss << "'" << authentication_string << "',";
+    }
+    if (password_expired)
+      ss << "'Y',";
+    else
+      ss << "'N',";
+    ss << "now(), NULL);\n";
+
+    cmdstr->append(oldpass.str()).append(ss.str());
+  }
+
+};
+
+void create_user(Sql_user *u,
                  const string &host,
                  const string &user,
                  const string &pass,
@@ -222,51 +312,22 @@ void create_user(string *cmdstr,
                  bool password_expired,
                  int password_lifetime)
 {
-  stringstream ss, oldpass;
-  
-  ss << "INSERT INTO mysql.user VALUES ("
-     << "'" << host << "','" << user << "',";
-  
-  if (plugin == "mysql_native_password")
-  {
-    ss << "PASSWORD('" << pass << "'),";
-  }
-  else if (plugin == "sha256_password")
-  {
-    ss << "'',";
-  }
-  for( int i= 0; i< 29; ++i)
-  {
-    if( (priv.to_int() & (1L << i)) != 0 )
-      ss << "'Y',";
-    else
-      ss << "'N',";
-  }
-  ss << "'" << ssl_type << "',"
-     << "'" << ssl_cipher << "',"
-     << "'" << x509_issuer << "',"
-     << "'" << x509_subject << "',"
-     << max_questions << ","
-     << max_updates << ","
-     << max_connections << ","
-     << max_user_connections << ","
-     << "'" << plugin << "',";
-  if (plugin == "sha256_password")
-  {
-    oldpass << "SET @@old_passwords= 2;\n";
-    ss << "PASSWORD('" << pass << "'),";
-  }
-  else
-  {
-    ss << "'" << authentication_string << "',";
-  }
-  if (password_expired)
-    ss << "'Y',";
-  else
-    ss << "'N',";
-  ss << "now(), NULL);\n";
-
-  cmdstr->append(oldpass.str()).append(ss.str());
+  u->host= host;
+  u->user= user;
+  u->password= pass;
+  u->priv= priv;
+  u->ssl_type= ssl_type;
+  u->ssl_cipher= ssl_cipher;
+  u->x509_issuer= x509_issuer;
+  u->x509_subject= x509_subject;
+  u->max_questions= max_questions;
+  u->max_updates= max_updates;
+  u->max_connections= max_connections;
+  u->max_user_connections= max_user_connections;
+  u->plugin= plugin;
+  u->authentication_string= authentication_string;
+  u->password_expired= password_expired;
+  u->password_lifetime= password_lifetime;
 }
 
 static const char *load_default_groups[]= { "mysql_install_db", 0 };
@@ -371,7 +432,7 @@ public:
 
   bool exists() 
   {
-    if (is_qualified_path())
+    if (!is_qualified_path())
     {
       DIR *dir= opendir(m_ptr->c_str());
       if (dir == 0)
@@ -484,7 +545,7 @@ bool assert_valid_root_account(const string &username, const string &host,
   if( username.length() > 16 && username.length() < 1)
   {
     cerr << Datetime()
-         << "Error: Username must be between 1 and 20 characters in length."
+         << "[ERROR] Username must be between 1 and 20 characters in length."
          << endl;
     return false;
   }
@@ -492,7 +553,7 @@ bool assert_valid_root_account(const string &username, const string &host,
   if (!all_of(username.begin(), username.end(), my_legal_characters))
   {
     cerr << Datetime()
-         << "Error: Recommended practice is to use only alpha-numericals in the"
+         << "[ERROR] Recommended practice is to use only alpha-numericals in the"
             "user name."
          << endl;
     return false;
@@ -501,7 +562,7 @@ bool assert_valid_root_account(const string &username, const string &host,
   if (plugin != "mysql_native_password" && plugin != "sha256_password")
   {
     cerr << Datetime()
-         << "Error: Unsupported authentication plugin specified."
+         << "[ERROR] Unsupported authentication plugin specified."
          << endl;
     return false;
   }
@@ -513,7 +574,7 @@ bool assert_valid_datadir(const string &datadir, Path *target)
   if (datadir.length() == 0)
   {
     cerr << Datetime()
-         << "Error: The data directory needs to be specified."
+         << "[ERROR] The data directory needs to be specified."
          << endl;
     return false;
   }
@@ -522,32 +583,10 @@ bool assert_valid_datadir(const string &datadir, Path *target)
 
   if (target->exists())
   {
-    cerr << Datetime() << "Error: The data directory '"<< datadir.c_str()
+    cerr << Datetime() << "[ERROR] The data directory '"<< datadir.c_str()
          << "' already exist." << endl;
     return false;
   }
-  return true;
-}
-
-bool assert_valid_language_dir(const string &opt_langpath, string *language_directory)
-{
-  if (opt_langpath.length() == 0)
-  {
-    cerr << Datetime() << "Error: The path to the language files needs to be "
-                          "specified" << endl;
-    return false;
-  }
-  DIR *dir= opendir(opt_langpath.c_str());
-  if (dir == NULL)
-  {
-    cerr << Datetime() << "Error: "
-         << opt_langpath.c_str()
-         << " is not a directory."
-         << endl;
-    return false;
-  }
-  
-  *language_directory= opt_langpath;
   return true;
 }
 
@@ -571,16 +610,19 @@ private:
   Path *m_qpath;
 };
 
+
 /**
  Given a list of search paths; find the file.
- 
+ If search_paths=0 then the filename is considered to be a qualified path.
+ If filename is empty then the qpath will be the first directory which 
+ is found.
  @param filename The file to look for
  @search_paths paths to search
  @qpath[out] The qualified path to the first found file
  
- @return true if a file is found, false if not.
- 
+ @return true if a file is found, false if not. 
 */
+
 bool locate_file(const string &filename, vector<Path> *search_paths,
                   Path *qpath)
 {
@@ -589,13 +631,6 @@ bool locate_file(const string &filename, vector<Path> *search_paths,
     MY_STAT s;
     if (my_stat(filename.c_str(), &s, MYF(0)) == NULL)
       return false;
-    if (!(s.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH)))
-    {
-      cerr << Datetime()
-           << "Error: Specified server binary is not executable."
-           << endl;
-      return false;
-    }
     qpath->qpath(filename);
   }
   else
@@ -603,54 +638,82 @@ bool locate_file(const string &filename, vector<Path> *search_paths,
     vector<Path>::iterator qpath_it=
       find_if(search_paths->begin(), search_paths->end(),
               File_exists(&filename, qpath));
-
     if (qpath_it == search_paths->end())
       return false;
-
   }
   return true;
 }
 
-bool assert_mysqld_exists(Path *qpath, vector<Path > *spaths)
+void add_standard_search_paths(vector<Path > *spaths, const string &path)
 {
-  if (opt_mysqldfile != 0)
+  Path p;
+  if (!p.getcwd())
+    cout << Datetime()
+         << "[Warning] Can't determine current working directory." << endl;
+
+  spaths->push_back(p);
+  spaths->push_back(Path(p).append("/").append(path));
+  spaths->push_back(Path("/usr/").append(path));
+  spaths->push_back(Path("/usr/local/").append(path));
+  spaths->push_back(Path("/opt/mysql/").append(path));
+}
+
+/**
+  Attempts to locate the mysqld file.
+ If opt_mysqldfile is specified then the this assumed to be a correct qualified
+ path to the mysqld executable.
+ If opt_basedir is specified then opt_basedir+"/bin" is assumed to be a
+ candidate path for the mysqld executable.
+ If opt_srcdir is set then opt_srcdir+"/bin" is assumed to be a
+ candidate path for the mysqld executable.
+ If opt_builddir is set then opt_builddir+"/sql" is assumed to be a
+ candidate path for the mysqld executable.
+ 
+ If the executable isn't found in any of these locations,
+ attempt to search the local directory and "bin" and "sbin" subdirectories.
+ Finally check "/usr/bin","/usr/sbin", "/usr/local/bin","/usr/local/sbin",
+ "/opt/mysql/bin","/opt/mysql/sbin"
+ 
+*/
+bool assert_mysqld_exists(const string &opt_mysqldfile,
+                            const string &opt_basedir,
+                            const string &opt_builddir,
+                            const string &opt_srcdir,
+                            Path *qpath)
+{
+  vector<Path > spaths;
+  if (opt_mysqldfile.length() > 0)
   {
     /* Use explicit option to file mysqld */
     if (!locate_file(opt_mysqldfile, 0, qpath))
     {
       cerr << Datetime()
-           << "Error: No such file: " << opt_mysqldfile << endl;
+           << "[ERROR] No such file: " << opt_mysqldfile << endl;
       return false;
     }
   }
   else
   {
-    /* Use implicit locations to find mysqld */
-    if (opt_basedir != 0)
+    if (opt_basedir.length() > 0)
     {
-      spaths->push_back(Path(create_string(opt_basedir)).append("bin"));
+      spaths.push_back(Path(opt_basedir).append("bin"));
     }
-    if (opt_basedir == 0 && opt_srcdir !=0 )
+    if (opt_builddir.length() > 0)
     {
-      spaths->push_back(Path(create_string(opt_srcdir)).append("bin"));  
+      spaths.push_back(Path(opt_builddir).append("sql"));  
     }
     
-    Path path;
-    if (!path.getcwd())
-      cout << Datetime()
-           << "Warning: Can't determine current working directory." << endl;
-
-    spaths->push_back(path);
-    spaths->push_back(Path(path).append("/bin"));
-    spaths->push_back(Path(path).append("/sbin"));
+    add_standard_search_paths(&spaths,"bin");
     
-    //copy(search_paths.begin(), search_paths.end(),
-    //     ostream_iterator<Path>(cout, "\n"));
-
-    if (!locate_file("mysqld", spaths, qpath))
+    if (!locate_file("mysqld", &spaths, qpath))
     {
       cerr << Datetime()
-           << "Error: Can't locate the server executable (mysqld)." << endl;
+           << "[ERROR] Can't locate the server executable (mysqld)." << endl;
+      cout << Datetime()
+           << "The following paths were searched:";
+      copy(spaths.begin(), spaths.end(),
+           ostream_iterator<Path>(cout, ", "));
+      cout << endl;
       return false;
     }
   }
@@ -673,7 +736,7 @@ bool parse_cnf_file(stringstream &sin, map<string, string> *options)
   getline(sin, header);
   if (header != "[client]")
   {
-    cerr << "Error: Missing client header" << endl;
+    cerr << "[ERROR] Missing client header" << endl;
     return false;
   }
   while (!getline(sin, option_name, '=').eof())
@@ -726,7 +789,7 @@ bool get_admin_credentials(const string &opt_adminlogin,
   stringstream sout;
   if (!decrypt_cnf_file(fin, sout))
   {
-    cerr << "Error: can't decrypt " << opt_adminlogin << endl;
+    cerr << "[ERROR] can't decrypt " << opt_adminlogin << endl;
     return false;
   }
 
@@ -737,7 +800,8 @@ bool get_admin_credentials(const string &opt_adminlogin,
        << path.to_str()
        << " for default account credentials."
        << endl;
-  for( map<string, string>::iterator it= options.begin(); it != options.end(); ++it)
+  for( map<string, string>::iterator it= options.begin();
+       it != options.end(); ++it)
   {
     if (it->first == "user")
       *adminuser= it->second;
@@ -757,11 +821,266 @@ void generate_password(string *password, int size)
                             "QWERTYUIOPASDFGHJKLZXCVBNM;:_!#%&/()=?><");
   while(size>0)
   {
-    int ch= (int)(my_rnd_ssl(&srnd)*allowed_characters.size());
+    int ch= ((int)(my_rnd_ssl(&srnd)*100))%allowed_characters.size();
     ss << allowed_characters[ch];
     --size;
   }
   password->assign(ss.str());
+}
+
+bool assert_valid_language_directory(const string &opt_langpath,
+                                         const string &opt_basedir,
+                                         const string &opt_builddir,
+                                         const string &opt_srcdir,
+                                         Path *language_directory)
+{
+  vector<Path > search_paths;
+  if (opt_langpath.length() > 0)
+  {
+    search_paths.push_back(opt_langpath);
+  }
+  else 
+  {
+    if(opt_basedir.length() > 0)
+    {
+      Path ld(opt_basedir);
+      ld.append("/share");
+      search_paths.push_back(ld);
+    }
+    if (opt_builddir.length() > 0)
+    {
+      Path ld(opt_builddir);
+      ld.append("/share");
+      search_paths.push_back(ld);
+    }
+    if (opt_srcdir.length() > 0)
+    {
+      Path ld(opt_srcdir);
+      ld.append("/share");
+      search_paths.push_back(ld);
+    }
+    search_paths.push_back(Path("/usr/share/mysql"));
+    search_paths.push_back(Path("/opt/mysql/share"));
+  }
+
+  if (!locate_file("", &search_paths, language_directory))
+  {
+    cerr << Datetime() << "[ERROR] Can't locate the language directory." << endl;
+    cout << Datetime() << "Attempted the following paths: ";
+    copy(search_paths.begin(), search_paths.end(), 
+         ostream_iterator<Path>(cout, ", "));
+    cout << endl;
+    return false;
+  }
+  return true;
+}
+
+void create_ssl_policy(string *ssl_type, string *ssl_cipher,
+                         string *x509_issuer, string *x509_subject)
+{
+  /* TODO set up a specific SSL restriction on the default account */
+  *ssl_type= "ANY";
+  *ssl_cipher= "";
+  *x509_issuer= "";
+  *x509_subject= "";
+}
+
+class Process_reader
+{
+public:
+  Process_reader(string *buffer) : m_buffer(buffer) {}
+  void operator()(int fh)
+  {
+    stringstream ss;
+    int ch= 0;
+    size_t n= 1;
+    while(errno == 0 && n != 0)
+    {
+      n= read(fh,&ch,1);
+      if (n > 0)
+        ss << (char)ch;
+    } 
+    m_buffer->append(ss.str());
+  }
+
+private:
+  string *m_buffer;
+  
+};
+
+class Process_writer
+{
+public:
+  Process_writer(Sql_user *user, const string &opt_sqlfile) : m_user(user), m_opt_sqlfile(opt_sqlfile) {}
+  void operator()(int fh)
+  {
+    /* This is the write thread */
+    cout << Datetime()
+         << "Creating system tables..." << flush;
+    unsigned s= sizeof(mysql_system_tables)/sizeof(*mysql_system_tables);
+    for(unsigned i=0, n= 1; i< s && errno != EPIPE && n != 0; ++i)
+    {
+      do {
+        n= write(fh, mysql_system_tables[i].c_str(),
+              mysql_system_tables[i].length());
+      } while(errno == EAGAIN);
+    }
+    if (errno != 0)
+    {
+      cout << "failed." << endl;
+      cerr << Datetime()
+            << "[ERROR] Errno= " << errno << endl;
+      return;
+    }
+    else
+      cout << "done." << endl;
+    cout << Datetime()
+         << "Filling system tables with data..." << flush;
+    s= sizeof(mysql_system_data)/sizeof(*mysql_system_data);
+    for(unsigned i=0, n= 1; i< s && errno != EPIPE && n != 0; ++i)
+    {
+      do {
+        n= write(fh, mysql_system_data[i].c_str(),
+              mysql_system_data[i].length());
+      } while(errno == EAGAIN);
+    }
+    if (errno != 0)
+    {
+      cout << "failed." << endl;
+      cerr << Datetime()
+            << "[ERROR] Errno= " << errno << endl;
+      return;
+    }
+    else 
+    {
+      cout << "done." << endl;
+    }
+    cout << Datetime()
+         << "Creating default user " << m_user->user << "@"
+         << m_user->host
+         << endl;
+    string create_user_cmd;
+    m_user->to_sql(&create_user_cmd);
+    do {
+      write(fh, create_user_cmd.c_str(), create_user_cmd.length());
+    } while(errno == EAGAIN);
+    if (errno != 0)
+    {
+      cerr << Datetime()
+           << "[ERROR] Failed to create user. Errno = "
+           << errno << endl << flush;
+      return;
+    }
+    
+    /* Execute optional SQL from a file */
+    if (m_opt_sqlfile.length() > 0)
+    {
+      Path extra_sql;
+      extra_sql.qpath(m_opt_sqlfile);
+      if (!extra_sql.exists())
+      {
+        cerr << Datetime()
+             << "[ERROR] No such file " << extra_sql.to_str() << endl;
+        return;
+      }
+      cout << Datetime()
+       << "Executing extra SQL commands from " << extra_sql.to_str()
+       << endl;
+      ifstream fin(extra_sql.to_str().c_str());
+      string sql_command;
+      for (int n= 0; !getline(fin, sql_command).eof() && errno != EPIPE &&
+           n != 0; )
+      {
+        n= write(fh, sql_command.c_str(), sql_command.length());
+      }
+      fin.close();
+    }
+  }
+private:  
+  Sql_user *m_user;
+  string m_opt_sqlfile;
+};
+
+template< typename Reader_func_t, typename Writer_func_t, typename Fwd_iterator >
+bool process_execute(const string &exec, Fwd_iterator begin,
+                     Fwd_iterator end,
+                       Reader_func_t reader,
+                       Writer_func_t writer)
+{
+  int child;
+  int read_pipe[2];
+  int write_pipe[2];
+  
+  if (pipe(read_pipe) < 0) {
+    return false;
+  }
+  if (pipe(write_pipe) < 0) {
+    ::close(read_pipe[0]);
+    ::close(read_pipe[1]);
+    return false;
+  }
+
+  fcntl(read_pipe[0], F_SETFL, O_NONBLOCK);
+  child= vfork();
+  if (child == 0)
+  {
+    /*
+      We need to copy the strings or execve will fail with errno EFAULT 
+    */
+    char *execve_args[10];
+    char *local_filename= strdup(exec.c_str());
+    execve_args[0]= local_filename;
+    int i= 1;
+    for(Fwd_iterator it= begin;
+        it!= end && i<10;)
+    {
+      execve_args[i]= strdup(const_cast<char *>((*it).c_str()));
+      ++it;
+      ++i;
+    }
+    execve_args[i]= 0;
+
+    /* Child */
+    if (dup2(read_pipe[0], STDIN_FILENO) == -1 ||
+        dup2(write_pipe[1], STDOUT_FILENO) == -1 ||
+        dup2(write_pipe[1], STDERR_FILENO) == -1)
+    {
+      return false;
+    }
+    ::close(read_pipe[0]);
+    ::close(read_pipe[1]);
+    ::close(write_pipe[0]);
+    ::close(write_pipe[1]); 
+    execve(local_filename, execve_args, 0);
+    /* always failure if we get here! */
+    cerr << Datetime() << "Child process exited with errno= " << errno << endl;
+    exit(0);
+  }
+  else if (child > 0)
+  {
+    /* Parent thread */
+    ::close(read_pipe[0]);
+    ::close(write_pipe[1]); 
+
+    writer(read_pipe[1]);
+    if (errno == EPIPE)
+    {
+      cerr << Datetime() << "[ERROR] The child process terminated prematurely."
+           << endl;
+    }
+    ::close(read_pipe[1]);
+    reader(write_pipe[0]);
+    ::close(write_pipe[0]);
+  } 
+  else
+  {
+    /* Failure */
+    ::close(read_pipe[0]);
+    ::close(read_pipe[1]);
+    ::close(write_pipe[0]);
+    ::close(write_pipe[1]);
+  }
+  return true;
 }
 
 int main(int argc,char *argv[])
@@ -779,15 +1098,23 @@ int main(int argc,char *argv[])
 
   my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
-    exit(1);
+    return 1;
 
   int rc= 0;
   if ((rc= handle_options(&argc, &argv, my_connection_options,
                              my_arguments_get_one_option)))
   {
-    cerr << Datetime() << "Error: Unrecognized options" << endl;
-    exit(1);
+    cerr << Datetime() << "[ERROR] Unrecognized options" << endl;
+    return 1;
   }
+
+  string adminuser(create_string(opt_adminuser));
+  string adminhost(create_string(opt_adminhost));
+  string authplugin(create_string(opt_authplugin));
+  string password;
+  string basedir(create_string(opt_basedir));
+  string srcdir(create_string(opt_srcdir));
+  string builddir(create_string(opt_builddir));
 
   streambuf *cout_sbuf = std::cout.rdbuf(); // save original sbuf
   ofstream fout;
@@ -806,19 +1133,13 @@ int main(int argc,char *argv[])
    5. Exit
   */
 
-  /* 1.1 Verify admin account parameters */
-  string adminuser(create_string(opt_adminuser));
-  string adminhost(create_string(opt_adminhost));
-  string authplugin(create_string(opt_authplugin));
-  string password;
-
   if (opt_adminlogin &&
       !get_admin_credentials(create_string(opt_adminlogin),
                              &adminuser,
                              &adminhost,
                              &password))
   {
-    cout << Datetime() << "Warning: ignoring login-path option: "
+    cout << Datetime() << "[Warning] ignoring login-path option: "
          << opt_adminlogin << endl;
   }
 
@@ -826,122 +1147,78 @@ int main(int argc,char *argv[])
                                  create_string(opt_adminhost), 
                                  create_string(opt_authplugin),
                                  opt_ssl))
-    exit(1);
+  {
+    /* Subroutine reported error */
+    return 1;
+  }
 
-  /* 1.2 Verify datadir. Policy: If datadir exist: Don't proceed! */
+
   Path data_directory;
   if (!assert_valid_datadir(create_string(opt_datadir), &data_directory))
-    exit(1);
+  {
+    /* Subroutine reported error */
+    return 1;
+  }
 
-  /*
-    1.3 Verify language directory.
-  */
   Path language_directory;
-  if (opt_langpath)
+  if (!assert_valid_language_directory(create_string(opt_langpath),
+                                       basedir,
+                                       builddir,
+                                       srcdir,
+                                       &language_directory))
   {
-    language_directory.append(create_string(opt_langpath));
-  }
-  /*
-    basedir, builddir and srcdir are mutually exclusive but if set they
-    will override any opt_langpath default or set value.
-  */
-  if (opt_basedir)
-  {
-    language_directory.path(create_string(opt_basedir));
-    language_directory.append("/share");
-  }
-  else if (opt_builddir)
-  {
-    language_directory.path(create_string(opt_builddir));
-    language_directory.append("/share");
-  }
-  else if (opt_srcdir)
-  {
-    language_directory.path(create_string(opt_srcdir));
-    language_directory.append("/sql/share");
+   /* Subroutine reported error */
+   return 1;
   }
 
-  if (!language_directory.exists())
-  {
-    cerr << Datetime()
-         << "Error: No such directory " << language_directory << endl;
-    exit(1);
-  }
-
-  /* 1.4 Verify accessibility to mysqld */
   Path mysqld_exec;
-  vector<Path > search_paths;
-  if( !assert_mysqld_exists(&mysqld_exec, &search_paths))
-    exit(1);
-
-  /* 2.1 Create the datadir. */
-  cout << Datetime() << "Creating data directory " << opt_datadir << endl;
-  umask(0);
-  if (my_mkdir(opt_datadir, 0770, MYF(0)) != 0)
+  if( !assert_mysqld_exists(create_string(opt_mysqldfile),
+                            basedir,
+                            builddir,
+                            srcdir,
+                            &mysqld_exec))
   {
-    cerr << Datetime()
-         << "Error: Failed to create the data directory '"
-         << opt_datadir << "'";
-    exit(1);
+    /* Subroutine reported error */
+    return 1;
   }
 
-  /* 3. Compose mysqld bootstrap string */
-  string command_line;
-  command_line.append(mysqld_exec.to_str());
+  cout << Datetime() << "Creating data directory "
+       << data_directory.to_str() << endl;
+  umask(0);
+  if (my_mkdir(data_directory.to_str().c_str(), 0770, MYF(0)) != 0)
+  {
+    cerr << Datetime()
+         << "[ERROR] Failed to create the data directory '"
+         << data_directory.to_str() << "'";
+    return 1;
+  }
 
+  vector<string> command_line;
   if (opt_defaults == FALSE)
-    command_line.append(" --no-defaults");
-  command_line.append(" --bootstrap --datadir=").append(data_directory.to_str());
-  command_line.append(" --lc-messages-dir=").append(language_directory.to_str());
-  command_line.append(" --lc-messages=").append(create_string(opt_lang));
+    command_line.push_back(string("--no-defaults"));
+  command_line.push_back(string("--bootstrap"));
+  command_line.push_back(string("--datadir=").append(data_directory.to_str()));
+  command_line.push_back(string("--lc-messages-dir=").append(language_directory.to_str()));
+  command_line.push_back(string("--lc-messages=").append(create_string(opt_lang)));
+  if (basedir.length() > 0)
+  command_line.push_back(string("--basedir=").append(basedir));
   if (opt_euid && geteuid() == 0)
-    command_line.append(" --user=").append(create_string(opt_euid));
+    command_line.push_back(string(" --user=").append(create_string(opt_euid)));
   else if (opt_euid)
   {
-    cout << Datetime() << "Warning: Can't change euid to " << opt_euid << endl;
+    cout << Datetime() << "[Warning] Can't change effective user id to "
+         << opt_euid << endl;
   }
-
+ 
   // DEBUG
-  //command_line.append("\"").insert(0, "gnome-terminal -e \"gdb --args ");
+  //mysqld_exec.append("\"").insert(0, "gnome-terminal -e \"gdb --args ");
 
-  
-#include "sql_commands_system_tables.h"
-#include "sql_commands_system_data.h"
-
-  cout << Datetime()
-       << "Executing " << command_line << endl;
-  FILE *p;
-  if ((p = popen(command_line.c_str(), "w")) == 0)
-  {
-    cerr << Datetime() << "Error: Can't execute "<< command_line << endl;
-  }
-  cout << Datetime()
-       << "Creating system tables...";  
-  unsigned s= sizeof(mysql_system_tables)/sizeof(*mysql_system_tables);
-  for(unsigned i=0; i< s && !feof(p); ++i)
-  {
-    fwrite(mysql_system_tables[i].c_str(),
-          mysql_system_tables[i].length(), 1, p);
-  }
-  cout << "done." << endl;
-  cout << Datetime()
-       << "Filling system tables with data...";
-  s= sizeof(mysql_system_data)/sizeof(*mysql_system_data);
-  for(unsigned i=0; i< s && !feof(p); ++i)
-  {
-    fwrite(mysql_system_data[i].c_str(),
-          mysql_system_data[i].length(), 1, p);
-  }
-  cout << "done." << endl;
-  // create default user
-  cout << Datetime()
-       << "Creating default user " << adminuser << "@" << adminhost
-       << endl;
-  string create_user_cmd;
+  /* Generate a random password is no password was found previously */
   if (password.length() == 0 && !opt_insecure)
   {
     cout << Datetime()
-         << "Generating random password to " << opt_randpwdfile << "...";
+         << "Generating random password to "
+         << opt_randpwdfile << "..." << flush;
     generate_password(&password,12);
     /*
       The format of the password file is
@@ -951,27 +1228,39 @@ int main(int argc,char *argv[])
     fout.open(opt_randpwdfile);
     if (!fout.is_open())
     {
-      cout << "failed." << endl;
+      cout << "failed." << endl << flush;
       cerr << Datetime()
-           << "Error: Files to open " << opt_randpwdfile << endl;
-      exit(1);
+           << "[ERROR] Can't create password file " << opt_randpwdfile << endl;
+      return 1;
     }
     fout << "# The random password set for user '"
          << adminuser << "' at "
          << Datetime() << "\n"
          << password << "\n";
     fout.close();
-    cout << "done." << endl;
+    cout << "done." << endl << flush;
   }
-  create_user(&create_user_cmd,
+  string ssl_type;
+  string ssl_cipher;
+  string x509_issuer;
+  string x509_subject;
+  if (opt_ssl == true)
+    create_ssl_policy(&ssl_type, &ssl_cipher, &x509_issuer, &x509_subject);
+  cout << Datetime()
+       << "Executing " << mysqld_exec.to_str() << " ";
+  copy(command_line.begin(), command_line.end(),
+       ostream_iterator<Path>(cout, " "));
+  cout << endl << flush;
+  Sql_user user;
+  create_user(&user,
               adminhost,
               adminuser,
               password,
               Access_privilege(Access_privilege::acl_all()),
-              string(""), // ssl_type
-              string(""), // ssl_cipher
-              string(""), // x509_issuer
-              string(""), // x509_subject
+              ssl_type, // ssl_type
+              ssl_cipher, // ssl_cipher
+              x509_issuer, // x509_issuer
+              x509_subject, // x509_subject
               0, // max_questions
               0, // max updates
               0, // max connections
@@ -980,44 +1269,34 @@ int main(int argc,char *argv[])
               string(""),
               true,
               0);
-
-  if (!feof(p))
-    fwrite(create_user_cmd.c_str(), create_user_cmd.length(), 1, p);
-  
-  /* Execute optional SQL from a file */
-  if (opt_sqlfile != 0)
-  {
-    Path extra_sql;
-    extra_sql.qpath(create_string(opt_sqlfile));
-    if (!extra_sql.exists())
-    {
-      cerr << Datetime()
-           << "Error: No such file " << extra_sql.to_str() << endl;
-      exit(1);
-    }
-    cout << Datetime()
-     << "Executes extra SQL commands from " << extra_sql.to_str()
-     << endl;
-    ifstream fin(extra_sql.to_str().c_str());
-    string sql_command;
-    while (!getline(fin, sql_command).eof() && !feof(p))
-    {
-      fwrite(sql_command.c_str(), sql_command.length(), 1, p);
-    }
-  }
-  fflush(p); 
-  /* The return value of the child process is in the top 16 bits. */
-  int return_code= pclose(p)/256;
-  if (return_code != 0)
+  string output;
+  process_execute(mysqld_exec.to_str(),
+                  command_line.begin(),
+                  command_line.end(),
+                  Process_reader(&output),
+                  Process_writer(&user,create_string(opt_sqlfile)));
+  if (output.find("ERROR") != string::npos)
   {
     cerr << Datetime()
-         << "Error: mysqld returned an error code: " << return_code << endl;
+         << "[ERROR] The bootstrap log isn't empty:"
+         << endl
+         << output
+         << endl;
+  }
+  else if (output.size() > 0)
+  {
+    cout << Datetime()
+         << "[Warning] The bootstrap log isn't empty:"
+         << endl
+         << output
+         << endl;
   }
   else
   {
     cout << Datetime()
-         << "Exiting with return code " << return_code << endl;
+         << "Success!"
+         << endl;
   }
   cout.rdbuf(cout_sbuf);
-  return return_code;
+  return 0;
 }
