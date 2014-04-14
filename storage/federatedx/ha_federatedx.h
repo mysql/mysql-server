@@ -347,7 +347,7 @@ public:
     /* fix server to be able to get remote server index flags */
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return (HA_READ_NEXT | HA_READ_RANGE | HA_READ_AFTER_KEY);
+    return (HA_READ_NEXT | HA_READ_RANGE);
   }
   uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_supported_keys()          const { return MAX_KEY; }
