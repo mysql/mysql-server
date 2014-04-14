@@ -54,8 +54,9 @@ using namespace v8;
  *   NdbDictionary objects.
  *   The TableMetadata wraps an NdbDictionary::Table
  *   The ColumnMetadata objects each wrap an NdbDictionary::Column
- *   The IndexMetadta objects for SECONDARY indexes wrap an NdbDictionary::Index,
+ *   The IndexMetadata objects for SECONDARY indexes wrap an NdbDictionary::Index,
  *    -- but IndexMetadta for PK does *not* wrap any native object!
+ *   The ForeignKeyMetadata objects are literals and do *not* wrap any native object
 */
 Envelope NdbDictTableEnv("const NdbDictionary::Table");
 Envelope NdbDictColumnEnv("const NdbDictionary::Column");
@@ -159,19 +160,26 @@ class GetTableCall : public NativeCFunctionCall_3_<int, Ndb *,
 private:
   const NdbDictionary::Table * ndb_table;
   Ndb * per_table_ndb;
+  Ndb * ndb;
+  const char * dbName;
   NdbDictionary::Dictionary * dict;
   NdbDictionary::Dictionary::List idx_list;
+  NdbDictionary::Dictionary::List fk_list;
   const NdbError * ndbError;
-  
+  char database_name[65];
+  char table_name[65];
+  int fk_count;
+
   Handle<Object> buildDBIndex_PK();
   Handle<Object> buildDBIndex(const NdbDictionary::Index *);
+  Handle<Object> buildDBForeignKey(const NdbDictionary::ForeignKey *, const char *, const char *);
   Handle<Object> buildDBColumn(const NdbDictionary::Column *);
 
 public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
     NativeCFunctionCall_3_<int, Ndb *, const char *, const char *>(NULL, args),
-    ndb_table(0), per_table_ndb(0), idx_list()
+    ndb_table(0), per_table_ndb(0), idx_list(), fk_list(), fk_count(0)
   {
   }
   
@@ -180,6 +188,33 @@ public:
 
   /* V8 main thread */
   void doAsyncCallback(Local<Object> ctx);  
+
+  /* Convert a name of the form <database>/<schema>/<table> to database and table
+   */
+  void splitName(const char * src, char * db, char * tbl) {
+    char * dstp = db;
+    int max_len = 64; // maximum database name
+    // copy first part of name to db
+    while (*src != '/' && *src != 0 && max_len-- > 0) {
+      *dstp++ = *src++;
+    }
+    src++;
+    *dstp = 0;
+    // skip second part of name /<schema>/
+    max_len = 65; // maximum  schema name plus trailing /
+    while (*src != '/' && max_len-- > 0) {
+      ++src;
+    }
+    ++src;
+    // copy third part of name to tbl
+    max_len = 64; // maximum table name
+    dstp = tbl;
+    while (*src != 0 && max_len-- > 0) {
+      *dstp++ = *src++;
+    }
+    *dstp = 0;
+  }
+
 };
 
 
@@ -187,12 +222,15 @@ void GetTableCall::run() {
   DEBUG_PRINT("GetTableCall::run() [%s.%s]", arg1, arg2);
   return_val = -1;
   /* Aliases: */
-  Ndb * & ndb = arg0;
-  const char * & dbName = arg1;
+  ndb = arg0;
+  dbName = arg1;
   const char * & tableName = arg2;
-  
+
+  /* dbName is optional; if not present, set it from ndb database name */
   if(strlen(dbName)) {
-    arg0->setDatabaseName(dbName);
+    ndb->setDatabaseName(dbName);
+  } else {
+    dbName = ndb->getDatabaseName();
   }
   dict = ndb->getDictionary();
   ndb_table = dict->getTable(tableName);
@@ -226,6 +264,48 @@ void GetTableCall::run() {
     }
   }
   else {
+    DEBUG_PRINT("GetTableCall::run() getTable returned %i", return_val);
+    ndbError = & dict->getNdbError();
+    return;
+  }
+  /* List the foreign keys and keep the list around for doAsyncCallback to create js objects
+   * Currently there is no listForeignKeys so we use the more generic listDependentObjects
+   * specifying the table metadata object.
+   */
+  int fkListCode = dict->listDependentObjects(fk_list, *ndb_table);
+  if (fkListCode == 0) {
+    /* Fetch the foreign keys and associated parent tables now.
+     * These calls may perform network IO, populating
+     * the (connection) global and (Ndb) local dictionary caches.  Later,
+     * in the JavaScript main thread, we will call getForeignKey() again knowing
+     * that the caches are populated.
+     * We only care about foreign keys where this table is the child table, not the parent table.
+     */
+    for(unsigned int i = 0 ; i < fk_list.count ; i++) {
+      NdbDictionary::ForeignKey fk;
+      if (fk_list.elements[i].type == NdbDictionary::Object::ForeignKey) {
+        const char * fk_name = fk_list.elements[i].name;
+        int fkGetCode = dict->getForeignKey(fk, fk_name);
+        DEBUG_PRINT("getForeignKey for %s returned %i", fk_name, fkGetCode);
+        // see if the foreign key child table is this table
+        const char * fk_child_name = fk.getChildTable();
+        splitName(fk_child_name, database_name, table_name);
+        DEBUG_PRINT("Child table splitName for %s returned %s %s", fk_child_name, database_name, table_name);
+        if (strncmp(table_name, tableName, 64) == 0) {
+          // the foreign key child table is this table; get the parent table
+          ++fk_count;
+          const char * fk_parent_name = fk.getParentTable();
+          splitName(fk_parent_name, database_name, table_name);
+          DEBUG_PRINT("Parent table splitName for %s returned %s %s", fk_parent_name, database_name, table_name);
+          ndb->setDatabaseName(database_name);
+          const NdbDictionary::Table * parent_table = dict->getTable(table_name);
+          ndb->setDatabaseName(dbName);
+          DEBUG_PRINT("Parent table getTable returned %s", parent_table->getName());
+        }
+      }
+    }
+  }
+  else {
     ndbError = & dict->getNdbError();
   }
 }
@@ -236,6 +316,7 @@ void GetTableCall::run() {
          by checking WaitMetaRequestCount at the start and end.
 */    
 void GetTableCall::doAsyncCallback(Local<Object> ctx) {
+  const char *tableName;
   HandleScope scope;  
   DEBUG_PRINT("GetTableCall::doAsyncCallback: return_val %d", return_val);
 
@@ -262,7 +343,8 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     table->Set(String::NewSymbol("database"), String::New(arg1));
     
     // name
-    table->Set(String::NewSymbol("name"), String::New(ndb_table->getName()));
+    tableName = ndb_table->getName();
+    table->Set(String::NewSymbol("name"), String::New(tableName));
 
     // partitionKey
     int nPartitionKeys = 0;
@@ -300,6 +382,30 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     rec->completeTableRecord(ndb_table);
 
     table->Set(String::NewSymbol("record"), Record_Wrapper(rec));    
+
+    // foreign keys (only foreign keys for which this table is the child)
+    // now create the javascript foreign key metadata objects for dictionary objects cached earlier
+    Local<Array> js_fks = Array::New(fk_count);
+
+    int fk_number = 0;
+    for(unsigned int i = 0 ; i < fk_list.count ; i++) {
+      NdbDictionary::ForeignKey fk;
+      if (fk_list.elements[i].type == NdbDictionary::Object::ForeignKey) {
+        const char * fk_name = fk_list.elements[i].name;
+        int fkGetCode = dict->getForeignKey(fk, fk_name);
+        DEBUG_PRINT("getForeignKey for %s returned %i", fk_name, fkGetCode);
+        // see if the foreign key child table is this table
+        const char * fk_child_name = fk.getChildTable();
+        splitName(fk_child_name, database_name, table_name);
+        DEBUG_PRINT("Child table splitName for %s returned %s %s", fk_child_name, database_name, table_name);
+        if (strncmp(table_name, tableName, 64) == 0) {
+          // the foreign key child table is this table; build the fk object
+          DEBUG_PRINT("Adding foreign key for %s at %i", fk.getName(), fk_number);
+          js_fks->Set(fk_number++, buildDBForeignKey(&fk, database_name, table_name));
+        }
+      }
+    }
+    table->Set(String::NewSymbol("foreignKeys"), js_fks, ReadOnly);
 
     // Autoincrement Cache Impl (also not part of spec)
     if(per_table_ndb) {
@@ -391,6 +497,70 @@ Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   return scope.Close(obj);
 }
 
+/*
+ * ForeignKeyMetadata = {
+  name             : ""    ,  // Constraint name
+  columnNames      : null  ,  // an ordered array of column numbers
+  targetTable      : ""    ,  // referenced table name
+  targetDatabase   : ""    ,  // referenced database name
+  targetColumnNames: null  ,  // an ordered array of target column names
+};
+ */
+Handle<Object> GetTableCall::buildDBForeignKey(const NdbDictionary::ForeignKey *fk,
+                                             const char * child_database_name, const char * child_table_name) {
+    HandleScope scope;
+    Local<Object> js_fk = Object::New();
+    char ignore[65];
+    char fk_name[65];
+    const NdbDictionary::Column *column;
+    int columnNumber;
+    const char * columnName;
+    const NdbDictionary::Table *child_table;
+    unsigned childColumnCount;
+    const NdbDictionary::Table *parent_table;
+    unsigned parentColumnCount;
+    splitName(fk->getName(), ignore, fk_name);
+    DEBUG_PRINT("Processing foreign key %s", fk_name);
+    js_fk->Set(String::NewSymbol("name"), String::New(fk_name));
+
+    // get child column names
+    child_table = dict->getTable(child_table_name);
+    childColumnCount = fk->getChildColumnCount();
+    Local<Array> fk_child_column_names = Array::New(childColumnCount);
+    for (unsigned i = 0; i < childColumnCount; ++i) {
+      columnNumber = fk->getChildColumnNo(i);
+      column = child_table->getColumn(columnNumber);
+      columnName = column->getName();
+      fk_child_column_names->Set(i, String::New(columnName));
+    }
+    js_fk->Set(String::NewSymbol("columnNames"), fk_child_column_names);
+
+    // get parent table
+    const char * fk_parent_name = fk->getParentTable();
+    splitName(fk_parent_name, database_name, table_name);
+    DEBUG_PRINT("Parent table splitName for %s returned %s %s", fk_parent_name, database_name, table_name);
+    js_fk->Set(String::NewSymbol("targetTable"), String::New(table_name));
+    js_fk->Set(String::NewSymbol("targetDatabase"), String::New(database_name));
+    // the parent table might be in a different database
+    ndb->setDatabaseName(database_name);
+    parent_table = dict->getTable(table_name);
+    // reset the ndb database in case it was different
+    ndb->setDatabaseName(dbName);
+    DEBUG_PRINT("Parent table getTable returned %s", parent_table->getName());
+
+    // get parent column names
+    parentColumnCount = fk->getParentColumnCount();
+    Local<Array> fk_parent_column_names = Array::New(parentColumnCount);
+    for (unsigned i = 0; i < parentColumnCount; ++i) {
+      columnNumber = fk->getParentColumnNo(i);
+      column = parent_table->getColumn(columnNumber);
+      columnName = column->getName();
+      fk_parent_column_names->Set(i, String::New(columnName));
+    }
+    js_fk->Set(String::NewSymbol("targetColumnNames"), fk_parent_column_names);
+
+    return scope.Close(js_fk);
+}
 
 Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
   HandleScope scope;
