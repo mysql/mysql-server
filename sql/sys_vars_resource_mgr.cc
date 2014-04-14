@@ -121,9 +121,13 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
   else
   {
     /* Free the existing one & update the current address. */
-    if (element->data)
-      my_free(element->data);
+    char *old_key;
+    old_key= (char *) element->data;
     element->data= (char *) ptr;
+    my_hash_update(&m_sysvar_string_alloc_hash, (uchar *) element,
+	           (uchar *)old_key, strlen(old_key));
+    if (old_key)
+      my_free(old_key);
   }
 done:
   /* Update the variable to point to the newly alloced copy. */
