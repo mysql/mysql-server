@@ -930,12 +930,18 @@ fil_tablespace_is_being_deleted(
 
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
-Set a single-table tablespace is redo skipped. */
+Increase redo skipped of a tablespace. */
 void
-fil_space_set_is_redo_skipped(
-/*==========================*/
-	ulint		id,			/*!< in: space id */
-	bool		is_redo_skipped);	/*!< in: is redo skipped */
+fil_space_inc_redo_skipped_count(
+/*=============================*/
+	ulint		id);			/*!< in: space id */
+
+/*******************************************************************//**
+Decrease redo skipped of a tablespace. */
+void
+fil_space_dec_redo_skipped_count(
+/*=============================*/
+	ulint		id);			/*!< in: space id */
 
 /*******************************************************************//**
 Returns true if a single-table tablespace is being deleted.

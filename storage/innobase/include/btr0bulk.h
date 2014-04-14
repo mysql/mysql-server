@@ -239,7 +239,7 @@ public:
 		m_page_bulks = new page_bulk_vector();
 
 #ifdef UNIV_DEBUG
-		fil_space_set_is_redo_skipped(m_index->space, true);
+		fil_space_inc_redo_skipped_count(m_index->space);
 #endif
 	}
 
@@ -250,7 +250,7 @@ public:
 		delete m_page_bulks;
 
 #ifdef UNIV_DEBUG
-		fil_space_set_is_redo_skipped(m_index->space, false);
+		fil_space_dec_redo_skipped_count(m_index->space);
 #endif
 	}
 
