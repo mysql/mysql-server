@@ -722,7 +722,26 @@ static int setval(const struct my_option *opts, void *value, char *argument,
                                my_progname, opts->name);
       return EXIT_NO_PTR_TO_VARIABLE;
     }
-
+ 
+    /*
+      Thus check applies only to options that have a defined value
+      storage pointer.
+      This excludes most of the programatically handled options and
+      fits well the notion that non-string options are not generally
+      OK with empty string supllied as value.
+      Note: it does not relate to OPT_ARG/REQUIRED_ARG/NO_ARG, since
+      --param="" is not generally the same as --param.
+      TODO: Add an option definition flag to signify whether empty value
+      (i.e. --param="") is an acceptable value or an error and extend
+      the check to all options.
+    */
+    if (!*argument)
+    {
+      my_getopt_error_reporter(ERROR_LEVEL,
+                               "%s: Empty value for '%s' specified",
+                               my_progname, opts->name);
+      return EXIT_ARGUMENT_REQUIRED;
+    }
     switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
       *((my_bool*) value)= get_bool_argument(opts, argument, &error);
