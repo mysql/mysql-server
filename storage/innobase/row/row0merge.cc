@@ -3294,7 +3294,6 @@ row_merge_build_indexes(
 	bool			fts_psort_initiated = false;
 	ulint			start_time_ms;
 	ulint			diff_time;
-	bool			bulk_load_used = false;
 	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
@@ -3460,6 +3459,13 @@ wait_again:
 					psort_info, 0);
 			}
 
+#ifdef BULK_LOAD_PFS_PRINT
+			diff_time = ut_time_ms() - start_time_ms;
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"index build time\t\t : %ld",
+				diff_time);
+#endif
+
 #ifdef FTS_INTERNAL_DIAG_PRINT
 			DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Insert\n");
 #endif
@@ -3490,8 +3496,6 @@ wait_again:
 				error = row_merge_bulk_load_index(
 					trx->id, sort_idx, old_table,
 					merge_files[i].fd, block);
-
-				bulk_load_used = true;
 			}
 
 #ifdef BULK_LOAD_PFS_PRINT
@@ -3602,7 +3606,7 @@ func_exit:
 		}
 	}
 
-	if (error == DB_SUCCESS && bulk_load_used) {
+	if (error == DB_SUCCESS) {
 		log_make_checkpoint_at(LSN_MAX, TRUE);
 	}
 
