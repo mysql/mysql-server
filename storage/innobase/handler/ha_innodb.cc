@@ -10687,6 +10687,12 @@ innodb_rec_per_key(
 
 	ut_ad(i < dict_index_get_n_unique(index));
 
+	if (records == 0) {
+		/* "Records per key" is meaningless for empty tables.
+		Return 1.0 because that is most convenient to the Optimizer. */
+		return(1.0);
+	}
+
 	n_diff = index->stat_n_diff_key_vals[i];
 
 	if (n_diff == 0) {
@@ -10725,6 +10731,12 @@ innodb_rec_per_key(
 	} else {
 		DEBUG_SYNC_C("after_checking_for_0");
 		rec_per_key = static_cast<rec_per_key_t>(records) / n_diff;
+	}
+
+	if (rec_per_key < 1.0) {
+		/* Values below 1.0 are meaningless and must be due to the
+		stats being imprecise. */
+		rec_per_key = 1.0;
 	}
 
 	return(rec_per_key);
