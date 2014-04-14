@@ -1621,6 +1621,21 @@ fil_space_get_flags(
 	return(flags);
 }
 
+/** Check if table is mark for truncate.
+@param[in]	id	space id
+@return true if tablespace is marked for truncate. */
+
+bool
+fil_space_is_being_truncated(
+	ulint id)
+{
+	bool	mark_for_truncate;
+	mutex_enter(&fil_system->mutex);
+	mark_for_truncate = fil_space_get_by_id(id)->is_being_truncated;
+	mutex_exit(&fil_system->mutex);
+	return(mark_for_truncate);
+}
+
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.
 @param[in]	id	space id
@@ -1971,6 +1986,7 @@ fil_inc_pending_ops(
 	ulint	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
+	bool skip_inc_pending_ops = true;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -1979,15 +1995,14 @@ fil_inc_pending_ops(
 	if (space == NULL) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Trying to do an operation on a dropped tablespace."
-			" Name: %s,  Space ID: %lu",
-			space->name, ulong(id));
-	}
+			" Space ID: " ULINTPF, id);
+	} else {
 
-	bool skip_inc_pending_ops = (space == NULL
-				     || space->stop_new_ops
-				     || space->is_being_truncated);
-	if (!skip_inc_pending_ops) {
-		space->n_pending_ops++;
+		skip_inc_pending_ops = (space->stop_new_ops
+					|| space->is_being_truncated);
+		if (!skip_inc_pending_ops) {
+			space->n_pending_ops++;
+		}
 	}
 
 	mutex_exit(&fil_system->mutex);
