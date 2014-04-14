@@ -70,15 +70,10 @@ SELECT * FROM tab2 ORDER BY col_7;
 --echo # stop the server
 --source include/shutdown_mysqld.inc
 
-# Dummy file to make the undo* glob pattern find something
-# when running with --innodb-undo-tablespaces=0
---copy_file $MYSQLD_DATADIR/test/tab1.ibd $MYSQLD_DATADIR/undo
-
 --echo [1(a)]: Rewrite into new checksum=InnoDB for all *.ibd file and ibdata1
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/ibdata1
---exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/undo*
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/slave_master_info.ibd
@@ -119,7 +114,6 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/ibdata1
---exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/undo*
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=crc32 $MYSQLD_DATADIR/mysql/slave_master_info.ibd
@@ -163,7 +157,6 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab1.ibd
 --exec $INNOCHECKSUM --write=none  $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/ibdata1
---exec $INNOCHECKSUM --write=none $MYSQLD_DATADIR/undo*
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=NONE $MYSQLD_DATADIR/mysql/slave_master_info.ibd
@@ -380,7 +373,6 @@ let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
---remove_file $MYSQLD_DATADIR/undo
 
 # Cleanup
 --echo # Restart the server
